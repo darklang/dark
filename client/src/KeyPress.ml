@@ -141,23 +141,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               AutocompleteMod ACSelectDown
           | _ ->
               NoChange
-        else if event.altKey
-        then
-          match event.keyCode with
-          | Key.E ->
-            ( match cursor with
-            | Creating _ ->
-                NoChange
-            | Filling (tlid, id) ->
-              ( match TL.getTLAndPD m tlid id with
-              | Some (tl, Some pd) ->
-                  if event.shiftKey
-                  then Refactor.takeOffRail m tl pd
-                  else Refactor.putOnRail m tl pd
-              | _ ->
-                  NoChange ) )
-          | _ ->
-              NoChange
         else (
           match event.keyCode with
           | Key.Spacebar ->
