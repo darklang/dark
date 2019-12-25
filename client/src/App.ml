@@ -249,48 +249,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
   then Debug.loG "mod update" (show_modification mod_) ;
-  let closeBlanks newM =
-    if VariantTesting.isFluid m.tests
-    then []
-    else
-      (* close open threads in the previous TL *)
-      m.cursorState
-      |> tlidOf
-      |> Option.andThen ~f:(TL.get m)
-      |> Option.map ~f:(fun tl ->
-             match tl with
-             | TLHandler h ->
-                 let replacement = AST.closeBlanks h.ast in
-                 if replacement = h.ast
-                 then []
-                 else
-                   let newM = m |> incOpCtr in
-                   let newH = {h with ast = replacement} in
-                   let ops = [SetHandler (h.hTLID, h.pos, newH)] in
-                   let params =
-                     RPC.opsParams ops (Some (opCtr newM)) m.clientOpCtrId
-                   in
-                   (* call RPC on the new model *)
-                   [RPC.addOp newM FocusSame params]
-             | TLFunc f ->
-                 let replacement = AST.closeBlanks f.ufAST in
-                 if replacement = f.ufAST
-                 then []
-                 else
-                   let newM = newM |> incOpCtr in
-                   let newF = {f with ufAST = replacement} in
-                   let ops = [SetFunction newF] in
-                   let params =
-                     RPC.opsParams ops (Some (newM |> opCtr)) m.clientOpCtrId
-                   in
-                   (* call RPC on the new model *)
-                   [RPC.addOp newM FocusSame params]
-             | TLDB _ | TLTipe _ | TLGroup _ ->
-                 [])
-      |> Option.withDefault ~default:[]
-      |> fun rpc ->
-      if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
-  in
   let newm, newcmd =
     let bringBackCurrentTL (oldM : model) (newM : model) : model =
       (* used with updateCurrent - if updateCurrent is false, we want to restore
@@ -549,10 +507,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; timestamp = timeStamp }
         in
         let commands =
-          [hashcmd]
-          @ closeBlanks m
-          @ [acCmd; afCmd]
-          @ [RPC.sendPresence m avMessage]
+          [hashcmd] @ [acCmd; afCmd] @ [RPC.sendPresence m avMessage]
         in
         (m, Cmd.batch commands)
     | Deselect ->
@@ -570,9 +525,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = None
             ; timestamp = timeStamp }
           in
-          let commands =
-            hashcmd @ closeBlanks m @ [acCmd] @ [RPC.sendPresence m avMessage]
-          in
+          let commands = hashcmd @ [acCmd] @ [RPC.sendPresence m avMessage] in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
@@ -592,7 +545,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
-        (m, Cmd.batch (closeBlanks m @ [afCmd; acCmd; Entry.focusEntry m]))
+        (m, Cmd.batch [afCmd; acCmd; Entry.focusEntry m])
     | EnterWithOffset (entry, offset) ->
         let cursorState, target =
           match entry with
@@ -610,10 +563,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
-        ( m
-        , Cmd.batch
-            (closeBlanks m @ [afCmd; acCmd; Entry.focusEntryWithOffset m offset])
-        )
+        (m, Cmd.batch [afCmd; acCmd; Entry.focusEntryWithOffset m offset])
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | RemoveGroup tl ->
