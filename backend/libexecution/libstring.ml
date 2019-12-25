@@ -100,7 +100,7 @@ let fns : Lib.shortfn list =
   ; { pns = ["String::replaceAll"]
     ; ins = []
     ; p = [par "s" TStr; par "searchFor" TStr; par "replaceWith" TStr]
-    ; r = TList
+    ; r = TStr
     ; d = "Replace all instances on `searchFor` in `s` with `replaceWith`"
     ; f =
         InProcess
