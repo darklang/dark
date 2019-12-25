@@ -50,7 +50,6 @@ let run () =
             ; dbStats = StrDict.empty
             ; ufns = []
             ; relatedBlankOrs = []
-            ; tooWide = false
             ; executingFunctions = []
             ; tlTraceIDs = TLIDDict.empty
             ; testVariants = []
