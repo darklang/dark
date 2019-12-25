@@ -232,12 +232,9 @@ let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
 
 
 let isACOpened (m : model) : bool =
-  if VariantTesting.isFluid m.tests
-  then
-    FluidAutocomplete.isOpened m.fluidState.ac
-    || FluidCommands.isOpened m.fluidState.cp
-    || AC.isOpened m.complete
-  else AC.isOpened m.complete
+  FluidAutocomplete.isOpened m.fluidState.ac
+  || FluidCommands.isOpened m.fluidState.cp
+  || AC.isOpened m.complete
 
 
 let updateDropdownVisabilty (m : model) : model =

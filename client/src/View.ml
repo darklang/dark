@@ -13,17 +13,14 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
   let vs = ViewUtils.createVS m tl in
   let dragEvents =
-    if VariantTesting.isFluid m.tests
-    then
-      [ ViewUtils.eventNoPropagation
-          ~key:("tlmd-" ^ showTLID tlid)
-          "mousedown"
-          (fun x -> TLDragRegionMouseDown (tlid, x))
-      ; ViewUtils.eventNoPropagation
-          ~key:("tlmu-" ^ showTLID tlid)
-          "mouseup"
-          (fun x -> TLDragRegionMouseUp (tlid, x)) ]
-    else []
+    [ ViewUtils.eventNoPropagation
+        ~key:("tlmd-" ^ showTLID tlid)
+        "mousedown"
+        (fun x -> TLDragRegionMouseDown (tlid, x))
+    ; ViewUtils.eventNoPropagation
+        ~key:("tlmu-" ^ showTLID tlid)
+        "mouseup"
+        (fun x -> TLDragRegionMouseUp (tlid, x)) ]
   in
   let body, data =
     match tl with
@@ -43,33 +40,18 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   (* JS click events are mousedown->mouseup->click so previously ToplevelClick was being called after mouseup when selecting in fluid and would reset the fluid cursor state, we changed it to mouseup to prevent this *)
   let events =
-    if VariantTesting.isFluid m.tests
-    then
-      [ ViewUtils.eventNoPropagation
-          ~key:("tlc-" ^ showTLID tlid)
-          "mouseup"
-          (fun x ->
-            match Entry.getFluidSelectionRange () with
-            | None ->
-                ToplevelClick (tlid, x)
-            | Some (selBegin, selEnd) when selBegin = selEnd ->
-                ToplevelClick (tlid, x)
-            | Some range ->
-                (* Persist fluid selection when clicking in handler *)
-                FluidMsg (FluidMouseUp (tlid, Some range))) ]
-    else
-      [ ViewUtils.eventNoPropagation
-          ~key:("tlmd-" ^ showTLID tlid)
-          "mousedown"
-          (fun x -> TLDragRegionMouseDown (tlid, x))
-      ; ViewUtils.eventNoPropagation
-          ~key:("tlmu-" ^ showTLID tlid)
-          "mouseup"
-          (fun x -> TLDragRegionMouseUp (tlid, x))
-      ; ViewUtils.eventNoPropagation
-          ~key:("tlc-" ^ showTLID tlid)
-          "click"
-          (fun x -> ToplevelClick (tlid, x)) ]
+    [ ViewUtils.eventNoPropagation
+        ~key:("tlc-" ^ showTLID tlid)
+        "mouseup"
+        (fun x ->
+          match Entry.getFluidSelectionRange () with
+          | None ->
+              ToplevelClick (tlid, x)
+          | Some (selBegin, selEnd) when selBegin = selEnd ->
+              ToplevelClick (tlid, x)
+          | Some range ->
+              (* Persist fluid selection when clicking in handler *)
+              FluidMsg (FluidMouseUp (tlid, Some range))) ]
   in
   (* This is a bit ugly - DBs have a larger 'margin' (not CSS margin) between
    * the encompassing toplevel div and the db div it contains, than  handlers.
