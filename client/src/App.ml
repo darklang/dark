@@ -1080,15 +1080,11 @@ let update_ (msg : msg) (m : model) : modification =
   match msg with
   | GlobalKeyPress event ->
       KeyPress.handler event m
-  | EntryInputMsg target ->
-      let query = if target = "\"" then "\"\"" else target in
-      if String.endsWith ~suffix:"." query && KeyPress.isFieldAccessDot m query
-      then NoChange
-      else
-        Many
-          [ AutocompleteMod (ACSetQuery query)
-          ; AutocompleteMod (ACSetVisible true)
-          ; MakeCmd (Entry.focusEntry m) ]
+  | EntryInputMsg query ->
+      Many
+        [ AutocompleteMod (ACSetQuery query)
+        ; AutocompleteMod (ACSetVisible true)
+        ; MakeCmd (Entry.focusEntry m) ]
   | EntrySubmitMsg ->
       NoChange
   | AutocompleteClick index ->
