@@ -17,12 +17,6 @@ type htmlConfig =
   | Mouseover
   (* use this as ID for Mouseover, ClickSelect *)
   | WithID of id
-  (* show a featureflag *)
-  | WithFF
-  (* show an 'edit function' link *)
-  | WithEditFn of tlid
-  (* will end up in error rail *)
-  | WithROP
   (* editable *)
   | Enterable
   (* Adds param name to the left *)
@@ -107,7 +101,6 @@ let div
     |> List.filterMap ~f:(fun a ->
            match a with WithClass c -> Some c | _ -> None)
   in
-  let showROP = List.member ~value:WithROP configs in
   let selectedID =
     match vs.cursorState with Selecting (_, Some id) -> Some id | _ -> None
   in
@@ -161,7 +154,7 @@ let div
   in
   let liveValueHtml =
     let displayLivevalue =
-      (thisID = idOf vs.cursorState || showROP)
+      thisID = idOf vs.cursorState
       && Option.isSome thisID
       && vs.showLivevalue
       && vs.ac.index = -1
