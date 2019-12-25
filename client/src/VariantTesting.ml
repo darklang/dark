@@ -5,8 +5,6 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member ~value:vt m.tests
 
 
-let isFluid (_ : variantTest list) : bool = true
-
 let libtwitterAvailable (vts : variantTest list) : bool =
   List.member ~value:LibtwitterVariant vts
 

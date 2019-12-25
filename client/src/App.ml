@@ -1789,14 +1789,14 @@ let update_ (msg : msg) (m : model) : modification =
             {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let clipboardData =
-        if VariantTesting.isFluid m.tests
+        if true (* unclear if old copy/paste works *)
         then Fluid.getCopySelection m
         else Clipboard.copy m
       in
       Many [SetClipboardContents (clipboardData, e); toast]
   | ClipboardPasteEvent e ->
       let data = Clipboard.getData e in
-      if VariantTesting.isFluid m.tests
+      if true (* unclear if old copy/paste works *)
       then Fluid.update m (FluidPaste data)
       else Clipboard.paste m data
   | ClipboardCutEvent e ->
@@ -1806,7 +1806,7 @@ let update_ (msg : msg) (m : model) : modification =
             {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let copyData, mod_ =
-        if VariantTesting.isFluid m.tests
+        if true (* unclear if old copy/paste works *)
         then (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
         else Clipboard.cut m
       in
