@@ -90,7 +90,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let id =
     TL.getAST tl
-    |> Option.map ~f:(Fluid.fromExpr m.fluidState)
+    |> Option.map ~f:FluidExpression.fromNExpr
     |> Option.andThen ~f:(Fluid.getToken m.fluidState)
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
@@ -420,7 +420,7 @@ let view (m : model) : msg Html.html =
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [Fluid.viewStatus m (Fluid.fromExpr m.fluidState ast) m.fluidState]
+    then [Fluid.viewStatus m (FluidExpression.fromNExpr ast) m.fluidState]
     else []
   in
   let viewDocs =

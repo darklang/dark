@@ -20,6 +20,8 @@ module Events = Tea.Html2.Events
 module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
+module Util = FluidUtil
+module Printer = FluidPrinter
 
 type viewState = ViewUtils.viewState
 
@@ -30,7 +32,7 @@ let exprToClipboardContents (ast : ast) : clipboardContents =
   | EString (_, str) ->
       `Text str
   | _ ->
-      `Json (Encoders.pointerData (PExpr (E.toNexpr ast)))
+      `Json (Encoders.pointerData (PExpr (E.toNExpr ast)))
 
 
 let jsonToExpr (jsonStr : string) : E.t =
@@ -47,7 +49,7 @@ let jsonToExpr (jsonStr : string) : E.t =
         ENull (gid ())
     | JSONNumber float ->
         let str = Js.Float.toString float in
-        if is63BitInt str
+        if Util.is63BitInt str
         then EInteger (gid (), str)
         else if Regex.exactly ~re:"[0-9]+\\.[0-9]+" str
         then
@@ -83,14 +85,14 @@ let jsonToExpr (jsonStr : string) : E.t =
   with _ -> EString (gid (), jsonStr)
 
 
-let clipboardContentsToExpr ~state (data : clipboardContents) : E.t option =
+let clipboardContentsToExpr (data : clipboardContents) : E.t option =
   match data with
   | `Json json ->
     ( try
         let data = Decoders.pointerData json |> TL.clonePointerData in
         match data with
         | PExpr expr ->
-            Some (fromExpr state expr)
+            Some (E.fromNExpr expr)
         | _ ->
             (* We could support more but don't yet *)
             recover "not a pexpr" ~debug:data None
@@ -101,14 +103,14 @@ let clipboardContentsToExpr ~state (data : clipboardContents) : E.t option =
       None
 
 
-let clipboardContentsToString ~state (data : clipboardContents) : string =
+let clipboardContentsToString (data : clipboardContents) : string =
   match data with
   | `Json _ ->
       data
-      |> clipboardContentsToExpr ~state
-      |> Option.map ~f:(eToString state)
+      |> clipboardContentsToExpr
+      |> Option.map ~f:Printer.eToString
       |> Option.withDefault ~default:""
-      |> trimQuotes
+      |> Util.trimQuotes
   | `Text text ->
       text
   | `None ->
