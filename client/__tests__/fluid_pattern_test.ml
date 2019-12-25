@@ -3,7 +3,6 @@ open Tc
 open Types
 open Prelude
 open Fluid
-module Regex = Util.Regex
 module K = FluidKeyboard
 module TL = Toplevel
 
@@ -11,8 +10,14 @@ module TL = Toplevel
  * makes sense for patterns. See the extensive docs there for how this all
  * works. *)
 
+let eToStructure = Printer.eToStructure
+
+let eToString = Printer.eToString
+
+let pToString = Printer.pToString
+
 let h ast =
-  { ast = E.toNexpr ast
+  { ast = E.toNExpr ast
   ; hTLID = TLID "7"
   ; spec =
       { space = Blank.newF "HTTP"
@@ -59,7 +64,7 @@ let run () =
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
-      Js.log2 "pattern before" (eToStructure s ast) ) ;
+      Js.log2 "pattern before" (eToStructure ast) ) ;
     let newAST, newState =
       let h = h ast in
       let m = {m with handlers = Handlers.fromList [h]} in
@@ -81,12 +86,12 @@ let run () =
       | EMatch (_, _, [(pat, _)]) ->
           pat
       | _ ->
-          failwith ("can't match: " ^ eToString s newAST)
+          failwith ("can't match: " ^ eToString newAST)
     in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "pattern after" (eToStructure newState newAST) ) ;
+      Js.log2 "pattern after" (eToStructure newAST) ) ;
     (pToString result, max 0 (newState.newPos - extra))
   in
   let del ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
