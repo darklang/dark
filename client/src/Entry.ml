@@ -116,7 +116,7 @@ let getBrowserPlatform () : browserPlatform =
 
 let focusEntry (m : model) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
-  | Entering _ | SelectingCommand (_, _) ->
+  | Entering _ ->
       Tea_html_cmds.focus Defaults.entryID
   | _ ->
       Tea.Cmd.none
@@ -124,7 +124,7 @@ let focusEntry (m : model) : msg Tea.Cmd.t =
 
 let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
-  | Entering _ | SelectingCommand (_, _) ->
+  | Entering _ ->
       focusWithOffset Defaults.entryID offset
   | _ ->
       Tea.Cmd.none

@@ -570,7 +570,6 @@ and cursorState =
   | Entering of entryCursor
   | FluidEntering of tlid
   | Dragging of tlid * vPos * hasMoved * cursorState
-  | SelectingCommand of tlid * id
   | Deselected
 
 (* ------------------- *)
@@ -930,7 +929,6 @@ and autocomplete =
   ; value : string
   ; prevValue : string
   ; target : target option
-  ; isCommandMode : bool
   ; visible : bool }
 
 and autocompleteMod =
@@ -941,19 +939,7 @@ and autocompleteMod =
   | ACSelectUp
   | ACSetTarget of target option
   | ACRegenerate
-  | ACEnableCommandMode
   | ACSetVisible of bool
-
-(* | ACFilterByParamType of tipe nodeList *)
-
-(* string entry *)
-and stringEntryPermission =
-  | StringEntryAllowed
-  | StringEntryNotAllowed
-
-and stringEntryWidth =
-  | StringEntryNormalWidth
-  | StringEntryShortWidth
 
 (* ------------------- *)
 (* Clipboard *)
@@ -1055,7 +1041,6 @@ and modification =
   | DisplayError of string
   | ClearError
   | Select of tlid * tlidSelectTarget
-  | SelectCommand of tlid * id
   | SetHover of tlid * id
   | ClearHover of tlid * id
   | Deselect

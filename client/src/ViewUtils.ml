@@ -20,8 +20,6 @@ type viewState =
   ; dbStats : dbStatsStore
   ; ufns : userFunction list
   ; fns : function_ list
-  ; relatedBlankOrs : id list
-  ; tooWide : bool
   ; executingFunctions : id list
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
@@ -43,47 +41,6 @@ type viewState =
 type domEvent = msg Vdom.property
 
 type domEventList = domEvent list
-
-let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
-  match unwrapCursorState cs with
-  | Entering (Filling (_, id)) ->
-    ( match Toplevel.find tl id with
-    | Some (PVarBind (F (_, var)) as pd) ->
-      ( match Toplevel.getParentOf tl pd with
-      | Some (PExpr e) ->
-        ( match e with
-        | F (_, Let (_, _, body)) ->
-            AST.uses var body |> List.map ~f:Blank.toID
-        | F (_, Lambda (_, body)) ->
-            AST.uses var body |> List.map ~f:Blank.toID
-        | _ ->
-            [] )
-      | _ ->
-          [] )
-    | Some (PPattern (F (_, _)) as pd) ->
-        let parent = Toplevel.getParentOf tl pd in
-        let caseContainingPattern (p, _) =
-          Pattern.extractById p (Pointer.toID pd) |> Option.isSome
-        in
-        let relatedVariableIds (p, body) =
-          Pattern.variableNames p
-          |> List.map ~f:(fun var ->
-                 AST.uses var body |> List.map ~f:Blank.toID)
-          |> List.concat
-        in
-        ( match parent with
-        | Some (PExpr (F (_, Match (_, cases)))) ->
-            cases
-            |> List.filter ~f:caseContainingPattern
-            |> List.map ~f:relatedVariableIds
-            |> List.concat
-        | _ ->
-            [] )
-    | _ ->
-        [] )
-  | _ ->
-      []
-
 
 let createVS (m : model) (tl : toplevel) : viewState =
   let tlid = TL.id tl in
@@ -115,8 +72,6 @@ let createVS (m : model) (tl : toplevel) : viewState =
       |> Option.withDefault ~default:LoadableNotInitialized
   ; traces = Analysis.getTraces m tlid
   ; dbStats = m.dbStats
-  ; relatedBlankOrs = usagesOfBindingAtCursor tl m.cursorState
-  ; tooWide = false
   ; executingFunctions =
       List.filter ~f:(fun (tlid_, _) -> tlid_ = tlid) m.executingFunctions
       |> List.map ~f:(fun (_, id) -> id)
@@ -274,123 +229,6 @@ let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 
 let widthInCh (w : int) : msg Vdom.property = w |> inCh |> Html.style "width"
 
-let blankOrLength ~(f : 'a -> int) (b : 'a blankOr) : int =
-  match b with Blank _ -> 6 | F (_, value) -> f value
-
-
-let strBlankOrLength (b : string blankOr) : int =
-  blankOrLength ~f:String.length b
-
-
-let visualStringLength (string : string) : int =
-  string
-  |> Regex.replace ~re:(Regex.regex "\t") ~repl:"        "
-  (* replace tabs with 8 ch for ch counting *)
-  |> String.length
-
-
-let rec approxWidth (e : expr) : int =
-  match e with Blank _ -> 6 | F (_, ne) -> approxNWidth ne
-
-
-and approxNWidth (ne : nExpr) : int =
-  match ne with
-  | Value v ->
-      (* -- TODO: calculate visual width here *)
-      v |> String.length
-  | Variable name ->
-      String.length name
-  | Let (lhs, rhs, body) ->
-      max
-        (strBlankOrLength lhs + approxWidth rhs + 4 (* "let" *) + 3)
-        (* " = " *)
-        (approxWidth body)
-  | If (cond, ifbody, elsebody) ->
-      3
-      (* "if " *)
-      |> ( + ) (approxWidth cond)
-      |> max (approxWidth ifbody + 2)
-      (* indent *)
-      |> max (approxWidth elsebody + 2)
-      (* indent *)
-  | FnCall (name, exprs, _) ->
-      let sizes =
-        exprs
-        |> List.map ~f:approxWidth
-        |> List.map ~f:(( + ) 1)
-        (* the space in between *)
-        |> List.sum
-      in
-      strBlankOrLength name + sizes
-  | Constructor (name, exprs) ->
-      strBlankOrLength name
-      + List.sum (List.map ~f:approxWidth exprs)
-      (* spaces *)
-      + 1
-      + List.length exprs
-  | Lambda (_, expr) ->
-      max (approxWidth expr) 7 (* "| var -->" *)
-                               (* TODO: deal with more vars *)
-  | Thread exprs ->
-      exprs
-      |> List.map ~f:approxWidth
-      |> List.maximum
-      |> Option.withDefault ~default:2
-      |> ( + ) 1
-      (* the pipe *)
-  | FieldAccess (obj, field) ->
-      approxWidth obj + 1 (* "." *) + strBlankOrLength field
-  | ListLiteral exprs ->
-      exprs
-      |> List.map ~f:approxWidth
-      |> List.map ~f:(( + ) 2)
-      (* ", " *)
-      |> List.sum
-      |> ( + ) 4
-      (* "[  ]" *)
-  | ObjectLiteral pairs ->
-      pairs
-      |> List.map ~f:(fun (k, v) -> strBlankOrLength k + approxWidth v)
-      |> List.map ~f:(( + ) 2)
-      (* ": " *)
-      |> List.map ~f:(( + ) 2)
-      (* ", " *)
-      |> List.maximum
-      |> Option.withDefault ~default:0
-      |> ( + ) 4
-      (* "{  }" *)
-  | FeatureFlag (_, _, a, b) ->
-      (* probably want both taking the same size *)
-      max (approxWidth a) (approxWidth b) + 1
-      (* the flag *)
-  | Match (matchExpr, cases) ->
-      let rec pWidth p =
-        match p with
-        | PLiteral l ->
-            String.length l
-        | PVariable v ->
-            String.length v
-        | PConstructor (name, args) ->
-            String.length name
-            + List.sum (List.map ~f:(blankOrLength ~f:pWidth) args)
-            + List.length args
-      in
-      let caseWidth (p, e) =
-        blankOrLength ~f:pWidth p
-        + 2
-        (* indent *)
-        + 4
-        (* arrow and spaces *)
-        + approxWidth e
-      in
-      List.maximum ((6 + approxWidth matchExpr) :: List.map ~f:caseWidth cases)
-      |> Option.withDefault ~default:0
-  | FluidPartial (str, oldExpr) ->
-      max (String.length str) (approxWidth oldExpr)
-  | FluidRightPartial (str, oldExpr) ->
-      String.length str + approxWidth oldExpr
-
-
 let splitFnName (fnName : fnName) : string option * string * string =
   let pattern = Js.Re.fromString "^((\\w+)::)?([^_]+)(_v(\\d+))?$" in
   let mResult = Js.Re.exec_ pattern fnName in
@@ -430,31 +268,6 @@ let partialName (name : fnName) : string =
   let version = versionDisplayName name in
   let name = fnDisplayName name in
   name ^ version
-
-
-let viewFnName (parens : bool) (fnName : fnName) : msg Html.html =
-  let mod_, name, version = splitFnName fnName in
-  let name = if parens then "(" ^ name ^ ")" else name in
-  let classes = if mod_ = None then ["atom"] else [] in
-  let versionTxt = if version = "0" then "" else version in
-  let modHtml =
-    match mod_ with
-    | Some name ->
-        [ Html.div [Html.class' "module"] [Html.text name]
-        ; Html.div [Html.class' "moduleseparator"] [Html.text "::"] ]
-    | _ ->
-        []
-  in
-  Html.div
-    [Html.class' "namegroup atom"]
-    ( modHtml
-    @ [ Html.div
-          [ Html.class'
-              (String.join
-                 ~sep:" "
-                 (classes @ ["versioned-function"; "fnname"])) ]
-          [ Html.span [Html.class' "name"] [Html.text name]
-          ; Html.span [Html.class' "version"] [Html.text versionTxt] ] ] )
 
 
 let svgIconFn (color : string) : msg Html.html =
@@ -527,6 +340,3 @@ let toggleIconButton
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
-
-let strToBoolType ?(condition = true) (name : string) : string * bool =
-  (name, condition)

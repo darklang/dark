@@ -17,12 +17,6 @@ type htmlConfig =
   | Mouseover
   (* use this as ID for Mouseover, ClickSelect *)
   | WithID of id
-  (* show a featureflag *)
-  | WithFF
-  (* show an 'edit function' link *)
-  | WithEditFn of tlid
-  (* will end up in error rail *)
-  | WithROP
   (* editable *)
   | Enterable
   (* Adds param name to the left *)
@@ -31,62 +25,6 @@ type htmlConfig =
 let wc (s : string) : htmlConfig = WithClass s
 
 let idConfigs : htmlConfig list = [ClickSelect; Mouseover]
-
-let atom : htmlConfig = wc "atom"
-
-let nested : htmlConfig = wc "nested"
-
-let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
-  let liveValue =
-    Option.andThen id ~f:(Analysis.getLiveValue' vs.analysisStore)
-  in
-  match liveValue with
-  | Some dv ->
-      Runtime.toRepr dv
-  | _ ->
-      (* I made this say "loading" because the CSS structure makes it hard to
-       * put a spinner in here *)
-      "<loading>"
-
-
-let viewFeatureFlag : msg Html.html =
-  Html.div
-    [ Html.class' "flag"
-    ; Html.title "Clone and feature flag this expression"
-    ; ViewUtils.eventNoPropagation ~key:"sff" "click" (fun _ ->
-          StartFeatureFlag) ]
-    [ViewUtils.fontAwesome "flag"]
-
-
-let viewCopyButton tlid value : msg Html.html =
-  Html.div
-    ~key:value
-    [ Html.class' "copy-value"
-    ; Html.title "Copy this expression's value to the clipboard"
-    ; ViewUtils.eventNoPropagation
-        "click"
-        ~key:("copylivevalue-" ^ showTLID tlid)
-        (fun m -> ClipboardCopyLivevalue (value, m.mePos)) ]
-    [ViewUtils.fontAwesome "copy"]
-
-
-let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
-  let rightOffset = if hasFlagAlso then "-34px" else "-16px" in
-  Html.a
-    [ Html.class' "edit-fn"
-    ; Html.title "Extract this expression into a function"
-    ; Vdom.styles [("right", rightOffset)]
-    ; Html.href (Url.urlFor (FocusedFn tlid)) ]
-    [ViewUtils.fontAwesome "edit"]
-
-
-let viewCreateFn : msg Html.html =
-  Html.div
-    [ Html.class' "exfun"
-    ; ViewUtils.eventNoPropagation ~key:"ef" "click" (fun _ -> ExtractFunction)
-    ]
-    [ViewUtils.svgIconFn "white"]
-
 
 let viewParamName (name : string) : msg Html.html =
   let leftOffset = String.length name + 1 in
@@ -130,14 +68,6 @@ let div
     |> List.filterMap ~f:(fun a ->
            match a with WithClass c -> Some c | _ -> None)
   in
-  let showROP = List.member ~value:WithROP configs in
-  let isCommandTarget =
-    match vs.cursorState with
-    | SelectingCommand (_, id) ->
-        thisID = Some id
-    | _ ->
-        false
-  in
   let selectedID =
     match vs.cursorState with Selecting (_, Some id) -> Some id | _ -> None
   in
@@ -161,7 +91,6 @@ let div
     classes
     @ idClasses
     @ (if selected then ["selected"] else [])
-    @ (if isCommandTarget then ["commandTarget"] else [])
     @ mouseoverClass
   in
   let classAttr = Html.class' (String.join ~sep:" " allClasses) in
@@ -190,23 +119,7 @@ let div
          * noProp to indicate that the property at idx N has changed. *)
         [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
-  let liveValueHtml =
-    let displayLivevalue =
-      (thisID = idOf vs.cursorState || showROP)
-      && Option.isSome thisID
-      && vs.showLivevalue
-      && vs.ac.index = -1
-      && selected
-    in
-    let liveValueString = renderLiveValue vs thisID in
-    if displayLivevalue
-    then
-      Html.div
-        [Html.class' "live-value"]
-        [Html.text liveValueString; viewCopyButton tlid liveValueString]
-    else Vdom.noNode
-  in
-  let leftSideHtml = liveValueHtml :: showParamName in
+  let leftSideHtml = showParamName in
   let idAttr =
     match thisID with Some i -> Html.id (showID i) | _ -> Vdom.noProp
   in
@@ -225,39 +138,9 @@ let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) :
   div vs c [Html.text str]
 
 
-let keyword (vs : ViewUtils.viewState) (c : htmlConfig list) (name : string) :
-    msg Html.html =
-  text vs (atom :: wc "keyword" :: wc name :: c) name
-
-
 let tipe (vs : ViewUtils.viewState) (c : htmlConfig list) (t : tipe) :
     msg Html.html =
   text vs c (Runtime.tipe2str t)
-
-
-let withFeatureFlag (vs : ViewUtils.viewState) (v : 'a blankOr) :
-    htmlConfig list =
-  if idOf vs.cursorState = Some (B.toID v) then [WithFF] else []
-
-
-let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list
-    =
-  if idOf vs.cursorState = Some (B.toID v)
-  then
-    match v with
-    | F (_, FnCall (F (_, name), _, _)) ->
-      ( match List.find ~f:(Functions.sameName name) vs.ufns with
-      | Some fn ->
-          [WithEditFn fn.ufTLID]
-      | _ ->
-          [] )
-    | _ ->
-        []
-  else []
-
-
-let withROP (rail : sendToRail) : htmlConfig list =
-  if rail = Rail then [WithROP] else []
 
 
 let placeHolderFor (vs : ViewUtils.viewState) (pt : pointerType) : string =
@@ -347,13 +230,6 @@ let viewBlankOr
           let placeholder = placeHolderFor vs pt in
           div vs (c @ wID id) [ViewEntry.normalEntryHtml placeholder vs.ac]
         else Html.text vs.ac.value
-      else thisText
-  | SelectingCommand (_, id) ->
-      if id = B.toID bo
-      then
-        Html.div
-          [Html.class' "selecting-command"]
-          [thisText; ViewEntry.normalEntryHtml "command" vs.ac]
       else thisText
   | _ ->
       thisText
