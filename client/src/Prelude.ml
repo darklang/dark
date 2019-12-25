@@ -54,8 +54,6 @@ let tlidOf (s : cursorState) : tlid option =
       None
   | Dragging (_, _, _, _) ->
       None
-  | SelectingCommand (tlid, _) ->
-      Some tlid
   | FluidEntering tlid ->
       Some tlid
 
@@ -70,8 +68,6 @@ let idOf (s : cursorState) : id option =
       None
   | Dragging (_, _, _, _) ->
       None
-  | SelectingCommand (_, id) ->
-      Some id
   | FluidEntering _ ->
       None
 

@@ -210,8 +210,6 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     match unwrapCursorState m.cursorState with
     | Entering _ ->
         AC.focusItem complete.index
-    | SelectingCommand (_, _) ->
-        AC.focusItem complete.index
     | _ ->
         Cmd.none
   in
@@ -1261,8 +1259,6 @@ let update_ (msg : msg) (m : model) : modification =
               defaultBehaviour )
       | Selecting (_, _) ->
           select targetExnID targetID
-      | SelectingCommand (_, scID) ->
-          if scID = targetID then NoChange else select targetExnID targetID
       | FluidEntering _ ->
           select targetExnID targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
@@ -1289,8 +1285,6 @@ let update_ (msg : msg) (m : model) : modification =
         | Dragging (_, _, _, origCursorState) ->
             SetCursorState origCursorState
         | Selecting (_, _) ->
-            Select (targetExnID, STTopLevelRoot)
-        | SelectingCommand (_, _) ->
             Select (targetExnID, STTopLevelRoot)
         | Deselected ->
             Select (targetExnID, STTopLevelRoot)

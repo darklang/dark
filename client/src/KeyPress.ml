@@ -226,22 +226,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             NoChange )
       | _ ->
           NoChange )
-    | SelectingCommand (tlid, id) ->
-      ( match event.keyCode with
-      | Key.Escape ->
-          Commands.endCommandExecution tlid id
-      | Key.Enter ->
-          Commands.executeCommand m tlid id (AC.highlighted m.complete)
-      | Key.P ->
-          if event.ctrlKey then AutocompleteMod ACSelectUp else NoChange
-      | Key.N ->
-          if event.ctrlKey then AutocompleteMod ACSelectDown else NoChange
-      | Key.Up ->
-          AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
-      | Key.Down ->
-          AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
-      | _ ->
-          NoChange )
     | Dragging (_, _, _, _) ->
         NoChange
     | FluidEntering _ ->

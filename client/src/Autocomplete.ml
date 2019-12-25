@@ -690,13 +690,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     | _ ->
         []
   in
-  let items =
-    if a.isCommandMode
-    then List.map ~f:(fun x -> ACCommand x) Commands.commands
-    else if a.target = None
-    then tlDestinations m
-    else entries
-  in
+  let items = if a.target = None then tlDestinations m else entries in
   {a with allCompletions = items}
 
 
@@ -750,9 +744,7 @@ let filter (list : autocompleteItem list) (query : string) :
 let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
   (* add or replace the literal the user is typing to the completions *)
   let fudgedCompletions =
-    if old.isCommandMode
-    then List.filter ~f:isStaticItem old.allCompletions
-    else withDynamicItems m old.target query old.allCompletions
+    withDynamicItems m old.target query old.allCompletions
   in
   let newCompletions = filter fudgedCompletions query in
   let allCompletions = newCompletions in
@@ -906,9 +898,6 @@ let setVisible (visible : bool) (a : autocomplete) : autocomplete =
 (* ------------------------------------ *)
 (* Commands *)
 (* ------------------------------------ *)
-let enableCommandMode (a : autocomplete) : autocomplete =
-  {a with isCommandMode = true}
-
 
 let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
     autocomplete =
@@ -927,8 +916,6 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
       setTarget m target a
   | ACRegenerate ->
       regenerate m a
-  | ACEnableCommandMode ->
-      enableCommandMode a
   | ACSetVisible visible ->
       setVisible visible a
 
@@ -936,9 +923,6 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
 (* Checks to see if autocomplete or command palette is opened
  * but not omnibox since it's not scrollable
  *)
-let isOpened (ac : autocomplete) : bool =
-  Option.isSome ac.target || ac.isCommandMode
+let isOpened (ac : autocomplete) : bool = Option.isSome ac.target
 
-
-let isOmnibox (ac : autocomplete) : bool =
-  ac.target = None && (not ac.isCommandMode) && ac.visible
+let isOmnibox (ac : autocomplete) : bool = ac.target = None && ac.visible

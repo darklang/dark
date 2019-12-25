@@ -131,13 +131,6 @@ let div
            match a with WithClass c -> Some c | _ -> None)
   in
   let showROP = List.member ~value:WithROP configs in
-  let isCommandTarget =
-    match vs.cursorState with
-    | SelectingCommand (_, id) ->
-        thisID = Some id
-    | _ ->
-        false
-  in
   let selectedID =
     match vs.cursorState with Selecting (_, Some id) -> Some id | _ -> None
   in
@@ -161,7 +154,6 @@ let div
     classes
     @ idClasses
     @ (if selected then ["selected"] else [])
-    @ (if isCommandTarget then ["commandTarget"] else [])
     @ mouseoverClass
   in
   let classAttr = Html.class' (String.join ~sep:" " allClasses) in
@@ -347,13 +339,6 @@ let viewBlankOr
           let placeholder = placeHolderFor vs pt in
           div vs (c @ wID id) [ViewEntry.normalEntryHtml placeholder vs.ac]
         else Html.text vs.ac.value
-      else thisText
-  | SelectingCommand (_, id) ->
-      if id = B.toID bo
-      then
-        Html.div
-          [Html.class' "selecting-command"]
-          [thisText; ViewEntry.normalEntryHtml "command" vs.ac]
       else thisText
   | _ ->
       thisText

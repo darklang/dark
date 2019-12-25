@@ -40,7 +40,6 @@ let run () =
                 ; value = ""
                 ; prevValue = ""
                 ; target = None
-                ; isCommandMode = false
                 ; visible = true }
             ; showEntry = false
             ; showLivevalue = false
