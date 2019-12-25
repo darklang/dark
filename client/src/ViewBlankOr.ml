@@ -51,14 +51,6 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewCreateFn : msg Html.html =
-  Html.div
-    [ Html.class' "exfun"
-    ; ViewUtils.eventNoPropagation ~key:"ef" "click" (fun _ -> ExtractFunction)
-    ]
-    [ViewUtils.svgIconFn "white"]
-
-
 let viewParamName (name : string) : msg Html.html =
   let leftOffset = String.length name + 1 in
   let styles = [("margin-left", "-" ^ string_of_int leftOffset ^ "ch")] in
