@@ -49,10 +49,6 @@ let moveLeft (m : model) : modification =
 
 let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
-let moveToOrigin : modification =
-  MoveCanvasTo (Defaults.origin, DontAnimateTransition)
-
-
 (* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
   Default values (when we can't find get elements from dom) are based on
   min-widths defined in app.less. At some point we will want to find a
