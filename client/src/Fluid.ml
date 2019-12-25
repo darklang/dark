@@ -5946,7 +5946,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           "fluid-entry"
           :: ("id-" ^ idStr)
           :: (backingNestingClass @ tokenClasses)
-          |> List.map ~f:(fun s -> ViewUtils.strToBoolType ~condition:true s)
+          |> List.map ~f:(fun s -> (s, true))
         in
         let conditionalClasses =
           let sourceId, errorType = sourceOfExprValue analysisId in

@@ -210,8 +210,6 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     match unwrapCursorState m.cursorState with
     | Entering _ ->
         AC.focusItem complete.index
-    | SelectingCommand (_, _) ->
-        AC.focusItem complete.index
     | _ ->
         Cmd.none
   in
@@ -619,12 +617,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         , Cmd.batch
             (closeBlanks m @ [afCmd; acCmd; Entry.focusEntryWithOffset m offset])
         )
-    | SelectCommand (tlid, id) ->
-        let m = {m with cursorState = SelectingCommand (tlid, id)} in
-        let m, acCmd =
-          processAutocompleteMods m [ACEnableCommandMode; ACRegenerate]
-        in
-        (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | RemoveGroup tl ->
@@ -1080,15 +1072,11 @@ let update_ (msg : msg) (m : model) : modification =
   match msg with
   | GlobalKeyPress event ->
       KeyPress.handler event m
-  | EntryInputMsg target ->
-      let query = if target = "\"" then "\"\"" else target in
-      if String.endsWith ~suffix:"." query && KeyPress.isFieldAccessDot m query
-      then NoChange
-      else
-        Many
-          [ AutocompleteMod (ACSetQuery query)
-          ; AutocompleteMod (ACSetVisible true)
-          ; MakeCmd (Entry.focusEntry m) ]
+  | EntryInputMsg query ->
+      Many
+        [ AutocompleteMod (ACSetQuery query)
+        ; AutocompleteMod (ACSetVisible true)
+        ; MakeCmd (Entry.focusEntry m) ]
   | EntrySubmitMsg ->
       NoChange
   | AutocompleteClick index ->
@@ -1271,8 +1259,6 @@ let update_ (msg : msg) (m : model) : modification =
               defaultBehaviour )
       | Selecting (_, _) ->
           select targetExnID targetID
-      | SelectingCommand (_, scID) ->
-          if scID = targetID then NoChange else select targetExnID targetID
       | FluidEntering _ ->
           select targetExnID targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
@@ -1299,8 +1285,6 @@ let update_ (msg : msg) (m : model) : modification =
         | Dragging (_, _, _, origCursorState) ->
             SetCursorState origCursorState
         | Selecting (_, _) ->
-            Select (targetExnID, STTopLevelRoot)
-        | SelectingCommand (_, _) ->
             Select (targetExnID, STTopLevelRoot)
         | Deselected ->
             Select (targetExnID, STTopLevelRoot)

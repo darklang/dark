@@ -15,28 +15,6 @@ module TL = Toplevel
 module Key = Keyboard
 module Regex = Util.Regex
 
-(* Figure out from the string and the state whether this '.' means field
-   access. *)
-let isFieldAccessDot (m : model) (baseStr : string) : bool =
-  (* We know from the fact that this function is called that there has
-     been a '.' entered. However, it might not be in baseStr, so
-     canonicalize it first. *)
-  let str = Regex.replace ~re:(Regex.regex "\\.*$") ~repl:"" baseStr in
-  let intOrString =
-    String.startsWith ~prefix:"\"" str || Decoders.typeOfLiteral str = TInt
-  in
-  match m.cursorState with
-  | Entering (Creating _) ->
-      not intOrString
-  | Entering (Filling (tlid, id)) ->
-      TL.getPD m tlid id
-      |> Option.map ~f:(fun pd ->
-             (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString)
-      |> Option.withDefault ~default:false
-  | _ ->
-      false
-
-
 let undo_redo (m : model) (redo : bool) : modification =
   match tlidOf m.cursorState with
   | Some tlid ->
@@ -124,73 +102,10 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       | Key.Enter, Some (TLDB _) when event.shiftKey ->
           let blankid = gid () in
           RPC ([AddDBCol (tlid, blankid, gid ())], FocusExact (tlid, blankid))
-      | Key.Enter, Some (TLHandler h as tl) when event.shiftKey ->
-        ( match mId with
-        | Some id ->
-          ( match TL.find tl id with
-          | Some (PExpr _) ->
-              let blank = B.new_ () in
-              let replacement = AST.addThreadBlank id blank h.ast in
-              if h.ast = replacement
-              then NoChange
-              else
-                RPC
-                  ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                  , FocusExact (tlid, B.toID blank) )
-          | Some (PVarBind _) ->
-            ( match AST.findParentOfWithin_ id h.ast with
-            | Some (F (_, Lambda (_, _))) ->
-                let replacement = AST.addLambdaBlank id h.ast in
-                RPC
-                  ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                  , FocusNext (tlid, Some id) )
-            | _ ->
-                NoChange )
-          | Some (PKey _) ->
-              let nextid, _, replacement =
-                AST.addObjectLiteralBlanks id h.ast
-              in
-              RPC
-                ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                , FocusExact (tlid, nextid) )
-          | Some (PPattern _) ->
-              let nextid, _, replacement = AST.addPatternBlanks id h.ast in
-              RPC
-                ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                , FocusExact (tlid, nextid) )
-          | _ ->
-              NoChange )
-        | _ ->
-            NoChange )
       | Key.Enter, Some (TLFunc f as tl) when event.shiftKey ->
         ( match mId with
         | Some id ->
           ( match TL.find tl id with
-          | Some (PExpr _) ->
-              let blank = B.new_ () in
-              let replacement = AST.addThreadBlank id blank f.ufAST in
-              if f.ufAST = replacement
-              then NoChange
-              else
-                RPC
-                  ( [SetFunction {f with ufAST = replacement}]
-                  , FocusExact (tlid, B.toID blank) )
-          | Some (PVarBind _) ->
-            ( match AST.findParentOfWithin_ id f.ufAST with
-            | Some (F (_, Lambda (_, _))) ->
-                let replacement = AST.addLambdaBlank id f.ufAST in
-                RPC
-                  ( [SetFunction {f with ufAST = replacement}]
-                  , FocusNext (tlid, Some id) )
-            | _ ->
-                NoChange )
-          | Some (PKey _) ->
-              let nextid, _, replacement =
-                AST.addObjectLiteralBlanks id f.ufAST
-              in
-              RPC
-                ( [SetFunction {f with ufAST = replacement}]
-                , FocusExact (tlid, nextid) )
           | Some (PParamTipe _) | Some (PParamName _) | Some (PFnName _) ->
               Refactor.addFunctionParameter m f id
           | _ ->
@@ -205,124 +120,15 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             Selection.enter m tlid id
         | None ->
             Selection.selectDownLevel m tlid mId )
-      | Key.Up, _ ->
-          (* NB: see `stopKeys` in ui.html *)
-          if event.shiftKey
-          then Selection.selectUpLevel m tlid mId
-          else Selection.moveUp m tlid mId
-      | Key.Down, _ ->
-          (* NB: see `stopKeys` in ui.html *)
-          if event.shiftKey
-          then Selection.selectDownLevel m tlid mId
-          else Selection.moveDown m tlid mId
-      | Key.Right, _ ->
-          if event.altKey
-          then Selection.moveToOlderTrace m tlid
-          else Selection.moveRight m tlid mId
-      | Key.Left, _ ->
-          if event.altKey
-          then Selection.moveToNewerTrace m tlid
-          else Selection.moveLeft m tlid mId
       | Key.Tab, _ ->
           (* NB: see `stopKeys` in ui.html *)
           if event.shiftKey
           then Selection.selectPrevBlank m tlid mId
           else Selection.selectNextBlank m tlid mId
-      (* Disabled to make room for Windows keyboards *)
-      (* | Key.O -> *)
-      (*   if event.ctrlKey *)
-      (*   then Selection.selectUpLevel m tlid mId *)
-      (*   else NoChange *)
-      (* |  Key.I -> *)
-      (*   if event.ctrlKey *)
-      (*   then Selection.selectDownLevel m tlid mId *)
-      (*   else NoChange *)
-      | Key.C, Some tl ->
-          if event.ctrlKey && event.altKey
-          then
-            mId
-            |> Option.andThen ~f:(TL.find tl)
-            |> Option.map ~f:(Refactor.wrap WIfCond m tl)
-            |> Option.withDefault ~default:NoChange
-          else NoChange
-      | Key.F, Some tl ->
-          if event.ctrlKey
-          then
-            mId
-            |> Option.andThen ~f:(TL.find tl)
-            |> Option.map ~f:(Refactor.extractFunction m tl)
-            |> Option.withDefault ~default:NoChange
-          else if event.altKey
-          then FeatureFlags.start m
-          else NoChange
-      | Key.B, Some tl ->
-          if event.ctrlKey
-          then
-            mId
-            |> Option.andThen ~f:(TL.find tl)
-            |> Option.map ~f:(Refactor.wrap WLetBody m tl)
-            |> Option.withDefault ~default:NoChange
-          else NoChange
-      | Key.L, Some tl ->
-          if event.ctrlKey && event.shiftKey
-          then
-            mId
-            |> Option.andThen ~f:(TL.find tl)
-            |> Option.map ~f:(Refactor.extractVariable m tl)
-            |> Option.withDefault ~default:NoChange
-          else if event.ctrlKey
-          then
-            mId
-            |> Option.andThen ~f:(TL.find tl)
-            |> Option.map ~f:(Refactor.wrap WLetRHS m tl)
-            |> Option.withDefault ~default:NoChange
-          else NoChange
-      | Key.I, Some tl ->
-          if event.ctrlKey && event.altKey
-          then
-            mId
-            |> Option.andThen ~f:(TL.find tl)
-            |> Option.map ~f:(Refactor.wrap WIfElse m tl)
-            |> Option.withDefault ~default:NoChange
-          else if event.ctrlKey
-          then
-            mId
-            |> Option.andThen ~f:(TL.find tl)
-            |> Option.map ~f:(Refactor.wrap WIfThen m tl)
-            |> Option.withDefault ~default:NoChange
-          else NoChange
-      | Key.E, Some tl ->
-          if event.altKey
-          then
-            if event.shiftKey
-            then
-              mId
-              |> Option.andThen ~f:(TL.find tl)
-              |> Option.map ~f:(Refactor.takeOffRail m tl)
-              |> Option.withDefault ~default:NoChange
-            else
-              mId
-              |> Option.andThen ~f:(TL.find tl)
-              |> Option.map ~f:(Refactor.putOnRail m tl)
-              |> Option.withDefault ~default:NoChange
-          else NoChange
       | Key.O, Some _ ->
           if event.altKey then CenterCanvasOn tlid else NoChange
       | Key.K, Some _ ->
           if osCmdKeyHeld then openOmnibox m else NoChange
-      | Key.Unknown _, Some _ ->
-        ( (* colon *)
-        match mId with
-        | None ->
-            NoChange
-        | Some id ->
-            if event.key = Some ":"
-            then
-              Many
-                [ SelectCommand (tlid, id)
-                ; AutocompleteMod (ACSetVisible true)
-                ; AutocompleteMod (ACSetQuery ":") ]
-            else NoChange )
       | _ ->
           NoChange )
     | Entering cursor ->
@@ -333,37 +139,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               AutocompleteMod ACSelectUp
           | Key.N ->
               AutocompleteMod ACSelectDown
-          | _ ->
-              NoChange
-        else if event.shiftKey && event.keyCode = Key.Enter
-        then
-          match cursor with
-          | Filling (tlid, _) ->
-              let tl = TL.get m tlid in
-              ( match tl with
-              | Some (TLHandler _) ->
-                  Entry.submit m cursor Entry.StartThread
-              | Some (TLFunc _) ->
-                  Entry.submit m cursor Entry.StartThread
-              | _ ->
-                  NoChange )
-          | Creating _ ->
-              Entry.submit m cursor Entry.StartThread
-        else if event.altKey
-        then
-          match event.keyCode with
-          | Key.E ->
-            ( match cursor with
-            | Creating _ ->
-                NoChange
-            | Filling (tlid, id) ->
-              ( match TL.getTLAndPD m tlid id with
-              | Some (tl, Some pd) ->
-                  if event.shiftKey
-                  then Refactor.takeOffRail m tl pd
-                  else Refactor.putOnRail m tl pd
-              | _ ->
-                  NoChange ) )
           | _ ->
               NoChange
         else (
@@ -394,59 +169,21 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | Creating _ ->
                 NoChange )
           | Key.Unknown _ ->
-              if event.key = Some "."
-                 && isFieldAccessDot m m.complete.value
-                 && not (VariantTesting.isFluid m.tests)
-              then
-                let c = m.complete in
-                (* big hack to for Entry.submit to see field access *)
-                let newC = {c with value = AC.getValue c ^ "."; index = -1} in
-                let newM = {m with complete = newC} in
-                Entry.submit newM cursor Entry.GotoNext
-              else NoChange
+              NoChange
           | Key.Escape ->
             ( match cursor with
             | Creating _ ->
                 Many [Deselect; AutocompleteMod ACReset]
             | Filling (tlid, p) ->
-                let tl = TL.get m tlid in
-                ( match tl with
-                | Some (TLHandler h) ->
-                    let replacement = AST.closeBlanks h.ast in
-                    if replacement = h.ast
-                    then Many [Select (tlid, STID p); AutocompleteMod ACReset]
-                    else
-                      (* TODO: in this case, when filling a keyname on an
-                           * object, nothing happens which is unexpected *)
-                      RPC
-                        ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                        , FocusNext (tlid, None) )
-                | _ ->
-                    Many [Select (tlid, STID p); AutocompleteMod ACReset] ) )
+                Many [Select (tlid, STID p); AutocompleteMod ACReset] )
           | Key.Up ->
               AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
           | Key.Down ->
               AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
           | Key.Backspace ->
-              (* This was the case in Elm, unclear about bucklescript  *)
-              (* NB: when we backspace, we _almost_ always get an *)
-              (* EntryInputMsg first. I believe the only time we don't *)
-              (* get one when we backspace over '""'. That means that *)
-              (* we'll get \""' if the previous value was '"a"' (cause *)
-              (* EntryInputMsg will have run, and m.c.v will already be *)
-              (* set to the new value '""') or the previous value was *)
-              (* '""' (in which case EntryInputMsg will not have run so *)
-              (* m.c.v will not have changed. *)
-              (* The way we can tell the difference is based on *)
-              (* m.c.prevValue. If m.c.pv is '""' or longer, that means *)
-              (* EntryInputMsg was run and we are coming from a longer *)
-              (* string. *)
-              let v =
-                if m.complete.value = "\"\""
-                   && String.length m.complete.prevValue <= 2
-                then ""
-                else m.complete.value
-              in
+              (* This was an old hack for strings in the AST of the old editor.
+               * Unclear if it still is needed. *)
+              let v = m.complete.value in
               Many
                 [ AutocompleteMod (ACSetVisible true)
                 ; AutocompleteMod (ACSetQuery v)
@@ -482,29 +219,11 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             Viewport.moveLeft m
         | Key.Right ->
             Viewport.moveRight m
-        | Key.Zero ->
-            Viewport.moveToOrigin
         | Key.Tab ->
             Selection.selectNextToplevel m None
             (* NB: see `stopKeys` in ui.html *)
         | _ ->
             NoChange )
-      | _ ->
-          NoChange )
-    | SelectingCommand (tlid, id) ->
-      ( match event.keyCode with
-      | Key.Escape ->
-          Commands.endCommandExecution tlid id
-      | Key.Enter ->
-          Commands.executeCommand m tlid id (AC.highlighted m.complete)
-      | Key.P ->
-          if event.ctrlKey then AutocompleteMod ACSelectUp else NoChange
-      | Key.N ->
-          if event.ctrlKey then AutocompleteMod ACSelectDown else NoChange
-      | Key.Up ->
-          AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
-      | Key.Down ->
-          AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
       | _ ->
           NoChange )
     | Dragging (_, _, _, _) ->
