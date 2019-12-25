@@ -102,73 +102,10 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       | Key.Enter, Some (TLDB _) when event.shiftKey ->
           let blankid = gid () in
           RPC ([AddDBCol (tlid, blankid, gid ())], FocusExact (tlid, blankid))
-      | Key.Enter, Some (TLHandler h as tl) when event.shiftKey ->
-        ( match mId with
-        | Some id ->
-          ( match TL.find tl id with
-          | Some (PExpr _) ->
-              let blank = B.new_ () in
-              let replacement = AST.addThreadBlank id blank h.ast in
-              if h.ast = replacement
-              then NoChange
-              else
-                RPC
-                  ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                  , FocusExact (tlid, B.toID blank) )
-          | Some (PVarBind _) ->
-            ( match AST.findParentOfWithin_ id h.ast with
-            | Some (F (_, Lambda (_, _))) ->
-                let replacement = AST.addLambdaBlank id h.ast in
-                RPC
-                  ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                  , FocusNext (tlid, Some id) )
-            | _ ->
-                NoChange )
-          | Some (PKey _) ->
-              let nextid, _, replacement =
-                AST.addObjectLiteralBlanks id h.ast
-              in
-              RPC
-                ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                , FocusExact (tlid, nextid) )
-          | Some (PPattern _) ->
-              let nextid, _, replacement = AST.addPatternBlanks id h.ast in
-              RPC
-                ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                , FocusExact (tlid, nextid) )
-          | _ ->
-              NoChange )
-        | _ ->
-            NoChange )
       | Key.Enter, Some (TLFunc f as tl) when event.shiftKey ->
         ( match mId with
         | Some id ->
           ( match TL.find tl id with
-          | Some (PExpr _) ->
-              let blank = B.new_ () in
-              let replacement = AST.addThreadBlank id blank f.ufAST in
-              if f.ufAST = replacement
-              then NoChange
-              else
-                RPC
-                  ( [SetFunction {f with ufAST = replacement}]
-                  , FocusExact (tlid, B.toID blank) )
-          | Some (PVarBind _) ->
-            ( match AST.findParentOfWithin_ id f.ufAST with
-            | Some (F (_, Lambda (_, _))) ->
-                let replacement = AST.addLambdaBlank id f.ufAST in
-                RPC
-                  ( [SetFunction {f with ufAST = replacement}]
-                  , FocusNext (tlid, Some id) )
-            | _ ->
-                NoChange )
-          | Some (PKey _) ->
-              let nextid, _, replacement =
-                AST.addObjectLiteralBlanks id f.ufAST
-              in
-              RPC
-                ( [SetFunction {f with ufAST = replacement}]
-                , FocusExact (tlid, nextid) )
           | Some (PParamTipe _) | Some (PParamName _) | Some (PFnName _) ->
               Refactor.addFunctionParameter m f id
           | _ ->
