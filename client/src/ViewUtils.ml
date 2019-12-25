@@ -20,7 +20,6 @@ type viewState =
   ; dbStats : dbStatsStore
   ; ufns : userFunction list
   ; fns : function_ list
-  ; relatedBlankOrs : id list
   ; executingFunctions : id list
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
@@ -42,47 +41,6 @@ type viewState =
 type domEvent = msg Vdom.property
 
 type domEventList = domEvent list
-
-let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
-  match unwrapCursorState cs with
-  | Entering (Filling (_, id)) ->
-    ( match Toplevel.find tl id with
-    | Some (PVarBind (F (_, var)) as pd) ->
-      ( match Toplevel.getParentOf tl pd with
-      | Some (PExpr e) ->
-        ( match e with
-        | F (_, Let (_, _, body)) ->
-            AST.uses var body |> List.map ~f:Blank.toID
-        | F (_, Lambda (_, body)) ->
-            AST.uses var body |> List.map ~f:Blank.toID
-        | _ ->
-            [] )
-      | _ ->
-          [] )
-    | Some (PPattern (F (_, _)) as pd) ->
-        let parent = Toplevel.getParentOf tl pd in
-        let caseContainingPattern (p, _) =
-          Pattern.extractById p (Pointer.toID pd) |> Option.isSome
-        in
-        let relatedVariableIds (p, body) =
-          Pattern.variableNames p
-          |> List.map ~f:(fun var ->
-                 AST.uses var body |> List.map ~f:Blank.toID)
-          |> List.concat
-        in
-        ( match parent with
-        | Some (PExpr (F (_, Match (_, cases)))) ->
-            cases
-            |> List.filter ~f:caseContainingPattern
-            |> List.map ~f:relatedVariableIds
-            |> List.concat
-        | _ ->
-            [] )
-    | _ ->
-        [] )
-  | _ ->
-      []
-
 
 let createVS (m : model) (tl : toplevel) : viewState =
   let tlid = TL.id tl in
@@ -114,7 +72,6 @@ let createVS (m : model) (tl : toplevel) : viewState =
       |> Option.withDefault ~default:LoadableNotInitialized
   ; traces = Analysis.getTraces m tlid
   ; dbStats = m.dbStats
-  ; relatedBlankOrs = usagesOfBindingAtCursor tl m.cursorState
   ; executingFunctions =
       List.filter ~f:(fun (tlid_, _) -> tlid_ = tlid) m.executingFunctions
       |> List.map ~f:(fun (_, id) -> id)
