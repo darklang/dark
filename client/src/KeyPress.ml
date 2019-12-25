@@ -141,20 +141,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               AutocompleteMod ACSelectDown
           | _ ->
               NoChange
-        else if event.shiftKey && event.keyCode = Key.Enter
-        then
-          match cursor with
-          | Filling (tlid, _) ->
-              let tl = TL.get m tlid in
-              ( match tl with
-              | Some (TLHandler _) ->
-                  Entry.submit m cursor Entry.StartThread
-              | Some (TLFunc _) ->
-                  Entry.submit m cursor Entry.StartThread
-              | _ ->
-                  NoChange )
-          | Creating _ ->
-              Entry.submit m cursor Entry.StartThread
         else if event.altKey
         then
           match event.keyCode with
