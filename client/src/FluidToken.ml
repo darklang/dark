@@ -2,13 +2,13 @@ open Tc
 open Types
 open Prelude
 
-type token = Types.fluidToken
+type t = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
 let fakeid = ID "fake-id"
 
-let tid (t : token) : id =
+let tid (t : t) : id =
   match t with
   | TInteger (id, _)
   | TFloatWhole (id, _)
@@ -74,7 +74,7 @@ let tid (t : token) : id =
       fakeid
 
 
-let analysisID (t : token) : id =
+let analysisID (t : t) : id =
   match t with
   | TLetLHS (_, id, _)
   | TLetKeyword (_, id)
@@ -88,7 +88,7 @@ let analysisID (t : token) : id =
       tid t
 
 
-let parentExprID (t : token) : id =
+let parentExprID (t : t) : id =
   match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
 
 
@@ -97,8 +97,8 @@ let validID id = id <> fakeid
 (* Tokens that are 'editable' are considered text tokens
  * If the cursor is to the left of a text token, then pressing a character
  * will append to the end of that token *)
-let isTextToken token : bool =
-  match token with
+let isTextToken t : bool =
+  match t with
   | TInteger _
   | TLetLHS _
   | TBinOp _
@@ -163,8 +163,8 @@ let isTextToken token : bool =
       false
 
 
-let isStringToken token : bool =
-  match token with
+let isStringToken t : bool =
+  match t with
   | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _ ->
       true
   | _ ->
@@ -173,15 +173,15 @@ let isStringToken token : bool =
 
 (* if the cursor is at the end of this token, we take it as editing this
 * token, rather than writing the next token. *)
-let isAppendable token : bool =
-  match token with
+let isAppendable t : bool =
+  match t with
   (* String should really be directly editable, but the extra quote at the end
    makes it not so; since there's no quote at the end of TStringMLStart or
    TStringMLMiddle, then they are appendable *)
   | TString _ | TPatternString _ | TStringMLEnd _ ->
       false
   | _ ->
-      isTextToken token
+      isTextToken t
 
 
 let isBlank t =
@@ -202,7 +202,7 @@ let isBlank t =
       false
 
 
-let isKeyword (t : token) =
+let isKeyword (t : t) =
   match t with
   | TLetKeyword _
   | TIfKeyword _
@@ -214,11 +214,9 @@ let isKeyword (t : token) =
       false
 
 
-let isSkippable (token : token) : bool =
-  match token with TIndent _ -> true | _ -> false
+let isSkippable (t : t) : bool = match t with TIndent _ -> true | _ -> false
 
-
-let isAtom (t : token) : bool =
+let isAtom (t : t) : bool =
   match t with
   | TMatchSep _ | TPipe _ | TLambdaArrow _ ->
       true
@@ -226,15 +224,13 @@ let isAtom (t : token) : bool =
       isKeyword t || isBlank t
 
 
-let isNewline (t : token) : bool =
-  match t with TNewline _ -> true | _ -> false
+let isNewline (t : t) : bool = match t with TNewline _ -> true | _ -> false
 
-
-let isLet (t : token) : bool =
+let isLet (t : t) : bool =
   match t with TLetAssignment _ | TLetLHS _ -> true | _ -> false
 
 
-let isAutocompletable (t : token) : bool =
+let isAutocompletable (t : t) : bool =
   match t with
   | TBlank _
   | TPlaceholder _
@@ -252,11 +248,11 @@ let isAutocompletable (t : token) : bool =
 
 
 (* Is this token something we can highlight as DError or DIncomplete? *)
-let isErrorDisplayable (t : token) : bool =
+let isErrorDisplayable (t : t) : bool =
   isTextToken t && match t with TFnVersion _ -> false | _ -> true
 
 
-let toText (t : token) : string =
+let toText (t : t) : string =
   let shouldntBeEmpty name =
     asserT ~debug:t "shouldn't be empty" (name <> "") ;
     name
@@ -387,7 +383,7 @@ let toText (t : token) : string =
       ")"
 
 
-let toTestText (t : token) : string =
+let toTestText (t : t) : string =
   let result =
     match t with
     | TPlaceholder ((name, tipe), _) ->
@@ -418,7 +414,7 @@ let toTestText (t : token) : string =
   result
 
 
-let toIndex (t : token) : int option =
+let toIndex (t : t) : int option =
   match t with
   | TStringMLMiddle (_, _, index, _)
   | TLambdaVar (_, _, index, _)
@@ -433,7 +429,7 @@ let toIndex (t : token) : int option =
       None
 
 
-let toTypeName (t : token) : string =
+let toTypeName (t : t) : string =
   match t with
   | TInteger _ ->
       "integer"
@@ -557,7 +553,7 @@ let toTypeName (t : token) : string =
       "paren-close"
 
 
-let toCategoryName (t : token) : string =
+let toCategoryName (t : t) : string =
   match t with
   | TInteger _ ->
       "integer"
@@ -611,7 +607,7 @@ let toCategoryName (t : token) : string =
       "paren"
 
 
-let toDebugInfo (t : token) : string =
+let toDebugInfo (t : t) : string =
   match t with
   | TStringMLStart (_, _, offset, _)
   | TStringMLMiddle (_, _, offset, _)
@@ -643,7 +639,7 @@ let toDebugInfo (t : token) : string =
       ""
 
 
-let toCssClasses (t : token) : string list =
+let toCssClasses (t : t) : string list =
   let empty = if isBlank t then Some "fluid-empty" else None in
   let keyword = if isKeyword t then Some "fluid-keyword" else None in
   let typename = Some ("fluid-" ^ toTypeName t) in
@@ -673,7 +669,7 @@ let show_tokenInfo (ti : tokenInfo) =
  * and find which tokens represent the same thing. You can use toText and ID,
  * but that doesn't work where the content has changed, which is a thing we
  * want to check for. *)
-let matches (t1 : token) (t2 : token) : bool =
+let matches (t1 : t) (t2 : t) : bool =
   tid t1 = tid t2
   && toTypeName t1 = toTypeName t2
   && toIndex t1 = toIndex t2

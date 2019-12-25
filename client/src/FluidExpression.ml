@@ -1,7 +1,10 @@
 open Prelude
 open Tc
+open Types
 
 type t = Types.fluidExpr [@@deriving show]
+
+let newB () = EBlank (gid ())
 
 let id (expr : t) : Types.id =
   match expr with
@@ -129,11 +132,177 @@ let findParent (target : Types.id) (expr : t) : t option =
   findParent' ~parent:None target expr
 
 
-let toNexpr (expr : t) : Types.expr =
+(* It's too hard to thread the state everywhere it's needed. At some stage we
+ * will remove this need to convert from expressions and then we don't need
+ * this at all. *)
+let functions = ref []
+
+let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
+  let fns =
+    assertFn ~f:(( <> ) []) "empty functions passed to fromNExpr" !functions
+  in
+  let f = fromNExpr' ~inPipe:false in
+  let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
+  let parseString str :
+      [> `Bool of bool
+      | `Int of string
+      | `Null
+      | `Float of string * string
+      | `Unknown ] =
+    let asBool =
+      if str = "true"
+      then Some (`Bool true)
+      else if str = "false"
+      then Some (`Bool false)
+      else if str = "null"
+      then Some `Null
+      else None
+    in
+    let asInt = if FluidUtil.is63BitInt str then Some (`Int str) else None in
+    let asFloat =
+      try
+        (* for the exception *)
+        ignore (float_of_string str) ;
+        match String.split ~on:"." str with
+        | [whole; fraction] ->
+            Some (`Float (whole, fraction))
+        | _ ->
+            None
+      with _ -> None
+    in
+    let asString =
+      if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
+      then
+        Some
+          (`String
+            (str |> String.dropLeft ~count:1 |> String.dropRight ~count:1))
+      else None
+    in
+    asInt
+    |> Option.or_ asString
+    |> Option.or_ asBool
+    |> Option.or_ asFloat
+    |> Option.withDefault ~default:`Unknown
+  in
+  match expr with
+  | Blank id ->
+      EBlank id
+  | F (id, nExpr) ->
+    ( match nExpr with
+    | Let (name, rhs, body) ->
+        ELet (id, Blank.toID name, varToName name, f rhs, f body)
+    | Variable varname ->
+        EVariable (id, varname)
+    | If (cond, thenExpr, elseExpr) ->
+        EIf (id, f cond, f thenExpr, f elseExpr)
+    | ListLiteral exprs ->
+        EList (id, List.map ~f exprs)
+    | ObjectLiteral pairs ->
+        ERecord
+          ( id
+          , List.map pairs ~f:(fun (k, v) -> (Blank.toID k, varToName k, f v))
+          )
+    | FieldAccess (expr, field) ->
+        EFieldAccess (id, f expr, Blank.toID field, varToName field)
+    | FnCall (name, args, ster) ->
+        let args = List.map ~f args in
+        (* add a pipetarget in the front *)
+        let args = if inPipe then EPipeTarget (gid ()) :: args else args in
+        let fnCall = EFnCall (id, varToName name, args, ster) in
+        let fn = List.find fns ~f:(fun fn -> fn.fnName = varToName name) in
+        ( match fn with
+        | Some fn when fn.fnInfix ->
+          ( match args with
+          | [a; b] ->
+              EBinOp (id, varToName name, a, b, ster)
+          | _ ->
+              fnCall )
+        | _ ->
+            fnCall )
+    | Thread exprs ->
+      ( match exprs with
+      | head :: tail ->
+          EPipe (id, f head :: List.map ~f:(fromNExpr' ~inPipe:true) tail)
+      | _ ->
+          recover "empty pipe" ~debug:expr (newB ()) )
+    | Lambda (varnames, exprs) ->
+        ELambda
+          ( id
+          , List.map varnames ~f:(fun var -> (Blank.toID var, varToName var))
+          , f exprs )
+    | Value str ->
+      ( match parseString str with
+      | `Bool b ->
+          EBool (id, b)
+      | `Int i ->
+          EInteger (id, i)
+      | `String s ->
+          EString (id, s)
+      | `Null ->
+          ENull id
+      | `Float (whole, fraction) ->
+          EFloat (id, whole, fraction)
+      | `Unknown ->
+          recover
+            "Getting old Value that we coudln't parse"
+            ~debug:str
+            (EOldExpr expr) )
+    | Constructor (name, exprs) ->
+        EConstructor (id, Blank.toID name, varToName name, List.map ~f exprs)
+    | Match (mexpr, pairs) ->
+        let mid = id in
+        let rec fromPattern (p : pattern) : fluidPattern =
+          match p with
+          | Blank id ->
+              FPBlank (mid, id)
+          | F (id, np) ->
+            ( match np with
+            | PVariable name ->
+                FPVariable (mid, id, name)
+            | PConstructor (name, patterns) ->
+                FPConstructor (mid, id, name, List.map ~f:fromPattern patterns)
+            | PLiteral str ->
+              ( match parseString str with
+              | `Bool b ->
+                  FPBool (mid, id, b)
+              | `Int i ->
+                  FPInteger (mid, id, i)
+              | `String s ->
+                  FPString (mid, id, s)
+              | `Null ->
+                  FPNull (mid, id)
+              | `Float (whole, fraction) ->
+                  FPFloat (mid, id, whole, fraction)
+              | `Unknown ->
+                  recover
+                    "Getting old pattern literal that we couldn't parse"
+                    ~debug:p
+                    (FPOldPattern (mid, p)) ) )
+        in
+        let pairs = List.map pairs ~f:(fun (p, e) -> (fromPattern p, f e)) in
+        EMatch (id, f mexpr, pairs)
+    | FeatureFlag (msg, cond, casea, caseb) ->
+        EFeatureFlag
+          ( id
+          , varToName msg
+          , Blank.toID msg
+          , f cond
+          , fromNExpr' ~inPipe casea
+          , fromNExpr' ~inPipe caseb )
+    | FluidPartial (str, oldExpr) ->
+        EPartial (id, str, fromNExpr' ~inPipe oldExpr)
+    | FluidRightPartial (str, oldExpr) ->
+        ERightPartial (id, str, fromNExpr' ~inPipe oldExpr) )
+
+
+let fromNExpr (expr : Types.expr) : t = fromNExpr' expr
+
+(*  *)
+let toNExpr (expr : t) : Types.expr =
   let open Types in
-  let rec toNexpr' ?(inPipe = false) expr =
+  let rec toNExpr' ?(inPipe = false) expr =
     (* inPipe is whether it's the immediate child of a pipe. *)
-    let r = toNexpr' ~inPipe:false in
+    let r = toNExpr' ~inPipe:false in
     match expr with
     | EInteger (id, num) ->
         F (id, Value (FluidUtil.literalToString (`Int num)))
@@ -148,9 +317,9 @@ let toNexpr (expr : t) : Types.expr =
     | EVariable (id, var) ->
         F (id, Variable var)
     | EFieldAccess (id, obj, fieldID, "") ->
-        F (id, FieldAccess (toNexpr' obj, Blank fieldID))
+        F (id, FieldAccess (toNExpr' obj, Blank fieldID))
     | EFieldAccess (id, obj, fieldID, fieldname) ->
-        F (id, FieldAccess (toNexpr' obj, F (fieldID, fieldname)))
+        F (id, FieldAccess (toNExpr' obj, F (fieldID, fieldname)))
     | EFnCall (id, name, args, ster) ->
       ( match args with
       | EPipeTarget _ :: _ when not inPipe ->
@@ -177,7 +346,7 @@ let toNexpr (expr : t) : Types.expr =
       | EPipeTarget _ when inPipe ->
           F
             ( id
-            , FnCall (F (ID (deID id ^ "_name"), name), [toNexpr' arg2], ster)
+            , FnCall (F (ID (deID id ^ "_name"), name), [toNExpr' arg2], ster)
             )
       | _nonPipeTarget when inPipe ->
           recover
@@ -189,24 +358,24 @@ let toNexpr (expr : t) : Types.expr =
             ( id
             , FnCall
                 ( F (ID (deID id ^ "_name"), name)
-                , [toNexpr' arg1; toNexpr' arg2]
+                , [toNExpr' arg1; toNExpr' arg2]
                 , ster ) ) )
     | ELambda (id, vars, body) ->
         F
           ( id
           , Lambda
               ( List.map vars ~f:(fun (vid, var) -> Types.F (vid, var))
-              , toNexpr' body ) )
+              , toNExpr' body ) )
     | EBlank id ->
         Blank id
     | ELet (id, lhsID, lhs, rhs, body) ->
-        F (id, Let (F (lhsID, lhs), toNexpr' rhs, toNexpr' body))
+        F (id, Let (F (lhsID, lhs), toNExpr' rhs, toNExpr' body))
     | EIf (id, cond, thenExpr, elseExpr) ->
-        F (id, If (toNexpr' cond, toNexpr' thenExpr, toNexpr' elseExpr))
+        F (id, If (toNExpr' cond, toNExpr' thenExpr, toNExpr' elseExpr))
     | EPartial (id, str, oldVal) ->
-        F (id, FluidPartial (str, toNexpr' ~inPipe oldVal))
+        F (id, FluidPartial (str, toNExpr' ~inPipe oldVal))
     | ERightPartial (id, str, oldVal) ->
-        F (id, FluidRightPartial (str, toNexpr' ~inPipe oldVal))
+        F (id, FluidRightPartial (str, toNExpr' ~inPipe oldVal))
     | EList (id, exprs) ->
         F (id, ListLiteral (List.map ~f:r exprs))
     | ERecord (id, pairs) ->
@@ -214,11 +383,11 @@ let toNexpr (expr : t) : Types.expr =
           ( id
           , ObjectLiteral
               (List.map pairs ~f:(fun (id, k, v) ->
-                   (Types.F (id, k), toNexpr' v))) )
+                   (Types.F (id, k), toNExpr' v))) )
     | EPipe (id, exprs) ->
       ( match exprs with
       | head :: tail ->
-          F (id, Thread (r head :: List.map ~f:(toNexpr' ~inPipe:true) tail))
+          F (id, Thread (r head :: List.map ~f:(toNExpr' ~inPipe:true) tail))
       | [] ->
           Blank id )
     | EConstructor (id, nameID, name, exprs) ->
@@ -226,9 +395,9 @@ let toNexpr (expr : t) : Types.expr =
     | EMatch (id, mexpr, pairs) ->
         let pairs =
           List.map pairs ~f:(fun (p, e) ->
-              (FluidPattern.toPattern p, toNexpr' e))
+              (FluidPattern.toPattern p, toNExpr' e))
         in
-        F (id, Match (toNexpr' mexpr, pairs))
+        F (id, Match (toNExpr' mexpr, pairs))
     | EPipeTarget _ ->
         recover
           "Cant convert pipetargets back to exprs"
@@ -239,13 +408,13 @@ let toNexpr (expr : t) : Types.expr =
           ( id
           , FeatureFlag
               ( F (nameID, name)
-              , toNexpr' cond
-              , toNexpr' ~inPipe caseA
-              , toNexpr' ~inPipe caseB ) )
+              , toNExpr' cond
+              , toNExpr' ~inPipe caseA
+              , toNExpr' ~inPipe caseB ) )
     | EOldExpr expr ->
         expr
   in
-  toNexpr' expr
+  toNExpr' expr
 
 
 let isBlank (expr : t) = match expr with EBlank _ -> true | _ -> false

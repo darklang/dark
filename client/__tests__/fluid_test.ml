@@ -4,9 +4,12 @@ open Types
 open Prelude
 open Fluid
 open Fluid_test_data
-module Regex = Util.Regex
 module B = Blank
 module K = FluidKeyboard
+
+let eToString = Printer.eToString
+
+let eToStructure = Printer.eToStructure
 
 (*
  * These tests are all written in a common style: t "del end of whole"
@@ -99,7 +102,7 @@ let process
     (pos : int)
     (ast : ast) : testResult =
   let s = defaultTestState in
-  let ast = if clone then Fluid.clone ~state:s ast else ast in
+  let ast = if clone then Fluid.clone ast else ast in
   let newlinesBefore (pos : int) =
     (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
@@ -107,7 +110,7 @@ let process
        * as opposed to the iterative approach we do later, because we're using
        * the old ast that has no newlines. *)
     ast
-    |> toTokens {s with newPos = pos}
+    |> toTokens
     |> List.filter ~f:(fun ti ->
            FluidToken.isNewline ti.token && ti.startPos < pos)
     |> List.length
@@ -124,7 +127,7 @@ let process
   if debug
   then (
     Js.log2 "state before " (Fluid_utils.debugState s) ;
-    Js.log2 "expr before" (eToStructure ~includeIDs:true s ast) ) ;
+    Js.log2 "expr before" (eToStructure ~includeIDs:true ast) ) ;
   let newAST, newState = processMsg keys s ast in
   let result =
     match newAST with
@@ -133,7 +136,7 @@ let process
     | expr when not wrap ->
         expr
     | expr ->
-        failwith ("the wrapper is broken: " ^ eToString s expr)
+        failwith ("the wrapper is broken: " ^ eToString expr)
   in
   let removeWrapperFromCaretPos (p : int) : int =
     let endPos = ref (p - wrapperOffset) in
@@ -141,7 +144,7 @@ let process
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
     result
-    |> toTokens newState
+    |> toTokens
     |> List.iter ~f:(fun ti ->
            match ti.token with
            | TNewline _ when !endPos > ti.endPos ->
@@ -149,10 +152,7 @@ let process
            | _ ->
                ()) ;
     let last =
-      toTokens newState result
-      |> List.last
-      |> deOption "last"
-      |> fun x -> x.endPos
+      toTokens result |> List.last |> deOption "last" |> fun x -> x.endPos
     in
     (* even though the wrapper allows tests to go past the start and end, it's
           * weird to test for *)
@@ -167,7 +167,7 @@ let process
     else newState.selectionStart
   in
   let partialsFound =
-    List.any (toTokens newState result) ~f:(fun ti ->
+    List.any (toTokens result) ~f:(fun ti ->
         match ti.token with
         | TRightPartial _ | TPartial _ | TFieldPartial _ ->
             true
@@ -177,8 +177,8 @@ let process
   if debug
   then (
     Js.log2 "state after" (Fluid_utils.debugState newState) ;
-    Js.log2 "expr after" (eToStructure ~includeIDs:true newState result) ) ;
-  ( (eToString s result, (selPos, finalPos))
+    Js.log2 "expr after" (eToStructure ~includeIDs:true result) ) ;
+  ( (eToString result, (selPos, finalPos))
   , if partialsFound then ContainsPartial else NoPartial )
 
 
@@ -452,8 +452,7 @@ let t
   test
     ( name
     ^ " - `"
-    ^ ( eToString defaultTestState initial
-      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+    ^ (eToString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
     (fun () ->
       expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial))
@@ -476,8 +475,7 @@ let tp
   test
     ( name
     ^ " - `"
-    ^ ( eToString defaultTestState initial
-      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+    ^ (eToString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
     (fun () ->
       expect (fn initial |> insertCaret)
@@ -495,13 +493,13 @@ let ts
   test
     ( name
     ^ " - `"
-    ^ ( eToString defaultTestState initial
-      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+    ^ (eToString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
     (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
 
 
 let run () =
+  E.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
       t "insert mid string" aStr (ins 'c' 3) "\"soc~me string\"" ;
       t "del mid string" aStr (del 3) "\"so~e string\"" ;
@@ -3101,7 +3099,7 @@ let run () =
       ()) ;
   describe "Movement" (fun () ->
       let s = defaultTestState in
-      let tokens = toTokens s complexExpr in
+      let tokens = toTokens complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr in
       test "gridFor - 1" (fun () ->
@@ -3207,12 +3205,12 @@ let run () =
                   in
                   updateAutocomplete m h.hTLID ast s)
              |> (fun s -> updateMouseClick 0 ast s)
-             |> fun (ast, s) ->
+             |> fun (ast, _) ->
              match ast with
              | ELet (_, _, _, EBool (_, false), _) ->
                  "success"
              | _ ->
-                 eToStructure s ast)
+                 eToStructure ast)
           |> toEqual "success") ;
       t
         "moving right off a function autocompletes it anyway"
@@ -3408,7 +3406,7 @@ let run () =
           let id = ID "543" in
           expect
             (let ast = EString (id, "test") in
-             let tokens = toTokens defaultTestState ast in
+             let tokens = toTokens ast in
              Fluid.getNeighbours ~pos:3 tokens)
           |> toEqual
                (let token = TString (id, "test") in

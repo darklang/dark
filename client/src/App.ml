@@ -85,6 +85,7 @@ let init (flagString : string) (location : Web.Location.location) =
         then VariantTesting.libtwitterAvailable variants
         else true)
   in
+  FluidExpression.functions := functions ;
   let m =
     { m with
       cursorState =
@@ -496,15 +497,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; tlid = Some tlid
           ; timestamp = timeStamp }
         in
-        let commands =
-          [hashcmd] @ [acCmd; afCmd] @ [RPC.sendPresence m avMessage]
-        in
+        let commands = [hashcmd; acCmd; afCmd; RPC.sendPresence m avMessage] in
         (m, Cmd.batch commands)
     | Deselect ->
         if m.cursorState <> Deselected
         then
           let m = Editor.closeMenu m in
-          let hashcmd = [Url.updateUrl Architecture] in
+          let hashcmd = Url.updateUrl Architecture in
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
           let m = {m with cursorState = Deselected} in
@@ -515,7 +514,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = None
             ; timestamp = timeStamp }
           in
-          let commands = hashcmd @ [acCmd] @ [RPC.sendPresence m avMessage] in
+          let commands = [hashcmd; acCmd; RPC.sendPresence m avMessage] in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
@@ -954,7 +953,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with searchCache}, Cmd.none)
     | InitASTCache (handlers, userFunctions) ->
-        let exprToString ast = Fluid.exprToStr m.fluidState ast in
+        let exprToString ast = FluidPrinter.nexprToString ast in
         let hcache =
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->

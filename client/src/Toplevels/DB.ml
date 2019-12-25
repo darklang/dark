@@ -28,7 +28,8 @@ let astsFor (db : db) : expr list =
   | None ->
       []
   | Some am ->
-      [am.rollforward; am.rollback]
+      [ FluidExpression.toNExpr am.rollforward
+      ; FluidExpression.toNExpr am.rollback ]
 
 
 let allData (db : db) : pointerData list =
@@ -36,8 +37,9 @@ let allData (db : db) : pointerData list =
     match db.activeMigration with
     | Some migra ->
         ( db.cols @ migra.cols
-        , List.concat [AST.allData migra.rollforward; AST.allData migra.rollback]
-        )
+        , List.concat
+            [ AST.allData (FluidExpression.toNExpr migra.rollforward)
+            ; AST.allData (FluidExpression.toNExpr migra.rollback) ] )
     | None ->
         (db.cols, [])
   in
@@ -73,7 +75,8 @@ let isMigrationCol (db : db) (id : id) : bool =
 
 
 let isMigrationLockReady (m : dbMigration) : bool =
-  B.isF m.rollforward && B.isF m.rollback
+  not
+    (FluidExpression.isBlank m.rollforward || FluidExpression.isBlank m.rollback)
 
 
 let startMigration (tlid : tlid) (cols : dbColumn list) : modification =

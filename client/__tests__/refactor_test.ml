@@ -6,7 +6,44 @@ module D = Defaults
 module R = Refactor
 module TL = Toplevel
 
+let sampleFunctions =
+  let par
+      ?(paramDescription = "")
+      ?(args = [])
+      ?(paramOptional = false)
+      paramName
+      paramTipe : parameter =
+    { paramName
+    ; paramTipe
+    ; paramOptional
+    ; paramBlock_args = args
+    ; paramDescription }
+  in
+  [ { fnName = "Int::add"
+    ; fnParameters = [par "a" TInt; par "b" TInt]
+    ; fnDescription = ""
+    ; fnReturnTipe = TInt
+    ; fnPreviewExecutionSafe = true
+    ; fnDeprecated = false
+    ; fnInfix = false }
+  ; { fnName = "Dict::map"
+    ; fnParameters = [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
+    ; fnDescription = ""
+    ; fnReturnTipe = TObj
+    ; fnPreviewExecutionSafe = true
+    ; fnDeprecated = false
+    ; fnInfix = false }
+  ; { fnName = "DB::set_v1"
+    ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
+    ; fnDescription = ""
+    ; fnReturnTipe = TObj
+    ; fnPreviewExecutionSafe = true
+    ; fnDeprecated = false
+    ; fnInfix = false } ]
+
+
 let run () =
+  FluidExpression.functions := sampleFunctions ;
   describe "takeOffRail & putOnRail" (fun () ->
       let f1 =
         { fnName = "Result::resulty"
@@ -215,42 +252,6 @@ let run () =
           in
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->
-      let par
-          ?(paramDescription = "")
-          ?(args = [])
-          ?(paramOptional = false)
-          paramName
-          paramTipe : parameter =
-        { paramName
-        ; paramTipe
-        ; paramOptional
-        ; paramBlock_args = args
-        ; paramDescription }
-      in
-      let builtInFunctions =
-        [ { fnName = "Int::add"
-          ; fnParameters = [par "a" TInt; par "b" TInt]
-          ; fnDescription = ""
-          ; fnReturnTipe = TInt
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = false }
-        ; { fnName = "Dict::map"
-          ; fnParameters =
-              [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
-          ; fnDescription = ""
-          ; fnReturnTipe = TObj
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = false }
-        ; { fnName = "DB::set_v1"
-          ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
-          ; fnDescription = ""
-          ; fnReturnTipe = TObj
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = false } ]
-      in
       let modelAndTl (ast : expr) =
         let hTLID = TLID "handler1" in
         let tl =
@@ -264,7 +265,7 @@ let run () =
         in
         let m =
           { D.defaultModel with
-            builtInFunctions
+            builtInFunctions = sampleFunctions
           ; handlers = [(hTLID, tl)] |> TLIDDict.fromList }
         in
         let m =
@@ -275,17 +276,17 @@ let run () =
         in
         (m, TLHandler tl)
       in
-      let exprToString m expr : string =
+      let exprToString expr : string =
         expr
         |> Tuple2.first
-        |> Fluid.fromExpr m.fluidState
-        |> Fluid.eToString m.fluidState
+        |> FluidExpression.fromNExpr
+        |> FluidPrinter.eToString
       in
       test "with sole expression" (fun () ->
           let expr = B.newF (Value "4") in
           let ast = expr in
           let m, tl = modelAndTl ast in
-          expect (R.extractVarInAst m tl expr ast "var" |> exprToString m)
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
           let expr =
@@ -297,7 +298,7 @@ let run () =
           in
           let ast = Let (B.newF "b", B.newF (Value "5"), expr) |> B.newF in
           let m, tl = modelAndTl ast in
-          expect (R.extractVarInAst m tl expr ast "var" |> exprToString m)
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
           let expr =
@@ -327,6 +328,6 @@ let run () =
             |> B.newF
           in
           let m, tl = modelAndTl ast in
-          expect (R.extractVarInAst m tl expr ast "var" |> exprToString m)
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
           |> toEqual
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"))
