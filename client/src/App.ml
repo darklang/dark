@@ -438,39 +438,29 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Select (tlid, p) ->
         let ( (cursorState : cursorState)
             , (maybeNewFluidState : fluidState option) ) =
-          if VariantTesting.isFluid m.tests
-          then
-            match p with
-            | STTopLevelRoot ->
-                (FluidEntering tlid, None)
-            | STID id ->
-              ( match TL.getPD m tlid id with
-              | Some pd ->
-                  if P.astOwned (P.typeOf pd)
-                  then (FluidEntering tlid, None)
-                  else (Selecting (tlid, Some id), None)
-              | None ->
-                  (Deselected, None) )
-            | STCaret caretTarget ->
-                let maybeNewFluidState =
-                  match Fluid.astAndStateFromTLID m tlid with
-                  | Some (ast, state) ->
-                      Some
-                        (Fluid.setPosition
-                           state
-                           (Fluid.posFromCaretTarget state ast caretTarget))
-                  | None ->
-                      None
-                in
-                (FluidEntering tlid, maybeNewFluidState)
-          else
-            match p with
-            | STTopLevelRoot ->
-                (Selecting (tlid, None), None)
-            | STID id ->
-                (Selecting (tlid, Some id), None)
-            | STCaret _ ->
-                (Selecting (tlid, None), None)
+          match p with
+          | STTopLevelRoot ->
+              (FluidEntering tlid, None)
+          | STID id ->
+            ( match TL.getPD m tlid id with
+            | Some pd ->
+                if P.astOwned (P.typeOf pd)
+                then (FluidEntering tlid, None)
+                else (Selecting (tlid, Some id), None)
+            | None ->
+                (Deselected, None) )
+          | STCaret caretTarget ->
+              let maybeNewFluidState =
+                match Fluid.astAndStateFromTLID m tlid with
+                | Some (ast, state) ->
+                    Some
+                      (Fluid.setPosition
+                         state
+                         (Fluid.posFromCaretTarget state ast caretTarget))
+                | None ->
+                    None
+              in
+              (FluidEntering tlid, maybeNewFluidState)
         in
         let m, hashcmd =
           match TL.get m tlid with
@@ -536,7 +526,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                if P.astOwned (P.typeOf pd)
                 then (FluidEntering tlid, None)
                 else (Entering entry, Some (tlid, pd))
             | None ->
@@ -554,7 +544,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                if P.astOwned (P.typeOf pd)
                 then (FluidEntering tlid, None)
                 else (Entering entry, Some (tlid, pd))
             | None ->
@@ -570,11 +560,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (handlers, dbs, groups, updateCurrent) ->
         let oldM = m in
-        let handlers =
-          if VariantTesting.isFluid m.tests
-          then handlers
-          else Fluid.stripFluidConstructsFromHandlers handlers
-        in
         let m =
           { m with
             handlers = Handlers.fromList handlers
@@ -721,11 +706,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         (* TODO: note: this updates existing, despite not being called update *)
         let oldM = m in
-        let userFuncs =
-          if VariantTesting.isFluid m.tests
-          then userFuncs
-          else Fluid.stripFluidConstructsFromFunctions userFuncs
-        in
         let m =
           { m with
             userFunctions =
