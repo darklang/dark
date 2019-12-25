@@ -638,8 +638,6 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
   match cs with
   | Selecting (tlid_, mId) ->
       ev "Selecting" [tlid tlid_; nullable id mId]
-  | SelectingCommand (tlid_, mId) ->
-      ev "SelectingCommand" [tlid tlid_; id mId]
   | Entering (Creating pos_) ->
       ev "Entering" [ev "Creating" [pos pos_]]
   | Entering (Filling (tlid_, id_)) ->

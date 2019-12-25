@@ -90,7 +90,6 @@ let defaultModel : model =
       ; index = -1
       ; value = ""
       ; prevValue = ""
-      ; isCommandMode = false
       ; visible = true }
   ; builtInFunctions = []
   ; currentPage = Architecture
