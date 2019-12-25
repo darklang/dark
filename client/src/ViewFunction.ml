@@ -17,16 +17,6 @@ let viewText = ViewBlankOr.viewText
 
 let wc = ViewBlankOr.wc
 
-let text = ViewBlankOr.text
-
-let div = ViewBlankOr.div
-
-let nested = ViewBlankOr.nested
-
-let atom = ViewBlankOr.atom
-
-let keyword = ViewBlankOr.keyword
-
 let enterable = ViewBlankOr.Enterable
 
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :

@@ -217,39 +217,9 @@ let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) :
   div vs c [Html.text str]
 
 
-let keyword (vs : ViewUtils.viewState) (c : htmlConfig list) (name : string) :
-    msg Html.html =
-  text vs (atom :: wc "keyword" :: wc name :: c) name
-
-
 let tipe (vs : ViewUtils.viewState) (c : htmlConfig list) (t : tipe) :
     msg Html.html =
   text vs c (Runtime.tipe2str t)
-
-
-let withFeatureFlag (vs : ViewUtils.viewState) (v : 'a blankOr) :
-    htmlConfig list =
-  if idOf vs.cursorState = Some (B.toID v) then [WithFF] else []
-
-
-let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list
-    =
-  if idOf vs.cursorState = Some (B.toID v)
-  then
-    match v with
-    | F (_, FnCall (F (_, name), _, _)) ->
-      ( match List.find ~f:(Functions.sameName name) vs.ufns with
-      | Some fn ->
-          [WithEditFn fn.ufTLID]
-      | _ ->
-          [] )
-    | _ ->
-        []
-  else []
-
-
-let withROP (rail : sendToRail) : htmlConfig list =
-  if rail = Rail then [WithROP] else []
 
 
 let placeHolderFor (vs : ViewUtils.viewState) (pt : pointerType) : string =
