@@ -175,20 +175,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | Creating _ ->
                 Many [Deselect; AutocompleteMod ACReset]
             | Filling (tlid, p) ->
-                let tl = TL.get m tlid in
-                ( match tl with
-                | Some (TLHandler h) ->
-                    let replacement = AST.closeBlanks h.ast in
-                    if replacement = h.ast
-                    then Many [Select (tlid, STID p); AutocompleteMod ACReset]
-                    else
-                      (* TODO: in this case, when filling a keyname on an
-                           * object, nothing happens which is unexpected *)
-                      RPC
-                        ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                        , FocusNext (tlid, None) )
-                | _ ->
-                    Many [Select (tlid, STID p); AutocompleteMod ACReset] ) )
+                Many [Select (tlid, STID p); AutocompleteMod ACReset] )
           | Key.Up ->
               AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
           | Key.Down ->
