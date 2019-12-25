@@ -205,24 +205,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             Selection.enter m tlid id
         | None ->
             Selection.selectDownLevel m tlid mId )
-      | Key.Up, _ ->
-          (* NB: see `stopKeys` in ui.html *)
-          if event.shiftKey
-          then Selection.selectUpLevel m tlid mId
-          else Selection.moveUp m tlid mId
-      | Key.Down, _ ->
-          (* NB: see `stopKeys` in ui.html *)
-          if event.shiftKey
-          then Selection.selectDownLevel m tlid mId
-          else Selection.moveDown m tlid mId
-      | Key.Right, _ ->
-          if event.altKey
-          then Selection.moveToOlderTrace m tlid
-          else Selection.moveRight m tlid mId
-      | Key.Left, _ ->
-          if event.altKey
-          then Selection.moveToNewerTrace m tlid
-          else Selection.moveLeft m tlid mId
       | Key.Tab, _ ->
           (* NB: see `stopKeys` in ui.html *)
           if event.shiftKey
