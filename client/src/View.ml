@@ -122,14 +122,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     |> String.join ~sep:" "
   in
   let id =
-    if VariantTesting.isFluid m.tests
-    then
-      TL.getAST tl
-      |> Option.map ~f:(Fluid.fromExpr m.fluidState)
-      |> Option.andThen ~f:(Fluid.getToken m.fluidState)
-      |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
-      |> Option.orElse (idOf m.cursorState)
-    else idOf m.cursorState
+    TL.getAST tl
+    |> Option.map ~f:(Fluid.fromExpr m.fluidState)
+    |> Option.andThen ~f:(Fluid.getToken m.fluidState)
+    |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
+    |> Option.orElse (idOf m.cursorState)
   in
   let documentation =
     match (tlidOf m.cursorState, id) with
@@ -141,13 +138,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             |> Option.andThen ~f:Autocomplete.documentationForItem
           in
           let desc =
-            if VariantTesting.isFluid m.tests
-            then
-              m.fluidState.ac
-              |> FluidAutocomplete.highlighted
-              |> Option.andThen ~f:FluidAutocomplete.documentationForItem
-              |> Option.orElse regular
-            else regular
+            m.fluidState.ac
+            |> FluidAutocomplete.highlighted
+            |> Option.andThen ~f:FluidAutocomplete.documentationForItem
+            |> Option.orElse regular
           in
           Option.map desc ~f:(fun desc ->
               [ Html.div

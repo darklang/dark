@@ -1267,31 +1267,16 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Selection.dblclick m targetExnID targetID offset
   | ToplevelClick (targetExnID, _) ->
-      if VariantTesting.isFluid m.tests
-      then
-        let defaultBehaviour =
-          [ Select (targetExnID, STTopLevelRoot)
-          ; Apply (fun m -> Fluid.update m (FluidMouseUp (targetExnID, None)))
-          ]
-        in
-        match m.cursorState with
-        (* If we click away from an entry box, commit it before doing the default behaviour *)
-        | Entering (Filling _ as cursor) ->
-            Many (Entry.commit m cursor :: defaultBehaviour)
-        | _ ->
-            Many defaultBehaviour
-      else (
-        match m.cursorState with
-        | Dragging (_, _, _, origCursorState) ->
-            SetCursorState origCursorState
-        | Selecting (_, _) ->
-            Select (targetExnID, STTopLevelRoot)
-        | Deselected ->
-            Select (targetExnID, STTopLevelRoot)
-        | Entering _ ->
-            Select (targetExnID, STTopLevelRoot)
-        | FluidEntering _ ->
-            NoChange )
+      let defaultBehaviour =
+        [ Select (targetExnID, STTopLevelRoot)
+        ; Apply (fun m -> Fluid.update m (FluidMouseUp (targetExnID, None))) ]
+      in
+      ( match m.cursorState with
+      (* If we click away from an entry box, commit it before doing the default behaviour *)
+      | Entering (Filling _ as cursor) ->
+          Many (Entry.commit m cursor :: defaultBehaviour)
+      | _ ->
+          Many defaultBehaviour )
   | ExecuteFunctionButton (tlid, id, name) ->
       let selectionTarget : tlidSelectTarget =
         if VariantTesting.isFluid m.tests
