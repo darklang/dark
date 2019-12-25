@@ -324,8 +324,8 @@ and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("version", int dbm.version)
     ; ("state", dbMigrationState dbm.state)
     ; ("cols", colList dbm.cols)
-    ; ("rollforward", expr dbm.rollforward)
-    ; ("rollback", expr dbm.rollback) ]
+    ; ("rollforward", expr (FluidExpression.toNExpr dbm.rollforward))
+    ; ("rollback", expr (FluidExpression.toNExpr dbm.rollback)) ]
 
 
 and db (db : Types.db) : Js.Json.t =
