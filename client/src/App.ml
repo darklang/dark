@@ -1035,15 +1035,11 @@ let update_ (msg : msg) (m : model) : modification =
     | _ ->
         NoChange )
   | FluidMsg (FluidUpdateDropdownIndex index) ->
-      if VariantTesting.isFluid m.tests
-      then Fluid.update m (FluidUpdateDropdownIndex index)
-      else NoChange
+      Fluid.update m (FluidUpdateDropdownIndex index)
   | FluidMsg (FluidAutocompleteClick item) ->
     ( match unwrapCursorState m.cursorState with
     | FluidEntering _ ->
-        if VariantTesting.isFluid m.tests
-        then Fluid.update m (FluidAutocompleteClick item)
-        else NoChange
+        Fluid.update m (FluidAutocompleteClick item)
     | _ ->
         NoChange )
   | GlobalClick event ->
@@ -1177,24 +1173,21 @@ let update_ (msg : msg) (m : model) : modification =
             Many [Select (tlid, STTopLevelRoot); FluidEndClick]
       else NoChange
   | BlankOrClick (targetExnID, targetID, event) ->
-      let select tlid id =
-        if VariantTesting.isFluid m.tests
-        then
-          let offset =
-            Native.OffsetEstimator.estimateClickOffset (showID targetID) event
-          in
-          (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
-           * as double clicks to automatically enter them. *)
-          Selection.dblclick m targetExnID targetID offset
-        else Select (tlid, STID id)
+      let select id =
+        let offset =
+          Native.OffsetEstimator.estimateClickOffset (showID id) event
+        in
+        (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
+         * as double clicks to automatically enter them. *)
+        Selection.dblclick m targetExnID targetID offset
       in
       ( match m.cursorState with
       | Deselected ->
-          select targetExnID targetID
+          select targetID
       | Dragging (_, _, _, origCursorState) ->
           SetCursorState origCursorState
       | Entering cursor ->
-          let defaultBehaviour = select targetExnID targetID in
+          let defaultBehaviour = select targetID in
           ( match cursor with
           | Filling (_, fillingID) ->
               if fillingID = targetID
@@ -1205,9 +1198,9 @@ let update_ (msg : msg) (m : model) : modification =
           | _ ->
               defaultBehaviour )
       | Selecting (_, _) ->
-          select targetExnID targetID
+          select targetID
       | FluidEntering _ ->
-          select targetExnID targetID )
+          select targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       let offset =
         Native.OffsetEstimator.estimateClickOffset (showID targetID) event
@@ -1226,17 +1219,13 @@ let update_ (msg : msg) (m : model) : modification =
           Many defaultBehaviour )
   | ExecuteFunctionButton (tlid, id, name) ->
       let selectionTarget : tlidSelectTarget =
-        if VariantTesting.isFluid m.tests
-        then
-          (* Note that the intent here is to make the live value visible,
-             which is a side-effect of placing the caret right after the
-             function name in the handler where the function is being called.
-             We're relying on the length of the function name representing
-             the offset into the tokenized function call node corresponding to
-             this location. Eg: foo|v1 a b *)
-          STCaret
-            {astRef = ARFnCall (id, FCPFnName); offset = String.length name}
-        else STID id
+        (* Note that the intent here is to make the live value visible, which
+         * is a side-effect of placing the caret right after the function name
+         * in the handler where the function is being called.  We're relying on
+         * the length of the function name representing the offset into the
+         * tokenized function call node corresponding to this location. Eg:
+         * foo|v1 a b *)
+        STCaret {astRef = ARFnCall (id, FCPFnName); offset = String.length name}
       in
       Many
         [ ExecutingFunctionBegan (tlid, id)
