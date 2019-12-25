@@ -535,28 +535,6 @@ let rec maybeExtendThreadAt (id : id) (blank : expr) (expr : expr) : expr =
       traverse (maybeExtendThreadAt id blank) expr
 
 
-(* take an expression, and if *)
-(* - it is a thread, add a blank at the end *)
-(* - it is part of a thread, insert a blank just after the expr *)
-(* - if it is not part of a thread, wrap it in a thread *)
-let rec addThreadBlank (id : id) (blank : expr) (expr : expr) : expr =
-  let atb = addThreadBlank id blank in
-  if id = B.toID expr
-  then
-    match expr with
-    | F (tid, Thread exprs) ->
-        F (tid, Thread (exprs @ [blank]))
-    | _ ->
-        B.newF (Thread [expr; blank])
-  else
-    match expr with
-    | F (tid, Thread exprs) ->
-        let replaced = extendThreadChild id blank exprs in
-        if replaced = exprs then traverse atb expr else F (tid, Thread replaced)
-    | _ ->
-        traverse atb expr
-
-
 let addLambdaBlank (id : id) (expr : expr) : expr =
   match findParentOfWithin_ id expr with
   | Some (F (lid, Lambda (vars, body))) as old ->
