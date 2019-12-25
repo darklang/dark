@@ -115,7 +115,8 @@ let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
 
 
 let extractVarInAst
-    (m : model) (tl : toplevel) (e : expr) (ast : expr) (varname : string) =
+    (m : model) (tl : toplevel) (e : expr) (ast : expr) (varname : string) :
+    expr * id =
   let freeVariables =
     AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
   in
