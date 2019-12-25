@@ -73,53 +73,6 @@ let run () =
              | _ ->
                  Fail (orig, result))
           |> toEqual Pass) ;
-      test
-        "promoting a threaded FnCall by removing the Thread, re-adds the missing argument"
-        (fun () ->
-          expect
-            (let threaded =
-               B.newF
-                 (Thread
-                    [ B.new_ ()
-                    ; B.new_ ()
-                    ; F
-                        ( ID "6"
-                        , FnCall (F (ID "6_name", "+"), [Blank (ID "5")], NoRail)
-                        )
-                    ; B.new_ () ])
-             in
-             match closeThreads threaded with
-             | F (ID "6", FnCall (F (_, "+"), [Blank _; Blank (ID "5")], NoRail))
-               ->
-                 Pass
-             | r ->
-                 Fail (threaded, r))
-          |> toEqual Pass) ;
-      test
-        "don't re-add the argument if it was already in the right place"
-        (fun () ->
-          expect
-            (let fn =
-               B.newF
-                 (FnCall
-                    ( B.newF "+"
-                    , [B.newF (Value "3"); B.newF (Value "5")]
-                    , NoRail ))
-             in
-             let open_ = B.newF (Thread [fn; B.new_ ()]) in
-             let closed = closeThreads open_ in
-             if closed = fn then Pass else Fail (fn, closed))
-          |> toEqual Pass) ;
-      test "simple thread is closed properly" (fun () ->
-          expect
-            (let open_ = B.newF (Thread [B.newF (Value "3"); B.new_ ()]) in
-             let closed = closeThreads open_ in
-             match closed with
-             | F (_, Value "3") ->
-                 Pass
-             | _ ->
-                 Fail (open_, closed))
-          |> toEqual Pass) ;
       test "parent of a field is the expr" (fun () ->
           expect
             (let obj = B.newF (Variable "obj") in

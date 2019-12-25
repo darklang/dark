@@ -345,7 +345,6 @@ let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
  * out soon so i pinky promise that it'll go away *)
 let maybeEnterFluid
     ~(nonFluidCursorMod : modification)
-    (m : model)
     (tlid : tlid)
     (oldPD : pointerData option)
     (newPD : pointerData option) : modification =
@@ -355,25 +354,22 @@ let maybeEnterFluid
       ; TweakModel
           (fun m -> {m with fluidState = {m.fluidState with newPos = 0}}) ]
   in
-  if VariantTesting.isFluid m.tests
-  then
-    let isSpecHeader pd =
-      match pd with
-      | Some (PEventName _) | Some (PEventSpace _) | Some (PEventModifier _) ->
-          true
-      | _ ->
-          false
-    in
-    match (isSpecHeader oldPD, isSpecHeader newPD) with
-    (* from spec header to fluid *)
-    | true, false ->
-        fluidEnteringMod
-    (* from fluid to specheader *)
-    | false, true ->
-        nonFluidCursorMod
+  let isSpecHeader pd =
+    match pd with
+    | Some (PEventName _) | Some (PEventSpace _) | Some (PEventModifier _) ->
+        true
     | _ ->
-        nonFluidCursorMod
-  else nonFluidCursorMod
+        false
+  in
+  match (isSpecHeader oldPD, isSpecHeader newPD) with
+  (* from spec header to fluid *)
+  | true, false ->
+      fluidEnteringMod
+  (* from fluid to specheader *)
+  | false, true ->
+      nonFluidCursorMod
+  | _ ->
+      nonFluidCursorMod
 
 
 let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
@@ -391,7 +387,6 @@ let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
       in
       maybeEnterFluid
         ~nonFluidCursorMod:(Select (tlid, nextIdTarget))
-        m
         tlid
         pd
         nextBlankPd
@@ -409,7 +404,6 @@ let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
           ( nextBlankPd
           |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
           |> Option.withDefault ~default:NoChange )
-        m
         tlid
         pd
         nextBlankPd
@@ -430,7 +424,6 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
       in
       maybeEnterFluid
         ~nonFluidCursorMod:(Select (tlid, nextIdTarget))
-        m
         tlid
         pd
         nextBlankPd
@@ -448,7 +441,6 @@ let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
           ( nextBlankPd
           |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
           |> Option.withDefault ~default:NoChange )
-        m
         tlid
         pd
         nextBlankPd

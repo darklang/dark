@@ -232,12 +232,9 @@ let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
 
 
 let isACOpened (m : model) : bool =
-  if VariantTesting.isFluid m.tests
-  then
-    FluidAutocomplete.isOpened m.fluidState.ac
-    || FluidCommands.isOpened m.fluidState.cp
-    || AC.isOpened m.complete
-  else AC.isOpened m.complete
+  FluidAutocomplete.isOpened m.fluidState.ac
+  || FluidCommands.isOpened m.fluidState.cp
+  || AC.isOpened m.complete
 
 
 let updateDropdownVisabilty (m : model) : model =
@@ -252,48 +249,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
   then Debug.loG "mod update" (show_modification mod_) ;
-  let closeBlanks newM =
-    if VariantTesting.isFluid m.tests
-    then []
-    else
-      (* close open threads in the previous TL *)
-      m.cursorState
-      |> tlidOf
-      |> Option.andThen ~f:(TL.get m)
-      |> Option.map ~f:(fun tl ->
-             match tl with
-             | TLHandler h ->
-                 let replacement = AST.closeBlanks h.ast in
-                 if replacement = h.ast
-                 then []
-                 else
-                   let newM = m |> incOpCtr in
-                   let newH = {h with ast = replacement} in
-                   let ops = [SetHandler (h.hTLID, h.pos, newH)] in
-                   let params =
-                     RPC.opsParams ops (Some (opCtr newM)) m.clientOpCtrId
-                   in
-                   (* call RPC on the new model *)
-                   [RPC.addOp newM FocusSame params]
-             | TLFunc f ->
-                 let replacement = AST.closeBlanks f.ufAST in
-                 if replacement = f.ufAST
-                 then []
-                 else
-                   let newM = newM |> incOpCtr in
-                   let newF = {f with ufAST = replacement} in
-                   let ops = [SetFunction newF] in
-                   let params =
-                     RPC.opsParams ops (Some (newM |> opCtr)) m.clientOpCtrId
-                   in
-                   (* call RPC on the new model *)
-                   [RPC.addOp newM FocusSame params]
-             | TLDB _ | TLTipe _ | TLGroup _ ->
-                 [])
-      |> Option.withDefault ~default:[]
-      |> fun rpc ->
-      if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
-  in
   let newm, newcmd =
     let bringBackCurrentTL (oldM : model) (newM : model) : model =
       (* used with updateCurrent - if updateCurrent is false, we want to restore
@@ -483,39 +438,29 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Select (tlid, p) ->
         let ( (cursorState : cursorState)
             , (maybeNewFluidState : fluidState option) ) =
-          if VariantTesting.isFluid m.tests
-          then
-            match p with
-            | STTopLevelRoot ->
-                (FluidEntering tlid, None)
-            | STID id ->
-              ( match TL.getPD m tlid id with
-              | Some pd ->
-                  if P.astOwned (P.typeOf pd)
-                  then (FluidEntering tlid, None)
-                  else (Selecting (tlid, Some id), None)
-              | None ->
-                  (Deselected, None) )
-            | STCaret caretTarget ->
-                let maybeNewFluidState =
-                  match Fluid.astAndStateFromTLID m tlid with
-                  | Some (ast, state) ->
-                      Some
-                        (Fluid.setPosition
-                           state
-                           (Fluid.posFromCaretTarget state ast caretTarget))
-                  | None ->
-                      None
-                in
-                (FluidEntering tlid, maybeNewFluidState)
-          else
-            match p with
-            | STTopLevelRoot ->
-                (Selecting (tlid, None), None)
-            | STID id ->
-                (Selecting (tlid, Some id), None)
-            | STCaret _ ->
-                (Selecting (tlid, None), None)
+          match p with
+          | STTopLevelRoot ->
+              (FluidEntering tlid, None)
+          | STID id ->
+            ( match TL.getPD m tlid id with
+            | Some pd ->
+                if P.astOwned (P.typeOf pd)
+                then (FluidEntering tlid, None)
+                else (Selecting (tlid, Some id), None)
+            | None ->
+                (Deselected, None) )
+          | STCaret caretTarget ->
+              let maybeNewFluidState =
+                match Fluid.astAndStateFromTLID m tlid with
+                | Some (ast, state) ->
+                    Some
+                      (Fluid.setPosition
+                         state
+                         (Fluid.posFromCaretTarget state ast caretTarget))
+                | None ->
+                    None
+              in
+              (FluidEntering tlid, maybeNewFluidState)
         in
         let m, hashcmd =
           match TL.get m tlid with
@@ -552,10 +497,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; timestamp = timeStamp }
         in
         let commands =
-          [hashcmd]
-          @ closeBlanks m
-          @ [acCmd; afCmd]
-          @ [RPC.sendPresence m avMessage]
+          [hashcmd] @ [acCmd; afCmd] @ [RPC.sendPresence m avMessage]
         in
         (m, Cmd.batch commands)
     | Deselect ->
@@ -573,9 +515,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = None
             ; timestamp = timeStamp }
           in
-          let commands =
-            hashcmd @ closeBlanks m @ [acCmd] @ [RPC.sendPresence m avMessage]
-          in
+          let commands = hashcmd @ [acCmd] @ [RPC.sendPresence m avMessage] in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
@@ -586,7 +526,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                if P.astOwned (P.typeOf pd)
                 then (FluidEntering tlid, None)
                 else (Entering entry, Some (tlid, pd))
             | None ->
@@ -595,7 +535,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
-        (m, Cmd.batch (closeBlanks m @ [afCmd; acCmd; Entry.focusEntry m]))
+        (m, Cmd.batch [afCmd; acCmd; Entry.focusEntry m])
     | EnterWithOffset (entry, offset) ->
         let cursorState, target =
           match entry with
@@ -604,7 +544,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                if P.astOwned (P.typeOf pd)
                 then (FluidEntering tlid, None)
                 else (Entering entry, Some (tlid, pd))
             | None ->
@@ -613,21 +553,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
-        ( m
-        , Cmd.batch
-            (closeBlanks m @ [afCmd; acCmd; Entry.focusEntryWithOffset m offset])
-        )
+        (m, Cmd.batch [afCmd; acCmd; Entry.focusEntryWithOffset m offset])
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | RemoveGroup tl ->
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (handlers, dbs, groups, updateCurrent) ->
         let oldM = m in
-        let handlers =
-          if VariantTesting.isFluid m.tests
-          then handlers
-          else Fluid.stripFluidConstructsFromHandlers handlers
-        in
         let m =
           { m with
             handlers = Handlers.fromList handlers
@@ -774,11 +706,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         (* TODO: note: this updates existing, despite not being called update *)
         let oldM = m in
-        let userFuncs =
-          if VariantTesting.isFluid m.tests
-          then userFuncs
-          else Fluid.stripFluidConstructsFromFunctions userFuncs
-        in
         let m =
           { m with
             userFunctions =
@@ -1088,15 +1015,11 @@ let update_ (msg : msg) (m : model) : modification =
     | _ ->
         NoChange )
   | FluidMsg (FluidUpdateDropdownIndex index) ->
-      if VariantTesting.isFluid m.tests
-      then Fluid.update m (FluidUpdateDropdownIndex index)
-      else NoChange
+      Fluid.update m (FluidUpdateDropdownIndex index)
   | FluidMsg (FluidAutocompleteClick item) ->
     ( match unwrapCursorState m.cursorState with
     | FluidEntering _ ->
-        if VariantTesting.isFluid m.tests
-        then Fluid.update m (FluidAutocompleteClick item)
-        else NoChange
+        Fluid.update m (FluidAutocompleteClick item)
     | _ ->
         NoChange )
   | GlobalClick event ->
@@ -1230,24 +1153,21 @@ let update_ (msg : msg) (m : model) : modification =
             Many [Select (tlid, STTopLevelRoot); FluidEndClick]
       else NoChange
   | BlankOrClick (targetExnID, targetID, event) ->
-      let select tlid id =
-        if VariantTesting.isFluid m.tests
-        then
-          let offset =
-            Native.OffsetEstimator.estimateClickOffset (showID targetID) event
-          in
-          (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
-           * as double clicks to automatically enter them. *)
-          Selection.dblclick m targetExnID targetID offset
-        else Select (tlid, STID id)
+      let select id =
+        let offset =
+          Native.OffsetEstimator.estimateClickOffset (showID id) event
+        in
+        (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
+         * as double clicks to automatically enter them. *)
+        Selection.dblclick m targetExnID targetID offset
       in
       ( match m.cursorState with
       | Deselected ->
-          select targetExnID targetID
+          select targetID
       | Dragging (_, _, _, origCursorState) ->
           SetCursorState origCursorState
       | Entering cursor ->
-          let defaultBehaviour = select targetExnID targetID in
+          let defaultBehaviour = select targetID in
           ( match cursor with
           | Filling (_, fillingID) ->
               if fillingID = targetID
@@ -1258,53 +1178,34 @@ let update_ (msg : msg) (m : model) : modification =
           | _ ->
               defaultBehaviour )
       | Selecting (_, _) ->
-          select targetExnID targetID
+          select targetID
       | FluidEntering _ ->
-          select targetExnID targetID )
+          select targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       let offset =
         Native.OffsetEstimator.estimateClickOffset (showID targetID) event
       in
       Selection.dblclick m targetExnID targetID offset
   | ToplevelClick (targetExnID, _) ->
-      if VariantTesting.isFluid m.tests
-      then
-        let defaultBehaviour =
-          [ Select (targetExnID, STTopLevelRoot)
-          ; Apply (fun m -> Fluid.update m (FluidMouseUp (targetExnID, None)))
-          ]
-        in
-        match m.cursorState with
-        (* If we click away from an entry box, commit it before doing the default behaviour *)
-        | Entering (Filling _ as cursor) ->
-            Many (Entry.commit m cursor :: defaultBehaviour)
-        | _ ->
-            Many defaultBehaviour
-      else (
-        match m.cursorState with
-        | Dragging (_, _, _, origCursorState) ->
-            SetCursorState origCursorState
-        | Selecting (_, _) ->
-            Select (targetExnID, STTopLevelRoot)
-        | Deselected ->
-            Select (targetExnID, STTopLevelRoot)
-        | Entering _ ->
-            Select (targetExnID, STTopLevelRoot)
-        | FluidEntering _ ->
-            NoChange )
+      let defaultBehaviour =
+        [ Select (targetExnID, STTopLevelRoot)
+        ; Apply (fun m -> Fluid.update m (FluidMouseUp (targetExnID, None))) ]
+      in
+      ( match m.cursorState with
+      (* If we click away from an entry box, commit it before doing the default behaviour *)
+      | Entering (Filling _ as cursor) ->
+          Many (Entry.commit m cursor :: defaultBehaviour)
+      | _ ->
+          Many defaultBehaviour )
   | ExecuteFunctionButton (tlid, id, name) ->
       let selectionTarget : tlidSelectTarget =
-        if VariantTesting.isFluid m.tests
-        then
-          (* Note that the intent here is to make the live value visible,
-             which is a side-effect of placing the caret right after the
-             function name in the handler where the function is being called.
-             We're relying on the length of the function name representing
-             the offset into the tokenized function call node corresponding to
-             this location. Eg: foo|v1 a b *)
-          STCaret
-            {astRef = ARFnCall (id, FCPFnName); offset = String.length name}
-        else STID id
+        (* Note that the intent here is to make the live value visible, which
+         * is a side-effect of placing the caret right after the function name
+         * in the handler where the function is being called.  We're relying on
+         * the length of the function name representing the offset into the
+         * tokenized function call node corresponding to this location. Eg:
+         * foo|v1 a b *)
+        STCaret {astRef = ARFnCall (id, FCPFnName); offset = String.length name}
       in
       Many
         [ ExecutingFunctionBegan (tlid, id)
@@ -1888,14 +1789,14 @@ let update_ (msg : msg) (m : model) : modification =
             {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let clipboardData =
-        if VariantTesting.isFluid m.tests
+        if true (* unclear if old copy/paste works *)
         then Fluid.getCopySelection m
         else Clipboard.copy m
       in
       Many [SetClipboardContents (clipboardData, e); toast]
   | ClipboardPasteEvent e ->
       let data = Clipboard.getData e in
-      if VariantTesting.isFluid m.tests
+      if true (* unclear if old copy/paste works *)
       then Fluid.update m (FluidPaste data)
       else Clipboard.paste m data
   | ClipboardCutEvent e ->
@@ -1905,7 +1806,7 @@ let update_ (msg : msg) (m : model) : modification =
             {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let copyData, mod_ =
-        if VariantTesting.isFluid m.tests
+        if true (* unclear if old copy/paste works *)
         then (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
         else Clipboard.cut m
       in
@@ -2049,19 +1950,14 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =
-  let keySubs =
-    [Keyboard.downs (fun x -> GlobalKeyPress x)]
-    @
-    if VariantTesting.isFluid m.tests
-    then
-      match m.cursorState with
-      | FluidEntering _ ->
-          [ FluidKeyboard.downs ~key:"fluid" (fun x ->
-                FluidMsg (FluidKeyPress x)) ]
-      | _ ->
-          []
-    else []
+  let fluidSubs =
+    match m.cursorState with
+    | FluidEntering _ ->
+        [FluidKeyboard.downs ~key:"fluid" (fun x -> FluidMsg (FluidKeyPress x))]
+    | _ ->
+        []
   in
+  let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] @ fluidSubs in
   let dragSubs =
     match m.cursorState with
     (* we use IDs here because the node will change *)
