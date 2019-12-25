@@ -26,12 +26,12 @@ let count = ref defaultCount
 (* Debugging *)
 (* ------------------ *)
 
-let toText ast = eToString defaultTestState ast
+let toText ast = FluidPrinter.eToString ast
 
 let pointerToText p : string =
   match p with
   | PExpr e ->
-      toText (Fluid.fromExpr Fluid_test_data.defaultTestState e)
+      toText (FluidExpression.fromNExpr e)
   | PField b
   | PVarBind b
   | PKey b
@@ -384,7 +384,7 @@ let rec remove (id : id) (expr : E.t) : E.t =
             , f mexpr
             , List.filterMap
                 ~f:(fun (pattern, expr) ->
-                  if E.id expr = id || Fluid.pid pattern = id
+                  if E.id expr = id || FluidPattern.id pattern = id
                   then None
                   else Some (pattern, expr))
                 pairs )
@@ -424,7 +424,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
     let pointers =
       ast
       |> fun x ->
-      E.toNexpr x
+      E.toNExpr x
       |> AST.allData
       |> List.uniqueBy ~f:(Pointer.toID >> Prelude.deID)
       |> List.indexedMap ~f:(fun i v -> (i, v))
@@ -487,9 +487,7 @@ let runTest (test : FuzzTest.t) : unit =
       let name = test.name ^ " #" ^ string_of_int i in
       Tester.test name (fun () ->
           setSeed i ;
-          let testcase =
-            generateExpr () |> Fluid.clone ~state:defaultTestState
-          in
+          let testcase = generateExpr () |> Fluid.clone in
           Js.log2 "testing: " name ;
           let newAST, newState = test.fn testcase in
           Js.log2 "checking: " name ;

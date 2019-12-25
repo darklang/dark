@@ -177,6 +177,7 @@ let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
 
 
 let run () =
+  FluidExpression.functions := sampleFunctions ;
   describe "autocomplete" (fun () ->
       describe "generation" (fun () ->
           test
@@ -555,7 +556,9 @@ let run () =
               ~cursorState
               ()
           in
-          let exprToStr ast = Fluid.exprToStr m.fluidState ast in
+          let exprToStr ast =
+            ast |> FluidExpression.fromNExpr |> FluidPrinter.eToString
+          in
           let searchCache =
             m.searchCache
             |> TLIDDict.insert ~tlid:http.hTLID ~value:(exprToStr http.ast)

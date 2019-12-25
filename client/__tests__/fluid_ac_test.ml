@@ -6,6 +6,7 @@ open Fluid
 module AC = FluidAutocomplete
 module B = Blank
 module K = FluidKeyboard
+module E = FluidExpression
 open Fluid_test_data
 
 let sampleFunctions : function_ list =
@@ -58,7 +59,7 @@ let defaultExpr = EBlank defaultID
 
 let defaultToplevel =
   TLHandler
-    { ast = E.toNexpr defaultExpr
+    { ast = E.toNExpr defaultExpr
     ; spec =
         { space = Blank (gid ())
         ; name = Blank (gid ())
@@ -84,8 +85,8 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
     match tl with
     | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
         ast
-        |> fromExpr m.fluidState
-        |> toTokens m.fluidState
+        |> E.fromNExpr
+        |> toTokens
         |> List.head
         |> Option.withDefault ~default:defaultTokenInfo
     | _ ->
@@ -138,7 +139,7 @@ let aHandler
     () : handler =
   let space = match space with None -> B.new_ () | Some name -> B.newF name in
   let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  {ast = E.toNexpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
+  {ast = E.toNExpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
 let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
@@ -149,7 +150,7 @@ let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
       ; ufmInfix = false }
-  ; ufAST = E.toNexpr expr }
+  ; ufAST = E.toNExpr expr }
 
 
 let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) () :
@@ -213,7 +214,7 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
     match TL.get m tlid with
     | Some (TLHandler {ast; _}) | Some (TLFunc {ufAST = ast; _}) ->
         ast
-        |> fromExpr m.fluidState
+        |> E.fromNExpr
         |> Fluid.getToken {m.fluidState with newPos = pos}
         |> Option.withDefault ~default:defaultTokenInfo
     | _ ->

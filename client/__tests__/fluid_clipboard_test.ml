@@ -2,11 +2,11 @@ open Tester
 open Tc
 open Types
 open Prelude
+module DClipboard = Clipboard
 open Fluid
 open Fluid_test_data
 module B = Blank
 module K = FluidKeyboard
-module Regex = Util.Regex
 
 type testResult = (* ast, clipboard, newPos *) string * string * int
 
@@ -35,9 +35,8 @@ let clipboardEvent () =
 
 
 let execute_roundtrip (ast : fluidExpr) =
-  let emptyState = defaultTestState in
-  let ast = Fluid.clone ~state:emptyState ast in
-  let expectedString = eToString emptyState ast in
+  let ast = Fluid.clone ast in
+  let expectedString = Printer.eToString ast in
   let pos = String.length expectedString in
   let e = clipboardEvent () in
   let h = Fluid_utils.h ast in
@@ -55,21 +54,21 @@ let execute_roundtrip (ast : fluidExpr) =
   let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
   let mod_ = App.update_ (ClipboardPasteEvent e) newM in
   let newM, _cmd = App.updateMod mod_ (newM, Cmd.none) in
-  let newState = newM.fluidState in
   let newAST =
     TL.selectedAST newM
     |> Option.withDefault ~default:(Blank.new_ ())
-    |> fromExpr newState
+    |> E.fromNExpr
   in
-  (newAST, newState)
+  newAST
 
 
 let run () =
+  E.functions := Fluid_test_data.defaultTestFunctions ;
   let process (e : clipboardEvent) ~debug (start, pos) ast msg : testResult =
-    let clipboardData state e =
-      Clipboard.getData e
-      |> Fluid.clipboardContentsToExpr ~state
-      |> Option.map ~f:(fun expr -> eToString state expr)
+    let clipboardData e =
+      DClipboard.getData e
+      |> FluidClipboard.clipboardContentsToExpr
+      |> Option.map ~f:Printer.eToString
       |> Option.withDefault ~default:"Nothing in clipboard"
     in
     let h = Fluid_utils.h ast in
@@ -86,23 +85,23 @@ let run () =
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState m.fluidState) ;
-      Js.log2 "ast before" (eToStructure m.fluidState ast) ;
-      Js.log2 "clipboard before" (clipboardData m.fluidState e) ) ;
+      Js.log2 "ast before" (Printer.eToStructure ast) ;
+      Js.log2 "clipboard before" (clipboardData e) ) ;
     let mod_ = App.update_ msg m in
     let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
     let newState = newM.fluidState in
     let newAST =
       TL.selectedAST newM
       |> Option.withDefault ~default:(Blank.new_ ())
-      |> fromExpr newState
+      |> E.fromNExpr
     in
     let finalPos = newState.newPos in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "expr after" (eToStructure newState newAST) ;
-      Js.log2 "clipboard after" (clipboardData newState e) ) ;
-    (eToString newState newAST, clipboardData newState e, finalPos)
+      Js.log2 "expr after" (Printer.eToStructure newAST) ;
+      Js.log2 "clipboard after" (clipboardData e) ) ;
+    (Printer.eToString newAST, clipboardData e, finalPos)
   in
   let copy ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
@@ -119,8 +118,8 @@ let run () =
       (range : int * int)
       (expr : fluidExpr) : testResult =
     let e = clipboardEvent () in
-    let data = Fluid.exprToClipboardContents clipboard in
-    Clipboard.setData data e ;
+    let data = FluidClipboard.exprToClipboardContents clipboard in
+    DClipboard.setData data e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
   let pasteText
@@ -129,7 +128,7 @@ let run () =
       (range : int * int)
       (expr : fluidExpr) : testResult =
     let e = clipboardEvent () in
-    Clipboard.setData (`Text clipboard) e ;
+    DClipboard.setData (`Text clipboard) e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
   let t
@@ -147,7 +146,7 @@ let run () =
     test
       ( name
       ^ " - `"
-      ^ ( eToString defaultTestState initial
+      ^ ( Printer.eToString initial
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
@@ -155,17 +154,16 @@ let run () =
   in
   let roundtrip ?(debug = false) (ast : fluidExpr) =
     let name = "roundtripping: " in
-    let emptyState = defaultTestState in
-    let expectedString = eToString emptyState ast in
+    let expectedString = Printer.eToString ast in
     test
       ( name
       ^ " - `"
       ^ (expectedString |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
       ^ "`" )
       (fun () ->
-        if debug then Js.log2 "ast before" (eToStructure defaultTestState ast) ;
-        let newAST, newState = execute_roundtrip ast in
-        expect expectedString |> toEqual (eToString newState newAST))
+        if debug then Js.log2 "ast before" (Printer.eToStructure ast) ;
+        let newAST = execute_roundtrip ast in
+        expect expectedString |> toEqual (Printer.eToString newAST))
   in
   let pipeOn expr fns = EPipe (gid (), expr :: fns) in
   let emptyList = EList (gid (), []) in
