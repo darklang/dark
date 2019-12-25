@@ -340,6 +340,3 @@ let toggleIconButton
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
-
-let strToBoolType ?(condition = true) (name : string) : string * bool =
-  (name, condition)
