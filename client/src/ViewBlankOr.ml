@@ -26,31 +26,6 @@ let wc (s : string) : htmlConfig = WithClass s
 
 let idConfigs : htmlConfig list = [ClickSelect; Mouseover]
 
-let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
-  let liveValue =
-    Option.andThen id ~f:(Analysis.getLiveValue' vs.analysisStore)
-  in
-  match liveValue with
-  | Some dv ->
-      Runtime.toRepr dv
-  | _ ->
-      (* I made this say "loading" because the CSS structure makes it hard to
-       * put a spinner in here *)
-      "<loading>"
-
-
-let viewCopyButton tlid value : msg Html.html =
-  Html.div
-    ~key:value
-    [ Html.class' "copy-value"
-    ; Html.title "Copy this expression's value to the clipboard"
-    ; ViewUtils.eventNoPropagation
-        "click"
-        ~key:("copylivevalue-" ^ showTLID tlid)
-        (fun m -> ClipboardCopyLivevalue (value, m.mePos)) ]
-    [ViewUtils.fontAwesome "copy"]
-
-
 let viewParamName (name : string) : msg Html.html =
   let leftOffset = String.length name + 1 in
   let styles = [("margin-left", "-" ^ string_of_int leftOffset ^ "ch")] in
@@ -144,23 +119,7 @@ let div
          * noProp to indicate that the property at idx N has changed. *)
         [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
-  let liveValueHtml =
-    let displayLivevalue =
-      thisID = idOf vs.cursorState
-      && Option.isSome thisID
-      && vs.showLivevalue
-      && vs.ac.index = -1
-      && selected
-    in
-    let liveValueString = renderLiveValue vs thisID in
-    if displayLivevalue
-    then
-      Html.div
-        [Html.class' "live-value"]
-        [Html.text liveValueString; viewCopyButton tlid liveValueString]
-    else Vdom.noNode
-  in
-  let leftSideHtml = liveValueHtml :: showParamName in
+  let leftSideHtml = showParamName in
   let idAttr =
     match thisID with Some i -> Html.id (showID i) | _ -> Vdom.noProp
   in
