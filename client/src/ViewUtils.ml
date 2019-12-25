@@ -21,7 +21,6 @@ type viewState =
   ; ufns : userFunction list
   ; fns : function_ list
   ; relatedBlankOrs : id list
-  ; tooWide : bool
   ; executingFunctions : id list
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
@@ -116,7 +115,6 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; traces = Analysis.getTraces m tlid
   ; dbStats = m.dbStats
   ; relatedBlankOrs = usagesOfBindingAtCursor tl m.cursorState
-  ; tooWide = false
   ; executingFunctions =
       List.filter ~f:(fun (tlid_, _) -> tlid_ = tlid) m.executingFunctions
       |> List.map ~f:(fun (_, id) -> id)
