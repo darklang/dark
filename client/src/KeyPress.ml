@@ -15,28 +15,6 @@ module TL = Toplevel
 module Key = Keyboard
 module Regex = Util.Regex
 
-(* Figure out from the string and the state whether this '.' means field
-   access. *)
-let isFieldAccessDot (m : model) (baseStr : string) : bool =
-  (* We know from the fact that this function is called that there has
-     been a '.' entered. However, it might not be in baseStr, so
-     canonicalize it first. *)
-  let str = Regex.replace ~re:(Regex.regex "\\.*$") ~repl:"" baseStr in
-  let intOrString =
-    String.startsWith ~prefix:"\"" str || Decoders.typeOfLiteral str = TInt
-  in
-  match m.cursorState with
-  | Entering (Creating _) ->
-      not intOrString
-  | Entering (Filling (tlid, id)) ->
-      TL.getPD m tlid id
-      |> Option.map ~f:(fun pd ->
-             (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString)
-      |> Option.withDefault ~default:false
-  | _ ->
-      false
-
-
 let undo_redo (m : model) (redo : bool) : modification =
   match tlidOf m.cursorState with
   | Some tlid ->
@@ -285,16 +263,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | Creating _ ->
                 NoChange )
           | Key.Unknown _ ->
-              if event.key = Some "."
-                 && isFieldAccessDot m m.complete.value
-                 && not (VariantTesting.isFluid m.tests)
-              then
-                let c = m.complete in
-                (* big hack to for Entry.submit to see field access *)
-                let newC = {c with value = AC.getValue c ^ "."; index = -1} in
-                let newM = {m with complete = newC} in
-                Entry.submit newM cursor Entry.GotoNext
-              else NoChange
+              NoChange
           | Key.Escape ->
             ( match cursor with
             | Creating _ ->
