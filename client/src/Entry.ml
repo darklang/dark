@@ -154,18 +154,15 @@ let newHandler m space name modifier pos =
     |> Option.withDefault ~default:(handler.ast |> Blank.toID)
   in
   let fluidMods =
-    if VariantTesting.isFluid m.tests
-    then
-      let s = m.fluidState in
-      let newS = {s with newPos = 0} in
-      let cursorState =
-        if idToEnter = (handler.ast |> Blank.toID)
-        then FluidEntering tlid
-        else Entering (Filling (tlid, idToEnter))
-      in
-      [ TweakModel (fun m -> {m with fluidState = newS})
-      ; SetCursorState cursorState ]
-    else []
+    let s = m.fluidState in
+    let newS = {s with newPos = 0} in
+    let cursorState =
+      if idToEnter = (handler.ast |> Blank.toID)
+      then FluidEntering tlid
+      else Entering (Filling (tlid, idToEnter))
+    in
+    [ TweakModel (fun m -> {m with fluidState = newS})
+    ; SetCursorState cursorState ]
   in
   let pageChanges =
     match m.currentPage with
