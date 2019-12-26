@@ -102,7 +102,7 @@ let process
     (pos : int)
     (ast : ast) : testResult =
   let s = defaultTestState in
-  let ast = if clone then Fluid.clone ast else ast in
+  let ast = if clone then E.clone ast else ast in
   let newlinesBefore (pos : int) =
     (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add

@@ -310,7 +310,7 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
     | TLHandler h ->
         AST.childrenOf pid h.ast
     | TLFunc f ->
-        AST.childrenOf pid f.ufAST
+        AST.childrenOf pid (FluidExpression.toNExpr f.ufAST)
     | TLDB db ->
         db |> DB.astsFor |> List.map ~f:(AST.childrenOf pid) |> List.concat
     | TLGroup _ ->
@@ -368,7 +368,7 @@ let getAST (tl : toplevel) : expr option =
   | TLHandler h ->
       Some h.ast
   | TLFunc f ->
-      Some f.ufAST
+      Some (FluidExpression.toNExpr f.ufAST)
   | _ ->
       None
 
@@ -378,7 +378,7 @@ let setAST (tl : toplevel) (newAST : expr) : toplevel =
   | TLHandler h ->
       TLHandler {h with ast = newAST}
   | TLFunc uf ->
-      TLFunc {uf with ufAST = newAST}
+      TLFunc {uf with ufAST = FluidExpression.fromNExpr newAST}
   | TLDB _ | TLTipe _ | TLGroup _ ->
       tl
 
@@ -388,7 +388,7 @@ let withAST (m : model) (tlid : tlid) (ast : expr) : model =
     handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
   ; userFunctions =
       TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
-          {uf with ufAST = ast}) }
+          {uf with ufAST = FluidExpression.fromNExpr ast}) }
 
 
 (* TODO(match) *)
@@ -403,7 +403,7 @@ let rootExpr (tl : toplevel) : expr option =
   | TLHandler h ->
       Some h.ast
   | TLFunc f ->
-      Some f.ufAST
+      Some (FluidExpression.toNExpr f.ufAST)
   | TLDB _ | TLTipe _ | TLGroup _ ->
       None
 
@@ -578,7 +578,9 @@ let setSelectedAST (m : model) (ast : expr) : modification =
     | TLHandler h ->
         RPC ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
     | TLFunc f ->
-        RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
+        RPC
+          ( [SetFunction {f with ufAST = FluidExpression.fromNExpr ast}]
+          , FocusNoChange )
     | TLTipe _ ->
         recover "no ast in Tipes" ~debug:tl NoChange
     | TLDB _ ->

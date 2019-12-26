@@ -1197,16 +1197,16 @@ let replacePattern
 
 
 let replaceVarInPattern
-    (mID : id) (oldVarName : string) (newVarName : string) (ast : ast) : E.t =
+    (mID : id) (oldName : string) (newName : string) (ast : ast) : E.t =
   E.update mID ast ~f:(fun e ->
       match e with
       | EMatch (mID, cond, cases) ->
           let rec replaceNameInPattern pat =
             match pat with
-            | FPVariable (_, id, varName) when varName = oldVarName ->
-                if newVarName = ""
+            | FPVariable (_, id, varName) when varName = oldName ->
+                if newName = ""
                 then FPBlank (mID, id)
-                else FPVariable (mID, id, newVarName)
+                else FPVariable (mID, id, newName)
             | FPConstructor (mID, id, name, patterns) ->
                 FPConstructor
                   (mID, id, name, List.map patterns ~f:replaceNameInPattern)
@@ -1216,7 +1216,7 @@ let replaceVarInPattern
           let newCases =
             List.map cases ~f:(fun (pat, expr) ->
                 ( replaceNameInPattern pat
-                , renameVariableUses oldVarName newVarName expr ))
+                , E.renameVariableUses ~oldName ~newName expr ))
           in
           EMatch (mID, cond, newCases)
       | _ ->
@@ -1465,18 +1465,15 @@ let removeField (id : id) (ast : ast) : E.t =
 (* Lambdas *)
 (* ---------------- *)
 let replaceLamdaVar
-    ~(index : int)
-    (oldVarName : string)
-    (newVarName : string)
-    (id : id)
-    (ast : ast) : E.t =
+    ~(index : int) (oldName : string) (newName : string) (id : id) (ast : ast) :
+    E.t =
   E.update id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
           let vars =
-            List.updateAt vars ~index ~f:(fun (id, _) -> (id, newVarName))
+            List.updateAt vars ~index ~f:(fun (id, _) -> (id, newName))
           in
-          ELambda (id, vars, renameVariableUses oldVarName newVarName expr)
+          ELambda (id, vars, E.renameVariableUses ~oldName ~newName expr)
       | _ ->
           recover "not a lamda in replaceLamdaVar" ~debug:e e)
 
@@ -1494,7 +1491,7 @@ let removeLambdaSepToken (id : id) (ast : ast) (index : int) : E.t =
             |> Option.map ~f:Tuple2.second
             |> Option.withDefault ~default:""
           in
-          ELambda (id, List.removeAt ~index vars, removeVariableUse var expr)
+          ELambda (id, List.removeAt ~index vars, E.removeVariableUse var expr)
       | _ ->
           e)
 
@@ -1514,11 +1511,16 @@ let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : ast) : E.t
 (* Lets *)
 (* ---------------- *)
 
-let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : E.t =
+let replaceLetLHS (newName : string) (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
-      | ELet (id, lhsID, oldLHS, rhs, next) ->
-          ELet (id, lhsID, newLHS, rhs, renameVariableUses oldLHS newLHS next)
+      | ELet (id, lhsID, oldName, rhs, next) ->
+          ELet
+            ( id
+            , lhsID
+            , newName
+            , rhs
+            , E.renameVariableUses ~oldName ~newName next )
       | _ ->
           recover "not a let in replaceLetLHS" ~debug:e e)
 
@@ -3940,11 +3942,9 @@ let getExpressionRangeAtCaret (state : fluidState) (ast : ast) :
   |> Option.map ~f:(fun (eStartPos, eEndPos) -> (eStartPos, eEndPos))
 
 
-let clone (ast : ast) : E.t = ast |> E.toNExpr |> AST.clone |> E.fromNExpr
-
 let reconstructExprFromRange ~ast (range : int * int) : E.t option =
   (* prevent duplicates *)
-  let ast = clone ast in
+  let ast = E.clone ast in
   (* a few helpers *)
   let toBool_ s =
     if s = "true"
@@ -5438,27 +5438,3 @@ let renderCallback (m : model) : unit =
             Entry.setFluidCaret m.fluidState.newPos )
   | _ ->
       ()
-
-
-(* Some things aren't in non-fluid, and if you switch from one to the other you'll be in trouble. Just allow them to be removed. *)
-
-let stripConstructs (ast : expr) : expr =
-  let rec f e =
-    match e with
-    | F (_, FluidPartial (_, oldExpr)) ->
-        f oldExpr
-    | F (_, FluidRightPartial (_, oldExpr)) ->
-        f oldExpr
-    | _ ->
-        AST.traverse f e
-  in
-  f ast
-
-
-let stripFluidConstructsFromFunctions (ufs : userFunction list) :
-    userFunction list =
-  List.map ufs ~f:(fun uf -> {uf with ufAST = stripConstructs uf.ufAST})
-
-
-let stripFluidConstructsFromHandlers (hs : handler list) : handler list =
-  List.map hs ~f:(fun h -> {h with ast = stripConstructs h.ast})

@@ -35,7 +35,7 @@ let clipboardEvent () =
 
 
 let execute_roundtrip (ast : fluidExpr) =
-  let ast = Fluid.clone ast in
+  let ast = FluidExpression.clone ast in
   let expectedString = Printer.eToString ast in
   let pos = String.length expectedString in
   let e = clipboardEvent () in

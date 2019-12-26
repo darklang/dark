@@ -36,7 +36,12 @@ let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
 
 let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
     msg Html.html =
-  let freeVariables = AST.freeVariables uf.ufAST |> List.map ~f:Tuple2.second in
+  let freeVariables =
+    uf.ufAST
+    |> FluidExpression.toNExpr
+    |> AST.freeVariables
+    |> List.map ~f:Tuple2.second
+  in
   let canDeleteParameter pname =
     List.member ~value:pname freeVariables |> not
   in
@@ -108,6 +113,5 @@ let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =
   Html.div
     [Html.class' "user-fn-toplevel"]
     [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]
-    ; Html.div
-        [Html.class' "function-body expand"]
-        (ViewCode.view vs (FluidExpression.fromNExpr fn.ufAST)) ]
+    ; Html.div [Html.class' "function-body expand"] (ViewCode.view vs fn.ufAST)
+    ]

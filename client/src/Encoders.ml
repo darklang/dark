@@ -485,7 +485,7 @@ and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", expr uf.ufAST) ]
+    ; ("ast", expr (FluidExpression.toNExpr uf.ufAST)) ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
