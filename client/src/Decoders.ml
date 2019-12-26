@@ -505,7 +505,7 @@ let userFunctionMetadata j : userFunctionMetadata =
 let userFunction j : userFunction =
   { ufTLID = field "tlid" tlid j
   ; ufMetadata = field "metadata" userFunctionMetadata j
-  ; ufAST = field "ast" expr j }
+  ; ufAST = field "ast" expr j |> FluidExpression.fromNExpr }
 
 
 let fof j : fourOhFour =

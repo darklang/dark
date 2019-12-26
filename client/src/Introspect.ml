@@ -152,7 +152,12 @@ let getUsageFor
   | TLDB _ ->
       []
   | TLFunc f ->
-      findUsagesInAST f.ufTLID datastores handlers functions f.ufAST
+      findUsagesInAST
+        f.ufTLID
+        datastores
+        handlers
+        functions
+        (FluidExpression.toNExpr f.ufAST)
   | TLTipe _ ->
       []
   | TLGroup _ ->

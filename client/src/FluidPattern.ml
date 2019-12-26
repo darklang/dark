@@ -1,4 +1,6 @@
 open Types
+open Tc
+open Prelude
 
 type t = Types.fluidPattern
 
@@ -52,3 +54,26 @@ let rec toPattern (p : t) : Types.pattern =
       Blank id
   | FPOldPattern (_, pattern) ->
       pattern
+
+
+let rec clone (matchID : id) (p : t) : t =
+  match p with
+  | FPVariable (_, _, name) ->
+      FPVariable (matchID, gid (), name)
+  | FPConstructor (_, _, name, patterns) ->
+      FPConstructor
+        (matchID, gid (), name, List.map ~f:(fun p -> clone matchID p) patterns)
+  | FPInteger (_, _, i) ->
+      FPInteger (matchID, gid (), i)
+  | FPBool (_, _, b) ->
+      FPBool (matchID, gid (), b)
+  | FPString (_, _, s) ->
+      FPString (matchID, gid (), s)
+  | FPBlank (_, _) ->
+      FPBlank (matchID, gid ())
+  | FPNull (_, _) ->
+      FPNull (matchID, gid ())
+  | FPFloat (_, _, whole, fraction) ->
+      FPFloat (matchID, gid (), whole, fraction)
+  | FPOldPattern (_, pattern) ->
+      FPOldPattern (matchID, AST.clonePattern pattern)

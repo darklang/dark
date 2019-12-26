@@ -60,8 +60,8 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
       let newH = {h with ast = newAst} in
       RPC ([SetHandler (tlid, h.pos, newH)], focus)
   | PExpr e, TLFunc f ->
-      let newAst, focus = wrapAst e f.ufAST wl in
-      let newF = {f with ufAST = newAst} in
+      let newAst, focus = wrapAst e (FluidExpression.toNExpr f.ufAST) wl in
+      let newF = {f with ufAST = FluidExpression.fromNExpr newAst} in
       RPC ([SetFunction newF], focus)
   | _ ->
       NoChange
@@ -170,8 +170,10 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) : modification
         [ RPC ([SetHandler (tlid, h.pos, newHandler)], FocusNoChange)
         ; Enter (Filling (tlid, enterTarget)) ]
   | PExpr e, TLFunc f ->
-      let newAst, enterTarget = extractVarInAst m tl e f.ufAST varname in
-      let newF = {f with ufAST = newAst} in
+      let newAst, enterTarget =
+        extractVarInAst m tl e (FluidExpression.toNExpr f.ufAST) varname
+      in
+      let newF = {f with ufAST = FluidExpression.fromNExpr newAst} in
       Many
         [ RPC ([SetFunction newF], FocusNoChange)
         ; Enter (Filling (tlid, enterTarget)) ]
@@ -224,7 +226,9 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) : modification
           ; ufmInfix = false }
         in
         let newF =
-          {ufTLID = gtlid (); ufMetadata = metadata; ufAST = AST.clone body}
+          { ufTLID = gtlid ()
+          ; ufMetadata = metadata
+          ; ufAST = FluidExpression.clone (FluidExpression.fromNExpr body) }
         in
         RPC ([SetFunction newF] @ astOp, FocusExact (tlid, P.toID replacement))
     | _ ->
@@ -278,7 +282,10 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
   let newFunctions =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun uf ->
-           let newAst = renameFnCalls uf.ufAST old new_ in
+           let newAst =
+             renameFnCalls (FluidExpression.toNExpr uf.ufAST) old new_
+             |> FluidExpression.fromNExpr
+           in
            if newAst <> uf.ufAST
            then Some (SetFunction {uf with ufAST = newAst})
            else None)
@@ -392,7 +399,9 @@ let dbUseCount (m : model) (name : string) : int =
 let updateUsageCounts (m : model) : model =
   let tldata = m |> TL.all |> TD.mapValues ~f:TL.allData in
   let fndata =
-    m.userFunctions |> TD.mapValues ~f:(fun fn -> AST.allData fn.ufAST)
+    m.userFunctions
+    |> TD.mapValues ~f:(fun fn ->
+           AST.allData (FluidExpression.toNExpr fn.ufAST))
   in
   let all = List.concat (fndata @ tldata) in
   let countFromList names =
@@ -476,7 +485,10 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
   let newFunctions =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun uf_ ->
-           let newAst = transformCallsInAst f uf_.ufAST uf_ in
+           let newAst =
+             transformCallsInAst f (FluidExpression.toNExpr uf_.ufAST) uf_
+             |> FluidExpression.fromNExpr
+           in
            if newAst <> uf_.ufAST
            then Some (SetFunction {uf_ with ufAST = newAst})
            else None)
@@ -536,7 +548,7 @@ let generateEmptyFunction (_ : unit) : userFunction =
     ; ufmReturnTipe = F (gid (), TAny)
     ; ufmInfix = false }
   in
-  {ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ())}
+  {ufTLID = tlid; ufMetadata = metadata; ufAST = EBlank (gid ())}
 
 
 let generateEmptyUserType () : userTipe =
@@ -610,25 +622,24 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
 
 let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
     op list =
-  let newPd () = PExpr (B.newF (Variable newName)) in
-  let transform ast =
-    let usedInExprs = AST.uses oldName ast in
-    List.foldr
-      ~f:(fun pd newAST -> AST.replace (PExpr pd) (newPd ()) newAST)
-      ~init:ast
-      usedInExprs
-  in
   m
   |> TL.all
   |> TD.filterMapValues ~f:(fun tl ->
          match tl with
          | TLHandler h ->
-             let newAST = transform h.ast in
+             let newAST =
+               h.ast
+               |> FluidExpression.fromNExpr
+               |> FluidExpression.renameVariableUses ~oldName ~newName
+               |> FluidExpression.toNExpr
+             in
              if newAST <> h.ast
              then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAST}))
              else None
          | TLFunc f ->
-             let newAST = transform f.ufAST in
+             let newAST =
+               f.ufAST |> FluidExpression.renameVariableUses ~oldName ~newName
+             in
              if newAST <> f.ufAST
              then Some (SetFunction {f with ufAST = newAST})
              else None

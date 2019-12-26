@@ -30,6 +30,8 @@ let defaultID2 = gid ()
 
 let defaultExpr = Blank defaultID
 
+let defaultFluidExpr = EBlank defaultID
+
 let fillingCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
   Entering (Filling (tlid, id))
 
@@ -74,7 +76,7 @@ let aHandler
 
 let aFunction
     ?(tlid = defaultTLID)
-    ?(expr = defaultExpr)
+    ?(expr = defaultFluidExpr)
     ?(params = [])
     ?(name = "myFunc")
     () : userFunction =
@@ -541,11 +543,12 @@ let run () =
               ~tlid:(TLID "789")
               ~name:"fn1"
               ~expr:
-                (B.newF
-                   (Let
-                      ( B.newF "bunny"
-                      , B.newF (Value "9")
-                      , B.newF (Value "\"hello\"") )))
+                (ELet
+                   ( gid ()
+                   , gid ()
+                   , "bunny"
+                   , EInteger (gid (), "9")
+                   , EString (gid (), "\"hello\"") ))
               ()
           in
           let cursorState = creatingCS in
@@ -563,7 +566,9 @@ let run () =
             m.searchCache
             |> TLIDDict.insert ~tlid:http.hTLID ~value:(exprToStr http.ast)
             |> TLIDDict.insert ~tlid:repl.hTLID ~value:(exprToStr repl.ast)
-            |> TLIDDict.insert ~tlid:fn.ufTLID ~value:(exprToStr fn.ufAST)
+            |> TLIDDict.insert
+                 ~tlid:fn.ufTLID
+                 ~value:(FluidPrinter.eToString fn.ufAST)
           in
           let m = {m with searchCache} in
           test "find variable" (fun () ->

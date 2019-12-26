@@ -279,65 +279,6 @@ let moveAndEnter
   |> recoverOpt "Cant move and enter" ~default:NoChange
 
 
-let body (m : model) (tlid : tlid) : id option =
-  match TL.get m tlid with
-  | Some (TLHandler h) ->
-      Some (B.toID h.ast)
-  | Some (TLFunc f) ->
-      Some (B.toID f.ufAST)
-  | _ ->
-      None
-
-
-let moveUp ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
-    modification =
-  let default = body m tlid in
-  let moveFn = match andEnter with false -> move | true -> moveAndEnter in
-  moveFn m tlid mId (moveUpDown Up) default
-
-
-let moveDown ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
-    modification =
-  let default =
-    TL.get m tlid
-    |> Option.map ~f:TL.allData
-    |> Option.andThen ~f:List.head
-    |> Option.map ~f:P.toID
-  in
-  let moveFn = match andEnter with false -> move | true -> moveAndEnter in
-  moveFn m tlid mId (moveUpDown Down) default
-
-
-let moveRight ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
-    modification =
-  let default = body m tlid in
-  let moveFn = match andEnter with false -> move | true -> moveAndEnter in
-  moveFn m tlid mId (moveLeftRight Left) default
-
-
-let moveLeft ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
-    modification =
-  let default = body m tlid in
-  let moveFn = match andEnter with false -> move | true -> moveAndEnter in
-  moveFn m tlid mId (moveLeftRight Right) default
-
-
-(* ------------------------------- *)
-(* Move AST-wide *)
-(* ------------------------------- *)
-let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
-  match TL.get m tlid with
-  | None ->
-      recover "Nothing to select" ~debug:(tlid, cur) NoChange
-  | Some tl ->
-      let pd = Option.andThen cur ~f:(TL.find tl) in
-      pd
-      |> Option.andThen ~f:(TL.getParentOf tl)
-      |> Option.map ~f:P.toID
-      |> Option.map ~f:(fun id -> Select (tlid, STID id))
-      |> Option.withDefault ~default:(Select (tlid, STTopLevelRoot))
-
-
 (* ------------------------------- *)
 (* Blanks *)
 (* ------------------------------- *)
