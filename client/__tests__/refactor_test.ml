@@ -147,7 +147,7 @@ let run () =
                 ; ufmDescription = ""
                 ; ufmReturnTipe = B.new_ ()
                 ; ufmInfix = false }
-            ; ufAST = F (ID "ast3", Variable "ElmCode") }
+            ; ufAST = EVariable (ID "ast3", "ElmCode") }
           in
           let model =
             { D.defaultModel with
@@ -160,7 +160,7 @@ let run () =
             match List.sortBy ~f:Encoders.tlidOf ops with
             | [SetHandler (_, _, h); SetFunction f] ->
               ( match (h.ast, f.ufAST) with
-              | F (_, Variable "WeirdCode"), F (_, Variable "WeirdCode") ->
+              | F (_, Variable "WeirdCode"), EVariable (_, "WeirdCode") ->
                   true
               | _ ->
                   false )

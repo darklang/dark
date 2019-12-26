@@ -83,7 +83,7 @@ let run () =
                     ; ufmDescription = "can users put docs here?"
                     ; ufmReturnTipe = B.new_ ()
                     ; ufmInfix = false }
-                ; ufAST = B.new_ () } ]
+                ; ufAST = FluidExpression.newB () } ]
           in
           expect (tlidsToUpdateUsage ops) |> toEqual [h1tlid; fntlid]) ;
       ()) ;

@@ -177,7 +177,7 @@ let getAvailableVarnames
   | TLHandler h ->
       varsFor h.ast @ glob @ inputVariables
   | TLFunc fn ->
-      varsFor fn.ufAST @ glob @ inputVariables
+      varsFor (FluidExpression.toNExpr fn.ufAST) @ glob @ inputVariables
   | TLDB _ | TLTipe _ | TLGroup _ ->
       []
 

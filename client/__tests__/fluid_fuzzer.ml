@@ -487,7 +487,7 @@ let runTest (test : FuzzTest.t) : unit =
       let name = test.name ^ " #" ^ string_of_int i in
       Tester.test name (fun () ->
           setSeed i ;
-          let testcase = generateExpr () |> Fluid.clone in
+          let testcase = generateExpr () |> FluidExpression.clone in
           Js.log2 "testing: " name ;
           let newAST, newState = test.fn testcase in
           Js.log2 "checking: " name ;

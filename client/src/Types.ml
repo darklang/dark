@@ -406,7 +406,7 @@ and userFunctionMetadata =
 and userFunction =
   { ufTLID : tlid
   ; ufMetadata : userFunctionMetadata
-  ; ufAST : expr }
+  ; ufAST : fluidExpr }
 
 and userRecordField =
   { urfName : string blankOr
