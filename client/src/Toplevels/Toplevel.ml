@@ -302,28 +302,6 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
 (* ------------------------- *)
 (* Up/Down the tree *)
 (* ------------------------- *)
-let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
-  (* TODO SpecTypePointerDataRefactor *)
-  match tl with
-  | TLHandler h ->
-      AST.findParentOfWithin_ (P.toID p) h.ast
-      |> Option.map ~f:(fun x -> PExpr x)
-  | TLFunc f ->
-      AST.findParentOfWithin_ (P.toID p) f.ufAST
-      |> Option.map ~f:(fun x -> PExpr x)
-  | TLDB db ->
-      db
-      |> DB.astsFor
-      |> List.map ~f:(AST.findParentOfWithin_ (P.toID p))
-      |> Option.values
-      |> List.head
-      |> Option.map ~f:(fun x -> PExpr x)
-  | TLTipe _ ->
-      (* Type definitions are flat *)
-      None
-  | TLGroup _ ->
-      None
-
 
 let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   let pid = P.toID pd in
