@@ -1,5 +1,4 @@
 open Tc
-open Prelude
 open Types
 
 (* Dark *)
@@ -79,7 +78,9 @@ let allParamData (uf : userFunction) : pointerData list =
 
 
 let allData (uf : userFunction) : pointerData list =
-  [PFnName uf.ufMetadata.ufmName] @ allParamData uf @ AST.allData uf.ufAST
+  [PFnName uf.ufMetadata.ufmName]
+  @ allParamData uf
+  @ AST.allData (FluidExpression.toNExpr uf.ufAST)
 
 
 let replaceFnName
@@ -133,34 +134,9 @@ let replaceParamName
           metadata
     in
     let newBody =
-      let sContent =
-        match search with
-        | PParamName d ->
-            B.toMaybe d
-        | _ ->
-            recover "not searching for PParam" ~debug:search None
-      in
-      let rContent =
-        match replacement with
-        | PParamName d ->
-            B.toMaybe d
-        | _ ->
-            recover "content not PParam" ~debug:replacement None
-      in
-      let transformUse rep old =
-        match old with
-        | PExpr (F (_, _)) ->
-            PExpr (F (gid (), Variable rep))
-        | _ ->
-            recover "transform not expr" ~debug:old old
-      in
-      match (sContent, rContent) with
-      | Some o, Some r ->
-          let uses = AST.uses o uf.ufAST |> List.map ~f:(fun x -> PExpr x) in
-          List.foldr
-            ~f:(fun use acc -> AST.replace use (transformUse r use) acc)
-            ~init:uf.ufAST
-            uses
+      match (search, replacement) with
+      | PParamName (F (_, oldName)), PParamName (F (_, newName)) ->
+          FluidExpression.renameVariableUses ~oldName ~newName uf.ufAST
       | _ ->
           uf.ufAST
     in

@@ -290,19 +290,18 @@ let feature_flag_in_function (m : model) : testResult =
   match fun_ with
   | Some f ->
     ( match f.ufAST with
-    | F
+    | EFnCall
         ( _
-        , FnCall
-            ( F (_, "+")
-            , [ F
-                  ( _
-                  , FeatureFlag
-                      ( F (_, "myflag")
-                      , F (_, Value "true")
-                      , F (_, Value "5")
-                      , F (_, Value "3") ) )
-              ; F (_, Value "5") ]
-            , NoRail ) ) ->
+        , "+"
+        , [ EFeatureFlag
+              ( _
+              , "myflag"
+              , _
+              , EBool (_, true)
+              , EInteger (_, "5")
+              , EInteger (_, "3") )
+          ; EInteger (_, "5") ]
+        , NoRail ) ->
         pass
     (* TODO: validate result should evaluate true turning  5 + 5 --> 3 + 5 == 8 *)
     (* let res = Analysis.getLiveValue m f.tlid id in *)
@@ -310,7 +309,7 @@ let feature_flag_in_function (m : model) : testResult =
     (*   Just val -> if val.value == "\"8\"" then pass else fail (f.ast, value) *)
     (*   _ -> fail (f.ast, res) *)
     | _ ->
-        fail ~f:show_expr f.ufAST )
+        fail ~f:show_fluidExpr f.ufAST )
   | None ->
       fail "Cant find function"
 
