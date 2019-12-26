@@ -314,57 +314,6 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : T.tokenInfo list) : int =
           recover "unexpected adjustedPosFor" ~debug:(row, col) 0 )
 
 
-(* ------------- *)
-(* Replacing expressions *)
-(* ------------- *)
-
-(* Slightly modified version of `AST.uses` (pre-fluid code) *)
-let rec updateVariableUses (oldVarName : string) ~(f : E.t -> E.t) (ast : ast) :
-    E.t =
-  let u = updateVariableUses oldVarName ~f in
-  match ast with
-  | EVariable (_, varName) ->
-      if varName = oldVarName then f ast else ast
-  | ELet (id, id', lhs, rhs, body) ->
-      if oldVarName = lhs (* if variable name is rebound *)
-      then ast
-      else ELet (id, id', lhs, u rhs, u body)
-  | ELambda (id, vars, lexpr) ->
-      if List.map ~f:Tuple2.second vars |> List.member ~value:oldVarName
-         (* if variable name is rebound *)
-      then ast
-      else ELambda (id, vars, u lexpr)
-  | EMatch (id, cond, pairs) ->
-      let pairs =
-        List.map
-          ~f:(fun (pat, expr) ->
-            if Pattern.hasVariableNamed oldVarName (FluidPattern.toPattern pat)
-            then (pat, expr)
-            else (pat, u expr))
-          pairs
-      in
-      EMatch (id, u cond, pairs)
-  | _ ->
-      E.walk ~f:u ast
-
-
-let renameVariableUses (oldVarName : string) (newVarName : string) (ast : ast) :
-    E.t =
-  let f expr =
-    match expr with
-    | EVariable (id, _) ->
-        EVariable (id, newVarName)
-    | _ ->
-        expr
-  in
-  updateVariableUses oldVarName ~f ast
-
-
-let removeVariableUse (oldVarName : string) (ast : ast) : E.t =
-  let f _ = EBlank (gid ()) in
-  updateVariableUses oldVarName ~f ast
-
-
 (* ---------------- *)
 (* Movement *)
 (* ---------------- *)

@@ -523,3 +523,100 @@ let replace ~(replacement : t) (target : Types.id) (ast : t) : t =
         (target, replacement)
   in
   update target' ast ~f:(fun _ -> newExpr')
+
+
+(* Slightly modified version of `AST.uses` (pre-fluid code) *)
+let rec updateVariableUses (oldVarName : string) ~(f : t -> t) (ast : t) : t =
+  let u = updateVariableUses oldVarName ~f in
+  match ast with
+  | EVariable (_, varName) ->
+      if varName = oldVarName then f ast else ast
+  | ELet (id, id', lhs, rhs, body) ->
+      if oldVarName = lhs (* if variable name is rebound *)
+      then ast
+      else ELet (id, id', lhs, u rhs, u body)
+  | ELambda (id, vars, lexpr) ->
+      if List.map ~f:Tuple2.second vars |> List.member ~value:oldVarName
+         (* if variable name is rebound *)
+      then ast
+      else ELambda (id, vars, u lexpr)
+  | EMatch (id, cond, pairs) ->
+      let pairs =
+        List.map
+          ~f:(fun (pat, expr) ->
+            if Pattern.hasVariableNamed oldVarName (FluidPattern.toPattern pat)
+            then (pat, expr)
+            else (pat, u expr))
+          pairs
+      in
+      EMatch (id, u cond, pairs)
+  | _ ->
+      walk ~f:u ast
+
+
+let renameVariableUses ~(oldName : string) ~(newName : string) (ast : t) : t =
+  let f expr =
+    match expr with EVariable (id, _) -> EVariable (id, newName) | _ -> expr
+  in
+  updateVariableUses oldName ~f ast
+
+
+let removeVariableUse (oldVarName : string) (ast : t) : t =
+  let f _ = EBlank (gid ()) in
+  updateVariableUses oldVarName ~f ast
+
+
+let rec clone (expr : t) : t =
+  let c e = clone e in
+  let cl es = List.map ~f:c es in
+  match expr with
+  | ELet (_, _, lhs, rhs, body) ->
+      ELet (gid (), gid (), lhs, c rhs, c body)
+  | EIf (_, cond, ifbody, elsebody) ->
+      EIf (gid (), c cond, c ifbody, c elsebody)
+  | EFnCall (_, name, exprs, r) ->
+      EFnCall (gid (), name, cl exprs, r)
+  | EBinOp (_, name, left, right, r) ->
+      EBinOp (gid (), name, c left, c right, r)
+  | ELambda (_, vars, body) ->
+      ELambda (gid (), List.map vars ~f:(fun (_, var) -> (gid (), var)), c body)
+  | EPipe (_, exprs) ->
+      EPipe (gid (), cl exprs)
+  | EFieldAccess (_, obj, _, field) ->
+      EFieldAccess (gid (), c obj, gid (), field)
+  | EString (_, v) ->
+      EString (gid (), v)
+  | EInteger (_, v) ->
+      EInteger (gid (), v)
+  | EBool (_, v) ->
+      EBool (gid (), v)
+  | EFloat (_, whole, fraction) ->
+      EFloat (gid (), whole, fraction)
+  | ENull _ ->
+      ENull (gid ())
+  | EBlank _ ->
+      EBlank (gid ())
+  | EVariable (_, name) ->
+      EVariable (gid (), name)
+  | EList (_, exprs) ->
+      EList (gid (), cl exprs)
+  | ERecord (_, pairs) ->
+      ERecord (gid (), List.map ~f:(fun (_, k, v) -> (gid (), k, c v)) pairs)
+  | EFeatureFlag (_, name, _, cond, a, b) ->
+      EFeatureFlag (gid (), name, gid (), c cond, c a, c b)
+  | EMatch (_, matchExpr, cases) ->
+      let mid = gid () in
+      EMatch
+        ( mid
+        , c matchExpr
+        , List.map ~f:(fun (k, v) -> (FluidPattern.clone mid k, c v)) cases )
+  | EConstructor (_, _, name, args) ->
+      EConstructor (gid (), gid (), name, cl args)
+  | EPartial (_, str, oldExpr) ->
+      EPartial (gid (), str, c oldExpr)
+  | ERightPartial (_, str, oldExpr) ->
+      ERightPartial (gid (), str, c oldExpr)
+  | EPipeTarget _ ->
+      EPipeTarget (gid ())
+  | EOldExpr old ->
+      EOldExpr (AST.clone old)
