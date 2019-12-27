@@ -48,11 +48,6 @@ $pipe-color: $blue;
     cursor: -webkit-grabbing;
   }
 }
-.highlighted-indent {
-  margin-left: $spacing-medium;
-  padding-left: $spacing-medium;
-  border-left: 1px solid $lambda-color;
-}
 
 .blank-box-style {
   height: 15px;
@@ -331,13 +326,5 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   .version {
     font-size: 0.6rem;
     margin-right: -2px;
-  }
-}
-
-.letvarname,
-.fieldname {
-  & > .entry {
-    margin-left: 0;
-    margin-right: 0;
   }
 }
