@@ -59,7 +59,7 @@ let defaultExpr = EBlank defaultID
 
 let defaultToplevel =
   TLHandler
-    { ast = E.toNExpr defaultExpr
+    { ast = defaultExpr
     ; spec =
         { space = Blank (gid ())
         ; name = Blank (gid ())
@@ -83,13 +83,7 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
     AC.fullQuery =
   let ti =
     match tl with
-    | TLHandler {ast; _} ->
-        ast
-        |> E.fromNExpr
-        |> toTokens
-        |> List.head
-        |> Option.withDefault ~default:defaultTokenInfo
-    | TLFunc {ufAST = ast; _} ->
+    | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
         ast
         |> toTokens
         |> List.head
@@ -144,7 +138,7 @@ let aHandler
     () : handler =
   let space = match space with None -> B.new_ () | Some name -> B.newF name in
   let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  {ast = E.toNExpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
+  {ast = expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
 let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
@@ -217,12 +211,7 @@ let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
 let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
   let ti =
     match TL.get m tlid with
-    | Some (TLHandler {ast; _}) ->
-        ast
-        |> E.fromNExpr
-        |> Fluid.getToken {m.fluidState with newPos = pos}
-        |> Option.withDefault ~default:defaultTokenInfo
-    | Some (TLFunc {ufAST = ast; _}) ->
+    | Some (TLHandler {ast; _}) | Some (TLFunc {ufAST = ast; _}) ->
         ast
         |> Fluid.getToken {m.fluidState with newPos = pos}
         |> Option.withDefault ~default:defaultTokenInfo

@@ -61,7 +61,7 @@ let defaultModel
 
 let aHandler
     ?(tlid = defaultTLID)
-    ?(expr = defaultExpr)
+    ?(expr = defaultFluidExpr)
     ?(space : string option = None)
     ?(name : string option = None)
     ?(modifier : string option = None)
@@ -524,9 +524,8 @@ let run () =
               ~name:(Some "/hello")
               ~modifier:(Some "GET")
               ~expr:
-                (B.newF
-                   (FieldAccess
-                      (B.newF (Variable "request"), B.newF "queryParams")))
+                (EFieldAccess
+                   (gid (), EVariable (gid (), "request"), gid (), "queryParams"))
               ()
           in
           let repl =
@@ -535,7 +534,7 @@ let run () =
               ~space:(Some "REPL")
               ~name:(Some "findingDori")
               ~modifier:(Some "_")
-              ~expr:(B.newF (FnCall (B.newF "Int::add", [], NoRail)))
+              ~expr:(EFnCall (gid (), "Int::add", [], NoRail))
               ()
           in
           let fn =
@@ -559,13 +558,14 @@ let run () =
               ~cursorState
               ()
           in
-          let exprToStr ast =
-            ast |> FluidExpression.fromNExpr |> FluidPrinter.eToString
-          in
           let searchCache =
             m.searchCache
-            |> TLIDDict.insert ~tlid:http.hTLID ~value:(exprToStr http.ast)
-            |> TLIDDict.insert ~tlid:repl.hTLID ~value:(exprToStr repl.ast)
+            |> TLIDDict.insert
+                 ~tlid:http.hTLID
+                 ~value:(FluidPrinter.eToString http.ast)
+            |> TLIDDict.insert
+                 ~tlid:repl.hTLID
+                 ~value:(FluidPrinter.eToString repl.ast)
             |> TLIDDict.insert
                  ~tlid:fn.ufTLID
                  ~value:(FluidPrinter.eToString fn.ufAST)
