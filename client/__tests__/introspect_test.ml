@@ -10,7 +10,7 @@ let run () =
   describe "Introspect" (fun () ->
       let h1tlid = gtlid () in
       let h1data =
-        { ast = B.new_ ()
+        { ast = EBlank (gid ())
         ; spec =
             { space = B.newF "JOB"
             ; name = B.newF "processOrder"
@@ -22,11 +22,11 @@ let run () =
       let dbRefID = gid () in
       let h2data =
         { ast =
-            B.newF
-              (FnCall
-                 ( B.newF "DB::deleteAll_v1"
-                 , [F (dbRefID, Variable "Books")]
-                 , NoRail ))
+            EFnCall
+              ( gid ()
+              , "DB::deleteAll_v1"
+              , [EVariable (dbRefID, "Books")]
+              , NoRail )
         ; spec =
             { space = B.newF "HTTP"
             ; name = B.newF "/hello"
@@ -62,7 +62,12 @@ let run () =
           let functions = StrDict.empty in
           let usages =
             match
-              findUsagesInAST h2tlid datastores handlers functions h2data.ast
+              findUsagesInAST
+                h2tlid
+                datastores
+                handlers
+                functions
+                (FluidExpression.toNExpr h2data.ast)
             with
             | [{refersTo; usedIn; id}] ->
                 refersTo = h2tlid && usedIn = dbtlid && id == dbRefID

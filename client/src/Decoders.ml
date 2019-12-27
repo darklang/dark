@@ -433,7 +433,7 @@ let handlerSpec j : handlerSpec =
 
 
 let handler pos j : handler =
-  { ast = field "ast" expr j
+  { ast = field "ast" expr j |> FluidExpression.fromNExpr
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
   ; pos }

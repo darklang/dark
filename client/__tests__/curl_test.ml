@@ -1,13 +1,14 @@
 open Tester
 open! Tc
 open Types
+open Prelude
 open Curl
 module B = Blank
 
 let defaultTLID = TLID "7"
 
 let http ~(path : string) ?(meth = "GET") () : handler =
-  { ast = B.new_ ()
+  { ast = EBlank (gid ())
   ; hTLID = defaultTLID
   ; pos = {x = 0; y = 0}
   ; spec =
@@ -68,7 +69,7 @@ let run () =
       test "returns None for non-HTTP handlers" (fun () ->
           let cronTLID = TLID "2" in
           let cron =
-            { ast = B.new_ ()
+            { ast = EBlank (gid ())
             ; hTLID = cronTLID
             ; pos = {x = 0; y = 0}
             ; spec =

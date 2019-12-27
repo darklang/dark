@@ -148,7 +148,12 @@ let getUsageFor
     (functions : tlid StrDict.t) : usage list =
   match tl with
   | TLHandler h ->
-      findUsagesInAST h.hTLID datastores handlers functions h.ast
+      findUsagesInAST
+        h.hTLID
+        datastores
+        handlers
+        functions
+        (FluidExpression.toNExpr h.ast)
   | TLDB _ ->
       []
   | TLFunc f ->

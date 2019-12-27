@@ -29,8 +29,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLDB db ->
         (ViewDB.viewDB vs db dragEvents, [])
     | TLFunc f ->
-        ( [ViewFunction.viewFunction vs f]
-        , ViewData.viewData vs (FluidExpression.toNExpr f.ufAST) )
+        ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
     | TLGroup g ->

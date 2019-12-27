@@ -9,11 +9,13 @@ let defaultTLID = gtlid ()
 
 let defaultExpr = B.new_ ()
 
+let defaultFluidExpr = EBlank (gid ())
+
 let defaultPos = {x = 0; y = 0}
 
 let aHandler
     ?(tlid = defaultTLID)
-    ?(expr = defaultExpr)
+    ?(expr = defaultFluidExpr)
     ?(pos = defaultPos)
     ?(space : string option = None)
     () : toplevel =

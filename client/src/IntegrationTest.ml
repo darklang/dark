@@ -66,7 +66,12 @@ let onlyHandler (m : model) : handler =
 let onlyDB (m : model) : db = m |> onlyTL |> TL.asDB |> deOption "onlyDB"
 
 let onlyExpr (m : model) : nExpr =
-  m |> onlyHandler |> (fun x -> x.ast) |> B.asF |> deOption "onlyast4"
+  m
+  |> onlyHandler
+  |> (fun x -> x.ast)
+  |> FluidExpression.toNExpr
+  |> B.asF
+  |> deOption "onlyast4"
 
 
 let enter_changes_state (m : model) : testResult =
@@ -80,7 +85,12 @@ let enter_changes_state (m : model) : testResult =
 let field_access_closes (m : model) : testResult =
   match m.cursorState with
   | FluidEntering _ ->
-      let ast = onlyTL m |> TL.asHandler |> deOption "test" |> fun x -> x.ast in
+      let ast =
+        onlyTL m
+        |> TL.asHandler
+        |> deOption "test"
+        |> fun x -> x.ast |> FluidExpression.toNExpr
+      in
       if AST.allData ast |> List.filter ~f:P.isBlank = []
       then pass
       else fail ~f:(show_list ~f:show_pointerData) (TL.allBlanks (onlyTL m))
@@ -241,12 +251,12 @@ let paste_right_number_of_blanks (m : model) : testResult =
   m.handlers
   |> TD.mapValues ~f:(fun {ast; _} ->
          match ast with
-         | F (_, Thread [_; F (_, FnCall (F (_, "-"), [Blank _], _))]) ->
+         | EPipe (_, [_; EFnCall (_, "-", [EBlank _], _)]) ->
              pass
-         | F (_, FnCall (F (_, "-"), [Blank _; Blank _], _)) ->
+         | EFnCall (_, "-", [EBlank _; EBlank _], _) ->
              pass (* ignore this TL *)
          | _ ->
-             fail ~f:show_expr ast)
+             fail ~f:show_fluidExpr ast)
   |> Result.combine
   |> Result.map (fun _ -> ())
 
@@ -255,34 +265,33 @@ let feature_flag_works (m : model) : testResult =
   let h = onlyHandler m in
   let ast = h.ast in
   match ast with
-  | F
+  | ELet
       ( _
-      , Let
-          ( F (_, "a")
-          , F (_, Value "13")
-          , F
-              ( id
-              , FeatureFlag
-                  ( F (_, "myflag")
-                  , F
-                      ( _
-                      , FnCall
-                          ( F (_, "Int::greaterThan")
-                          , [F (_, Variable "a"); F (_, Value "10")]
-                          , _ ) )
-                  , F (_, Value "\"A\"")
-                  , F (_, Value "\"B\"") ) ) ) ) ->
+      , _
+      , "a"
+      , EInteger (_, "13")
+      , EFeatureFlag
+          ( id
+          , "myflag"
+          , _
+          , EFnCall
+              ( _
+              , "Int::greaterThan"
+              , [EVariable (_, "a"); EInteger (_, "10")]
+              , _ )
+          , EString (_, "\"A\"")
+          , EString (_, "\"B\"") ) ) ->
       let res =
         Analysis.getSelectedTraceID m h.hTLID
         |> Option.andThen ~f:(Analysis.getLiveValue m id)
       in
       ( match res with
       | Some val_ ->
-          if val_ = DStr "B" then pass else fail (show_expr ast, val_)
+          if val_ = DStr "B" then pass else fail (show_fluidExpr ast, val_)
       | _ ->
-          fail (show_expr ast, res) )
+          fail (show_fluidExpr ast, res) )
   | _ ->
-      fail (show_expr ast, show_cursorState m.cursorState)
+      fail (show_fluidExpr ast, show_cursorState m.cursorState)
 
 
 let feature_flag_in_function (m : model) : testResult =
@@ -316,7 +325,7 @@ let feature_flag_in_function (m : model) : testResult =
 
 let rename_function (m : model) : testResult =
   match m.handlers |> TD.values |> List.head with
-  | Some {ast = F (_, FnCall (F (_, "hello"), _, _)); _} ->
+  | Some {ast = EFnCall (_, "hello", _, _); _} ->
       pass
   | other ->
       fail other

@@ -1,5 +1,4 @@
 open Types
-open Fluid
 module B = Blank
 module K = FluidKeyboard
 
@@ -16,7 +15,7 @@ let debugState s =
 
 
 let h ast : handler =
-  { ast = E.toNExpr ast
+  { ast
   ; hTLID = TLID "7"
   ; pos = {x = 0; y = 0}
   ; spec =

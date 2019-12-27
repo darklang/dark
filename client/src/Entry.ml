@@ -136,7 +136,7 @@ let newHandler m space name modifier pos =
   in
   let spaceid = gid () in
   let handler =
-    { ast = B.new_ ()
+    { ast = EBlank (gid ())
     ; spec =
         { space = F (spaceid, space)
         ; name = B.ofOption name
@@ -151,13 +151,13 @@ let newHandler m space name modifier pos =
     (* Fallback to ast if spec has no blanks *)
     handler.spec
     |> SpecHeaders.firstBlank
-    |> Option.withDefault ~default:(handler.ast |> Blank.toID)
+    |> Option.withDefault ~default:(handler.ast |> FluidExpression.id)
   in
   let fluidMods =
     let s = m.fluidState in
     let newS = {s with newPos = 0} in
     let cursorState =
-      if idToEnter = (handler.ast |> Blank.toID)
+      if idToEnter = (handler.ast |> FluidExpression.id)
       then FluidEntering tlid
       else Entering (Filling (tlid, idToEnter))
     in
