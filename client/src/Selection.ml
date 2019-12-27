@@ -9,6 +9,8 @@ module TL = Toplevel
 
 (* ------------------------------- *)
 (* Traces *)
+(* These used to have keyboard shortcuts to move between traces. When we
+ * reintroduce shortcuts, it would likely be nice to have them again. *)
 (* ------------------------------- *)
 let moveToOlderTrace (m : model) (tlid : tlid) : modification =
   let traceIDs = Analysis.getTraces m tlid |> List.map ~f:Tuple2.first in
