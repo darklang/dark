@@ -285,7 +285,6 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
 
 let fromNExpr (expr : Types.expr) : t = fromNExpr' expr
 
-(*  *)
 let toNExpr (expr : t) : Types.expr =
   let open Types in
   let rec toNExpr' ?(inPipe = false) expr =
