@@ -421,8 +421,6 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                          ; TSep (Pattern.id pattern) ]
                     |> addNested ~f:(fromExpr expr))
              |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))))
-  | EOldExpr expr ->
-      b |> add (TPartial (Blank.toID expr, "TODO: oldExpr"))
   | EPartial (id, str, _) ->
       b |> add (TPartial (id, str))
   | ERightPartial (id, newOp, expr) ->

@@ -8,8 +8,6 @@ let newB () = EBlank (gid ())
 
 let id (expr : t) : Types.id =
   match expr with
-  | EOldExpr expr ->
-      Blank.toID expr
   | EInteger (id, _)
   | EString (id, _)
   | EBool (id, _)
@@ -72,8 +70,6 @@ let rec find (target : Types.id) (expr : t) : t option =
     | EConstructor (_, _, _, exprs)
     | EPipe (_, exprs) ->
         List.filterMap ~f:fe exprs |> List.head
-    | EOldExpr _ ->
-        None
     | EPartial (_, _, oldExpr) | ERightPartial (_, _, oldExpr) ->
         fe oldExpr
     | EFeatureFlag (_, _, _, cond, casea, caseb) ->
@@ -120,8 +116,6 @@ let findParent (target : Types.id) (expr : t) : t option =
       | EConstructor (_, _, _, exprs)
       | EPipe (_, exprs) ->
           List.filterMap ~f:fp exprs |> List.head
-      | EOldExpr _ ->
-          None
       | EPartial (_, _, expr) ->
           fp expr
       | ERightPartial (_, _, expr) ->
@@ -243,10 +237,7 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
       | `Float (whole, fraction) ->
           EFloat (id, whole, fraction)
       | `Unknown ->
-          recover
-            "Getting old Value that we coudln't parse"
-            ~debug:str
-            (EOldExpr expr) )
+          EBlank id )
     | Constructor (name, exprs) ->
         EConstructor (id, Blank.toID name, varToName name, List.map ~f exprs)
     | Match (mexpr, pairs) ->
@@ -408,8 +399,6 @@ let toNExpr (expr : t) : Types.expr =
               , toNExpr' cond
               , toNExpr' ~inPipe caseA
               , toNExpr' ~inPipe caseB ) )
-    | EOldExpr expr ->
-        expr
   in
   toNExpr' expr
 
@@ -471,8 +460,6 @@ let walk ~(f : t -> t) (expr : t) : t =
       EPipe (id, List.map ~f exprs)
   | EConstructor (id, nameID, name, exprs) ->
       EConstructor (id, nameID, name, List.map ~f exprs)
-  | EOldExpr _ ->
-      expr
   | EPartial (id, str, oldExpr) ->
       EPartial (id, str, f oldExpr)
   | ERightPartial (id, str, oldExpr) ->
@@ -615,5 +602,3 @@ let rec clone (expr : t) : t =
       ERightPartial (gid (), str, c oldExpr)
   | EPipeTarget _ ->
       EPipeTarget (gid ())
-  | EOldExpr old ->
-      EOldExpr (AST.clone old)
