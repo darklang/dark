@@ -272,26 +272,6 @@ let matchesTypes (isPipeMemberVal : bool) (paramTipe : tipe) (dv : dval option)
 (* Dynamic Items *)
 (* ------------------------------------ *)
 
-let qLiteral (s : string) : autocompleteItem option =
-  if Runtime.isStringLiteral s
-  then
-    if Runtime.isValidDisplayString s
-    then Some (FACLiteral (Runtime.convertDisplayStringToLiteral s))
-    else None
-  else if Decoders.isLiteralRepr s
-  then Some (FACLiteral s)
-  else if String.length s > 0
-  then
-    if String.startsWith ~prefix:(String.toLower s) "false"
-    then Some (FACLiteral "false")
-    else if String.startsWith ~prefix:(String.toLower s) "true"
-    then Some (FACLiteral "true")
-    else if String.startsWith ~prefix:(String.toLower s) "null"
-    then Some (FACLiteral "null")
-    else None
-  else None
-
-
 let matcher
     (tipeConstraintOnTarget : tipe)
     (dbnames : string list)

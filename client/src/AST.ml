@@ -58,10 +58,6 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
 (* PointerData *)
 (* -------------------------------- *)
 
-let recoverBlank (msg : string) (e : expr option) : expr =
-  recoverOpt ("invalidPD: " ^ msg) e ~default:(B.new_ ())
-
-
 let recoverPD (msg : string) (pd : pointerData option) : pointerData =
   recoverOpt ("invalidPD: " ^ msg) pd ~default:(PExpr (B.new_ ()))
 

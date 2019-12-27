@@ -516,7 +516,3 @@ let pToStructure (p : fluidPattern) : string =
   |> List.map ~f:(fun ti ->
          "<" ^ T.toTypeName ti.token ^ ":" ^ T.toText ti.token ^ ">")
   |> String.join ~sep:""
-
-
-let nexprToString (e : Types.expr) : string =
-  e |> FluidExpression.fromNExpr |> eToString
