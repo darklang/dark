@@ -412,6 +412,11 @@ let t_date_functions_work () =
     "Date::fromSeconds roundtrips"
     (Dval.dint 1095379198)
     (exec_ast "(Date::toSeconds (Date::fromSeconds 1095379198))") ;
+  check_dval
+    "Date::hour works - leif's test case"
+    (DResult (ResOk (Dval.dint 3)))
+    (exec_ast
+       "(Result::map (Date::parse_v1 '2019-12-27T03:27:36Z') (\\d -> (Date::hour_v1 d)))") ;
   ()
 
 
