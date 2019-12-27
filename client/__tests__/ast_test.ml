@@ -81,25 +81,6 @@ let run () =
              let parent = findParentOfWithin (B.toID fieldname) expr in
              if parent = expr then Pass else Fail (parent, expr))
           |> toEqual Pass) ;
-      test "usesRail returns true when at top" (fun () ->
-          expect
-            (let expr = B.newF (FnCall (B.newF "test", [], Rail)) in
-             usesRail expr)
-          |> toEqual true) ;
-      test "usesRail returns true when deep" (fun () ->
-          expect
-            (let withRail = B.newF (FnCall (B.newF "test2", [], Rail)) in
-             let l = B.newF (Let (B.newF "v", withRail, B.new_ ())) in
-             let expr = B.newF (FnCall (B.newF "test", [l], NoRail)) in
-             usesRail expr)
-          |> toEqual true) ;
-      test "usesRail returns false when norail" (fun () ->
-          expect
-            (let deep = B.newF (FnCall (B.newF "test2", [], NoRail)) in
-             let l = B.newF (Let (B.newF "v", deep, B.new_ ())) in
-             let expr = B.newF (FnCall (B.newF "test", [l], NoRail)) in
-             usesRail expr)
-          |> toEqual false) ;
       test
         "variablesIn correctly identifies available vars in let RHS with incomplete LHS"
         (fun () ->
