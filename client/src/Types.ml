@@ -272,7 +272,6 @@ and fluidPattern =
   | FPFloat of id * id * string * string
   | FPNull of id * id
   | FPBlank of id * id
-  | FPOldPattern of id * pattern
 
 and fluidExpr =
   (* Several of these expressions have extra IDs for roundtripping to the old expr *)

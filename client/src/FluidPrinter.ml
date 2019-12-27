@@ -136,8 +136,6 @@ let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
       [TPatternNullToken (mid, id, idx)]
   | FPBlank (mid, id) ->
       [TPatternBlank (mid, id, idx)]
-  | FPOldPattern (mid, op) ->
-      [TPatternString (mid, Blank.toID op, "TODO: old pattern", idx)]
 
 
 let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =

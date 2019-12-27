@@ -15,8 +15,6 @@ let id (p : t) : id =
   | FPNull (_, id)
   | FPBlank (_, id) ->
       id
-  | FPOldPattern (_, p) ->
-      Blank.toID p
 
 
 let matchID (p : t) : id =
@@ -29,8 +27,6 @@ let matchID (p : t) : id =
   | FPFloat (mid, _, _, _)
   | FPNull (mid, _)
   | FPBlank (mid, _) ->
-      mid
-  | FPOldPattern (mid, _) ->
       mid
 
 
@@ -52,8 +48,6 @@ let rec toPattern (p : t) : Types.pattern =
       F (id, PLiteral (FluidUtil.literalToString `Null))
   | FPBlank (_, id) ->
       Blank id
-  | FPOldPattern (_, pattern) ->
-      pattern
 
 
 let rec clone (matchID : id) (p : t) : t =
@@ -75,5 +69,3 @@ let rec clone (matchID : id) (p : t) : t =
       FPNull (matchID, gid ())
   | FPFloat (_, _, whole, fraction) ->
       FPFloat (matchID, gid (), whole, fraction)
-  | FPOldPattern (_, pattern) ->
-      FPOldPattern (matchID, AST.clonePattern pattern)
