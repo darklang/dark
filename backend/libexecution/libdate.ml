@@ -345,6 +345,25 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["Date::hour_v1"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the hour portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_span_since_epoch
+              |> Time.Span.to_hr
+              |> (fun x -> Float.mod_float x 24.0)
+              |> Dint.of_float
+              |> DInt
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["Date::minute"]
     ; ins = []
