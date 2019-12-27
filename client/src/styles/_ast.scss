@@ -297,15 +297,6 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 //*************
 // AST
 //*************
-.rop-rail.active {
-  border-left: 1px dotted lighten($black3, 20%);
-  display: inline-block;
-  vertical-align: top;
-  margin-left: auto;
-  margin-right: 15px;
-  margin-top: $spacing-medium;
-}
-
 .error-indicator {
   position: absolute;
   left: calc(100% - 2ch);
