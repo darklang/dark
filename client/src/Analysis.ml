@@ -128,7 +128,11 @@ let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
   let threadPrevious =
     match TL.rootOf tl with
     | Some (PExpr expr) ->
-        Option.toList (AST.threadPrevious callerID expr)
+        expr
+        |> FluidExpression.fromNExpr
+        |> AST.threadPrevious callerID
+        |> Option.map ~f:FluidExpression.toNExpr
+        |> Option.toList
     | _ ->
         []
   in

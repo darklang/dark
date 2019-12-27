@@ -498,13 +498,12 @@ let getParamIndex (expr : expr) (id : id) : (string * int) option =
       None
 
 
-let threadPrevious (id : id) (ast : expr) : expr option =
-  let parent = findParentOfWithin_ id ast in
+let threadPrevious (id : id) (ast : fluidExpr) : fluidExpr option =
+  let parent = FluidExpression.findParent id ast in
   match parent with
-  | Some (F (_, Thread exprs)) ->
+  | Some (EPipe (_, exprs)) ->
       exprs
-      |> List.filter ~f:(fun e -> B.toID e = id)
-      |> List.head
+      |> List.find ~f:(fun e -> FluidExpression.id e = id)
       |> Option.andThen ~f:(fun value -> Util.listPrevious ~value exprs)
   | _ ->
       None

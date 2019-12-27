@@ -4948,12 +4948,7 @@ let fnForToken state token : function_ option =
 
 let fnArgExprs (token : token) (ast : ast) : E.t list =
   let id = T.tid token in
-  let previous =
-    E.toNExpr ast
-    |> AST.threadPrevious id
-    |> Option.toList
-    |> List.map ~f:E.fromNExpr
-  in
+  let previous = ast |> AST.threadPrevious id |> Option.toList in
   let exprs =
     match E.find id ast with
     | Some (EFnCall (_, _, exprs, _)) ->
