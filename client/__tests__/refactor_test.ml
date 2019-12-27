@@ -69,7 +69,7 @@ let run () =
         ; handlers = Handlers.fromList hs }
       in
       let handlerWithPointer fnName fnRail =
-        let ast = F (ID "ast1", FnCall (B.newF fnName, [], fnRail)) in
+        let ast = EFnCall (ID "ast1", fnName, [], fnRail) in
         ( { hTLID = TLID "handler1"
           ; pos = {x = 0; y = 0}
           ; ast
@@ -77,7 +77,7 @@ let run () =
               { space = B.newF "HTTP"
               ; name = B.newF "/src"
               ; modifier = B.newF "POST" } }
-        , PExpr ast )
+        , PExpr (FluidExpression.toNExpr ast) )
       in
       let init fnName fnRail =
         let h, pd = handlerWithPointer fnName fnRail in
@@ -91,7 +91,7 @@ let run () =
             match op with
             | RPC ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
-              | F (_, FnCall (F (_, "Int::notResulty"), [], NoRail)) ->
+              | EFnCall (_, "Int::notResulty", [], NoRail) ->
                   true
               | _ ->
                   false )
@@ -106,7 +106,7 @@ let run () =
             match op with
             | RPC ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
-              | F (_, FnCall (F (_, "Result::resulty"), [], Rail)) ->
+              | EFnCall (_, "Result::resulty", [], Rail) ->
                   true
               | _ ->
                   false )
@@ -131,7 +131,7 @@ let run () =
       in
       test "datastore renamed, handler updates variable" (fun () ->
           let h =
-            { ast = F (ID "ast1", Variable "ElmCode")
+            { ast = EVariable (ID "ast1", "ElmCode")
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
@@ -160,7 +160,7 @@ let run () =
             match List.sortBy ~f:Encoders.tlidOf ops with
             | [SetHandler (_, _, h); SetFunction f] ->
               ( match (h.ast, f.ufAST) with
-              | F (_, Variable "WeirdCode"), EVariable (_, "WeirdCode") ->
+              | EVariable (_, "WeirdCode"), EVariable (_, "WeirdCode") ->
                   true
               | _ ->
                   false )
@@ -170,7 +170,7 @@ let run () =
           expect res |> toEqual true) ;
       test "datastore renamed, handler does not change" (fun () ->
           let h =
-            { ast = F (ID "ast1", Variable "request")
+            { ast = EVariable (ID "ast1", "request")
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
@@ -252,7 +252,7 @@ let run () =
           in
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->
-      let modelAndTl (ast : expr) =
+      let modelAndTl (ast : fluidExpr) =
         let hTLID = TLID "handler1" in
         let tl =
           { hTLID
@@ -285,7 +285,7 @@ let run () =
       test "with sole expression" (fun () ->
           let expr = B.newF (Value "4") in
           let ast = expr in
-          let m, tl = modelAndTl ast in
+          let m, tl = modelAndTl (FluidExpression.fromNExpr ast) in
           expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
@@ -297,7 +297,7 @@ let run () =
                  , NoRail ))
           in
           let ast = Let (B.newF "b", B.newF (Value "5"), expr) |> B.newF in
-          let m, tl = modelAndTl ast in
+          let m, tl = modelAndTl (FluidExpression.fromNExpr ast) in
           expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
@@ -327,7 +327,7 @@ let run () =
               , exprInThread )
             |> B.newF
           in
-          let m, tl = modelAndTl ast in
+          let m, tl = modelAndTl (FluidExpression.fromNExpr ast) in
           expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
           |> toEqual
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"))

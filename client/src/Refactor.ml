@@ -29,6 +29,7 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
     modification =
   let tlid = TL.id tl in
   let wrapAst e ast wl_ =
+    let ast = FluidExpression.toNExpr ast in
     let replacement, focus =
       match wl_ with
       | WLetRHS ->
@@ -52,7 +53,7 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
           let replacement_ = PExpr (B.newF (If (condBlank, B.new_ (), e))) in
           (replacement_, FocusExact (tlid, B.toID condBlank))
     in
-    (AST.replace (PExpr e) replacement ast, focus)
+    (AST.replace (PExpr e) replacement ast |> FluidExpression.fromNExpr, focus)
   in
   match (p, tl) with
   | PExpr e, TLHandler h ->
@@ -60,8 +61,8 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
       let newH = {h with ast = newAst} in
       RPC ([SetHandler (tlid, h.pos, newH)], focus)
   | PExpr e, TLFunc f ->
-      let newAst, focus = wrapAst e (FluidExpression.toNExpr f.ufAST) wl in
-      let newF = {f with ufAST = FluidExpression.fromNExpr newAst} in
+      let newAst, focus = wrapAst e f.ufAST wl in
+      let newF = {f with ufAST = newAst} in
       RPC ([SetFunction newF], focus)
   | _ ->
       NoChange
@@ -164,8 +165,10 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) : modification
   let varname = "var" ^ string_of_int (Util.random ()) in
   match (p, tl) with
   | PExpr e, TLHandler h ->
-      let newAst, enterTarget = extractVarInAst m tl e h.ast varname in
-      let newHandler = {h with ast = newAst} in
+      let newAst, enterTarget =
+        extractVarInAst m tl e (FluidExpression.toNExpr h.ast) varname
+      in
+      let newHandler = {h with ast = FluidExpression.fromNExpr newAst} in
       Many
         [ RPC ([SetHandler (tlid, h.pos, newHandler)], FocusNoChange)
         ; Enter (Filling (tlid, enterTarget)) ]
@@ -274,7 +277,10 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
   let newHandlers =
     m.handlers
     |> TD.filterMapValues ~f:(fun h ->
-           let newAst = renameFnCalls h.ast old new_ in
+           let newAst =
+             renameFnCalls (FluidExpression.toNExpr h.ast) old new_
+             |> FluidExpression.fromNExpr
+           in
            if newAst <> h.ast
            then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
            else None)
@@ -448,6 +454,7 @@ let updateUsageCounts (m : model) : model =
 let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
     op list =
   let transformCallsInAst f_ ast old =
+    let ast = FluidExpression.toNExpr ast in
     let transformCall old_ =
       let transformExpr oldExpr =
         match oldExpr with
@@ -465,14 +472,15 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
       | F (_, n) ->
           (Some n, AST.allCallsToFn n ast |> List.map ~f:(fun x -> PExpr x))
     in
-    match origName with
+    ( match origName with
     | Some _ ->
         List.foldr
           ~f:(fun call acc -> AST.replace call (transformCall call) acc)
           ~init:ast
           calls
     | _ ->
-        ast
+        ast )
+    |> FluidExpression.fromNExpr
   in
   let newHandlers =
     m.handlers
@@ -485,10 +493,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
   let newFunctions =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun uf_ ->
-           let newAst =
-             transformCallsInAst f (FluidExpression.toNExpr uf_.ufAST) uf_
-             |> FluidExpression.fromNExpr
-           in
+           let newAst = transformCallsInAst f uf_.ufAST uf_ in
            if newAst <> uf_.ufAST
            then Some (SetFunction {uf_ with ufAST = newAst})
            else None)
@@ -628,10 +633,7 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
          match tl with
          | TLHandler h ->
              let newAST =
-               h.ast
-               |> FluidExpression.fromNExpr
-               |> FluidExpression.renameVariableUses ~oldName ~newName
-               |> FluidExpression.toNExpr
+               h.ast |> FluidExpression.renameVariableUses ~oldName ~newName
              in
              if newAST <> h.ast
              then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAST}))

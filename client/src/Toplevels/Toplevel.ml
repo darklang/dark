@@ -202,7 +202,7 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
 let allData (tl : toplevel) : pointerData list =
   match tl with
   | TLHandler h ->
-      SpecHeaders.allData h.spec @ AST.allData h.ast
+      SpecHeaders.allData h.spec @ AST.allData (FluidExpression.toNExpr h.ast)
   | TLDB db ->
       DB.allData db
   | TLFunc f ->
@@ -308,7 +308,7 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   let astChildren () =
     match tl with
     | TLHandler h ->
-        AST.childrenOf pid h.ast
+        AST.childrenOf pid (FluidExpression.toNExpr h.ast)
     | TLFunc f ->
         AST.childrenOf pid (FluidExpression.toNExpr f.ufAST)
     | TLDB db ->
@@ -366,7 +366,7 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
 let getAST (tl : toplevel) : expr option =
   match tl with
   | TLHandler h ->
-      Some h.ast
+      Some (FluidExpression.toNExpr h.ast)
   | TLFunc f ->
       Some (FluidExpression.toNExpr f.ufAST)
   | _ ->
@@ -376,7 +376,7 @@ let getAST (tl : toplevel) : expr option =
 let setAST (tl : toplevel) (newAST : expr) : toplevel =
   match tl with
   | TLHandler h ->
-      TLHandler {h with ast = newAST}
+      TLHandler {h with ast = FluidExpression.fromNExpr newAST}
   | TLFunc uf ->
       TLFunc {uf with ufAST = FluidExpression.fromNExpr newAST}
   | TLDB _ | TLTipe _ | TLGroup _ ->
@@ -385,7 +385,9 @@ let setAST (tl : toplevel) (newAST : expr) : toplevel =
 
 let withAST (m : model) (tlid : tlid) (ast : expr) : model =
   { m with
-    handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
+    handlers =
+      TD.updateIfPresent m.handlers ~tlid ~f:(fun h ->
+          {h with ast = FluidExpression.fromNExpr ast})
   ; userFunctions =
       TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
           {uf with ufAST = FluidExpression.fromNExpr ast}) }
@@ -401,7 +403,7 @@ let rootExpr (tl : toplevel) : expr option =
   (* TODO SpecTypePointerDataRefactor *)
   match tl with
   | TLHandler h ->
-      Some h.ast
+      Some (FluidExpression.toNExpr h.ast)
   | TLFunc f ->
       Some (FluidExpression.toNExpr f.ufAST)
   | TLDB _ | TLTipe _ | TLGroup _ ->
@@ -576,7 +578,10 @@ let setSelectedAST (m : model) (ast : expr) : modification =
   | Some tl ->
     ( match tl with
     | TLHandler h ->
-        RPC ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
+        RPC
+          ( [ SetHandler
+                (id tl, h.pos, {h with ast = FluidExpression.fromNExpr ast}) ]
+          , FocusNoChange )
     | TLFunc f ->
         RPC
           ( [SetFunction {f with ufAST = FluidExpression.fromNExpr ast}]

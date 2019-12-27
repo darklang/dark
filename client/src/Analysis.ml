@@ -175,7 +175,7 @@ let getAvailableVarnames
   in
   match tl with
   | TLHandler h ->
-      varsFor h.ast @ glob @ inputVariables
+      varsFor (FluidExpression.toNExpr h.ast) @ glob @ inputVariables
   | TLFunc fn ->
       varsFor (FluidExpression.toNExpr fn.ufAST) @ glob @ inputVariables
   | TLDB _ | TLTipe _ | TLGroup _ ->
