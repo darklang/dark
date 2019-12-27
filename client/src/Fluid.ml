@@ -1068,11 +1068,6 @@ let caretTargetForBeginningOfPattern (pattern : fluidPattern) : caretTarget =
       {astRef = ARPattern (id, PPNull); offset = 0}
   | FPBlank (_, id) ->
       {astRef = ARPattern (id, PPBlank); offset = 0}
-  | FPOldPattern _ as p ->
-      recover
-        "unhandled pattern in caretTargetForBeginningOfPattern"
-        ~debug:p
-        {astRef = ARInvalid; offset = 0}
 
 
 (* caretTargetForEndOfPattern returns a caretTarget representing caret
@@ -1108,11 +1103,6 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
   | FPBlank (_, id) ->
       (* Consider changing this from 3 to 0 if we don't want blanks to have two spots *)
       {astRef = ARPattern (id, PPBlank); offset = 3}
-  | FPOldPattern _ as p ->
-      recover
-        "unhandled pattern in caretTargetForEndOfPattern"
-        ~debug:p
-        {astRef = ARInvalid; offset = 0}
 
 
 (* maybeCaretTargetForBeginningOfMatchBranch returns (Some caretTarget) representing caret
@@ -1170,8 +1160,6 @@ let recursePattern ~(f : fluidPattern -> fluidPattern) (pat : fluidPattern) :
       pat
   | FPConstructor (id, nameID, name, pats) ->
       FPConstructor (id, nameID, name, List.map ~f pats)
-  | FPOldPattern _ ->
-      pat
 
 
 let updatePattern

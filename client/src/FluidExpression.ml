@@ -274,10 +274,7 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
               | `Float (whole, fraction) ->
                   FPFloat (mid, id, whole, fraction)
               | `Unknown ->
-                  recover
-                    "Getting old pattern literal that we couldn't parse"
-                    ~debug:p
-                    (FPOldPattern (mid, p)) ) )
+                  FPBlank (mid, id) ) )
         in
         let pairs = List.map pairs ~f:(fun (p, e) -> (fromPattern p, f e)) in
         EMatch (id, f mexpr, pairs)
