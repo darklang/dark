@@ -972,7 +972,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
           caretTargetForLastPartOfExpr' lastExpr
       | None ->
           {astRef = ARConstructor (id, CPName); offset = String.length name} )
-    | (EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _ | EOldExpr _) as expr ->
+    | (EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _) as expr ->
         recover
           "we don't yet support caretTargetForLastPartOfExpr for this"
           ~debug:expr
@@ -1032,7 +1032,7 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
     | EConstructor (id, _, _, _) ->
         {astRef = ARConstructor (id, CPName); offset = 0}
-    | (EFeatureFlag _ | EPipeTarget _ | EOldExpr _) as expr ->
+    | (EFeatureFlag _ | EPipeTarget _) as expr ->
         recover
           "unhandled expr in caretTargetForBeginningOfExpr"
           ~debug:(astPartId, expr)
@@ -2280,7 +2280,6 @@ let rec findAppropriateParentToWrap (oldExpr : E.t) (ast : ast) : E.t option =
     | EMatch _
     | ERecord _
     | EPipe _
-    | EOldExpr _
     | ELambda _
     (* Not sure what to do here, probably nothing fancy *)
     | EFeatureFlag _ ->
@@ -4355,7 +4354,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
              , reconstructExpr elseBody |> orDefaultExpr ))
     (* Unknowns:
      * - EPipeTarget: assuming it can't be selected since it doesn't produce tokens
-     * - EOldExpr: going to ignore the "TODO: oldExpr" and assume it's a blank *)
+     *)
     | _, _ ->
         Some (EBlank (gid ()))
   in

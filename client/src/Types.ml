@@ -311,7 +311,6 @@ and fluidExpr =
   | EPipeTarget of id
   (* EFeatureFlag: id, flagName, flagNameId, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
-  | EOldExpr of expr
 
 (* ---------------------- *)
 (* Toplevels *)
