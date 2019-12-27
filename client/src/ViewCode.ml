@@ -28,10 +28,6 @@ let text = ViewBlankOr.text
 
 let enterable = ViewBlankOr.Enterable
 
-let functionIsExecuting (vs : viewState) (id : id) : bool =
-  List.member ~value:id vs.executingFunctions
-
-
 let handlerIsExecuting (vs : viewState) : bool =
   match vs.handlerProp with
   | Some hp ->

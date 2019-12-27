@@ -136,8 +136,6 @@ let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
       [TPatternNullToken (mid, id, idx)]
   | FPBlank (mid, id) ->
       [TPatternBlank (mid, id, idx)]
-  | FPOldPattern (mid, op) ->
-      [TPatternString (mid, Blank.toID op, "TODO: old pattern", idx)]
 
 
 let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
@@ -423,8 +421,6 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                          ; TSep (Pattern.id pattern) ]
                     |> addNested ~f:(fromExpr expr))
              |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))))
-  | EOldExpr expr ->
-      b |> add (TPartial (Blank.toID expr, "TODO: oldExpr"))
   | EPartial (id, str, _) ->
       b |> add (TPartial (id, str))
   | ERightPartial (id, newOp, expr) ->
@@ -520,7 +516,3 @@ let pToStructure (p : fluidPattern) : string =
   |> List.map ~f:(fun ti ->
          "<" ^ T.toTypeName ti.token ^ ":" ^ T.toText ti.token ^ ">")
   |> String.join ~sep:""
-
-
-let nexprToString (e : Types.expr) : string =
-  e |> FluidExpression.fromNExpr |> eToString

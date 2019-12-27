@@ -9,6 +9,8 @@ module TL = Toplevel
 
 (* ------------------------------- *)
 (* Traces *)
+(* These used to have keyboard shortcuts to move between traces. When we
+ * reintroduce shortcuts, it would likely be nice to have them again. *)
 (* ------------------------------- *)
 let moveToOlderTrace (m : model) (tlid : tlid) : modification =
   let traceIDs = Analysis.getTraces m tlid |> List.map ~f:Tuple2.first in
@@ -116,51 +118,6 @@ let tlToSizes (tlid : tlid) : htmlSizing list * htmlSizing list =
   , List.map ~f:jsToHtmlSizing poses.atoms )
 
 
-type udDirection =
-  | Up
-  | Down
-
-let moveUpDown (direction : udDirection) (sizes : htmlSizing list) (id : id) :
-    id option =
-  let dir = if direction = Up then -1.0 else 1.0 in
-  match List.filter ~f:(fun (o : htmlSizing) -> o.id = id) sizes with
-  | [this] ->
-      sizes
-      |> List.filter ~f:(fun o ->
-             o.centerY <> this.centerY && dir *. this.centerY < dir *. o.centerY)
-      |> List.minimumBy ~f:(fun o ->
-             let majorDist = dir *. (o.centerY -. this.centerY) in
-             let minorDist = abs_float (o.centerX -. this.centerX) in
-             (majorDist *. 100000.0) +. minorDist)
-      |> Option.withDefault ~default:this
-      |> (fun x -> x.id)
-      |> fun x -> Some x
-  | _ ->
-      None
-
-
-type lrDirection =
-  | Left
-  | Right
-
-let moveLeftRight (direction : lrDirection) (sizes : htmlSizing list) (id : id)
-    : id option =
-  (* I seem to recall some of these values seemed weird, and now I see *)
-  (* that moveLeft passes Right and moveRight passes Left. Whoops. *)
-  let dir = if direction = Left then -1.0 else 1.0 in
-  match List.filter ~f:(fun (o : htmlSizing) -> o.id = id) sizes with
-  | [this] ->
-      sizes
-      |> List.filter ~f:(fun o ->
-             o.centerY = this.centerY && dir *. this.centerX > dir *. o.centerX)
-      |> List.minimumBy ~f:(fun o -> dir *. (this.centerX -. o.centerX))
-      |> Option.withDefault ~default:this
-      |> (fun x -> x.id)
-      |> fun x -> Some x
-  | _ ->
-      None
-
-
 let findTargetId
     (tlid : tlid)
     (mId : id option)
@@ -266,17 +223,6 @@ let enter (m : model) (tlid : tlid) (id : id) : modification =
 let dblclick (m : model) (tlid : tlid) (id : id) (offset : int option) :
     modification =
   enterWithOffset m tlid id offset
-
-
-let moveAndEnter
-    (m : model)
-    (tlid : tlid)
-    (mId : id option)
-    (fn : htmlSizing list -> id -> id option)
-    (default : id option) : modification =
-  let newMId = findTargetId tlid mId fn default in
-  Option.map newMId ~f:(enter m tlid)
-  |> recoverOpt "Cant move and enter" ~default:NoChange
 
 
 (* ------------------------------- *)

@@ -17,6 +17,10 @@ type fnExecutionStatus =
   | Replayable
   | NoPermission
 
+let functionIsExecuting (vs : viewState) (id : id) : bool =
+  List.member ~value:id vs.executingFunctions
+
+
 let fnExecutionStatus
     (vs : viewState) (fn : function_) (id : id) (args : id list) =
   let isComplete id =
@@ -35,7 +39,7 @@ let fnExecutionStatus
   then Unsafe
   else if not paramsComplete
   then IncompleteArgs
-  else if List.member ~value:id vs.executingFunctions
+  else if functionIsExecuting vs id
   then Executing
   else if resultHasValue
   then Replayable
