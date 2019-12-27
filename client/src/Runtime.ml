@@ -277,22 +277,6 @@ let convertLiteralToDisplayString (s : string) : string =
   else conversion s
 
 
-let convertDisplayStringToLiteral (s : string) : string =
-  let conversion str =
-    (* Convert escaped version into special chars *)
-    str
-    (* 8 re slashes, become 4 in the js source, and 2 in the js runtime *)
-    |> Regex.replace ~re:[%re "/\\\\\\\\/g"] ~repl:"\\"
-    |> Regex.replace ~re:[%re "/\\\\n/g"] ~repl:"\n"
-    |> Regex.replace ~re:[%re "/\\\\r/g"] ~repl:"\r"
-    |> Regex.replace ~re:[%re "/\\\\t/g"] ~repl:"\t"
-    |> Regex.replace ~re:[%re "/\\\\\"/g"] ~repl:"\""
-  in
-  if isStringLiteral s
-  then s |> stripQuotes |> conversion |> addQuotes
-  else conversion s
-
-
 let isComplete (dv : dval) : bool =
   match dv with DError _ | DIncomplete _ -> false | _ -> true
 

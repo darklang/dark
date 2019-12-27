@@ -295,14 +295,6 @@ let createHandlerProp (hs : handler list) : handlerProp TD.t =
   |> TD.fromList
 
 
-let isHandlerLocked (vs : viewState) : bool =
-  match vs.handlerProp with
-  | Some p ->
-      p.handlerLock
-  | None ->
-      Defaults.defaultHandlerProp.handlerLock
-
-
 let getHandlerState (vs : viewState) : handlerState =
   match vs.handlerProp with
   | Some p ->

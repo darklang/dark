@@ -4886,8 +4886,6 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
   Html.div [Attrs.id "fluid-dropdown"] [Html.ul [] autocompleteList]
 
 
-let submitAutocomplete (_m : model) : modification = NoChange
-
 let viewCopyButton tlid value : msg Html.html =
   Html.div
     [ Html.class' "copy-value"
@@ -5391,12 +5389,6 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
 (* -------------------- *)
 (* Scaffolidng *)
 (* -------------------- *)
-
-let selectedASTAsText (m : model) : string option =
-  TL.selectedAST m
-  |> Option.map ~f:E.fromNExpr
-  |> Option.map ~f:Printer.eToString
-
 
 let renderCallback (m : model) : unit =
   match m.cursorState with
