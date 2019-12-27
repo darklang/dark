@@ -1,21 +1,3 @@
-/* Syntax Colors */
-$lambda-color: $orange;
-$pipe-color: $blue;
-
-@mixin precedence($depth) {
-  .precedence-#{$depth} {
-    &:not(.mouseovered),
-    &:not(.mouseovered) .entry form #search-container #suggestionBox,
-    &:not(.mouseovered) .string-entry {
-      background-color: fade($grey2, 5% + ($depth * 5%));
-    }
-
-    &.selected {
-      background-color: $selected-background;
-    }
-  }
-}
-
 @mixin handler-type($name, $color) {
   &.#{$name} {
     color: $color;
