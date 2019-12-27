@@ -212,39 +212,6 @@ let typeOf (dv : dval) : tipe =
       TBytes
 
 
-let isLiteral (dv : dval) : bool =
-  match dv with
-  | DInt _ ->
-      true
-  | DFloat _ ->
-      true
-  | DBool _ ->
-      true
-  | DNull ->
-      true
-  | DCharacter _ ->
-      true
-  | DStr _ ->
-      true
-  | _ ->
-      false
-
-
-let isValidDisplayString (str : string) : bool =
-  str
-  |> String.toList
-  |> List.foldl ~init:(false, true) ~f:(fun c (sawSlash, valid) ->
-         (* Bucklescript actually stores chars are strings, and comparisons
-          * against literal chars don't work. wtf. *)
-         if not valid
-         then (false, false)
-         else if sawSlash
-         then
-           (false, List.member ~value:c (Obj.magic ["t"; "r"; "n"; "\\"; "\""]))
-         else (c = Obj.magic "\\", true))
-  |> fun (lastCharSlash, valid) -> valid && not lastCharSlash
-
-
 let isStringLiteral (s : string) : bool =
   String.length s >= 2
   && String.endsWith ~suffix:"\"" s
@@ -277,27 +244,9 @@ let convertLiteralToDisplayString (s : string) : string =
   else conversion s
 
 
-let convertDisplayStringToLiteral (s : string) : string =
-  let conversion str =
-    (* Convert escaped version into special chars *)
-    str
-    (* 8 re slashes, become 4 in the js source, and 2 in the js runtime *)
-    |> Regex.replace ~re:[%re "/\\\\\\\\/g"] ~repl:"\\"
-    |> Regex.replace ~re:[%re "/\\\\n/g"] ~repl:"\n"
-    |> Regex.replace ~re:[%re "/\\\\r/g"] ~repl:"\r"
-    |> Regex.replace ~re:[%re "/\\\\t/g"] ~repl:"\t"
-    |> Regex.replace ~re:[%re "/\\\\\"/g"] ~repl:"\""
-  in
-  if isStringLiteral s
-  then s |> stripQuotes |> conversion |> addQuotes
-  else conversion s
-
-
 let isComplete (dv : dval) : bool =
   match dv with DError _ | DIncomplete _ -> false | _ -> true
 
-
-let isTrue (dv : dval) : bool = dv = DBool true
 
 (* Copied from Dval.to_repr in backend code, but that's terrible and it should
  * be recopied from to_developer_repr *)

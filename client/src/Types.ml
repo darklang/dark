@@ -272,7 +272,6 @@ and fluidPattern =
   | FPFloat of id * id * string * string
   | FPNull of id * id
   | FPBlank of id * id
-  | FPOldPattern of id * pattern
 
 and fluidExpr =
   (* Several of these expressions have extra IDs for roundtripping to the old expr *)
@@ -312,7 +311,6 @@ and fluidExpr =
   | EPipeTarget of id
   (* EFeatureFlag: id, flagName, flagNameId, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
-  | EOldExpr of expr
 
 (* ---------------------- *)
 (* Toplevels *)

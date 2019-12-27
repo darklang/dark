@@ -972,7 +972,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
           caretTargetForLastPartOfExpr' lastExpr
       | None ->
           {astRef = ARConstructor (id, CPName); offset = String.length name} )
-    | (EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _ | EOldExpr _) as expr ->
+    | (EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _) as expr ->
         recover
           "we don't yet support caretTargetForLastPartOfExpr for this"
           ~debug:expr
@@ -1032,7 +1032,7 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
     | EConstructor (id, _, _, _) ->
         {astRef = ARConstructor (id, CPName); offset = 0}
-    | (EFeatureFlag _ | EPipeTarget _ | EOldExpr _) as expr ->
+    | (EFeatureFlag _ | EPipeTarget _) as expr ->
         recover
           "unhandled expr in caretTargetForBeginningOfExpr"
           ~debug:(astPartId, expr)
@@ -1068,11 +1068,6 @@ let caretTargetForBeginningOfPattern (pattern : fluidPattern) : caretTarget =
       {astRef = ARPattern (id, PPNull); offset = 0}
   | FPBlank (_, id) ->
       {astRef = ARPattern (id, PPBlank); offset = 0}
-  | FPOldPattern _ as p ->
-      recover
-        "unhandled pattern in caretTargetForBeginningOfPattern"
-        ~debug:p
-        {astRef = ARInvalid; offset = 0}
 
 
 (* caretTargetForEndOfPattern returns a caretTarget representing caret
@@ -1108,11 +1103,6 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
   | FPBlank (_, id) ->
       (* Consider changing this from 3 to 0 if we don't want blanks to have two spots *)
       {astRef = ARPattern (id, PPBlank); offset = 3}
-  | FPOldPattern _ as p ->
-      recover
-        "unhandled pattern in caretTargetForEndOfPattern"
-        ~debug:p
-        {astRef = ARInvalid; offset = 0}
 
 
 (* maybeCaretTargetForBeginningOfMatchBranch returns (Some caretTarget) representing caret
@@ -1170,8 +1160,6 @@ let recursePattern ~(f : fluidPattern -> fluidPattern) (pat : fluidPattern) :
       pat
   | FPConstructor (id, nameID, name, pats) ->
       FPConstructor (id, nameID, name, List.map ~f pats)
-  | FPOldPattern _ ->
-      pat
 
 
 let updatePattern
@@ -2292,7 +2280,6 @@ let rec findAppropriateParentToWrap (oldExpr : E.t) (ast : ast) : E.t option =
     | EMatch _
     | ERecord _
     | EPipe _
-    | EOldExpr _
     | ELambda _
     (* Not sure what to do here, probably nothing fancy *)
     | EFeatureFlag _ ->
@@ -4367,7 +4354,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
              , reconstructExpr elseBody |> orDefaultExpr ))
     (* Unknowns:
      * - EPipeTarget: assuming it can't be selected since it doesn't produce tokens
-     * - EOldExpr: going to ignore the "TODO: oldExpr" and assume it's a blank *)
+     *)
     | _, _ ->
         Some (EBlank (gid ()))
   in
@@ -4899,8 +4886,6 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
   Html.div [Attrs.id "fluid-dropdown"] [Html.ul [] autocompleteList]
 
 
-let submitAutocomplete (_m : model) : modification = NoChange
-
 let viewCopyButton tlid value : msg Html.html =
   Html.div
     [ Html.class' "copy-value"
@@ -4961,12 +4946,7 @@ let fnForToken state token : function_ option =
 
 let fnArgExprs (token : token) (ast : ast) : E.t list =
   let id = T.tid token in
-  let previous =
-    E.toNExpr ast
-    |> AST.threadPrevious id
-    |> Option.toList
-    |> List.map ~f:E.fromNExpr
-  in
+  let previous = ast |> AST.threadPrevious id |> Option.toList in
   let exprs =
     match E.find id ast with
     | Some (EFnCall (_, _, exprs, _)) ->
@@ -5409,12 +5389,6 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
 (* -------------------- *)
 (* Scaffolidng *)
 (* -------------------- *)
-
-let selectedASTAsText (m : model) : string option =
-  TL.selectedAST m
-  |> Option.map ~f:E.fromNExpr
-  |> Option.map ~f:Printer.eToString
-
 
 let renderCallback (m : model) : unit =
   match m.cursorState with

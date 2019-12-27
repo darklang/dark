@@ -798,24 +798,6 @@ let parseDvalLiteral (str : string) : dval option =
     (try Some (parseBasicDval (Json.parseOrRaise str)) with _ -> None)
 
 
-let isLiteralRepr (s : string) : bool =
-  if String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
-  then true
-  else
-    match parseDvalLiteral s with None -> false | Some dv -> RT.isLiteral dv
-
-
-let typeOfLiteral (s : string) : tipe =
-  if String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
-  then TStr
-  else
-    match parseDvalLiteral s with
-    | None ->
-        TIncomplete
-    | Some dv ->
-        RT.typeOf dv
-
-
 let exception_ j : exception_ =
   { short = field "short" string j
   ; long = field "long" (optional string) j

@@ -3,20 +3,6 @@ open! Tc
 open Runtime
 
 let run () =
-  describe "validStringLiteral" (fun () ->
-      let t name subject expected =
-        test name (fun () ->
-            expect (isValidDisplayString subject) |> toEqual expected)
-      in
-      t "newline" "\\n" true ;
-      t "carriage return" "\\r" true ;
-      t "tab" "\\t" true ;
-      t "escaped backslash" "\\\\" true ;
-      t "escaped quote" "\\\"" true ;
-      t "naked backslash" "\\" false ;
-      t "invalid backslashed char" "\\6" false ;
-      t "many" "\\n\\t\\r\\\\\\\"" true ;
-      ()) ;
   describe "convertLiteralStringToDisplay" (fun () ->
       let t name subject expected =
         test name (fun () ->
@@ -36,22 +22,6 @@ let run () =
         "many"
         "asd\n\t\r\n\t\r\n\t\r\"\"\"qwe"
         "asd\\n\\t\\r\\n\\t\\r\\n\\t\\r\\\"\\\"\\\"qwe" ;
-      ()) ;
-  describe "convertDisplayStringToLiteral " (fun () ->
-      let t name subject expected =
-        test name (fun () ->
-            expect (convertDisplayStringToLiteral subject) |> toEqual expected)
-      in
-      t "newline" "\\n" "\n" ;
-      t "newline2" "asd\\nqwe" "asd\nqwe" ;
-      t "carriage return" "\\r" "\r" ;
-      t "carriage return2" "asd\\rqwe" "asd\rqwe" ;
-      t "tab2" "\\t" "\t" ;
-      t "tab2 " "asd\\tqwe" "asd\tqwe" ;
-      t "escaped backslash" "\\\\" "\\" ;
-      t "escaped backslash2" "asd\\\\qwe" "asd\\qwe" ;
-      t "escaped quote" "\\\"" "\"" ;
-      t "escaped quote2" "asd\\\"qwe" "asd\"qwe" ;
       ()) ;
   describe "pathFromInputVars" (fun () ->
       let noRequest = StrDict.empty in
