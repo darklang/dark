@@ -297,65 +297,6 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 //*************
 // AST
 //*************
-.error-indicator {
-  position: absolute;
-  left: calc(100% - 2ch);
-  width: 12px;
-  height: 12px;
-  background-size: contain;
-  background-repeat: no-repeat;
-  opacity: 0.8;
-
-  &:hover {
-    opacity: 1;
-    cursor: pointer;
-  }
-
-  &:hover:after {
-    @extend .tooltip;
-
-    position: absolute;
-    left: 25px;
-    top: -2px;
-  }
-
-  &.Option {
-    background-image: url("/icons/option_just.svg");
-    &:hover:after {
-      content: ":take-function-off-rail (x -> Just x)";
-    }
-
-    &.ErrorRail {
-      background-image: url("/icons/option_nothing.svg");
-
-      &:hover:after {
-        content: ":take-function-off-rail ((/) -> Nothing)";
-      }
-    }
-  }
-
-  &.Result {
-    background-image: url("/icons/result_ok.svg");
-
-    &:hover:after {
-      content: ":take-function-off-rail (x -> Ok x)";
-    }
-
-    &.ErrorRail {
-      background-image: url("/icons/result_error.svg");
-
-      &:hover:after {
-        content: ":take-function-off-rail ((!) -> Error msg)";
-      }
-    }
-  }
-
-  &.Result.EvalFail,
-  &.Option.EvalFail {
-    background-image: none;
-  }
-}
-
 .ast {
   font-size: 10pt;
   padding-right: $spacing-medium;
