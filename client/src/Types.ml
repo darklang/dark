@@ -344,7 +344,7 @@ and handlerSpace =
   | HSDeprecatedOther
 
 and handler =
-  { ast : expr
+  { ast : fluidExpr
   ; spec : handlerSpec
   ; hTLID : tlid
   ; pos : pos }

@@ -297,7 +297,10 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
 
 
 and handler (h : Types.handler) : Js.Json.t =
-  object_ [("tlid", tlid h.hTLID); ("spec", spec h.spec); ("ast", expr h.ast)]
+  object_
+    [ ("tlid", tlid h.hTLID)
+    ; ("spec", spec h.spec)
+    ; ("ast", expr (FluidExpression.toNExpr h.ast)) ]
 
 
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =

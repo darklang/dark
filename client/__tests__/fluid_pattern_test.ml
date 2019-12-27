@@ -17,7 +17,7 @@ let eToString = Printer.eToString
 let pToString = Printer.pToString
 
 let h ast =
-  { ast = E.toNExpr ast
+  { ast
   ; hTLID = TLID "7"
   ; spec =
       { space = Blank.newF "HTTP"

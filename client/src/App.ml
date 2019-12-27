@@ -953,11 +953,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with searchCache}, Cmd.none)
     | InitASTCache (handlers, userFunctions) ->
-        let exprToString ast = FluidPrinter.nexprToString ast in
         let hcache =
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
-                 let value = exprToString h.ast in
+                 let value = FluidPrinter.eToString h.ast in
                  cache |> TLIDDict.insert ~tlid:h.hTLID ~value)
         in
         let searchCache =
@@ -1705,7 +1704,7 @@ let update_ (msg : msg) (m : model) : modification =
         else gtlid ()
       in
       let pos = center in
-      let ast = B.new_ () in
+      let ast = EBlank (gid ()) in
       let aHandler =
         { ast
         ; spec =
@@ -1744,7 +1743,8 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         ( traceMods
         @ [ RPC
-              ([SetHandler (tlid, pos, aHandler)], FocusExact (tlid, B.toID ast))
+              ( [SetHandler (tlid, pos, aHandler)]
+              , FocusExact (tlid, FluidExpression.id ast) )
           ; Delete404 fof ] )
   | MarkRoutingTableOpen (shouldOpen, key) ->
       TweakModel
