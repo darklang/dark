@@ -3,20 +3,6 @@ open! Tc
 open Runtime
 
 let run () =
-  describe "validStringLiteral" (fun () ->
-      let t name subject expected =
-        test name (fun () ->
-            expect (isValidDisplayString subject) |> toEqual expected)
-      in
-      t "newline" "\\n" true ;
-      t "carriage return" "\\r" true ;
-      t "tab" "\\t" true ;
-      t "escaped backslash" "\\\\" true ;
-      t "escaped quote" "\\\"" true ;
-      t "naked backslash" "\\" false ;
-      t "invalid backslashed char" "\\6" false ;
-      t "many" "\\n\\t\\r\\\\\\\"" true ;
-      ()) ;
   describe "convertLiteralStringToDisplay" (fun () ->
       let t name subject expected =
         test name (fun () ->
