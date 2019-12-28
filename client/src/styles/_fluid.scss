@@ -447,7 +447,8 @@ since they are essentially both commands just acting upon different things. */
 
     &:hover {
       opacity: 1;
-      cursor: pointer;
+      // We disabled clicking for now, so hide the pointer too.
+      // cursor: pointer;
     }
 
     &:hover:after {
