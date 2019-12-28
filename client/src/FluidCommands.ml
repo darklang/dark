@@ -31,7 +31,6 @@ let commandsFor (tl : toplevel) (id : id) : command list =
   let noPutOn c = c.commandName <> Commands.putFunctionOnRail.commandName in
   let noTakeOff c = c.commandName <> Commands.takeFunctionOffRail.commandName in
   Toplevel.getAST tl
-  |> Option.map ~f:FluidExpression.fromNExpr
   |> Option.andThen ~f:(FluidExpression.find id)
   |> Option.map ~f:(function
          | EFnCall (_, _, _, Rail) ->

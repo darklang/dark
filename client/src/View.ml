@@ -90,7 +90,6 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let id =
     TL.getAST tl
-    |> Option.map ~f:FluidExpression.fromNExpr
     |> Option.andThen ~f:(Fluid.getToken m.fluidState)
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
@@ -118,6 +117,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let selectedFnDocString =
           let fn =
             TL.getAST tl
+            |> Option.map ~f:FluidExpression.toNExpr
             |> Option.andThen ~f:(fun ast -> AST.find id ast)
             |> Option.andThen ~f:(function
                    | PExpr (F (_, FnCall (F (_, name), _, _))) ->
@@ -143,6 +143,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           let param =
             TL.get m tlid
             |> Option.andThen ~f:TL.getAST
+            |> Option.map ~f:FluidExpression.toNExpr
             |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
             |> Option.andThen ~f:(fun (name, index) ->
                    m.complete.functions
@@ -176,10 +177,12 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         Defaults.centerPos
   in
   let hasFf =
-    TL.getAST tl
-    |> Option.map ~f:AST.allData
-    |> Option.withDefault ~default:[]
-    |> List.any ~f:(function PFFMsg _ -> true | _ -> false)
+    false
+    (* TL.getAST tl *)
+    (* |> Option.map ~f:FluidExpression.toNExpr *)
+    (* |> Option.map ~f:AST.allData *)
+    (* |> Option.withDefault ~default:[] *)
+    (* |> List.any ~f:(function PFFMsg _ -> true | _ -> false) *)
   in
   let html =
     [ Html.div (Html.class' class_ :: events) (top @ body @ data)

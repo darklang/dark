@@ -127,15 +127,11 @@ let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
   let threadPrevious =
     tl
     |> TL.getAST
-    |> Option.map ~f:FluidExpression.fromNExpr
     |> Option.andThen ~f:(AST.threadPrevious callerID)
     |> Option.toList
   in
   let caller =
-    tl
-    |> TL.getAST
-    |> Option.map ~f:FluidExpression.fromNExpr
-    |> Option.andThen ~f:(FluidExpression.find callerID)
+    tl |> TL.getAST |> Option.andThen ~f:(FluidExpression.find callerID)
   in
   let args =
     match caller with

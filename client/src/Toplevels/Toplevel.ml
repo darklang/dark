@@ -363,47 +363,40 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
 
 
-let getAST (tl : toplevel) : expr option =
+let getAST (tl : toplevel) : fluidExpr option =
   match tl with
   | TLHandler h ->
-      Some (FluidExpression.toNExpr h.ast)
+      Some h.ast
   | TLFunc f ->
-      Some (FluidExpression.toNExpr f.ufAST)
+      Some f.ufAST
   | _ ->
       None
 
 
-let setAST (tl : toplevel) (newAST : expr) : toplevel =
+let setAST (tl : toplevel) (newAST : fluidExpr) : toplevel =
   match tl with
   | TLHandler h ->
-      TLHandler {h with ast = FluidExpression.fromNExpr newAST}
+      TLHandler {h with ast = newAST}
   | TLFunc uf ->
-      TLFunc {uf with ufAST = FluidExpression.fromNExpr newAST}
+      TLFunc {uf with ufAST = newAST}
   | TLDB _ | TLTipe _ | TLGroup _ ->
       tl
 
 
-let withAST (m : model) (tlid : tlid) (ast : expr) : model =
+let withAST (m : model) (tlid : tlid) (ast : fluidExpr) : model =
   { m with
-    handlers =
-      TD.updateIfPresent m.handlers ~tlid ~f:(fun h ->
-          {h with ast = FluidExpression.fromNExpr ast})
+    handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
   ; userFunctions =
       TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
-          {uf with ufAST = FluidExpression.fromNExpr ast}) }
+          {uf with ufAST = ast}) }
 
 
-let setASTMod (tl : toplevel) (ast : expr) : modification =
+let setASTMod (tl : toplevel) (ast : fluidExpr) : modification =
   match tl with
   | TLHandler h ->
-      RPC
-        ( [ SetHandler
-              (id tl, h.pos, {h with ast = FluidExpression.fromNExpr ast}) ]
-        , FocusNoChange )
+      RPC ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
   | TLFunc f ->
-      RPC
-        ( [SetFunction {f with ufAST = FluidExpression.fromNExpr ast}]
-        , FocusNoChange )
+      RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
   | TLTipe _ ->
       recover "no ast in Tipes" ~debug:tl NoChange
   | TLDB _ ->
@@ -445,7 +438,9 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
   | PConstructorName _ ->
       tl
       |> getAST
+      |> Option.map ~f:FluidExpression.toNExpr
       |> Option.map ~f:(fun ast -> AST.replace p replacement ast)
+      |> Option.map ~f:FluidExpression.fromNExpr
       |> Option.map ~f:(setAST tl)
       |> recoverOpt "replacing an expr in a non-ast tl" ~default:tl
   | PEventName bo | PEventModifier bo | PEventSpace bo ->
@@ -588,5 +583,5 @@ let selectedAST (m : model) : expr option =
   selected m |> Option.andThen ~f:rootExpr
 
 
-let setSelectedAST (m : model) (ast : expr) : modification =
+let setSelectedAST (m : model) (ast : fluidExpr) : modification =
   match selected m with None -> NoChange | Some tl -> setASTMod tl ast

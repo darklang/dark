@@ -13,7 +13,6 @@ let getCurrentPointer (m : model) : (toplevel * pointerData) option =
         let s = m.fluidState in
         TL.get m tlid
         |> Option.andThen ~f:TL.getAST
-        |> Option.map ~f:FluidExpression.fromNExpr
         |> Option.andThen ~f:(Fluid.getToken s)
         |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     | _ ->

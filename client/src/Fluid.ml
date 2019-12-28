@@ -90,7 +90,7 @@ let astAndStateFromTLID (m : model) (tlid : tlid) : (E.t * state) option =
                let newM = removeHandlerTransientState m in
                newM.fluidState
            in
-           (E.fromNExpr genericAst, state))
+           (genericAst, state))
   in
   maybeFluidAstAndState
 
@@ -3828,10 +3828,10 @@ and deleteSelection ~state ~(ast : ast) : E.t * fluidState =
   fluidGetSelectionRange state |> deleteCaretRange ~state ~ast
 
 
-let updateAutocomplete m tlid ast s : fluidState =
+let updateAutocomplete m tlid (ast : ast) s : fluidState =
   match getToken s ast with
   | Some ti when T.isAutocompletable ti.token ->
-      let m = TL.withAST m tlid (E.toNExpr ast) in
+      let m = TL.withAST m tlid ast in
       let newAC = AC.regenerate m s.ac (tlid, ti) in
       {s with ac = newAC}
   | _ ->
@@ -4729,8 +4729,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                  Some (tl, expr)
              | None ->
                  None)
-      |> Option.map ~f:(fun (tl, expr) ->
-             let ast = E.fromNExpr expr in
+      |> Option.map ~f:(fun (tl, ast) ->
              let fluidState =
                let fs = moveToEndOfTarget id ast s in
                {fs with errorDvSrc = SourceId id}
@@ -4774,7 +4773,6 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       ( match (tl, ast) with
       | Some tl, Some ast ->
           let tlid = TL.id tl in
-          let ast = E.fromNExpr ast in
           let newAST, newState = updateMsg m tlid ast msg s in
           let eventSpecMod, newAST, newState =
             let enter id = Enter (Filling (tlid, id)) in
@@ -4816,18 +4814,17 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
           let astMod =
             if ast <> newAST
             then
-              let asExpr = E.toNExpr newAST in
               let requestAnalysis =
                 match Analysis.getSelectedTraceID m tlid with
                 | Some traceID ->
-                    let m = TL.withAST m tlid asExpr in
+                    let m = TL.withAST m tlid newAST in
                     MakeCmd (Analysis.requestAnalysis m tlid traceID)
                 | None ->
                     NoChange
               in
               Many
-                [ Types.TweakModel (fun m -> TL.withAST m tlid asExpr)
-                ; Toplevel.setSelectedAST m asExpr
+                [ Types.TweakModel (fun m -> TL.withAST m tlid newAST)
+                ; Toplevel.setSelectedAST m newAST
                 ; requestAnalysis
                 ; UpdateASTCache (tlid, Printer.eToString newAST) ]
             else Types.NoChange
