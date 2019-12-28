@@ -124,26 +124,27 @@ let getTipeOf (m : model) (id : id) (traceID : traceID) : tipe option =
 
 let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
     : dval list option =
-  let caller = TL.find tl callerID in
   let threadPrevious =
-    match TL.rootOf tl with
-    | Some (PExpr expr) ->
-        expr
-        |> FluidExpression.fromNExpr
-        |> AST.threadPrevious callerID
-        |> Option.map ~f:FluidExpression.toNExpr
-        |> Option.toList
-    | _ ->
-        []
+    tl
+    |> TL.getAST
+    |> Option.map ~f:FluidExpression.fromNExpr
+    |> Option.andThen ~f:(AST.threadPrevious callerID)
+    |> Option.toList
+  in
+  let caller =
+    tl
+    |> TL.getAST
+    |> Option.map ~f:FluidExpression.fromNExpr
+    |> Option.andThen ~f:(FluidExpression.find callerID)
   in
   let args =
     match caller with
-    | Some (PExpr (F (_, FnCall (_, args, _)))) ->
+    | Some (EFnCall (_, _, args, _)) ->
         threadPrevious @ args
     | _ ->
         []
   in
-  let argIDs = List.map ~f:B.toID args in
+  let argIDs = List.map ~f:FluidExpression.id args in
   let dvals = List.filterMap argIDs ~f:(fun id -> getLiveValue m id traceID) in
   if List.length dvals = List.length argIDs then Some dvals else None
 
