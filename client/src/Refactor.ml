@@ -71,14 +71,12 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
 let takeOffRail (_m : model) (tl : toplevel) (p : pointerData) : modification =
   let id = P.toID p in
   TL.getAST tl
-  |> Option.map ~f:FluidExpression.fromNExpr
   |> Option.map ~f:(fun ast ->
          FluidExpression.update id ast ~f:(function
              | EFnCall (_, name, exprs, Rail) ->
                  EFnCall (id, name, exprs, NoRail)
              | e ->
                  recover "incorrect id in takeoffRail" e))
-  |> Option.map ~f:FluidExpression.toNExpr
   |> Option.map ~f:(Toplevel.setASTMod tl)
   |> Option.withDefault ~default:NoChange
 
