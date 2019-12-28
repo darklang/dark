@@ -192,6 +192,9 @@ let rec replace_
           | Some (F (_, Thread (first :: _))) ->
             ( match e with
             | F (id, FnCall (fn, (_ :: rest as args), r_)) ->
+                (* TODO: if the function has already dropped its arguments
+                 * (because it was copied from the rail, this loses an
+                 * extra argument. *)
                 if B.toID first = sId
                 then F (id, FnCall (fn, args, r_))
                 else F (id, FnCall (fn, rest, r_))
