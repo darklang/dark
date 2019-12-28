@@ -393,7 +393,24 @@ let withAST (m : model) (tlid : tlid) (ast : expr) : model =
           {uf with ufAST = FluidExpression.fromNExpr ast}) }
 
 
-(* TODO(match) *)
+let setASTMod (tl : toplevel) (ast : expr) : modification =
+  match tl with
+  | TLHandler h ->
+      RPC
+        ( [ SetHandler
+              (id tl, h.pos, {h with ast = FluidExpression.fromNExpr ast}) ]
+        , FocusNoChange )
+  | TLFunc f ->
+      RPC
+        ( [SetFunction {f with ufAST = FluidExpression.fromNExpr ast}]
+        , FocusNoChange )
+  | TLTipe _ ->
+      recover "no ast in Tipes" ~debug:tl NoChange
+  | TLDB _ ->
+      recover "no ast in DBs" ~debug:tl NoChange
+  | TLGroup _ ->
+      recover "no ast in Groups" ~debug:tl NoChange
+
 
 let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
   getChildrenOf tl id |> List.head
@@ -572,23 +589,4 @@ let selectedAST (m : model) : expr option =
 
 
 let setSelectedAST (m : model) (ast : expr) : modification =
-  match selected m with
-  | None ->
-      NoChange
-  | Some tl ->
-    ( match tl with
-    | TLHandler h ->
-        RPC
-          ( [ SetHandler
-                (id tl, h.pos, {h with ast = FluidExpression.fromNExpr ast}) ]
-          , FocusNoChange )
-    | TLFunc f ->
-        RPC
-          ( [SetFunction {f with ufAST = FluidExpression.fromNExpr ast}]
-          , FocusNoChange )
-    | TLTipe _ ->
-        recover "no ast in Tipes" ~debug:tl NoChange
-    | TLDB _ ->
-        recover "no ast in DBs" ~debug:tl NoChange
-    | TLGroup _ ->
-        recover "no ast in Groups" ~debug:tl NoChange )
+  match selected m with None -> NoChange | Some tl -> setASTMod tl ast
