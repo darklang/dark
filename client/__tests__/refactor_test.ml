@@ -1,6 +1,7 @@
 open Tester
 open! Tc
 open Types
+open Prelude
 module B = Blank
 module D = Defaults
 module R = Refactor
@@ -26,6 +27,13 @@ let sampleFunctions =
     ; fnPreviewExecutionSafe = true
     ; fnDeprecated = false
     ; fnInfix = false }
+  ; { fnName = "List::getAt_v1"
+    ; fnParameters = [par "list" TList; par "index" TInt]
+    ; fnDescription = ""
+    ; fnReturnTipe = TOption
+    ; fnPreviewExecutionSafe = true
+    ; fnDeprecated = false
+    ; fnInfix = false }
   ; { fnName = "Dict::map"
     ; fnParameters = [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
     ; fnDescription = ""
@@ -40,6 +48,14 @@ let sampleFunctions =
     ; fnPreviewExecutionSafe = true
     ; fnDeprecated = false
     ; fnInfix = false } ]
+
+
+let defaultHandler =
+  { hTLID = TLID "handler1"
+  ; pos = {x = 0; y = 0}
+  ; ast = EBlank (gid ())
+  ; spec =
+      {space = B.newF "HTTP"; name = B.newF "/src"; modifier = B.newF "POST"} }
 
 
 let run () =
@@ -70,14 +86,7 @@ let run () =
       in
       let handlerWithPointer fnName fnRail =
         let ast = EFnCall (ID "ast1", fnName, [], fnRail) in
-        ( { hTLID = TLID "handler1"
-          ; pos = {x = 0; y = 0}
-          ; ast
-          ; spec =
-              { space = B.newF "HTTP"
-              ; name = B.newF "/src"
-              ; modifier = B.newF "POST" } }
-        , PExpr (FluidExpression.toNExpr ast) )
+        ({defaultHandler with ast}, PExpr (FluidExpression.toNExpr ast))
       in
       let init fnName fnRail =
         let h, pd = handlerWithPointer fnName fnRail in
@@ -92,6 +101,44 @@ let run () =
             | RPC ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | EFnCall (_, "Int::notResulty", [], NoRail) ->
+                  true
+              | _ ->
+                  false )
+            | _ ->
+                false
+          in
+          expect res |> toEqual true) ;
+      test "toggles any fncall off rail in a thread" (fun () ->
+          let open Fluid_test_data in
+          let module E = FluidExpression in
+          let fn = fn ~ster:Rail "List::getAt_v2" [pipeTarget; int "5"] in
+          let ast = pipe emptyList [fn] in
+          let h = {defaultHandler with ast} in
+          let m = model [h] in
+          let id = deID (E.id fn) in
+          let pd =
+            PExpr
+              (F
+                 ( ID id
+                 , FnCall
+                     ( F (ID (id ^ "_name"), "List::getAt_v2")
+                     , [F (gid (), Value "5")]
+                     , Rail ) ))
+          in
+          (* this used to crash or just lose all its arguments *)
+          let op = Refactor.takeOffRail m (TLHandler h) pd in
+          let res =
+            match op with
+            | RPC ([SetHandler (_, _, h)], _) ->
+              ( match h.ast with
+              | EPipe
+                  ( _
+                  , [ EList (_, [])
+                    ; EFnCall
+                        ( _
+                        , "List::getAt_v2"
+                        , [EPipeTarget _; EInteger (_, "5")]
+                        , NoRail ) ] ) ->
                   true
               | _ ->
                   false )
