@@ -28,30 +28,18 @@ let reset : fluidCommandState =
 let commandsFor (tl : toplevel) (id : id) : command list =
   (* NB: do not structurally compare entire Command.command records here, as
    * they contain functions, which BS cannot compare.*)
-  let filterForRail rail =
-    fluidCommands
-    |> List.filter ~f:(fun c ->
-           match rail with
-           | Rail ->
-               c.commandName <> Commands.putFunctionOnRail.commandName
-           | NoRail ->
-               c.commandName <> Commands.takeFunctionOffRail.commandName)
-  in
+  let noPutOn c = c.commandName <> Commands.putFunctionOnRail.commandName in
+  let noTakeOff c = c.commandName <> Commands.takeFunctionOffRail.commandName in
   Toplevel.getAST tl
-  |> Option.andThen ~f:(fun x -> AST.find id x)
-  |> Option.andThen ~f:(fun pd ->
-         match pd with
-         | PExpr (F (_, FnCall (_, _, rail))) ->
-             Some (filterForRail rail)
+  |> Option.map ~f:FluidExpression.fromNExpr
+  |> Option.andThen ~f:(FluidExpression.find id)
+  |> Option.map ~f:(function
+         | EFnCall (_, _, _, Rail) ->
+             List.filter fluidCommands ~f:noPutOn
+         | EFnCall (_, _, _, NoRail) ->
+             List.filter fluidCommands ~f:noTakeOff
          | _ ->
-             let cmds =
-               fluidCommands
-               |> List.filter ~f:(fun c ->
-                      c.commandName <> Commands.putFunctionOnRail.commandName
-                      && c.commandName
-                         <> Commands.takeFunctionOffRail.commandName)
-             in
-             Some cmds)
+             List.filter fluidCommands ~f:(fun c -> noTakeOff c && noPutOn c))
   |> Option.withDefault ~default:fluidCommands
 
 
