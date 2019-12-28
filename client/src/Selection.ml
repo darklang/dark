@@ -184,8 +184,6 @@ let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
       if isLocked && not isMigrationCol then NoChange else enterField
   | Some (PDBColType _) ->
       if isLocked && not isMigrationCol then NoChange else enterField
-  | Some (PExpr _) ->
-      enterField
   (* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress *)
   | _ ->
       NoChange
