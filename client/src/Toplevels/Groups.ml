@@ -128,7 +128,7 @@ let landedInGroup (tlid : tlid) (groups : group TLIDDict.t) : tlid list =
       []
 
 
-let replaceGroupName (old : pointerData) (new_ : pointerData) (group : group) :
+let replaceGroupName (old : blankOrData) (new_ : blankOrData) (group : group) :
     group =
   let sId = P.toID old in
   if B.toID group.gName = sId
@@ -141,10 +141,10 @@ let replaceGroupName (old : pointerData) (new_ : pointerData) (group : group) :
   else group
 
 
-let replace (old : pointerData) (new_ : pointerData) (group : group) : group =
+let replace (old : blankOrData) (new_ : blankOrData) (group : group) : group =
   group |> replaceGroupName old new_
 
 
-let allData (g : group) : pointerData list =
+let allData (g : group) : blankOrData list =
   let namePointer = PGroupName g.gName in
   [namePointer]

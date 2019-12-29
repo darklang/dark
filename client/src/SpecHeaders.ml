@@ -57,11 +57,11 @@ let replace (search : id) (replacement : string blankOr) (hs : handlerSpec) :
   |> replaceEventSpace search replacement
 
 
-let delete (pd : pointerData) (hs : handlerSpec) (newID : id) : handlerSpec =
+let delete (pd : blankOrData) (hs : handlerSpec) (newID : id) : handlerSpec =
   replace (P.toID pd) (Blank newID) hs
 
 
-let allData (spec : handlerSpec) : pointerData list =
+let allData (spec : handlerSpec) : blankOrData list =
   [PEventSpace spec.space; PEventModifier spec.modifier; PEventName spec.name]
 
 

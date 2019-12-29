@@ -7,9 +7,9 @@ module B = Blank
 module P = Pointer
 module TD = TLIDDict
 
-type predecessor = pointerData option
+type predecessor = blankOrData option
 
-type successor = pointerData option
+type successor = blankOrData option
 
 type dbReference = tlid * dbColumn list
 
@@ -199,7 +199,7 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
 (* ------------------------- *)
 (* Generic *)
 (* ------------------------- *)
-let allData (tl : toplevel) : pointerData list =
+let allData (tl : toplevel) : blankOrData list =
   match tl with
   | TLHandler h ->
       SpecHeaders.allData h.spec @ AST.allData (FluidExpression.toNExpr h.ast)
@@ -217,7 +217,7 @@ let isValidID (tl : toplevel) (id : id) : bool =
   List.member ~value:id (tl |> allData |> List.map ~f:P.toID)
 
 
-let clonePointerData (pd : pointerData) : pointerData =
+let clonePointerData (pd : blankOrData) : blankOrData =
   match pd with
   | PVarBind vb ->
       PVarBind (B.clone identity vb)
@@ -262,7 +262,7 @@ let clonePointerData (pd : pointerData) : pointerData =
 (* ------------------------- *)
 (* Blanks *)
 (* ------------------------- *)
-let allBlanks (tl : toplevel) : pointerData list =
+let allBlanks (tl : toplevel) : blankOrData list =
   tl |> allData |> List.filter ~f:P.isBlank
 
 
@@ -303,7 +303,7 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
 (* Up/Down the tree *)
 (* ------------------------- *)
 
-let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
+let getChildrenOf (tl : toplevel) (pd : blankOrData) : blankOrData list =
   let pid = P.toID pd in
   let astChildren () =
     match tl with
@@ -405,7 +405,7 @@ let setASTMod (tl : toplevel) (ast : fluidExpr) : modification =
       recover "no ast in Groups" ~debug:tl NoChange
 
 
-let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
+let firstChild (tl : toplevel) (id : blankOrData) : blankOrData option =
   getChildrenOf tl id |> List.head
 
 
@@ -420,12 +420,12 @@ let rootExpr (tl : toplevel) : expr option =
       None
 
 
-let rootOf (tl : toplevel) : pointerData option =
+let rootOf (tl : toplevel) : blankOrData option =
   (* TODO SpecTypePointerDataRefactor *)
   rootExpr tl |> Option.map ~f:(fun expr -> PExpr expr)
 
 
-let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
+let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     toplevel =
   let id = P.toID p in
   match replacement with
@@ -476,7 +476,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
         recover "Changing group metadata on non-fn" ~debug:replacement tl )
 
 
-let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
+let replaceOp (pd : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     op list =
   let newTL = replace pd replacement tl in
   if newTL = tl
@@ -495,7 +495,7 @@ let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
         recover "groups are front end only" ~debug:tl []
 
 
-let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
+let replaceMod (pd : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     modification =
   let ops = replaceOp pd replacement tl in
   if ops = [] then NoChange else RPC (ops, FocusNoChange)
@@ -503,7 +503,7 @@ let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
 
 (* do nothing for now *)
 
-let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
+let delete (tl : toplevel) (p : blankOrData) (newID : id) : toplevel =
   let replacement = P.emptyD_ newID (P.typeOf p) in
   replace p replacement tl
 
@@ -533,7 +533,7 @@ let structural (m : model) : toplevel TD.t =
 
 let get (m : model) (tlid : tlid) : toplevel option = TD.get ~tlid (all m)
 
-let find (tl : toplevel) (id_ : id) : pointerData option =
+let find (tl : toplevel) (id_ : id) : blankOrData option =
   allData tl
   |> List.filter ~f:(fun d -> id_ = P.toID d)
   |> assertFn
@@ -544,12 +544,12 @@ let find (tl : toplevel) (id_ : id) : pointerData option =
   |> List.head
 
 
-let getPD (m : model) (tlid : tlid) (id : id) : pointerData option =
+let getPD (m : model) (tlid : tlid) (id : id) : blankOrData option =
   get m tlid |> Option.andThen ~f:(fun tl -> find tl id)
 
 
 let getTLAndPD (m : model) (tlid : tlid) (id : id) :
-    (toplevel * pointerData option) option =
+    (toplevel * blankOrData option) option =
   get m tlid |> Option.map ~f:(fun tl -> (tl, find tl id))
 
 

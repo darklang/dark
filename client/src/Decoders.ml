@@ -243,7 +243,7 @@ and nExpr j : nExpr =
     j
 
 
-let pointerData j : pointerData =
+let blankOrData j : blankOrData =
   let dv1 = variant1 in
   variants
     [ ("PVarBind", dv1 (fun x -> PVarBind x) (blankOr string))

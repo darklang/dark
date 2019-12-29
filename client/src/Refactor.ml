@@ -25,7 +25,7 @@ type wrapLoc =
   | WIfThen
   | WIfElse
 
-let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
+let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : blankOrData) :
     modification =
   let tlid = TL.id tl in
   let wrapAst e ast wl_ =
@@ -68,7 +68,7 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
       NoChange
 
 
-let takeOffRail (_m : model) (tl : toplevel) (p : pointerData) : modification =
+let takeOffRail (_m : model) (tl : toplevel) (p : blankOrData) : modification =
   let id = P.toID p in
   TL.getAST tl
   |> Option.map ~f:(fun ast ->
@@ -81,7 +81,7 @@ let takeOffRail (_m : model) (tl : toplevel) (p : pointerData) : modification =
   |> Option.withDefault ~default:NoChange
 
 
-let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
+let putOnRail (m : model) (tl : toplevel) (p : blankOrData) : modification =
   let new_ =
     match p with
     | PExpr (F (id, FnCall (F (nid, name), exprs, NoRail))) ->
@@ -157,7 +157,7 @@ let extractVarInAst
       (B.newF (Let (newVar, e, newAST)), B.toID newVar)
 
 
-let extractVariable (m : model) (tl : toplevel) (p : pointerData) : modification
+let extractVariable (m : model) (tl : toplevel) (p : blankOrData) : modification
     =
   let tlid = TL.id tl in
   let varname = "var" ^ string_of_int (Util.random ()) in
@@ -182,7 +182,7 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) : modification
       NoChange
 
 
-let extractFunction (m : model) (tl : toplevel) (p : pointerData) : modification
+let extractFunction (m : model) (tl : toplevel) (p : blankOrData) : modification
     =
   let tlid = TL.id tl in
   if not (TL.isValidID tl (P.toID p))

@@ -32,7 +32,7 @@ let astsFor (db : db) : expr list =
       ; FluidExpression.toNExpr am.rollback ]
 
 
-let allData (db : db) : pointerData list =
+let allData (db : db) : blankOrData list =
   let cols, rolls =
     match db.activeMigration with
     | Some migra ->

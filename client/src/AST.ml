@@ -58,11 +58,11 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
 (* PointerData *)
 (* -------------------------------- *)
 
-let recoverPD (msg : string) (pd : pointerData option) : pointerData =
+let recoverPD (msg : string) (pd : blankOrData option) : blankOrData =
   recoverOpt ("invalidPD: " ^ msg) pd ~default:(PExpr (B.new_ ()))
 
 
-let rec allData (expr : expr) : pointerData list =
+let rec allData (expr : expr) : blankOrData list =
   let e2ld e = PExpr e in
   let rl exprs = exprs |> List.map ~f:allData |> List.concat in
   [e2ld expr]
@@ -110,7 +110,7 @@ let rec allData (expr : expr) : pointerData list =
         allData oldExpr )
 
 
-let find (id : id) (expr : expr) : pointerData option =
+let find (id : id) (expr : expr) : blankOrData option =
   expr
   |> allData
   |> List.filter ~f:(fun d -> id = P.toID d)
@@ -175,8 +175,8 @@ let rec uses (var : varName) (expr : expr) : expr list =
 
 
 let rec replace_
-    (search : pointerData)
-    (replacement : pointerData)
+    (search : blankOrData)
+    (replacement : blankOrData)
     (parent : expr option)
     (expr : expr) : expr =
   let r = replace_ search replacement (Some expr) in
@@ -310,7 +310,7 @@ let rec replace_
         traverse r expr
 
 
-let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
+let replace (search : blankOrData) (replacement : blankOrData) (expr : expr) :
     expr =
   replace_ search replacement None expr
 
@@ -318,7 +318,7 @@ let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
 (* ------------------------- *)
 (* Children *)
 (* ------------------------- *)
-let children (expr : expr) : pointerData list =
+let children (expr : expr) : blankOrData list =
   let ces exprs = List.map ~f:(fun e -> PExpr e) exprs in
   match expr with
   | Blank _ ->
@@ -368,7 +368,7 @@ let children (expr : expr) : pointerData list =
 
 
 (* Look through an AST for the expr with the id, then return its children. *)
-let rec childrenOf (pid : id) (expr : expr) : pointerData list =
+let rec childrenOf (pid : id) (expr : expr) : blankOrData list =
   let co = childrenOf pid in
   if pid = B.toID expr
   then children expr
@@ -572,7 +572,7 @@ let ancestors (id : id) (expr : expr) : expr list =
   rec_ancestors id [] expr
 
 
-let getValueParent (p : pointerData) (expr : expr) : pointerData option =
+let getValueParent (p : blankOrData) (expr : expr) : blankOrData option =
   let parent = findParentOfWithin_ (P.toID p) expr in
   match (P.typeOf p, parent) with
   | Expr, Some (F (_, Thread exprs)) ->
