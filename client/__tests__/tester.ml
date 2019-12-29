@@ -124,7 +124,14 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
   then print_test_skip name ;
   let result =
     if shouldRun
-    then testFn ()
+    then
+      try testFn ()
+      with e ->
+        { categories = !categories
+        ; name = !runningTest
+        ; success = Failed
+        ; actual = Some (Printexc.to_string e)
+        ; expected = None }
     else
       { categories = !categories
       ; name = !runningTest
