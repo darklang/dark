@@ -20,7 +20,7 @@ fi
 if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   echo "Building docker image"
   # See Dockerfile for an explanation of uid/gid.
-  docker build -t dark --build-arg uid=$(id -u) --build-arg gid=$(id -g) .
+  docker build -t dark --build-arg uid="$(id -u)" --build-arg gid="$(id -g)" .
 
   echo "Removing running containers"
   c=$(docker ps --filter "ancestor=dark" -q)
