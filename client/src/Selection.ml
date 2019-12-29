@@ -148,26 +148,11 @@ let move
       Select (tlid, STTopLevelRoot)
 
 
-let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification =
-  match TL.get m tlid with
-  | None ->
-      NoChange
-  | Some tl ->
-      let pd = Option.andThen cur ~f:(TL.find tl) in
-      pd
-      |> Option.orElse (TL.rootOf tl)
-      |> Option.andThen ~f:(TL.firstChild tl)
-      |> Option.orElse pd
-      |> Option.map ~f:P.toID
-      |> Option.map ~f:(fun id -> Select (tlid, STID id))
-      |> Option.withDefault ~default:(Select (tlid, STTopLevelRoot))
-
-
 let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
   let tlid = TL.id tl in
   let isLocked = DB.isLocked m tlid in
   let isMigrationCol = DB.isMigrationCol db id in
-  let pd = TL.find tl id in
+  let pd = TL.findBlankOr tl id in
   let enterField =
     Many
       [ Enter (Filling (tlid, id))
@@ -195,21 +180,19 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
   | Some (TLDB db as tl) ->
       enterDB m db tl id
   | Some tl ->
-      let pd = TL.find tl id |> AST.recoverPD "enterWithOffset" in
-      if TL.getChildrenOf tl pd <> []
-      then NoChange
-      else
-        let enterMod =
-          match offset with
-          | None ->
-              Enter (Filling (tlid, id))
-          | Some offset ->
-              EnterWithOffset (Filling (tlid, id), offset)
-        in
-        Many
-          [ enterMod
-          ; AutocompleteMod
-              (ACSetQuery (P.toContent pd |> Option.withDefault ~default:"")) ]
+      let content =
+        TL.findBlankOr tl id
+        |> Option.andThen ~f:P.toContent
+        |> recoverOpt ~default:"" "enterWithOffset"
+      in
+      let enterMod =
+        match offset with
+        | None ->
+            Enter (Filling (tlid, id))
+        | Some offset ->
+            EnterWithOffset (Filling (tlid, id), offset)
+      in
+      Many [enterMod; AutocompleteMod (ACSetQuery content)]
   | _ ->
       recover "Entering invalid tl" ~debug:(tlid, id) NoChange
 
@@ -231,8 +214,8 @@ let dblclick (m : model) (tlid : tlid) (id : id) (offset : int option) :
 let maybeEnterFluid
     ~(nonFluidCursorMod : modification)
     (tlid : tlid)
-    (oldPD : pointerData option)
-    (newPD : pointerData option) : modification =
+    (oldPD : blankOrData option)
+    (newPD : blankOrData option) : modification =
   let fluidEnteringMod =
     Many
       [ SetCursorState (FluidEntering tlid)
@@ -262,7 +245,7 @@ let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   | None ->
       recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
-      let pd = Option.andThen ~f:(TL.find tl) cur in
+      let pd = Option.andThen ~f:(TL.findBlankOr tl) cur in
       let nextBlankPd = TL.getNextBlank tl pd in
       (* TODO(JULIAN): This should probably do something better if there is no next blank -- wrap around? *)
       let nextIdTarget =
@@ -282,7 +265,7 @@ let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   | None ->
       recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
-      let pd = Option.andThen ~f:(TL.find tl) cur in
+      let pd = Option.andThen ~f:(TL.findBlankOr tl) cur in
       let nextBlankPd = TL.getNextBlank tl pd in
       maybeEnterFluid
         ~nonFluidCursorMod:
@@ -299,7 +282,7 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   | None ->
       recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
-      let pd = Option.andThen ~f:(TL.find tl) cur in
+      let pd = Option.andThen ~f:(TL.findBlankOr tl) cur in
       let nextBlankPd = pd |> TL.getPrevBlank tl in
       (* TODO(JULIAN): This should probably do something better if there is no next blank -- wrap around? *)
       let nextIdTarget =
@@ -319,7 +302,7 @@ let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   | None ->
       recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
-      let pd = Option.andThen ~f:(TL.find tl) cur in
+      let pd = Option.andThen ~f:(TL.findBlankOr tl) cur in
       let nextBlankPd = TL.getPrevBlank tl pd in
       maybeEnterFluid
         ~nonFluidCursorMod:
@@ -341,22 +324,13 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
   | Some id ->
       let newID = gid () in
       let focus = FocusExact (tlid, newID) in
-      ( match TL.getTLAndPD m tlid id with
+      ( match TL.getTLAndBlankOr m tlid id with
       | Some (tl, Some pd) ->
         ( match P.typeOf pd with
         | DBColType ->
             NoChange
         | DBColName ->
             NoChange
-        | VarBind ->
-            let newTL = TL.replace pd (PVarBind (F (newID, ""))) tl in
-            ( match newTL with
-            | TLHandler h ->
-                RPC ([SetHandler (tlid, h.pos, h)], focus)
-            | TLFunc f ->
-                RPC ([SetFunction f], focus)
-            | TLTipe _ | TLDB _ | TLGroup _ ->
-                recover "pointer type mismatch" ~debug:(newTL, pd) NoChange )
         | DBName | FnName | TypeName | GroupName ->
             Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
         | _ ->

@@ -133,7 +133,7 @@ let processFocus (m : model) (focus : focus) : modification =
     | None ->
         NoChange
     | Some tl ->
-        let predPd = Option.andThen ~f:(TL.find tl) pred in
+        let predPd = Option.andThen ~f:(TL.findBlankOr tl) pred in
         let next = TL.getNextBlank tl predPd in
         ( match next with
         | Some pd ->
@@ -145,7 +145,7 @@ let processFocus (m : model) (focus : focus) : modification =
           | None ->
               Select (tlid, STTopLevelRoot) ) ) )
   | FocusExact (tlid, id) ->
-    ( match TL.getPD m tlid id with
+    ( match TL.getBlankOr m tlid id with
     | Some pd ->
         if P.isBlank pd || P.toContent pd = Some ""
         then Enter (Filling (tlid, id))
@@ -177,7 +177,7 @@ let processFocus (m : model) (focus : focus) : modification =
         if useCS then (tlidOf cs, idOf cs) else (Page.tlidOf page, None)
       in
       let mTl = Option.andThen tlid ~f:(TL.get m) in
-      let pd = Option.map2 mTl mID ~f:(fun tl id -> TL.find tl id) in
+      let pd = Option.map2 mTl mID ~f:(fun tl id -> TL.findBlankOr tl id) in
       ( match (mTl, pd) with
       | Some tl, Some (Some pd) when TL.isValidID tl (P.toID pd) ->
           let query =
@@ -443,13 +443,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | STTopLevelRoot ->
               (FluidEntering tlid, None)
           | STID id ->
-            ( match TL.getPD m tlid id with
-            | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Selecting (tlid, Some id), None)
+            ( match TL.getBlankOr m tlid id with
+            | Some _ ->
+                (Selecting (tlid, Some id), None)
             | None ->
-                (Deselected, None) )
+                (FluidEntering tlid, None) )
           | STCaret caretTarget ->
               let maybeNewFluidState =
                 match Fluid.astAndStateFromTLID m tlid with
@@ -523,13 +521,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Creating _ ->
               (Entering entry, None)
           | Filling (tlid, id) ->
-            ( match TL.getPD m tlid id with
+            ( match TL.getBlankOr m tlid id with
             | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Entering entry, Some (tlid, pd))
+                (Entering entry, Some (tlid, pd))
             | None ->
-                (m.cursorState, None) )
+                (FluidEntering tlid, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
@@ -541,11 +537,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Creating _ ->
               (Entering entry, None)
           | Filling (tlid, id) ->
-            ( match TL.getPD m tlid id with
+            ( match TL.getBlankOr m tlid id with
             | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Entering entry, Some (tlid, pd))
+                (Entering entry, Some (tlid, pd))
             | None ->
                 (m.cursorState, None) )
         in
@@ -1252,9 +1246,7 @@ let update_ (msg : msg) (m : model) : modification =
     | Selecting (tlid, mId) ->
       ( match (TL.get m tlid, mId) with
       | Some tl, Some id ->
-          let pd = TL.find tl id in
-          Option.map pd ~f:(Refactor.extractFunction m tl)
-          |> Option.withDefault ~default:NoChange
+          Refactor.extractFunction m tl id
       | _ ->
           NoChange )
     | _ ->
@@ -1859,9 +1851,9 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidMsg (FluidCommandsClick cmd) ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
-    ( match TL.getTLAndPD m tlid id with
-    | Some (tl, Some pd) ->
-        Refactor.takeOffRail m tl pd
+    ( match TL.get m tlid with
+    | Some tl ->
+        Refactor.takeOffRail m tl id
     | _ ->
         NoChange )
   | SetHandlerExeIdle tlid ->

@@ -243,22 +243,32 @@ and nExpr j : nExpr =
     j
 
 
-let pointerData j : pointerData =
+let blankOrData j : blankOrData =
   let dv1 = variant1 in
   variants
-    [ ("PVarBind", dv1 (fun x -> PVarBind x) (blankOr string))
-    ; ("PEventName", dv1 (fun x -> PEventName x) (blankOr string))
+    [ ("PEventName", dv1 (fun x -> PEventName x) (blankOr string))
     ; ("PEventModifier", dv1 (fun x -> PEventModifier x) (blankOr string))
     ; ("PEventSpace", dv1 (fun x -> PEventSpace x) (blankOr string))
-    ; ("PExpr", dv1 (fun x -> PExpr x) expr)
-    ; ("PField", dv1 (fun x -> PField x) (blankOr string))
     ; ("PDBColName", dv1 (fun x -> PDBColName x) (blankOr string))
     ; ("PDBColType", dv1 (fun x -> PDBColType x) (blankOr string))
-    ; ("PFFMsg", dv1 (fun x -> PFFMsg x) (blankOr string))
-    ; ("PFnName", dv1 (fun x -> PFnName x) (blankOr string))
     ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
-    ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
-    ; ("PPattern", dv1 (fun x -> PPattern x) pattern) ]
+    ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe)) ]
+    j
+
+
+let astData j : astData =
+  let dv1 = variant1 in
+  let dv2 = variant2 in
+  variants
+    [ ("PVarBind", dv2 (fun id name -> PVarBind (id, name)) id string)
+    ; ("PExpr", dv1 (fun x -> PExpr (FluidExpression.fromNExpr x)) expr)
+    ; ("PField", dv2 (fun id name -> PField (id, name)) id string)
+    ; ("PFFMsg", dv2 (fun id name -> PFFMsg (id, name)) id string)
+    ; ( "PPattern" (* TODO: this is wrong as it doesn't have the right id *)
+      , dv1 (fun x -> PPattern (FluidPattern.fromPattern (gid ()) x)) pattern )
+    ; ("PFnCallName", dv2 (fun id name -> PFnCallName (id, name)) id string)
+    ; ( "PConstructorName"
+      , dv2 (fun id name -> PConstructorName (id, name)) id string ) ]
     j
 
 

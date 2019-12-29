@@ -174,13 +174,10 @@ let getAvailableVarnames
     |> List.map ~f:(fun varname ->
            (varname, traceDict |> StrDict.get ~key:varname))
   in
-  match tl with
-  | TLHandler h ->
-      varsFor (FluidExpression.toNExpr h.ast) @ glob @ inputVariables
-  | TLFunc fn ->
-      varsFor (FluidExpression.toNExpr fn.ufAST) @ glob @ inputVariables
-  | TLDB _ | TLTipe _ | TLGroup _ ->
-      []
+  let astVars =
+    TL.getAST tl |> Option.map ~f:varsFor |> Option.withDefault ~default:[]
+  in
+  astVars @ glob @ inputVariables
 
 
 (* ---------------------- *)

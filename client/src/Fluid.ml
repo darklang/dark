@@ -3148,8 +3148,7 @@ let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
 let maybeOpenCmd (m : Types.model) : Types.modification =
   Toplevel.selected m
   |> Option.andThen ~f:(fun tl ->
-         TL.rootExpr tl
-         |> Option.map ~f:E.fromNExpr
+         TL.getAST tl
          |> Option.andThen ~f:(getToken m.fluidState)
          |> Option.map ~f:(fun ti -> FluidCommandsShow (TL.id tl, ti.token)))
   |> Option.withDefault ~default:NoChange
@@ -3201,13 +3200,12 @@ let tokensInRange selStartPos selEndPos ast : fluidTokenInfo list =
 
 
 let getTopmostSelectionID startPos endPos ast : id option =
-  let asExpr = E.toNExpr ast in
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
   tokensInRange startPos endPos ast
   |> List.filter ~f:(fun ti -> not (T.isNewline ti.token))
   |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
          let curID = T.parentExprID ti.token in
-         let curDepth = AST.ancestors curID asExpr |> List.length in
+         let curDepth = AST.ancestors curID ast |> List.length in
          if (* check if current token is higher in the AST than the last token,
              * or if there's no topmost ID yet *)
             (curDepth < topmostDepth || topmostID = None)
@@ -4580,7 +4578,7 @@ let fluidDataFromModel m : (fluidState * E.t) option =
   match Toplevel.selectedAST m with
   | Some expr ->
       let s = m.fluidState in
-      Some (s, E.fromNExpr expr)
+      Some (s, expr)
   | None ->
       None
 

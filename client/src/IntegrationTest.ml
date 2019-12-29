@@ -6,6 +6,7 @@ module B = Blank
 module P = Pointer
 module TL = Toplevel
 module TD = TLIDDict
+module E = FluidExpression
 
 let pass : testResult = Ok ()
 
@@ -85,15 +86,10 @@ let enter_changes_state (m : model) : testResult =
 let field_access_closes (m : model) : testResult =
   match m.cursorState with
   | FluidEntering _ ->
-      let ast =
-        onlyTL m
-        |> TL.asHandler
-        |> deOption "test"
-        |> fun x -> x.ast |> FluidExpression.toNExpr
-      in
-      if AST.allData ast |> List.filter ~f:P.isBlank = []
+      let ast = onlyTL m |> TL.getAST |> deOption "test" in
+      if AST.astData ast |> List.filter ~f:FluidPointer.isBlank = []
       then pass
-      else fail ~f:(show_list ~f:show_pointerData) (TL.allBlanks (onlyTL m))
+      else fail ~f:(show_list ~f:show_blankOrData) (TL.allBlanks (onlyTL m))
   | _ ->
       fail ~f:show_cursorState m.cursorState
 

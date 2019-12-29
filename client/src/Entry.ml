@@ -147,7 +147,7 @@ let newHandler m space name modifier pos =
   let idToEnter =
     (* TL.getNextBlank requires that there be a tl in the model to operate on;
      * here, we're setting an ID to focus before the model is updated, so we
-     * generate our list of pointerDatas here *)
+     * generate our list of blankOrDatas here *)
     (* Fallback to ast if spec has no blanks *)
     handler.spec
     |> SpecHeaders.firstBlank
@@ -252,7 +252,7 @@ type nextMove =
   | StayHere
   | GotoNext
 
-let validate (tl : toplevel) (pd : pointerData) (value : string) : string option
+let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
     =
   let v pattern name =
     if Regex.exactly ~re:pattern value
@@ -300,16 +300,6 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) : string option
       v AC.paramTypeValidator "type field type"
   | PGroupName _ ->
       v AC.groupNameValidator "group name"
-  | PPattern _ ->
-      None
-  | PVarBind _
-  | PExpr _
-  | PField _
-  | PKey _
-  | PFnCallName _
-  | PFFMsg _
-  | PConstructorName _ ->
-      None
 
 
 let submitACItem
@@ -322,7 +312,7 @@ let submitACItem
   | Creating _ ->
       NoChange
   | Filling (tlid, id) ->
-    ( match TL.getTLAndPD m tlid id with
+    ( match TL.getTLAndBlankOr m tlid id with
     | Some (tl, Some pd) ->
       ( match validate tl pd stringValue with
       | Some error ->
@@ -513,7 +503,7 @@ let submitACItem
                   { old with
                     ufMetadata = {old.ufMetadata with ufmName = B.newF value} }
                 in
-                let changedNames = Refactor.renameFunction m old new_ in
+                let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
           | PParamName _, ACParamName value, _ ->
               replace (PParamName (B.newF value))
@@ -538,7 +528,7 @@ let submitACItem
                 ( "Invalid autocomplete option"
                 , None
                 , Some
-                    ( Types.show_pointerData pd
+                    ( Types.show_blankOrData pd
                     ^ ", "
                     ^ Types.show_autocompleteItem item ) ) ) )
     | _ ->

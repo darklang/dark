@@ -5,66 +5,29 @@ open Types
 (* Dark *)
 module B = Blank
 
-let astOwned pt =
-  match pt with
-  | Expr | VarBind | Key | Field | FnCallName | Pattern | ConstructorName ->
-      true
-  | EventModifier
-  | EventName
-  | EventSpace
-  | DBName
-  | DBColName
-  | DBColType
-  | FFMsg
-  | FnName
-  | ParamName
-  | ParamTipe
-  | TypeName
-  | TypeFieldName
-  | TypeFieldTipe
-  | GroupName ->
-      false
-
-
 (* ------------------------ *)
 (* PointerData *)
 (* ------------------------ *)
-let emptyD_ (id : id) (pt : pointerType) : pointerData =
+let emptyD_ (id : id) (pt : blankOrType) : blankOrData =
   match pt with
-  | VarBind ->
-      PVarBind (Blank id)
   | EventModifier ->
       PEventModifier (Blank id)
   | EventName ->
       PEventName (Blank id)
   | EventSpace ->
       PEventSpace (Blank id)
-  | Expr ->
-      PExpr (Blank id)
-  | Key ->
-      PKey (Blank id)
-  | Field ->
-      PField (Blank id)
   | DBName ->
       PDBName (Blank id)
   | DBColName ->
       PDBColName (Blank id)
   | DBColType ->
       PDBColType (Blank id)
-  | FFMsg ->
-      PFFMsg (Blank id)
   | FnName ->
       PFnName (Blank id)
-  | FnCallName ->
-      PFnCallName (Blank id)
   | ParamName ->
       PParamName (Blank id)
   | ParamTipe ->
       PParamTipe (Blank id)
-  | Pattern ->
-      PPattern (Blank id)
-  | ConstructorName ->
-      PConstructorName (Blank id)
   | TypeName ->
       PTypeName (Blank id)
   | TypeFieldName ->
@@ -75,42 +38,26 @@ let emptyD_ (id : id) (pt : pointerType) : pointerData =
       PGroupName (Blank id)
 
 
-let typeOf (pd : pointerData) : pointerType =
+let typeOf (pd : blankOrData) : blankOrType =
   match pd with
-  | PVarBind _ ->
-      VarBind
   | PEventModifier _ ->
       EventModifier
   | PEventName _ ->
       EventName
   | PEventSpace _ ->
       EventSpace
-  | PExpr _ ->
-      Expr
-  | PField _ ->
-      Field
-  | PKey _ ->
-      Key
   | PDBName _ ->
       DBName
   | PDBColName _ ->
       DBColName
   | PDBColType _ ->
       DBColType
-  | PFFMsg _ ->
-      FFMsg
   | PFnName _ ->
       FnName
-  | PFnCallName _ ->
-      FnCallName
-  | PConstructorName _ ->
-      ConstructorName
   | PParamName _ ->
       ParamName
   | PParamTipe _ ->
       ParamTipe
-  | PPattern _ ->
-      Pattern
   | PTypeName _ ->
       TypeName
   | PTypeFieldName _ ->
@@ -121,18 +68,10 @@ let typeOf (pd : pointerData) : pointerType =
       GroupName
 
 
-let emptyD (pt : pointerType) : pointerData = emptyD_ (gid ()) pt
+let emptyD (pt : blankOrType) : blankOrData = emptyD_ (gid ()) pt
 
-let toID (pd : pointerData) : id =
+let toID (pd : blankOrData) : id =
   match pd with
-  | PVarBind d ->
-      B.toID d
-  | PField d ->
-      B.toID d
-  | PKey d ->
-      B.toID d
-  | PExpr d ->
-      B.toID d
   | PEventModifier d ->
       B.toID d
   | PEventName d ->
@@ -145,19 +84,11 @@ let toID (pd : pointerData) : id =
       B.toID d
   | PDBColType d ->
       B.toID d
-  | PFFMsg d ->
-      B.toID d
   | PFnName d ->
-      B.toID d
-  | PFnCallName d ->
       B.toID d
   | PParamName d ->
       B.toID d
   | PParamTipe d ->
-      B.toID d
-  | PPattern d ->
-      B.toID d
-  | PConstructorName d ->
       B.toID d
   | PTypeName d ->
       B.toID d
@@ -169,53 +100,25 @@ let toID (pd : pointerData) : id =
       B.toID d
 
 
-let isBlank (pd : pointerData) : bool =
+let isBlank (pd : blankOrData) : bool =
   match pd with
-  | PVarBind d ->
-      B.isBlank d
-  | PField d ->
-      B.isBlank d
-  | PKey d ->
-      B.isBlank d
-  | PExpr d ->
-      B.isBlank d
-  | PEventModifier d ->
-      B.isBlank d
-  | PEventName d ->
-      B.isBlank d
-  | PEventSpace d ->
-      B.isBlank d
-  | PDBName d ->
-      B.isBlank d
-  | PDBColName d ->
-      B.isBlank d
-  | PDBColType d ->
-      B.isBlank d
-  | PFFMsg d ->
-      B.isBlank d
-  | PFnName d ->
-      B.isBlank d
-  | PFnCallName d ->
-      B.isBlank d
-  | PConstructorName d ->
-      B.isBlank d
-  | PParamName d ->
-      B.isBlank d
-  | PParamTipe d ->
-      B.isBlank d
-  | PPattern d ->
-      B.isBlank d
-  | PTypeName d ->
-      B.isBlank d
-  | PTypeFieldName d ->
-      B.isBlank d
-  | PTypeFieldTipe d ->
-      B.isBlank d
+  | PEventModifier d
+  | PEventName d
+  | PEventSpace d
+  | PDBName d
+  | PDBColName d
+  | PDBColType d
+  | PFnName d
+  | PParamName d
+  | PTypeName d
+  | PTypeFieldName d
   | PGroupName d ->
       B.isBlank d
+  | PTypeFieldTipe d | PParamTipe d ->
+      B.isBlank d
 
 
-let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
+let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
   let bf s =
     match s with
     | Blank _ ->
@@ -224,20 +127,6 @@ let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
         F (id, f str)
   in
   match pd with
-  | PVarBind v ->
-      PVarBind (bf v)
-  | PField f ->
-      PField (bf f)
-  | PKey f ->
-      PKey (bf f)
-  | PExpr e ->
-    ( match e with
-    | F (id, Value v) ->
-        PExpr (F (id, Value (f v)))
-    | F (id, Variable v) ->
-        PExpr (F (id, Variable (f v)))
-    | _ ->
-        PExpr e )
   | PEventModifier d ->
       PEventModifier (bf d)
   | PEventName d ->
@@ -250,26 +139,12 @@ let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
       PDBColName (bf d)
   | PDBColType d ->
       PDBColType (bf d)
-  | PFFMsg d ->
-      PFFMsg (bf d)
   | PFnName d ->
       PFnName (bf d)
-  | PFnCallName d ->
-      PFnCallName (bf d)
-  | PConstructorName d ->
-      PConstructorName (bf d)
   | PParamName d ->
       PParamName (bf d)
   | PParamTipe d ->
       PParamTipe d
-  | PPattern d ->
-    ( match d with
-    | F (id, PVariable v) ->
-        PPattern (F (id, PVariable (f v)))
-    | F (id, PLiteral v) ->
-        PPattern (F (id, PLiteral (f v)))
-    | _ ->
-        PPattern d )
   | PTypeName d ->
       PTypeName (bf d)
   | PTypeFieldName d ->
@@ -280,31 +155,11 @@ let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
       PGroupName (bf g)
 
 
-let toContent (pd : pointerData) : string option =
+let toContent (pd : blankOrData) : string option =
   let bs2s s =
     s |> B.toMaybe |> Option.withDefault ~default:"" |> fun x -> Some x
   in
   match pd with
-  | PVarBind v ->
-      bs2s v
-  | PField f ->
-      bs2s f
-  | PKey f ->
-      bs2s f
-  | PExpr e ->
-    ( match e with
-    | F (_, Value s) ->
-        if Runtime.isStringLiteral s
-        then Some (Runtime.convertLiteralToDisplayString s)
-        else Some s
-    | F (_, Variable v) ->
-        Some v
-    | F (_, FnCall (F (_, name), [], _)) ->
-        Some name
-    (* feature flags are ignored because you want to enter the *)
-    (* feature flag and this is how this is used. *)
-    | _ ->
-        None )
   | PEventModifier d ->
       bs2s d
   | PEventName d ->
@@ -317,13 +172,7 @@ let toContent (pd : pointerData) : string option =
       bs2s d
   | PDBColType d ->
       bs2s d
-  | PFFMsg d ->
-      bs2s d
   | PFnName d ->
-      bs2s d
-  | PFnCallName d ->
-      bs2s d
-  | PConstructorName d ->
       bs2s d
   | PParamName d ->
       bs2s d
@@ -333,14 +182,6 @@ let toContent (pd : pointerData) : string option =
       |> Option.map ~f:Runtime.tipe2str
       |> Option.withDefault ~default:""
       |> fun x -> Some x
-  | PPattern d ->
-    ( match d with
-    | F (_, PLiteral l) ->
-        Some l
-    | F (_, PVariable v) ->
-        Some v
-    | _ ->
-        None )
   | PTypeName d ->
       bs2s d
   | PTypeFieldName d ->
@@ -355,5 +196,31 @@ let toContent (pd : pointerData) : string option =
       bs2s g
 
 
-let exprmap (fn : expr -> expr) (pd : pointerData) : pointerData =
-  match pd with PExpr d -> PExpr (fn d) | _ -> pd
+let clone (pd : blankOrData) : blankOrData =
+  match pd with
+  | PEventModifier sp ->
+      PEventModifier (B.clone identity sp)
+  | PEventName sp ->
+      PEventName (B.clone identity sp)
+  | PEventSpace sp ->
+      PEventSpace (B.clone identity sp)
+  | PFnName name ->
+      PFnName (B.clone identity name)
+  | PParamName name ->
+      PParamName (B.clone identity name)
+  | PParamTipe tipe ->
+      PParamTipe (B.clone identity tipe)
+  | PTypeName name ->
+      PTypeName (B.clone identity name)
+  | PTypeFieldName name ->
+      PTypeFieldName (B.clone identity name)
+  | PTypeFieldTipe tipe ->
+      PTypeFieldTipe (B.clone identity tipe)
+  | PDBColName name ->
+      PDBColName (B.clone identity name)
+  | PDBColType tipe ->
+      PDBColType (B.clone identity tipe)
+  | PDBName name ->
+      PDBName (B.clone identity name)
+  | PGroupName name ->
+      PGroupName (B.clone identity name)

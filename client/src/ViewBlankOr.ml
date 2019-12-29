@@ -143,7 +143,7 @@ let tipe (vs : ViewUtils.viewState) (c : htmlConfig list) (t : tipe) :
   text vs c (Runtime.tipe2str t)
 
 
-let placeHolderFor (vs : ViewUtils.viewState) (pt : pointerType) : string =
+let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
   match pt with
   | EventName ->
     ( match
@@ -185,20 +185,11 @@ let placeHolderFor (vs : ViewUtils.viewState) (pt : pointerType) : string =
       "field type"
   | GroupName ->
       "group name"
-  | FFMsg
-  | Pattern
-  | ConstructorName
-  | FnCallName
-  | VarBind
-  | Expr
-  | Field
-  | Key ->
-      ""
 
 
 let viewBlankOr
     (htmlFn : ViewUtils.viewState -> htmlConfig list -> 'a -> msg Html.html)
-    (pt : pointerType)
+    (pt : blankOrType)
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (bo : 'a blankOr) : msg Html.html =
@@ -236,7 +227,7 @@ let viewBlankOr
 
 
 let viewText
-    (pt : pointerType)
+    (pt : blankOrType)
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (str : string blankOr) : msg Html.html =
@@ -244,7 +235,7 @@ let viewText
 
 
 let viewTipe
-    (pt : pointerType)
+    (pt : blankOrType)
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (str : tipe blankOr) : msg Html.html =

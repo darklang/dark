@@ -217,11 +217,10 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   (* TODO: missing function *)
   match TL.getAST tl with
   | Some ast ->
-      let ast = ast |> FluidExpression.toNExpr in
       ast
       |> AST.find id
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
-      |> Option.map ~f:P.toID
+      |> Option.map ~f:FluidExpression.id
       |> Option.andThen2 traceID ~f:(fun traceID id ->
              Analysis.getLiveValue m id traceID)
       (* don't filter on incomplete values *)
@@ -234,10 +233,8 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
 let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
-  |> Option.map ~f:FluidExpression.toNExpr
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
-  |> Option.map ~f:(fun e ->
-         match e with F (_, Thread _) -> true | _ -> false)
+  |> Option.map ~f:(fun e -> match e with EPipe _ -> true | _ -> false)
   |> Option.withDefault ~default:false
 
 
@@ -245,7 +242,6 @@ let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
     tipe =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
-  |> Option.map ~f:FluidExpression.toNExpr
   |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
   |> Option.andThen ~f:(fun (name, index) ->
          a.functions

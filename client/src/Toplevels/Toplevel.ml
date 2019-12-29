@@ -7,9 +7,9 @@ module B = Blank
 module P = Pointer
 module TD = TLIDDict
 
-type predecessor = pointerData option
+type predecessor = blankOrData option
 
-type successor = pointerData option
+type successor = blankOrData option
 
 type dbReference = tlid * dbColumn list
 
@@ -199,10 +199,10 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
 (* ------------------------- *)
 (* Generic *)
 (* ------------------------- *)
-let allData (tl : toplevel) : pointerData list =
+let blankOrData (tl : toplevel) : blankOrData list =
   match tl with
   | TLHandler h ->
-      SpecHeaders.allData h.spec @ AST.allData (FluidExpression.toNExpr h.ast)
+      SpecHeaders.allData h.spec
   | TLDB db ->
       DB.allData db
   | TLFunc f ->
@@ -213,57 +213,34 @@ let allData (tl : toplevel) : pointerData list =
       Groups.allData g
 
 
+let astData (tl : toplevel) : astData list =
+  match tl with
+  | TLHandler h ->
+      AST.astData h.ast
+  | TLDB db ->
+    ( match db.activeMigration with
+    | Some {rollback; rollforward; _} ->
+        AST.astData rollback @ AST.astData rollforward
+    | None ->
+        [] )
+  | TLFunc f ->
+      AST.astData f.ufAST
+  | TLTipe _ ->
+      []
+  | TLGroup _ ->
+      []
+
+
 let isValidID (tl : toplevel) (id : id) : bool =
-  List.member ~value:id (tl |> allData |> List.map ~f:P.toID)
-
-
-let clonePointerData (pd : pointerData) : pointerData =
-  match pd with
-  | PVarBind vb ->
-      PVarBind (B.clone identity vb)
-  | PEventModifier sp ->
-      PEventModifier (B.clone identity sp)
-  | PEventName sp ->
-      PEventName (B.clone identity sp)
-  | PEventSpace sp ->
-      PEventSpace (B.clone identity sp)
-  | PExpr expr ->
-      PExpr (AST.clone expr)
-  | PField f ->
-      PField (B.clone identity f)
-  | PKey k ->
-      PKey (B.clone identity k)
-  | PFFMsg msg ->
-      PFFMsg (B.clone identity msg)
-  | PFnName name ->
-      PFnName (B.clone identity name)
-  | PFnCallName name ->
-      PFnCallName (B.clone identity name)
-  | PParamName name ->
-      PParamName (B.clone identity name)
-  | PParamTipe tipe ->
-      PParamTipe (B.clone identity tipe)
-  | PPattern pattern ->
-      PPattern (AST.clonePattern pattern)
-  | PConstructorName name ->
-      PConstructorName (B.clone identity name)
-  | PTypeName name ->
-      PTypeName (B.clone identity name)
-  | PTypeFieldName name ->
-      PTypeFieldName (B.clone identity name)
-  | PTypeFieldTipe tipe ->
-      PTypeFieldTipe (B.clone identity tipe)
-  | PDBColName _ | PDBColType _ | PDBName _ ->
-      pd
-  | PGroupName name ->
-      PGroupName (B.clone identity name)
+  List.member ~value:id (tl |> blankOrData |> List.map ~f:P.toID)
+  || List.member ~value:id (tl |> astData |> List.map ~f:FluidPointer.toID)
 
 
 (* ------------------------- *)
 (* Blanks *)
 (* ------------------------- *)
-let allBlanks (tl : toplevel) : pointerData list =
-  tl |> allData |> List.filter ~f:P.isBlank
+let allBlanks (tl : toplevel) : blankOrData list =
+  tl |> blankOrData |> List.filter ~f:P.isBlank
 
 
 let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
@@ -273,7 +250,7 @@ let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
 let getNextBlank (tl : toplevel) (pred : predecessor) : successor =
   match pred with
   | Some pred_ ->
-      let ps = allData tl in
+      let ps = blankOrData tl in
       let index =
         List.elemIndex ~value:pred_ ps |> Option.withDefault ~default:(-1)
       in
@@ -287,7 +264,7 @@ let getNextBlank (tl : toplevel) (pred : predecessor) : successor =
 let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
   match next with
   | Some next_ ->
-      let ps = allData tl in
+      let ps = blankOrData tl in
       let index =
         List.elemIndex ~value:next_ ps
         |> Option.withDefault ~default:(List.length ps)
@@ -297,70 +274,6 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
       blanks |> List.last |> Option.orElse (lastBlank tl)
   | None ->
       lastBlank tl
-
-
-(* ------------------------- *)
-(* Up/Down the tree *)
-(* ------------------------- *)
-
-let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
-  let pid = P.toID pd in
-  let astChildren () =
-    match tl with
-    | TLHandler h ->
-        AST.childrenOf pid (FluidExpression.toNExpr h.ast)
-    | TLFunc f ->
-        AST.childrenOf pid (FluidExpression.toNExpr f.ufAST)
-    | TLDB db ->
-        db |> DB.astsFor |> List.map ~f:(AST.childrenOf pid) |> List.concat
-    | TLGroup _ ->
-        []
-    | TLTipe _ ->
-        []
-  in
-  match pd with
-  | PVarBind _ ->
-      []
-  | PField _ ->
-      []
-  | PKey _ ->
-      []
-  | PExpr _ ->
-      astChildren ()
-  | PEventModifier _ ->
-      []
-  | PEventName _ ->
-      []
-  | PEventSpace _ ->
-      []
-  | PDBName _ ->
-      []
-  | PDBColName _ ->
-      []
-  | PDBColType _ ->
-      []
-  | PFFMsg _ ->
-      []
-  | PFnName _ ->
-      []
-  | PFnCallName _ ->
-      []
-  | PParamName _ ->
-      []
-  | PParamTipe _ ->
-      []
-  | PPattern _ ->
-      []
-  | PConstructorName _ ->
-      []
-  | PTypeName _ ->
-      []
-  | PTypeFieldName _ ->
-      []
-  | PTypeFieldTipe _ ->
-      []
-  | PGroupName _ ->
-      []
 
 
 let getAST (tl : toplevel) : fluidExpr option =
@@ -405,44 +318,10 @@ let setASTMod (tl : toplevel) (ast : fluidExpr) : modification =
       recover "no ast in Groups" ~debug:tl NoChange
 
 
-let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
-  getChildrenOf tl id |> List.head
-
-
-let rootExpr (tl : toplevel) : expr option =
-  (* TODO SpecTypePointerDataRefactor *)
-  match tl with
-  | TLHandler h ->
-      Some (FluidExpression.toNExpr h.ast)
-  | TLFunc f ->
-      Some (FluidExpression.toNExpr f.ufAST)
-  | TLDB _ | TLTipe _ | TLGroup _ ->
-      None
-
-
-let rootOf (tl : toplevel) : pointerData option =
-  (* TODO SpecTypePointerDataRefactor *)
-  rootExpr tl |> Option.map ~f:(fun expr -> PExpr expr)
-
-
-let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
+let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     toplevel =
   let id = P.toID p in
   match replacement with
-  | PFFMsg _
-  | PVarBind _
-  | PField _
-  | PKey _
-  | PExpr _
-  | PPattern _
-  | PConstructorName _ ->
-      tl
-      |> getAST
-      |> Option.map ~f:FluidExpression.toNExpr
-      |> Option.map ~f:(fun ast -> AST.replace p replacement ast)
-      |> Option.map ~f:FluidExpression.fromNExpr
-      |> Option.map ~f:(setAST tl)
-      |> recoverOpt "replacing an expr in a non-ast tl" ~default:tl
   | PEventName bo | PEventModifier bo | PEventSpace bo ->
     ( match asHandler tl with
     | Some h ->
@@ -451,7 +330,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     | _ ->
         recover "Changing handler metadata on non-handler" ~debug:replacement tl
     )
-  | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
+  | PDBName _ | PDBColType _ | PDBColName _ ->
       tl
   | PFnName _ | PParamName _ | PParamTipe _ ->
     ( match asUserFunction tl with
@@ -476,7 +355,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
         recover "Changing group metadata on non-fn" ~debug:replacement tl )
 
 
-let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
+let replaceOp (pd : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     op list =
   let newTL = replace pd replacement tl in
   if newTL = tl
@@ -495,7 +374,7 @@ let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
         recover "groups are front end only" ~debug:tl []
 
 
-let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
+let replaceMod (pd : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     modification =
   let ops = replaceOp pd replacement tl in
   if ops = [] then NoChange else RPC (ops, FocusNoChange)
@@ -503,7 +382,7 @@ let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
 
 (* do nothing for now *)
 
-let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
+let delete (tl : toplevel) (p : blankOrData) (newID : id) : toplevel =
   let replacement = P.emptyD_ newID (P.typeOf p) in
   replace p replacement tl
 
@@ -533,8 +412,8 @@ let structural (m : model) : toplevel TD.t =
 
 let get (m : model) (tlid : tlid) : toplevel option = TD.get ~tlid (all m)
 
-let find (tl : toplevel) (id_ : id) : pointerData option =
-  allData tl
+let findBlankOr (tl : toplevel) (id_ : id) : blankOrData option =
+  blankOrData tl
   |> List.filter ~f:(fun d -> id_ = P.toID d)
   |> assertFn
        "cant find pd for id"
@@ -544,13 +423,24 @@ let find (tl : toplevel) (id_ : id) : pointerData option =
   |> List.head
 
 
-let getPD (m : model) (tlid : tlid) (id : id) : pointerData option =
-  get m tlid |> Option.andThen ~f:(fun tl -> find tl id)
+let findAstData (tl : toplevel) (id_ : id) : astData option =
+  astData tl
+  |> List.filter ~f:(fun d -> id_ = FluidPointer.toID d)
+  |> assertFn
+       "cant find pd for id"
+       ~debug:(id tl, id)
+       ~f:(fun r -> List.length r <= 1)
+  (* guard against dups *)
+  |> List.head
 
 
-let getTLAndPD (m : model) (tlid : tlid) (id : id) :
-    (toplevel * pointerData option) option =
-  get m tlid |> Option.map ~f:(fun tl -> (tl, find tl id))
+let getTLAndBlankOr (m : model) (tlid : tlid) (id : id) :
+    (toplevel * blankOrData option) option =
+  get m tlid |> Option.map ~f:(fun tl -> (tl, findBlankOr tl id))
+
+
+let getBlankOr (m : model) (tlid : tlid) (id : id) : blankOrData option =
+  getTLAndBlankOr m tlid id |> Option.andThen ~f:Tuple2.second
 
 
 let allDBNames (dbs : db TD.t) : string list =
@@ -579,8 +469,8 @@ let selected (m : model) : toplevel option =
   m.cursorState |> tlidOf |> Option.andThen ~f:(get m)
 
 
-let selectedAST (m : model) : expr option =
-  selected m |> Option.andThen ~f:rootExpr
+let selectedAST (m : model) : fluidExpr option =
+  selected m |> Option.andThen ~f:getAST
 
 
 let setSelectedAST (m : model) (ast : fluidExpr) : modification =

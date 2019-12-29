@@ -68,7 +68,7 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   in
   let boId =
     let idInToplevel id =
-      match TL.find tl id with Some _ -> Some id | None -> None
+      match TL.findBlankOr tl id with Some _ -> Some id | None -> None
     in
     match m.cursorState with
     | Selecting (tlid, sid) when tlid = TL.id tl ->

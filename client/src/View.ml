@@ -117,12 +117,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let selectedFnDocString =
           let fn =
             TL.getAST tl
-            |> Option.map ~f:FluidExpression.toNExpr
             |> Option.andThen ~f:(fun ast -> AST.find id ast)
             |> Option.andThen ~f:(function
-                   | PExpr (F (_, FnCall (F (_, name), _, _))) ->
+                   | PExpr (EFnCall (_, name, _, _)) ->
                        Some name
-                   | PFnCallName (F (_, name)) ->
+                   | PFnCallName (_, name) ->
                        Some name
                    | _ ->
                        None)
@@ -143,7 +142,6 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           let param =
             TL.get m tlid
             |> Option.andThen ~f:TL.getAST
-            |> Option.map ~f:FluidExpression.toNExpr
             |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
             |> Option.andThen ~f:(fun (name, index) ->
                    m.complete.functions
@@ -420,10 +418,10 @@ let view (m : model) : msg Html.html =
   let body = viewCanvas m in
   let entry = ViewEntry.viewEntry m in
   let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
-  let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
+  let ast = TL.selectedAST m |> Option.withDefault ~default:(EBlank (gid ())) in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [Fluid.viewStatus m (FluidExpression.fromNExpr ast) m.fluidState]
+    then [Fluid.viewStatus m ast m.fluidState]
     else []
   in
   let viewDocs =

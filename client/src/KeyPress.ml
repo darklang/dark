@@ -89,7 +89,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       | Key.Enter, Some (TLTipe t as tl) when event.shiftKey ->
         ( match mId with
         | Some id ->
-          ( match TL.find tl id with
+          ( match TL.findBlankOr tl id with
           | Some (PTypeName _)
           | Some (PTypeFieldName _)
           | Some (PTypeFieldTipe _) ->
@@ -105,7 +105,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       | Key.Enter, Some (TLFunc f as tl) when event.shiftKey ->
         ( match mId with
         | Some id ->
-          ( match TL.find tl id with
+          ( match TL.findBlankOr tl id with
           | Some (PParamTipe _) | Some (PParamName _) | Some (PFnName _) ->
               Refactor.addFunctionParameter m f id
           | _ ->
@@ -119,7 +119,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         | Some id ->
             Selection.enter m tlid id
         | None ->
-            Selection.selectDownLevel m tlid mId )
+            NoChange )
       | Key.Tab, _ ->
           (* NB: see `stopKeys` in ui.html *)
           if event.shiftKey

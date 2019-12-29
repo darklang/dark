@@ -31,19 +31,16 @@ let toText ast = FluidPrinter.eToString ast
 let pointerToText p : string =
   match p with
   | PExpr e ->
-      toText (FluidExpression.fromNExpr e)
-  | PField b
-  | PVarBind b
-  | PKey b
-  | PFFMsg b
-  | PFnName b
-  | PFnCallName b
-  | PConstructorName b ->
-      Blank.toMaybe b |> Option.withDefault ~default:"blank"
+      toText e
+  | PField (_, b)
+  | PVarBind (_, b)
+  | PKey (_, b)
+  | PFFMsg (_, b)
+  | PFnCallName (_, b)
+  | PConstructorName (_, b) ->
+      b
   | PPattern _ ->
       "pattern TODO"
-  | _ ->
-      "not valid here"
 
 
 let debugAST (length : int) (msg : string) (e : E.t) : unit =
@@ -423,17 +420,15 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
     let pointers =
       ast
-      |> fun x ->
-      E.toNExpr x
-      |> AST.allData
-      |> List.uniqueBy ~f:(Pointer.toID >> Prelude.deID)
+      |> AST.astData
+      |> List.uniqueBy ~f:(FluidPointer.toID >> Prelude.deID)
       |> List.indexedMap ~f:(fun i v -> (i, v))
     in
     let length = List.length pointers in
     let latestAST = ref ast in
     List.iter pointers ~f:(fun (idx, pointer) ->
         ( try
-            let id = Pointer.toID pointer in
+            let id = FluidPointer.toID pointer in
             Js.log2 msg (idx, length, id) ;
             let reducedAST = reducer id !latestAST in
             if !latestAST = reducedAST

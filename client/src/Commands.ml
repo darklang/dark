@@ -23,9 +23,9 @@ let putFunctionOnRail =
 let executeCommand
     (m : model) (tlid : tlid) (id : id) (highlighted : autocompleteItem option)
     : modification =
-  match (highlighted, TL.getTLAndPD m tlid id) with
-  | Some (ACCommand command), Some (tl, Some pd) ->
-      command.action m tl pd
+  match (highlighted, TL.get m tlid) with
+  | Some (ACCommand command), Some tl ->
+      command.action m tl id
   | _ ->
       NoChange
 
@@ -75,9 +75,8 @@ let commands : command list =
   ; takeFunctionOffRail
   ; { commandName = "create-type"
     ; action =
-        (fun m tl pd ->
+        (fun m tl id ->
           let tlid = TL.id tl in
-          let id = Pointer.toID pd in
           let tipe =
             Analysis.getSelectedTraceID m tlid
             |> Option.andThen ~f:(Analysis.getLiveValue m id)

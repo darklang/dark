@@ -32,16 +32,13 @@ let astsFor (db : db) : expr list =
       ; FluidExpression.toNExpr am.rollback ]
 
 
-let allData (db : db) : pointerData list =
-  let cols, rolls =
+let allData (db : db) : blankOrData list =
+  let cols =
     match db.activeMigration with
     | Some migra ->
-        ( db.cols @ migra.cols
-        , List.concat
-            [ AST.allData (FluidExpression.toNExpr migra.rollforward)
-            ; AST.allData (FluidExpression.toNExpr migra.rollback) ] )
+        db.cols @ migra.cols
     | None ->
-        (db.cols, [])
+        db.cols
   in
   let colpointers =
     cols
@@ -49,7 +46,7 @@ let allData (db : db) : pointerData list =
     |> List.concat
   in
   let name = PDBName db.dbName in
-  (name :: colpointers) @ rolls
+  name :: colpointers
 
 
 let hasCol (db : db) (name : string) : bool =

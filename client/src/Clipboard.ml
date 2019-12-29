@@ -6,23 +6,12 @@ open Prelude
 module P = Pointer
 module TL = Toplevel
 
-let getCurrentPointer (m : model) : (toplevel * pointerData) option =
-  let myIdOf (m : model) : id option =
-    match unwrapCursorState m.cursorState with
-    | FluidEntering tlid ->
-        let s = m.fluidState in
-        TL.get m tlid
-        |> Option.andThen ~f:TL.getAST
-        |> Option.andThen ~f:(Fluid.getToken s)
-        |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
-    | _ ->
-        idOf m.cursorState
-  in
-  match (tlidOf m.cursorState, myIdOf m) with
+let getCurrentPointer (m : model) : (toplevel * blankOrData) option =
+  match (tlidOf m.cursorState, idOf m.cursorState) with
   | Some tlid, Some id ->
       TL.get m tlid
       |> Option.andThen ~f:(fun tl ->
-             Option.map (TL.find tl id) ~f:(fun pd -> (tl, pd)))
+             Option.map (TL.findBlankOr tl id) ~f:(fun pd -> (tl, pd)))
   | _ ->
       None
 
@@ -31,10 +20,8 @@ let copy (m : model) : clipboardContents =
   match m.cursorState with
   | Selecting _ | FluidEntering _ ->
     ( match getCurrentPointer m with
-    | Some (_, (PExpr _ as pd))
-    | Some (_, (PPattern _ as pd))
     | Some (_, (PParamTipe _ as pd)) ->
-        `Json (Encoders.pointerData pd)
+        `Json (Encoders.blankOrData pd)
     | Some (_, other) ->
         Pointer.toContent other
         |> Option.map ~f:(fun text -> `Text text)
@@ -62,23 +49,10 @@ let paste (m : model) (data : clipboardContents) : modification =
   match getCurrentPointer m with
   | Some (tl, currentPd) ->
     ( match data with
-    | `Json j ->
-        let newPd = Decoders.pointerData j |> TL.clonePointerData in
-        TL.replaceMod currentPd newPd tl
     | `Text t ->
-        let newPd =
-          ( match currentPd with
-          | PExpr (Blank id) ->
-              (* If we have a blank PExpr and want to map a String into it,
-              * we can create a new String literal from it. *)
-              let wrapped = "\"" ^ t ^ "\"" in
-              PExpr (F (id, Value wrapped))
-          | _ ->
-              Pointer.strMap currentPd ~f:(fun _ -> t) )
-          |> TL.clonePointerData
-        in
+        let newPd = Pointer.strMap currentPd ~f:(fun _ -> t) in
         TL.replaceMod currentPd newPd tl
-    | `None ->
+    | `None | `Json _ ->
         NoChange )
   | None ->
       NoChange
