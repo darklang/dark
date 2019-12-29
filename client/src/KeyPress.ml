@@ -119,7 +119,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         | Some id ->
             Selection.enter m tlid id
         | None ->
-            Selection.selectDownLevel m tlid mId )
+            NoChange )
       | Key.Tab, _ ->
           (* NB: see `stopKeys` in ui.html *)
           if event.shiftKey
