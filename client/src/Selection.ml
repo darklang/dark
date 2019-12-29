@@ -148,21 +148,6 @@ let move
       Select (tlid, STTopLevelRoot)
 
 
-let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification =
-  match TL.get m tlid with
-  | None ->
-      NoChange
-  | Some tl ->
-      let pd = Option.andThen cur ~f:(TL.find tl) in
-      pd
-      |> Option.orElse (TL.rootOf tl)
-      |> Option.andThen ~f:(TL.firstChild tl)
-      |> Option.orElse pd
-      |> Option.map ~f:P.toID
-      |> Option.map ~f:(fun id -> Select (tlid, STID id))
-      |> Option.withDefault ~default:(Select (tlid, STTopLevelRoot))
-
-
 let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
   let tlid = TL.id tl in
   let isLocked = DB.isLocked m tlid in
