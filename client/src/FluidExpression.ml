@@ -201,32 +201,10 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
         EConstructor (id, Blank.toID name, varToName name, List.map ~f exprs)
     | Match (mexpr, pairs) ->
         let mid = id in
-        let rec fromPattern (p : pattern) : fluidPattern =
-          match p with
-          | Blank id ->
-              FPBlank (mid, id)
-          | F (id, np) ->
-            ( match np with
-            | PVariable name ->
-                FPVariable (mid, id, name)
-            | PConstructor (name, patterns) ->
-                FPConstructor (mid, id, name, List.map ~f:fromPattern patterns)
-            | PLiteral str ->
-              ( match FluidUtil.parseString str with
-              | `Bool b ->
-                  FPBool (mid, id, b)
-              | `Int i ->
-                  FPInteger (mid, id, i)
-              | `String s ->
-                  FPString (mid, id, s)
-              | `Null ->
-                  FPNull (mid, id)
-              | `Float (whole, fraction) ->
-                  FPFloat (mid, id, whole, fraction)
-              | `Unknown ->
-                  FPBlank (mid, id) ) )
+        let pairs =
+          List.map pairs ~f:(fun (p, e) ->
+              (FluidPattern.fromPattern mid p, f e))
         in
-        let pairs = List.map pairs ~f:(fun (p, e) -> (fromPattern p, f e)) in
         EMatch (id, f mexpr, pairs)
     | FeatureFlag (msg, cond, casea, caseb) ->
         EFeatureFlag
