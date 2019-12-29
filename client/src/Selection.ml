@@ -216,8 +216,8 @@ let dblclick (m : model) (tlid : tlid) (id : id) (offset : int option) :
 let maybeEnterFluid
     ~(nonFluidCursorMod : modification)
     (tlid : tlid)
-    (oldPD : pointerData option)
-    (newPD : pointerData option) : modification =
+    (oldPD : blankOrData option)
+    (newPD : blankOrData option) : modification =
   let fluidEnteringMod =
     Many
       [ SetCursorState (FluidEntering tlid)

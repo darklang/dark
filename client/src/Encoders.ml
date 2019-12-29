@@ -157,7 +157,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DBytes" [string (bin |> base64url_bytes)]
 
 
-let rec pointerData (pd : Types.pointerData) : Js.Json.t =
+let rec blankOrData (pd : Types.blankOrData) : Js.Json.t =
   let ev = variant in
   match pd with
   | PVarBind var ->

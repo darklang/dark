@@ -6,7 +6,7 @@ open Types
 module B = Blank
 module P = Pointer
 
-let rec allData (p : pattern) : pointerData list =
+let rec allData (p : pattern) : blankOrData list =
   match p with
   | Blank _ ->
       [PPattern p]
@@ -18,7 +18,7 @@ let rec allData (p : pattern) : pointerData list =
       PPattern p :: (inner |> List.map ~f:allData |> List.concat)
 
 
-let rec replace (search : pointerData) (replacement : pointerData) (p : pattern)
+let rec replace (search : blankOrData) (replacement : blankOrData) (p : pattern)
     : pattern =
   if P.toID search = B.toID p
   then

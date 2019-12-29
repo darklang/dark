@@ -93,7 +93,7 @@ let field_access_closes (m : model) : testResult =
       in
       if AST.allData ast |> List.filter ~f:P.isBlank = []
       then pass
-      else fail ~f:(show_list ~f:show_pointerData) (TL.allBlanks (onlyTL m))
+      else fail ~f:(show_list ~f:show_blankOrData) (TL.allBlanks (onlyTL m))
   | _ ->
       fail ~f:show_cursorState m.cursorState
 

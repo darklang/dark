@@ -208,7 +208,7 @@ and nExpr =
 (* ----------------------------- *)
 (* Pointers *)
 (* ----------------------------- *)
-and pointerData =
+and blankOrData =
   | PVarBind of varBind
   | PEventName of string blankOr
   | PEventModifier of string blankOr
@@ -231,7 +231,7 @@ and pointerData =
   | PTypeFieldTipe of tipe blankOr
   | PGroupName of string blankOr
 
-and pointerType =
+and blankOrType =
   | VarBind
   | EventName
   | EventSpace
@@ -932,7 +932,7 @@ and keyword =
 
 and command =
   { commandName : string
-  ; action : model -> toplevel -> pointerData -> modification
+  ; action : model -> toplevel -> blankOrData -> modification
   ; doc : string
   ; shortcut : string }
 
@@ -976,7 +976,7 @@ and autocompleteItem =
   (* Groups *)
   | ACGroupName of string
 
-and target = tlid * pointerData
+and target = tlid * blankOrData
 
 and autocomplete =
   { functions : function_ list

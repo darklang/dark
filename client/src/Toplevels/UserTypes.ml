@@ -8,7 +8,7 @@ module B = Blank
 module P = Pointer
 module TD = TLIDDict
 
-let allData (t : userTipe) : pointerData list =
+let allData (t : userTipe) : blankOrData list =
   let namePointer = PTypeName t.utName in
   let definitionPointers =
     match t.utDefinition with
@@ -51,7 +51,7 @@ let toTUserType (tipe : userTipe) : tipe option =
 
 
 let replaceDefinitionElement
-    (old : pointerData) (new_ : pointerData) (tipe : userTipe) : userTipe =
+    (old : blankOrData) (new_ : blankOrData) (tipe : userTipe) : userTipe =
   let sId = P.toID old in
   match tipe.utDefinition with
   | UTRecord fields ->
@@ -78,7 +78,7 @@ let replaceDefinitionElement
       {tipe with utDefinition = UTRecord newFields}
 
 
-let replaceTypeName (old : pointerData) (new_ : pointerData) (tipe : userTipe) :
+let replaceTypeName (old : blankOrData) (new_ : blankOrData) (tipe : userTipe) :
     userTipe =
   let sId = P.toID old in
   if B.toID tipe.utName = sId
@@ -91,7 +91,7 @@ let replaceTypeName (old : pointerData) (new_ : pointerData) (tipe : userTipe) :
   else tipe
 
 
-let replace (old : pointerData) (new_ : pointerData) (tipe : userTipe) :
+let replace (old : blankOrData) (new_ : blankOrData) (tipe : userTipe) :
     userTipe =
   tipe |> replaceTypeName old new_ |> replaceDefinitionElement old new_
 

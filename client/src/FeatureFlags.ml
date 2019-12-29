@@ -23,7 +23,7 @@ let fromFlagged (pick : pick) (expr : expr) : expr =
       recover "cant convert flagged to flagged" ~debug:expr expr
 
 
-let wrap (_m : model) (tl : toplevel) (pd : pointerData) : modification =
+let wrap (_m : model) (tl : toplevel) (pd : blankOrData) : modification =
   let msgId = gid () in
   let newPd = P.exprmap (toFlagged msgId) pd in
   let newTL = TL.replace pd newPd tl in

@@ -147,7 +147,7 @@ let newHandler m space name modifier pos =
   let idToEnter =
     (* TL.getNextBlank requires that there be a tl in the model to operate on;
      * here, we're setting an ID to focus before the model is updated, so we
-     * generate our list of pointerDatas here *)
+     * generate our list of blankOrDatas here *)
     (* Fallback to ast if spec has no blanks *)
     handler.spec
     |> SpecHeaders.firstBlank
@@ -252,7 +252,7 @@ type nextMove =
   | StayHere
   | GotoNext
 
-let validate (tl : toplevel) (pd : pointerData) (value : string) : string option
+let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
     =
   let v pattern name =
     if Regex.exactly ~re:pattern value
@@ -538,7 +538,7 @@ let submitACItem
                 ( "Invalid autocomplete option"
                 , None
                 , Some
-                    ( Types.show_pointerData pd
+                    ( Types.show_blankOrData pd
                     ^ ", "
                     ^ Types.show_autocompleteItem item ) ) ) )
     | _ ->

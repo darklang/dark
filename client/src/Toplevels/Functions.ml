@@ -69,22 +69,22 @@ let findByName (m : model) (s : string) : userFunction option =
   List.find ~f:(sameName s) (TLIDDict.values m.userFunctions)
 
 
-let paramData (ufp : userFunctionParameter) : pointerData list =
+let paramData (ufp : userFunctionParameter) : blankOrData list =
   [PParamName ufp.ufpName; PParamTipe ufp.ufpTipe]
 
 
-let allParamData (uf : userFunction) : pointerData list =
+let allParamData (uf : userFunction) : blankOrData list =
   List.concat (List.map ~f:paramData uf.ufMetadata.ufmParameters)
 
 
-let allData (uf : userFunction) : pointerData list =
+let allData (uf : userFunction) : blankOrData list =
   [PFnName uf.ufMetadata.ufmName]
   @ allParamData uf
   @ AST.allData (FluidExpression.toNExpr uf.ufAST)
 
 
 let replaceFnName
-    (search : pointerData) (replacement : pointerData) (uf : userFunction) :
+    (search : blankOrData) (replacement : blankOrData) (uf : userFunction) :
     userFunction =
   let metadata = uf.ufMetadata in
   let sId = P.toID search in
@@ -109,7 +109,7 @@ let allParamNames (uf : userFunction) : string list =
 
 
 let replaceParamName
-    (search : pointerData) (replacement : pointerData) (uf : userFunction) :
+    (search : blankOrData) (replacement : blankOrData) (uf : userFunction) :
     userFunction =
   let metadata = uf.ufMetadata in
   let sId = P.toID search in
@@ -145,7 +145,7 @@ let replaceParamName
 
 
 let replaceParamTipe
-    (search : pointerData) (replacement : pointerData) (uf : userFunction) :
+    (search : blankOrData) (replacement : blankOrData) (uf : userFunction) :
     userFunction =
   let metadata = uf.ufMetadata in
   let sId = P.toID search in
@@ -174,7 +174,7 @@ let replaceParamTipe
 
 
 let usesOfTipe (tipename : string) (version : int) (uf : userFunction) :
-    pointerData list =
+    blankOrData list =
   uf
   |> allParamData
   |> List.filterMap ~f:(fun p ->
@@ -187,7 +187,7 @@ let usesOfTipe (tipename : string) (version : int) (uf : userFunction) :
 
 
 let replaceMetadataField
-    (old : pointerData) (new_ : pointerData) (uf : userFunction) : userFunction
+    (old : blankOrData) (new_ : blankOrData) (uf : userFunction) : userFunction
     =
   uf
   |> replaceFnName old new_

@@ -29,7 +29,7 @@ let astOwned pt =
 (* ------------------------ *)
 (* PointerData *)
 (* ------------------------ *)
-let emptyD_ (id : id) (pt : pointerType) : pointerData =
+let emptyD_ (id : id) (pt : blankOrType) : blankOrData =
   match pt with
   | VarBind ->
       PVarBind (Blank id)
@@ -75,7 +75,7 @@ let emptyD_ (id : id) (pt : pointerType) : pointerData =
       PGroupName (Blank id)
 
 
-let typeOf (pd : pointerData) : pointerType =
+let typeOf (pd : blankOrData) : blankOrType =
   match pd with
   | PVarBind _ ->
       VarBind
@@ -121,9 +121,9 @@ let typeOf (pd : pointerData) : pointerType =
       GroupName
 
 
-let emptyD (pt : pointerType) : pointerData = emptyD_ (gid ()) pt
+let emptyD (pt : blankOrType) : blankOrData = emptyD_ (gid ()) pt
 
-let toID (pd : pointerData) : id =
+let toID (pd : blankOrData) : id =
   match pd with
   | PVarBind d ->
       B.toID d
@@ -169,7 +169,7 @@ let toID (pd : pointerData) : id =
       B.toID d
 
 
-let isBlank (pd : pointerData) : bool =
+let isBlank (pd : blankOrData) : bool =
   match pd with
   | PVarBind d ->
       B.isBlank d
@@ -215,7 +215,7 @@ let isBlank (pd : pointerData) : bool =
       B.isBlank d
 
 
-let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
+let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
   let bf s =
     match s with
     | Blank _ ->
@@ -280,7 +280,7 @@ let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
       PGroupName (bf g)
 
 
-let toContent (pd : pointerData) : string option =
+let toContent (pd : blankOrData) : string option =
   let bs2s s =
     s |> B.toMaybe |> Option.withDefault ~default:"" |> fun x -> Some x
   in
@@ -355,5 +355,5 @@ let toContent (pd : pointerData) : string option =
       bs2s g
 
 
-let exprmap (fn : expr -> expr) (pd : pointerData) : pointerData =
+let exprmap (fn : expr -> expr) (pd : blankOrData) : blankOrData =
   match pd with PExpr d -> PExpr (fn d) | _ -> pd

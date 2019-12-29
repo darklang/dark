@@ -6,7 +6,7 @@ open Prelude
 module P = Pointer
 module TL = Toplevel
 
-let getCurrentPointer (m : model) : (toplevel * pointerData) option =
+let getCurrentPointer (m : model) : (toplevel * blankOrData) option =
   let myIdOf (m : model) : id option =
     match unwrapCursorState m.cursorState with
     | FluidEntering tlid ->
@@ -34,7 +34,7 @@ let copy (m : model) : clipboardContents =
     | Some (_, (PExpr _ as pd))
     | Some (_, (PPattern _ as pd))
     | Some (_, (PParamTipe _ as pd)) ->
-        `Json (Encoders.pointerData pd)
+        `Json (Encoders.blankOrData pd)
     | Some (_, other) ->
         Pointer.toContent other
         |> Option.map ~f:(fun text -> `Text text)
@@ -63,7 +63,7 @@ let paste (m : model) (data : clipboardContents) : modification =
   | Some (tl, currentPd) ->
     ( match data with
     | `Json j ->
-        let newPd = Decoders.pointerData j |> TL.clonePointerData in
+        let newPd = Decoders.blankOrData j |> TL.clonePointerData in
         TL.replaceMod currentPd newPd tl
     | `Text t ->
         let newPd =
