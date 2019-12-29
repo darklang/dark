@@ -91,7 +91,7 @@ let print_test_end name (t : Private.t) : unit =
     ^ Option.withDefault ~default:"None" t.expected ;
     Js.log
     @@ testIndent ()
-    ^ "Actual: "
+    ^ "  Actual: "
     ^ Option.withDefault ~default:"None" t.actual )
   else print_test_skip name
 
