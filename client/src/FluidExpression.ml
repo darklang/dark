@@ -137,47 +137,6 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
   in
   let f = fromNExpr' ~inPipe:false in
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
-  let parseString str :
-      [> `Bool of bool
-      | `Int of string
-      | `Null
-      | `Float of string * string
-      | `Unknown ] =
-    let asBool =
-      if str = "true"
-      then Some (`Bool true)
-      else if str = "false"
-      then Some (`Bool false)
-      else if str = "null"
-      then Some `Null
-      else None
-    in
-    let asInt = if FluidUtil.is63BitInt str then Some (`Int str) else None in
-    let asFloat =
-      try
-        (* for the exception *)
-        ignore (float_of_string str) ;
-        match String.split ~on:"." str with
-        | [whole; fraction] ->
-            Some (`Float (whole, fraction))
-        | _ ->
-            None
-      with _ -> None
-    in
-    let asString =
-      if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
-      then
-        Some
-          (`String
-            (str |> String.dropLeft ~count:1 |> String.dropRight ~count:1))
-      else None
-    in
-    asInt
-    |> Option.or_ asString
-    |> Option.or_ asBool
-    |> Option.or_ asFloat
-    |> Option.withDefault ~default:`Unknown
-  in
   match expr with
   | Blank id ->
       EBlank id
@@ -225,7 +184,7 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
           , List.map varnames ~f:(fun var -> (Blank.toID var, varToName var))
           , f exprs )
     | Value str ->
-      ( match parseString str with
+      ( match FluidUtil.parseString str with
       | `Bool b ->
           EBool (id, b)
       | `Int i ->
@@ -253,7 +212,7 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
             | PConstructor (name, patterns) ->
                 FPConstructor (mid, id, name, List.map ~f:fromPattern patterns)
             | PLiteral str ->
-              ( match parseString str with
+              ( match FluidUtil.parseString str with
               | `Bool b ->
                   FPBool (mid, id, b)
               | `Int i ->
