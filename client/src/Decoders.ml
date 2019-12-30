@@ -179,25 +179,26 @@ let traceID j : traceID = wireIdentifier j
 
 let jsDate j : Js.Date.t = Js.Date.fromString (string j)
 
-let rec pattern j : pattern = blankOr nPattern j
+let rec pattern j : OldExpr.pattern = blankOr nPattern j
 
-and nPattern j : nPattern =
+and nPattern j : OldExpr.nPattern =
   variants
-    [ ("PVariable", variant1 (fun a -> PVariable a) string)
-    ; ("PLiteral", variant1 (fun a -> PLiteral a) string)
+    [ ("PVariable", variant1 (fun a -> OldExpr.PVariable a) string)
+    ; ("PLiteral", variant1 (fun a -> OldExpr.PLiteral a) string)
     ; ( "PConstructor"
-      , variant2 (fun a b -> PConstructor (a, b)) string (list pattern) ) ]
+      , variant2 (fun a b -> OldExpr.PConstructor (a, b)) string (list pattern)
+      ) ]
     j
 
 
-let rec expr j : expr =
+let rec expr j : OldExpr.expr =
   let blankOrExpr =
     variants
       [ ("Filled", variant2 (fun id v -> F (id, v)) id nExpr)
       ; ("Blank", variant1 (fun id -> Blank id) id) (* We're phasing this out *)
       ; ( "Partial"
         , variant2
-            (fun id name -> F (id, FluidPartial (name, Blank.new_ ())))
+            (fun id name -> F (id, OldExpr.FluidPartial (name, Blank.new_ ())))
             id
             string ) ]
   in
@@ -208,7 +209,8 @@ let rec expr j : expr =
       other
 
 
-and nExpr j : nExpr =
+and nExpr j : OldExpr.nExpr =
+  let open OldExpr in
   let de = expr in
   let dv4 = variant4 in
   let dv3 = variant3 in
@@ -256,11 +258,11 @@ let blankOrData j : blankOrData =
     ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
     ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
     ; ("PVarBind", dv2 (fun id name -> PVarBind (id, name)) id string)
-    ; ("PExpr", dv1 (fun x -> PExpr (FluidExpression.fromNExpr x)) expr)
+    ; ("PExpr", dv1 (fun x -> PExpr (OldExpr.toFluidExpr x)) expr)
     ; ("PField", dv2 (fun id name -> PField (id, name)) id string)
     ; ("PFFMsg", dv2 (fun id name -> PFFMsg (id, name)) id string)
     ; ( "PPattern" (* TODO: this is wrong as it doesn't have the right id *)
-      , dv1 (fun x -> PPattern (FluidPattern.fromPattern (gid ()) x)) pattern )
+      , dv1 (fun x -> PPattern (OldExpr.toFluidPattern (gid ()) x)) pattern )
     ; ("PFnCallName", dv2 (fun id name -> PFnCallName (id, name)) id string)
     ; ( "PConstructorName"
       , dv2 (fun id name -> PConstructorName (id, name)) id string ) ]
@@ -438,7 +440,7 @@ let handlerSpec j : handlerSpec =
 
 
 let handler pos j : handler =
-  { ast = field "ast" expr j |> FluidExpression.fromNExpr
+  { ast = field "ast" expr j |> OldExpr.toFluidExpr
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
   ; pos }
@@ -467,8 +469,8 @@ let dbMigration j : dbMigration =
   ; version = field "version" int j
   ; state = field "state" dbMigrationState j
   ; cols = field "cols" dbColList j
-  ; rollforward = field "rollforward" expr j |> FluidExpression.fromNExpr
-  ; rollback = field "rollback" expr j |> FluidExpression.fromNExpr }
+  ; rollforward = field "rollforward" expr j |> OldExpr.toFluidExpr
+  ; rollback = field "rollback" expr j |> OldExpr.toFluidExpr }
 
 
 let db pos j : db =
@@ -510,7 +512,7 @@ let userFunctionMetadata j : userFunctionMetadata =
 let userFunction j : userFunction =
   { ufTLID = field "tlid" tlid j
   ; ufMetadata = field "metadata" userFunctionMetadata j
-  ; ufAST = field "ast" expr j |> FluidExpression.fromNExpr }
+  ; ufAST = field "ast" expr j |> OldExpr.toFluidExpr }
 
 
 let fof j : fourOhFour =
@@ -653,7 +655,12 @@ let op j : op =
     ; ("MoveTL", variant2 (fun t p -> MoveTL (t, p)) tlid pos)
     ; ("SetFunction", variant1 (fun uf -> SetFunction uf) userFunction)
     ; ("DeleteFunction", variant1 (fun t -> DeleteFunction t) tlid)
-    ; ("SetExpr", variant3 (fun t i e -> SetExpr (t, i, e)) tlid id expr)
+    ; ( "SetExpr"
+      , variant3
+          (fun t i e -> SetExpr (t, i, OldExpr.toFluidExpr e))
+          tlid
+          id
+          expr )
     ; ( "RenameDBname"
       , variant2 (fun t name -> RenameDBname (t, name)) tlid string )
     ; ( "CreateDBWithBlankOr"

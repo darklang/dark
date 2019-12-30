@@ -91,7 +91,7 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
                  let meth =
                    TL.get m tlid
                    |> Option.andThen ~f:TL.asHandler
-                   |> Option.andThen ~f:(fun h -> B.asF h.spec.modifier)
+                   |> Option.andThen ~f:(fun h -> B.toOption h.spec.modifier)
                    |> Option.andThen ~f:(fun s -> Some ("-X " ^ s))
                    |> wrapInList
                  in

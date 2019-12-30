@@ -81,7 +81,7 @@ let find (id : id) (expr : E.t) : blankOrData option =
   |> List.head
 
 
-let isDefinitionOf (var : varName) (expr : E.t) : bool =
+let isDefinitionOf (var : string) (expr : E.t) : bool =
   match expr with
   | ELet (_, _, lhs, _, _) ->
       lhs = var && lhs <> ""
@@ -99,7 +99,7 @@ let isDefinitionOf (var : varName) (expr : E.t) : bool =
       false
 
 
-let rec uses (var : varName) (expr : E.t) : E.t list =
+let rec uses (var : string) (expr : E.t) : E.t list =
   let u = uses var in
   if isDefinitionOf var expr
   then []
@@ -431,7 +431,7 @@ let getValueParent (p : blankOrData) (expr : E.t) : fluidExpr option =
       None
 
 
-let freeVariables (ast : E.t) : (id * varName) list =
+let freeVariables (ast : E.t) : (id * string) list =
   (* Find all variable lookups that lookup a variable that
    * is also _defined_ in this expression. We create a set of
    * these IDs so we can filter them out later. *)

@@ -286,8 +286,8 @@ let run () =
               | UTRecord utr ->
                   utr
                   |> List.map ~f:(fun urf ->
-                         ( urf.urfName |> Blank.toMaybe
-                         , urf.urfTipe |> Blank.toMaybe )) )
+                         ( urf.urfName |> Blank.toOption
+                         , urf.urfTipe |> Blank.toOption )) )
           in
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->

@@ -163,7 +163,7 @@ let rec blankOrData (pd : Types.blankOrData) : Js.Json.t =
   | PVarBind (id', name) ->
       ev "PVarBind" [id id'; string name]
   | PExpr e ->
-      ev "PExpr" [expr (FluidExpression.toNExpr e)]
+      ev "PExpr" [expr (OldExpr.fromFluidExpr e)]
   | PField (id', name) ->
       ev "PField" [id id'; string name]
   | PKey (id', name) ->
@@ -171,7 +171,7 @@ let rec blankOrData (pd : Types.blankOrData) : Js.Json.t =
   | PFFMsg (id', name) ->
       ev "PFFMsg" [id id'; string name]
   | PPattern p ->
-      ev "PPattern" [pattern (FluidPattern.toPattern p)]
+      ev "PPattern" [pattern (OldExpr.fromFluidPattern p)]
   | PConstructorName (id', name) ->
       ev "PConstructorName" [id id'; string name]
   | PFnCallName (id', name) ->
@@ -300,7 +300,7 @@ and handler (h : Types.handler) : Js.Json.t =
   object_
     [ ("tlid", tlid h.hTLID)
     ; ("spec", spec h.spec)
-    ; ("ast", expr (FluidExpression.toNExpr h.ast)) ]
+    ; ("ast", expr (OldExpr.fromFluidExpr h.ast)) ]
 
 
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
@@ -327,8 +327,8 @@ and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("version", int dbm.version)
     ; ("state", dbMigrationState dbm.state)
     ; ("cols", colList dbm.cols)
-    ; ("rollforward", expr (FluidExpression.toNExpr dbm.rollforward))
-    ; ("rollback", expr (FluidExpression.toNExpr dbm.rollback)) ]
+    ; ("rollforward", expr (OldExpr.fromFluidExpr dbm.rollforward))
+    ; ("rollback", expr (OldExpr.fromFluidExpr dbm.rollback)) ]
 
 
 and db (db : Types.db) : Js.Json.t =
@@ -393,7 +393,7 @@ and op (call : Types.op) : Js.Json.t =
   | DeleteFunction t ->
       ev "DeleteFunction" [tlid t]
   | SetExpr (t, i, e) ->
-      ev "SetExpr" [tlid t; id i; expr e]
+      ev "SetExpr" [tlid t; id i; expr (OldExpr.fromFluidExpr e)]
   | RenameDBname (t, name) ->
       ev "RenameDBname" [tlid t; string name]
   | CreateDBWithBlankOr (t, p, i, name) ->
@@ -488,7 +488,7 @@ and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", expr (FluidExpression.toNExpr uf.ufAST)) ]
+    ; ("ast", expr (OldExpr.fromFluidExpr uf.ufAST)) ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
@@ -580,9 +580,9 @@ and userFunctionParameter (p : Types.userFunctionParameter) : Js.Json.t =
     ; ("description", string p.ufpDescription) ]
 
 
-and expr (expr : Types.expr) : Js.Json.t = blankOr nExpr expr
+and expr (expr : OldExpr.expr) : Js.Json.t = blankOr nExpr expr
 
-and nExpr (nexpr : Types.nExpr) : Js.Json.t =
+and nExpr (nexpr : OldExpr.nExpr) : Js.Json.t =
   let e = expr in
   let ev = variant in
   match nexpr with
@@ -623,9 +623,9 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
       ev "FluidRightPartial" [string name; e oldExpr]
 
 
-and pattern (p : Types.pattern) : Js.Json.t = blankOr nPattern p
+and pattern (p : OldExpr.pattern) : Js.Json.t = blankOr nPattern p
 
-and nPattern (npat : Types.nPattern) : Js.Json.t =
+and nPattern (npat : OldExpr.nPattern) : Js.Json.t =
   let ev = variant in
   match npat with
   | PVariable a ->
