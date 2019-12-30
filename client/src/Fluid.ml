@@ -1533,8 +1533,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : E.t =
       match e with
       | ERecord (id, fields) ->
           let fields =
-            List.updateAt fields ~index ~f:(fun (id, _, expr) ->
-                (id, str, expr))
+            List.updateAt fields ~index ~f:(fun (_, expr) -> (str, expr))
           in
           ERecord (id, fields)
       | _ ->
@@ -1555,8 +1554,7 @@ let addRecordRowAt ?(letter = "") (index : int) (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
-          ERecord
-            (id, List.insertAt ~index ~value:(gid (), letter, E.newB ()) fields)
+          ERecord (id, List.insertAt ~index ~value:(letter, E.newB ()) fields)
       | _ ->
           recover "Not a record in addRecordRowAt" ~debug:e e)
 
@@ -1565,7 +1563,7 @@ let addRecordRowToBack (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
-          ERecord (id, fields @ [(gid (), "", E.newB ())])
+          ERecord (id, fields @ [("", E.newB ())])
       | _ ->
           recover "Not a record in addRecordRowToTheBack" ~debug:e e)
 
@@ -1573,7 +1571,7 @@ let addRecordRowToBack (id : id) (ast : ast) : E.t =
 (* recordFieldAtIndex gets the field for the record in the ast with recordID at index,
    or None if the record has no field with that index *)
 let recordFieldAtIndex (recordID : id) (index : int) (ast : ast) :
-    (id * fluidName * fluidExpr) option =
+    (fluidName * fluidExpr) option =
   E.find recordID ast
   |> Option.andThen ~f:(fun expr ->
          match expr with ERecord (_, fields) -> Some fields | _ -> None)
@@ -1584,7 +1582,7 @@ let recordFieldAtIndex (recordID : id) (index : int) (ast : ast) :
    with recordID at index, or None if the record has no field with that index  *)
 let recordExprIdAtIndex (recordID : id) (index : int) (ast : ast) : id option =
   match recordFieldAtIndex recordID index ast with
-  | Some (_, _, fluidExpr) ->
+  | Some (_, fluidExpr) ->
       Some (E.id fluidExpr)
   | _ ->
       None
@@ -4240,15 +4238,14 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
                  | TRecordFieldname
-                     {recordID; index; fieldName = newKey; fieldID = _}
+                     {recordID; index; fieldName = newKey; exprID = _}
                    when recordID = id (* watch out for nested records *) ->
                      List.getAt ~index entries
                      |> Option.map
                           ~f:
-                            (Tuple3.mapEach
-                               ~f:identity (* ID stays the same *)
-                               ~g:(fun _ -> newKey) (* replace key *)
-                               ~h:
+                            (Tuple2.mapEach
+                               ~f:(fun _ -> newKey) (* replace key *)
+                               ~g:
                                  (reconstructExpr >> orDefaultExpr)
                                  (* reconstruct value expression *))
                  | _ ->
@@ -4380,7 +4377,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
       in
       (E.replace ~replacement:clipboardExpr exprID ast, {state with newPos})
   (* inserting record key (record expression with single key and no value) into string *)
-  | ( Some (ERecord (_, [(_, insert, EBlank _)]))
+  | ( Some (ERecord (_, [(insert, EBlank _)]))
     , Some (EString (_, str))
     , Some {startPos; _} ) ->
       let index = state.newPos - startPos - 1 in

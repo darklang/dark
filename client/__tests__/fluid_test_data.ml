@@ -20,7 +20,7 @@ let float' (whole : string) (fraction : string) : fluidExpr =
 let null : fluidExpr = ENull (gid ())
 
 let record (rows : (string * fluidExpr) list) : fluidExpr =
-  ERecord (gid (), List.map rows ~f:(fun (k, v) -> (gid (), k, v)))
+  ERecord (gid (), List.map rows ~f:(fun (k, v) -> (k, v)))
 
 
 let list (elems : fluidExpr list) : fluidExpr = EList (gid (), elems)
@@ -374,11 +374,11 @@ let aConstructor = EConstructor (gid (), "Just", [b])
 (* ---------------- *)
 (* Records *)
 (* ---------------- *)
-let emptyRow = [(gid (), "", b)]
+let emptyRow = [("", b)]
 
-let recordRow1 = (gid (), "f1", fiftySix)
+let recordRow1 = ("f1", fiftySix)
 
-let recordRow2 = (gid (), "f2", seventyEight)
+let recordRow2 = ("f2", seventyEight)
 
 let singleRowRecord = ERecord (gid (), [recordRow1])
 

@@ -79,7 +79,7 @@ let analysisID (t : t) : id =
   | TLetLHS (_, id, _)
   | TLetKeyword (_, id)
   | TLetAssignment (_, id)
-  | TRecordFieldname {fieldID = id; _}
+  | TRecordFieldname {exprID = id; _}
   | TLambdaVar (_, id, _, _)
   | TRecordSep (_, _, id)
   | TFieldName (_, id, _) ->

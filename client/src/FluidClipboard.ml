@@ -71,7 +71,7 @@ let jsonToExpr (jsonStr : string) : E.t =
         dict
         |> Js_dict.entries
         |> Array.toList
-        |> List.map ~f:(fun (k, json) -> (gid (), k, jsJsonToExpr json))
+        |> List.map ~f:(fun (k, json) -> (k, jsJsonToExpr json))
         |> fun fields -> ERecord (gid (), fields)
     | JSONArray arr ->
         arr

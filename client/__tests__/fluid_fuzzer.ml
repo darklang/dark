@@ -291,7 +291,7 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
     | EMatch (_, mexpr, pairs) ->
         childOr (mexpr :: List.map ~f:Tuple2.second pairs)
     | ERecord (_, fields) ->
-        childOr (List.map ~f:Tuple3.third fields)
+        childOr (List.map ~f:Tuple2.second fields)
     | EPipe (_, exprs) ->
         childOr exprs
     | EConstructor (_, _, exprs) ->
@@ -300,7 +300,7 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
         childOr [oldExpr]
     | ERightPartial (_, _, oldExpr) ->
         childOr [oldExpr]
-    | EFeatureFlag ( _, _, cond, casea, caseb) ->
+    | EFeatureFlag (_, _, cond, casea, caseb) ->
         childOr [cond; casea; caseb]
     | _ ->
         None
@@ -328,8 +328,8 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
         ERecord
           ( rid
           , List.map
-              ~f:(fun (fid, name, expr) ->
-                if fid = id then (fid, "", expr) else (fid, name, expr))
+              ~f:(fun (name, expr) ->
+                if id = E.id expr then ("", expr) else (name, expr))
               fields )
     | _ ->
         expr
@@ -376,10 +376,8 @@ let rec remove (id : id) (expr : E.t) : E.t =
           ERecord
             ( rid
             , List.filterMap
-                ~f:(fun (fid, name, expr) ->
-                  if E.id expr = id || fid = id
-                  then None
-                  else Some (fid, name, expr))
+                ~f:(fun (name, expr) ->
+                  if E.id expr = id then None else Some (name, expr))
                 fields )
       | EPipe (id, exprs) ->
         ( match removeFromList exprs with

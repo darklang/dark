@@ -50,7 +50,7 @@ let rec allData (expr : E.t) : blankOrData list =
       rl exprs
   | ERecord (_, pairs) ->
       pairs
-      |> List.map ~f:(fun (id, k, v) -> PKey (id, k) :: allData v)
+      |> List.map ~f:(fun (k, v) -> PKey (E.id v, k) :: allData v)
       |> List.concat
   | EFeatureFlag (id, msg, cond, a, b) ->
       [PFFMsg (id, msg)] @ rl [cond; a; b]
@@ -134,7 +134,7 @@ let rec uses (var : string) (expr : E.t) : E.t list =
     | EList (_, exprs) ->
         exprs |> List.map ~f:u |> List.concat
     | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple3.third |> List.map ~f:u |> List.concat
+        pairs |> List.map ~f:Tuple2.second |> List.map ~f:u |> List.concat
     | EFeatureFlag (_, _, cond, a, b) ->
         List.concat [u cond; u a; u b]
     | EMatch (_, matchExpr, cases) ->
@@ -180,7 +180,7 @@ let children (expr : E.t) : blankOrData list =
       [PVarBind (id, lhs); PExpr rhs; PExpr body]
   | ERecord (_, pairs) ->
       pairs
-      |> List.map ~f:(fun (id, k, v) -> [PKey (id, k); PExpr v])
+      |> List.map ~f:(fun (k, v) -> [PKey (E.id v, k); PExpr v])
       |> List.concat
   | EList (_, elems) ->
       ces elems
@@ -238,7 +238,7 @@ let rec childrenOf (pid : id) (expr : E.t) : blankOrData list =
     | EFieldAccess (_, obj, _, _) ->
         co obj
     | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple3.third |> List.map ~f:co |> List.concat
+        pairs |> List.map ~f:Tuple2.second |> List.map ~f:co |> List.concat
     | EList (_, pairs) ->
         pairs |> List.map ~f:co |> List.concat
     | EFeatureFlag (_, _, cond, a, b) ->
@@ -297,7 +297,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
         fpowList exprs
     (* we don't check the children because it's done up top *)
     | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple3.third |> fpowList
+        pairs |> List.map ~f:Tuple2.second |> fpowList
     | EFeatureFlag (_, _, cond, a, b) ->
         fpowList [cond; a; b]
     | EMatch (_, matchExpr, cases) ->
@@ -403,7 +403,7 @@ let ancestors (id : id) (expr : E.t) : E.t list =
       | EList (_, exprs) ->
           reclist id expr walk exprs
       | ERecord (_, pairs) ->
-          pairs |> List.map ~f:Tuple3.third |> reclist id expr walk
+          pairs |> List.map ~f:Tuple2.second |> reclist id expr walk
       | EFeatureFlag (_, _, cond, a, b) ->
           reclist id exp walk [cond; a; b]
       | EMatch (_, matchExpr, cases) ->
@@ -567,7 +567,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
             in
             sexe new_st caseExpr)
     | ERecord (_, exprs) ->
-        exprs |> List.map ~f:Tuple3.third |> List.iter ~f:(sexe st)
+        exprs |> List.map ~f:Tuple2.second |> List.iter ~f:(sexe st)
     | EConstructor (_, _, args) ->
         List.iter ~f:(sexe st) args
     | EPartial (_, _, oldExpr) ->

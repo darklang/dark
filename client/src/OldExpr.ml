@@ -66,10 +66,7 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
     | ListLiteral exprs ->
         EList (id, List.map ~f exprs)
     | ObjectLiteral pairs ->
-        ERecord
-          ( id
-          , List.map pairs ~f:(fun (k, v) -> (Blank.toID k, varToName k, f v))
-          )
+        ERecord (id, List.map pairs ~f:(fun (k, v) -> (varToName k, f v)))
     | FieldAccess (expr, field) ->
         EFieldAccess (id, f expr, Blank.toID field, varToName field)
     | FnCall (name, args, ster) ->
@@ -225,8 +222,8 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
         F
           ( id
           , ObjectLiteral
-              (List.map pairs ~f:(fun (id, k, v) ->
-                   (Types.F (id, k), fromFluidExpr v))) )
+              (List.map pairs ~f:(fun (k, v) ->
+                   (Types.F (gid (), k), fromFluidExpr v))) )
     | EPipe (id, exprs) ->
       ( match exprs with
       | head :: tail ->

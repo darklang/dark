@@ -61,7 +61,7 @@ let rec find (target : Types.id) (expr : t) : t option =
     | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
         fe expr
     | ERecord (_, fields) ->
-        fields |> List.map ~f:Tuple3.third |> List.findMap ~f:fe
+        fields |> List.map ~f:Tuple2.second |> List.findMap ~f:fe
     | EMatch (_, expr, pairs) ->
         fe expr
         |> Option.orElseLazy (fun () ->
@@ -107,7 +107,7 @@ let findParent (target : Types.id) (expr : t) : t option =
       | EMatch (_, _, pairs) ->
           pairs |> List.map ~f:Tuple2.second |> List.findMap ~f:fp
       | ERecord (_, fields) ->
-          fields |> List.map ~f:Tuple3.third |> List.findMap ~f:fp
+          fields |> List.map ~f:Tuple2.second |> List.findMap ~f:fp
       | EFnCall (_, _, exprs, _)
       | EList (_, exprs)
       | EConstructor (_, _, exprs)
@@ -133,7 +133,7 @@ let isEmpty (expr : t) : bool =
       true
   | ERecord (_, l) ->
       l
-      |> List.filter ~f:(fun (_, k, v) -> k = "" && not (isBlank v))
+      |> List.filter ~f:(fun (k, v) -> k = "" && not (isBlank v))
       |> List.isEmpty
   | EList (_, l) ->
       l |> List.filter ~f:(not << isBlank) |> List.isEmpty
@@ -174,8 +174,7 @@ let walk ~(f : t -> t) (expr : t) : t =
       EMatch
         (id, f mexpr, List.map ~f:(fun (name, expr) -> (name, f expr)) pairs)
   | ERecord (id, fields) ->
-      ERecord
-        (id, List.map ~f:(fun (id, name, expr) -> (id, name, f expr)) fields)
+      ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
   | EPipe (id, exprs) ->
       EPipe (id, List.map ~f exprs)
   | EConstructor (id, name, exprs) ->
@@ -308,7 +307,7 @@ let rec clone (expr : t) : t =
   | EList (_, exprs) ->
       EList (gid (), cl exprs)
   | ERecord (_, pairs) ->
-      ERecord (gid (), List.map ~f:(fun (_, k, v) -> (gid (), k, c v)) pairs)
+      ERecord (gid (), List.map ~f:(fun (k, v) -> (k, c v)) pairs)
   | EFeatureFlag (_, name, cond, a, b) ->
       EFeatureFlag (gid (), name, c cond, c a, c b)
   | EMatch (_, matchExpr, cases) ->

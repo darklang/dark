@@ -3044,8 +3044,8 @@ let run () =
            , "request"
            , ERecord
                ( gid ()
-               , [ (gid (), "body", EInteger (gid (), "5"))
-                 ; (gid (), "blank", EBlank (gid ())) ] )
+               , [("body", EInteger (gid (), "5")); ("blank", EBlank (gid ()))]
+               )
            , ELet
                ( gid ()
                , "foo"
@@ -3065,7 +3065,7 @@ let run () =
         (ELet
            ( gid ()
            , "request"
-           , ERecord (gid (), [(gid (), "body", EInteger (gid (), "5"))])
+           , ERecord (gid (), [("body", EInteger (gid (), "5"))])
            , ELet
                ( gid ()
                , "foo"
