@@ -98,7 +98,10 @@ def esy_install():
 
 def client_test():
   start = time.time()
-  result = run_test(start, "cd client && unbuffer yarn test")
+  flags = ""
+  if os.environ.get("CI"):
+    flags = "--verbose"
+  result = run_test(start, f"./scripts/runtests {flags}")
   return result
 
 def shellcheck(f):
