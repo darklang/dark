@@ -942,7 +942,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
           caretTargetForLastPartOfExpr' lastExpr
       | None ->
           { astRef = ARFnCall (id, FCPFnName)
-          ; offset = fnName |> ViewUtils.partialName |> String.length } )
+          ; offset = fnName |> FluidUtil.partialName |> String.length } )
     | EPartial (id, str, _) ->
         (* Intentionally using the thing that was typed; not the existing expr *)
         {astRef = ARPartial id; offset = String.length str}
@@ -2072,7 +2072,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
   match entry with
   | FACFunction fn ->
       let count = List.length fn.fnParameters in
-      let partialName = ViewUtils.partialName fn.fnName in
+      let partialName = FluidUtil.partialName fn.fnName in
       let r =
         if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
         then Types.Rail
@@ -4846,8 +4846,8 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
       ~f:(fun i item ->
         let highlighted = index = i in
         let name = AC.asName item in
-        let fnDisplayName = ViewUtils.fnDisplayName name in
-        let versionDisplayName = ViewUtils.versionDisplayName name in
+        let fnDisplayName = FluidUtil.fnDisplayName name in
+        let versionDisplayName = FluidUtil.versionDisplayName name in
         let versionView =
           if String.length versionDisplayName > 0
           then Html.span [Html.class' "version"] [Html.text versionDisplayName]
