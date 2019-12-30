@@ -120,7 +120,7 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
   in
   if shouldRun
   then runningTest := name
-  else if not !verbose
+  else if !verbose
   then print_test_skip name ;
   let result =
     if shouldRun
