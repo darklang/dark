@@ -640,14 +640,14 @@ let toDebugInfo (t : t) : string =
 
 
 let toCssClasses (t : t) : string list =
-  let empty = if isBlank t then Some "fluid-empty" else None in
-  let keyword = if isKeyword t then Some "fluid-keyword" else None in
-  let typename = Some ("fluid-" ^ toTypeName t) in
+  let empty = if isBlank t then ["fluid-empty"] else [] in
+  let keyword = if isKeyword t then ["fluid-keyword"] else [] in
+  let typename = ["fluid-" ^ toTypeName t] in
   let category =
     let name = toCategoryName t in
-    if name = "" then None else Some ("fluid-category-" ^ name)
+    if name = "" then [] else ["fluid-category-" ^ name]
   in
-  [empty; keyword; typename; category] |> List.filterMap ~f:identity
+  empty @ keyword @ typename @ category
 
 
 let show_tokenInfo (ti : tokenInfo) =
