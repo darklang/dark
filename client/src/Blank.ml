@@ -31,7 +31,7 @@ let valueWithDefault (a : 'a) (b : 'a blankOr) : 'a =
   match b with F (_, v) -> v | Blank _ -> a
 
 
-let toMaybe (b : 'a blankOr) : 'a option =
+let toOption (b : 'a blankOr) : 'a option =
   match b with F (_, v) -> Some v | Blank _ -> None
 
 

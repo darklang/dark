@@ -7,7 +7,7 @@ module P = Pointer
 module TD = TLIDDict
 
 let allNames (fns : userFunction TLIDDict.t) : string list =
-  fns |> TD.filterMapValues ~f:(fun fn -> B.toMaybe fn.ufMetadata.ufmName)
+  fns |> TD.filterMapValues ~f:(fun fn -> B.toOption fn.ufMetadata.ufmName)
 
 
 let toID (uf : userFunction) : tlid = uf.ufTLID

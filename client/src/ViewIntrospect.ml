@@ -137,7 +137,7 @@ let renderView originalTLID direction (tl, originalIDs) =
         hTLID
         space
         name
-        (B.toMaybe modifier)
+        (B.toOption modifier)
         direction
   | TLFunc
       {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters; _}; ufAST = _}

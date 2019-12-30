@@ -41,12 +41,12 @@ let fromList (uts : userTipe list) : userTipe TLIDDict.t =
 
 
 let allNames (tipes : userTipe TLIDDict.t) : string list =
-  tipes |> TLIDDict.filterMapValues ~f:(fun t -> B.toMaybe t.utName)
+  tipes |> TLIDDict.filterMapValues ~f:(fun t -> B.toOption t.utName)
 
 
 let toTUserType (tipe : userTipe) : tipe option =
   tipe.utName
-  |> B.toMaybe
+  |> B.toOption
   |> Option.map ~f:(fun n -> TUserType (n, tipe.utVersion))
 
 
