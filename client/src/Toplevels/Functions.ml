@@ -78,9 +78,7 @@ let allParamData (uf : userFunction) : blankOrData list =
 
 
 let allData (uf : userFunction) : blankOrData list =
-  [PFnName uf.ufMetadata.ufmName]
-  @ allParamData uf
-  @ AST.allData (FluidExpression.toNExpr uf.ufAST)
+  [PFnName uf.ufMetadata.ufmName] @ allParamData uf @ AST.allData uf.ufAST
 
 
 let replaceFnName

@@ -1,46 +1,30 @@
 open Tc
-open Prelude
 open Types
 
 (* Dark *)
 module B = Blank
-module P = Pointer
 
-let rec allData (p : pattern) : blankOrData list =
+let rec allData (p : fluidPattern) : blankOrData list =
   match p with
-  | Blank _ ->
+  | FPVariable _
+  | FPInteger _
+  | FPBool _
+  | FPString _
+  | FPFloat _
+  | FPNull _
+  | FPBlank _ ->
       [PPattern p]
-  | F (_, PLiteral _) ->
-      [PPattern p]
-  | F (_, PVariable _) ->
-      [PPattern p]
-  | F (_, PConstructor (_, inner)) ->
-      PPattern p :: (inner |> List.map ~f:allData |> List.concat)
+  | FPConstructor (id, _, name, nested) ->
+      PPattern p
+      :: PConstructorName (id, name)
+      :: (nested |> List.map ~f:allData |> List.concat)
 
 
-let rec replace (search : blankOrData) (replacement : blankOrData) (p : pattern)
-    : pattern =
-  if P.toID search = B.toID p
-  then
-    match replacement with
-    | PPattern replacement_ ->
-        replacement_
-    | _ ->
-        recover "cannot occur" ~debug:replacement p
-  else
-    match p with
-    | F (id, PConstructor (cons, args)) ->
-        let replacedArgs = List.map ~f:(replace search replacement) args in
-        F (id, PConstructor (cons, replacedArgs))
-    | _ ->
-        p
-
-
-let rec hasVariableNamed (name : varName) (p : pattern) : bool =
+let rec hasVariableNamed (varName : varName) (p : fluidPattern) : bool =
   match p with
-  | F (_, PConstructor (_, args)) ->
-      List.any ~f:(hasVariableNamed name) args
-  | F (_, PVariable _) ->
+  | FPConstructor (_, _, _, args) ->
+      List.any ~f:(hasVariableNamed varName) args
+  | FPVariable (_, _, name) when name = varName ->
       true
   | _ ->
       false

@@ -3148,8 +3148,7 @@ let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
 let maybeOpenCmd (m : Types.model) : Types.modification =
   Toplevel.selected m
   |> Option.andThen ~f:(fun tl ->
-         TL.rootExpr tl
-         |> Option.map ~f:E.fromNExpr
+         TL.getAST tl
          |> Option.andThen ~f:(getToken m.fluidState)
          |> Option.map ~f:(fun ti -> FluidCommandsShow (TL.id tl, ti.token)))
   |> Option.withDefault ~default:NoChange
@@ -4579,7 +4578,7 @@ let fluidDataFromModel m : (fluidState * E.t) option =
   match Toplevel.selectedAST m with
   | Some expr ->
       let s = m.fluidState in
-      Some (s, E.fromNExpr expr)
+      Some (s, expr)
   | None ->
       None
 

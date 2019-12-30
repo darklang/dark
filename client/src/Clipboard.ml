@@ -31,14 +31,10 @@ let copy (m : model) : clipboardContents =
   match m.cursorState with
   | Selecting _ | FluidEntering _ ->
     ( match getCurrentPointer m with
-    | Some (_, (PExpr _ as pd))
-    | Some (_, (PPattern _ as pd))
     | Some (_, (PParamTipe _ as pd)) ->
         `Json (Encoders.blankOrData pd)
     | Some (_, other) ->
-        Pointer.toContent other
-        |> Option.map ~f:(fun text -> `Text text)
-        |> Option.withDefault ~default:`None
+        `Text (Pointer.toContent other)
     | None ->
         `None )
   | _ ->
@@ -63,20 +59,10 @@ let paste (m : model) (data : clipboardContents) : modification =
   | Some (tl, currentPd) ->
     ( match data with
     | `Json j ->
-        let newPd = Decoders.blankOrData j |> TL.clonePointerData in
+        let newPd = Decoders.blankOrData j in
         TL.replaceMod currentPd newPd tl
     | `Text t ->
-        let newPd =
-          ( match currentPd with
-          | PExpr (Blank id) ->
-              (* If we have a blank PExpr and want to map a String into it,
-              * we can create a new String literal from it. *)
-              let wrapped = "\"" ^ t ^ "\"" in
-              PExpr (F (id, Value wrapped))
-          | _ ->
-              Pointer.strMap currentPd ~f:(fun _ -> t) )
-          |> TL.clonePointerData
-        in
+        let newPd = Pointer.strMap currentPd ~f:(fun _ -> t) in
         TL.replaceMod currentPd newPd tl
     | `None ->
         NoChange )

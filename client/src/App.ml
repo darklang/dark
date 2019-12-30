@@ -147,7 +147,7 @@ let processFocus (m : model) (focus : focus) : modification =
   | FocusExact (tlid, id) ->
     ( match TL.getPD m tlid id with
     | Some pd ->
-        if P.isBlank pd || P.toContent pd = Some ""
+        if P.isBlank pd || P.toContent pd = ""
         then Enter (Filling (tlid, id))
         else Select (tlid, STID id)
     | _ ->
@@ -180,10 +180,7 @@ let processFocus (m : model) (focus : focus) : modification =
       let pd = Option.map2 mTl mID ~f:(fun tl id -> TL.find tl id) in
       ( match (mTl, pd) with
       | Some tl, Some (Some pd) when TL.isValidID tl (P.toID pd) ->
-          let query =
-            AutocompleteMod
-              (ACSetQuery (P.toContent pd |> Option.withDefault ~default:""))
-          in
+          let query = AutocompleteMod (ACSetQuery (P.toContent pd)) in
           Many [SetPage page; SetCursorState cs; query]
       | Some _, Some None | Some _, None ->
           Many [SetPage page; SetCursorState cs; AutocompleteMod (ACSetQuery "")]

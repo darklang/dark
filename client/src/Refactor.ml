@@ -61,23 +61,15 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
   let replacement e =
     match wl with
     | WLetRHS ->
-        let replacement_ = ELet (gid (), gid (), "", e, E.newB ()) in
-        replacement_
+        ELet (gid (), gid (), "", e, E.newB ())
     | WLetBody ->
-        let replacement_ = ELet (gid (), gid (), "", E.newB (), e) in
-        replacement_
+        ELet (gid (), gid (), "", E.newB (), e)
     | WIfCond ->
-        let thenBlank = E.newB () in
-        let replacement_ = EIf (gid (), e, thenBlank, E.newB ()) in
-        replacement_
+        EIf (gid (), e, E.newB (), E.newB ())
     | WIfThen ->
-        let condBlank = E.newB () in
-        let replacement_ = EIf (gid (), condBlank, e, E.newB ()) in
-        replacement_
+        EIf (gid (), E.newB (), e, E.newB ())
     | WIfElse ->
-        let condBlank = E.newB () in
-        let replacement_ = EIf (gid (), condBlank, E.newB (), e) in
-        replacement_
+        EIf (gid (), E.newB (), E.newB (), e)
   in
   TL.getAST tl
   |> Option.map ~f:(E.update ~f:replacement id)
@@ -345,8 +337,7 @@ let dbUseCount (m : model) (name : string) : int =
 let updateUsageCounts (m : model) : model =
   let tldata = m |> TL.all |> TD.mapValues ~f:TL.allData in
   let fndata =
-    m.userFunctions
-    |> TD.mapValues ~f:(fun fn -> AST.allData (E.toNExpr fn.ufAST))
+    m.userFunctions |> TD.mapValues ~f:(fun fn -> AST.allData fn.ufAST)
   in
   let all = List.concat (fndata @ tldata) in
   let countFromList names =
@@ -360,7 +351,7 @@ let updateUsageCounts (m : model) : model =
   let usedFns =
     all
     |> List.filterMap ~f:(function
-           | PFnCallName (F (_, name)) ->
+           | PFnCallName (_, name) ->
                Some name
            | _ ->
                None)
@@ -369,7 +360,7 @@ let updateUsageCounts (m : model) : model =
   let usedDBs =
     all
     |> List.filterMap ~f:(function
-           | PExpr (F (_, Variable name)) when String.isCapitalized name ->
+           | PExpr (EVariable (_, name)) when String.isCapitalized name ->
                Some name
            | _ ->
                None)
