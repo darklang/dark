@@ -34,8 +34,6 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | ACCommand command ->
-      ":" ^ command.commandName
   | ACOmniAction ac ->
     ( match ac with
     | NewDB maybeName ->
@@ -116,8 +114,6 @@ let asName (aci : autocompleteItem) : string =
 
 let asTypeString (item : autocompleteItem) : string =
   match item with
-  | ACCommand _ ->
-      ""
   | ACOmniAction _ ->
       ""
   | ACHTTPModifier _ ->
@@ -835,8 +831,6 @@ let appendQuery (m : model) (str : string) (a : autocomplete) : autocomplete =
 
 let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
-  | ACCommand c ->
-      Some (c.doc ^ " (" ^ c.shortcut ^ ")")
   | ACOmniAction _ ->
       None
   | ACHTTPModifier verb ->
