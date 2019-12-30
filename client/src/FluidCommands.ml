@@ -28,30 +28,17 @@ let reset : fluidCommandState =
 let commandsFor (tl : toplevel) (id : id) : command list =
   (* NB: do not structurally compare entire Command.command records here, as
    * they contain functions, which BS cannot compare.*)
-  let filterForRail rail =
-    fluidCommands
-    |> List.filter ~f:(fun c ->
-           match rail with
-           | Rail ->
-               c.commandName <> Commands.putFunctionOnRail.commandName
-           | NoRail ->
-               c.commandName <> Commands.takeFunctionOffRail.commandName)
-  in
+  let noPutOn c = c.commandName <> Commands.putFunctionOnRail.commandName in
+  let noTakeOff c = c.commandName <> Commands.takeFunctionOffRail.commandName in
   Toplevel.getAST tl
-  |> Option.andThen ~f:(fun x -> AST.find id x)
-  |> Option.andThen ~f:(fun pd ->
-         match pd with
-         | PExpr (F (_, FnCall (_, _, rail))) ->
-             Some (filterForRail rail)
+  |> Option.andThen ~f:(FluidExpression.find id)
+  |> Option.map ~f:(function
+         | EFnCall (_, _, _, Rail) ->
+             List.filter fluidCommands ~f:noPutOn
+         | EFnCall (_, _, _, NoRail) ->
+             List.filter fluidCommands ~f:noTakeOff
          | _ ->
-             let cmds =
-               fluidCommands
-               |> List.filter ~f:(fun c ->
-                      c.commandName <> Commands.putFunctionOnRail.commandName
-                      && c.commandName
-                         <> Commands.takeFunctionOffRail.commandName)
-             in
-             Some cmds)
+             List.filter fluidCommands ~f:(fun c -> noTakeOff c && noPutOn c))
   |> Option.withDefault ~default:fluidCommands
 
 
@@ -65,9 +52,9 @@ let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
 let executeCommand
     (m : model) (tlid : tlid) (token : fluidToken) (cmd : command) :
     modification =
-  match TL.getTLAndPD m tlid (FluidToken.tid token) with
-  | Some (tl, Some pd) ->
-      cmd.action m tl pd
+  match TL.get m tlid with
+  | Some tl ->
+      cmd.action m tl (FluidToken.tid token)
   | _ ->
       recover "No pd for the command" ~debug:(tlid, token, cmd) NoChange
 

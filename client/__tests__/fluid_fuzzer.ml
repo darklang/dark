@@ -28,23 +28,7 @@ let count = ref defaultCount
 
 let toText ast = FluidPrinter.eToString ast
 
-let pointerToText p : string =
-  match p with
-  | PExpr e ->
-      toText (FluidExpression.fromNExpr e)
-  | PField b
-  | PVarBind b
-  | PKey b
-  | PFFMsg b
-  | PFnName b
-  | PFnCallName b
-  | PConstructorName b ->
-      Blank.toMaybe b |> Option.withDefault ~default:"blank"
-  | PPattern _ ->
-      "pattern TODO"
-  | _ ->
-      "not valid here"
-
+let pointerToText (p : blankOrData) : string = Pointer.toContent p
 
 let debugAST (length : int) (msg : string) (e : E.t) : unit =
   if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ toText e)
@@ -423,8 +407,6 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
     let pointers =
       ast
-      |> fun x ->
-      E.toNExpr x
       |> AST.allData
       |> List.uniqueBy ~f:(Pointer.toID >> Prelude.deID)
       |> List.indexedMap ~f:(fun i v -> (i, v))

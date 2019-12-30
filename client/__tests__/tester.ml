@@ -91,7 +91,7 @@ let print_test_end name (t : Private.t) : unit =
     ^ Option.withDefault ~default:"None" t.expected ;
     Js.log
     @@ testIndent ()
-    ^ "Actual: "
+    ^ "  Actual: "
     ^ Option.withDefault ~default:"None" t.actual )
   else print_test_skip name
 
@@ -103,7 +103,7 @@ let print_test_end name (t : Private.t) : unit =
 let describe (name : string) (testFn : unit -> unit) : unit =
   let open Private in
   categories := name :: !categories ;
-  if List.length !categories <= 2 || !verbose then print_category_start name ;
+  if List.length !categories <= 1 || !verbose then print_category_start name ;
   testFn () ;
   match !categories with [] -> () | _ :: rest -> categories := rest
 
@@ -120,11 +120,18 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
   in
   if shouldRun
   then runningTest := name
-  else if not !verbose
+  else if !verbose
   then print_test_skip name ;
   let result =
     if shouldRun
-    then testFn ()
+    then
+      try testFn ()
+      with e ->
+        { categories = !categories
+        ; name = !runningTest
+        ; success = Failed
+        ; actual = Some (Printexc.to_string e)
+        ; expected = None }
     else
       { categories = !categories
       ; name = !runningTest

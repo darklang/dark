@@ -90,7 +90,7 @@ let astAndStateFromTLID (m : model) (tlid : tlid) : (E.t * state) option =
                let newM = removeHandlerTransientState m in
                newM.fluidState
            in
-           (E.fromNExpr genericAst, state))
+           (genericAst, state))
   in
   maybeFluidAstAndState
 
@@ -942,7 +942,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
           caretTargetForLastPartOfExpr' lastExpr
       | None ->
           { astRef = ARFnCall (id, FCPFnName)
-          ; offset = fnName |> ViewUtils.partialName |> String.length } )
+          ; offset = fnName |> FluidUtil.partialName |> String.length } )
     | EPartial (id, str, _) ->
         (* Intentionally using the thing that was typed; not the existing expr *)
         {astRef = ARPartial id; offset = String.length str}
@@ -2072,7 +2072,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
   match entry with
   | FACFunction fn ->
       let count = List.length fn.fnParameters in
-      let partialName = ViewUtils.partialName fn.fnName in
+      let partialName = FluidUtil.partialName fn.fnName in
       let r =
         if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
         then Types.Rail
@@ -3148,8 +3148,7 @@ let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
 let maybeOpenCmd (m : Types.model) : Types.modification =
   Toplevel.selected m
   |> Option.andThen ~f:(fun tl ->
-         TL.rootExpr tl
-         |> Option.map ~f:E.fromNExpr
+         TL.getAST tl
          |> Option.andThen ~f:(getToken m.fluidState)
          |> Option.map ~f:(fun ti -> FluidCommandsShow (TL.id tl, ti.token)))
   |> Option.withDefault ~default:NoChange
@@ -3201,13 +3200,12 @@ let tokensInRange selStartPos selEndPos ast : fluidTokenInfo list =
 
 
 let getTopmostSelectionID startPos endPos ast : id option =
-  let asExpr = E.toNExpr ast in
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
   tokensInRange startPos endPos ast
   |> List.filter ~f:(fun ti -> not (T.isNewline ti.token))
   |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
          let curID = T.parentExprID ti.token in
-         let curDepth = AST.ancestors curID asExpr |> List.length in
+         let curDepth = AST.ancestors curID ast |> List.length in
          if (* check if current token is higher in the AST than the last token,
              * or if there's no topmost ID yet *)
             (curDepth < topmostDepth || topmostID = None)
@@ -3828,10 +3826,10 @@ and deleteSelection ~state ~(ast : ast) : E.t * fluidState =
   fluidGetSelectionRange state |> deleteCaretRange ~state ~ast
 
 
-let updateAutocomplete m tlid ast s : fluidState =
+let updateAutocomplete m tlid (ast : ast) s : fluidState =
   match getToken s ast with
   | Some ti when T.isAutocompletable ti.token ->
-      let m = TL.withAST m tlid (E.toNExpr ast) in
+      let m = TL.withAST m tlid ast in
       let newAC = AC.regenerate m s.ac (tlid, ti) in
       {s with ac = newAC}
   | _ ->
@@ -4580,7 +4578,7 @@ let fluidDataFromModel m : (fluidState * E.t) option =
   match Toplevel.selectedAST m with
   | Some expr ->
       let s = m.fluidState in
-      Some (s, E.fromNExpr expr)
+      Some (s, expr)
   | None ->
       None
 
@@ -4729,8 +4727,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                  Some (tl, expr)
              | None ->
                  None)
-      |> Option.map ~f:(fun (tl, expr) ->
-             let ast = E.fromNExpr expr in
+      |> Option.map ~f:(fun (tl, ast) ->
              let fluidState =
                let fs = moveToEndOfTarget id ast s in
                {fs with errorDvSrc = SourceId id}
@@ -4774,7 +4771,6 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       ( match (tl, ast) with
       | Some tl, Some ast ->
           let tlid = TL.id tl in
-          let ast = E.fromNExpr ast in
           let newAST, newState = updateMsg m tlid ast msg s in
           let eventSpecMod, newAST, newState =
             let enter id = Enter (Filling (tlid, id)) in
@@ -4816,18 +4812,17 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
           let astMod =
             if ast <> newAST
             then
-              let asExpr = E.toNExpr newAST in
               let requestAnalysis =
                 match Analysis.getSelectedTraceID m tlid with
                 | Some traceID ->
-                    let m = TL.withAST m tlid asExpr in
+                    let m = TL.withAST m tlid newAST in
                     MakeCmd (Analysis.requestAnalysis m tlid traceID)
                 | None ->
                     NoChange
               in
               Many
-                [ Types.TweakModel (fun m -> TL.withAST m tlid asExpr)
-                ; Toplevel.setSelectedAST m asExpr
+                [ Types.TweakModel (fun m -> TL.withAST m tlid newAST)
+                ; Toplevel.setSelectedAST m newAST
                 ; requestAnalysis
                 ; UpdateASTCache (tlid, Printer.eToString newAST) ]
             else Types.NoChange
@@ -4850,8 +4845,8 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
       ~f:(fun i item ->
         let highlighted = index = i in
         let name = AC.asName item in
-        let fnDisplayName = ViewUtils.fnDisplayName name in
-        let versionDisplayName = ViewUtils.versionDisplayName name in
+        let fnDisplayName = FluidUtil.fnDisplayName name in
+        let versionDisplayName = FluidUtil.versionDisplayName name in
         let versionView =
           if String.length versionDisplayName > 0
           then Html.span [Html.class' "version"] [Html.text versionDisplayName]
