@@ -37,10 +37,7 @@ let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
 let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
     msg Html.html =
   let freeVariables =
-    uf.ufAST
-    |> FluidExpression.toNExpr
-    |> AST.freeVariables
-    |> List.map ~f:Tuple2.second
+    uf.ufAST |> AST.freeVariables |> List.map ~f:Tuple2.second
   in
   let canDeleteParameter pname =
     List.member ~value:pname freeVariables |> not

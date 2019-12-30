@@ -2,10 +2,12 @@ open Tester
 open! Tc
 open Types
 open Prelude
+open Fluid_test_data
 module B = Blank
 module D = Defaults
 module R = Refactor
 module TL = Toplevel
+module E = FluidExpression
 
 let sampleFunctions =
   let par
@@ -95,9 +97,9 @@ let run () =
       in
       test "toggles any fncall off rail" (fun () ->
           let m, h, pd = init "Int::notResulty" Rail in
-          let op = Refactor.takeOffRail m (TLHandler h) pd in
+          let mod_ = Refactor.takeOffRail m (TLHandler h) pd in
           let res =
-            match op with
+            match mod_ with
             | RPC ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | EFnCall (_, "Int::notResulty", [], NoRail) ->
@@ -109,8 +111,6 @@ let run () =
           in
           expect res |> toEqual true) ;
       test "toggles any fncall off rail in a thread" (fun () ->
-          let open Fluid_test_data in
-          let module E = FluidExpression in
           let fn = fn ~ster:Rail "List::getAt_v2" [pipeTarget; int "5"] in
           let ast = pipe emptyList [fn] in
           let h = {defaultHandler with ast} in
@@ -163,8 +163,8 @@ let run () =
           expect res |> toEqual true) ;
       test "does not put non-error-rail-y function onto rail" (fun () ->
           let m, h, pd = init "Int::notResulty" NoRail in
-          let op = Refactor.putOnRail m (TLHandler h) pd in
-          let res = match op with NoChange -> true | _ -> false in
+          let mod' = Refactor.putOnRail m (TLHandler h) pd in
+          let res = match mod' with NoChange -> true | _ -> false in
           expect res |> toEqual true)) ;
   describe "renameDBReferences" (fun () ->
       let db0 =
@@ -323,58 +323,33 @@ let run () =
         in
         (m, TLHandler tl)
       in
-      let exprToString expr : string =
-        expr
-        |> Tuple2.first
-        |> FluidExpression.fromNExpr
-        |> FluidPrinter.eToString
-      in
       test "with sole expression" (fun () ->
-          let expr = B.newF (Value "4") in
-          let ast = expr in
-          let m, tl = modelAndTl (FluidExpression.fromNExpr ast) in
-          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          let ast = int "4" in
+          let m, tl = modelAndTl ast in
+          expect
+            ( R.extractVarInAst m tl (E.id ast) "var" ast
+            |> FluidPrinter.eToString )
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
-          let expr =
-            B.newF
-              (FnCall
-                 ( B.newF "Int::add"
-                 , [B.newF (Variable "b"); B.newF (Value "4")]
-                 , NoRail ))
-          in
-          let ast = Let (B.newF "b", B.newF (Value "5"), expr) |> B.newF in
-          let m, tl = modelAndTl (FluidExpression.fromNExpr ast) in
-          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          let expr = fn "Int::add" [var "b"; int "4"] in
+          let ast = let' "b" (int "5") expr in
+          let m, tl = modelAndTl ast in
+          expect
+            ( R.extractVarInAst m tl (E.id expr) "var" ast
+            |> FluidPrinter.eToString )
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
           let expr =
-            FnCall
-              ( B.newF "DB::set_v1"
-              , [ B.newF
-                    (FieldAccess (B.newF (Variable "request"), B.newF "body"))
-                ; B.newF
-                    (FnCall (B.newF "toString", [B.newF (Variable "id")], NoRail))
-                ; B.new_ () ]
-              , NoRail )
-            |> B.newF
+            fn
+              "DB::set_v1"
+              [fieldAccess (var "request") "body"; fn "toString" [var "id"]; b]
           in
-          let threadedExpr =
-            B.newF
-              (FnCall
-                 ( B.newF "Dict::set"
-                 , [B.newF (Value "\"id\""); B.newF (Variable "id")]
-                 , NoRail ))
-          in
-          let exprInThread = Thread [expr; threadedExpr] |> B.newF in
-          let ast =
-            Let
-              ( B.newF "id"
-              , B.newF (FnCall (B.newF "Uuid::generate", [], NoRail))
-              , exprInThread )
-            |> B.newF
-          in
-          let m, tl = modelAndTl (FluidExpression.fromNExpr ast) in
-          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          let threadedExpr = fn "Dict::set" [str "id"; var "id"] in
+          let exprInThread = pipe expr [threadedExpr] in
+          let ast = let' "id" (fn "Uuid::generate" []) exprInThread in
+          let m, tl = modelAndTl ast in
+          expect
+            ( R.extractVarInAst m tl (E.id expr) "var" ast
+            |> FluidPrinter.eToString )
           |> toEqual
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"))

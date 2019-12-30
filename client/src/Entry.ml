@@ -513,7 +513,7 @@ let submitACItem
                   { old with
                     ufMetadata = {old.ufMetadata with ufmName = B.newF value} }
                 in
-                let changedNames = Refactor.renameFunction m old new_ in
+                let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
           | PParamName _, ACParamName value, _ ->
               replace (PParamName (B.newF value))
