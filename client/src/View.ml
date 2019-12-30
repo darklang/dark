@@ -11,7 +11,12 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
-  let vs = ViewUtils.createVS m tl in
+  let tokens =
+    TL.getAST tl
+    |> Option.map ~f:FluidPrinter.toTokens
+    |> Option.withDefault ~default:[]
+  in
+  let vs = ViewUtils.createVS m tl tokens in
   let dragEvents =
     [ ViewUtils.eventNoPropagation
         ~key:("tlmd-" ^ showTLID tlid)
