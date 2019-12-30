@@ -976,7 +976,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
           caretTargetForLastPartOfExpr' lastExpr
       | None ->
           {astRef = ARConstructor (id, CPName); offset = String.length name} )
-    | (EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _) as expr ->
+    | (EFeatureFlag (_, _, _, _, _) | EPipeTarget _) as expr ->
         recover
           "we don't yet support caretTargetForLastPartOfExpr for this"
           ~debug:expr
@@ -4332,14 +4332,13 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         in
         Some
           (EMatch (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
-    | EFeatureFlag (_, name, nameID, cond, thenBody, elseBody), _ ->
+    | EFeatureFlag (_, name, cond, thenBody, elseBody), _ ->
         (* since we don't have any tokens associated with feature flags yet *)
         Some
           (EFeatureFlag
              ( id
              , (* should probably do some stuff about if the name token isn't fully selected *)
                name
-             , nameID
              , reconstructExpr cond |> orDefaultExpr
              , reconstructExpr thenBody |> orDefaultExpr
              , reconstructExpr elseBody |> orDefaultExpr ))

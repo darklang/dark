@@ -263,13 +263,12 @@ and fluidExpr =
    * or length 0 (for `Nothing`).
    *)
   | EConstructor of id * fluidName * fluidExpr list
-  (* TODO: add ID for fluidPattern *)
   | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
   (* Placeholder that indicates the target of the Thread. May be movable at
    * some point *)
   | EPipeTarget of id
-  (* EFeatureFlag: id, flagName, flagNameId, condExpr, caseAExpr, caseBExpr *)
-  | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
+  (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
+  | EFeatureFlag of id * string * fluidExpr * fluidExpr * fluidExpr
 
 (* ---------------------- *)
 (* Toplevels *)

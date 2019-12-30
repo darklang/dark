@@ -30,7 +30,7 @@ let id (expr : t) : Types.id =
   | EPipeTarget id
   | EBinOp (id, _, _, _, _)
   | EConstructor (id, _, _)
-  | EFeatureFlag (id, _, _, _, _, _)
+  | EFeatureFlag (id, _, _, _, _)
   | EMatch (id, _, _) ->
       id
 
@@ -73,7 +73,7 @@ let rec find (target : Types.id) (expr : t) : t option =
         List.findMap ~f:fe exprs
     | EPartial (_, _, oldExpr) | ERightPartial (_, _, oldExpr) ->
         fe oldExpr
-    | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+    | EFeatureFlag (_, _, cond, casea, caseb) ->
         fe cond
         |> Option.orElseLazy (fun () -> fe casea)
         |> Option.orElseLazy (fun () -> fe caseb)
@@ -117,7 +117,7 @@ let findParent (target : Types.id) (expr : t) : t option =
           fp expr
       | ERightPartial (_, _, expr) ->
           fp expr
-      | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+      | EFeatureFlag (_, _, cond, casea, caseb) ->
           List.findMap ~f:fp [cond; casea; caseb]
   in
   findParent' ~parent:None target expr
@@ -184,8 +184,8 @@ let walk ~(f : t -> t) (expr : t) : t =
       EPartial (id, str, f oldExpr)
   | ERightPartial (id, str, oldExpr) ->
       ERightPartial (id, str, f oldExpr)
-  | EFeatureFlag (id, msg, msgid, cond, casea, caseb) ->
-      EFeatureFlag (id, msg, msgid, f cond, f casea, f caseb)
+  | EFeatureFlag (id, msg, cond, casea, caseb) ->
+      EFeatureFlag (id, msg, f cond, f casea, f caseb)
 
 
 let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t) :
@@ -309,8 +309,8 @@ let rec clone (expr : t) : t =
       EList (gid (), cl exprs)
   | ERecord (_, pairs) ->
       ERecord (gid (), List.map ~f:(fun (_, k, v) -> (gid (), k, c v)) pairs)
-  | EFeatureFlag (_, name, _, cond, a, b) ->
-      EFeatureFlag (gid (), name, gid (), c cond, c a, c b)
+  | EFeatureFlag (_, name, cond, a, b) ->
+      EFeatureFlag (gid (), name, c cond, c a, c b)
   | EMatch (_, matchExpr, cases) ->
       let mid = gid () in
       EMatch

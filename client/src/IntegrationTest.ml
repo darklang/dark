@@ -260,7 +260,6 @@ let feature_flag_works (m : model) : testResult =
       , EFeatureFlag
           ( id
           , "myflag"
-          , _
           , EFnCall
               ( _
               , "Int::greaterThan"
@@ -292,7 +291,6 @@ let feature_flag_in_function (m : model) : testResult =
         , [ EFeatureFlag
               ( _
               , "myflag"
-              , _
               , EBool (_, true)
               , EInteger (_, "5")
               , EInteger (_, "3") )
