@@ -244,5 +244,4 @@ let handler (event : Keyboard.keyEvent) (m : model) : modification =
        ~f:(fun h (acc : modification option) ->
          match acc with None -> h event m | Some _ -> acc)
        ~init:None
-  |> fun modification ->
-  match modification with Some m -> m | None -> NoChange
+  |> Option.withDefault ~default:NoChange
