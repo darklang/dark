@@ -9,3 +9,5 @@ val id : t -> Types.id
 val matchID : t -> Types.id
 
 val clone : Types.id -> t -> t
+
+val variableNames : t -> string list
