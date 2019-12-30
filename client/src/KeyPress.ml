@@ -153,7 +153,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             ( match cursor with
             | Filling (tlid, p) ->
                 let content = AC.getValue m.complete in
-                let hasContent = content |> String.length |> ( < ) 0 in
+                let hasContent = content <> "" in
                 if event.shiftKey
                 then
                   if hasContent
