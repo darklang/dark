@@ -95,3 +95,13 @@ let rec clone (matchID : id) (p : t) : t =
       FPNull (matchID, gid ())
   | FPFloat (_, _, whole, fraction) ->
       FPFloat (matchID, gid (), whole, fraction)
+
+
+let rec variableNames (p : t) : varName list =
+  match p with
+  | FPVariable (_, _, name) ->
+      [name]
+  | FPConstructor (_, _, _, patterns) ->
+      patterns |> List.map ~f:variableNames |> List.concat
+  | FPInteger _ | FPBool _ | FPString _ | FPBlank _ | FPNull _ | FPFloat _ ->
+      []
