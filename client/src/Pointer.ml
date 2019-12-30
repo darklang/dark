@@ -353,7 +353,3 @@ let toContent (pd : blankOrData) : string option =
       |> fun x -> Some x
   | PGroupName g ->
       bs2s g
-
-
-let exprmap (fn : expr -> expr) (pd : blankOrData) : blankOrData =
-  match pd with PExpr d -> PExpr (fn d) | _ -> pd
