@@ -177,7 +177,6 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let hasFf =
     false
     (* TL.getAST tl *)
-    (* |> Option.map ~f:FluidExpression.toNExpr *)
     (* |> Option.map ~f:AST.allData *)
     (* |> Option.withDefault ~default:[] *)
     (* |> List.any ~f:(function PFFMsg _ -> true | _ -> false) *)
