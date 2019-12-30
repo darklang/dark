@@ -383,7 +383,7 @@ let submitACItem
                 let varrefs = Refactor.renameDBReferences m oldName value in
                 RPC (RenameDBname (tlid, value) :: varrefs, FocusNothing)
           | PDBColType ct, ACDBColType value, TLDB db ->
-              if B.asF ct = Some value
+              if B.toOption ct = Some value
               then
                 (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
                 Select (tlid, STID id)
@@ -399,7 +399,7 @@ let submitACItem
                   ; AddDBCol (tlid, gid (), gid ()) ]
               else wrapID [ChangeDBColType (tlid, id, value)]
           | PDBColName cn, ACDBColName value, TLDB db ->
-              if B.asF cn = Some value
+              if B.toOption cn = Some value
               then
                 (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
                 Select (tlid, STID id)
