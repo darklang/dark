@@ -7,6 +7,7 @@ module B = Blank
 module P = Pointer
 module TL = Toplevel
 module TD = TLIDDict
+module E = FluidExpression
 
 let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)
@@ -18,6 +19,39 @@ let convertTipe (tipe : tipe) : tipe =
   match tipe with TIncomplete -> TAny | TError -> TAny | _ -> tipe
 
 
+(* Call f on calls to uf across the whole AST *)
+let transformFnCalls
+    (m : model) (uf : userFunction) (f : fluidExpr -> fluidExpr) : op list =
+  let transformCallsInAst ast =
+    let rec run e =
+      match e with
+      | EFnCall (_, name, _, _)
+        when Some name = Blank.toMaybe uf.ufMetadata.ufmName ->
+          f e
+      | other ->
+          E.walk ~f:run other
+    in
+    run ast
+  in
+  let newHandlers =
+    m.handlers
+    |> TD.filterMapValues ~f:(fun h ->
+           let newAst = transformCallsInAst h.ast in
+           if newAst <> h.ast
+           then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
+           else None)
+  in
+  let newFunctions =
+    m.userFunctions
+    |> TD.filterMapValues ~f:(fun uf_ ->
+           let newAst = transformCallsInAst uf_.ufAST in
+           if newAst <> uf_.ufAST
+           then Some (SetFunction {uf_ with ufAST = newAst})
+           else None)
+  in
+  newHandlers @ newFunctions
+
+
 type wrapLoc =
   | WLetRHS
   | WLetBody
@@ -25,278 +59,179 @@ type wrapLoc =
   | WIfThen
   | WIfElse
 
-let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
-    modification =
-  let tlid = TL.id tl in
-  let wrapAst e ast wl_ =
-    let ast = FluidExpression.toNExpr ast in
-    let replacement, focus =
-      match wl_ with
-      | WLetRHS ->
-          let lhs = B.new_ () in
-          let replacement_ = PExpr (B.newF (Let (lhs, e, B.new_ ()))) in
-          (replacement_, FocusExact (tlid, B.toID lhs))
-      | WLetBody ->
-          let lhs = B.new_ () in
-          let replacement_ = PExpr (B.newF (Let (lhs, B.new_ (), e))) in
-          (replacement_, FocusExact (tlid, B.toID lhs))
-      | WIfCond ->
-          let thenBlank = B.new_ () in
-          let replacement_ = PExpr (B.newF (If (e, thenBlank, B.new_ ()))) in
-          (replacement_, FocusExact (tlid, B.toID thenBlank))
-      | WIfThen ->
-          let condBlank = B.new_ () in
-          let replacement_ = PExpr (B.newF (If (condBlank, e, B.new_ ()))) in
-          (replacement_, FocusExact (tlid, B.toID condBlank))
-      | WIfElse ->
-          let condBlank = B.new_ () in
-          let replacement_ = PExpr (B.newF (If (condBlank, B.new_ (), e))) in
-          (replacement_, FocusExact (tlid, B.toID condBlank))
-    in
-    (AST.replace (PExpr e) replacement ast |> FluidExpression.fromNExpr, focus)
+let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
+  let module E = FluidExpression in
+  let replacement e =
+    match wl with
+    | WLetRHS ->
+        ELet (gid (), gid (), "", e, E.newB ())
+    | WLetBody ->
+        ELet (gid (), gid (), "", E.newB (), e)
+    | WIfCond ->
+        EIf (gid (), e, E.newB (), E.newB ())
+    | WIfThen ->
+        EIf (gid (), E.newB (), e, E.newB ())
+    | WIfElse ->
+        EIf (gid (), E.newB (), E.newB (), e)
   in
-  match (p, tl) with
-  | PExpr e, TLHandler h ->
-      let newAst, focus = wrapAst e h.ast wl in
-      let newH = {h with ast = newAst} in
-      RPC ([SetHandler (tlid, h.pos, newH)], focus)
-  | PExpr e, TLFunc f ->
-      let newAst, focus = wrapAst e f.ufAST wl in
-      let newF = {f with ufAST = newAst} in
-      RPC ([SetFunction newF], focus)
-  | _ ->
-      NoChange
-
-
-let takeOffRail (_m : model) (tl : toplevel) (p : pointerData) : modification =
-  let id = P.toID p in
   TL.getAST tl
-  |> Option.map ~f:FluidExpression.fromNExpr
+  |> Option.map ~f:(E.update ~f:replacement id)
+  |> Option.map ~f:(TL.setASTMod tl)
+  |> Option.withDefault ~default:NoChange
+
+
+let takeOffRail (_m : model) (tl : toplevel) (id : id) : modification =
+  TL.getAST tl
   |> Option.map ~f:(fun ast ->
          FluidExpression.update id ast ~f:(function
              | EFnCall (_, name, exprs, Rail) ->
                  EFnCall (id, name, exprs, NoRail)
              | e ->
                  recover "incorrect id in takeoffRail" e))
-  |> Option.map ~f:FluidExpression.toNExpr
   |> Option.map ~f:(Toplevel.setASTMod tl)
   |> Option.withDefault ~default:NoChange
 
 
-let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
-  let new_ =
-    match p with
-    | PExpr (F (id, FnCall (F (nid, name), exprs, NoRail))) ->
-        (* We don't want to use m.complete.functions as the autocomplete
-          * filters out deprecated functions *)
-        let allFunctions =
-          let ufs =
-            m.userFunctions
-            |> TD.mapValues ~f:(fun uf -> uf.ufMetadata)
-            |> List.filterMap ~f:Functions.ufmToF
-          in
-          m.builtInFunctions @ ufs
-        in
-        (* Only toggle onto rail iff. return tipe is TOption or TResult *)
-        List.find ~f:(fun fn -> fn.fnName = name) allFunctions
-        |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
-        |> Option.map ~f:(fun t ->
-               if t = TOption || t = TResult
-               then PExpr (F (id, FnCall (F (nid, name), exprs, Rail)))
-               else p)
-        |> Option.withDefault ~default:p
-    | _ ->
-        p
+let putOnRail (m : model) (tl : toplevel) (id : id) : modification =
+  (* Only toggle onto rail iff. return tipe is TOption or TResult *)
+  let isRailable name =
+    (* We don't want to use m.complete.functions as the autocomplete
+     * filters out deprecated functions *)
+    let allFunctions =
+      let ufs =
+        m.userFunctions
+        |> TD.mapValues ~f:(fun uf -> uf.ufMetadata)
+        |> List.filterMap ~f:Functions.ufmToF
+      in
+      m.builtInFunctions @ ufs
+    in
+    List.find ~f:(fun fn -> fn.fnName = name) allFunctions
+    |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
+    |> Option.map ~f:(fun t -> t = TOption || t = TResult)
+    |> Option.withDefault ~default:false
   in
-  if p = new_
-  then NoChange
-  else
-    let newtl = TL.replace p new_ tl in
-    RPC (TL.toOp newtl, FocusSame)
+  TL.getAST tl
+  |> Option.map ~f:(fun ast ->
+         FluidExpression.update id ast ~f:(function
+             | EFnCall (_, name, exprs, NoRail) when isRailable name ->
+                 EFnCall (id, name, exprs, Rail)
+             | e ->
+                 e))
+  |> Option.map ~f:(Toplevel.setASTMod tl)
+  |> Option.withDefault ~default:NoChange
 
 
 let extractVarInAst
-    (m : model) (tl : toplevel) (e : expr) (ast : expr) (varname : string) :
-    expr * id =
-  let freeVariables =
-    AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
-  in
-  let ancestors = AST.ancestors (B.toID e) ast in
+    (m : model) (tl : toplevel) (id : id) (varname : string) (ast : fluidExpr) :
+    fluidExpr =
+  let module E = FluidExpression in
   let traceID = Analysis.getSelectedTraceID m (TL.id tl) in
-  let lastPlaceWithSameVarsAndValues =
-    e :: ancestors
-    |> List.takeWhile ~f:(fun elem ->
-           let id = B.toID elem in
-           let availableVars =
-             Option.map traceID ~f:(Analysis.getAvailableVarnames m tl id)
-             |> Option.withDefault ~default:[]
-             |> List.map ~f:(fun (varname, _) -> varname)
-             |> StrSet.fromList
-           in
-           let allRequiredVariablesAvailable =
-             StrSet.diff freeVariables availableVars |> StrSet.isEmpty
-           in
-           let noVariablesAreRedefined =
-             freeVariables
-             |> StrSet.toList
-             |> List.all ~f:(not << fun v -> AST.isDefinitionOf v elem)
-           in
-           allRequiredVariablesAvailable && noVariablesAreRedefined)
-    |> List.last
-  in
-  let newVar = B.newF varname in
-  match lastPlaceWithSameVarsAndValues with
-  | Some p ->
-      let nbody = AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p in
-      let nlet = B.newF (Let (newVar, e, nbody)) in
-      (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
+  match E.find id ast with
+  | Some e ->
+      let lastPlaceWithSameVarsAndValues =
+        let ancestors = AST.ancestors id ast in
+        let freeVariables =
+          AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
+        in
+        e :: ancestors
+        |> List.takeWhile ~f:(fun elem ->
+               let id = E.id elem in
+               let availableVars =
+                 Option.map traceID ~f:(Analysis.getAvailableVarnames m tl id)
+                 |> Option.withDefault ~default:[]
+                 |> List.map ~f:(fun (varname, _) -> varname)
+                 |> StrSet.fromList
+               in
+               let allRequiredVariablesAvailable =
+                 StrSet.diff freeVariables availableVars |> StrSet.isEmpty
+               in
+               let noVariablesAreRedefined =
+                 freeVariables
+                 |> StrSet.toList
+                 |> List.all ~f:(not << fun v -> AST.isDefinitionOf v elem)
+               in
+               allRequiredVariablesAvailable && noVariablesAreRedefined)
+        |> List.last
+      in
+      ( match lastPlaceWithSameVarsAndValues with
+      | Some last ->
+          ast
+          |> E.update (E.id last) ~f:(function last ->
+                 ELet (gid (), gid (), varname, E.clone e, last))
+          |> E.replace (E.id e) ~replacement:(EVariable (gid (), varname))
+      | None ->
+          ast )
   | None ->
-      (* something weird is happening because we couldn't find anywhere to *)
-      (* extract to, we can just wrap the entire AST in a Let *)
-      let newAST =
-        AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
-      in
-      (B.newF (Let (newVar, e, newAST)), B.toID newVar)
+      ast
 
 
-let extractVariable (m : model) (tl : toplevel) (p : pointerData) : modification
-    =
-  let tlid = TL.id tl in
+let extractVariable (m : model) (tl : toplevel) (id : id) : modification =
   let varname = "var" ^ string_of_int (Util.random ()) in
-  match (p, tl) with
-  | PExpr e, TLHandler h ->
-      let newAst, enterTarget =
-        extractVarInAst m tl e (FluidExpression.toNExpr h.ast) varname
+  TL.getAST tl
+  |> Option.map ~f:(extractVarInAst m tl id varname)
+  |> Option.map ~f:(TL.setASTMod tl)
+  |> Option.withDefault ~default:NoChange
+
+
+let extractFunction (m : model) (tl : toplevel) (id : id) : modification =
+  let module E = FluidExpression in
+  let tlid = TL.id tl in
+  let ast = TL.getAST tl in
+  match (ast, Option.andThen ast ~f:(E.find id)) with
+  | Some ast, Some body ->
+      let name = generateFnName () in
+      let glob = TL.allGloballyScopedVarnames m.dbs in
+      let freeVars =
+        AST.freeVariables body
+        |> List.filter ~f:(fun (_, v) -> not (List.member ~value:v glob))
       in
-      let newHandler = {h with ast = FluidExpression.fromNExpr newAst} in
-      Many
-        [ RPC ([SetHandler (tlid, h.pos, newHandler)], FocusNoChange)
-        ; Enter (Filling (tlid, enterTarget)) ]
-  | PExpr e, TLFunc f ->
-      let newAst, enterTarget =
-        extractVarInAst m tl e (FluidExpression.toNExpr f.ufAST) varname
+      let paramExprs =
+        List.map ~f:(fun (_, name_) -> EVariable (gid (), name_)) freeVars
       in
-      let newF = {f with ufAST = FluidExpression.fromNExpr newAst} in
-      Many
-        [ RPC ([SetFunction newF], FocusNoChange)
-        ; Enter (Filling (tlid, enterTarget)) ]
+      let replacement = EFnCall (gid (), name, paramExprs, NoRail) in
+      let newAST = E.replace ~replacement id ast in
+      let astOp = TL.setASTMod tl newAST in
+      let params =
+        List.map freeVars ~f:(fun (id, name_) ->
+            let tipe =
+              Analysis.getSelectedTraceID m tlid
+              |> Option.andThen ~f:(Analysis.getTipeOf m id)
+              |> Option.withDefault ~default:TAny
+              |> convertTipe
+            in
+            { ufpName = F (gid (), name_)
+            ; ufpTipe = F (gid (), tipe)
+            ; ufpBlock_args = []
+            ; ufpOptional = false
+            ; ufpDescription = "" })
+      in
+      let metadata =
+        { ufmName = F (gid (), name)
+        ; ufmParameters = params
+        ; ufmDescription = ""
+        ; ufmReturnTipe = F (gid (), TAny)
+        ; ufmInfix = false }
+      in
+      let newF =
+        { ufTLID = gtlid ()
+        ; ufMetadata = metadata
+        ; ufAST = FluidExpression.clone body }
+      in
+      Many [RPC ([SetFunction newF], FocusExact (tlid, E.id replacement)); astOp]
   | _ ->
       NoChange
 
 
-let extractFunction (m : model) (tl : toplevel) (p : pointerData) : modification
+let renameFunction (m : model) (uf : userFunction) (newName : string) : op list
     =
-  let tlid = TL.id tl in
-  if not (TL.isValidID tl (P.toID p))
-  then NoChange
-  else
-    match p with
-    | PExpr body ->
-        let name = generateFnName () in
-        let glob = TL.allGloballyScopedVarnames m.dbs in
-        let freeVars =
-          AST.freeVariables body
-          |> List.filter ~f:(fun (_id, v) -> not (List.member ~value:v glob))
-        in
-        let paramExprs =
-          List.map ~f:(fun (_, name_) -> F (gid (), Variable name_)) freeVars
-        in
-        let replacement =
-          let (ID id) = gid () in
-          let nameid = id ^ "_name" in
-          PExpr (F (ID id, FnCall (F (ID nameid, name), paramExprs, NoRail)))
-        in
-        let astOp = TL.replaceOp p replacement tl in
-        let params =
-          List.map freeVars ~f:(fun (id, name_) ->
-              let tipe =
-                Analysis.getSelectedTraceID m tlid
-                |> Option.andThen ~f:(Analysis.getTipeOf m id)
-                |> Option.withDefault ~default:TAny
-                |> convertTipe
-              in
-              { ufpName = F (gid (), name_)
-              ; ufpTipe = F (gid (), tipe)
-              ; ufpBlock_args = []
-              ; ufpOptional = false
-              ; ufpDescription = "" })
-        in
-        let metadata =
-          { ufmName = F (gid (), name)
-          ; ufmParameters = params
-          ; ufmDescription = ""
-          ; ufmReturnTipe = F (gid (), TAny)
-          ; ufmInfix = false }
-        in
-        let newF =
-          { ufTLID = gtlid ()
-          ; ufMetadata = metadata
-          ; ufAST = FluidExpression.clone (FluidExpression.fromNExpr body) }
-        in
-        RPC ([SetFunction newF] @ astOp, FocusExact (tlid, P.toID replacement))
+  let fn e =
+    match e with
+    | EFnCall (id, _, params, r) ->
+        EFnCall (id, newName, params, r)
     | _ ->
-        NoChange
-
-
-let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
-    op list =
-  let renameFnCalls ast old_ new_ =
-    let transformCall newName_ oldCall =
-      let transformExpr name oldExpr =
-        match oldExpr with
-        | F (ID id, FnCall (_, params, r)) ->
-            F (ID id, FnCall (F (ID (id ^ "_name"), name), params, r))
-        | _ ->
-            oldExpr
-      in
-      match oldCall with
-      | PExpr e ->
-          PExpr (transformExpr newName_ e)
-      | _ ->
-          oldCall
-    in
-    let origName, calls =
-      match old_.ufMetadata.ufmName with
-      | Blank _ ->
-          (None, [])
-      | F (_, n) ->
-          (Some n, AST.allCallsToFn n ast |> List.map ~f:(fun x -> PExpr x))
-    in
-    let newName =
-      match new_.ufMetadata.ufmName with Blank _ -> None | F (_, n) -> Some n
-    in
-    match (origName, newName) with
-    | Some _, Some r ->
-        List.foldr
-          ~f:(fun call acc -> AST.replace call (transformCall r call) acc)
-          ~init:ast
-          calls
-    | _ ->
-        ast
+        e
   in
-  let newHandlers =
-    m.handlers
-    |> TD.filterMapValues ~f:(fun h ->
-           let newAst =
-             renameFnCalls (FluidExpression.toNExpr h.ast) old new_
-             |> FluidExpression.fromNExpr
-           in
-           if newAst <> h.ast
-           then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
-           else None)
-  in
-  let newFunctions =
-    m.userFunctions
-    |> TD.filterMapValues ~f:(fun uf ->
-           let newAst =
-             renameFnCalls (FluidExpression.toNExpr uf.ufAST) old new_
-             |> FluidExpression.fromNExpr
-           in
-           if newAst <> uf.ufAST
-           then Some (SetFunction {uf with ufAST = newAst})
-           else None)
-  in
-  newHandlers @ newFunctions
+  transformFnCalls m uf fn
 
 
 let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
@@ -405,9 +340,7 @@ let dbUseCount (m : model) (name : string) : int =
 let updateUsageCounts (m : model) : model =
   let tldata = m |> TL.all |> TD.mapValues ~f:TL.allData in
   let fndata =
-    m.userFunctions
-    |> TD.mapValues ~f:(fun fn ->
-           AST.allData (FluidExpression.toNExpr fn.ufAST))
+    m.userFunctions |> TD.mapValues ~f:(fun fn -> AST.allData fn.ufAST)
   in
   let all = List.concat (fndata @ tldata) in
   let countFromList names =
@@ -421,7 +354,7 @@ let updateUsageCounts (m : model) : model =
   let usedFns =
     all
     |> List.filterMap ~f:(function
-           | PFnCallName (F (_, name)) ->
+           | PFnCallName (_, name) ->
                Some name
            | _ ->
                None)
@@ -430,7 +363,7 @@ let updateUsageCounts (m : model) : model =
   let usedDBs =
     all
     |> List.filterMap ~f:(function
-           | PExpr (F (_, Variable name)) when String.isCapitalized name ->
+           | PExpr (EVariable (_, name)) when String.isCapitalized name ->
                Some name
            | _ ->
                None)
@@ -451,56 +384,6 @@ let updateUsageCounts (m : model) : model =
   {m with usedDBs; usedFns; usedTipes}
 
 
-let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
-    op list =
-  let transformCallsInAst f_ ast old =
-    let ast = FluidExpression.toNExpr ast in
-    let transformCall old_ =
-      let transformExpr oldExpr =
-        match oldExpr with
-        | F (id, FnCall (name, params, r)) ->
-            F (id, f_ (FnCall (name, params, r)))
-        | _ ->
-            oldExpr
-      in
-      match old_ with PExpr e -> PExpr (transformExpr e) | _ -> old_
-    in
-    let origName, calls =
-      match old.ufMetadata.ufmName with
-      | Blank _ ->
-          (None, [])
-      | F (_, n) ->
-          (Some n, AST.allCallsToFn n ast |> List.map ~f:(fun x -> PExpr x))
-    in
-    ( match origName with
-    | Some _ ->
-        List.foldr
-          ~f:(fun call acc -> AST.replace call (transformCall call) acc)
-          ~init:ast
-          calls
-    | _ ->
-        ast )
-    |> FluidExpression.fromNExpr
-  in
-  let newHandlers =
-    m.handlers
-    |> TD.filterMapValues ~f:(fun h ->
-           let newAst = transformCallsInAst f h.ast uf in
-           if newAst <> h.ast
-           then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
-           else None)
-  in
-  let newFunctions =
-    m.userFunctions
-    |> TD.filterMapValues ~f:(fun uf_ ->
-           let newAst = transformCallsInAst f uf_.ufAST uf_ in
-           if newAst <> uf_.ufAST
-           then Some (SetFunction {uf_ with ufAST = newAst})
-           else None)
-  in
-  newHandlers @ newFunctions
-
-
 let removeFunctionParameter
     (m : model) (uf : userFunction) (ufp : userFunctionParameter) : op list =
   let indexInList =
@@ -509,8 +392,8 @@ let removeFunctionParameter
   in
   let fn e =
     match e with
-    | FnCall (name, params, r) ->
-        FnCall (name, List.removeAt ~index:indexInList params, r)
+    | EFnCall (id, name, params, r) ->
+        EFnCall (id, name, List.removeAt ~index:indexInList params, r)
     | _ ->
         e
   in
@@ -522,8 +405,8 @@ let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : id) :
   let transformOp old =
     let fn e =
       match e with
-      | FnCall (name, params, r) ->
-          FnCall (name, params @ [B.new_ ()], r)
+      | EFnCall (id, name, params, r) ->
+          EFnCall (id, name, params @ [FluidExpression.newB ()], r)
       | _ ->
           e
     in

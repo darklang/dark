@@ -157,43 +157,43 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DBytes" [string (bin |> base64url_bytes)]
 
 
-let rec pointerData (pd : Types.pointerData) : Js.Json.t =
+let rec blankOrData (pd : Types.blankOrData) : Js.Json.t =
   let ev = variant in
   match pd with
-  | PVarBind var ->
-      ev "PVarBind" [blankOr string var]
+  | PVarBind (id', name) ->
+      ev "PVarBind" [id id'; string name]
+  | PExpr e ->
+      ev "PExpr" [expr (FluidExpression.toNExpr e)]
+  | PField (id', name) ->
+      ev "PField" [id id'; string name]
+  | PKey (id', name) ->
+      ev "PKey" [id id'; string name]
+  | PFFMsg (id', name) ->
+      ev "PFFMsg" [id id'; string name]
+  | PPattern p ->
+      ev "PPattern" [pattern (FluidPattern.toPattern p)]
+  | PConstructorName (id', name) ->
+      ev "PConstructorName" [id id'; string name]
+  | PFnCallName (id', name) ->
+      ev "PFnCallName" [id id'; string name]
   | PEventName name ->
       ev "PEventName" [blankOr string name]
   | PEventModifier modifier ->
       ev "PEventModifier" [blankOr string modifier]
   | PEventSpace space ->
       ev "PEventSpace" [blankOr string space]
-  | PExpr e ->
-      ev "PExpr" [expr e]
-  | PField field ->
-      ev "PField" [blankOr string field]
-  | PKey key ->
-      ev "PKey" [blankOr string key]
   | PDBName name ->
       ev "PDBName" [blankOr string name]
   | PDBColName colname ->
       ev "PDBColName" [blankOr string colname]
   | PDBColType coltype ->
       ev "PDBColType" [blankOr string coltype]
-  | PFFMsg msg ->
-      ev "PFFMsg" [blankOr string msg]
   | PFnName msg ->
       ev "PFnName" [blankOr string msg]
   | PParamName msg ->
       ev "PParamName" [blankOr string msg]
   | PParamTipe msg ->
       ev "PParamTipe" [blankOr tipe msg]
-  | PPattern p ->
-      ev "PPattern" [pattern p]
-  | PConstructorName n ->
-      ev "PConstructorName" [blankOr string n]
-  | PFnCallName n ->
-      ev "PFnCallName" [blankOr string n]
   | PTypeName n ->
       ev "PTypeName" [blankOr string n]
   | PTypeFieldName n ->

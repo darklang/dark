@@ -208,30 +208,31 @@ and nExpr =
 (* ----------------------------- *)
 (* Pointers *)
 (* ----------------------------- *)
-and pointerData =
-  | PVarBind of varBind
+and blankOrData =
   | PEventName of string blankOr
   | PEventModifier of string blankOr
   | PEventSpace of string blankOr
-  | PExpr of expr
-  | PField of field
-  | PKey of string blankOr
   | PDBName of string blankOr
   | PDBColName of string blankOr
   | PDBColType of string blankOr
-  | PFFMsg of string blankOr
   | PFnName of string blankOr
-  | PFnCallName of string blankOr
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
-  | PPattern of pattern
-  | PConstructorName of string blankOr
   | PTypeName of string blankOr
   | PTypeFieldName of string blankOr
   | PTypeFieldTipe of tipe blankOr
   | PGroupName of string blankOr
+  (* Part of the AST *)
+  | PVarBind of id * string
+  | PExpr of fluidExpr
+  | PField of id * string
+  | PKey of id * string
+  | PPattern of fluidPattern
+  | PFnCallName of id * string
+  | PFFMsg of id * string
+  | PConstructorName of id * string
 
-and pointerType =
+and blankOrType =
   | VarBind
   | EventName
   | EventSpace
@@ -932,7 +933,7 @@ and keyword =
 
 and command =
   { commandName : string
-  ; action : model -> toplevel -> pointerData -> modification
+  ; action : model -> toplevel -> id -> modification
   ; doc : string
   ; shortcut : string }
 
@@ -976,7 +977,7 @@ and autocompleteItem =
   (* Groups *)
   | ACGroupName of string
 
-and target = tlid * pointerData
+and target = tlid * blankOrData
 
 and autocomplete =
   { functions : function_ list

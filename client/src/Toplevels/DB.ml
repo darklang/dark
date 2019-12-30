@@ -23,23 +23,21 @@ let fromList (dbs : db list) : db TLIDDict.t =
   dbs |> List.map ~f:(fun db -> (db.dbTLID, db)) |> TLIDDict.fromList
 
 
-let astsFor (db : db) : expr list =
+let astsFor (db : db) : fluidExpr list =
   match db.activeMigration with
   | None ->
       []
   | Some am ->
-      [ FluidExpression.toNExpr am.rollforward
-      ; FluidExpression.toNExpr am.rollback ]
+      [am.rollforward; am.rollback]
 
 
-let allData (db : db) : pointerData list =
+let allData (db : db) : blankOrData list =
   let cols, rolls =
     match db.activeMigration with
     | Some migra ->
         ( db.cols @ migra.cols
-        , List.concat
-            [ AST.allData (FluidExpression.toNExpr migra.rollforward)
-            ; AST.allData (FluidExpression.toNExpr migra.rollback) ] )
+        , List.concat [AST.allData migra.rollforward; AST.allData migra.rollback]
+        )
     | None ->
         (db.cols, [])
   in

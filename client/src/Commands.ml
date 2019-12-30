@@ -20,21 +20,6 @@ let putFunctionOnRail =
   ; shortcut = "Alt-E" }
 
 
-let executeCommand
-    (m : model) (tlid : tlid) (id : id) (highlighted : autocompleteItem option)
-    : modification =
-  match (highlighted, TL.getTLAndPD m tlid id) with
-  | Some (ACCommand command), Some (tl, Some pd) ->
-      command.action m tl pd
-  | _ ->
-      NoChange
-
-
-(* endCommandExecution closes the command palette *)
-let endCommandExecution (tlid : tlid) (id : id) : modification =
-  Many [AutocompleteMod ACReset; Select (tlid, STID id)]
-
-
 let commands : command list =
   [ { commandName = "extract-function"
     ; action = Refactor.extractFunction
@@ -75,9 +60,8 @@ let commands : command list =
   ; takeFunctionOffRail
   ; { commandName = "create-type"
     ; action =
-        (fun m tl pd ->
+        (fun m tl id ->
           let tlid = TL.id tl in
-          let id = Pointer.toID pd in
           let tipe =
             Analysis.getSelectedTraceID m tlid
             |> Option.andThen ~f:(Analysis.getLiveValue m id)

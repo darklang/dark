@@ -90,7 +90,6 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let id =
     TL.getAST tl
-    |> Option.map ~f:FluidExpression.fromNExpr
     |> Option.andThen ~f:(Fluid.getToken m.fluidState)
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
@@ -120,9 +119,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             TL.getAST tl
             |> Option.andThen ~f:(fun ast -> AST.find id ast)
             |> Option.andThen ~f:(function
-                   | PExpr (F (_, FnCall (F (_, name), _, _))) ->
+                   | PExpr (EFnCall (_, name, _, _)) ->
                        Some name
-                   | PFnCallName (F (_, name)) ->
+                   | PFnCallName (_, name) ->
                        Some name
                    | _ ->
                        None)
@@ -176,10 +175,12 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         Defaults.centerPos
   in
   let hasFf =
-    TL.getAST tl
-    |> Option.map ~f:AST.allData
-    |> Option.withDefault ~default:[]
-    |> List.any ~f:(function PFFMsg _ -> true | _ -> false)
+    false
+    (* TL.getAST tl *)
+    (* |> Option.map ~f:FluidExpression.toNExpr *)
+    (* |> Option.map ~f:AST.allData *)
+    (* |> Option.withDefault ~default:[] *)
+    (* |> List.any ~f:(function PFFMsg _ -> true | _ -> false) *)
   in
   let html =
     [ Html.div (Html.class' class_ :: events) (top @ body @ data)
@@ -417,10 +418,10 @@ let view (m : model) : msg Html.html =
   let body = viewCanvas m in
   let entry = ViewEntry.viewEntry m in
   let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
-  let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
+  let ast = TL.selectedAST m |> Option.withDefault ~default:(EBlank (gid ())) in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [Fluid.viewStatus m (FluidExpression.fromNExpr ast) m.fluidState]
+    then [Fluid.viewStatus m ast m.fluidState]
     else []
   in
   let viewDocs =

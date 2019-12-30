@@ -1,4 +1,5 @@
 open Tc
+open Prelude
 
 let literalToString
     (v : [> `Bool of bool | `Int of string | `Null | `Float of string * string])
@@ -68,3 +69,85 @@ let isIdentifierChar (str : string) = Js.Re.test_ [%re "/[_a-zA-Z0-9]+/"] str
 
 let isFnNameChar str =
   Js.Re.test_ [%re "/[_:a-zA-Z0-9]/"] str && String.length str = 1
+
+
+let parseString str :
+    [> `Bool of bool
+    | `Int of string
+    | `Null
+    | `Float of string * string
+    | `Unknown ] =
+  let asBool =
+    if str = "true"
+    then Some (`Bool true)
+    else if str = "false"
+    then Some (`Bool false)
+    else if str = "null"
+    then Some `Null
+    else None
+  in
+  let asInt = if is63BitInt str then Some (`Int str) else None in
+  let asFloat =
+    try
+      (* for the exception *)
+      ignore (float_of_string str) ;
+      match String.split ~on:"." str with
+      | [whole; fraction] ->
+          Some (`Float (whole, fraction))
+      | _ ->
+          None
+    with _ -> None
+  in
+  let asString =
+    if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
+    then
+      Some
+        (`String (str |> String.dropLeft ~count:1 |> String.dropRight ~count:1))
+    else None
+  in
+  asInt
+  |> Option.or_ asString
+  |> Option.or_ asBool
+  |> Option.or_ asFloat
+  |> Option.withDefault ~default:`Unknown
+
+
+let splitFnName (fnName : string) : string option * string * string =
+  let pattern = Js.Re.fromString "^((\\w+)::)?([^_]+)(_v(\\d+))?$" in
+  let mResult = Js.Re.exec_ pattern fnName in
+  match mResult with
+  | Some result ->
+      let captures =
+        result
+        |> Js.Re.captures
+        |> Belt.List.fromArray
+        |> List.map ~f:Js.toOption
+      in
+      ( match captures with
+      | [_; _; mod_; Some fn; _; Some v] ->
+          (mod_, fn, v)
+      | [_; _; mod_; Some fn; _; None] ->
+          (mod_, fn, "0")
+      | _ ->
+          recover "invalid fn name" ~debug:fnName (None, fnName, "0") )
+  | None ->
+      (None, fnName, "0")
+
+
+(* Get just the function mod and name *)
+let fnDisplayName (fnName : string) : string =
+  let mod_, name, _ = splitFnName fnName in
+  match mod_ with Some mod_ -> mod_ ^ "::" ^ name | None -> name
+
+
+(* Get just the function version *)
+let versionDisplayName (fnName : string) : string =
+  let _, _, version = splitFnName fnName in
+  if version = "0" then "" else "v" ^ version
+
+
+(* Get the function mod, name and version (without underscore) *)
+let partialName (name : string) : string =
+  let version = versionDisplayName name in
+  let name = fnDisplayName name in
+  name ^ version

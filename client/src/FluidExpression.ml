@@ -137,47 +137,6 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
   in
   let f = fromNExpr' ~inPipe:false in
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
-  let parseString str :
-      [> `Bool of bool
-      | `Int of string
-      | `Null
-      | `Float of string * string
-      | `Unknown ] =
-    let asBool =
-      if str = "true"
-      then Some (`Bool true)
-      else if str = "false"
-      then Some (`Bool false)
-      else if str = "null"
-      then Some `Null
-      else None
-    in
-    let asInt = if FluidUtil.is63BitInt str then Some (`Int str) else None in
-    let asFloat =
-      try
-        (* for the exception *)
-        ignore (float_of_string str) ;
-        match String.split ~on:"." str with
-        | [whole; fraction] ->
-            Some (`Float (whole, fraction))
-        | _ ->
-            None
-      with _ -> None
-    in
-    let asString =
-      if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
-      then
-        Some
-          (`String
-            (str |> String.dropLeft ~count:1 |> String.dropRight ~count:1))
-      else None
-    in
-    asInt
-    |> Option.or_ asString
-    |> Option.or_ asBool
-    |> Option.or_ asFloat
-    |> Option.withDefault ~default:`Unknown
-  in
   match expr with
   | Blank id ->
       EBlank id
@@ -225,7 +184,7 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
           , List.map varnames ~f:(fun var -> (Blank.toID var, varToName var))
           , f exprs )
     | Value str ->
-      ( match parseString str with
+      ( match FluidUtil.parseString str with
       | `Bool b ->
           EBool (id, b)
       | `Int i ->
@@ -242,32 +201,10 @@ let rec fromNExpr' ?(inPipe = false) (expr : Types.expr) : t =
         EConstructor (id, Blank.toID name, varToName name, List.map ~f exprs)
     | Match (mexpr, pairs) ->
         let mid = id in
-        let rec fromPattern (p : pattern) : fluidPattern =
-          match p with
-          | Blank id ->
-              FPBlank (mid, id)
-          | F (id, np) ->
-            ( match np with
-            | PVariable name ->
-                FPVariable (mid, id, name)
-            | PConstructor (name, patterns) ->
-                FPConstructor (mid, id, name, List.map ~f:fromPattern patterns)
-            | PLiteral str ->
-              ( match parseString str with
-              | `Bool b ->
-                  FPBool (mid, id, b)
-              | `Int i ->
-                  FPInteger (mid, id, i)
-              | `String s ->
-                  FPString (mid, id, s)
-              | `Null ->
-                  FPNull (mid, id)
-              | `Float (whole, fraction) ->
-                  FPFloat (mid, id, whole, fraction)
-              | `Unknown ->
-                  FPBlank (mid, id) ) )
+        let pairs =
+          List.map pairs ~f:(fun (p, e) ->
+              (FluidPattern.fromPattern mid p, f e))
         in
-        let pairs = List.map pairs ~f:(fun (p, e) -> (fromPattern p, f e)) in
         EMatch (id, f mexpr, pairs)
     | FeatureFlag (msg, cond, casea, caseb) ->
         EFeatureFlag
@@ -480,10 +417,13 @@ let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t) :
   let finished = run ast in
   if failIfMissing
   then
-    asserT
-      ~debug:(target, ast)
-      "didn't find the id in the expression to update"
-      !found ;
+    if not !found
+       (* prevents the significant performance cost of show_fluidExpr *)
+    then
+      asserT
+        ~debug:(show_id target, show_fluidExpr ast)
+        "didn't find the id in the expression to update"
+        !found ;
   finished
 
 
@@ -527,7 +467,7 @@ let rec updateVariableUses (oldVarName : string) ~(f : t -> t) (ast : t) : t =
       let pairs =
         List.map
           ~f:(fun (pat, expr) ->
-            if Pattern.hasVariableNamed oldVarName (FluidPattern.toPattern pat)
+            if Pattern.hasVariableNamed oldVarName pat
             then (pat, expr)
             else (pat, u expr))
           pairs

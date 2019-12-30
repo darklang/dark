@@ -147,7 +147,7 @@ let processFocus (m : model) (focus : focus) : modification =
   | FocusExact (tlid, id) ->
     ( match TL.getPD m tlid id with
     | Some pd ->
-        if P.isBlank pd || P.toContent pd = Some ""
+        if P.isBlank pd || P.toContent pd = ""
         then Enter (Filling (tlid, id))
         else Select (tlid, STID id)
     | _ ->
@@ -180,10 +180,7 @@ let processFocus (m : model) (focus : focus) : modification =
       let pd = Option.map2 mTl mID ~f:(fun tl id -> TL.find tl id) in
       ( match (mTl, pd) with
       | Some tl, Some (Some pd) when TL.isValidID tl (P.toID pd) ->
-          let query =
-            AutocompleteMod
-              (ACSetQuery (P.toContent pd |> Option.withDefault ~default:""))
-          in
+          let query = AutocompleteMod (ACSetQuery (P.toContent pd)) in
           Many [SetPage page; SetCursorState cs; query]
       | Some _, Some None | Some _, None ->
           Many [SetPage page; SetCursorState cs; AutocompleteMod (ACSetQuery "")]
@@ -1252,9 +1249,7 @@ let update_ (msg : msg) (m : model) : modification =
     | Selecting (tlid, mId) ->
       ( match (TL.get m tlid, mId) with
       | Some tl, Some id ->
-          let pd = TL.find tl id in
-          Option.map pd ~f:(Refactor.extractFunction m tl)
-          |> Option.withDefault ~default:NoChange
+          Refactor.extractFunction m tl id
       | _ ->
           NoChange )
     | _ ->
@@ -1859,9 +1854,9 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidMsg (FluidCommandsClick cmd) ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
-    ( match TL.getTLAndPD m tlid id with
-    | Some (tl, Some pd) ->
-        Refactor.takeOffRail m tl pd
+    ( match TL.get m tlid with
+    | Some tl ->
+        Refactor.takeOffRail m tl id
     | _ ->
         NoChange )
   | SetHandlerExeIdle tlid ->

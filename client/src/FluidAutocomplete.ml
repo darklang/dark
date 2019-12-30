@@ -217,9 +217,10 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   (* TODO: missing function *)
   match TL.getAST tl with
   | Some ast ->
-      AST.find id ast
+      ast
+      |> AST.find id
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
-      |> Option.map ~f:P.toID
+      |> Option.map ~f:FluidExpression.id
       |> Option.andThen2 traceID ~f:(fun traceID id ->
              Analysis.getLiveValue m id traceID)
       (* don't filter on incomplete values *)
@@ -233,8 +234,7 @@ let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
-  |> Option.map ~f:(fun e ->
-         match e with F (_, Thread _) -> true | _ -> false)
+  |> Option.map ~f:(fun e -> match e with EPipe _ -> true | _ -> false)
   |> Option.withDefault ~default:false
 
 
@@ -282,7 +282,7 @@ let matcher
       matchTypesOfFn tipeConstraintOnTarget fn
   | FACVariable (var, _) ->
       if List.member ~value:var dbnames
-      then match tipeConstraintOnTarget with TDB -> true | _ -> false
+      then tipeConstraintOnTarget = TDB
       else true
   | FACConstructorName (name, _) ->
     ( match tipeConstraintOnTarget with

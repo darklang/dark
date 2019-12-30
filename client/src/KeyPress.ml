@@ -71,10 +71,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
     match m.cursorState with
     | Selecting (tlid, mId) ->
       ( match (event.keyCode, TL.get m tlid) with
-      | Key.Delete, _ ->
-          Selection.delete m tlid mId
-      | Key.Backspace, _ ->
-          Selection.delete m tlid mId
       | Key.Escape, _ ->
         ( match mId with
         (* if we're selecting an expression,
@@ -119,7 +115,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         | Some id ->
             Selection.enter m tlid id
         | None ->
-            Selection.selectDownLevel m tlid mId )
+            NoChange )
       | Key.Tab, _ ->
           (* NB: see `stopKeys` in ui.html *)
           if event.shiftKey
@@ -157,7 +153,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             ( match cursor with
             | Filling (tlid, p) ->
                 let content = AC.getValue m.complete in
-                let hasContent = content |> String.length |> ( < ) 0 in
+                let hasContent = content <> "" in
                 if event.shiftKey
                 then
                   if hasContent
@@ -248,5 +244,4 @@ let handler (event : Keyboard.keyEvent) (m : model) : modification =
        ~f:(fun h (acc : modification option) ->
          match acc with None -> h event m | Some _ -> acc)
        ~init:None
-  |> fun modification ->
-  match modification with Some m -> m | None -> NoChange
+  |> Option.withDefault ~default:NoChange

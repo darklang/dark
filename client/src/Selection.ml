@@ -148,21 +148,6 @@ let move
       Select (tlid, STTopLevelRoot)
 
 
-let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification =
-  match TL.get m tlid with
-  | None ->
-      NoChange
-  | Some tl ->
-      let pd = Option.andThen cur ~f:(TL.find tl) in
-      pd
-      |> Option.orElse (TL.rootOf tl)
-      |> Option.andThen ~f:(TL.firstChild tl)
-      |> Option.orElse pd
-      |> Option.map ~f:P.toID
-      |> Option.map ~f:(fun id -> Select (tlid, STID id))
-      |> Option.withDefault ~default:(Select (tlid, STTopLevelRoot))
-
-
 let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
   let tlid = TL.id tl in
   let isLocked = DB.isLocked m tlid in
@@ -173,9 +158,8 @@ let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
       [ Enter (Filling (tlid, id))
       ; AutocompleteMod
           (ACSetQuery
-             ( pd
-             |> Option.andThen ~f:P.toContent
-             |> Option.withDefault ~default:"" )) ]
+             (pd |> Option.map ~f:P.toContent |> Option.withDefault ~default:""))
+      ]
   in
   match pd with
   | Some (PDBName _) ->
@@ -184,8 +168,6 @@ let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
       if isLocked && not isMigrationCol then NoChange else enterField
   | Some (PDBColType _) ->
       if isLocked && not isMigrationCol then NoChange else enterField
-  | Some (PExpr _) ->
-      enterField
   (* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress *)
   | _ ->
       NoChange
@@ -208,10 +190,7 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
           | Some offset ->
               EnterWithOffset (Filling (tlid, id), offset)
         in
-        Many
-          [ enterMod
-          ; AutocompleteMod
-              (ACSetQuery (P.toContent pd |> Option.withDefault ~default:"")) ]
+        Many [enterMod; AutocompleteMod (ACSetQuery (P.toContent pd))]
   | _ ->
       recover "Entering invalid tl" ~debug:(tlid, id) NoChange
 
@@ -233,8 +212,8 @@ let dblclick (m : model) (tlid : tlid) (id : id) (offset : int option) :
 let maybeEnterFluid
     ~(nonFluidCursorMod : modification)
     (tlid : tlid)
-    (oldPD : pointerData option)
-    (newPD : pointerData option) : modification =
+    (oldPD : blankOrData option)
+    (newPD : blankOrData option) : modification =
   let fluidEnteringMod =
     Many
       [ SetCursorState (FluidEntering tlid)
@@ -331,48 +310,3 @@ let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
         tlid
         pd
         nextBlankPd
-
-
-(* ------------------------------- *)
-(* misc *)
-(* ------------------------------- *)
-let delete (m : model) (tlid : tlid) (mId : id option) : modification =
-  match mId with
-  | None ->
-      NoChange
-  | Some id ->
-      let newID = gid () in
-      let focus = FocusExact (tlid, newID) in
-      ( match TL.getTLAndPD m tlid id with
-      | Some (tl, Some pd) ->
-        ( match P.typeOf pd with
-        | DBColType ->
-            NoChange
-        | DBColName ->
-            NoChange
-        | VarBind ->
-            let newTL = TL.replace pd (PVarBind (F (newID, ""))) tl in
-            ( match newTL with
-            | TLHandler h ->
-                RPC ([SetHandler (tlid, h.pos, h)], focus)
-            | TLFunc f ->
-                RPC ([SetFunction f], focus)
-            | TLTipe _ | TLDB _ | TLGroup _ ->
-                recover "pointer type mismatch" ~debug:(newTL, pd) NoChange )
-        | DBName | FnName | TypeName | GroupName ->
-            Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
-        | _ ->
-            let newTL = TL.delete tl pd newID in
-            ( match newTL with
-            | TLHandler h ->
-                RPC ([SetHandler (tlid, h.pos, h)], focus)
-            | TLFunc f ->
-                RPC ([SetFunction f], focus)
-            | TLTipe t ->
-                RPC ([SetType t], focus)
-            | TLGroup _ ->
-                NoChange
-            | TLDB _ ->
-                recover "pointer type mismatch" ~debug:(newTL, pd) NoChange ) )
-      | _ ->
-          recover "deleting from non-existant pd" ~debug:id NoChange )

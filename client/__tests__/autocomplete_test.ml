@@ -158,7 +158,7 @@ let creatingOmni : model =
 
 
 (* AC targeting a tlid and pointer *)
-let acFor ?(target = Some (defaultTLID, PExpr defaultExpr)) (m : model) :
+let acFor ?(target = Some (defaultTLID, PExpr defaultFluidExpr)) (m : model) :
     autocomplete =
   match m.cursorState with
   | Entering (Creating _) ->

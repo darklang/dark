@@ -50,6 +50,32 @@ let rec toPattern (p : t) : Types.pattern =
       Blank id
 
 
+let rec fromPattern (mid : id) (p : pattern) : fluidPattern =
+  match p with
+  | Blank id ->
+      FPBlank (mid, id)
+  | F (id, np) ->
+    ( match np with
+    | PVariable name ->
+        FPVariable (mid, id, name)
+    | PConstructor (name, patterns) ->
+        FPConstructor (mid, id, name, List.map ~f:(fromPattern mid) patterns)
+    | PLiteral str ->
+      ( match FluidUtil.parseString str with
+      | `Bool b ->
+          FPBool (mid, id, b)
+      | `Int i ->
+          FPInteger (mid, id, i)
+      | `String s ->
+          FPString (mid, id, s)
+      | `Null ->
+          FPNull (mid, id)
+      | `Float (whole, fraction) ->
+          FPFloat (mid, id, whole, fraction)
+      | `Unknown ->
+          FPBlank (mid, id) ) )
+
+
 let rec clone (matchID : id) (p : t) : t =
   match p with
   | FPVariable (_, _, name) ->
@@ -69,3 +95,13 @@ let rec clone (matchID : id) (p : t) : t =
       FPNull (matchID, gid ())
   | FPFloat (_, _, whole, fraction) ->
       FPFloat (matchID, gid (), whole, fraction)
+
+
+let rec variableNames (p : t) : varName list =
+  match p with
+  | FPVariable (_, _, name) ->
+      [name]
+  | FPConstructor (_, _, _, patterns) ->
+      patterns |> List.map ~f:variableNames |> List.concat
+  | FPInteger _ | FPBool _ | FPString _ | FPBlank _ | FPNull _ | FPFloat _ ->
+      []

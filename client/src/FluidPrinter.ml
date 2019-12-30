@@ -1,23 +1,6 @@
 open Tc
 open Types
 open Prelude
-module K = FluidKeyboard
-module Mouse = Tea.Mouse
-module TL = Toplevel
-module Regex = Util.Regex
-
-(* Tea *)
-module Cmd = Tea.Cmd
-
-module Html = struct
-  include Tea.Html
-
-  type 'a html = 'a Vdom.t
-end
-
-module Attrs = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
-module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
 module Pattern = FluidPattern
@@ -289,7 +272,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addMany [TBinOp (id, op); TSep id]
       |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
-      let ghost = ghostPartial id newName (ViewUtils.partialName oldName) in
+      let ghost = ghostPartial id newName (FluidUtil.partialName oldName) in
       let start b =
         match lexpr with
         | EPipeTarget _ ->
@@ -306,9 +289,9 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> add (TSep id)
       |> nest ~indent:2 ~placeholderFor:(Some (oldName, 1)) rexpr
   | EFnCall (id, fnName, args, ster) ->
-      let displayName = ViewUtils.fnDisplayName fnName in
-      let versionDisplayName = ViewUtils.versionDisplayName fnName in
-      let partialName = ViewUtils.partialName fnName in
+      let displayName = FluidUtil.fnDisplayName fnName in
+      let versionDisplayName = FluidUtil.versionDisplayName fnName in
+      let partialName = FluidUtil.partialName fnName in
       let versionToken =
         if versionDisplayName = ""
         then []
@@ -321,7 +304,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
       let partial = TPartial (id, newName) in
       let newText = T.toText partial in
-      let oldText = ViewUtils.partialName oldName in
+      let oldText = FluidUtil.partialName oldName in
       let ghost = ghostPartial id newText oldText in
       b |> add partial |> addMany ghost |> addArgs oldName id args
   | EConstructor (id, _, name, exprs) ->

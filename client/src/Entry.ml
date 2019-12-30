@@ -147,7 +147,7 @@ let newHandler m space name modifier pos =
   let idToEnter =
     (* TL.getNextBlank requires that there be a tl in the model to operate on;
      * here, we're setting an ID to focus before the model is updated, so we
-     * generate our list of pointerDatas here *)
+     * generate our list of blankOrDatas here *)
     (* Fallback to ast if spec has no blanks *)
     handler.spec
     |> SpecHeaders.firstBlank
@@ -252,7 +252,7 @@ type nextMove =
   | StayHere
   | GotoNext
 
-let validate (tl : toplevel) (pd : pointerData) (value : string) : string option
+let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
     =
   let v pattern name =
     if Regex.exactly ~re:pattern value
@@ -513,7 +513,7 @@ let submitACItem
                   { old with
                     ufMetadata = {old.ufMetadata with ufmName = B.newF value} }
                 in
-                let changedNames = Refactor.renameFunction m old new_ in
+                let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
           | PParamName _, ACParamName value, _ ->
               replace (PParamName (B.newF value))
@@ -538,7 +538,7 @@ let submitACItem
                 ( "Invalid autocomplete option"
                 , None
                 , Some
-                    ( Types.show_pointerData pd
+                    ( Types.show_blankOrData pd
                     ^ ", "
                     ^ Types.show_autocompleteItem item ) ) ) )
     | _ ->
@@ -556,13 +556,13 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
         submitOmniAction m pos (NewReplHandler None)
     | _ ->
         NoChange )
-  | _ ->
+  | Filling _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->
         recover "Shouldnt allow omniactions here" ~debug:cursor NoChange
     | Some item ->
         submitACItem m cursor item move
-    | _ ->
+    | None ->
         (* We removed ACExtra to define more specific autocomplete items.*)
         (* These are all autocomplete items who's target accepts and handles a free form value *)
         let item =
