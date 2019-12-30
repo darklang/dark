@@ -1,23 +1,6 @@
 open Tc
 open Types
 open Prelude
-module K = FluidKeyboard
-module Mouse = Tea.Mouse
-module TL = Toplevel
-module Regex = Util.Regex
-
-(* Tea *)
-module Cmd = Tea.Cmd
-
-module Html = struct
-  include Tea.Html
-
-  type 'a html = 'a Vdom.t
-end
-
-module Attrs = Tea.Html2.Attributes
-module Events = Tea.Html2.Events
-module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
 module Pattern = FluidPattern
