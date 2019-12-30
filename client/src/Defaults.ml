@@ -82,8 +82,7 @@ let defaultModel : model =
   ; clientOpCtrId = ""
   ; complete =
       (* this is awkward, but avoids circular deps *)
-      { functions = []
-      ; admin = false
+      { admin = false
       ; completions = []
       ; target = None
       ; allCompletions = []

@@ -772,21 +772,9 @@ let regenerate (m : model) (a : autocomplete) : autocomplete =
 (* Autocomplete state *)
 (* ---------------------------- *)
 let reset (m : model) : autocomplete =
-  let userFunctionMetadata =
-    m.userFunctions
-    |> TD.mapValues ~f:(fun x -> x.ufMetadata)
-    |> List.filterMap ~f:Functions.ufmToF
-  in
-  let functions =
-    m.builtInFunctions
-    |> List.filter ~f:(fun f ->
-           (not f.fnDeprecated) || Refactor.usedFn m f.fnName)
-  in
   let admin = m.isAdmin in
-  let functions = functions @ userFunctionMetadata in
   { Defaults.defaultModel.complete with
     admin
-  ; functions
   ; visible = VariantTesting.defaultAutocompleteVisible m }
   |> regenerate m
 

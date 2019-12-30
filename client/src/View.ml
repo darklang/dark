@@ -130,7 +130,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                    | _ ->
                        None)
             |> Option.andThen ~f:(fun name ->
-                   m.complete.functions
+                   m.fluidState.ac.functions
                    |> List.find ~f:(fun f -> name = f.fnName))
           in
           match fn with
@@ -148,7 +148,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             |> Option.andThen ~f:TL.getAST
             |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
             |> Option.andThen ~f:(fun (name, index) ->
-                   m.complete.functions
+                   m.fluidState.ac.functions
                    |> List.find ~f:(fun f -> name = f.fnName)
                    |> Option.map ~f:(fun x -> x.fnParameters)
                    |> Option.andThen ~f:(List.getAt ~index))
