@@ -29,7 +29,7 @@ let id (expr : t) : Types.id =
   | EPipe (id, _)
   | EPipeTarget id
   | EBinOp (id, _, _, _, _)
-  | EConstructor (id, _, _, _)
+  | EConstructor (id, _, _)
   | EFeatureFlag (id, _, _, _, _, _)
   | EMatch (id, _, _) ->
       id
@@ -68,7 +68,7 @@ let rec find (target : Types.id) (expr : t) : t option =
                pairs |> List.map ~f:Tuple2.second |> List.findMap ~f:fe)
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
-    | EConstructor (_, _, _, exprs)
+    | EConstructor (_, _, exprs)
     | EPipe (_, exprs) ->
         List.findMap ~f:fe exprs
     | EPartial (_, _, oldExpr) | ERightPartial (_, _, oldExpr) ->
@@ -110,7 +110,7 @@ let findParent (target : Types.id) (expr : t) : t option =
           fields |> List.map ~f:Tuple3.third |> List.findMap ~f:fp
       | EFnCall (_, _, exprs, _)
       | EList (_, exprs)
-      | EConstructor (_, _, _, exprs)
+      | EConstructor (_, _, exprs)
       | EPipe (_, exprs) ->
           List.findMap ~f:fp exprs
       | EPartial (_, _, expr) ->
@@ -178,8 +178,8 @@ let walk ~(f : t -> t) (expr : t) : t =
         (id, List.map ~f:(fun (id, name, expr) -> (id, name, f expr)) fields)
   | EPipe (id, exprs) ->
       EPipe (id, List.map ~f exprs)
-  | EConstructor (id, nameID, name, exprs) ->
-      EConstructor (id, nameID, name, List.map ~f exprs)
+  | EConstructor (id, name, exprs) ->
+      EConstructor (id, name, List.map ~f exprs)
   | EPartial (id, str, oldExpr) ->
       EPartial (id, str, f oldExpr)
   | ERightPartial (id, str, oldExpr) ->
@@ -317,8 +317,8 @@ let rec clone (expr : t) : t =
         ( mid
         , c matchExpr
         , List.map ~f:(fun (k, v) -> (FluidPattern.clone mid k, c v)) cases )
-  | EConstructor (_, _, name, args) ->
-      EConstructor (gid (), gid (), name, cl args)
+  | EConstructor (_, name, args) ->
+      EConstructor (gid (), name, cl args)
   | EPartial (_, str, oldExpr) ->
       EPartial (gid (), str, c oldExpr)
   | ERightPartial (_, str, oldExpr) ->

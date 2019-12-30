@@ -317,9 +317,9 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       let oldText = FluidUtil.partialName oldName in
       let ghost = ghostPartial id newText oldText in
       b |> add partial |> addMany ghost |> addArgs oldName id args
-  | EConstructor (id, _, name, exprs) ->
+  | EConstructor (id, name, exprs) ->
       b |> add (TConstructorName (id, name)) |> addArgs name id exprs
-  | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
+  | EPartial (id, newName, EConstructor (_, oldName, exprs)) ->
       let partial = TPartial (id, newName) in
       let newText = T.toText partial in
       let ghost = ghostPartial id newText oldName in

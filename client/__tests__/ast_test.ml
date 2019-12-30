@@ -46,9 +46,7 @@ let run () =
                (ELambda (id1, [(id2, "var")], EVariable (id3, "var"))))
           |> toEqual []) ;
       test "match pattern is not free" (fun () ->
-          let e =
-            EConstructor (id2, id3, "Just", [EVariable (id4, "request")])
-          in
+          let e = EConstructor (id2, "Just", [EVariable (id4, "request")]) in
           let pats =
             [ ( FPConstructor
                   (id5, id1, "Just", [FPVariable (id6, id1, "anything")])
