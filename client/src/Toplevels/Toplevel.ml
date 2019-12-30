@@ -439,14 +439,9 @@ let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
   | PKey _
   | PExpr _
   | PPattern _
+  | PFnCallName _
   | PConstructorName _ ->
-      tl
-      |> getAST
-      |> Option.map ~f:FluidExpression.toNExpr
-      |> Option.map ~f:(fun ast -> AST.replace p replacement ast)
-      |> Option.map ~f:FluidExpression.fromNExpr
-      |> Option.map ~f:(setAST tl)
-      |> recoverOpt "replacing an expr in a non-ast tl" ~default:tl
+      recover "can't change ASTs with replace anymore" tl
   | PEventName bo | PEventModifier bo | PEventSpace bo ->
     ( match asHandler tl with
     | Some h ->
@@ -503,13 +498,6 @@ let replaceMod (pd : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     modification =
   let ops = replaceOp pd replacement tl in
   if ops = [] then NoChange else RPC (ops, FocusNoChange)
-
-
-(* do nothing for now *)
-
-let delete (tl : toplevel) (p : blankOrData) (newID : id) : toplevel =
-  let replacement = P.emptyD_ newID (P.typeOf p) in
-  replace p replacement tl
 
 
 let combine
