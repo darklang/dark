@@ -6,6 +6,7 @@ module B = Blank
 module P = Pointer
 module TL = Toplevel
 module TD = TLIDDict
+module E = FluidExpression
 
 let pass : testResult = Ok ()
 
@@ -65,14 +66,7 @@ let onlyHandler (m : model) : handler =
 
 let onlyDB (m : model) : db = m |> onlyTL |> TL.asDB |> deOption "onlyDB"
 
-let onlyExpr (m : model) : nExpr =
-  m
-  |> onlyHandler
-  |> (fun x -> x.ast)
-  |> FluidExpression.toNExpr
-  |> B.asF
-  |> deOption "onlyast4"
-
+let onlyExpr (m : model) : E.t = m |> onlyTL |> TL.getAST |> deOption "onlyast4"
 
 let enter_changes_state (m : model) : testResult =
   match m.cursorState with
@@ -95,43 +89,42 @@ let field_access_closes (m : model) : testResult =
 
 let field_access_pipes (m : model) : testResult =
   match onlyExpr m with
-  | Thread
-      [F (_, FieldAccess (F (_, Variable "request"), F (_, "body"))); Blank _]
+  | EPipe (_, [EFieldAccess (_, EVariable (_, "request"), _, "body"); EBlank _])
     ->
       pass
   | expr ->
-      fail ~f:show_nExpr expr
+      fail ~f:show_fluidExpr expr
 
 
 let tabbing_works (m : model) : testResult =
   match onlyExpr m with
-  | If (Blank _, F (_, Value "5"), Blank _) ->
+  | EIf (_, EBlank _, EInteger (_, "5"), EBlank _) ->
       pass
   | e ->
-      fail ~f:show_nExpr e
+      fail ~f:show_fluidExpr e
 
 
 let autocomplete_highlights_on_partial_match (m : model) : testResult =
   match onlyExpr m with
-  | FnCall (F (_, "Int::add"), _, _) ->
+  | EFnCall (_, "Int::add", _, _) ->
       pass
   | e ->
-      fail ~f:show_nExpr e
+      fail ~f:show_fluidExpr e
 
 
 let no_request_global_in_non_http_space (m : model) : testResult =
   (* this might change but this is the answer for now. *)
   match onlyExpr m with
-  | FnCall (F (_, "Http::badRequest"), _, _) ->
+  | EFnCall (_, "Http::badRequest", _, _) ->
       pass
   | e ->
-      fail ~f:show_nExpr e
+      fail ~f:show_fluidExpr e
 
 
 let ellen_hello_world_demo (m : model) : testResult =
   let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
   match ((spec.space, spec.name), (spec.modifier, onlyExpr m)) with
-  | (F (_, "HTTP"), F (_, "/hello")), (F (_, "GET"), Value "\"Hello world!\"")
+  | (F (_, "HTTP"), F (_, "/hello")), (F (_, "GET"), EString (_, "Hello world!"))
     ->
       pass
   | other ->
@@ -193,10 +186,10 @@ let switching_from_default_repl_space_removes_name (m : model) : testResult =
 
 let tabbing_through_let (m : model) : testResult =
   match onlyExpr m with
-  | Let (F (_, "myvar"), F (_, Value "5"), F (_, Value "5")) ->
+  | ELet (_, _, "myvar", EInteger (_, "5"), EInteger (_, "5")) ->
       pass
   | e ->
-      fail ~f:show_nExpr e
+      fail ~f:show_fluidExpr e
 
 
 let rename_db_fields (m : model) : testResult =

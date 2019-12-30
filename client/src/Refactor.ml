@@ -234,55 +234,6 @@ let renameFunction (m : model) (uf : userFunction) (newName : string) : op list
   transformFnCalls m uf fn
 
 
-let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
-  let maybeNExpr = B.asF expr in
-  match maybeNExpr with
-  | None ->
-      false
-  | Some nExpr ->
-    ( match nExpr with
-    | FnCall (F (_, name), list, _) ->
-        if name = fnName
-        then true
-        else List.any ~f:(isFunctionInExpr fnName) list
-    | FnCall (Blank _, _, _) ->
-        recover "blank in fncall" ~debug:nExpr false
-    | Constructor (_, args) ->
-        List.any ~f:(isFunctionInExpr fnName) args
-    | If (ifExpr, thenExpr, elseExpr) ->
-        List.any ~f:(isFunctionInExpr fnName) [ifExpr; thenExpr; elseExpr]
-    | Variable _ ->
-        false
-    | Let (_, a, b) ->
-        List.any ~f:(isFunctionInExpr fnName) [a; b]
-    | Lambda (_, ex) ->
-        isFunctionInExpr fnName ex
-    | Value _ ->
-        false
-    | ObjectLiteral li ->
-        let valuesMap = List.map ~f:Tuple2.second li in
-        List.any ~f:(isFunctionInExpr fnName) valuesMap
-    | ListLiteral li ->
-        List.any ~f:(isFunctionInExpr fnName) li
-    | Thread li ->
-        List.any ~f:(isFunctionInExpr fnName) li
-    | FieldAccess (ex, _) ->
-        isFunctionInExpr fnName ex
-    | FeatureFlag (_, cond, a, b) ->
-        isFunctionInExpr fnName cond
-        || isFunctionInExpr fnName a
-        || isFunctionInExpr fnName b
-    | Match (matchExpr, cases) ->
-        isFunctionInExpr fnName matchExpr
-        || List.any
-             ~f:(isFunctionInExpr fnName)
-             (List.map ~f:Tuple2.second cases)
-    | FluidPartial (_, oldExpr) ->
-        isFunctionInExpr fnName oldExpr
-    | FluidRightPartial (_, oldExpr) ->
-        isFunctionInExpr fnName oldExpr )
-
-
 let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
   let renameUserTipeInFnParameters fn oldTipe newTipe =
     let transformUse newName_ oldUse =

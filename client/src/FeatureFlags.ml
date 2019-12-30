@@ -6,18 +6,19 @@ open Types
 module B = Blank
 module P = Pointer
 module TL = Toplevel
+module E = FluidExpression
 
-let toFlagged (msgId : id) (expr : expr) : expr =
+let toFlagged (msgId : id) (expr : E.t) : E.t =
   match expr with
-  | F (_, FeatureFlag (_, _, _, _)) ->
+  | EFeatureFlag (_, _, _, _, _, _) ->
       recover "cant convert flagged to flagged" ~debug:expr expr
   | _ ->
-      F (gid (), FeatureFlag (Blank msgId, B.new_ (), expr, B.new_ ()))
+      EFeatureFlag (gid (), "", msgId, E.newB (), expr, E.newB ())
 
 
-let fromFlagged (pick : pick) (expr : expr) : expr =
+let fromFlagged (pick : pick) (expr : E.t) : E.t =
   match expr with
-  | F (_, FeatureFlag (_, _, a, b)) ->
+  | EFeatureFlag (_, _, _, _, a, b) ->
     (match pick with PickA -> a | PickB -> b)
   | _ ->
       recover "cant convert flagged to flagged" ~debug:expr expr
