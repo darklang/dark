@@ -211,7 +211,6 @@ let rec exec
         exe st expr
     | Filled (_, Let (lhs, rhs, body)) ->
         let data = exe st rhs in
-        trace_blank lhs data st ;
         ( match data with
         | DErrorRail _ ->
             data
