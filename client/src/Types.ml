@@ -938,8 +938,7 @@ and autocompleteItem =
 and target = tlid * blankOrData
 
 and autocomplete =
-  { functions : function_ list
-  ; admin : bool
+  { admin : bool
   ; completions : autocompleteItem list
   ; allCompletions : autocompleteItem list
   ; index : int
