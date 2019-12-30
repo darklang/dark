@@ -67,7 +67,7 @@ let pipe (first : fluidExpr) (rest : fluidExpr list) : fluidExpr =
 
 
 let constructor (name : string) (args : fluidExpr list) : fluidExpr =
-  EConstructor (gid (), gid (), name, args)
+  EConstructor (gid (), name, args)
 
 
 let match' (cond : fluidExpr) (matches : (fluidPattern * fluidExpr) list) :
@@ -369,7 +369,7 @@ let aFullBinOp = binop "||" (var "myvar") (int "5")
 (* ---------------- *)
 (* Constructors *)
 (* ---------------- *)
-let aConstructor = EConstructor (gid (), gid (), "Just", [b])
+let aConstructor = EConstructor (gid (), "Just", [b])
 
 (* ---------------- *)
 (* Records *)

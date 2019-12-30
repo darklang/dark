@@ -950,22 +950,22 @@ let run () =
   describe "Constructors" (fun () ->
       t
         "copying adds EConstructor to clipboard"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
+        (EConstructor (gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 8))
         ("Just 100", "Just 100", 8) ;
       t
         "copying part adds partial EConstructor to clipboard"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
+        (EConstructor (gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 3))
         ("Just 100", "Jus@ ___", 3) ;
       t
         "cutting adds EConstructor to clipboard and leaves blank"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
+        (EConstructor (gid (), "Just", [EInteger (gid (), "100")]))
         (cut (0, 8))
         ("___", "Just 100", 0) ;
       t
         "cutting part adds partial EConstructor to clipboard and leaves partial"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
+        (EConstructor (gid (), "Just", [EInteger (gid (), "100")]))
         (cut (0, 3))
         ("t@s@ 100", "Jus@ ___", 0) ;
       ()) ;

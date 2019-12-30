@@ -38,8 +38,8 @@ let rec allData (expr : E.t) : blankOrData list =
       [PFnCallName (id, name)] @ rl exprs
   | EBinOp (id, name, lhs, rhs, _) ->
       [PFnCallName (id, name)] @ rl [lhs; rhs]
-  | EConstructor (_, nameid, name, exprs) ->
-      PConstructorName (nameid, name) :: rl exprs
+  | EConstructor (id, name, exprs) ->
+      PConstructorName (id, name) :: rl exprs
   | ELambda (_, vars, body) ->
       List.map ~f:(fun (id, name) -> PVarBind (id, name)) vars @ allData body
   | EPipe (_, exprs) ->
@@ -123,7 +123,7 @@ let rec uses (var : string) (expr : E.t) : E.t list =
         exprs |> List.map ~f:u |> List.concat
     | EBinOp (_, _, lhs, rhs, _) ->
         u lhs @ u rhs
-    | EConstructor (_, _, _, exprs) ->
+    | EConstructor (_, _, exprs) ->
         exprs |> List.map ~f:u |> List.concat
     | ELambda (_, _, lexpr) ->
         u lexpr
@@ -168,8 +168,8 @@ let children (expr : E.t) : blankOrData list =
       ces exprs
   | EBinOp (_, _, lhs, rhs, _) ->
       ces [lhs; rhs]
-  | EConstructor (_, nameid, name, exprs) ->
-      PConstructorName (nameid, name) :: ces exprs
+  | EConstructor (id, name, exprs) ->
+      PConstructorName (id, name) :: ces exprs
   | ELambda (_, vars, lexpr) ->
       List.map ~f:(fun (id, vb) -> PVarBind (id, vb)) vars @ [PExpr lexpr]
   | EPipe (_, exprs) ->
@@ -229,7 +229,7 @@ let rec childrenOf (pid : id) (expr : E.t) : blankOrData list =
         List.map ~f:co exprs |> List.concat
     | EBinOp (_, _, lhs, rhs, _) ->
         co lhs @ co rhs
-    | EConstructor (_, _, _, exprs) ->
+    | EConstructor (_, _, exprs) ->
         List.map ~f:co exprs |> List.concat
     | ELambda (_, _, lexpr) ->
         co lexpr
@@ -285,7 +285,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
         fpowList exprs
     | EBinOp (_, _, lhs, rhs, _) ->
         fpowList [lhs; rhs]
-    | EConstructor (_, _, _, exprs) ->
+    | EConstructor (_, _, exprs) ->
         fpowList exprs
     | ELambda (_, _, lexpr) ->
         fpow lexpr
@@ -408,7 +408,7 @@ let ancestors (id : id) (expr : E.t) : E.t list =
           reclist id exp walk [cond; a; b]
       | EMatch (_, matchExpr, cases) ->
           reclist id exp walk (matchExpr :: List.map ~f:Tuple2.second cases)
-      | EConstructor (_, _, _, args) ->
+      | EConstructor (_, _, args) ->
           reclist id exp walk args
       | EPartial (_, _, oldExpr) ->
           rec_ id exp walk oldExpr
@@ -568,7 +568,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
             sexe new_st caseExpr)
     | ERecord (_, exprs) ->
         exprs |> List.map ~f:Tuple3.third |> List.iter ~f:(sexe st)
-    | EConstructor (_, _, _, args) ->
+    | EConstructor (_, _, args) ->
         List.iter ~f:(sexe st) args
     | EPartial (_, _, oldExpr) ->
         sexe st oldExpr

@@ -294,7 +294,7 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
         childOr (List.map ~f:Tuple3.third fields)
     | EPipe (_, exprs) ->
         childOr exprs
-    | EConstructor (_, _, _, exprs) ->
+    | EConstructor (_, _, exprs) ->
         childOr exprs
     | EPartial (_, _, oldExpr) ->
         childOr [oldExpr]
@@ -395,8 +395,8 @@ let rec remove (id : id) (expr : E.t) : E.t =
             EBlank id
         | newExprs ->
             EPipe (id, newExprs) )
-      | EConstructor (id, nameID, name, exprs) ->
-          EConstructor (id, nameID, name, removeFromList exprs)
+      | EConstructor (id, name, exprs) ->
+          EConstructor (id, name, removeFromList exprs)
       | _ ->
           expr
     in

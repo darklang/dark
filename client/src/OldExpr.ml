@@ -113,7 +113,7 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
       | `Unknown ->
           EBlank id )
     | Constructor (name, exprs) ->
-        EConstructor (id, Blank.toID name, varToName name, List.map ~f exprs)
+        EConstructor (id, varToName name, List.map ~f exprs)
     | Match (mexpr, pairs) ->
         let mid = id in
         let pairs =
@@ -237,8 +237,8 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
             )
       | [] ->
           Blank id )
-    | EConstructor (id, nameID, name, exprs) ->
-        F (id, Constructor (F (nameID, name), List.map ~f:r exprs))
+    | EConstructor (id, name, exprs) ->
+        F (id, Constructor (F (gid (), name), List.map ~f:r exprs))
     | EMatch (id, mexpr, pairs) ->
         let pairs =
           List.map pairs ~f:(fun (p, e) ->

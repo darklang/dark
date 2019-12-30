@@ -246,7 +246,7 @@ and fluidExpr =
   | ELet of id * fluidName * fluidExpr * fluidExpr
   | EIf of id * fluidExpr * fluidExpr * fluidExpr
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
-  (* the id in the varname list is extra *)
+  (* the id in the varname list is the analysis ID *)
   | ELambda of id * (id * fluidName) list * fluidExpr
   (* The 2nd ID is extra for the fieldname blank *)
   | EFieldAccess of id * fluidExpr * id * fluidName
@@ -258,12 +258,11 @@ and fluidExpr =
   (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (id * fluidName * fluidExpr) list
   | EPipe of id * fluidExpr list
-  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.
-    In practice the expr list is currently always length 1 (for `Just`, `Error`, and `Ok`) or
-    length 0 (for `Nothing`).
-    The 2nd ID here is the id of the blankOr for the constructor's name.
+  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
+   * expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
+   * or length 0 (for `Nothing`).
    *)
-  | EConstructor of id * id * fluidName * fluidExpr list
+  | EConstructor of id * fluidName * fluidExpr list
   (* TODO: add ID for fluidPattern *)
   | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
   (* Placeholder that indicates the target of the Thread. May be movable at

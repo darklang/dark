@@ -970,7 +970,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
           caretTargetForLastPartOfExpr' branchBody
       | None ->
           caretTargetForLastPartOfExpr' matchedExpr )
-    | EConstructor (id, _, name, containedExprs) ->
+    | EConstructor (id, name, containedExprs) ->
       ( match List.last containedExprs with
       | Some lastExpr ->
           caretTargetForLastPartOfExpr' lastExpr
@@ -1034,7 +1034,7 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARRecord (id, RPOpen); offset = 0}
     | EPipe (id, _) ->
         {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
-    | EConstructor (id, _, _, _) ->
+    | EConstructor (id, _, _) ->
         {astRef = ARConstructor (id, CPName); offset = 0}
     | (EFeatureFlag _ | EPipeTarget _) as expr ->
         recover
@@ -1672,7 +1672,7 @@ let replacePartialWithArguments
   in
   let getExprs expr =
     match expr with
-    | EFnCall (_, _, exprs, _) | EConstructor (_, _, _, exprs) ->
+    | EFnCall (_, _, exprs, _) | EConstructor (_, _, exprs) ->
         exprs
     | EBinOp (_, _, lhs, rhs, _) ->
         [lhs; rhs]
@@ -1691,7 +1691,7 @@ let replacePartialWithArguments
       (* preserve partials with arguments *)
       | EPartial (_, _, (EFnCall (_, name, _, _) as inner))
       | EPartial (_, _, (EBinOp (_, name, _, _, _) as inner))
-      | EPartial (_, _, (EConstructor (_, _, name, _) as inner)) ->
+      | EPartial (_, _, (EConstructor (_, name, _) as inner)) ->
           let existingExprs = getExprs inner in
           let fetchParams newName placeholderExprs =
             let count =
@@ -2112,7 +2112,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
   | FACConstructorName (name, argCount) ->
       let args = List.initialize argCount (fun _ -> EBlank (gid ())) in
       let starting = if argCount = 0 then 0 else 1 in
-      (EConstructor (gid (), gid (), name, args), starting + String.length name)
+      (EConstructor (gid (), name, args), starting + String.length name)
   | FACPattern _ ->
       recover "patterns are not supported here" ~debug:entry (E.newB (), 0)
   | FACField fieldname ->
@@ -4268,13 +4268,13 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
               exprs
         in
         Some (EPipe (id, newExprs))
-    | EConstructor (eID, _, name, exprs), tokens ->
+    | EConstructor (eID, name, exprs), tokens ->
         let newName =
           findTokenValue tokens eID "constructor-name"
           |> Option.withDefault ~default:""
         in
         let newExprs = List.map exprs ~f:(reconstructExpr >> orDefaultExpr) in
-        let e = EConstructor (id, gid (), name, newExprs) in
+        let e = EConstructor (id, name, newExprs) in
         if newName = ""
         then None
         else if name <> newName
