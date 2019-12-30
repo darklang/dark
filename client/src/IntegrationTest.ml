@@ -322,8 +322,10 @@ let rename_function (m : model) : testResult =
   match m.handlers |> TD.values |> List.head with
   | Some {ast = EFnCall (_, "hello", _, _); _} ->
       pass
-  | other ->
-      fail other
+  | Some {ast; _} ->
+      fail (show_fluidExpr ast)
+  | None ->
+      fail "no handlers"
 
 
 let execute_function_works (_ : model) : testResult =
