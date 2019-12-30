@@ -394,9 +394,13 @@ let withAST (m : model) (tlid : tlid) (ast : fluidExpr) : model =
 let setASTMod (tl : toplevel) (ast : fluidExpr) : modification =
   match tl with
   | TLHandler h ->
-      RPC ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
+      if h.ast = ast
+      then NoChange
+      else RPC ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
   | TLFunc f ->
-      RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
+      if f.ufAST = ast
+      then NoChange
+      else RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
   | TLTipe _ ->
       recover "no ast in Tipes" ~debug:tl NoChange
   | TLDB _ ->
