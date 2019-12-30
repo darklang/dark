@@ -418,7 +418,7 @@ let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t) :
   if failIfMissing
   then
     asserT
-      ~debug:(target, ast)
+      ~debug:(show_id target, show_fluidExpr ast)
       "didn't find the id in the expression to update"
       !found ;
   finished
