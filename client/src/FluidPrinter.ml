@@ -12,14 +12,18 @@ type tokenInfo = Types.fluidTokenInfo
 
 module Builder = struct
   type t =
-    { tokens : fluidToken list
+    { (* list is kept reversed while being built up, as adding things to the
+       * front of the list is an order of magnitude faster. We were having
+       * large slowdowns on large handlers before this. *)
+      tokens : fluidToken list
     ; indent : (* tracks the indent after a newline *) int
     ; xPos :
         (* tracks the indent for nesting, none indicates it's ready to go after a newline *)
         int option }
 
   let rec endsInNewline (b : t) : bool =
-    match List.reverse b.tokens with
+    (* The latest token is on the front *)
+    match b.tokens with
     | TNewline _ :: _ ->
         true
     | TIndent _ :: tail ->
@@ -32,10 +36,13 @@ module Builder = struct
 
   let add (token : fluidToken) (b : t) : t =
     let tokenLength = token |> T.toText |> String.length in
-    let tokens, xPos =
+    let newTokens, xPos =
+      (* Add new tokens on the front *)
       if endsInNewline b
       then
-        ( (if b.indent <> 0 then [TIndent b.indent; token] else [token])
+        ( ( if b.indent <> 0
+          then token :: TIndent b.indent :: b.tokens
+          else token :: b.tokens )
         , Some (b.indent + tokenLength) )
       else
         let newXPos =
@@ -46,9 +53,9 @@ module Builder = struct
               let old = Option.withDefault b.xPos ~default:b.indent in
               Some (old + tokenLength)
         in
-        ([token], newXPos)
+        (token :: b.tokens, newXPos)
     in
-    {b with tokens = b.tokens @ tokens; xPos}
+    {b with tokens = newTokens; xPos}
 
 
   let addIf (cond : bool) (token : fluidToken) (b : t) : t =
@@ -85,7 +92,9 @@ module Builder = struct
     if endsInNewline b then b else add (TNewline nlInfo) b
 
 
-  let asTokens (b : t) : fluidToken list = b.tokens
+  let asTokens (b : t) : fluidToken list =
+    (* Tokens are stored reversed *)
+    List.reverse b.tokens
 end
 
 (** patternToToken takes a match pattern `p` and converts it to a list of

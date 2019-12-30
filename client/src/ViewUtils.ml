@@ -33,7 +33,10 @@ type viewState =
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list
   ; permission : permission option
-  ; workerStats : workerStats option }
+  ; workerStats : workerStats option
+  ; tokens :
+      (* Calculate the tokens once per render only *)
+      FluidToken.tokenInfo list }
 
 (* ----------------------------- *)
 (* Events *)
@@ -42,7 +45,8 @@ type domEvent = msg Vdom.property
 
 type domEventList = domEvent list
 
-let createVS (m : model) (tl : toplevel) : viewState =
+let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
+    viewState =
   let tlid = TL.id tl in
   let hp =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
@@ -121,7 +125,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
        | None, Some _ ->
            Some {Defaults.defaultWorkerStats with schedule}
        | Some c, Some _ ->
-           Some {c with schedule}) }
+           Some {c with schedule})
+  ; tokens }
 
 
 let fontAwesome (name : string) : msg Html.html =

@@ -49,31 +49,32 @@ let rec find (target : Types.id) (expr : t) : t option =
     | EFloat _ ->
         None
     | ELet (_, _, _, rhs, next) ->
-        fe rhs |> Option.orElse (fe next)
+        fe rhs |> Option.orElseLazy (fun () -> fe next)
     | EIf (_, cond, ifexpr, elseexpr) ->
-        fe cond |> Option.orElse (fe ifexpr) |> Option.orElse (fe elseexpr)
+        fe cond
+        |> Option.orElseLazy (fun () -> fe ifexpr)
+        |> Option.orElseLazy (fun () -> fe elseexpr)
     | EBinOp (_, _, lexpr, rexpr, _) ->
-        fe lexpr |> Option.orElse (fe rexpr)
+        fe lexpr |> Option.orElseLazy (fun () -> fe rexpr)
     | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
         fe expr
     | ERecord (_, fields) ->
-        fields |> List.map ~f:Tuple3.third |> List.filterMap ~f:fe |> List.head
+        fields |> List.map ~f:Tuple3.third |> List.findMap ~f:fe
     | EMatch (_, expr, pairs) ->
         fe expr
-        |> Option.orElse
-             ( pairs
-             |> List.map ~f:Tuple2.second
-             |> List.filterMap ~f:fe
-             |> List.head )
+        |> Option.orElseLazy (fun () ->
+               pairs |> List.map ~f:Tuple2.second |> List.findMap ~f:fe)
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
     | EConstructor (_, _, _, exprs)
     | EPipe (_, exprs) ->
-        List.filterMap ~f:fe exprs |> List.head
+        List.findMap ~f:fe exprs
     | EPartial (_, _, oldExpr) | ERightPartial (_, _, oldExpr) ->
         fe oldExpr
     | EFeatureFlag (_, _, _, cond, casea, caseb) ->
-        fe cond |> Option.orElse (fe casea) |> Option.orElse (fe caseb)
+        fe cond
+        |> Option.orElseLazy (fun () -> fe casea)
+        |> Option.orElseLazy (fun () -> fe caseb)
 
 
 let findParent (target : Types.id) (expr : t) : t option =
@@ -94,34 +95,28 @@ let findParent (target : Types.id) (expr : t) : t option =
       | EFloat _ ->
           None
       | ELet (_, _, _, rhs, next) ->
-          fp rhs |> Option.orElse (fp next)
+          List.findMap ~f:fp [rhs; next]
       | EIf (_, cond, ifexpr, elseexpr) ->
-          fp cond |> Option.orElse (fp ifexpr) |> Option.orElse (fp elseexpr)
+          List.findMap ~f:fp [cond; ifexpr; elseexpr]
       | EBinOp (_, _, lexpr, rexpr, _) ->
-          fp lexpr |> Option.orElse (fp rexpr)
+          List.findMap ~f:fp [lexpr; rexpr]
       | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
           fp expr
       | EMatch (_, _, pairs) ->
-          pairs
-          |> List.map ~f:Tuple2.second
-          |> List.filterMap ~f:fp
-          |> List.head
+          pairs |> List.map ~f:Tuple2.second |> List.findMap ~f:fp
       | ERecord (_, fields) ->
-          fields
-          |> List.map ~f:Tuple3.third
-          |> List.filterMap ~f:fp
-          |> List.head
+          fields |> List.map ~f:Tuple3.third |> List.findMap ~f:fp
       | EFnCall (_, _, exprs, _)
       | EList (_, exprs)
       | EConstructor (_, _, _, exprs)
       | EPipe (_, exprs) ->
-          List.filterMap ~f:fp exprs |> List.head
+          List.findMap ~f:fp exprs
       | EPartial (_, _, expr) ->
           fp expr
       | ERightPartial (_, _, expr) ->
           fp expr
       | EFeatureFlag (_, _, _, cond, casea, caseb) ->
-          fp cond |> Option.orElse (fp casea) |> Option.orElse (fp caseb)
+          List.findMap ~f:fp [cond; casea; caseb]
   in
   findParent' ~parent:None target expr
 

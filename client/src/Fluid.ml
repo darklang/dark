@@ -154,8 +154,8 @@ let getNeighbours ~(pos : int) (tokens : T.tokenInfo list) :
   (toTheLeft, toTheRight, mNext)
 
 
-let getToken (s : fluidState) (ast : ast) : T.tokenInfo option =
-  let tokens = toTokens ast in
+let getToken' (s : fluidState) (tokens : T.tokenInfo list) : T.tokenInfo option
+    =
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
   (* The algorithm that decides what token on when a certain key is pressed is
    * in updateKey. It's pretty complex and it tells us what token a keystroke
@@ -187,6 +187,10 @@ let getToken (s : fluidState) (ast : ast) : T.tokenInfo option =
       Some ti
   | _ ->
       None
+
+
+let getToken (s : fluidState) (ast : ast) : T.tokenInfo option =
+  getToken' s (toTokens ast)
 
 
 (* -------------------- *)
@@ -4941,7 +4945,6 @@ let fnForToken state token : function_ option =
 
 let fnArgExprs (token : token) (ast : ast) : E.t list =
   let id = T.tid token in
-  let previous = ast |> AST.threadPrevious id |> Option.toList in
   let exprs =
     match E.find id ast with
     | Some (EFnCall (_, _, exprs, _)) ->
@@ -4951,14 +4954,23 @@ let fnArgExprs (token : token) (ast : ast) : E.t list =
     | _ ->
         []
   in
-  previous @ exprs
+  match exprs with
+  | EPipeTarget _ :: rest ->
+      (* It's a little slow to look this up, so only look when we know we're
+       * in a thread. *)
+      let previous = ast |> AST.threadPrevious id |> Option.toList in
+      previous @ rest
+  | exprs ->
+      exprs
 
 
 let viewPlayIcon
     ~(vs : ViewUtils.viewState) ~state (ast : ast) (ti : T.tokenInfo) :
     Types.msg Html.html =
   match fnForToken state ti.token with
-  | Some fn ->
+  | Some fn when not fn.fnPreviewExecutionSafe ->
+      (* Looking these up can be slow, so the fnPreviewExecutionSafe check
+       * above is very important *)
       let allExprs = fnArgExprs ti.token ast in
       let argIDs = List.map ~f:E.id allExprs in
       ( match ti.token with
@@ -4968,13 +4980,12 @@ let viewPlayIcon
           ViewFnExecution.fnExecutionButton vs fn id argIDs
       | _ ->
           Vdom.noNode )
-  | None ->
+  | Some _ | None ->
       Vdom.noNode
 
 
 let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     Types.msg Html.html list =
-  let l = ast |> toTokens in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
     if FluidToken.validID id
@@ -4988,7 +4999,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           (None, "")
     else (None, "")
   in
-  let currentTokenInfo = getToken state ast in
+  let currentTokenInfo = getToken' state vs.tokens in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -4999,7 +5010,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
              someId)
   in
   let nesting = ref 0 in
-  List.map l ~f:(fun ti ->
+  List.map vs.tokens ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
         | Some (ltlid, token) when tlid = ltlid && ti.token = token ->
@@ -5052,16 +5063,15 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
             T.isErrorDisplayable ti.token
             && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
-            sourceId |> Option.isSomeEqualTo ~value:analysisId
+            sourceId = Some analysisId
           in
           [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
-          ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
+          ; ("cursor-on", currentTokenInfo = Some ti)
           ; ("fluid-error", isError)
           ; (errorType, errorType <> "")
-          ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
-            ( "is-origin"
-            , sourceOfCurrentToken ti |> Option.isSomeEqualTo ~value:analysisId
-            )
+          ; (* This expression is the source of an incomplete propogated
+             * into another, where the cursor is currently on *)
+            ("is-origin", sourceOfCurrentToken ti = Some analysisId)
           ; ( "jumped-to"
             , match state.errorDvSrc with
               | SourceNone ->
@@ -5184,13 +5194,14 @@ let viewLiveValue
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  getToken state ast
+  getToken' state vs.tokens
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
            match AC.highlighted state.ac with
            | Some (FACVariable (_, Some dv)) ->
-               (* If autocomplete is open and a variable is highlighted, then show its dval *)
+               (* If autocomplete is open and a variable is highlighted,
+                * then show its dval *)
                Some (renderDval dv ~canCopy:true)
            | _ ->
                (* Else show live value of current token *)
@@ -5247,7 +5258,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     Html.on ~key event decodeNothing
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
-  let tokenInfos = toTokens ast in
+  let tokenInfos = vs.tokens in
   let errorRail =
     let indicators =
       tokenInfos
