@@ -103,7 +103,7 @@ let print_test_end name (t : Private.t) : unit =
 let describe (name : string) (testFn : unit -> unit) : unit =
   let open Private in
   categories := name :: !categories ;
-  if List.length !categories <= 2 || !verbose then print_category_start name ;
+  if List.length !categories <= 1 || !verbose then print_category_start name ;
   testFn () ;
   match !categories with [] -> () | _ :: rest -> categories := rest
 
