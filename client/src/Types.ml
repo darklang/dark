@@ -894,8 +894,7 @@ and keyword =
 and command =
   { commandName : string
   ; action : model -> toplevel -> id -> modification
-  ; doc : string
-  ; shortcut : string }
+  ; doc : string }
 
 and omniAction =
   | NewDB of dbName option
