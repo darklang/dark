@@ -154,8 +154,8 @@ let getNeighbours ~(pos : int) (tokens : T.tokenInfo list) :
   (toTheLeft, toTheRight, mNext)
 
 
-let getToken (s : fluidState) (ast : ast) : T.tokenInfo option =
-  let tokens = toTokens ast in
+let getToken' (s : fluidState) (tokens : T.tokenInfo list) : T.tokenInfo option
+    =
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
   (* The algorithm that decides what token on when a certain key is pressed is
    * in updateKey. It's pretty complex and it tells us what token a keystroke
@@ -187,6 +187,10 @@ let getToken (s : fluidState) (ast : ast) : T.tokenInfo option =
       Some ti
   | _ ->
       None
+
+
+let getToken (s : fluidState) (ast : ast) : T.tokenInfo option =
+  getToken' s (toTokens ast)
 
 
 (* -------------------- *)
@@ -4982,7 +4986,6 @@ let viewPlayIcon
 
 let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     Types.msg Html.html list =
-  let l = ast |> toTokens in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
     if FluidToken.validID id
@@ -4996,7 +4999,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           (None, "")
     else (None, "")
   in
-  let currentTokenInfo = getToken state ast in
+  let currentTokenInfo = getToken' state vs.tokens in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -5007,7 +5010,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
              someId)
   in
   let nesting = ref 0 in
-  List.map l ~f:(fun ti ->
+  List.map vs.tokens ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
         | Some (ltlid, token) when tlid = ltlid && ti.token = token ->
@@ -5191,13 +5194,14 @@ let viewLiveValue
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  getToken state ast
+  getToken' state vs.tokens
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
            match AC.highlighted state.ac with
            | Some (FACVariable (_, Some dv)) ->
-               (* If autocomplete is open and a variable is highlighted, then show its dval *)
+               (* If autocomplete is open and a variable is highlighted,
+                * then show its dval *)
                Some (renderDval dv ~canCopy:true)
            | _ ->
                (* Else show live value of current token *)
@@ -5254,7 +5258,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     Html.on ~key event decodeNothing
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
-  let tokenInfos = toTokens ast in
+  let tokenInfos = vs.tokens in
   let errorRail =
     let indicators =
       tokenInfos
