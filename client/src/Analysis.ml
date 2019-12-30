@@ -147,9 +147,9 @@ let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
 
 let getAvailableVarnames
     (m : model) (tl : toplevel) (ID id : id) (traceID : traceID) :
-    (varName * dval option) list =
-  (* TODO: Calling out is so slow that calculating on the fly is faster. But
-   * we can also cache this so that's it's not in the display hot-path. *)
+    (string * dval option) list =
+  (* TODO: Calling out is so slow that calculating on the fly is faster.
+   * But we can also cache this so that's it's not in the display hot-path *)
   let tlid = TL.id tl in
   let traceDict =
     getTrace m tlid traceID

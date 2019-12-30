@@ -388,7 +388,7 @@ let route_variables (route : string) : string list =
   |> List.map ~f:(String.dropLeft ~count:1 (* ":" *))
 
 
-let inputVariables (tl : toplevel) : varName list =
+let inputVariables (tl : toplevel) : string list =
   match tl with
   | TLHandler h ->
     ( match h.spec.space with

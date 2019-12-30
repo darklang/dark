@@ -20,7 +20,7 @@ let rec allData (p : fluidPattern) : blankOrData list =
       :: (nested |> List.map ~f:allData |> List.concat)
 
 
-let rec hasVariableNamed (varName : varName) (p : fluidPattern) : bool =
+let rec hasVariableNamed (varName : string) (p : fluidPattern) : bool =
   match p with
   | FPConstructor (_, _, _, args) ->
       List.any ~f:(hasVariableNamed varName) args
@@ -28,25 +28,3 @@ let rec hasVariableNamed (varName : varName) (p : fluidPattern) : bool =
       true
   | _ ->
       false
-
-
-let rec variableNames (p : pattern) : varName list =
-  match p with
-  | Blank _ | F (_, PLiteral _) ->
-      []
-  | F (_, PVariable name) ->
-      [name]
-  | F (_, PConstructor (_, args)) ->
-      args |> List.map ~f:variableNames |> List.concat
-
-
-let rec extractById (p : pattern) (patternId : id) : pattern option =
-  if B.toID p = patternId
-  then Some p
-  else
-    match p with
-    | F (_, PConstructor (_, args)) ->
-        args
-        |> List.find ~f:(fun arg -> extractById arg patternId |> Option.isSome)
-    | _ ->
-        None
