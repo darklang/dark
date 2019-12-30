@@ -23,12 +23,15 @@ let convertTipe (tipe : tipe) : tipe =
 let transformFnCalls
     (m : model) (uf : userFunction) (f : fluidExpr -> fluidExpr) : op list =
   let transformCallsInAst ast =
-    FluidExpression.walk ast ~f:(function
-        | EFnCall (_, name, _, _) as e
-          when Some name = Blank.toMaybe uf.ufMetadata.ufmName ->
-            f e
-        | other ->
-            other)
+    let rec run e =
+      match e with
+      | EFnCall (_, name, _, _)
+        when Some name = Blank.toMaybe uf.ufMetadata.ufmName ->
+          f e
+      | other ->
+          E.walk ~f:run other
+    in
+    run ast
   in
   let newHandlers =
     m.handlers
