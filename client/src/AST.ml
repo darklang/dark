@@ -5,6 +5,7 @@ open Types
 (* Dark *)
 module B = Blank
 module P = Pointer
+module E = FluidExpression
 
 (* ------------------------- *)
 (* Generic *)
@@ -524,50 +525,54 @@ let allCallsToFn (s : string) (e : expr) : expr list =
 (* ------------------------- *)
 (* Ancestors *)
 (* ------------------------- *)
-let ancestors (id : id) (expr : expr) : expr list =
-  let rec rec_ancestors (tofind : id) (walk : expr list) (exp : expr) =
-    let rec_ id_ e_ walk_ = rec_ancestors id_ (e_ :: walk_) in
-    let reclist id_ e_ walk_ exprs =
-      exprs |> List.map ~f:(rec_ id_ e_ walk_) |> List.concat
+let ancestors (id : id) (expr : E.t) : E.t list =
+  let rec rec_ancestors (tofind : id) (walk : E.t list) (exp : E.t) =
+    let rec' id' e' walk' = rec_ancestors id' (e' :: walk') in
+    let reclist id' e' walk' exprs =
+      exprs |> List.map ~f:(rec' id' e' walk') |> List.concat
     in
-    if B.toID exp = tofind
+    if E.id exp = tofind
     then walk
     else
       match exp with
-      | Blank _ ->
+      | EInteger _
+      | EString _
+      | EBool _
+      | EFloat _
+      | ENull _
+      | EBlank _
+      | EPipeTarget _ ->
           []
-      | F (_, nexpr) ->
-        ( match nexpr with
-        | Value _ ->
-            []
-        | Variable _ ->
-            []
-        | Let (_, rhs, body) ->
-            reclist id exp walk [rhs; body]
-        | If (cond, ifbody, elsebody) ->
-            reclist id exp walk [cond; ifbody; elsebody]
-        | FnCall (_, exprs, _) ->
-            reclist id exp walk exprs
-        | Lambda (_, lexpr) ->
-            rec_ id exp walk lexpr
-        | Thread exprs ->
-            reclist id exp walk exprs
-        | FieldAccess (obj, _) ->
-            rec_ id exp walk obj
-        | ListLiteral exprs ->
-            reclist id expr walk exprs
-        | ObjectLiteral pairs ->
-            pairs |> List.map ~f:Tuple2.second |> reclist id expr walk
-        | FeatureFlag (_, cond, a, b) ->
-            reclist id exp walk [cond; a; b]
-        | Match (matchExpr, cases) ->
-            reclist id exp walk (matchExpr :: List.map ~f:Tuple2.second cases)
-        | Constructor (_, args) ->
-            reclist id exp walk args
-        | FluidPartial (_, oldExpr) ->
-            rec_ id exp walk oldExpr
-        | FluidRightPartial (_, oldExpr) ->
-            rec_ id exp walk oldExpr )
+      | EVariable _ ->
+          []
+      | ELet (_, _, _, rhs, body) ->
+          reclist id exp walk [rhs; body]
+      | EIf (_, cond, ifbody, elsebody) ->
+          reclist id exp walk [cond; ifbody; elsebody]
+      | EFnCall (_, _, exprs, _) ->
+          reclist id exp walk exprs
+      | EBinOp (_, _, lhs, rhs, _) ->
+          reclist id exp walk [lhs; rhs]
+      | ELambda (_, _, lexpr) ->
+          rec' id exp walk lexpr
+      | EPipe (_, exprs) ->
+          reclist id exp walk exprs
+      | EFieldAccess (_, obj, _, _) ->
+          rec' id exp walk obj
+      | EList (_, exprs) ->
+          reclist id expr walk exprs
+      | ERecord (_, pairs) ->
+          pairs |> List.map ~f:Tuple3.third |> reclist id expr walk
+      | EFeatureFlag (_, _, _, cond, a, b) ->
+          reclist id exp walk [cond; a; b]
+      | EMatch (_, matchExpr, cases) ->
+          reclist id exp walk (matchExpr :: List.map ~f:Tuple2.second cases)
+      | EConstructor (_, _, _, args) ->
+          reclist id exp walk args
+      | EPartial (_, _, oldExpr) ->
+          rec' id exp walk oldExpr
+      | ERightPartial (_, _, oldExpr) ->
+          rec' id exp walk oldExpr
   in
   rec_ancestors id [] expr
 
@@ -637,23 +642,26 @@ let rec clone (expr : expr) : expr =
   B.clone cNExpr expr
 
 
-let isDefinitionOf (var : varName) (exp : expr) : bool =
-  match exp with
-  | Blank _ ->
+let isDefinitionOf (var : varName) (expr : E.t) : bool =
+  match expr with
+  | ELet (_, _, lhs, _, _) ->
+      lhs = var && lhs <> ""
+  | ELambda (_, vars, _) ->
+      vars
+      |> List.map ~f:Tuple2.second
+      |> List.any ~f:(fun v -> v = var && v <> "")
+  | EMatch (_, _, cases) ->
+      let shadowsName p =
+        let originalNames = FluidPattern.variableNames p in
+        List.member ~value:var originalNames
+      in
+      cases |> List.map ~f:Tuple2.first |> List.any ~f:shadowsName
+  | _ ->
       false
-  | F (_, e) ->
-    ( match e with
-    | Let (b, _, _) ->
-      (match b with Blank _ -> false | F (_, vb) -> vb = var)
-    | Lambda (vars, _) ->
-        vars
-        |> List.any ~f:(fun v ->
-               match v with Blank _ -> false | F (_, vb) -> vb = var)
-    | _ ->
-        false )
 
 
-let freeVariables (ast : expr) : (id * varName) list =
+let freeVariables (ast : E.t) : (id * varName) list =
+  let ast = E.toNExpr ast in
   (* Find all variable lookups that lookup a variable that
    * is also _defined_ in this expression. We create a set of
    * these IDs so we can filter them out later. *)

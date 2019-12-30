@@ -43,17 +43,18 @@ let run () =
       test "lambda var is not free" (fun () ->
           expect
             (freeVariables
-               (F (id1, Lambda ([F (id2, "var")], F (id3, Variable "var")))))
+               (ELambda (id1, [(id2, "var")], EVariable (id3, "var"))))
           |> toEqual []) ;
       test "match pattern is not free" (fun () ->
           let e =
-            F (id2, Constructor (F (id3, "Just"), [F (id4, Variable "request")]))
+            EConstructor (id2, id3, "Just", [EVariable (id4, "request")])
           in
           let pats =
-            [ ( F (id5, PConstructor ("Just", [F (id6, PVariable "anything")]))
-              , F (id7, Variable "anything") ) ]
+            [ ( FPConstructor
+                  (id5, id1, "Just", [FPVariable (id6, id1, "anything")])
+              , EVariable (id7, "anything") ) ]
           in
-          expect (freeVariables (F (id1, Match (e, pats))))
+          expect (freeVariables (EMatch (id1, e, pats)))
           |> toEqual [(id4, "request")]) ;
       test "replacing a function in a thread works" (fun () ->
           expect
