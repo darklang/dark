@@ -368,13 +368,14 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         b
         |> add (TRecordOpen id)
         |> indentBy ~indent:2 ~f:(fun b ->
-               addIter fields b ~f:(fun i (fieldID, fieldName, expr) b ->
+               addIter fields b ~f:(fun i (fieldName, expr) b ->
+                   let exprID = E.id expr in
                    b
                    |> addNewlineIfNeeded (Some (id, id, Some i))
                    |> add
                         (TRecordFieldname
-                           {recordID = id; fieldID; index = i; fieldName})
-                   |> add (TRecordSep (id, i, fieldID))
+                           {recordID = id; exprID; index = i; fieldName})
+                   |> add (TRecordSep (id, i, exprID))
                    |> addNested ~f:(fromExpr expr)))
         |> addMany
              [ TNewline (Some (id, id, Some (List.length fields)))

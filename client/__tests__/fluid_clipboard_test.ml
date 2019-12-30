@@ -406,15 +406,14 @@ let run () =
         "pasting an ERecord with a single key & no value in a string should paste key"
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (paste
-           ~clipboard:(ERecord (gid (), [(gid (), "key1", EBlank (gid ()))]))
+           ~clipboard:(ERecord (gid (), [("key1", EBlank (gid ()))]))
            (11, 15))
         ("\"abcd EFGH key1 1234\"", "{\n  key1 : ___\n}", 15) ;
       t
         "pasting a regular ERecord with a single key in a string should paste stringified expr"
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (paste
-           ~clipboard:
-             (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "9876"))]))
+           ~clipboard:(ERecord (gid (), [("key1", EInteger (gid (), "9876"))]))
            (11, 15))
         ("\"abcd EFGH {\n  key1 : 9876\n} 1234\"", "{\n  key1 : 9876\n}", 28) ;
       ()) ;
@@ -928,22 +927,22 @@ let run () =
   describe "Records" (fun () ->
       t
         "copying opening bracket adds empty record expr to clipboard"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
+        (ERecord (gid (), [("key1", EInteger (gid (), "1234"))]))
         (copy (0, 1))
         ("{\n  key1 : 1234\n}", "{}", 1) ;
       t
         "copying a single key adds record w single key to clipboard"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
+        (ERecord (gid (), [("key1", EInteger (gid (), "1234"))]))
         (copy (4, 8))
         ("{\n  key1 : 1234\n}", "{\n  key1 : ___\n}", 8) ;
       t
         "cutting a single key adds record w single key to clipboard and leaves blank in it's place"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
+        (ERecord (gid (), [("key1", EInteger (gid (), "1234"))]))
         (cut (4, 8))
         ("{\n  *** : 1234\n}", "{\n  key1 : ___\n}", 4) ;
       t
         "copying a single k-v pair adds record w single k-v pair to clipboard"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
+        (ERecord (gid (), [("key1", EInteger (gid (), "1234"))]))
         (copy (2, 15))
         ("{\n  key1 : 1234\n}", "{\n  key1 : 1234\n}", 15) ;
       ()) ;

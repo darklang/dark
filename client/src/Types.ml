@@ -256,7 +256,7 @@ and fluidExpr =
   | ERightPartial of id * string * fluidExpr
   | EList of id * fluidExpr list
   (* The ID in the list is extra for the fieldname *)
-  | ERecord of id * (id * fluidName * fluidExpr) list
+  | ERecord of id * (fluidName * fluidExpr) list
   | EPipe of id * fluidExpr list
   (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
    * expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
@@ -1370,7 +1370,7 @@ and fluidToken =
   | TNewline of (id * id * int option) option
   | TIndent of int
   | TLetKeyword of id * analysisId
-  (* Let-expr id * varBind id * varname *)
+  (* Let-expr id * rhs id * varname *)
   | TLetLHS of id * analysisId * string
   | TLetAssignment of id * analysisId
   | TIfKeyword of id
@@ -1398,7 +1398,7 @@ and fluidToken =
   | TRecordOpen of id
   | TRecordFieldname of
       { recordID : id
-      ; fieldID : id
+      ; exprID : id
       ; index : int
       ; fieldName : string }
   | TRecordSep of id * int * analysisId
