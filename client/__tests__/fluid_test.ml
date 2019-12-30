@@ -3011,7 +3011,6 @@ let run () =
         "autocomplete for field autocommits"
         (ELet
            ( gid ()
-           , gid ()
            , "x"
            , EPartial
                ( gid ()
@@ -3042,7 +3041,6 @@ let run () =
         "autocomplete with space moves to next non-whitespace rather than blank"
         (ELet
            ( gid ()
-           , gid ()
            , "request"
            , ERecord
                ( gid ()
@@ -3050,7 +3048,6 @@ let run () =
                  ; (gid (), "blank", EBlank (gid ())) ] )
            , ELet
                ( gid ()
-               , gid ()
                , "foo"
                , EPartial
                    ( gid ()
@@ -3067,12 +3064,10 @@ let run () =
         "autocomplete with tab in presence of no blanks places caret at end of autocompleted thing"
         (ELet
            ( gid ()
-           , gid ()
            , "request"
            , ERecord (gid (), [(gid (), "body", EInteger (gid (), "5"))])
            , ELet
                ( gid ()
-               , gid ()
                , "foo"
                , EPartial
                    ( gid ()
@@ -3207,7 +3202,7 @@ let run () =
              |> (fun s -> updateMouseClick 0 ast s)
              |> fun (ast, _) ->
              match ast with
-             | ELet (_, _, _, EBool (_, false), _) ->
+             | ELet (_, _, EBool (_, false), _) ->
                  "success"
              | _ ->
                  eToStructure ast)

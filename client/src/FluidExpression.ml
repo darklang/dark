@@ -20,7 +20,7 @@ let id (expr : t) : Types.id =
   | EFnCall (id, _, _, _)
   | ELambda (id, _, _)
   | EBlank id
-  | ELet (id, _, _, _, _)
+  | ELet (id, _, _, _)
   | EIf (id, _, _, _)
   | EPartial (id, _, _)
   | ERightPartial (id, _, _)
@@ -50,7 +50,7 @@ let rec find (target : Types.id) (expr : t) : t option =
     | EPipeTarget _
     | EFloat _ ->
         None
-    | ELet (_, _, _, rhs, next) ->
+    | ELet (_, _, rhs, next) ->
         fe rhs |> Option.orElseLazy (fun () -> fe next)
     | EIf (_, cond, ifexpr, elseexpr) ->
         fe cond
@@ -96,7 +96,7 @@ let findParent (target : Types.id) (expr : t) : t option =
       | EPipeTarget _
       | EFloat _ ->
           None
-      | ELet (_, _, _, rhs, next) ->
+      | ELet (_, _, rhs, next) ->
           List.findMap ~f:fp [rhs; next]
       | EIf (_, cond, ifexpr, elseexpr) ->
           List.findMap ~f:fp [cond; ifexpr; elseexpr]
@@ -156,8 +156,8 @@ let walk ~(f : t -> t) (expr : t) : t =
   | EPipeTarget _
   | EFloat _ ->
       expr
-  | ELet (id, lhsID, name, rhs, next) ->
-      ELet (id, lhsID, name, f rhs, f next)
+  | ELet (id, name, rhs, next) ->
+      ELet (id, name, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) ->
       EIf (id, f cond, f ifexpr, f elseexpr)
   | EBinOp (id, op, lexpr, rexpr, ster) ->
@@ -238,10 +238,10 @@ let rec updateVariableUses (oldVarName : string) ~(f : t -> t) (ast : t) : t =
   match ast with
   | EVariable (_, varName) ->
       if varName = oldVarName then f ast else ast
-  | ELet (id, id', lhs, rhs, body) ->
+  | ELet (id, lhs, rhs, body) ->
       if oldVarName = lhs (* if variable name is rebound *)
       then ast
-      else ELet (id, id', lhs, u rhs, u body)
+      else ELet (id, lhs, u rhs, u body)
   | ELambda (id, vars, lexpr) ->
       if List.map ~f:Tuple2.second vars |> List.member ~value:oldVarName
          (* if variable name is rebound *)
@@ -277,8 +277,8 @@ let rec clone (expr : t) : t =
   let c e = clone e in
   let cl es = List.map ~f:c es in
   match expr with
-  | ELet (_, _, lhs, rhs, body) ->
-      ELet (gid (), gid (), lhs, c rhs, c body)
+  | ELet (_, lhs, rhs, body) ->
+      ELet (gid (), lhs, c rhs, c body)
   | EIf (_, cond, ifbody, elsebody) ->
       EIf (gid (), c cond, c ifbody, c elsebody)
   | EFnCall (_, name, exprs, r) ->

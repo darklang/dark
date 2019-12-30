@@ -30,8 +30,8 @@ let rec allData (expr : E.t) : blankOrData list =
   | EBlank _
   | EPipeTarget _ ->
       []
-  | ELet (_, lhsid, lhs, rhs, body) ->
-      [PVarBind (lhsid, lhs)] @ rl [rhs; body]
+  | ELet (id, lhs, rhs, body) ->
+      [PVarBind (id, lhs)] @ rl [rhs; body]
   | EIf (_, cond, ifbody, elsebody) ->
       rl [cond; ifbody; elsebody]
   | EFnCall (id, name, exprs, _) ->
@@ -83,7 +83,7 @@ let find (id : id) (expr : E.t) : blankOrData option =
 
 let isDefinitionOf (var : string) (expr : E.t) : bool =
   match expr with
-  | ELet (_, _, lhs, _, _) ->
+  | ELet (_, lhs, _, _) ->
       lhs = var && lhs <> ""
   | ELambda (_, vars, _) ->
       vars
@@ -115,7 +115,7 @@ let rec uses (var : string) (expr : E.t) : E.t list =
         []
     | EVariable (_, potential) ->
         if potential = var then [expr] else []
-    | ELet (_, _, _, rhs, body) ->
+    | ELet (_, _, rhs, body) ->
         List.concat [u rhs; u body]
     | EIf (_, cond, ifbody, elsebody) ->
         List.concat [u cond; u ifbody; u elsebody]
@@ -176,8 +176,8 @@ let children (expr : E.t) : blankOrData list =
       ces exprs
   | EFieldAccess (_, obj, fieldid, field) ->
       [PExpr obj; PField (fieldid, field)]
-  | ELet (_, lhsid, lhs, rhs, body) ->
-      [PVarBind (lhsid, lhs); PExpr rhs; PExpr body]
+  | ELet (id, lhs, rhs, body) ->
+      [PVarBind (id, lhs); PExpr rhs; PExpr body]
   | ERecord (_, pairs) ->
       pairs
       |> List.map ~f:(fun (id, k, v) -> [PKey (id, k); PExpr v])
@@ -221,7 +221,7 @@ let rec childrenOf (pid : id) (expr : E.t) : blankOrData list =
         []
     | EVariable _ ->
         []
-    | ELet (_, _, _, rhs, body) ->
+    | ELet (_, _, rhs, body) ->
         co body @ co rhs
     | EIf (_, cond, ifbody, elsebody) ->
         co cond @ co ifbody @ co elsebody
@@ -277,7 +277,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
         None
     | EVariable _ ->
         None
-    | ELet (_, _, _, rhs, body) ->
+    | ELet (_, _, rhs, body) ->
         fpowList [rhs; body]
     | EIf (_, cond, ifbody, elsebody) ->
         fpowList [cond; ifbody; elsebody]
@@ -386,7 +386,7 @@ let ancestors (id : id) (expr : E.t) : E.t list =
           []
       | EVariable _ ->
           []
-      | ELet (_, _, _, rhs, body) ->
+      | ELet (_, _, rhs, body) ->
           reclist id exp walk [rhs; body]
       | EIf (_, cond, ifbody, elsebody) ->
           reclist id exp walk [cond; ifbody; elsebody]
@@ -443,7 +443,7 @@ let freeVariables (ast : E.t) : (id * string) list =
            | PExpr e ->
              ( match e with
              (* Grab all uses of the `lhs` of a Let in its body *)
-             | ELet (_, _, lhs, _, body) ->
+             | ELet (_, lhs, _, body) ->
                  Some (uses lhs body)
              (* Grab all uses of the `vars` of a Lambda in its body *)
              | ELambda (_, vars, body) ->
@@ -512,11 +512,11 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
         ()
     | EVariable _ ->
         ()
-    | ELet (_, lhsid, lhs, rhs, body) ->
+    | ELet (id, lhs, rhs, body) ->
         sexe st rhs ;
         let bound =
           if lhs <> ""
-          then VarDict.update ~key:lhs ~f:(fun _v -> Some lhsid) st
+          then VarDict.update ~key:lhs ~f:(fun _v -> Some id) st
           else st
         in
         sexe bound body

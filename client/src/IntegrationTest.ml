@@ -186,7 +186,7 @@ let switching_from_default_repl_space_removes_name (m : model) : testResult =
 
 let tabbing_through_let (m : model) : testResult =
   match onlyExpr m with
-  | ELet (_, _, "myvar", EInteger (_, "5"), EInteger (_, "5")) ->
+  | ELet (_, "myvar", EInteger (_, "5"), EInteger (_, "5")) ->
       pass
   | e ->
       fail ~f:show_fluidExpr e
@@ -255,7 +255,6 @@ let feature_flag_works (m : model) : testResult =
   match ast with
   | ELet
       ( _
-      , _
       , "a"
       , EInteger (_, "13")
       , EFeatureFlag

@@ -55,7 +55,7 @@ let if' (cond : fluidExpr) (then' : fluidExpr) (else' : fluidExpr) : fluidExpr =
 
 
 let let' (varName : string) (rhs : fluidExpr) (body : fluidExpr) : fluidExpr =
-  ELet (gid (), gid (), varName, rhs, body)
+  ELet (gid (), varName, rhs, body)
 
 
 let lambda (varNames : string list) (body : fluidExpr) : fluidExpr =
@@ -187,48 +187,42 @@ let aPartialVar = EPartial (gid (), "req", b)
 (* ---------------- *)
 (* Lets *)
 (* ---------------- *)
-let completelyEmptyLet = ELet (gid (), gid (), "", b, b)
+let completelyEmptyLet = ELet (gid (), "", b, b)
 
-let emptyLet = ELet (gid (), gid (), "", b, EInteger (gid (), "5"))
+let emptyLet = ELet (gid (), "", b, EInteger (gid (), "5"))
 
-let nonEmptyLetWithBlankEnd =
-  ELet (gid (), gid (), "", EInteger (gid (), "6"), b)
-
+let nonEmptyLetWithBlankEnd = ELet (gid (), "", EInteger (gid (), "6"), b)
 
 let nonEmptyLet =
-  ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
+  ELet (gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
 
 
 let twoLets =
   ELet
     ( gid ()
-    , gid ()
     , "x"
     , EInteger (gid (), "5")
-    , ELet (gid (), gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7"))
-    )
+    , ELet (gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7")) )
 
 
 let longLets =
   ELet
     ( gid ()
-    , gid ()
     , "firstLetName"
     , EString (gid (), "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     , ELet
         ( gid ()
-        , gid ()
         , "secondLetName"
         , EString (gid (), "0123456789")
         , EString (gid (), "RESULT") ) )
 
 
 let letWithLhs =
-  ELet (gid (), gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
+  ELet (gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
 
 
 let letWithBinding (bindingName : string) (expr : fluidExpr) =
-  ELet (gid (), gid (), bindingName, EInteger (gid (), "6"), expr)
+  ELet (gid (), bindingName, EInteger (gid (), "6"), expr)
 
 
 let letWithUsedBinding (bindingName : string) =
@@ -281,11 +275,10 @@ let matchWithTwoLets =
     , [ ( FPBlank (mID, gid ())
         , ELet
             ( gid ()
-            , gid ()
             , "x"
             , EInteger (gid (), "5")
-            , ELet (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
-            ) ) ] )
+            , ELet (gid (), "y", EInteger (gid (), "6"), EBlank (gid ())) ) ) ]
+    )
 
 
 let nestedMatch =
@@ -329,7 +322,6 @@ let nestedIf =
 let indentedIfElse =
   ELet
     ( gid ()
-    , gid ()
     , "var"
     , EIf (gid (), b, EInteger (gid (), "6"), EInteger (gid (), "7"))
     , EVariable (gid (), "var") )

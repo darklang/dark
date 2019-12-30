@@ -243,8 +243,7 @@ and fluidExpr =
   | EFloat of id * string * string
   | ENull of id
   | EBlank of id
-  (* The 2nd id is extra for the LHS blank. *)
-  | ELet of id * id * fluidName * fluidExpr * fluidExpr
+  | ELet of id * fluidName * fluidExpr * fluidExpr
   | EIf of id * fluidExpr * fluidExpr * fluidExpr
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
   (* the id in the varname list is extra *)
