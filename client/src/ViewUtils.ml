@@ -229,47 +229,6 @@ let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 
 let widthInCh (w : int) : msg Vdom.property = w |> inCh |> Html.style "width"
 
-let splitFnName (fnName : fnName) : string option * string * string =
-  let pattern = Js.Re.fromString "^((\\w+)::)?([^_]+)(_v(\\d+))?$" in
-  let mResult = Js.Re.exec_ pattern fnName in
-  match mResult with
-  | Some result ->
-      let captures =
-        result
-        |> Js.Re.captures
-        |> Belt.List.fromArray
-        |> List.map ~f:Js.toOption
-      in
-      ( match captures with
-      | [_; _; mod_; Some fn; _; Some v] ->
-          (mod_, fn, v)
-      | [_; _; mod_; Some fn; _; None] ->
-          (mod_, fn, "0")
-      | _ ->
-          recover "invalid fn name" ~debug:fnName (None, fnName, "0") )
-  | None ->
-      (None, fnName, "0")
-
-
-(* Get just the function mod and name *)
-let fnDisplayName (fnName : fnName) : string =
-  let mod_, name, _ = splitFnName fnName in
-  match mod_ with Some mod_ -> mod_ ^ "::" ^ name | None -> name
-
-
-(* Get just the function version *)
-let versionDisplayName (fnName : fnName) : string =
-  let _, _, version = splitFnName fnName in
-  if version = "0" then "" else "v" ^ version
-
-
-(* Get the function mod, name and version (without underscore) *)
-let partialName (name : fnName) : string =
-  let version = versionDisplayName name in
-  let name = fnDisplayName name in
-  name ^ version
-
-
 let svgIconFn (color : string) : msg Html.html =
   Svg.svg
     [ Svg.Attributes.viewBox "0 0 16 16"

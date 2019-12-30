@@ -1,4 +1,5 @@
 open Tc
+open Prelude
 
 let literalToString
     (v : [> `Bool of bool | `Int of string | `Null | `Float of string * string])
@@ -109,3 +110,44 @@ let parseString str :
   |> Option.or_ asBool
   |> Option.or_ asFloat
   |> Option.withDefault ~default:`Unknown
+
+
+let splitFnName (fnName : string) : string option * string * string =
+  let pattern = Js.Re.fromString "^((\\w+)::)?([^_]+)(_v(\\d+))?$" in
+  let mResult = Js.Re.exec_ pattern fnName in
+  match mResult with
+  | Some result ->
+      let captures =
+        result
+        |> Js.Re.captures
+        |> Belt.List.fromArray
+        |> List.map ~f:Js.toOption
+      in
+      ( match captures with
+      | [_; _; mod_; Some fn; _; Some v] ->
+          (mod_, fn, v)
+      | [_; _; mod_; Some fn; _; None] ->
+          (mod_, fn, "0")
+      | _ ->
+          recover "invalid fn name" ~debug:fnName (None, fnName, "0") )
+  | None ->
+      (None, fnName, "0")
+
+
+(* Get just the function mod and name *)
+let fnDisplayName (fnName : string) : string =
+  let mod_, name, _ = splitFnName fnName in
+  match mod_ with Some mod_ -> mod_ ^ "::" ^ name | None -> name
+
+
+(* Get just the function version *)
+let versionDisplayName (fnName : string) : string =
+  let _, _, version = splitFnName fnName in
+  if version = "0" then "" else "v" ^ version
+
+
+(* Get the function mod, name and version (without underscore) *)
+let partialName (name : string) : string =
+  let version = versionDisplayName name in
+  let name = fnDisplayName name in
+  name ^ version
