@@ -60,9 +60,8 @@ let commands : command list =
   ; takeFunctionOffRail
   ; { commandName = "create-type"
     ; action =
-        (fun m tl pd ->
+        (fun m tl id ->
           let tlid = TL.id tl in
-          let id = Pointer.toID pd in
           let tipe =
             Analysis.getSelectedTraceID m tlid
             |> Option.andThen ~f:(Analysis.getLiveValue m id)

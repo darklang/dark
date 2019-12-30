@@ -56,10 +56,8 @@ type wrapLoc =
   | WIfThen
   | WIfElse
 
-let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (pd : blankOrData) :
-    modification =
+let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
   let module E = FluidExpression in
-  let id = P.toID pd in
   let replacement e =
     match wl with
     | WLetRHS ->
@@ -87,8 +85,7 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (pd : blankOrData) :
   |> Option.withDefault ~default:NoChange
 
 
-let takeOffRail (_m : model) (tl : toplevel) (pd : blankOrData) : modification =
-  let id = P.toID pd in
+let takeOffRail (_m : model) (tl : toplevel) (id : id) : modification =
   TL.getAST tl
   |> Option.map ~f:(fun ast ->
          FluidExpression.update id ast ~f:(function
@@ -100,8 +97,7 @@ let takeOffRail (_m : model) (tl : toplevel) (pd : blankOrData) : modification =
   |> Option.withDefault ~default:NoChange
 
 
-let putOnRail (m : model) (tl : toplevel) (pd : blankOrData) : modification =
-  let id = P.toID pd in
+let putOnRail (m : model) (tl : toplevel) (id : id) : modification =
   (* Only toggle onto rail iff. return tipe is TOption or TResult *)
   let isRailable name =
     (* We don't want to use m.complete.functions as the autocomplete
@@ -174,9 +170,7 @@ let extractVarInAst
       ast
 
 
-let extractVariable (m : model) (tl : toplevel) (pd : blankOrData) :
-    modification =
-  let id = P.toID pd in
+let extractVariable (m : model) (tl : toplevel) (id : id) : modification =
   let varname = "var" ^ string_of_int (Util.random ()) in
   TL.getAST tl
   |> Option.map ~f:(extractVarInAst m tl id varname)
@@ -184,10 +178,8 @@ let extractVariable (m : model) (tl : toplevel) (pd : blankOrData) :
   |> Option.withDefault ~default:NoChange
 
 
-let extractFunction (m : model) (tl : toplevel) (pd : blankOrData) :
-    modification =
+let extractFunction (m : model) (tl : toplevel) (id : id) : modification =
   let module E = FluidExpression in
-  let id = P.toID pd in
   let tlid = TL.id tl in
   let ast = TL.getAST tl in
   match (ast, Option.andThen ast ~f:(E.find id)) with

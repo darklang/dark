@@ -52,9 +52,9 @@ let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
 let executeCommand
     (m : model) (tlid : tlid) (token : fluidToken) (cmd : command) :
     modification =
-  match TL.getTLAndPD m tlid (FluidToken.tid token) with
-  | Some (tl, Some pd) ->
-      cmd.action m tl pd
+  match TL.get m tlid with
+  | Some tl ->
+      cmd.action m tl (FluidToken.tid token)
   | _ ->
       recover "No pd for the command" ~debug:(tlid, token, cmd) NoChange
 

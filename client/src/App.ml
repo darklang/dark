@@ -444,12 +444,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               (FluidEntering tlid, None)
           | STID id ->
             ( match TL.getPD m tlid id with
-            | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Selecting (tlid, Some id), None)
+            | Some _ ->
+                (Selecting (tlid, Some id), None)
             | None ->
-                (Deselected, None) )
+                (FluidEntering tlid, None) )
           | STCaret caretTarget ->
               let maybeNewFluidState =
                 match Fluid.astAndStateFromTLID m tlid with
@@ -525,11 +523,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Entering entry, Some (tlid, pd))
+                (Entering entry, Some (tlid, pd))
             | None ->
-                (m.cursorState, None) )
+                (FluidEntering tlid, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
@@ -543,11 +539,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Entering entry, Some (tlid, pd))
+                (Entering entry, Some (tlid, pd))
             | None ->
-                (m.cursorState, None) )
+                (FluidEntering tlid, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
@@ -1252,9 +1246,7 @@ let update_ (msg : msg) (m : model) : modification =
     | Selecting (tlid, mId) ->
       ( match (TL.get m tlid, mId) with
       | Some tl, Some id ->
-          let pd = TL.find tl id in
-          Option.map pd ~f:(Refactor.extractFunction m tl)
-          |> Option.withDefault ~default:NoChange
+          Refactor.extractFunction m tl id
       | _ ->
           NoChange )
     | _ ->
@@ -1859,9 +1851,9 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidMsg (FluidCommandsClick cmd) ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
-    ( match TL.getTLAndPD m tlid id with
-    | Some (tl, Some pd) ->
-        Refactor.takeOffRail m tl pd
+    ( match TL.get m tlid with
+    | Some tl ->
+        Refactor.takeOffRail m tl id
     | _ ->
         NoChange )
   | SetHandlerExeIdle tlid ->
