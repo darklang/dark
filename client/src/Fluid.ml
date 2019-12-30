@@ -4941,7 +4941,6 @@ let fnForToken state token : function_ option =
 
 let fnArgExprs (token : token) (ast : ast) : E.t list =
   let id = T.tid token in
-  let previous = ast |> AST.threadPrevious id |> Option.toList in
   let exprs =
     match E.find id ast with
     | Some (EFnCall (_, _, exprs, _)) ->
@@ -4951,14 +4950,23 @@ let fnArgExprs (token : token) (ast : ast) : E.t list =
     | _ ->
         []
   in
-  previous @ exprs
+  match exprs with
+  | EPipeTarget _ :: rest ->
+      (* It's a little slow to look this up, so only look when we know we're
+       * in a thread. *)
+      let previous = ast |> AST.threadPrevious id |> Option.toList in
+      previous @ rest
+  | exprs ->
+      exprs
 
 
 let viewPlayIcon
     ~(vs : ViewUtils.viewState) ~state (ast : ast) (ti : T.tokenInfo) :
     Types.msg Html.html =
   match fnForToken state ti.token with
-  | Some fn ->
+  | Some fn when not fn.fnPreviewExecutionSafe ->
+      (* Looking these up can be slow, so the fnPreviewExecutionSafe check
+       * above is very important *)
       let allExprs = fnArgExprs ti.token ast in
       let argIDs = List.map ~f:E.id allExprs in
       ( match ti.token with
@@ -4968,7 +4976,7 @@ let viewPlayIcon
           ViewFnExecution.fnExecutionButton vs fn id argIDs
       | _ ->
           Vdom.noNode )
-  | None ->
+  | Some _ | None ->
       Vdom.noNode
 
 
