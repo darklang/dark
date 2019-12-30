@@ -19,32 +19,32 @@ type dbReference = tlid * dbColumn list
 let name (tl : toplevel) : string =
   match tl with
   | TLHandler h ->
-      "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
+      "H: " ^ (h.spec.name |> B.toOption |> Option.withDefault ~default:"")
   | TLDB db ->
-      "DB: " ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"")
+      "DB: " ^ (db.dbName |> B.toOption |> Option.withDefault ~default:"")
   | TLFunc f ->
       "Func: "
-      ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
+      ^ (f.ufMetadata.ufmName |> B.toOption |> Option.withDefault ~default:"")
   | TLTipe t ->
-      "Type: " ^ (t.utName |> B.toMaybe |> Option.withDefault ~default:"")
+      "Type: " ^ (t.utName |> B.toOption |> Option.withDefault ~default:"")
   | TLGroup g ->
-      "Group: " ^ (g.gName |> B.toMaybe |> Option.withDefault ~default:"")
+      "Group: " ^ (g.gName |> B.toOption |> Option.withDefault ~default:"")
 
 
 let sortkey (tl : toplevel) : string =
   match tl with
   | TLHandler h ->
-      (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"Undefined")
-      ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
-      ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
+      (h.spec.space |> B.toOption |> Option.withDefault ~default:"Undefined")
+      ^ (h.spec.name |> B.toOption |> Option.withDefault ~default:"Undefined")
+      ^ (h.spec.modifier |> B.toOption |> Option.withDefault ~default:"")
   | TLDB db ->
-      db.dbName |> B.toMaybe |> Option.withDefault ~default:"Undefined"
+      db.dbName |> B.toOption |> Option.withDefault ~default:"Undefined"
   | TLFunc f ->
-      f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:""
+      f.ufMetadata.ufmName |> B.toOption |> Option.withDefault ~default:""
   | TLTipe t ->
-      t.utName |> B.toMaybe |> Option.withDefault ~default:""
+      t.utName |> B.toOption |> Option.withDefault ~default:""
   | TLGroup g ->
-      g.gName |> B.toMaybe |> Option.withDefault ~default:""
+      g.gName |> B.toOption |> Option.withDefault ~default:""
 
 
 let id tl =
@@ -191,7 +191,7 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
     |> TD.mapValues ~f:(fun h -> TLHandler h)
     |> List.filter ~f:isDeprecatedCustomHandler
     |> List.filterMap ~f:(fun tl ->
-           asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.space))
+           asHandler tl |> Option.andThen ~f:(fun h -> B.toOption h.spec.space))
   in
   otherSpaces
 

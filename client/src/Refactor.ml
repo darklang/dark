@@ -26,7 +26,7 @@ let transformFnCalls
     let rec run e =
       match e with
       | EFnCall (_, name, _, _)
-        when Some name = Blank.toMaybe uf.ufMetadata.ufmName ->
+        when Some name = Blank.toOption uf.ufMetadata.ufmName ->
           f e
       | other ->
           E.walk ~f:run other

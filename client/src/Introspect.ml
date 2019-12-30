@@ -11,7 +11,9 @@ let keyForHandlerSpec (space : string) (name : string) : string =
 let dbsByName (dbs : db TD.t) : tlid StrDict.t =
   dbs
   |> TD.filterMapValues ~f:(fun db ->
-         db.dbName |> B.toMaybe |> Option.map ~f:(fun name -> (name, db.dbTLID)))
+         db.dbName
+         |> B.toOption
+         |> Option.map ~f:(fun name -> (name, db.dbTLID)))
   |> StrDict.fromList
 
 
@@ -19,10 +21,10 @@ let handlersByName (hs : handler TD.t) : tlid StrDict.t =
   hs
   |> TD.mapValues ~f:(fun h ->
          let space =
-           h.spec.space |> B.toMaybe |> Option.withDefault ~default:"_"
+           h.spec.space |> B.toOption |> Option.withDefault ~default:"_"
          in
          let name =
-           h.spec.name |> B.toMaybe |> Option.withDefault ~default:"_"
+           h.spec.name |> B.toOption |> Option.withDefault ~default:"_"
          in
          let key = keyForHandlerSpec space name in
          (key, h.hTLID))
@@ -33,7 +35,7 @@ let functionsByName (fns : userFunction TD.t) : tlid StrDict.t =
   fns
   |> TD.filterMapValues ~f:(fun fn ->
          fn.ufMetadata.ufmName
-         |> B.toMaybe
+         |> B.toOption
          |> Option.map ~f:(fun name -> (name, fn.ufTLID)))
   |> StrDict.fromList
 

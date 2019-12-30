@@ -431,14 +431,14 @@ let qHTTPHandler (s : string) : omniAction =
 let handlerDisplayName (h : handler) : string =
   let space =
     h.spec.space
-    |> B.toMaybe
+    |> B.toOption
     |> Option.map ~f:(fun x -> x ^ "::")
     |> Option.withDefault ~default:""
   in
-  let name = h.spec.name |> B.toMaybe |> Option.withDefault ~default:"" in
+  let name = h.spec.name |> B.toOption |> Option.withDefault ~default:"" in
   let modi =
     h.spec.modifier
-    |> B.toMaybe
+    |> B.toOption
     |> Option.map ~f:(fun x -> if x = "_" then "" else " - " ^ x)
     |> Option.withDefault ~default:""
   in
@@ -447,7 +447,7 @@ let handlerDisplayName (h : handler) : string =
 
 let fnDisplayName (f : userFunction) : string =
   f.ufMetadata.ufmName
-  |> B.toMaybe
+  |> B.toOption
   |> Option.withDefault ~default:"undefinedFunction"
 
 
@@ -565,10 +565,10 @@ let tlGotoName (tl : toplevel) : string =
       "Jump to handler: " ^ handlerDisplayName h
   | TLDB db ->
       "Jump to DB: "
-      ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"Unnamed DB")
+      ^ (db.dbName |> B.toOption |> Option.withDefault ~default:"Unnamed DB")
   | TLGroup g ->
       "Jump to Group: "
-      ^ (g.gName |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+      ^ (g.gName |> B.toOption |> Option.withDefault ~default:"Undefined")
   | TLFunc _ ->
       recover "can't goto function" ~debug:tl "<invalid state>"
   | TLTipe _ ->

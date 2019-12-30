@@ -262,7 +262,7 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
 
 
 let toContent (pd : blankOrData) : string =
-  let bs2s s = s |> B.toMaybe |> Option.withDefault ~default:"" in
+  let bs2s s = s |> B.toOption |> Option.withDefault ~default:"" in
   match pd with
   | PVarBind (_, s) ->
       s
@@ -296,7 +296,7 @@ let toContent (pd : blankOrData) : string =
       bs2s d
   | PParamTipe d ->
       d
-      |> B.toMaybe
+      |> B.toOption
       |> Option.map ~f:Runtime.tipe2str
       |> Option.withDefault ~default:""
   | PPattern d ->
@@ -307,7 +307,7 @@ let toContent (pd : blankOrData) : string =
       bs2s d
   | PTypeFieldTipe d ->
       d
-      |> B.toMaybe
+      |> B.toOption
       |> Option.map ~f:Runtime.tipe2str
       |> Option.withDefault ~default:""
   | PGroupName g ->
