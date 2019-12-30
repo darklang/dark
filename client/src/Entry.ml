@@ -556,13 +556,13 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
         submitOmniAction m pos (NewReplHandler None)
     | _ ->
         NoChange )
-  | _ ->
+  | Filling _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->
         recover "Shouldnt allow omniactions here" ~debug:cursor NoChange
     | Some item ->
         submitACItem m cursor item move
-    | _ ->
+    | None ->
         (* We removed ACExtra to define more specific autocomplete items.*)
         (* These are all autocomplete items who's target accepts and handles a free form value *)
         let item =
