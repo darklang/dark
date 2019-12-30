@@ -87,8 +87,9 @@ let run () =
         ; handlers = Handlers.fromList hs }
       in
       let handlerWithPointer fnName fnRail =
-        let ast = EFnCall (ID "ast1", fnName, [], fnRail) in
-        ({defaultHandler with ast}, PExpr (FluidExpression.toNExpr ast))
+        let id = ID "ast1" in
+        let ast = EFnCall (id, fnName, [], fnRail) in
+        ({defaultHandler with ast}, id)
       in
       let init fnName fnRail =
         let h, pd = handlerWithPointer fnName fnRail in
@@ -96,10 +97,10 @@ let run () =
         (m, h, pd)
       in
       test "toggles any fncall off rail" (fun () ->
-          let m, h, pd = init "Int::notResulty" Rail in
-          let mod_ = Refactor.takeOffRail m (TLHandler h) pd in
+          let m, h, id = init "Int::notResulty" Rail in
+          let mod' = Refactor.takeOffRail m (TLHandler h) id in
           let res =
-            match mod_ with
+            match mod' with
             | RPC ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | EFnCall (_, "Int::notResulty", [], NoRail) ->
@@ -115,20 +116,11 @@ let run () =
           let ast = pipe emptyList [fn] in
           let h = {defaultHandler with ast} in
           let m = model [h] in
-          let id = deID (E.id fn) in
-          let pd =
-            PExpr
-              (F
-                 ( ID id
-                 , FnCall
-                     ( F (ID (id ^ "_name"), "List::getAt_v2")
-                     , [F (gid (), Value "5")]
-                     , Rail ) ))
-          in
+          let id = E.id fn in
           (* this used to crash or just lose all its arguments *)
-          let op = Refactor.takeOffRail m (TLHandler h) pd in
+          let mod' = Refactor.takeOffRail m (TLHandler h) id in
           let res =
-            match op with
+            match mod' with
             | RPC ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | EPipe
@@ -148,9 +140,9 @@ let run () =
           expect res |> toEqual true) ;
       test "toggles error-rail-y function onto rail" (fun () ->
           let m, h, pd = init "Result::resulty" NoRail in
-          let op = Refactor.putOnRail m (TLHandler h) pd in
+          let mod' = Refactor.putOnRail m (TLHandler h) pd in
           let res =
-            match op with
+            match mod' with
             | RPC ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | EFnCall (_, "Result::resulty", [], Rail) ->

@@ -932,7 +932,7 @@ and keyword =
 
 and command =
   { commandName : string
-  ; action : model -> toplevel -> blankOrData -> modification
+  ; action : model -> toplevel -> id -> modification
   ; doc : string
   ; shortcut : string }
 
