@@ -71,10 +71,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
     match m.cursorState with
     | Selecting (tlid, mId) ->
       ( match (event.keyCode, TL.get m tlid) with
-      | Key.Delete, _ ->
-          Selection.delete m tlid mId
-      | Key.Backspace, _ ->
-          Selection.delete m tlid mId
       | Key.Escape, _ ->
         ( match mId with
         (* if we're selecting an expression,
