@@ -11,7 +11,12 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
-  let vs = ViewUtils.createVS m tl in
+  let tokens =
+    TL.getAST tl
+    |> Option.map ~f:FluidPrinter.toTokens
+    |> Option.withDefault ~default:[]
+  in
+  let vs = ViewUtils.createVS m tl tokens in
   let dragEvents =
     [ ViewUtils.eventNoPropagation
         ~key:("tlmd-" ^ showTLID tlid)
@@ -89,8 +94,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     |> String.join ~sep:" "
   in
   let id =
-    TL.getAST tl
-    |> Option.andThen ~f:(Fluid.getToken m.fluidState)
+    Fluid.getToken' m.fluidState tokens
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
   in
@@ -177,7 +181,6 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let hasFf =
     false
     (* TL.getAST tl *)
-    (* |> Option.map ~f:FluidExpression.toNExpr *)
     (* |> Option.map ~f:AST.allData *)
     (* |> Option.withDefault ~default:[] *)
     (* |> List.any ~f:(function PFFMsg _ -> true | _ -> false) *)
