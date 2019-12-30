@@ -47,7 +47,7 @@ let isGroupNameUnique (group : group) (groups : group TLIDDict.t) : bool =
            match g.gName with Blank _ -> None | F (_, name) -> Some name)
   in
   List.member
-    ~value:(group.gName |> Blank.toMaybe |> Option.withDefault ~default:"")
+    ~value:(group.gName |> Blank.toOption |> Option.withDefault ~default:"")
     allNames
 
 

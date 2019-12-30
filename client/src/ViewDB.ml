@@ -119,13 +119,13 @@ let viewDBCol
 
 
 let viewMigraFuncs
-    (vs : viewState) (expr : fluidExpr) (fnName : fnName) (varName : varName) :
+    (vs : viewState) (expr : fluidExpr) (desc : string) (varName : string) :
     msg Html.html =
   Html.div
     [Html.class' "col roll-fn"]
     ( [ Html.div
           [Html.class' "fn-title"]
-          [ Html.span [] [Html.text (fnName ^ " : ")]
+          [ Html.span [] [Html.text (desc ^ " : ")]
           ; Html.span [Html.class' "varname"] [Html.text varName] ] ]
     @ ViewCode.view vs expr )
 

@@ -3,17 +3,9 @@ type t = Types.fluidExpr
 (** Generate a new EBlank *)
 val newB : unit -> t
 
-(** to convert between NExprs and `t`, this
- * file need to know all the functions. This
- * is nasty to pass around as state so we use
- * global state. *)
+(** We use this to convert to the old Expr type, and also to convert to
+ * tokens. *)
 val functions : Types.function_ list ref
-
-(** [toNExpr e] recursively converts [e] to the corresponding [nExpr blankOr] *)
-val toNExpr : t -> Types.expr
-
-(** [fromNExpr e] recursively converts a corresponding [nExpr blankOr] to [e] *)
-val fromNExpr : Types.expr -> t
 
 (** [id e] returns the id of [e] *)
 val id : t -> Types.id

@@ -34,8 +34,6 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | ACCommand command ->
-      ":" ^ command.commandName
   | ACOmniAction ac ->
     ( match ac with
     | NewDB maybeName ->
@@ -116,8 +114,6 @@ let asName (aci : autocompleteItem) : string =
 
 let asTypeString (item : autocompleteItem) : string =
   match item with
-  | ACCommand _ ->
-      ""
   | ACOmniAction _ ->
       ""
   | ACHTTPModifier _ ->
@@ -431,14 +427,14 @@ let qHTTPHandler (s : string) : omniAction =
 let handlerDisplayName (h : handler) : string =
   let space =
     h.spec.space
-    |> B.toMaybe
+    |> B.toOption
     |> Option.map ~f:(fun x -> x ^ "::")
     |> Option.withDefault ~default:""
   in
-  let name = h.spec.name |> B.toMaybe |> Option.withDefault ~default:"" in
+  let name = h.spec.name |> B.toOption |> Option.withDefault ~default:"" in
   let modi =
     h.spec.modifier
-    |> B.toMaybe
+    |> B.toOption
     |> Option.map ~f:(fun x -> if x = "_" then "" else " - " ^ x)
     |> Option.withDefault ~default:""
   in
@@ -447,7 +443,7 @@ let handlerDisplayName (h : handler) : string =
 
 let fnDisplayName (f : userFunction) : string =
   f.ufMetadata.ufmName
-  |> B.toMaybe
+  |> B.toOption
   |> Option.withDefault ~default:"undefinedFunction"
 
 
@@ -565,10 +561,10 @@ let tlGotoName (tl : toplevel) : string =
       "Jump to handler: " ^ handlerDisplayName h
   | TLDB db ->
       "Jump to DB: "
-      ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"Unnamed DB")
+      ^ (db.dbName |> B.toOption |> Option.withDefault ~default:"Unnamed DB")
   | TLGroup g ->
       "Jump to Group: "
-      ^ (g.gName |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+      ^ (g.gName |> B.toOption |> Option.withDefault ~default:"Undefined")
   | TLFunc _ ->
       recover "can't goto function" ~debug:tl "<invalid state>"
   | TLTipe _ ->
@@ -776,21 +772,9 @@ let regenerate (m : model) (a : autocomplete) : autocomplete =
 (* Autocomplete state *)
 (* ---------------------------- *)
 let reset (m : model) : autocomplete =
-  let userFunctionMetadata =
-    m.userFunctions
-    |> TD.mapValues ~f:(fun x -> x.ufMetadata)
-    |> List.filterMap ~f:Functions.ufmToF
-  in
-  let functions =
-    m.builtInFunctions
-    |> List.filter ~f:(fun f ->
-           (not f.fnDeprecated) || Refactor.usedFn m f.fnName)
-  in
   let admin = m.isAdmin in
-  let functions = functions @ userFunctionMetadata in
   { Defaults.defaultModel.complete with
     admin
-  ; functions
   ; visible = VariantTesting.defaultAutocompleteVisible m }
   |> regenerate m
 
@@ -835,8 +819,6 @@ let appendQuery (m : model) (str : string) (a : autocomplete) : autocomplete =
 
 let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
-  | ACCommand c ->
-      Some (c.doc ^ " (" ^ c.shortcut ^ ")")
   | ACOmniAction _ ->
       None
   | ACHTTPModifier verb ->

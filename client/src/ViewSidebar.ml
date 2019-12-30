@@ -108,7 +108,7 @@ let handlerCategory
           Entry
             { name =
                 h.spec.name
-                |> Blank.toMaybe
+                |> Blank.toOption
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; identifier = Tlid tlid
@@ -118,7 +118,7 @@ let handlerCategory
             ; plusButton = None
             ; verb =
                 ( if TL.isHTTPHandler (TLHandler h)
-                then B.toMaybe h.spec.modifier
+                then B.toOption h.spec.modifier
                 else None ) }) }
 
 
@@ -215,7 +215,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   let fns = ufs |> List.filter ~f:(fun fn -> B.isF fn.ufMetadata.ufmName) in
   let entries =
     List.filterMap fns ~f:(fun fn ->
-        Option.map (Blank.toMaybe fn.ufMetadata.ufmName) ~f:(fun name ->
+        Option.map (Blank.toOption fn.ufMetadata.ufmName) ~f:(fun name ->
             let minusButton =
               if Refactor.usedFn m name
               then None
@@ -243,7 +243,7 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
   let tipes = tipes |> List.filter ~f:(fun t -> B.isF t.utName) in
   let entries =
     List.filterMap tipes ~f:(fun tipe ->
-        Option.map (Blank.toMaybe tipe.utName) ~f:(fun name ->
+        Option.map (Blank.toOption tipe.utName) ~f:(fun name ->
             let minusButton =
               if Refactor.usedTipe m name
               then None
@@ -271,7 +271,7 @@ let groupCategory (groups : group list) : category =
   let groups = groups |> List.filter ~f:(fun (g : group) -> B.isF g.gName) in
   let entries =
     List.filterMap groups ~f:(fun (group : group) ->
-        Option.map (Blank.toMaybe group.gName) ~f:(fun name ->
+        Option.map (Blank.toOption group.gName) ~f:(fun name ->
             let minusButton =
               let hasMembers = List.length group.members > 0 in
               if hasMembers then None else Some (DeleteGroup group.gTLID)

@@ -10,7 +10,7 @@ type ('a, 'b) transformation_test_result =
   | Pass
   | Fail of 'a * 'b
 
-let completion =
+let fuunctions =
   let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
       Types.parameter =
     { paramName = name
@@ -19,18 +19,16 @@ let completion =
     ; paramOptional = opt
     ; paramDescription = "" }
   in
-  { Defaults.defaultModel.complete with
-    functions =
-      [ { fnName = "Dict::map"
-        ; fnParameters =
-            [ fnParam "dict" TObj false
-            ; fnParam "f" TBlock false ~blockArgs:["key"; "value"] ]
-        ; fnReturnTipe = TObj
-        ; fnDescription =
-            "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
-        ; fnPreviewExecutionSafe = true
-        ; fnDeprecated = false
-        ; fnInfix = false } ] }
+  [ { fnName = "Dict::map"
+    ; fnParameters =
+        [ fnParam "dict" TObj false
+        ; fnParam "f" TBlock false ~blockArgs:["key"; "value"] ]
+    ; fnReturnTipe = TObj
+    ; fnDescription =
+        "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
+    ; fnPreviewExecutionSafe = true
+    ; fnDeprecated = false
+    ; fnInfix = false } ]
 
 
 let run () =

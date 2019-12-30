@@ -388,14 +388,14 @@ let route_variables (route : string) : string list =
   |> List.map ~f:(String.dropLeft ~count:1 (* ":" *))
 
 
-let inputVariables (tl : toplevel) : varName list =
+let inputVariables (tl : toplevel) : string list =
   match tl with
   | TLHandler h ->
     ( match h.spec.space with
     | F (_, m) when String.toLower m = "http" ->
         let fromRoute =
           h.spec.name
-          |> Blank.toMaybe
+          |> Blank.toOption
           |> Option.map ~f:route_variables
           |> Option.withDefault ~default:[]
         in
@@ -414,7 +414,7 @@ let inputVariables (tl : toplevel) : varName list =
         ["request"; "event"] )
   | TLFunc f ->
       f.ufMetadata.ufmParameters
-      |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
+      |> List.filterMap ~f:(fun p -> Blank.toOption p.ufpName)
   | TLTipe _ | TLDB _ | TLGroup _ ->
       []
 

@@ -159,51 +159,11 @@ and tipe =
 (* ---------------------- *)
 (* Exprs and AST types *)
 (* ---------------------- *)
-and varName = string
-
 and fnName = string
-
-and fieldName = string
-
-and keyName = string
-
-and varBind = varName blankOr
-
-and field = fieldName blankOr
-
-and key = keyName blankOr
-
-and lambdaParameter = varName blankOr
 
 and sendToRail =
   | Rail
   | NoRail
-
-and nPattern =
-  | PVariable of varName
-  | PLiteral of string
-  | PConstructor of string * pattern list
-
-and pattern = nPattern blankOr
-
-and expr = nExpr blankOr
-
-and nExpr =
-  | If of expr * expr * expr
-  | FnCall of fnName blankOr * expr list * sendToRail
-  | Variable of varName
-  | Let of varBind * expr * expr
-  | Lambda of lambdaParameter list * expr
-  | Value of string
-  | ObjectLiteral of (key * expr) list
-  | ListLiteral of expr list
-  | Thread of expr list
-  | FieldAccess of expr * field
-  | FeatureFlag of string blankOr * expr * expr * expr
-  | Match of expr * (pattern * expr) list
-  | Constructor of string blankOr * expr list
-  | FluidPartial of string * expr
-  | FluidRightPartial of string * expr
 
 (* ----------------------------- *)
 (* Pointers *)
@@ -749,7 +709,7 @@ and op =
   | ChangeDBColType of tlid * id * dbColType
   | DeprecatedInitDbm of
       tlid * id * rollbackID * rollforwardID * dbMigrationKind
-  | SetExpr of tlid * id * expr
+  | SetExpr of tlid * id * fluidExpr
   | CreateDBMigration of tlid * rollbackID * rollforwardID * dbColumn list
   | AddDBColToDBMigration of tlid * id * id
   | SetDBColNameInDBMigration of tlid * id * dbColName
@@ -934,8 +894,7 @@ and keyword =
 and command =
   { commandName : string
   ; action : model -> toplevel -> id -> modification
-  ; doc : string
-  ; shortcut : string }
+  ; doc : string }
 
 and omniAction =
   | NewDB of dbName option
@@ -949,7 +908,6 @@ and omniAction =
 
 and autocompleteItem =
   | ACOmniAction of omniAction
-  | ACCommand of command
   (* HTTP *)
   | ACHTTPModifier of string
   | ACHTTPRoute of string
@@ -967,7 +925,7 @@ and autocompleteItem =
   | ACDBColType of string
   | ACDBColName of string
   (* User functions *)
-  | ACFnName of (* This is the name of a user function *) string
+  | ACFnName of string
   | ACParamName of string
   | ACParamTipe of tipe
   (* User types *)
@@ -980,8 +938,7 @@ and autocompleteItem =
 and target = tlid * blankOrData
 
 and autocomplete =
-  { functions : function_ list
-  ; admin : bool
+  { admin : bool
   ; completions : autocompleteItem list
   ; allCompletions : autocompleteItem list
   ; index : int
@@ -1489,7 +1446,7 @@ and fluidAutocompleteItem =
   | FACFunction of function_
   | FACConstructorName of string * int
   | FACField of string
-  | FACVariable of varName * dval option
+  | FACVariable of string * dval option
   | FACLiteral of literal
   | FACKeyword of keyword
   | FACPattern of fluidPatternAutocomplete

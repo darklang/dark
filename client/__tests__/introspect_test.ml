@@ -74,7 +74,7 @@ let run () =
           let fntlid = gtlid () in
           let ops =
             [ SetHandler (h1tlid, {x = 0; y = 0}, h1data)
-            ; SetExpr (h1tlid, gid (), B.new_ ())
+            ; SetExpr (h1tlid, gid (), EBlank (gid ()))
             ; SetFunction
                 { ufTLID = fntlid
                 ; ufMetadata =
