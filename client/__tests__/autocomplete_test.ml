@@ -544,7 +544,6 @@ let run () =
               ~expr:
                 (ELet
                    ( gid ()
-                   , gid ()
                    , "bunny"
                    , EInteger (gid (), "9")
                    , EString (gid (), "\"hello\"") ))

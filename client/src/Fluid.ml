@@ -932,7 +932,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
             (* It might be better to return offset 0 here,
               because we might not want to be in the actual end of the blank? *)
         }
-    | ELet (_, _, _, _, bodyExpr) ->
+    | ELet (_, _, _, bodyExpr) ->
         caretTargetForLastPartOfExpr' bodyExpr
     | EIf (_, _, _, elseExpr) ->
         caretTargetForLastPartOfExpr' elseExpr
@@ -1008,7 +1008,7 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARNull id; offset = 0}
     | EBlank id ->
         {astRef = ARBlank id; offset = 0}
-    | ELet (id, _, _, _, _) ->
+    | ELet (id, _, _, _) ->
         {astRef = ARLet (id, LPKeyword); offset = 0}
     | EIf (id, _, _, _) ->
         {astRef = ARIf (id, IPIfKeyword); offset = 0}
@@ -1271,7 +1271,7 @@ let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
 let removeEmptyExpr (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
-      | ELet (_, _, "", EBlank _, body) ->
+      | ELet (_, "", EBlank _, body) ->
           body
       | EIf (_, EBlank _, EBlank _, EBlank _) ->
           E.newB ()
@@ -1506,13 +1506,8 @@ let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : ast) : E.t
 let replaceLetLHS (newName : string) (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
-      | ELet (id, lhsID, oldName, rhs, next) ->
-          ELet
-            ( id
-            , lhsID
-            , newName
-            , rhs
-            , E.renameVariableUses ~oldName ~newName next )
+      | ELet (id, oldName, rhs, next) ->
+          ELet (id, newName, rhs, E.renameVariableUses ~oldName ~newName next)
       | _ ->
           recover "not a let in replaceLetLHS" ~debug:e e)
 
@@ -1526,9 +1521,7 @@ let makeIntoLetBody (id : id) (ast : ast) (s : fluidState) :
     E.t * fluidState * id =
   let s = recordAction (Printf.sprintf "makeIntoLetBody(%s)" (deID id)) s in
   let lid = gid () in
-  let ast =
-    E.update id ast ~f:(fun expr -> ELet (lid, gid (), "", E.newB (), expr))
-  in
+  let ast = E.update id ast ~f:(fun expr -> ELet (lid, "", E.newB (), expr)) in
   (ast, s, lid)
 
 
@@ -1675,7 +1668,7 @@ let replacePartialWithArguments
     | (_, _, EVariable _, _) :: _ ->
         expr
     | (name, _, rhs, _) :: rest ->
-        ELet (gid (), gid (), name, rhs, wrapWithLets ~expr rest)
+        ELet (gid (), name, rhs, wrapWithLets ~expr rest)
   in
   let getExprs expr =
     match expr with
@@ -2098,7 +2091,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
         let offset = if List.isEmpty args then fnNameLen else fnNameLen + 1 in
         (EFnCall (gid (), fn.fnName, args, r), offset)
   | FACKeyword KLet ->
-      (ELet (gid (), gid (), "", E.newB (), E.newB ()), 4)
+      (ELet (gid (), "", E.newB (), E.newB ()), 4)
   | FACKeyword KIf ->
       (EIf (gid (), E.newB (), E.newB (), E.newB ()), 3)
   | FACKeyword KLambda ->
@@ -3139,7 +3132,7 @@ let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
             expr
       in
       let eid = E.id exprToWrap in
-      let replacement = ELet (gid (), gid (), "_", exprToWrap, EBlank bodyId) in
+      let replacement = ELet (gid (), "_", exprToWrap, EBlank bodyId) in
       let newAST = E.replace ~replacement eid ast in
       let newPos =
         posFromCaretTarget s newAST {astRef = ARBlank bodyId; offset = 0}
@@ -4059,7 +4052,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
     | EBlank _, _ ->
         Some (EBlank id)
     (* empty let expr and subsets *)
-    | ELet (eID, lhsID, _lhs, rhs, body), tokens ->
+    | ELet (eID, _lhs, rhs, body), tokens ->
         let letKeywordSelected =
           findTokenValue tokens eID "let-keyword" <> None
         in
@@ -4072,11 +4065,11 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         | None, Some e ->
             Some e
         | Some newRhs, None ->
-            Some (ELet (id, lhsID, newLhs, newRhs, EBlank (gid ())))
+            Some (ELet (id, newLhs, newRhs, EBlank (gid ())))
         | Some newRhs, Some newBody ->
-            Some (ELet (id, lhsID, newLhs, newRhs, newBody))
+            Some (ELet (id, newLhs, newRhs, newBody))
         | None, None when letKeywordSelected ->
-            Some (ELet (id, lhsID, newLhs, EBlank (gid ()), EBlank (gid ())))
+            Some (ELet (id, newLhs, EBlank (gid ()), EBlank (gid ())))
         | _, _ ->
             None )
     | EIf (eID, cond, thenBody, elseBody), tokens ->
@@ -4120,15 +4113,11 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
           | EBlank _, EBlank _ ->
               None
           | EBlank _, e | e, EBlank _ ->
-              Some (ELet (gid (), gid (), "", e, EBlank (gid ())))
+              Some (ELet (gid (), "", e, EBlank (gid ())))
           | e1, e2 ->
               Some
-                (ELet
-                   ( gid ()
-                   , gid ()
-                   , ""
-                   , e1
-                   , ELet (gid (), gid (), "", e2, EBlank (gid ())) )) )
+                (ELet (gid (), "", e1, ELet (gid (), "", e2, EBlank (gid ()))))
+          )
         | None, Some e ->
             let e = EBinOp (id, name, EBlank (gid ()), e, ster) in
             if newName = ""
@@ -4521,7 +4510,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
       (newAST, {state with newPos = collapsedSelStart + String.length intVal})
   (* inserting variable into let LHS *)
   | ( Some (EVariable (_, varName))
-    , Some (ELet (_, _, lhs, rhs, body))
+    , Some (ELet (_, lhs, rhs, body))
     , Some {startPos; token = TLetLHS _; _} ) ->
       let index = state.newPos - startPos in
       let newLhs =
@@ -4529,7 +4518,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
         then String.insertAt ~insert:varName ~index lhs
         else varName
       in
-      let replacement = ELet (gid (), gid (), newLhs, rhs, body) in
+      let replacement = ELet (gid (), newLhs, rhs, body) in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> E.replace ~replacement id ast)

@@ -274,7 +274,7 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
   let childOr (exprs : E.t list) = List.find exprs ~f:(fun e -> E.id e = id) in
   let newExpr =
     match expr with
-    | ELet (_, _, _, rhs, next) ->
+    | ELet (_, _, rhs, next) ->
         childOr [rhs; next]
     | EIf (_, cond, ifexpr, elseexpr) ->
         childOr [cond; ifexpr; elseexpr]
@@ -314,8 +314,8 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
   let fStr strid str = if strid = id then "" else str in
   let newExpr =
     match expr with
-    | ELet (id, lhsID, name, rhs, next) ->
-        ELet (id, lhsID, fStr lhsID name, rhs, next)
+    | ELet (id, name, rhs, next) ->
+        ELet (id, fStr id name, rhs, next)
     | EFieldAccess (id, expr, fieldID, fieldname) ->
         EFieldAccess (id, expr, fieldID, fStr fieldID fieldname)
     | ELambda (id, names, expr) ->

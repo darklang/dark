@@ -222,11 +222,12 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       addMany (whole @ [TFloatPoint id] @ fraction) b
   | EBlank id ->
       add (TBlank id) b
-  | ELet (id, varId, lhs, rhs, next) ->
+  | ELet (id, lhs, rhs, next) ->
+      let rhsID = E.id rhs in
       b
-      |> add (TLetKeyword (id, varId))
-      |> add (TLetLHS (id, varId, lhs))
-      |> add (TLetAssignment (id, varId))
+      |> add (TLetKeyword (id, rhsID))
+      |> add (TLetLHS (id, rhsID, lhs))
+      |> add (TLetAssignment (id, rhsID))
       |> addNested ~f:(fromExpr rhs)
       |> addNewlineIfNeeded (Some (E.id next, id, None))
       |> addNested ~f:(fromExpr next)

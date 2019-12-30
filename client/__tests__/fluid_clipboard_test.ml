@@ -560,17 +560,17 @@ let run () =
         ("varName", "varName", 7) ;
       t
         "pasting variable into empty let lhs works"
-        (ELet (gid (), gid (), "", EBlank (gid ()), EBlank (gid ())))
+        (ELet (gid (), "", EBlank (gid ()), EBlank (gid ())))
         (paste ~clipboard:(EVariable (gid (), "varName")) (7, 7))
         ("let varName = ___\n___", "varName", 14) ;
       t
         "pasting variable into filled let lhs works"
-        (ELet (gid (), gid (), "oldLetLhs", EBlank (gid ()), EBlank (gid ())))
+        (ELet (gid (), "oldLetLhs", EBlank (gid ()), EBlank (gid ())))
         (paste ~clipboard:(EVariable (gid (), "varName")) (7, 7))
         ("let oldvarNameLetLhs = ___\n___", "varName", 14) ;
       t
         "pasting variable over filled let lhs works"
-        (ELet (gid (), gid (), "oldLetLhs", EBlank (gid ()), EBlank (gid ())))
+        (ELet (gid (), "oldLetLhs", EBlank (gid ()), EBlank (gid ())))
         (paste ~clipboard:(EVariable (gid (), "varName")) (7, 13))
         ("let oldvarName = ___\n___", "varName", 14) ;
       ()) ;

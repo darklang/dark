@@ -58,7 +58,7 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
   | F (id, nExpr) ->
     ( match nExpr with
     | Let (name, rhs, body) ->
-        ELet (id, Blank.toID name, varToName name, f rhs, f body)
+        ELet (id, varToName name, f rhs, f body)
     | Variable varname ->
         EVariable (id, varname)
     | If (cond, thenExpr, elseExpr) ->
@@ -207,8 +207,8 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
               , fromFluidExpr body ) )
     | EBlank id ->
         Blank id
-    | ELet (id, lhsID, lhs, rhs, body) ->
-        F (id, Let (F (lhsID, lhs), fromFluidExpr rhs, fromFluidExpr body))
+    | ELet (id, lhs, rhs, body) ->
+        F (id, Let (F (gid (), lhs), fromFluidExpr rhs, fromFluidExpr body))
     | EIf (id, cond, thenExpr, elseExpr) ->
         F
           ( id
