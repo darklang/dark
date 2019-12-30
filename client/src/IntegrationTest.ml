@@ -85,12 +85,7 @@ let enter_changes_state (m : model) : testResult =
 let field_access_closes (m : model) : testResult =
   match m.cursorState with
   | FluidEntering _ ->
-      let ast =
-        onlyTL m
-        |> TL.asHandler
-        |> deOption "test"
-        |> fun x -> x.ast |> FluidExpression.toNExpr
-      in
+      let ast = onlyTL m |> TL.getAST |> deOption "test" in
       if AST.allData ast |> List.filter ~f:P.isBlank = []
       then pass
       else fail ~f:(show_list ~f:show_blankOrData) (TL.allBlanks (onlyTL m))

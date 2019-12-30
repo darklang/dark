@@ -158,9 +158,8 @@ let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
       [ Enter (Filling (tlid, id))
       ; AutocompleteMod
           (ACSetQuery
-             ( pd
-             |> Option.andThen ~f:P.toContent
-             |> Option.withDefault ~default:"" )) ]
+             (pd |> Option.map ~f:P.toContent |> Option.withDefault ~default:""))
+      ]
   in
   match pd with
   | Some (PDBName _) ->
@@ -191,10 +190,7 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
           | Some offset ->
               EnterWithOffset (Filling (tlid, id), offset)
         in
-        Many
-          [ enterMod
-          ; AutocompleteMod
-              (ACSetQuery (P.toContent pd |> Option.withDefault ~default:"")) ]
+        Many [enterMod; AutocompleteMod (ACSetQuery (P.toContent pd))]
   | _ ->
       recover "Entering invalid tl" ~debug:(tlid, id) NoChange
 

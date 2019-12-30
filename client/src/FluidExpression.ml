@@ -464,7 +464,7 @@ let rec updateVariableUses (oldVarName : string) ~(f : t -> t) (ast : t) : t =
       let pairs =
         List.map
           ~f:(fun (pat, expr) ->
-            if Pattern.hasVariableNamed oldVarName (FluidPattern.toPattern pat)
+            if Pattern.hasVariableNamed oldVarName pat
             then (pat, expr)
             else (pat, u expr))
           pairs

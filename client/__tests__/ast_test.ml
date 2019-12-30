@@ -1,7 +1,9 @@
 open Tester
 open! Tc
 open Types
+open Prelude
 open AST
+open Fluid_test_data
 module B = Blank
 
 type ('a, 'b) transformation_test_result =
@@ -56,52 +58,34 @@ let run () =
           in
           expect (freeVariables (EMatch (id1, e, pats)))
           |> toEqual [(id4, "request")]) ;
-      test "replacing a function in a thread works" (fun () ->
-          expect
-            (let replacement =
-               B.newF (FnCall (B.newF "+", [B.new_ (); B.new_ ()], NoRail))
-             in
-             let orig = B.new_ () in
-             let result =
-               replace
-                 (PExpr orig)
-                 (PExpr replacement)
-                 (B.newF (Thread [orig; B.new_ ()]))
-             in
-             match result with
-             | F (_, Thread [r; _]) ->
-                 if r = replacement then Pass else Fail (orig, result)
-             | _ ->
-                 Fail (orig, result))
-          |> toEqual Pass) ;
       test "parent of a field is the expr" (fun () ->
           expect
-            (let obj = B.newF (Variable "obj") in
-             let fieldname = B.newF "field" in
-             let expr = B.newF (FieldAccess (obj, fieldname)) in
-             let parent = findParentOfWithin (B.toID fieldname) expr in
+            (let obj = var "obj" in
+             let fieldID = gid () in
+             let expr = EFieldAccess (gid (), obj, fieldID, "field") in
+             let parent = findParentOfWithin fieldID expr in
              if parent = expr then Pass else Fail (parent, expr))
           |> toEqual Pass) ;
       test
         "variablesIn correctly identifies available vars in let RHS with incomplete LHS"
         (fun () ->
           let testId = ID "testme" in
-          let inner = B.newF (Let (B.new_ (), Blank testId, B.new_ ())) in
-          let outer =
-            B.newF (Let (B.newF "variable", B.newF (Value "4"), inner))
-          in
+          let inner = ELet (gid (), gid (), "", EBlank testId, E.newB ()) in
+          let outer = ELet (gid (), gid (), "variable", int "4", inner) in
           let vars = variablesIn outer |> StrDict.get ~key:"testme" in
           let varsFor = vars |> Option.map ~f:(fun d -> StrDict.keys d) in
           expect varsFor |> toEqual (Some ["variable"])) ;
       test "variablesIn correctly gets id of latest let definition" (fun () ->
           let a0id = ID "a0id" in
-          let a0def, a0assign = (F (a0id, "a"), B.newF (Value "4")) in
           let a1id = ID "a1id" in
-          let a1def, a1assign = (F (a1id, "a"), B.newF (Value "9")) in
-          let lastBlank = Blank (ID "lastBlankid") in
+          let lastBlank = EBlank (ID "lastBlankid") in
           let ast =
-            B.newF
-              (Let (a0def, a0assign, B.newF (Let (a1def, a1assign, lastBlank))))
+            ELet
+              ( gid ()
+              , a0id
+              , "a"
+              , int "4"
+              , ELet (gid (), a1id, "a", int "9", lastBlank) )
           in
           expect
             ( variablesIn ast

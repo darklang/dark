@@ -54,11 +54,7 @@ let execute_roundtrip (ast : fluidExpr) =
   let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
   let mod_ = App.update_ (ClipboardPasteEvent e) newM in
   let newM, _cmd = App.updateMod mod_ (newM, Cmd.none) in
-  let newAST =
-    TL.selectedAST newM
-    |> Option.withDefault ~default:(Blank.new_ ())
-    |> E.fromNExpr
-  in
+  let newAST = TL.selectedAST newM |> Option.withDefault ~default:(E.newB ()) in
   newAST
 
 
@@ -91,9 +87,7 @@ let run () =
     let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
     let newState = newM.fluidState in
     let newAST =
-      TL.selectedAST newM
-      |> Option.withDefault ~default:(Blank.new_ ())
-      |> E.fromNExpr
+      TL.selectedAST newM |> Option.withDefault ~default:(E.newB ())
     in
     let finalPos = newState.newPos in
     if debug

@@ -107,33 +107,28 @@ let findUsagesInAST
     (datastores : tlid StrDict.t)
     (handlers : tlid StrDict.t)
     (functions : tlid StrDict.t)
-    (ast : expr) : usage list =
+    (ast : fluidExpr) : usage list =
   AST.allData ast
   |> List.filterMap ~f:(fun pd ->
          match pd with
-         | PExpr (F (id, Variable name)) ->
+         | PExpr (EVariable (id, name)) ->
              StrDict.get ~key:name datastores
              |> Option.map ~f:(fun dbTLID -> (dbTLID, id))
          | PExpr
-             (F
-               ( id
-               , FnCall
-                   ( F (_, "emit")
-                   , [_; F (_, Value space_); F (_, Value name_)]
-                   , _ ) )) ->
+             (EFnCall
+               (id, "emit", [_; EString (_, space_); EString (_, name_)], _)) ->
              let name = Util.removeQuotes name_ in
              let space = Util.removeQuotes space_ in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
              |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
-         | PExpr (F (id, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _)))
-           ->
+         | PExpr (EFnCall (id, "emit_v1", [_; EString (_, name_)], _)) ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
              |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
-         | PExpr (F (id, FnCall (F (_, name), _, _))) ->
+         | PExpr (EFnCall (id, name, _, _)) ->
              StrDict.get ~key:name functions
              |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | _ ->
@@ -146,27 +141,9 @@ let getUsageFor
     (datastores : tlid StrDict.t)
     (handlers : tlid StrDict.t)
     (functions : tlid StrDict.t) : usage list =
-  match tl with
-  | TLHandler h ->
-      findUsagesInAST
-        h.hTLID
-        datastores
-        handlers
-        functions
-        (FluidExpression.toNExpr h.ast)
-  | TLDB _ ->
-      []
-  | TLFunc f ->
-      findUsagesInAST
-        f.ufTLID
-        datastores
-        handlers
-        functions
-        (FluidExpression.toNExpr f.ufAST)
-  | TLTipe _ ->
-      []
-  | TLGroup _ ->
-      []
+  TL.getAST tl
+  |> Option.map ~f:(findUsagesInAST (TL.id tl) datastores handlers functions)
+  |> Option.withDefault ~default:[]
 
 
 let refreshUsages (m : model) (tlids : tlid list) : model =

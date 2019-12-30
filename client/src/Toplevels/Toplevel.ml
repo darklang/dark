@@ -202,7 +202,7 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
 let allData (tl : toplevel) : blankOrData list =
   match tl with
   | TLHandler h ->
-      SpecHeaders.allData h.spec @ AST.allData (FluidExpression.toNExpr h.ast)
+      SpecHeaders.allData h.spec @ AST.allData h.ast
   | TLDB db ->
       DB.allData db
   | TLFunc f ->
@@ -215,48 +215,6 @@ let allData (tl : toplevel) : blankOrData list =
 
 let isValidID (tl : toplevel) (id : id) : bool =
   List.member ~value:id (tl |> allData |> List.map ~f:P.toID)
-
-
-let clonePointerData (pd : blankOrData) : blankOrData =
-  match pd with
-  | PVarBind vb ->
-      PVarBind (B.clone identity vb)
-  | PEventModifier sp ->
-      PEventModifier (B.clone identity sp)
-  | PEventName sp ->
-      PEventName (B.clone identity sp)
-  | PEventSpace sp ->
-      PEventSpace (B.clone identity sp)
-  | PExpr expr ->
-      PExpr (AST.clone expr)
-  | PField f ->
-      PField (B.clone identity f)
-  | PKey k ->
-      PKey (B.clone identity k)
-  | PFFMsg msg ->
-      PFFMsg (B.clone identity msg)
-  | PFnName name ->
-      PFnName (B.clone identity name)
-  | PFnCallName name ->
-      PFnCallName (B.clone identity name)
-  | PParamName name ->
-      PParamName (B.clone identity name)
-  | PParamTipe tipe ->
-      PParamTipe (B.clone identity tipe)
-  | PPattern pattern ->
-      PPattern (AST.clonePattern pattern)
-  | PConstructorName name ->
-      PConstructorName (B.clone identity name)
-  | PTypeName name ->
-      PTypeName (B.clone identity name)
-  | PTypeFieldName name ->
-      PTypeFieldName (B.clone identity name)
-  | PTypeFieldTipe tipe ->
-      PTypeFieldTipe (B.clone identity tipe)
-  | PDBColName _ | PDBColType _ | PDBName _ ->
-      pd
-  | PGroupName name ->
-      PGroupName (B.clone identity name)
 
 
 (* ------------------------- *)
@@ -308,9 +266,9 @@ let getChildrenOf (tl : toplevel) (pd : blankOrData) : blankOrData list =
   let astChildren () =
     match tl with
     | TLHandler h ->
-        AST.childrenOf pid (FluidExpression.toNExpr h.ast)
+        AST.childrenOf pid h.ast
     | TLFunc f ->
-        AST.childrenOf pid (FluidExpression.toNExpr f.ufAST)
+        AST.childrenOf pid f.ufAST
     | TLDB db ->
         db |> DB.astsFor |> List.map ~f:(AST.childrenOf pid) |> List.concat
     | TLGroup _ ->
@@ -413,13 +371,13 @@ let firstChild (tl : toplevel) (id : blankOrData) : blankOrData option =
   getChildrenOf tl id |> List.head
 
 
-let rootExpr (tl : toplevel) : expr option =
+let rootExpr (tl : toplevel) : fluidExpr option =
   (* TODO SpecTypePointerDataRefactor *)
   match tl with
   | TLHandler h ->
-      Some (FluidExpression.toNExpr h.ast)
+      Some h.ast
   | TLFunc f ->
-      Some (FluidExpression.toNExpr f.ufAST)
+      Some f.ufAST
   | TLDB _ | TLTipe _ | TLGroup _ ->
       None
 
@@ -450,7 +408,7 @@ let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     | _ ->
         recover "Changing handler metadata on non-handler" ~debug:replacement tl
     )
-  | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
+  | PDBName _ | PDBColType _ | PDBColName _ ->
       tl
   | PFnName _ | PParamName _ | PParamTipe _ ->
     ( match asUserFunction tl with
@@ -571,8 +529,8 @@ let selected (m : model) : toplevel option =
   m.cursorState |> tlidOf |> Option.andThen ~f:(get m)
 
 
-let selectedAST (m : model) : expr option =
-  selected m |> Option.andThen ~f:rootExpr
+let selectedAST (m : model) : fluidExpr option =
+  selected m |> Option.andThen ~f:getAST
 
 
 let setSelectedAST (m : model) (ast : fluidExpr) : modification =
