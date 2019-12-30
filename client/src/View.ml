@@ -94,8 +94,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     |> String.join ~sep:" "
   in
   let id =
-    TL.getAST tl
-    |> Option.andThen ~f:(Fluid.getToken m.fluidState)
+    Fluid.getToken' m.fluidState tokens
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
   in
