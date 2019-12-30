@@ -909,7 +909,6 @@ and omniAction =
 
 and autocompleteItem =
   | ACOmniAction of omniAction
-  | ACCommand of command
   (* HTTP *)
   | ACHTTPModifier of string
   | ACHTTPRoute of string
@@ -927,7 +926,7 @@ and autocompleteItem =
   | ACDBColType of string
   | ACDBColName of string
   (* User functions *)
-  | ACFnName of (* This is the name of a user function *) string
+  | ACFnName of string
   | ACParamName of string
   | ACParamTipe of tipe
   (* User types *)
