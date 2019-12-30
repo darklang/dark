@@ -17,16 +17,6 @@ let isBlank (b : 'a blankOr) : bool =
 
 let isF (b : 'a blankOr) : bool = not (isBlank b)
 
-let asF (b : 'a blankOr) : 'a option =
-  match b with F (_, v) -> Some v | Blank _ -> None
-
-
-(* Same as Option.map: if it's Blank, do nothing; if it's an F,
- * apply `f` to its contents. *)
-let map ~(f : 'a -> 'c) (b : 'a blankOr) : 'c blankOr =
-  match b with F (id, v) -> F (id, f v) | Blank id -> Blank id
-
-
 let valueWithDefault (a : 'a) (b : 'a blankOr) : 'a =
   match b with F (_, v) -> v | Blank _ -> a
 
