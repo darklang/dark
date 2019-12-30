@@ -420,7 +420,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       b
       |> addNested ~f:(fromExpr expr)
       |> addMany [TSep id; TRightPartial (id, newOp)]
-  | EFeatureFlag (_id, _msg, _msgid, _cond, casea, _caseb) ->
+  | EFeatureFlag (_id, _msg, _cond, casea, _caseb) ->
       b |> addNested ~f:(fromExpr casea)
 
 

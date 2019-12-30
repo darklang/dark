@@ -300,7 +300,7 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
         childOr [oldExpr]
     | ERightPartial (_, _, oldExpr) ->
         childOr [oldExpr]
-    | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+    | EFeatureFlag ( _, _, cond, casea, caseb) ->
         childOr [cond; casea; caseb]
     | _ ->
         None

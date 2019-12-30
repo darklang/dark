@@ -124,7 +124,6 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
         EFeatureFlag
           ( id
           , varToName msg
-          , Blank.toID msg
           , f cond
           , toFluidExpr' ~inPipe casea
           , toFluidExpr' ~inPipe caseb )
@@ -250,11 +249,11 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
           "Cant convert pipetargets back to exprs"
           ~debug:expr
           (Blank.new_ ())
-    | EFeatureFlag (id, name, nameID, cond, caseA, caseB) ->
+    | EFeatureFlag (id, name, cond, caseA, caseB) ->
         F
           ( id
           , FeatureFlag
-              ( F (nameID, name)
+              ( F (gid (), name)
               , fromFluidExpr cond
               , fromFluidExpr ~inPipe caseA
               , fromFluidExpr ~inPipe caseB ) )

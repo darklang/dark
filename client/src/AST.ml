@@ -52,8 +52,8 @@ let rec allData (expr : E.t) : blankOrData list =
       pairs
       |> List.map ~f:(fun (id, k, v) -> PKey (id, k) :: allData v)
       |> List.concat
-  | EFeatureFlag (_, msg, msgid, cond, a, b) ->
-      [PFFMsg (msgid, msg)] @ rl [cond; a; b]
+  | EFeatureFlag (id, msg, cond, a, b) ->
+      [PFFMsg (id, msg)] @ rl [cond; a; b]
   | EMatch (_, matchExpr, cases) ->
       let matchData = allData matchExpr in
       let caseData =
@@ -135,7 +135,7 @@ let rec uses (var : string) (expr : E.t) : E.t list =
         exprs |> List.map ~f:u |> List.concat
     | ERecord (_, pairs) ->
         pairs |> List.map ~f:Tuple3.third |> List.map ~f:u |> List.concat
-    | EFeatureFlag (_, _, _, cond, a, b) ->
+    | EFeatureFlag (_, _, cond, a, b) ->
         List.concat [u cond; u a; u b]
     | EMatch (_, matchExpr, cases) ->
         let exprs = cases |> List.map ~f:Tuple2.second in
@@ -184,8 +184,8 @@ let children (expr : E.t) : blankOrData list =
       |> List.concat
   | EList (_, elems) ->
       ces elems
-  | EFeatureFlag (_, msg, msgid, cond, a, b) ->
-      [PFFMsg (msgid, msg); PExpr cond; PExpr a; PExpr b]
+  | EFeatureFlag (id, msg, cond, a, b) ->
+      [PFFMsg (id, msg); PExpr cond; PExpr a; PExpr b]
   | EMatch (_, matchExpr, cases) ->
       (* We list all the descendents of the pattern here. This isn't ideal,
        * but it's challenging with the current setup to do otherwise, because
@@ -241,7 +241,7 @@ let rec childrenOf (pid : id) (expr : E.t) : blankOrData list =
         pairs |> List.map ~f:Tuple3.third |> List.map ~f:co |> List.concat
     | EList (_, pairs) ->
         pairs |> List.map ~f:co |> List.concat
-    | EFeatureFlag (_, _, _, cond, a, b) ->
+    | EFeatureFlag (_, _, cond, a, b) ->
         co cond @ co a @ co b
     | EMatch (_, matchExpr, cases) ->
         let cCases =
@@ -298,7 +298,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
     (* we don't check the children because it's done up top *)
     | ERecord (_, pairs) ->
         pairs |> List.map ~f:Tuple3.third |> fpowList
-    | EFeatureFlag (_, _, _, cond, a, b) ->
+    | EFeatureFlag (_, _, cond, a, b) ->
         fpowList [cond; a; b]
     | EMatch (_, matchExpr, cases) ->
         fpowList (matchExpr :: (cases |> List.map ~f:Tuple2.second))
@@ -404,7 +404,7 @@ let ancestors (id : id) (expr : E.t) : E.t list =
           reclist id expr walk exprs
       | ERecord (_, pairs) ->
           pairs |> List.map ~f:Tuple3.third |> reclist id expr walk
-      | EFeatureFlag (_, _, _, cond, a, b) ->
+      | EFeatureFlag (_, _, cond, a, b) ->
           reclist id exp walk [cond; a; b]
       | EMatch (_, matchExpr, cases) ->
           reclist id exp walk (matchExpr :: List.map ~f:Tuple2.second cases)
@@ -525,7 +525,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
     | EBinOp (_, _, lhs, rhs, _) ->
         List.iter ~f:(sexe st) [lhs; rhs]
     | EIf (_, cond, ifbody, elsebody)
-    | EFeatureFlag (_, _, _, cond, elsebody, ifbody) ->
+    | EFeatureFlag (_, _, cond, elsebody, ifbody) ->
         sexe st cond ;
         sexe st ifbody ;
         sexe st elsebody
