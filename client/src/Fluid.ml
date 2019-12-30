@@ -5060,16 +5060,15 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
             T.isErrorDisplayable ti.token
             && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
-            sourceId |> Option.isSomeEqualTo ~value:analysisId
+            sourceId = Some analysisId
           in
           [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
-          ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
+          ; ("cursor-on", currentTokenInfo = Some ti)
           ; ("fluid-error", isError)
           ; (errorType, errorType <> "")
-          ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
-            ( "is-origin"
-            , sourceOfCurrentToken ti |> Option.isSomeEqualTo ~value:analysisId
-            )
+          ; (* This expression is the source of an incomplete propogated
+             * into another, where the cursor is currently on *)
+            ("is-origin", sourceOfCurrentToken ti = Some analysisId)
           ; ( "jumped-to"
             , match state.errorDvSrc with
               | SourceNone ->
