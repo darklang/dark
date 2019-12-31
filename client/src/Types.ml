@@ -235,8 +235,8 @@ and fluidPattern =
   | FPBlank of id * id
 
 and fluidExpr =
-  (* Several of these expressions have extra IDs for roundtripping to the old expr *)
-  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
+  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
+   * support *)
   | EInteger of id * string
   | EBool of id * bool
   | EString of id * string
@@ -246,7 +246,8 @@ and fluidExpr =
   | ELet of id * fluidName * fluidExpr * fluidExpr
   | EIf of id * fluidExpr * fluidExpr * fluidExpr
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
-  (* the id in the varname list is the analysis ID *)
+  (* the id in the varname list is the analysis ID, used to get a livevalue
+   * from the analysis engine *)
   | ELambda of id * (id * fluidName) list * fluidExpr
   | EFieldAccess of id * fluidExpr * fluidName
   | EVariable of id * string
