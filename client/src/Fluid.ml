@@ -3596,19 +3596,34 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * Eg, a match with 2 rows will have idx=3 here.
      *)
     | K.Enter, L (TNewline (Some (_, parentId, Some idx)), _), R (rTok, _) ->
-        let addLetAboveRightToken () : E.t * state =
-          let id = FluidToken.tid rTok in
-          let ast, s, _ = makeIntoLetBody id ast s in
-          let s =
-            moveToCaretTarget s ast (caretTargetForBeginningOfExpr id ast)
-          in
-          (ast, s)
+        let applyToRightToken () : E.t * state =
+          let parentID = T.toParentID rTok in
+          let index = T.toIndex rTok in
+          match
+            ( parentID
+            , index
+            , Option.andThen parentID ~f:(fun id -> E.find id ast) )
+          with
+          | Some parentId, Some idx, Some (EMatch _) ->
+              let ast, s = addMatchPatternAt parentId idx ast s in
+              let target =
+                caretTargetForBeginningOfMatchBranch parentId (idx + 1) ast
+              in
+              let s = moveToCaretTarget s ast target in
+              (ast, s)
+          | _ ->
+              let id = FluidToken.tid rTok in
+              let ast, s, _ = makeIntoLetBody id ast s in
+              let s =
+                moveToCaretTarget s ast (caretTargetForBeginningOfExpr id ast)
+              in
+              (ast, s)
         in
         ( match E.find parentId ast with
         | Some (EMatch (_, _, exprs)) ->
             (* if a match has n rows, the last newline has idx=(n+1) *)
             if idx = List.length exprs
-            then addLetAboveRightToken ()
+            then applyToRightToken ()
             else
               let ast, s = addMatchPatternAt parentId idx ast s in
               let target =
@@ -3621,7 +3636,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
              * is zero-based starting at exprs[1] (it indexes the _pipes
              * only_), so need idx+1 here to counteract. *)
             if idx + 1 = List.length exprs
-            then addLetAboveRightToken ()
+            then applyToRightToken ()
             else
               let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
               let s =

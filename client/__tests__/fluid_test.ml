@@ -2063,6 +2063,13 @@ let run () =
         (enter 12)
         "match ___\n  *** -> ___\n  ~3 -> ___\n" ;
       t
+        "enter at the start of row, with match in row above, creates a new row"
+        (match'
+           (int "1")
+           [(pInt "5", match' (int "2") [(pInt "6", b)]); (pInt "7", b)])
+        (enter 43)
+        "match 1\n  5 -> match 2\n         6 -> ___\n  *** -> ___\n  ~7 -> ___\n" ;
+      t
         "backspace first row deletes it"
         emptyMatchWithTwoPatterns
         (bs 12)
