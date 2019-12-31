@@ -222,28 +222,6 @@ let stripQuotes (s : string) : string =
   s |> String.dropLeft ~count:1 |> String.dropRight ~count:1
 
 
-let addQuotes (s : string) : string = "\"" ^ s ^ "\""
-
-module Regex = Util.Regex
-
-let convertLiteralToDisplayString (s : string) : string =
-  let conversion str =
-    (* Convert special chars to use two backslashes (literal strings hold the
-   * correct bytes for \n, etc), while the view/display version holds a
-   * backslash and a character *)
-    str
-    (* 4 re slashes, become 2 in the js source, and 1 in the js runtime *)
-    |> Regex.replace ~re:[%re "/\\\\/g"] ~repl:"\\\\"
-    |> Regex.replace ~re:[%re "/\\n/g"] ~repl:"\\n"
-    |> Regex.replace ~re:[%re "/\\r/g"] ~repl:"\\r"
-    |> Regex.replace ~re:[%re "/\\t/g"] ~repl:"\\t"
-    |> Regex.replace ~re:[%re "/\\\"/g"] ~repl:"\\\""
-  in
-  if isStringLiteral s
-  then s |> stripQuotes |> conversion |> addQuotes
-  else conversion s
-
-
 let isComplete (dv : dval) : bool =
   match dv with DError _ | DIncomplete _ -> false | _ -> true
 
