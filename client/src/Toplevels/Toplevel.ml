@@ -258,54 +258,8 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
 
 
 (* ------------------------- *)
-(* Up/Down the tree *)
+(* ASTs *)
 (* ------------------------- *)
-
-let getChildrenOf (tl : toplevel) (pd : blankOrData) : blankOrData list =
-  let pid = P.toID pd in
-  let astChildren () =
-    match tl with
-    | TLHandler h ->
-        AST.childrenOf pid h.ast
-    | TLFunc f ->
-        AST.childrenOf pid f.ufAST
-    | TLDB db ->
-        db |> DB.astsFor |> List.map ~f:(AST.childrenOf pid) |> List.concat
-    | TLGroup _ ->
-        []
-    | TLTipe _ ->
-        []
-  in
-  match pd with
-  | PExpr _ ->
-      astChildren ()
-  | PEventModifier _ ->
-      []
-  | PEventName _ ->
-      []
-  | PEventSpace _ ->
-      []
-  | PDBName _ ->
-      []
-  | PDBColName _ ->
-      []
-  | PDBColType _ ->
-      []
-  | PFnName _ ->
-      []
-  | PParamName _ ->
-      []
-  | PParamTipe _ ->
-      []
-  | PTypeName _ ->
-      []
-  | PTypeFieldName _ ->
-      []
-  | PTypeFieldTipe _ ->
-      []
-  | PGroupName _ ->
-      []
-
 
 let getAST (tl : toplevel) : fluidExpr option =
   match tl with
