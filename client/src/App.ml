@@ -445,12 +445,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               (FluidEntering tlid, None)
           | STID id ->
             ( match TL.getPD m tlid id with
-            | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Selecting (tlid, Some id), None)
+            | Some _ ->
+                (Selecting (tlid, Some id), None)
             | None ->
-                (Deselected, None) )
+                (FluidEntering tlid, None) )
           | STCaret caretTarget ->
               let maybeNewFluidState =
                 match Fluid.astAndStateFromTLID m tlid with
@@ -526,11 +524,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Entering entry, Some (tlid, pd))
+                (Entering entry, Some (tlid, pd))
             | None ->
-                (m.cursorState, None) )
+                (FluidEntering tlid, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
@@ -544,11 +540,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Entering entry, Some (tlid, pd))
+                (Entering entry, Some (tlid, pd))
             | None ->
-                (m.cursorState, None) )
+                (FluidEntering tlid, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in

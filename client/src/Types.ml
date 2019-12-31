@@ -182,11 +182,8 @@ and blankOrData =
   | PTypeFieldName of string blankOr
   | PTypeFieldTipe of tipe blankOr
   | PGroupName of string blankOr
-  (* Part of the AST *)
-  | PExpr of fluidExpr
 
 and blankOrType =
-  | Expr
   | EventName
   | EventSpace
   | EventModifier

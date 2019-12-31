@@ -300,8 +300,6 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
       v AC.paramTypeValidator "type field type"
   | PGroupName _ ->
       v AC.groupNameValidator "group name"
-  | PExpr _ ->
-      None
 
 
 let submitACItem

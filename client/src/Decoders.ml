@@ -260,8 +260,7 @@ let blankOrData j : blankOrData =
     ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
     ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
     ; ("PTypeFieldName", dv1 (fun x -> PTypeFieldName x) (blankOr string))
-    ; ("PTypeFieldTipe", dv1 (fun x -> PTypeFieldTipe x) (blankOr tipe))
-    ; ("PExpr", dv1 (fun x -> PExpr x) fluidExpr) ]
+    ; ("PTypeFieldTipe", dv1 (fun x -> PTypeFieldTipe x) (blankOr tipe)) ]
     j
 
 

@@ -309,8 +309,6 @@ let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     toplevel =
   let id = P.toID p in
   match replacement with
-  | PExpr _ ->
-      recover "can't change ASTs with replace anymore" tl
   | PEventName bo | PEventModifier bo | PEventSpace bo ->
     ( match asHandler tl with
     | Some h ->
