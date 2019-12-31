@@ -28,9 +28,9 @@ https://devexpress.github.io/testcafe/documentation/recipes/debug-in-chrome-dev-
 
 `./scripts/run-in-docker ./integration-tests/run.sh`
 
-This runs Chrome in xvfb, so it will not appear on your screen. Unlike other modes, this will run 4 tests at once.
+This runs Chrome headlessly in the container, so it will not appear on your screen. Unlike other modes, this will run 4 tests at once.
 
-The tests will be recorded to video automatically, and are saved to rundir/videos/testname.mp4. They are viable using VLC.
+The tests will be recorded to video automatically, and are saved to rundir/videos/testname.mp4. They are viewable using VLC.
 
 ## Troubleshooting
 
