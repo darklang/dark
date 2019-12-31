@@ -7,10 +7,6 @@ module B = Blank
 module P = Pointer
 module TD = TLIDDict
 
-type predecessor = blankOrData option
-
-type successor = blankOrData option
-
 (* ------------------------- *)
 (* Toplevel manipulation *)
 (* ------------------------- *)
@@ -216,46 +212,6 @@ let isValidBlankOrID (tl : toplevel) (id : id) : bool =
 
 
 (* ------------------------- *)
-(* Blanks *)
-(* ------------------------- *)
-let allBlanks (tl : toplevel) : blankOrData list =
-  tl |> blankOrData |> List.filter ~f:P.isBlank
-
-
-let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
-
-let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
-
-let getNextBlank (tl : toplevel) (pred : predecessor) : successor =
-  match pred with
-  | Some pred_ ->
-      let ps = blankOrData tl in
-      let index =
-        List.elemIndex ~value:pred_ ps |> Option.withDefault ~default:(-1)
-      in
-      let remaining = List.drop ~count:(index + 1) ps in
-      let blanks = List.filter ~f:P.isBlank remaining in
-      blanks |> List.head |> Option.orElse (firstBlank tl)
-  | None ->
-      firstBlank tl
-
-
-let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
-  match next with
-  | Some next_ ->
-      let ps = blankOrData tl in
-      let index =
-        List.elemIndex ~value:next_ ps
-        |> Option.withDefault ~default:(List.length ps)
-      in
-      let remaining = List.take ~count:index ps in
-      let blanks = List.filter ~f:P.isBlank remaining in
-      blanks |> List.last |> Option.orElse (lastBlank tl)
-  | None ->
-      lastBlank tl
-
-
-(* ------------------------- *)
 (* ASTs *)
 (* ------------------------- *)
 
@@ -444,3 +400,55 @@ let selectedAST (m : model) : fluidExpr option =
 
 let setSelectedAST (m : model) (ast : fluidExpr) : modification =
   match selected m with None -> NoChange | Some tl -> setASTMod tl ast
+
+
+(* ------------------------- *)
+(* Blanks *)
+(* ------------------------- *)
+
+type predecessor = id option
+
+type successor = id option
+
+let allBlanks (tl : toplevel) : id list =
+  (tl |> blankOrData |> List.filter ~f:P.isBlank |> List.map ~f:P.toID)
+  @ ( tl
+    |> getAST
+    |> Option.map ~f:AST.blanks
+    |> Option.withDefault ~default:[]
+    |> List.map ~f:FluidExpression.id )
+
+
+let allIDs (tl : toplevel) : id list =
+  (tl |> blankOrData |> List.map ~f:P.toID)
+  @ (tl |> getAST |> Option.map ~f:AST.ids |> Option.withDefault ~default:[])
+
+
+let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
+
+let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
+
+let getNextBlank (tl : toplevel) (id : id) : successor =
+  let all = allIDs tl in
+  let index =
+    List.elemIndex ~value:id all |> Option.withDefault ~default:(-1)
+  in
+  let blanks = allBlanks tl |> List.map ~f:deID |> StrSet.fromList in
+  all
+  |> List.drop ~count:(index + 1)
+  |> List.find ~f:(fun (ID id) -> StrSet.has blanks ~value:id)
+  |> Option.orElse (firstBlank tl)
+
+
+let getPrevBlank (tl : toplevel) (id : id) : predecessor =
+  let all = allIDs tl in
+  let index =
+    List.elemIndex ~value:id all
+    |> Option.withDefault ~default:(List.length all)
+  in
+  let blanks = allBlanks tl |> List.map ~f:deID |> StrSet.fromList in
+  all
+  |> List.take ~count:index
+  |> List.reverse
+  |> List.find ~f:(fun (ID id) -> StrSet.has blanks ~value:id)
+  |> Option.orElse (lastBlank tl)

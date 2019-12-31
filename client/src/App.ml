@@ -133,11 +133,14 @@ let processFocus (m : model) (focus : focus) : modification =
     | None ->
         NoChange
     | Some tl ->
-        let predPd = Option.andThen ~f:(TL.find tl) pred in
-        let next = TL.getNextBlank tl predPd in
+        let next =
+          pred
+          |> Option.map ~f:(TL.getNextBlank tl)
+          |> Option.withDefault ~default:(TL.firstBlank tl)
+        in
         ( match next with
-        | Some pd ->
-            Enter (Filling (tlid, P.toID pd))
+        | Some id ->
+            Enter (Filling (tlid, id))
         | None ->
           ( match pred with
           | Some id ->
