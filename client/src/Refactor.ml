@@ -64,9 +64,9 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
   let replacement e =
     match wl with
     | WLetRHS ->
-        ELet (gid (), gid (), "", e, E.newB ())
+        ELet (gid (), "", e, E.newB ())
     | WLetBody ->
-        ELet (gid (), gid (), "", E.newB (), e)
+        ELet (gid (), "", E.newB (), e)
     | WIfCond ->
         EIf (gid (), e, E.newB (), E.newB ())
     | WIfThen ->
@@ -157,7 +157,7 @@ let extractVarInAst
       | Some last ->
           ast
           |> E.update (E.id last) ~f:(function last ->
-                 ELet (gid (), gid (), varname, E.clone e, last))
+                 ELet (gid (), varname, E.clone e, last))
           |> E.replace (E.id e) ~replacement:(EVariable (gid (), varname))
       | None ->
           ast )

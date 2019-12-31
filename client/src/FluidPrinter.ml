@@ -222,11 +222,12 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       addMany (whole @ [TFloatPoint id] @ fraction) b
   | EBlank id ->
       add (TBlank id) b
-  | ELet (id, varId, lhs, rhs, next) ->
+  | ELet (id, lhs, rhs, next) ->
+      let rhsID = E.id rhs in
       b
-      |> add (TLetKeyword (id, varId))
-      |> add (TLetLHS (id, varId, lhs))
-      |> add (TLetAssignment (id, varId))
+      |> add (TLetKeyword (id, rhsID))
+      |> add (TLetLHS (id, rhsID, lhs))
+      |> add (TLetAssignment (id, rhsID))
       |> addNested ~f:(fromExpr rhs)
       |> addNewlineIfNeeded (Some (E.id next, id, None))
       |> addNested ~f:(fromExpr next)
@@ -316,22 +317,21 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       let oldText = FluidUtil.partialName oldName in
       let ghost = ghostPartial id newText oldText in
       b |> add partial |> addMany ghost |> addArgs oldName id args
-  | EConstructor (id, _, name, exprs) ->
+  | EConstructor (id, name, exprs) ->
       b |> add (TConstructorName (id, name)) |> addArgs name id exprs
-  | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
+  | EPartial (id, newName, EConstructor (_, oldName, exprs)) ->
       let partial = TPartial (id, newName) in
       let newText = T.toText partial in
       let ghost = ghostPartial id newText oldName in
       b |> add partial |> addMany ghost |> addArgs oldName id exprs
-  | EFieldAccess (id, expr, fieldID, fieldname) ->
+  | EFieldAccess (id, expr, fieldname) ->
+      let lhsid = E.id expr in
       b
       |> addNested ~f:(fromExpr expr)
-      |> addMany
-           [ TFieldOp (id, (* lhs *) E.id expr)
-           ; TFieldName (id, fieldID, fieldname) ]
-  | EPartial (id, newFieldname, EFieldAccess (faID, expr, fieldID, oldFieldname))
-    ->
-      let partial = TFieldPartial (id, faID, fieldID, newFieldname) in
+      |> addMany [TFieldOp (id, lhsid); TFieldName (id, lhsid, fieldname)]
+  | EPartial (id, newFieldname, EFieldAccess (faID, expr, oldFieldname)) ->
+      let lhsid = E.id expr in
+      let partial = TFieldPartial (id, faID, lhsid, newFieldname) in
       let newText = T.toText partial in
       let ghost = ghostPartial id newText oldFieldname in
       b
@@ -367,13 +367,14 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         b
         |> add (TRecordOpen id)
         |> indentBy ~indent:2 ~f:(fun b ->
-               addIter fields b ~f:(fun i (fieldID, fieldName, expr) b ->
+               addIter fields b ~f:(fun i (fieldName, expr) b ->
+                   let exprID = E.id expr in
                    b
                    |> addNewlineIfNeeded (Some (id, id, Some i))
                    |> add
                         (TRecordFieldname
-                           {recordID = id; fieldID; index = i; fieldName})
-                   |> add (TRecordSep (id, i, fieldID))
+                           {recordID = id; exprID; index = i; fieldName})
+                   |> add (TRecordSep (id, i, exprID))
                    |> addNested ~f:(fromExpr expr)))
         |> addMany
              [ TNewline (Some (id, id, Some (List.length fields)))
@@ -419,7 +420,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       b
       |> addNested ~f:(fromExpr expr)
       |> addMany [TSep id; TRightPartial (id, newOp)]
-  | EFeatureFlag (_id, _msg, _msgid, _cond, casea, _caseb) ->
+  | EFeatureFlag (_id, _msg, _cond, casea, _caseb) ->
       b |> addNested ~f:(fromExpr casea)
 
 

@@ -8,17 +8,17 @@ module P = Pointer
 module TL = Toplevel
 module E = FluidExpression
 
-let toFlagged (msgId : id) (expr : E.t) : E.t =
+let toFlagged (expr : E.t) : E.t =
   match expr with
-  | EFeatureFlag (_, _, _, _, _, _) ->
+  | EFeatureFlag (_, _, _, _, _) ->
       recover "cant convert flagged to flagged" ~debug:expr expr
   | _ ->
-      EFeatureFlag (gid (), "", msgId, E.newB (), expr, E.newB ())
+      EFeatureFlag (gid (), "", E.newB (), expr, E.newB ())
 
 
 let fromFlagged (pick : pick) (expr : E.t) : E.t =
   match expr with
-  | EFeatureFlag (_, _, _, _, a, b) ->
+  | EFeatureFlag (_, _, _, a, b) ->
     (match pick with PickA -> a | PickB -> b)
   | _ ->
       recover "cant convert flagged to flagged" ~debug:expr expr

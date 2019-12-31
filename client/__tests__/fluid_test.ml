@@ -1367,8 +1367,8 @@ let run () =
         (EPartial
            ( gid ()
            , "body"
-           , EFieldAccess
-               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "") ))
+           , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
+           ))
         (ins ~clone:false '.' 11)
         "request.body.~***" ;
       tp
@@ -2970,8 +2970,8 @@ let run () =
         (EPartial
            ( gid ()
            , "bo"
-           , EFieldAccess
-               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "") ))
+           , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
+           ))
         (key ~clone:false K.ShiftEnter 10)
         "request.body\n|>~___\n" ;
       t
@@ -2993,8 +2993,8 @@ let run () =
         (EPartial
            ( gid ()
            , "bo"
-           , EFieldAccess
-               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "") ))
+           , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
+           ))
         (enter ~clone:false 10)
         "request.body~" ;
       t
@@ -3011,7 +3011,6 @@ let run () =
         "autocomplete for field autocommits"
         (ELet
            ( gid ()
-           , gid ()
            , "x"
            , EPartial
                ( gid ()
@@ -3019,7 +3018,6 @@ let run () =
                , EFieldAccess
                    ( gid ()
                    , EVariable (ID "fake-acdata1", "request")
-                   , gid ()
                    , "longfield" ) )
            , EBlank (gid ()) ))
         (* Right should make it commit *)
@@ -3031,10 +3029,8 @@ let run () =
            ( gid ()
            , "bod"
            , EFieldAccess
-               ( gid ()
-               , EVariable (ID "fake-acdata1", "request")
-               , gid ()
-               , "longfield" ) ))
+               (gid (), EVariable (ID "fake-acdata1", "request"), "longfield")
+           ))
         (* Dot should select the autocomplete *)
         (key ~clone:false K.Period 11)
         "request.body.~***" ;
@@ -3042,24 +3038,19 @@ let run () =
         "autocomplete with space moves to next non-whitespace rather than blank"
         (ELet
            ( gid ()
-           , gid ()
            , "request"
            , ERecord
                ( gid ()
-               , [ (gid (), "body", EInteger (gid (), "5"))
-                 ; (gid (), "blank", EBlank (gid ())) ] )
+               , [("body", EInteger (gid (), "5")); ("blank", EBlank (gid ()))]
+               )
            , ELet
                ( gid ()
-               , gid ()
                , "foo"
                , EPartial
                    ( gid ()
                    , "bo"
                    , EFieldAccess
-                       ( gid ()
-                       , EVariable (ID "fake-acdata3", "request")
-                       , gid ()
-                       , "" ) )
+                       (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
         (space ~clone:false 105)
         "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body\n~foo" ;
@@ -3067,21 +3058,16 @@ let run () =
         "autocomplete with tab in presence of no blanks places caret at end of autocompleted thing"
         (ELet
            ( gid ()
-           , gid ()
            , "request"
-           , ERecord (gid (), [(gid (), "body", EInteger (gid (), "5"))])
+           , ERecord (gid (), [("body", EInteger (gid (), "5"))])
            , ELet
                ( gid ()
-               , gid ()
                , "foo"
                , EPartial
                    ( gid ()
                    , "bo"
                    , EFieldAccess
-                       ( gid ()
-                       , EVariable (ID "fake-acdata3", "request")
-                       , gid ()
-                       , "" ) )
+                       (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
         (tab ~clone:false 77)
         "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;
@@ -3207,7 +3193,7 @@ let run () =
              |> (fun s -> updateMouseClick 0 ast s)
              |> fun (ast, _) ->
              match ast with
-             | ELet (_, _, _, EBool (_, false), _) ->
+             | ELet (_, _, EBool (_, false), _) ->
                  "success"
              | _ ->
                  eToStructure ast)

@@ -89,8 +89,7 @@ let field_access_closes (m : model) : testResult =
 
 let field_access_pipes (m : model) : testResult =
   match onlyExpr m with
-  | EPipe (_, [EFieldAccess (_, EVariable (_, "request"), _, "body"); EBlank _])
-    ->
+  | EPipe (_, [EFieldAccess (_, EVariable (_, "request"), "body"); EBlank _]) ->
       pass
   | expr ->
       fail ~f:show_fluidExpr expr
@@ -186,7 +185,7 @@ let switching_from_default_repl_space_removes_name (m : model) : testResult =
 
 let tabbing_through_let (m : model) : testResult =
   match onlyExpr m with
-  | ELet (_, _, "myvar", EInteger (_, "5"), EInteger (_, "5")) ->
+  | ELet (_, "myvar", EInteger (_, "5"), EInteger (_, "5")) ->
       pass
   | e ->
       fail ~f:show_fluidExpr e
@@ -255,13 +254,11 @@ let feature_flag_works (m : model) : testResult =
   match ast with
   | ELet
       ( _
-      , _
       , "a"
       , EInteger (_, "13")
       , EFeatureFlag
           ( id
           , "myflag"
-          , _
           , EFnCall
               ( _
               , "Int::greaterThan"
@@ -293,7 +290,6 @@ let feature_flag_in_function (m : model) : testResult =
         , [ EFeatureFlag
               ( _
               , "myflag"
-              , _
               , EBool (_, true)
               , EInteger (_, "5")
               , EInteger (_, "3") )

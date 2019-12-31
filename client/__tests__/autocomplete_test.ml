@@ -525,7 +525,7 @@ let run () =
               ~modifier:(Some "GET")
               ~expr:
                 (EFieldAccess
-                   (gid (), EVariable (gid (), "request"), gid (), "queryParams"))
+                   (gid (), EVariable (gid (), "request"), "queryParams"))
               ()
           in
           let repl =
@@ -544,7 +544,6 @@ let run () =
               ~expr:
                 (ELet
                    ( gid ()
-                   , gid ()
                    , "bunny"
                    , EInteger (gid (), "9")
                    , EString (gid (), "\"hello\"") ))

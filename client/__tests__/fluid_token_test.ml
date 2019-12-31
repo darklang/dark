@@ -13,10 +13,7 @@ let run () =
         (fun () ->
           let leftLetToken =
             TRecordFieldname
-              { recordID = ID "1"
-              ; fieldID = ID "2"
-              ; index = 1
-              ; fieldName = "name" }
+              {recordID = ID "1"; exprID = ID "2"; index = 1; fieldName = "name"}
           in
           expect (analysisID leftLetToken) |> toEqual (ID "2")) ;
       test "return ids of" (fun () ->

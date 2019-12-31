@@ -46,9 +46,7 @@ let run () =
                (ELambda (id1, [(id2, "var")], EVariable (id3, "var"))))
           |> toEqual []) ;
       test "match pattern is not free" (fun () ->
-          let e =
-            EConstructor (id2, id3, "Just", [EVariable (id4, "request")])
-          in
+          let e = EConstructor (id2, "Just", [EVariable (id4, "request")]) in
           let pats =
             [ ( FPConstructor
                   (id5, id1, "Just", [FPVariable (id6, id1, "anything")])
@@ -56,20 +54,12 @@ let run () =
           in
           expect (freeVariables (EMatch (id1, e, pats)))
           |> toEqual [(id4, "request")]) ;
-      test "parent of a field is the expr" (fun () ->
-          expect
-            (let obj = var "obj" in
-             let fieldID = gid () in
-             let expr = EFieldAccess (gid (), obj, fieldID, "field") in
-             let parent = findParentOfWithin fieldID expr in
-             if parent = expr then Pass else Fail (parent, expr))
-          |> toEqual Pass) ;
       test
         "variablesIn correctly identifies available vars in let RHS with incomplete LHS"
         (fun () ->
           let testId = ID "testme" in
-          let inner = ELet (gid (), gid (), "", EBlank testId, E.newB ()) in
-          let outer = ELet (gid (), gid (), "variable", int "4", inner) in
+          let inner = ELet (gid (), "", EBlank testId, E.newB ()) in
+          let outer = ELet (gid (), "variable", int "4", inner) in
           let vars = variablesIn outer |> StrDict.get ~key:"testme" in
           let varsFor = vars |> Option.map ~f:(fun d -> StrDict.keys d) in
           expect varsFor |> toEqual (Some ["variable"])) ;
@@ -78,12 +68,7 @@ let run () =
           let a1id = ID "a1id" in
           let lastBlank = EBlank (ID "lastBlankid") in
           let ast =
-            ELet
-              ( gid ()
-              , a0id
-              , "a"
-              , int "4"
-              , ELet (gid (), a1id, "a", int "9", lastBlank) )
+            ELet (a0id, "a", int "4", ELet (a1id, "a", int "9", lastBlank))
           in
           expect
             ( variablesIn ast

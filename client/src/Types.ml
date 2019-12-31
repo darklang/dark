@@ -235,43 +235,40 @@ and fluidPattern =
   | FPBlank of id * id
 
 and fluidExpr =
-  (* Several of these expressions have extra IDs for roundtripping to the old expr *)
-  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
+  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
+   * support *)
   | EInteger of id * string
   | EBool of id * bool
   | EString of id * string
   | EFloat of id * string * string
   | ENull of id
   | EBlank of id
-  (* The 2nd id is extra for the LHS blank. *)
-  | ELet of id * id * fluidName * fluidExpr * fluidExpr
+  | ELet of id * fluidName * fluidExpr * fluidExpr
   | EIf of id * fluidExpr * fluidExpr * fluidExpr
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
-  (* the id in the varname list is extra *)
+  (* the id in the varname list is the analysis ID, used to get a livevalue
+   * from the analysis engine *)
   | ELambda of id * (id * fluidName) list * fluidExpr
-  (* The 2nd ID is extra for the fieldname blank *)
-  | EFieldAccess of id * fluidExpr * id * fluidName
+  | EFieldAccess of id * fluidExpr * fluidName
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
   | EPartial of id * string * fluidExpr
   | ERightPartial of id * string * fluidExpr
   | EList of id * fluidExpr list
   (* The ID in the list is extra for the fieldname *)
-  | ERecord of id * (id * fluidName * fluidExpr) list
+  | ERecord of id * (fluidName * fluidExpr) list
   | EPipe of id * fluidExpr list
-  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.
-    In practice the expr list is currently always length 1 (for `Just`, `Error`, and `Ok`) or
-    length 0 (for `Nothing`).
-    The 2nd ID here is the id of the blankOr for the constructor's name.
+  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
+   * expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
+   * or length 0 (for `Nothing`).
    *)
-  | EConstructor of id * id * fluidName * fluidExpr list
-  (* TODO: add ID for fluidPattern *)
+  | EConstructor of id * fluidName * fluidExpr list
   | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
   (* Placeholder that indicates the target of the Thread. May be movable at
    * some point *)
   | EPipeTarget of id
-  (* EFeatureFlag: id, flagName, flagNameId, condExpr, caseAExpr, caseBExpr *)
-  | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
+  (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
+  | EFeatureFlag of id * string * fluidExpr * fluidExpr * fluidExpr
 
 (* ---------------------- *)
 (* Toplevels *)
@@ -1373,7 +1370,7 @@ and fluidToken =
   | TNewline of (id * id * int option) option
   | TIndent of int
   | TLetKeyword of id * analysisId
-  (* Let-expr id * varBind id * varname *)
+  (* Let-expr id * rhs id * varname *)
   | TLetLHS of id * analysisId * string
   | TLetAssignment of id * analysisId
   | TIfKeyword of id
@@ -1381,9 +1378,12 @@ and fluidToken =
   | TIfElseKeyword of id
   | TBinOp of id * string
   | TFieldOp of (* fieldAccess *) id * (* lhs *) id
-  | TFieldName of id * analysisId * string
+  | TFieldName of id (* fieldAccess *) * id (* lhs *) * string
   | TFieldPartial of
-      (* Partial ID, fieldAccess ID, fieldID, name *) id * id * id * string
+      (* Partial ID, fieldAccess ID, analysisID (lhs), name *) id
+      * id
+      * id
+      * string
   | TVariable of id * string
   (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
   | TFnName of id * string * string * string * sendToRail
@@ -1401,7 +1401,7 @@ and fluidToken =
   | TRecordOpen of id
   | TRecordFieldname of
       { recordID : id
-      ; fieldID : id
+      ; exprID : id
       ; index : int
       ; fieldName : string }
   | TRecordSep of id * int * analysisId

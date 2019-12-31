@@ -206,28 +206,19 @@ let findParamByType (fn : function_) (tipe : tipe) : parameter option =
 
 let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   let tlid = TL.id tl in
-  let traceID = Analysis.getSelectedTraceID m tlid in
   let id =
     match ti.token with
-    | TFieldPartial (_, _, fieldID, _) | TFieldName (_, fieldID, _) ->
-        fieldID
+    | TFieldOp (_, lhsID)
+    | TFieldName (_, lhsID, _)
+    | TFieldPartial (_, _, lhsID, _) ->
+        lhsID
     | _ ->
         FluidToken.tid ti.token
   in
-  (* TODO: missing function *)
-  match TL.getAST tl with
-  | Some ast ->
-      ast
-      |> AST.find id
-      |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
-      |> Option.map ~f:FluidExpression.id
-      |> Option.andThen2 traceID ~f:(fun traceID id ->
-             Analysis.getLiveValue m id traceID)
-      (* don't filter on incomplete values *)
-      |> Option.andThen ~f:(fun dv_ ->
-             match dv_ with DIncomplete _ -> None | _ -> Some dv_)
-  | None ->
-      None
+  Analysis.getSelectedTraceID m tlid
+  |> Option.andThen ~f:(Analysis.getLiveValue m id)
+  |> Option.andThen ~f:(fun dv ->
+         match dv with DIncomplete _ -> None | _ -> Some dv)
 
 
 let isPipeMember (tl : toplevel) (ti : tokenInfo) =
