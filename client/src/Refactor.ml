@@ -305,7 +305,8 @@ let updateUsageCounts (m : model) : model =
   let usedFns =
     all
     |> List.filterMap ~f:(function
-           | PFnCallName (_, name) ->
+           | PExpr (EFnCall (_, name, _, _)) | PExpr (EBinOp (_, name, _, _, _))
+             ->
                Some name
            | _ ->
                None)

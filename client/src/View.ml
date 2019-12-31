@@ -121,11 +121,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let selectedFnDocString =
           let fn =
             TL.getAST tl
-            |> Option.andThen ~f:(fun ast -> AST.find id ast)
+            |> Option.andThen ~f:(fun ast -> FluidExpression.find id ast)
             |> Option.andThen ~f:(function
-                   | PExpr (EFnCall (_, name, _, _)) ->
-                       Some name
-                   | PFnCallName (_, name) ->
+                   | EFnCall (_, name, _, _) | EBinOp (_, name, _, _, _) ->
                        Some name
                    | _ ->
                        None)

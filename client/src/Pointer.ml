@@ -7,7 +7,7 @@ module B = Blank
 
 let astOwned pt =
   match pt with
-  | Expr | VarBind | Key | Field | FnCallName | Pattern | ConstructorName ->
+  | Expr ->
       true
   | EventModifier
   | EventName
@@ -15,7 +15,6 @@ let astOwned pt =
   | DBName
   | DBColName
   | DBColType
-  | FFMsg
   | FnName
   | ParamName
   | ParamTipe
@@ -31,8 +30,6 @@ let astOwned pt =
 (* ------------------------ *)
 let emptyD_ (id : id) (pt : blankOrType) : blankOrData =
   match pt with
-  | VarBind ->
-      PVarBind (id, "")
   | EventModifier ->
       PEventModifier (Blank id)
   | EventName ->
@@ -41,30 +38,18 @@ let emptyD_ (id : id) (pt : blankOrType) : blankOrData =
       PEventSpace (Blank id)
   | Expr ->
       PExpr (EBlank id)
-  | Key ->
-      PKey (id, "")
-  | Field ->
-      PField (id, "")
   | DBName ->
       PDBName (Blank id)
   | DBColName ->
       PDBColName (Blank id)
   | DBColType ->
       PDBColType (Blank id)
-  | FFMsg ->
-      PFFMsg (id, "")
   | FnName ->
       PFnName (Blank id)
-  | FnCallName ->
-      PFnCallName (id, "")
   | ParamName ->
       PParamName (Blank id)
   | ParamTipe ->
       PParamTipe (Blank id)
-  | Pattern ->
-      PPattern (FPBlank (id, gid ()))
-  | ConstructorName ->
-      PConstructorName (id, "")
   | TypeName ->
       PTypeName (Blank id)
   | TypeFieldName ->
@@ -77,8 +62,6 @@ let emptyD_ (id : id) (pt : blankOrType) : blankOrData =
 
 let typeOf (pd : blankOrData) : blankOrType =
   match pd with
-  | PVarBind _ ->
-      VarBind
   | PEventModifier _ ->
       EventModifier
   | PEventName _ ->
@@ -87,30 +70,18 @@ let typeOf (pd : blankOrData) : blankOrType =
       EventSpace
   | PExpr _ ->
       Expr
-  | PField _ ->
-      Field
-  | PKey _ ->
-      Key
   | PDBName _ ->
       DBName
   | PDBColName _ ->
       DBColName
   | PDBColType _ ->
       DBColType
-  | PFFMsg _ ->
-      FFMsg
   | PFnName _ ->
       FnName
-  | PFnCallName _ ->
-      FnCallName
-  | PConstructorName _ ->
-      ConstructorName
   | PParamName _ ->
       ParamName
   | PParamTipe _ ->
       ParamTipe
-  | PPattern _ ->
-      Pattern
   | PTypeName _ ->
       TypeName
   | PTypeFieldName _ ->
@@ -125,13 +96,6 @@ let emptyD (pt : blankOrType) : blankOrData = emptyD_ (gid ()) pt
 
 let toID (pd : blankOrData) : id =
   match pd with
-  | PVarBind (id, _)
-  | PField (id, _)
-  | PKey (id, _)
-  | PConstructorName (id, _)
-  | PFnCallName (id, _)
-  | PFFMsg (id, _) ->
-      id
   | PExpr d ->
       FluidExpression.id d
   | PEventModifier d ->
@@ -152,8 +116,6 @@ let toID (pd : blankOrData) : id =
       B.toID d
   | PParamTipe d ->
       B.toID d
-  | PPattern d ->
-      FluidPattern.id d
   | PTypeName d ->
       B.toID d
   | PTypeFieldName d ->
@@ -180,23 +142,9 @@ let isBlank (pd : blankOrData) : bool =
       B.isBlank d
   | PTypeFieldTipe d | PParamTipe d ->
       B.isBlank d
-  | PVarBind (_, "")
-  | PField (_, "")
-  | PKey (_, "")
-  | PFFMsg (_, "")
-  | PFnCallName (_, "")
-  | PConstructorName (_, "")
-  | PExpr (EBlank _)
-  | PPattern (FPBlank _) ->
+  | PExpr (EBlank _) ->
       true
-  | PVarBind _
-  | PField _
-  | PKey _
-  | PFFMsg _
-  | PFnCallName _
-  | PConstructorName _
-  | PExpr _
-  | PPattern _ ->
+  | PExpr _ ->
       false
 
 
@@ -209,12 +157,6 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
         F (id, f str)
   in
   match pd with
-  | PVarBind (id, s) ->
-      PVarBind (id, f s)
-  | PField (id, s) ->
-      PField (id, f s)
-  | PKey (id, s) ->
-      PKey (id, f s)
   | PExpr e ->
     ( match e with
     | EVariable (id, v) ->
@@ -233,24 +175,12 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
       PDBColName (bf d)
   | PDBColType d ->
       PDBColType (bf d)
-  | PFFMsg (id, s) ->
-      PFFMsg (id, f s)
   | PFnName d ->
       PFnName (bf d)
-  | PFnCallName (id, s) ->
-      PFnCallName (id, f s)
-  | PConstructorName (id, s) ->
-      PConstructorName (id, f s)
   | PParamName d ->
       PParamName (bf d)
   | PParamTipe d ->
       PParamTipe d
-  | PPattern d ->
-    ( match d with
-    | FPVariable (id, mid, v) ->
-        PPattern (FPVariable (id, mid, f v))
-    | _ ->
-        PPattern d )
   | PTypeName d ->
       PTypeName (bf d)
   | PTypeFieldName d ->
@@ -264,12 +194,6 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
 let toContent (pd : blankOrData) : string =
   let bs2s s = s |> B.toOption |> Option.withDefault ~default:"" in
   match pd with
-  | PVarBind (_, s) ->
-      s
-  | PField (_, s) ->
-      s
-  | PKey (_, s) ->
-      s
   | PExpr e ->
       FluidPrinter.eToString e
   | PEventModifier d ->
@@ -284,14 +208,8 @@ let toContent (pd : blankOrData) : string =
       bs2s d
   | PDBColType d ->
       bs2s d
-  | PFFMsg (_, s) ->
-      s
   | PFnName d ->
       bs2s d
-  | PFnCallName (_, s) ->
-      s
-  | PConstructorName (_, s) ->
-      s
   | PParamName d ->
       bs2s d
   | PParamTipe d ->
@@ -299,8 +217,6 @@ let toContent (pd : blankOrData) : string =
       |> B.toOption
       |> Option.map ~f:Runtime.tipe2str
       |> Option.withDefault ~default:""
-  | PPattern d ->
-      FluidPrinter.pToString d
   | PTypeName d ->
       bs2s d
   | PTypeFieldName d ->
