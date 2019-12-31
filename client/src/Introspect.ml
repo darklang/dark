@@ -133,7 +133,6 @@ let findUsagesInAST
       | _ ->
           None)
   |> List.map ~f:(fun (usedIn, id) -> {refersTo = tlid; usedIn; id})
-  |> Debug.log "findUsages"
 
 
 let getUsageFor
