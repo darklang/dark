@@ -185,8 +185,6 @@ let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
       "field type"
   | GroupName ->
       "group name"
-  | Expr ->
-      ""
 
 
 let viewBlankOr

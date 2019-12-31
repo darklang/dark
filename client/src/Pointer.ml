@@ -5,26 +5,6 @@ open Types
 (* Dark *)
 module B = Blank
 
-let astOwned pt =
-  match pt with
-  | Expr ->
-      true
-  | EventModifier
-  | EventName
-  | EventSpace
-  | DBName
-  | DBColName
-  | DBColType
-  | FnName
-  | ParamName
-  | ParamTipe
-  | TypeName
-  | TypeFieldName
-  | TypeFieldTipe
-  | GroupName ->
-      false
-
-
 (* ------------------------ *)
 (* PointerData *)
 (* ------------------------ *)
@@ -36,8 +16,6 @@ let emptyD_ (id : id) (pt : blankOrType) : blankOrData =
       PEventName (Blank id)
   | EventSpace ->
       PEventSpace (Blank id)
-  | Expr ->
-      PExpr (EBlank id)
   | DBName ->
       PDBName (Blank id)
   | DBColName ->
@@ -68,8 +46,6 @@ let typeOf (pd : blankOrData) : blankOrType =
       EventName
   | PEventSpace _ ->
       EventSpace
-  | PExpr _ ->
-      Expr
   | PDBName _ ->
       DBName
   | PDBColName _ ->
@@ -96,8 +72,6 @@ let emptyD (pt : blankOrType) : blankOrData = emptyD_ (gid ()) pt
 
 let toID (pd : blankOrData) : id =
   match pd with
-  | PExpr d ->
-      FluidExpression.id d
   | PEventModifier d ->
       B.toID d
   | PEventName d ->
@@ -142,10 +116,6 @@ let isBlank (pd : blankOrData) : bool =
       B.isBlank d
   | PTypeFieldTipe d | PParamTipe d ->
       B.isBlank d
-  | PExpr (EBlank _) ->
-      true
-  | PExpr _ ->
-      false
 
 
 let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
@@ -157,12 +127,6 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
         F (id, f str)
   in
   match pd with
-  | PExpr e ->
-    ( match e with
-    | EVariable (id, v) ->
-        PExpr (EVariable (id, f v))
-    | _ ->
-        PExpr e )
   | PEventModifier d ->
       PEventModifier (bf d)
   | PEventName d ->
@@ -194,8 +158,6 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
 let toContent (pd : blankOrData) : string =
   let bs2s s = s |> B.toOption |> Option.withDefault ~default:"" in
   match pd with
-  | PExpr e ->
-      FluidPrinter.eToString e
   | PEventModifier d ->
       bs2s d
   | PEventName d ->

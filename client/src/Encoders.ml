@@ -160,8 +160,6 @@ let rec dval (dv : Types.dval) : Js.Json.t =
 let rec blankOrData (pd : Types.blankOrData) : Js.Json.t =
   let ev = variant in
   match pd with
-  | PExpr e ->
-      ev "PExpr" [fluidExpr e]
   | PEventName name ->
       ev "PEventName" [blankOr string name]
   | PEventModifier modifier ->
