@@ -176,13 +176,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
-  let hasFf =
-    false
-    (* TL.getAST tl *)
-    (* |> Option.map ~f:AST.allData *)
-    (* |> Option.withDefault ~default:[] *)
-    (* |> List.any ~f:(function PFFMsg _ -> true | _ -> false) *)
-  in
+  let hasFf = false in
   let html =
     [ Html.div (Html.class' class_ :: events) (top @ body @ data)
     ; avatars

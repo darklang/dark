@@ -23,23 +23,20 @@ let fromList (dbs : db list) : db TLIDDict.t =
   dbs |> List.map ~f:(fun db -> (db.dbTLID, db)) |> TLIDDict.fromList
 
 
-let allData (db : db) : blankOrData list =
-  let cols, rolls =
+let blankOrData (db : db) : blankOrData list =
+  let cols =
     match db.activeMigration with
     | Some migra ->
-        ( db.cols @ migra.cols
-        , List.concat [AST.allData migra.rollforward; AST.allData migra.rollback]
-        )
+        db.cols @ migra.cols
     | None ->
-        (db.cols, [])
+        db.cols
   in
   let colpointers =
     cols
     |> List.map ~f:(fun (lhs, rhs) -> [PDBColName lhs; PDBColType rhs])
     |> List.concat
   in
-  let name = PDBName db.dbName in
-  (name :: colpointers) @ rolls
+  PDBName db.dbName :: colpointers
 
 
 let hasCol (db : db) (name : string) : bool =

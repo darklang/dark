@@ -157,7 +157,9 @@ let processFocus (m : model) (focus : focus) : modification =
     | Selecting (tlid, mId) ->
       ( match (TL.get m tlid, mId) with
       | Some tl, Some id ->
-          if TL.isValidID tl id then NoChange else Select (tlid, STTopLevelRoot)
+          if TL.isValidBlankOrID tl id
+          then NoChange
+          else Select (tlid, STTopLevelRoot)
       | Some _, None ->
           Select (tlid, STTopLevelRoot)
       | _ ->
@@ -165,7 +167,9 @@ let processFocus (m : model) (focus : focus) : modification =
     | Entering (Filling (tlid, id)) ->
       ( match TL.get m tlid with
       | Some tl ->
-          if TL.isValidID tl id then NoChange else Select (tlid, STTopLevelRoot)
+          if TL.isValidBlankOrID tl id
+          then NoChange
+          else Select (tlid, STTopLevelRoot)
       | _ ->
           Deselect )
     | _ ->
@@ -179,7 +183,7 @@ let processFocus (m : model) (focus : focus) : modification =
       let mTl = Option.andThen tlid ~f:(TL.get m) in
       let pd = Option.map2 mTl mID ~f:(fun tl id -> TL.find tl id) in
       ( match (mTl, pd) with
-      | Some tl, Some (Some pd) when TL.isValidID tl (P.toID pd) ->
+      | Some tl, Some (Some pd) when TL.isValidBlankOrID tl (P.toID pd) ->
           let query = AutocompleteMod (ACSetQuery (P.toContent pd)) in
           Many [SetPage page; SetCursorState cs; query]
       | Some _, Some None | Some _, None ->

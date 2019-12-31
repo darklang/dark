@@ -197,29 +197,29 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
 (* ------------------------- *)
 (* Generic *)
 (* ------------------------- *)
-let allData (tl : toplevel) : blankOrData list =
+let blankOrData (tl : toplevel) : blankOrData list =
   match tl with
   | TLHandler h ->
-      SpecHeaders.allData h.spec @ AST.allData h.ast
+      SpecHeaders.blankOrData h.spec
   | TLDB db ->
-      DB.allData db
+      DB.blankOrData db
   | TLFunc f ->
-      Functions.allData f
+      Functions.blankOrData f
   | TLTipe t ->
-      UserTypes.allData t
+      UserTypes.blankOrData t
   | TLGroup g ->
-      Groups.allData g
+      Groups.blankOrData g
 
 
-let isValidID (tl : toplevel) (id : id) : bool =
-  List.member ~value:id (tl |> allData |> List.map ~f:P.toID)
+let isValidBlankOrID (tl : toplevel) (id : id) : bool =
+  List.member ~value:id (tl |> blankOrData |> List.map ~f:P.toID)
 
 
 (* ------------------------- *)
 (* Blanks *)
 (* ------------------------- *)
 let allBlanks (tl : toplevel) : blankOrData list =
-  tl |> allData |> List.filter ~f:P.isBlank
+  tl |> blankOrData |> List.filter ~f:P.isBlank
 
 
 let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
@@ -229,7 +229,7 @@ let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
 let getNextBlank (tl : toplevel) (pred : predecessor) : successor =
   match pred with
   | Some pred_ ->
-      let ps = allData tl in
+      let ps = blankOrData tl in
       let index =
         List.elemIndex ~value:pred_ ps |> Option.withDefault ~default:(-1)
       in
@@ -243,7 +243,7 @@ let getNextBlank (tl : toplevel) (pred : predecessor) : successor =
 let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
   match next with
   | Some next_ ->
-      let ps = allData tl in
+      let ps = blankOrData tl in
       let index =
         List.elemIndex ~value:next_ ps
         |> Option.withDefault ~default:(List.length ps)
@@ -395,7 +395,7 @@ let structural (m : model) : toplevel TD.t =
 let get (m : model) (tlid : tlid) : toplevel option = TD.get ~tlid (all m)
 
 let find (tl : toplevel) (id_ : id) : blankOrData option =
-  allData tl
+  blankOrData tl
   |> List.filter ~f:(fun d -> id_ = P.toID d)
   |> assertFn
        "cant find pd for id"
