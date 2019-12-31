@@ -212,12 +212,6 @@ let typeOf (dv : dval) : tipe =
       TBytes
 
 
-let isStringLiteral (s : string) : bool =
-  String.length s >= 2
-  && String.endsWith ~suffix:"\"" s
-  && String.startsWith ~prefix:"\"" s
-
-
 let stripQuotes (s : string) : string =
   s |> String.dropLeft ~count:1 |> String.dropRight ~count:1
 
