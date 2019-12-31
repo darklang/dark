@@ -289,11 +289,6 @@ let dbUseCount (m : model) (name : string) : int =
 
 
 let updateUsageCounts (m : model) : model =
-  let tldata = m |> TL.all |> TD.mapValues ~f:TL.allData in
-  let fndata =
-    m.userFunctions |> TD.mapValues ~f:(fun fn -> AST.allData fn.ufAST)
-  in
-  let all = List.concat (fndata @ tldata) in
   let countFromList names =
     List.foldl names ~init:StrDict.empty ~f:(fun name dict ->
         StrDict.update dict ~key:name ~f:(function
@@ -302,20 +297,24 @@ let updateUsageCounts (m : model) : model =
             | None ->
                 Some 1))
   in
+  let asts =
+    m |> TL.all |> TD.mapValues ~f:TL.getAST |> List.filterMap ~f:identity
+  in
+  (* Pretend it's one big AST *)
+  let bigAst = EList (gid (), asts) in
   let usedFns =
-    all
-    |> List.filterMap ~f:(function
-           | PExpr (EFnCall (_, name, _, _)) | PExpr (EBinOp (_, name, _, _, _))
-             ->
+    bigAst
+    |> E.filterMap ~f:(function
+           | EFnCall (_, name, _, _) | EBinOp (_, name, _, _, _) ->
                Some name
            | _ ->
                None)
     |> countFromList
   in
   let usedDBs =
-    all
-    |> List.filterMap ~f:(function
-           | PExpr (EVariable (_, name)) when String.isCapitalized name ->
+    bigAst
+    |> E.filterMap ~f:(function
+           | EVariable (_, name) when String.isCapitalized name ->
                Some name
            | _ ->
                None)
