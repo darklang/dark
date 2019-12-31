@@ -32,7 +32,7 @@ let exprToClipboardContents (ast : ast) : clipboardContents =
   | EString (_, str) ->
       `Text str
   | _ ->
-      `Json (Encoders.blankOrData (PExpr ast))
+      `Json (Encoders.fluidExpr ast)
 
 
 let jsonToExpr (jsonStr : string) : E.t =
@@ -89,13 +89,8 @@ let clipboardContentsToExpr (data : clipboardContents) : E.t option =
   match data with
   | `Json json ->
     ( try
-        let data = Decoders.blankOrData json in
-        match data with
-        | PExpr expr ->
-            Some (E.clone expr)
-        | _ ->
-            (* We could support more but don't yet *)
-            recover "not a pexpr" ~debug:data None
+        let expr = Decoders.fluidExpr json in
+        Some (E.clone expr)
       with _ -> recover "could not decode" ~debug:json None )
   | `Text text ->
       Some (jsonToExpr text)
