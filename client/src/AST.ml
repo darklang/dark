@@ -11,55 +11,6 @@ module P = Pointer
 (* PointerData *)
 (* -------------------------------- *)
 
-let rec allData (expr : E.t) : blankOrData list =
-  let e2ld e = PExpr e in
-  let rl exprs = exprs |> List.map ~f:allData |> List.concat in
-  [e2ld expr]
-  @
-  match expr with
-  | EVariable _
-  | EFloat _
-  | ENull _
-  | EInteger _
-  | EString _
-  | EBool _
-  | EBlank _
-  | EPipeTarget _ ->
-      []
-  | ELet (_, _, rhs, body) ->
-      rl [rhs; body]
-  | EIf (_, cond, ifbody, elsebody) ->
-      rl [cond; ifbody; elsebody]
-  | EFnCall (_, _, exprs, _) ->
-      rl exprs
-  | EBinOp (_, _, lhs, rhs, _) ->
-      rl [lhs; rhs]
-  | EConstructor (_, _, exprs) ->
-      rl exprs
-  | ELambda (_, _, body) ->
-      allData body
-  | EPipe (_, exprs) ->
-      rl exprs
-  | EFieldAccess (_, obj, _) ->
-      allData obj
-  | EList (_, exprs) ->
-      rl exprs
-  | ERecord (_, pairs) ->
-      pairs |> List.map ~f:(fun (_, v) -> allData v) |> List.concat
-  | EFeatureFlag (_, _, cond, a, b) ->
-      rl [cond; a; b]
-  | EMatch (_, matchExpr, cases) ->
-      let matchData = allData matchExpr in
-      let caseData =
-        cases |> List.map ~f:(fun (_, e) -> rl [e]) |> List.concat
-      in
-      matchData @ caseData
-  | EPartial (_, _, oldExpr) ->
-      allData oldExpr
-  | ERightPartial (_, _, oldExpr) ->
-      allData oldExpr
-
-
 let isDefinitionOf (var : string) (expr : E.t) : bool =
   match expr with
   | ELet (_, lhs, _, _) ->
@@ -317,34 +268,28 @@ let freeVariables (ast : E.t) : (id * string) list =
    * these IDs so we can filter them out later. *)
   let definedAndUsed =
     ast
-    |> allData
-    |> List.filterMap ~f:(fun n ->
-           match n with
-           | PExpr e ->
-             ( match e with
-             (* Grab all uses of the `lhs` of a Let in its body *)
-             | ELet (_, lhs, _, body) ->
-                 Some (uses lhs body)
-             (* Grab all uses of the `vars` of a Lambda in its body *)
-             | ELambda (_, vars, body) ->
-                 vars
-                 |> List.map ~f:Tuple2.second
-                 |> List.filter ~f:(( <> ) "")
-                 |> List.map ~f:(fun v -> uses v body)
-                 |> List.concat
-                 |> fun x -> Some x
-             | EMatch (_, _, cases) ->
-                 cases
-                 (* Grab all uses of the variable bindings in a `pattern`
-                  * in the `body` of each match case *)
-                 |> List.map ~f:(fun (pattern, body) ->
-                        let vars = FluidPattern.variableNames pattern in
-                        List.map ~f:(fun v -> uses v body) vars)
-                 |> List.concat
-                 |> List.concat
-                 |> fun x -> Some x
-             | _ ->
-                 None )
+    |> E.filterMap ~f:(function
+           (* Grab all uses of the `lhs` of a Let in its body *)
+           | ELet (_, lhs, _, body) ->
+               Some (uses lhs body)
+           (* Grab all uses of the `vars` of a Lambda in its body *)
+           | ELambda (_, vars, body) ->
+               vars
+               |> List.map ~f:Tuple2.second
+               |> List.filter ~f:(( <> ) "")
+               |> List.map ~f:(fun v -> uses v body)
+               |> List.concat
+               |> fun x -> Some x
+           | EMatch (_, _, cases) ->
+               cases
+               (* Grab all uses of the variable bindings in a `pattern`
+                * in the `body` of each match case *)
+               |> List.map ~f:(fun (pattern, body) ->
+                      let vars = FluidPattern.variableNames pattern in
+                      List.map ~f:(fun v -> uses v body) vars)
+               |> List.concat
+               |> List.concat
+               |> fun x -> Some x
            | _ ->
                None)
     |> List.concat
@@ -352,19 +297,13 @@ let freeVariables (ast : E.t) : (id * string) list =
     |> StrSet.fromList
   in
   ast
-  |> allData
-  |> List.filterMap ~f:(fun n ->
-         match n with
-         | PExpr e ->
-           ( match e with
-           | EVariable (id, name) ->
-               (* Don't include EVariable lookups that we know are looking
-                * up a variable bound in this expression *)
-               if StrSet.member ~value:(deID id) definedAndUsed
-               then None
-               else Some (id, name)
-           | _ ->
-               None )
+  |> E.filterMap ~f:(function
+         | EVariable (id, name) ->
+             (* Don't include EVariable lookups that we know are looking
+              * up a variable bound in this expression *)
+             if StrSet.member ~value:(deID id) definedAndUsed
+             then None
+             else Some (id, name)
          | _ ->
              None)
   |> List.uniqueBy ~f:(fun (_, name) -> name)
