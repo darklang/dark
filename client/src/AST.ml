@@ -128,8 +128,7 @@ let rec uses (var : string) (expr : E.t) : E.t list =
 (* ------------------------- *)
 (* Children *)
 (* ------------------------- *)
-let children (expr : E.t) : blankOrData list =
-  let ces exprs = List.map ~f:(fun e -> PExpr e) exprs in
+let children (expr : E.t) : E.t list =
   match expr with
   | EInteger _
   | EString _
@@ -142,86 +141,34 @@ let children (expr : E.t) : blankOrData list =
   | EVariable _ ->
       []
   | EIf (_, cond, ifbody, elsebody) ->
-      [PExpr cond; PExpr ifbody; PExpr elsebody]
+      [cond; ifbody; elsebody]
   | EFnCall (_, _, exprs, _) ->
-      ces exprs
+      exprs
   | EBinOp (_, _, lhs, rhs, _) ->
-      ces [lhs; rhs]
+      [lhs; rhs]
   | EConstructor (_, _, exprs) ->
-      ces exprs
+      exprs
   | ELambda (_, _, lexpr) ->
-      [PExpr lexpr]
+      [lexpr]
   | EPipe (_, exprs) ->
-      ces exprs
+      exprs
   | EFieldAccess (_, obj, _) ->
-      [PExpr obj]
+      [obj]
   | ELet (_, _, rhs, body) ->
-      [PExpr rhs; PExpr body]
+      [rhs; body]
   | ERecord (_, pairs) ->
-      pairs |> List.map ~f:(fun (_, v) -> [PExpr v]) |> List.concat
+      pairs |> List.map ~f:Tuple2.second
   | EList (_, elems) ->
-      ces elems
+      elems
   | EFeatureFlag (_, _, cond, a, b) ->
-      [PExpr cond; PExpr a; PExpr b]
+      [cond; a; b]
   | EMatch (_, matchExpr, cases) ->
-      let casePointers =
-        cases |> List.map ~f:(fun (_, e) -> [PExpr e]) |> List.concat
-      in
-      PExpr matchExpr :: casePointers
+      let casePointers = cases |> List.map ~f:Tuple2.second in
+      matchExpr :: casePointers
   | EPartial (_, _, oldExpr) ->
-      [PExpr oldExpr]
+      [oldExpr]
   | ERightPartial (_, _, oldExpr) ->
-      [PExpr oldExpr]
-
-
-(* Look through an AST for the expr with the id, then return its children. *)
-let rec childrenOf (pid : id) (expr : E.t) : blankOrData list =
-  let co = childrenOf pid in
-  if pid = E.id expr
-  then children expr
-  else
-    match expr with
-    | EInteger _
-    | EString _
-    | EBool _
-    | EFloat _
-    | ENull _
-    | EBlank _
-    | EPipeTarget _ ->
-        []
-    | EVariable _ ->
-        []
-    | ELet (_, _, rhs, body) ->
-        co body @ co rhs
-    | EIf (_, cond, ifbody, elsebody) ->
-        co cond @ co ifbody @ co elsebody
-    | EFnCall (_, _, exprs, _) ->
-        List.map ~f:co exprs |> List.concat
-    | EBinOp (_, _, lhs, rhs, _) ->
-        co lhs @ co rhs
-    | EConstructor (_, _, exprs) ->
-        List.map ~f:co exprs |> List.concat
-    | ELambda (_, _, lexpr) ->
-        co lexpr
-    | EPipe (_, exprs) ->
-        List.map ~f:co exprs |> List.concat
-    | EFieldAccess (_, obj, _) ->
-        co obj
-    | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple2.second |> List.map ~f:co |> List.concat
-    | EList (_, pairs) ->
-        pairs |> List.map ~f:co |> List.concat
-    | EFeatureFlag (_, _, cond, a, b) ->
-        co cond @ co a @ co b
-    | EMatch (_, matchExpr, cases) ->
-        let cCases =
-          cases |> List.map ~f:Tuple2.second |> List.map ~f:co |> List.concat
-        in
-        co matchExpr @ cCases
-    | EPartial (_, _, oldExpr) ->
-        co oldExpr
-    | ERightPartial (_, _, oldExpr) ->
-        co oldExpr
+      [oldExpr]
 
 
 (* ------------------------- *)
@@ -233,7 +180,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
   let fpowList xs =
     xs |> List.map ~f:fpow |> List.filterMap ~f:identity |> List.head
   in
-  if List.member ~value:eid (haystack |> children |> List.map ~f:P.toID)
+  if List.member ~value:eid (haystack |> children |> List.map ~f:E.id)
   then Some haystack
   else
     match haystack with
