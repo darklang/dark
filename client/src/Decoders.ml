@@ -245,6 +245,8 @@ and nExpr j : OldExpr.nExpr =
     j
 
 
+let fluidExpr (j : Js.Json.t) : fluidExpr = expr j |> OldExpr.toFluidExpr
+
 let blankOrData j : blankOrData =
   let dv1 = variant1 in
   variants
@@ -259,7 +261,7 @@ let blankOrData j : blankOrData =
     ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
     ; ("PTypeFieldName", dv1 (fun x -> PTypeFieldName x) (blankOr string))
     ; ("PTypeFieldTipe", dv1 (fun x -> PTypeFieldTipe x) (blankOr tipe))
-    ; ("PExpr", dv1 (fun x -> PExpr (OldExpr.toFluidExpr x)) expr) ]
+    ; ("PExpr", dv1 (fun x -> PExpr x) fluidExpr) ]
     j
 
 
@@ -434,7 +436,7 @@ let handlerSpec j : handlerSpec =
 
 
 let handler pos j : handler =
-  { ast = field "ast" expr j |> OldExpr.toFluidExpr
+  { ast = field "ast" fluidExpr j
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
   ; pos }
@@ -463,8 +465,8 @@ let dbMigration j : dbMigration =
   ; version = field "version" int j
   ; state = field "state" dbMigrationState j
   ; cols = field "cols" dbColList j
-  ; rollforward = field "rollforward" expr j |> OldExpr.toFluidExpr
-  ; rollback = field "rollback" expr j |> OldExpr.toFluidExpr }
+  ; rollforward = field "rollforward" fluidExpr j
+  ; rollback = field "rollback" fluidExpr j }
 
 
 let db pos j : db =
