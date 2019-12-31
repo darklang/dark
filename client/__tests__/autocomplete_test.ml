@@ -158,8 +158,8 @@ let creatingOmni : model =
 
 
 (* AC targeting a tlid and pointer *)
-let acFor ?(target = Some (defaultTLID, PExpr defaultFluidExpr)) (m : model) :
-    autocomplete =
+let acFor ?(target = Some (defaultTLID, PDBColType defaultBlankOr)) (m : model)
+    : autocomplete =
   match m.cursorState with
   | Entering (Creating _) ->
       init m |> setTarget m None
@@ -361,8 +361,7 @@ let run () =
               expect
                 ( acFor m
                 |> setQuery m "Pass"
-                |> itemPresent (ACDBColType "Password")
-                |> not )
+                |> itemPresent (ACDBColType "Password") )
               |> toEqual true) ;
           ()) ;
       describe "omnibox completion" (fun () ->
