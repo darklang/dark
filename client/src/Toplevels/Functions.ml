@@ -77,8 +77,8 @@ let allParamData (uf : userFunction) : blankOrData list =
   List.concat (List.map ~f:paramData uf.ufMetadata.ufmParameters)
 
 
-let allData (uf : userFunction) : blankOrData list =
-  [PFnName uf.ufMetadata.ufmName] @ allParamData uf @ AST.allData uf.ufAST
+let blankOrData (uf : userFunction) : blankOrData list =
+  [PFnName uf.ufMetadata.ufmName] @ allParamData uf
 
 
 let replaceFnName

@@ -8,7 +8,7 @@ module B = Blank
 module P = Pointer
 module TD = TLIDDict
 
-let allData (t : userTipe) : blankOrData list =
+let blankOrData (t : userTipe) : blankOrData list =
   let namePointer = PTypeName t.utName in
   let definitionPointers =
     match t.utDefinition with
