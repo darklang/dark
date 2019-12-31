@@ -160,22 +160,8 @@ let rec dval (dv : Types.dval) : Js.Json.t =
 let rec blankOrData (pd : Types.blankOrData) : Js.Json.t =
   let ev = variant in
   match pd with
-  | PVarBind (id', name) ->
-      ev "PVarBind" [id id'; string name]
   | PExpr e ->
       ev "PExpr" [expr (OldExpr.fromFluidExpr e)]
-  | PField (id', name) ->
-      ev "PField" [id id'; string name]
-  | PKey (id', name) ->
-      ev "PKey" [id id'; string name]
-  | PFFMsg (id', name) ->
-      ev "PFFMsg" [id id'; string name]
-  | PPattern p ->
-      ev "PPattern" [pattern (OldExpr.fromFluidPattern p)]
-  | PConstructorName (id', name) ->
-      ev "PConstructorName" [id id'; string name]
-  | PFnCallName (id', name) ->
-      ev "PFnCallName" [id id'; string name]
   | PEventName name ->
       ev "PEventName" [blankOr string name]
   | PEventModifier modifier ->

@@ -30,36 +30,32 @@ let rec allData (expr : E.t) : blankOrData list =
   | EBlank _
   | EPipeTarget _ ->
       []
-  | ELet (id, lhs, rhs, body) ->
-      [PVarBind (id, lhs)] @ rl [rhs; body]
+  | ELet (_, _, rhs, body) ->
+      rl [rhs; body]
   | EIf (_, cond, ifbody, elsebody) ->
       rl [cond; ifbody; elsebody]
-  | EFnCall (id, name, exprs, _) ->
-      [PFnCallName (id, name)] @ rl exprs
-  | EBinOp (id, name, lhs, rhs, _) ->
-      [PFnCallName (id, name)] @ rl [lhs; rhs]
-  | EConstructor (id, name, exprs) ->
-      PConstructorName (id, name) :: rl exprs
-  | ELambda (_, vars, body) ->
-      List.map ~f:(fun (id, name) -> PVarBind (id, name)) vars @ allData body
+  | EFnCall (_, _, exprs, _) ->
+      rl exprs
+  | EBinOp (_, _, lhs, rhs, _) ->
+      rl [lhs; rhs]
+  | EConstructor (_, _, exprs) ->
+      rl exprs
+  | ELambda (_, _, body) ->
+      allData body
   | EPipe (_, exprs) ->
       rl exprs
-  | EFieldAccess (id, obj, field) ->
-      allData obj @ [PField (id, field)]
+  | EFieldAccess (_, obj, _) ->
+      allData obj
   | EList (_, exprs) ->
       rl exprs
   | ERecord (_, pairs) ->
-      pairs
-      |> List.map ~f:(fun (k, v) -> PKey (E.id v, k) :: allData v)
-      |> List.concat
-  | EFeatureFlag (id, msg, cond, a, b) ->
-      [PFFMsg (id, msg)] @ rl [cond; a; b]
+      pairs |> List.map ~f:(fun (_, v) -> allData v) |> List.concat
+  | EFeatureFlag (_, _, cond, a, b) ->
+      rl [cond; a; b]
   | EMatch (_, matchExpr, cases) ->
       let matchData = allData matchExpr in
       let caseData =
-        cases
-        |> List.map ~f:(fun (p, e) -> Pattern.allData p @ rl [e])
-        |> List.concat
+        cases |> List.map ~f:(fun (_, e) -> rl [e]) |> List.concat
       in
       matchData @ caseData
   | EPartial (_, _, oldExpr) ->
@@ -168,34 +164,25 @@ let children (expr : E.t) : blankOrData list =
       ces exprs
   | EBinOp (_, _, lhs, rhs, _) ->
       ces [lhs; rhs]
-  | EConstructor (id, name, exprs) ->
-      PConstructorName (id, name) :: ces exprs
-  | ELambda (_, vars, lexpr) ->
-      List.map ~f:(fun (id, vb) -> PVarBind (id, vb)) vars @ [PExpr lexpr]
+  | EConstructor (_, _, exprs) ->
+      ces exprs
+  | ELambda (_, _, lexpr) ->
+      [PExpr lexpr]
   | EPipe (_, exprs) ->
       ces exprs
-  | EFieldAccess (id, obj, field) ->
-      [PExpr obj; PField (id, field)]
-  | ELet (id, lhs, rhs, body) ->
-      [PVarBind (id, lhs); PExpr rhs; PExpr body]
+  | EFieldAccess (_, obj, _) ->
+      [PExpr obj]
+  | ELet (_, _, rhs, body) ->
+      [PExpr rhs; PExpr body]
   | ERecord (_, pairs) ->
-      pairs
-      |> List.map ~f:(fun (k, v) -> [PKey (E.id v, k); PExpr v])
-      |> List.concat
+      pairs |> List.map ~f:(fun (_, v) -> [PExpr v]) |> List.concat
   | EList (_, elems) ->
       ces elems
-  | EFeatureFlag (id, msg, cond, a, b) ->
-      [PFFMsg (id, msg); PExpr cond; PExpr a; PExpr b]
+  | EFeatureFlag (_, _, cond, a, b) ->
+      [PExpr cond; PExpr a; PExpr b]
   | EMatch (_, matchExpr, cases) ->
-      (* We list all the descendents of the pattern here. This isn't ideal,
-       * but it's challenging with the current setup to do otherwise, because
-       * all of these things take exprs *)
       let casePointers =
-        cases
-        |> List.map ~f:(fun (p, e) ->
-               let ps = Pattern.allData p in
-               ps @ [PExpr e])
-        |> List.concat
+        cases |> List.map ~f:(fun (_, e) -> [PExpr e]) |> List.concat
       in
       PExpr matchExpr :: casePointers
   | EPartial (_, _, oldExpr) ->

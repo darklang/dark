@@ -277,12 +277,6 @@ let getChildrenOf (tl : toplevel) (pd : blankOrData) : blankOrData list =
         []
   in
   match pd with
-  | PVarBind _ ->
-      []
-  | PField _ ->
-      []
-  | PKey _ ->
-      []
   | PExpr _ ->
       astChildren ()
   | PEventModifier _ ->
@@ -297,19 +291,11 @@ let getChildrenOf (tl : toplevel) (pd : blankOrData) : blankOrData list =
       []
   | PDBColType _ ->
       []
-  | PFFMsg _ ->
-      []
   | PFnName _ ->
-      []
-  | PFnCallName _ ->
       []
   | PParamName _ ->
       []
   | PParamTipe _ ->
-      []
-  | PPattern _ ->
-      []
-  | PConstructorName _ ->
       []
   | PTypeName _ ->
       []
@@ -391,14 +377,7 @@ let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     toplevel =
   let id = P.toID p in
   match replacement with
-  | PFFMsg _
-  | PVarBind _
-  | PField _
-  | PKey _
-  | PExpr _
-  | PPattern _
-  | PFnCallName _
-  | PConstructorName _ ->
+  | PExpr _ ->
       recover "can't change ASTs with replace anymore" tl
   | PEventName bo | PEventModifier bo | PEventSpace bo ->
     ( match asHandler tl with

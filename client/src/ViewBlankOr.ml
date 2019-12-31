@@ -185,14 +185,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
       "field type"
   | GroupName ->
       "group name"
-  | FFMsg
-  | Pattern
-  | ConstructorName
-  | FnCallName
-  | VarBind
-  | Expr
-  | Field
-  | Key ->
+  | Expr ->
       ""
 
 
