@@ -11,10 +11,6 @@ module P = Pointer
 (* PointerData *)
 (* -------------------------------- *)
 
-let recoverPD (msg : string) (pd : blankOrData option) : blankOrData =
-  recoverOpt ("invalidPD: " ^ msg) pd ~default:(PExpr (E.newB ()))
-
-
 let rec allData (expr : E.t) : blankOrData list =
   let e2ld e = PExpr e in
   let rl exprs = exprs |> List.map ~f:allData |> List.concat in

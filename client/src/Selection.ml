@@ -179,10 +179,8 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
   | Some (TLDB db as tl) ->
       enterDB m db tl id
   | Some tl ->
-      let pd = TL.find tl id |> AST.recoverPD "enterWithOffset" in
-      if TL.getChildrenOf tl pd <> []
-      then NoChange
-      else
+    ( match TL.find tl id with
+    | Some pd ->
         let enterMod =
           match offset with
           | None ->
@@ -191,6 +189,8 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
               EnterWithOffset (Filling (tlid, id), offset)
         in
         Many [enterMod; AutocompleteMod (ACSetQuery (P.toContent pd))]
+    | None ->
+        recover "id not found in enterWithOffset" ~debug:(tlid, id) NoChange )
   | _ ->
       recover "Entering invalid tl" ~debug:(tlid, id) NoChange
 
