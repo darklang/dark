@@ -353,26 +353,6 @@ let setASTMod (tl : toplevel) (ast : fluidExpr) : modification =
       recover "no ast in Groups" ~debug:tl NoChange
 
 
-let firstChild (tl : toplevel) (id : blankOrData) : blankOrData option =
-  getChildrenOf tl id |> List.head
-
-
-let rootExpr (tl : toplevel) : fluidExpr option =
-  (* TODO SpecTypePointerDataRefactor *)
-  match tl with
-  | TLHandler h ->
-      Some h.ast
-  | TLFunc f ->
-      Some f.ufAST
-  | TLDB _ | TLTipe _ | TLGroup _ ->
-      None
-
-
-let rootOf (tl : toplevel) : blankOrData option =
-  (* TODO SpecTypePointerDataRefactor *)
-  rootExpr tl |> Option.map ~f:(fun expr -> PExpr expr)
-
-
 let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     toplevel =
   let id = P.toID p in
