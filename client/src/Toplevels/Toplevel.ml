@@ -11,8 +11,6 @@ type predecessor = blankOrData option
 
 type successor = blankOrData option
 
-type dbReference = tlid * dbColumn list
-
 (* ------------------------- *)
 (* Toplevel manipulation *)
 (* ------------------------- *)
