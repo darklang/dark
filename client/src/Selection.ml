@@ -209,31 +209,29 @@ let dblclick (m : model) (tlid : tlid) (id : id) (offset : int option) :
 (* ------------------------------- *)
 (* the name here is _awful_, but going to rip all of the glue
  * out soon so i pinky promise that it'll go away *)
+let fluidEnteringMod tlid =
+  Many
+    [ SetCursorState (FluidEntering tlid)
+    ; TweakModel (fun m -> {m with fluidState = {m.fluidState with newPos = 0}})
+    ]
+
+
 let maybeEnterFluid
     ~(nonFluidCursorMod : modification)
     (tlid : tlid)
     (oldPD : blankOrData option)
     (newPD : blankOrData option) : modification =
-  let fluidEnteringMod =
-    Many
-      [ SetCursorState (FluidEntering tlid)
-      ; TweakModel
-          (fun m -> {m with fluidState = {m.fluidState with newPos = 0}}) ]
-  in
-  let isSpecHeader pd =
-    match pd with
-    | Some (PEventName _) | Some (PEventSpace _) | Some (PEventModifier _) ->
-        true
-    | _ ->
-        false
-  in
-  match (isSpecHeader oldPD, isSpecHeader newPD) with
-  (* from spec header to fluid *)
-  | true, false ->
-      fluidEnteringMod
-  (* from fluid to specheader *)
-  | false, true ->
-      nonFluidCursorMod
+  match (oldPD, newPD) with
+  (* No specheader to go to *)
+  | _, None
+  (* Last specheader *)
+  | Some (PEventName _), _
+  (* Not going to the last specheader *)
+  | Some (PEventModifier _), Some (PEventSpace _) ->
+      fluidEnteringMod tlid
+  (* Don't loop *)
+  | o, n when o = n ->
+      fluidEnteringMod tlid
   | _ ->
       nonFluidCursorMod
 
