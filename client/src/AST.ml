@@ -60,19 +60,6 @@ let rec allData (expr : E.t) : blankOrData list =
       allData oldExpr
 
 
-(* Note the difference with FluidExpression.find - that returns only
- * expressions, this returns allDatas, and so can encode non-expression
- * information. *)
-let find (id : id) (expr : E.t) : blankOrData option =
-  expr
-  |> allData
-  |> List.filter ~f:(fun d -> id = Pointer.toID d)
-  |> assertFn "no data with ID found" ~debug:(expr, id) ~f:(fun list ->
-         List.length list > 0 || id = FluidToken.fakeid)
-  (* guard against dups *)
-  |> List.head
-
-
 let isDefinitionOf (var : string) (expr : E.t) : bool =
   match expr with
   | ELet (_, lhs, _, _) ->
