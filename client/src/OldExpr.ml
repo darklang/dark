@@ -68,7 +68,7 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
     | ObjectLiteral pairs ->
         ERecord (id, List.map pairs ~f:(fun (k, v) -> (varToName k, f v)))
     | FieldAccess (expr, field) ->
-        EFieldAccess (id, f expr, Blank.toID field, varToName field)
+        EFieldAccess (id, f expr, varToName field)
     | FnCall (name, args, ster) ->
         let args = List.map ~f args in
         (* add a pipetarget in the front *)
@@ -150,10 +150,10 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
         F (id, Value (FluidUtil.literalToString `Null))
     | EVariable (id, var) ->
         F (id, Variable var)
-    | EFieldAccess (id, obj, fieldID, "") ->
-        F (id, FieldAccess (fromFluidExpr obj, Blank fieldID))
-    | EFieldAccess (id, obj, fieldID, fieldname) ->
-        F (id, FieldAccess (fromFluidExpr obj, F (fieldID, fieldname)))
+    | EFieldAccess (id, obj, "") ->
+        F (id, FieldAccess (fromFluidExpr obj, Blank (gid ())))
+    | EFieldAccess (id, obj, fieldname) ->
+        F (id, FieldAccess (fromFluidExpr obj, F (gid (), fieldname)))
     | EFnCall (id, name, args, ster) ->
       ( match args with
       | EPipeTarget _ :: _ when not inPipe ->

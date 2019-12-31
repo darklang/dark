@@ -89,8 +89,7 @@ let field_access_closes (m : model) : testResult =
 
 let field_access_pipes (m : model) : testResult =
   match onlyExpr m with
-  | EPipe (_, [EFieldAccess (_, EVariable (_, "request"), _, "body"); EBlank _])
-    ->
+  | EPipe (_, [EFieldAccess (_, EVariable (_, "request"), "body"); EBlank _]) ->
       pass
   | expr ->
       fail ~f:show_fluidExpr expr

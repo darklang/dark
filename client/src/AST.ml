@@ -44,8 +44,8 @@ let rec allData (expr : E.t) : blankOrData list =
       List.map ~f:(fun (id, name) -> PVarBind (id, name)) vars @ allData body
   | EPipe (_, exprs) ->
       rl exprs
-  | EFieldAccess (_, obj, fieldid, field) ->
-      allData obj @ [PField (fieldid, field)]
+  | EFieldAccess (id, obj, field) ->
+      allData obj @ [PField (id, field)]
   | EList (_, exprs) ->
       rl exprs
   | ERecord (_, pairs) ->
@@ -129,7 +129,7 @@ let rec uses (var : string) (expr : E.t) : E.t list =
         u lexpr
     | EPipe (_, exprs) ->
         exprs |> List.map ~f:u |> List.concat
-    | EFieldAccess (_, obj, _, _) ->
+    | EFieldAccess (_, obj, _) ->
         u obj
     | EList (_, exprs) ->
         exprs |> List.map ~f:u |> List.concat
@@ -174,8 +174,8 @@ let children (expr : E.t) : blankOrData list =
       List.map ~f:(fun (id, vb) -> PVarBind (id, vb)) vars @ [PExpr lexpr]
   | EPipe (_, exprs) ->
       ces exprs
-  | EFieldAccess (_, obj, fieldid, field) ->
-      [PExpr obj; PField (fieldid, field)]
+  | EFieldAccess (id, obj, field) ->
+      [PExpr obj; PField (id, field)]
   | ELet (id, lhs, rhs, body) ->
       [PVarBind (id, lhs); PExpr rhs; PExpr body]
   | ERecord (_, pairs) ->
@@ -235,7 +235,7 @@ let rec childrenOf (pid : id) (expr : E.t) : blankOrData list =
         co lexpr
     | EPipe (_, exprs) ->
         List.map ~f:co exprs |> List.concat
-    | EFieldAccess (_, obj, _, _) ->
+    | EFieldAccess (_, obj, _) ->
         co obj
     | ERecord (_, pairs) ->
         pairs |> List.map ~f:Tuple2.second |> List.map ~f:co |> List.concat
@@ -291,7 +291,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
         fpow lexpr
     | EPipe (_, exprs) ->
         fpowList exprs
-    | EFieldAccess (_, obj, _, _) ->
+    | EFieldAccess (_, obj, _) ->
         fpow obj
     | EList (_, exprs) ->
         fpowList exprs
@@ -398,7 +398,7 @@ let ancestors (id : id) (expr : E.t) : E.t list =
           rec_ id exp walk lexpr
       | EPipe (_, exprs) ->
           reclist id exp walk exprs
-      | EFieldAccess (_, obj, _, _) ->
+      | EFieldAccess (_, obj, _) ->
           rec_ id exp walk obj
       | EList (_, exprs) ->
           reclist id expr walk exprs
@@ -416,19 +416,6 @@ let ancestors (id : id) (expr : E.t) : E.t list =
           rec_ id exp walk oldExpr
   in
   rec_ancestors id [] expr
-
-
-let getValueParent (p : blankOrData) (expr : E.t) : fluidExpr option =
-  let parent = findParentOfWithin_ (P.toID p) expr in
-  match (p, parent) with
-  | PExpr e, Some (EPipe (_, exprs)) ->
-      exprs |> Util.listPrevious ~value:e
-  | PField _, Some (EFieldAccess (_, obj, _, _)) ->
-      Some obj
-  | PPattern _, Some (EMatch (_, cond, _)) ->
-      Some cond
-  | _ ->
-      None
 
 
 let freeVariables (ast : E.t) : (id * string) list =
@@ -538,7 +525,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
         sexe new_st body
     | EPipe (_, exprs) ->
         List.iter ~f:(sexe st) exprs
-    | EFieldAccess (_, obj, _, _) ->
+    | EFieldAccess (_, obj, _) ->
         sexe st obj
     | EList (_, exprs) ->
         List.iter ~f:(sexe st) exprs

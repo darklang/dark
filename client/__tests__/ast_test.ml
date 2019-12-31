@@ -54,14 +54,6 @@ let run () =
           in
           expect (freeVariables (EMatch (id1, e, pats)))
           |> toEqual [(id4, "request")]) ;
-      test "parent of a field is the expr" (fun () ->
-          expect
-            (let obj = var "obj" in
-             let fieldID = gid () in
-             let expr = EFieldAccess (gid (), obj, fieldID, "field") in
-             let parent = findParentOfWithin fieldID expr in
-             if parent = expr then Pass else Fail (parent, expr))
-          |> toEqual Pass) ;
       test
         "variablesIn correctly identifies available vars in let RHS with incomplete LHS"
         (fun () ->

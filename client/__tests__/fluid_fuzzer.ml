@@ -280,7 +280,7 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
         childOr [cond; ifexpr; elseexpr]
     | EBinOp (_, _, lexpr, rexpr, _) ->
         childOr [lexpr; rexpr]
-    | EFieldAccess (_, expr, _, _) ->
+    | EFieldAccess (_, expr, _) ->
         childOr [expr]
     | EFnCall (_, _, exprs, _) ->
         childOr exprs
@@ -316,8 +316,8 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
     match expr with
     | ELet (id, name, rhs, next) ->
         ELet (id, fStr id name, rhs, next)
-    | EFieldAccess (id, expr, fieldID, fieldname) ->
-        EFieldAccess (id, expr, fieldID, fStr fieldID fieldname)
+    | EFieldAccess (id, expr, fieldname) ->
+        EFieldAccess (id, expr, fStr id fieldname)
     | ELambda (id, names, expr) ->
         let names =
           List.map names ~f:(fun (nid, name) ->
@@ -346,10 +346,8 @@ let rec remove (id : id) (expr : E.t) : E.t =
   else
     let newExpr =
       match expr with
-      | EFieldAccess (id, expr, fieldID, fieldname) ->
-          if id = fieldID
-          then expr
-          else EFieldAccess (id, r expr, fieldID, fieldname)
+      | EFieldAccess (faID, expr, fieldname) ->
+          if id = faID then expr else EFieldAccess (faID, r expr, fieldname)
       | EFnCall (id, name, exprs, ster) ->
           EFnCall (id, name, removeFromList exprs, ster)
       | ELambda (id, names, expr) ->

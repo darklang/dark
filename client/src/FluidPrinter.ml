@@ -324,15 +324,14 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       let newText = T.toText partial in
       let ghost = ghostPartial id newText oldName in
       b |> add partial |> addMany ghost |> addArgs oldName id exprs
-  | EFieldAccess (id, expr, fieldID, fieldname) ->
+  | EFieldAccess (id, expr, fieldname) ->
+      let lhsid = E.id expr in
       b
       |> addNested ~f:(fromExpr expr)
-      |> addMany
-           [ TFieldOp (id, (* lhs *) E.id expr)
-           ; TFieldName (id, fieldID, fieldname) ]
-  | EPartial (id, newFieldname, EFieldAccess (faID, expr, fieldID, oldFieldname))
-    ->
-      let partial = TFieldPartial (id, faID, fieldID, newFieldname) in
+      |> addMany [TFieldOp (id, lhsid); TFieldName (id, lhsid, fieldname)]
+  | EPartial (id, newFieldname, EFieldAccess (faID, expr, oldFieldname)) ->
+      let lhsid = E.id expr in
+      let partial = TFieldPartial (id, faID, lhsid, newFieldname) in
       let newText = T.toText partial in
       let ghost = ghostPartial id newText oldFieldname in
       b

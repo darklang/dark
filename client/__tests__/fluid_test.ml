@@ -1367,8 +1367,8 @@ let run () =
         (EPartial
            ( gid ()
            , "body"
-           , EFieldAccess
-               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "") ))
+           , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
+           ))
         (ins ~clone:false '.' 11)
         "request.body.~***" ;
       tp
@@ -2970,8 +2970,8 @@ let run () =
         (EPartial
            ( gid ()
            , "bo"
-           , EFieldAccess
-               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "") ))
+           , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
+           ))
         (key ~clone:false K.ShiftEnter 10)
         "request.body\n|>~___\n" ;
       t
@@ -2993,8 +2993,8 @@ let run () =
         (EPartial
            ( gid ()
            , "bo"
-           , EFieldAccess
-               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "") ))
+           , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
+           ))
         (enter ~clone:false 10)
         "request.body~" ;
       t
@@ -3018,7 +3018,6 @@ let run () =
                , EFieldAccess
                    ( gid ()
                    , EVariable (ID "fake-acdata1", "request")
-                   , gid ()
                    , "longfield" ) )
            , EBlank (gid ()) ))
         (* Right should make it commit *)
@@ -3030,10 +3029,8 @@ let run () =
            ( gid ()
            , "bod"
            , EFieldAccess
-               ( gid ()
-               , EVariable (ID "fake-acdata1", "request")
-               , gid ()
-               , "longfield" ) ))
+               (gid (), EVariable (ID "fake-acdata1", "request"), "longfield")
+           ))
         (* Dot should select the autocomplete *)
         (key ~clone:false K.Period 11)
         "request.body.~***" ;
@@ -3053,10 +3050,7 @@ let run () =
                    ( gid ()
                    , "bo"
                    , EFieldAccess
-                       ( gid ()
-                       , EVariable (ID "fake-acdata3", "request")
-                       , gid ()
-                       , "" ) )
+                       (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
         (space ~clone:false 105)
         "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body\n~foo" ;
@@ -3073,10 +3067,7 @@ let run () =
                    ( gid ()
                    , "bo"
                    , EFieldAccess
-                       ( gid ()
-                       , EVariable (ID "fake-acdata3", "request")
-                       , gid ()
-                       , "" ) )
+                       (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
         (tab ~clone:false 77)
         "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;

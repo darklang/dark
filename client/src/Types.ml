@@ -248,8 +248,7 @@ and fluidExpr =
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
   (* the id in the varname list is the analysis ID *)
   | ELambda of id * (id * fluidName) list * fluidExpr
-  (* The 2nd ID is extra for the fieldname blank *)
-  | EFieldAccess of id * fluidExpr * id * fluidName
+  | EFieldAccess of id * fluidExpr * fluidName
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
   | EPartial of id * string * fluidExpr
@@ -1378,9 +1377,12 @@ and fluidToken =
   | TIfElseKeyword of id
   | TBinOp of id * string
   | TFieldOp of (* fieldAccess *) id * (* lhs *) id
-  | TFieldName of id * analysisId * string
+  | TFieldName of id (* fieldAccess *) * id (* lhs *) * string
   | TFieldPartial of
-      (* Partial ID, fieldAccess ID, fieldID, name *) id * id * id * string
+      (* Partial ID, fieldAccess ID, analysisID (lhs), name *) id
+      * id
+      * id
+      * string
   | TVariable of id * string
   (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
   | TFnName of id * string * string * string * sendToRail
