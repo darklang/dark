@@ -3,26 +3,6 @@ open! Tc
 open Runtime
 
 let run () =
-  describe "convertLiteralStringToDisplay" (fun () ->
-      let t name subject expected =
-        test name (fun () ->
-            expect (convertLiteralToDisplayString subject) |> toEqual expected)
-      in
-      t "newline" "\n" "\\n" ;
-      t "newline2" "asd\nqwe" "asd\\nqwe" ;
-      t "carriage return" "\r" "\\r" ;
-      t "carriage return2" "asd\rqwe" "asd\\rqwe" ;
-      t "tab" "\t" "\\t" ;
-      t "tab2" "asd\tqwe" "asd\\tqwe" ;
-      t "escaped backslash" "\\" "\\\\" ;
-      t "escaped backslash2" "asd\\qwe" "asd\\\\qwe" ;
-      t "escaped quote" "\"" "\\\"" ;
-      t "escaped quote2" "asd\"qwe" "asd\\\"qwe" ;
-      t
-        "many"
-        "asd\n\t\r\n\t\r\n\t\r\"\"\"qwe"
-        "asd\\n\\t\\r\\n\\t\\r\\n\\t\\r\\\"\\\"\\\"qwe" ;
-      ()) ;
   describe "pathFromInputVars" (fun () ->
       let noRequest = StrDict.empty in
       let noURL = StrDict.fromList [("request", Types.DObj StrDict.empty)] in

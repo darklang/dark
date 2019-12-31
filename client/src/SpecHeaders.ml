@@ -57,13 +57,13 @@ let replace (search : id) (replacement : string blankOr) (hs : handlerSpec) :
   |> replaceEventSpace search replacement
 
 
-let allData (spec : handlerSpec) : blankOrData list =
+let blankOrData (spec : handlerSpec) : blankOrData list =
   [PEventSpace spec.space; PEventModifier spec.modifier; PEventName spec.name]
 
 
 let firstBlank (spec : handlerSpec) : Types.id option =
   spec
-  |> allData
+  |> blankOrData
   |> List.filter ~f:Pointer.isBlank
   |> List.head
   |> Option.map ~f:Pointer.toID
@@ -71,7 +71,7 @@ let firstBlank (spec : handlerSpec) : Types.id option =
 
 let lastBlank (spec : handlerSpec) : Types.id option =
   spec
-  |> allData
+  |> blankOrData
   |> List.filter ~f:Pointer.isBlank
   |> List.reverse
   |> List.head

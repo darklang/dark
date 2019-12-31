@@ -401,17 +401,17 @@ let rec remove (id : id) (expr : E.t) : E.t =
 
 let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
-    let pointers =
+    let ids =
       ast
-      |> AST.allData
-      |> List.uniqueBy ~f:(Pointer.toID >> Prelude.deID)
+      |> FluidPrinter.toTokens
+      |> List.map ~f:(fun ti -> T.tid ti.token)
+      |> List.uniqueBy ~f:Prelude.deID
       |> List.indexedMap ~f:(fun i v -> (i, v))
     in
-    let length = List.length pointers in
+    let length = List.length ids in
     let latestAST = ref ast in
-    List.iter pointers ~f:(fun (idx, pointer) ->
+    List.iter ids ~f:(fun (idx, id) ->
         ( try
-            let id = Pointer.toID pointer in
             Js.log2 msg (idx, length, id) ;
             let reducedAST = reducer id !latestAST in
             if !latestAST = reducedAST

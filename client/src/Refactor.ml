@@ -289,11 +289,6 @@ let dbUseCount (m : model) (name : string) : int =
 
 
 let updateUsageCounts (m : model) : model =
-  let tldata = m |> TL.all |> TD.mapValues ~f:TL.allData in
-  let fndata =
-    m.userFunctions |> TD.mapValues ~f:(fun fn -> AST.allData fn.ufAST)
-  in
-  let all = List.concat (fndata @ tldata) in
   let countFromList names =
     List.foldl names ~init:StrDict.empty ~f:(fun name dict ->
         StrDict.update dict ~key:name ~f:(function
@@ -302,19 +297,24 @@ let updateUsageCounts (m : model) : model =
             | None ->
                 Some 1))
   in
+  let asts =
+    m |> TL.all |> TD.mapValues ~f:TL.getAST |> List.filterMap ~f:identity
+  in
+  (* Pretend it's one big AST *)
+  let bigAst = EList (gid (), asts) in
   let usedFns =
-    all
-    |> List.filterMap ~f:(function
-           | PFnCallName (_, name) ->
+    bigAst
+    |> E.filterMap ~f:(function
+           | EFnCall (_, name, _, _) | EBinOp (_, name, _, _, _) ->
                Some name
            | _ ->
                None)
     |> countFromList
   in
   let usedDBs =
-    all
-    |> List.filterMap ~f:(function
-           | PExpr (EVariable (_, name)) when String.isCapitalized name ->
+    bigAst
+    |> E.filterMap ~f:(function
+           | EVariable (_, name) when String.isCapitalized name ->
                Some name
            | _ ->
                None)
@@ -398,39 +398,6 @@ let generateEmptyUserType () : userTipe =
   ; utName = F (gid (), tipeName)
   ; utVersion = 0
   ; utDefinition = definition }
-
-
-let coerceTypes (v : dval) : tipe =
-  let isUuid (dstr : dval) : bool =
-    match dstr with
-    | DStr s ->
-        Util.Regex.exactly
-          ~re:
-            "[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}"
-          s
-    | _ ->
-        false
-  in
-  let isDate (dstr : dval) : bool =
-    match dstr with
-    | DStr s ->
-        let parsedDate = Js.Date.fromString s in
-        ( try
-            (* toISOString will raise Invalid Date if date
-                          * is invalid; bucklescript doesn't expose this
-                          * to us otherwise *)
-            ignore (Js.Date.toISOString parsedDate) ;
-            true
-          with _ -> false )
-    | _ ->
-        false
-  in
-  let tipe = v |> Runtime.typeOf in
-  match tipe with
-  | TStr ->
-      if isUuid v then TUuid else if isDate v then TDate else TStr
-  | _ ->
-      tipe
 
 
 let generateUserType (dv : dval option) : (string, userTipe) Result.t =

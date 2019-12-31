@@ -79,10 +79,11 @@ let enter_changes_state (m : model) : testResult =
 let field_access_closes (m : model) : testResult =
   match m.cursorState with
   | FluidEntering _ ->
-      let ast = onlyTL m |> TL.getAST |> deOption "test" in
-      if AST.allData ast |> List.filter ~f:P.isBlank = []
-      then pass
-      else fail ~f:(show_list ~f:show_blankOrData) (TL.allBlanks (onlyTL m))
+    ( match onlyExpr m with
+    | EFieldAccess (_, EVariable (_, "request"), "body") ->
+        pass
+    | expr ->
+        fail ~f:E.show expr )
   | _ ->
       fail ~f:show_cursorState m.cursorState
 

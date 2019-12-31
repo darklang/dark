@@ -7,12 +7,6 @@ module B = Blank
 module P = Pointer
 module TD = TLIDDict
 
-type predecessor = blankOrData option
-
-type successor = blankOrData option
-
-type dbReference = tlid * dbColumn list
-
 (* ------------------------- *)
 (* Toplevel manipulation *)
 (* ------------------------- *)
@@ -199,127 +193,27 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
 (* ------------------------- *)
 (* Generic *)
 (* ------------------------- *)
-let allData (tl : toplevel) : blankOrData list =
+let blankOrData (tl : toplevel) : blankOrData list =
   match tl with
   | TLHandler h ->
-      SpecHeaders.allData h.spec @ AST.allData h.ast
+      SpecHeaders.blankOrData h.spec
   | TLDB db ->
-      DB.allData db
+      DB.blankOrData db
   | TLFunc f ->
-      Functions.allData f
+      Functions.blankOrData f
   | TLTipe t ->
-      UserTypes.allData t
+      UserTypes.blankOrData t
   | TLGroup g ->
-      Groups.allData g
+      Groups.blankOrData g
 
 
-let isValidID (tl : toplevel) (id : id) : bool =
-  List.member ~value:id (tl |> allData |> List.map ~f:P.toID)
-
-
-(* ------------------------- *)
-(* Blanks *)
-(* ------------------------- *)
-let allBlanks (tl : toplevel) : blankOrData list =
-  tl |> allData |> List.filter ~f:P.isBlank
-
-
-let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
-
-let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
-
-let getNextBlank (tl : toplevel) (pred : predecessor) : successor =
-  match pred with
-  | Some pred_ ->
-      let ps = allData tl in
-      let index =
-        List.elemIndex ~value:pred_ ps |> Option.withDefault ~default:(-1)
-      in
-      let remaining = List.drop ~count:(index + 1) ps in
-      let blanks = List.filter ~f:P.isBlank remaining in
-      blanks |> List.head |> Option.orElse (firstBlank tl)
-  | None ->
-      firstBlank tl
-
-
-let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
-  match next with
-  | Some next_ ->
-      let ps = allData tl in
-      let index =
-        List.elemIndex ~value:next_ ps
-        |> Option.withDefault ~default:(List.length ps)
-      in
-      let remaining = List.take ~count:index ps in
-      let blanks = List.filter ~f:P.isBlank remaining in
-      blanks |> List.last |> Option.orElse (lastBlank tl)
-  | None ->
-      lastBlank tl
+let isValidBlankOrID (tl : toplevel) (id : id) : bool =
+  List.member ~value:id (tl |> blankOrData |> List.map ~f:P.toID)
 
 
 (* ------------------------- *)
-(* Up/Down the tree *)
+(* ASTs *)
 (* ------------------------- *)
-
-let getChildrenOf (tl : toplevel) (pd : blankOrData) : blankOrData list =
-  let pid = P.toID pd in
-  let astChildren () =
-    match tl with
-    | TLHandler h ->
-        AST.childrenOf pid h.ast
-    | TLFunc f ->
-        AST.childrenOf pid f.ufAST
-    | TLDB db ->
-        db |> DB.astsFor |> List.map ~f:(AST.childrenOf pid) |> List.concat
-    | TLGroup _ ->
-        []
-    | TLTipe _ ->
-        []
-  in
-  match pd with
-  | PVarBind _ ->
-      []
-  | PField _ ->
-      []
-  | PKey _ ->
-      []
-  | PExpr _ ->
-      astChildren ()
-  | PEventModifier _ ->
-      []
-  | PEventName _ ->
-      []
-  | PEventSpace _ ->
-      []
-  | PDBName _ ->
-      []
-  | PDBColName _ ->
-      []
-  | PDBColType _ ->
-      []
-  | PFFMsg _ ->
-      []
-  | PFnName _ ->
-      []
-  | PFnCallName _ ->
-      []
-  | PParamName _ ->
-      []
-  | PParamTipe _ ->
-      []
-  | PPattern _ ->
-      []
-  | PConstructorName _ ->
-      []
-  | PTypeName _ ->
-      []
-  | PTypeFieldName _ ->
-      []
-  | PTypeFieldTipe _ ->
-      []
-  | PGroupName _ ->
-      []
-
 
 let getAST (tl : toplevel) : fluidExpr option =
   match tl with
@@ -367,39 +261,10 @@ let setASTMod (tl : toplevel) (ast : fluidExpr) : modification =
       recover "no ast in Groups" ~debug:tl NoChange
 
 
-let firstChild (tl : toplevel) (id : blankOrData) : blankOrData option =
-  getChildrenOf tl id |> List.head
-
-
-let rootExpr (tl : toplevel) : fluidExpr option =
-  (* TODO SpecTypePointerDataRefactor *)
-  match tl with
-  | TLHandler h ->
-      Some h.ast
-  | TLFunc f ->
-      Some f.ufAST
-  | TLDB _ | TLTipe _ | TLGroup _ ->
-      None
-
-
-let rootOf (tl : toplevel) : blankOrData option =
-  (* TODO SpecTypePointerDataRefactor *)
-  rootExpr tl |> Option.map ~f:(fun expr -> PExpr expr)
-
-
 let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     toplevel =
   let id = P.toID p in
   match replacement with
-  | PFFMsg _
-  | PVarBind _
-  | PField _
-  | PKey _
-  | PExpr _
-  | PPattern _
-  | PFnCallName _
-  | PConstructorName _ ->
-      recover "can't change ASTs with replace anymore" tl
   | PEventName bo | PEventModifier bo | PEventSpace bo ->
     ( match asHandler tl with
     | Some h ->
@@ -484,7 +349,7 @@ let structural (m : model) : toplevel TD.t =
 let get (m : model) (tlid : tlid) : toplevel option = TD.get ~tlid (all m)
 
 let find (tl : toplevel) (id_ : id) : blankOrData option =
-  allData tl
+  blankOrData tl
   |> List.filter ~f:(fun d -> id_ = P.toID d)
   |> assertFn
        "cant find pd for id"
@@ -535,3 +400,55 @@ let selectedAST (m : model) : fluidExpr option =
 
 let setSelectedAST (m : model) (ast : fluidExpr) : modification =
   match selected m with None -> NoChange | Some tl -> setASTMod tl ast
+
+
+(* ------------------------- *)
+(* Blanks *)
+(* ------------------------- *)
+
+type predecessor = id option
+
+type successor = id option
+
+let allBlanks (tl : toplevel) : id list =
+  (tl |> blankOrData |> List.filter ~f:P.isBlank |> List.map ~f:P.toID)
+  @ ( tl
+    |> getAST
+    |> Option.map ~f:AST.blanks
+    |> Option.withDefault ~default:[]
+    |> List.map ~f:FluidExpression.id )
+
+
+let allIDs (tl : toplevel) : id list =
+  (tl |> blankOrData |> List.map ~f:P.toID)
+  @ (tl |> getAST |> Option.map ~f:AST.ids |> Option.withDefault ~default:[])
+
+
+let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
+
+let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
+
+let getNextBlank (tl : toplevel) (id : id) : successor =
+  let all = allIDs tl in
+  let index =
+    List.elemIndex ~value:id all |> Option.withDefault ~default:(-1)
+  in
+  let blanks = allBlanks tl |> List.map ~f:deID |> StrSet.fromList in
+  all
+  |> List.drop ~count:(index + 1)
+  |> List.find ~f:(fun (ID id) -> StrSet.has blanks ~value:id)
+  |> Option.orElse (firstBlank tl)
+
+
+let getPrevBlank (tl : toplevel) (id : id) : predecessor =
+  let all = allIDs tl in
+  let index =
+    List.elemIndex ~value:id all
+    |> Option.withDefault ~default:(List.length all)
+  in
+  let blanks = allBlanks tl |> List.map ~f:deID |> StrSet.fromList in
+  all
+  |> List.take ~count:index
+  |> List.reverse
+  |> List.find ~f:(fun (ID id) -> StrSet.has blanks ~value:id)
+  |> Option.orElse (lastBlank tl)

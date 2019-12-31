@@ -245,27 +245,22 @@ and nExpr j : OldExpr.nExpr =
     j
 
 
+let fluidExpr (j : Js.Json.t) : fluidExpr = expr j |> OldExpr.toFluidExpr
+
 let blankOrData j : blankOrData =
   let dv1 = variant1 in
-  let dv2 = variant2 in
   variants
     [ ("PEventName", dv1 (fun x -> PEventName x) (blankOr string))
-    ; ("PEventModifier", dv1 (fun x -> PEventModifier x) (blankOr string))
     ; ("PEventSpace", dv1 (fun x -> PEventSpace x) (blankOr string))
+    ; ("PEventModifier", dv1 (fun x -> PEventModifier x) (blankOr string))
+    ; ("PDBName", dv1 (fun x -> PDBName x) (blankOr string))
     ; ("PDBColName", dv1 (fun x -> PDBColName x) (blankOr string))
     ; ("PDBColType", dv1 (fun x -> PDBColType x) (blankOr string))
     ; ("PFnName", dv1 (fun x -> PFnName x) (blankOr string))
     ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
     ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
-    ; ("PVarBind", dv2 (fun id name -> PVarBind (id, name)) id string)
-    ; ("PExpr", dv1 (fun x -> PExpr (OldExpr.toFluidExpr x)) expr)
-    ; ("PField", dv2 (fun id name -> PField (id, name)) id string)
-    ; ("PFFMsg", dv2 (fun id name -> PFFMsg (id, name)) id string)
-    ; ( "PPattern" (* TODO: this is wrong as it doesn't have the right id *)
-      , dv1 (fun x -> PPattern (OldExpr.toFluidPattern (gid ()) x)) pattern )
-    ; ("PFnCallName", dv2 (fun id name -> PFnCallName (id, name)) id string)
-    ; ( "PConstructorName"
-      , dv2 (fun id name -> PConstructorName (id, name)) id string ) ]
+    ; ("PTypeFieldName", dv1 (fun x -> PTypeFieldName x) (blankOr string))
+    ; ("PTypeFieldTipe", dv1 (fun x -> PTypeFieldTipe x) (blankOr tipe)) ]
     j
 
 
@@ -440,7 +435,7 @@ let handlerSpec j : handlerSpec =
 
 
 let handler pos j : handler =
-  { ast = field "ast" expr j |> OldExpr.toFluidExpr
+  { ast = field "ast" fluidExpr j
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
   ; pos }
@@ -469,8 +464,8 @@ let dbMigration j : dbMigration =
   ; version = field "version" int j
   ; state = field "state" dbMigrationState j
   ; cols = field "cols" dbColList j
-  ; rollforward = field "rollforward" expr j |> OldExpr.toFluidExpr
-  ; rollback = field "rollback" expr j |> OldExpr.toFluidExpr }
+  ; rollforward = field "rollforward" fluidExpr j
+  ; rollback = field "rollback" fluidExpr j }
 
 
 let db pos j : db =

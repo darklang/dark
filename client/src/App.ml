@@ -133,11 +133,14 @@ let processFocus (m : model) (focus : focus) : modification =
     | None ->
         NoChange
     | Some tl ->
-        let predPd = Option.andThen ~f:(TL.find tl) pred in
-        let next = TL.getNextBlank tl predPd in
+        let next =
+          pred
+          |> Option.map ~f:(TL.getNextBlank tl)
+          |> Option.withDefault ~default:(TL.firstBlank tl)
+        in
         ( match next with
-        | Some pd ->
-            Enter (Filling (tlid, P.toID pd))
+        | Some id ->
+            Enter (Filling (tlid, id))
         | None ->
           ( match pred with
           | Some id ->
@@ -157,7 +160,9 @@ let processFocus (m : model) (focus : focus) : modification =
     | Selecting (tlid, mId) ->
       ( match (TL.get m tlid, mId) with
       | Some tl, Some id ->
-          if TL.isValidID tl id then NoChange else Select (tlid, STTopLevelRoot)
+          if TL.isValidBlankOrID tl id
+          then NoChange
+          else Select (tlid, STTopLevelRoot)
       | Some _, None ->
           Select (tlid, STTopLevelRoot)
       | _ ->
@@ -165,7 +170,9 @@ let processFocus (m : model) (focus : focus) : modification =
     | Entering (Filling (tlid, id)) ->
       ( match TL.get m tlid with
       | Some tl ->
-          if TL.isValidID tl id then NoChange else Select (tlid, STTopLevelRoot)
+          if TL.isValidBlankOrID tl id
+          then NoChange
+          else Select (tlid, STTopLevelRoot)
       | _ ->
           Deselect )
     | _ ->
@@ -179,7 +186,7 @@ let processFocus (m : model) (focus : focus) : modification =
       let mTl = Option.andThen tlid ~f:(TL.get m) in
       let pd = Option.map2 mTl mID ~f:(fun tl id -> TL.find tl id) in
       ( match (mTl, pd) with
-      | Some tl, Some (Some pd) when TL.isValidID tl (P.toID pd) ->
+      | Some tl, Some (Some pd) when TL.isValidBlankOrID tl (P.toID pd) ->
           let query = AutocompleteMod (ACSetQuery (P.toContent pd)) in
           Many [SetPage page; SetCursorState cs; query]
       | Some _, Some None | Some _, None ->
@@ -441,12 +448,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               (FluidEntering tlid, None)
           | STID id ->
             ( match TL.getPD m tlid id with
-            | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Selecting (tlid, Some id), None)
+            | Some _ ->
+                (Selecting (tlid, Some id), None)
             | None ->
-                (Deselected, None) )
+                (FluidEntering tlid, None) )
           | STCaret caretTarget ->
               let maybeNewFluidState =
                 match Fluid.astAndStateFromTLID m tlid with
@@ -522,11 +527,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Entering entry, Some (tlid, pd))
+                (Entering entry, Some (tlid, pd))
             | None ->
-                (m.cursorState, None) )
+                (FluidEntering tlid, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
@@ -540,11 +543,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                if P.astOwned (P.typeOf pd)
-                then (FluidEntering tlid, None)
-                else (Entering entry, Some (tlid, pd))
+                (Entering entry, Some (tlid, pd))
             | None ->
-                (m.cursorState, None) )
+                (FluidEntering tlid, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in

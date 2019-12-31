@@ -145,6 +145,6 @@ let replace (old : blankOrData) (new_ : blankOrData) (group : group) : group =
   group |> replaceGroupName old new_
 
 
-let allData (g : group) : blankOrData list =
+let blankOrData (g : group) : blankOrData list =
   let namePointer = PGroupName g.gName in
   [namePointer]
