@@ -299,19 +299,6 @@ let findParentOfWithin (id : id) (haystack : E.t) : E.t =
 (* ------------------------- *)
 (* EPipe stuff *)
 (* ------------------------- *)
-let grandparentIsThread (expr : E.t) (parent : E.t option) : bool =
-  parent
-  |> Option.map ~f:(fun p ->
-         match findParentOfWithin_ (E.id p) expr with
-         | Some (EPipe (_, ts)) ->
-             ts
-             |> List.head
-             |> Option.map ~f:(( <> ) p)
-             |> Option.withDefault ~default:true
-         | _ ->
-             false)
-  |> Option.withDefault ~default:false
-
 
 let getParamIndex (expr : E.t) (id : id) : (string * int) option =
   let parent = findParentOfWithin_ id expr in
@@ -333,17 +320,6 @@ let threadPrevious (id : id) (ast : E.t) : E.t option =
       |> Option.andThen ~f:(fun value -> Util.listPrevious ~value exprs)
   | _ ->
       None
-
-
-let allCallsToFn (s : string) (e : E.t) : E.t list =
-  e
-  |> allData
-  |> List.filterMap ~f:(fun pd ->
-         match pd with
-         | PExpr (EFnCall (id, name, params, r)) ->
-             if name = s then Some (EFnCall (id, name, params, r)) else None
-         | _ ->
-             None)
 
 
 (* ------------------------- *)

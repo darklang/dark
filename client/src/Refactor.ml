@@ -400,39 +400,6 @@ let generateEmptyUserType () : userTipe =
   ; utDefinition = definition }
 
 
-let coerceTypes (v : dval) : tipe =
-  let isUuid (dstr : dval) : bool =
-    match dstr with
-    | DStr s ->
-        Util.Regex.exactly
-          ~re:
-            "[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}"
-          s
-    | _ ->
-        false
-  in
-  let isDate (dstr : dval) : bool =
-    match dstr with
-    | DStr s ->
-        let parsedDate = Js.Date.fromString s in
-        ( try
-            (* toISOString will raise Invalid Date if date
-                          * is invalid; bucklescript doesn't expose this
-                          * to us otherwise *)
-            ignore (Js.Date.toISOString parsedDate) ;
-            true
-          with _ -> false )
-    | _ ->
-        false
-  in
-  let tipe = v |> Runtime.typeOf in
-  match tipe with
-  | TStr ->
-      if isUuid v then TUuid else if isDate v then TDate else TStr
-  | _ ->
-      tipe
-
-
 let generateUserType (dv : dval option) : (string, userTipe) Result.t =
   match dv with
   | Some (DObj dvalmap) ->

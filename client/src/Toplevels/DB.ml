@@ -23,14 +23,6 @@ let fromList (dbs : db list) : db TLIDDict.t =
   dbs |> List.map ~f:(fun db -> (db.dbTLID, db)) |> TLIDDict.fromList
 
 
-let astsFor (db : db) : fluidExpr list =
-  match db.activeMigration with
-  | None ->
-      []
-  | Some am ->
-      [am.rollforward; am.rollback]
-
-
 let allData (db : db) : blankOrData list =
   let cols, rolls =
     match db.activeMigration with
