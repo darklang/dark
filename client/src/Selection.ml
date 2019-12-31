@@ -217,94 +217,69 @@ let fluidEnteringMod tlid =
 
 
 let maybeEnterFluid
-    ~(nonFluidCursorMod : modification)
-    (tlid : tlid)
-    (oldPD : blankOrData option)
-    (newPD : blankOrData option) : modification =
-  match (oldPD, newPD) with
-  (* No specheader to go to *)
-  | _, None
-  (* Last specheader *)
-  | Some (PEventName _), _
-  (* Not going to the last specheader *)
-  | Some (PEventModifier _), Some (PEventSpace _) ->
+    ~(nonFluidCursorMod : modification) (tl : toplevel) (newPD : id option) :
+    modification =
+  let tlid = TL.id tl in
+  match newPD with
+  | None ->
       fluidEnteringMod tlid
-  (* Don't loop *)
-  | o, n when o = n ->
-      fluidEnteringMod tlid
-  | _ ->
-      nonFluidCursorMod
+  | Some id ->
+      if TL.isValidBlankOrID tl id
+      then nonFluidCursorMod
+      else fluidEnteringMod tlid
 
 
-let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
+let selectNextBlank (m : model) (tlid : tlid) (cur : id) : modification =
   match TL.get m tlid with
   | None ->
       recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
-      let pd = Option.andThen ~f:(TL.find tl) cur in
-      let nextBlankPd = TL.getNextBlank tl pd in
-      (* TODO(JULIAN): This should probably do something better if there is no next blank -- wrap around? *)
-      let nextIdTarget =
-        Option.map nextBlankPd ~f:P.toID
-        |> Option.map ~f:(fun id -> STID id)
-        |> Option.withDefault ~default:STTopLevelRoot
+      let nextBlank = TL.getNextBlank tl cur in
+      let target =
+        nextBlank
+        |> Option.map ~f:(fun id -> Select (tlid, STID id))
+        |> Option.withDefault ~default:(fluidEnteringMod tlid)
       in
-      maybeEnterFluid
-        ~nonFluidCursorMod:(Select (tlid, nextIdTarget))
-        tlid
-        pd
-        nextBlankPd
+      maybeEnterFluid ~nonFluidCursorMod:target tl nextBlank
 
 
-let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
+let enterNextBlank (m : model) (tlid : tlid) (cur : id) : modification =
   match TL.get m tlid with
   | None ->
-      recover "selecting no TL" ~debug:(tlid, cur) NoChange
+      recover "entering no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
-      let pd = Option.andThen ~f:(TL.find tl) cur in
-      let nextBlankPd = TL.getNextBlank tl pd in
-      maybeEnterFluid
-        ~nonFluidCursorMod:
-          ( nextBlankPd
-          |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-          |> Option.withDefault ~default:NoChange )
-        tlid
-        pd
-        nextBlankPd
-
-
-let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
-  match TL.get m tlid with
-  | None ->
-      recover "selecting no TL" ~debug:(tlid, cur) NoChange
-  | Some tl ->
-      let pd = Option.andThen ~f:(TL.find tl) cur in
-      let nextBlankPd = pd |> TL.getPrevBlank tl in
-      (* TODO(JULIAN): This should probably do something better if there is no next blank -- wrap around? *)
-      let nextIdTarget =
-        Option.map nextBlankPd ~f:P.toID
-        |> Option.map ~f:(fun id -> STID id)
-        |> Option.withDefault ~default:STTopLevelRoot
+      let nextBlank = TL.getNextBlank tl cur in
+      let target =
+        nextBlank
+        |> Option.map ~f:(fun id -> Enter (Filling (tlid, id)))
+        |> Option.withDefault ~default:(fluidEnteringMod tlid)
       in
-      maybeEnterFluid
-        ~nonFluidCursorMod:(Select (tlid, nextIdTarget))
-        tlid
-        pd
-        nextBlankPd
+      maybeEnterFluid ~nonFluidCursorMod:target tl nextBlank
 
 
-let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
+let selectPrevBlank (m : model) (tlid : tlid) (cur : id) : modification =
   match TL.get m tlid with
   | None ->
       recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
-      let pd = Option.andThen ~f:(TL.find tl) cur in
-      let nextBlankPd = TL.getPrevBlank tl pd in
-      maybeEnterFluid
-        ~nonFluidCursorMod:
-          ( nextBlankPd
-          |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-          |> Option.withDefault ~default:NoChange )
-        tlid
-        pd
-        nextBlankPd
+      let prevBlank = TL.getPrevBlank tl cur in
+      let target =
+        prevBlank
+        |> Option.map ~f:(fun id -> Select (tlid, STID id))
+        |> Option.withDefault ~default:(fluidEnteringMod tlid)
+      in
+      maybeEnterFluid ~nonFluidCursorMod:target tl prevBlank
+
+
+let enterPrevBlank (m : model) (tlid : tlid) (cur : id) : modification =
+  match TL.get m tlid with
+  | None ->
+      recover "entering no TL" ~debug:(tlid, cur) NoChange
+  | Some tl ->
+      let prevBlank = TL.getPrevBlank tl cur in
+      let target =
+        prevBlank
+        |> Option.map ~f:(fun id -> Enter (Filling (tlid, id)))
+        |> Option.withDefault ~default:(fluidEnteringMod tlid)
+      in
+      maybeEnterFluid ~nonFluidCursorMod:target tl prevBlank

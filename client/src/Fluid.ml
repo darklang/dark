@@ -4761,9 +4761,16 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
           let tlid = TL.id tl in
           let newAST, newState = updateMsg m tlid ast msg s in
           let eventSpecMod, newAST, newState =
+            let isFluidEntering =
+              (* Only fire Tab controls if the state is currently in
+               * entering, as some keypresses fire in both editors. *)
+              match m.cursorState with FluidEntering _ -> true | _ -> false
+            in
             let enter id = Enter (Filling (tlid, id)) in
             (* if tab is wrapping... *)
-            if newState.lastKey = K.Tab && newState.newPos <= newState.oldPos
+            if isFluidEntering
+               && newState.lastKey = K.Tab
+               && newState.newPos <= newState.oldPos
             then
               (* get the first blank spec header, or fall back to NoChange *)
               match tl with
@@ -4775,7 +4782,8 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                     (NoChange, newAST, newState) )
               | _ ->
                   (NoChange, newAST, newState)
-            else if newState.lastKey = K.ShiftTab
+            else if isFluidEntering
+                    && newState.lastKey = K.ShiftTab
                     && newState.newPos >= newState.oldPos
             then
               (* get the last blank spec header, or fall back to NoChange *)
@@ -5372,7 +5380,10 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
   let cursorState =
     [dtText "cursorState"; ddText (show_cursorState m.cursorState)]
   in
-  let status = List.concat [posData; error; tokenData; actions; cursorState] in
+  let lastMod = [dtText "lastMod"; ddText (show_modification m.lastMod)] in
+  let status =
+    List.concat [posData; error; tokenData; actions; cursorState; lastMod]
+  in
   Html.div [Attrs.id "fluid-status"] [Html.dl [] status]
 
 

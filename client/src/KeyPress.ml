@@ -117,10 +117,14 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         | None ->
             NoChange )
       | Key.Tab, _ ->
-          (* NB: see `stopKeys` in ui.html *)
-          if event.shiftKey
-          then Selection.selectPrevBlank m tlid mId
-          else Selection.selectNextBlank m tlid mId
+        (* NB: see `stopKeys` in ui.html *)
+        ( match mId with
+        | Some id ->
+            if event.shiftKey
+            then Selection.selectPrevBlank m tlid id
+            else Selection.selectNextBlank m tlid id
+        | None ->
+            NoChange )
       | Key.O, Some _ ->
           if event.altKey then CenterCanvasOn tlid else NoChange
       | Key.K, Some _ ->
@@ -151,17 +155,17 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               Entry.submit m cursor Entry.StayHere
           | Key.Tab ->
             ( match cursor with
-            | Filling (tlid, p) ->
+            | Filling (tlid, id) ->
                 let content = AC.getValue m.complete in
                 let hasContent = content <> "" in
                 if event.shiftKey
                 then
                   if hasContent
                   then NoChange
-                  else Selection.enterPrevBlank m tlid (Some p)
+                  else Selection.enterPrevBlank m tlid id
                 else if hasContent
                 then Entry.submit m cursor Entry.GotoNext
-                else Selection.enterNextBlank m tlid (Some p)
+                else Selection.enterNextBlank m tlid id
             | Creating _ ->
                 NoChange )
           | Key.Unknown _ ->
