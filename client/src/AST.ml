@@ -11,76 +11,6 @@ module P = Pointer
 (* PointerData *)
 (* -------------------------------- *)
 
-let recoverPD (msg : string) (pd : blankOrData option) : blankOrData =
-  recoverOpt ("invalidPD: " ^ msg) pd ~default:(PExpr (E.newB ()))
-
-
-let rec allData (expr : E.t) : blankOrData list =
-  let e2ld e = PExpr e in
-  let rl exprs = exprs |> List.map ~f:allData |> List.concat in
-  [e2ld expr]
-  @
-  match expr with
-  | EVariable _
-  | EFloat _
-  | ENull _
-  | EInteger _
-  | EString _
-  | EBool _
-  | EBlank _
-  | EPipeTarget _ ->
-      []
-  | ELet (id, lhs, rhs, body) ->
-      [PVarBind (id, lhs)] @ rl [rhs; body]
-  | EIf (_, cond, ifbody, elsebody) ->
-      rl [cond; ifbody; elsebody]
-  | EFnCall (id, name, exprs, _) ->
-      [PFnCallName (id, name)] @ rl exprs
-  | EBinOp (id, name, lhs, rhs, _) ->
-      [PFnCallName (id, name)] @ rl [lhs; rhs]
-  | EConstructor (id, name, exprs) ->
-      PConstructorName (id, name) :: rl exprs
-  | ELambda (_, vars, body) ->
-      List.map ~f:(fun (id, name) -> PVarBind (id, name)) vars @ allData body
-  | EPipe (_, exprs) ->
-      rl exprs
-  | EFieldAccess (id, obj, field) ->
-      allData obj @ [PField (id, field)]
-  | EList (_, exprs) ->
-      rl exprs
-  | ERecord (_, pairs) ->
-      pairs
-      |> List.map ~f:(fun (k, v) -> PKey (E.id v, k) :: allData v)
-      |> List.concat
-  | EFeatureFlag (id, msg, cond, a, b) ->
-      [PFFMsg (id, msg)] @ rl [cond; a; b]
-  | EMatch (_, matchExpr, cases) ->
-      let matchData = allData matchExpr in
-      let caseData =
-        cases
-        |> List.map ~f:(fun (p, e) -> Pattern.allData p @ rl [e])
-        |> List.concat
-      in
-      matchData @ caseData
-  | EPartial (_, _, oldExpr) ->
-      allData oldExpr
-  | ERightPartial (_, _, oldExpr) ->
-      allData oldExpr
-
-
-(* Note the difference with FluidExpression.find - that returns only
- * expressions, this returns allDatas, and so can encode non-expression
- * information. *)
-let find (id : id) (expr : E.t) : blankOrData option =
-  expr
-  |> allData
-  |> List.filter ~f:(fun d -> id = Pointer.toID d)
-  |> assertFn "no data with ID found" ~debug:(expr, id) ~f:(fun list ->
-         List.length list > 0 || id = FluidToken.fakeid)
-  (* guard against dups *)
-  |> List.head
-
-
 let isDefinitionOf (var : string) (expr : E.t) : bool =
   match expr with
   | ELet (_, lhs, _, _) ->
@@ -149,8 +79,7 @@ let rec uses (var : string) (expr : E.t) : E.t list =
 (* ------------------------- *)
 (* Children *)
 (* ------------------------- *)
-let children (expr : E.t) : blankOrData list =
-  let ces exprs = List.map ~f:(fun e -> PExpr e) exprs in
+let children (expr : E.t) : E.t list =
   match expr with
   | EInteger _
   | EString _
@@ -163,95 +92,34 @@ let children (expr : E.t) : blankOrData list =
   | EVariable _ ->
       []
   | EIf (_, cond, ifbody, elsebody) ->
-      [PExpr cond; PExpr ifbody; PExpr elsebody]
+      [cond; ifbody; elsebody]
   | EFnCall (_, _, exprs, _) ->
-      ces exprs
+      exprs
   | EBinOp (_, _, lhs, rhs, _) ->
-      ces [lhs; rhs]
-  | EConstructor (id, name, exprs) ->
-      PConstructorName (id, name) :: ces exprs
-  | ELambda (_, vars, lexpr) ->
-      List.map ~f:(fun (id, vb) -> PVarBind (id, vb)) vars @ [PExpr lexpr]
+      [lhs; rhs]
+  | EConstructor (_, _, exprs) ->
+      exprs
+  | ELambda (_, _, lexpr) ->
+      [lexpr]
   | EPipe (_, exprs) ->
-      ces exprs
-  | EFieldAccess (id, obj, field) ->
-      [PExpr obj; PField (id, field)]
-  | ELet (id, lhs, rhs, body) ->
-      [PVarBind (id, lhs); PExpr rhs; PExpr body]
+      exprs
+  | EFieldAccess (_, obj, _) ->
+      [obj]
+  | ELet (_, _, rhs, body) ->
+      [rhs; body]
   | ERecord (_, pairs) ->
-      pairs
-      |> List.map ~f:(fun (k, v) -> [PKey (E.id v, k); PExpr v])
-      |> List.concat
+      pairs |> List.map ~f:Tuple2.second
   | EList (_, elems) ->
-      ces elems
-  | EFeatureFlag (id, msg, cond, a, b) ->
-      [PFFMsg (id, msg); PExpr cond; PExpr a; PExpr b]
+      elems
+  | EFeatureFlag (_, _, cond, a, b) ->
+      [cond; a; b]
   | EMatch (_, matchExpr, cases) ->
-      (* We list all the descendents of the pattern here. This isn't ideal,
-       * but it's challenging with the current setup to do otherwise, because
-       * all of these things take exprs *)
-      let casePointers =
-        cases
-        |> List.map ~f:(fun (p, e) ->
-               let ps = Pattern.allData p in
-               ps @ [PExpr e])
-        |> List.concat
-      in
-      PExpr matchExpr :: casePointers
+      let casePointers = cases |> List.map ~f:Tuple2.second in
+      matchExpr :: casePointers
   | EPartial (_, _, oldExpr) ->
-      [PExpr oldExpr]
+      [oldExpr]
   | ERightPartial (_, _, oldExpr) ->
-      [PExpr oldExpr]
-
-
-(* Look through an AST for the expr with the id, then return its children. *)
-let rec childrenOf (pid : id) (expr : E.t) : blankOrData list =
-  let co = childrenOf pid in
-  if pid = E.id expr
-  then children expr
-  else
-    match expr with
-    | EInteger _
-    | EString _
-    | EBool _
-    | EFloat _
-    | ENull _
-    | EBlank _
-    | EPipeTarget _ ->
-        []
-    | EVariable _ ->
-        []
-    | ELet (_, _, rhs, body) ->
-        co body @ co rhs
-    | EIf (_, cond, ifbody, elsebody) ->
-        co cond @ co ifbody @ co elsebody
-    | EFnCall (_, _, exprs, _) ->
-        List.map ~f:co exprs |> List.concat
-    | EBinOp (_, _, lhs, rhs, _) ->
-        co lhs @ co rhs
-    | EConstructor (_, _, exprs) ->
-        List.map ~f:co exprs |> List.concat
-    | ELambda (_, _, lexpr) ->
-        co lexpr
-    | EPipe (_, exprs) ->
-        List.map ~f:co exprs |> List.concat
-    | EFieldAccess (_, obj, _) ->
-        co obj
-    | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple2.second |> List.map ~f:co |> List.concat
-    | EList (_, pairs) ->
-        pairs |> List.map ~f:co |> List.concat
-    | EFeatureFlag (_, _, cond, a, b) ->
-        co cond @ co a @ co b
-    | EMatch (_, matchExpr, cases) ->
-        let cCases =
-          cases |> List.map ~f:Tuple2.second |> List.map ~f:co |> List.concat
-        in
-        co matchExpr @ cCases
-    | EPartial (_, _, oldExpr) ->
-        co oldExpr
-    | ERightPartial (_, _, oldExpr) ->
-        co oldExpr
+      [oldExpr]
 
 
 (* ------------------------- *)
@@ -263,7 +131,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
   let fpowList xs =
     xs |> List.map ~f:fpow |> List.filterMap ~f:identity |> List.head
   in
-  if List.member ~value:eid (haystack |> children |> List.map ~f:P.toID)
+  if List.member ~value:eid (haystack |> children |> List.map ~f:E.id)
   then Some haystack
   else
     match haystack with
@@ -316,19 +184,6 @@ let findParentOfWithin (id : id) (haystack : E.t) : E.t =
 (* ------------------------- *)
 (* EPipe stuff *)
 (* ------------------------- *)
-let grandparentIsThread (expr : E.t) (parent : E.t option) : bool =
-  parent
-  |> Option.map ~f:(fun p ->
-         match findParentOfWithin_ (E.id p) expr with
-         | Some (EPipe (_, ts)) ->
-             ts
-             |> List.head
-             |> Option.map ~f:(( <> ) p)
-             |> Option.withDefault ~default:true
-         | _ ->
-             false)
-  |> Option.withDefault ~default:false
-
 
 let getParamIndex (expr : E.t) (id : id) : (string * int) option =
   let parent = findParentOfWithin_ id expr in
@@ -350,17 +205,6 @@ let threadPrevious (id : id) (ast : E.t) : E.t option =
       |> Option.andThen ~f:(fun value -> Util.listPrevious ~value exprs)
   | _ ->
       None
-
-
-let allCallsToFn (s : string) (e : E.t) : E.t list =
-  e
-  |> allData
-  |> List.filterMap ~f:(fun pd ->
-         match pd with
-         | PExpr (EFnCall (id, name, params, r)) ->
-             if name = s then Some (EFnCall (id, name, params, r)) else None
-         | _ ->
-             None)
 
 
 (* ------------------------- *)
@@ -424,34 +268,28 @@ let freeVariables (ast : E.t) : (id * string) list =
    * these IDs so we can filter them out later. *)
   let definedAndUsed =
     ast
-    |> allData
-    |> List.filterMap ~f:(fun n ->
-           match n with
-           | PExpr e ->
-             ( match e with
-             (* Grab all uses of the `lhs` of a Let in its body *)
-             | ELet (_, lhs, _, body) ->
-                 Some (uses lhs body)
-             (* Grab all uses of the `vars` of a Lambda in its body *)
-             | ELambda (_, vars, body) ->
-                 vars
-                 |> List.map ~f:Tuple2.second
-                 |> List.filter ~f:(( <> ) "")
-                 |> List.map ~f:(fun v -> uses v body)
-                 |> List.concat
-                 |> fun x -> Some x
-             | EMatch (_, _, cases) ->
-                 cases
-                 (* Grab all uses of the variable bindings in a `pattern`
-                  * in the `body` of each match case *)
-                 |> List.map ~f:(fun (pattern, body) ->
-                        let vars = FluidPattern.variableNames pattern in
-                        List.map ~f:(fun v -> uses v body) vars)
-                 |> List.concat
-                 |> List.concat
-                 |> fun x -> Some x
-             | _ ->
-                 None )
+    |> E.filterMap ~f:(function
+           (* Grab all uses of the `lhs` of a Let in its body *)
+           | ELet (_, lhs, _, body) ->
+               Some (uses lhs body)
+           (* Grab all uses of the `vars` of a Lambda in its body *)
+           | ELambda (_, vars, body) ->
+               vars
+               |> List.map ~f:Tuple2.second
+               |> List.filter ~f:(( <> ) "")
+               |> List.map ~f:(fun v -> uses v body)
+               |> List.concat
+               |> fun x -> Some x
+           | EMatch (_, _, cases) ->
+               cases
+               (* Grab all uses of the variable bindings in a `pattern`
+                * in the `body` of each match case *)
+               |> List.map ~f:(fun (pattern, body) ->
+                      let vars = FluidPattern.variableNames pattern in
+                      List.map ~f:(fun v -> uses v body) vars)
+               |> List.concat
+               |> List.concat
+               |> fun x -> Some x
            | _ ->
                None)
     |> List.concat
@@ -459,22 +297,22 @@ let freeVariables (ast : E.t) : (id * string) list =
     |> StrSet.fromList
   in
   ast
-  |> allData
-  |> List.filterMap ~f:(fun n ->
-         match n with
-         | PExpr e ->
-           ( match e with
-           | EVariable (id, name) ->
-               (* Don't include EVariable lookups that we know are looking
-                * up a variable bound in this expression *)
-               if StrSet.member ~value:(deID id) definedAndUsed
-               then None
-               else Some (id, name)
-           | _ ->
-               None )
+  |> E.filterMap ~f:(function
+         | EVariable (id, name) ->
+             (* Don't include EVariable lookups that we know are looking
+              * up a variable bound in this expression *)
+             if StrSet.member ~value:(deID id) definedAndUsed
+             then None
+             else Some (id, name)
          | _ ->
              None)
   |> List.uniqueBy ~f:(fun (_, name) -> name)
+
+
+let blanks (ast : E.t) : E.t list = E.filter ast ~f:E.isBlank
+
+let ids (ast : E.t) : id list =
+  E.filter ast ~f:(fun _ -> true) |> List.map ~f:E.id
 
 
 module VarDict = StrDict

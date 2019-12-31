@@ -160,22 +160,6 @@ let rec dval (dv : Types.dval) : Js.Json.t =
 let rec blankOrData (pd : Types.blankOrData) : Js.Json.t =
   let ev = variant in
   match pd with
-  | PVarBind (id', name) ->
-      ev "PVarBind" [id id'; string name]
-  | PExpr e ->
-      ev "PExpr" [expr (OldExpr.fromFluidExpr e)]
-  | PField (id', name) ->
-      ev "PField" [id id'; string name]
-  | PKey (id', name) ->
-      ev "PKey" [id id'; string name]
-  | PFFMsg (id', name) ->
-      ev "PFFMsg" [id id'; string name]
-  | PPattern p ->
-      ev "PPattern" [pattern (OldExpr.fromFluidPattern p)]
-  | PConstructorName (id', name) ->
-      ev "PConstructorName" [id id'; string name]
-  | PFnCallName (id', name) ->
-      ev "PFnCallName" [id id'; string name]
   | PEventName name ->
       ev "PEventName" [blankOr string name]
   | PEventModifier modifier ->
@@ -298,9 +282,7 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
 
 and handler (h : Types.handler) : Js.Json.t =
   object_
-    [ ("tlid", tlid h.hTLID)
-    ; ("spec", spec h.spec)
-    ; ("ast", expr (OldExpr.fromFluidExpr h.ast)) ]
+    [("tlid", tlid h.hTLID); ("spec", spec h.spec); ("ast", fluidExpr h.ast)]
 
 
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
@@ -327,8 +309,8 @@ and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("version", int dbm.version)
     ; ("state", dbMigrationState dbm.state)
     ; ("cols", colList dbm.cols)
-    ; ("rollforward", expr (OldExpr.fromFluidExpr dbm.rollforward))
-    ; ("rollback", expr (OldExpr.fromFluidExpr dbm.rollback)) ]
+    ; ("rollforward", fluidExpr dbm.rollforward)
+    ; ("rollback", fluidExpr dbm.rollback) ]
 
 
 and db (db : Types.db) : Js.Json.t =
@@ -393,7 +375,7 @@ and op (call : Types.op) : Js.Json.t =
   | DeleteFunction t ->
       ev "DeleteFunction" [tlid t]
   | SetExpr (t, i, e) ->
-      ev "SetExpr" [tlid t; id i; expr (OldExpr.fromFluidExpr e)]
+      ev "SetExpr" [tlid t; id i; fluidExpr e]
   | RenameDBname (t, name) ->
       ev "RenameDBname" [tlid t; string name]
   | CreateDBWithBlankOr (t, p, i, name) ->
@@ -488,7 +470,7 @@ and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", expr (OldExpr.fromFluidExpr uf.ufAST)) ]
+    ; ("ast", fluidExpr uf.ufAST) ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
@@ -634,6 +616,10 @@ and nPattern (npat : OldExpr.nPattern) : Js.Json.t =
       ev "PLiteral" [string a]
   | PConstructor (a, b) ->
       ev "PConstructor" [string a; list pattern b]
+
+
+and fluidExpr (e : Types.fluidExpr) : Js.Json.t =
+  e |> OldExpr.fromFluidExpr |> expr
 
 
 and cursorState (cs : Types.cursorState) : Js.Json.t =

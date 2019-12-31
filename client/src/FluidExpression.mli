@@ -18,6 +18,18 @@ val show : t -> string
     effectively, [f] must call [walk]. *)
 val walk : f:(t -> t) -> t -> t
 
+(** [filterMap f ast] calls f on every expression, keeping any Some results
+ * of f, returning them in a list. Recurses into expressions: if a child and
+ * its parent (or grandparent, etc) both match, then both will be in the
+ * result list. *)
+val filterMap : f:(t -> 'a option) -> t -> 'a list
+
+(** [filter f ast] calls f on every expression, returning a list of all
+ * expressions for which [f e] is true. Recurses into expressions: if a
+ * child and its parent (or grandparent, etc) both match, then both will be
+ * in the result list.  *)
+val filter : f:(t -> bool) -> t -> t list
+
 (** [find target ast] recursively finds the expression having an id of [target]
    and returns it if found. *)
 val find : Types.id -> t -> t option

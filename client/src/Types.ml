@@ -182,34 +182,17 @@ and blankOrData =
   | PTypeFieldName of string blankOr
   | PTypeFieldTipe of tipe blankOr
   | PGroupName of string blankOr
-  (* Part of the AST *)
-  | PVarBind of id * string
-  | PExpr of fluidExpr
-  | PField of id * string
-  | PKey of id * string
-  | PPattern of fluidPattern
-  | PFnCallName of id * string
-  | PFFMsg of id * string
-  | PConstructorName of id * string
 
 and blankOrType =
-  | VarBind
   | EventName
   | EventSpace
   | EventModifier
-  | Expr
-  | Field
-  | Key
   | DBName
   | DBColName
   | DBColType
-  | FFMsg
   | FnName
-  | FnCallName
   | ParamName
   | ParamTipe
-  | Pattern
-  | ConstructorName
   | TypeName
   | TypeFieldName
   | TypeFieldTipe

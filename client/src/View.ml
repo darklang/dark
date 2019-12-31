@@ -121,11 +121,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let selectedFnDocString =
           let fn =
             TL.getAST tl
-            |> Option.andThen ~f:(fun ast -> AST.find id ast)
+            |> Option.andThen ~f:(fun ast -> FluidExpression.find id ast)
             |> Option.andThen ~f:(function
-                   | PExpr (EFnCall (_, name, _, _)) ->
-                       Some name
-                   | PFnCallName (_, name) ->
+                   | EFnCall (_, name, _, _) | EBinOp (_, name, _, _, _) ->
                        Some name
                    | _ ->
                        None)
@@ -178,13 +176,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
-  let hasFf =
-    false
-    (* TL.getAST tl *)
-    (* |> Option.map ~f:AST.allData *)
-    (* |> Option.withDefault ~default:[] *)
-    (* |> List.any ~f:(function PFFMsg _ -> true | _ -> false) *)
-  in
+  let hasFf = false in
   let html =
     [ Html.div (Html.class' class_ :: events) (top @ body @ data)
     ; avatars

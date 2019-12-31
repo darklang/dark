@@ -187,6 +187,25 @@ let walk ~(f : t -> t) (expr : t) : t =
       EFeatureFlag (id, msg, f cond, f casea, f caseb)
 
 
+let filterMap ~(f : t -> 'a option) (expr : t) : 'a list =
+  let results = ref [] in
+  let rec myWalk (e : t) : t =
+    ( match f e with
+    | Some r ->
+        results := r :: !results ;
+        ()
+    | None ->
+        () ) ;
+    walk ~f:myWalk e
+  in
+  ignore (myWalk expr) ;
+  List.reverse !results
+
+
+let filter ~(f : t -> bool) (expr : t) : 'a list =
+  filterMap ~f:(fun t -> if f t then Some t else None) expr
+
+
 let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t) :
     t =
   let found = ref false in

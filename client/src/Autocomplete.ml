@@ -239,12 +239,6 @@ let eventNameValidator = "[-a-zA-Z0-9$_@.&!*\"'(),%/:]+"
 
 let varnameValidator = "[a-z_][a-zA-Z0-9_]*"
 
-let varnamePatternValidator = varnameValidator
-
-let constructorPatternValidator = "[A-Z_][a-zA-Z0-9_]*"
-
-let constructorNameValidator = "Just|Nothing|Ok|Error"
-
 let dbColTypeValidator = "\\[?[A-Z]\\w+\\]?"
 
 let dbColNameValidator = "\\w+"
@@ -264,8 +258,6 @@ let cronValidatorPattern =
 
 
 let fieldNameValidator = ".+"
-
-let keynameValidator = ".+"
 
 let fnNameValidator = "[a-z][a-zA-Z0-9_]*"
 
