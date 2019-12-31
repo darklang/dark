@@ -35,7 +35,7 @@ BROWSER='unknown'
       BROWSER='chrome --window-size="1600,1200"'
     fi
   else
-    BROWSER='chromium:headless --window-size="1600,1200"'
+    BROWSER='chromium --window-size="1600,1200"'
   fi
 }
 
