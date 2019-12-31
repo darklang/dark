@@ -3611,6 +3611,13 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
               in
               let s = moveToCaretTarget s ast target in
               (ast, s)
+          | Some parentId, Some idx, Some (ERecord _) ->
+              let ast = addRecordRowAt idx parentId ast in
+              let target =
+                {astRef = ARRecord (parentId, RPFieldname (idx + 1)); offset = 0}
+              in
+              let s = moveToCaretTarget s ast target in
+              (ast, s)
           | _ ->
               let id = FluidToken.tid rTok in
               let ast, s, _ = makeIntoLetBody id ast s in

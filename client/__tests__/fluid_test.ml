@@ -2836,6 +2836,11 @@ let run () =
         (enter 14)
         "{\n  f1 : 56\n  *** : ___\n  ~f2 : 78\n}" ;
       t
+        "pressing enter at the start of a field adds a row to the correct expression"
+        (record [("", match' b [(pInt "5", int "6")]); ("asd", b)])
+        (enter 39)
+        "{\n  *** : match ___\n          5 -> 6\n  *** : ___\n  ~asd : ___\n}" ;
+      t
         "pressing enter at the end of row adds a row"
         multiRowRecord
         (enter 11)
