@@ -30,30 +30,30 @@ let rec allData (expr : E.t) : blankOrData list =
   | EBlank _
   | EPipeTarget _ ->
       []
-  | ELet (_, lhsid, lhs, rhs, body) ->
-      [PVarBind (lhsid, lhs)] @ rl [rhs; body]
+  | ELet (id, lhs, rhs, body) ->
+      [PVarBind (id, lhs)] @ rl [rhs; body]
   | EIf (_, cond, ifbody, elsebody) ->
       rl [cond; ifbody; elsebody]
   | EFnCall (id, name, exprs, _) ->
       [PFnCallName (id, name)] @ rl exprs
   | EBinOp (id, name, lhs, rhs, _) ->
       [PFnCallName (id, name)] @ rl [lhs; rhs]
-  | EConstructor (_, nameid, name, exprs) ->
-      PConstructorName (nameid, name) :: rl exprs
+  | EConstructor (id, name, exprs) ->
+      PConstructorName (id, name) :: rl exprs
   | ELambda (_, vars, body) ->
       List.map ~f:(fun (id, name) -> PVarBind (id, name)) vars @ allData body
   | EPipe (_, exprs) ->
       rl exprs
-  | EFieldAccess (_, obj, fieldid, field) ->
-      allData obj @ [PField (fieldid, field)]
+  | EFieldAccess (id, obj, field) ->
+      allData obj @ [PField (id, field)]
   | EList (_, exprs) ->
       rl exprs
   | ERecord (_, pairs) ->
       pairs
-      |> List.map ~f:(fun (id, k, v) -> PKey (id, k) :: allData v)
+      |> List.map ~f:(fun (k, v) -> PKey (E.id v, k) :: allData v)
       |> List.concat
-  | EFeatureFlag (_, msg, msgid, cond, a, b) ->
-      [PFFMsg (msgid, msg)] @ rl [cond; a; b]
+  | EFeatureFlag (id, msg, cond, a, b) ->
+      [PFFMsg (id, msg)] @ rl [cond; a; b]
   | EMatch (_, matchExpr, cases) ->
       let matchData = allData matchExpr in
       let caseData =
@@ -83,7 +83,7 @@ let find (id : id) (expr : E.t) : blankOrData option =
 
 let isDefinitionOf (var : string) (expr : E.t) : bool =
   match expr with
-  | ELet (_, _, lhs, _, _) ->
+  | ELet (_, lhs, _, _) ->
       lhs = var && lhs <> ""
   | ELambda (_, vars, _) ->
       vars
@@ -115,7 +115,7 @@ let rec uses (var : string) (expr : E.t) : E.t list =
         []
     | EVariable (_, potential) ->
         if potential = var then [expr] else []
-    | ELet (_, _, _, rhs, body) ->
+    | ELet (_, _, rhs, body) ->
         List.concat [u rhs; u body]
     | EIf (_, cond, ifbody, elsebody) ->
         List.concat [u cond; u ifbody; u elsebody]
@@ -123,19 +123,19 @@ let rec uses (var : string) (expr : E.t) : E.t list =
         exprs |> List.map ~f:u |> List.concat
     | EBinOp (_, _, lhs, rhs, _) ->
         u lhs @ u rhs
-    | EConstructor (_, _, _, exprs) ->
+    | EConstructor (_, _, exprs) ->
         exprs |> List.map ~f:u |> List.concat
     | ELambda (_, _, lexpr) ->
         u lexpr
     | EPipe (_, exprs) ->
         exprs |> List.map ~f:u |> List.concat
-    | EFieldAccess (_, obj, _, _) ->
+    | EFieldAccess (_, obj, _) ->
         u obj
     | EList (_, exprs) ->
         exprs |> List.map ~f:u |> List.concat
     | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple3.third |> List.map ~f:u |> List.concat
-    | EFeatureFlag (_, _, _, cond, a, b) ->
+        pairs |> List.map ~f:Tuple2.second |> List.map ~f:u |> List.concat
+    | EFeatureFlag (_, _, cond, a, b) ->
         List.concat [u cond; u a; u b]
     | EMatch (_, matchExpr, cases) ->
         let exprs = cases |> List.map ~f:Tuple2.second in
@@ -168,24 +168,24 @@ let children (expr : E.t) : blankOrData list =
       ces exprs
   | EBinOp (_, _, lhs, rhs, _) ->
       ces [lhs; rhs]
-  | EConstructor (_, nameid, name, exprs) ->
-      PConstructorName (nameid, name) :: ces exprs
+  | EConstructor (id, name, exprs) ->
+      PConstructorName (id, name) :: ces exprs
   | ELambda (_, vars, lexpr) ->
       List.map ~f:(fun (id, vb) -> PVarBind (id, vb)) vars @ [PExpr lexpr]
   | EPipe (_, exprs) ->
       ces exprs
-  | EFieldAccess (_, obj, fieldid, field) ->
-      [PExpr obj; PField (fieldid, field)]
-  | ELet (_, lhsid, lhs, rhs, body) ->
-      [PVarBind (lhsid, lhs); PExpr rhs; PExpr body]
+  | EFieldAccess (id, obj, field) ->
+      [PExpr obj; PField (id, field)]
+  | ELet (id, lhs, rhs, body) ->
+      [PVarBind (id, lhs); PExpr rhs; PExpr body]
   | ERecord (_, pairs) ->
       pairs
-      |> List.map ~f:(fun (id, k, v) -> [PKey (id, k); PExpr v])
+      |> List.map ~f:(fun (k, v) -> [PKey (E.id v, k); PExpr v])
       |> List.concat
   | EList (_, elems) ->
       ces elems
-  | EFeatureFlag (_, msg, msgid, cond, a, b) ->
-      [PFFMsg (msgid, msg); PExpr cond; PExpr a; PExpr b]
+  | EFeatureFlag (id, msg, cond, a, b) ->
+      [PFFMsg (id, msg); PExpr cond; PExpr a; PExpr b]
   | EMatch (_, matchExpr, cases) ->
       (* We list all the descendents of the pattern here. This isn't ideal,
        * but it's challenging with the current setup to do otherwise, because
@@ -221,7 +221,7 @@ let rec childrenOf (pid : id) (expr : E.t) : blankOrData list =
         []
     | EVariable _ ->
         []
-    | ELet (_, _, _, rhs, body) ->
+    | ELet (_, _, rhs, body) ->
         co body @ co rhs
     | EIf (_, cond, ifbody, elsebody) ->
         co cond @ co ifbody @ co elsebody
@@ -229,19 +229,19 @@ let rec childrenOf (pid : id) (expr : E.t) : blankOrData list =
         List.map ~f:co exprs |> List.concat
     | EBinOp (_, _, lhs, rhs, _) ->
         co lhs @ co rhs
-    | EConstructor (_, _, _, exprs) ->
+    | EConstructor (_, _, exprs) ->
         List.map ~f:co exprs |> List.concat
     | ELambda (_, _, lexpr) ->
         co lexpr
     | EPipe (_, exprs) ->
         List.map ~f:co exprs |> List.concat
-    | EFieldAccess (_, obj, _, _) ->
+    | EFieldAccess (_, obj, _) ->
         co obj
     | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple3.third |> List.map ~f:co |> List.concat
+        pairs |> List.map ~f:Tuple2.second |> List.map ~f:co |> List.concat
     | EList (_, pairs) ->
         pairs |> List.map ~f:co |> List.concat
-    | EFeatureFlag (_, _, _, cond, a, b) ->
+    | EFeatureFlag (_, _, cond, a, b) ->
         co cond @ co a @ co b
     | EMatch (_, matchExpr, cases) ->
         let cCases =
@@ -277,7 +277,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
         None
     | EVariable _ ->
         None
-    | ELet (_, _, _, rhs, body) ->
+    | ELet (_, _, rhs, body) ->
         fpowList [rhs; body]
     | EIf (_, cond, ifbody, elsebody) ->
         fpowList [cond; ifbody; elsebody]
@@ -285,20 +285,20 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
         fpowList exprs
     | EBinOp (_, _, lhs, rhs, _) ->
         fpowList [lhs; rhs]
-    | EConstructor (_, _, _, exprs) ->
+    | EConstructor (_, _, exprs) ->
         fpowList exprs
     | ELambda (_, _, lexpr) ->
         fpow lexpr
     | EPipe (_, exprs) ->
         fpowList exprs
-    | EFieldAccess (_, obj, _, _) ->
+    | EFieldAccess (_, obj, _) ->
         fpow obj
     | EList (_, exprs) ->
         fpowList exprs
     (* we don't check the children because it's done up top *)
     | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple3.third |> fpowList
-    | EFeatureFlag (_, _, _, cond, a, b) ->
+        pairs |> List.map ~f:Tuple2.second |> fpowList
+    | EFeatureFlag (_, _, cond, a, b) ->
         fpowList [cond; a; b]
     | EMatch (_, matchExpr, cases) ->
         fpowList (matchExpr :: (cases |> List.map ~f:Tuple2.second))
@@ -386,7 +386,7 @@ let ancestors (id : id) (expr : E.t) : E.t list =
           []
       | EVariable _ ->
           []
-      | ELet (_, _, _, rhs, body) ->
+      | ELet (_, _, rhs, body) ->
           reclist id exp walk [rhs; body]
       | EIf (_, cond, ifbody, elsebody) ->
           reclist id exp walk [cond; ifbody; elsebody]
@@ -398,17 +398,17 @@ let ancestors (id : id) (expr : E.t) : E.t list =
           rec_ id exp walk lexpr
       | EPipe (_, exprs) ->
           reclist id exp walk exprs
-      | EFieldAccess (_, obj, _, _) ->
+      | EFieldAccess (_, obj, _) ->
           rec_ id exp walk obj
       | EList (_, exprs) ->
           reclist id expr walk exprs
       | ERecord (_, pairs) ->
-          pairs |> List.map ~f:Tuple3.third |> reclist id expr walk
-      | EFeatureFlag (_, _, _, cond, a, b) ->
+          pairs |> List.map ~f:Tuple2.second |> reclist id expr walk
+      | EFeatureFlag (_, _, cond, a, b) ->
           reclist id exp walk [cond; a; b]
       | EMatch (_, matchExpr, cases) ->
           reclist id exp walk (matchExpr :: List.map ~f:Tuple2.second cases)
-      | EConstructor (_, _, _, args) ->
+      | EConstructor (_, _, args) ->
           reclist id exp walk args
       | EPartial (_, _, oldExpr) ->
           rec_ id exp walk oldExpr
@@ -416,19 +416,6 @@ let ancestors (id : id) (expr : E.t) : E.t list =
           rec_ id exp walk oldExpr
   in
   rec_ancestors id [] expr
-
-
-let getValueParent (p : blankOrData) (expr : E.t) : fluidExpr option =
-  let parent = findParentOfWithin_ (P.toID p) expr in
-  match (p, parent) with
-  | PExpr e, Some (EPipe (_, exprs)) ->
-      exprs |> Util.listPrevious ~value:e
-  | PField _, Some (EFieldAccess (_, obj, _, _)) ->
-      Some obj
-  | PPattern _, Some (EMatch (_, cond, _)) ->
-      Some cond
-  | _ ->
-      None
 
 
 let freeVariables (ast : E.t) : (id * string) list =
@@ -443,7 +430,7 @@ let freeVariables (ast : E.t) : (id * string) list =
            | PExpr e ->
              ( match e with
              (* Grab all uses of the `lhs` of a Let in its body *)
-             | ELet (_, _, lhs, _, body) ->
+             | ELet (_, lhs, _, body) ->
                  Some (uses lhs body)
              (* Grab all uses of the `vars` of a Lambda in its body *)
              | ELambda (_, vars, body) ->
@@ -512,11 +499,11 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
         ()
     | EVariable _ ->
         ()
-    | ELet (_, lhsid, lhs, rhs, body) ->
+    | ELet (id, lhs, rhs, body) ->
         sexe st rhs ;
         let bound =
           if lhs <> ""
-          then VarDict.update ~key:lhs ~f:(fun _v -> Some lhsid) st
+          then VarDict.update ~key:lhs ~f:(fun _v -> Some id) st
           else st
         in
         sexe bound body
@@ -525,7 +512,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
     | EBinOp (_, _, lhs, rhs, _) ->
         List.iter ~f:(sexe st) [lhs; rhs]
     | EIf (_, cond, ifbody, elsebody)
-    | EFeatureFlag (_, _, _, cond, elsebody, ifbody) ->
+    | EFeatureFlag (_, _, cond, elsebody, ifbody) ->
         sexe st cond ;
         sexe st ifbody ;
         sexe st elsebody
@@ -538,7 +525,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
         sexe new_st body
     | EPipe (_, exprs) ->
         List.iter ~f:(sexe st) exprs
-    | EFieldAccess (_, obj, _, _) ->
+    | EFieldAccess (_, obj, _) ->
         sexe st obj
     | EList (_, exprs) ->
         List.iter ~f:(sexe st) exprs
@@ -567,8 +554,8 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
             in
             sexe new_st caseExpr)
     | ERecord (_, exprs) ->
-        exprs |> List.map ~f:Tuple3.third |> List.iter ~f:(sexe st)
-    | EConstructor (_, _, _, args) ->
+        exprs |> List.map ~f:Tuple2.second |> List.iter ~f:(sexe st)
+    | EConstructor (_, _, args) ->
         List.iter ~f:(sexe st) args
     | EPartial (_, _, oldExpr) ->
         sexe st oldExpr

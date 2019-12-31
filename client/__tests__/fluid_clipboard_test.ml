@@ -406,15 +406,14 @@ let run () =
         "pasting an ERecord with a single key & no value in a string should paste key"
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (paste
-           ~clipboard:(ERecord (gid (), [(gid (), "key1", EBlank (gid ()))]))
+           ~clipboard:(ERecord (gid (), [("key1", EBlank (gid ()))]))
            (11, 15))
         ("\"abcd EFGH key1 1234\"", "{\n  key1 : ___\n}", 15) ;
       t
         "pasting a regular ERecord with a single key in a string should paste stringified expr"
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (paste
-           ~clipboard:
-             (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "9876"))]))
+           ~clipboard:(ERecord (gid (), [("key1", EInteger (gid (), "9876"))]))
            (11, 15))
         ("\"abcd EFGH {\n  key1 : 9876\n} 1234\"", "{\n  key1 : 9876\n}", 28) ;
       ()) ;
@@ -560,29 +559,29 @@ let run () =
         ("varName", "varName", 7) ;
       t
         "pasting variable into empty let lhs works"
-        (ELet (gid (), gid (), "", EBlank (gid ()), EBlank (gid ())))
+        (ELet (gid (), "", EBlank (gid ()), EBlank (gid ())))
         (paste ~clipboard:(EVariable (gid (), "varName")) (7, 7))
         ("let varName = ___\n___", "varName", 14) ;
       t
         "pasting variable into filled let lhs works"
-        (ELet (gid (), gid (), "oldLetLhs", EBlank (gid ()), EBlank (gid ())))
+        (ELet (gid (), "oldLetLhs", EBlank (gid ()), EBlank (gid ())))
         (paste ~clipboard:(EVariable (gid (), "varName")) (7, 7))
         ("let oldvarNameLetLhs = ___\n___", "varName", 14) ;
       t
         "pasting variable over filled let lhs works"
-        (ELet (gid (), gid (), "oldLetLhs", EBlank (gid ()), EBlank (gid ())))
+        (ELet (gid (), "oldLetLhs", EBlank (gid ()), EBlank (gid ())))
         (paste ~clipboard:(EVariable (gid (), "varName")) (7, 13))
         ("let oldvarName = ___\n___", "varName", 14) ;
       ()) ;
   describe "Field Accesses" (fun () ->
       t
         "copying adds an EFieldAccess to clipboard"
-        (EFieldAccess (gid (), EVariable (gid (), "request"), gid (), "body"))
+        (EFieldAccess (gid (), EVariable (gid (), "request"), "body"))
         (copy (0, 12))
         ("request.body", "request.body", 12) ;
       t
         "copying the preceding expresssion adds it to clipboard"
-        (EFieldAccess (gid (), EVariable (gid (), "request"), gid (), "body"))
+        (EFieldAccess (gid (), EVariable (gid (), "request"), "body"))
         (copy (0, 7))
         ("request.body", "request", 7) ;
       (* NOT WORKING YET
@@ -928,44 +927,44 @@ let run () =
   describe "Records" (fun () ->
       t
         "copying opening bracket adds empty record expr to clipboard"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
+        (ERecord (gid (), [("key1", EInteger (gid (), "1234"))]))
         (copy (0, 1))
         ("{\n  key1 : 1234\n}", "{}", 1) ;
       t
         "copying a single key adds record w single key to clipboard"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
+        (ERecord (gid (), [("key1", EInteger (gid (), "1234"))]))
         (copy (4, 8))
         ("{\n  key1 : 1234\n}", "{\n  key1 : ___\n}", 8) ;
       t
         "cutting a single key adds record w single key to clipboard and leaves blank in it's place"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
+        (ERecord (gid (), [("key1", EInteger (gid (), "1234"))]))
         (cut (4, 8))
         ("{\n  *** : 1234\n}", "{\n  key1 : ___\n}", 4) ;
       t
         "copying a single k-v pair adds record w single k-v pair to clipboard"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
+        (ERecord (gid (), [("key1", EInteger (gid (), "1234"))]))
         (copy (2, 15))
         ("{\n  key1 : 1234\n}", "{\n  key1 : 1234\n}", 15) ;
       ()) ;
   describe "Constructors" (fun () ->
       t
         "copying adds EConstructor to clipboard"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
+        (EConstructor (gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 8))
         ("Just 100", "Just 100", 8) ;
       t
         "copying part adds partial EConstructor to clipboard"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
+        (EConstructor (gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 3))
         ("Just 100", "Jus@ ___", 3) ;
       t
         "cutting adds EConstructor to clipboard and leaves blank"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
+        (EConstructor (gid (), "Just", [EInteger (gid (), "100")]))
         (cut (0, 8))
         ("___", "Just 100", 0) ;
       t
         "cutting part adds partial EConstructor to clipboard and leaves partial"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
+        (EConstructor (gid (), "Just", [EInteger (gid (), "100")]))
         (cut (0, 3))
         ("t@s@ 100", "Jus@ ___", 0) ;
       ()) ;

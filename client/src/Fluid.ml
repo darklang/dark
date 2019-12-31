@@ -910,7 +910,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
   let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
     | EVariable (id, str) ->
         {astRef = ARVariable id; offset = String.length str}
-    | EFieldAccess (id, _, _, fieldName) ->
+    | EFieldAccess (id, _, fieldName) ->
         { astRef = ARFieldAccess (id, FAPFieldname)
         ; offset = String.length fieldName }
     | EInteger (id, valueStr) ->
@@ -932,7 +932,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
             (* It might be better to return offset 0 here,
               because we might not want to be in the actual end of the blank? *)
         }
-    | ELet (_, _, _, _, bodyExpr) ->
+    | ELet (_, _, _, bodyExpr) ->
         caretTargetForLastPartOfExpr' bodyExpr
     | EIf (_, _, _, elseExpr) ->
         caretTargetForLastPartOfExpr' elseExpr
@@ -970,13 +970,13 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
           caretTargetForLastPartOfExpr' branchBody
       | None ->
           caretTargetForLastPartOfExpr' matchedExpr )
-    | EConstructor (id, _, name, containedExprs) ->
+    | EConstructor (id, name, containedExprs) ->
       ( match List.last containedExprs with
       | Some lastExpr ->
           caretTargetForLastPartOfExpr' lastExpr
       | None ->
           {astRef = ARConstructor (id, CPName); offset = String.length name} )
-    | (EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _) as expr ->
+    | (EFeatureFlag (_, _, _, _, _) | EPipeTarget _) as expr ->
         recover
           "we don't yet support caretTargetForLastPartOfExpr for this"
           ~debug:expr
@@ -1008,7 +1008,7 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARNull id; offset = 0}
     | EBlank id ->
         {astRef = ARBlank id; offset = 0}
-    | ELet (id, _, _, _, _) ->
+    | ELet (id, _, _, _) ->
         {astRef = ARLet (id, LPKeyword); offset = 0}
     | EIf (id, _, _, _) ->
         {astRef = ARIf (id, IPIfKeyword); offset = 0}
@@ -1020,7 +1020,7 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARFnCall (id, FCPFnName); offset = 0}
     | ELambda (id, _, _) ->
         {astRef = ARLambda (id, LPKeyword); offset = 0}
-    | EFieldAccess (_, expr, _, _) ->
+    | EFieldAccess (_, expr, _) ->
         caretTargetForBeginningOfExpr' expr
     | EVariable (id, _) ->
         {astRef = ARVariable id; offset = 0}
@@ -1034,7 +1034,7 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARRecord (id, RPOpen); offset = 0}
     | EPipe (id, _) ->
         {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
-    | EConstructor (id, _, _, _) ->
+    | EConstructor (id, _, _) ->
         {astRef = ARConstructor (id, CPName); offset = 0}
     | (EFeatureFlag _ | EPipeTarget _) as expr ->
         recover
@@ -1271,7 +1271,7 @@ let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
 let removeEmptyExpr (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
-      | ELet (_, _, "", EBlank _, body) ->
+      | ELet (_, "", EBlank _, body) ->
           body
       | EIf (_, EBlank _, EBlank _, EBlank _) ->
           E.newB ()
@@ -1439,15 +1439,15 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : E.t =
 let exprToFieldAccess (id : id) ~(partialID : id) ~(fieldID : id) (ast : ast) :
     E.t =
   E.update id ast ~f:(fun e ->
-      EPartial (partialID, "", EFieldAccess (fieldID, e, gid (), "")))
+      EPartial (partialID, "", EFieldAccess (fieldID, e, "")))
 
 
 let removeField (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
-      | EFieldAccess (_, faExpr, _, _) ->
+      | EFieldAccess (_, faExpr, _) ->
           faExpr
-      | EPartial (_, _, EFieldAccess (_, faExpr, _, _)) ->
+      | EPartial (_, _, EFieldAccess (_, faExpr, _)) ->
           faExpr
       | _ ->
           recover "not a fieldAccess in removeField" ~debug:e e)
@@ -1506,13 +1506,8 @@ let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : ast) : E.t
 let replaceLetLHS (newName : string) (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
-      | ELet (id, lhsID, oldName, rhs, next) ->
-          ELet
-            ( id
-            , lhsID
-            , newName
-            , rhs
-            , E.renameVariableUses ~oldName ~newName next )
+      | ELet (id, oldName, rhs, next) ->
+          ELet (id, newName, rhs, E.renameVariableUses ~oldName ~newName next)
       | _ ->
           recover "not a let in replaceLetLHS" ~debug:e e)
 
@@ -1526,9 +1521,7 @@ let makeIntoLetBody (id : id) (ast : ast) (s : fluidState) :
     E.t * fluidState * id =
   let s = recordAction (Printf.sprintf "makeIntoLetBody(%s)" (deID id)) s in
   let lid = gid () in
-  let ast =
-    E.update id ast ~f:(fun expr -> ELet (lid, gid (), "", E.newB (), expr))
-  in
+  let ast = E.update id ast ~f:(fun expr -> ELet (lid, "", E.newB (), expr)) in
   (ast, s, lid)
 
 
@@ -1540,8 +1533,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : E.t =
       match e with
       | ERecord (id, fields) ->
           let fields =
-            List.updateAt fields ~index ~f:(fun (id, _, expr) ->
-                (id, str, expr))
+            List.updateAt fields ~index ~f:(fun (_, expr) -> (str, expr))
           in
           ERecord (id, fields)
       | _ ->
@@ -1562,8 +1554,7 @@ let addRecordRowAt ?(letter = "") (index : int) (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
-          ERecord
-            (id, List.insertAt ~index ~value:(gid (), letter, E.newB ()) fields)
+          ERecord (id, List.insertAt ~index ~value:(letter, E.newB ()) fields)
       | _ ->
           recover "Not a record in addRecordRowAt" ~debug:e e)
 
@@ -1572,7 +1563,7 @@ let addRecordRowToBack (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
-          ERecord (id, fields @ [(gid (), "", E.newB ())])
+          ERecord (id, fields @ [("", E.newB ())])
       | _ ->
           recover "Not a record in addRecordRowToTheBack" ~debug:e e)
 
@@ -1580,7 +1571,7 @@ let addRecordRowToBack (id : id) (ast : ast) : E.t =
 (* recordFieldAtIndex gets the field for the record in the ast with recordID at index,
    or None if the record has no field with that index *)
 let recordFieldAtIndex (recordID : id) (index : int) (ast : ast) :
-    (id * fluidName * fluidExpr) option =
+    (fluidName * fluidExpr) option =
   E.find recordID ast
   |> Option.andThen ~f:(fun expr ->
          match expr with ERecord (_, fields) -> Some fields | _ -> None)
@@ -1591,7 +1582,7 @@ let recordFieldAtIndex (recordID : id) (index : int) (ast : ast) :
    with recordID at index, or None if the record has no field with that index  *)
 let recordExprIdAtIndex (recordID : id) (index : int) (ast : ast) : id option =
   match recordFieldAtIndex recordID index ast with
-  | Some (_, _, fluidExpr) ->
+  | Some (_, fluidExpr) ->
       Some (E.id fluidExpr)
   | _ ->
       None
@@ -1675,11 +1666,11 @@ let replacePartialWithArguments
     | (_, _, EVariable _, _) :: _ ->
         expr
     | (name, _, rhs, _) :: rest ->
-        ELet (gid (), gid (), name, rhs, wrapWithLets ~expr rest)
+        ELet (gid (), name, rhs, wrapWithLets ~expr rest)
   in
   let getExprs expr =
     match expr with
-    | EFnCall (_, _, exprs, _) | EConstructor (_, _, _, exprs) ->
+    | EFnCall (_, _, exprs, _) | EConstructor (_, _, exprs) ->
         exprs
     | EBinOp (_, _, lhs, rhs, _) ->
         [lhs; rhs]
@@ -1698,7 +1689,7 @@ let replacePartialWithArguments
       (* preserve partials with arguments *)
       | EPartial (_, _, (EFnCall (_, name, _, _) as inner))
       | EPartial (_, _, (EBinOp (_, name, _, _, _) as inner))
-      | EPartial (_, _, (EConstructor (_, _, name, _) as inner)) ->
+      | EPartial (_, _, (EConstructor (_, name, _) as inner)) ->
           let existingExprs = getExprs inner in
           let fetchParams newName placeholderExprs =
             let count =
@@ -2098,7 +2089,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
         let offset = if List.isEmpty args then fnNameLen else fnNameLen + 1 in
         (EFnCall (gid (), fn.fnName, args, r), offset)
   | FACKeyword KLet ->
-      (ELet (gid (), gid (), "", E.newB (), E.newB ()), 4)
+      (ELet (gid (), "", E.newB (), E.newB ()), 4)
   | FACKeyword KIf ->
       (EIf (gid (), E.newB (), E.newB (), E.newB ()), 3)
   | FACKeyword KLambda ->
@@ -2119,12 +2110,11 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
   | FACConstructorName (name, argCount) ->
       let args = List.initialize argCount (fun _ -> EBlank (gid ())) in
       let starting = if argCount = 0 then 0 else 1 in
-      (EConstructor (gid (), gid (), name, args), starting + String.length name)
+      (EConstructor (gid (), name, args), starting + String.length name)
   | FACPattern _ ->
       recover "patterns are not supported here" ~debug:entry (E.newB (), 0)
   | FACField fieldname ->
-      ( EFieldAccess (gid (), E.newB (), gid (), fieldname)
-      , String.length fieldname )
+      (EFieldAccess (gid (), E.newB (), fieldname), String.length fieldname)
   | FACLiteral _ ->
       recover "invalid literal in autocomplete" ~debug:entry (E.newB (), 0)
 
@@ -2411,11 +2401,11 @@ let updateFromACItem
         (newAST, String.length name)
     | ( (TFieldName _ | TFieldPartial _ | TBlank _)
       , Some
-          ( EFieldAccess (faID, labelid, expr, _)
-          | EPartial (_, _, EFieldAccess (faID, labelid, expr, _)) )
+          ( EFieldAccess (faID, expr, _)
+          | EPartial (_, _, EFieldAccess (faID, expr, _)) )
       , _
-      , EFieldAccess (_, _, _, newname) ) ->
-        let replacement = EFieldAccess (faID, labelid, expr, newname) in
+      , EFieldAccess (_, _, newname) ) ->
+        let replacement = EFieldAccess (faID, expr, newname) in
         let newAST = E.replace ~replacement id ast in
         (newAST, offset)
     | _, _, _, _ ->
@@ -2482,7 +2472,7 @@ let acStartField (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
   | Some entry, _ ->
       let newExpr, length = acToExpr entry in
       let replacement =
-        EPartial (gid (), "", EFieldAccess (gid (), newExpr, gid (), ""))
+        EPartial (gid (), "", EFieldAccess (gid (), newExpr, ""))
       in
       let length = length + 1 in
       let newState = s |> moveTo (ti.startPos + length) |> acClear in
@@ -3139,7 +3129,7 @@ let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
             expr
       in
       let eid = E.id exprToWrap in
-      let replacement = ELet (gid (), gid (), "_", exprToWrap, EBlank bodyId) in
+      let replacement = ELet (gid (), "_", exprToWrap, EBlank bodyId) in
       let newAST = E.replace ~replacement eid ast in
       let newPos =
         posFromCaretTarget s newAST {astRef = ARBlank bodyId; offset = 0}
@@ -4059,7 +4049,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
     | EBlank _, _ ->
         Some (EBlank id)
     (* empty let expr and subsets *)
-    | ELet (eID, lhsID, _lhs, rhs, body), tokens ->
+    | ELet (eID, _lhs, rhs, body), tokens ->
         let letKeywordSelected =
           findTokenValue tokens eID "let-keyword" <> None
         in
@@ -4072,11 +4062,11 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         | None, Some e ->
             Some e
         | Some newRhs, None ->
-            Some (ELet (id, lhsID, newLhs, newRhs, EBlank (gid ())))
+            Some (ELet (id, newLhs, newRhs, EBlank (gid ())))
         | Some newRhs, Some newBody ->
-            Some (ELet (id, lhsID, newLhs, newRhs, newBody))
+            Some (ELet (id, newLhs, newRhs, newBody))
         | None, None when letKeywordSelected ->
-            Some (ELet (id, lhsID, newLhs, EBlank (gid ()), EBlank (gid ())))
+            Some (ELet (id, newLhs, EBlank (gid ()), EBlank (gid ())))
         | _, _ ->
             None )
     | EIf (eID, cond, thenBody, elseBody), tokens ->
@@ -4120,15 +4110,11 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
           | EBlank _, EBlank _ ->
               None
           | EBlank _, e | e, EBlank _ ->
-              Some (ELet (gid (), gid (), "", e, EBlank (gid ())))
+              Some (ELet (gid (), "", e, EBlank (gid ())))
           | e1, e2 ->
               Some
-                (ELet
-                   ( gid ()
-                   , gid ()
-                   , ""
-                   , e1
-                   , ELet (gid (), gid (), "", e2, EBlank (gid ())) )) )
+                (ELet (gid (), "", e1, ELet (gid (), "", e2, EBlank (gid ()))))
+          )
         | None, Some e ->
             let e = EBinOp (id, name, EBlank (gid ()), e, ster) in
             if newName = ""
@@ -4173,7 +4159,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                      None)
         in
         Some (ELambda (id, newVars, reconstructExpr body |> orDefaultExpr))
-    | EFieldAccess (eID, e, _, _), tokens ->
+    | EFieldAccess (eID, e, _), tokens ->
         let newFieldName =
           findTokenValue tokens eID "field-name"
           |> Option.withDefault ~default:""
@@ -4185,9 +4171,9 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some
               (EPartial (gid (), newFieldName, EVariable (gid (), newFieldName)))
         | None, true, newFieldName when newFieldName != "" ->
-            Some (EFieldAccess (id, EBlank (gid ()), gid (), newFieldName))
+            Some (EFieldAccess (id, EBlank (gid ()), newFieldName))
         | Some e, true, _ ->
-            Some (EFieldAccess (id, e, gid (), newFieldName))
+            Some (EFieldAccess (id, e, newFieldName))
         | _ ->
             e )
     | EVariable (eID, value), tokens ->
@@ -4251,15 +4237,14 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
                  | TRecordFieldname
-                     {recordID; index; fieldName = newKey; fieldID = _}
+                     {recordID; index; fieldName = newKey; exprID = _}
                    when recordID = id (* watch out for nested records *) ->
                      List.getAt ~index entries
                      |> Option.map
                           ~f:
-                            (Tuple3.mapEach
-                               ~f:identity (* ID stays the same *)
-                               ~g:(fun _ -> newKey) (* replace key *)
-                               ~h:
+                            (Tuple2.mapEach
+                               ~f:(fun _ -> newKey) (* replace key *)
+                               ~g:
                                  (reconstructExpr >> orDefaultExpr)
                                  (* reconstruct value expression *))
                  | _ ->
@@ -4279,13 +4264,13 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
               exprs
         in
         Some (EPipe (id, newExprs))
-    | EConstructor (eID, _, name, exprs), tokens ->
+    | EConstructor (eID, name, exprs), tokens ->
         let newName =
           findTokenValue tokens eID "constructor-name"
           |> Option.withDefault ~default:""
         in
         let newExprs = List.map exprs ~f:(reconstructExpr >> orDefaultExpr) in
-        let e = EConstructor (id, gid (), name, newExprs) in
+        let e = EConstructor (id, name, newExprs) in
         if newName = ""
         then None
         else if name <> newName
@@ -4343,14 +4328,13 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         in
         Some
           (EMatch (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
-    | EFeatureFlag (_, name, nameID, cond, thenBody, elseBody), _ ->
+    | EFeatureFlag (_, name, cond, thenBody, elseBody), _ ->
         (* since we don't have any tokens associated with feature flags yet *)
         Some
           (EFeatureFlag
              ( id
              , (* should probably do some stuff about if the name token isn't fully selected *)
                name
-             , nameID
              , reconstructExpr cond |> orDefaultExpr
              , reconstructExpr thenBody |> orDefaultExpr
              , reconstructExpr elseBody |> orDefaultExpr ))
@@ -4392,7 +4376,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
       in
       (E.replace ~replacement:clipboardExpr exprID ast, {state with newPos})
   (* inserting record key (record expression with single key and no value) into string *)
-  | ( Some (ERecord (_, [(_, insert, EBlank _)]))
+  | ( Some (ERecord (_, [(insert, EBlank _)]))
     , Some (EString (_, str))
     , Some {startPos; _} ) ->
       let index = state.newPos - startPos - 1 in
@@ -4521,7 +4505,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
       (newAST, {state with newPos = collapsedSelStart + String.length intVal})
   (* inserting variable into let LHS *)
   | ( Some (EVariable (_, varName))
-    , Some (ELet (_, _, lhs, rhs, body))
+    , Some (ELet (_, lhs, rhs, body))
     , Some {startPos; token = TLetLHS _; _} ) ->
       let index = state.newPos - startPos in
       let newLhs =
@@ -4529,7 +4513,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
         then String.insertAt ~insert:varName ~index lhs
         else varName
       in
-      let replacement = ELet (gid (), gid (), newLhs, rhs, body) in
+      let replacement = ELet (gid (), newLhs, rhs, body) in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> E.replace ~replacement id ast)

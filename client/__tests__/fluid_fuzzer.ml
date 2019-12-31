@@ -274,13 +274,13 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
   let childOr (exprs : E.t list) = List.find exprs ~f:(fun e -> E.id e = id) in
   let newExpr =
     match expr with
-    | ELet (_, _, _, rhs, next) ->
+    | ELet (_, _, rhs, next) ->
         childOr [rhs; next]
     | EIf (_, cond, ifexpr, elseexpr) ->
         childOr [cond; ifexpr; elseexpr]
     | EBinOp (_, _, lexpr, rexpr, _) ->
         childOr [lexpr; rexpr]
-    | EFieldAccess (_, expr, _, _) ->
+    | EFieldAccess (_, expr, _) ->
         childOr [expr]
     | EFnCall (_, _, exprs, _) ->
         childOr exprs
@@ -291,16 +291,16 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
     | EMatch (_, mexpr, pairs) ->
         childOr (mexpr :: List.map ~f:Tuple2.second pairs)
     | ERecord (_, fields) ->
-        childOr (List.map ~f:Tuple3.third fields)
+        childOr (List.map ~f:Tuple2.second fields)
     | EPipe (_, exprs) ->
         childOr exprs
-    | EConstructor (_, _, _, exprs) ->
+    | EConstructor (_, _, exprs) ->
         childOr exprs
     | EPartial (_, _, oldExpr) ->
         childOr [oldExpr]
     | ERightPartial (_, _, oldExpr) ->
         childOr [oldExpr]
-    | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+    | EFeatureFlag (_, _, cond, casea, caseb) ->
         childOr [cond; casea; caseb]
     | _ ->
         None
@@ -314,10 +314,10 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
   let fStr strid str = if strid = id then "" else str in
   let newExpr =
     match expr with
-    | ELet (id, lhsID, name, rhs, next) ->
-        ELet (id, lhsID, fStr lhsID name, rhs, next)
-    | EFieldAccess (id, expr, fieldID, fieldname) ->
-        EFieldAccess (id, expr, fieldID, fStr fieldID fieldname)
+    | ELet (id, name, rhs, next) ->
+        ELet (id, fStr id name, rhs, next)
+    | EFieldAccess (id, expr, fieldname) ->
+        EFieldAccess (id, expr, fStr id fieldname)
     | ELambda (id, names, expr) ->
         let names =
           List.map names ~f:(fun (nid, name) ->
@@ -328,8 +328,8 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
         ERecord
           ( rid
           , List.map
-              ~f:(fun (fid, name, expr) ->
-                if fid = id then (fid, "", expr) else (fid, name, expr))
+              ~f:(fun (name, expr) ->
+                if id = E.id expr then ("", expr) else (name, expr))
               fields )
     | _ ->
         expr
@@ -346,10 +346,8 @@ let rec remove (id : id) (expr : E.t) : E.t =
   else
     let newExpr =
       match expr with
-      | EFieldAccess (id, expr, fieldID, fieldname) ->
-          if id = fieldID
-          then expr
-          else EFieldAccess (id, r expr, fieldID, fieldname)
+      | EFieldAccess (faID, expr, fieldname) ->
+          if id = faID then expr else EFieldAccess (faID, r expr, fieldname)
       | EFnCall (id, name, exprs, ster) ->
           EFnCall (id, name, removeFromList exprs, ster)
       | ELambda (id, names, expr) ->
@@ -376,10 +374,8 @@ let rec remove (id : id) (expr : E.t) : E.t =
           ERecord
             ( rid
             , List.filterMap
-                ~f:(fun (fid, name, expr) ->
-                  if E.id expr = id || fid = id
-                  then None
-                  else Some (fid, name, expr))
+                ~f:(fun (name, expr) ->
+                  if E.id expr = id then None else Some (name, expr))
                 fields )
       | EPipe (id, exprs) ->
         ( match removeFromList exprs with
@@ -395,8 +391,8 @@ let rec remove (id : id) (expr : E.t) : E.t =
             EBlank id
         | newExprs ->
             EPipe (id, newExprs) )
-      | EConstructor (id, nameID, name, exprs) ->
-          EConstructor (id, nameID, name, removeFromList exprs)
+      | EConstructor (id, name, exprs) ->
+          EConstructor (id, name, removeFromList exprs)
       | _ ->
           expr
     in

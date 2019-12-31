@@ -16,11 +16,11 @@ let id (expr : t) : Types.id =
   | ENull id
   | EFloat (id, _, _)
   | EVariable (id, _)
-  | EFieldAccess (id, _, _, _)
+  | EFieldAccess (id, _, _)
   | EFnCall (id, _, _, _)
   | ELambda (id, _, _)
   | EBlank id
-  | ELet (id, _, _, _, _)
+  | ELet (id, _, _, _)
   | EIf (id, _, _, _)
   | EPartial (id, _, _)
   | ERightPartial (id, _, _)
@@ -29,8 +29,8 @@ let id (expr : t) : Types.id =
   | EPipe (id, _)
   | EPipeTarget id
   | EBinOp (id, _, _, _, _)
-  | EConstructor (id, _, _, _)
-  | EFeatureFlag (id, _, _, _, _, _)
+  | EConstructor (id, _, _)
+  | EFeatureFlag (id, _, _, _, _)
   | EMatch (id, _, _) ->
       id
 
@@ -50,7 +50,7 @@ let rec find (target : Types.id) (expr : t) : t option =
     | EPipeTarget _
     | EFloat _ ->
         None
-    | ELet (_, _, _, rhs, next) ->
+    | ELet (_, _, rhs, next) ->
         fe rhs |> Option.orElseLazy (fun () -> fe next)
     | EIf (_, cond, ifexpr, elseexpr) ->
         fe cond
@@ -58,22 +58,22 @@ let rec find (target : Types.id) (expr : t) : t option =
         |> Option.orElseLazy (fun () -> fe elseexpr)
     | EBinOp (_, _, lexpr, rexpr, _) ->
         fe lexpr |> Option.orElseLazy (fun () -> fe rexpr)
-    | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
+    | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
         fe expr
     | ERecord (_, fields) ->
-        fields |> List.map ~f:Tuple3.third |> List.findMap ~f:fe
+        fields |> List.map ~f:Tuple2.second |> List.findMap ~f:fe
     | EMatch (_, expr, pairs) ->
         fe expr
         |> Option.orElseLazy (fun () ->
                pairs |> List.map ~f:Tuple2.second |> List.findMap ~f:fe)
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
-    | EConstructor (_, _, _, exprs)
+    | EConstructor (_, _, exprs)
     | EPipe (_, exprs) ->
         List.findMap ~f:fe exprs
     | EPartial (_, _, oldExpr) | ERightPartial (_, _, oldExpr) ->
         fe oldExpr
-    | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+    | EFeatureFlag (_, _, cond, casea, caseb) ->
         fe cond
         |> Option.orElseLazy (fun () -> fe casea)
         |> Option.orElseLazy (fun () -> fe caseb)
@@ -96,28 +96,28 @@ let findParent (target : Types.id) (expr : t) : t option =
       | EPipeTarget _
       | EFloat _ ->
           None
-      | ELet (_, _, _, rhs, next) ->
+      | ELet (_, _, rhs, next) ->
           List.findMap ~f:fp [rhs; next]
       | EIf (_, cond, ifexpr, elseexpr) ->
           List.findMap ~f:fp [cond; ifexpr; elseexpr]
       | EBinOp (_, _, lexpr, rexpr, _) ->
           List.findMap ~f:fp [lexpr; rexpr]
-      | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
+      | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
           fp expr
       | EMatch (_, _, pairs) ->
           pairs |> List.map ~f:Tuple2.second |> List.findMap ~f:fp
       | ERecord (_, fields) ->
-          fields |> List.map ~f:Tuple3.third |> List.findMap ~f:fp
+          fields |> List.map ~f:Tuple2.second |> List.findMap ~f:fp
       | EFnCall (_, _, exprs, _)
       | EList (_, exprs)
-      | EConstructor (_, _, _, exprs)
+      | EConstructor (_, _, exprs)
       | EPipe (_, exprs) ->
           List.findMap ~f:fp exprs
       | EPartial (_, _, expr) ->
           fp expr
       | ERightPartial (_, _, expr) ->
           fp expr
-      | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+      | EFeatureFlag (_, _, cond, casea, caseb) ->
           List.findMap ~f:fp [cond; casea; caseb]
   in
   findParent' ~parent:None target expr
@@ -133,7 +133,7 @@ let isEmpty (expr : t) : bool =
       true
   | ERecord (_, l) ->
       l
-      |> List.filter ~f:(fun (_, k, v) -> k = "" && not (isBlank v))
+      |> List.filter ~f:(fun (k, v) -> k = "" && not (isBlank v))
       |> List.isEmpty
   | EList (_, l) ->
       l |> List.filter ~f:(not << isBlank) |> List.isEmpty
@@ -156,14 +156,14 @@ let walk ~(f : t -> t) (expr : t) : t =
   | EPipeTarget _
   | EFloat _ ->
       expr
-  | ELet (id, lhsID, name, rhs, next) ->
-      ELet (id, lhsID, name, f rhs, f next)
+  | ELet (id, name, rhs, next) ->
+      ELet (id, name, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) ->
       EIf (id, f cond, f ifexpr, f elseexpr)
   | EBinOp (id, op, lexpr, rexpr, ster) ->
       EBinOp (id, op, f lexpr, f rexpr, ster)
-  | EFieldAccess (id, expr, fieldID, fieldname) ->
-      EFieldAccess (id, f expr, fieldID, fieldname)
+  | EFieldAccess (id, expr, fieldname) ->
+      EFieldAccess (id, f expr, fieldname)
   | EFnCall (id, name, exprs, ster) ->
       EFnCall (id, name, List.map ~f exprs, ster)
   | ELambda (id, names, expr) ->
@@ -174,18 +174,17 @@ let walk ~(f : t -> t) (expr : t) : t =
       EMatch
         (id, f mexpr, List.map ~f:(fun (name, expr) -> (name, f expr)) pairs)
   | ERecord (id, fields) ->
-      ERecord
-        (id, List.map ~f:(fun (id, name, expr) -> (id, name, f expr)) fields)
+      ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
   | EPipe (id, exprs) ->
       EPipe (id, List.map ~f exprs)
-  | EConstructor (id, nameID, name, exprs) ->
-      EConstructor (id, nameID, name, List.map ~f exprs)
+  | EConstructor (id, name, exprs) ->
+      EConstructor (id, name, List.map ~f exprs)
   | EPartial (id, str, oldExpr) ->
       EPartial (id, str, f oldExpr)
   | ERightPartial (id, str, oldExpr) ->
       ERightPartial (id, str, f oldExpr)
-  | EFeatureFlag (id, msg, msgid, cond, casea, caseb) ->
-      EFeatureFlag (id, msg, msgid, f cond, f casea, f caseb)
+  | EFeatureFlag (id, msg, cond, casea, caseb) ->
+      EFeatureFlag (id, msg, f cond, f casea, f caseb)
 
 
 let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t) :
@@ -238,10 +237,10 @@ let rec updateVariableUses (oldVarName : string) ~(f : t -> t) (ast : t) : t =
   match ast with
   | EVariable (_, varName) ->
       if varName = oldVarName then f ast else ast
-  | ELet (id, id', lhs, rhs, body) ->
+  | ELet (id, lhs, rhs, body) ->
       if oldVarName = lhs (* if variable name is rebound *)
       then ast
-      else ELet (id, id', lhs, u rhs, u body)
+      else ELet (id, lhs, u rhs, u body)
   | ELambda (id, vars, lexpr) ->
       if List.map ~f:Tuple2.second vars |> List.member ~value:oldVarName
          (* if variable name is rebound *)
@@ -277,8 +276,8 @@ let rec clone (expr : t) : t =
   let c e = clone e in
   let cl es = List.map ~f:c es in
   match expr with
-  | ELet (_, _, lhs, rhs, body) ->
-      ELet (gid (), gid (), lhs, c rhs, c body)
+  | ELet (_, lhs, rhs, body) ->
+      ELet (gid (), lhs, c rhs, c body)
   | EIf (_, cond, ifbody, elsebody) ->
       EIf (gid (), c cond, c ifbody, c elsebody)
   | EFnCall (_, name, exprs, r) ->
@@ -289,8 +288,8 @@ let rec clone (expr : t) : t =
       ELambda (gid (), List.map vars ~f:(fun (_, var) -> (gid (), var)), c body)
   | EPipe (_, exprs) ->
       EPipe (gid (), cl exprs)
-  | EFieldAccess (_, obj, _, field) ->
-      EFieldAccess (gid (), c obj, gid (), field)
+  | EFieldAccess (_, obj, field) ->
+      EFieldAccess (gid (), c obj, field)
   | EString (_, v) ->
       EString (gid (), v)
   | EInteger (_, v) ->
@@ -308,17 +307,17 @@ let rec clone (expr : t) : t =
   | EList (_, exprs) ->
       EList (gid (), cl exprs)
   | ERecord (_, pairs) ->
-      ERecord (gid (), List.map ~f:(fun (_, k, v) -> (gid (), k, c v)) pairs)
-  | EFeatureFlag (_, name, _, cond, a, b) ->
-      EFeatureFlag (gid (), name, gid (), c cond, c a, c b)
+      ERecord (gid (), List.map ~f:(fun (k, v) -> (k, c v)) pairs)
+  | EFeatureFlag (_, name, cond, a, b) ->
+      EFeatureFlag (gid (), name, c cond, c a, c b)
   | EMatch (_, matchExpr, cases) ->
       let mid = gid () in
       EMatch
         ( mid
         , c matchExpr
         , List.map ~f:(fun (k, v) -> (FluidPattern.clone mid k, c v)) cases )
-  | EConstructor (_, _, name, args) ->
-      EConstructor (gid (), gid (), name, cl args)
+  | EConstructor (_, name, args) ->
+      EConstructor (gid (), name, cl args)
   | EPartial (_, str, oldExpr) ->
       EPartial (gid (), str, c oldExpr)
   | ERightPartial (_, str, oldExpr) ->

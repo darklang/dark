@@ -211,7 +211,6 @@ let rec exec
         exe st expr
     | Filled (_, Let (lhs, rhs, body)) ->
         let data = exe st rhs in
-        trace_blank lhs data st ;
         ( match data with
         | DErrorRail _ ->
             data
@@ -241,7 +240,6 @@ let rec exec
                match (k, v) with
                | Filled (_, keyname), v ->
                    let value = exe st v in
-                   trace_blank k value st ;
                    ( match value with
                    | DIncomplete _ ->
                        None
@@ -488,7 +486,6 @@ let rec exec
                   ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)
                   ^ "" )
         in
-        trace_blank field result st ;
         result
     | Filled (id, Constructor (name, args)) ->
       ( match (name, args) with

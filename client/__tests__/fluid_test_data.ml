@@ -20,7 +20,7 @@ let float' (whole : string) (fraction : string) : fluidExpr =
 let null : fluidExpr = ENull (gid ())
 
 let record (rows : (string * fluidExpr) list) : fluidExpr =
-  ERecord (gid (), List.map rows ~f:(fun (k, v) -> (gid (), k, v)))
+  ERecord (gid (), List.map rows ~f:(fun (k, v) -> (k, v)))
 
 
 let list (elems : fluidExpr list) : fluidExpr = EList (gid (), elems)
@@ -47,7 +47,7 @@ let rightPartial (str : string) (e : fluidExpr) : fluidExpr =
 let var (name : string) : fluidExpr = EVariable (gid (), name)
 
 let fieldAccess (expr : fluidExpr) (fieldName : string) : fluidExpr =
-  EFieldAccess (gid (), expr, gid (), fieldName)
+  EFieldAccess (gid (), expr, fieldName)
 
 
 let if' (cond : fluidExpr) (then' : fluidExpr) (else' : fluidExpr) : fluidExpr =
@@ -55,7 +55,7 @@ let if' (cond : fluidExpr) (then' : fluidExpr) (else' : fluidExpr) : fluidExpr =
 
 
 let let' (varName : string) (rhs : fluidExpr) (body : fluidExpr) : fluidExpr =
-  ELet (gid (), gid (), varName, rhs, body)
+  ELet (gid (), varName, rhs, body)
 
 
 let lambda (varNames : string list) (body : fluidExpr) : fluidExpr =
@@ -67,7 +67,7 @@ let pipe (first : fluidExpr) (rest : fluidExpr list) : fluidExpr =
 
 
 let constructor (name : string) (args : fluidExpr list) : fluidExpr =
-  EConstructor (gid (), gid (), name, args)
+  EConstructor (gid (), name, args)
 
 
 let match' (cond : fluidExpr) (matches : (fluidPattern * fluidExpr) list) :
@@ -187,48 +187,42 @@ let aPartialVar = EPartial (gid (), "req", b)
 (* ---------------- *)
 (* Lets *)
 (* ---------------- *)
-let completelyEmptyLet = ELet (gid (), gid (), "", b, b)
+let completelyEmptyLet = ELet (gid (), "", b, b)
 
-let emptyLet = ELet (gid (), gid (), "", b, EInteger (gid (), "5"))
+let emptyLet = ELet (gid (), "", b, EInteger (gid (), "5"))
 
-let nonEmptyLetWithBlankEnd =
-  ELet (gid (), gid (), "", EInteger (gid (), "6"), b)
-
+let nonEmptyLetWithBlankEnd = ELet (gid (), "", EInteger (gid (), "6"), b)
 
 let nonEmptyLet =
-  ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
+  ELet (gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
 
 
 let twoLets =
   ELet
     ( gid ()
-    , gid ()
     , "x"
     , EInteger (gid (), "5")
-    , ELet (gid (), gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7"))
-    )
+    , ELet (gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7")) )
 
 
 let longLets =
   ELet
     ( gid ()
-    , gid ()
     , "firstLetName"
     , EString (gid (), "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     , ELet
         ( gid ()
-        , gid ()
         , "secondLetName"
         , EString (gid (), "0123456789")
         , EString (gid (), "RESULT") ) )
 
 
 let letWithLhs =
-  ELet (gid (), gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
+  ELet (gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
 
 
 let letWithBinding (bindingName : string) (expr : fluidExpr) =
-  ELet (gid (), gid (), bindingName, EInteger (gid (), "6"), expr)
+  ELet (gid (), bindingName, EInteger (gid (), "6"), expr)
 
 
 let letWithUsedBinding (bindingName : string) =
@@ -281,11 +275,10 @@ let matchWithTwoLets =
     , [ ( FPBlank (mID, gid ())
         , ELet
             ( gid ()
-            , gid ()
             , "x"
             , EInteger (gid (), "5")
-            , ELet (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
-            ) ) ] )
+            , ELet (gid (), "y", EInteger (gid (), "6"), EBlank (gid ())) ) ) ]
+    )
 
 
 let nestedMatch =
@@ -329,7 +322,6 @@ let nestedIf =
 let indentedIfElse =
   ELet
     ( gid ()
-    , gid ()
     , "var"
     , EIf (gid (), b, EInteger (gid (), "6"), EInteger (gid (), "7"))
     , EVariable (gid (), "var") )
@@ -377,16 +369,16 @@ let aFullBinOp = binop "||" (var "myvar") (int "5")
 (* ---------------- *)
 (* Constructors *)
 (* ---------------- *)
-let aConstructor = EConstructor (gid (), gid (), "Just", [b])
+let aConstructor = EConstructor (gid (), "Just", [b])
 
 (* ---------------- *)
 (* Records *)
 (* ---------------- *)
-let emptyRow = [(gid (), "", b)]
+let emptyRow = [("", b)]
 
-let recordRow1 = (gid (), "f1", fiftySix)
+let recordRow1 = ("f1", fiftySix)
 
-let recordRow2 = (gid (), "f2", seventyEight)
+let recordRow2 = ("f2", seventyEight)
 
 let singleRowRecord = ERecord (gid (), [recordRow1])
 
@@ -424,23 +416,19 @@ let multiWithStrs = list [str "ab"; str "cd"; str "ef"]
 (* ---------------- *)
 (* Fields *)
 (* ---------------- *)
-let aField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
+let aField = EFieldAccess (gid (), EVariable (gid (), "obj"), "field")
 
 let aNestedField =
   EFieldAccess
-    ( gid ()
-    , EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
-    , gid ()
-    , "field2" )
+    (gid (), EFieldAccess (gid (), EVariable (gid (), "obj"), "field"), "field2")
 
 
-let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "f")
+let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), "f")
 
-let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
+let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), "")
 
 let aPartialField =
-  EPartial
-    (gid (), "", EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), ""))
+  EPartial (gid (), "", EFieldAccess (gid (), EVariable (gid (), "obj"), ""))
 
 
 (* ---------------- *)

@@ -58,7 +58,7 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
   | F (id, nExpr) ->
     ( match nExpr with
     | Let (name, rhs, body) ->
-        ELet (id, Blank.toID name, varToName name, f rhs, f body)
+        ELet (id, varToName name, f rhs, f body)
     | Variable varname ->
         EVariable (id, varname)
     | If (cond, thenExpr, elseExpr) ->
@@ -66,12 +66,9 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
     | ListLiteral exprs ->
         EList (id, List.map ~f exprs)
     | ObjectLiteral pairs ->
-        ERecord
-          ( id
-          , List.map pairs ~f:(fun (k, v) -> (Blank.toID k, varToName k, f v))
-          )
+        ERecord (id, List.map pairs ~f:(fun (k, v) -> (varToName k, f v)))
     | FieldAccess (expr, field) ->
-        EFieldAccess (id, f expr, Blank.toID field, varToName field)
+        EFieldAccess (id, f expr, varToName field)
     | FnCall (name, args, ster) ->
         let args = List.map ~f args in
         (* add a pipetarget in the front *)
@@ -113,7 +110,7 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
       | `Unknown ->
           EBlank id )
     | Constructor (name, exprs) ->
-        EConstructor (id, Blank.toID name, varToName name, List.map ~f exprs)
+        EConstructor (id, varToName name, List.map ~f exprs)
     | Match (mexpr, pairs) ->
         let mid = id in
         let pairs =
@@ -124,7 +121,6 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
         EFeatureFlag
           ( id
           , varToName msg
-          , Blank.toID msg
           , f cond
           , toFluidExpr' ~inPipe casea
           , toFluidExpr' ~inPipe caseb )
@@ -154,10 +150,10 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
         F (id, Value (FluidUtil.literalToString `Null))
     | EVariable (id, var) ->
         F (id, Variable var)
-    | EFieldAccess (id, obj, fieldID, "") ->
-        F (id, FieldAccess (fromFluidExpr obj, Blank fieldID))
-    | EFieldAccess (id, obj, fieldID, fieldname) ->
-        F (id, FieldAccess (fromFluidExpr obj, F (fieldID, fieldname)))
+    | EFieldAccess (id, obj, "") ->
+        F (id, FieldAccess (fromFluidExpr obj, Blank (gid ())))
+    | EFieldAccess (id, obj, fieldname) ->
+        F (id, FieldAccess (fromFluidExpr obj, F (gid (), fieldname)))
     | EFnCall (id, name, args, ster) ->
       ( match args with
       | EPipeTarget _ :: _ when not inPipe ->
@@ -207,8 +203,8 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
               , fromFluidExpr body ) )
     | EBlank id ->
         Blank id
-    | ELet (id, lhsID, lhs, rhs, body) ->
-        F (id, Let (F (lhsID, lhs), fromFluidExpr rhs, fromFluidExpr body))
+    | ELet (id, lhs, rhs, body) ->
+        F (id, Let (F (gid (), lhs), fromFluidExpr rhs, fromFluidExpr body))
     | EIf (id, cond, thenExpr, elseExpr) ->
         F
           ( id
@@ -226,8 +222,8 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
         F
           ( id
           , ObjectLiteral
-              (List.map pairs ~f:(fun (id, k, v) ->
-                   (Types.F (id, k), fromFluidExpr v))) )
+              (List.map pairs ~f:(fun (k, v) ->
+                   (Types.F (gid (), k), fromFluidExpr v))) )
     | EPipe (id, exprs) ->
       ( match exprs with
       | head :: tail ->
@@ -237,8 +233,8 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
             )
       | [] ->
           Blank id )
-    | EConstructor (id, nameID, name, exprs) ->
-        F (id, Constructor (F (nameID, name), List.map ~f:r exprs))
+    | EConstructor (id, name, exprs) ->
+        F (id, Constructor (F (gid (), name), List.map ~f:r exprs))
     | EMatch (id, mexpr, pairs) ->
         let pairs =
           List.map pairs ~f:(fun (p, e) ->
@@ -250,11 +246,11 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
           "Cant convert pipetargets back to exprs"
           ~debug:expr
           (Blank.new_ ())
-    | EFeatureFlag (id, name, nameID, cond, caseA, caseB) ->
+    | EFeatureFlag (id, name, cond, caseA, caseB) ->
         F
           ( id
           , FeatureFlag
-              ( F (nameID, name)
+              ( F (gid (), name)
               , fromFluidExpr cond
               , fromFluidExpr ~inPipe caseA
               , fromFluidExpr ~inPipe caseB ) )
