@@ -29,7 +29,7 @@ fixture`Integration Tests`
   .beforeEach(async t => {
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
-    startXvfb(sessionName);
+    // startXvfb(sessionName);
     var url = `${BASE_URL}${testname}?integration-test=true`;
     await t.navigateTo(url);
     await setDebugging(t);
@@ -65,7 +65,7 @@ fixture`Integration Tests`
   .afterEach(async t => {
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
-    stopXvfb(sessionName);
+    // stopXvfb(sessionName);
     const finish = Selector("#finishIntegrationTest");
     const signal = Selector("#integrationTestSignal");
     let flushLogs = async () => {
