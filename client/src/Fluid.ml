@@ -910,7 +910,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
   let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
     | EVariable (id, str) ->
         {astRef = ARVariable id; offset = String.length str}
-    | EFieldAccess (id, _, _, fieldName) ->
+    | EFieldAccess (id, _, fieldName) ->
         { astRef = ARFieldAccess (id, FAPFieldname)
         ; offset = String.length fieldName }
     | EInteger (id, valueStr) ->
@@ -1020,7 +1020,7 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARFnCall (id, FCPFnName); offset = 0}
     | ELambda (id, _, _) ->
         {astRef = ARLambda (id, LPKeyword); offset = 0}
-    | EFieldAccess (_, expr, _, _) ->
+    | EFieldAccess (_, expr, _) ->
         caretTargetForBeginningOfExpr' expr
     | EVariable (id, _) ->
         {astRef = ARVariable id; offset = 0}
@@ -1439,15 +1439,15 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : E.t =
 let exprToFieldAccess (id : id) ~(partialID : id) ~(fieldID : id) (ast : ast) :
     E.t =
   E.update id ast ~f:(fun e ->
-      EPartial (partialID, "", EFieldAccess (fieldID, e, gid (), "")))
+      EPartial (partialID, "", EFieldAccess (fieldID, e, "")))
 
 
 let removeField (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
-      | EFieldAccess (_, faExpr, _, _) ->
+      | EFieldAccess (_, faExpr, _) ->
           faExpr
-      | EPartial (_, _, EFieldAccess (_, faExpr, _, _)) ->
+      | EPartial (_, _, EFieldAccess (_, faExpr, _)) ->
           faExpr
       | _ ->
           recover "not a fieldAccess in removeField" ~debug:e e)
@@ -2114,8 +2114,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
   | FACPattern _ ->
       recover "patterns are not supported here" ~debug:entry (E.newB (), 0)
   | FACField fieldname ->
-      ( EFieldAccess (gid (), E.newB (), gid (), fieldname)
-      , String.length fieldname )
+      (EFieldAccess (gid (), E.newB (), fieldname), String.length fieldname)
   | FACLiteral _ ->
       recover "invalid literal in autocomplete" ~debug:entry (E.newB (), 0)
 
@@ -2402,11 +2401,11 @@ let updateFromACItem
         (newAST, String.length name)
     | ( (TFieldName _ | TFieldPartial _ | TBlank _)
       , Some
-          ( EFieldAccess (faID, labelid, expr, _)
-          | EPartial (_, _, EFieldAccess (faID, labelid, expr, _)) )
+          ( EFieldAccess (faID, expr, _)
+          | EPartial (_, _, EFieldAccess (faID, expr, _)) )
       , _
-      , EFieldAccess (_, _, _, newname) ) ->
-        let replacement = EFieldAccess (faID, labelid, expr, newname) in
+      , EFieldAccess (_, _, newname) ) ->
+        let replacement = EFieldAccess (faID, expr, newname) in
         let newAST = E.replace ~replacement id ast in
         (newAST, offset)
     | _, _, _, _ ->
@@ -2473,7 +2472,7 @@ let acStartField (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
   | Some entry, _ ->
       let newExpr, length = acToExpr entry in
       let replacement =
-        EPartial (gid (), "", EFieldAccess (gid (), newExpr, gid (), ""))
+        EPartial (gid (), "", EFieldAccess (gid (), newExpr, ""))
       in
       let length = length + 1 in
       let newState = s |> moveTo (ti.startPos + length) |> acClear in
@@ -4160,7 +4159,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                      None)
         in
         Some (ELambda (id, newVars, reconstructExpr body |> orDefaultExpr))
-    | EFieldAccess (eID, e, _, _), tokens ->
+    | EFieldAccess (eID, e, _), tokens ->
         let newFieldName =
           findTokenValue tokens eID "field-name"
           |> Option.withDefault ~default:""
@@ -4172,9 +4171,9 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some
               (EPartial (gid (), newFieldName, EVariable (gid (), newFieldName)))
         | None, true, newFieldName when newFieldName != "" ->
-            Some (EFieldAccess (id, EBlank (gid ()), gid (), newFieldName))
+            Some (EFieldAccess (id, EBlank (gid ()), newFieldName))
         | Some e, true, _ ->
-            Some (EFieldAccess (id, e, gid (), newFieldName))
+            Some (EFieldAccess (id, e, newFieldName))
         | _ ->
             e )
     | EVariable (eID, value), tokens ->

@@ -47,7 +47,7 @@ let rightPartial (str : string) (e : fluidExpr) : fluidExpr =
 let var (name : string) : fluidExpr = EVariable (gid (), name)
 
 let fieldAccess (expr : fluidExpr) (fieldName : string) : fluidExpr =
-  EFieldAccess (gid (), expr, gid (), fieldName)
+  EFieldAccess (gid (), expr, fieldName)
 
 
 let if' (cond : fluidExpr) (then' : fluidExpr) (else' : fluidExpr) : fluidExpr =
@@ -416,23 +416,19 @@ let multiWithStrs = list [str "ab"; str "cd"; str "ef"]
 (* ---------------- *)
 (* Fields *)
 (* ---------------- *)
-let aField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
+let aField = EFieldAccess (gid (), EVariable (gid (), "obj"), "field")
 
 let aNestedField =
   EFieldAccess
-    ( gid ()
-    , EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
-    , gid ()
-    , "field2" )
+    (gid (), EFieldAccess (gid (), EVariable (gid (), "obj"), "field"), "field2")
 
 
-let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "f")
+let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), "f")
 
-let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
+let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), "")
 
 let aPartialField =
-  EPartial
-    (gid (), "", EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), ""))
+  EPartial (gid (), "", EFieldAccess (gid (), EVariable (gid (), "obj"), ""))
 
 
 (* ---------------- *)

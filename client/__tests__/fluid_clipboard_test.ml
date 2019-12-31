@@ -576,12 +576,12 @@ let run () =
   describe "Field Accesses" (fun () ->
       t
         "copying adds an EFieldAccess to clipboard"
-        (EFieldAccess (gid (), EVariable (gid (), "request"), gid (), "body"))
+        (EFieldAccess (gid (), EVariable (gid (), "request"), "body"))
         (copy (0, 12))
         ("request.body", "request.body", 12) ;
       t
         "copying the preceding expresssion adds it to clipboard"
-        (EFieldAccess (gid (), EVariable (gid (), "request"), gid (), "body"))
+        (EFieldAccess (gid (), EVariable (gid (), "request"), "body"))
         (copy (0, 7))
         ("request.body", "request", 7) ;
       (* NOT WORKING YET

@@ -16,7 +16,7 @@ let id (expr : t) : Types.id =
   | ENull id
   | EFloat (id, _, _)
   | EVariable (id, _)
-  | EFieldAccess (id, _, _, _)
+  | EFieldAccess (id, _, _)
   | EFnCall (id, _, _, _)
   | ELambda (id, _, _)
   | EBlank id
@@ -58,7 +58,7 @@ let rec find (target : Types.id) (expr : t) : t option =
         |> Option.orElseLazy (fun () -> fe elseexpr)
     | EBinOp (_, _, lexpr, rexpr, _) ->
         fe lexpr |> Option.orElseLazy (fun () -> fe rexpr)
-    | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
+    | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
         fe expr
     | ERecord (_, fields) ->
         fields |> List.map ~f:Tuple2.second |> List.findMap ~f:fe
@@ -102,7 +102,7 @@ let findParent (target : Types.id) (expr : t) : t option =
           List.findMap ~f:fp [cond; ifexpr; elseexpr]
       | EBinOp (_, _, lexpr, rexpr, _) ->
           List.findMap ~f:fp [lexpr; rexpr]
-      | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
+      | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
           fp expr
       | EMatch (_, _, pairs) ->
           pairs |> List.map ~f:Tuple2.second |> List.findMap ~f:fp
@@ -162,8 +162,8 @@ let walk ~(f : t -> t) (expr : t) : t =
       EIf (id, f cond, f ifexpr, f elseexpr)
   | EBinOp (id, op, lexpr, rexpr, ster) ->
       EBinOp (id, op, f lexpr, f rexpr, ster)
-  | EFieldAccess (id, expr, fieldID, fieldname) ->
-      EFieldAccess (id, f expr, fieldID, fieldname)
+  | EFieldAccess (id, expr, fieldname) ->
+      EFieldAccess (id, f expr, fieldname)
   | EFnCall (id, name, exprs, ster) ->
       EFnCall (id, name, List.map ~f exprs, ster)
   | ELambda (id, names, expr) ->
@@ -288,8 +288,8 @@ let rec clone (expr : t) : t =
       ELambda (gid (), List.map vars ~f:(fun (_, var) -> (gid (), var)), c body)
   | EPipe (_, exprs) ->
       EPipe (gid (), cl exprs)
-  | EFieldAccess (_, obj, _, field) ->
-      EFieldAccess (gid (), c obj, gid (), field)
+  | EFieldAccess (_, obj, field) ->
+      EFieldAccess (gid (), c obj, field)
   | EString (_, v) ->
       EString (gid (), v)
   | EInteger (_, v) ->
