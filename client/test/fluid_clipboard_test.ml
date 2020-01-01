@@ -50,10 +50,10 @@ let execute_roundtrip (ast : fluidExpr) =
         ; oldPos = pos
         ; newPos = pos } }
   in
-  let mod_ = App.update_ (ClipboardCutEvent e) m in
-  let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
-  let mod_ = App.update_ (ClipboardPasteEvent e) newM in
-  let newM, _cmd = App.updateMod mod_ (newM, Cmd.none) in
+  let mod_ = Main.update_ (ClipboardCutEvent e) m in
+  let newM, _cmd = Main.updateMod mod_ (m, Cmd.none) in
+  let mod_ = Main.update_ (ClipboardPasteEvent e) newM in
+  let newM, _cmd = Main.updateMod mod_ (newM, Cmd.none) in
   let newAST = TL.selectedAST newM |> Option.withDefault ~default:(E.newB ()) in
   newAST
 
@@ -83,8 +83,8 @@ let run () =
       Js.log2 "state before " (Fluid_utils.debugState m.fluidState) ;
       Js.log2 "ast before" (Printer.eToStructure ast) ;
       Js.log2 "clipboard before" (clipboardData e) ) ;
-    let mod_ = App.update_ msg m in
-    let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
+    let mod_ = Main.update_ msg m in
+    let newM, _cmd = Main.updateMod mod_ (m, Cmd.none) in
     let newState = newM.fluidState in
     let newAST =
       TL.selectedAST newM |> Option.withDefault ~default:(E.newB ())
