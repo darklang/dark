@@ -121,6 +121,7 @@ commands:
 
   build-gcp-containers:
     steps:
+      - prep-container-creation
       - run:
           name: Regenerate combined ETags
           command: |
