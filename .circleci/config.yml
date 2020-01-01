@@ -426,6 +426,7 @@ workflows:
             - build-client
       - gcp-containers-test:
           requires:
+            - build-client # to rebuild etags
             - build-backend
             - build-stroller
             - build-queue-scheduler
