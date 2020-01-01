@@ -15,6 +15,16 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+  # Rust is so big we create a separate container for it and only use that
+  # for rust builds
+  in-rust-container:
+    working_directory: ~/app
+    environment:
+      IN_DEV_CONTAINER: true
+    docker:
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-rust-ci:latest
+
+
 
 
 commands:
@@ -154,6 +164,7 @@ jobs:
     executor: my-executor
     environment:
       TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+      RUST_TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-rust-ci:latest
     steps:
       - checkout
       - prep-container-creation
@@ -171,8 +182,12 @@ jobs:
       #         docker pull $TAG
       #         docker images
       #       fi
-      - run: docker build -t $TAG .
-      - run: docker push $TAG
+      - run: docker build --target dark-base -t $TAG .
+      - run:
+          background: true
+          command: docker push $TAG
+      - run: docker build -t $RUST_TAG .
+      - run: docker push $RUST_TAG
 
   build-client:
     executor: in-container
@@ -258,7 +273,7 @@ jobs:
 
 
   build-stroller:
-    executor: in-container
+    executor: in-rust-container
     steps:
       - checkout
       - rust-setup: { project: "stroller" }
@@ -267,7 +282,7 @@ jobs:
       - rust-finish: { project: "stroller" }
 
   build-queue-scheduler:
-    executor: in-container
+    executor: in-rust-container
     steps:
       - checkout
       - rust-setup: { project: "queue-scheduler" }
@@ -326,7 +341,7 @@ jobs:
 
 
   rust-integration-tests:
-    executor: in-container
+    executor: in-rust-container
     steps:
       - checkout
       - rust-setup: { project: "queue-scheduler" }
