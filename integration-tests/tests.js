@@ -571,6 +571,16 @@ test("execute_function_works", async t => {
   await t.expect(v1).notEql(v2);
 });
 
+test("correct_field_livevalue", async t => {
+  await t
+    .click(Selector("#fluid-editor"))
+    .click(Selector(".fluid-field-name").withExactText("gth"));
+
+  let v1 = await Selector(".selected .live-value").innerText;
+
+  await t.expect(v1).eql("5");
+});
+
 test("function_version_renders", async t => {
   await createRepl(t);
   await t
