@@ -26,11 +26,14 @@ let queue_worker execution_id =
             [ ("execution_id", Libexecution.Types.string_of_id execution_id)
             ; ("exn", Libexecution.Exception.exn_to_string e) ] ;
         Lwt.async (fun () ->
-            Libbackend.Rollbar.report_lwt
-              e
-              bt
-              EventQueue
-              (Libexecution.Types.string_of_id execution_id)) ;
+            let _ =
+              Libbackend.Rollbar.report_lwt
+                e
+                bt
+                EventQueue
+                (Libexecution.Types.string_of_id execution_id)
+            in
+            Lwt.return ()) ;
         Thread.yield () ;
         if not !shutdown
         then (queue_worker [@tailcall]) ()
