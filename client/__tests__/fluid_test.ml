@@ -2063,6 +2063,13 @@ let run () =
         (enter 12)
         "match ___\n  *** -> ___\n  ~3 -> ___\n" ;
       t
+        "enter at the start of row, with match in row above, creates a new row"
+        (match'
+           (int "1")
+           [(pInt "5", match' (int "2") [(pInt "6", b)]); (pInt "7", b)])
+        (enter 43)
+        "match 1\n  5 -> match 2\n         6 -> ___\n  *** -> ___\n  ~7 -> ___\n" ;
+      t
         "backspace first row deletes it"
         emptyMatchWithTwoPatterns
         (bs 12)
@@ -2828,6 +2835,11 @@ let run () =
         multiRowRecord
         (enter 14)
         "{\n  f1 : 56\n  *** : ___\n  ~f2 : 78\n}" ;
+      t
+        "pressing enter at the start of a field adds a row to the correct expression"
+        (record [("", match' b [(pInt "5", int "6")]); ("asd", b)])
+        (enter 39)
+        "{\n  *** : match ___\n          5 -> 6\n  *** : ___\n  ~asd : ___\n}" ;
       t
         "pressing enter at the end of row adds a row"
         multiRowRecord

@@ -423,8 +423,38 @@ let toIndex (t : t) : int option =
   | TRecordFieldname {index; _}
   | TRecordSep (_, index, _)
   | TListSep (_, index)
-  | TNewline (Some (_, _, Some index)) ->
+  | TNewline (Some (_, _, Some index))
+  | TPatternBlank (_, _, index)
+  | TPatternInteger (_, _, _, index)
+  | TPatternVariable (_, _, _, index)
+  | TPatternConstructorName (_, _, _, index)
+  | TPatternString (_, _, _, index)
+  | TPatternTrue (_, _, index)
+  | TPatternFalse (_, _, index)
+  | TPatternNullToken (_, _, index)
+  | TPatternFloatWhole (_, _, _, index)
+  | TPatternFloatPoint (_, _, index)
+  | TPatternFloatFraction (_, _, _, index) ->
       Some index
+  | _ ->
+      None
+
+
+let toParentID (t : t) : id option =
+  match t with
+  | TRecordFieldname {recordID = id; _}
+  | TPatternBlank (id, _, _)
+  | TPatternInteger (id, _, _, _)
+  | TPatternVariable (id, _, _, _)
+  | TPatternConstructorName (id, _, _, _)
+  | TPatternString (id, _, _, _)
+  | TPatternTrue (id, _, _)
+  | TPatternFalse (id, _, _)
+  | TPatternNullToken (id, _, _)
+  | TPatternFloatWhole (id, _, _, _)
+  | TPatternFloatPoint (id, _, _)
+  | TPatternFloatFraction (id, _, _, _) ->
+      Some id
   | _ ->
       None
 
