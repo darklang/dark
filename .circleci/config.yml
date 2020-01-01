@@ -209,6 +209,15 @@ jobs:
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
       - run: scripts/ocaml-find-unused backend/test
+      - persist_to_workspace:
+          # Do this before reducing size of cache
+          root: "."
+          paths:
+            # Just enough for integration tests and deploy
+            - backend/_build/default/bin/server.exe
+            - backend/_build/default/bin/queue_worker.exe
+            - backend/_build/default/bin/cron_checker.exe
+            - backend/static/analysis.js
       - run:
           name: Reduce size of esy cache
           command: |
@@ -229,14 +238,6 @@ jobs:
             - backend/node_modules
             - /home/dark/.esy
           key: v4d-backend-{{ checksum "backend/esy.json" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - backend/_build/default/bin/server.exe
-            - backend/_build/default/bin/queue_worker.exe
-            - backend/_build/default/bin/cron_checker.exe
-            - backend/static/analysis.js
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 
