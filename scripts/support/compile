@@ -67,7 +67,7 @@ def client_build():
   if os.environ.get("CI"):
     start = time.time()
     # ml is checked on the backend
-    result = run_frontend(start, "./scripts/format check backend --prettier client")
+    result = run_frontend(start, "./scripts/format check --prettier-only backend client")
     if not result:
       return result
   else:
@@ -110,7 +110,7 @@ def backend_build():
   if os.environ.get("CI"):
     start = time.time()
     # checks the frontend too
-    result = run_backend(start, "./scripts/format check client backend --ocaml-only")
+    result = run_backend(start, "./scripts/format check  --ocaml-only client backend")
     if not result:
       return result
   else:
