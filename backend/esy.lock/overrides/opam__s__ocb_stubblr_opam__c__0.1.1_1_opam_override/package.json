@@ -4,6 +4,6 @@
     [ "ocaml", "pkg/pkg.ml", "build", "--pinned", "false", "--tests", "false" ]
   ],
   "dependencies": {
-    "@esy-ocaml/fauxpam": "0.1.0"
+    "@esy-ocaml/fauxpam": "0.2.0"
   }
 }

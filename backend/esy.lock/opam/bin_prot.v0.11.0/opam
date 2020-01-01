@@ -17,7 +17,7 @@ depends: [
   "ppx_fields_conv" {>= "v0.11" & < "v0.12"}
   "ppx_sexp_conv" {>= "v0.11" & < "v0.12"}
   "ppx_variants_conv" {>= "v0.11" & < "v0.12"}
-  "jbuilder" {build & >= "1.0+beta18.1"}
+  "jbuilder" {>= "1.0+beta18.1"}
   "ocaml-migrate-parsetree" {>= "1.0"}
 ]
 depopts: [
