@@ -198,8 +198,8 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v3d-backend-{{ checksum "backend/esy.json" }}
-            - v3d-backend
+            - v4d-backend-{{ checksum "backend/esy.json" }}
+            - v4d-backend
       # appsupport is needed for a unit test, but it is not needed as part
       # of the backend otherwise. It is compiled as part of the frontend
       # tests.
@@ -228,7 +228,7 @@ jobs:
             - backend/_build
             - backend/node_modules
             - /home/dark/.esy
-          key: v3d-backend-{{ checksum "backend/esy.json" }}
+          key: v4d-backend-{{ checksum "backend/esy.json" }}
       - persist_to_workspace:
           root: "."
           paths:
