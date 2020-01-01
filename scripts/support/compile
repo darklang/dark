@@ -70,18 +70,13 @@ def client_build():
     result = run_frontend(start, "./scripts/format check")
     if not result:
       return result
+  else:
+    start = time.time()
 
-  start = time.time()
-  build = "cd client && unbuffer yarn run-s build:bsb build:js build:fetcher build:analysiswrapper copy:static"
+  build = "cd client && unbuffer yarn run build"
   result = run_frontend(start, build)
   return result
 
-
-def appsupport_build():
-  start = time.time()
-  build = "cd client && unbuffer yarn run build:appsupport"
-  result = run_frontend(start, build)
-  return result
 
 def npm_install():
   start = time.time()
@@ -224,7 +219,6 @@ class Should:
     self.scheduler_test = False
     self.npm_install = False
     self.client_build = False
-    self.appsupport_build = False
     self.client_test = False
     self.sass_compile = False
     self.reload_browser = False
@@ -251,7 +245,6 @@ def execute(should):
   if should.npm_install:
     if not npm_install(): success = False
     should.client_build |= success
-    should.appsupport_build |= success
 
   if should.client_build:
     if not client_build(): success = False
@@ -259,8 +252,6 @@ def execute(should):
     should.generate_etags |= success
     should.reload_browser |= success
 
-  if should.appsupport_build:
-    if not appsupport_build(): success = False
     should.generate_etags |= success
     should.reload_browser |= success
 
@@ -363,16 +354,14 @@ def mark(should, f):
     should.npm_install = True
   elif ("client/" in f) \
           and ((".mli" in f) \
-                  or (".ml" in f)):
-    # This correctly handles tests and other dirs, which need to be built as
-    # part of this step.
+                  or (".ml" in f)
+                  or ("appsupport.js" in f)):
+    # This correctly handles tests and other dirs, which need to be built
+    # as part of this step.
     should.client_build = True
 
   elif "client/bsconfig.json" in f:
     should.client_build = True
-
-  elif "client/src/appsupport.js" in f:
-    should.appsupport_build = True
 
   elif ".scss" in f:
     should.sass_compile = True
