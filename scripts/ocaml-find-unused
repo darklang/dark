@@ -6,7 +6,7 @@ set -euo pipefail
 DIR=$1
 
 # shellcheck disable=SC2010
-MLFILES=$(find "${DIR}" -name "*.ml" | grep -v _build | grep -v __tests__ )
+MLFILES=$(find "${DIR}" -name "*.ml" | grep -v _build | grep -v client/test )
 
 # shellcheck disable=SC2086
 LETS=$(grep -P -h '^let ' $MLFILES \
