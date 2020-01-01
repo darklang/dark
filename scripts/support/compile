@@ -64,6 +64,16 @@ def sass_compile():
   return run_frontend(start, "./client/node_modules/node-sass/bin/node-sass client/src/styles/app.scss > backend/static/app.css")
 
 def client_build():
+  if os.environ.get("CI"):
+    start = time.time()
+    # ml is checked on the backend
+    result = run_frontend(start, "./scripts/format check backend --prettier client")
+    if not result:
+      return result
+  else:
+    start = time.time()
+
+
   start = time.time()
   build = "cd client && unbuffer yarn run build"
   result = run_frontend(start, build)
@@ -100,7 +110,7 @@ def backend_build():
   if os.environ.get("CI"):
     start = time.time()
     # checks the frontend too
-    result = run_backend(start, "./scripts/format check")
+    result = run_backend(start, "./scripts/format check client backend --ocaml-only")
     if not result:
       return result
   else:
