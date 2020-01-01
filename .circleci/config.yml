@@ -138,6 +138,7 @@ commands:
     steps:
       - run:
           name: Auth with GCP
+          background: true
           command: |
             echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
             gcloud auth activate-service-account --key-file gcloud-service-key.json
@@ -355,10 +356,10 @@ jobs:
     steps:
       - checkout
       - setup-app
+      - auth-with-gcp # runs in background
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
-      - auth-with-gcp
       - run: scripts/push-assets-to-cdn
       - run: scripts/gcp-push-images-to-gcr
       # Save the image IDs for deployment later
