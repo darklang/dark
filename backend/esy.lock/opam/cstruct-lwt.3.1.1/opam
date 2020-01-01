@@ -17,7 +17,7 @@ depends: [
   "base-unix"
   "lwt"
   "cstruct" {>= "3.1.1" & < "3.3.0"}
-  "jbuilder" {build & >= "1.0+beta7"}
+  "jbuilder" {>= "1.0+beta7"}
 ]
 synopsis: "Access C-like structures directly from OCaml"
 description: """

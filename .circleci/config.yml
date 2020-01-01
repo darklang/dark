@@ -25,7 +25,7 @@ commands:
           # note alpine find doesn't support +50M here
           name: show large files and directories
           command: |
-            find . -size +51200k -exec du -h {} \;
+            find ~ -size +51200k -exec du -h {} \;
             du -ht 50M
 
   ##########################
@@ -198,8 +198,8 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v2d-backend-{{ checksum "backend/esy.json" }}
-            - v2d-backend
+            - v4d-backend-{{ checksum "backend/esy.json" }}
+            - v4d-backend
       # appsupport is needed for a unit test, but it is not needed as part
       # of the backend otherwise. It is compiled as part of the frontend
       # tests.
@@ -209,18 +209,8 @@ jobs:
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
       - run: scripts/ocaml-find-unused backend/test
-      - run:
-          name: Reduce size of esy cache
-          command: rm -Rf /home/dark/.esy/3/b
-      - show-large-files-and-directories
-      - save_cache:
-          paths:
-            - backend/_build
-            - backend/_esy
-            - backend/node_modules
-            - /home/dark/.esy
-          key: v2d-backend-{{ checksum "backend/esy.json" }}
       - persist_to_workspace:
+          # Do this before reducing size of cache
           root: "."
           paths:
             # Just enough for integration tests and deploy
@@ -228,6 +218,27 @@ jobs:
             - backend/_build/default/bin/queue_worker.exe
             - backend/_build/default/bin/cron_checker.exe
             - backend/static/analysis.js
+      - run:
+          name: Reduce size of esy cache
+          command: |
+            set -x
+            rm -Rf /home/dark/.esy/3/b
+            # It seems like everything builds and rebuilds fine without
+            # these. Other files are needed: .o, .a, .cma, .cmx.
+            shopt -s globstar
+            rm -f /home/dark/.esy/3/i/**/*.cmt
+            rm -f /home/dark/.esy/3/i/**/*.cmti
+            rm -f /home/dark/.esy/3/i/**/*.byte
+            rm -f /home/dark/.esy/3/i/**/*.cmxs
+            # These can be very cheaply rebuilt, and are about 400MB
+            rm -f /home/dark/app/backend/_build/default/*/*.exe
+      - show-large-files-and-directories
+      - save_cache:
+          paths:
+            - backend/_build
+            - backend/node_modules
+            - /home/dark/.esy
+          key: v4d-backend-{{ checksum "backend/esy.json" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 

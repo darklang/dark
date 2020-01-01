@@ -66,17 +66,17 @@ def sass_compile():
 def client_build():
   if os.environ.get("CI"):
     start = time.time()
-    # checks the backend too
-    result = run_frontend(start, "./scripts/format check")
+    # ml is checked on the backend
+    result = run_frontend(start, "./scripts/format check --prettier-only backend client")
     if not result:
       return result
   else:
     start = time.time()
 
+  start = time.time()
   build = "cd client && unbuffer yarn run build"
   result = run_frontend(start, build)
   return result
-
 
 def npm_install():
   start = time.time()
@@ -88,7 +88,7 @@ def npm_install():
 
 def esy_install():
   start = time.time()
-  build = "cd backend && unbuffer esy install && esy build"
+  build = "cd backend && unbuffer esy install && esy build --release"
   return run_backend(start, build)
 
 def client_test():
@@ -104,13 +104,20 @@ def shellcheck(f):
   result = run_other(start, "scripts/support/shellchecker " + f)
   return result
 
-landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json' "
 def backend_build():
+  if os.environ.get("CI"):
+    start = time.time()
+    # checks the frontend too
+    result = run_backend(start, "./scripts/format check  --ocaml-only client backend")
+    if not result:
+      return result
+  else:
+    start = time.time()
+
   start = time.time()
-  global profile
-  # Get all the ml files in backend/bin, and build executables
-  # This is less technically correct than "parse the sexp in backend/bin/dune",
-  # but it is also much simpler.
+  # Get all the ml files in backend/bin, and build executables This is less
+  # technically correct than "parse the sexp in backend/bin/dune", but it
+  # is also much simpler.
   exes = ["bin/" + x.replace(".ml", ".exe")
           for x
           in os.listdir("backend/bin")
@@ -118,9 +125,9 @@ def backend_build():
   exes.append("@analysis.js")
   exes = " ".join(exes)
   if os.environ.get("CI"):
-      compilation_profile = "release"
+    compilation_profile = "release"
   else:
-      compilation_profile = "dev"
+    compilation_profile = "dev"
 
   build = "unbuffer" \
         + " scripts/dune-wrapper.sh build" \
@@ -128,10 +135,7 @@ def backend_build():
         + " --display short" \
         + " -j 8 " \
         + exes
-  if profile:
-    return run_backend(start, landmarks + build)
-  else:
-    return run_backend(start, build)
+  return run_backend(start, build)
 
 def test_db_env():
   return "DARK_CONFIG_DB_HOST=localhost" \
@@ -151,7 +155,6 @@ def backend_test():
           f" 2>&1")
 
 def rust_build(name):
-  global profile
 
   if os.environ.get("CI"):
     start = time.time()
@@ -165,10 +168,7 @@ def rust_build(name):
 
   start = time.time()
   build = f"cd {name} && unbuffer cargo build{build_flags}"
-  if profile:
-    return run_backend(start, landmarks + build)
-  else:
-    return run_backend(start, build)
+  return run_backend(start, build)
 
 def rust_reload(name):
   start = time.time()
@@ -192,12 +192,8 @@ def rust_test(name):
 
 def reload_server():
   start = time.time()
-  global profile
   runserver = "scripts/support/runserver"
-  if profile:
-    return run_backend(start, landmarks + runserver)
-  else:
-    return run_backend(start, runserver)
+  return run_backend(start, runserver)
 
 def generate_etags():
   start = time.time()
@@ -391,7 +387,6 @@ def ignore(filename):
             , "backend/_build/"
             , "backend/dark.install"
             , "backend/gmon.out"
-            , "backend/profile.json"
             , "backend/serialization/"
             , "backend/static/"
             , "backend/_esy/"
@@ -425,7 +420,6 @@ def ignore(filename):
   return False
 
 
-profile = False # Run ocaml stuff under the landmarks profiler
 files = []
 def main():
   for f in sys.argv[1:]:

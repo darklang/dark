@@ -14,7 +14,7 @@ build: [
 ]
 depends: [
   "dune"
-  "ppx_expect" {with-test}
+  "ppx_expect" {with-test & < "v0.14"}
   "ocaml" {>= "4.02.3"}
 ]
 synopsis: "Spawning sub-processes"

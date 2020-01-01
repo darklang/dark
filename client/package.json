@@ -14,7 +14,8 @@
     "prettier": "1.19.1",
     "jsdom": "15.2.1",
     "dom-storage": "2.1.0",
-    "jsdom-global": "3.0.2"
+    "jsdom-global": "3.0.2",
+    "ppx-deriving": "44.1.0"
   },
   "dependencies": {
     "@glennsl/bs-json": "5.0.1",
@@ -29,7 +30,8 @@
     "rollbar": "2.14.4",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "0.0.6",
-    "html2canvas": "1.0.0-rc.5"
+    "html2canvas": "1.0.0-rc.5",
+    "bs-deriving": "44.1.0"
   },
   "scripts": {
     "clean": "../scripts/bsb-wrapper.sh -clean-world",
