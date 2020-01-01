@@ -1,7 +1,7 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
-FROM ubuntu:18.04
+FROM ubuntu:18.04 as dark-base
 
 ENV FORCE_BUILD 1
 
@@ -234,10 +234,24 @@ RUN \
   && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
   && rm -Rf tmp_install_folder
 
+############################
+# Environment
+############################
+USER dark
+ENV TERM=xterm-256color
+
+############################
+# Finish
+############################
+user dark
+CMD ["app", "scripts", "builder"]
+
 
 ########################
 # Install Rust toolchain
+# This is in a separate container to save time in CI
 ########################
+FROM dark-base
 
 USER root
 
@@ -259,18 +273,9 @@ RUN cargo install cargo-cache
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
 
-############################
-# Environment
-############################
-USER dark
-ENV TERM=xterm-256color
-
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-
-############################
-# Finish
-############################
 user dark
-CMD ["app", "scripts", "builder"]
+
+
