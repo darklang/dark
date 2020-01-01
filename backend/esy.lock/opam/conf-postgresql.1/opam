@@ -1,0 +1,25 @@
+opam-version: "2.0"
+maintainer: "Markus Mottl <markus.mottl@gmail.com>"
+authors: "Markus Mottl <markus.mottl@gmail.com>"
+homepage: "https://www.postgresql.org"
+dev-repo: "git+https://github.com/mmottl/postgresql-ocaml.git"
+license: "PD"
+build: [["pg_config"]]
+bug-reports: "https://github.com/ocaml/opam-repository/issues"
+
+depexts: [
+  ["libpq-dev"] {os-family = "debian"}
+  ["database/postgresql96-client"] {os-distribution = "freebsd"}
+  ["database/postgresql96-client"] {os-distribution = "openbsd"}
+  ["postgresql-devel"] {os-distribution = "centos"}
+  ["postgresql-devel"] {os-distribution = "rhel"}
+  ["postgresql-devel"] {os-distribution = "fedora"}
+  ["postgresql-devel"] {os-family = "suse"}
+  ["postgresql-dev"] {os-distribution = "alpine"}
+  ["postgresql"] {os = "macos" & os-distribution = "homebrew"}
+  ["postgresql96"] {os = "macos" & os-distribution = "macports"}
+]
+synopsis: "Virtual package relying on a PostgreSQL system installation"
+description:
+  "This package can only install if PostgreSQL is installed on the system."
+flags: conf

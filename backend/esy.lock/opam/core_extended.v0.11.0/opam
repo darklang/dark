@@ -20,7 +20,7 @@ depends: [
   "sexplib" {>= "v0.11" & < "v0.12"}
   "textutils" {>= "v0.11" & < "v0.12"}
   "base-threads"
-  "jbuilder" {build & >= "1.0+beta18.1"}
+  "jbuilder" {>= "1.0+beta18.1"}
   "ocaml-migrate-parsetree" {>= "1.0"}
   "re" {>= "1.5.0"}
 ]

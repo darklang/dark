@@ -18,12 +18,15 @@ install: [
 ]
 remove: [["ocamlfind" "remove" "curl"]]
 depends: [
-  "ocaml" {>= "4.02.0"}
+  "ocaml" {>= "4.02.0" & < "4.10"}
   "ocamlfind" {build}
   "base-unix"
   "conf-libcurl"
 ]
 depopts: ["lwt"]
+conflicts: [
+  "lwt" {with-test & >= "5.0.0"}
+]
 synopsis: "Bindings to libcurl"
 description: """
 Client-side URL transfer library, supporting HTTP and a multitude of
