@@ -2,6 +2,11 @@
 # yarn lockfile v1
 
 
+"@elliottcable/bs-result@^12.0.0-pre.2":
+  version "12.0.0"
+  resolved "https://registry.yarnpkg.com/@elliottcable/bs-result/-/bs-result-12.0.0.tgz#8830bcbf807c7ad3d7a7afa97da70415a0b10e68"
+  integrity sha512-o1AxswioCueiTlyw0M8U1Xh7netzJ8VPTcJJL5EY9BvttWKIlBWYOb9FzxxRWY+eQvpE2uwLlJzFH1i6Gd1h4g==
+
 "@glennsl/bs-json@5.0.1":
   version "5.0.1"
   resolved "https://registry.yarnpkg.com/@glennsl/bs-json/-/bs-json-5.0.1.tgz#b19d0b45f4a80d52e6bfefa032ac99f4548f3083"
@@ -220,6 +225,11 @@ aproba@^1.0.3:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/aproba/-/aproba-1.2.0.tgz#6802e6264efd18c790a1b0d517f0f2627bf2c94a"
   integrity sha512-Y9J6ZjXtoYh8RnXVCMOU/ttDmk1aBjunq9vO0ta5x85WDQiQfUF9sIPBITdbiiIVcBo03Hi3jMxigBtsddlXRw==
+
+arch@^2.1.1:
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/arch/-/arch-2.1.1.tgz#8f5c2731aa35a30929221bb0640eed65175ec84e"
+  integrity sha512-BLM56aPo9vLLFVa8+/+pJLnrZ7QGGTVHWsCwieAWT9o9K8UeGaQbzZbGoabWLOo2ksBCztoXdqBZBplqLDDCSg==
 
 are-we-there-yet@~1.1.2:
   version "1.1.5"
@@ -1324,15 +1334,22 @@ browserslist@^3.2.6:
     caniuse-lite "^1.0.30000844"
     electron-to-chromium "^1.3.47"
 
+bs-deriving@44.1.0:
+  version "44.1.0"
+  resolved "https://registry.yarnpkg.com/bs-deriving/-/bs-deriving-44.1.0.tgz#889c123af852ef225ea3626ad8b2613cd01ded14"
+  integrity sha512-4OFK+2sqCSDBnLTVtc2gPbIUF8Q2mgCC8Z+5Iz1NdWHVWSOcDuwMBvLAtadOBAV94sE9BfjcMdhcKlPYMW5i1w==
+  dependencies:
+    "@elliottcable/bs-result" "^12.0.0-pre.2"
+
 bs-fetch@0.5.0:
   version "0.5.0"
   resolved "https://registry.yarnpkg.com/bs-fetch/-/bs-fetch-0.5.0.tgz#6913b1d1ddfa0b0a4b832357854e9763d61d4b28"
   integrity sha512-cGjwRpyNcIaX+p2ssy/38zs7BM/miKNgmOR3NEhxKFete5mR05JcvjuV4raG89oGCG281SU1b56TTAKmf9VCug==
 
-bs-platform@7.0.1:
-  version "7.0.1"
-  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-7.0.1.tgz#1d7b0ef6088b998dceee5db74a7cd8f01c20a3bd"
-  integrity sha512-UjStdtHhbtC/l6vKJ1XRDqrPk7rFf5PLYHtRX3akDXEYVnTbN36z0g4DEr5mU8S0N945e33HYts9x+i7hKKpZQ==
+bs-platform@6.0.1:
+  version "6.0.1"
+  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-6.0.1.tgz#7192c7be1fb28000b1f96f3b4ef8747b45280f2e"
+  integrity sha512-dkmdS+nmHglBcKa91Z62fIDRoSaNN+VZbHhGEtjgkLjEHHaFzkaHsCLqe9FnNvrhpeV610RLyZBC/1HUOP4iFA==
 
 bs-uuid@0.3.1:
   version "0.3.1"
@@ -4082,6 +4099,13 @@ posix-character-classes@^0.1.0:
   version "0.1.1"
   resolved "https://registry.yarnpkg.com/posix-character-classes/-/posix-character-classes-0.1.1.tgz#01eac0fe3b5af71a2a6c02feabb8c1fef7e00eab"
   integrity sha1-AerA/jta9xoqbAL+q7jB/vfgDqs=
+
+ppx-deriving@44.0.0:
+  version "44.0.0"
+  resolved "https://registry.yarnpkg.com/ppx-deriving/-/ppx-deriving-44.0.0.tgz#31a9175400c5eb853ecefcd08877382e485063b1"
+  integrity sha512-A0sdWlCwEqkaK7HA7qNKnMzpMjpVA9vjJXpmOQHUs/Y2Teeh3qQ7sN/adUuZAY74UVzJT0tP/M5spdJYO86GdQ==
+  dependencies:
+    arch "^2.1.1"
 
 prelude-ls@~1.1.2:
   version "1.1.2"
