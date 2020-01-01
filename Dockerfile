@@ -144,7 +144,7 @@ USER root
 
 RUN npm install -g yarn@1.21.1
 
-RUN npm install -g esy@0.5.7 --unsafe-perm=true
+RUN npm install -g esy@0.5.8 --unsafe-perm=true
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
