@@ -72,7 +72,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       -y \
       software-properties-common \
       make \
-      m4 \
       rsync \
       git \
       wget \
@@ -89,27 +88,20 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
       chromium-browser \
-      gnupg \
       nodejs=13.5.0-1nodesource1 \
-      dnsmasq \
-      cron \
       google-cloud-sdk \
       jq \
       vim \
-      dnsutils \
-      docker-ce \
       unzip \
+      docker-ce \
       build-essential \
-      ruby \
       kubectl \
       python3-pip \
       python3-setuptools \
       libsodium-dev \
       gcc \
       pgcli \
-      xvfb \
       ffmpeg \
-      tmux \
       libssl-dev \
       libssl-ocaml-dev \
       zlib1g-dev \
@@ -119,7 +111,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       bash-completion \
       texinfo \
       openssh-server \
-      x11-utils \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 

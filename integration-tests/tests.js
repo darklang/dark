@@ -1,19 +1,7 @@
 import { ClientFunction, Selector } from "testcafe";
 import fs from "fs";
-const child_process = require("child_process");
 const BASE_URL = "http://darklang.localhost:8000/a/test-";
 const getPageUrl = ClientFunction(() => window.location.href);
-function startXvfb(testname) {
-  if (process.env.IN_DEV_CONTAINER != "true") return;
-  const script = "scripts/support/start-recording-xvfb";
-  child_process.execFileSync(script, [testname]);
-}
-
-function stopXvfb(testname) {
-  if (process.env.IN_DEV_CONTAINER != "true") return;
-  const script = "scripts/support/stop-recording-xvfb";
-  child_process.execFileSync(script, [testname]);
-}
 
 async function setDebugging(t) {
   let key = `editorState-test-${t.testRun.test.name}`;
@@ -29,7 +17,6 @@ fixture`Integration Tests`
   .beforeEach(async t => {
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
-    // startXvfb(sessionName);
     var url = `${BASE_URL}${testname}?integration-test=true`;
     await t.navigateTo(url);
     await setDebugging(t);
@@ -65,7 +52,6 @@ fixture`Integration Tests`
   .afterEach(async t => {
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
-    // stopXvfb(sessionName);
     const finish = Selector("#finishIntegrationTest");
     const signal = Selector("#integrationTestSignal");
     let flushLogs = async () => {

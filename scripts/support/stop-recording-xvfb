@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-. ./scripts/support/assert-in-container "$0" "$@"
-
-set -euo pipefail
-
-# Stop ffmpeg recording
-session="integrationTests-$1"
-tmux send-keys -t "$session" q
