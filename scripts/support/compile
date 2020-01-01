@@ -64,15 +64,7 @@ def sass_compile():
   return run_frontend(start, "./client/node_modules/node-sass/bin/node-sass client/src/styles/app.scss > backend/static/app.css")
 
 def client_build():
-  if os.environ.get("CI"):
-    start = time.time()
-    # checks the backend too
-    result = run_frontend(start, "./scripts/format check")
-    if not result:
-      return result
-  else:
-    start = time.time()
-
+  start = time.time()
   build = "cd client && unbuffer yarn run build"
   result = run_frontend(start, build)
   return result
@@ -105,10 +97,19 @@ def shellcheck(f):
   return result
 
 def backend_build():
+  if os.environ.get("CI"):
+    start = time.time()
+    # checks the frontend too
+    result = run_backend(start, "./scripts/format check")
+    if not result:
+      return result
+  else:
+    start = time.time()
+
   start = time.time()
-  # Get all the ml files in backend/bin, and build executables
-  # This is less technically correct than "parse the sexp in backend/bin/dune",
-  # but it is also much simpler.
+  # Get all the ml files in backend/bin, and build executables This is less
+  # technically correct than "parse the sexp in backend/bin/dune", but it
+  # is also much simpler.
   exes = ["bin/" + x.replace(".ml", ".exe")
           for x
           in os.listdir("backend/bin")
