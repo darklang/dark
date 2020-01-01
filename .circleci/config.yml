@@ -25,7 +25,7 @@ commands:
           # note alpine find doesn't support +50M here
           name: show large files and directories
           command: |
-            find . -size +51200k -exec du -h {} \;
+            find ~ -size +51200k -exec du -h {} \;
             du -ht 50M
 
   ##########################
