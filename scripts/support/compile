@@ -73,7 +73,7 @@ def client_build():
   else:
     start = time.time()
 
-  build = "cd client && unbuffer yarn npm-run-all --sequential build:bsb --parallel build:app build:appsupport build:fetcher build:analysiswrapper copy:static"
+  build = "cd client && unbuffer yarn run build"
   result = run_frontend(start, build)
   return result
 
