@@ -3,7 +3,6 @@
   (modes native)
   (flags (-warn-error +A -w +9))
   (preprocess (pps
-               landmarks.ppx
                lwt_ppx
                ppx_bin_prot
                ppx_compare
