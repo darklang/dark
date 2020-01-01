@@ -81,8 +81,7 @@ let analysisID (t : t) : id =
   | TLetAssignment (_, id)
   | TRecordFieldname {exprID = id; _}
   | TLambdaVar (_, id, _, _)
-  | TRecordSep (_, _, id)
-  | TFieldName (_, id, _) ->
+  | TRecordSep (_, _, id) ->
       id
   | _ ->
       tid t
