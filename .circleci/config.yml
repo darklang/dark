@@ -22,7 +22,7 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     docker:
-      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-rust-ci:latest
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest
 
 
 
@@ -164,7 +164,7 @@ jobs:
     executor: my-executor
     environment:
       TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
-      RUST_TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-rust-ci:latest
+      RUST_TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest
     steps:
       - checkout
       - prep-container-creation
