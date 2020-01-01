@@ -9,12 +9,14 @@ executors:
   my-executor:
     docker:
       - image: docker:stable-git
+    resource_class: xlarge
   in-container:
     working_directory: ~/app
     environment:
       IN_DEV_CONTAINER: true
     docker:
       - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+    resource_class: xlarge
 
 
 commands:
