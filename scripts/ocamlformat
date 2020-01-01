@@ -6,4 +6,4 @@
 script=$(basename "$0")
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-"$DIR/run-in-docker" "$script" "${@}" <&0
+"$DIR/run-in-docker" esy "$script" "${@}" <&0

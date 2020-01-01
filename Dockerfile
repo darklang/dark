@@ -216,30 +216,6 @@ RUN pip3 install yq && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 # Ocaml
 ############################
 USER dark
-ENV FORCE_OCAML_BUILD 5
-ENV OPAMJOBS 4
-
-ENV OCAML_SWITCH ocaml-base-compiler.4.06.1
-# env vars below here replace `eval $(opam env)` in dotfiles; by doing it here,
-# we avoid having to source .bashrc before every command
-ENV PATH "/home/dark/.opam/${OCAML_SWITCH}/bin:$PATH"
-ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/stublibs"
-ENV MANPATH "/home/dark/.opam/${OCAML_SWITCH}/man:"
-ENV PERL5LIB "/home/dark/.opam/${OCAML_SWITCH}/lib/perl5"
-ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/toplevel"
-ENV FORCE_OCAML_UPDATE 5
-
-# disabling sandboxing as it breaks and isn't necessary cause Docker
-RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash \
-      && opam init --comp ${OCAML_SWITCH} --auto-setup --disable-sandboxing \
-      && opam update \
-      && opam install -y \
-           ppx_deriving.4.4 \
-           dune.2.0.1 \
-           merlin.3.3.3 \
-           ocp-indent.1.8.1 \
-           ocamlformat.0.12 \
-      && opam clean --all-switches --download-cache --repo-cache
 
 
 ENV ESY__PROJECT=/home/dark/app/backend
