@@ -20,7 +20,7 @@
     "in-source": false
   },
   "ppx-flags": [
-    "./run-ppxes"
+    "ppx-deriving/ppx.js"
   ],
   "suffix": ".bs.js",
   "bs-dependencies": [
@@ -29,7 +29,8 @@
     "bs-webapi",
     "tablecloth-bucklescript",
     "bs-fetch",
-    "bs-uuid"
+    "bs-uuid",
+    "bs-deriving"
   ],
   "bs-dev-dependencies": [
   ],

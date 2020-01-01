@@ -1,0 +1,39 @@
+opam-version: "2.0"
+maintainer: "simon.cruanes.2007@m4x.org"
+synopsis: "A modular, clean and powerful extension of the OCaml standard library"
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "build" "@doc" "-p" name ] {with-doc}
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+]
+depends: [
+  "ocaml" { >= "4.03.0" }
+  "dune" { >= "1.1" }
+  "dune-configurator"
+  "seq"
+  "qtest" { with-test }
+  "qcheck" { with-test }
+  "ounit" { with-test }
+  "iter" { with-test }
+  "gen" { with-test }
+  "uutf" { with-test }
+  "mdx" { with-test & >= "1.5.0" & < "2.0.0" }
+  "odoc" { with-doc }
+]
+depopts: [
+  "base-unix"
+  "base-threads"
+]
+tags: [ "stdlib" "containers" "iterators" "list" "heap" "queue" ]
+homepage: "https://github.com/c-cube/ocaml-containers/"
+doc: "https://c-cube.github.io/ocaml-containers"
+dev-repo: "git+https://github.com/c-cube/ocaml-containers.git"
+bug-reports: "https://github.com/c-cube/ocaml-containers/issues/"
+authors: "Simon Cruanes"
+url {
+  src: "https://github.com/c-cube/ocaml-containers/archive/v2.8.tar.gz"
+  checksum: [
+    "md5=03b80e963186e91ddac62ef645bf7fb2"
+    "sha512=c8f434808be540c16926bf03d89f394d33fc2d092f963a7b6d412481229e0a96290f1ad7c7d522415115d35426b7aa0b3fda4b991ddc321dad279d402c9a0c0b"
+  ]
+}

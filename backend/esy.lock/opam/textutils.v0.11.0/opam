@@ -14,7 +14,7 @@ depends: [
   "core" {>= "v0.11" & < "v0.12"}
   "ppx_jane" {>= "v0.11" & < "v0.12"}
   "textutils_kernel" {>= "v0.11" & < "v0.12"}
-  "jbuilder" {build & >= "1.0+beta18.1"}
+  "jbuilder" {>= "1.0+beta18.1"}
   "ocaml-migrate-parsetree" {>= "1.0"}
 ]
 synopsis: "Text output utilities"

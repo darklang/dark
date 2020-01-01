@@ -12,7 +12,7 @@ depends: [
   "ocaml" {>= "4.04.1"}
   "parsexp" {>= "v0.11" & < "v0.12"}
   "sexplib0" {>= "v0.11" & < "v0.12"}
-  "jbuilder" {build & >= "1.0+beta18.1"}
+  "jbuilder" {>= "1.0+beta18.1"}
   "num"
 ]
 synopsis: "Library for serializing OCaml values to and from S-expressions"

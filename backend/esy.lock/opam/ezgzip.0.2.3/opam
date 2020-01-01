@@ -1,0 +1,59 @@
+opam-version: "2.0"
+maintainer: "Hezekiah M. Carty <hez@0ok.org>"
+authors: [ "Hezekiah M. Carty <hez@0ok.org>" ]
+license: "MIT"
+synopsis: "Simple gzip (de)compression library"
+description: """
+# ezgzip - Simple gzip (de)compression library
+
+ezgzip is a simple interface focused on `string -> string` zlib and gzip
+(de)compression.
+
+Documentation is available
+[here](https://hcarty.github.io/ezgzip/ezgzip/index.html).
+
+An example illustrating how to gzip compress and then decompress a string:
+```ocaml
+open Rresult
+
+let () =
+  let original = "Hello world" in
+  let compressed = Ezgzip.compress original in
+  let decompressed = R.get_ok (Ezgzip.decompress compressed) in
+  assert (original = decompressed)
+```
+
+This library currently uses the zlib bindings provided by
+[camlzip](https://github.com/xavierleroy/camlzip).  The gzip header/footer code
+is based on the
+[upstream specification](http://www.gzip.org/zlib/rfc-gzip.html#specification).
+"""
+homepage: "https://github.com/hcarty/ezgzip"
+dev-repo: "git+https://github.com/hcarty/ezgzip.git"
+bug-reports: "https://github.com/hcarty/ezgzip/issues"
+doc: "https://hcarty.github.io/ezgzip/ezgzip/"
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+  ["dune" "build" "-p" name "-j" jobs] {with-doc}
+]
+depends: [
+  "alcotest" {with-test & >= "0.8.1"}
+  "astring"
+  "benchmark" {with-test & >= "1.4"}
+  "dune" {>= "1.0"}
+  "ocplib-endian"
+  "odoc" {with-doc & >= "1.1.1"}
+  "qcheck" {with-test & >= "0.7"}
+  "rresult"
+  "camlzip"
+  "ocaml" {>= "4.03.0"}
+]
+url {
+  src:
+    "https://github.com/hcarty/ezgzip/releases/download/v0.2.3/ezgzip-v0.2.3.tbz"
+  checksum: [
+    "sha256=8868eedb98f83b2d53f091a827db9b7a5b4e9ba538bbc080c91b4ac4baf679d4"
+    "sha512=766d6974057eba53e324f4299af378015024595c8e43bd0f68df5fbb33d98b42b12f7c8a6b815296d74df8eebaf969d79e7244697b918ea7b6a0b5e6f0562d77"
+  ]
+}
