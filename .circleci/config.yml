@@ -119,6 +119,17 @@ commands:
           name: Setup docker-env for debugging
           command: env | grep 'DOCKER\|NO_PROXY' | sed 's/^/export /' > ../docker-env
 
+  build-gcp-containers:
+    steps:
+      - run:
+          name: Regenerate combined ETags
+          command: |
+            scripts/support/generate-etags
+            scripts/support/check-etags
+            cp backend/static/etags.json rundir/
+      - run: scripts/gcp-build-containers
+
+
 
   ##########################
   # misc
@@ -249,8 +260,6 @@ jobs:
       - checkout
       - rust-setup: { project: "stroller" }
       - run: scripts/support/compile stroller/Cargo.toml --test
-      - prep-container-creation
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
       - rust-finish: { project: "stroller" }
 
@@ -261,8 +270,6 @@ jobs:
       - rust-setup: { project: "queue-scheduler" }
       # tests are run in rust-integration-tests
       - run: scripts/support/compile queue-scheduler/Cargo.toml
-      - prep-container-creation
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
       - assert-clean-worktree
       - rust-finish: { project: "queue-scheduler" }
 
@@ -334,6 +341,14 @@ jobs:
           command: scripts/run-rust-tests queue-scheduler
       - assert-clean-worktree
 
+  gcp-containers-test:
+    executor: in-container
+    steps:
+      # Just test that we can build them for now
+      - checkout
+      - setup-app
+      - attach_workspace: { at: "." }
+      - build-gcp-containers
 
   push-to-gcp:
     executor: in-container
@@ -342,14 +357,7 @@ jobs:
       - setup-app
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - run:
-          name: Regenerate combined ETags
-          command: |
-            scripts/support/generate-etags
-            scripts/support/check-etags
-            cp backend/static/etags.json rundir/
-      - setup_remote_docker: { docker_layer_caching: true }
-      - run: scripts/gcp-build-containers
+      - build-gcp-containers
       - auth-with-gcp
       - run: scripts/push-assets-to-cdn
       - run: scripts/gcp-push-images-to-gcr
@@ -415,6 +423,11 @@ workflows:
             - build-container
             - build-backend
             - build-client
+      - gcp-containers-test:
+          requires:
+            - build-backend
+            - build-stroller
+            - build-queue-scheduler
 
       # pre-deploy, in parallel with integration-tests
       - push-to-gcp:
