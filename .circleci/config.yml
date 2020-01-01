@@ -214,12 +214,14 @@ jobs:
           command: |
             set -x
             rm -Rf /home/dark/.esy/3/b
-            # It seems like everything builds and rebuilds without these.
-            # Other files seem important: .o, .a, .cma, .cmx
+            # It seems like everything builds and rebuilds fine without
+            # these. Other files are needed: .o, .a, .cma, .cmx.
             find /home/dark/.esy/3/i | grep \\.cmt$ | xargs rm
             find /home/dark/.esy/3/i | grep \\.cmti$ | xargs rm
             find /home/dark/.esy/3/i | grep \\.byte$ | xargs rm
             find /home/dark/.esy/3/i | grep \\.cmxs$ | xargs rm
+            # These can be very cheaply rebuilt, and are about 400MB
+            rm /home/dark/app/backend/_build/default/*/*.exe
       - show-large-files-and-directories
       - save_cache:
           paths:
