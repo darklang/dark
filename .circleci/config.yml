@@ -211,7 +211,15 @@ jobs:
       - run: scripts/ocaml-find-unused backend/test
       - run:
           name: Reduce size of esy cache
-          command: rm -Rf /home/dark/.esy/3/b
+          command: |
+            set -x
+            rm -Rf /home/dark/.esy/3/b
+            # It seems like everything builds and rebuilds without these.
+            # Other files seem important: .o, .a, .cma, .cmx
+            find /home/dark/.esy/3/i | grep \\.cmt$ | xargs rm
+            find /home/dark/.esy/3/i | grep \\.cmti$ | xargs rm
+            find /home/dark/.esy/3/i | grep \\.byte$ | xargs rm
+            find /home/dark/.esy/3/i | grep \\.cmxs$ | xargs rm
       - show-large-files-and-directories
       - save_cache:
           paths:
