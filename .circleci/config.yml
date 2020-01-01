@@ -200,7 +200,9 @@ jobs:
           keys:
             - v2d-backend-{{ checksum "backend/esy.json" }}
             - v2d-backend
-      # appsupport is needed for a unit test
+      # appsupport is needed for a unit test, but it is not needed as part
+      # of the backend otherwise. It is compiled as part of the frontend
+      # tests.
       - run: touch backend/static/appsupport.js
       - show-large-files-and-directories
       - run: scripts/support/compile --test backend/esy.json
