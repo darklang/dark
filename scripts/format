@@ -120,7 +120,7 @@ check_ocamlformat() {
   # \0 because the input comes from `find -print0`
   result=0
   while read -d $'\0' -r i; do
-    if ! diff <(cat "$i") <(ocamlformat "$i") &> /dev/null; then
+    if ! diff <(cat "$i") <(esy ocamlformat "$i") &> /dev/null; then
       echo "Failed: $i"
       result=1
     fi
@@ -133,7 +133,7 @@ check_prettier () {
 }
 
 format_ocamlformat() {
-  xargs -0 ocamlformat --inplace 
+  xargs -0 esy ocamlformat --inplace
 }
 
 format_prettier() {
