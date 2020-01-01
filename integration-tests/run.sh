@@ -50,6 +50,8 @@ BROWSER='unknown'
 CONCURRENCY=3
 if [[ "$DEBUG" == "true" ]]; then
   CONCURRENCY=1
+elif [[ -v CI ]]; then
+  CONCURRENCY=5
 elif [[ -v IN_DEV_CONTAINER ]]; then
   # This was caarefully measured in CI. 1x is much slower, 3x fails a lot.
   # Though perhaps with a larger machine 3x might work better.
