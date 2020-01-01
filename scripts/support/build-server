@@ -53,7 +53,7 @@ def initial_client_compile():
   files = [ "client/package.json"
           , "client/src/App.ml"
           , "client/src/styles/app.scss"
-          , "client/__tests__/ast_test.ml" ]
+          , "client/test/ast_test.ml" ]
   return compile(files)
 
 def initial_stroller_compile():

@@ -7,7 +7,7 @@
       "subdirs" : true 
     },
     {
-      "dir": "__tests__",
+      "dir": "test",
       "type": "dev"
     },
     {
