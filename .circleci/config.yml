@@ -135,10 +135,11 @@ commands:
   # misc
   ##########################
   auth-with-gcp:
+    parameters: { background: { type: boolean } }
     steps:
       - run:
           name: Auth with GCP
-          background: true
+          background: << parameters.background >>
           command: |
             echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
             gcloud auth activate-service-account --key-file gcloud-service-key.json
@@ -356,7 +357,7 @@ jobs:
     steps:
       - checkout
       - setup-app
-      - auth-with-gcp # runs in background
+      - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
@@ -384,9 +385,9 @@ jobs:
     steps:
       - checkout
       - setup-app
+      - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - auth-with-gcp
       - run: |
           scripts/gke-deploy       \
             --server-image-id=`cat gcr-image-ids/server` \
