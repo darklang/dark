@@ -9,7 +9,6 @@
     "buildsInSource": "_build"
   },
   "dependencies": {
-    "@opam/alcotest": "0.8.5",
     "@opam/base64": "2.3.0",
     "@opam/cohttp-lwt": "2.4.0",
     "@opam/cohttp-lwt-unix": "2.4.0",
@@ -22,8 +21,6 @@
     "@opam/gcloud": "*",
     "@opam/js_of_ocaml": "3.4.0",
     "@opam/js_of_ocaml-ppx": "3.4.0",
-    "@opam/junit": "2.0.1",
-    "@opam/junit_alcotest": "2.0.1",
     "@opam/jwt": "*",
     "@opam/lwt": "5.1.0",
     "@opam/lwt_ppx": "2.0.0",
@@ -31,7 +28,6 @@
     "@opam/magic-mime": "1.1.2",
     "@opam/multipart-form-data": "*",
     "@opam/nocrypto": "*",
-    "@opam/ocaml-base-compiler": "4.06.1",
     "@opam/ocurl": "0.8.2",
     "@opam/postgresql": "4.5.0",
     "@opam/ppx_deriving": "4.4",
@@ -44,13 +40,16 @@
     "@opam/session-postgresql-lwt": "0.4.1",
     "@opam/sodium": "0.6.0",
     "@opam/tablecloth-native": "0.0.6",
-    "@opam/utop": "2.4.3",
     "@opam/uuidm": "0.9.7",
     "@opam/uunf": "12.0.0",
     "@opam/uuseg": "12.0.0",
     "@opam/yojson": "1.7.0"
   },
   "devDependencies": {
+    "@opam/junit": "2.0.1",
+    "@opam/junit_alcotest": "2.0.1",
+    "@opam/alcotest": "0.8.5",
+    "ocaml": "4.06.1",
     "@opam/dune": "*",
     "@opam/merlin": "3.3.3",
     "@opam/ocp-indent": "1.8.1",
