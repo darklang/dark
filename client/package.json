@@ -7,7 +7,7 @@
   "devDependencies": {
     "browserify": "16.5.0",
     "browserify-incremental": "3.1.1",
-    "bs-platform": "6.0.1",
+    "bs-platform": "7.0.1",
     "node-sass": "4.13.0",
     "npm-run-all": "4.1.5",
     "testcafe": "1.7.1",
@@ -15,7 +15,7 @@
     "jsdom": "15.2.1",
     "dom-storage": "2.1.0",
     "jsdom-global": "3.0.2",
-    "ppx-deriving": "44.0.0"
+    "ppx-deriving": "44.1.0"
   },
   "dependencies": {
     "@glennsl/bs-json": "5.0.1",

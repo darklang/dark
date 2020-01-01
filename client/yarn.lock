@@ -1346,10 +1346,10 @@ bs-fetch@0.5.0:
   resolved "https://registry.yarnpkg.com/bs-fetch/-/bs-fetch-0.5.0.tgz#6913b1d1ddfa0b0a4b832357854e9763d61d4b28"
   integrity sha512-cGjwRpyNcIaX+p2ssy/38zs7BM/miKNgmOR3NEhxKFete5mR05JcvjuV4raG89oGCG281SU1b56TTAKmf9VCug==
 
-bs-platform@6.0.1:
-  version "6.0.1"
-  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-6.0.1.tgz#7192c7be1fb28000b1f96f3b4ef8747b45280f2e"
-  integrity sha512-dkmdS+nmHglBcKa91Z62fIDRoSaNN+VZbHhGEtjgkLjEHHaFzkaHsCLqe9FnNvrhpeV610RLyZBC/1HUOP4iFA==
+bs-platform@7.0.1:
+  version "7.0.1"
+  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-7.0.1.tgz#1d7b0ef6088b998dceee5db74a7cd8f01c20a3bd"
+  integrity sha512-UjStdtHhbtC/l6vKJ1XRDqrPk7rFf5PLYHtRX3akDXEYVnTbN36z0g4DEr5mU8S0N945e33HYts9x+i7hKKpZQ==
 
 bs-uuid@0.3.1:
   version "0.3.1"
@@ -4100,10 +4100,10 @@ posix-character-classes@^0.1.0:
   resolved "https://registry.yarnpkg.com/posix-character-classes/-/posix-character-classes-0.1.1.tgz#01eac0fe3b5af71a2a6c02feabb8c1fef7e00eab"
   integrity sha1-AerA/jta9xoqbAL+q7jB/vfgDqs=
 
-ppx-deriving@44.0.0:
-  version "44.0.0"
-  resolved "https://registry.yarnpkg.com/ppx-deriving/-/ppx-deriving-44.0.0.tgz#31a9175400c5eb853ecefcd08877382e485063b1"
-  integrity sha512-A0sdWlCwEqkaK7HA7qNKnMzpMjpVA9vjJXpmOQHUs/Y2Teeh3qQ7sN/adUuZAY74UVzJT0tP/M5spdJYO86GdQ==
+ppx-deriving@44.1.0:
+  version "44.1.0"
+  resolved "https://registry.yarnpkg.com/ppx-deriving/-/ppx-deriving-44.1.0.tgz#65b10838bd7bc13d44d3138bd2426fa91ceca3e3"
+  integrity sha512-/jZHN2f2zNVEh5slPg/ZgFBuyY/lCN5HvMfTng4Gd8BXRQ9K4+AlpOKyCOY4gRmSokLtudg5ncovC7RkDfUZKA==
   dependencies:
     arch "^2.1.1"
 
