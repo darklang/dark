@@ -73,12 +73,10 @@ def client_build():
   else:
     start = time.time()
 
-
   start = time.time()
   build = "cd client && unbuffer yarn run build"
   result = run_frontend(start, build)
   return result
-
 
 def npm_install():
   start = time.time()
@@ -90,7 +88,7 @@ def npm_install():
 
 def esy_install():
   start = time.time()
-  build = "cd backend && unbuffer esy install && esy build"
+  build = "cd backend && unbuffer esy install && esy build --release"
   return run_backend(start, build)
 
 def client_test():
