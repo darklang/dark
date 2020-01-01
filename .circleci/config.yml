@@ -225,12 +225,13 @@ jobs:
             rm -Rf /home/dark/.esy/3/b
             # It seems like everything builds and rebuilds fine without
             # these. Other files are needed: .o, .a, .cma, .cmx.
-            find /home/dark/.esy/3/i | grep \\.cmt$ | xargs rm -f
-            find /home/dark/.esy/3/i | grep \\.cmti$ | xargs rm -f
-            find /home/dark/.esy/3/i | grep \\.byte$ | xargs rm -f
-            find /home/dark/.esy/3/i | grep \\.cmxs$ | xargs rm -f
+            shopt -s globstar
+            rm -f /home/dark/.esy/3/i/**/*.cmt
+            rm -f /home/dark/.esy/3/i/**/*.cmti
+            rm -f /home/dark/.esy/3/i/**/*.byte
+            rm -f /home/dark/.esy/3/i/**/*.cmxs
             # These can be very cheaply rebuilt, and are about 400MB
-            rm /home/dark/app/backend/_build/default/*/*.exe -f
+            rm -f /home/dark/app/backend/_build/default/*/*.exe
       - show-large-files-and-directories
       - save_cache:
           paths:
