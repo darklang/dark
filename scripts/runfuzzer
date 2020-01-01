@@ -4,5 +4,5 @@
 set -euo pipefail
 
 cd client
-nodejs lib/js/__tests__/fuzz_tests.bs.js "$@"
+nodejs lib/js/test/fuzz_tests.bs.js "$@"
 

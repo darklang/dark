@@ -35,7 +35,7 @@ Some examples:
 ## How to use
 
 Write a test that will work for any input, and add it to
-client/__tests__/fuzz_tests.ml. See the existing examples there.
+client/test/fuzz_tests.ml. See the existing examples there.
 
 To test it, call:
 
