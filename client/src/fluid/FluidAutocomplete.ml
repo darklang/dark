@@ -151,7 +151,7 @@ let allFunctions (m : model) : function_ list =
   let userFunctionMetadata =
     m.userFunctions
     |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
-    |> List.filterMap ~f:Functions.ufmToF
+    |> List.filterMap ~f:UserFunctions.ufmToF
   in
   let functions =
     m.builtInFunctions

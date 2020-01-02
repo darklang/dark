@@ -192,7 +192,7 @@ let run () =
             { D.defaultModel with
               dbs = DB.fromList [db0]
             ; handlers = Handlers.fromList [h]
-            ; userFunctions = Functions.fromList [f] }
+            ; userFunctions = UserFunctions.fromList [f] }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
           let res =

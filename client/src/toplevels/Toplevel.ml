@@ -76,7 +76,7 @@ let remove (m : model) (tl : toplevel) : model =
   | TLDB db ->
       DB.remove m db
   | TLFunc f ->
-      Functions.remove m f
+      UserFunctions.remove m f
   | TLTipe ut ->
       UserTypes.remove m ut
   | TLGroup g ->
@@ -200,7 +200,7 @@ let blankOrData (tl : toplevel) : blankOrData list =
   | TLDB db ->
       DB.blankOrData db
   | TLFunc f ->
-      Functions.blankOrData f
+      UserFunctions.blankOrData f
   | TLTipe t ->
       UserTypes.blankOrData t
   | TLGroup g ->
@@ -278,7 +278,7 @@ let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
   | PFnName _ | PParamName _ | PParamTipe _ ->
     ( match asUserFunction tl with
     | Some fn ->
-        let newFn = Functions.replaceMetadataField p replacement fn in
+        let newFn = UserFunctions.replaceMetadataField p replacement fn in
         TLFunc newFn
     | _ ->
         recover "Changing fn metadata on non-fn" ~debug:replacement tl )

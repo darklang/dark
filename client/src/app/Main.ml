@@ -268,7 +268,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Some (TLHandler h) ->
               Handlers.upsert newM h
           | Some (TLFunc func) ->
-              Functions.upsert newM func
+              UserFunctions.upsert newM func
           | Some (TLGroup _) | Some (TLTipe _) | None ->
               newM )
       | None ->
@@ -302,7 +302,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               | SetHandler (_tlid, _pos, h) ->
                   Handlers.upsert m h
               | SetFunction f ->
-                  Functions.upsert m f
+                  UserFunctions.upsert m f
               | SetType t ->
                   UserTypes.upsert m t
               | _ ->
@@ -707,14 +707,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m =
           { m with
             userFunctions =
-              TD.mergeRight m.userFunctions (Functions.fromList userFuncs)
+              TD.mergeRight m.userFunctions (UserFunctions.fromList userFuncs)
               |> TD.removeMany
-                   ~tlids:(List.map ~f:Functions.toID deletedUserFuncs)
+                   ~tlids:(List.map ~f:UserFunctions.toID deletedUserFuncs)
           ; deletedUserFunctions =
               TD.mergeRight
                 m.deletedUserFunctions
-                (Functions.fromList deletedUserFuncs)
-              |> TD.removeMany ~tlids:(List.map ~f:Functions.toID userFuncs) }
+                (UserFunctions.fromList deletedUserFuncs)
+              |> TD.removeMany ~tlids:(List.map ~f:UserFunctions.toID userFuncs)
+          }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -1260,7 +1261,7 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserFunctionParameter (uftlid, upf) ->
     ( match TL.get m uftlid |> Option.andThen ~f:TL.asUserFunction with
     | Some uf ->
-        let replacement = Functions.removeParameter uf upf in
+        let replacement = UserFunctions.removeParameter uf upf in
         let newCalls = Refactor.removeFunctionParameter m uf upf in
         AddOps
           ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
@@ -1269,7 +1270,7 @@ let update_ (msg : msg) (m : model) : modification =
   | AddUserFunctionParameter uftlid ->
     ( match TL.get m uftlid |> Option.andThen ~f:TL.asUserFunction with
     | Some uf ->
-        let nextId = Functions.idOfLastBlankor uf in
+        let nextId = UserFunctions.idOfLastBlankor uf in
         Refactor.addFunctionParameter m uf nextId
     | None ->
         NoChange )
@@ -1393,7 +1394,7 @@ let update_ (msg : msg) (m : model) : modification =
             ; userFunctions =
                 TD.mergeRight
                   m.userFunctions
-                  (Functions.fromList r.result.userFunctions)
+                  (UserFunctions.fromList r.result.userFunctions)
             ; userTipes =
                 TD.mergeRight
                   m.userTipes
@@ -1425,7 +1426,7 @@ let update_ (msg : msg) (m : model) : modification =
           opCtrs = r.opCtrs
         ; handlers = Handlers.fromList r.handlers
         ; dbs = DB.fromList r.dbs
-        ; userFunctions = Functions.fromList r.userFunctions
+        ; userFunctions = UserFunctions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes
         ; handlerProps = ViewUtils.createHandlerProp r.handlers
         ; groups = TLIDDict.empty }
