@@ -1,10 +1,7 @@
 open Tc
 open Types
 
-(* In Elm, there were flags, which were converted directly into data without
- * passing through decoders. These decoders read from a slightly odd format,
- * and have a few other intricacies that make them different from our more
- * normal decoders. *)
+(* The parameters passed from appsupport.js. *)
 
 let parameter j : parameter =
   let open Json_decode_extended in
@@ -26,7 +23,7 @@ let function_ j : function_ =
   ; fnInfix = field "infix" bool j }
 
 
-type flags =
+type t =
   { editorState : string option
   ; complete : Types.function_ list
   ; userContentHost : string
@@ -36,7 +33,7 @@ type flags =
   ; buildHash : string
   ; username : string }
 
-let fromString (strJ : string) : flags =
+let fromString (strJ : string) : t =
   let open Json_decode_extended in
   let j = Json.parseOrRaise strJ in
   { editorState = field "editorState" (optional string) j
