@@ -119,8 +119,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         ( match mId with
         | Some id ->
             if event.shiftKey
-            then Selection.selectPrevBlank m tlid id
-            else Selection.selectNextBlank m tlid id
+            then Selection.enterPrevBlank m tlid id
+            else Selection.enterNextBlank m tlid id
         | None ->
             NoChange )
       | Key.O, Some _ ->
