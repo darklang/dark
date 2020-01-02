@@ -72,7 +72,7 @@ let startMigration (tlid : tlid) (cols : dbColumn list) : modification =
   in
   let rb = B.new_ () in
   let rf = B.new_ () in
-  RPC ([CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols)], FocusSame)
+  AddOps ([CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols)], FocusSame)
 
 
 let generateDBName (_ : unit) : string =

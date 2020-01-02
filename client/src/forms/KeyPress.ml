@@ -20,8 +20,8 @@ let undo_redo (m : model) (redo : bool) : modification =
   | Some tlid ->
       let undo =
         if redo
-        then RPC ([RedoTL tlid], FocusSame)
-        else RPC ([UndoTL tlid], FocusSame)
+        then AddOps ([RedoTL tlid], FocusSame)
+        else AddOps ([UndoTL tlid], FocusSame)
       in
       ( match TL.get m tlid |> Option.andThen ~f:TL.asDB with
       | Some _ ->
@@ -90,14 +90,14 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           | Some (PTypeFieldName _)
           | Some (PTypeFieldTipe _) ->
               let replacement = UserTypes.extend t in
-              RPC ([SetType replacement], FocusNext (tlid, Some id))
+              AddOps ([SetType replacement], FocusNext (tlid, Some id))
           | _ ->
               NoChange )
         | None ->
             NoChange )
       | Key.Enter, Some (TLDB _) when event.shiftKey ->
           let blankid = gid () in
-          RPC ([AddDBCol (tlid, blankid, gid ())], FocusExact (tlid, blankid))
+          AddOps ([AddDBCol (tlid, blankid, gid ())], FocusExact (tlid, blankid))
       | Key.Enter, Some (TLFunc f as tl) when event.shiftKey ->
         ( match mId with
         | Some id ->

@@ -101,7 +101,7 @@ let run () =
           let mod' = Refactor.takeOffRail m (TLHandler h) id in
           let res =
             match mod' with
-            | RPC ([SetHandler (_, _, h)], _) ->
+            | AddOps ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | EFnCall (_, "Int::notResulty", [], NoRail) ->
                   true
@@ -121,7 +121,7 @@ let run () =
           let mod' = Refactor.takeOffRail m (TLHandler h) id in
           let res =
             match mod' with
-            | RPC ([SetHandler (_, _, h)], _) ->
+            | AddOps ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | EPipe
                   ( _
@@ -143,7 +143,7 @@ let run () =
           let mod' = Refactor.putOnRail m (TLHandler h) pd in
           let res =
             match mod' with
-            | RPC ([SetHandler (_, _, h)], _) ->
+            | AddOps ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | EFnCall (_, "Result::resulty", [], Rail) ->
                   true

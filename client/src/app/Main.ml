@@ -118,12 +118,12 @@ let init (flagString : string) (location : Web.Location.location) =
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest ()
-  then (m, Cmd.batch [RPC.integration m m.canvasName])
+  then (m, Cmd.batch [API.integration m m.canvasName])
   else
     ( m
     , Cmd.batch
-        [ RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))
-        ; RPC.sendPresence m avMessage ] )
+        [ API.initialLoad m (FocusPageAndCursor (page, savedCursorState))
+        ; API.sendPresence m avMessage ] )
 
 
 let processFocus (m : model) (focus : focus) : modification =
@@ -292,7 +292,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           params.ops
       in
       if hasNonHandlers
-      then (m, RPC.addOp m focus params)
+      then (m, API.addOp m focus params)
       else
         let localM =
           List.foldl
@@ -314,7 +314,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             (Many [AutocompleteMod ACReset; processFocus localM focus])
             (localM, Cmd.none)
         in
-        (withFocus, Cmd.batch [wfCmd; RPC.addOp withFocus FocusNoChange params])
+        (withFocus, Cmd.batch [wfCmd; API.addOp withFocus FocusNoChange params])
     in
     match mod_ with
     | DisplayError e ->
@@ -380,12 +380,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (newM, cmd)
     | ClearError ->
         ({m with error = None}, Cmd.none)
-    | RPC (ops, focus) ->
+    | AddOps (ops, focus) ->
         handleRPC
-          (RPC.opsParams ops (Some ((m |> opCtr) + 1)) m.clientOpCtrId)
+          (API.opsParams ops (Some ((m |> opCtr) + 1)) m.clientOpCtrId)
           focus
     | GetUnlockedDBsRPC ->
-        Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
+        Sync.attempt ~key:"unlocked" m (API.getUnlockedDBs m)
     | UpdateDBStatsRPC tlid ->
         Analysis.updateDBStats m tlid
     | GetWorkerStatsRPC tlid ->
@@ -436,7 +436,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; timestamp = Js.Date.now () /. 1000.0 }
           in
           let cap = Page.capMinimap m.currentPage page in
-          let cmds = Cmd.batch (RPC.sendPresence m avMessage :: cap) in
+          let cmds = Cmd.batch (API.sendPresence m avMessage :: cap) in
           (Page.setPage m m.currentPage page, cmds)
         else
           (Page.setPage m m.currentPage Architecture, Url.updateUrl Architecture)
@@ -499,7 +499,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; tlid = Some tlid
           ; timestamp = timeStamp }
         in
-        let commands = [hashcmd; acCmd; afCmd; RPC.sendPresence m avMessage] in
+        let commands = [hashcmd; acCmd; afCmd; API.sendPresence m avMessage] in
         (m, Cmd.batch commands)
     | Deselect ->
         if m.cursorState <> Deselected
@@ -516,7 +516,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = None
             ; timestamp = timeStamp }
           in
-          let commands = [hashcmd; acCmd; RPC.sendPresence m avMessage] in
+          let commands = [hashcmd; acCmd; API.sendPresence m avMessage] in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
@@ -757,7 +757,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with unlockedDBs}, Cmd.none)
     | AppendUnlockedDBs newDBs ->
         (* You probably don't want to use this, you probably want to wait for the
-         * regular unlockedDBs RPC timer to do a full SetUnlockedDBs, but this
+         * regular unlockedDBs API timer to do a full SetUnlockedDBs, but this
          * can be useful if you've done an operation to a DB and you know 100%
          * that it will be in the next unlockedDBs set.
          *
@@ -849,7 +849,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   ; efpFnName = name
                   ; efpArgs = args }
                 in
-                (m, RPC.executeFunction m params)
+                (m, API.executeFunction m params)
             | None ->
                 (m, Cmd.none)
                 |> updateMod
@@ -896,7 +896,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               RT.setHandlerExeState tlid Executing m.handlerProps
             in
             ( {m with handlerProps}
-            , RPC.triggerHandler
+            , API.triggerHandler
                 m
                 {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
             )
@@ -1127,7 +1127,8 @@ let update_ (msg : msg) (m : model) : modification =
                   | None ->
                       Many
                         [ SetCursorState origCursorState
-                        ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
+                        ; AddOps
+                            ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
                         ]
                 else SetCursorState origCursorState
               else
@@ -1223,20 +1224,20 @@ let update_ (msg : msg) (m : model) : modification =
       | None ->
           NoChange )
   | AbandonMigration tlid ->
-      RPC ([AbandonDBMigration tlid], FocusNothing)
+      AddOps ([AbandonDBMigration tlid], FocusNothing)
   | DeleteColInDB (tlid, nameId) ->
       let mdb = tlid |> TL.get m |> Option.andThen ~f:TL.asDB in
       ( match mdb with
       | Some db ->
           if DB.isMigrationCol db nameId
-          then RPC ([DeleteColInDBMigration (tlid, nameId)], FocusNothing)
-          else RPC ([DeleteDBCol (tlid, nameId)], FocusNothing)
+          then AddOps ([DeleteColInDBMigration (tlid, nameId)], FocusNothing)
+          else AddOps ([DeleteDBCol (tlid, nameId)], FocusNothing)
       | None ->
           NoChange )
   | ToggleEditorSetting fn ->
       TweakModel (fun m -> {m with editorSettings = fn m.editorSettings})
   | SaveTestButton ->
-      MakeCmd (RPC.saveTest m)
+      MakeCmd (API.saveTest m)
   | FinishIntegrationTest ->
       EndIntegrationTest
   | StartFeatureFlag ->
@@ -1260,7 +1261,8 @@ let update_ (msg : msg) (m : model) : modification =
     | Some uf ->
         let replacement = Functions.removeParameter uf upf in
         let newCalls = Refactor.removeFunctionParameter m uf upf in
-        RPC ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
+        AddOps
+          ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
     | None ->
         NoChange )
   | AddUserFunctionParameter uftlid ->
@@ -1274,17 +1276,17 @@ let update_ (msg : msg) (m : model) : modification =
     ( match TL.get m tipetlid |> Option.andThen ~f:TL.asUserTipe with
     | Some tipe ->
         let replacement = UserTypes.removeField tipe field in
-        RPC ([SetType replacement], FocusNext (tipe.utTLID, None))
+        AddOps ([SetType replacement], FocusNext (tipe.utTLID, None))
     | None ->
         NoChange )
   | ToplevelDelete tlid ->
       let tl = TL.get m tlid in
       Option.map tl ~f:(fun tl ->
-          Many [RemoveToplevel tl; RPC ([DeleteTL (TL.id tl)], FocusSame)])
+          Many [RemoveToplevel tl; AddOps ([DeleteTL (TL.id tl)], FocusSame)])
       |> Option.withDefault ~default:NoChange
   | ToplevelDeleteForever tlid ->
       Many
-        [ RPC ([DeleteTLForever tlid], FocusSame)
+        [ AddOps ([DeleteTLForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
               { m with
@@ -1292,7 +1294,7 @@ let update_ (msg : msg) (m : model) : modification =
               ; deletedDBs = TD.remove ~tlid m.deletedDBs }) ]
   | DeleteUserFunction tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
-      Many (RPC ([DeleteFunction tlid], FocusSame) :: page)
+      Many (AddOps ([DeleteFunction tlid], FocusSame) :: page)
   | RestoreToplevel tlid ->
       (* Temporary check if tlid is a deleted group and add to model manually until groups has a BE *)
       let group = Groups.isFromDeletedGroup m tlid in
@@ -1300,10 +1302,10 @@ let update_ (msg : msg) (m : model) : modification =
       | Some g ->
           UndoGroupDelete (tlid, g)
       | None ->
-          RPC ([UndoTL tlid], FocusNext (tlid, None)) )
+          AddOps ([UndoTL tlid], FocusNext (tlid, None)) )
   | DeleteUserFunctionForever tlid ->
       Many
-        [ RPC ([DeleteFunctionForever tlid], FocusSame)
+        [ AddOps ([DeleteFunctionForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
               { m with
@@ -1311,7 +1313,7 @@ let update_ (msg : msg) (m : model) : modification =
         ]
   | DeleteUserType tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
-      Many (RPC ([DeleteType tlid], FocusSame) :: page)
+      Many (AddOps ([DeleteType tlid], FocusSame) :: page)
   | DeleteGroup tlid ->
       (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.vv225wwesyqm *)
       TL.get m tlid
@@ -1342,35 +1344,35 @@ let update_ (msg : msg) (m : model) : modification =
                   Many
                     [ TweakModel (fun _m -> newMod)
                     ; SetCursorState origCursorState
-                    ; RPC ([MoveTL (tlid, mePos)], FocusNoChange) ] )
+                    ; AddOps ([MoveTL (tlid, mePos)], FocusNoChange) ] )
           | _ ->
               NoChange )
       | _ ->
           NoChange )
   | DeleteUserTypeForever tlid ->
       Many
-        [ RPC ([DeleteTypeForever tlid], FocusSame)
+        [ AddOps ([DeleteTypeForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes}) ]
   | DeleteGroupForever tlid ->
-      (* TODO: Add RPC *)
+      (* TODO: Add AddOps *)
       Many
         [ TweakModel
             (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
         ]
-  | AddOpRPCCallback (_, params, Ok _) when params.opCtr = None ->
+  | AddOpsRPCCallback (_, params, Ok _) when params.opCtr = None ->
       HandleAPIError
         (ApiError.make
-           ~context:"RPC - old server, no opCtr sent"
+           ~context:"AddOps - old server, no opCtr sent"
            ~importance:ImportantError
            ~requestParams:(Encoders.addOpRPCParams params)
            ~reload:false
            (* not a great error ... but this is an api error without a
             * corresponding actual http error *)
            Tea.Http.Aborted)
-  | AddOpRPCCallback (focus, params, Ok r) ->
-      let m, newOps, _ = RPC.filterOpsAndResult m params None in
+  | AddOpsRPCCallback (focus, params, Ok r) ->
+      let m, newOps, _ = API.filterOpsAndResult m params None in
       let params = {params with ops = newOps} in
       let initialMods =
         applyOpsToClient (focus != FocusNoChange) params r.result
@@ -1400,15 +1402,15 @@ let update_ (msg : msg) (m : model) : modification =
           [AutocompleteMod ACReset; ClearError; newState]
       in
       Many (initialMods @ focusMods)
-  | AddOpStrollerMsg msg ->
+  | AddOpsStrollerMsg msg ->
       if msg.params.clientOpCtrId = m.clientOpCtrId
       then
         NoChange
         (* msg was sent from this client, we've already handled it
-                       in AddOpRPCCallback *)
+                       in AddOpsRPCCallback *)
       else
         let m, newOps, result =
-          RPC.filterOpsAndResult m msg.params (Some msg.result)
+          API.filterOpsAndResult m msg.params (Some msg.result)
         in
         let params = {msg.params with ops = newOps} in
         let initialMods =
@@ -1514,7 +1516,7 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ (* This deletion is speculative *)
           Delete404 f404
-        ; MakeCmd (RPC.delete404 m f404) ]
+        ; MakeCmd (API.delete404 m f404) ]
   | Delete404RPCCallback (params, result) ->
     ( match result with
     | Ok _ ->
@@ -1540,7 +1542,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ReceiveFetch (TraceFetchFailure (params, _, "Bad credentials")) ->
       HandleAPIError
         (ApiError.make
-           ~context:"RPC"
+           ~context:"TraceFetch"
            ~importance:ImportantError
            ~reload:true
            ~requestParams:(Encoders.getTraceDataRPCParams params)
@@ -1572,7 +1574,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ReceiveFetch (DbStatsFetchFailure (params, _, "Bad credentials")) ->
       HandleAPIError
         (ApiError.make
-           ~context:"RPC"
+           ~context:"DbStatsFetch"
            ~importance:ImportantError
            ~reload:true
            ~requestParams:(Encoders.dbStatsRPCParams params)
@@ -1602,7 +1604,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ReceiveFetch (WorkerStatsFetchFailure (params, _, "Bad credentials")) ->
       HandleAPIError
         (ApiError.make
-           ~context:"RPC"
+           ~context:"WorkerStatsFetch"
            ~importance:ImportantError
            ~reload:true
            ~requestParams:(Encoders.workerStatsRPCParams params)
@@ -1626,10 +1628,10 @@ let update_ (msg : msg) (m : model) : modification =
             (Sync.markResponseInModel
                ~key:("get-worker-stats-" ^ deTLID params.workerStatsTlid))
         ; UpdateWorkerStats (params.workerStatsTlid, result) ]
-  | AddOpRPCCallback (_, params, Error err) ->
+  | AddOpsRPCCallback (_, params, Error err) ->
       HandleAPIError
         (ApiError.make
-           ~context:"RPC"
+           ~context:"AddOps"
            ~importance:ImportantError
            ~requestParams:(Encoders.addOpRPCParams params)
            ~reload:false
@@ -1738,7 +1740,7 @@ let update_ (msg : msg) (m : model) : modification =
        *)
       Many
         ( traceMods
-        @ [ RPC
+        @ [ AddOps
               ( [SetHandler (tlid, pos, aHandler)]
               , FocusExact (tlid, FluidExpression.id ast) )
           ; Delete404 fof ] )
@@ -1765,12 +1767,12 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
-        [ RPC ([SetFunction ufun], FocusNothing)
+        [ AddOps ([SetFunction ufun], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedFn ufun.ufTLID)) ]
   | CreateType ->
       let tipe = Refactor.generateEmptyUserType () in
       Many
-        [ RPC ([SetType tipe], FocusNothing)
+        [ AddOps ([SetType tipe], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
   | LockHandler (tlid, locked) ->
       TweakModel (Editor.setHandlerLock tlid locked)
@@ -1896,7 +1898,7 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m -> {m with showTopbar = false})
   | LogoutOfDark ->
       Many
-        [ MakeCmd (RPC.logout m)
+        [ MakeCmd (API.logout m)
         ; TweakModel
             (fun m ->
               {m with editorSettings = {m.editorSettings with runTimers = false}})
@@ -1915,9 +1917,9 @@ let update_ (msg : msg) (m : model) : modification =
   | DismissErrorBar ->
       ClearError
   | PauseWorker workerName ->
-      MakeCmd (RPC.updateWorkerSchedule m {workerName; schedule = "pause"})
+      MakeCmd (API.updateWorkerSchedule m {workerName; schedule = "pause"})
   | RunWorker workerName ->
-      MakeCmd (RPC.updateWorkerSchedule m {workerName; schedule = "run"})
+      MakeCmd (API.updateWorkerSchedule m {workerName; schedule = "run"})
   | UpdateWorkerScheduleCallback (Ok schedules) ->
       UpdateWorkerSchedules schedules
   | UpdateWorkerScheduleCallback (Error _) ->
@@ -1929,7 +1931,7 @@ let rec filter_read_only (m : model) (modification : modification) =
   then modification
   else
     match modification with
-    | Enter _ | EnterWithOffset _ | RPC _ ->
+    | Enter _ | EnterWithOffset _ | AddOps _ ->
         NoChange
     | Many ms ->
         Many (List.map ~f:(filter_read_only m) ms)
@@ -2013,7 +2015,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           ReceiveFetch s)
     ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
           NewPresencePush s)
-    ; Analysis.AddOp.listen ~key:"add_op" (fun s -> AddOpStrollerMsg s)
+    ; Analysis.AddOps.listen ~key:"add_op" (fun s -> AddOpsStrollerMsg s)
     ; Analysis.WorkerStatePush.listen ~key:"worker_state_push" (fun s ->
           WorkerStatePush s) ]
   in
