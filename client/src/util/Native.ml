@@ -41,10 +41,6 @@ let registerGlobalDirect name key tagger =
   Tea_sub.registration key enableCall
 
 
-(* type size = *)
-(*   { width : int *)
-(*   ; height : int } *)
-(*  *)
 type rect =
   { id : string
   ; top : int
@@ -52,23 +48,12 @@ type rect =
   ; right : int
   ; bottom : int }
 
-type list_pos =
-  { atoms : rect list
-  ; nested : rect list }
-
-type jsRect = string Js.Dict.t
-
-type jsRectArr = jsRect array Js.Dict.t
-
 exception NativeCodeError of string
 
 module Ext = struct
   let window : Dom.window =
     [%bs.raw "(typeof window === undefined) ? window : {}"]
 
-
-  external astPositions : string -> jsRectArr = "positions"
-    [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
 
   external _querySelector : string -> Dom.element Js.Nullable.t
     = "querySelector"
@@ -147,23 +132,6 @@ module Random = struct
   let random () : int = Js_math.random_int 0 2147483647
 
   let range (min : int) (max : int) : int = Js_math.random_int min max
-end
-
-module Size = struct
-  let _convert (key : string) (pos : jsRectArr) : rect list =
-    Js.Dict.unsafeGet pos key
-    |> Belt.List.fromArray
-    |> List.map ~f:(fun jsRect ->
-           { id = Js.Dict.unsafeGet jsRect "id"
-           ; top = int_of_string (Js.Dict.unsafeGet jsRect "top")
-           ; left = int_of_string (Js.Dict.unsafeGet jsRect "left")
-           ; right = int_of_string (Js.Dict.unsafeGet jsRect "right")
-           ; bottom = int_of_string (Js.Dict.unsafeGet jsRect "bottom") })
-
-
-  let positions (tlid : string) : list_pos =
-    let pos = Ext.astPositions tlid in
-    {atoms = _convert "atoms" pos; nested = _convert "nested" pos}
 end
 
 module Location = struct
