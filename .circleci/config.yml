@@ -15,6 +15,16 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+  # Rust is so big we create a separate container for it and only use that
+  # for rust builds
+  in-rust-container:
+    working_directory: ~/app
+    environment:
+      IN_DEV_CONTAINER: true
+    docker:
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest
+
+
 
 
 commands:
@@ -119,14 +129,28 @@ commands:
           name: Setup docker-env for debugging
           command: env | grep 'DOCKER\|NO_PROXY' | sed 's/^/export /' > ../docker-env
 
+  build-gcp-containers:
+    steps:
+      - prep-container-creation
+      - run:
+          name: Regenerate combined ETags
+          command: |
+            scripts/support/generate-etags
+            scripts/support/check-etags
+            cp backend/static/etags.json rundir/
+      - run: scripts/gcp-build-containers
+
+
 
   ##########################
   # misc
   ##########################
   auth-with-gcp:
+    parameters: { background: { type: boolean } }
     steps:
       - run:
           name: Auth with GCP
+          background: << parameters.background >>
           command: |
             echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
             gcloud auth activate-service-account --key-file gcloud-service-key.json
@@ -140,6 +164,7 @@ jobs:
     executor: my-executor
     environment:
       TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+      RUST_TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest
     steps:
       - checkout
       - prep-container-creation
@@ -157,8 +182,12 @@ jobs:
       #         docker pull $TAG
       #         docker images
       #       fi
-      - run: docker build -t $TAG .
-      - run: docker push $TAG
+      - run: docker build --target dark-base -t $TAG .
+      - run:
+          background: true
+          command: docker push $TAG
+      - run: docker build -t $RUST_TAG .
+      - run: docker push $RUST_TAG
 
   build-client:
     executor: in-container
@@ -244,25 +273,21 @@ jobs:
 
 
   build-stroller:
-    executor: in-container
+    executor: in-rust-container
     steps:
       - checkout
       - rust-setup: { project: "stroller" }
       - run: scripts/support/compile stroller/Cargo.toml --test
-      - prep-container-creation
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
       - rust-finish: { project: "stroller" }
 
   build-queue-scheduler:
-    executor: in-container
+    executor: in-rust-container
     steps:
       - checkout
       - rust-setup: { project: "queue-scheduler" }
       # tests are run in rust-integration-tests
       - run: scripts/support/compile queue-scheduler/Cargo.toml
-      - prep-container-creation
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
       - assert-clean-worktree
       - rust-finish: { project: "queue-scheduler" }
 
@@ -316,7 +341,7 @@ jobs:
 
 
   rust-integration-tests:
-    executor: in-container
+    executor: in-rust-container
     steps:
       - checkout
       - rust-setup: { project: "queue-scheduler" }
@@ -334,23 +359,24 @@ jobs:
           command: scripts/run-rust-tests queue-scheduler
       - assert-clean-worktree
 
+  gcp-containers-test:
+    executor: in-container
+    steps:
+      # Just test that we can build them for now
+      - checkout
+      - setup-app
+      - attach_workspace: { at: "." }
+      - build-gcp-containers
 
   push-to-gcp:
     executor: in-container
     steps:
       - checkout
       - setup-app
+      - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - run:
-          name: Regenerate combined ETags
-          command: |
-            scripts/support/generate-etags
-            scripts/support/check-etags
-            cp backend/static/etags.json rundir/
-      - setup_remote_docker: { docker_layer_caching: true }
-      - run: scripts/gcp-build-containers
-      - auth-with-gcp
+      - build-gcp-containers
       - run: scripts/push-assets-to-cdn
       - run: scripts/gcp-push-images-to-gcr
       # Save the image IDs for deployment later
@@ -375,9 +401,9 @@ jobs:
     steps:
       - checkout
       - setup-app
+      - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - auth-with-gcp
       - run: |
           scripts/gke-deploy       \
             --server-image-id=`cat gcr-image-ids/server` \
@@ -415,6 +441,12 @@ workflows:
             - build-container
             - build-backend
             - build-client
+      - gcp-containers-test:
+          requires:
+            - build-client # to rebuild etags
+            - build-backend
+            - build-stroller
+            - build-queue-scheduler
 
       # pre-deploy, in parallel with integration-tests
       - push-to-gcp:
