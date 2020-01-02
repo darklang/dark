@@ -30,7 +30,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let body, data =
     match tl with
     | TLHandler h ->
-        (ViewCode.viewHandler vs h dragEvents, ViewData.viewData vs h.ast)
+        (ViewHandler.view vs h dragEvents, ViewData.viewData vs h.ast)
     | TLDB db ->
         (ViewDB.viewDB vs db dragEvents, [])
     | TLFunc f ->
@@ -416,7 +416,7 @@ let view (m : model) : msg Html.html =
   let ast = TL.selectedAST m |> Option.withDefault ~default:(EBlank (gid ())) in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [Fluid.viewStatus m ast m.fluidState]
+    then [FluidView.viewStatus m ast m.fluidState]
     else []
   in
   let viewDocs =

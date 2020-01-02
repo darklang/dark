@@ -110,5 +110,5 @@ let view (vs : viewState) (fn : userFunction) : msg Html.html =
   Html.div
     [Html.class' "user-fn-toplevel"]
     [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]
-    ; Html.div [Html.class' "function-body expand"] (ViewCode.view vs fn.ufAST)
+    ; Html.div [Html.class' "function-body expand"] (FluidView.view vs fn.ufAST)
     ]
