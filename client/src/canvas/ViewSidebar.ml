@@ -851,4 +851,4 @@ let rtCacheKey m =
   |> Option.some
 
 
-let viewSidebar m = Cache.cache1m rtCacheKey viewSidebar_ m
+let viewSidebar m = ViewCache.cache1m rtCacheKey viewSidebar_ m
