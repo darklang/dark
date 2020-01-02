@@ -39,19 +39,8 @@ let moveToNewerTrace (m : model) (tlid : tlid) : modification =
 
 
 (* ------------------------------- *)
-(* Toplevels *)
+(* Entering *)
 (* ------------------------------- *)
-let selectNextToplevel (m : model) (cur : tlid option) : modification =
-  let tls = TLIDDict.tlids (TL.structural m) in
-  let next =
-    cur |> Option.andThen ~f:(fun value -> Util.listNextWrap ~value tls)
-  in
-  match next with
-  | Some nextId ->
-      Select (nextId, STTopLevelRoot)
-  | None ->
-      Deselect
-
 
 let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
   let tlid = TL.id tl in

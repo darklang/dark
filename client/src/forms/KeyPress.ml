@@ -217,9 +217,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             Viewport.moveLeft m
         | Key.Right ->
             Viewport.moveRight m
-        | Key.Tab ->
-            Selection.selectNextToplevel m None
-            (* NB: see `stopKeys` in ui.html *)
         | _ ->
             NoChange )
       | _ ->
