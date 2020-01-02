@@ -8,6 +8,23 @@ module Html = struct
   include Tea.Html
 
   type 'a html = 'a Vdom.t
+
+  type 'a property = 'a Vdom.property
+
+  let noNode = Vdom.noNode
+end
+
+module Json = struct
+  exception ParseError = Json.ParseError
+
+  let parseOrRaise = Json.parseOrRaise
+
+  let parse = Json.parse
+
+  let stringify = Json.stringify
+
+  module Decode = Json_decode_extended
+  module Encode = Json_encode_extended
 end
 
 (* -------------------------------------- *)

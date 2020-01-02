@@ -1,5 +1,5 @@
-open Json_decode_extended
 open Prelude
+open Json.Decode
 
 (* Dark *)
 module TL = Toplevel
@@ -291,13 +291,13 @@ let rec dval j : dval =
   in
   variants
     [ ("DInt", dv1 (fun x -> DInt x) int)
-    ; ("DFloat", dv1 (fun x -> DFloat x) Json_decode_extended.float)
+    ; ("DFloat", dv1 (fun x -> DFloat x) Json.Decode.float)
     ; ("DBool", dv1 (fun x -> DBool x) bool)
     ; ("DNull", dv0 DNull)
     ; ("DCharacter", dv1 (fun x -> DCharacter x) string)
     ; ("DStr", dv1 (fun x -> DStr x) string)
     ; ("DList", dv1 (fun x -> DList x) (array dd))
-    ; ("DObj", dv1 (fun x -> DObj x) (dict dd))
+    ; ("DObj", dv1 (fun x -> DObj x) (strDict dd))
     ; ( "DIncomplete"
         (* catch decoding errors for backwards compatibility. if you see this
          * comment in master, the withDefault can be removed *)
@@ -364,13 +364,13 @@ and savedSettings (j : Js.Json.t) : savedSettings =
             j }
   ; cursorState = withDefault Deselected (field "cursorState" cursorState) j
   ; routingTableOpenDetails =
-      withDefault StrSet.empty (field "routingTableOpenDetails" tcStrSet) j
+      withDefault StrSet.empty (field "routingTableOpenDetails" strSet) j
   ; tlTraceIDs =
-      withDefault TLIDDict.empty (field "tlTraceIDs" (dict traceID)) j
+      withDefault TLIDDict.empty (field "tlTraceIDs" (strDict traceID)) j
   ; featureFlags =
-      withDefault StrDict.empty (field "featureFlags" (dict bool)) j
+      withDefault StrDict.empty (field "featureFlags" (strDict bool)) j
   ; handlerProps =
-      withDefault StrDict.empty (field "handlerProps" (dict handlerProp)) j
+      withDefault StrDict.empty (field "handlerProps" (strDict handlerProp)) j
   ; canvasPos = withDefault Defaults.origin (field "canvasPos" pos) j
   ; lastReload = optional (field "lastReload" jsDate) j
   ; sidebarOpen =
@@ -421,9 +421,9 @@ and loadable (decoder : Js.Json.t -> 'a) (j : Js.Json.t) : 'a loadable =
     j
 
 
-let dvalDict (j : Js.Json.t) : dvalDict = dict dval j
+let dvalDict (j : Js.Json.t) : dvalDict = strDict dval j
 
-let lvDict (j : Js.Json.t) : lvDict = dict dval j
+let lvDict (j : Js.Json.t) : lvDict = strDict dval j
 
 let analysisEnvelope (j : Js.Json.t) : traceID * dvalDict =
   (tuple2 string dvalDict) j
@@ -716,7 +716,7 @@ let dbStats j : dbStats =
   ; example = field "example" (optional (tuple2 dval string)) j }
 
 
-let dbStatsStore j : dbStatsStore = dict dbStats j
+let dbStatsStore j : dbStatsStore = strDict dbStats j
 
 let dbStatsAPIResult j = dbStatsStore j
 
@@ -732,7 +732,7 @@ let workerStats j : workerStats = {count = field "count" int j; schedule = None}
 
 let workerStatsAPIResult j = workerStats j
 
-let updateWorkerScheduleAPIResult j : string StrDict.t = (dict string) j
+let updateWorkerScheduleAPIResult j : string StrDict.t = (strDict string) j
 
 let initialLoadAPIResult j : initialLoadAPIResult =
   let tls = field "toplevels" (list toplevel) j in
@@ -758,7 +758,7 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; groups = List.filterMap ~f:TL.asGroup tls
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
-  ; worker_schedules = field "worker_schedules" (dict string) j }
+  ; worker_schedules = field "worker_schedules" (strDict string) j }
 
 
 let executeFunctionAPIResult j : executeFunctionAPIResult =
@@ -782,7 +782,7 @@ let saveTestAPIResult j : saveTestAPIResult = string j
 let parseBasicDval str : dval =
   oneOf
     [ map (fun x -> DInt x) int
-    ; map (fun x -> DFloat x) Json_decode_extended.float
+    ; map (fun x -> DFloat x) Json.Decode.float
     ; map (fun x -> DBool x) bool
     ; nullAs DNull
     ; map (fun x -> DStr x) string ]
@@ -815,7 +815,7 @@ let exception_ j : exception_ =
   ; expected = field "expected" (optional string) j
   ; result = field "result" (optional string) j
   ; resultType = field "result_tipe" (optional string) j
-  ; info = field "info" (dict string) j
+  ; info = field "info" (strDict string) j
   ; workarounds = field "workarounds" (list string) j }
 
 

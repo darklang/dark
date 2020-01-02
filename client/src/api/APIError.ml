@@ -75,7 +75,7 @@ let parseResponse (body : Http.responseBody) : string =
         str
   in
   str
-  |> Json_decode_extended.decodeString Decoders.exception_
+  |> Json.Decode.decodeString Decoders.exception_
   |> Result.toOption
   |> Option.map
        ~f:(fun { short

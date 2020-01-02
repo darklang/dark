@@ -132,25 +132,24 @@ let fontAwesome (name : string) : msg Html.html =
 
 
 let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
-  let module JSD = Json_decode_extended in
+  let open Json.Decode in
   fn
-    { mePos =
-        {vx = JSD.field "pageX" JSD.int j; vy = JSD.field "pageY" JSD.int j}
-    ; button = JSD.field "button" JSD.int j
-    ; ctrlKey = JSD.field "ctrlKey" JSD.bool j
-    ; shiftKey = JSD.field "shiftKey" JSD.bool j
-    ; altKey = JSD.field "altKey" JSD.bool j
-    ; detail = JSD.field "detail" JSD.int j }
+    { mePos = {vx = field "pageX" int j; vy = field "pageY" int j}
+    ; button = field "button" int j
+    ; ctrlKey = field "ctrlKey" bool j
+    ; shiftKey = field "shiftKey" bool j
+    ; altKey = field "altKey" bool j
+    ; detail = field "detail" int j }
 
 
 let decodeTransEvent (fn : string -> 'a) j : 'a =
-  let module JSD = Json_decode_extended in
-  fn (JSD.field "propertyName" JSD.string j)
+  let open Json.Decode in
+  fn (field "propertyName" string j)
 
 
 let decodeAnimEvent (fn : string -> 'a) j : 'a =
-  let module JSD = Json_decode_extended in
-  fn (JSD.field "animationName" JSD.string j)
+  let open Json.Decode in
+  fn (field "animationName" string j)
 
 
 let eventBoth ~(key : string) (event : string) (constructor : mouseEvent -> msg)

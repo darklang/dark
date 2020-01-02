@@ -254,7 +254,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DUuid s ->
       wrap s
   | DError (_, s) ->
-      let open Json_decode_extended in
+      let open Json.Decode in
       let decoder j : exception_ =
         { short = field "short" string j
         ; long = field "long" (optional string) j
@@ -264,7 +264,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         ; expected = field "expected" (optional string) j
         ; result = field "result" (optional string) j
         ; resultType = field "result_tipe" (optional string) j
-        ; info = field "info" (dict string) j
+        ; info = field "info" (strDict string) j
         ; workarounds = field "workarounds" (list string) j }
       in
       let maybe name m =

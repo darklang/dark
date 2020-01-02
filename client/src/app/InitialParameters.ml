@@ -3,7 +3,7 @@ open Prelude
 (* The parameters passed from appsupport.js. *)
 
 let parameter j : parameter =
-  let open Json_decode_extended in
+  let open Json.Decode in
   { paramName = field "name" string j
   ; paramTipe = field "tipe" (string >> Runtime.str2tipe) j
   ; paramBlock_args = field "block_args" (list string) j
@@ -12,7 +12,7 @@ let parameter j : parameter =
 
 
 let function_ j : function_ =
-  let open Json_decode_extended in
+  let open Json.Decode in
   { fnName = field "name" string j
   ; fnParameters = field "parameters" (list parameter) j
   ; fnDescription = field "description" string j
@@ -33,7 +33,7 @@ type t =
   ; username : string }
 
 let fromString (strJ : string) : t =
-  let open Json_decode_extended in
+  let open Json.Decode in
   let j = Json.parseOrRaise strJ in
   { canvasName = field "canvasName" string j
   ; complete = field "complete" (list function_) j
