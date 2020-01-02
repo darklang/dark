@@ -247,13 +247,13 @@ let tlCacheKeyGroup (m : model) tl =
 let viewTL m tl =
   match tl with
   | TLGroup _ ->
-      Cache.cache2m tlCacheKeyGroup viewTL_ m tl
+      ViewCache.cache2m tlCacheKeyGroup viewTL_ m tl
   | TLTipe _ ->
-      Cache.cache2m tlCacheKeyTipe viewTL_ m tl
+      ViewCache.cache2m tlCacheKeyTipe viewTL_ m tl
   | TLDB _ ->
-      Cache.cache2m tlCacheKeyDB viewTL_ m tl
+      ViewCache.cache2m tlCacheKeyDB viewTL_ m tl
   | TLFunc _ | TLHandler _ ->
-      Cache.cache2m tlCacheKey viewTL_ m tl
+      ViewCache.cache2m tlCacheKey viewTL_ m tl
 
 
 let viewCanvas (m : model) : msg Html.html =
