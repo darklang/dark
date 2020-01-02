@@ -1,5 +1,3 @@
-open Tc
-open Types
 open Prelude
 
 (* ----------------- *)
@@ -93,7 +91,7 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
     | Lambda (varnames, exprs) ->
         ELambda
           ( id
-          , List.map varnames ~f:(fun var -> (Blank.toID var, varToName var))
+          , List.map varnames ~f:(fun var -> (BlankOr.toID var, varToName var))
           , f exprs )
     | Value str ->
       ( match FluidUtil.parseString str with
@@ -157,14 +155,20 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
     | EFnCall (id, name, args, ster) ->
       ( match args with
       | EPipeTarget _ :: _ when not inPipe ->
-          recover "fn has a pipe target but no pipe" ~debug:expr (Blank.new_ ())
+          recover
+            "fn has a pipe target but no pipe"
+            ~debug:expr
+            (BlankOr.new_ ())
       | EPipeTarget _ :: args when inPipe ->
           F
             ( id
             , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
             )
       | _nonPipeTarget :: _ when inPipe ->
-          recover "fn has a pipe but no pipe target" ~debug:expr (Blank.new_ ())
+          recover
+            "fn has a pipe but no pipe target"
+            ~debug:expr
+            (BlankOr.new_ ())
       | args ->
           F
             ( id
@@ -176,7 +180,7 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
           recover
             "binop has a pipe target but no pipe"
             ~debug:expr
-            (Blank.new_ ())
+            (BlankOr.new_ ())
       | EPipeTarget _ when inPipe ->
           F
             ( id
@@ -187,7 +191,7 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
           recover
             "binop has a pipe but no pipe target"
             ~debug:expr
-            (Blank.new_ ())
+            (BlankOr.new_ ())
       | _ ->
           F
             ( id
@@ -245,7 +249,7 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
         recover
           "Cant convert pipetargets back to exprs"
           ~debug:expr
-          (Blank.new_ ())
+          (BlankOr.new_ ())
     | EFeatureFlag (id, name, cond, caseA, caseB) ->
         F
           ( id

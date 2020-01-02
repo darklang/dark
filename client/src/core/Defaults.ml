@@ -1,5 +1,4 @@
-open Tc
-open Types
+open Prelude
 
 let entryID : string = "entry-box"
 
@@ -19,7 +18,7 @@ let pageWidth : int = 500
 
 let unsetCSRF : string = "UNSET_CSRF"
 
-let defaultEditor : serializableEditor =
+let defaultSavedSettings : savedSettings =
   { editorSettings = {runTimers = true; showFluidDebugger = false}
   ; cursorState = Deselected
   ; routingTableOpenDetails = StrSet.empty

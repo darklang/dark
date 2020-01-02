@@ -1,3 +1,6 @@
+(* This is designed to be used as Json.Encode in Prelude. Don't use it
+ * directly unless you have to. *)
+
 include module type of Json.Encode
 
 val variant : string -> Js.Json.t list -> Js.Json.t

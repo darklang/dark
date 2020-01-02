@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 open ViewUtils
 
 (* Tea *)
@@ -106,14 +104,11 @@ let viewEntry (m : model) : msg Html.html =
   match unwrapCursorState m.cursorState with
   | Entering (Creating pos) ->
       let styleProp =
-        if VariantTesting.variantIsActive m GridLayout
-        then Vdom.noProp
-        else
-          let offset = m.canvasProps.offset in
-          let loc = Viewport.subPos pos offset in
-          Html.styles
-            [ ("left", string_of_int loc.x ^ "px")
-            ; ("top", string_of_int loc.y ^ "px") ]
+        let offset = m.canvasProps.offset in
+        let loc = Viewport.subPos pos offset in
+        Html.styles
+          [ ("left", string_of_int loc.x ^ "px")
+          ; ("top", string_of_int loc.y ^ "px") ]
       in
       Html.div [Html.class' "omnibox"; styleProp] [normalEntryHtml "" m.complete]
   | _ ->

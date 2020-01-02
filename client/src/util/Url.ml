@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
@@ -104,19 +102,6 @@ let changeLocation (loc : Web.Location.location) : modification =
   let mPage = parseLocation loc in
   Option.map ~f:(fun x -> SetPage x) mPage
   |> Option.withDefault ~default:NoChange
-
-
-let parseCanvasName (loc : Web.Location.location) : string =
-  match
-    loc.pathname
-    |> String.dropLeft ~count:1
-    (* remove lead "/" *)
-    |> String.split ~on:"/"
-  with
-  | "a" :: canvasName :: _ ->
-      canvasName
-  | _ ->
-      "builtwithdark"
 
 
 let splitOnEquals (s : string) : (string * bool) option =

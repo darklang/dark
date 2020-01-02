@@ -50,9 +50,9 @@ let () =
               let handler_spec_string =
                 let spec = hParams.handler.spec in
                 List.map
-                  (function Types.F (_, s) -> s | _ -> "-")
+                  ~f:(function Types.F (_, s) -> s | _ -> "-")
                   [spec.space; spec.name; spec.modifier]
-                |> fun ss -> "(" ^ String.concat ", " ss ^ ")"
+                |> fun ss -> "(" ^ String.join ~sep:", " ss ^ ")"
               in
               let msg =
                 if msg = "(\"Stack overflow\")"

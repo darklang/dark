@@ -1,6 +1,5 @@
+open Prelude
 open Tester
-open! Tc
-open Types
 open FluidToken
 
 let run () =

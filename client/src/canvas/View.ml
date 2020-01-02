@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 
 (* Dark *)
 module TL = Toplevel
@@ -30,11 +28,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let body, data =
     match tl with
     | TLHandler h ->
-        (ViewCode.viewHandler vs h dragEvents, ViewData.viewData vs h.ast)
+        (ViewHandler.view vs h dragEvents, ViewData.viewData vs h.ast)
     | TLDB db ->
         (ViewDB.viewDB vs db dragEvents, [])
     | TLFunc f ->
-        ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
+        ([ViewUserFunction.view vs f], ViewData.viewData vs f.ufAST)
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
     | TLGroup g ->
@@ -183,7 +181,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
     ]
   in
-  ViewUtils.placeHtml pos boxClasses html m
+  ViewUtils.placeHtml pos boxClasses html
 
 
 let tlCacheKey (m : model) tl =
@@ -247,13 +245,13 @@ let tlCacheKeyGroup (m : model) tl =
 let viewTL m tl =
   match tl with
   | TLGroup _ ->
-      Cache.cache2m tlCacheKeyGroup viewTL_ m tl
+      ViewCache.cache2m tlCacheKeyGroup viewTL_ m tl
   | TLTipe _ ->
-      Cache.cache2m tlCacheKeyTipe viewTL_ m tl
+      ViewCache.cache2m tlCacheKeyTipe viewTL_ m tl
   | TLDB _ ->
-      Cache.cache2m tlCacheKeyDB viewTL_ m tl
+      ViewCache.cache2m tlCacheKeyDB viewTL_ m tl
   | TLFunc _ | TLHandler _ ->
-      Cache.cache2m tlCacheKey viewTL_ m tl
+      ViewCache.cache2m tlCacheKey viewTL_ m tl
 
 
 let viewCanvas (m : model) : msg Html.html =
@@ -416,7 +414,7 @@ let view (m : model) : msg Html.html =
   let ast = TL.selectedAST m |> Option.withDefault ~default:(EBlank (gid ())) in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [Fluid.viewStatus m ast m.fluidState]
+    then [FluidView.viewStatus m ast m.fluidState]
     else []
   in
   let viewDocs =

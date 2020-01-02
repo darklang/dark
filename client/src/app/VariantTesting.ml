@@ -1,5 +1,4 @@
-open Tc
-open Types
+open Prelude
 
 let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member ~value:vt m.tests
@@ -21,8 +20,6 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some LibtwitterVariant
     | "groups" ->
         Some GroupVariant
-    | "grid" ->
-        Some GridLayout
     | _ ->
         None )
 
@@ -36,8 +33,6 @@ let toCSSClass (vt : variantTest) : string =
         "libtwitter"
     | GroupVariant ->
         "grouping"
-    | GridLayout ->
-        "grid-layout"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)

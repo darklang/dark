@@ -1,6 +1,4 @@
 open Prelude
-open Tc
-open Types
 
 type t = Types.fluidExpr [@@deriving show]
 
@@ -269,7 +267,7 @@ let rec updateVariableUses (oldVarName : string) ~(f : t -> t) (ast : t) : t =
       let pairs =
         List.map
           ~f:(fun (pat, expr) ->
-            if Pattern.hasVariableNamed oldVarName pat
+            if FluidPattern.hasVariableNamed oldVarName pat
             then (pat, expr)
             else (pat, u expr))
           pairs

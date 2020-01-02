@@ -1,8 +1,7 @@
-open Tc
-open Types
+open Prelude
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module P = Pointer
 
 let spaceOf (hs : handlerSpec) : handlerSpace =

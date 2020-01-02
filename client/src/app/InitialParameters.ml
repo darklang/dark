@@ -1,13 +1,9 @@
-open Tc
-open Types
+open Prelude
 
-(* In Elm, there were flags, which were converted directly into data without
- * passing through decoders. These decoders read from a slightly odd format,
- * and have a few other intricacies that make them different from our more
- * normal decoders. *)
+(* The parameters passed from appsupport.js. *)
 
 let parameter j : parameter =
-  let open Json_decode_extended in
+  let open Json.Decode in
   { paramName = field "name" string j
   ; paramTipe = field "tipe" (string >> Runtime.str2tipe) j
   ; paramBlock_args = field "block_args" (list string) j
@@ -16,7 +12,7 @@ let parameter j : parameter =
 
 
 let function_ j : function_ =
-  let open Json_decode_extended in
+  let open Json.Decode in
   { fnName = field "name" string j
   ; fnParameters = field "parameters" (list parameter) j
   ; fnDescription = field "description" string j
@@ -26,9 +22,9 @@ let function_ j : function_ =
   ; fnInfix = field "infix" bool j }
 
 
-type flags =
-  { editorState : string option
-  ; complete : Types.function_ list
+type t =
+  { complete : Types.function_ list
+  ; canvasName : string
   ; userContentHost : string
   ; environment : string
   ; csrfToken : string
@@ -36,10 +32,10 @@ type flags =
   ; buildHash : string
   ; username : string }
 
-let fromString (strJ : string) : flags =
-  let open Json_decode_extended in
+let fromString (strJ : string) : t =
+  let open Json.Decode in
   let j = Json.parseOrRaise strJ in
-  { editorState = field "editorState" (optional string) j
+  { canvasName = field "canvasName" string j
   ; complete = field "complete" (list function_) j
   ; userContentHost = field "userContentHost" string j
   ; environment = field "environment" string j

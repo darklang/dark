@@ -1,9 +1,7 @@
-open Tester
-open! Tc
-open Types
 open Prelude
+open Tester
 open Fluid_test_data
-module B = Blank
+module B = BlankOr
 module D = Defaults
 module R = Refactor
 module TL = Toplevel
@@ -192,7 +190,7 @@ let run () =
             { D.defaultModel with
               dbs = DB.fromList [db0]
             ; handlers = Handlers.fromList [h]
-            ; userFunctions = Functions.fromList [f] }
+            ; userFunctions = UserFunctions.fromList [f] }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
           let res =
@@ -286,8 +284,8 @@ let run () =
               | UTRecord utr ->
                   utr
                   |> List.map ~f:(fun urf ->
-                         ( urf.urfName |> Blank.toOption
-                         , urf.urfTipe |> Blank.toOption )) )
+                         (urf.urfName |> B.toOption, urf.urfTipe |> B.toOption))
+              )
           in
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->

@@ -1,6 +1,5 @@
 open Prelude
-open Tc
-open Json_encode_extended
+open Json.Encode
 
 (* Dark *)
 
@@ -95,7 +94,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   | DInt i ->
       ev "DInt" [int i]
   | DFloat f ->
-      ev "DFloat" [Json_encode_extended.float f]
+      ev "DFloat" [Json.Encode.float f]
   | DBool b ->
       ev "DBool" [bool b]
   | DNull ->
@@ -276,8 +275,8 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
     ; ("modifier", blankOr string spec.modifier)
     ; ( "types"
       , object_
-          [ ("input", blankOr int (Blank.new_ ()))
-          ; ("output", blankOr int (Blank.new_ ())) ] ) ]
+          [ ("input", blankOr int (BlankOr.new_ ()))
+          ; ("output", blankOr int (BlankOr.new_ ())) ] ) ]
 
 
 and handler (h : Types.handler) : Js.Json.t =
@@ -422,7 +421,7 @@ and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
     [ ("canvasName", string params.canvasName)
     ; ("browserId", string params.browserId)
     ; ("tlid", nullable tlid params.tlid)
-    ; ("timestamp", Json_encode_extended.float params.timestamp) ]
+    ; ("timestamp", Json.Encode.float params.timestamp) ]
 
 
 and getTraceDataAPIParams (params : Types.getTraceDataAPIParams) : Js.Json.t =
@@ -691,7 +690,7 @@ let editorSettings (es : Types.editorSettings) : Js.Json.t =
     ; ("showFluidDebugger", bool es.showFluidDebugger) ]
 
 
-let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
+let savedSettings (se : Types.savedSettings) : Js.Json.t =
   object_
     [ ("editorSettings", editorSettings se.editorSettings)
     ; ("cursorState", cursorState se.cursorState)

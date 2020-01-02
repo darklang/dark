@@ -1,12 +1,10 @@
-open Tc
 open Prelude
-open Types
 
 (* Tea *)
 module Cmd = Tea.Cmd
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
@@ -239,10 +237,9 @@ end
 module NewTracePush = struct
   let decode =
     let open Tea.Json.Decoder in
-    let open Native.Decoder in
     let traceID = map (fun id -> (id : traceID)) string in
-    let tlids = list (map (fun id -> TLID id) wireIdentifier) in
-    field "detail" (pair traceID tlids)
+    let tlids = list (map (fun id -> TLID id) Native.Decoder.wireIdentifier) in
+    field "detail" (Native.Decoder.tuple2 traceID tlids)
 
 
   let listen ~key tagger =

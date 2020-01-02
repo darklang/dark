@@ -1,9 +1,7 @@
-open Tc
 open Prelude
-open Types
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module E = FluidExpression
 module P = Pointer
 

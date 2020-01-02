@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 
 (* Tea *)
 module Cmd = Tea.Cmd
@@ -8,7 +6,7 @@ module Http = Tea.Http
 
 (* Dark *)
 module AC = Autocomplete
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
@@ -121,8 +119,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         ( match mId with
         | Some id ->
             if event.shiftKey
-            then Selection.selectPrevBlank m tlid id
-            else Selection.selectNextBlank m tlid id
+            then Selection.enterPrevBlank m tlid id
+            else Selection.enterNextBlank m tlid id
         | None ->
             NoChange )
       | Key.O, Some _ ->
@@ -219,9 +217,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             Viewport.moveLeft m
         | Key.Right ->
             Viewport.moveRight m
-        | Key.Tab ->
-            Selection.selectNextToplevel m None
-            (* NB: see `stopKeys` in ui.html *)
         | _ ->
             NoChange )
       | _ ->

@@ -1,5 +1,4 @@
-open Types
-open Tc
+open Prelude
 
 module NewStaticDeployPush = struct
   let decode =

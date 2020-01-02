@@ -1,9 +1,7 @@
 open Tester
-open Tc
-open Types
 open Autocomplete
 open Prelude
-module B = Blank
+module B = BlankOr
 
 let sampleFunctions : function_ list =
   [("Twit::somefunc", TObj)]
@@ -50,7 +48,7 @@ let defaultModel
   { default with
     handlers = Handlers.fromList handlers
   ; dbs = DB.fromList dbs
-  ; userFunctions = Functions.fromList userFunctions
+  ; userFunctions = UserFunctions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
   ; fluidState =

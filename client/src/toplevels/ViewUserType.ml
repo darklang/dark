@@ -1,9 +1,7 @@
-open Tc
-open Types
 open Prelude
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 
 let fontAwesome = ViewUtils.fontAwesome
 

@@ -1,9 +1,7 @@
-open Tc
 open Prelude
-open Types
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module TL = Toplevel
 module TD = TLIDDict
@@ -26,7 +24,7 @@ let transformFnCalls
     let rec run e =
       match e with
       | EFnCall (_, name, _, _)
-        when Some name = Blank.toOption uf.ufMetadata.ufmName ->
+        when Some name = BlankOr.toOption uf.ufMetadata.ufmName ->
           f e
       | other ->
           E.walk ~f:run other
@@ -101,7 +99,7 @@ let putOnRail (m : model) (tl : toplevel) (id : id) : modification =
       let ufs =
         m.userFunctions
         |> TD.mapValues ~f:(fun uf -> uf.ufMetadata)
-        |> List.filterMap ~f:Functions.ufmToF
+        |> List.filterMap ~f:UserFunctions.ufmToF
       in
       m.builtInFunctions @ ufs
     in
@@ -249,7 +247,7 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
       | Blank _ ->
           (None, [])
       | F (_, n) ->
-          (Some n, Functions.usesOfTipe n oldTipe.utVersion fn)
+          (Some n, UserFunctions.usesOfTipe n oldTipe.utVersion fn)
     in
     let newName =
       match newTipe.utName with Blank _ -> None | F (_, n) -> Some n
@@ -258,7 +256,7 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
     | Some _, Some newName ->
         List.foldr
           ~f:(fun use accfn ->
-            Functions.replaceParamTipe use (transformUse newName use) accfn)
+            UserFunctions.replaceParamTipe use (transformUse newName use) accfn)
           ~init:fn
           uses
     | _ ->
@@ -323,7 +321,7 @@ let updateUsageCounts (m : model) : model =
   in
   let usedTipes =
     m.userFunctions
-    |> TD.mapValues ~f:Functions.allParamData
+    |> TD.mapValues ~f:UserFunctions.allParamData
     |> List.concat
     |> List.filterMap ~f:(function
            (* Note: this does _not_ currently handle multiple versions *)
@@ -364,7 +362,7 @@ let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : id) :
     in
     transformFnCalls m old fn
   in
-  let replacement = Functions.extend f in
+  let replacement = UserFunctions.extend f in
   let newCalls = transformOp f in
   AddOps
     ( SetFunction replacement :: newCalls
@@ -416,7 +414,7 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
                 * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
                 * let tipe = v |> coerceType in
                 *)
-               {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF})
+               {urfName = k |> BlankOr.newF; urfTipe = tipe |> BlankOr.newF})
       in
       Ok
         { (generateEmptyUserType ()) with

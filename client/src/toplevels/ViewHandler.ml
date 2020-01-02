@@ -1,12 +1,10 @@
-open Tc
 open Prelude
-open Types
 
 (* Tea *)
 module Svg = Tea.Svg
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 
 type viewState = ViewUtils.viewState
 
@@ -62,10 +60,6 @@ let handlerIsExeFail (vs : viewState) : bool =
            | _ ->
                false)
     |> Option.withDefault ~default:false
-
-
-let view (vs : viewState) (e : fluidExpr) =
-  [Html.div [Html.class' "fluid-ast"] (Fluid.viewAST ~vs e)]
 
 
 let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
@@ -293,9 +287,9 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list =
       [Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp]
 
 
-let viewHandler (vs : viewState) (h : handler) (dragEvents : domEventList) :
+let view (vs : viewState) (h : handler) (dragEvents : domEventList) :
     msg Html.html list =
   let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
-  let ast = Html.div attrs (view vs h.ast) in
+  let ast = Html.div attrs (FluidView.view vs h.ast) in
   let header = viewEventSpec vs h.spec dragEvents in
   [header; ast]

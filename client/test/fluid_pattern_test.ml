@@ -1,6 +1,4 @@
 open Tester
-open Tc
-open Types
 open Prelude
 open Fluid
 module K = FluidKeyboard
@@ -20,9 +18,9 @@ let h ast =
   { ast
   ; hTLID = TLID "7"
   ; spec =
-      { space = Blank.newF "HTTP"
-      ; name = Blank.newF "/test"
-      ; modifier = Blank.newF "GET" }
+      { space = BlankOr.newF "HTTP"
+      ; name = BlankOr.newF "/test"
+      ; modifier = BlankOr.newF "GET" }
   ; pos = {x = 0; y = 0} }
 
 

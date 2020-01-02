@@ -1268,7 +1268,6 @@ and variantTest =
   (* Without this libtwitter functions aren't available *)
   | LibtwitterVariant
   | GroupVariant
-  | GridLayout
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1575,8 +1574,7 @@ and model =
   ; editorSettings : editorSettings
   ; teaDebuggerEnabled : bool }
 
-(* Values that we serialize *)
-and serializableEditor =
+and savedSettings =
   { editorSettings : editorSettings
   ; cursorState : cursorState
   ; routingTableOpenDetails : StrSet.t

@@ -1,12 +1,10 @@
 open Prelude
-open Tc
-open Types
 
 (* Dark *)
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-module B = Blank
+module B = BlankOr
 module Regex = Util.Regex
 module TD = TLIDDict
 
@@ -301,7 +299,7 @@ let validateHttpNameValidVarnames (httpName : string) =
 let validateFnParamNameFree (tl : toplevel) (value : string) : string option =
   match tl with
   | TLFunc fn ->
-      let params = Functions.allParamNames fn in
+      let params = UserFunctions.allParamNames fn in
       if List.member ~value params
       then Some ("`" ^ value ^ "` is already declared. Use another name.")
       else None

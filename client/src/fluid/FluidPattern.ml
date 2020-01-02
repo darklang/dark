@@ -1,5 +1,3 @@
-open Types
-open Tc
 open Prelude
 
 type t = Types.fluidPattern
@@ -59,3 +57,7 @@ let rec variableNames (p : t) : string list =
       patterns |> List.map ~f:variableNames |> List.concat
   | FPInteger _ | FPBool _ | FPString _ | FPBlank _ | FPNull _ | FPFloat _ ->
       []
+
+
+let hasVariableNamed (varName : string) (p : fluidPattern) : bool =
+  List.member ~value:varName (variableNames p)
