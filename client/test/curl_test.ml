@@ -1,9 +1,7 @@
-open Tester
-open! Tc
-open Types
 open Prelude
-open Curl
-module B = Blank
+open Tester
+open CurlCommand
+module B = BlankOr
 
 let defaultTLID = TLID "7"
 
@@ -11,10 +9,8 @@ let http ~(path : string) ?(meth = "GET") () : handler =
   { ast = EBlank (gid ())
   ; hTLID = defaultTLID
   ; pos = {x = 0; y = 0}
-  ; spec =
-      { space = Blank.newF "HTTP"
-      ; name = Blank.newF path
-      ; modifier = Blank.newF meth } }
+  ; spec = {space = B.newF "HTTP"; name = B.newF path; modifier = B.newF meth}
+  }
 
 
 (* Sets the model with the appropriate toplevels *)
@@ -73,9 +69,9 @@ let run () =
             ; hTLID = cronTLID
             ; pos = {x = 0; y = 0}
             ; spec =
-                { space = Blank.newF "CRON"
-                ; name = Blank.newF "cleanKitchen"
-                ; modifier = Blank.newF "Fortnightly" } }
+                { space = B.newF "CRON"
+                ; name = B.newF "cleanKitchen"
+                ; modifier = B.newF "Fortnightly" } }
           in
           let m1 = {m with handlers = Handlers.fromList [cron]} in
           expect (curlFromSpec m1 cronTLID) |> toEqual None)) ;

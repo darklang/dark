@@ -7,3 +7,5 @@ val matchID : t -> Types.id
 val clone : Types.id -> t -> t
 
 val variableNames : t -> string list
+
+val hasVariableNamed : string -> t -> bool

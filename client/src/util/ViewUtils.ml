@@ -1,5 +1,3 @@
-open Tc
-open Types
 open Prelude
 module Svg = Tea.Svg
 module Regex = Util.Regex
@@ -134,30 +132,29 @@ let fontAwesome (name : string) : msg Html.html =
 
 
 let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
-  let module JSD = Json_decode_extended in
+  let open Json.Decode in
   fn
-    { mePos =
-        {vx = JSD.field "pageX" JSD.int j; vy = JSD.field "pageY" JSD.int j}
-    ; button = JSD.field "button" JSD.int j
-    ; ctrlKey = JSD.field "ctrlKey" JSD.bool j
-    ; shiftKey = JSD.field "shiftKey" JSD.bool j
-    ; altKey = JSD.field "altKey" JSD.bool j
-    ; detail = JSD.field "detail" JSD.int j }
+    { mePos = {vx = field "pageX" int j; vy = field "pageY" int j}
+    ; button = field "button" int j
+    ; ctrlKey = field "ctrlKey" bool j
+    ; shiftKey = field "shiftKey" bool j
+    ; altKey = field "altKey" bool j
+    ; detail = field "detail" int j }
 
 
 let decodeTransEvent (fn : string -> 'a) j : 'a =
-  let module JSD = Json_decode_extended in
-  fn (JSD.field "propertyName" JSD.string j)
+  let open Json.Decode in
+  fn (field "propertyName" string j)
 
 
 let decodeAnimEvent (fn : string -> 'a) j : 'a =
-  let module JSD = Json_decode_extended in
-  fn (JSD.field "animationName" JSD.string j)
+  let open Json.Decode in
+  fn (field "animationName" string j)
 
 
 let eventBoth ~(key : string) (event : string) (constructor : mouseEvent -> msg)
     : msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     event
     {stopPropagation = false; preventDefault = false}
@@ -167,7 +164,7 @@ let eventBoth ~(key : string) (event : string) (constructor : mouseEvent -> msg)
 let eventPreventDefault
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     event
     {stopPropagation = false; preventDefault = true}
@@ -177,7 +174,7 @@ let eventPreventDefault
 let eventNeither
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     event
     {stopPropagation = true; preventDefault = true}
@@ -187,7 +184,7 @@ let eventNeither
 let eventNoPropagation
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     event
     {stopPropagation = true; preventDefault = false}
@@ -196,7 +193,7 @@ let eventNoPropagation
 
 let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     "transitionend"
     {stopPropagation = false; preventDefault = true}
@@ -205,7 +202,7 @@ let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
 
 let onAnimationEnd ~(key : string) ~(listener : string -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     "animationend"
     {stopPropagation = false; preventDefault = true}
@@ -216,16 +213,11 @@ let nothingMouseEvent (name : string) : msg Vdom.property =
   eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg)
 
 
-let placeHtml
-    (pos : pos) (classes : 'a list) (html : msg Html.html list) (m : model) :
+let placeHtml (pos : pos) (classes : 'a list) (html : msg Html.html list) :
     msg Html.html =
   let styles =
-    if VariantTesting.variantIsActive m GridLayout
-    then Vdom.noProp
-    else
-      Html.styles
-        [ ("left", string_of_int pos.x ^ "px")
-        ; ("top", string_of_int pos.y ^ "px") ]
+    Html.styles
+      [("left", string_of_int pos.x ^ "px"); ("top", string_of_int pos.y ^ "px")]
   in
   Html.div [Html.classList (("node", true) :: classes); styles] html
 

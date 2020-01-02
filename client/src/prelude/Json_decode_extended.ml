@@ -53,11 +53,11 @@ let variants decoders =
 
 let tryDecode2 try1 try2 json = try try1 json with DecodeError _ -> try2 json
 
-let dict (decoder : Js.Json.t -> 'a) (json : Js.Json.t) : 'a StrDict.t =
+let strDict (decoder : Js.Json.t -> 'a) (json : Js.Json.t) : 'a StrDict.t =
   dict decoder json |> Js.Dict.entries |> Belt.Map.String.fromArray
 
 
-let tcStrSet json = json |> array string |> Belt.Set.String.fromArray
+let strSet json = json |> array string |> Belt.Set.String.fromArray
 
 let decodeString decoder str =
   try Belt.Result.Ok (decoder (Json.parseOrRaise str)) with

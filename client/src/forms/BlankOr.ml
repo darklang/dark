@@ -1,5 +1,4 @@
 open Prelude
-open Types
 
 let toID (b : 'a blankOr) : id = match b with Blank id -> id | F (id, _) -> id
 

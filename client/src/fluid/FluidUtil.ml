@@ -1,4 +1,3 @@
-open Tc
 open Prelude
 
 let literalToString

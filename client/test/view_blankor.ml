@@ -1,7 +1,5 @@
-open Tester
-open! Tc
 open Prelude
-open Types
+open Tester
 open ViewBlankOr
 
 let run () =

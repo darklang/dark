@@ -1,5 +1,3 @@
-open Types
-open Tc
 open Prelude
 
 let debuggerLinkLoc m =
@@ -55,7 +53,7 @@ let viewError (message : string option) : msg Html.html =
     | None ->
         [Vdom.noNode]
     | Some msg ->
-      ( match Json_decode_extended.decodeString Decoders.exception_ msg with
+      ( match Json.Decode.decodeString Decoders.exception_ msg with
       | Error _ ->
           [Html.p [] [Html.text msg]]
       | Ok {result = Some msg; _} ->

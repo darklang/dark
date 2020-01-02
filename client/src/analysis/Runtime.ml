@@ -1,5 +1,3 @@
-open Tc
-open Types
 open Prelude
 
 let isCompatible (t1 : tipe) (t2 : tipe) : bool =
@@ -256,7 +254,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DUuid s ->
       wrap s
   | DError (_, s) ->
-      let open Json_decode_extended in
+      let open Json.Decode in
       let decoder j : exception_ =
         { short = field "short" string j
         ; long = field "long" (optional string) j
@@ -266,7 +264,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         ; expected = field "expected" (optional string) j
         ; result = field "result" (optional string) j
         ; resultType = field "result_tipe" (optional string) j
-        ; info = field "info" (dict string) j
+        ; info = field "info" (strDict string) j
         ; workarounds = field "workarounds" (list string) j }
       in
       let maybe name m =
@@ -367,7 +365,7 @@ let inputVariables (tl : toplevel) : string list =
     | F (_, m) when String.toLower m = "http" ->
         let fromRoute =
           h.spec.name
-          |> Blank.toOption
+          |> BlankOr.toOption
           |> Option.map ~f:route_variables
           |> Option.withDefault ~default:[]
         in
@@ -386,7 +384,7 @@ let inputVariables (tl : toplevel) : string list =
         ["request"; "event"] )
   | TLFunc f ->
       f.ufMetadata.ufmParameters
-      |> List.filterMap ~f:(fun p -> Blank.toOption p.ufpName)
+      |> List.filterMap ~f:(fun p -> BlankOr.toOption p.ufpName)
   | TLTipe _ | TLDB _ | TLGroup _ ->
       []
 
@@ -434,7 +432,7 @@ let pathFromInputVars (iv : inputValueDict) : string option =
   |> Option.andThen ~f:(fun obj ->
          match obj with DObj r -> r |> StrDict.get ~key:"url" | _ -> None)
   |> Option.andThen ~f:(fun dv -> match dv with DStr s -> Some s | _ -> None)
-  |> Option.andThen ~f:WebURL.make
+  |> Option.andThen ~f:Native.Url.make
   |> Option.map ~f:(fun url -> url##pathname ^ url##search)
 
 

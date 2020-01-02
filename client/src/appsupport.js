@@ -558,8 +558,8 @@ function addWheelListener(elem) {
 setTimeout(function() {
   const canvasName = new URL(window.location).pathname.split("/")[2];
   const params = JSON.stringify({
-    editorState: window.localStorage.getItem("editorState-" + canvasName),
     complete: complete,
+    canvasName: canvasName,
     userContentHost: userContentHost,
     environment: environmentName,
     csrfToken: csrfToken,

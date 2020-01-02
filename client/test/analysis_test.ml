@@ -1,7 +1,7 @@
+open Prelude
 open Tester
-open Types
 open Analysis
-module B = Blank
+module B = BlankOr
 
 let run () =
   describe "requestAnalysis" (fun () ->

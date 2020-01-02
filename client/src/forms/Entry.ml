@@ -1,10 +1,8 @@
-open Tc
 open Prelude
-open Types
 
 (* Dark *)
 module AC = Autocomplete
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
@@ -131,9 +129,7 @@ let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
 
 
 let newHandler m space name modifier pos =
-  let tlid =
-    if VariantTesting.variantIsActive m GridLayout then gtlidDT () else gtlid ()
-  in
+  let tlid = gtlid () in
   let spaceid = gid () in
   let handler =
     { ast = EBlank (gid ())
@@ -179,9 +175,7 @@ let newHandler m space name modifier pos =
 
 let newDB (name : string) (pos : pos) (m : model) : modification =
   let next = gid () in
-  let tlid =
-    if List.member ~value:GridLayout m.tests then gtlidDT () else gtlid ()
-  in
+  let tlid = gtlid () in
   let pageChanges =
     match m.currentPage with
     | FocusedFn _ | FocusedType _ ->
@@ -495,7 +489,7 @@ let submitACItem
               in
               saveH {h with spec = replacedName} (PEventSpace new_)
           | PFnName _, ACFnName value, TLFunc old ->
-              if List.member ~value (Functions.allNames m.userFunctions)
+              if List.member ~value (UserFunctions.allNames m.userFunctions)
               then DisplayError ("There is already a Function named " ^ value)
               else
                 let newPD = PFnName (B.newF value) in

@@ -1,9 +1,7 @@
-open Tc
 open Prelude
-open Types
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module TL = Toplevel
 
 let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) : msg Html.html
@@ -41,7 +39,7 @@ let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) : msg Html.html
       Vdom.noNode
 
 
-let viewInput
+let viewTrace
     (tl : toplevel)
     (traceID : traceID)
     (value : inputValueDict option)
@@ -102,7 +100,7 @@ let viewInput
   Html.li ~key:viewKey (Html.class' classes :: events) (dotHtml @ [viewData])
 
 
-let viewInputs (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
+let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
   let traceToHtml ((traceID, traceData) : trace) =
     let value = Option.map ~f:(fun td -> td.input) traceData in
     let timestamp =
@@ -117,14 +115,14 @@ let viewInputs (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
       Analysis.getTipeOf' vs.analysisStore astID
       |> Option.withDefault ~default:TIncomplete
     in
-    viewInput vs.tl traceID value timestamp isActive isHover astTipe
+    viewTrace vs.tl traceID value timestamp isActive isHover astTipe
   in
   List.map ~f:traceToHtml vs.traces
 
 
 let viewData (vs : ViewUtils.viewState) (ast : fluidExpr) : msg Html.html list =
   let astID = FluidExpression.id ast in
-  let requestEls = viewInputs vs astID in
+  let requestEls = viewTraces vs astID in
   let tlSelected =
     match tlidOf vs.cursorState with
     | Some tlid when tlid = vs.tlid ->

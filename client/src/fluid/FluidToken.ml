@@ -1,5 +1,3 @@
-open Tc
-open Types
 open Prelude
 
 type t = Types.fluidToken

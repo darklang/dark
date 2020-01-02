@@ -1,9 +1,44 @@
-open Types
+include Tc
+include Types
 
-module Html = struct
-  include Tea.Html
+(* Every other module should have `open Prelude` as its first statement.
+ * You don't need to open/include Tc or Types, Prelude includes them. *)
 
-  type 'a html = 'a Vdom.t
+module Tea = struct
+  (* Extend Tea functions *)
+  module Result = Tea_result
+  module Cmd = Tea_cmd
+  module Sub = Tea_sub
+  module App = Tea_app
+  module Debug = Tea_debug
+  module Html = Tea_html_extended
+  module Html2 = Tea_html2
+  module Svg = Tea_svg
+  module Task = Tea_task
+  module Program = Tea_program
+  module Time = Tea_time_extended
+  module Json = Tea_json
+  module Navigation = Tea_navigation
+  module Random = Tea_random
+  module AnimationFrame = Tea_animationframe
+  module Mouse = Tea_mouse
+  module Http = Tea_http
+  module Ex = Tea_ex
+end
+
+module Html = Tea.Html
+
+module Json = struct
+  exception ParseError = Json.ParseError
+
+  let parseOrRaise = Json.parseOrRaise
+
+  let parse = Json.parse
+
+  let stringify = Json.stringify
+
+  module Decode = Json_decode_extended
+  module Encode = Json_encode_extended
 end
 
 (* -------------------------------------- *)
@@ -21,23 +56,12 @@ let gid (unit : unit) : id = ID (Util.random unit |> string_of_int)
 
 let gtlid (unit : unit) : tlid = TLID (Util.random unit |> string_of_int)
 
-let gtlidDT (unit : unit) : tlid =
-  let id =
-    Js.Date.now unit
-    |> Js.Float.toString
-    |> Tc.String.split ~on:"."
-    |> Tc.List.head
-    |> Tc.Option.withDefault ~default:(Util.random unit |> string_of_int)
-  in
-  TLID id
-
-
 (* -------------------------------------- *)
 (* CursorState *)
 (* -------------------------------------- *)
 
-let unwrapCursorState (s : cursorState) : cursorState =
-  match s with Dragging (_, _, _, unwrap) -> unwrap | _ -> s
+let rec unwrapCursorState (s : cursorState) : cursorState =
+  match s with Dragging (_, _, _, nested) -> unwrapCursorState nested | _ -> s
 
 
 let tlidOf (s : cursorState) : tlid option =
@@ -138,3 +162,16 @@ let asserTFn ?(debug : 'd option) (msg : string) ~(f : 'a -> bool) : unit =
 (* Like recover but with the message TODO *)
 let todo (msg : string) (recoveryVal : 'b) : 'b =
   recover ~debug:recoveryVal ("TODO: " ^ msg) recoveryVal
+
+
+module Debug = struct
+  let log ?(f : 'a -> 'b = fun x -> Obj.magic x) (msg : string) (data : 'a) : 'a
+      =
+    Js.log2 msg (f data) ;
+    data
+
+
+  let loG ?(f : 'a -> 'b = fun x -> Obj.magic x) (msg : string) (data : 'a) :
+      unit =
+    Js.log2 msg (f data)
+end

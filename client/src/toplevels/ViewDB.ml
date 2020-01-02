@@ -1,9 +1,7 @@
-open Tc
-open Types
 open Prelude
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 
 type viewState = ViewUtils.viewState
 
@@ -127,7 +125,7 @@ let viewMigraFuncs
           [Html.class' "fn-title"]
           [ Html.span [] [Html.text (desc ^ " : ")]
           ; Html.span [Html.class' "varname"] [Html.text varName] ] ]
-    @ ViewCode.view vs expr )
+    @ FluidView.view vs expr )
 
 
 let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :

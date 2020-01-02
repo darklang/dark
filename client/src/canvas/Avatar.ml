@@ -1,6 +1,4 @@
 open Prelude
-open Types
-open Tc
 
 let filterAvatarsByTlid (avatars : avatar list) (tlid : tlid) : avatar list =
   avatars

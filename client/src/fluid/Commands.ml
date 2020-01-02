@@ -1,5 +1,4 @@
-open Types
-open Tc
+open Prelude
 
 (* Dark *)
 module TL = Toplevel
@@ -62,7 +61,7 @@ let commands : command list =
           in
           match tipe with
           | Ok tipe ->
-              let nameId = Blank.toID tipe.utName in
+              let nameId = BlankOr.toID tipe.utName in
               AddOps ([SetType tipe], FocusNext (tipe.utTLID, Some nameId))
           | Error s ->
               DisplayError ("Can't create-type: " ^ s))

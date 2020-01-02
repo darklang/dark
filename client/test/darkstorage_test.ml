@@ -1,6 +1,5 @@
+open Prelude
 open Tester
-open! Tc
-open Types
 module Ds = DarkStorage
 
 let d2 =

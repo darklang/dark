@@ -1,12 +1,10 @@
-open Tc
-open Types
 open Prelude
 
 (* Dark *)
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-module B = Blank
+module B = BlankOr
 module Regex = Util.Regex
 module TD = TLIDDict
 
@@ -151,7 +149,7 @@ let allFunctions (m : model) : function_ list =
   let userFunctionMetadata =
     m.userFunctions
     |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
-    |> List.filterMap ~f:Functions.ufmToF
+    |> List.filterMap ~f:UserFunctions.ufmToF
   in
   let functions =
     m.builtInFunctions

@@ -480,7 +480,7 @@ type keyEvent =
 [@@deriving show]
 
 let keyEvent j =
-  let open Json_decode_extended in
+  let open Json.Decode in
   { keyCode = field "keyCode" int j |> fromCode
   ; key = (field "key" string j |> fun s -> if s = "" then None else Some s)
   ; shiftKey = field "shiftKey" bool j

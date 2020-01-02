@@ -1,9 +1,7 @@
-open Types
 open Prelude
-open Tc
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module TL = Toplevel
 
 type viewState = ViewUtils.viewState
@@ -89,7 +87,7 @@ let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
   let body, data =
     match tl with
     | TLHandler h ->
-        (ViewCode.viewHandler vs h [], ViewData.viewData vs h.ast)
+        (ViewHandler.view vs h [], ViewData.viewData vs h.ast)
     | TLDB db ->
         (ViewDB.viewDB vs db [], [])
     | _ ->

@@ -1,8 +1,7 @@
-open Tc
-open Types
+open Prelude
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module RT = Runtime
 module TL = Toplevel
 
@@ -113,9 +112,9 @@ let copyCurlMod (m : model) (tlid : tlid) (pos : vPos) : modification =
   | Some data ->
       Native.Clipboard.copyToClipboard data ;
       let modFun m =
-        let m1 = Editor.setHandlerMenu tlid false m in
+        let m1 = Handlers.setHandlerMenu tlid false m in
         {m1 with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
       in
       TweakModel modFun
   | None ->
-      TweakModel (Editor.setHandlerMenu tlid false)
+      TweakModel (Handlers.setHandlerMenu tlid false)

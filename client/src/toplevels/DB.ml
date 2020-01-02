@@ -1,8 +1,7 @@
-open Tc
-open Types
+open Prelude
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module TD = TLIDDict
 
 let toID (db : db) : tlid = db.dbTLID

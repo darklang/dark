@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 
 (* Tea *)
 module Cmd = Tea.Cmd
@@ -8,7 +6,7 @@ module Http = Tea.Http
 
 (* Dark *)
 module AC = Autocomplete
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
@@ -60,19 +58,20 @@ let manageBrowserId () : string =
       newBrowserId
 
 
-let init (flagString : string) (location : Web.Location.location) =
-  let { Flags.editorState
-      ; complete
-      ; userContentHost
-      ; environment
-      ; csrfToken
-      ; isAdmin
-      ; buildHash
-      ; username } =
-    Flags.fromString flagString
+let init (encodedParamString : string) (location : Web.Location.location) =
+  let ({ canvasName
+       ; complete
+       ; userContentHost
+       ; environment
+       ; csrfToken
+       ; isAdmin
+       ; buildHash
+       ; username }
+        : InitialParameters.t) =
+    InitialParameters.fromString encodedParamString
   in
   let variants = VariantTesting.enabledVariantTests () in
-  let m = editorState |> Editor.fromString |> Editor.editor2model in
+  let m = SavedSettings.load canvasName |> SavedSettings.toModel in
   let page =
     Url.parseLocation location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
@@ -97,7 +96,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; tests = variants
     ; handlers = TLIDDict.empty
     ; dbs = TLIDDict.empty
-    ; canvasName = Url.parseCanvasName location
+    ; canvasName
     ; userContentHost
     ; origin = location.origin
     ; environment
@@ -267,7 +266,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Some (TLHandler h) ->
               Handlers.upsert newM h
           | Some (TLFunc func) ->
-              Functions.upsert newM func
+              UserFunctions.upsert newM func
           | Some (TLGroup _) | Some (TLTipe _) | None ->
               newM )
       | None ->
@@ -301,7 +300,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               | SetHandler (_tlid, _pos, h) ->
                   Handlers.upsert m h
               | SetFunction f ->
-                  Functions.upsert m f
+                  UserFunctions.upsert m f
               | SetType t ->
                   UserTypes.upsert m t
               | _ ->
@@ -362,7 +361,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             (* Previously, this was two calls to Tea_task.nativeBinding. But
              * only the first got called, unclear why. *)
             Cmd.call (fun _ ->
-                Editor.serialize m ;
+                SavedSettings.save m ;
                 Native.Location.reload true)
           else if (not ignore) && APIError.shouldRollbar apiError
           then Cmd.call (fun _ -> Rollbar.sendAPIError m apiError)
@@ -504,7 +503,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Deselect ->
         if m.cursorState <> Deselected
         then
-          let m = Editor.closeMenu m in
+          let m = Handlers.closeMenu m in
           let hashcmd = Url.updateUrl Architecture in
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
@@ -706,14 +705,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m =
           { m with
             userFunctions =
-              TD.mergeRight m.userFunctions (Functions.fromList userFuncs)
+              TD.mergeRight m.userFunctions (UserFunctions.fromList userFuncs)
               |> TD.removeMany
-                   ~tlids:(List.map ~f:Functions.toID deletedUserFuncs)
+                   ~tlids:(List.map ~f:UserFunctions.toID deletedUserFuncs)
           ; deletedUserFunctions =
               TD.mergeRight
                 m.deletedUserFunctions
-                (Functions.fromList deletedUserFuncs)
-              |> TD.removeMany ~tlids:(List.map ~f:Functions.toID userFuncs) }
+                (UserFunctions.fromList deletedUserFuncs)
+              |> TD.removeMany ~tlids:(List.map ~f:UserFunctions.toID userFuncs)
+          }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -829,7 +829,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * we're in before isnt also dragging. *)
         ( { m with
             cursorState =
-              Dragging (tlid, offset, hasMoved, Editor.stripDragging state) }
+              Dragging (tlid, offset, hasMoved, unwrapCursorState state) }
         , Cmd.none )
     | ExecutingFunctionBegan (tlid, id) ->
         let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
@@ -1259,7 +1259,7 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserFunctionParameter (uftlid, upf) ->
     ( match TL.get m uftlid |> Option.andThen ~f:TL.asUserFunction with
     | Some uf ->
-        let replacement = Functions.removeParameter uf upf in
+        let replacement = UserFunctions.removeParameter uf upf in
         let newCalls = Refactor.removeFunctionParameter m uf upf in
         AddOps
           ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
@@ -1268,7 +1268,7 @@ let update_ (msg : msg) (m : model) : modification =
   | AddUserFunctionParameter uftlid ->
     ( match TL.get m uftlid |> Option.andThen ~f:TL.asUserFunction with
     | Some uf ->
-        let nextId = Functions.idOfLastBlankor uf in
+        let nextId = UserFunctions.idOfLastBlankor uf in
         Refactor.addFunctionParameter m uf nextId
     | None ->
         NoChange )
@@ -1392,7 +1392,7 @@ let update_ (msg : msg) (m : model) : modification =
             ; userFunctions =
                 TD.mergeRight
                   m.userFunctions
-                  (Functions.fromList r.result.userFunctions)
+                  (UserFunctions.fromList r.result.userFunctions)
             ; userTipes =
                 TD.mergeRight
                   m.userTipes
@@ -1424,7 +1424,7 @@ let update_ (msg : msg) (m : model) : modification =
           opCtrs = r.opCtrs
         ; handlers = Handlers.fromList r.handlers
         ; dbs = DB.fromList r.dbs
-        ; userFunctions = Functions.fromList r.userFunctions
+        ; userFunctions = UserFunctions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes
         ; handlerProps = ViewUtils.createHandlerProp r.handlers
         ; groups = TLIDDict.empty }
@@ -1696,11 +1696,7 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m_ -> {m_ with visibility = vis})
   | CreateHandlerFrom404 ({space; path; modifier; _} as fof) ->
       let center = findCenter m in
-      let tlid =
-        if VariantTesting.variantIsActive m GridLayout
-        then gtlidDT ()
-        else gtlid ()
-      in
+      let tlid = gtlid () in
       let pos = center in
       let ast = EBlank (gid ()) in
       let aHandler =
@@ -1775,7 +1771,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ AddOps ([SetType tipe], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
   | LockHandler (tlid, locked) ->
-      TweakModel (Editor.setHandlerLock tlid locked)
+      TweakModel (Handlers.setHandlerLock tlid locked)
   | EnablePanning pan ->
       TweakModel
         (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
@@ -1827,7 +1823,7 @@ let update_ (msg : msg) (m : model) : modification =
         ^ error
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
-      TweakModel (Editor.setHandlerState tlid state)
+      TweakModel (Handlers.setHandlerState tlid state)
   | CanvasPanAnimationEnd ->
       TweakModel
         (fun m ->
@@ -1868,9 +1864,9 @@ let update_ (msg : msg) (m : model) : modification =
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
           {m with handlerProps})
   | CopyCurl (tlid, pos) ->
-      Curl.copyCurlMod m tlid pos
+      CurlCommand.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
-      TweakModel (Editor.setHandlerMenu tlid show)
+      TweakModel (Handlers.setHandlerMenu tlid show)
   | FluidMsg (FluidMouseDown targetExnID) ->
       let defaultBehaviour =
         [FluidStartClick; Select (targetExnID, STTopLevelRoot)]
@@ -1942,7 +1938,7 @@ let rec filter_read_only (m : model) (modification : modification) =
 let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m |> filter_read_only m in
   let newm, newc = updateMod mods (m, Cmd.none) in
-  Editor.serialize m ;
+  SavedSettings.save m ;
   ({newm with lastMsg = msg; lastMod = mods}, newc)
 
 
@@ -1972,14 +1968,10 @@ let subscriptions (m : model) : msg Tea.Sub.t =
       | Hidden ->
           []
       | Visible ->
-          [ Patched_tea_time.every
-              ~key:"refresh_analysis"
-              Tea.Time.second
-              (fun f -> TimerFire (RefreshAnalysis, f)) ]
-          @ [ Patched_tea_time.every
-                ~key:"refresh_avatars"
-                Tea.Time.second
-                (fun f -> TimerFire (RefreshAvatars, f)) ]
+          [ Tea.Time.every ~key:"refresh_analysis" Tea.Time.second (fun f ->
+                TimerFire (RefreshAnalysis, f)) ]
+          @ [ Tea.Time.every ~key:"refresh_avatars" Tea.Time.second (fun f ->
+                  TimerFire (RefreshAvatars, f)) ]
     else []
   in
   let onError =
@@ -1993,11 +1985,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           else PageVisibilityChange Hidden) ]
   in
   let mousewheelSubs =
-    if (m.canvasProps.enablePan && not (isACOpened m))
-       (* TODO: disabled this cause it was buggy and it completely fucked up
-        * ellen's demo. We need to make sure targets are always set perfectly
-        * for this to never get stuck, which feels optimistic. *)
-       || VariantTesting.variantIsActive m GridLayout
+    if m.canvasProps.enablePan && not (isACOpened m)
     then
       [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
             MouseWheel (dx, dy)) ]
