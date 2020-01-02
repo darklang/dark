@@ -3,7 +3,7 @@ open Prelude
 open Types
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 
 (* ------------------------ *)
 (* PointerData *)
@@ -122,7 +122,7 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
   let bf s =
     match s with
     | Blank _ ->
-      (match f "" with "" -> s | other -> Blank.newF other)
+      (match f "" with "" -> s | other -> B.newF other)
     | F (id, str) ->
         F (id, f str)
   in

@@ -3,7 +3,7 @@ open Prelude
 open Types
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module TL = Toplevel
 
 let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) : msg Html.html

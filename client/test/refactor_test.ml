@@ -3,7 +3,7 @@ open! Tc
 open Types
 open Prelude
 open Fluid_test_data
-module B = Blank
+module B = BlankOr
 module D = Defaults
 module R = Refactor
 module TL = Toplevel
@@ -286,8 +286,8 @@ let run () =
               | UTRecord utr ->
                   utr
                   |> List.map ~f:(fun urf ->
-                         ( urf.urfName |> Blank.toOption
-                         , urf.urfTipe |> Blank.toOption )) )
+                         (urf.urfName |> B.toOption, urf.urfTipe |> B.toOption))
+              )
           in
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->

@@ -2,7 +2,6 @@ open Tc
 open Types
 
 (* Dark *)
-module B = Blank
 
 let rec hasVariableNamed (varName : string) (p : fluidPattern) : bool =
   match p with

@@ -4,7 +4,7 @@ open Types
 (* open Prelude *)
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module TD = TLIDDict
 

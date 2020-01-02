@@ -5,7 +5,7 @@ open Prelude
 module DClipboard = Clipboard
 open Fluid
 open Fluid_test_data
-module B = Blank
+module B = BlankOr
 module K = FluidKeyboard
 
 type testResult = (* ast, clipboard, newPos *) string * string * int

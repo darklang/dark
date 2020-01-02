@@ -4,7 +4,7 @@ open Types
 open Prelude
 open Fluid
 open Fluid_test_data
-module B = Blank
+module B = BlankOr
 module K = FluidKeyboard
 
 let eToString = Printer.eToString

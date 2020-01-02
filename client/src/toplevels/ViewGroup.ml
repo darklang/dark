@@ -3,7 +3,7 @@ open Prelude
 open Tc
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module TL = Toplevel
 
 type viewState = ViewUtils.viewState
