@@ -1208,6 +1208,22 @@ let update_ (msg : msg) (m : model) : modification =
         [ ExecutingFunctionBegan (tlid, id)
         ; ExecutingFunctionAPICall (tlid, id, name)
         ; Select (tlid, selectionTarget) ]
+  | CopyCurlButton (tlid, id, vPos, name) ->
+      let data = CurlCommand.curlFromHttpClientCall m tlid id name in
+      let toastMessage =
+        match data with
+        | Some data ->
+            Js.log2 "Copy to clipboard: " data ;
+            Native.Clipboard.copyToClipboard data ;
+            Some "Copied!"
+        | None ->
+            (* TODO: Can we make it select the handler somehow before calling
+             * curlFromHttpClientCall? Or otherwise load whatever data it is that
+             * Analysis.getArguments needs? *)
+            Some "Could not copy, try again after clicking this handler."
+      in
+      let modFun m = {m with toast = {toastMessage; toastPos = Some vPos}} in
+      TweakModel modFun
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->

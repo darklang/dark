@@ -116,6 +116,16 @@ let executionEvents status tlid id name =
       ; ViewUtils.nothingMouseEvent "dblclick" ]
 
 
+let copyCurlButtonEvents tlid id name =
+  [ ViewUtils.eventNoPropagation
+      ~key:("ccb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
+      "click"
+      (fun me -> CopyCurlButton (tlid, id, me.mePos, name))
+  ; ViewUtils.nothingMouseEvent "mouseup"
+  ; ViewUtils.nothingMouseEvent "mousedown"
+  ; ViewUtils.nothingMouseEvent "dblclick" ]
+
+
 let fnExecutionButton
     (vs : viewState) (fn : function_) (id : id) (args : id list) =
   let name = fn.fnName in
@@ -129,4 +139,18 @@ let fnExecutionButton
     let events = executionEvents status vs.tlid id name in
     Html.div
       ([Html.class' ("execution-button " ^ class_); Html.title title] @ events)
+      [fontAwesome icon]
+
+
+let fnCopyCurlButton (vs : viewState) (fn : function_) (id : id) =
+  let name = fn.fnName in
+  if fn.fnPreviewExecutionSafe
+  then Vdom.noNode
+  else
+    let class_ = "copy-curl-button" in
+    let title = "Copy to curl" in
+    let icon = "copy" in
+    let events = copyCurlButtonEvents vs.tlid id name in
+    Html.div
+      ([Html.class' ("copycurl-button " ^ class_); Html.title title] @ events)
       [fontAwesome icon]

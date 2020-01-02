@@ -130,6 +130,15 @@ let recoverOpt ?(debug : 'd option) (msg : 'msg) ~(default : 'r) (x : 'r option)
       recover ~debug ("Got None but expected something: " ^ msg) default
 
 
+let recoverOption ?(debug : 'd option) (msg : 'msg) (x : 'r option) : 'r option
+    =
+  match x with
+  | Some y ->
+      Some y
+  | None ->
+      recover ~debug ("Got None but expected something: " ^ msg) None
+
+
 (* Assert `cond`, returning val either way.  All assertion functions report
  * to rollbar if they fail. *)
 let assert_ ?(debug : 'd option) (msg : string) (cond : bool) (returnVal : 'r) :
@@ -162,6 +171,15 @@ let asserTFn ?(debug : 'd option) (msg : string) ~(f : 'a -> bool) : unit =
 (* Like recover but with the message TODO *)
 let todo (msg : string) (recoveryVal : 'b) : 'b =
   recover ~debug:recoveryVal ("TODO: " ^ msg) recoveryVal
+
+
+let option_exn o ~(err : string) : 'a =
+  match o with
+  | None ->
+      Js.log ("Error: " ^ err) ;
+      Option.valueExn o
+  | Some o ->
+      o
 
 
 module Debug = struct
