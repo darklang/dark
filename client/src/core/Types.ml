@@ -1268,7 +1268,6 @@ and variantTest =
   (* Without this libtwitter functions aren't available *)
   | LibtwitterVariant
   | GroupVariant
-  | GridLayout
 
 (* ----------------------------- *)
 (* FeatureFlags *)

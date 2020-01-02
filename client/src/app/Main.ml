@@ -1696,11 +1696,7 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m_ -> {m_ with visibility = vis})
   | CreateHandlerFrom404 ({space; path; modifier; _} as fof) ->
       let center = findCenter m in
-      let tlid =
-        if VariantTesting.variantIsActive m GridLayout
-        then gtlidDT ()
-        else gtlid ()
-      in
+      let tlid = gtlid () in
       let pos = center in
       let ast = EBlank (gid ()) in
       let aHandler =
@@ -1989,11 +1985,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           else PageVisibilityChange Hidden) ]
   in
   let mousewheelSubs =
-    if (m.canvasProps.enablePan && not (isACOpened m))
-       (* TODO: disabled this cause it was buggy and it completely fucked up
-        * ellen's demo. We need to make sure targets are always set perfectly
-        * for this to never get stuck, which feels optimistic. *)
-       || VariantTesting.variantIsActive m GridLayout
+    if m.canvasProps.enablePan && not (isACOpened m)
     then
       [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
             MouseWheel (dx, dy)) ]
