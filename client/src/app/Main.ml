@@ -60,16 +60,17 @@ let manageBrowserId () : string =
       newBrowserId
 
 
-let init (flagString : string) (location : Web.Location.location) =
-  let { Flags.editorState
-      ; complete
-      ; userContentHost
-      ; environment
-      ; csrfToken
-      ; isAdmin
-      ; buildHash
-      ; username } =
-    Flags.fromString flagString
+let init (encodedParamString : string) (location : Web.Location.location) =
+  let ({ editorState
+       ; complete
+       ; userContentHost
+       ; environment
+       ; csrfToken
+       ; isAdmin
+       ; buildHash
+       ; username }
+        : InitialParameters.t) =
+    InitialParameters.fromString encodedParamString
   in
   let variants = VariantTesting.enabledVariantTests () in
   let m = editorState |> Editor.fromString |> Editor.editor2model in
