@@ -1,10 +1,6 @@
 open Types
 open Tc
 
-let showTLID = Prelude.showTLID
-
-let tlidOf = Prelude.tlidOf
-
 let fromString (json : string option) : serializableEditor =
   match json with
   | None ->
@@ -17,8 +13,25 @@ let fromString (json : string option) : serializableEditor =
         Defaults.defaultEditor )
 
 
-let rec stripDragging (cs : cursorState) : cursorState =
-  match cs with Dragging (_, _, _, state) -> stripDragging state | _ -> cs
+let canonicalizeCursorState (cs : cursorState) : cursorState =
+  Prelude.unwrapCursorState cs
+
+
+let canonicalizeHandlerProps props =
+  StrDict.map props ~f:(fun v ->
+      { v with
+        handlerState =
+          ( match v.handlerState with
+          | HandlerExpanded ->
+              HandlerExpanded
+          | HandlerPrepCollapse ->
+              HandlerCollapsed
+          | HandlerCollapsing ->
+              HandlerCollapsed
+          | HandlerCollapsed ->
+              HandlerCollapsed
+          | HandlerExpanding ->
+              HandlerExpanded ) })
 
 
 let toString (se : serializableEditor) : string =
@@ -27,30 +40,13 @@ let toString (se : serializableEditor) : string =
 
 let editor2model (e : serializableEditor) : model =
   let m = Defaults.defaultModel in
-  let finalHandlerStates props =
-    props
-    |> StrDict.map ~f:(fun v ->
-           { v with
-             handlerState =
-               ( match v.handlerState with
-               | HandlerExpanded ->
-                   HandlerExpanded
-               | HandlerPrepCollapse ->
-                   HandlerCollapsed
-               | HandlerCollapsing ->
-                   HandlerCollapsed
-               | HandlerCollapsed ->
-                   HandlerCollapsed
-               | HandlerExpanding ->
-                   HandlerExpanded ) })
-  in
   { m with
     editorSettings = e.editorSettings
-  ; cursorState = e.cursorState |> stripDragging
+  ; cursorState = e.cursorState |> canonicalizeCursorState
   ; routingTableOpenDetails = e.routingTableOpenDetails
   ; tlTraceIDs = e.tlTraceIDs
   ; featureFlags = e.featureFlags
-  ; handlerProps = finalHandlerStates e.handlerProps
+  ; handlerProps = e.handlerProps |> canonicalizeHandlerProps
   ; canvasProps = {m.canvasProps with offset = e.canvasPos}
   ; lastReload = e.lastReload
   ; sidebarOpen = e.sidebarOpen
@@ -61,50 +57,17 @@ let model2editor (m : model) : serializableEditor =
   { editorSettings = m.editorSettings
   ; cursorState = m.cursorState
   ; routingTableOpenDetails =
-      m.routingTableOpenDetails (* state of the routing table *)
-  ; tlTraceIDs = m.tlTraceIDs (* what trace is selected *)
-  ; featureFlags = m.featureFlags (* which flags are expanded *)
+      (* state of the routing table *)
+      m.routingTableOpenDetails
+  ; tlTraceIDs = (* what trace is selected *)
+                 m.tlTraceIDs
+  ; featureFlags = (* which flags are expanded *)
+                   m.featureFlags
   ; handlerProps = m.handlerProps
   ; canvasPos = m.canvasProps.offset
   ; lastReload = m.lastReload
   ; sidebarOpen = m.sidebarOpen
   ; showTopbar = m.showTopbar }
-
-
-let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
-  let updateProps prop =
-    match prop with
-    | Some p ->
-        Some {p with handlerLock = lock}
-    | None ->
-        Some {Defaults.defaultHandlerProp with handlerLock = lock}
-  in
-  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
-  {m with handlerProps = props}
-
-
-let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
-  let updateProps prop =
-    match prop with
-    | Some p ->
-        Some {p with handlerState = state}
-    | None ->
-        Some {Defaults.defaultHandlerProp with handlerState = state}
-  in
-  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
-  {m with handlerProps = props}
-
-
-let setHandlerMenu (tlid : tlid) (show : bool) (m : model) : model =
-  let updateProps prop =
-    match prop with
-    | Some p ->
-        Some {p with showActions = show}
-    | None ->
-        Some {Defaults.defaultHandlerProp with showActions = show}
-  in
-  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
-  {m with handlerProps = props}
 
 
 let serialize (m : model) : unit =
@@ -113,11 +76,3 @@ let serialize (m : model) : unit =
     ("editorState-" ^ m.canvasName)
     state
     Dom.Storage.localStorage
-
-
-let closeMenu (m : model) : model =
-  match tlidOf m.cursorState with
-  | Some tlid ->
-      setHandlerMenu tlid false m
-  | None ->
-      m
