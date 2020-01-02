@@ -61,7 +61,7 @@ let manageBrowserId () : string =
 
 
 let init (encodedParamString : string) (location : Web.Location.location) =
-  let ({ editorState
+  let ({ canvasName
        ; complete
        ; userContentHost
        ; environment
@@ -73,7 +73,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     InitialParameters.fromString encodedParamString
   in
   let variants = VariantTesting.enabledVariantTests () in
-  let m = editorState |> Editor.fromString |> Editor.editor2model in
+  let m = SavedSettings.load canvasName |> SavedSettings.toModel in
   let page =
     Url.parseLocation location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
@@ -98,7 +98,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; tests = variants
     ; handlers = TLIDDict.empty
     ; dbs = TLIDDict.empty
-    ; canvasName = Url.parseCanvasName location
+    ; canvasName
     ; userContentHost
     ; origin = location.origin
     ; environment
@@ -363,7 +363,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             (* Previously, this was two calls to Tea_task.nativeBinding. But
              * only the first got called, unclear why. *)
             Cmd.call (fun _ ->
-                Editor.serialize m ;
+                SavedSettings.save m ;
                 Native.Location.reload true)
           else if (not ignore) && APIError.shouldRollbar apiError
           then Cmd.call (fun _ -> Rollbar.sendAPIError m apiError)
@@ -1943,7 +1943,7 @@ let rec filter_read_only (m : model) (modification : modification) =
 let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m |> filter_read_only m in
   let newm, newc = updateMod mods (m, Cmd.none) in
-  Editor.serialize m ;
+  SavedSettings.save m ;
   ({newm with lastMsg = msg; lastMod = mods}, newc)
 
 

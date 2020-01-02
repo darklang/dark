@@ -352,7 +352,7 @@ and handlerProp j : handlerProp =
   ; showActions = field "showActions" bool j }
 
 
-and serializableEditor (j : Js.Json.t) : serializableEditor =
+and savedSettings (j : Js.Json.t) : savedSettings =
   (* always use withDefault or optional because the field might be missing due
    * to old editors or new fields. *)
   { editorSettings =
@@ -376,12 +376,14 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
   ; lastReload = optional (field "lastReload" jsDate) j
   ; sidebarOpen =
       withDefault
-        Defaults.defaultEditor.sidebarOpen
+        Defaults.defaultSavedSettings.sidebarOpen
         (field "sidebarOpen" bool)
         j
   ; showTopbar =
-      withDefault Defaults.defaultEditor.showTopbar (field "showTopbar1" bool) j
-  }
+      withDefault
+        Defaults.defaultSavedSettings.showTopbar
+        (field "showTopbar1" bool)
+        j }
 
 
 and cursorState j =

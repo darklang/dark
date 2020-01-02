@@ -1575,8 +1575,7 @@ and model =
   ; editorSettings : editorSettings
   ; teaDebuggerEnabled : bool }
 
-(* Values that we serialize *)
-and serializableEditor =
+and savedSettings =
   { editorSettings : editorSettings
   ; cursorState : cursorState
   ; routingTableOpenDetails : StrSet.t
