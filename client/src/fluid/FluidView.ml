@@ -4,12 +4,6 @@ open Prelude
 module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 
-module Html = struct
-  include Tea.Html
-
-  type 'a html = 'a Vdom.t
-end
-
 (* Fluid *)
 module K = FluidKeyboard
 module AC = FluidAutocomplete

@@ -1972,14 +1972,10 @@ let subscriptions (m : model) : msg Tea.Sub.t =
       | Hidden ->
           []
       | Visible ->
-          [ Patched_tea_time.every
-              ~key:"refresh_analysis"
-              Tea.Time.second
-              (fun f -> TimerFire (RefreshAnalysis, f)) ]
-          @ [ Patched_tea_time.every
-                ~key:"refresh_avatars"
-                Tea.Time.second
-                (fun f -> TimerFire (RefreshAvatars, f)) ]
+          [ Tea.Time.every ~key:"refresh_analysis" Tea.Time.second (fun f ->
+                TimerFire (RefreshAnalysis, f)) ]
+          @ [ Tea.Time.every ~key:"refresh_avatars" Tea.Time.second (fun f ->
+                  TimerFire (RefreshAvatars, f)) ]
     else []
   in
   let onError =
