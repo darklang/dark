@@ -1,6 +1,6 @@
 open Prelude
 open Tester
-open Curl
+open CurlCommand
 module B = BlankOr
 
 let defaultTLID = TLID "7"
