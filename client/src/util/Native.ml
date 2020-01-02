@@ -59,6 +59,10 @@ module Ext = struct
     = "querySelector"
     [@@bs.val] [@@bs.scope "document"]
 
+  let querySelector (s : string) : Dom.element option =
+    Js.Nullable.toOption (_querySelector s)
+
+
   external scrollHeight : Dom.element -> int = "scrollHeight" [@@bs.get]
 
   external clientWidth : Dom.element -> int = "clientWidth" [@@bs.get]
@@ -82,10 +86,6 @@ module Ext = struct
   external rectWidth : Dom.domRect -> float = "width" [@@bs.get]
 
   let staticHost : unit -> string = [%bs.raw "function(){ return staticUrl; }"]
-
-  let querySelector (s : string) : Dom.element option =
-    Js.Nullable.toOption (_querySelector s)
-
 
   external offsetTop : Dom.element -> int = "offsetTop" [@@bs.get]
 
