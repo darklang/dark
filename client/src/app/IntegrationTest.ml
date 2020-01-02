@@ -69,7 +69,7 @@ let onlyExpr (m : model) : E.t = m |> onlyTL |> TL.getAST |> deOption "onlyast4"
 
 let enter_changes_state (m : model) : testResult =
   match m.cursorState with
-  | Entering (Creating _) ->
+  | Omnibox _ ->
       pass
   | _ ->
       fail ~f:show_cursorState m.cursorState

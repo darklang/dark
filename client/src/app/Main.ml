@@ -139,7 +139,7 @@ let processFocus (m : model) (focus : focus) : modification =
         in
         ( match next with
         | Some id ->
-            Enter (Filling (tlid, id))
+            Enter (tlid, id)
         | None ->
           ( match pred with
           | Some id ->
@@ -150,7 +150,7 @@ let processFocus (m : model) (focus : focus) : modification =
     ( match TL.getPD m tlid id with
     | Some pd ->
         if P.isBlank pd || P.toContent pd = ""
-        then Enter (Filling (tlid, id))
+        then Enter (tlid, id)
         else Select (tlid, STID id)
     | _ ->
         NoChange )
@@ -166,7 +166,7 @@ let processFocus (m : model) (focus : focus) : modification =
           Select (tlid, STTopLevelRoot)
       | _ ->
           Deselect )
-    | Entering (Filling (tlid, id)) ->
+    | Entering (tlid, id) ->
       ( match TL.get m tlid with
       | Some tl ->
           if TL.isValidBlankOrID tl id
@@ -518,33 +518,29 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let commands = [hashcmd; acCmd; API.sendPresence m avMessage] in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
-    | Enter entry ->
+    | EnterOmnibox pos ->
+        let m, acCmd = processAutocompleteMods m [ACSetTarget None] in
+        let m = {m with cursorState = Omnibox pos} in
+        (m, Cmd.batch [acCmd; Entry.focusEntry m])
+    | Enter (tlid, id) ->
         let cursorState, target =
-          match entry with
-          | Creating _ ->
-              (Entering entry, None)
-          | Filling (tlid, id) ->
-            ( match TL.getPD m tlid id with
-            | Some pd ->
-                (Entering entry, Some (tlid, pd))
-            | None ->
-                (FluidEntering tlid, None) )
+          match TL.getPD m tlid id with
+          | Some pd ->
+              (Entering (tlid, id), Some (tlid, pd))
+          | None ->
+              (FluidEntering tlid, None)
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, Cmd.batch [afCmd; acCmd; Entry.focusEntry m])
-    | EnterWithOffset (entry, offset) ->
+    | EnterWithOffset (tlid, id, offset) ->
         let cursorState, target =
-          match entry with
-          | Creating _ ->
-              (Entering entry, None)
-          | Filling (tlid, id) ->
-            ( match TL.getPD m tlid id with
-            | Some pd ->
-                (Entering entry, Some (tlid, pd))
-            | None ->
-                (FluidEntering tlid, None) )
+          match TL.getPD m tlid id with
+          | Some pd ->
+              (Entering (tlid, id), Some (tlid, pd))
+          | None ->
+              (FluidEntering tlid, None)
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
@@ -1004,10 +1000,10 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | AutocompleteClick index ->
     ( match unwrapCursorState m.cursorState with
-    | Entering cursor ->
+    | Entering (tlid, id) ->
         let newcomplete = {m.complete with index} in
         let newm = {m with complete = newcomplete} in
-        Entry.submit newm cursor Entry.StayHere
+        Entry.submit newm tlid id Entry.StayHere
     | _ ->
         NoChange )
   | FluidMsg (FluidUpdateDropdownIndex index) ->
@@ -1024,9 +1020,9 @@ let update_ (msg : msg) (m : model) : modification =
         (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
         let defaultBehaviour = Select (tlid, STTopLevelRoot) in
         ( match unwrapCursorState m.cursorState with
-        | Entering (Filling _ as cursor) ->
+        | Entering (tlid, id) ->
             (* If we click away from an entry box, commit it before doing the default behaviour *)
-            Many [Entry.commit m cursor; defaultBehaviour]
+            Many [Entry.commit m tlid id; defaultBehaviour]
         | _ ->
             defaultBehaviour )
     | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
@@ -1038,10 +1034,10 @@ let update_ (msg : msg) (m : model) : modification =
           | Deselected ->
               Many
                 [ AutocompleteMod ACReset
-                ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
-          | Entering (Filling _ as cursor) ->
+                ; EnterOmnibox (Viewport.toAbsolute m event.mePos) ]
+          | Entering (tlid, id) ->
               (* If we click away from an entry box, commit it before doing the default behaviour *)
-              Many [Entry.commit m cursor; defaultBehaviour]
+              Many [Entry.commit m tlid id; defaultBehaviour]
           | _ ->
               defaultBehaviour
         else NoChange )
@@ -1135,15 +1131,15 @@ let update_ (msg : msg) (m : model) : modification =
                 (* if we haven't moved, treat this as a single click and not a attempted drag *)
                 let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
                 ( match origCursorState with
-                | Entering (Filling _ as cursor) ->
-                    Many [Entry.commit m cursor; defaultBehaviour]
+                | Entering (tlid, id) ->
+                    Many [Entry.commit m tlid id; defaultBehaviour]
                 | _ ->
                     defaultBehaviour )
           | None ->
               SetCursorState origCursorState )
-        | Entering (Filling _ as cursor) ->
+        | Entering (tlid, id) ->
             Many
-              [ Entry.commit m cursor
+              [ Entry.commit m tlid id
               ; Select (tlid, STTopLevelRoot)
               ; FluidEndClick ]
         | _ ->
@@ -1163,17 +1159,15 @@ let update_ (msg : msg) (m : model) : modification =
           select targetID
       | Dragging (_, _, _, origCursorState) ->
           SetCursorState origCursorState
-      | Entering cursor ->
-          let defaultBehaviour = select targetID in
-          ( match cursor with
-          | Filling (_, fillingID) ->
-              if fillingID = targetID
-              then
-                NoChange
-                (* If we click away from an entry box, commit it before doing the default behaviour *)
-              else Many [Entry.commit m cursor; defaultBehaviour]
-          | _ ->
-              defaultBehaviour )
+      | Omnibox _ ->
+          select targetID
+      | Entering (tlid, id) ->
+          if id = targetID
+          then
+            (* If we click away from an entry box, commit it before doing
+             * the default behaviour *)
+            NoChange
+          else Many [Entry.commit m tlid id; select targetID]
       | Selecting (_, _) ->
           select targetID
       | FluidEntering _ ->
@@ -1190,8 +1184,8 @@ let update_ (msg : msg) (m : model) : modification =
       in
       ( match m.cursorState with
       (* If we click away from an entry box, commit it before doing the default behaviour *)
-      | Entering (Filling _ as cursor) ->
-          Many (Entry.commit m cursor :: defaultBehaviour)
+      | Entering (tlid, id) ->
+          Many (Entry.commit m tlid id :: defaultBehaviour)
       | _ ->
           Many defaultBehaviour )
   | ExecuteFunctionButton (tlid, id, name) ->
@@ -1872,10 +1866,10 @@ let update_ (msg : msg) (m : model) : modification =
         [FluidStartClick; Select (targetExnID, STTopLevelRoot)]
       in
       ( match m.cursorState with
-      | Entering (Filling _ as cursor) ->
+      | Entering (tlid, id) ->
           Many
             (* If we click away from an entry box, commit it before doing the default behaviour *)
-            (Entry.commit m cursor :: defaultBehaviour)
+            (Entry.commit m tlid id :: defaultBehaviour)
       | _ ->
           Many defaultBehaviour )
   | FluidMsg (FluidMouseUp (targetExnID, _) as msg) ->

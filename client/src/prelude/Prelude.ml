@@ -66,33 +66,19 @@ let rec unwrapCursorState (s : cursorState) : cursorState =
 
 let tlidOf (s : cursorState) : tlid option =
   match unwrapCursorState s with
-  | Selecting (tlid, _) ->
+  | Selecting (tlid, _) | Entering (tlid, _) | FluidEntering tlid ->
       Some tlid
-  | Entering entryCursor ->
-    ( match entryCursor with
-    | Creating _ ->
-        None
-    | Filling (tlid, _) ->
-        Some tlid )
-  | Deselected ->
+  | Omnibox _ | Deselected | Dragging _ ->
       None
-  | Dragging (_, _, _, _) ->
-      None
-  | FluidEntering tlid ->
-      Some tlid
 
 
 let idOf (s : cursorState) : id option =
   match unwrapCursorState s with
   | Selecting (_, id) ->
       id
-  | Entering entryCursor ->
-    (match entryCursor with Creating _ -> None | Filling (_, id) -> Some id)
-  | Deselected ->
-      None
-  | Dragging (_, _, _, _) ->
-      None
-  | FluidEntering _ ->
+  | Entering (_, id) ->
+      Some id
+  | Deselected | Dragging _ | Omnibox _ | FluidEntering _ ->
       None
 
 
