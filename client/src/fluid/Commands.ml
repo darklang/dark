@@ -63,7 +63,7 @@ let commands : command list =
           match tipe with
           | Ok tipe ->
               let nameId = Blank.toID tipe.utName in
-              RPC ([SetType tipe], FocusNext (tipe.utTLID, Some nameId))
+              AddOps ([SetType tipe], FocusNext (tipe.utTLID, Some nameId))
           | Error s ->
               DisplayError ("Can't create-type: " ^ s))
     ; doc = "Create a type from a live value" } ]

@@ -392,14 +392,14 @@ and op (call : Types.op) : Js.Json.t =
       ev "DeleteTypeForever" [tlid t]
 
 
-and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =
+and addOpAPIParams (params : Types.addOpAPIParams) : Js.Json.t =
   object_
     [ ("ops", ops params.ops)
     ; ("opCtr", int (params.opCtr |> Option.valueExn))
     ; ("clientOpCtrId", string params.clientOpCtrId) ]
 
 
-and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
+and executeFunctionAPIParams (params : Types.executeFunctionAPIParams) :
     Js.Json.t =
   object_
     [ ("tlid", tlid params.efpTLID)
@@ -409,7 +409,7 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
-and triggerHandlerRPCParams (params : Types.triggerHandlerRPCParams) : Js.Json.t
+and triggerHandlerAPIParams (params : Types.triggerHandlerAPIParams) : Js.Json.t
     =
   object_
     [ ("tlid", tlid params.thTLID)
@@ -425,20 +425,20 @@ and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
     ; ("timestamp", Json_encode_extended.float params.timestamp) ]
 
 
-and getTraceDataRPCParams (params : Types.getTraceDataRPCParams) : Js.Json.t =
+and getTraceDataAPIParams (params : Types.getTraceDataAPIParams) : Js.Json.t =
   object_
     [("tlid", tlid params.gtdrpTlid); ("trace_id", traceID params.gtdrpTraceID)]
 
 
-and dbStatsRPCParams (params : Types.dbStatsRPCParams) : Js.Json.t =
+and dbStatsAPIParams (params : Types.dbStatsAPIParams) : Js.Json.t =
   object_ [("tlids", list tlid params.dbStatsTlids)]
 
 
-and workerStatsRPCParams (params : Types.workerStatsRPCParams) : Js.Json.t =
+and workerStatsAPIParams (params : Types.workerStatsAPIParams) : Js.Json.t =
   object_ [("tlid", tlid params.workerStatsTlid)]
 
 
-and updateWorkerScheduleRPCParams (params : Types.updateWorkerScheduleRPCParams)
+and updateWorkerScheduleAPIParams (params : Types.updateWorkerScheduleAPIParams)
     : Js.Json.t =
   object_
     [("name", string params.workerName); ("schedule", string params.schedule)]

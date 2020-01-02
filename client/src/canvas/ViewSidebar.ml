@@ -205,7 +205,7 @@ let f404Category (m : model) : category =
             ; uses = None
             ; identifier = Other (fof.space ^ fof.path ^ fof.modifier)
             ; destination = None
-            ; minusButton = Some (Delete404RPC fof)
+            ; minusButton = Some (Delete404APICall fof)
             ; killAction = None
             ; plusButton = Some (CreateHandlerFrom404 fof)
             ; verb = (if space = "WORKER" then None else Some modifier) }) }
