@@ -2,7 +2,7 @@ open Tc
 open Prelude
 open Types
 module TL = Toplevel
-module B = Blank
+module B = BlankOr
 
 let dbColsView (cols : dbColumn list) : msg Html.html =
   let colView col =
@@ -26,13 +26,13 @@ let fnParamsView (params : userFunctionParameter list) : msg Html.html =
     let name =
       Html.span
         [ Html.classList
-            [("name", true); ("has-blanks", Blank.isBlank p.ufpName)] ]
-        [Html.text (Blank.valueWithDefault "no name" p.ufpName)]
+            [("name", true); ("has-blanks", BlankOr.isBlank p.ufpName)] ]
+        [Html.text (BlankOr.valueWithDefault "no name" p.ufpName)]
     in
     let ptype =
       Html.span
         [ Html.classList
-            [("type", true); ("has-blanks", Blank.isBlank p.ufpTipe)] ]
+            [("type", true); ("has-blanks", BlankOr.isBlank p.ufpTipe)] ]
         [ Html.text
             ( match p.ufpTipe with
             | F (_, v) ->

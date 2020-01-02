@@ -6,7 +6,7 @@ open Types
 module Cmd = Tea.Cmd
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel

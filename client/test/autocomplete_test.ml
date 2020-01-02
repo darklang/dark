@@ -3,7 +3,7 @@ open Tc
 open Types
 open Autocomplete
 open Prelude
-module B = Blank
+module B = BlankOr
 
 let sampleFunctions : function_ list =
   [("Twit::somefunc", TObj)]

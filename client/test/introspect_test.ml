@@ -4,7 +4,7 @@ open Types
 open Prelude
 open Introspect
 module TL = Toplevel
-module B = Blank
+module B = BlankOr
 
 let run () =
   describe "Introspect" (fun () ->
@@ -37,7 +37,7 @@ let run () =
       let dbtlid = gtlid () in
       let dbdata =
         { dbTLID = dbtlid
-        ; dbName = Blank.newF "Books"
+        ; dbName = B.newF "Books"
         ; cols = []
         ; version = 0
         ; oldMigrations = []

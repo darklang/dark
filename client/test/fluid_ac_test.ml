@@ -4,7 +4,7 @@ open Types
 open Prelude
 open Fluid
 module AC = FluidAutocomplete
-module B = Blank
+module B = BlankOr
 module K = FluidKeyboard
 module E = FluidExpression
 open Fluid_test_data

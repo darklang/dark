@@ -2,7 +2,7 @@ open Tester
 open! Tc
 open Types
 open Prelude
-module B = Blank
+module B = BlankOr
 module D = Defaults
 
 let defaultTLID = gtlid ()

@@ -4,7 +4,7 @@ open Types
 open Prelude
 open AST
 open Fluid_test_data
-module B = Blank
+module B = BlankOr
 
 type ('a, 'b) transformation_test_result =
   | Pass

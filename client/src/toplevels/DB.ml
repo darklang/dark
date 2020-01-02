@@ -2,7 +2,7 @@ open Tc
 open Types
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module TD = TLIDDict
 
 let toID (db : db) : tlid = db.dbTLID

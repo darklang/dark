@@ -2,7 +2,7 @@ open Tc
 open Types
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module TL = Toplevel
 module TD = TLIDDict

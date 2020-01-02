@@ -6,7 +6,7 @@ open Types
 module Svg = Tea.Svg
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 
 type viewState = ViewUtils.viewState
 

@@ -6,7 +6,7 @@ open Prelude
 module Cmd = Tea.Cmd
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module TD = TLIDDict
 
@@ -47,7 +47,7 @@ let isGroupNameUnique (group : group) (groups : group TLIDDict.t) : bool =
            match g.gName with Blank _ -> None | F (_, name) -> Some name)
   in
   List.member
-    ~value:(group.gName |> Blank.toOption |> Option.withDefault ~default:"")
+    ~value:(group.gName |> BlankOr.toOption |> Option.withDefault ~default:"")
     allNames
 
 

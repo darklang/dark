@@ -1,6 +1,4 @@
 open Types
-module B = Blank
-module K = FluidKeyboard
 
 let debugState s =
   show_fluidState
@@ -19,6 +17,6 @@ let h ast : handler =
   ; hTLID = TLID "7"
   ; pos = {x = 0; y = 0}
   ; spec =
-      { space = Blank.newF "HTTP"
-      ; name = Blank.newF "/test"
-      ; modifier = Blank.newF "GET" } }
+      { space = BlankOr.newF "HTTP"
+      ; name = BlankOr.newF "/test"
+      ; modifier = BlankOr.newF "GET" } }

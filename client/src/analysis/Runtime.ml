@@ -367,7 +367,7 @@ let inputVariables (tl : toplevel) : string list =
     | F (_, m) when String.toLower m = "http" ->
         let fromRoute =
           h.spec.name
-          |> Blank.toOption
+          |> BlankOr.toOption
           |> Option.map ~f:route_variables
           |> Option.withDefault ~default:[]
         in
@@ -386,7 +386,7 @@ let inputVariables (tl : toplevel) : string list =
         ["request"; "event"] )
   | TLFunc f ->
       f.ufMetadata.ufmParameters
-      |> List.filterMap ~f:(fun p -> Blank.toOption p.ufpName)
+      |> List.filterMap ~f:(fun p -> BlankOr.toOption p.ufpName)
   | TLTipe _ | TLDB _ | TLGroup _ ->
       []
 

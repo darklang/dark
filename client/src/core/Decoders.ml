@@ -198,7 +198,8 @@ let rec expr j : OldExpr.expr =
       ; ("Blank", variant1 (fun id -> Blank id) id) (* We're phasing this out *)
       ; ( "Partial"
         , variant2
-            (fun id name -> F (id, OldExpr.FluidPartial (name, Blank.new_ ())))
+            (fun id name ->
+              F (id, OldExpr.FluidPartial (name, BlankOr.new_ ())))
             id
             string ) ]
   in

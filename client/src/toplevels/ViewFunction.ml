@@ -3,7 +3,7 @@ open Types
 open Prelude
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 
 type viewState = ViewUtils.viewState
 

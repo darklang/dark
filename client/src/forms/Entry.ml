@@ -4,7 +4,7 @@ open Types
 
 (* Dark *)
 module AC = Autocomplete
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel

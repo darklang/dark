@@ -3,7 +3,7 @@ open Prelude
 open Types
 
 (* Dark *)
-module B = Blank
+module B = BlankOr
 module P = Pointer
 module TL = Toplevel
 module TD = TLIDDict
@@ -26,7 +26,7 @@ let transformFnCalls
     let rec run e =
       match e with
       | EFnCall (_, name, _, _)
-        when Some name = Blank.toOption uf.ufMetadata.ufmName ->
+        when Some name = BlankOr.toOption uf.ufMetadata.ufmName ->
           f e
       | other ->
           E.walk ~f:run other
@@ -416,7 +416,7 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
                 * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
                 * let tipe = v |> coerceType in
                 *)
-               {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF})
+               {urfName = k |> BlankOr.newF; urfTipe = tipe |> BlankOr.newF})
       in
       Ok
         { (generateEmptyUserType ()) with

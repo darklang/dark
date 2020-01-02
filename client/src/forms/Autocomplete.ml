@@ -6,7 +6,7 @@ open Types
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-module B = Blank
+module B = BlankOr
 module Regex = Util.Regex
 module TD = TLIDDict
 

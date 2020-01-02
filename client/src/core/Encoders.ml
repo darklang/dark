@@ -276,8 +276,8 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
     ; ("modifier", blankOr string spec.modifier)
     ; ( "types"
       , object_
-          [ ("input", blankOr int (Blank.new_ ()))
-          ; ("output", blankOr int (Blank.new_ ())) ] ) ]
+          [ ("input", blankOr int (BlankOr.new_ ()))
+          ; ("output", blankOr int (BlankOr.new_ ())) ] ) ]
 
 
 and handler (h : Types.handler) : Js.Json.t =
