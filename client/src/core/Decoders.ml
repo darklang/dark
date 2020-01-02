@@ -673,7 +673,7 @@ let op j : op =
     j
 
 
-let addOpRPCResult j : addOpRPCResult =
+let addOpAPIResult j : addOpAPIResult =
   let tls = field "toplevels" (list toplevel) j in
   let dtls = field "deleted_toplevels" (list toplevel) j in
   { handlers = List.filterMap ~f:TL.asHandler tls
@@ -686,7 +686,7 @@ let addOpRPCResult j : addOpRPCResult =
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
-let addOpRPCParams j : addOpRPCParams =
+let addOpAPIParams j : addOpAPIParams =
   (* if we roll back the server, we might get new client code (this code), but
    * no opCtr from the server, so handle that case *)
   let opCtr = try Some (field "opCtr" int j) with _ -> None in
@@ -697,16 +697,16 @@ let addOpRPCParams j : addOpRPCParams =
   ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j }
 
 
-let addOpRPCStrollerMsg j : addOpStrollerMsg =
-  { result = field "result" addOpRPCResult j
-  ; params = field "params" addOpRPCParams j }
+let addOpAPIStrollerMsg j : addOpStrollerMsg =
+  { result = field "result" addOpAPIResult j
+  ; params = field "params" addOpAPIParams j }
 
 
-let getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
+let getUnlockedDBsAPIResult j : getUnlockedDBsAPIResult =
   j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
 
 
-let getTraceDataRPCResult j : getTraceDataRPCResult =
+let getTraceDataAPIResult j : getTraceDataAPIResult =
   {trace = field "trace" trace j}
 
 
@@ -717,7 +717,7 @@ let dbStats j : dbStats =
 
 let dbStatsStore j : dbStatsStore = dict dbStats j
 
-let dbStatsRPCResult j = dbStatsStore j
+let dbStatsAPIResult j = dbStatsStore j
 
 let account j : account =
   { name = field "name" string j
@@ -729,11 +729,11 @@ let account j : account =
  * see createVS in ViewUtils.ml for details *)
 let workerStats j : workerStats = {count = field "count" int j; schedule = None}
 
-let workerStatsRPCResult j = workerStats j
+let workerStatsAPIResult j = workerStats j
 
-let updateWorkerScheduleRPCResult j : string StrDict.t = (dict string) j
+let updateWorkerScheduleAPIResult j : string StrDict.t = (dict string) j
 
-let initialLoadRPCResult j : initialLoadRPCResult =
+let initialLoadAPIResult j : initialLoadAPIResult =
   let tls = field "toplevels" (list toplevel) j in
   let dtls = field "deleted_toplevels" (list toplevel) j in
   { handlers = List.filterMap ~f:TL.asHandler tls
@@ -760,7 +760,7 @@ let initialLoadRPCResult j : initialLoadRPCResult =
   ; worker_schedules = field "worker_schedules" (dict string) j }
 
 
-let executeFunctionRPCResult j : executeFunctionRPCResult =
+let executeFunctionAPIResult j : executeFunctionAPIResult =
   ( field "result" dval j
   , field "hash" string j
   , field "hashVersion" int j
@@ -768,11 +768,11 @@ let executeFunctionRPCResult j : executeFunctionRPCResult =
   , j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList )
 
 
-let triggerHandlerRPCResult j : triggerHandlerRPCResult =
+let triggerHandlerAPIResult j : triggerHandlerAPIResult =
   field "touched_tlids" (list tlid) j
 
 
-let saveTestRPCResult j : saveTestRPCResult = string j
+let saveTestAPIResult j : saveTestAPIResult = string j
 
 (* -------------------------- *)
 (* Dval (some here because of cyclic dependencies) *)

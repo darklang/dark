@@ -13,5 +13,5 @@ let customContext (e : apiError) (state : cursorState) : Js.Json.t =
     ; ("cursorState", Encoders.cursorState state) ]
 
 
-let sendApiError (m : model) (e : apiError) : unit =
-  send (ApiError.msg e) (ApiError.urlOf e) (customContext e m.cursorState)
+let sendAPIError (m : model) (e : apiError) : unit =
+  send (APIError.msg e) (APIError.urlOf e) (customContext e m.cursorState)
