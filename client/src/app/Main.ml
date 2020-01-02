@@ -1868,7 +1868,7 @@ let update_ (msg : msg) (m : model) : modification =
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
           {m with handlerProps})
   | CopyCurl (tlid, pos) ->
-      Curl.copyCurlMod m tlid pos
+      CurlCommand.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Handlers.setHandlerMenu tlid show)
   | FluidMsg (FluidMouseDown targetExnID) ->
