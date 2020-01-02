@@ -1,5 +1,5 @@
 open Prelude
-open Json_encode_extended
+open Json.Encode
 
 (* Dark *)
 
@@ -94,7 +94,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   | DInt i ->
       ev "DInt" [int i]
   | DFloat f ->
-      ev "DFloat" [Json_encode_extended.float f]
+      ev "DFloat" [Json.Encode.float f]
   | DBool b ->
       ev "DBool" [bool b]
   | DNull ->
@@ -421,7 +421,7 @@ and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
     [ ("canvasName", string params.canvasName)
     ; ("browserId", string params.browserId)
     ; ("tlid", nullable tlid params.tlid)
-    ; ("timestamp", Json_encode_extended.float params.timestamp) ]
+    ; ("timestamp", Json.Encode.float params.timestamp) ]
 
 
 and getTraceDataAPIParams (params : Types.getTraceDataAPIParams) : Js.Json.t =

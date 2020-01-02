@@ -1,3 +1,6 @@
+(* This is designed to be used as Json.Decode in prelude. Don't use it
+ * directly unless you have to. *)
+
 include module type of Json.Decode
 
 val variant4 :
@@ -25,8 +28,8 @@ val index : int -> 'a decoder -> 'a decoder
 
 val tryDecode2 : 'a decoder -> 'a decoder -> 'a decoder
 
-val dict : 'a decoder -> 'a Tc.StrDict.t decoder
+val strDict : 'a decoder -> 'a Tc.StrDict.t decoder
 
-val tcStrSet : Tc.StrSet.t decoder
+val strSet : Tc.StrSet.t decoder
 
 val decodeString : 'a decoder -> string -> (string, 'a) Tc.Result.t
