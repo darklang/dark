@@ -115,7 +115,7 @@ let defaultModel
   { default with
     handlers = Handlers.fromList handlers
   ; dbs = DB.fromList dbs
-  ; userFunctions = Functions.fromList userFunctions
+  ; userFunctions = UserFunctions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
   ; builtInFunctions = sampleFunctions

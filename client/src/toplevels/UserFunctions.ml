@@ -216,20 +216,6 @@ let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
   {uf with ufMetadata = newM}
 
 
-let findByNameInList (name : string) (functions : function_ list) : function_ =
-  functions
-  |> List.find ~f:(fun f -> f.fnName = name)
-  |> Option.withDefault
-       ~default:
-         { fnName = "fnLookupError"
-         ; fnParameters = []
-         ; fnDescription = "default, fn error"
-         ; fnReturnTipe = TError
-         ; fnPreviewExecutionSafe = true
-         ; fnInfix = false
-         ; fnDeprecated = false }
-
-
 let idOfLastBlankor (f : userFunction) : id =
   List.last f.ufMetadata.ufmParameters
   |> Option.andThen ~f:(fun p -> Some (B.toID p.ufpTipe))

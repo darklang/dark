@@ -106,7 +106,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
     @ if vs.permission = Some ReadWrite then [addParamBtn] else [] )
 
 
-let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =
+let view (vs : viewState) (fn : userFunction) : msg Html.html =
   Html.div
     [Html.class' "user-fn-toplevel"]
     [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]
