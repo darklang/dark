@@ -134,20 +134,6 @@ let maybeEnterFluid
       else fluidEnteringMod tlid
 
 
-let selectNextBlank (m : model) (tlid : tlid) (cur : id) : modification =
-  match TL.get m tlid with
-  | None ->
-      recover "selecting no TL" ~debug:(tlid, cur) NoChange
-  | Some tl ->
-      let nextBlank = TL.getNextBlank tl cur in
-      let target =
-        nextBlank
-        |> Option.map ~f:(fun id -> Select (tlid, STID id))
-        |> Option.withDefault ~default:(fluidEnteringMod tlid)
-      in
-      maybeEnterFluid ~nonFluidCursorMod:target tl nextBlank
-
-
 let enterNextBlank (m : model) (tlid : tlid) (cur : id) : modification =
   match TL.get m tlid with
   | None ->
@@ -160,20 +146,6 @@ let enterNextBlank (m : model) (tlid : tlid) (cur : id) : modification =
         |> Option.withDefault ~default:(fluidEnteringMod tlid)
       in
       maybeEnterFluid ~nonFluidCursorMod:target tl nextBlank
-
-
-let selectPrevBlank (m : model) (tlid : tlid) (cur : id) : modification =
-  match TL.get m tlid with
-  | None ->
-      recover "selecting no TL" ~debug:(tlid, cur) NoChange
-  | Some tl ->
-      let prevBlank = TL.getPrevBlank tl cur in
-      let target =
-        prevBlank
-        |> Option.map ~f:(fun id -> Select (tlid, STID id))
-        |> Option.withDefault ~default:(fluidEnteringMod tlid)
-      in
-      maybeEnterFluid ~nonFluidCursorMod:target tl prevBlank
 
 
 let enterPrevBlank (m : model) (tlid : tlid) (cur : id) : modification =
