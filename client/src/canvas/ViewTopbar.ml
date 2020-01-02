@@ -1,5 +1,4 @@
 open Prelude
-open Types
 
 let msgLink ~(key : string) (content : msg Html.html) (handler : msg) :
     msg Html.html =

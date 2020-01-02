@@ -1,5 +1,4 @@
-open Tc
-open Types
+open Prelude
 module B = BlankOr
 module TL = Toplevel
 module TD = TLIDDict

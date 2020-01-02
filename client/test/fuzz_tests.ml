@@ -1,5 +1,4 @@
-open Tc
-open Types
+open Prelude
 open Fluid
 open Fluid_test_data
 open Fluid_fuzzer

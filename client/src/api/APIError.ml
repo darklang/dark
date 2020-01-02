@@ -1,5 +1,4 @@
-open Tc
-open Types
+open Prelude
 
 (* Tea *)
 module Cmd = Tea.Cmd

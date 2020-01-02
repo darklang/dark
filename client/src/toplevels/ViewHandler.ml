@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 
 (* Tea *)
 module Svg = Tea.Svg

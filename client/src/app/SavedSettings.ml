@@ -1,5 +1,4 @@
-open Types
-open Tc
+open Prelude
 
 let canonicalizeCursorState (cs : cursorState) : cursorState =
   Prelude.unwrapCursorState cs

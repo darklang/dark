@@ -1,4 +1,8 @@
-open Types
+include Tc
+include Types
+
+(* Every other module should have `open Prelude` as its first statement.
+ * You don't need to open/include Tc or Types, Prelude includes them. *)
 
 module Html = struct
   include Tea.Html

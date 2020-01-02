@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 open ViewUtils
 
 (* Tea *)

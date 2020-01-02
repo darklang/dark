@@ -1,7 +1,4 @@
-open Tc
-open Types
-
-(* Dark *)
+open Prelude
 
 let rec hasVariableNamed (varName : string) (p : fluidPattern) : bool =
   match p with

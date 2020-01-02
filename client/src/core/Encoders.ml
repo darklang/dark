@@ -1,5 +1,4 @@
 open Prelude
-open Tc
 open Json_encode_extended
 
 (* Dark *)

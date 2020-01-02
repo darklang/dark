@@ -1,6 +1,4 @@
-open Types
 open Prelude
-open Tc
 
 (* Tea *)
 module Attrs = Tea.Html2.Attributes

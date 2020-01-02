@@ -1,6 +1,5 @@
 open Tester
 open! Tc
-open Types
 open Prelude
 module B = BlankOr
 module D = Defaults

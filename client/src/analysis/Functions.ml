@@ -1,6 +1,4 @@
-open Types
 open Prelude
-open Tc
 
 let findByNameInList (name : string) (functions : function_ list) : function_ =
   functions

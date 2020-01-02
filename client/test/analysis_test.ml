@@ -1,5 +1,5 @@
+open Prelude
 open Tester
-open Types
 open Analysis
 module B = BlankOr
 

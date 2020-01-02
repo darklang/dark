@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel

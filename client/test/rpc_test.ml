@@ -1,6 +1,5 @@
+open Prelude
 open Tester
-open Tc
-open Types
 
 let testRoundtrip decoder encoder (name : string) (v : 'a) =
   test ("roundtrip " ^ name) (fun () ->

@@ -1,5 +1,4 @@
-open Tc
-open Types
+open Prelude
 
 let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member ~value:vt m.tests

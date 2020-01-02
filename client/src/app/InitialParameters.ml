@@ -1,5 +1,4 @@
-open Tc
-open Types
+open Prelude
 
 (* The parameters passed from appsupport.js. *)
 

@@ -1,6 +1,4 @@
 open Tester
-open Tc
-open Types
 open Autocomplete
 open Prelude
 module B = BlankOr

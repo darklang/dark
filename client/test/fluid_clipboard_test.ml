@@ -1,6 +1,4 @@
 open Tester
-open Tc
-open Types
 open Prelude
 module DClipboard = Clipboard
 open Fluid

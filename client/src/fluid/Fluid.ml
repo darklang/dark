@@ -8,8 +8,6 @@
    * https://trello.com/c/IK9fQZoW/1072-support-ctrl-a-ctrl-e-ctrl-d-ctrl-k
  *)
 
-open Tc
-open Types
 open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
