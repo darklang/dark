@@ -1054,7 +1054,7 @@ and modification =
   | Delete404 of fourOhFour
   | Enter of entryCursor
   | EnterWithOffset of entryCursor * int
-  | RPC of (op list * focus)
+  | AddOps of (op list * focus)
   | GetUnlockedDBsRPC
   | GetWorkerStatsRPC of tlid
   | UpdateWorkerStats of tlid * workerStats
@@ -1155,10 +1155,10 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of int
-  | AddOpRPCCallback of
+  | AddOpsRPCCallback of
       focus * addOpRPCParams * (addOpStrollerMsg, httpError) Tea.Result.t
-      [@printer opaque "AddOpRPCCallback"]
-  | AddOpStrollerMsg of addOpStrollerMsg
+      [@printer opaque "AddOpsRPCCallback"]
+  | AddOpsStrollerMsg of addOpStrollerMsg
   | SaveTestRPCCallback of (saveTestRPCResult, httpError) Tea.Result.t
       [@printer opaque "SavetestRPCCallback"]
   | GetUnlockedDBsRPCCallback of

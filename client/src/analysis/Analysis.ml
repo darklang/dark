@@ -268,7 +268,7 @@ module NewPresencePush = struct
     Native.registerGlobal "newPresencePush" key tagger decode
 end
 
-module AddOp = struct
+module AddOps = struct
   let decode =
     let open Tea.Json.Decoder in
     field "detail" (Decoders.wrapDecoder Decoders.addOpRPCStrollerMsg)

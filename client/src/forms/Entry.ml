@@ -172,7 +172,7 @@ let newHandler m space name modifier pos =
         []
   in
   let rpc =
-    RPC ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
+    AddOps ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
   in
   Many (rpc :: (pageChanges @ fluidMods))
 
@@ -199,7 +199,7 @@ let newDB (name : string) (pos : pos) (m : model) : modification =
    * is the best type of correct *)
   Many
     ( AppendUnlockedDBs (StrSet.fromList [deTLID tlid])
-    :: RPC (rpcCalls, FocusExact (tlid, next))
+    :: AddOps (rpcCalls, FocusExact (tlid, next))
     :: pageChanges )
 
 
@@ -225,7 +225,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
             blankfn
       in
       Many
-        [ RPC ([SetFunction newfn], FocusNothing)
+        [ AddOps ([SetFunction newfn], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedFn newfn.ufTLID)) ]
   | NewHTTPHandler route ->
       newHandler m "HTTP" route None pos
@@ -333,7 +333,7 @@ let submitACItem
                     FocusExact (tlid, nextID)
               else FocusNext (tlid, next)
             in
-            RPC (ops, focus)
+            AddOps (ops, focus)
           in
           let wrapID ops = wrap ops (Some id) in
           let wrapNew ops new_ = wrap ops (Some (P.toID new_)) in
@@ -371,7 +371,7 @@ let submitACItem
               then DisplayError ("There is already a DB named " ^ value)
               else
                 let varrefs = Refactor.renameDBReferences m oldName value in
-                RPC (RenameDBname (tlid, value) :: varrefs, FocusNothing)
+                AddOps (RenameDBname (tlid, value) :: varrefs, FocusNothing)
           | PDBColType ct, ACDBColType value, TLDB db ->
               if B.toOption ct = Some value
               then

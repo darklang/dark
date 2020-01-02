@@ -60,7 +60,7 @@ let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
       url
       (Encoders.addOpRPCParams params)
   in
-  Tea.Http.send (fun x -> AddOpRPCCallback (focus, params, x)) request
+  Tea.Http.send (fun x -> AddOpsRPCCallback (focus, params, x)) request
 
 
 let executeFunction (m : model) (params : executeFunctionRPCParams) :

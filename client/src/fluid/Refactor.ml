@@ -217,7 +217,8 @@ let extractFunction (m : model) (tl : toplevel) (id : id) : modification =
         ; ufMetadata = metadata
         ; ufAST = FluidExpression.clone body }
       in
-      Many [RPC ([SetFunction newF], FocusExact (tlid, E.id replacement)); astOp]
+      Many
+        [AddOps ([SetFunction newF], FocusExact (tlid, E.id replacement)); astOp]
   | _ ->
       NoChange
 
@@ -365,7 +366,7 @@ let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : id) :
   in
   let replacement = Functions.extend f in
   let newCalls = transformOp f in
-  RPC
+  AddOps
     ( SetFunction replacement :: newCalls
     , FocusNext (f.ufTLID, Some currentBlankId) )
 

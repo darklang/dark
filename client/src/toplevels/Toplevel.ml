@@ -248,11 +248,11 @@ let setASTMod (tl : toplevel) (ast : fluidExpr) : modification =
   | TLHandler h ->
       if h.ast = ast
       then NoChange
-      else RPC ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
+      else AddOps ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
   | TLFunc f ->
       if f.ufAST = ast
       then NoChange
-      else RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
+      else AddOps ([SetFunction {f with ufAST = ast}], FocusNoChange)
   | TLTipe _ ->
       recover "no ast in Tipes" ~debug:tl NoChange
   | TLDB _ ->
@@ -320,7 +320,7 @@ let replaceOp (pd : blankOrData) (replacement : blankOrData) (tl : toplevel) :
 let replaceMod (pd : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     modification =
   let ops = replaceOp pd replacement tl in
-  if ops = [] then NoChange else RPC (ops, FocusNoChange)
+  if ops = [] then NoChange else AddOps (ops, FocusNoChange)
 
 
 let combine
