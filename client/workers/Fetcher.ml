@@ -80,13 +80,13 @@ let fetch (context : Types.fetchContext) (request : Types.fetchRequest) =
         ^ "/get_trace_data"
       in
       fetch_
-        ~decoder:Decoders.getTraceDataRPCResult
+        ~decoder:Decoders.getTraceDataAPIResult
         ~on_success:(fun r -> TraceFetchSuccess (gdtp, r))
         ~on_missing:(fun _ -> TraceFetchMissing gdtp)
         ~on_failure:(fun r -> TraceFetchFailure (gdtp, url, r))
         url
         context
-        (Encoders.getTraceDataRPCParams gdtp)
+        (Encoders.getTraceDataAPIParams gdtp)
   | DbStatsFetch dbsParams ->
       let url =
         context.prefix
@@ -96,13 +96,13 @@ let fetch (context : Types.fetchContext) (request : Types.fetchRequest) =
         ^ "/get_db_stats"
       in
       fetch_
-        ~decoder:Decoders.dbStatsRPCResult
+        ~decoder:Decoders.dbStatsAPIResult
         ~on_success:(fun r -> DbStatsFetchSuccess (dbsParams, r))
         ~on_missing:(fun _ -> DbStatsFetchMissing dbsParams)
         ~on_failure:(fun r -> DbStatsFetchFailure (dbsParams, url, r))
         url
         context
-        (Encoders.dbStatsRPCParams dbsParams)
+        (Encoders.dbStatsAPIParams dbsParams)
   | WorkerStatsFetch workerParams ->
       let url =
         context.prefix
@@ -112,13 +112,13 @@ let fetch (context : Types.fetchContext) (request : Types.fetchRequest) =
         ^ "/get_worker_stats"
       in
       fetch_
-        ~decoder:Decoders.workerStatsRPCResult
+        ~decoder:Decoders.workerStatsAPIResult
         ~on_success:(fun r -> WorkerStatsFetchSuccess (workerParams, r))
         ~on_missing:(fun _ -> WorkerStatsFetchMissing workerParams)
         ~on_failure:(fun r -> WorkerStatsFetchFailure (workerParams, url, r))
         url
         context
-        (Encoders.workerStatsRPCParams workerParams)
+        (Encoders.workerStatsAPIParams workerParams)
 
 
 let () =

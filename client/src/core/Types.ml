@@ -605,21 +605,21 @@ and functionResult =
   ; value : dval }
 
 and fetchRequest =
-  | TraceFetch of getTraceDataRPCParams
-  | DbStatsFetch of dbStatsRPCParams
-  | WorkerStatsFetch of workerStatsRPCParams
+  | TraceFetch of getTraceDataAPIParams
+  | DbStatsFetch of dbStatsAPIParams
+  | WorkerStatsFetch of workerStatsAPIParams
 
 (* traces/db_stats fetching *)
 and fetchResult =
-  | TraceFetchSuccess of getTraceDataRPCParams * getTraceDataRPCResult
-  | TraceFetchFailure of getTraceDataRPCParams * string * string
-  | TraceFetchMissing of getTraceDataRPCParams
-  | DbStatsFetchSuccess of dbStatsRPCParams * dbStatsRPCResult
-  | DbStatsFetchFailure of dbStatsRPCParams * string * string
-  | DbStatsFetchMissing of dbStatsRPCParams
-  | WorkerStatsFetchSuccess of workerStatsRPCParams * workerStatsRPCResult
-  | WorkerStatsFetchFailure of workerStatsRPCParams * string * string
-  | WorkerStatsFetchMissing of workerStatsRPCParams
+  | TraceFetchSuccess of getTraceDataAPIParams * getTraceDataAPIResult
+  | TraceFetchFailure of getTraceDataAPIParams * string * string
+  | TraceFetchMissing of getTraceDataAPIParams
+  | DbStatsFetchSuccess of dbStatsAPIParams * dbStatsAPIResult
+  | DbStatsFetchFailure of dbStatsAPIParams * string * string
+  | DbStatsFetchMissing of dbStatsAPIParams
+  | WorkerStatsFetchSuccess of workerStatsAPIParams * workerStatsAPIResult
+  | WorkerStatsFetchFailure of workerStatsAPIParams * string * string
+  | WorkerStatsFetchMissing of workerStatsAPIParams
 
 and fetchContext =
   { canvasName : string
@@ -706,37 +706,37 @@ and op =
   | DeleteTypeForever of tlid
 
 (* ------------------- *)
-(* RPCs *)
+(* APIs *)
 (* ------------------- *)
 (* params *)
 and sendPresenceParams = avatarModelMessage
 
-and addOpRPCParams =
+and addOpAPIParams =
   { ops : op list
   ; opCtr : int option
   ; clientOpCtrId : string }
 
-and executeFunctionRPCParams =
+and executeFunctionAPIParams =
   { efpTLID : tlid
   ; efpTraceID : traceID
   ; efpCallerID : id
   ; efpArgs : dval list
   ; efpFnName : string }
 
-and triggerHandlerRPCParams =
+and triggerHandlerAPIParams =
   { thTLID : tlid
   ; thTraceID : traceID
   ; thInput : inputValueDict }
 
-and getTraceDataRPCParams =
+and getTraceDataAPIParams =
   { gtdrpTlid : tlid
   ; gtdrpTraceID : traceID }
 
-and dbStatsRPCParams = {dbStatsTlids : tlid list}
+and dbStatsAPIParams = {dbStatsTlids : tlid list}
 
-and workerStatsRPCParams = {workerStatsTlid : tlid}
+and workerStatsAPIParams = {workerStatsTlid : tlid}
 
-and updateWorkerScheduleRPCParams =
+and updateWorkerScheduleAPIParams =
   { workerName : string
   ; schedule : string }
 
@@ -768,7 +768,7 @@ and analysisError =
 
 and performAnalysisResult = (analysisError, analysisEnvelope) Tc.Result.t
 
-and delete404RPCParams = fourOhFour
+and delete404APIParams = fourOhFour
 
 and account =
   { name : string
@@ -776,7 +776,7 @@ and account =
   ; username : string }
 
 (* results *)
-and addOpRPCResult =
+and addOpAPIResult =
   { handlers : handler list
   ; deletedHandlers : handler list
   ; dbs : db list
@@ -787,27 +787,27 @@ and addOpRPCResult =
   ; deletedUserTipes : userTipe list }
 
 and addOpStrollerMsg =
-  { result : addOpRPCResult
-  ; params : addOpRPCParams }
+  { result : addOpAPIResult
+  ; params : addOpAPIParams }
 
 and dvalArgsHash = string
 
-and executeFunctionRPCResult =
+and executeFunctionAPIResult =
   dval * dvalArgsHash * int * tlid list * unlockedDBs
 
-and triggerHandlerRPCResult = tlid list
+and triggerHandlerAPIResult = tlid list
 
 and unlockedDBs = StrSet.t
 
-and getUnlockedDBsRPCResult = unlockedDBs
+and getUnlockedDBsAPIResult = unlockedDBs
 
-and getTraceDataRPCResult = {trace : trace}
+and getTraceDataAPIResult = {trace : trace}
 
-and dbStatsRPCResult = dbStatsStore
+and dbStatsAPIResult = dbStatsStore
 
-and workerStatsRPCResult = workerStats
+and workerStatsAPIResult = workerStats
 
-and initialLoadRPCResult =
+and initialLoadAPIResult =
   { handlers : handler list
   ; deletedHandlers : handler list
   ; dbs : db list
@@ -827,7 +827,7 @@ and initialLoadRPCResult =
   ; account : account
   ; worker_schedules : string StrDict.t }
 
-and saveTestRPCResult = string
+and saveTestAPIResult = string
 
 (* ------------------- *)
 (* Autocomplete / entry *)
@@ -1032,7 +1032,15 @@ and tlidSelectTarget =
   | STTopLevelRoot
 
 and modification =
+  (* API Calls *)
+  | AddOps of (op list * focus)
   | HandleAPIError of apiError
+  | GetUnlockedDBsAPICall
+  | GetWorkerStatsAPICall of tlid
+  | ExecutingFunctionAPICall of tlid * id * string
+  | TriggerHandlerAPICall of tlid
+  | UpdateDBStatsAPICall of tlid
+  (* End API Calls *)
   | DisplayAndReportError of string * string option * string option
   | DisplayError of string
   | ClearError
@@ -1054,9 +1062,6 @@ and modification =
   | Delete404 of fourOhFour
   | Enter of entryCursor
   | EnterWithOffset of entryCursor * int
-  | AddOps of (op list * focus)
-  | GetUnlockedDBsRPC
-  | GetWorkerStatsRPC of tlid
   | UpdateWorkerStats of tlid * workerStats
   | UpdateWorkerSchedules of string StrDict.t
   | NoChange
@@ -1065,13 +1070,11 @@ and modification =
   | Many of modification list
   | Drag of tlid * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
-  | TriggerHandlerRPC of tlid
   | EndIntegrationTest
   | SetCursorState of cursorState
   | SetPage of page
   | SetTLTraceID of tlid * traceID
   | ExecutingFunctionBegan of tlid * id
-  | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
   | MoveCanvasTo of pos * isTransitionAnimated
   | UpdateTraces of traces
@@ -1095,7 +1098,6 @@ and modification =
   | CenterCanvasOn of tlid
   | InitIntrospect of toplevel list
   | RefreshUsages of tlid list
-  | UpdateDBStatsRPC of tlid
   | UpdateDBStats of dbStatsStore
   | FluidCommandsShow of tlid * fluidToken
   | FluidCommandsClose
@@ -1155,34 +1157,34 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of int
-  | AddOpsRPCCallback of
-      focus * addOpRPCParams * (addOpStrollerMsg, httpError) Tea.Result.t
-      [@printer opaque "AddOpsRPCCallback"]
+  | AddOpsAPICallback of
+      focus * addOpAPIParams * (addOpStrollerMsg, httpError) Tea.Result.t
+      [@printer opaque "AddOpsAPICallback"]
   | AddOpsStrollerMsg of addOpStrollerMsg
-  | SaveTestRPCCallback of (saveTestRPCResult, httpError) Tea.Result.t
-      [@printer opaque "SavetestRPCCallback"]
-  | GetUnlockedDBsRPCCallback of
-      (getUnlockedDBsRPCResult, httpError) Tea.Result.t
-      [@printer opaque "GetUnlockedDBsRPCCallback"]
+  | SaveTestAPICallback of (saveTestAPIResult, httpError) Tea.Result.t
+      [@printer opaque "SavetestAPICallback"]
+  | GetUnlockedDBsAPICallback of
+      (getUnlockedDBsAPIResult, httpError) Tea.Result.t
+      [@printer opaque "GetUnlockedDBsAPICallback"]
   | NewTracePush of (traceID * tlid list)
   | New404Push of fourOhFour
   | NewStaticDeployPush of staticDeploy
   | WorkerStatePush of string StrDict.t
-  | Delete404RPCCallback of delete404RPCParams * (unit, httpError) Tea.Result.t
-      [@printer opaque "Delete404RPCCallback"]
-  | InitialLoadRPCCallback of
-      focus * modification * (initialLoadRPCResult, httpError) Tea.Result.t
-      [@printer opaque "InitialLoadRPCCallback"]
-  | ExecuteFunctionRPCCallback of
-      executeFunctionRPCParams
-      * (executeFunctionRPCResult, httpError) Tea.Result.t
-      [@printer opaque "ExecuteFunctionRPCCallback"]
-  | TriggerHandlerRPCCallback of
-      triggerHandlerRPCParams
-      * (triggerHandlerRPCResult, httpError) Tea.Result.t
-      [@printer opaque "TriggerHandlerRPCCallback"]
-  | LogoutRPCCallback [@printer opaque "LogoutRPCCallback"]
-  | Delete404RPC of fourOhFour
+  | Delete404APICallback of delete404APIParams * (unit, httpError) Tea.Result.t
+      [@printer opaque "Delete404APICallback"]
+  | InitialLoadAPICallback of
+      focus * modification * (initialLoadAPIResult, httpError) Tea.Result.t
+      [@printer opaque "InitialLoadAPICallback"]
+  | ExecuteFunctionAPICallback of
+      executeFunctionAPIParams
+      * (executeFunctionAPIResult, httpError) Tea.Result.t
+      [@printer opaque "ExecuteFunctionAPICallback"]
+  | TriggerHandlerAPICallback of
+      triggerHandlerAPIParams
+      * (triggerHandlerAPIResult, httpError) Tea.Result.t
+      [@printer opaque "TriggerHandlerAPICallback"]
+  | LogoutAPICallback [@printer opaque "LogoutAPICallback"]
+  | Delete404APICall of fourOhFour
   | NewPresencePush of avatar list
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | FinishIntegrationTest

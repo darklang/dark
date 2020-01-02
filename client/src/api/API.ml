@@ -44,114 +44,114 @@ let postEmptyString decoder (csrfToken : string) (url : string) =
 
 
 let opsParams (ops : op list) (opCtr : int option) (clientOpCtrId : string) :
-    addOpRPCParams =
+    addOpAPIParams =
   {ops; opCtr; clientOpCtrId}
 
 
-let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
+let addOp (m : model) (focus : focus) (params : addOpAPIParams) : msg Tea.Cmd.t
     =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/add_op"]
   in
   let request =
     postJson
-      Decoders.addOpRPCStrollerMsg
+      Decoders.addOpAPIStrollerMsg
       m.csrfToken
       url
-      (Encoders.addOpRPCParams params)
+      (Encoders.addOpAPIParams params)
   in
-  Tea.Http.send (fun x -> AddOpsRPCCallback (focus, params, x)) request
+  Tea.Http.send (fun x -> AddOpsAPICallback (focus, params, x)) request
 
 
-let executeFunction (m : model) (params : executeFunctionRPCParams) :
+let executeFunction (m : model) (params : executeFunctionAPIParams) :
     msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/execute_function"]
   in
   let request =
     postJson
-      Decoders.executeFunctionRPCResult
+      Decoders.executeFunctionAPIResult
       m.csrfToken
       url
-      (Encoders.executeFunctionRPCParams params)
+      (Encoders.executeFunctionAPIParams params)
   in
-  Tea.Http.send (fun x -> ExecuteFunctionRPCCallback (params, x)) request
+  Tea.Http.send (fun x -> ExecuteFunctionAPICallback (params, x)) request
 
 
-let triggerHandler (m : model) (params : triggerHandlerRPCParams) :
+let triggerHandler (m : model) (params : triggerHandlerAPIParams) :
     msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/trigger_handler"]
   in
   let request =
     postJson
-      Decoders.triggerHandlerRPCResult
+      Decoders.triggerHandlerAPIResult
       m.csrfToken
       url
-      (Encoders.triggerHandlerRPCParams params)
+      (Encoders.triggerHandlerAPIParams params)
   in
-  Tea.Http.send (fun x -> TriggerHandlerRPCCallback (params, x)) request
+  Tea.Http.send (fun x -> TriggerHandlerAPICallback (params, x)) request
 
 
 let getUnlockedDBs (m : model) : msg Tea.Cmd.t =
   let url = "/api/" ^ Tea.Http.encodeUri m.canvasName ^ "/get_unlocked_dbs" in
   let request =
-    postEmptyJson Decoders.getUnlockedDBsRPCResult m.csrfToken url
+    postEmptyJson Decoders.getUnlockedDBsAPIResult m.csrfToken url
   in
-  Tea.Http.send (fun x -> GetUnlockedDBsRPCCallback x) request
+  Tea.Http.send (fun x -> GetUnlockedDBsAPICallback x) request
 
 
-let updateWorkerSchedule (m : model) (params : updateWorkerScheduleRPCParams) :
+let updateWorkerSchedule (m : model) (params : updateWorkerScheduleAPIParams) :
     msg Tea.Cmd.t =
   let url = "/api/" ^ Tea.Http.encodeUri m.canvasName ^ "/worker_schedule" in
   let request =
     postJson
-      Decoders.updateWorkerScheduleRPCResult
+      Decoders.updateWorkerScheduleAPIResult
       m.csrfToken
       url
-      (Encoders.updateWorkerScheduleRPCParams params)
+      (Encoders.updateWorkerScheduleAPIParams params)
   in
   Tea.Http.send (fun x -> UpdateWorkerScheduleCallback x) request
 
 
-let delete404 (m : model) (param : delete404RPCParams) : msg Tea.Cmd.t =
+let delete404 (m : model) (param : delete404APIParams) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/delete_404"]
   in
   let request = postJson (fun _ -> ()) m.csrfToken url (Encoders.fof param) in
-  Tea.Http.send (fun x -> Delete404RPCCallback (param, x)) request
+  Tea.Http.send (fun x -> Delete404APICallback (param, x)) request
 
 
 let initialLoad (m : model) (focus : focus) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/initial_load"]
   in
-  let request = postEmptyJson Decoders.initialLoadRPCResult m.csrfToken url in
-  Tea.Http.send (fun x -> InitialLoadRPCCallback (focus, NoChange, x)) request
+  let request = postEmptyJson Decoders.initialLoadAPIResult m.csrfToken url in
+  Tea.Http.send (fun x -> InitialLoadAPICallback (focus, NoChange, x)) request
 
 
 let logout (m : model) : msg Tea.Cmd.t =
   let url = "/logout" in
-  let request = postEmptyString Decoders.saveTestRPCResult m.csrfToken url in
-  Tea.Http.send (fun _ -> LogoutRPCCallback) request
+  let request = postEmptyString Decoders.saveTestAPIResult m.csrfToken url in
+  Tea.Http.send (fun _ -> LogoutAPICallback) request
 
 
 let saveTest (m : model) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/save_test"]
   in
-  let request = postEmptyString Decoders.saveTestRPCResult m.csrfToken url in
-  Tea.Http.send (fun x -> SaveTestRPCCallback x) request
+  let request = postEmptyString Decoders.saveTestAPIResult m.csrfToken url in
+  Tea.Http.send (fun x -> SaveTestAPICallback x) request
 
 
 let integration (m : model) (name : string) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/initial_load"]
   in
-  let request = postEmptyJson Decoders.initialLoadRPCResult m.csrfToken url in
+  let request = postEmptyJson Decoders.initialLoadAPIResult m.csrfToken url in
   Tea.Http.send
     (fun x ->
-      InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name, x))
+      InitialLoadAPICallback (FocusNothing, TriggerIntegrationTest name, x))
     request
 
 
@@ -189,8 +189,8 @@ let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
  * update the opCtrs map.
  * *)
 let filterOpsAndResult
-    (m : model) (params : addOpRPCParams) (result : addOpRPCResult option) :
-    model * op list * addOpRPCResult option =
+    (m : model) (params : addOpAPIParams) (result : addOpAPIResult option) :
+    model * op list * addOpAPIResult option =
   let newOpCtrs =
     (* if the opCtr in params is greater than the one in the map, we'll create
      * an updated map *)
@@ -254,7 +254,7 @@ let filterOpsAndResult
     let opTlids = ops |> List.map ~f:(fun op -> Encoders.tlidOf op) in
     (* We also want to ignore the result of ops we ignored *)
     let result =
-      Option.map result ~f:(fun (result : addOpRPCResult) ->
+      Option.map result ~f:(fun (result : addOpAPIResult) ->
           { result with
             handlers =
               result.handlers
