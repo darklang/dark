@@ -6,35 +6,6 @@ module B = BlankOr
 (* ------------------------ *)
 (* PointerData *)
 (* ------------------------ *)
-let emptyD_ (id : id) (pt : blankOrType) : blankOrData =
-  match pt with
-  | EventModifier ->
-      PEventModifier (Blank id)
-  | EventName ->
-      PEventName (Blank id)
-  | EventSpace ->
-      PEventSpace (Blank id)
-  | DBName ->
-      PDBName (Blank id)
-  | DBColName ->
-      PDBColName (Blank id)
-  | DBColType ->
-      PDBColType (Blank id)
-  | FnName ->
-      PFnName (Blank id)
-  | ParamName ->
-      PParamName (Blank id)
-  | ParamTipe ->
-      PParamTipe (Blank id)
-  | TypeName ->
-      PTypeName (Blank id)
-  | TypeFieldName ->
-      PTypeFieldName (Blank id)
-  | TypeFieldTipe ->
-      PTypeFieldTipe (Blank id)
-  | GroupName ->
-      PGroupName (Blank id)
-
 
 let typeOf (pd : blankOrData) : blankOrType =
   match pd with
@@ -66,7 +37,36 @@ let typeOf (pd : blankOrData) : blankOrType =
       GroupName
 
 
-let emptyD (pt : blankOrType) : blankOrData = emptyD_ (gid ()) pt
+let emptyD (pt : blankOrType) : blankOrData =
+  let id = gid () in
+  match pt with
+  | EventModifier ->
+      PEventModifier (Blank id)
+  | EventName ->
+      PEventName (Blank id)
+  | EventSpace ->
+      PEventSpace (Blank id)
+  | DBName ->
+      PDBName (Blank id)
+  | DBColName ->
+      PDBColName (Blank id)
+  | DBColType ->
+      PDBColType (Blank id)
+  | FnName ->
+      PFnName (Blank id)
+  | ParamName ->
+      PParamName (Blank id)
+  | ParamTipe ->
+      PParamTipe (Blank id)
+  | TypeName ->
+      PTypeName (Blank id)
+  | TypeFieldName ->
+      PTypeFieldName (Blank id)
+  | TypeFieldTipe ->
+      PTypeFieldTipe (Blank id)
+  | GroupName ->
+      PGroupName (Blank id)
+
 
 let toID (pd : blankOrData) : id =
   match pd with
