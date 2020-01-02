@@ -1,6 +1,5 @@
 open Tc
-
-(* open Prelude *)
+open Prelude
 open Types
 
 (* Dark *)
@@ -30,3 +29,47 @@ let getWorkerSchedule (m : model) (h : handler) : string option =
       StrDict.get ~key:name m.worker_schedules
   | Blank _ ->
       None
+
+
+let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
+  let updateProps prop =
+    match prop with
+    | Some p ->
+        Some {p with handlerLock = lock}
+    | None ->
+        Some {Defaults.defaultHandlerProp with handlerLock = lock}
+  in
+  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
+  {m with handlerProps = props}
+
+
+let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
+  let updateProps prop =
+    match prop with
+    | Some p ->
+        Some {p with handlerState = state}
+    | None ->
+        Some {Defaults.defaultHandlerProp with handlerState = state}
+  in
+  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
+  {m with handlerProps = props}
+
+
+let setHandlerMenu (tlid : tlid) (show : bool) (m : model) : model =
+  let updateProps prop =
+    match prop with
+    | Some p ->
+        Some {p with showActions = show}
+    | None ->
+        Some {Defaults.defaultHandlerProp with showActions = show}
+  in
+  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
+  {m with handlerProps = props}
+
+
+let closeMenu (m : model) : model =
+  match tlidOf m.cursorState with
+  | Some tlid ->
+      setHandlerMenu tlid false m
+  | None ->
+      m

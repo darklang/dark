@@ -36,8 +36,8 @@ let gtlidDT (unit : unit) : tlid =
 (* CursorState *)
 (* -------------------------------------- *)
 
-let unwrapCursorState (s : cursorState) : cursorState =
-  match s with Dragging (_, _, _, unwrap) -> unwrap | _ -> s
+let rec unwrapCursorState (s : cursorState) : cursorState =
+  match s with Dragging (_, _, _, nested) -> unwrapCursorState nested | _ -> s
 
 
 let tlidOf (s : cursorState) : tlid option =

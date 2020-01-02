@@ -505,7 +505,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Deselect ->
         if m.cursorState <> Deselected
         then
-          let m = Editor.closeMenu m in
+          let m = Handlers.closeMenu m in
           let hashcmd = Url.updateUrl Architecture in
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
@@ -830,7 +830,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * we're in before isnt also dragging. *)
         ( { m with
             cursorState =
-              Dragging (tlid, offset, hasMoved, Editor.stripDragging state) }
+              Dragging (tlid, offset, hasMoved, unwrapCursorState state) }
         , Cmd.none )
     | ExecutingFunctionBegan (tlid, id) ->
         let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
@@ -1776,7 +1776,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ AddOps ([SetType tipe], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
   | LockHandler (tlid, locked) ->
-      TweakModel (Editor.setHandlerLock tlid locked)
+      TweakModel (Handlers.setHandlerLock tlid locked)
   | EnablePanning pan ->
       TweakModel
         (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
@@ -1828,7 +1828,7 @@ let update_ (msg : msg) (m : model) : modification =
         ^ error
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
-      TweakModel (Editor.setHandlerState tlid state)
+      TweakModel (Handlers.setHandlerState tlid state)
   | CanvasPanAnimationEnd ->
       TweakModel
         (fun m ->
@@ -1871,7 +1871,7 @@ let update_ (msg : msg) (m : model) : modification =
   | CopyCurl (tlid, pos) ->
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
-      TweakModel (Editor.setHandlerMenu tlid show)
+      TweakModel (Handlers.setHandlerMenu tlid show)
   | FluidMsg (FluidMouseDown targetExnID) ->
       let defaultBehaviour =
         [FluidStartClick; Select (targetExnID, STTopLevelRoot)]
