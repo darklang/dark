@@ -11,6 +11,7 @@ module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
 module Printer = FluidPrinter
+module Regex = Util.Regex
 module Util = FluidUtil
 
 (* Tea *)
@@ -162,6 +163,28 @@ let viewPlayIcon
           ViewFnExecution.fnExecutionButton vs fn id argIDs
       | _ ->
           Vdom.noNode )
+  | Some _ | None ->
+      Vdom.noNode
+
+
+let viewCopyCurlButton ~(vs : ViewUtils.viewState) ~state (ti : T.tokenInfo) :
+    Types.msg Html.html =
+  match fnForToken state ti.token with
+  | Some fn when not fn.fnPreviewExecutionSafe ->
+    (* Looking these up can be slow, so the fnPreviewExecutionSafe check
+     * above is very important *)
+    ( match ti.token with
+    | TFnVersion (id, name, _, _)
+      when Regex.contains
+             ~re:
+               (Regex.regex
+                  "HttpClient::(delete|get|head|options|patch|post|put)")
+             name ->
+        ViewFnExecution.fnCopyCurlButton vs fn id
+    (* TODO: what was TFnName doing here in the play button fn? Do we need it
+     * here? *)
+    | _ ->
+        Vdom.noNode )
   | Some _ | None ->
       Vdom.noNode
 
@@ -319,7 +342,11 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           (innerNode @ nested)
       in
       if vs.permission = Some ReadWrite
-      then [element [dropdown (); viewPlayIcon ast ti ~vs ~state]]
+      then
+        [ element
+            [ dropdown ()
+            ; viewPlayIcon ast ti ~vs ~state
+            ; viewCopyCurlButton ti ~vs ~state ] ]
       else [element []])
   |> List.flatten
 

@@ -103,6 +103,138 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
       None
 
 
+let curlFromHttpClientCall (m : model) (tlid : tlid) (id : id) (name : string) :
+    string option =
+  let traces =
+    StrDict.get ~key:(TLID.toString tlid) m.traces
+    |> recoverOption
+         ~debug:(show_tlid tlid)
+         "TLID not found in m.traces in curlFromHttpClientCall"
+  in
+  let traceId =
+    traces
+    |> Option.andThen ~f:(fun traces ->
+           Analysis.selectedTrace m.tlTraceIDs traces tlid)
+    (* We don't recover here b/c it's very possible we don't have an analysis
+     * yet *)
+    |> fun tid ->
+    ( match tid with
+    | Some _ ->
+        ()
+    | None ->
+        Js.log "No selectedTrace present for tlid" ) ;
+    tid
+  in
+  let tl =
+    TL.get m tlid
+    |> recoverOption
+         ~debug:(show_tlid tlid)
+         "TLID not found in model in curlFromHttpClientCall"
+  in
+  let args =
+    Option.andThen2 tl traceId ~f:(fun tl traceId ->
+        Analysis.getArguments m tl id traceId)
+    (* TODO this is what fails if we haven't clicked the ast yet; we should fix
+     * that, or make it toast instructions? *)
+    |> recoverOption
+         "Args not found in model in curlFromHttpClientCall"
+         ~debug:(show_tlid tlid, Option.map ~f:show_traceID traceId)
+  in
+  let data =
+    args
+    |> Option.map ~f:(fun args ->
+           let url, body, query, headers =
+             match args with
+             | [url; body; query; headers] ->
+                 (url, Some body, query, headers)
+             | [url; query; headers] ->
+                 (url, None, query, headers)
+             | _ ->
+                 recover
+                   ~debug:("arg count" ^ string_of_int (List.length args))
+                   "args in curlFromHttpClientCall espected 3 or 4, failed"
+                   (DNull, None, DNull, DNull)
+           in
+           let headers =
+             objAsHeaderCurl headers |> Option.withDefault ~default:""
+           in
+           let body =
+             strAsBodyCurl (body |> Option.withDefault ~default:DNull)
+             |> Option.withDefault ~default:""
+           in
+           let meth =
+             name
+             |> Util.Regex.matches ~re:(Util.Regex.regex "HttpClient::([^_]*)")
+             |> Option.map ~f:Js.Re.captures
+             |> Option.andThen ~f:(fun captures ->
+                    captures
+                    |> Array.get ~index:1
+                    |> Option.andThen ~f:Js.Nullable.toOption)
+             |> Option.map ~f:(fun meth -> "-X " ^ meth)
+             |> recoverOpt
+                  ~debug:name
+                  ~default:""
+                  "Expected a fn name matching HttpClient::[^_]*"
+           in
+           let base_url =
+             url
+             |> fun dv ->
+             match dv with
+             | DStr s ->
+                 s
+             | _ ->
+                 recover
+                   ~debug:(show_dval dv)
+                   "Expected url arg to be a DStr"
+                   dv
+                 |> show_dval
+           in
+           let qps =
+             let stringify (v : dval) =
+               match v with
+               | DStr s | DCharacter s | DUuid s ->
+                   Some s
+               | DInt i ->
+                   Some (string_of_int i)
+               | DFloat f ->
+                   Some (Js.Float.toString f)
+               | DBool b ->
+                   (if b then "true" else "false") |> Option.some
+               | DNull ->
+                   Some ""
+               | _ ->
+                   ignore
+                     ( v
+                     |> recover
+                          ~debug:(show_dval v)
+                          "Unhandled dval type in qps in curlFromHttpClientCall"
+                     ) ;
+                   None
+             in
+             ( match query with
+             | DObj map ->
+                 map
+                 |> StrDict.toList
+                 |> List.filterMap ~f:(fun (k, v) ->
+                        stringify v |> Option.map ~f:(fun v -> k ^ "=" ^ v))
+                 |> String.join ~sep:"&"
+             | _ ->
+                 ignore
+                   ( query
+                   |> recover
+                        ~debug:(show_dval query)
+                        "Expected query arg to be a dobj" ) ;
+                 "" )
+             |> fun s -> if s == "" then "" else "?" ^ s
+           in
+           let url = "'" ^ base_url ^ qps ^ "'" in
+           ["curl"; headers; body; meth; url]
+           |> List.filter ~f:(fun s -> s != "")
+           |> String.join ~sep:" ")
+  in
+  data
+
+
 let makeCommand (m : model) (tlid : tlid) : string option =
   curlFromCurrentTrace m tlid |> Option.orElse (curlFromSpec m tlid)
 

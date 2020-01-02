@@ -260,6 +260,22 @@ https://github.com/chriskempson/tomorrow-theme */
   .fluid-fn-name,
   .fluid-fn-version {
     color: $white2;
+    .copy-curl-button {
+      color: $white1;
+      position: absolute;
+      font-size: 65%;
+      right: -16px;
+      top: 0px;
+      transition: color linear 0.1s;
+      z-index: 1000;
+
+      &:hover {
+        font-size: 75%;
+        font-weight: strong;
+        margin-top: -2px;
+        cursor: pointer;
+      }
+    }
     .execution-button {
       position: absolute;
       font-size: 55%;
