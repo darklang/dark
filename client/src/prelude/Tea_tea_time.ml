@@ -1,3 +1,5 @@
+include Tea.Time
+
 (* TODO(alice): push to fork + upstream
   Setting the key by associating it with interval,
   will lead to rewrites of setInterval functions,

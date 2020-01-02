@@ -154,7 +154,7 @@ let decodeAnimEvent (fn : string -> 'a) j : 'a =
 
 let eventBoth ~(key : string) (event : string) (constructor : mouseEvent -> msg)
     : msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     event
     {stopPropagation = false; preventDefault = false}
@@ -164,7 +164,7 @@ let eventBoth ~(key : string) (event : string) (constructor : mouseEvent -> msg)
 let eventPreventDefault
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     event
     {stopPropagation = false; preventDefault = true}
@@ -174,7 +174,7 @@ let eventPreventDefault
 let eventNeither
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     event
     {stopPropagation = true; preventDefault = true}
@@ -184,7 +184,7 @@ let eventNeither
 let eventNoPropagation
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     event
     {stopPropagation = true; preventDefault = false}
@@ -193,7 +193,7 @@ let eventNoPropagation
 
 let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     "transitionend"
     {stopPropagation = false; preventDefault = true}
@@ -202,7 +202,7 @@ let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
 
 let onAnimationEnd ~(key : string) ~(listener : string -> msg) :
     msg Vdom.property =
-  Patched_tea_html.onWithOptions
+  Tea.Html.onWithOptions
     ~key
     "animationend"
     {stopPropagation = false; preventDefault = true}
