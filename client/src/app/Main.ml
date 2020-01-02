@@ -118,12 +118,12 @@ let init (flagString : string) (location : Web.Location.location) =
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest ()
-  then (m, Cmd.batch [RPC.integration m m.canvasName])
+  then (m, Cmd.batch [API.integration m m.canvasName])
   else
     ( m
     , Cmd.batch
-        [ RPC.initialLoad m (FocusPageAndCursor (page, savedCursorState))
-        ; RPC.sendPresence m avMessage ] )
+        [ API.initialLoad m (FocusPageAndCursor (page, savedCursorState))
+        ; API.sendPresence m avMessage ] )
 
 
 let processFocus (m : model) (focus : focus) : modification =
@@ -227,7 +227,7 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
   ({m with complete}, focus)
 
 
-let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
+let applyOpsToClient updateCurrent (p : addOpAPIParams) (r : addOpAPIResult) :
     Types.modification list =
   [ UpdateToplevels (r.handlers, r.dbs, updateCurrent)
   ; UpdateDeletedToplevels (r.deletedHandlers, r.deletedDBs)
@@ -273,7 +273,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       | None ->
           newM
     in
-    let handleRPC params focus =
+    let handleAPI params focus =
       (* immediately update the model based on SetHandler and focus, if
          possible *)
       let m = m |> incOpCtr in
@@ -292,7 +292,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           params.ops
       in
       if hasNonHandlers
-      then (m, RPC.addOp m focus params)
+      then (m, API.addOp m focus params)
       else
         let localM =
           List.foldl
@@ -314,7 +314,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             (Many [AutocompleteMod ACReset; processFocus localM focus])
             (localM, Cmd.none)
         in
-        (withFocus, Cmd.batch [wfCmd; RPC.addOp withFocus FocusNoChange params])
+        (withFocus, Cmd.batch [wfCmd; API.addOp withFocus FocusNoChange params])
     in
     match mod_ with
     | DisplayError e ->
@@ -332,7 +332,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let now = Js.Date.now () |> Js.Date.fromFloat in
         let shouldReload =
           let buildHashMismatch =
-            ApiError.serverVersionOf apiError
+            APIError.serverVersionOf apiError
             |> Option.map ~f:(fun hash -> hash <> m.buildHash)
             |> Option.withDefault ~default:false
           in
@@ -345,15 +345,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 true
           in
           (* Reload if it's an auth failure or the frontend is out of date *)
-          ApiError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
+          APIError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
         in
         let ignore =
           (* This message is deep in the server code and hard to pull
                * out, so just ignore for now *)
           Js.log "Already at latest redo - ignoring server error" ;
           String.contains
-            (ApiError.msg apiError)
-            ~substring:"(client): Already at latest redo (RPC)"
+            (APIError.msg apiError)
+            ~substring:"(client): Already at latest redo (API)"
         in
         let cmd =
           if shouldReload
@@ -364,14 +364,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             Cmd.call (fun _ ->
                 Editor.serialize m ;
                 Native.Location.reload true)
-          else if (not ignore) && ApiError.shouldRollbar apiError
-          then Cmd.call (fun _ -> Rollbar.sendApiError m apiError)
+          else if (not ignore) && APIError.shouldRollbar apiError
+          then Cmd.call (fun _ -> Rollbar.sendAPIError m apiError)
           else Cmd.none
         in
         let newM =
           let error =
-            if ApiError.shouldDisplayToUser apiError && not ignore
-            then Some (ApiError.msg apiError)
+            if APIError.shouldDisplayToUser apiError && not ignore
+            then Some (APIError.msg apiError)
             else m.error
           in
           let lastReload = if shouldReload then Some now else m.lastReload in
@@ -380,15 +380,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (newM, cmd)
     | ClearError ->
         ({m with error = None}, Cmd.none)
-    | RPC (ops, focus) ->
-        handleRPC
-          (RPC.opsParams ops (Some ((m |> opCtr) + 1)) m.clientOpCtrId)
+    | AddOps (ops, focus) ->
+        handleAPI
+          (API.opsParams ops (Some ((m |> opCtr) + 1)) m.clientOpCtrId)
           focus
-    | GetUnlockedDBsRPC ->
-        Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
-    | UpdateDBStatsRPC tlid ->
+    | GetUnlockedDBsAPICall ->
+        Sync.attempt ~key:"unlocked" m (API.getUnlockedDBs m)
+    | UpdateDBStatsAPICall tlid ->
         Analysis.updateDBStats m tlid
-    | GetWorkerStatsRPC tlid ->
+    | GetWorkerStatsAPICall tlid ->
         Analysis.getWorkerStats m tlid
     | NoChange ->
         (m, Cmd.none)
@@ -436,7 +436,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; timestamp = Js.Date.now () /. 1000.0 }
           in
           let cap = Page.capMinimap m.currentPage page in
-          let cmds = Cmd.batch (RPC.sendPresence m avMessage :: cap) in
+          let cmds = Cmd.batch (API.sendPresence m avMessage :: cap) in
           (Page.setPage m m.currentPage page, cmds)
         else
           (Page.setPage m m.currentPage Architecture, Url.updateUrl Architecture)
@@ -499,7 +499,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; tlid = Some tlid
           ; timestamp = timeStamp }
         in
-        let commands = [hashcmd; acCmd; afCmd; RPC.sendPresence m avMessage] in
+        let commands = [hashcmd; acCmd; afCmd; API.sendPresence m avMessage] in
         (m, Cmd.batch commands)
     | Deselect ->
         if m.cursorState <> Deselected
@@ -516,7 +516,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = None
             ; timestamp = timeStamp }
           in
-          let commands = [hashcmd; acCmd; RPC.sendPresence m avMessage] in
+          let commands = [hashcmd; acCmd; API.sendPresence m avMessage] in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
@@ -757,7 +757,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with unlockedDBs}, Cmd.none)
     | AppendUnlockedDBs newDBs ->
         (* You probably don't want to use this, you probably want to wait for the
-         * regular unlockedDBs RPC timer to do a full SetUnlockedDBs, but this
+         * regular unlockedDBs API timer to do a full SetUnlockedDBs, but this
          * can be useful if you've done an operation to a DB and you know 100%
          * that it will be in the next unlockedDBs set.
          *
@@ -834,7 +834,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ExecutingFunctionBegan (tlid, id) ->
         let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
-    | ExecutingFunctionRPC (tlid, id, name) ->
+    | ExecutingFunctionAPICall (tlid, id, name) ->
       ( match TL.get m tlid with
       | Some tl ->
           let traceID = Analysis.getSelectedTraceID m tlid in
@@ -849,7 +849,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   ; efpFnName = name
                   ; efpArgs = args }
                 in
-                (m, RPC.executeFunction m params)
+                (m, API.executeFunction m params)
             | None ->
                 (m, Cmd.none)
                 |> updateMod
@@ -888,7 +888,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           , Cmd.none )
       | None ->
           (m, Cmd.none) )
-    | TriggerHandlerRPC tlid ->
+    | TriggerHandlerAPICall tlid ->
         let traceID = Analysis.getSelectedTraceID m tlid in
         ( match Option.andThen traceID ~f:(Analysis.getTrace m tlid) with
         | Some (traceID, Some traceData) ->
@@ -896,7 +896,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               RT.setHandlerExeState tlid Executing m.handlerProps
             in
             ( {m with handlerProps}
-            , RPC.triggerHandler
+            , API.triggerHandler
                 m
                 {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
             )
@@ -1065,7 +1065,7 @@ let update_ (msg : msg) (m : model) : modification =
   | TraceMouseLeave (tlid, traceID, _) ->
       ClearHover (tlid, ID traceID)
   | TriggerHandler tlid ->
-      TriggerHandlerRPC tlid
+      TriggerHandlerAPICall tlid
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
@@ -1127,7 +1127,8 @@ let update_ (msg : msg) (m : model) : modification =
                   | None ->
                       Many
                         [ SetCursorState origCursorState
-                        ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
+                        ; AddOps
+                            ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
                         ]
                 else SetCursorState origCursorState
               else
@@ -1205,7 +1206,7 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many
         [ ExecutingFunctionBegan (tlid, id)
-        ; ExecutingFunctionRPC (tlid, id, name)
+        ; ExecutingFunctionAPICall (tlid, id, name)
         ; Select (tlid, selectionTarget) ]
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
@@ -1223,20 +1224,20 @@ let update_ (msg : msg) (m : model) : modification =
       | None ->
           NoChange )
   | AbandonMigration tlid ->
-      RPC ([AbandonDBMigration tlid], FocusNothing)
+      AddOps ([AbandonDBMigration tlid], FocusNothing)
   | DeleteColInDB (tlid, nameId) ->
       let mdb = tlid |> TL.get m |> Option.andThen ~f:TL.asDB in
       ( match mdb with
       | Some db ->
           if DB.isMigrationCol db nameId
-          then RPC ([DeleteColInDBMigration (tlid, nameId)], FocusNothing)
-          else RPC ([DeleteDBCol (tlid, nameId)], FocusNothing)
+          then AddOps ([DeleteColInDBMigration (tlid, nameId)], FocusNothing)
+          else AddOps ([DeleteDBCol (tlid, nameId)], FocusNothing)
       | None ->
           NoChange )
   | ToggleEditorSetting fn ->
       TweakModel (fun m -> {m with editorSettings = fn m.editorSettings})
   | SaveTestButton ->
-      MakeCmd (RPC.saveTest m)
+      MakeCmd (API.saveTest m)
   | FinishIntegrationTest ->
       EndIntegrationTest
   | StartFeatureFlag ->
@@ -1260,7 +1261,8 @@ let update_ (msg : msg) (m : model) : modification =
     | Some uf ->
         let replacement = Functions.removeParameter uf upf in
         let newCalls = Refactor.removeFunctionParameter m uf upf in
-        RPC ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
+        AddOps
+          ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
     | None ->
         NoChange )
   | AddUserFunctionParameter uftlid ->
@@ -1274,17 +1276,17 @@ let update_ (msg : msg) (m : model) : modification =
     ( match TL.get m tipetlid |> Option.andThen ~f:TL.asUserTipe with
     | Some tipe ->
         let replacement = UserTypes.removeField tipe field in
-        RPC ([SetType replacement], FocusNext (tipe.utTLID, None))
+        AddOps ([SetType replacement], FocusNext (tipe.utTLID, None))
     | None ->
         NoChange )
   | ToplevelDelete tlid ->
       let tl = TL.get m tlid in
       Option.map tl ~f:(fun tl ->
-          Many [RemoveToplevel tl; RPC ([DeleteTL (TL.id tl)], FocusSame)])
+          Many [RemoveToplevel tl; AddOps ([DeleteTL (TL.id tl)], FocusSame)])
       |> Option.withDefault ~default:NoChange
   | ToplevelDeleteForever tlid ->
       Many
-        [ RPC ([DeleteTLForever tlid], FocusSame)
+        [ AddOps ([DeleteTLForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
               { m with
@@ -1292,7 +1294,7 @@ let update_ (msg : msg) (m : model) : modification =
               ; deletedDBs = TD.remove ~tlid m.deletedDBs }) ]
   | DeleteUserFunction tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
-      Many (RPC ([DeleteFunction tlid], FocusSame) :: page)
+      Many (AddOps ([DeleteFunction tlid], FocusSame) :: page)
   | RestoreToplevel tlid ->
       (* Temporary check if tlid is a deleted group and add to model manually until groups has a BE *)
       let group = Groups.isFromDeletedGroup m tlid in
@@ -1300,10 +1302,10 @@ let update_ (msg : msg) (m : model) : modification =
       | Some g ->
           UndoGroupDelete (tlid, g)
       | None ->
-          RPC ([UndoTL tlid], FocusNext (tlid, None)) )
+          AddOps ([UndoTL tlid], FocusNext (tlid, None)) )
   | DeleteUserFunctionForever tlid ->
       Many
-        [ RPC ([DeleteFunctionForever tlid], FocusSame)
+        [ AddOps ([DeleteFunctionForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
               { m with
@@ -1311,7 +1313,7 @@ let update_ (msg : msg) (m : model) : modification =
         ]
   | DeleteUserType tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
-      Many (RPC ([DeleteType tlid], FocusSame) :: page)
+      Many (AddOps ([DeleteType tlid], FocusSame) :: page)
   | DeleteGroup tlid ->
       (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.vv225wwesyqm *)
       TL.get m tlid
@@ -1342,35 +1344,35 @@ let update_ (msg : msg) (m : model) : modification =
                   Many
                     [ TweakModel (fun _m -> newMod)
                     ; SetCursorState origCursorState
-                    ; RPC ([MoveTL (tlid, mePos)], FocusNoChange) ] )
+                    ; AddOps ([MoveTL (tlid, mePos)], FocusNoChange) ] )
           | _ ->
               NoChange )
       | _ ->
           NoChange )
   | DeleteUserTypeForever tlid ->
       Many
-        [ RPC ([DeleteTypeForever tlid], FocusSame)
+        [ AddOps ([DeleteTypeForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes}) ]
   | DeleteGroupForever tlid ->
-      (* TODO: Add RPC *)
+      (* TODO: Add AddOps *)
       Many
         [ TweakModel
             (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
         ]
-  | AddOpRPCCallback (_, params, Ok _) when params.opCtr = None ->
+  | AddOpsAPICallback (_, params, Ok _) when params.opCtr = None ->
       HandleAPIError
-        (ApiError.make
-           ~context:"RPC - old server, no opCtr sent"
+        (APIError.make
+           ~context:"AddOps - old server, no opCtr sent"
            ~importance:ImportantError
-           ~requestParams:(Encoders.addOpRPCParams params)
+           ~requestParams:(Encoders.addOpAPIParams params)
            ~reload:false
            (* not a great error ... but this is an api error without a
             * corresponding actual http error *)
            Tea.Http.Aborted)
-  | AddOpRPCCallback (focus, params, Ok r) ->
-      let m, newOps, _ = RPC.filterOpsAndResult m params None in
+  | AddOpsAPICallback (focus, params, Ok r) ->
+      let m, newOps, _ = API.filterOpsAndResult m params None in
       let params = {params with ops = newOps} in
       let initialMods =
         applyOpsToClient (focus != FocusNoChange) params r.result
@@ -1400,22 +1402,22 @@ let update_ (msg : msg) (m : model) : modification =
           [AutocompleteMod ACReset; ClearError; newState]
       in
       Many (initialMods @ focusMods)
-  | AddOpStrollerMsg msg ->
+  | AddOpsStrollerMsg msg ->
       if msg.params.clientOpCtrId = m.clientOpCtrId
       then
         NoChange
         (* msg was sent from this client, we've already handled it
-                       in AddOpRPCCallback *)
+                       in AddOpsAPICallback *)
       else
         let m, newOps, result =
-          RPC.filterOpsAndResult m msg.params (Some msg.result)
+          API.filterOpsAndResult m msg.params (Some msg.result)
         in
         let params = {msg.params with ops = newOps} in
         let initialMods =
           applyOpsToClient false params (result |> Option.valueExn)
         in
         Many (initialMods @ [MakeCmd (Entry.focusEntry m)])
-  | InitialLoadRPCCallback
+  | InitialLoadAPICallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
         { m with
@@ -1457,9 +1459,9 @@ let update_ (msg : msg) (m : model) : modification =
         ; UpdateTraces traces
         ; InitIntrospect (TD.values allTLs)
         ; InitASTCache (r.handlers, r.userFunctions) ]
-  | SaveTestRPCCallback (Ok msg_) ->
+  | SaveTestAPICallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
-  | ExecuteFunctionRPCCallback
+  | ExecuteFunctionAPICallback
       (params, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
         List.map
@@ -1478,7 +1480,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; OverrideTraces (StrDict.fromList traces)
         ; SetUnlockedDBs unlockedDBs ]
-  | TriggerHandlerRPCCallback (params, Ok tlids) ->
+  | TriggerHandlerAPICallback (params, Ok tlids) ->
       let traces =
         List.map
           ~f:(fun tlid -> (deTLID tlid, [(params.thTraceID, None)]))
@@ -1493,7 +1495,7 @@ let update_ (msg : msg) (m : model) : modification =
                 RT.setHandlerExeState params.thTLID Complete m.handlerProps
               in
               {m with handlerProps}) ]
-  | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
+  | GetUnlockedDBsAPICallback (Ok unlockedDBs) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
         ; SetUnlockedDBs unlockedDBs ]
@@ -1510,12 +1512,12 @@ let update_ (msg : msg) (m : model) : modification =
       AppendStaticDeploy [asset]
   | WorkerStatePush ws ->
       UpdateWorkerSchedules ws
-  | Delete404RPC f404 ->
+  | Delete404APICall f404 ->
       Many
         [ (* This deletion is speculative *)
           Delete404 f404
-        ; MakeCmd (RPC.delete404 m f404) ]
-  | Delete404RPCCallback (params, result) ->
+        ; MakeCmd (API.delete404 m f404) ]
+  | Delete404APICallback (params, result) ->
     ( match result with
     | Ok _ ->
         NoChange
@@ -1523,7 +1525,7 @@ let update_ (msg : msg) (m : model) : modification =
         Many
           [ Append404s [params] (* Rollback the speculative deletion *)
           ; HandleAPIError
-              (ApiError.make
+              (APIError.make
                  ~context:"Delete404"
                  ~importance:ImportantError
                  ~requestParams:(Encoders.fof params)
@@ -1539,11 +1541,11 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str )
   | ReceiveFetch (TraceFetchFailure (params, _, "Bad credentials")) ->
       HandleAPIError
-        (ApiError.make
-           ~context:"RPC"
+        (APIError.make
+           ~context:"TraceFetch"
            ~importance:ImportantError
            ~reload:true
-           ~requestParams:(Encoders.getTraceDataRPCParams params)
+           ~requestParams:(Encoders.getTraceDataAPIParams params)
            (* not a great error ... but this is an api error without a
             * corresponding actual http error *)
            Tea.Http.Aborted)
@@ -1571,11 +1573,11 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd cmd
   | ReceiveFetch (DbStatsFetchFailure (params, _, "Bad credentials")) ->
       HandleAPIError
-        (ApiError.make
-           ~context:"RPC"
+        (APIError.make
+           ~context:"DbStatsFetch"
            ~importance:ImportantError
            ~reload:true
-           ~requestParams:(Encoders.dbStatsRPCParams params)
+           ~requestParams:(Encoders.dbStatsAPIParams params)
            (* not a great error ... but this is an api error without a
             * corresponding actual http error *)
            Tea.Http.Aborted)
@@ -1601,11 +1603,11 @@ let update_ (msg : msg) (m : model) : modification =
         ; UpdateDBStats result ]
   | ReceiveFetch (WorkerStatsFetchFailure (params, _, "Bad credentials")) ->
       HandleAPIError
-        (ApiError.make
-           ~context:"RPC"
+        (APIError.make
+           ~context:"WorkerStatsFetch"
            ~importance:ImportantError
            ~reload:true
-           ~requestParams:(Encoders.workerStatsRPCParams params)
+           ~requestParams:(Encoders.workerStatsAPIParams params)
            (* not a great error ... but this is an api error without a
               * corresponding actual http error *)
            Tea.Http.Aborted)
@@ -1626,43 +1628,43 @@ let update_ (msg : msg) (m : model) : modification =
             (Sync.markResponseInModel
                ~key:("get-worker-stats-" ^ deTLID params.workerStatsTlid))
         ; UpdateWorkerStats (params.workerStatsTlid, result) ]
-  | AddOpRPCCallback (_, params, Error err) ->
+  | AddOpsAPICallback (_, params, Error err) ->
       HandleAPIError
-        (ApiError.make
-           ~context:"RPC"
+        (APIError.make
+           ~context:"AddOps"
            ~importance:ImportantError
-           ~requestParams:(Encoders.addOpRPCParams params)
+           ~requestParams:(Encoders.addOpAPIParams params)
            ~reload:false
            err)
-  | SaveTestRPCCallback (Error err) ->
+  | SaveTestAPICallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
-  | ExecuteFunctionRPCCallback (params, Error err) ->
+  | ExecuteFunctionAPICallback (params, Error err) ->
       HandleAPIError
-        (ApiError.make
+        (APIError.make
            ~context:"ExecuteFunction"
            ~importance:ImportantError
-           ~requestParams:(Encoders.executeFunctionRPCParams params)
+           ~requestParams:(Encoders.executeFunctionAPIParams params)
            ~reload:false
            err)
-  | TriggerHandlerRPCCallback (_, Error err) ->
+  | TriggerHandlerAPICallback (_, Error err) ->
       HandleAPIError
-        (ApiError.make
+        (APIError.make
            ~context:"TriggerHandler"
            ~importance:ImportantError
            err
            ~reload:false)
-  | InitialLoadRPCCallback (_, _, Error err) ->
+  | InitialLoadAPICallback (_, _, Error err) ->
       HandleAPIError
-        (ApiError.make
+        (APIError.make
            ~context:"InitialLoad"
            ~importance:ImportantError
            err
            ~reload:false)
-  | GetUnlockedDBsRPCCallback (Error err) ->
+  | GetUnlockedDBsAPICallback (Error err) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
         ; HandleAPIError
-            (ApiError.make
+            (APIError.make
                ~context:"GetUnlockedDBs"
                ~importance:IgnorableError
                ~reload:false
@@ -1676,11 +1678,11 @@ let update_ (msg : msg) (m : model) : modification =
     | RefreshAnalysis ->
       ( match Toplevel.selected m with
       | Some tl when Toplevel.isDB tl ->
-          Many [UpdateDBStatsRPC (TL.id tl); GetUnlockedDBsRPC]
+          Many [UpdateDBStatsAPICall (TL.id tl); GetUnlockedDBsAPICall]
       | Some tl when Toplevel.isWorkerHandler tl ->
-          Many [GetWorkerStatsRPC (TL.id tl); GetUnlockedDBsRPC]
+          Many [GetWorkerStatsAPICall (TL.id tl); GetUnlockedDBsAPICall]
       | _ ->
-          GetUnlockedDBsRPC )
+          GetUnlockedDBsAPICall )
     | RefreshAvatars ->
         ExpireAvatars
     | _ ->
@@ -1738,7 +1740,7 @@ let update_ (msg : msg) (m : model) : modification =
        *)
       Many
         ( traceMods
-        @ [ RPC
+        @ [ AddOps
               ( [SetHandler (tlid, pos, aHandler)]
               , FocusExact (tlid, FluidExpression.id ast) )
           ; Delete404 fof ] )
@@ -1765,12 +1767,12 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
-        [ RPC ([SetFunction ufun], FocusNothing)
+        [ AddOps ([SetFunction ufun], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedFn ufun.ufTLID)) ]
   | CreateType ->
       let tipe = Refactor.generateEmptyUserType () in
       Many
-        [ RPC ([SetType tipe], FocusNothing)
+        [ AddOps ([SetType tipe], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
   | LockHandler (tlid, locked) ->
       TweakModel (Editor.setHandlerLock tlid locked)
@@ -1840,7 +1842,7 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | TriggerSendPresenceCallback (Error err) ->
       HandleAPIError
-        (ApiError.make
+        (APIError.make
            ~context:"TriggerSendPresenceCallback"
            ~importance:IgnorableError
            ~reload:false
@@ -1896,12 +1898,12 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m -> {m with showTopbar = false})
   | LogoutOfDark ->
       Many
-        [ MakeCmd (RPC.logout m)
+        [ MakeCmd (API.logout m)
         ; TweakModel
             (fun m ->
               {m with editorSettings = {m.editorSettings with runTimers = false}})
         ]
-  | LogoutRPCCallback ->
+  | LogoutAPICallback ->
       (* For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work *)
       Native.Ext.redirect "/login" ;
       NoChange
@@ -1915,9 +1917,9 @@ let update_ (msg : msg) (m : model) : modification =
   | DismissErrorBar ->
       ClearError
   | PauseWorker workerName ->
-      MakeCmd (RPC.updateWorkerSchedule m {workerName; schedule = "pause"})
+      MakeCmd (API.updateWorkerSchedule m {workerName; schedule = "pause"})
   | RunWorker workerName ->
-      MakeCmd (RPC.updateWorkerSchedule m {workerName; schedule = "run"})
+      MakeCmd (API.updateWorkerSchedule m {workerName; schedule = "run"})
   | UpdateWorkerScheduleCallback (Ok schedules) ->
       UpdateWorkerSchedules schedules
   | UpdateWorkerScheduleCallback (Error _) ->
@@ -1929,7 +1931,7 @@ let rec filter_read_only (m : model) (modification : modification) =
   then modification
   else
     match modification with
-    | Enter _ | EnterWithOffset _ | RPC _ ->
+    | Enter _ | EnterWithOffset _ | AddOps _ ->
         NoChange
     | Many ms ->
         Many (List.map ~f:(filter_read_only m) ms)
@@ -2013,7 +2015,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           ReceiveFetch s)
     ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
           NewPresencePush s)
-    ; Analysis.AddOp.listen ~key:"add_op" (fun s -> AddOpStrollerMsg s)
+    ; Analysis.AddOps.listen ~key:"add_op" (fun s -> AddOpsStrollerMsg s)
     ; Analysis.WorkerStatePush.listen ~key:"worker_state_push" (fun s ->
           WorkerStatePush s) ]
   in

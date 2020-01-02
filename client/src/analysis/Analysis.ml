@@ -268,10 +268,10 @@ module NewPresencePush = struct
     Native.registerGlobal "newPresencePush" key tagger decode
 end
 
-module AddOp = struct
+module AddOps = struct
   let decode =
     let open Tea.Json.Decoder in
-    field "detail" (Decoders.wrapDecoder Decoders.addOpRPCStrollerMsg)
+    field "detail" (Decoders.wrapDecoder Decoders.addOpAPIStrollerMsg)
 
 
   let listen ~key tagger = Native.registerGlobal "addOp" key tagger decode
@@ -280,7 +280,7 @@ end
 module WorkerStatePush = struct
   let decode =
     let open Tea.Json.Decoder in
-    field "detail" (Decoders.wrapDecoder Decoders.updateWorkerScheduleRPCResult)
+    field "detail" (Decoders.wrapDecoder Decoders.updateWorkerScheduleAPIResult)
 
 
   let listen ~key tagger =
