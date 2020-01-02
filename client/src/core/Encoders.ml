@@ -691,7 +691,7 @@ let editorSettings (es : Types.editorSettings) : Js.Json.t =
     ; ("showFluidDebugger", bool es.showFluidDebugger) ]
 
 
-let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
+let savedSettings (se : Types.savedSettings) : Js.Json.t =
   object_
     [ ("editorSettings", editorSettings se.editorSettings)
     ; ("cursorState", cursorState se.cursorState)

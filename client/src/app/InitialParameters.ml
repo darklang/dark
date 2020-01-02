@@ -24,8 +24,8 @@ let function_ j : function_ =
 
 
 type t =
-  { editorState : string option
-  ; complete : Types.function_ list
+  { complete : Types.function_ list
+  ; canvasName : string
   ; userContentHost : string
   ; environment : string
   ; csrfToken : string
@@ -36,7 +36,7 @@ type t =
 let fromString (strJ : string) : t =
   let open Json_decode_extended in
   let j = Json.parseOrRaise strJ in
-  { editorState = field "editorState" (optional string) j
+  { canvasName = field "canvasName" string j
   ; complete = field "complete" (list function_) j
   ; userContentHost = field "userContentHost" string j
   ; environment = field "environment" string j

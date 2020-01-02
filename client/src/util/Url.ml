@@ -106,19 +106,6 @@ let changeLocation (loc : Web.Location.location) : modification =
   |> Option.withDefault ~default:NoChange
 
 
-let parseCanvasName (loc : Web.Location.location) : string =
-  match
-    loc.pathname
-    |> String.dropLeft ~count:1
-    (* remove lead "/" *)
-    |> String.split ~on:"/"
-  with
-  | "a" :: canvasName :: _ ->
-      canvasName
-  | _ ->
-      "builtwithdark"
-
-
 let splitOnEquals (s : string) : (string * bool) option =
   match String.split ~on:"=" s with
   | [] ->

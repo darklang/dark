@@ -1,18 +1,6 @@
 open Types
 open Tc
 
-let fromString (json : string option) : serializableEditor =
-  match json with
-  | None ->
-      Debug.loG "no serialized editor" None ;
-      Defaults.defaultEditor
-  | Some json ->
-    ( try json |> Json.parseOrRaise |> Decoders.serializableEditor
-      with e ->
-        Debug.loG "error parsing serialized editor" e ;
-        Defaults.defaultEditor )
-
-
 let canonicalizeCursorState (cs : cursorState) : cursorState =
   Prelude.unwrapCursorState cs
 
@@ -34,11 +22,7 @@ let canonicalizeHandlerProps props =
               HandlerExpanded ) })
 
 
-let toString (se : serializableEditor) : string =
-  se |> Encoders.serializableEditor |> Json.stringify
-
-
-let editor2model (e : serializableEditor) : model =
+let toModel (e : savedSettings) : model =
   let m = Defaults.defaultModel in
   { m with
     editorSettings = e.editorSettings
@@ -53,7 +37,7 @@ let editor2model (e : serializableEditor) : model =
   ; showTopbar = e.showTopbar }
 
 
-let model2editor (m : model) : serializableEditor =
+let model2editor (m : model) : savedSettings =
   { editorSettings = m.editorSettings
   ; cursorState = m.cursorState
   ; routingTableOpenDetails =
@@ -70,9 +54,31 @@ let model2editor (m : model) : serializableEditor =
   ; showTopbar = m.showTopbar }
 
 
-let serialize (m : model) : unit =
+let fromString (json : string option) : savedSettings =
+  match json with
+  | None ->
+      Debug.loG "no serialized editor" None ;
+      Defaults.defaultSavedSettings
+  | Some json ->
+    ( try json |> Json.parseOrRaise |> Decoders.savedSettings
+      with e ->
+        Debug.loG "error parsing serialized editor" e ;
+        Defaults.defaultSavedSettings )
+
+
+let toString (se : savedSettings) : string =
+  se |> Encoders.savedSettings |> Json.stringify
+
+
+let save (m : model) : unit =
   let state = m |> model2editor |> toString in
   Dom.Storage.setItem
     ("editorState-" ^ m.canvasName)
     state
     Dom.Storage.localStorage
+
+
+let load (canvasName : string) : savedSettings =
+  Dom.Storage.localStorage
+  |> Dom.Storage.getItem ("editorState-" ^ canvasName)
+  |> fromString
