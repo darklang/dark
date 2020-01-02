@@ -1,5 +1,4 @@
-open Tc
-open Types
+open Prelude
 
 let send = Native.Rollbar.send
 

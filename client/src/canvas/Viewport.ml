@@ -1,5 +1,3 @@
-open Types
-open Tc
 open Prelude
 module TL = Toplevel
 

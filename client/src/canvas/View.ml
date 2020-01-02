@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 
 (* Dark *)
 module TL = Toplevel

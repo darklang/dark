@@ -1,5 +1,3 @@
-open Tc
-open Types
 open Prelude
 
 let isCompatible (t1 : tipe) (t2 : tipe) : bool =

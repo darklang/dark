@@ -1,6 +1,4 @@
-open Types
 open Prelude
-open Tc
 
 (* Dark *)
 module B = BlankOr

@@ -1,5 +1,3 @@
-open Tc
-open Types
 open Prelude
 module T = FluidToken
 module E = FluidExpression

@@ -1,6 +1,4 @@
 open Tester
-open! Tc
-open Types
 open Prelude
 open AST
 open Fluid_test_data

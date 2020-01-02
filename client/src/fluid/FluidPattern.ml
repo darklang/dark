@@ -1,5 +1,3 @@
-open Types
-open Tc
 open Prelude
 
 type t = Types.fluidPattern

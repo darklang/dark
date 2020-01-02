@@ -1,6 +1,4 @@
 open Prelude
-open Tc
-open Types
 
 (* Dark *)
 module P = Pointer

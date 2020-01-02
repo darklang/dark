@@ -1,4 +1,4 @@
-open Types
+open Prelude
 
 let debugState s =
   show_fluidState

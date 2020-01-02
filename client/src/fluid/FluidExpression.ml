@@ -1,6 +1,4 @@
 open Prelude
-open Tc
-open Types
 
 type t = Types.fluidExpr [@@deriving show]
 

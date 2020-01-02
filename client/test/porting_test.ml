@@ -1,5 +1,5 @@
+open Prelude
 open Tester
-open Tc
 
 let run () =
   describe "toOption" (fun () ->

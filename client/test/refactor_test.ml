@@ -1,7 +1,5 @@
-open Tester
-open! Tc
-open Types
 open Prelude
+open Tester
 open Fluid_test_data
 module B = BlankOr
 module D = Defaults

@@ -1,5 +1,4 @@
-open Tc
-open Types
+open Prelude
 
 let entryID : string = "entry-box"
 

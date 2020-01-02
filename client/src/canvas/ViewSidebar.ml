@@ -1,6 +1,4 @@
-open Tc
 open Prelude
-open Types
 open ViewUtils
 module B = BlankOr
 module TL = Toplevel
