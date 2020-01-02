@@ -41,10 +41,10 @@ let registerGlobalDirect name key tagger =
   Tea_sub.registration key enableCall
 
 
-type size =
-  { width : int
-  ; height : int }
-
+(* type size = *)
+(*   { width : int *)
+(*   ; height : int } *)
+(*  *)
 type rect =
   { id : string
   ; top : int

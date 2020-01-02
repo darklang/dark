@@ -181,7 +181,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
     ]
   in
-  ViewUtils.placeHtml pos boxClasses html m
+  ViewUtils.placeHtml pos boxClasses html
 
 
 let tlCacheKey (m : model) tl =
