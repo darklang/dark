@@ -142,3 +142,16 @@ let asserTFn ?(debug : 'd option) (msg : string) ~(f : 'a -> bool) : unit =
 (* Like recover but with the message TODO *)
 let todo (msg : string) (recoveryVal : 'b) : 'b =
   recover ~debug:recoveryVal ("TODO: " ^ msg) recoveryVal
+
+
+module Debug = struct
+  let log ?(f : 'a -> 'b = fun x -> Obj.magic x) (msg : string) (data : 'a) : 'a
+      =
+    Js.log2 msg (f data) ;
+    data
+
+
+  let loG ?(f : 'a -> 'b = fun x -> Obj.magic x) (msg : string) (data : 'a) :
+      unit =
+    Js.log2 msg (f data)
+end
