@@ -147,6 +147,20 @@ let should_send_to_rail (expr : nexpr) : bool =
   match expr with FnCallSendToRail _ -> true | _ -> false
 
 
+let create_db_filter_preview (state : exec_state) (db : dval) (st : symtable) :
+    dval =
+  let dbname = match db with DDB name -> Some name | _ -> None in
+  state.dbs
+  |> List.find ~f:(fun sdb ->
+         Option.is_some dbname && blank_to_option sdb.name = dbname)
+  |> Option.map ~f:(fun db -> db.cols)
+  |> Option.value ~default:[]
+  |> List.map ~f:Tablecloth.Tuple2.first
+  |> List.filter_map ~f:blank_to_option
+  |> List.map ~f:(fun v -> (v, DIncomplete SourceNone))
+  |> Dval.to_dobj_exn
+
+
 let rec exec
     ~(engine : engine) ~(state : exec_state) (st : symtable) (expr : expr) :
     dval =
@@ -265,6 +279,25 @@ let rec exec
           DError (SourceId id, "There is no variable named: " ^ name)
       | Some other, _ ->
           other )
+    | Filled
+        ( id
+        , FnCall
+            ( "DB::filter"
+            , [ (Filled (_, Lambda ([value], body)) as l)
+              ; (Filled (_, Variable _) as rhs) ] ) ) ->
+        Log.inspecT "matched" value ;
+        let db = exe st rhs in
+        if ctx = Preview
+        then (
+          let preview_dval = create_db_filter_preview state db st in
+          Log.inspecT "preview_dval" preview_dval ;
+          Log.inspecT "body" body ;
+          trace_blank value preview_dval st ;
+          let newst = Symtable.singleton "value" preview_dval in
+          exe newst body |> Log.inspect "result" |> ignore ;
+          () ) ;
+        let lambda = expr_to_yojson l |> Yojson.Safe.to_string in
+        call "DB::filter" id [Dval.dstr_of_string_exn lambda; db] true
     | Filled (id, FnCallSendToRail (name, exprs)) ->
         let argvals = List.map ~f:(exe st) exprs in
         call name id argvals true

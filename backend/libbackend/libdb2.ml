@@ -592,4 +592,22 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::filter"]
+    ; ins = []
+    ; p = [par "cond" TBlock ~args:["value"]; par "table" TDB]
+    ; r = TList
+    ; d =
+        "Fetch all the values from `table` for which filter returns true. Note that this does not check every function, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+    ; f =
+        InProcess
+          (function
+          | state, [DStr str; DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              User_db.filter ~state db (Unicode_string.to_string str)
+              |> List.map ~f:(fun (k, v) -> v)
+              |> Dval.to_list
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false } ]
