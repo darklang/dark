@@ -317,11 +317,36 @@ let get_all ~state (db : db) : (string * dval) list =
              Exception.internal "bad format received in get_all")
 
 
-let lambda_to_sql lambda = "true"
+let rec lambda_to_sql_inner expr =
+  let lts e = lambda_to_sql_inner e in
+  match expr with
+  | Filled (_, FnCall (">", [l; r])) ->
+      "(" ^ lts l ^ " > " ^ lts r ^ ")"
+  | Filled (_, Value str) ->
+      "to_jsonb(" ^ str ^ ")"
+  | Filled (_, FieldAccess (Filled (_, Variable "value"), Filled (_, fieldname)))
+    ->
+      "data::jsonb->'" ^ fieldname ^ "'"
+  | _ ->
+      Exception.internal "unsupported type"
+
+
+let lambda_to_sql_outer lambda =
+  match lambda with
+  | Filled (_, Lambda (_, body)) ->
+      lambda_to_sql_inner body
+  | _ ->
+      Exception.internal "not a lambda"
+
 
 let filter ~state (db : db) (encoded_lambda : string) : (string * dval) list =
-  let lambda = encoded_lambda |> Yojson.Safe.from_string |> expr_of_yojson in
-  let sql = lambda_to_sql lambda in
+  let lambda =
+    encoded_lambda
+    |> Yojson.Safe.from_string
+    |> expr_of_yojson
+    |> Result.ok_or_failwith
+  in
+  let sql = lambda_to_sql_outer lambda in
   Db.fetch
     ~name:"get_all"
     ( "SELECT key, data

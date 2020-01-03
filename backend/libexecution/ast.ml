@@ -285,18 +285,18 @@ let rec exec
             ( "DB::filter"
             , [ (Filled (_, Lambda ([value], body)) as l)
               ; (Filled (_, Variable _) as rhs) ] ) ) ->
-        Log.inspecT "matched" value ;
         let db = exe st rhs in
+        let lambda = expr_to_yojson l |> Yojson.Safe.to_string in
         if ctx = Preview
         then (
           let preview_dval = create_db_filter_preview state db st in
-          Log.inspecT "preview_dval" preview_dval ;
-          Log.inspecT "body" body ;
           trace_blank value preview_dval st ;
+          (* using the string here means that the execute_function API gets
+           * the right value *)
+          trace l (Dval.dstr_of_string_exn lambda) st ;
           let newst = Symtable.singleton "value" preview_dval in
-          exe newst body |> Log.inspect "result" |> ignore ;
+          exe newst body |> ignore ;
           () ) ;
-        let lambda = expr_to_yojson l |> Yojson.Safe.to_string in
         call "DB::filter" id [Dval.dstr_of_string_exn lambda; db] true
     | Filled (id, FnCallSendToRail (name, exprs)) ->
         let argvals = List.map ~f:(exe st) exprs in
