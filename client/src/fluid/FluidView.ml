@@ -169,23 +169,22 @@ let viewPlayIcon
 
 let viewCopyCurlButton ~(vs : ViewUtils.viewState) ~state (ti : T.tokenInfo) :
     Types.msg Html.html =
-  match fnForToken state ti.token with
-  | Some fn when not fn.fnPreviewExecutionSafe ->
-    (* Looking these up can be slow, so the fnPreviewExecutionSafe check
-     * above is very important *)
-    ( match ti.token with
-    | TFnVersion (id, name, _, _)
-      when Regex.contains
-             ~re:
-               (Regex.regex
-                  "HttpClient::(delete|get|head|options|patch|post|put)")
-             name ->
-        ViewFnExecution.fnCopyCurlButton vs fn id
-    (* TODO: what was TFnName doing here in the play button fn? Do we need it
-     * here? *)
-    | _ ->
-        Vdom.noNode )
-  | Some _ | None ->
+  match ti.token with
+  | TFnVersion (id, name, _, _)
+    when Regex.contains
+           ~re:
+             (Regex.regex
+                "HttpClient::(delete|get|head|options|patch|post|put)")
+           name ->
+      fnForToken state ti.token
+      |> Option.map ~f:(fun fn -> ViewFnExecution.fnCopyCurlButton vs fn id)
+      |> recoverOpt
+           ~debug:ti
+           "Should've had a fn for this token"
+           ~default:Vdom.noNode
+  (* TODO: what was TFnName doing here in the play button fn? Do we need it
+   * here? *)
+  | _ ->
       Vdom.noNode
 
 
