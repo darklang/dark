@@ -396,7 +396,8 @@ let rec lambda_to_sql_inner fields expr =
       ^ tipe_to_sql_tipe tipe
       ^ ") "
   | _ ->
-      Exception.internal "unsupported type"
+      Exception.internal
+        ("unsupported code in DB::filter query: " ^ show_expr expr)
 
 
 let lambda_to_sql_outer fields lambda =
