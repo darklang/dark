@@ -130,6 +130,8 @@ let recoverOpt ?(debug : 'd option) (msg : 'msg) ~(default : 'r) (x : 'r option)
       recover ~debug ("Got None but expected something: " ^ msg) default
 
 
+(* Like recoverOpt, but for when you want to return 'r option instead of
+ * specifying a default *)
 let recoverOption ?(debug : 'd option) (msg : 'msg) (x : 'r option) : 'r option
     =
   match x with
@@ -171,15 +173,6 @@ let asserTFn ?(debug : 'd option) (msg : string) ~(f : 'a -> bool) : unit =
 (* Like recover but with the message TODO *)
 let todo (msg : string) (recoveryVal : 'b) : 'b =
   recover ~debug:recoveryVal ("TODO: " ^ msg) recoveryVal
-
-
-let option_exn o ~(err : string) : 'a =
-  match o with
-  | None ->
-      Js.log ("Error: " ^ err) ;
-      Option.valueExn o
-  | Some o ->
-      o
 
 
 module Debug = struct
