@@ -147,19 +147,28 @@ let should_send_to_rail (expr : nexpr) : bool =
   match expr with FnCallSendToRail _ -> true | _ -> false
 
 
-let create_db_filter_preview (state : exec_state) (db : dval) (st : symtable) :
-    dval =
+let get_db_fields (state : exec_state) (db : dval) : (string * tipe_) list =
   let dbname = match db with DDB name -> Some name | _ -> None in
   state.dbs
   |> List.find ~f:(fun sdb ->
          Option.is_some dbname && blank_to_option sdb.name = dbname)
   |> Option.map ~f:(fun db -> db.cols)
   |> Option.value ~default:[]
+  |> List.filter_map ~f:(function
+         | Filled (_, field), Filled (_, tipe) ->
+             Some (field, tipe)
+         | _ ->
+             None)
+
+
+let create_db_filter_preview (state : exec_state) (db : dval) : dval =
+  get_db_fields state db
   |> List.map ~f:Tablecloth.Tuple2.first
-  |> List.filter_map ~f:blank_to_option
   |> List.map ~f:(fun v -> (v, DIncomplete SourceNone))
   |> Dval.to_dobj_exn
 
+
+type db_filter_arg = expr * (string * tipe_) list [@@deriving yojson]
 
 let rec exec
     ~(engine : engine) ~(state : exec_state) (st : symtable) (expr : expr) :
@@ -286,18 +295,24 @@ let rec exec
             , [ (Filled (_, Lambda ([value], body)) as l)
               ; (Filled (_, Variable _) as rhs) ] ) ) ->
         let db = exe st rhs in
-        let lambda = expr_to_yojson l |> Yojson.Safe.to_string in
+        let fields = get_db_fields state db in
+        let lambda_arg =
+          (l, fields)
+          |> db_filter_arg_to_yojson
+          |> Yojson.Safe.to_string
+          |> Dval.dstr_of_string_exn
+        in
         if ctx = Preview
         then (
-          let preview_dval = create_db_filter_preview state db st in
+          let preview_dval = create_db_filter_preview state db in
           trace_blank value preview_dval st ;
           (* using the string here means that the execute_function API gets
            * the right value *)
-          trace l (Dval.dstr_of_string_exn lambda) st ;
+          trace l lambda_arg st ;
           let newst = Symtable.singleton "value" preview_dval in
           exe newst body |> ignore ;
           () ) ;
-        call "DB::filter" id [Dval.dstr_of_string_exn lambda; db] true
+        call "DB::filter" id [lambda_arg; db] true
     | Filled (id, FnCallSendToRail (name, exprs)) ->
         let argvals = List.map ~f:(exe st) exprs in
         call name id argvals true

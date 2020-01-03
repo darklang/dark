@@ -20,6 +20,7 @@ type param =
   | Null
   | List of param list
   | Bool of bool
+[@@deriving show]
 
 (* only works for in-script params *)
 

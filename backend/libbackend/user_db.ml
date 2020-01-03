@@ -317,36 +317,111 @@ let get_all ~state (db : db) : (string * dval) list =
              Exception.internal "bad format received in get_all")
 
 
-let rec lambda_to_sql_inner expr =
-  let lts e = lambda_to_sql_inner e in
+let binop_to_sql op : string =
+  match op with
+  | ">" | "<" | "<=" | ">=" | "+" | "-" | "*" | "/" | "%" | "^" ->
+      op
+  | "Int::mod" ->
+      "%"
+  | "Int::add" ->
+      "+"
+  | "Int::substract" ->
+      "-"
+  | "Int::multiply" ->
+      "*"
+  | "Int::power" ->
+      "^"
+  | "Int::divide" ->
+      "/"
+  | "Int::greaterThan" ->
+      ">"
+  | "Int::greaterThanOrEqualTo" ->
+      ">="
+  | "Int::lessThan" ->
+      "<"
+  | "Int::lessThanOrEqualTo" ->
+      "%"
+  | "==" | "notEquals" ->
+      "="
+  | "!=" | "equals" ->
+      "<>"
+  | "&&" ->
+      "AND"
+  | "||" ->
+      "OR"
+  | _ ->
+      Exception.internal ("op not supported: " ^ op)
+
+
+let tipe_to_sql_tipe (t : tipe_) : string =
+  match t with
+  | TStr ->
+      "text"
+  | TInt ->
+      "integer"
+  | TFloat ->
+      "double precision"
+  | TBool ->
+      "bool"
+  | _ ->
+      Exception.internal ("unsupported DB field tipe" ^ show_tipe_ t)
+
+
+let rec lambda_to_sql_inner fields expr =
+  let lts e = lambda_to_sql_inner fields e in
   match expr with
-  | Filled (_, FnCall (">", [l; r])) ->
-      "(" ^ lts l ^ " > " ^ lts r ^ ")"
+  | Filled (_, FnCall ("==", [Filled (_, Value "null"); e]))
+  | Filled (_, FnCall ("==", [e; Filled (_, Value "null")])) ->
+      "(" ^ lts e ^ " is null)"
+  | Filled (_, FnCall ("!=", [Filled (_, Value "null"); e]))
+  | Filled (_, FnCall ("!=", [e; Filled (_, Value "null")])) ->
+      "(" ^ lts e ^ " is not null)"
+  | Filled (_, FnCall (op, [l; r])) ->
+      "(" ^ lts l ^ binop_to_sql op ^ lts r ^ ")"
   | Filled (_, Value str) ->
-      "to_jsonb(" ^ str ^ ")"
+      (* TODO: change to dval then turn to sql *)
+      "(" ^ str ^ ")"
   | Filled (_, FieldAccess (Filled (_, Variable "value"), Filled (_, fieldname)))
     ->
-      "data::jsonb->'" ^ fieldname ^ "'"
+      let tipe =
+        match Tablecloth.StrDict.get fields ~key:fieldname with
+        | Some v ->
+            v
+        | None ->
+            Exception.internal ("DB does not have field named: " ^ fieldname)
+      in
+      "CAST(data::jsonb->>'"
+      ^ fieldname
+      ^ "' as "
+      ^ tipe_to_sql_tipe tipe
+      ^ ") "
   | _ ->
       Exception.internal "unsupported type"
 
 
-let lambda_to_sql_outer lambda =
+let lambda_to_sql_outer fields lambda =
   match lambda with
   | Filled (_, Lambda (_, body)) ->
-      lambda_to_sql_inner body
+      lambda_to_sql_inner fields body |> Libcommon.Log.inspect "dbfiltersql"
   | _ ->
       Exception.internal "not a lambda"
 
 
-let filter ~state (db : db) (encoded_lambda : string) : (string * dval) list =
-  let lambda =
-    encoded_lambda
+type db_filter_arg = expr * (string * tipe_) list [@@deriving yojson]
+
+let show_list ~(f : 'a -> string) (x : 'a list) : string =
+  "[" ^ Tablecloth.String.join ~sep:"," (List.map ~f x) ^ "]"
+
+
+let filter ~state (db : db) (encoded_arg : string) : (string * dval) list =
+  let lambda, fields =
+    encoded_arg
     |> Yojson.Safe.from_string
-    |> expr_of_yojson
+    |> db_filter_arg_of_yojson
     |> Result.ok_or_failwith
   in
-  let sql = lambda_to_sql_outer lambda in
+  let fields = Tablecloth.StrDict.from_list fields in
+  let sql = lambda_to_sql_outer fields lambda in
   Db.fetch
     ~name:"get_all"
     ( "SELECT key, data
@@ -357,14 +432,16 @@ let filter ~state (db : db) (encoded_lambda : string) : (string * dval) list =
      AND user_version = $4
      AND dark_version = $5
      AND ("
-    ^ sql
-    ^ ")" )
+      ^ sql
+      ^ ")"
+    |> Libcommon.Log.inspect "sql" )
     ~params:
-      [ ID db.tlid
-      ; Uuid state.account_id
-      ; Uuid state.canvas_id
-      ; Int db.version
-      ; Int current_dark_version ]
+      ( [ ID db.tlid
+        ; Uuid state.account_id
+        ; Uuid state.canvas_id
+        ; Int db.version
+        ; Int current_dark_version ]
+      |> Libcommon.Log.inspect ~f:(show_list ~f:Db.show_param) "params" )
   |> List.map ~f:(fun return_val ->
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
