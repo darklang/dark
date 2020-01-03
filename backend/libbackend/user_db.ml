@@ -377,7 +377,7 @@ let rec lambda_to_sql_inner fields expr =
   | Filled (_, FnCall ("!=", [e; Filled (_, Value "null")])) ->
       "(" ^ lts e ^ " is not null)"
   | Filled (_, FnCall (op, [l; r])) ->
-      "(" ^ lts l ^ binop_to_sql op ^ lts r ^ ")"
+      "(" ^ lts l ^ " " ^ binop_to_sql op ^ " " ^ lts r ^ ")"
   | Filled (_, Value str) ->
       (* TODO: change to dval then turn to sql *)
       "(" ^ str ^ ")"
