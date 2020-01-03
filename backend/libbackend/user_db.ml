@@ -367,6 +367,20 @@ let tipe_to_sql_tipe (t : tipe_) : string =
       Exception.internal ("unsupported DB field tipe" ^ show_tipe_ t)
 
 
+let rec inline symtable expr =
+  match expr with
+  | Filled (_, Let (Filled (_, name), expr, body)) ->
+      inline (Tablecloth.StrDict.insert ~key:name ~value:expr symtable) body
+  | Filled (_, Variable name) when name <> "value" ->
+    ( match Tablecloth.StrDict.get ~key:name symtable with
+    | Some expr ->
+        expr
+    | None ->
+        Exception.internal ("variable not defined: " ^ name) )
+  | _ ->
+      Ast.traverse ~f:(inline symtable) expr
+
+
 let rec lambda_to_sql_inner fields expr =
   let lts e = lambda_to_sql_inner fields e in
   match expr with
@@ -403,7 +417,8 @@ let rec lambda_to_sql_inner fields expr =
 let lambda_to_sql_outer fields lambda =
   match lambda with
   | Filled (_, Lambda (_, body)) ->
-      lambda_to_sql_inner fields body |> Libcommon.Log.inspect "dbfiltersql"
+      lambda_to_sql_inner fields (inline Tablecloth.StrDict.empty body)
+      |> Libcommon.Log.inspect "dbfiltersql"
   | _ ->
       Exception.internal "not a lambda"
 
