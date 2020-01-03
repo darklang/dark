@@ -49,14 +49,6 @@ let getStringIndexMaybe ti pos : int option =
       None
 
 
-let getStringIndex ti pos : int =
-  match getStringIndexMaybe ti pos with
-  | Some i ->
-      i
-  | None ->
-      recover "getting index of non-string" ~debug:(ti.token, pos) 0
-
-
 let astAndStateFromTLID (m : model) (tlid : tlid) : (E.t * state) option =
   (* TODO(JULIAN): codify removeHandlerTransientState as an external function, make `fromExpr`
     accept only the info it needs, and differentiate between handler-specific and global fluid state. *)
@@ -1282,140 +1274,6 @@ let removeEmptyExpr (id : id) (ast : ast) : E.t =
           E.newB ()
       | _ ->
           e)
-
-
-(* -------------------- *)
-(* Strings *)
-(* -------------------- *)
-let maybeCommitStringPartial pos ti newAST newState =
-  let id = T.tid ti.token in
-  (* Handle moving from a partial back to an EString *)
-  let valid_escape_chars_alist =
-    (* We use this alist for two things: knowing what chars are permitted
-     * after a \, and knowing what to replace them with as we go from a
-     * display string to the real thing *)
-    [("n", "\n"); ("t", "\t"); ("\\", "\\")]
-  in
-  let valid_escape_chars = valid_escape_chars_alist |> List.map ~f:fst in
-  let invalid_escapes_in_string (str : string) : string list =
-    let captures =
-      (* Capture any single character following a '\'. Escaping is
-       * terrible here. *)
-      (* takes a unit arg so we create a new re value every time we run -
-       * the re value contains state *)
-      (* Non-capturing group of even number (inc'l 0) of slashes handles
-       * '\\\o' - recognizes that the first pair is a valid sequence
-       * ('\\'), and the second is not ('\o') *)
-      let re () = [%re "/(?:\\\\\\\\)*\\\\(.)/g"] in
-      let rec matches (acc : Js.Re.result list) (re : Js.Re.t) :
-          Js.Re.result list =
-        match Regex.matches ~re str with
-        | None ->
-            acc
-        | Some r ->
-            matches (r :: acc) re
-      in
-      matches [] (re ())
-      |> List.map ~f:Js.Re.captures
-      |> List.filterMap ~f:(function
-             | [|_whole_match; capture|] ->
-                 Some capture
-             | _ ->
-                 None)
-      |> List.filterMap ~f:Js.Nullable.toOption
-    in
-    captures
-    |> List.filter ~f:(fun c -> not (List.member ~value:c valid_escape_chars))
-  in
-  let origExpr = E.find id newAST in
-  let processStr (str : string) : string =
-    valid_escape_chars_alist
-    |> List.foldl ~init:str ~f:(fun (from, repl) acc ->
-           (* workaround for how "\\" gets escaped *)
-           let from = if from == "\\" then "\\\\" else from in
-           Regex.replace ~re:(Regex.regex ("\\\\" ^ from)) ~repl acc)
-  in
-  let newAST =
-    E.update
-      ~failIfMissing:false
-      ~f:(function
-        | EPartial (_, str, EString _) as origExpr ->
-            let processedStr = processStr str in
-            let invalid_escapes = invalid_escapes_in_string str in
-            if not (List.isEmpty invalid_escapes)
-            then origExpr (* no-op *)
-            else EString (id, processedStr)
-        | origExpr ->
-            origExpr (* no-op *))
-      id
-      newAST
-  in
-  let newState =
-    ( match origExpr with
-    | Some (EPartial (_, str, EString _)) ->
-        let invalid_escapes = invalid_escapes_in_string str in
-        if invalid_escapes <> [] then None (* no-op *) else Some str
-    | _ ->
-        None (* no-op *) )
-    |> Option.map ~f:(fun oldStr ->
-           let oldOffset = pos - ti.startPos in
-           (* We might have shortened the string when we processed its
-            * escapes - but only the ones to the left of the cursor would
-            * move the cursor *)
-           let oldlhs, _ = String.splitAt ~index:oldOffset oldStr in
-           let newlhs = processStr oldlhs in
-           let newOffset =
-             oldOffset + (String.length oldlhs - String.length newlhs)
-           in
-           let astRef =
-             match E.find id newAST with
-             | Some (EString _) ->
-                 ARString (id, SPOpenQuote)
-             | Some (EPartial _) ->
-                 ARPartial id
-             | Some expr ->
-                 recover
-                   "need an ASTRef match for "
-                   ~debug:(show_fluidExpr expr)
-                   (ARPartial id)
-             | _ ->
-                 recover "no expr found for ID" ~debug:id (ARPartial id)
-           in
-           moveToAstRef newState newAST ~offset:(newOffset + 1) astRef)
-    (* If origExpr wasn't an EPartial (_, _, EString _), then we didn't
-     * change the AST in the updateExpr call, so leave the newState as it
-     * was *)
-    |> Option.withDefault ~default:newState
-  in
-  (newAST, newState)
-
-
-let startEscapingString pos ti (s : fluidState) (ast : fluidExpr) :
-    fluidExpr * fluidState =
-  (* I think this is correct but depends on how we 'render' strings - that
-   * is, it is correct because we display '"', which bumps pos by 1. *)
-  let offset = getStringIndex ti pos in
-  let id = T.tid ti.token in
-  let newAst =
-    E.update
-      ~f:(function
-        | EString (_, str) as old_expr ->
-            let new_str =
-              String.splitAt ~index:offset str
-              |> (fun (lhs, rhs) -> (lhs, rhs))
-              |> fun (lhs, rhs) -> lhs ^ "\\" ^ rhs
-            in
-            EPartial (id, new_str, old_expr)
-        | e ->
-            e (* TODO can't happen *))
-      id
-      ast
-  in
-  let newState =
-    let offset = offset + 1 in
-    moveToAstRef s newAst ~offset (ARPartial id)
-  in
-  (newAst, newState)
 
 
 (* ---------------- *)
@@ -3381,10 +3239,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * ordering ADD A TEST, even if it's otherwise redundant from a product
      * POV. *)
     match (key, toTheLeft, toTheRight) with
-    (* Entering a string escape *)
-    | K.Backslash, L (TString _, _), R (TString _, ti)
-      when false (* disable for now *) && pos - ti.startPos != 0 ->
-        startEscapingString pos ti s ast
     (* Moving through a lambda arrow with '->' *)
     | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
         (ast, moveOneRight (ti.startPos + 1) s)
@@ -3888,8 +3742,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             (* keep the actions for debugging *)
             {s with actions = newState.actions}
         else (newAST, newState)
-    | L (TPartial (_, _), ti), _ when false (* disable for now *) ->
-        maybeCommitStringPartial pos ti newAST newState
     | _ ->
         (newAST, newState)
 
