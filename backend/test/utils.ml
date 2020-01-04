@@ -344,6 +344,8 @@ let test_execution_data
     ; fail_fn = None
     ; dbs = TL.dbs !c.dbs
     ; execution_id
+    ; exec = (fun _ _ -> DIncomplete SourceNone)
+    ; symtable = DvalMap.empty
     ; load_fn_result = load_test_fn_results
     ; store_fn_result =
         Stored_function_result.store ~canvas_id ~trace_id
@@ -366,6 +368,8 @@ let execute_ops
         ; store_fn_arguments
         ; execution_id
         ; dbs
+        ; exec
+        ; symtable
         ; user_fns
         ; user_tipes
         ; account_id
@@ -458,7 +462,7 @@ let sample_dvals =
            ; ("value", Dval.dstr_of_string_exn "x") ]) )
   ; ("incomplete", DIncomplete SourceNone)
   ; ("error", DError (SourceNone, "some error string"))
-  ; ("block", DBlock (fun _args -> DNull))
+  ; ("block", DBlock (["a"], Blank (Util.create_id ())))
   ; ("errorrail", DErrorRail (Dval.dint 5))
   ; ("redirect", DResp (Redirect "/home", DNull))
   ; ( "httpresponse"
