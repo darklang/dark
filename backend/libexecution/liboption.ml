@@ -26,10 +26,11 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DOption o; DBlock fn] ->
+          | state, [DOption o; DBlock ([argname], body)] ->
             ( match o with
             | OptJust dv ->
-                DOption (OptJust (fn [dv]))
+                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                DOption (OptJust result)
             | OptNothing ->
                 DOption OptNothing )
           | args ->
@@ -45,10 +46,11 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DOption o; DBlock fn] ->
+          | state, [DOption o; DBlock ([argname], body)] ->
             ( match o with
             | OptJust dv ->
-                Dval.to_opt_just (fn [dv])
+                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                Dval.to_opt_just result
             | OptNothing ->
                 DOption OptNothing )
           | args ->
@@ -64,17 +66,18 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DOption o; DBlock fn] ->
+          | state, [DOption o; DBlock ([argname], body)] ->
             ( match o with
             | OptJust dv ->
-              ( match fn [dv] with
-              | DOption result ->
-                  DOption result
-              | other ->
-                  RT.error
-                    ~actual:other
-                    ~expected:"an option"
-                    "Expected `f` to return an option" )
+                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                ( match result with
+                | DOption result ->
+                    DOption result
+                | other ->
+                    RT.error
+                      ~actual:other
+                      ~expected:"an option"
+                      "Expected `f` to return an option" )
             | OptNothing ->
                 DOption OptNothing )
           | args ->
