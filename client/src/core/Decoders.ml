@@ -307,7 +307,7 @@ let rec dval j : dval =
       , tryDecode2
           (dv1 (fun x -> DError (SourceNone, x)) string)
           (dv1 (fun (i, msg) -> DError (i, msg)) (tuple2 srcT string)) )
-    ; ("DBlock", dv0 DBlock)
+    ; ("DBlock", dv2 (fun x y -> DBlock (x, y)) (list string) fluidExpr)
     ; ("DErrorRail", dv1 (fun x -> DErrorRail x) dd)
     ; ("DResp", dv1 (fun (h, dv) -> DResp (h, dv)) (tuple2 dhttp dd))
     ; ("DDB", dv1 (fun x -> DDB x) string)

@@ -397,7 +397,7 @@ and dval =
   | DObj of dval StrDict.t
   | DIncomplete of dval_source
   | DError of (dval_source * string)
-  | DBlock
+  | DBlock of string list * fluidExpr
   | DErrorRail of dval
   | DResp of dhttp * dval
   | DDB of string

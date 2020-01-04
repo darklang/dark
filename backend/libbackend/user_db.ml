@@ -317,21 +317,20 @@ let get_all ~state (db : db) : (string * dval) list =
              Exception.internal "bad format received in get_all")
 
 
-type db_filter_arg = expr * (string * tipe_) list [@@deriving yojson]
+let get_db_fields (db : db) : (string * tipe_) list =
+  List.filter_map db.cols ~f:(function
+      | Filled (_, field), Filled (_, tipe) ->
+          Some (field, tipe)
+      | _ ->
+          None)
 
-let show_list ~(f : 'a -> string) (x : 'a list) : string =
-  "[" ^ Tablecloth.String.join ~sep:"," (List.map ~f x) ^ "]"
 
-
-let filter ~state (db : db) (encoded_arg : string) : (string * dval) list =
-  let lambda, fields =
-    encoded_arg
-    |> Yojson.Safe.from_string
-    |> db_filter_arg_of_yojson
-    |> Result.ok_or_failwith
+let filter ~state (db : db) (paramName : string) (body : expr) :
+    (string * dval) list =
+  let dbFields = Tablecloth.StrDict.from_list (get_db_fields db) in
+  let sql =
+    Sql_compiler.compile_lambda state.symtable paramName dbFields body
   in
-  let fields = Tablecloth.StrDict.from_list fields in
-  let sql = Sql_compiler.compile_lambda fields lambda in
   Db.fetch
     ~name:"get_all"
     ( "SELECT key, data

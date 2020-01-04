@@ -414,7 +414,7 @@ module RuntimeT = struct
     (* special types - see notes above *)
     | DIncomplete of dval_source
     | DError of (dval_source * string)
-    | DBlock of dval block
+    | DBlock of string list * expr
     | DErrorRail of dval
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
@@ -511,6 +511,11 @@ module RuntimeT = struct
     ; user_fns : user_fn list
     ; user_tipes : user_tipe list
     ; dbs : DbT.db list
+    ; exec : dval_map -> expr -> dval
+    ; symtable
+        (* for the function being executed, an up-to-date symtable. This is
+         * for lambdas to be able to reach out into the fn scope *) :
+        dval_map
     ; execution_id : id
     ; load_fn_result : load_fn_result_type
     ; store_fn_result : store_fn_result_type

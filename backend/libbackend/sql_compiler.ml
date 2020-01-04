@@ -64,7 +64,7 @@ let tipe_to_sql_tipe (t : tipe_) : string =
       Exception.internal ("unsupported DB field tipe" ^ show_tipe_ t)
 
 
-let rec inline symtable expr =
+let rec inline (symtable : expr Tablecloth.StrDict.t) (expr : expr) : expr =
   match expr with
   | Filled (_, Let (Filled (_, name), expr, body)) ->
       inline (Tablecloth.StrDict.insert ~key:name ~value:expr symtable) body
@@ -94,8 +94,14 @@ let rec canonicalize expr =
       Ast.traverse ~f:canonicalize expr
 
 
-let rec lambda_to_sql_inner fields expr =
-  let lts e = lambda_to_sql_inner fields e in
+let dval_to_sql (dval : dval) : string = "null"
+
+let rec lambda_to_sql_inner
+    (symtable : dval_map)
+    (paramName : string)
+    (dbFields : tipe_ Tablecloth.StrDict.t)
+    (expr : expr) : string =
+  let lts e = lambda_to_sql_inner symtable paramName dbFields e in
   match expr with
   | Filled (_, FnCall ("==", [Filled (_, Value "null"); e]))
   | Filled (_, FnCall ("==", [e; Filled (_, Value "null")])) ->
@@ -107,13 +113,19 @@ let rec lambda_to_sql_inner fields expr =
       "(" ^ lts l ^ " " ^ binop_to_sql op ^ " " ^ lts r ^ ")"
   | Filled (_, FnCall (op, [e])) ->
       "(" ^ unary_op_to_sql op ^ " " ^ lts e ^ ")"
+  | Filled (_, Variable name) ->
+    ( match DvalMap.get ~key:name symtable with
+    | Some dval ->
+        dval_to_sql dval
+    | None ->
+        Exception.internal ("Variable is undefined: " ^ name) )
   | Filled (_, Value str) ->
-      (* TODO: change to dval then turn to sql *)
-      "(" ^ str ^ ")"
-  | Filled (_, FieldAccess (Filled (_, Variable "value"), Filled (_, fieldname)))
-    ->
+      let dval = Dval.parse_literal str |> Option.value_exn in
+      "(" ^ dval_to_sql dval ^ ")"
+  | Filled (_, FieldAccess (Filled (_, Variable v), Filled (_, fieldname)))
+    when v = paramName ->
       let tipe =
-        match Tablecloth.StrDict.get fields ~key:fieldname with
+        match Tablecloth.StrDict.get dbFields ~key:fieldname with
         | Some v ->
             v
         | None ->
@@ -129,12 +141,12 @@ let rec lambda_to_sql_inner fields expr =
         ("unsupported code in DB::filter query: " ^ show_expr expr)
 
 
-let compile_lambda fields lambda =
-  match lambda with
-  | Filled (_, Lambda (_, body)) ->
-      body
-      |> canonicalize
-      |> inline Tablecloth.StrDict.empty
-      |> lambda_to_sql_inner fields
-  | _ ->
-      Exception.internal "not a lambda"
+let compile_lambda
+    (symtable : dval_map)
+    (paramName : string)
+    (dbFields : tipe_ Tablecloth.StrDict.t)
+    (body : expr) =
+  body
+  |> canonicalize
+  |> inline Tablecloth.StrDict.empty
+  |> lambda_to_sql_inner symtable paramName dbFields

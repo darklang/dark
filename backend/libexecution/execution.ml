@@ -108,6 +108,8 @@ let execute_handler
     ; user_fns
     ; user_tipes
     ; dbs
+    ; exec = (fun _ _ -> DIncomplete SourceNone)
+    ; symtable = DvalMap.empty
     ; execution_id
     ; fail_fn = None
     ; load_fn_result
@@ -149,6 +151,8 @@ let execute_function
     ; user_fns
     ; user_tipes
     ; dbs
+    ; exec = (fun _ _ -> DIncomplete SourceNone)
+    ; symtable = DvalMap.empty
     ; execution_id
     ; fail_fn = None
     ; load_fn_result = load_no_results
@@ -182,6 +186,8 @@ let analyse_ast
     ; user_fns
     ; user_tipes
     ; dbs
+    ; exec = (fun _ _ -> DIncomplete SourceNone)
+    ; symtable = DvalMap.empty
     ; execution_id
     ; fail_fn = None
     ; load_fn_result

@@ -369,7 +369,7 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
     | "option" ->
         DOption OptNothing
     | "block" ->
-        DBlock (fun _ -> DError (SourceNone, "Can't deserialize blocks"))
+        DBlock ([], Blank (id_of_int 56789))
     | "errorrail" ->
         DErrorRail DNull
     | _ ->
@@ -471,7 +471,7 @@ let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : dval =
       then DOption OptNothing
       else DOption (OptJust (unsafe_dval_of_yojson_v1 dv))
   | `Assoc [("type", `String "block"); ("value", `Null)] ->
-      DBlock (fun _ -> DError (SourceNone, "Can't deserialize blocks"))
+      DBlock ([], Blank (id_of_int 45678))
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
       DErrorRail (unsafe_dval_of_yojson_v1 dv)
   | `Assoc [("type", `String "date"); ("value", `String v)] ->

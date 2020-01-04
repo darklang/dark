@@ -110,9 +110,8 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       |> Js.Dict.fromList
       |> jsonDict
       |> fun x -> [x] |> ev "DObj"
-  (* opaque types *)
-  | DBlock ->
-      ev "DBlock" [null]
+  | DBlock (params, expr) ->
+      ev "DBlock" [list string params; fluidExpr expr]
   | DIncomplete SourceNone ->
       ev "DIncomplete" [ev "SourceNone" []]
   | DIncomplete (SourceId i) ->
@@ -156,7 +155,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DBytes" [string (bin |> base64url_bytes)]
 
 
-let rec blankOrData (pd : Types.blankOrData) : Js.Json.t =
+and blankOrData (pd : Types.blankOrData) : Js.Json.t =
   let ev = variant in
   match pd with
   | PEventName name ->

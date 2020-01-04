@@ -147,37 +147,15 @@ let should_send_to_rail (expr : nexpr) : bool =
   match expr with FnCallSendToRail _ -> true | _ -> false
 
 
-let get_db_fields (state : exec_state) (db : dval) : (string * tipe_) list =
-  let dbname = match db with DDB name -> Some name | _ -> None in
-  state.dbs
-  |> List.find ~f:(fun sdb ->
-         Option.is_some dbname && blank_to_option sdb.name = dbname)
-  |> Option.map ~f:(fun db -> db.cols)
-  |> Option.value ~default:[]
-  |> List.filter_map ~f:(function
-         | Filled (_, field), Filled (_, tipe) ->
-             Some (field, tipe)
-         | _ ->
-             None)
-
-
-let create_db_filter_preview (state : exec_state) (db : dval) : dval =
-  get_db_fields state db
-  |> List.map ~f:Tablecloth.Tuple2.first
-  |> List.map ~f:(fun v -> (v, DIncomplete SourceNone))
-  |> Dval.to_dobj_exn
-
-
-type db_filter_arg = expr * (string * tipe_) list [@@deriving yojson]
-
 let rec exec
     ~(engine : engine) ~(state : exec_state) (st : symtable) (expr : expr) :
     dval =
+  let state = {state with symtable = st} in
+  let state = {state with exec = exec ~engine ~state} in
   let exe = exec ~engine ~state in
   let call = call_fn ~engine ~state in
   let ctx = engine.ctx in
   let trace = engine.trace in
-  let trace_blank = engine.trace_blank in
   (* This is a super hacky way to inject params as the result of
    * pipelining using the `Thread` construct
    *
@@ -199,8 +177,10 @@ let rec exec
       | Filled (id, Lambda _) ->
           let result = exe st exp in
           ( match result with
-          | DBlock blk ->
-              blk [param]
+          | DBlock ([paramname], body) ->
+              (* Pipes can only pipe into lambdas with one parameter *)
+              let st = DvalMap.insert ~key:paramname ~value:param st in
+              exe st body
           | _ ->
               (* This should never happen, but the user should be allowed to
                * recover so this shouldn't be an exception *)
@@ -288,31 +268,6 @@ let rec exec
           DError (SourceId id, "There is no variable named: " ^ name)
       | Some other, _ ->
           other )
-    | Filled
-        ( id
-        , FnCall
-            ( "DB::filter"
-            , [ (Filled (_, Lambda ([value], body)) as l)
-              ; (Filled (_, Variable _) as rhs) ] ) ) ->
-        let db = exe st rhs in
-        let fields = get_db_fields state db in
-        let lambda_arg =
-          (l, fields)
-          |> db_filter_arg_to_yojson
-          |> Yojson.Safe.to_string
-          |> Dval.dstr_of_string_exn
-        in
-        if ctx = Preview
-        then (
-          let preview_dval = create_db_filter_preview state db in
-          trace_blank value preview_dval st ;
-          (* using the string here means that the execute_function API gets
-           * the right value *)
-          trace l lambda_arg st ;
-          let newst = Symtable.singleton "value" preview_dval in
-          exe newst body |> ignore ;
-          () ) ;
-        call "DB::filter" id [lambda_arg; db] true
     | Filled (id, FnCallSendToRail (name, exprs)) ->
         let argvals = List.map ~f:(exe st) exprs in
         call name id argvals true
@@ -416,7 +371,7 @@ let rec exec
           | _ ->
               exe st oldcode ) )
     | Filled (id, Lambda (vars, body)) ->
-        if ctx = Preview
+        ( if ctx = Preview
         then
           (* Since we return a DBlock, it's contents may never be
           * executed. So first we execute with no context to get some
@@ -426,38 +381,19 @@ let rec exec
               (Symtable.singleton "var" (DIncomplete SourceNone))
               st
           in
-          ignore (exe fake_st body)
-        else () ;
-        (* TODO: this will error if the number of args and vars arent equal *)
-        DBlock
-          (fun args ->
-            (* If one of the args is fake value used as a marker,
-             * return it instead of executing. This is the same behaviour as in fn calls. *)
-            let first_marker = List.find args ~f:Dval.is_fake_marker_dval in
-            match first_marker with
-            | Some dv ->
-                dv
-            | None ->
-                let filled = List.filter ~f:(Fn.compose not is_blank) vars in
-                if List.length filled <> List.length args
-                then
-                  DError
-                    ( SourceId id
-                    , "Expected "
-                      ^ string_of_int (List.length filled)
-                      ^ " arguments, got "
-                      ^ string_of_int (List.length args) )
-                else (
-                  List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
-                      trace_blank var dv st) ;
-                  let new_st =
-                    filled
-                    |> List.filter_map ~f:blank_to_option
-                    |> (fun varnames -> List.zip_exn varnames args)
-                    |> Symtable.from_list_exn
-                    |> fun bindings -> Util.merge_left bindings st
-                  in
-                  exe new_st body ))
+          ignore (exe fake_st body) ) ;
+        let vars =
+          List.filter_map vars ~f:(function
+              | Blank _ ->
+                  None
+              | Partial _ ->
+                  None
+              | Filled (id, name) ->
+                  Some name)
+        in
+        (* It is the responsibility of wherever executes the DBlock to pass in
+         * args and execute the body. *)
+        DBlock (vars, body)
     | Filled (id, Thread exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
       ( match exprs with
