@@ -89,10 +89,6 @@ let t_result_stdlibs_work () =
     (exec_ast "(Result::map (Error 'test') (\\x -> (Int::divide x 2)))")
     (DResult (ResError test_string)) ;
   check_dval
-    "maperror ok"
-    (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
-    (DResult (ResOk (Dval.dint 4))) ;
-  check_dval
     "map v1 ok"
     (exec_ast "(Result::map_v1 (Ok 4) (\\x -> (Int::divide x 2)))")
     (DResult (ResOk (Dval.dint 2))) ;
@@ -105,9 +101,22 @@ let t_result_stdlibs_work () =
     (exec_ast "(Result::map_v1 _ (\\x -> (Int::divide x 2)))")
     (DIncomplete SourceNone) ;
   check_dval
+    "maperror ok"
+    (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
+    (DResult (ResOk (Dval.dint 4))) ;
+  check_dval
     "maperror error"
     (exec_ast
        "(Result::mapError (Error 'test') (\\x -> (String::append x '-appended')))")
+    (DResult (ResError (Dval.dstr_of_string_exn "test-appended"))) ;
+  check_dval
+    "maperror v1 ok"
+    (exec_ast "(Result::mapError_v1 (Ok 4) (\\x -> (Int::divide x 2)))")
+    (DResult (ResOk (Dval.dint 4))) ;
+  check_dval
+    "maperror v1 error"
+    (exec_ast
+       "(Result::mapError_v1 (Error 'test') (\\x -> (String::append x '-appended')))")
     (DResult (ResError (Dval.dstr_of_string_exn "test-appended"))) ;
   check_dval
     "withDefault ok"
