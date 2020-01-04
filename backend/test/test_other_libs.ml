@@ -37,6 +37,14 @@ let t_option_stdlibs_work () =
     "map nothing"
     (exec_ast "(Option::map (Nothing) (\\x -> (Int::divide x 2)))")
     (DOption OptNothing) ;
+  check_dval
+    "map  v1 just"
+    (exec_ast "(Option::map_v1 (Just 4) (\\x -> (Int::divide x 2)))")
+    (DOption (OptJust (Dval.dint 2))) ;
+  check_dval
+    "map v1 nothing"
+    (exec_ast "(Option::map_v1 (Nothing) (\\x -> (Int::divide x 2)))")
+    (DOption OptNothing) ;
   check_incomplete
     "map just incomplete"
     (exec_ast "(Option::map_v1 _ (\\x -> (x)))") ;
