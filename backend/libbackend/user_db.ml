@@ -389,6 +389,22 @@ let rec inline symtable expr =
       Ast.traverse ~f:(inline symtable) expr
 
 
+let rec canonicalize expr =
+  match expr with
+  | Filled (id, Thread []) ->
+      Blank id
+  | Filled (id, Thread (head :: tail)) ->
+      Tablecloth.List.foldl tail ~init:head ~f:(fun expr arg ->
+          match expr with
+          | Filled (id, FnCall (name, args)) ->
+              Filled (id, FnCall (name, arg :: args))
+          | _ ->
+              Exception.internal
+                ("unsupport expression in pipe: " ^ show_expr expr))
+  | _ ->
+      Ast.traverse ~f:canonicalize expr
+
+
 let rec lambda_to_sql_inner fields expr =
   let lts e = lambda_to_sql_inner fields e in
   match expr with
@@ -427,8 +443,10 @@ let rec lambda_to_sql_inner fields expr =
 let lambda_to_sql_outer fields lambda =
   match lambda with
   | Filled (_, Lambda (_, body)) ->
-      lambda_to_sql_inner fields (inline Tablecloth.StrDict.empty body)
-      |> Libcommon.Log.inspect "dbfiltersql"
+      body
+      |> canonicalize
+      |> inline Tablecloth.StrDict.empty
+      |> lambda_to_sql_inner fields
   | _ ->
       Exception.internal "not a lambda"
 
