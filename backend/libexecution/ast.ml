@@ -147,6 +147,12 @@ let should_send_to_rail (expr : nexpr) : bool =
   match expr with FnCallSendToRail _ -> true | _ -> false
 
 
+let execute_dblock
+    ~(state : exec_state) (args : (string * dval) list) (body : expr) : dval =
+  let st = args |> DvalMap.from_list |> Util.merge_left state.symtable in
+  state.exec st body
+
+
 let rec exec
     ~(engine : engine) ~(state : exec_state) (st : symtable) (expr : expr) :
     dval =

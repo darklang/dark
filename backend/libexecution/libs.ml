@@ -57,28 +57,6 @@ let get_fn_exn ~(user_fns : RuntimeT.user_fn list) (name : string) : RuntimeT.fn
       Exception.client ("No function named '" ^ name ^ "' exists")
 
 
-let init (extras : shortfn list) : unit =
-  let libs =
-    (* client and server libs *)
-    Libbool.fns
-    @ Libchar.fns
-    @ Libdate.fns
-    @ Libdict.fns
-    @ Libfloat.fns
-    @ Libhttp.fns
-    @ Libhttpclient.fns
-    @ Libint.fns
-    @ Libjson.fns
-    @ Liblist.fns
-    @ Libobject.fns
-    @ Liboption.fns
-    @ Libresult.fns
-    @ Libstd.fns
-    @ Libstring.fns
-    @ Libbytes.fns
-    @ Libuuid.fns
-    (* only implemented on server *)
-    @ extras
-  in
+let init (libs : shortfn list) : unit =
   List.iter ~f:add_short_fn libs ;
   ()
