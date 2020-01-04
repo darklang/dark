@@ -342,16 +342,14 @@ let filter ~state (db : db) (encoded_arg : string) : (string * dval) list =
      AND user_version = $4
      AND dark_version = $5
      AND ("
-      ^ sql
-      ^ ")"
-    |> Libcommon.Log.inspect "sql" )
+    ^ sql
+    ^ ")" )
     ~params:
-      ( [ ID db.tlid
-        ; Uuid state.account_id
-        ; Uuid state.canvas_id
-        ; Int db.version
-        ; Int current_dark_version ]
-      |> Libcommon.Log.inspect ~f:(show_list ~f:Db.show_param) "params" )
+      [ ID db.tlid
+      ; Uuid state.account_id
+      ; Uuid state.canvas_id
+      ; Int db.version
+      ; Int current_dark_version ]
   |> List.map ~f:(fun return_val ->
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
