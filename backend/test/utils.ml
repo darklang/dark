@@ -84,7 +84,12 @@ let clear_test_data () : unit =
 let at_dval =
   AT.testable
     (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
-    (fun a b -> compare_dval a b = 0)
+    (fun a b ->
+      match (a, b) with
+      | DIncomplete _, DIncomplete _ ->
+          true
+      | _, _ ->
+          compare_dval a b = 0)
 
 
 let check_dval = AT.check at_dval
