@@ -353,6 +353,14 @@ let binop_to_sql op : string =
       Exception.internal ("op not supported: " ^ op)
 
 
+let unary_op_to_sql op : string =
+  match op with
+  | "Bool::not" ->
+      "not"
+  | _ ->
+      Exception.internal ("op not supported: " ^ op)
+
+
 let tipe_to_sql_tipe (t : tipe_) : string =
   match t with
   | TStr ->
@@ -392,6 +400,8 @@ let rec lambda_to_sql_inner fields expr =
       "(" ^ lts e ^ " is not null)"
   | Filled (_, FnCall (op, [l; r])) ->
       "(" ^ lts l ^ " " ^ binop_to_sql op ^ " " ^ lts r ^ ")"
+  | Filled (_, FnCall (op, [e])) ->
+      "(" ^ unary_op_to_sql op ^ " " ^ lts e ^ ")"
   | Filled (_, Value str) ->
       (* TODO: change to dval then turn to sql *)
       "(" ^ str ^ ")"
