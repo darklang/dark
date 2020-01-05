@@ -544,17 +544,16 @@ let t_old_functions_deprecated () =
 (* Lib.static_fns *)
 
 let suite =
-  [ (* ("Stdlib fns work", `Quick, t_stdlib_works) *)
-    (* ; ("Option stdlibs work", `Quick, t_option_stdlibs_work) *)
-    ("Result stdlibs work", `Quick, t_result_stdlibs_work)
-    (* ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work) *)
-    (* ; ( "End-user password hashing and checking works" *)
-    (*   , `Quick *)
-    (*   , t_password_hashing_and_checking_works ) *)
-    (* ; ("JWT lib works.", `Quick, t_jwt_functions_work) *)
-    (* ; ("Date lib works", `Quick, t_date_functions_work) *)
-    (* ; ("Functions deprecated correctly", `Quick, t_old_functions_deprecated) *)
-    (* ; ("Internal functions work", `Quick, t_internal_functions) *)
-    (* ; ("Crypto::sha digest functions work", `Quick, t_crypto_sha) *)
-    (* ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws)  *)
-  ]
+  [ ("Stdlib fns work", `Quick, t_stdlib_works)
+  ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
+  ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
+  ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work)
+  ; ( "End-user password hashing and checking works"
+    , `Quick
+    , t_password_hashing_and_checking_works )
+  ; ("JWT lib works.", `Quick, t_jwt_functions_work)
+  ; ("Date lib works", `Quick, t_date_functions_work)
+  ; ("Functions deprecated correctly", `Quick, t_old_functions_deprecated)
+  ; ("Internal functions work", `Quick, t_internal_functions)
+  ; ("Crypto::sha digest functions work", `Quick, t_crypto_sha)
+  ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws) ]
