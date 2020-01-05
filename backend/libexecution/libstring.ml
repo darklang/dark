@@ -35,9 +35,12 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s; DBlock fn] ->
+          | state, [DStr s; DBlock ([paramName], body)] ->
               let result =
-                Unicode_string.map_characters ~f:(fun c -> fn [DCharacter c]) s
+                Unicode_string.map_characters
+                  ~f:(fun c ->
+                    Ast.execute_dblock state [(paramName, DCharacter c)] body)
+                  s
               in
               ( match
                   List.find
