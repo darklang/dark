@@ -148,8 +148,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
             |> List.find ~f:(fun f -> f.fnName = fnname)
             |> Option.andThen ~f:(fun fn ->
                    List.getAt ~index:pos fn.fnParameters)
-            |> Option.map ~f:(fun p ->
-                   (p.paramName, Runtime.tipe2str p.paramTipe))
+            |> Option.map ~f:(fun p -> (p.paramName, tipe2str p.paramTipe))
           in
           ( match name with
           | None ->

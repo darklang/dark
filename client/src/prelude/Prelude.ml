@@ -175,3 +175,54 @@ module Debug = struct
       unit =
     Js.log2 msg (f data)
 end
+
+(* Needs a better home *)
+
+let rec tipe2str (t : tipe) : string =
+  match t with
+  | TAny ->
+      "Any"
+  | TInt ->
+      "Int"
+  | TFloat ->
+      "Float"
+  | TBool ->
+      "Bool"
+  | TNull ->
+      "Null"
+  | TCharacter ->
+      "Character"
+  | TStr ->
+      "String"
+  | TList ->
+      "List"
+  | TObj ->
+      "Dict"
+  | TBlock ->
+      "Block"
+  | TIncomplete ->
+      "Incomplete"
+  | TError ->
+      "Error"
+  | TResp ->
+      "Response"
+  | TDB ->
+      "Datastore"
+  | TDate ->
+      "Date"
+  | TOption ->
+      "Option"
+  | TPassword ->
+      "Password"
+  | TUuid ->
+      "UUID"
+  | TErrorRail ->
+      "ErrorRail"
+  | TResult ->
+      "Result"
+  | TDbList a ->
+      "[" ^ tipe2str a ^ "]"
+  | TUserType (name, _) ->
+      name
+  | TBytes ->
+      "Bytes"
