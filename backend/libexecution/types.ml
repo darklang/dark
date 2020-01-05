@@ -512,7 +512,13 @@ module RuntimeT = struct
     ; user_fns : user_fn list
     ; user_tipes : user_tipe list
     ; dbs : DbT.db list
-    ; exec : dval_map -> expr -> dval
+    ; exec :
+           (* We need to exec in places where the execution engine isn't
+            * passed. This isn't great, but it solves the current problem.
+            * *)
+           dval_map
+        -> expr
+        -> dval
     ; symtable
         (* for the function being executed, an up-to-date symtable. This is
          * for lambdas to be able to reach out into the fn scope *) :
