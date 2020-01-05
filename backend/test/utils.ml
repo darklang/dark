@@ -467,7 +467,7 @@ let sample_dvals =
            ; ("value", Dval.dstr_of_string_exn "x") ]) )
   ; ("incomplete", DIncomplete SourceNone)
   ; ("error", DError (SourceNone, "some error string"))
-  ; ("block", DBlock (["a"], Blank (Util.create_id ())))
+  ; ("block", DBlock ([(id_of_int 5678, "a")], Blank (id_of_int 1234)))
   ; ("errorrail", DErrorRail (Dval.dint 5))
   ; ("redirect", DResp (Redirect "/home", DNull))
   ; ( "httpresponse"

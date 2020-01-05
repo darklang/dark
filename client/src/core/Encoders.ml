@@ -111,7 +111,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       |> jsonDict
       |> fun x -> [x] |> ev "DObj"
   | DBlock (params, expr) ->
-      ev "DBlock" [list string params; fluidExpr expr]
+      ev "DBlock" [list (pair id string) params; fluidExpr expr]
   | DIncomplete SourceNone ->
       ev "DIncomplete" [ev "SourceNone" []]
   | DIncomplete (SourceId i) ->

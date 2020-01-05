@@ -148,8 +148,15 @@ let should_send_to_rail (expr : nexpr) : bool =
 
 
 let execute_dblock
-    ~(state : exec_state) (args : (string * dval) list) (body : expr) : dval =
-  let st = args |> DvalMap.from_list |> Util.merge_left state.symtable in
+    ~(state : exec_state) (args : ((id * string) * dval) list) (body : expr) :
+    dval =
+  List.iter args ~f:(fun ((id, _), dv) -> state.trace id dv) ;
+  let st =
+    args
+    |> List.map ~f:(Prelude.Tuple2.mapFirst ~f:Prelude.Tuple2.second)
+    |> DvalMap.from_list
+    |> Util.merge_left state.symtable
+  in
   state.exec st body
 
 
@@ -162,6 +169,7 @@ let rec exec
   let call = call_fn ~engine ~state in
   let ctx = engine.ctx in
   let trace = engine.trace in
+  let trace_blank = engine.trace_blank in
   (* This is a super hacky way to inject params as the result of
    * pipelining using the `Thread` construct
    *
@@ -183,9 +191,10 @@ let rec exec
       | Filled (id, Lambda _) ->
           let result = exe st exp in
           ( match result with
-          | DBlock ([paramname], body) ->
+          | DBlock ([(id, paramName)], body) ->
               (* Pipes can only pipe into lambdas with one parameter *)
-              let st = DvalMap.insert ~key:paramname ~value:param st in
+              let st = DvalMap.insert ~key:paramName ~value:param st in
+              trace_blank (Filled (id, paramName)) param st ;
               exe st body
           | _ ->
               (* This should never happen, but the user should be allowed to
@@ -395,7 +404,7 @@ let rec exec
               | Partial _ ->
                   None
               | Filled (id, name) ->
-                  Some name)
+                  Some (id, name))
         in
         (* It is the responsibility of wherever executes the DBlock to pass in
          * args and execute the body. *)

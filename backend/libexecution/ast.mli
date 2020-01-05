@@ -23,7 +23,7 @@ val iter : f:(Types.RuntimeT.expr -> unit) -> Types.RuntimeT.expr -> unit
 
 val execute_dblock :
      state:Types.RuntimeT.exec_state
-  -> (string * Types.RuntimeT.dval) list
+  -> ((Types.id * string) * Types.RuntimeT.dval) list
   -> Types.RuntimeT.expr
   -> Types.RuntimeT.dval
 

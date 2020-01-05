@@ -414,7 +414,7 @@ module RuntimeT = struct
     (* special types - see notes above *)
     | DIncomplete of dval_source
     | DError of (dval_source * string)
-    | DBlock of string list * expr
+    | DBlock of (id * string) list * expr
     | DErrorRail of dval
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
