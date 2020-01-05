@@ -100,7 +100,9 @@ let execute_handler
     ?(store_fn_result = store_no_results)
     ?(store_fn_arguments = store_no_arguments)
     (h : HandlerT.handler) : dval * tlid list =
-  let vars = dbs_as_input_vars dbs @ input_vars in
+  let input_vars = dbs_as_input_vars dbs @ input_vars in
+  let tlid_store = TLIDTable.create () in
+  let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
   let state : exec_state =
     { tlid
     ; account_id
@@ -108,8 +110,9 @@ let execute_handler
     ; user_fns
     ; user_tipes
     ; dbs
-    ; exec = (fun _ _ -> DIncomplete SourceNone)
-    ; symtable = DvalMap.empty
+    ; trace = (fun _ _ -> ())
+    ; trace_tlid
+    ; context = Real
     ; execution_id
     ; fail_fn = None
     ; load_fn_result
@@ -117,7 +120,8 @@ let execute_handler
     ; store_fn_result
     ; store_fn_arguments }
   in
-  let result, tlids = Ast.execute_ast vars state h.ast in
+  let result = Ast.execute_ast ~state ~input_vars h.ast in
+  let tlids = TLIDTable.keys tlid_store in
   match result with
   | DErrorRail (DOption OptNothing) | DErrorRail (DResult (ResError _)) ->
       (DResp (Response (404, []), Dval.dstr_of_string_exn "Not found"), tlids)
@@ -144,6 +148,8 @@ let execute_function
     ?(store_fn_result = store_no_results)
     ?(store_fn_arguments = store_no_arguments)
     fnname =
+  let tlid_store = TLIDTable.create () in
+  let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
   let state : exec_state =
     { tlid
     ; account_id
@@ -151,8 +157,9 @@ let execute_function
     ; user_fns
     ; user_tipes
     ; dbs
-    ; exec = (fun _ _ -> DIncomplete SourceNone)
-    ; symtable = DvalMap.empty
+    ; trace = (fun _ _ -> ())
+    ; trace_tlid
+    ; context = Real
     ; execution_id
     ; fail_fn = None
     ; load_fn_result = load_no_results
@@ -160,7 +167,7 @@ let execute_function
     ; store_fn_result
     ; store_fn_arguments }
   in
-  Ast.execute_fn state fnname caller_id args
+  (Ast.execute_fn state fnname caller_id args, TLIDTable.keys tlid_store)
 
 
 (* -------------------- *)
@@ -178,6 +185,8 @@ let analyse_ast
     ?(load_fn_result = load_no_results)
     ?(load_fn_arguments = load_no_arguments)
     (ast : expr) : analysis =
+  let value_store = IDTable.create () in
+  let trace id dval = Hashtbl.set value_store ~key:id ~data:dval in
   let input_vars = dbs_as_input_vars dbs @ input_vars in
   let state : exec_state =
     { tlid
@@ -186,8 +195,9 @@ let analyse_ast
     ; user_fns
     ; user_tipes
     ; dbs
-    ; exec = (fun _ _ -> DIncomplete SourceNone)
-    ; symtable = DvalMap.empty
+    ; trace
+    ; trace_tlid = (fun _ -> ())
+    ; context = Preview
     ; execution_id
     ; fail_fn = None
     ; load_fn_result
@@ -195,7 +205,6 @@ let analyse_ast
     ; store_fn_result = store_no_results
     ; store_fn_arguments = store_no_arguments }
   in
-  let _, traced_values, _ =
-    Ast.execute_saving_intermediates state ~input_vars ast
-  in
-  traced_values
+  Libcommon.Log.infO "Executing for intermediates" ;
+  let _ = Ast.execute_ast ~state ~input_vars ast in
+  value_store

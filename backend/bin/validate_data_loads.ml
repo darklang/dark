@@ -116,8 +116,9 @@ let () =
                    ; user_fns = []
                    ; user_tipes = []
                    ; dbs
-                   ; exec = (fun _ _ -> DIncomplete SourceNone)
-                   ; symtable = Types.RuntimeT.DvalMap.empty
+                   ; context = Real
+                   ; trace = (fun _ _ -> ())
+                   ; trace_tlid = (fun _ -> ())
                    ; execution_id = Types.id_of_int 0
                    ; fail_fn = None
                    ; load_fn_result = (fun _ _ -> None)

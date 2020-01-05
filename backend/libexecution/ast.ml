@@ -126,19 +126,6 @@ let rec iter ~(f : expr -> unit) (expr : expr) : unit =
 (* Execution *)
 (* -------------------- *)
 
-(* this is _why_ we're executing the AST, to allow us to not
- * emit certain side-effects (eg. DB writes) when showing previews *)
-type context =
-  | Preview
-  | Real
-[@@deriving eq, show, yojson]
-
-type engine =
-  { trace : expr -> dval -> symtable -> unit
-  ; trace_blank : string or_blank -> dval -> symtable -> unit
-  ; trace_tlid : tlid -> unit
-  ; ctx : context }
-
 let find_derrorrail (dvals : dval list) : dval option =
   List.find dvals ~f:Dval.is_errorrail
 
@@ -215,7 +202,7 @@ let rec exec
           DIncomplete SourceNone
       (* partial w/ exception, full with dincomplete, or option dval? *)
     in
-    trace exp result st ;
+    trace (blank_to_id exp) result ;
     result
   in
   let value _ =
@@ -452,7 +439,7 @@ let rec exec
             | _ ->
                 None
           in
-          if Option.is_some result then trace (pattern2expr pat) dv st ;
+          if Option.is_some result then trace (blank_to_id pat) dv ;
           result
         in
         let matchVal = exe st matchExpr in
@@ -500,14 +487,13 @@ let rec exec
           DError (SourceId id, "Invalid construction option") )
   in
   let execed_value = value () in
-  trace expr execed_value st ;
+  trace (blank_to_id expr) execed_value ;
   execed_value
 
 
 (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv *)
 (* |> Sexp.to_string) *)
 and call_fn
-    ~(engine : engine)
     ~(state : exec_state)
     (name : string)
     (id : id)
@@ -540,7 +526,7 @@ and call_fn
                 |> List.map2_exn ~f:(fun dv p -> (p.name, dv)) argvals
                 |> DvalMap.from_list_exn
               in
-              exec_fn ~engine ~state name id fn args
+              exec_fn ~state name id fn args
             else
               DError
                 ( SourceId id
@@ -570,7 +556,6 @@ and call_fn
 
 
 and exec_fn
-    ~(engine : engine)
     ~(state : exec_state)
     (fnname : string)
     (id : id)
@@ -599,7 +584,7 @@ and exec_fn
   | _ ->
     ( match fn.func with
     | InProcess f ->
-        if engine.ctx = Preview && not fn.preview_execution_safe
+        if state.context = Preview && not fn.preview_execution_safe
         then
           match state.load_fn_result sfr_desc arglist with
           | Some (result, _ts) ->
@@ -648,9 +633,9 @@ and exec_fn
             in
             Util.merge_left db_dvals args
           in
-          engine.trace_tlid tlid ;
+          state.trace_tlid tlid ;
           (* Don't execute user functions if it's preview mode and we have a result *)
-          ( match (engine.ctx, state.load_fn_result sfr_desc arglist) with
+          ( match (state.context, state.load_fn_result sfr_desc arglist) with
           | Preview, Some (result, _ts) ->
               Dval.unwrap_from_errorrail result
           | _ ->
@@ -658,7 +643,7 @@ and exec_fn
                * But in Preview we might not have all the data we need *)
               state.store_fn_arguments tlid args ;
               let state = {state with tlid} in
-              let result = exec ~engine ~state args_with_dbs body in
+              let result = exec ~state args_with_dbs body in
               state.store_fn_result sfr_desc arglist result ;
               Dval.unwrap_from_errorrail result )
       | Error errs ->
@@ -674,68 +659,14 @@ and exec_fn
         f args )
 
 
-(* | TypeError args -> *)
-(*   let param_to_string (param: param) : string = *)
-(*     param.name *)
-(*     ^ (if param.optional then "?" else "") *)
-(*     ^ " : " *)
-(*     ^ (Dval.tipe_to_string param.tipe) *)
-(*   in *)
-(*   RT.error (fnname ^ " is missing a parameter") *)
-(*     ~expected:(fn.parameters *)
-(*                |> List.map ~f:param_to_string *)
-(*                |> String.concat ~sep:", ") *)
-(*     ~actual:DIncomplete *)
-
-(* -------------------- *)
-(* Analysis *)
-(* -------------------- *)
-
-(* Trace everything and save it *)
-let analysis_engine value_store tlid_store : engine =
-  let trace expr dval st =
-    Hashtbl.set value_store ~key:(blank_to_id expr) ~data:dval
-  in
-  let trace_blank blank dval st =
-    Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
-  in
-  let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  {trace; trace_blank; trace_tlid; ctx = Preview}
-
-
-let execute_saving_intermediates
-    ~(input_vars : input_vars) (state : exec_state) (ast : expr) :
-    dval * dval_store * tlid list =
-  Log.infO "Executing for intermediates" ;
-  let value_store = IDTable.create () in
-  let tlid_store = TLIDTable.create () in
-  let engine = analysis_engine value_store tlid_store in
-  let st = input_vars2symtable input_vars in
-  (exec ~engine ~state st ast, value_store, Hashtbl.keys tlid_store)
-
-
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
 
-(* execute for real, tracing executed toplevels *)
-let server_execution_engine tlid_store : engine =
-  let empty_trace _ _ _ = () in
-  let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  {trace = empty_trace; trace_blank = empty_trace; trace_tlid; ctx = Real}
+let execute_ast ~(state : exec_state) ~input_vars expr : dval =
+  exec ~state (input_vars2symtable input_vars) expr
 
 
-let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =
-  let tlid_store = TLIDTable.create () in
-  let engine = server_execution_engine tlid_store in
-  Log.infO "Executing for real" ;
-  let result = exec ~engine ~state (input_vars2symtable input_vars) expr in
-  (result, Hashtbl.keys tlid_store)
-
-
-let execute_fn (state : exec_state) (name : string) (id : id) (args : dval list)
-    : dval * tlid list =
-  let tlid_store = TLIDTable.create () in
-  let engine = server_execution_engine tlid_store in
-  let result = call_fn name id args false ~engine ~state in
-  (result, Hashtbl.keys tlid_store)
+let execute_fn
+    ~(state : exec_state) (name : string) (id : id) (args : dval list) : dval =
+  call_fn name id args false ~state
