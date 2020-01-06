@@ -24,7 +24,7 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   # Below is max($gid, 1000); on OS X, the user's group might be staff, with
   # gid=20, which conflicts with ubuntu group dialout.
   gid=$((gid > 1000 ? gid : 1000))
-  docker build -t dark --build-arg uid="$(id -u)" --build-arg gid="$(id -g)" .
+  docker build -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
 
   echo "Removing running containers"
   c=$(docker ps --filter "ancestor=dark" -q)
