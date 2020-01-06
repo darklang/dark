@@ -37,6 +37,14 @@ let t_option_stdlibs_work () =
     "map nothing"
     (exec_ast "(Option::map (Nothing) (\\x -> (Int::divide x 2)))")
     (DOption OptNothing) ;
+  check_dval
+    "map  v1 just"
+    (exec_ast "(Option::map_v1 (Just 4) (\\x -> (Int::divide x 2)))")
+    (DOption (OptJust (Dval.dint 2))) ;
+  check_dval
+    "map v1 nothing"
+    (exec_ast "(Option::map_v1 (Nothing) (\\x -> (Int::divide x 2)))")
+    (DOption OptNothing) ;
   check_incomplete
     "map just incomplete"
     (exec_ast "(Option::map_v1 _ (\\x -> (x)))") ;
@@ -89,6 +97,18 @@ let t_result_stdlibs_work () =
     (exec_ast "(Result::map (Error 'test') (\\x -> (Int::divide x 2)))")
     (DResult (ResError test_string)) ;
   check_dval
+    "map v1 ok"
+    (exec_ast "(Result::map_v1 (Ok 4) (\\x -> (Int::divide x 2)))")
+    (DResult (ResOk (Dval.dint 2))) ;
+  check_dval
+    "map v1 error"
+    (exec_ast "(Result::map_v1 (Error 'test') (\\x -> (Int::divide x 2)))")
+    (DResult (ResError test_string)) ;
+  check_dval
+    "map v1 incomplete"
+    (exec_ast "(Result::map_v1 _ (\\x -> (Int::divide x 2)))")
+    (DIncomplete SourceNone) ;
+  check_dval
     "maperror ok"
     (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
     (DResult (ResOk (Dval.dint 4))) ;
@@ -96,6 +116,15 @@ let t_result_stdlibs_work () =
     "maperror error"
     (exec_ast
        "(Result::mapError (Error 'test') (\\x -> (String::append x '-appended')))")
+    (DResult (ResError (Dval.dstr_of_string_exn "test-appended"))) ;
+  check_dval
+    "maperror v1 ok"
+    (exec_ast "(Result::mapError_v1 (Ok 4) (\\x -> (Int::divide x 2)))")
+    (DResult (ResOk (Dval.dint 4))) ;
+  check_dval
+    "maperror v1 error"
+    (exec_ast
+       "(Result::mapError_v1 (Error 'test') (\\x -> (String::append x '-appended')))")
     (DResult (ResError (Dval.dstr_of_string_exn "test-appended"))) ;
   check_dval
     "withDefault ok"
@@ -151,10 +180,6 @@ let t_result_stdlibs_work () =
     "andThen error,error"
     (exec_ast "(Result::andThen (Error 'test') (\\x -> (Error 'test')))")
     (DResult (ResError test_string)) ;
-  check_condition
-    "andThen_v1 propogates errors"
-    (exec_ast "(Result::andThen_v1 (Ok 5) (\\x -> (_)))")
-    ~f:(fun x -> match x with DError _ -> true | _ -> false) ;
   AT.check
     AT.bool
     "andThen wrong type"
@@ -164,6 +189,37 @@ let t_result_stdlibs_work () =
     | _ ->
         false )
     true ;
+  check_dval
+    "andThen_v1 ok,error"
+    (exec_ast "(Result::andThen_v1 (Ok 5) (\\x -> (Error 'test')))")
+    (DResult (ResError test_string)) ;
+  check_dval
+    "andThen_v1 ok,ok"
+    (exec_ast "(Result::andThen_v1 (Ok 5) (\\x -> (Ok (+ 1 x))))")
+    (DResult (ResOk (Dval.dint 6))) ;
+  check_dval
+    "andThen_v1 error,ok"
+    (exec_ast "(Result::andThen_v1 (Error 'test') (\\x -> (Ok 5)))")
+    (DResult (ResError test_string)) ;
+  check_dval
+    "andThen_v1 error,error"
+    (exec_ast "(Result::andThen_v1 (Error 'test') (\\x -> (Error 'test')))")
+    (DResult (ResError test_string)) ;
+  AT.check
+    AT.bool
+    "andThen_v1 wrong type"
+    ( match
+        exec_ast "(Result::andThen_v1 (Ok 8) (\\x -> (Int::divide x 2)))"
+      with
+    | DError (_, msg) ->
+        Prelude.String.contains ~substring:"Expected `f` to return a result" msg
+    | _ ->
+        false )
+    true ;
+  check_condition
+    "andThen_v1 propogates errors"
+    (exec_ast "(Result::andThen_v1 (Ok 5) (\\x -> (_)))")
+    ~f:(fun x -> match x with DError _ -> true | _ -> false) ;
   ()
 
 
