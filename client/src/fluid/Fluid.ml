@@ -671,7 +671,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       int option =
     match (ct.astRef, ti.token) with
     | ARBinOp (id, BOPOperator), TBinOp (id', _)
-    | ARBlank id, TBlank id'
+    | ARBlank id, (TBlank id' | TPlaceholder (_, id'))
     | ARBool id, (TTrue id' | TFalse id')
     | ARConstructor (id, CPName), TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
