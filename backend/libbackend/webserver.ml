@@ -152,7 +152,8 @@ let should_use_https uri =
   | ["talkpay"; "club"]
   | ["www"; "talkpay"; "club"]
   | ["kiksht"; "com"]
-  | ["www"; "kiksht"; "com"] ->
+  | ["www"; "kiksht"; "com"]
+  | ["food"; "placeofthin"; "gs"] ->
       true
   | _ ->
       false
@@ -1834,6 +1835,8 @@ let route_host req =
       Some (Canvas "andymoe-talkpay")
   | ["www"; "kiksht"; "com"] | ["kiksht"; "com"] ->
       Some (Canvas "alex")
+  | ["food"; "placeofthin"; "gs"] ->
+      Some (Canvas "scottriley-trellomap")
   (* admin interface + outer site, conditionally *)
   | ["darklang"; "com"]
   | ["darklang"; "localhost"]
