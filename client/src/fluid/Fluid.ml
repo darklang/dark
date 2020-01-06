@@ -2563,7 +2563,7 @@ let adjustPosForReflow
    If the transformation had no effect or couldn't be validated/coerced, we return (ast, None).
 
    TODO(JULIAN): The caretTarget behavior for EBlank is pretty confusing and it may make sense to delegate responsibility for handling that to callers,
-   although that might get messier.
+   although that might get messier. For now, this matches the behavior of replaceStringToken.
     *)
 let tryReplaceStringAndMove
     ~(f : string -> string)
@@ -2594,6 +2594,11 @@ let tryReplaceStringAndMove
       (ast, None)
 
 
+(* tryReplaceStringAndMoveOrSame has the same behavior as tryReplaceStringAndMove but
+   produces `newPosition` instead of `caretTarget option`.
+
+   It is a transitional function and shouldn't be needed once newPosition has been
+   replaced with explicit caretPlacement everywhere *)
 let tryReplaceStringAndMoveOrSame
     ~(f : string -> string)
     (token : token)
@@ -3092,7 +3097,17 @@ let doInsert' ~pos (letter : char) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TBinOp _
     | TLambdaVar _ ->
         (replaceStringToken ~f ti.token ast, RightOne)
-    | TPatternInteger (_, _, i, _) | TInteger (_, i) ->
+    | TInteger (id, _) ->
+        tryReplaceStringAndMoveOrSame
+          ~f
+          ti.token
+          ast
+          { astRef = ARInteger id
+          ; offset =
+              offset + 1
+              (* Note that if the caretTarget exceeds the token length due to coercion, posFromCaretTarget will clamp it *)
+          }
+    | TPatternInteger (_, _, i, _) ->
         let newLength = f i |> Util.coerceStringTo63BitInt |> String.length in
         let move = if newLength > offset then RightOne else SamePlace in
         (replaceStringToken ~f ti.token ast, move)
