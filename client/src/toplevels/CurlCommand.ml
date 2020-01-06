@@ -5,6 +5,58 @@ module B = BlankOr
 module RT = Runtime
 module TL = Toplevel
 
+(* Borrowed from libexecution/dval.mli with some items - DObj, DResult (ResError
+ * _), DOption (OptNothing) - moved to the None case *)
+let rec to_url_string (dv : dval) : string option =
+  match dv with
+  | DBlock
+  | DIncomplete _
+  | DPassword _
+  | DObj _
+  | DOption OptNothing
+  | DResult (ResError _) ->
+      None
+  | DInt i ->
+      Some (string_of_int i)
+  | DBool true ->
+      Some "true"
+  | DBool false ->
+      Some "false"
+  | DStr s ->
+      Some s
+  | DFloat f ->
+      Some (Tc.Float.toString f)
+  | DCharacter c ->
+      Some c
+  | DNull ->
+      Some "null"
+  | DDate d ->
+      Some d
+  | DDB dbname ->
+      Some dbname
+  | DErrorRail d ->
+      to_url_string d
+  | DError (_, msg) ->
+      Some ("error=" ^ msg)
+  | DUuid uuid ->
+      Some uuid
+  | DResp (_, hdv) ->
+      to_url_string hdv
+  | DList l ->
+      Some
+        ( "[ "
+        ^ String.join
+            ~sep:", "
+            (List.filterMap ~f:to_url_string (Array.to_list l))
+        ^ " ]" )
+  | DOption (OptJust v) ->
+      to_url_string v
+  | DResult (ResOk v) ->
+      to_url_string v
+  | DBytes bytes ->
+      Some (bytes |> Encoders.base64url_bytes)
+
+
 let strAsBodyCurl (dv : dval) : string option =
   match dv with
   | DStr s ->
@@ -188,33 +240,12 @@ let curlFromHttpClientCall (m : model) (tlid : tlid) (id : id) (name : string) :
                  |> show_dval
            in
            let qps =
-             let stringify (v : dval) =
-               match v with
-               | DStr s | DCharacter s | DUuid s ->
-                   Some s
-               | DInt i ->
-                   Some (string_of_int i)
-               | DFloat f ->
-                   Some (Tc.Float.toString f)
-               | DBool b ->
-                   (if b then "true" else "false") |> Option.some
-               | DNull ->
-                   Some ""
-               | _ ->
-                   ignore
-                     ( v
-                     |> recover
-                          ~debug:(show_dval v)
-                          "Unhandled dval type in qps in curlFromHttpClientCall"
-                     ) ;
-                   None
-             in
              ( match query with
              | DObj map ->
                  map
                  |> StrDict.toList
                  |> List.filterMap ~f:(fun (k, v) ->
-                        stringify v |> Option.map ~f:(fun v -> k ^ "=" ^ v))
+                        to_url_string v |> Option.map ~f:(fun v -> k ^ "=" ^ v))
                  |> String.join ~sep:"&"
              | _ ->
                  ignore
