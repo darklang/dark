@@ -58,7 +58,6 @@ pub fn new_message(
     body: Vec<u8>,
     request_id: String,
 ) -> Option<SegmentMessage> {
-    let event = event.to_owned();
     let user = User::UserId {
         user_id: format!("user-{}", user_id),
     };
