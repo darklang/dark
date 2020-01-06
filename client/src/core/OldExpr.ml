@@ -148,10 +148,12 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
         F (id, Value (FluidUtil.literalToString `Null))
     | EVariable (id, var) ->
         F (id, Variable var)
-    | EFieldAccess (id, obj, "") ->
-        F (id, FieldAccess (fromFluidExpr obj, Blank (gid ())))
-    | EFieldAccess (id, obj, fieldname) ->
-        F (id, FieldAccess (fromFluidExpr obj, F (gid (), fieldname)))
+    | EFieldAccess (ID id, obj, "") ->
+        F (ID id, FieldAccess (fromFluidExpr obj, Blank (ID (id ^ "12345"))))
+    | EFieldAccess (ID id, obj, fieldname) ->
+        F
+          ( ID id
+          , FieldAccess (fromFluidExpr obj, F (ID (id ^ "12345"), fieldname)) )
     | EFnCall (id, name, args, ster) ->
       ( match args with
       | EPipeTarget _ :: _ when not inPipe ->
