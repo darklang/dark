@@ -369,6 +369,7 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
     | "option" ->
         DOption OptNothing
     | "block" ->
+        (* See docs/dblock-serialization.ml *)
         DBlock
           {body = Blank (id_of_int 56789); symtable = DvalMap.empty; params = []}
     | "errorrail" ->
@@ -472,6 +473,7 @@ let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : dval =
       then DOption OptNothing
       else DOption (OptJust (unsafe_dval_of_yojson_v1 dv))
   | `Assoc [("type", `String "block"); ("value", `Null)] ->
+      (* See docs/dblock-serialization.ml *)
       DBlock
         {body = Blank (id_of_int 23456); symtable = DvalMap.empty; params = []}
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
@@ -533,7 +535,10 @@ let rec unsafe_dval_to_yojson_v0 ?(redact = true) (dv : dval) : Yojson.Safe.t =
       |> DvalMap.to_list
       |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson_v0 ~redact v))
       |> fun x -> `Assoc x
-  | DBlock _ | DIncomplete _ ->
+  | DBlock _ ->
+      (* See docs/dblock-serialization.ml *)
+      wrap_user_type `Null
+  | DIncomplete _ ->
       wrap_user_type `Null
   | DCharacter c ->
       wrap_user_str (Unicode_string.Character.to_string c)
@@ -761,6 +766,7 @@ let rec to_enduser_readable_text_v0 dval =
     | DIncomplete _ ->
         "<Incomplete>"
     | DBlock _ ->
+        (* See docs/dblock-serialization.ml *)
         "<Block>"
     | DPassword _ ->
         (* redacting, do not unredact *)
@@ -816,6 +822,7 @@ let rec to_developer_repr_v0 (dv : dval) : string =
     | DNull ->
         "null"
     | DBlock _ ->
+        (* See docs/dblock-serialization.ml *)
         justtipe
     | DIncomplete _ ->
         justtipe
@@ -884,7 +891,10 @@ let to_pretty_machine_yojson_v1 dval =
         |> DvalMap.to_list
         |> List.map ~f:(fun (k, v) -> (k, recurse v))
         |> fun x -> `Assoc x
-    | DBlock _ | DIncomplete _ ->
+    | DBlock _ ->
+        (* See docs/dblock-serialization.ml *)
+        `Null
+    | DIncomplete _ ->
         `Null
     | DCharacter c ->
         `String (Unicode_string.Character.to_string c)
@@ -989,6 +999,7 @@ let rec show dv =
   | DIncomplete (SourceId id) ->
       Printf.sprintf "<Incomplete[%s]>" (string_of_id id)
   | DBlock _ ->
+      (* See docs/dblock-serialization.ml *)
       "<Block>"
   | DPassword _ ->
       (* redacting, do not unredact *)
@@ -1100,7 +1111,10 @@ let to_string_pairs_exn dv : (string * string) list =
 (* For putting into URLs as query params *)
 let rec to_url_string_exn (dv : dval) : string =
   match dv with
-  | DBlock _ | DIncomplete _ | DPassword _ ->
+  | DBlock _ ->
+      (* See docs/dblock-serialization.ml *)
+      "<" ^ (dv |> tipename) ^ ">"
+  | DIncomplete _ | DPassword _ ->
       "<" ^ (dv |> tipename) ^ ">"
   | DInt i ->
       Dint.to_string i
@@ -1227,6 +1241,7 @@ let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
   | DIncomplete _ ->
       "<incomplete: <incomplete>>" (* Can't be used anyway *)
   | DBlock _ ->
+      (* See docs/dblock-serialization.ml *)
       "<block: <block>>"
   | DError (_, msg) ->
       "<error: " ^ msg ^ ">"
