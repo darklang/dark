@@ -603,10 +603,12 @@ let fns : shortfn list =
         InProcess
           (function
           | state, [DBlock b; DDB dbname] ->
-              let db = find_db state.dbs dbname in
-              User_db.filter ~state db b
-              |> List.map ~f:(fun (k, v) -> v)
-              |> Dval.to_list
+            ( try
+                let db = find_db state.dbs dbname in
+                User_db.filter ~state db b
+                |> List.map ~f:(fun (k, v) -> v)
+                |> Dval.to_list
+              with Db.DBFilterException str -> DError (SourceNone, str) )
           | args ->
               fail args)
     ; ps = false

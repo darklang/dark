@@ -457,3 +457,6 @@ let delete_benchmarking_data () : unit =
     "DELETE FROM oplists WHERE host like 'benchmarking\\_%%';
      DELETE FROM json_oplists WHERE host like 'benchmarking\\_%%';"
     ~params:[]
+
+
+exception DBFilterException of string

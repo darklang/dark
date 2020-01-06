@@ -98,3 +98,5 @@ val delete_benchmarking_data : unit -> unit
 
 (* exposed to test it *)
 val escape_single : string -> string
+
+exception DBFilterException of string

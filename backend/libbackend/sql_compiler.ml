@@ -6,6 +6,10 @@ open Types.RuntimeT.DbT
 module RT = Runtime
 open Db
 
+let error str = raise (DBFilterException str)
+
+let error2 msg str = error (msg ^ ": " ^ str)
+
 let binop_to_sql op : string =
   match op with
   | ">" | "<" | "<=" | ">=" | "+" | "-" | "*" | "/" | "%" | "^" ->
@@ -39,15 +43,11 @@ let binop_to_sql op : string =
   | "||" ->
       "OR"
   | _ ->
-      Exception.internal ("op not supported: " ^ op)
+      error2 "op not supported" op
 
 
 let unary_op_to_sql op : string =
-  match op with
-  | "Bool::not" ->
-      "not"
-  | _ ->
-      Exception.internal ("op not supported: " ^ op)
+  match op with "Bool::not" -> "not" | _ -> error2 "op not supported" op
 
 
 let tipe_to_sql_tipe (t : tipe_) : string =
@@ -61,7 +61,7 @@ let tipe_to_sql_tipe (t : tipe_) : string =
   | TBool ->
       "bool"
   | _ ->
-      Exception.internal ("unsupported DB field tipe" ^ show_tipe_ t)
+      error2 "unsupported DB field tipe" (show_tipe_ t)
 
 
 let rec inline (symtable : expr Prelude.StrDict.t) (expr : expr) : expr =
@@ -73,7 +73,7 @@ let rec inline (symtable : expr Prelude.StrDict.t) (expr : expr) : expr =
     | Some expr ->
         expr
     | None ->
-        Exception.internal ("variable not defined: " ^ name) )
+        error2 "variable not defined" name )
   | _ ->
       Ast.traverse ~f:(inline symtable) expr
 
@@ -88,8 +88,7 @@ let rec canonicalize expr =
           | Filled (id, FnCall (name, args)) ->
               Filled (id, FnCall (name, arg :: args))
           | _ ->
-              Exception.internal
-                ("unsupport expression in pipe: " ^ show_expr expr))
+              error2 "unsupport expression in pipe" (show_expr expr))
   | _ ->
       Ast.traverse ~f:canonicalize expr
 
@@ -118,7 +117,7 @@ let rec lambda_to_sql_inner
     | Some dval ->
         dval_to_sql dval
     | None ->
-        Exception.internal ("Variable is undefined: " ^ name) )
+        error2 "Variable is undefined" name )
   | Filled (_, Value str) ->
       let dval = Dval.parse_literal str |> Option.value_exn in
       "(" ^ dval_to_sql dval ^ ")"
@@ -129,7 +128,7 @@ let rec lambda_to_sql_inner
         | Some v ->
             v
         | None ->
-            Exception.internal ("DB does not have field named: " ^ fieldname)
+            error2 "DB does not have field named" fieldname
       in
       "CAST(data::jsonb->>'"
       ^ fieldname
@@ -137,8 +136,7 @@ let rec lambda_to_sql_inner
       ^ tipe_to_sql_tipe tipe
       ^ ") "
   | _ ->
-      Exception.internal
-        ("unsupported code in DB::filter query: " ^ show_expr expr)
+      error2 "unsupported code in DB::filter query" (show_expr expr)
 
 
 let compile_lambda
