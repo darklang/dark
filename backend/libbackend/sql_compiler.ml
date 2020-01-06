@@ -93,7 +93,7 @@ let rec canonicalize expr =
       Ast.traverse ~f:canonicalize expr
 
 
-let dval_to_sql (dval : dval) : string = "null"
+let dval_to_sql (dval : dval) : string = Dval.to_internal_queryable_v0 dval
 
 let rec lambda_to_sql_inner
     (symtable : dval_map)
