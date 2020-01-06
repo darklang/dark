@@ -21,11 +21,11 @@ val traverse :
 
 val iter : f:(Types.RuntimeT.expr -> unit) -> Types.RuntimeT.expr -> unit
 
-val execute_ast :
-     input_vars:Types.RuntimeT.input_vars
-  -> Types.RuntimeT.exec_state
-  -> Types.RuntimeT.expr
-  -> Types.RuntimeT.dval * Types.tlid list
+val execute_dblock :
+     state:Types.RuntimeT.exec_state
+  -> Types.RuntimeT.dblock_args
+  -> Types.RuntimeT.dval list
+  -> Types.RuntimeT.dval
 
 val execute_ast :
      state:Types.RuntimeT.exec_state

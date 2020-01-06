@@ -402,6 +402,11 @@ module RuntimeT = struct
     | SourceNone
     | SourceId of id
 
+  and dblock_args =
+    { symtable : dval_map
+    ; params : (id * string) list
+    ; body : expr }
+
   and dval =
     (* basic types  *)
     | DInt of Dint.t
@@ -415,7 +420,7 @@ module RuntimeT = struct
     (* special types - see notes above *)
     | DIncomplete of dval_source
     | DError of (dval_source * string)
-    | DBlock of dval block
+    | DBlock of dblock_args
     | DErrorRail of dval
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
