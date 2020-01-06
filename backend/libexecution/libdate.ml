@@ -140,6 +140,20 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["Date::subtract"]
+    ; ins = []
+    ; p = [par "d" TDate; par "seconds" TInt]
+    ; r = TDate
+    ; d = "Returns a new Date `seconds` seconds before `d`"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d; DInt s] ->
+              DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["Date::greaterThan"]
     ; ins = ["Date::>"]
