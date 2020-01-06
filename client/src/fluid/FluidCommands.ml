@@ -209,7 +209,7 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
 
 let isOpened (cp : fluidCommandState) : bool = cp.location <> None
 
-let updateCommandPaletteVisability (m : model) : model =
+let updateCommandPaletteVisibility (m : model) : model =
   let oldTlid =
     match m.fluidState.cp.location with
     | Some (tlid, _) ->
