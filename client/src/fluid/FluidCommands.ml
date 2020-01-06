@@ -3,6 +3,7 @@ module TL = Toplevel
 module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module K = FluidKeyboard
+module Regex = Util.Regex
 
 let filterInputID : string = "cmd-filter"
 
@@ -35,7 +36,20 @@ let commandsFor (tl : toplevel) (id : id) : command list =
                fun c -> noTakeOff c && noPutOn c)
     |> Option.withDefault ~default:(fun _ -> true)
   in
-  fluidCommands |> List.filter ~f:railFilters
+  let httpClientRegex =
+    Regex.regex "HttpClient::(delete|get|head|options|patch|post|put)"
+  in
+  let httpClientRequestFilter =
+    match expr with
+    | Some (EFnCall (_, fluidName, _, _))
+      when Regex.contains ~re:httpClientRegex fluidName ->
+        fun _ -> true
+    | _ ->
+        fun c -> c.commandName <> "copy-request-as-curl"
+  in
+  fluidCommands
+  |> List.filter ~f:railFilters
+  |> List.filter ~f:httpClientRequestFilter
 
 
 let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
