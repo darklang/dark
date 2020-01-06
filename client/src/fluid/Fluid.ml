@@ -2556,6 +2556,36 @@ let adjustPosForReflow
       posFromCaretTarget state newAST target
 
 
+let tryReplaceStringAndMove
+    ~(f : string -> string)
+    (token : token)
+    (ast : ast)
+    (targetBeforeMove : newPosition)
+    (targetAfterMove : newPosition) : E.t * newPosition =
+  let tokId = T.tid token in
+  let tokExpr = E.find tokId ast in
+  let maybeTransformedExpr, targetAfterMove =
+    match token with
+    (* multiline string and float are multi-token and may be special
+    int needs special validation and may be special
+  *)
+    | TInteger (id, intStr) ->
+        let str = f intStr in
+        if str = ""
+        then (Some (EBlank id), AtTarget {astRef = ARBlank id; offset = 0})
+        else
+          ( Some (EInteger (id, Util.coerceStringTo63BitInt str))
+          , targetAfterMove )
+    | _ ->
+        todo "still need to handle all cases" (None, targetAfterMove)
+  in
+  match maybeTransformedExpr with
+  | Some transformedExpr when maybeTransformedExpr <> tokExpr ->
+      (E.replace tokId ~replacement:transformedExpr ast, targetAfterMove)
+  | _ ->
+      (ast, targetBeforeMove)
+
+
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
@@ -2650,13 +2680,20 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         let f str = Util.removeCharAt str offset in
         let newAST = replaceStringToken ~f ti.token ast in
         (newAST, MoveToTokenEnd (id, -1) (* quote *))
+    | TInteger (id, _) ->
+        let f str = Util.removeCharAt str offset in
+        tryReplaceStringAndMove
+          ~f
+          ti.token
+          ast
+          SamePlace
+          (AtTarget {astRef = ARInteger id; offset})
     | TString _
     | TStringMLStart _
     | TStringMLMiddle _
     | TStringMLEnd _
     | TPatternString _
     | TRecordFieldname _
-    | TInteger _
     | TTrue _
     | TFalse _
     | TPatternTrue _
