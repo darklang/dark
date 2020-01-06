@@ -70,8 +70,7 @@ let commands : command list =
     ; action =
         (fun m tl id ->
           let name =
-            Toplevel.asHandler tl
-            |> Option.map ~f:(fun h -> h.ast)
+            TL.getAST tl
             |> Option.andThen ~f:(fun ast -> FluidExpression.find id ast)
             |> Option.andThen ~f:(function
                    | EFnCall (_, fluidName, _, _) ->
