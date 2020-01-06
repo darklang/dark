@@ -4973,3 +4973,12 @@ let renderCallback (m : model) : unit =
             Entry.setFluidCaret m.fluidState.newPos )
   | _ ->
       ()
+
+let removePartials (ast : ast) : ast =
+  Debug.loG "VOX" "remove partials";
+  E.walk ~f:(function
+    | EPartial (_, _, fluidExpr)
+    | ERightPartial (_, _, fluidExpr) ->
+      fluidExpr
+    | e -> e
+  ) ast
