@@ -2556,15 +2556,23 @@ let adjustPosForReflow
       posFromCaretTarget state newAST target
 
 
+(* tryReplaceStringAndMove attempts to transform the string identified by the given `token` using `f` within the `ast` and
+   validates/coerces the result.
+   If a successful transformation occured while preserving the expr, we return (newAst, Some desiredCaretTarget) indicating where the caret should end up.
+   If the transformation resulted in replacing the token's corresponding expr with an EBlank, we return (newAst, Some {astRef = ARBlank id; offset = 0}).
+   If the transformation had no effect or couldn't be validated/coerced, we return (ast, None).
+
+   TODO(JULIAN): The caretTarget behavior for EBlank is pretty confusing and it may make sense to delegate responsibility for handling that to callers,
+   although that might get messier.
+    *)
 let tryReplaceStringAndMove
     ~(f : string -> string)
     (token : token)
     (ast : ast)
-    (targetBeforeMove : newPosition)
-    (targetAfterMove : newPosition) : E.t * newPosition =
+    (desiredCaretTarget : caretTarget) : E.t * caretTarget option =
   let tokId = T.tid token in
   let tokExpr = E.find tokId ast in
-  let maybeTransformedExpr, targetAfterMove =
+  let maybeTransformedExpr, desiredCaretTarget =
     match token with
     (* multiline string and float are multi-token and may be special
     int needs special validation and may be special
@@ -2572,18 +2580,33 @@ let tryReplaceStringAndMove
     | TInteger (id, intStr) ->
         let str = f intStr in
         if str = ""
-        then (Some (EBlank id), AtTarget {astRef = ARBlank id; offset = 0})
+        then (Some (EBlank id), {astRef = ARBlank id; offset = 0})
         else
           ( Some (EInteger (id, Util.coerceStringTo63BitInt str))
-          , targetAfterMove )
+          , desiredCaretTarget )
     | _ ->
-        todo "still need to handle all cases" (None, targetAfterMove)
+        todo "still need to handle all cases" (None, desiredCaretTarget)
   in
   match maybeTransformedExpr with
   | Some transformedExpr when maybeTransformedExpr <> tokExpr ->
-      (E.replace tokId ~replacement:transformedExpr ast, targetAfterMove)
+      (E.replace tokId ~replacement:transformedExpr ast, Some desiredCaretTarget)
   | _ ->
-      (ast, targetBeforeMove)
+      (ast, None)
+
+
+let tryReplaceStringAndMoveOrSame
+    ~(f : string -> string)
+    (token : token)
+    (ast : ast)
+    (desiredCaretTarget : caretTarget) : E.t * newPosition =
+  let newAst, maybeTarget =
+    tryReplaceStringAndMove ~f token ast desiredCaretTarget
+  in
+  match maybeTarget with
+  | Some target ->
+      (newAst, AtTarget target)
+  | None ->
+      (newAst, SamePlace)
 
 
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
@@ -2682,12 +2705,11 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (newAST, MoveToTokenEnd (id, -1) (* quote *))
     | TInteger (id, _) ->
         let f str = Util.removeCharAt str offset in
-        tryReplaceStringAndMove
+        tryReplaceStringAndMoveOrSame
           ~f
           ti.token
           ast
-          SamePlace
-          (AtTarget {astRef = ARInteger id; offset})
+          {astRef = ARInteger id; offset}
     | TString _
     | TStringMLStart _
     | TStringMLMiddle _
@@ -2841,8 +2863,16 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveToEndOfTarget targetID ast s)
+  | TInteger (id, _) ->
+      let ast, maybeTarget =
+        tryReplaceStringAndMove ~f ti.token ast {astRef = ARInteger id; offset}
+      in
+      ( match maybeTarget with
+      | Some target ->
+          (ast, moveToCaretTarget s ast target)
+      | None ->
+          (ast, s) )
   | TRecordFieldname _
-  | TInteger _
   | TPatternInteger _
   | TTrue _
   | TFalse _
