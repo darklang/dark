@@ -244,7 +244,11 @@ and nExpr j : OldExpr.nExpr =
     j
 
 
-let fluidExpr (j : Js.Json.t) : fluidExpr = expr j |> OldExpr.toFluidExpr
+let fluidExpr (j : Js.Json.t) : fluidExpr =
+  (* This is used by AnalysisWrapper, which does not have functions
+   * available when decoding, so don't raise an error when that happens. *)
+  expr j |> OldExpr.toFluidExprNoAssertion
+
 
 let blankOrData j : blankOrData =
   let dv1 = variant1 in

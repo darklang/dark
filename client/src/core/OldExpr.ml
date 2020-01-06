@@ -130,6 +130,8 @@ and toFluidExpr (expr : expr) : FluidExpression.t =
   toFluidExpr' expr
 
 
+and toFluidExprNoAssertion (expr : expr) : FluidExpression.t = toFluidExpr' expr
+
 and fromFluidExpr (expr : FluidExpression.t) : expr =
   let open Types in
   let rec fromFluidExpr ?(inPipe = false) expr =
