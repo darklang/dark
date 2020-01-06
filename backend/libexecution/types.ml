@@ -504,6 +504,13 @@ module RuntimeT = struct
 
   type fail_fn_type = (?msg:string -> unit -> dval) option
 
+  (* this is _why_ we're executing the AST, to allow us to not
+   * emit certain side-effects (eg. DB writes) when showing previews *)
+  type context =
+    | Preview
+    | Real
+  [@@deriving eq, show, yojson]
+
   type exec_state =
     { tlid : tlid
     ; canvas_id : Uuidm.t
@@ -511,6 +518,9 @@ module RuntimeT = struct
     ; user_fns : user_fn list
     ; user_tipes : user_tipe list
     ; dbs : DbT.db list
+    ; trace : id -> dval -> unit
+    ; trace_tlid : tlid -> unit
+    ; context : context
     ; execution_id : id
     ; load_fn_result : load_fn_result_type
     ; store_fn_result : store_fn_result_type
