@@ -4974,11 +4974,12 @@ let renderCallback (m : model) : unit =
   | _ ->
       ()
 
-let removePartials (ast : ast) : ast =
-  Debug.loG "VOX" "remove partials";
-  E.walk ~f:(function
-    | EPartial (_, _, fluidExpr)
-    | ERightPartial (_, _, fluidExpr) ->
-      fluidExpr
-    | e -> e
-  ) ast
+let removePartials (oldAST : ast) : ast =
+  oldAST |> E.filterMap ~f:(function
+  | EPartial (id, _, e)
+  | ERightPartial (id, _, e) ->
+    Some (id, e)
+  | _ -> None)
+  |> List.foldl ~init:oldAST ~f:(fun (replaceID, validExpr) ast ->
+    E.replace ~replacement:validExpr replaceID ast
+  )
