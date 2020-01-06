@@ -75,7 +75,7 @@ type 'a or_blank =
   | Blank of id
   | Filled of id * 'a
   | Partial of id * string
-[@@deriving eq, compare, show, yojson, bin_io]
+[@@deriving eq, compare, show {with_path = false}, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
@@ -168,7 +168,8 @@ module RuntimeT = struct
      * binop, and expr is the soon-to-be lhs or the binop. *)
     | FluidRightPartial of string * expr
 
-  and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
+  and expr = nexpr or_blank
+  [@@deriving eq, compare, yojson, show {with_path = false}, bin_io]
 
   (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
@@ -426,7 +427,7 @@ module RuntimeT = struct
     | DCharacter of Unicode_string.Character.t
     | DResult of resultT
     | DBytes of RawBytes.t
-  [@@deriving show, eq, yojson, compare]
+  [@@deriving show {with_path = false}, eq, yojson, compare]
 
   type dval_list = dval list
 
