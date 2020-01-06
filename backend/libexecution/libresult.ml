@@ -13,10 +13,11 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DResult r; DBlock fn] ->
+          | state, [DResult r; DBlock b] ->
             ( match r with
             | ResOk dv ->
-                DResult (ResOk (fn [dv]))
+                let result = Ast.execute_dblock ~state b [dv] in
+                DResult (ResOk result)
             | ResError _ ->
                 DResult r )
           | args ->
@@ -32,10 +33,11 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DResult r; DBlock fn] ->
+          | state, [DResult r; DBlock d] ->
             ( match r with
             | ResOk dv ->
-                Dval.to_res_ok (fn [dv])
+                let result = Ast.execute_dblock ~state d [dv] in
+                Dval.to_res_ok result
             | ResError _ ->
                 DResult r )
           | args ->
@@ -51,12 +53,13 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DResult r; DBlock fn] ->
+          | state, [DResult r; DBlock b] ->
             ( match r with
             | ResOk _ ->
                 DResult r
             | ResError err ->
-                DResult (ResError (fn [err])) )
+                let result = Ast.execute_dblock ~state b [err] in
+                DResult (ResError result) )
           | args ->
               fail args)
     ; ps = true
@@ -70,12 +73,13 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DResult r; DBlock fn] ->
+          | state, [DResult r; DBlock b] ->
             ( match r with
             | ResOk _ ->
                 DResult r
             | ResError err ->
-                Dval.to_res_err (fn [err]) )
+                let result = Ast.execute_dblock ~state b [err] in
+                Dval.to_res_err result )
           | args ->
               fail args)
     ; ps = true
@@ -183,17 +187,18 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DResult o; DBlock fn] ->
+          | state, [DResult o; DBlock b] ->
             ( match o with
             | ResOk dv ->
-              ( match fn [dv] with
-              | DResult result ->
-                  DResult result
-              | other ->
-                  RT.error
-                    ~actual:other
-                    ~expected:"a result"
-                    "Expected `f` to return a result" )
+                let result = Ast.execute_dblock ~state b [dv] in
+                ( match result with
+                | DResult result ->
+                    DResult result
+                | other ->
+                    RT.error
+                      ~actual:other
+                      ~expected:"a result"
+                      "Expected `f` to return a result" )
             | ResError msg ->
                 DResult (ResError msg) )
           | args ->
@@ -209,19 +214,20 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DResult o; DBlock fn] ->
+          | state, [DResult o; DBlock b] ->
             ( match o with
             | ResOk dv ->
-              ( match fn [dv] with
-              | DResult (ResOk res) ->
-                  Dval.to_res_ok res
-              | DResult (ResError res) ->
-                  Dval.to_res_err res
-              | other ->
-                  RT.error
-                    ~actual:other
-                    ~expected:"a result"
-                    "Expected `f` to return a result" )
+                let result = Ast.execute_dblock ~state b [dv] in
+                ( match result with
+                | DResult (ResOk res) ->
+                    Dval.to_res_ok res
+                | DResult (ResError res) ->
+                    Dval.to_res_err res
+                | other ->
+                    RT.error
+                      ~actual:other
+                      ~expected:"a result"
+                      "Expected `f` to return a result" )
             | ResError msg ->
                 DResult (ResError msg) )
           | args ->
