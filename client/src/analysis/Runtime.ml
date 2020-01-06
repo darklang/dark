@@ -184,7 +184,7 @@ let typeOf (dv : dval) : tipe =
       TList
   | DObj _ ->
       TObj
-  | DBlock ->
+  | DBlock _ ->
       TBlock
   | DIncomplete _ ->
       TIncomplete
@@ -298,7 +298,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         with _ -> wrap s )
   | DPassword s ->
       wrap s
-  | DBlock ->
+  | DBlock _ ->
       asType
   | DIncomplete _ ->
       asType

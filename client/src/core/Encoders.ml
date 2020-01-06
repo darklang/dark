@@ -81,7 +81,6 @@ let blankOr (encoder : 'a -> Js.Json.t) (v : 'a Types.blankOr) =
 
 
 let rec dval (dv : Types.dval) : Js.Json.t =
-  let open Types in
   let ev = variant in
   let dhttp h =
     match h with
@@ -110,9 +109,14 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       |> Js.Dict.fromList
       |> jsonDict
       |> fun x -> [x] |> ev "DObj"
-  (* opaque types *)
-  | DBlock ->
-      ev "DBlock" [null]
+  | DBlock {body; params; symtable} ->
+      let dblock_args =
+        object_
+          [ ("symtable", tcStrDict dval symtable)
+          ; ("params", list (pair id string) params)
+          ; ("body", fluidExpr body) ]
+      in
+      ev "DBlock" [dblock_args]
   | DIncomplete SourceNone ->
       ev "DIncomplete" [ev "SourceNone" []]
   | DIncomplete (SourceId i) ->
@@ -156,7 +160,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DBytes" [string (bin |> base64url_bytes)]
 
 
-let rec blankOrData (pd : Types.blankOrData) : Js.Json.t =
+and blankOrData (pd : Types.blankOrData) : Js.Json.t =
   let ev = variant in
   match pd with
   | PEventName name ->
