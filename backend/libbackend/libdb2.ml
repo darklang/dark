@@ -602,9 +602,9 @@ let fns : shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DBlock ([(_, paramName)], body); DDB dbname] ->
+          | state, [DBlock b; DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.filter ~state db paramName body
+              User_db.filter ~state db b
               |> List.map ~f:(fun (k, v) -> v)
               |> Dval.to_list
           | args ->

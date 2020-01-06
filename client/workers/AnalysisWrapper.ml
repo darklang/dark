@@ -83,7 +83,9 @@ let () =
         Tc.Result.andThen
           ~f:(fun res ->
             try
-              Belt.Result.Ok (Decoders.analysisEnvelope (Json.parseOrRaise res))
+              let res = Decoders.analysisEnvelope (Json.parseOrRaise res) in
+              Js.log2 "res" (show_analysisEnvelope res) ;
+              Belt.Result.Ok res
             with Js.Exn.Error err ->
               let msg =
                 err

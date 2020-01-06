@@ -369,7 +369,8 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
     | "option" ->
         DOption OptNothing
     | "block" ->
-        DBlock ([], Blank (id_of_int 56789))
+        DBlock
+          {body = Blank (id_of_int 56789); symtable = DvalMap.empty; params = []}
     | "errorrail" ->
         DErrorRail DNull
     | _ ->
@@ -471,7 +472,8 @@ let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : dval =
       then DOption OptNothing
       else DOption (OptJust (unsafe_dval_of_yojson_v1 dv))
   | `Assoc [("type", `String "block"); ("value", `Null)] ->
-      DBlock ([], Blank (id_of_int 45678))
+      DBlock
+        {body = Blank (id_of_int 23456); symtable = DvalMap.empty; params = []}
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
       DErrorRail (unsafe_dval_of_yojson_v1 dv)
   | `Assoc [("type", `String "date"); ("value", `String v)] ->

@@ -35,11 +35,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DStr s; DBlock ([paramName], body)] ->
+          | state, [DStr s; DBlock b] ->
               let result =
                 Unicode_string.map_characters
-                  ~f:(fun c ->
-                    Ast.execute_dblock state [(paramName, DCharacter c)] body)
+                  ~f:(fun c -> Ast.execute_dblock state b [DCharacter c])
                   s
               in
               ( match

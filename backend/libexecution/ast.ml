@@ -134,29 +134,44 @@ let should_send_to_rail (expr : nexpr) : bool =
   match expr with FnCallSendToRail _ -> true | _ -> false
 
 
-let execute_dblock
-    ~(state : exec_state) (args : ((id * string) * dval) list) (body : expr) :
-    dval =
-  List.iter args ~f:(fun ((id, _), dv) -> state.trace id dv) ;
-  let st =
-    args
-    |> List.map ~f:(Prelude.Tuple2.mapFirst ~f:Prelude.Tuple2.second)
-    |> DvalMap.from_list
-    |> Util.merge_left state.symtable
-  in
-  state.exec st body
+let rec execute_dblock
+    ~(state : exec_state) {symtable; body; params} (args : dval list) : dval =
+  (* If one of the args is fake value used as a marker, return it instead of
+   * executing. This is the same behaviour as in fn calls. *)
+  let first_marker = List.find args ~f:Dval.is_fake_marker_dval in
+  match first_marker with
+  | Some dv ->
+      dv
+  | None ->
+      (* One of the reasons to take a separate list of params and args is to
+       * provide this error message here. We don't have this information in
+       * other places, and the alternative is just to provide incompletes
+       * with no context *)
+      if List.length params <> List.length args
+      then
+        DError
+          ( SourceNone
+          , "Expected "
+            ^ string_of_int (List.length params)
+            ^ " arguments, got "
+            ^ string_of_int (List.length args) )
+      else
+        let bindings = List.zip_exn params args in
+        List.iter bindings ~f:(fun ((id, paramName), dv) -> state.trace id dv) ;
+        let new_st =
+          bindings
+          |> List.map ~f:(Prelude.Tuple2.mapFirst ~f:Prelude.Tuple2.second)
+          |> DvalMap.from_list
+          |> Util.merge_left symtable
+        in
+        exec ~state new_st body
 
 
-let rec exec
-    ~(engine : engine) ~(state : exec_state) (st : symtable) (expr : expr) :
-    dval =
-  let state = {state with symtable = st} in
-  let state = {state with exec = exec ~engine ~state} in
-  let exe = exec ~engine ~state in
-  let call = call_fn ~engine ~state in
-  let ctx = engine.ctx in
-  let trace = engine.trace in
-  let trace_blank = engine.trace_blank in
+and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
+  let exe = exec ~state in
+  let call = call_fn ~state in
+  let ctx = state.context in
+  let trace = state.trace in
   (* This is a super hacky way to inject params as the result of
    * pipelining using the `Thread` construct
    *
@@ -171,18 +186,15 @@ let rec exec
    * this a functional language with functions-as-values and application
    * as a first-class concept sooner rather than later.
    *)
-  let inject_param_and_execute (st : symtable) (param : dval) (exp : expr) :
-      dval =
+  let inject_param_and_execute (st : symtable) (arg : dval) (exp : expr) : dval
+      =
     let result =
       match exp with
       | Filled (id, Lambda _) ->
           let result = exe st exp in
           ( match result with
-          | DBlock ([(id, paramName)], body) ->
-              (* Pipes can only pipe into lambdas with one parameter *)
-              let st = DvalMap.insert ~key:paramName ~value:param st in
-              trace_blank (Filled (id, paramName)) param st ;
-              exe st body
+          | DBlock b ->
+              execute_dblock ~state b [arg]
           | _ ->
               (* This should never happen, but the user should be allowed to
                * recover so this shouldn't be an exception *)
@@ -192,11 +204,11 @@ let rec exec
       | Filled (id, (FnCall (name, exprs) as fncall))
       | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
           let send_to_rail = should_send_to_rail fncall in
-          call name id (param :: List.map ~f:(exe st) exprs) send_to_rail
+          call name id (arg :: List.map ~f:(exe st) exprs) send_to_rail
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
       | Partial _ | Blank _ ->
-          param
+          arg
       | _ ->
           (* calculate the results inside this regardless *)
           DIncomplete SourceNone
@@ -372,7 +384,7 @@ let rec exec
               exe st oldcode
           | _ ->
               exe st oldcode ) )
-    | Filled (id, Lambda (vars, body)) ->
+    | Filled (id, Lambda (params, body)) ->
         ( if ctx = Preview
         then
           (* Since we return a DBlock, it's contents may never be
@@ -384,8 +396,8 @@ let rec exec
               st
           in
           ignore (exe fake_st body) ) ;
-        let vars =
-          List.filter_map vars ~f:(function
+        let params =
+          List.filter_map params ~f:(function
               | Blank _ ->
                   None
               | Partial _ ->
@@ -395,7 +407,7 @@ let rec exec
         in
         (* It is the responsibility of wherever executes the DBlock to pass in
          * args and execute the body. *)
-        DBlock (vars, body)
+        DBlock {symtable = st; params; body}
     | Filled (id, Thread exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
       ( match exprs with

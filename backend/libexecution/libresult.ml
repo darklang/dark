@@ -13,10 +13,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DResult r; DBlock ([argname], body)] ->
+          | state, [DResult r; DBlock b] ->
             ( match r with
             | ResOk dv ->
-                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                let result = Ast.execute_dblock ~state b [dv] in
                 DResult (ResOk result)
             | ResError _ ->
                 DResult r )
@@ -33,10 +33,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DResult r; DBlock ([argname], body)] ->
+          | state, [DResult r; DBlock d] ->
             ( match r with
             | ResOk dv ->
-                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                let result = Ast.execute_dblock ~state d [dv] in
                 Dval.to_res_ok result
             | ResError _ ->
                 DResult r )
@@ -53,12 +53,12 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DResult r; DBlock ([argname], body)] ->
+          | state, [DResult r; DBlock b] ->
             ( match r with
             | ResOk _ ->
                 DResult r
             | ResError err ->
-                let result = Ast.execute_dblock ~state [(argname, err)] body in
+                let result = Ast.execute_dblock ~state b [err] in
                 DResult (ResError result) )
           | args ->
               fail args)
@@ -73,12 +73,12 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DResult r; DBlock ([argname], body)] ->
+          | state, [DResult r; DBlock b] ->
             ( match r with
             | ResOk _ ->
                 DResult r
             | ResError err ->
-                let result = Ast.execute_dblock ~state [(argname, err)] body in
+                let result = Ast.execute_dblock ~state b [err] in
                 Dval.to_res_err result )
           | args ->
               fail args)
@@ -187,10 +187,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DResult o; DBlock ([argname], body)] ->
+          | state, [DResult o; DBlock b] ->
             ( match o with
             | ResOk dv ->
-                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                let result = Ast.execute_dblock ~state b [dv] in
                 ( match result with
                 | DResult result ->
                     DResult result
@@ -214,10 +214,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DResult o; DBlock ([argname], body)] ->
+          | state, [DResult o; DBlock b] ->
             ( match o with
             | ResOk dv ->
-                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                let result = Ast.execute_dblock ~state b [dv] in
                 ( match result with
                 | DResult (ResOk res) ->
                     Dval.to_res_ok res

@@ -250,8 +250,9 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         with _ -> wrap s )
   | DPassword s ->
       wrap s
-  | DBlock (vars, expr) ->
-      FluidPrinter.eToString (ELambda (gid (), vars, expr))
+  | DBlock {params; body; _} ->
+      (* TODO: show relevant symtable *)
+      FluidPrinter.eToString (ELambda (gid (), params, body))
   | DIncomplete _ ->
       asType
   | DResp (Redirect url, dv_) ->

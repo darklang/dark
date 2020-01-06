@@ -386,6 +386,11 @@ and dval_source =
   | SourceNone
   | SourceId of id
 
+and dblock_args =
+  { symtable : dval StrDict.t
+  ; params : (id * string) list
+  ; body : fluidExpr }
+
 and dval =
   | DInt of int
   | DFloat of float
@@ -397,7 +402,7 @@ and dval =
   | DObj of dval StrDict.t
   | DIncomplete of dval_source
   | DError of (dval_source * string)
-  | DBlock of (id * string) list * fluidExpr
+  | DBlock of dblock_args
   | DErrorRail of dval
   | DResp of dhttp * dval
   | DDB of string

@@ -153,9 +153,9 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList l; DBlock ([paramName], body)] ->
+          | state, [DList l; DBlock b] ->
               let f (dv : dval) : bool =
-                DBool true = Ast.execute_dblock state [(paramName, dv)] body
+                DBool true = Ast.execute_dblock ~state b [dv]
               in
               (match List.find ~f l with None -> DNull | Some dv -> dv)
           | args ->
@@ -171,9 +171,9 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList l; DBlock ([paramName], body)] ->
+          | state, [DList l; DBlock b] ->
               let f (dv : dval) : bool =
-                DBool true = Ast.execute_dblock state [(paramName, dv)] body
+                DBool true = Ast.execute_dblock ~state b [dv]
               in
               ( match List.find ~f l with
               | None ->
@@ -193,9 +193,9 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList l; DBlock ([paramName], body)] ->
+          | state, [DList l; DBlock b] ->
               let f (dv : dval) : bool =
-                DBool true = Ast.execute_dblock state [(paramName, dv)] body
+                DBool true = Ast.execute_dblock ~state b [dv]
               in
               ( match List.find ~f l with
               | None ->
@@ -273,10 +273,10 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList l; init; DBlock ([accum; curr], body)] ->
+          | state, [DList l; init; DBlock b] ->
               (* Fake cf should be propagated by the blocks so we dont need to check *)
               let f (dv1 : dval) (dv2 : dval) : dval =
-                Ast.execute_dblock ~state [(accum, dv1); (curr, dv2)] body
+                Ast.execute_dblock ~state b [dv1; dv2]
               in
               List.fold ~f ~init l
           | args ->
@@ -314,8 +314,8 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList l; DBlock ([argname], body)] ->
-              let fn dv = Ast.execute_dblock ~state [(argname, dv)] body in
+          | state, [DList l; DBlock b] ->
+              let fn dv = Ast.execute_dblock ~state b [dv] in
               DList
                 (List.dedup_and_sort l ~compare:(fun a b ->
                      compare_dval (fn a) (fn b)))
@@ -356,8 +356,8 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList list; DBlock ([argname], body)] ->
-              let fn dv = Ast.execute_dblock ~state [(argname, dv)] body in
+          | state, [DList list; DBlock b] ->
+              let fn dv = Ast.execute_dblock ~state b [dv] in
               list
               |> List.sort ~compare:(fun a b -> compare_dval (fn a) (fn b))
               |> DList
@@ -388,10 +388,10 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList l; DBlock ([param], body)] ->
+          | state, [DList l; DBlock b] ->
               let incomplete = ref false in
               let f (dv : dval) : bool =
-                match Ast.execute_dblock ~state [(param, dv)] body with
+                match Ast.execute_dblock ~state b [dv] with
                 | DBool b ->
                     b
                 | DIncomplete _ ->
@@ -415,13 +415,13 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList l; DBlock ([param], body)] ->
+          | state, [DList l; DBlock b] ->
               let fakecf = ref None in
               let f (dv : dval) : bool =
                 let run = !fakecf = None in
                 run
                 &&
-                match Ast.execute_dblock ~state [(param, dv)] body with
+                match Ast.execute_dblock ~state b [dv] with
                 | DBool b ->
                     b
                 | (DIncomplete _ | DErrorRail _) as dv ->
@@ -474,10 +474,8 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList l; DBlock ([var], body)] ->
-              let f (dv : dval) : dval =
-                Ast.execute_dblock ~state [(var, dv)] body
-              in
+          | state, [DList l; DBlock b] ->
+              let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
               DList (List.map ~f l)
           | args ->
               fail args)
@@ -493,17 +491,9 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DList l; DBlock ([param], body)] ->
-              let f (dv : dval) : dval =
-                Ast.execute_dblock ~state [(param, dv)] body
-              in
+          | state, [DList l; DBlock b] ->
+              let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
               Dval.to_list (List.map ~f l)
-          | state, [DList l; DBlock (params, body)] ->
-              DError
-                ( SourceNone
-                , "Expected "
-                  ^ string_of_int (List.length params)
-                  ^ " arguments, got 1" )
           | args ->
               fail args)
     ; ps = true

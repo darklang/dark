@@ -96,8 +96,8 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DObj o; DBlock ([argname], body)] ->
-              let f dv = Ast.execute_dblock ~state [(argname, dv)] body in
+          | state, [DObj o; DBlock b] ->
+              let f dv = Ast.execute_dblock ~state b [dv] in
               DObj (Map.map ~f o)
           | args ->
               fail args)
@@ -112,12 +112,9 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DObj o; DBlock ([keyName; valueName], body)] ->
+          | state, [DObj o; DBlock b] ->
               let f ~key ~(data : dval) =
-                Ast.execute_dblock
-                  ~state
-                  [(keyName, Dval.dstr_of_string_exn key); (valueName, data)]
-                  body
+                Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
               in
               DObj (Map.mapi ~f o)
           | args ->
@@ -133,14 +130,11 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DObj o; DBlock ([keyName; valueName], body)] ->
+          | state, [DObj o; DBlock b] ->
               let incomplete = ref false in
               let f ~(key : string) ~(data : dval) : bool =
                 let result =
-                  Ast.execute_dblock
-                    ~state
-                    [(keyName, Dval.dstr_of_string_exn key); (valueName, data)]
-                    body
+                  Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
                 in
                 match result with
                 | DBool b ->
@@ -170,7 +164,7 @@ let fns =
     ; f =
         InProcess
           (function
-          | state, [DObj o; DBlock ([keyName; valueName], body)] ->
+          | state, [DObj o; DBlock b] ->
               let filter_propagating_errors ~key ~data acc =
                 match acc with
                 | Error dv ->
@@ -179,9 +173,8 @@ let fns =
                     let result =
                       Ast.execute_dblock
                         ~state
-                        [ (keyName, Dval.dstr_of_string_exn key)
-                        ; (valueName, data) ]
-                        body
+                        b
+                        [Dval.dstr_of_string_exn key; data]
                     in
                     ( match result with
                     | DBool true ->

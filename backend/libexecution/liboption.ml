@@ -26,10 +26,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DOption o; DBlock ([argname], body)] ->
+          | state, [DOption o; DBlock b] ->
             ( match o with
             | OptJust dv ->
-                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                let result = Ast.execute_dblock ~state b [dv] in
                 DOption (OptJust result)
             | OptNothing ->
                 DOption OptNothing )
@@ -46,10 +46,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DOption o; DBlock ([argname], body)] ->
+          | state, [DOption o; DBlock b] ->
             ( match o with
             | OptJust dv ->
-                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                let result = Ast.execute_dblock ~state b [dv] in
                 Dval.to_opt_just result
             | OptNothing ->
                 DOption OptNothing )
@@ -66,10 +66,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | state, [DOption o; DBlock ([argname], body)] ->
+          | state, [DOption o; DBlock b] ->
             ( match o with
             | OptJust dv ->
-                let result = Ast.execute_dblock ~state [(argname, dv)] body in
+                let result = Ast.execute_dblock ~state b [dv] in
                 ( match result with
                 | DOption result ->
                     DOption result

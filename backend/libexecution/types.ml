@@ -402,6 +402,11 @@ module RuntimeT = struct
     | SourceNone
     | SourceId of id
 
+  and dblock_args =
+    { symtable : dval_map
+    ; params : (id * string) list
+    ; body : expr }
+
   and dval =
     (* basic types  *)
     | DInt of Dint.t
@@ -415,7 +420,7 @@ module RuntimeT = struct
     (* special types - see notes above *)
     | DIncomplete of dval_source
     | DError of (dval_source * string)
-    | DBlock of (id * string) list * expr
+    | DBlock of dblock_args
     | DErrorRail of dval
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
@@ -505,6 +510,13 @@ module RuntimeT = struct
 
   type fail_fn_type = (?msg:string -> unit -> dval) option
 
+  (* this is _why_ we're executing the AST, to allow us to not
+   * emit certain side-effects (eg. DB writes) when showing previews *)
+  type context =
+    | Preview
+    | Real
+  [@@deriving eq, show, yojson]
+
   type exec_state =
     { tlid : tlid
     ; canvas_id : Uuidm.t
@@ -512,17 +524,9 @@ module RuntimeT = struct
     ; user_fns : user_fn list
     ; user_tipes : user_tipe list
     ; dbs : DbT.db list
-    ; exec :
-           (* We need to exec in places where the execution engine isn't
-            * passed. This isn't great, but it solves the current problem.
-            * *)
-           dval_map
-        -> expr
-        -> dval
-    ; symtable
-        (* for the function being executed, an up-to-date symtable. This is
-         * for lambdas to be able to reach out into the fn scope *) :
-        dval_map
+    ; trace : id -> dval -> unit
+    ; trace_tlid : tlid -> unit
+    ; context : context
     ; execution_id : id
     ; load_fn_result : load_fn_result_type
     ; store_fn_result : store_fn_result_type

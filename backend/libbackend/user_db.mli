@@ -23,8 +23,7 @@ val get_all_keys : state:exec_state -> DbT.db -> string list
 
 val query : state:exec_state -> DbT.db -> dval -> (string * dval) list
 
-val filter :
-  state:exec_state -> DbT.db -> string -> expr -> (string * dval) list
+val filter : state:exec_state -> DbT.db -> dblock_args -> (string * dval) list
 
 val query_by_one :
   state:exec_state -> DbT.db -> string -> dval -> (string * dval) list
