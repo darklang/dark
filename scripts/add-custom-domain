@@ -122,7 +122,8 @@ ${DOMAIN} -> ${CANVAS}.builtwithdark.com.
 To check this, run \`dig ${DOMAIN}\`.
 
 Once it resolves, deploy the new ManagedCertificate:
-\`kubectl apply -f scripts/support/kubernetes/cert/${DOMAIN}-cert.yaml\`
+\`kubectl apply -f scripts/support/kubernetes/certs/${DOMAIN}-cert.yaml\` and
+\`kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-ingress.yaml\`
 and wait for its Status/Certificate Status
 (in \`kubectl describe managedcertificate ${DOMAIN}-cert\`) to change from
 Provisioning to Active. This should take <15m.

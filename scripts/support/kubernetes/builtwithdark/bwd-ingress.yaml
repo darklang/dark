@@ -6,7 +6,7 @@ metadata:
     # This can be a comma-separated list of managed certificates
     # NOTE: max certs per ingress = 15, that includes both managed certs and the
     # tls secrets mentioned below in spec.tls.
-    networking.gke.io/managed-certificates: www.kiksht.com-cert
+    networking.gke.io/managed-certificates: www.kiksht.com-cert,food.placeofthin.gs-cert
     kubernetes.io/ingress.global-static-ip-name: bwd-tls-ip
 spec:
   backend:
