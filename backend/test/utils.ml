@@ -349,6 +349,9 @@ let test_execution_data
     ; fail_fn = None
     ; dbs = TL.dbs !c.dbs
     ; execution_id
+    ; trace = (fun _ _ -> ())
+    ; trace_tlid = (fun _ -> ())
+    ; context = Real
     ; load_fn_result = load_test_fn_results
     ; store_fn_result =
         Stored_function_result.store ~canvas_id ~trace_id
@@ -371,6 +374,9 @@ let execute_ops
         ; store_fn_arguments
         ; execution_id
         ; dbs
+        ; trace
+        ; trace_tlid
+        ; context
         ; user_fns
         ; user_tipes
         ; account_id
@@ -412,7 +418,7 @@ let exec_handler ?(ops = []) (prog : string) : dval =
 
 let exec_ast ?(canvas_name = "test") (prog : string) : dval =
   let c, state, input_vars = test_execution_data ~canvas_name [] in
-  let result, _ = Ast.execute_ast input_vars state (ast_for prog) in
+  let result = Ast.execute_ast ~input_vars ~state (ast_for prog) in
   result
 
 
@@ -421,15 +427,36 @@ let exec_userfn (prog : string) : dval =
   let ast = ast_for prog in
   let fn = user_fn name [] ast in
   let c, state, _ = test_execution_data [SetFunction fn] in
-  let result, _ = Ast.execute_fn state name execution_id [] in
-  result
+  Ast.execute_fn ~state name execution_id []
 
 
 let exec_save_dvals ?(canvas_name = "test") (ast : expr) :
     Analysis_types.dval_store =
   let c, state, input_vars = test_execution_data ~canvas_name [] in
-  let _, dvstore, _ = Ast.execute_saving_intermediates input_vars state ast in
-  dvstore
+  let { tlid
+      ; execution_id
+      ; dbs
+      ; user_fns
+      ; user_tipes
+      ; account_id
+      ; canvas_id
+      ; load_fn_result
+      ; load_fn_arguments
+      ; _ } =
+    state
+  in
+  Execution.analyse_ast
+    ~tlid
+    ~execution_id
+    ~input_vars
+    ~dbs
+    ~user_fns
+    ~user_tipes
+    ~account_id
+    ~canvas_id
+    ~load_fn_result
+    ~load_fn_arguments
+    ast
 
 
 (* Sample values *)
