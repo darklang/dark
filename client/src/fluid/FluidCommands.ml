@@ -21,16 +21,21 @@ let commandsFor (tl : toplevel) (id : id) : command list =
    * they contain functions, which BS cannot compare.*)
   let noPutOn c = c.commandName <> Commands.putFunctionOnRail.commandName in
   let noTakeOff c = c.commandName <> Commands.takeFunctionOffRail.commandName in
-  Toplevel.getAST tl
-  |> Option.andThen ~f:(FluidExpression.find id)
-  |> Option.map ~f:(function
-         | EFnCall (_, _, _, Rail) ->
-             List.filter fluidCommands ~f:noPutOn
-         | EFnCall (_, _, _, NoRail) ->
-             List.filter fluidCommands ~f:noTakeOff
-         | _ ->
-             List.filter fluidCommands ~f:(fun c -> noTakeOff c && noPutOn c))
-  |> Option.withDefault ~default:fluidCommands
+  let expr =
+    Toplevel.getAST tl |> Option.andThen ~f:(FluidExpression.find id)
+  in
+  let railFilters =
+    expr
+    |> Option.map ~f:(function
+           | EFnCall (_, _, _, Rail) ->
+               noPutOn
+           | EFnCall (_, _, _, NoRail) ->
+               noTakeOff
+           | _ ->
+               fun c -> noTakeOff c && noPutOn c)
+    |> Option.withDefault ~default:(fun _ -> true)
+  in
+  fluidCommands |> List.filter ~f:railFilters
 
 
 let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
