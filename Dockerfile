@@ -5,6 +5,18 @@ FROM ubuntu:18.04 as dark-base
 
 ENV FORCE_BUILD 1
 
+# These are reasonable defaults, and what the dark uid/gid would be if we didn't
+# specify values. By exposing them as build-args, we can set these values to
+# match the host user's uid/gid - allowing for dark-owned files in-container to
+# be owned by the host user on the host fs.
+#
+# We didn't need this in OS X because Docker for Mac handles it for you, and we
+# avoided it on Linux for a while because often the first non-root user has uid
+# 1000. But that's not always the case, and when it's not, you get files owned
+# by 1000:1000 that need to be sudo chown'd on the host.
+ARG uid=1000
+ARG gid=1000
+
 ############################
 ## apt
 ############################
@@ -118,7 +130,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
 # Dark user
 ############################
 USER root
-RUN adduser --disabled-password --gecos '' dark
+RUN groupadd -g ${gid} dark \
+    && adduser --disabled-password --gecos '' --uid ${uid} --gid ${gid} dark
 RUN echo "dark:dark" | chpasswd && adduser dark sudo
 RUN chown -R dark:dark /home/dark
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
