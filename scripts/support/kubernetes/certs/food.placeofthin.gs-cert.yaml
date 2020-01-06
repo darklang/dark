@@ -1,0 +1,10 @@
+apiVersion: networking.gke.io/v1beta1
+kind: ManagedCertificate
+metadata:
+  name: food.placeofthin.gs-cert
+spec:
+  domains:
+    # NB: Per https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs,
+    # domains can _only_ have one entry, we cannot have both www and
+    # the apex, nor can we have wildcards
+    - food.placeofthin.gs
