@@ -98,8 +98,8 @@ pub fn handle(
             *response.body_mut() = Body::from("OK");
         }
         (&Method::POST, ["", "canvas", uuid, "events", event]) => {
-            let uuid = uuid.to_string();
-            let event = event.to_string();
+            let uuid = (*uuid).to_string();
+            let event = (*event).to_string();
             let moved_request_id = request_id.clone();
             let handled = req_body
                 .map(move |req_body| {
@@ -131,9 +131,9 @@ pub fn handle(
             return Box::new(handled);
         }
         (&Method::POST, ["", "segment", uuid, msg_type, "event", event]) => {
-            let msg_type = msg_type.to_string();
-            let uuid = uuid.to_string();
-            let event = event.to_string();
+            let msg_type = (*msg_type).to_string();
+            let uuid = (*uuid).to_string();
+            let event = (*event).to_string();
             let moved_request_id = request_id.clone();
             let handled = req_body
                 .map(move |req_body| {
