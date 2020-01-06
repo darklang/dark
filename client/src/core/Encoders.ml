@@ -114,7 +114,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
         object_
           [ ("symtable", tcStrDict dval symtable)
           ; ("params", list (pair id string) params)
-          ; ("expr", fluidExpr body) ]
+          ; ("body", fluidExpr body) ]
       in
       ev "DBlock" [dblock_args]
   | DIncomplete SourceNone ->
