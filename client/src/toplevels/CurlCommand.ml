@@ -177,16 +177,14 @@ let curlFromHttpClientCall (m : model) (tlid : tlid) (id : id) (name : string) :
                   "Expected a fn name matching HttpClient::[^_]*"
            in
            let base_url =
-             url
-             |> fun dv ->
-             match dv with
+             match url with
              | DStr s ->
                  s
              | _ ->
                  recover
-                   ~debug:(show_dval dv)
+                   ~debug:(show_dval url)
                    "Expected url arg to be a DStr"
-                   dv
+                   url
                  |> show_dval
            in
            let qps =
@@ -197,7 +195,7 @@ let curlFromHttpClientCall (m : model) (tlid : tlid) (id : id) (name : string) :
                | DInt i ->
                    Some (string_of_int i)
                | DFloat f ->
-                   Some (Js.Float.toString f)
+                   Some (Tc.Float.toString f)
                | DBool b ->
                    (if b then "true" else "false") |> Option.some
                | DNull ->
