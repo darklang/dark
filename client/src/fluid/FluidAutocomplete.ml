@@ -613,7 +613,7 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
 
 let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index
 
-let updateAutocompleteVisability (m : model) : model =
+let updateAutocompleteVisibility (m : model) : model =
   let oldTlid =
     match m.fluidState.ac.query with
     | Some (tlid, _) ->
