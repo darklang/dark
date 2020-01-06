@@ -18,14 +18,12 @@ let cron_checker execution_id =
           ~data:"Uncaught error"
           ~params:[("exn", Libexecution.Exception.exn_to_string e)] ;
         Lwt.async (fun () ->
-            let _ =
-              Libbackend.Rollbar.report_lwt
-                e
-                bt
-                CronChecker
-                (Libexecution.Types.string_of_id execution_id)
-            in
-            Lwt.return ()) ;
+            Libbackend.Rollbar.report_lwt
+              e
+              bt
+              CronChecker
+              (Libexecution.Types.string_of_id execution_id)
+            >>= fun _ -> Lwt.return ()) ;
         if not !shutdown then (cron_checker [@tailcall]) () else Lwt.return ()
   in
   Lwt_main.run
