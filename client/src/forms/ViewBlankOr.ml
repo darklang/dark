@@ -210,7 +210,7 @@ let viewBlankOr
         drawBlank id
   in
   match vs.cursorState with
-  | Entering (Filling (_, thisID)) ->
+  | Entering (_, thisID) ->
       let id = B.toID bo in
       if id = thisID
       then

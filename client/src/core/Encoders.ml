@@ -630,10 +630,10 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
   match cs with
   | Selecting (tlid_, mId) ->
       ev "Selecting" [tlid tlid_; nullable id mId]
-  | Entering (Creating pos_) ->
-      ev "Entering" [ev "Creating" [pos pos_]]
-  | Entering (Filling (tlid_, id_)) ->
-      ev "Entering" [ev "Filling" [tlid tlid_; id id_]]
+  | Omnibox pos_ ->
+      ev "Omnibox" [pos pos_]
+  | Entering (tlid_, id_) ->
+      ev "Entering" [tlid tlid_; id id_]
   | Dragging (tlid_, vpos_, hasMoved, cursor) ->
       ev "Dragging" [tlid tlid_; vPos vpos_; bool hasMoved; cursorState cursor]
   | Deselected ->
