@@ -592,7 +592,24 @@ let t_db_filter_works () =
   check_dval
     "Find all"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (f "\\value -> (> (. value height) 3)")
+    (f "\\value -> true") ;
+  check_dval
+    "Find all with condition"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (f "\\value -> (> (. value height) 3)") ;
+  check_dval
+    "boolean"
+    (DList [Dval.dint 65; Dval.dint 73])
+    (f "\\value -> (. value human)") ;
+  check_dval
+    "different param name"
+    (DList [Dval.dint 65; Dval.dint 73])
+    (f "\\v -> (. v human)") ;
+  check_dval
+    "&&"
+    (DList [Dval.dint 73])
+    (f "\\v -> (&& (. v human) (> (. v height) 66) )") ;
+  ()
 
 
 let suite =
