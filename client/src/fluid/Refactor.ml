@@ -476,3 +476,22 @@ let removePartials (m : model) (tlid : tlid) : modification =
         NoChange )
   | None ->
       NoChange
+
+
+let removePartials2 (m : model) (tlid : tlid) : fluidExpr option =
+  let findAllPartials = function
+    | EPartial (id, _, e) | ERightPartial (id, _, e) ->
+        Some (id, e)
+    | _ ->
+        None
+  in
+  let replacePartials partial ast =
+    let replaceID, validExpr = partial in
+    E.replace ~replacement:validExpr replaceID ast
+  in
+  TL.get m tlid
+  |> Option.andThen ~f:TL.getAST
+  |> Option.map ~f:(fun ast ->
+         ast
+         |> E.filterMap ~f:findAllPartials
+         |> List.foldl ~init:ast ~f:replacePartials)

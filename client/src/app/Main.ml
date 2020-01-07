@@ -970,8 +970,26 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
-  let newm = updateDropdownVisibilty newm in
-  (newm, Cmd.batch [cmd; newcmd])
+  let newm = updateDropdownVisabilty newm in
+  let rmPartialsCmd =
+    match (m.cursorState, newm.cursorState) with
+    | FluidEntering tlid, Deselected ->
+        Debug.loG "VOX" "clear partials" ;
+        Refactor.removePartials2 newm tlid
+        |> Option.map ~f:(fun ast ->
+               let ops = TL.setASTOps m tlid ast in
+               let opparams =
+                 API.opsParams
+                   ops
+                   (Some ((newm |> opCtr) + 1))
+                   newm.clientOpCtrId
+               in
+               API.addOp newm FocusNoChange opparams)
+        |> Option.withDefault ~default:Cmd.none
+    | _ ->
+        Cmd.none
+  in
+  (newm, Cmd.batch [cmd; newcmd; rmPartialsCmd])
 
 
 let findCenter (m : model) : pos =
