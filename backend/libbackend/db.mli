@@ -89,14 +89,13 @@ val exists :
  * work, so we need to escape manually *)
 val escape : param -> string
 
+val escape_string : string -> string
+
 val array_separator : string
 
 val date_of_sqlstring : string -> Core_kernel.Time.t
 
 (* Misc *)
 val delete_benchmarking_data : unit -> unit
-
-(* exposed to test it *)
-val escape_single : string -> string
 
 exception DBFilterException of string
