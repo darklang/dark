@@ -504,18 +504,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         if m.cursorState <> Deselected
         then
           let m = Handlers.closeMenu m in
-          let m =
-            match m.cursorState with
-            | FluidEntering tlid ->
-              TL.get m tlid
-              |> Option.andThen ~f:TL.getAST
-              |> Option.map ~f:(fun ast ->
-                let newAST = Fluid.removePartials ast in
-                TL.withAST m tlid newAST
-              )
-              |> Option.withDefault ~default:m
-            | _ -> m
-          in
           let hashcmd = Url.updateUrl Architecture in
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
@@ -528,7 +516,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; timestamp = timeStamp }
           in
           let commands = [hashcmd; acCmd; API.sendPresence m avMessage] in
-          Debug.loG "VOX" "deselected";
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->

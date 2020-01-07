@@ -4973,13 +4973,3 @@ let renderCallback (m : model) : unit =
             Entry.setFluidCaret m.fluidState.newPos )
   | _ ->
       ()
-
-let removePartials (oldAST : ast) : ast =
-  oldAST |> E.filterMap ~f:(function
-  | EPartial (id, _, e)
-  | ERightPartial (id, _, e) ->
-    Some (id, e)
-  | _ -> None)
-  |> List.foldl ~init:oldAST ~f:(fun (replaceID, validExpr) ast ->
-    E.replace ~replacement:validExpr replaceID ast
-  )

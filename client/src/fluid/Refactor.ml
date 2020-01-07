@@ -451,3 +451,28 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
              None
          | TLGroup _ ->
              None)
+
+
+let removePartials (m : model) (tlid : tlid) : modification =
+  let findAllPartials = function
+    | EPartial (id, _, e) | ERightPartial (id, _, e) ->
+        Some (id, e)
+    | _ ->
+        None
+  in
+  let replacePartials partial ast =
+    let replaceID, validExpr = partial in
+    E.replace ~replacement:validExpr replaceID ast
+  in
+  match TL.get m tlid with
+  | Some tl ->
+    ( match TL.getAST tl with
+    | Some ast ->
+        ast
+        |> E.filterMap ~f:findAllPartials
+        |> List.foldl ~init:ast ~f:replacePartials
+        |> TL.setASTMod tl
+    | None ->
+        NoChange )
+  | None ->
+      NoChange
