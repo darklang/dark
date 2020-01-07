@@ -624,6 +624,10 @@ let t_db_filter_works () =
     "bad variable name"
     (filter "\\v -> (let x 32 (&& true (> (. v height) y) ))")
     "variable not defined: y" ;
+  check_dval
+    "sql injection"
+    (DList [])
+    (filter "\\v -> (== '; select * from users ;' (. v name) )") ;
   ()
 
 
