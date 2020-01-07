@@ -1103,21 +1103,21 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
  *)
 let caretTargetForBeginningOfMatchBranch
     (matchID : id) (index : int) (ast : ast) : caretTarget =
-  match E.find matchID ast with
-  | Some (EMatch (_, _, branches)) ->
-      branches
-      |> List.getAt ~index
-      |> Option.map ~f:(fun (pattern, _) ->
-             caretTargetForBeginningOfPattern pattern)
-      |> recoverOpt
-           "caretTargetForBeginningOfMatchBranch got an index outside of the match"
-           ~debug:(matchID, index)
-           ~default:{astRef = ARInvalid; offset = 0}
-  | _ ->
-      recover
-        "caretTargetForBeginningOfMatchBranch got an invalid id"
-        ~debug:matchID
-        {astRef = ARInvalid; offset = 0}
+  let maybeTarget =
+    match E.find matchID ast with
+    | Some (EMatch (_, _, branches)) ->
+        branches
+        |> List.getAt ~index
+        |> Option.map ~f:(fun (pattern, _) ->
+               caretTargetForBeginningOfPattern pattern)
+    | _ ->
+        None
+  in
+  maybeTarget
+  |> recoverOpt
+       "caretTargetForBeginningOfMatchBranch got an invalid id/idx"
+       ~debug:(matchID, index)
+       ~default:{astRef = ARInvalid; offset = 0}
 
 
 (* caretTargetForEndOfMatchPattern returns a caretTarget representing caret
@@ -1129,20 +1129,21 @@ let caretTargetForBeginningOfMatchBranch
  *)
 let caretTargetForEndOfMatchPattern (matchID : id) (index : int) (ast : ast) :
     caretTarget =
-  match E.find matchID ast with
-  | Some (EMatch (_, _, branches)) ->
-      branches
-      |> List.getAt ~index
-      |> Option.map ~f:(fun (pattern, _) -> caretTargetForEndOfPattern pattern)
-      |> recoverOpt
-           "caretTargetForEndOfMatchPattern got an index outside of the match"
-           ~debug:(matchID, index)
-           ~default:{astRef = ARInvalid; offset = 0}
-  | _ ->
-      recover
-        "caretTargetForEndOfMatchPattern got an invalid id"
-        ~debug:matchID
-        {astRef = ARInvalid; offset = 0}
+  let maybeTarget =
+    match E.find matchID ast with
+    | Some (EMatch (_, _, branches)) ->
+        branches
+        |> List.getAt ~index
+        |> Option.map ~f:(fun (pattern, _) ->
+               caretTargetForEndOfPattern pattern)
+    | _ ->
+        None
+  in
+  maybeTarget
+  |> recoverOpt
+       "caretTargetForEndOfMatchPattern got an invalid id/index"
+       ~debug:(matchID, index)
+       ~default:{astRef = ARInvalid; offset = 0}
 
 
 (* ---------------- *)
