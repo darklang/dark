@@ -993,7 +993,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
-  let newm = updateDropdownVisabilty newm in
+  let newm = updateDropdownVisibilty newm in
   let rmPartialsCmd =
     match (m.cursorState, newm.cursorState) with
     | FluidEntering tlid, Deselected ->
