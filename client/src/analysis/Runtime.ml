@@ -210,8 +210,19 @@ let typeOf (dv : dval) : tipe =
       TBytes
 
 
+(* Drop initial/final '"' *)
 let stripQuotes (s : string) : string =
-  s |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+  let s =
+    if String.starts_with ~prefix:"\"" s
+    then s |> String.dropLeft ~count:1
+    else s
+  in
+  let s =
+    if String.ends_with ~suffix:"\"" s
+    then s |> String.dropRight ~count:1
+    else s
+  in
+  s
 
 
 let isComplete (dv : dval) : bool =

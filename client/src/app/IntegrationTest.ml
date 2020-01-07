@@ -654,6 +654,25 @@ let fluid_shift_tabbing_from_handler_ast_back_to_route (_m : model) : testResult
   pass
 
 
+let fluid_test_copy_request_as_curl (m : model) : testResult =
+  (* test logic is here b/c testcafe can't get clipboard data *)
+  let curl =
+    CurlCommand.curlFromHttpClientCall
+      m
+      (TLID "91390945")
+      (ID "753586717")
+      "HttpClient::post"
+  in
+  let expected = "curl -H 'h:3' -d 'some body' -X post 'https://foo.com?q=1'" in
+  match curl with
+  | None ->
+      fail "Expected a curl command, got nothing"
+  | Some s ->
+      if s != expected
+      then fail ("Expected: '" ^ expected ^ "', got '" ^ s ^ "'.")
+      else pass
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -770,5 +789,7 @@ let trigger (test_name : string) : integrationTestState =
         fluid_tabbing_from_handler_spec_past_ast_back_to_verb
     | "fluid_shift_tabbing_from_handler_ast_back_to_route" ->
         fluid_shift_tabbing_from_handler_ast_back_to_route
+    | "fluid_test_copy_request_as_curl" ->
+        fluid_test_copy_request_as_curl
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
