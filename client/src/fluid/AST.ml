@@ -405,3 +405,19 @@ let variablesIn (ast : E.t) : avDict =
   let trace expr st = IDTable.set sym_store (deID (E.id expr)) st in
   sym_exec ~trace VarDict.empty ast ;
   sym_store |> IDTable.toList |> StrDict.fromList
+
+
+let removePartials (ast : E.t) : E.t =
+  let findAllPartials = function
+    | EPartial (id, _, e) | ERightPartial (id, _, e) ->
+        Some (id, e)
+    | _ ->
+        None
+  in
+  let replacePartials partial ast =
+    let replaceID, validExpr = partial in
+    E.replace ~replacement:validExpr replaceID ast
+  in
+  ast
+  |> E.filterMap ~f:findAllPartials
+  |> List.foldl ~init:ast ~f:replacePartials

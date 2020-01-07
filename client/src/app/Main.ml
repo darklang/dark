@@ -249,6 +249,29 @@ let updateDropdownVisibilty (m : model) : model =
   else m
 
 
+let rmPartialsCmd (m : model) (tlid : tlid) : msg Cmd.t =
+  TL.get m tlid
+  |> Option.thenAlso ~f:TL.getAST
+  |> Option.andThen ~f:(fun (tl, ast) ->
+         (* Removes partials from AST *)
+         let newAST = AST.removePartials ast in
+         (* If AST has changed then wrap in a set-op *)
+         match tl with
+         | TLHandler h when h.ast <> newAST ->
+             Some (SetHandler (tlid, h.pos, {h with ast = newAST}))
+         | TLFunc f when f.ufAST <> newAST ->
+             Some (SetFunction {f with ufAST = newAST})
+         | _ ->
+             None)
+  |> Option.map ~f:(fun op ->
+         (* Convert op to RPC cmd *)
+         let opparams =
+           API.opsParams [op] (Some ((m |> opCtr) + 1)) m.clientOpCtrId
+         in
+         API.addOp m FocusNoChange opparams)
+  |> Option.withDefault ~default:Cmd.none
+
+
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
@@ -974,18 +997,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   let rmPartialsCmd =
     match (m.cursorState, newm.cursorState) with
     | FluidEntering tlid, Deselected ->
-        Debug.loG "VOX" "clear partials" ;
-        Refactor.removePartials2 newm tlid
-        |> Option.map ~f:(fun ast ->
-               let ops = TL.setASTOps m tlid ast in
-               let opparams =
-                 API.opsParams
-                   ops
-                   (Some ((newm |> opCtr) + 1))
-                   newm.clientOpCtrId
-               in
-               API.addOp newm FocusNoChange opparams)
-        |> Option.withDefault ~default:Cmd.none
+        rmPartialsCmd newm tlid
+    | FluidEntering tlid, FluidEntering newTLID when newTLID <> tlid ->
+        rmPartialsCmd newm tlid
+    | FluidEntering tlid, Selecting (newTLID, _) when newTLID <> tlid ->
+        rmPartialsCmd newm tlid
     | _ ->
         Cmd.none
   in
