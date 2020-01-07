@@ -9,7 +9,7 @@ module TL = Toplevel
  * _), DOption (OptNothing) - moved to the None case *)
 let rec to_url_string (dv : dval) : string option =
   match dv with
-  | DBlock
+  | DBlock _
   | DIncomplete _
   | DPassword _
   | DObj _
