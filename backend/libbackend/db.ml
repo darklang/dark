@@ -9,7 +9,7 @@ module PG = Postgresql
 
 let conn = Libservice.Dbconnection.conn
 
-let escape_single s = conn#escape_string s
+let escape_string s = conn#escape_string s
 
 let single_quote v = "'" ^ v ^ "'"
 
@@ -60,38 +60,38 @@ let rec escape (param : param) : string =
   | ID id ->
       Types.string_of_id id
   | String str ->
-      str |> escape_single |> single_quote
+      str |> escape_string |> single_quote
   | Uuid uuid ->
       uuid
       |> Uuidm.to_string
-      |> escape_single
+      |> escape_string
       |> single_quote
       |> cast_to ~tipe:"uuid"
   | Binary str ->
       Exception.internal "Prefer not to escape binary data"
   | Secret str ->
-      str |> escape_single |> single_quote
+      str |> escape_string |> single_quote
   | RoundtrippableDval dv ->
-      dv |> Dval.to_internal_roundtrippable_v0 |> escape_single |> single_quote
+      dv |> Dval.to_internal_roundtrippable_v0 |> escape_string |> single_quote
   | RoundtrippableDvalmap dvm ->
       DObj dvm
       |> Dval.to_internal_roundtrippable_v0
-      |> escape_single
+      |> escape_string
       |> single_quote
   | QueryableDval dv ->
       dv
       |> Dval.to_internal_queryable_v1
-      |> escape_single
+      |> escape_string
       |> single_quote
       |> cast_to ~tipe:"jsonb"
   | QueryableDvalmap dvm ->
       DObj dvm
       |> Dval.to_internal_queryable_v1
-      |> escape_single
+      |> escape_string
       |> single_quote
       |> cast_to ~tipe:"jsonb"
   | Time t ->
-      t |> date_to_sqlstring |> escape_single |> single_quote
+      t |> date_to_sqlstring |> escape_string |> single_quote
   | Null ->
       "NULL"
   | List params ->

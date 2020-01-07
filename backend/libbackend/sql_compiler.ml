@@ -118,7 +118,7 @@ let dval_to_sql (dval : dval) : string =
       error2 "unsupported value" (Dval.to_developer_repr_v0 dval)
   | DInt i ->
       (* types don't line up to use Db.Int *)
-      Db.escape_single (Dint.to_string i)
+      Db.escape_string (Dint.to_string i)
   | DBool b ->
       Db.escape (Bool b)
   | DNull ->
