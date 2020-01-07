@@ -578,7 +578,10 @@ let t_db_filter_works () =
       )
       ))"
   |> ignore ;
-  let f lambda =
+  let filter lambda =
+    exec_handler ~ops ("(DB::filter (" ^ lambda ^ ") Person)")
+  in
+  let filter_and_sort lambda =
     exec_handler
       ~ops
       ( "(|
@@ -592,23 +595,31 @@ let t_db_filter_works () =
   check_dval
     "Find all"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (f "\\value -> true") ;
+    (filter_and_sort "\\value -> true") ;
   check_dval
     "Find all with condition"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (f "\\value -> (> (. value height) 3)") ;
+    (filter_and_sort "\\value -> (> (. value height) 3)") ;
   check_dval
     "boolean"
     (DList [Dval.dint 65; Dval.dint 73])
-    (f "\\value -> (. value human)") ;
+    (filter_and_sort "\\value -> (. value human)") ;
   check_dval
     "different param name"
     (DList [Dval.dint 65; Dval.dint 73])
-    (f "\\v -> (. v human)") ;
+    (filter_and_sort "\\v -> (. v human)") ;
   check_dval
     "&&"
     (DList [Dval.dint 73])
-    (f "\\v -> (&& (. v human) (> (. v height) 66) )") ;
+    (filter_and_sort "\\v -> (&& (. v human) (> (. v height) 66) )") ;
+  check_dval
+    "inlining"
+    (DList [Dval.dint 65; Dval.dint 73])
+    (filter_and_sort "\\v -> (let x 32 (&& true (> (. v height) x) ))") ;
+  check_error
+    "bad variable name"
+    (filter "\\v -> (let x 32 (&& true (> (. v height) y) ))")
+    "variable not defined: y" ;
   ()
 
 
