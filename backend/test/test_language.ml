@@ -22,6 +22,19 @@ let t_lambda_with_foreach () =
 (String::toUppercase (String::fromChar_v1 var)))) '')")
 
 
+let t_lambda_scopes_correctly () =
+  check_dval
+    "lambda uses scope at create time, not call time"
+    (DList [Dval.dint 6; Dval.dint 7; Dval.dint 8; Dval.dint 9])
+    (exec_ast
+       "(let x 5
+         (let y (\c -> (+ x c))
+          (let x 6
+           (|
+              (1 2 3 4)
+              (List::map y)))))")
+
+
 let t_multiple_copies_of_same_name () =
   check_error
     "record field names"
@@ -462,4 +475,5 @@ let suite =
     , t_unicode_string_regex_replace_works_with_emojis )
   ; ("DError propagation", `Quick, t_derror_propagation)
   ; ("Dval.hash", `Quick, t_dval_hash_differs_for_version_0_and_1)
-  ; ("t_int_functions_works", `Quick, t_int_functions_works) ]
+  ; ("t_int_functions_works", `Quick, t_int_functions_works)
+  ; ("lambda scopes correctly", `Quick, t_lambda_scopes_correctly) ]

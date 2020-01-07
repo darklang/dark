@@ -6,55 +6,7 @@ let isCompatible (t1 : tipe) (t2 : tipe) : bool =
 
 let errorRailTypes : tipe list = [TOption; TResult]
 
-let rec tipe2str (t : tipe) : string =
-  match t with
-  | TAny ->
-      "Any"
-  | TInt ->
-      "Int"
-  | TFloat ->
-      "Float"
-  | TBool ->
-      "Bool"
-  | TNull ->
-      "Null"
-  | TCharacter ->
-      "Character"
-  | TStr ->
-      "String"
-  | TList ->
-      "List"
-  | TObj ->
-      "Dict"
-  | TBlock ->
-      "Block"
-  | TIncomplete ->
-      "Incomplete"
-  | TError ->
-      "Error"
-  | TResp ->
-      "Response"
-  | TDB ->
-      "Datastore"
-  | TDate ->
-      "Date"
-  | TOption ->
-      "Option"
-  | TPassword ->
-      "Password"
-  | TUuid ->
-      "UUID"
-  | TErrorRail ->
-      "ErrorRail"
-  | TResult ->
-      "Result"
-  | TDbList a ->
-      "[" ^ tipe2str a ^ "]"
-  | TUserType (name, _) ->
-      name
-  | TBytes ->
-      "Bytes"
-
+let tipe2str = Prelude.tipe2str
 
 let str2tipe (t : string) : tipe =
   let parseListTipe lt =
@@ -184,7 +136,7 @@ let typeOf (dv : dval) : tipe =
       TList
   | DObj _ ->
       TObj
-  | DBlock ->
+  | DBlock _ ->
       TBlock
   | DIncomplete _ ->
       TIncomplete
@@ -298,8 +250,9 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         with _ -> wrap s )
   | DPassword s ->
       wrap s
-  | DBlock ->
-      asType
+  | DBlock {params; body; _} ->
+      (* TODO: show relevant symtable entries *)
+      FluidPrinter.eToString (ELambda (gid (), params, body))
   | DIncomplete _ ->
       asType
   | DResp (Redirect url, dv_) ->

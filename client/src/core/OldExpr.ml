@@ -42,12 +42,7 @@ and nExpr =
 (* Expressions *)
 (* ----------------- *)
 let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
-  let fns =
-    assertFn
-      ~f:(( <> ) [])
-      "empty functions passed to toFluidExpr'"
-      !FluidExpression.functions
-  in
+  let fns = !FluidExpression.functions in
   let f = toFluidExpr' ~inPipe:false in
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   match expr with
@@ -128,7 +123,14 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
         ERightPartial (id, str, toFluidExpr' ~inPipe oldExpr) )
 
 
-and toFluidExpr (expr : expr) : FluidExpression.t = toFluidExpr' expr
+and toFluidExpr (expr : expr) : FluidExpression.t =
+  asserT
+    "empty functions passed to toFluidExpr'"
+    (!FluidExpression.functions <> []) ;
+  toFluidExpr' expr
+
+
+and toFluidExprNoAssertion (expr : expr) : FluidExpression.t = toFluidExpr' expr
 
 and fromFluidExpr (expr : FluidExpression.t) : expr =
   let open Types in
@@ -148,10 +150,12 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
         F (id, Value (FluidUtil.literalToString `Null))
     | EVariable (id, var) ->
         F (id, Variable var)
-    | EFieldAccess (id, obj, "") ->
-        F (id, FieldAccess (fromFluidExpr obj, Blank (gid ())))
-    | EFieldAccess (id, obj, fieldname) ->
-        F (id, FieldAccess (fromFluidExpr obj, F (gid (), fieldname)))
+    | EFieldAccess (ID id, obj, "") ->
+        F (ID id, FieldAccess (fromFluidExpr obj, Blank (ID (id ^ "12345"))))
+    | EFieldAccess (ID id, obj, fieldname) ->
+        F
+          ( ID id
+          , FieldAccess (fromFluidExpr obj, F (ID (id ^ "12345"), fieldname)) )
     | EFnCall (id, name, args, ster) ->
       ( match args with
       | EPipeTarget _ :: _ when not inPipe ->

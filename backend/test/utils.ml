@@ -490,7 +490,11 @@ let sample_dvals =
            ; ("value", Dval.dstr_of_string_exn "x") ]) )
   ; ("incomplete", DIncomplete SourceNone)
   ; ("error", DError (SourceNone, "some error string"))
-  ; ("block", DBlock (fun _args -> DNull))
+  ; ( "block"
+    , DBlock
+        { body = Blank (id_of_int 1234)
+        ; symtable = DvalMap.empty
+        ; params = [(id_of_int 5678, "a")] } )
   ; ("errorrail", DErrorRail (Dval.dint 5))
   ; ("redirect", DResp (Redirect "/home", DNull))
   ; ( "httpresponse"

@@ -96,8 +96,8 @@ let fns =
     ; f =
         InProcess
           (function
-          | _, [DObj o; DBlock fn] ->
-              let f (dv : dval) : dval = fn [dv] in
+          | state, [DObj o; DBlock b] ->
+              let f dv = Ast.execute_dblock ~state b [dv] in
               DObj (Map.map ~f o)
           | args ->
               fail args)
@@ -112,9 +112,9 @@ let fns =
     ; f =
         InProcess
           (function
-          | _, [DObj o; DBlock fn] ->
-              let f ~key ~(data : dval) : dval =
-                fn [Dval.dstr_of_string_exn key; data]
+          | state, [DObj o; DBlock b] ->
+              let f ~key ~(data : dval) =
+                Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
               in
               DObj (Map.mapi ~f o)
           | args ->
@@ -130,10 +130,13 @@ let fns =
     ; f =
         InProcess
           (function
-          | _, [DObj o; DBlock fn] ->
+          | state, [DObj o; DBlock b] ->
               let incomplete = ref false in
               let f ~(key : string) ~(data : dval) : bool =
-                match fn [Dval.dstr_of_string_exn key; data] with
+                let result =
+                  Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
+                in
+                match result with
                 | DBool b ->
                     b
                 | DIncomplete _ ->
@@ -161,24 +164,30 @@ let fns =
     ; f =
         InProcess
           (function
-          | _, [DObj o; DBlock fn] ->
+          | state, [DObj o; DBlock b] ->
               let filter_propagating_errors ~key ~data acc =
                 match acc with
                 | Error dv ->
                     Error dv
                 | Ok m ->
-                  ( match fn [Dval.dstr_of_string_exn key; data] with
-                  | DBool true ->
-                      Ok (Base.Map.set m ~key ~data)
-                  | DBool false ->
-                      Ok m
-                  | (DIncomplete _ as e) | (DError _ as e) ->
-                      Error e
-                  | other ->
-                      RT.error
-                        "Fn returned incorrect type"
-                        ~expected:"bool"
-                        ~actual:other )
+                    let result =
+                      Ast.execute_dblock
+                        ~state
+                        b
+                        [Dval.dstr_of_string_exn key; data]
+                    in
+                    ( match result with
+                    | DBool true ->
+                        Ok (Base.Map.set m ~key ~data)
+                    | DBool false ->
+                        Ok m
+                    | (DIncomplete _ as e) | (DError _ as e) ->
+                        Error e
+                    | other ->
+                        RT.error
+                          "Fn returned incorrect type"
+                          ~expected:"bool"
+                          ~actual:other )
               in
               let filtered_result =
                 Base.Map.fold
