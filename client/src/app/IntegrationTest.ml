@@ -654,6 +654,7 @@ let fluid_shift_tabbing_from_handler_ast_back_to_route (_m : model) : testResult
   pass
 
 
+<<<<<<< HEAD
 let fluid_test_copy_request_as_curl (m : model) : testResult =
   (* test logic is here b/c testcafe can't get clipboard data *)
   let curl =
@@ -678,6 +679,9 @@ let clicking_on_omnibox_works (m : model) : testResult =
   let _ = onlyHandler m in
   pass
 
+=======
+let string_escaping_for_r_n_t_double_quote (_m : model) : testResult = pass
+>>>>>>> Integration test for string escaping
 
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
@@ -799,5 +803,7 @@ let trigger (test_name : string) : integrationTestState =
         fluid_test_copy_request_as_curl
     | "clicking_on_omnibox_works" ->
         clicking_on_omnibox_works
+    | "string_escaping_for_r_n_t_double_quote" ->
+        string_escaping_for_r_n_t_double_quote
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

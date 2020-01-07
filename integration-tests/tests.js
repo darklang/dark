@@ -973,3 +973,43 @@ test("fluid_test_copy_request_as_curl", async t => {
   // test logic in IntegrationTest.ml; we load it here because we need an
   // analysis done before we can call the command
 })
+
+test("string_escaping_for_r_n_t_double_quote", async t => {
+  const callBackend = ClientFunction(function(url) {
+    return new Promise((resolve, reject) => {
+      var xhttp = new XMLHttpRequest();
+      xhttp.open("POST", url, true);
+      xhttp.setRequestHeader("Content-type", "application/json");
+      xhttp.send("");
+      xhttp.onload = () => {
+        if (xhttp.status >= 200 && xhttp.status < 300) {
+          resolve(xhttp.response);
+        } else {
+          reject(xhttp.statusText);
+        }
+      };
+    });
+  });
+
+  await createHTTPHandler(t);
+  await t
+    .pressKey("down")
+    .pressKey("down")
+    .pressKey("enter") // POST
+    .pressKey("/")
+    // route: /0, /1, etc
+    .pressKey(JSON.stringify(t.testRun.quarantine.attempts.length))
+    .pressKey("enter")
+    // We wrap the string literal we're testing in a respondWithText because the
+    // live value of a string is wrapped in extra '"', which we do not want.
+    .pressKey("w i t h t e x tab")
+    .pressKey('"') // start string
+    .pressKey('\\ \\ r \\ n \\ t \\ f left " right backspace')
+    .pressKey("tab 2 0 0"); // add status code
+
+  let r = await callBackend(
+    user_content_url(t, "/" + JSON.stringify(t.testRun.quarantine.attempts.length)),
+  );
+
+  await t.expect(r).eql('\\\r\n\t"');
+});
