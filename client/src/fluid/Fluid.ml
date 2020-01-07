@@ -1094,28 +1094,6 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
       {astRef = ARPattern (id, PPBlank); offset = 3}
 
 
-(* maybeCaretTargetForBeginningOfMatchBranch returns (Some caretTarget) representing caret
- * placement at the very start of the match branch identified by `matchID` and `index`
- * within the `ast`, or None if no match branch with the passed index exists.
- * It is an error to pass an id of a non-match.
- *
- * "very start" is based on the definition of caretTargetForBeginningOfPattern
- *)
-let maybeCaretTargetForBeginningOfMatchBranch
-    (matchID : id) (index : int) (ast : ast) : caretTarget option =
-  match E.find matchID ast with
-  | Some (EMatch (_, _, branches)) ->
-      branches
-      |> List.getAt ~index
-      |> Option.map ~f:(fun (pattern, _) ->
-             caretTargetForBeginningOfPattern pattern)
-  | _ ->
-      recover
-        "maybeCaretTargetForBeginningOfMatchBranch"
-        ~debug:matchID
-        (Some {astRef = ARInvalid; offset = 0})
-
-
 (* caretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
  * placement at the very start of the match branch identified by `matchID` and `index`
  * within the `ast`.
@@ -1125,32 +1103,21 @@ let maybeCaretTargetForBeginningOfMatchBranch
  *)
 let caretTargetForBeginningOfMatchBranch
     (matchID : id) (index : int) (ast : ast) : caretTarget =
-  maybeCaretTargetForBeginningOfMatchBranch matchID index ast
-  |> recoverOpt
-       "caretTargetForBeginningOfMatchBranch got an index outside of the match"
-       ~debug:(matchID, index)
-       ~default:{astRef = ARInvalid; offset = 0}
-
-
-(* maybeCaretTargetForEndOfMatchPattern returns (Some caretTarget) representing caret
- * placement at the end of the of the match pattern in the branch identified by `matchID` and `index`
- * within the `ast`, or None if no match branch with the passed index exists.
- * It is an error to pass an id of a non-match.
- *
- * "end" is based on the definition of caretTargetForEndOfPattern
- *)
-let maybeCaretTargetForEndOfMatchPattern
-    (matchID : id) (index : int) (ast : ast) : caretTarget option =
   match E.find matchID ast with
   | Some (EMatch (_, _, branches)) ->
       branches
       |> List.getAt ~index
-      |> Option.map ~f:(fun (pattern, _) -> caretTargetForEndOfPattern pattern)
+      |> Option.map ~f:(fun (pattern, _) ->
+             caretTargetForBeginningOfPattern pattern)
+      |> recoverOpt
+           "caretTargetForBeginningOfMatchBranch got an index outside of the match"
+           ~debug:(matchID, index)
+           ~default:{astRef = ARInvalid; offset = 0}
   | _ ->
       recover
-        "maybeCaretTargetForEndOfMatchPattern"
+        "caretTargetForBeginningOfMatchBranch got an invalid id"
         ~debug:matchID
-        (Some {astRef = ARInvalid; offset = 0})
+        {astRef = ARInvalid; offset = 0}
 
 
 (* caretTargetForEndOfMatchPattern returns a caretTarget representing caret
@@ -1162,11 +1129,20 @@ let maybeCaretTargetForEndOfMatchPattern
  *)
 let caretTargetForEndOfMatchPattern (matchID : id) (index : int) (ast : ast) :
     caretTarget =
-  maybeCaretTargetForEndOfMatchPattern matchID index ast
-  |> recoverOpt
-       "caretTargetForEndOfMatchPattern got an index outside of the match"
-       ~debug:(matchID, index)
-       ~default:{astRef = ARInvalid; offset = 0}
+  match E.find matchID ast with
+  | Some (EMatch (_, _, branches)) ->
+      branches
+      |> List.getAt ~index
+      |> Option.map ~f:(fun (pattern, _) -> caretTargetForEndOfPattern pattern)
+      |> recoverOpt
+           "caretTargetForEndOfMatchPattern got an index outside of the match"
+           ~debug:(matchID, index)
+           ~default:{astRef = ARInvalid; offset = 0}
+  | _ ->
+      recover
+        "caretTargetForEndOfMatchPattern got an invalid id"
+        ~debug:matchID
+        {astRef = ARInvalid; offset = 0}
 
 
 (* ---------------- *)
