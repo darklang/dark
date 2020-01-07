@@ -13,7 +13,9 @@ let fromCompositionEndEvent (raw : Web.Node.event) : t option =
 let fromInputEvent (raw : Web.Node.event) : t option =
   let open Json.Decode in
   let j : Js.Json.t = Obj.magic raw in
-  let evt =
-    {data = field "data" string j; inputType = field "inputType" string j}
-  in
-  match evt with {inputType = "insertText"; data} -> Some {data} | _ -> None
+  try
+    let evt =
+      {data = field "data" string j; inputType = (field "inputType" string) j}
+    in
+    match evt with {inputType = "insertText"; data} -> Some {data} | _ -> None
+  with _ -> None
