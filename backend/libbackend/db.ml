@@ -41,6 +41,7 @@ type param =
   | Null
   | List of param list
   | Bool of bool
+[@@deriving show]
 
 (* only works for in-script params *)
 
@@ -456,3 +457,6 @@ let delete_benchmarking_data () : unit =
     "DELETE FROM oplists WHERE host like 'benchmarking\\_%%';
      DELETE FROM json_oplists WHERE host like 'benchmarking\\_%%';"
     ~params:[]
+
+
+exception DBFilterException of string

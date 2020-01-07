@@ -519,7 +519,7 @@ and call_fn
       let result =
         match fn with
         (* Functions which aren't implemented in the client may have results
-   * available, otherwise they just return incomplete. *)
+         * available, otherwise they just return incomplete. *)
         | None ->
             let sfr_desc = (state.tlid, name, id) in
             ( match state.load_fn_result sfr_desc argvals with
