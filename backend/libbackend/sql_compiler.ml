@@ -98,7 +98,36 @@ let rec canonicalize expr =
       Ast.traverse ~f:canonicalize expr
 
 
-let dval_to_sql (dval : dval) : string = Dval.to_internal_queryable_v0 dval
+let dval_to_sql (dval : dval) : string =
+  match dval with
+  | DObj _
+  | DList _
+  | DResp _
+  | DDate _
+  | DBlock _
+  | DError _
+  | DCharacter _
+  | DDB _
+  | DIncomplete _
+  | DPassword _
+  | DOption _
+  | DErrorRail _
+  | DResult _
+  | DFloat _
+  | DBytes _ ->
+      error2 "unsupported value" (Dval.to_developer_repr_v0 dval)
+  | DInt i ->
+      (* types don't line up to use Db.Int *)
+      Db.escape_single (Dint.to_string i)
+  | DBool b ->
+      Db.escape (Bool b)
+  | DNull ->
+      Db.escape Null
+  | DStr s ->
+      Db.escape (String (Unicode_string.to_string s))
+  | DUuid id ->
+      Db.escape (Uuid id)
+
 
 let rec lambda_to_sql_inner
     (symtable : dval_map)
@@ -151,5 +180,5 @@ let compile_lambda
     (body : expr) =
   body
   |> canonicalize
-  |> inline Prelude.StrDict.empty
+  |> inline paramName Prelude.StrDict.empty
   |> lambda_to_sql_inner symtable paramName dbFields
