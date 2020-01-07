@@ -408,16 +408,12 @@ let variablesIn (ast : E.t) : avDict =
 
 
 let removePartials (ast : E.t) : E.t =
-  let findAllPartials = function
-    | EPartial (id, _, e) | ERightPartial (id, _, e) ->
-        Some (id, e)
-    | _ ->
-        None
-  in
-  let replacePartials partial ast =
-    let replaceID, validExpr = partial in
-    E.replace ~replacement:validExpr replaceID ast
-  in
   ast
-  |> E.filterMap ~f:findAllPartials
-  |> List.foldl ~init:ast ~f:replacePartials
+  |> E.filterMap ~f:(function
+         | EPartial (id, _, e) | ERightPartial (id, _, e) ->
+             Some (id, e)
+         | _ ->
+             None)
+  |> List.foldl ~init:ast ~f:(fun partial ast ->
+         let replaceID, validExpr = partial in
+         E.replace ~replacement:validExpr replaceID ast)
