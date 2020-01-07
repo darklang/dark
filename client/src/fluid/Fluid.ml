@@ -1115,8 +1115,7 @@ let maybeCaretTargetForBeginningOfMatchBranch
         ~debug:matchID
         (Some {astRef = ARInvalid; offset = 0})
 
-
-(* maybeCaretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
+(* caretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
  * placement at the very start of the match branch identified by `matchID` and `index`
  * within the `ast`.
  * It is an error to pass an id of a non-match or an index outside the match.
