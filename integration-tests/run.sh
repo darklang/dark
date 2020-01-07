@@ -30,9 +30,9 @@ BROWSER='unknown'
   PLATFORM=$(uname -s)
   if [[ $PLATFORM == "Darwin" ]]; then
     if [[ "$DEBUG" == "true" ]]; then
-      BROWSER='chrome:headless --window-size="1600,1200"'
-    else
       BROWSER='chrome --window-size="1600,1200"'
+    else
+      BROWSER='chrome:headless --window-size="1600,1200"'
     fi
   else
     BROWSER='chromium:headless --window-size="1600,1200"'
@@ -82,7 +82,7 @@ else
 
   # Check the version (matters when running outside the container)
   version=$(testcafe --version)
-  expected_version=$(grep testcafe client/package.json | sed 's/\s*"testcafe": "//' | sed 's/",\s*//')
+  expected_version=$(grep testcafe client/package.json | sed 's/[[:space:]]*"testcafe": "//' | sed 's/",[[:space:]]*//')
   if [[ "$version" != "$expected_version" ]]
   then
     echo "Incorrect version of testcafe: $version (expected $expected_version)"
