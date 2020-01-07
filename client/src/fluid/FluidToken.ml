@@ -352,7 +352,7 @@ let toText (t : t) : string =
   | TMatchKeyword _ ->
       "match "
   | TMatchSep _ ->
-      "->"
+      " -> "
   | TPatternInteger (_, _, i, _) ->
       shouldntBeEmpty i
   | TPatternFloatWhole (_, _, w, _) ->
