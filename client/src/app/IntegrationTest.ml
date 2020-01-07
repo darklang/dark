@@ -673,6 +673,12 @@ let fluid_test_copy_request_as_curl (m : model) : testResult =
       else pass
 
 
+let clicking_on_omnibox_works (m : model) : testResult =
+  (* Will throw an exception if there's no handlers *)
+  let _ = onlyHandler m in
+  pass
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -791,5 +797,7 @@ let trigger (test_name : string) : integrationTestState =
         fluid_shift_tabbing_from_handler_ast_back_to_route
     | "fluid_test_copy_request_as_curl" ->
         fluid_test_copy_request_as_curl
+    | "clicking_on_omnibox_works" ->
+        clicking_on_omnibox_works
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
