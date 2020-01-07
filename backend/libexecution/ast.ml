@@ -524,6 +524,16 @@ and call_fn
             let sfr_desc = (state.tlid, name, id) in
             ( match state.load_fn_result sfr_desc argvals with
             | Some (result, _ts) ->
+                (* In the case of DB::filter, we want to backfill the
+                 * lambda's livevalues, as the lambda was never actually
+                 * executed. We hack this is here as we have no idea what
+                 * this abstraction might look like in the future. *)
+                ( match (name, argvals, result) with
+                | "DB::filter", [DBlock b; _], DList (sample :: _) ->
+                    execute_dblock ~state b [sample]
+                | _ ->
+                    result )
+                |> ignore ;
                 result
             | inc ->
                 DIncomplete (SourceId id) )
