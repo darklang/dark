@@ -710,7 +710,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       when id = id' ->
         posForTi ti
     | ARList (id, LPSeparator idx), TListSep (id', idx')
-    | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
+    | ARMatch (id, MPBranchSep idx), TMatchSep { matchID= id'; index= idx'; _}
     | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'; _} )

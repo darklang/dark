@@ -1394,8 +1394,7 @@ and fluidToken =
   | TRecordSep of id * int * analysisId
   | TRecordClose of id
   | TMatchKeyword of id
-  (* match id, index of match row *)
-  | TMatchSep of id * int
+  | TMatchSep of { matchID: id; patternID: id; index: int}
   (* for all these TPattern* variants:
    * - the first id is the match id
    * - the second id is the pattern id
