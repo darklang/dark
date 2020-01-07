@@ -241,11 +241,11 @@ let isACOpened (m : model) : bool =
   || AC.isOpened m.complete
 
 
-let updateDropdownVisabilty (m : model) : model =
+let updateDropdownVisibilty (m : model) : model =
   if FluidAutocomplete.isOpened m.fluidState.ac
-  then FluidAutocomplete.updateAutocompleteVisability m
+  then FluidAutocomplete.updateAutocompleteVisibility m
   else if FluidCommands.isOpened m.fluidState.cp
-  then FluidCommands.updateCommandPaletteVisability m
+  then FluidCommands.updateCommandPaletteVisibility m
   else m
 
 
@@ -966,7 +966,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
-  let newm = updateDropdownVisabilty newm in
+  let newm = updateDropdownVisibilty newm in
   (newm, Cmd.batch [cmd; newcmd])
 
 

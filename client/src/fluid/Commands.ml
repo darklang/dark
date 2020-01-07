@@ -65,4 +65,34 @@ let commands : command list =
               AddOps ([SetType tipe], FocusNext (tipe.utTLID, Some nameId))
           | Error s ->
               DisplayError ("Can't create-type: " ^ s))
-    ; doc = "Create a type from a live value" } ]
+    ; doc = "Create a type from a live value" }
+  ; { commandName = "copy-request-as-curl"
+    ; action =
+        (fun m tl id ->
+          let name =
+            TL.getAST tl
+            |> Option.andThen ~f:(fun ast -> FluidExpression.find id ast)
+            |> Option.andThen ~f:(function
+                   | EFnCall (_, fluidName, _, _) ->
+                       Some fluidName
+                   | _ ->
+                       None)
+            |> Option.withDefault ~default:""
+          in
+          let tlid = Toplevel.id tl in
+          let data = CurlCommand.curlFromHttpClientCall m tlid id name in
+          let toastMessage =
+            match data with
+            | Some data ->
+                Native.Clipboard.copyToClipboard data ;
+                Some "Copied!"
+            | None ->
+                Some "Could not copy, try again after clicking this handler."
+          in
+          let modFun m =
+            (* TODO: toastPos is a vPos, how do we get a vPos without a
+             * mouseEvent? *)
+            {m with toast = {toastMessage; toastPos = None}}
+          in
+          TweakModel modFun)
+    ; doc = "Copy request as curl command" } ]

@@ -116,6 +116,17 @@ let recoverOpt ?(debug : 'd option) (msg : 'msg) ~(default : 'r) (x : 'r option)
       recover ~debug ("Got None but expected something: " ^ msg) default
 
 
+(* Like recoverOpt, but for when you want to return 'r option instead of
+ * specifying a default *)
+let recoverOption ?(debug : 'd option) (msg : 'msg) (x : 'r option) : 'r option
+    =
+  match x with
+  | Some y ->
+      Some y
+  | None ->
+      recover ~debug ("Got None but expected something: " ^ msg) None
+
+
 (* Assert `cond`, returning val either way.  All assertion functions report
  * to rollbar if they fail. *)
 let assert_ ?(debug : 'd option) (msg : string) (cond : bool) (returnVal : 'r) :

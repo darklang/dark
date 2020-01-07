@@ -954,3 +954,14 @@ test("fluid_shift_tabbing_from_handler_ast_back_to_route", async t => {
     .expect(acHighlightedText("/"))
     .ok();
 });
+
+test("fluid_test_copy_request_as_curl", async t => {
+  await t
+    .navigateTo("#handler=91390945");
+  await Selector(".tl-91390945", { timeout: 5000 })();
+    await t.expect(available(".tl-91390945"))
+    .ok()
+    .click(Selector(".id-753586717"));
+  // test logic in IntegrationTest.ml; we load it here because we need an
+  // analysis done before we can call the command
+})
