@@ -1131,6 +1131,43 @@ let caretTargetForBeginningOfMatchBranch
        ~default:{astRef = ARInvalid; offset = 0}
 
 
+(* maybeCaretTargetForEndOfMatchPattern returns (Some caretTarget) representing caret
+ * placement at the end of the of the match pattern in the branch identified by `matchID` and `index`
+ * within the `ast`, or None if no match branch with the passed index exists.
+ * It is an error to pass an id of a non-match.
+ *
+ * "end" is based on the definition of caretTargetForEndOfPattern
+ *)
+let maybeCaretTargetForEndOfMatchPattern
+    (matchID : id) (index : int) (ast : ast) : caretTarget option =
+  match E.find matchID ast with
+  | Some (EMatch (_, _, branches)) ->
+      branches
+      |> List.getAt ~index
+      |> Option.map ~f:(fun (pattern, _) -> caretTargetForEndOfPattern pattern)
+  | _ ->
+      recover
+        "maybeCaretTargetForEndOfMatchPattern"
+        ~debug:matchID
+        (Some {astRef = ARInvalid; offset = 0})
+
+
+(* caretTargetForEndOfMatchPattern returns a caretTarget representing caret
+ * placement at the end of the match pattern in the branch identified by `matchID` and `index`
+ * within the `ast`.
+ * It is an error to pass an id of a non-match or an index outside the match.
+ *
+ * "very start" is based on the definition of caretTargetForBeginningOfPattern
+ *)
+let caretTargetForEndOfMatchPattern (matchID : id) (index : int) (ast : ast) :
+    caretTarget =
+  maybeCaretTargetForEndOfMatchPattern matchID index ast
+  |> recoverOpt
+       "caretTargetForEndOfMatchPattern got an index outside of the match"
+       ~debug:(matchID, index)
+       ~default:{astRef = ARInvalid; offset = 0}
+
+
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
@@ -2633,8 +2670,10 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let newID = gid () in
   let newAST, newPosition =
     match ti.token with
-    | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
+    | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
         (ast, MoveToStart)
+    | TMatchSep {matchID = id; index = idx; _} ->
+        (ast, AtTarget (caretTargetForEndOfMatchPattern id idx ast))
     | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
         let newAST = removeEmptyExpr (T.tid ti.token) ast in
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
