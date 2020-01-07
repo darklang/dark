@@ -259,14 +259,6 @@ let setASTMod (tl : toplevel) (ast : fluidExpr) : modification =
       recover "no ast in Groups" ~debug:tl NoChange
 
 
-let setASTOps (m : model) (tlid : tlid) (ast : fluidExpr) : op list =
-  match TD.get ~tlid m.handlers with
-  | Some h when h.ast <> ast ->
-      [SetHandler (tlid, h.pos, {h with ast})]
-  | _ ->
-      []
-
-
 let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     toplevel =
   let id = P.toID p in

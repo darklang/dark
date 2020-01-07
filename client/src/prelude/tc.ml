@@ -62,6 +62,14 @@ module Option = struct
 
 
   let isSomeEqualTo ~(value : 'a) (o : 'a option) : bool = Some value = o
+
+  (* I've encountered the need for this multiple times.
+    if a is some, then apply fn to a, return both a and the result.
+    if either a or b is none, then return none
+  *)
+  let thenAlso (a : 'a option) ~(f : 'a -> 'b option) : ('a * 'b) option =
+    let b = andThen ~f a in
+    pair a b
 end
 
 module Result = struct
