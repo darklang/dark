@@ -1004,6 +1004,12 @@ let update_ (msg : msg) (m : model) : modification =
         let newcomplete = {m.complete with index} in
         let newm = {m with complete = newcomplete} in
         Entry.submit newm tlid id Entry.StayHere
+    | Omnibox pos ->
+        {m.complete with index}
+        |> AC.highlighted
+        |> Option.andThen ~f:(function ACOmniAction a -> Some a | _ -> None)
+        |> Option.map ~f:(Entry.submitOmniAction m pos)
+        |> Option.withDefault ~default:NoChange
     | _ ->
         NoChange )
   | FluidMsg (FluidUpdateDropdownIndex index) ->
