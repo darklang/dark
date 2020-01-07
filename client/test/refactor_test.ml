@@ -50,8 +50,10 @@ let sampleFunctions =
     ; fnInfix = false } ]
 
 
+let defaultTLID = TLID "handler1"
+
 let defaultHandler =
-  { hTLID = TLID "handler1"
+  { hTLID = defaultTLID
   ; pos = {x = 0; y = 0}
   ; ast = EBlank (gid ())
   ; spec =
@@ -173,7 +175,7 @@ let run () =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
-            ; hTLID = TLID "handler1"
+            ; hTLID = defaultTLID
             ; pos = {x = 0; y = 0} }
           in
           let f =
@@ -212,7 +214,7 @@ let run () =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
-            ; hTLID = TLID "handler1"
+            ; hTLID = defaultTLID
             ; pos = {x = 0; y = 0} }
           in
           let model =
@@ -290,7 +292,7 @@ let run () =
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->
       let modelAndTl (ast : fluidExpr) =
-        let hTLID = TLID "handler1" in
+        let hTLID = defaultTLID in
         let tl =
           { hTLID
           ; ast
@@ -342,4 +344,60 @@ let run () =
             ( R.extractVarInAst m tl (E.id expr) "var" ast
             |> FluidPrinter.eToString )
           |> toEqual
-               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"))
+               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n")) ;
+  describe "removePartials" (fun () ->
+      let handlerWithExpr ast = {defaultHandler with ast} in
+      let modelWithHandler hs =
+        { D.defaultModel with
+          builtInFunctions = sampleFunctions
+        ; handlers = Handlers.fromList [hs] }
+      in
+      let b () = EBlank (gid ()) in
+      let newAST = function
+        | AddOps ([SetHandler (_, _, h)], FocusNoChange) ->
+            Some h.ast
+        | _ ->
+            None
+      in
+      test "NoChange when blank" (fun () ->
+          let expr = b () in
+          let m = modelWithHandler (handlerWithExpr expr) in
+          expect (R.removePartials m defaultTLID) |> toEqual NoChange) ;
+      test "NoChange when not-partial" (fun () ->
+          let expr =
+            EFnCall
+              ( gid ()
+              , "Int::add"
+              , [EInteger (gid (), "3"); EInteger (gid (), "9")]
+              , NoRail )
+          in
+          let m = modelWithHandler (handlerWithExpr expr) in
+          expect (R.removePartials m defaultTLID) |> toEqual NoChange) ;
+      test "Updates AST when there's a partial in fn args" (fun () ->
+          let fnid = gid () in
+          let argid = gid () in
+          let blank = b () in
+          let expr =
+            EFnCall
+              ( fnid
+              , "Int::add"
+              , [EInteger (argid, "3"); EPartial (gid (), "abc", blank)]
+              , NoRail )
+          in
+          let m = modelWithHandler (handlerWithExpr expr) in
+          expect (R.removePartials m defaultTLID |> newAST)
+          |> toEqual
+               (Some
+                  (EFnCall
+                     (fnid, "Int::add", [EInteger (argid, "3"); blank], NoRail)))) ;
+      test "Updates AST when there's a fn rename partial" (fun () ->
+          let fnid = gid () in
+          let b1 = b () in
+          let b2 = b () in
+          let expr =
+            ERightPartial
+              (gid (), "Int::a", EFnCall (fnid, "Int::add", [b1; b2], NoRail))
+          in
+          let m = modelWithHandler (handlerWithExpr expr) in
+          expect (R.removePartials m defaultTLID |> newAST)
+          |> toEqual (Some (EFnCall (fnid, "Int::add", [b1; b2], NoRail)))))
