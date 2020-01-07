@@ -1158,7 +1158,7 @@ let maybeCaretTargetForEndOfMatchPattern
  * within the `ast`.
  * It is an error to pass an id of a non-match or an index outside the match.
  *
- * "very start" is based on the definition of caretTargetForBeginningOfPattern
+ * "end" is based on the definition of caretTargetForEndOfPattern
  *)
 let caretTargetForEndOfMatchPattern (matchID : id) (index : int) (ast : ast) :
     caretTarget =
