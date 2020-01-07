@@ -616,6 +616,10 @@ let t_db_filter_works () =
     "inlining"
     (DList [Dval.dint 65; Dval.dint 73])
     (filter_and_sort "\\v -> (let x 32 (&& true (> (. v height) x) ))") ;
+  check_dval
+    "pipes"
+    (DList [Dval.dint 10])
+    (filter_and_sort "\\v -> (| (. v height) (* 2) (+ 6) (< 40))") ;
   check_error
     "bad variable name"
     (filter "\\v -> (let x 32 (&& true (> (. v height) y) ))")
