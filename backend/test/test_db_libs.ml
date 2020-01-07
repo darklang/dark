@@ -546,6 +546,55 @@ let t_db_getAllKeys_works () =
     (exec_handler ~ops ast)
 
 
+let t_db_filter_works () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDB (dbid, pos, "Person")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid)
+    ; Op.SetDBColName (dbid, colnameid, "name")
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
+    ; Op.SetDBColName (dbid, colnameid2, "human")
+    ; Op.SetDBColType (dbid, coltypeid2, "Bool")
+    ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
+    ; Op.SetDBColName (dbid, colnameid3, "height")
+    ; Op.SetDBColType (dbid, coltypeid3, "Int") ]
+  in
+  (* Prepopulate the DB for tests *)
+  exec_handler
+    ~ops
+    "(let _ (DB::set_v1
+              (obj (height 73) (name 'Ross') (human true))
+              'first'
+              Person)
+     (let _ (DB::set_v1
+              (obj (height 65) (name 'Rachel') (human true))
+              'second'
+              Person)
+     (let _ (DB::set_v1
+              (obj (height 10) (name 'GrumpyCat') (human false))
+              'third'
+              Person)
+      )
+      ))"
+  |> ignore ;
+  let f lambda =
+    exec_handler
+      ~ops
+      ( "(|
+           (DB::filter ("
+      ^ lambda
+      ^ ") Person)
+           (List::map (\\v -> (. v height)))
+           (List::sort))"
+      )
+  in
+  check_dval
+    "Find all"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (f "\\value -> (> (. value height) 3)")
+
+
 let suite =
   [ ("DB::getAll_v1 works", `Quick, t_db_getAll_v1_works)
   ; ("DB::getAll_v2 works", `Quick, t_db_getAll_v2_works)
@@ -594,4 +643,4 @@ let suite =
     , `Quick
     , t_db_queryOneWithKey_v2_returns_nothing_multiple )
   ; ("t_db_getAllKeys_works returns List of keys", `Quick, t_db_getAllKeys_works)
-  ]
+  ; ("t_db_filter works", `Quick, t_db_filter_works) ]
