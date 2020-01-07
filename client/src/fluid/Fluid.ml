@@ -862,7 +862,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       newPos
   | None ->
       (*
-        NOTE(JULIAN): This is very useful for fixing issues in dev, but much too large for Rollbar: 
+        NOTE(JULIAN): This is very useful for fixing issues in dev, but much too large for Rollbar:
         Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(eToStructure ~includeIDs:true s ast)) ();
       *)
       recover
@@ -2933,11 +2933,10 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
       (newAST, s)
 
 
-let doInsert' ~pos (letter : char) (ti : T.tokenInfo) (ast : ast) (s : state) :
-    E.t * state =
+let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
+    : E.t * state =
   let s = recordAction ~ti ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
-  let letterStr = String.fromChar letter in
   let offset =
     match ti.token with
     | TString _ | TPatternString _ | TStringMLStart (_, _, _, _) ->
@@ -2950,7 +2949,7 @@ let doInsert' ~pos (letter : char) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | _ ->
         pos - ti.startPos
   in
-  let f str = String.insertAt ~index:offset ~insert:letterStr str in
+  let f str = String.insertAt ~index:offset ~insert:letter str in
   let newID = gid () in
   let lambdaArgs ti =
     let placeholderName =
@@ -2975,39 +2974,39 @@ let doInsert' ~pos (letter : char) (ti : T.tokenInfo) (ast : ast) (s : state) :
     |> List.map ~f:(fun str -> (gid (), str))
   in
   let newExpr, newTarget =
-    if letter = '"'
+    if letter = "\""
     then
       (EString (newID, ""), {astRef = ARString (newID, SPOpenQuote); offset = 1})
-    else if letter = '['
+    else if letter = "["
     then (EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
-    else if letter = '{'
+    else if letter = "{"
     then (ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
-    else if letter = '\\'
+    else if letter = "\\"
     then
       ( ELambda (newID, lambdaArgs ti, EBlank (gid ()))
       , (* TODO(JULIAN): if lambdaArgs is a populated list, place caret at the end *)
         {astRef = ARLambda (newID, LPKeyword); offset = 1} )
-    else if letter = ','
+    else if letter = ","
     then
       (EBlank newID (* new separators *), {astRef = ARBlank newID; offset = 0})
-    else if Util.isNumber letterStr
+    else if Util.isNumber letter
     then
-      let intStr = letterStr |> Util.coerceStringTo63BitInt in
+      let intStr = letter |> Util.coerceStringTo63BitInt in
       ( EInteger (newID, intStr)
       , {astRef = ARInteger newID; offset = String.length intStr} )
     else
-      ( EPartial (newID, letterStr, EBlank (gid ()))
-      , {astRef = ARPartial newID; offset = String.length letterStr} )
+      ( EPartial (newID, letter, EBlank (gid ()))
+      , {astRef = ARPartial newID; offset = String.length letter} )
   in
   let newAST, newPosition =
     match ti.token with
     | (TFieldName (id, _, _) | TVariable (id, _))
-      when pos = ti.endPos && letter = '.' ->
+      when pos = ti.endPos && letter = "." ->
         let partialID = gid () in
         ( exprToFieldAccess id ~partialID ~fieldID:(gid ()) ast
         , AtTarget {astRef = ARPartial partialID; offset = 0} )
     (* Dont add space to blanks *)
-    | ti when FluidToken.isBlank ti && letterStr == " " ->
+    | ti when FluidToken.isBlank ti && letter == " " ->
         (ast, SamePlace)
     (* replace blank *)
     | TBlank id | TPlaceholder (_, id) ->
@@ -3016,10 +3015,10 @@ let doInsert' ~pos (letter : char) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TListOpen id ->
         (insertInList ~index:0 id ~newExpr ast, AtTarget newTarget)
     (* lambda *)
-    | TLambdaSymbol id when letter = ',' ->
+    | TLambdaSymbol id when letter = "," ->
         ( insertLambdaVar ~index:0 id ~name:"" ast
         , AtTarget {astRef = ARLambda (id, LPVarName 0); offset = 0} )
-    | TLambdaVar (id, _, index, _) when letter = ',' ->
+    | TLambdaVar (id, _, index, _) when letter = "," ->
         ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
         , AtTarget {astRef = ARLambda (id, LPVarName (index + 1)); offset = 0}
         )
@@ -3032,10 +3031,10 @@ let doInsert' ~pos (letter : char) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TFloatWhole _
     | TPatternFloatWhole _
     | TPatternFloatFraction _
-      when not (Util.isNumber letterStr) ->
+      when not (Util.isNumber letter) ->
         (ast, SamePlace)
     | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
-      when '0' = letter && offset = 0 ->
+      when "0" = letter && offset = 0 ->
         (ast, SamePlace)
     | TVariable _
     | TPatternVariable _
@@ -3044,7 +3043,7 @@ let doInsert' ~pos (letter : char) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TFieldPartial _
     | TLambdaVar _
     | TRecordFieldname _
-      when not (Util.isIdentifierChar letterStr) ->
+      when not (Util.isIdentifierChar letter) ->
         (ast, SamePlace)
     | TVariable _
     | TPatternVariable _
@@ -3053,10 +3052,10 @@ let doInsert' ~pos (letter : char) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TFieldPartial _
     | TLambdaVar _
     | TRecordFieldname _
-      when Util.isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token)
+      when Util.isNumber letter && (offset = 0 || FluidToken.isBlank ti.token)
       ->
         (ast, SamePlace)
-    | (TFnVersion _ | TFnName _) when not (Util.isFnNameChar letterStr) ->
+    | (TFnVersion _ | TFnName _) when not (Util.isFnNameChar letter) ->
         (ast, SamePlace)
     (* Do the insert *)
     | (TString (_, str) | TStringMLEnd (_, str, _, _))
@@ -3118,25 +3117,24 @@ let doInsert' ~pos (letter : char) (ti : T.tokenInfo) (ast : ast) (s : state) :
         ( replaceFloatFraction (f str) id ast
         , AtTarget {astRef = ARFloat (id, FPDecimal); offset = offset + 1} )
     | TFloatPoint id ->
-        ( insertAtFrontOfFloatFraction letterStr id ast
+        ( insertAtFrontOfFloatFraction letter id ast
         , AtTarget
-            {astRef = ARFloat (id, FPDecimal); offset = String.length letterStr}
-        )
+            {astRef = ARFloat (id, FPDecimal); offset = String.length letter} )
     | TPatternFloatWhole (mID, id, str, _) ->
         (replacePatternFloatWhole (f str) mID id ast, RightOne)
     | TPatternFloatFraction (mID, id, str, _) ->
         (replacePatternFloatFraction (f str) mID id ast, RightOne)
     | TPatternFloatPoint (mID, id, _) ->
-        (insertAtFrontOfPatternFloatFraction letterStr mID id ast, RightOne)
+        (insertAtFrontOfPatternFloatFraction letter mID id ast, RightOne)
     | TPatternConstructorName _ ->
         (ast, SamePlace)
     | TPatternBlank (mID, pID, _) ->
         let newPat =
-          if letter = '"'
+          if letter = "\""
           then FPString (mID, newID, "")
-          else if Util.isNumber letterStr
-          then FPInteger (mID, newID, letterStr |> Util.coerceStringTo63BitInt)
-          else FPVariable (mID, newID, letterStr)
+          else if Util.isNumber letter
+          then FPInteger (mID, newID, letter |> Util.coerceStringTo63BitInt)
+          else FPVariable (mID, newID, letter)
         in
         (replacePattern mID pID ~newPat ast, RightOne)
     (* do nothing *)
@@ -3179,7 +3177,7 @@ let doInsert
   | None ->
       (ast, s)
   | Some letter ->
-      doInsert' ~pos letter ti ast s
+      doInsert' ~pos (String.fromChar letter) ti ast s
 
 
 let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
@@ -4759,6 +4757,17 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           else None
         in
         (newAST, {newState with selectionStart})
+    | FluidTextInput evt ->
+        let s = recordAction "FluidTextEntry" s in
+        let pos = s.newPos in
+        let toLeft, toRight, _nextTok = getNeighbours ~pos (toTokens ast) in
+        ( match (toLeft, toRight) with
+        | L (_, ti), _ when T.isAppendable ti.token ->
+            doInsert' ~pos evt.data ti ast s
+        | _, R (_, ti) ->
+            doInsert' ~pos evt.data ti ast s
+        | _ ->
+            (ast, s) )
     | FluidAutocompleteClick entry ->
         Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
         |> Option.withDefault ~default:(ast, s)
@@ -4828,6 +4837,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       |> Option.withDefault ~default:NoChange
   | FluidMouseDown _
   | FluidKeyPress _
+  | FluidTextInput _
   | FluidCopy
   | FluidPaste _
   | FluidCut

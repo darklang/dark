@@ -205,6 +205,5 @@ let analyse_ast
     ; store_fn_result = store_no_results
     ; store_fn_arguments = store_no_arguments }
   in
-  Libcommon.Log.infO "Executing for intermediates" ;
   let _ = Ast.execute_ast ~state ~input_vars ast in
   value_store
