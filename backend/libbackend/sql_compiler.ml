@@ -64,18 +64,23 @@ let tipe_to_sql_tipe (t : tipe_) : string =
       error2 "unsupported DB field tipe" (show_tipe_ t)
 
 
-let rec inline (symtable : expr Prelude.StrDict.t) (expr : expr) : expr =
+let rec inline
+    (paramName : string) (symtable : expr Prelude.StrDict.t) (expr : expr) :
+    expr =
   match expr with
   | Filled (_, Let (Filled (_, name), expr, body)) ->
-      inline (Prelude.StrDict.insert ~key:name ~value:expr symtable) body
-  | Filled (_, Variable name) when name <> "value" ->
+      inline
+        paramName
+        (Prelude.StrDict.insert ~key:name ~value:expr symtable)
+        body
+  | Filled (_, Variable name) when name <> paramName ->
     ( match Prelude.StrDict.get ~key:name symtable with
     | Some expr ->
         expr
     | None ->
         error2 "variable not defined" name )
   | _ ->
-      Ast.traverse ~f:(inline symtable) expr
+      Ast.traverse ~f:(inline paramName symtable) expr
 
 
 let rec canonicalize expr =
