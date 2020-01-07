@@ -407,7 +407,10 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                     |> addMany (patternToToken pattern ~idx:i)
                     |> addMany
                          [ TSep id
-                         ; TMatchSep {matchID=id; patternID=Pattern.id pattern; index=i}
+                         ; TMatchSep
+                             { matchID = id
+                             ; patternID = Pattern.id pattern
+                             ; index = i }
                          ; TSep (Pattern.id pattern) ]
                     |> addNested ~f:(fromExpr expr))
              |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))))

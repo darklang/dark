@@ -649,7 +649,7 @@ let toDebugInfo (t : t) : string =
       "no parent"
   | TPipe (_, idx, len) ->
       Printf.sprintf "idx=%d len=%d" idx len
-  | TMatchSep { index = idx; _ } ->
+  | TMatchSep {index = idx; _} ->
       "idx=" ^ string_of_int idx
   | TPatternBlank (mid, _, idx)
   | TPatternInteger (mid, _, _, idx)
