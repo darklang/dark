@@ -1,11 +1,9 @@
 open Core_kernel
-open Types
-open Types.RuntimeT
 
 let error
     ?(bt : Caml.Printexc.raw_backtrace option)
-    ?(actual = DIncomplete SourceNone)
-    ?(result = DIncomplete SourceNone)
+    ?(actual = Types.RuntimeT.DIncomplete Types.RuntimeT.SourceNone)
+    ?(result = Types.RuntimeT.DIncomplete Types.RuntimeT.SourceNone)
     ?(info = [])
     ?(expected = "")
     ?(workarounds = [])

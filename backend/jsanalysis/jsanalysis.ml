@@ -5,7 +5,7 @@ open Types
 open Types.RuntimeT
 
 let init () =
-  Libs.init [] ;
+  Libs.init Builtin_libs.fns ;
   print_endline "libfrontend reporting in"
 
 

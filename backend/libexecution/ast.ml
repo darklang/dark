@@ -134,7 +134,40 @@ let should_send_to_rail (expr : nexpr) : bool =
   match expr with FnCallSendToRail _ -> true | _ -> false
 
 
-let rec exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
+let rec execute_dblock
+    ~(state : exec_state) {symtable; body; params} (args : dval list) : dval =
+  (* If one of the args is fake value used as a marker, return it instead of
+   * executing. This is the same behaviour as in fn calls. *)
+  let first_marker = List.find args ~f:Dval.is_fake_marker_dval in
+  match first_marker with
+  | Some dv ->
+      dv
+  | None ->
+      (* One of the reasons to take a separate list of params and args is to
+       * provide this error message here. We don't have this information in
+       * other places, and the alternative is just to provide incompletes
+       * with no context *)
+      if List.length params <> List.length args
+      then
+        DError
+          ( SourceNone
+          , "Expected "
+            ^ string_of_int (List.length params)
+            ^ " arguments, got "
+            ^ string_of_int (List.length args) )
+      else
+        let bindings = List.zip_exn params args in
+        List.iter bindings ~f:(fun ((id, paramName), dv) -> state.trace id dv) ;
+        let new_st =
+          bindings
+          |> List.map ~f:(Prelude.Tuple2.mapFirst ~f:Prelude.Tuple2.second)
+          |> DvalMap.from_list
+          |> Util.merge_left symtable
+        in
+        exec ~state new_st body
+
+
+and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
   let exe = exec ~state in
   let call = call_fn ~state in
   let ctx = state.context in
@@ -160,8 +193,8 @@ let rec exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
       | Filled (id, Lambda _) ->
           let result = exe st exp in
           ( match result with
-          | DBlock blk ->
-              blk [arg]
+          | DBlock b ->
+              execute_dblock ~state b [arg]
           | _ ->
               (* This should never happen, but the user should be allowed to
                * recover so this shouldn't be an exception *)
@@ -352,7 +385,7 @@ let rec exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           | _ ->
               exe st oldcode ) )
     | Filled (id, Lambda (params, body)) ->
-        if ctx = Preview
+        ( if ctx = Preview
         then
           (* Since we return a DBlock, it's contents may never be
           * executed. So first we execute with no context to get some
@@ -362,38 +395,19 @@ let rec exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               (Symtable.singleton "var" (DIncomplete SourceNone))
               st
           in
-          ignore (exe fake_st body)
-        else () ;
-        (* TODO: this will error if the number of args and vars arent equal *)
-        DBlock
-          (fun args ->
-            (* If one of the args is fake value used as a marker,
-             * return it instead of executing. This is the same behaviour as in fn calls. *)
-            let first_marker = List.find args ~f:Dval.is_fake_marker_dval in
-            match first_marker with
-            | Some dv ->
-                dv
-            | None ->
-                let filled = List.filter ~f:(Fn.compose not is_blank) params in
-                if List.length filled <> List.length args
-                then
-                  DError
-                    ( SourceId id
-                    , "Expected "
-                      ^ string_of_int (List.length filled)
-                      ^ " arguments, got "
-                      ^ string_of_int (List.length args) )
-                else (
-                  List.iter (List.zip_exn filled args) ~f:(fun (param, dv) ->
-                      trace (blank_to_id param) dv) ;
-                  let new_st =
-                    filled
-                    |> List.filter_map ~f:blank_to_option
-                    |> (fun varnames -> List.zip_exn varnames args)
-                    |> Symtable.from_list_exn
-                    |> fun bindings -> Util.merge_left bindings st
-                  in
-                  exe new_st body ))
+          ignore (exe fake_st body) ) ;
+        let params =
+          List.filter_map params ~f:(function
+              | Blank _ ->
+                  None
+              | Partial _ ->
+                  None
+              | Filled (id, name) ->
+                  Some (id, name))
+        in
+        (* It is the responsibility of wherever executes the DBlock to pass in
+         * args and execute the body. *)
+        DBlock {symtable = st; params; body}
     | Filled (id, Thread exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
       ( match exprs with

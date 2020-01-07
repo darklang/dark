@@ -244,7 +244,11 @@ and nExpr j : OldExpr.nExpr =
     j
 
 
-let fluidExpr (j : Js.Json.t) : fluidExpr = expr j |> OldExpr.toFluidExpr
+let fluidExpr (j : Js.Json.t) : fluidExpr =
+  (* This is used by AnalysisWrapper, which does not have functions
+   * available when decoding, so don't raise an error when that happens. *)
+  expr j |> OldExpr.toFluidExprNoAssertion
+
 
 let blankOrData j : blankOrData =
   let dv1 = variant1 in
@@ -289,6 +293,11 @@ let rec dval j : dval =
       [ ("SourceNone", dv0 SourceNone)
       ; ("SourceId", dv1 (fun x -> SourceId x) id) ]
   in
+  let dblock_args j =
+    { params = field "params" (list (pair id string)) j
+    ; body = field "body" fluidExpr j
+    ; symtable = field "symtable" (strDict dval) j }
+  in
   variants
     [ ("DInt", dv1 (fun x -> DInt x) int)
     ; ("DFloat", dv1 (fun x -> DFloat x) Json.Decode.float)
@@ -307,7 +316,7 @@ let rec dval j : dval =
       , tryDecode2
           (dv1 (fun x -> DError (SourceNone, x)) string)
           (dv1 (fun (i, msg) -> DError (i, msg)) (tuple2 srcT string)) )
-    ; ("DBlock", dv0 DBlock)
+    ; ("DBlock", dv1 (fun x -> DBlock x) dblock_args)
     ; ("DErrorRail", dv1 (fun x -> DErrorRail x) dd)
     ; ("DResp", dv1 (fun (h, dv) -> DResp (h, dv)) (tuple2 dhttp dd))
     ; ("DDB", dv1 (fun x -> DDB x) string)
