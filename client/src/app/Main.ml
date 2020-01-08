@@ -249,27 +249,14 @@ let updateDropdownVisibilty (m : model) : model =
   else m
 
 
-let rmPartialsCmd (m : model) (tlid : tlid) : msg Cmd.t =
+let rmPartialsMod (m : model) (tlid : tlid) : modification =
   TL.get m tlid
   |> Option.thenAlso ~f:TL.getAST
   |> Option.andThen ~f:(fun (tl, ast) ->
          (* Removes partials from AST *)
          let newAST = AST.removePartials ast in
-         (* If AST has changed then wrap in a set-op *)
-         match tl with
-         | TLHandler h when h.ast <> newAST ->
-             Some (SetHandler (tlid, h.pos, {h with ast = newAST}))
-         | TLFunc f when f.ufAST <> newAST ->
-             Some (SetFunction {f with ufAST = newAST})
-         | _ ->
-             None)
-  |> Option.map ~f:(fun op ->
-         (* Convert op to RPC cmd *)
-         let opparams =
-           API.opsParams [op] (Some ((m |> opCtr) + 1)) m.clientOpCtrId
-         in
-         API.addOp m FocusNoChange opparams)
-  |> Option.withDefault ~default:Cmd.none
+         if newAST <> ast then Some (TL.setASTMod tl newAST) else None)
+  |> Option.withDefault ~default:NoChange
 
 
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
@@ -994,14 +981,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
   let newm = updateDropdownVisibilty newm in
-  let rmPartialsCmd =
+  let cmds = Cmd.batch [cmd; newcmd] in
+  let newm, cmd =
     match m.cursorState with
     | FluidEntering tlid when Some tlid <> tlidOf newm.cursorState ->
-        rmPartialsCmd newm tlid
+        updateMod (rmPartialsMod newm tlid) (newm, cmds)
     | _ ->
-        Cmd.none
+        (newm, Cmd.none)
   in
-  (newm, Cmd.batch [cmd; newcmd; rmPartialsCmd])
+  (newm, cmd)
 
 
 let findCenter (m : model) : pos =
