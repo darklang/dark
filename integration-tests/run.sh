@@ -27,15 +27,14 @@ done
 
 BROWSER='unknown'
 {
-  PLATFORM=$(uname -s)
-  if [[ $PLATFORM == "Darwin" ]]; then
-    if [[ "$DEBUG" == "true" ]]; then
-      BROWSER='chrome:headless --window-size="1600,1200"'
-    else
-      BROWSER='chrome --window-size="1600,1200"'
-    fi
-  else
+  if [[ -v CI ]]; then
     BROWSER='chromium:headless --window-size="1600,1200"'
+  else
+    if [[ "$DEBUG" == "true" ]]; then
+      BROWSER='chrome --window-size="1600,1200"'
+    else
+      BROWSER='chrome:headless --window-size="1600,1200"'
+    fi
   fi
 }
 
