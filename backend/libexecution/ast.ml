@@ -528,12 +528,14 @@ and call_fn
                  * lambda's livevalues, as the lambda was never actually
                  * executed. We hack this is here as we have no idea what
                  * this abstraction might look like in the future. *)
-                ( match (name, argvals, result) with
-                | "DB::filter", [DBlock b; _], DList (sample :: _) ->
-                    execute_dblock ~state b [sample]
-                | _ ->
-                    result )
-                |> ignore ;
+                if state.context = Preview
+                then
+                  ( match (name, argvals, result) with
+                  | "DB::filter", [DBlock b; _], DList (sample :: _) ->
+                      execute_dblock ~state b [sample]
+                  | _ ->
+                      result )
+                  |> ignore ;
                 result
             | inc ->
                 DIncomplete (SourceId id) )
