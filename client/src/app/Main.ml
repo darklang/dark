@@ -974,7 +974,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   (newm, Cmd.batch [cmd; newcmd])
 
 
-let findCenter (m : model) : pos =
+let findNewPos (m : model) : pos =
   let open Native in
   let {x; y} =
     match m.currentPage with
@@ -1705,7 +1705,7 @@ let update_ (msg : msg) (m : model) : modification =
   | PageVisibilityChange vis ->
       TweakModel (fun m_ -> {m_ with visibility = vis})
   | CreateHandlerFrom404 ({space; path; modifier; _} as fof) ->
-      let center = findCenter m in
+      let center = findNewPos m in
       let tlid = gtlid () in
       let pos = center in
       let ast = EBlank (gid ()) in
@@ -1761,14 +1761,14 @@ let update_ (msg : msg) (m : model) : modification =
   | ToggleSideBar ->
       TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
   | CreateRouteHandler action ->
-      let center = findCenter m in
+      let center = findNewPos m in
       Entry.submitOmniAction m center action
   | CreateDBTable ->
-      let center = findCenter m
+      let center = findNewPos m
       and genName = DB.generateDBName () in
       Entry.newDB genName center m
   | CreateGroup ->
-      let center = findCenter m in
+      let center = findNewPos m in
       Groups.createEmptyGroup None center
   | CreateFunction -> 
       let ufun = Refactor.generateEmptyFunction () in
