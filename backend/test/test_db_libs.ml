@@ -546,6 +546,18 @@ let t_db_getAllKeys_works () =
     (exec_handler ~ops ast)
 
 
+let t_sql_compiler_works () =
+  let open Types in
+  let open Prelude in
+  let body = Filled (Util.create_id (), Value "true") in
+  let paramName = "value" in
+  let symtable = DvalMap.from_list [] in
+  let dbFields = StrDict.from_list [] in
+  let result = Sql_compiler.compile_lambda symtable paramName dbFields body in
+  AT.check AT.string "true is true" result "(true)" ;
+  ()
+
+
 let t_db_filter_works () =
   clear_test_data () ;
   let ops =
@@ -679,4 +691,5 @@ let suite =
     , `Quick
     , t_db_queryOneWithKey_v2_returns_nothing_multiple )
   ; ("t_db_getAllKeys_works returns List of keys", `Quick, t_db_getAllKeys_works)
-  ; ("t_db_filter works", `Quick, t_db_filter_works) ]
+  ; ("t_db_filter works", `Quick, t_db_filter_works)
+  ; ("t_sql_compiler_works", `Quick, t_sql_compiler_works) ]
