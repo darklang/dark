@@ -401,14 +401,9 @@ and cursorState j =
   let dv4 = variant4 in
   variants
     [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
-    ; ( "Entering"
-      , oneOf
-          (* Support the old serialized form for now *)
-          [dv1 identity oldEntering; dv2 (fun a b -> Entering (a, b)) tlid id]
-      )
+    ; ("Entering", dv1 (fun a -> Entering a) entering)
     ; ( "Dragging"
       , dv4 (fun a b c d -> Dragging (a, b, c, d)) tlid vPos bool cursorState )
-    ; ("Omnibox", dv1 (fun x -> Omnibox x) pos)
     ; ("Deselected", dv0 Deselected) (* Old value *)
     ; ("SelectingCommand", dv2 (fun a b -> Selecting (a, Some b)) tlid id)
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
@@ -416,12 +411,12 @@ and cursorState j =
     j
 
 
-and oldEntering j =
+and entering j =
   let dv1 = variant1 in
   let dv2 = variant2 in
   variants
-    [ ("Creating", dv1 (fun x -> Omnibox x) pos)
-    ; ("Filling", dv2 (fun a b -> Entering (a, b)) tlid id) ]
+    [ ("Creating", dv1 (fun x -> Creating x) pos)
+    ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
     j
 
 
