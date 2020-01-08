@@ -587,7 +587,7 @@ let t_sql_compiler_works () =
   let injection = "'; select * from user_data ;'field" in
   let fieldAccess = f (FieldAccess (f (Variable "value"), f injection)) in
   check
-    "correct SQL for field access"
+    "field accesses are escaped"
     ~dbFields:[(injection, TStr)]
     fieldAccess
     "(CAST(data::jsonb->>'''; select * from user_data ;''field' as text))" ;
