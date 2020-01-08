@@ -987,7 +987,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | FluidEntering tlid when Some tlid <> tlidOf newm.cursorState ->
         updateMod (rmPartialsMod newm tlid) (newm, cmds)
     | _ ->
-        (newm, Cmd.none)
+        (newm, cmds)
   in
   (newm, cmd)
 
