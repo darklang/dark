@@ -75,10 +75,12 @@ let rec inline
         body
   | Filled (_, Variable name) when name <> paramName ->
     ( match Prelude.StrDict.get ~key:name symtable with
-    | Some expr ->
-        expr
+    | Some found ->
+        found
     | None ->
-        error2 "variable not defined" name )
+        (* the variable might be in the symtable, so put it back to fill in
+         * later *)
+        expr )
   | _ ->
       Ast.traverse ~f:(inline paramName symtable) expr
 
@@ -167,7 +169,7 @@ let rec lambda_to_sql_inner
       "(CAST(data::jsonb->>'"
       ^ Db.escape_string fieldname
       ^ "' as "
-      ^ tipe_to_sql_tipe tipe
+      ^ Db.escape_string (tipe_to_sql_tipe tipe)
       ^ "))"
   | _ ->
       error2 "unsupported code in DB::filter query" (show_expr expr)
