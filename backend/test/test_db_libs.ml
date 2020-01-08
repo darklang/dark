@@ -628,7 +628,12 @@ let t_db_filter_works () =
      (let _ (DB::set_v1
               (obj (height 10) (name 'GrumpyCat') (human false))
               'third'
-              Person))))"
+              Person)
+     (let _ (DB::set_v1
+              (obj (height null) (name null) (human null))
+              'fourth'
+              Person)
+              ))))"
   |> ignore ;
   let exec (code : string) = exec_handler ~ops code in
   let filter code = "(DB::filter Person (" ^ code ^ "))" in
@@ -643,7 +648,7 @@ let t_db_filter_works () =
   in
   check_dval
     "Find all"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73; DNull])
     (filter "\\value -> true" |> sort |> exec) ;
   check_dval
     "Find all with condition"
@@ -673,10 +678,10 @@ let t_db_filter_works () =
     "external variable works"
     (DList [Dval.dint 10])
     (filter "\\v -> (| (. v height) (< x))" |> sort |> withvar "x" "20" |> exec) ;
-  check_dval
-    "not a bool"
-    (DList [Dval.dint 10])
-    (filter "\\v -> 'x'" |> sort |> withvar "x" "20" |> exec) ;
+  (* check_dval *)
+  (*   "not a bool" *)
+  (*   (DList [Dval.dint 10]) *)
+  (*   (filter "\\v -> 'x'" |> sort |> withvar "x" "20" |> exec) ; *)
   check_error
     "bad variable name"
     (filter "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)
@@ -685,6 +690,18 @@ let t_db_filter_works () =
     "sql injection"
     (DList [])
     (filter "\\v -> (== '; select * from users ;' (. v name) )" |> exec) ;
+  check_dval
+    "null equality works"
+    (DList [DNull])
+    (filter "\\v -> (== (. v name) null)" |> sort |> exec) ;
+  check_dval
+    "null inequality works"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (filter "\\v -> (!= (. v name) null)" |> sort |> exec) ;
+  check_dval
+    "null is not 'null'"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (filter "\\v -> (!= (. v name) 'null')" |> sort |> exec) ;
   ()
 
 
