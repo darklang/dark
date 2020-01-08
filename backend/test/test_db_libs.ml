@@ -583,7 +583,7 @@ let t_sql_compiler_works () =
   checkError
     "no field gives error"
     fieldAccess
-    "DB does not have field named: myfield" ;
+    "The datastore does not have a field named: myfield" ;
   let injection = "'; select * from user_data ;'field" in
   let fieldAccess = f (FieldAccess (f (Variable "value"), f injection)) in
   check
@@ -697,7 +697,7 @@ let t_db_filter_works () =
     "bad variable name"
     (filter "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)
     (Db.dbFilterExceptionToString
-       (Db.DBFilterException "Variable is undefined: y")) ;
+       (Db.DBFilterException "This variable is not defined: y")) ;
   check_dval
     "sql injection"
     (DList [])
