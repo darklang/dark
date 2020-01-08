@@ -253,6 +253,8 @@ let rmPartialsMod (m : model) (tlid : tlid) : modification =
   TL.get m tlid
   |> Option.thenAlso ~f:TL.getAST
   |> Option.andThen ~f:(fun (tl, ast) ->
+        let s = m.fluidState in
+        let ast = Fluid.acMaybeCommit s.newPos ast s in
          (* Removes partials from AST *)
          let newAST = AST.removePartials ast in
          if newAST <> ast then Some (TL.setASTMod tl newAST) else None)
@@ -980,7 +982,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
-  let newm = updateDropdownVisibilty newm in
   let cmds = Cmd.batch [cmd; newcmd] in
   let newm, cmd =
     match m.cursorState with
@@ -989,6 +990,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | _ ->
         (newm, cmds)
   in
+  let newm = updateDropdownVisibilty newm in
   (newm, cmd)
 
 
