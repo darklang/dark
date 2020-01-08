@@ -1047,6 +1047,7 @@ let parse_literal (str : string) : dval option =
     |> Util.string_replace "\\n" "\n"
     |> Util.string_replace "\\r" "\r"
     |> Util.string_replace "\\t" "\t"
+    |> Util.string_replace "\\\\" "\\"
     |> fun s -> Some (dstr_of_string_exn s)
   else if str = "null"
   then Some DNull
