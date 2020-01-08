@@ -138,6 +138,9 @@ let dval_to_sql (dval : dval) : string =
       Db.escape (Uuid id)
 
 
+(* TODO: support characters, floats, dates, and uuids. And maybe lists and
+ * bytes. Probably something can be done with options and results. *)
+
 let rec lambda_to_sql_inner
     (symtable : dval_map)
     (paramName : string)
