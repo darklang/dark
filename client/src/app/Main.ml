@@ -241,26 +241,6 @@ let isACOpened (m : model) : bool =
   || AC.isOpened m.complete
 
 
-let updateDropdownVisibilty (m : model) : model =
-  if FluidAutocomplete.isOpened m.fluidState.ac
-  then FluidAutocomplete.updateAutocompleteVisibility m
-  else if FluidCommands.isOpened m.fluidState.cp
-  then FluidCommands.updateCommandPaletteVisibility m
-  else m
-
-
-let rmPartialsMod (m : model) (tlid : tlid) : modification =
-  TL.get m tlid
-  |> Option.thenAlso ~f:TL.getAST
-  |> Option.andThen ~f:(fun (tl, ast) ->
-        let s = m.fluidState in
-        let ast = Fluid.acMaybeCommit s.newPos ast s in
-         (* Removes partials from AST *)
-         let newAST = AST.removePartials ast in
-         if newAST <> ast then Some (TL.setASTMod tl newAST) else None)
-  |> Option.withDefault ~default:NoChange
-
-
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
@@ -983,15 +963,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
   let cmds = Cmd.batch [cmd; newcmd] in
-  let newm, cmd =
-    match m.cursorState with
-    | FluidEntering tlid when Some tlid <> tlidOf newm.cursorState ->
-        updateMod (rmPartialsMod newm tlid) (newm, cmds)
-    | _ ->
-        (newm, cmds)
+  let newm, modi =
+    let mTLID =
+      match m.cursorState with
+      | FluidEntering tlid when Some tlid <> tlidOf newm.cursorState ->
+          Some tlid
+      | _ ->
+          None
+    in
+    Fluid.cleanUp newm mTLID
   in
-  let newm = updateDropdownVisibilty newm in
-  (newm, cmd)
+  match modi with NoChange -> (newm, cmds) | _ -> updateMod modi (newm, cmds)
 
 
 let findCenter (m : model) : pos =

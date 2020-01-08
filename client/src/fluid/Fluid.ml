@@ -15,6 +15,7 @@ module TL = Toplevel
 module Regex = Util.Regex
 module DUtil = Util
 module AC = FluidAutocomplete
+module Commands = FluidCommands
 module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
@@ -4973,3 +4974,25 @@ let renderCallback (m : model) : unit =
             Entry.setFluidCaret m.fluidState.newPos )
   | _ ->
       ()
+
+
+let cleanUp (m : model) (tlid : tlid option) : model * modification =
+  let state = m.fluidState in
+  let rmPartialsMod =
+    tlid
+    |> Option.andThen ~f:(TL.get m)
+    |> Option.thenAlso ~f:TL.getAST
+    |> Option.andThen ~f:(fun (tl, ast) ->
+           let ast = acMaybeCommit state.newPos ast state in
+           let newAST = AST.removePartials ast in
+           if newAST <> ast then Some (TL.setASTMod tl newAST) else None)
+    |> Option.withDefault ~default:NoChange
+  in
+  let acVisibilityModel =
+    if AC.isOpened state.ac
+    then AC.updateAutocompleteVisibility m
+    else if Commands.isOpened state.cp
+    then Commands.updateCommandPaletteVisibility m
+    else m
+  in
+  (acVisibilityModel, rmPartialsMod)
