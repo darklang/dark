@@ -64,6 +64,10 @@ let tipe_to_sql_tipe (t : tipe_) : string =
       error2 "unsupported DB field tipe" (show_tipe_ t)
 
 
+(* Inline `let` statements directly into where they are used. Since the code
+ * in the lambda is supposed to be pure, inlining it should work. It may be
+ * that using SQL variables for this is possible, but I couldn't find a way
+ * to do that. *)
 let rec inline
     (paramName : string) (symtable : expr Prelude.StrDict.t) (expr : expr) :
     expr =
@@ -85,6 +89,9 @@ let rec inline
       Ast.traverse ~f:(inline paramName symtable) expr
 
 
+(* This canonicalizes an expression, meaning it removes multiple ways of
+ * representing the same thing. For now, it removes threads and replaces
+ * them with nested function calls. *)
 let rec canonicalize expr =
   match expr with
   | Filled (id, Thread []) ->
