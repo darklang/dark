@@ -4871,7 +4871,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                * entering, as some keypresses fire in both editors. *)
               match m.cursorState with FluidEntering _ -> true | _ -> false
             in
-            let enter id = Enter (tlid, id) in
+            let enter id = Enter (Filling (tlid, id)) in
             (* if tab is wrapping... *)
             if isFluidEntering
                && newState.lastKey = K.Tab

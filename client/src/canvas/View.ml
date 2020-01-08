@@ -301,7 +301,11 @@ let viewCanvas (m : model) : msg Html.html =
       | FocusedHandler _ | FocusedDB _ ->
           true
       | Architecture ->
-        (match m.cursorState with Omnibox _ -> true | _ -> false)
+        ( match unwrapCursorState m.cursorState with
+        | Entering (Creating _) ->
+            true
+        | _ ->
+            false )
       | _ ->
           false
     in

@@ -563,12 +563,15 @@ and isLeftButton = bool
 (* ----------------------------- *)
 (* CursorState *)
 (* ----------------------------- *)
+and entryCursor =
+  | Creating of pos
+  | Filling of tlid * id
+
 and hasMoved = bool
 
 and cursorState =
   | Selecting of tlid * id option
-  | Omnibox of pos
-  | Entering of tlid * id
+  | Entering of entryCursor
   | FluidEntering of tlid
   | Dragging of tlid * vPos * hasMoved * cursorState
   | Deselected
@@ -1062,9 +1065,8 @@ and modification =
   | AppendUnlockedDBs of unlockedDBs
   | Append404s of fourOhFour list
   | Delete404 of fourOhFour
-  | Enter of tlid * id
-  | EnterWithOffset of tlid * id * int
-  | EnterOmnibox of pos
+  | Enter of entryCursor
+  | EnterWithOffset of entryCursor * int
   | UpdateWorkerStats of tlid * workerStats
   | UpdateWorkerSchedules of string StrDict.t
   | NoChange
