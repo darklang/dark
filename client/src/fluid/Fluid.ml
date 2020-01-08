@@ -1614,16 +1614,15 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : E.t =
 
 
 let rec deleteBinop (lhs : fluidExpr) (rhs : fluidExpr) : fluidExpr =
-  let newLhs =
-    match (lhs, rhs) with
-    | EString _, EBinOp (b, n, lhs2, rhs2, rail) ->
-        EBinOp (b, n, deleteBinop lhs lhs2, rhs2, rail)
-    | EString (lhsID, lhsStr), EString (_, rhsStr) ->
-        EString (lhsID, lhsStr ^ rhsStr)
-    | _ ->
-        E.newB ()
-  in
-  newLhs
+  match (lhs, rhs) with
+  | EString _, EBinOp (b, n, lhs2, rhs2, rail) ->
+      EBinOp (b, n, deleteBinop lhs lhs2, rhs2, rail)
+  | EBlank _, EString (rhsId, rhsStr) | EString (rhsId, rhsStr), EBlank _ ->
+      EString (rhsId, rhsStr)
+  | EString (lhsID, lhsStr), EString (_, rhsStr) ->
+      EString (lhsID, lhsStr ^ rhsStr)
+  | _ ->
+      E.newB ()
 
 
 let deletePartial (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
