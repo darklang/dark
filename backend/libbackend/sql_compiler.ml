@@ -141,12 +141,12 @@ let dval_to_sql (dval : dval) : string =
 (* TODO: support characters, floats, dates, and uuids. And maybe lists and
  * bytes. Probably something can be done with options and results. *)
 
-let rec lambda_to_sql_inner
+let rec lambda_to_sql
     (symtable : dval_map)
     (paramName : string)
     (dbFields : tipe_ Prelude.StrDict.t)
     (expr : expr) : string =
-  let lts e = lambda_to_sql_inner symtable paramName dbFields e in
+  let lts e = lambda_to_sql symtable paramName dbFields e in
   match expr with
   | Filled (_, FnCall ("==", [Filled (_, Value "null"); e]))
   | Filled (_, FnCall ("==", [e; Filled (_, Value "null")])) ->
@@ -193,4 +193,4 @@ let compile_lambda
   body
   |> canonicalize
   |> inline paramName Prelude.StrDict.empty
-  |> lambda_to_sql_inner symtable paramName dbFields
+  |> lambda_to_sql symtable paramName dbFields
