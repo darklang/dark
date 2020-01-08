@@ -148,6 +148,8 @@ let rec lambda_to_sql
     (expr : expr) : string =
   let lts e = lambda_to_sql symtable paramName dbFields e in
   match expr with
+  (* The correct way to handle null in SQL is "is null" or "is not null"
+   * rather than a comparison with null. *)
   | Filled (_, FnCall ("==", [Filled (_, Value "null"); e]))
   | Filled (_, FnCall ("==", [e; Filled (_, Value "null")])) ->
       "(" ^ lts e ^ " is null)"
