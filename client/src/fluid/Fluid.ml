@@ -879,6 +879,125 @@ let moveToCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) =
   {s with newPos = posFromCaretTarget s ast ct}
 
 
+(* caretTargetFromTokenInfo returns a caretTarget corresponding to
+   the given top-level-global caret `pos`, with the precondition that
+   the pos is within the passed tokenInfo `ti`.
+   There are a few tokens that (currently) have no corresponding caretTarget.
+   In such cases, we return {astRef = ARInvalid; offset = 0} instead.
+   
+   (note that there are some cases, like strings,
+    where multiple caretTargets could refer to the same pos) *)
+let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
+  let offset = pos - ti.startPos in
+  match ti.token with
+  | TString (id, _) | TStringMLStart (id, _, _, _) ->
+      {astRef = ARString (id, SPOpenQuote); offset}
+  | TStringMLMiddle (id, _, startOffset, _)
+  | TStringMLEnd (id, _, startOffset, _) ->
+      { astRef = ARString (id, SPOpenQuote)
+      ; offset = startOffset + pos - ti.startPos + 1 }
+  | TInteger (id, _) ->
+      {astRef = ARInteger id; offset}
+  | TBlank id | TPlaceholder (_, id) ->
+      {astRef = ARBlank id; offset}
+  | TTrue id | TFalse id ->
+      {astRef = ARBool id; offset}
+  | TNullToken id ->
+      {astRef = ARNull id; offset}
+  | TFloatWhole (id, _) ->
+      {astRef = ARFloat (id, FPWhole); offset}
+  | TFloatFraction (id, _) ->
+      {astRef = ARFloat (id, FPDecimal); offset}
+  | TPartial (id, _) ->
+      {astRef = ARPartial id; offset}
+  | TRightPartial (id, _) ->
+      {astRef = ARRightPartial id; offset}
+  | TLetKeyword (id, _) ->
+      {astRef = ARLet (id, LPKeyword); offset}
+  | TLetLHS (id, _, _) ->
+      {astRef = ARLet (id, LPVarName); offset}
+  | TLetAssignment (id, _) ->
+      {astRef = ARLet (id, LPAssignment); offset}
+  | TIfKeyword id ->
+      {astRef = ARIf (id, IPIfKeyword); offset}
+  | TIfThenKeyword id ->
+      {astRef = ARIf (id, IPThenKeyword); offset}
+  | TIfElseKeyword id ->
+      {astRef = ARIf (id, IPElseKeyword); offset}
+  | TBinOp (id, _) ->
+      {astRef = ARBinOp (id, BOPOperator); offset}
+  | TFieldName (id, _, _) ->
+      {astRef = ARFieldAccess (id, FAPFieldname); offset}
+  | TFieldPartial (id, _, _, _) ->
+      {astRef = ARPartial id; offset}
+  | TVariable (id, _) ->
+      {astRef = ARVariable id; offset}
+  | TFnName (id, _, _, _, _) ->
+      {astRef = ARFnCall (id, FCPFnName); offset}
+  | TLambdaSep (id, idx) ->
+      {astRef = ARLambda (id, LPSeparator idx); offset}
+  | TLambdaArrow id ->
+      {astRef = ARLambda (id, LPArrow); offset}
+  | TLambdaSymbol id ->
+      {astRef = ARLambda (id, LPKeyword); offset}
+  | TLambdaVar (id, _, idx, _) ->
+      {astRef = ARLambda (id, LPVarName idx); offset}
+  | TListOpen id ->
+      {astRef = ARList (id, LPOpen); offset}
+  | TListClose id ->
+      {astRef = ARList (id, LPClose); offset}
+  | TListSep (id, idx) ->
+      {astRef = ARList (id, LPSeparator idx); offset}
+  | TPipe (id, idx, _) ->
+      {astRef = ARPipe (id, PPPipeKeyword idx); offset}
+  | TRecordOpen id ->
+      {astRef = ARRecord (id, RPOpen); offset}
+  | TRecordFieldname {recordID = id; index = idx; _} ->
+      {astRef = ARRecord (id, RPFieldname idx); offset}
+  | TRecordSep (id, idx, _) ->
+      {astRef = ARRecord (id, RPFieldSep idx); offset}
+  | TRecordClose id ->
+      {astRef = ARRecord (id, RPClose); offset}
+  | TMatchKeyword id ->
+      {astRef = ARMatch (id, MPKeyword); offset}
+  | TMatchSep {matchID = id; index = idx; _} ->
+      {astRef = ARMatch (id, MPBranchSep idx); offset}
+  | TPatternVariable (_, id, _, _) ->
+      {astRef = ARPattern (id, PPVariable); offset}
+  | TPatternConstructorName (_, id, _, _) ->
+      {astRef = ARPattern (id, PPConstructor CPName); offset}
+  | TPatternInteger (_, id, _, _) ->
+      {astRef = ARPattern (id, PPInteger); offset}
+  | TPatternString {patternID = id; _} ->
+      {astRef = ARPattern (id, PPString SPOpenQuote); offset}
+  | TPatternTrue (_, id, _) | TPatternFalse (_, id, _) ->
+      {astRef = ARPattern (id, PPBool); offset}
+  | TPatternNullToken (_, id, _) ->
+      {astRef = ARPattern (id, PPNull); offset}
+  | TPatternFloatWhole (_, id, _, _) ->
+      {astRef = ARPattern (id, PPFloat FPWhole); offset}
+  | TPatternFloatFraction (_, id, _, _) ->
+      {astRef = ARPattern (id, PPFloat FPDecimal); offset}
+  | TPatternBlank (_, id, _) ->
+      {astRef = ARPattern (id, PPBlank); offset}
+  | TConstructorName (id, _) ->
+      {astRef = ARConstructor (id, CPName); offset}
+  | TFloatPoint _ (* id *) | TPatternFloatPoint _ (* (id * id * int) *) ->
+      (* XXX(JULIAN): These won't work because of truncation and the fact that we don't know the length of the float.
+       We may need an ARFloat (id, FPPoint) and an ARPattern (id, PPFloat FPPoint) *)
+      {astRef = ARInvalid; offset = 0}
+  | TPartialGhost _ (* (id, _) *)
+  | TNewline _ (* (id * id * int option) option *)
+  | TSep _ (* id *)
+  | TFieldOp _ (* (* fieldAccess *) id * (* lhs *) id *)
+  | TIndent _ (* int *)
+  | TFnVersion _ (* id * string * string * string *)
+  | TParenOpen _ (* id *)
+  | TParenClose _ (* id *) ->
+      (* XXX(JULIAN): These are unhandleable right now and posFromCaretTarget can't target them *)
+      {astRef = ARInvalid; offset = 0}
+
+
 (** moveToAstRef returns a modified fluidState with newPos set to reflect
     the targeted astRef.
 
