@@ -336,7 +336,7 @@ let filter ~state (db : db) (b : dblock_args) : (string * dval) list =
   in
   let sql = Sql_compiler.compile_lambda b.symtable paramName dbFields b.body in
   Db.fetch
-    ~name:"get_all"
+    ~name:"filter"
     ( "SELECT key, data
      FROM user_data
      WHERE table_tlid = $1
