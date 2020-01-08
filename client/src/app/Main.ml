@@ -995,12 +995,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   in
   let newm = updateDropdownVisibilty newm in
   let rmPartialsCmd =
-    match (m.cursorState, newm.cursorState) with
-    | FluidEntering tlid, Deselected ->
-        rmPartialsCmd newm tlid
-    | FluidEntering tlid, FluidEntering newTLID when newTLID <> tlid ->
-        rmPartialsCmd newm tlid
-    | FluidEntering tlid, Selecting (newTLID, _) when newTLID <> tlid ->
+    match m.cursorState with
+    | FluidEntering tlid when Some tlid <> tlidOf newm.cursorState ->
         rmPartialsCmd newm tlid
     | _ ->
         Cmd.none
