@@ -591,6 +591,12 @@ let t_sql_compiler_works () =
     ~dbFields:[(injection, TStr)]
     fieldAccess
     "(CAST(data::jsonb->>'''; select * from user_data ;''field' as text))" ;
+  let var = f (Variable "var") in
+  check
+    "symtable escapes correctly"
+    ~symtable:[("var", Dval.dstr_of_string_exn "';select * from user_data;'")]
+    var
+    "''';select * from user_data;'''" ;
   ()
 
 
@@ -622,60 +628,63 @@ let t_db_filter_works () =
      (let _ (DB::set_v1
               (obj (height 10) (name 'GrumpyCat') (human false))
               'third'
-              Person)
-      )
-      ))"
+              Person))))"
   |> ignore ;
-  let filter lambda =
-    exec_handler ~ops ("(DB::filter (" ^ lambda ^ ") Person)")
-  in
-  let filter_and_sort lambda =
-    exec_handler
-      ~ops
-      ( "(|
-           (DB::filter ("
-      ^ lambda
-      ^ ") Person)
-           (List::map (\\v -> (. v height)))
+  let exec (code : string) = exec_handler ~ops code in
+  let filter code = "(DB::filter (" ^ code ^ ") Person)" in
+  let sort code =
+    "(| "
+    ^ code
+    ^ "  (List::map (\\v -> (. v height)))
            (List::sort))"
-      )
+  in
+  let withvar (name : string) (value : string) code =
+    "(let " ^ name ^ " " ^ value ^ " " ^ code ^ ")"
   in
   check_dval
     "Find all"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (filter_and_sort "\\value -> true") ;
+    (filter "\\value -> true" |> sort |> exec) ;
   check_dval
     "Find all with condition"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (filter_and_sort "\\value -> (> (. value height) 3)") ;
+    (filter "\\value -> (> (. value height) 3)" |> sort |> exec) ;
   check_dval
     "boolean"
     (DList [Dval.dint 65; Dval.dint 73])
-    (filter_and_sort "\\value -> (. value human)") ;
+    (filter "\\value -> (. value human)" |> sort |> exec) ;
   check_dval
     "different param name"
     (DList [Dval.dint 65; Dval.dint 73])
-    (filter_and_sort "\\v -> (. v human)") ;
+    (filter "\\v -> (. v human)" |> sort |> exec) ;
   check_dval
     "&&"
     (DList [Dval.dint 73])
-    (filter_and_sort "\\v -> (&& (. v human) (> (. v height) 66) )") ;
+    (filter "\\v -> (&& (. v human) (> (. v height) 66) )" |> sort |> exec) ;
   check_dval
     "inlining"
     (DList [Dval.dint 65; Dval.dint 73])
-    (filter_and_sort "\\v -> (let x 32 (&& true (> (. v height) x) ))") ;
+    (filter "\\v -> (let x 32 (&& true (> (. v height) x) ))" |> sort |> exec) ;
   check_dval
     "pipes"
     (DList [Dval.dint 10])
-    (filter_and_sort "\\v -> (| (. v height) (* 2) (+ 6) (< 40))") ;
+    (filter "\\v -> (| (. v height) (* 2) (+ 6) (< 40))" |> sort |> exec) ;
+  check_dval
+    "external variable works"
+    (DList [Dval.dint 10])
+    (filter "\\v -> (| (. v height) (< x))" |> sort |> withvar "x" "20" |> exec) ;
+  check_dval
+    "not a bool"
+    (DList [Dval.dint 10])
+    (filter "\\v -> 'x'" |> sort |> withvar "x" "20" |> exec) ;
   check_error
     "bad variable name"
-    (filter "\\v -> (let x 32 (&& true (> (. v height) y) ))")
-    "variable not defined: y" ;
+    (filter "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)
+    "Variable is undefined: y" ;
   check_dval
     "sql injection"
     (DList [])
-    (filter "\\v -> (== '; select * from users ;' (. v name) )") ;
+    (filter "\\v -> (== '; select * from users ;' (. v name) )" |> exec) ;
   ()
 
 
