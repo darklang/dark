@@ -597,6 +597,17 @@ let t_sql_compiler_works () =
     ~symtable:[("var", Dval.dstr_of_string_exn "';select * from user_data;'")]
     var
     "''';select * from user_data;'''" ;
+  let thread =
+    f
+      (Thread
+         [ f (Value "5")
+         ; f (FnCall ("-", [f (Value "2")]))
+         ; f (FnCall ("+", [f (Value "3")])) ])
+  in
+  check
+    "pipes expand correctly into nested functions"
+    thread
+    "(((5) - (2)) + (3))" ;
   ()
 
 
