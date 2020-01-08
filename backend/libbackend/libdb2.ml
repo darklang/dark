@@ -595,14 +595,14 @@ let fns : shortfn list =
     ; dep = false }
   ; { pns = ["DB::filter"]
     ; ins = []
-    ; p = [par "cond" TBlock ~args:["value"]; par "table" TDB]
+    ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
     ; r = TList
     ; d =
         "Fetch all the values from `table` for which filter returns true. Note that this does not check every function, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
     ; f =
         InProcess
           (function
-          | state, [DBlock b; DDB dbname] ->
+          | state, [DDB dbname; DBlock b] ->
             ( try
                 let db = find_db state.dbs dbname in
                 User_db.filter ~state db b
