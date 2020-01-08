@@ -43,11 +43,15 @@ let binop_to_sql op : string =
   | "||" ->
       "OR"
   | _ ->
-      error2 "op not supported" op
+      error2 "This function is not yet implemented" op
 
 
 let unary_op_to_sql op : string =
-  match op with "Bool::not" -> "not" | _ -> error2 "op not supported" op
+  match op with
+  | "Bool::not" ->
+      "not"
+  | _ ->
+      error2 "This function is not yet implemented" op
 
 
 let tipe_to_sql_tipe (t : tipe_) : string =
@@ -61,7 +65,7 @@ let tipe_to_sql_tipe (t : tipe_) : string =
   | TBool ->
       "bool"
   | _ ->
-      error2 "unsupported DB field tipe" (show_tipe_ t)
+      error2 "We do not support this type of DB field yet" (show_tipe_ t)
 
 
 (* Inline `let` statements directly into where they are used. Since the code
@@ -102,7 +106,9 @@ let rec canonicalize expr =
           | Filled (id, FnCall (name, args)) ->
               Filled (id, FnCall (name, arg :: args))
           | _ ->
-              error2 "unsupport expression in pipe" (show_expr expr))
+              error2
+                "Currently, only function calls are supported in Pipes"
+                (show_expr expr))
   | _ ->
       Ast.traverse ~f:canonicalize expr
 
@@ -124,7 +130,7 @@ let dval_to_sql (dval : dval) : string =
   | DResult _
   | DFloat _
   | DBytes _ ->
-      error2 "unsupported value" (Dval.to_developer_repr_v0 dval)
+      error2 "This value is not yet supported" (Dval.to_developer_repr_v0 dval)
   | DInt i ->
       (* types don't line up to use Db.Int *)
       Db.escape_string (Dint.to_string i)
@@ -165,7 +171,7 @@ let rec lambda_to_sql
     | Some dval ->
         dval_to_sql dval
     | None ->
-        error2 "Variable is undefined" name )
+        error2 "This variable in undefined" name )
   | Filled (_, Value str) ->
       let dval = Dval.parse_literal str |> Option.value_exn in
       "(" ^ dval_to_sql dval ^ ")"
@@ -176,7 +182,7 @@ let rec lambda_to_sql
         | Some v ->
             v
         | None ->
-            error2 "DB does not have field named" fieldname
+            error2 "The Datastore does not have field named" fieldname
       in
       "(CAST(data::jsonb->>'"
       ^ Db.escape_string fieldname
@@ -184,7 +190,7 @@ let rec lambda_to_sql
       ^ Db.escape_string (tipe_to_sql_tipe tipe)
       ^ "))"
   | _ ->
-      error2 "unsupported code in DB::filter query" (show_expr expr)
+      error2 "We do not yet support compiling this code" (show_expr expr)
 
 
 let compile_lambda
