@@ -27,10 +27,15 @@ done
 
 BROWSER='unknown'
 {
-  if [[ "$DEBUG" == "true" ]]; then
-    BROWSER='chrome --window-size="1600,1200"'
+  PLATFORM=$(uname -s)
+  if [[ $PLATFORM == "Darwin" ]]; then
+    if [[ "$DEBUG" == "true" ]]; then
+      BROWSER='chrome:headless --window-size="1600,1200"'
+    else
+      BROWSER='chrome --window-size="1600,1200"'
+    fi
   else
-    BROWSER='chrome:headless --window-size="1600,1200"'
+    BROWSER='chromium:headless --window-size="1600,1200"'
   fi
 }
 
@@ -46,7 +51,7 @@ CONCURRENCY=3
 if [[ "$DEBUG" == "true" ]]; then
   CONCURRENCY=1
 elif [[ -v IN_DEV_CONTAINER ]]; then
-  # This was carefully measured in CI. 1x is much slower, 3x fails a lot.
+  # This was caarefully measured in CI. 1x is much slower, 3x fails a lot.
   # Though perhaps with a larger machine 3x might work better.
   CONCURRENCY=2
 fi
@@ -74,6 +79,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   exit $RESULT
 else
+
   # Check the version (matters when running outside the container)
   version=$(testcafe --version)
   expected_version=$(grep testcafe client/package.json | sed 's/\s*"testcafe": "//' | sed 's/",\s*//')
