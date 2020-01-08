@@ -1613,23 +1613,28 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : E.t =
             if str = "" then E.newB () else EPartial (gid (), str, oldVal))
 
 
+let rec deleteBinop (lhs : fluidExpr) (rhs : fluidExpr) : fluidExpr =
+  let newLhs =
+    match (lhs, rhs) with
+    | EString _, EBinOp (b, n, lhs2, rhs2, rail) ->
+        EBinOp (b, n, deleteBinop lhs lhs2, rhs2, rail)
+    | EString (lhsID, lhsStr), EString (_, rhsStr) ->
+        EString (lhsID, lhsStr ^ rhsStr)
+    | _ ->
+        E.newB ()
+  in
+  newLhs
+
+
 let deletePartial (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
   let newState = ref (fun (_ : E.t) -> s) in
   let ast =
     E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
-        | EPartial
-            ( _
-            , _
-            , EBinOp (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _) )
-          ->
-            (newState := fun _ -> moveTo (ti.startPos - 2) s) ;
-            EString (lhsID, lhsStr ^ rhsStr)
-        | EPartial (_, _, EBinOp (_, _, EPipeTarget _, expr, _))
-        | EPartial (_, _, EBinOp (_, _, expr, _, _)) ->
-            (* Note similar code in deleteBinOp *)
-            (newState := fun ast -> moveToEndOfTarget (E.id expr) ast s) ;
-            expr
+        | EPartial (_, _, EBinOp (_bId, _flName, lhs, rhs, _rail)) ->
+            let newLhs = deleteBinop lhs rhs in
+            (newState := fun ast -> moveToEndOfTarget (E.id newLhs) ast s) ;
+            newLhs
         | EPartial (_, _, _) ->
             let b = E.newB () in
             (newState := fun ast -> moveToEndOfTarget (E.id b) ast s) ;
