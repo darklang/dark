@@ -260,6 +260,18 @@ let current_hosts () : string list =
   |> List.dedup_and_sort ~compare
 
 
+let hosts_for (account_name : string) : string list =
+  Db.fetch
+    ~name:"hosts_for"
+    "SELECT DISTINCT c.name
+     FROM canvases c
+     JOIN accounts acc ON c.account_id = acc.id
+     WHERE acc.username = $1"
+    ~params:[String account_name]
+  |> List.map ~f:List.hd_exn
+  |> List.dedup_and_sort ~compare
+
+
 let tier_one_hosts () : string list =
   [ "ian-httpbin"
   ; "paul-slackermuse"
