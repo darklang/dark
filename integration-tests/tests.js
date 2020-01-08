@@ -1004,7 +1004,7 @@ test("string_escaping_for_r_n_t_double_quote", async t => {
     // live value of a string is wrapped in extra '"', which we do not want.
     .pressKey("w i t h t e x tab")
     .pressKey('"') // start string
-    .pressKey('\\ \\ \\ r \\ n \\ t \\ f left " right backspace')
+    .pressKey('\\ \\ \\ r \\ n \\ t \\ "')
     .pressKey("tab 2 0 0"); // add status code
 
   let r = await callBackend(

@@ -37,6 +37,21 @@ type state = Types.fluidState
 
 let toTokens = Printer.toTokens
 
+let string_ends_with_odd_number_of_backslashes str : bool =
+  let re = Regex.regex "\\\\*$" in
+  Regex.matches ~re str
+  |> Option.map ~f:Js.Re.captures
+  |> Option.map ~f:Array.to_list
+  |> Option.map ~f:(fun l -> l |> List.filterMap ~f:Js.Nullable.toOption)
+  |> Option.map ~f:(function
+         | [mat] ->
+             Js.log ("LEN: " ^ string_of_int (String.length mat)) ;
+             String.length mat mod 2 == 1
+         | _ ->
+             false)
+  |> Option.withDefault ~default:false
+
+
 let getStringIndexMaybe ti pos : int option =
   match ti.token with
   | TString (_, _) ->
@@ -3427,11 +3442,13 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (* Allow pressing close square to go over the last square *)
         (ast, moveOneRight pos s)
     (* String-specific insertions *)
-    | K.DoubleQuote, _, R (TPatternString _, ti)
-    | K.DoubleQuote, _, R (TString _, ti)
-    | K.DoubleQuote, _, R (TStringMLEnd _, ti)
-      when pos = ti.endPos - 1 ->
-        (* Allow pressing quote to go over the last quote *)
+    | K.DoubleQuote, _, R (TString (_, str), ti)
+    | K.DoubleQuote, _, R (TStringMLEnd (_, str, _, _), ti)
+    | K.DoubleQuote, _, R (TPatternString (_, _, str, _), ti)
+      when pos = ti.endPos - 1
+           && not (string_ends_with_odd_number_of_backslashes str) ->
+        (* Allow pressing quote to go over the last quote, unless the string
+         * ends in an odd number of \, in which case, it's an escaped quote *)
         (ast, moveOneRight pos s)
     (* Field access *)
     | K.Period, L (TVariable _, toTheLeft), _
