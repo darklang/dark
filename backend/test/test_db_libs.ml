@@ -696,7 +696,8 @@ let t_db_filter_works () =
   check_error
     "bad variable name"
     (filter "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)
-    "Variable is undefined: y" ;
+    (Db.dbFilterExceptionToString
+       (Db.DBFilterException "Variable is undefined: y")) ;
   check_dval
     "sql injection"
     (DList [])
