@@ -975,10 +975,20 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
 
 
 let findCenter (m : model) : pos =
+  let open Native in
   let {x; y} =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-        Viewport.toCenter m.canvasProps.offset
+        let o = m.canvasProps.offset in
+        let padLeft = 360 in (* leave space for incoming data & live values *)
+        let padTop = 200 in (* leave space for doc above handler *)
+        let padRight = 400 in (* leave space for toplevel width *)
+        let padBottom = 200 in (* leave space for toplevel height *)
+        let minX = o.x + padLeft in
+        let maxX = minX + (Window.viewportWidth - padLeft - padRight) in
+        let minY = o.y + padTop in
+        let maxY = minY + (Window.viewportHeight - padTop - padBottom) in
+        {x = Random.range minX maxX ; y = Random.range minY maxY }
     | _ ->
         Defaults.centerPos
   in
@@ -1760,7 +1770,7 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateGroup ->
       let center = findCenter m in
       Groups.createEmptyGroup None center
-  | CreateFunction ->
+  | CreateFunction -> 
       let ufun = Refactor.generateEmptyFunction () in
       Many
         [ AddOps ([SetFunction ufun], FocusNothing)

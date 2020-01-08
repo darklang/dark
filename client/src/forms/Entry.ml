@@ -165,7 +165,7 @@ let newHandler m space name modifier pos =
     | FocusedFn _ | FocusedType _ ->
         [SetPage (FocusedHandler (tlid, true))]
     | _ ->
-        []
+      [SetPage (FocusedHandler (tlid, false))]
   in
   let rpc =
     AddOps ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
