@@ -866,14 +866,6 @@ test("max_callstack_bug", async t => {
     .pressKey("L i s t : : r a n g e space 0 space 2 0 0 0 space");
 });
 
-test("clicking_on_omnibox_works", async t => {
-  await t
-    .pressKey("enter")
-    .click(Selector(".autocomplete-item > .name").withText("New HTTP handler"))
-    .expect(available(".node > .toplevel > .spec-header"))
-    .ok();
-});
-
 test("sidebar_opens_function", async t => {
   await t
     .expect(available(".sidebar-section.fns .headerSummary"))

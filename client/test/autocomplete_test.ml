@@ -31,10 +31,10 @@ let defaultBlankOr = Blank defaultID
 let defaultExpr = EBlank defaultID
 
 let fillingCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
-  Entering (tlid, id)
+  Entering (Filling (tlid, id))
 
 
-let creatingCS : cursorState = Omnibox {x = 0; y = 0}
+let creatingCS : cursorState = Entering (Creating {x = 0; y = 0})
 
 (* Sets the model with the appropriate toplevels *)
 let defaultModel
@@ -151,7 +151,7 @@ let enteringEventNameHandler ?(space : string option = None) () : model =
 
 let creatingOmni : model =
   { Defaults.defaultModel with
-    cursorState = Omnibox {x = 0; y = 0}
+    cursorState = Entering (Creating {x = 0; y = 0})
   ; builtInFunctions = sampleFunctions }
 
 
@@ -159,8 +159,10 @@ let creatingOmni : model =
 let acFor ?(target = Some (defaultTLID, PDBColType defaultBlankOr)) (m : model)
     : autocomplete =
   match m.cursorState with
-  | Omnibox _ ->
+  | Entering (Creating _) ->
       init m |> setTarget m None
+  | Entering (Filling _) ->
+      init m |> setTarget m target
   | _ ->
       init m |> setTarget m target
 
