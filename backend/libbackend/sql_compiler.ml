@@ -171,7 +171,7 @@ let rec lambda_to_sql
     | Some dval ->
         dval_to_sql dval
     | None ->
-        error2 "This variable in undefined" name )
+        error2 "This variable is not defined" name )
   | Filled (_, Value str) ->
       let dval = Dval.parse_literal str |> Option.value_exn in
       "(" ^ dval_to_sql dval ^ ")"
@@ -182,7 +182,7 @@ let rec lambda_to_sql
         | Some v ->
             v
         | None ->
-            error2 "The Datastore does not have field named" fieldname
+            error2 "The datastore does not have a field named" fieldname
       in
       "(CAST(data::jsonb->>'"
       ^ Db.escape_string fieldname
