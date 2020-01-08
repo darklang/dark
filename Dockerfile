@@ -280,7 +280,8 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-too
 
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview
-RUN cargo install cargo-cache
+RUN cargo install cargo-cache --no-default-features --features ci-autoclean
+
 
 # Once we have cargo and things installed in /usr/local/cargo and that added to PATH,
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
