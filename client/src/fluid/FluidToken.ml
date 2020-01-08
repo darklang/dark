@@ -50,7 +50,7 @@ let tid (t : t) : id =
   | TRecordFieldname {recordID = id; _}
   | TRecordSep (id, _, _)
   | TConstructorName (id, _)
-  | TMatchSep (id, _)
+  | TMatchSep {matchID = id; _}
   | TMatchKeyword id
   | TPatternBlank (_, id, _)
   | TPatternInteger (_, id, _, _)
@@ -79,7 +79,8 @@ let analysisID (t : t) : id =
   | TLetAssignment (_, id)
   | TRecordFieldname {exprID = id; _}
   | TLambdaVar (_, id, _, _)
-  | TRecordSep (_, _, id) ->
+  | TRecordSep (_, _, id)
+  | TMatchSep {patternID = id; _} ->
       id
   | _ ->
       tid t
@@ -351,7 +352,7 @@ let toText (t : t) : string =
   | TMatchKeyword _ ->
       "match "
   | TMatchSep _ ->
-      "->"
+      " -> "
   | TPatternInteger (_, _, i, _) ->
       shouldntBeEmpty i
   | TPatternFloatWhole (_, _, w, _) ->
@@ -648,7 +649,7 @@ let toDebugInfo (t : t) : string =
       "no parent"
   | TPipe (_, idx, len) ->
       Printf.sprintf "idx=%d len=%d" idx len
-  | TMatchSep (_, idx) ->
+  | TMatchSep {index = idx; _} ->
       "idx=" ^ string_of_int idx
   | TPatternBlank (mid, _, idx)
   | TPatternInteger (mid, _, _, idx)

@@ -2083,6 +2083,16 @@ let run () =
         (bs 12)
         "match ___~\n  *** -> ___\n" ;
       t
+        "backspacing second matchSep ( |-> ) moves to end of pattern"
+        emptyMatchWithTwoPatterns
+        (bs 29)
+        "match ___\n  *** -> ___\n  ***~ -> ___\n" ;
+      t
+        "backspacing second matchSep ( -> |) -> moves to end of pattern"
+        emptyMatchWithTwoPatterns
+        (bs 32)
+        "match ___\n  *** -> ___\n  ***~ -> ___\n" ;
+      t
         "ctrl+left 2 times from end moves to first blank"
         emptyMatch
         (keys [K.GoToStartOfWord; K.GoToStartOfWord] 22)
