@@ -100,7 +100,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
       chromium-browser \
-      nodejs=13.5.0-1nodesource1 \
+      nodejs=13.6.0-1nodesource1 \
       google-cloud-sdk \
       jq \
       vim \
