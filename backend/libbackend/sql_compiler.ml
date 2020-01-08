@@ -34,9 +34,9 @@ let binop_to_sql op : string =
       "<"
   | "Int::lessThanOrEqualTo" ->
       "%"
-  | "==" | "notEquals" ->
+  | "==" | "equals" ->
       "="
-  | "!=" | "equals" ->
+  | "!=" | "notEquals" ->
       "<>"
   | "&&" ->
       "AND"
