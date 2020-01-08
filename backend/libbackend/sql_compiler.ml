@@ -164,11 +164,11 @@ let rec lambda_to_sql_inner
         | None ->
             error2 "DB does not have field named" fieldname
       in
-      "CAST(data::jsonb->>'"
-      ^ fieldname
+      "(CAST(data::jsonb->>'"
+      ^ Db.escape_string fieldname
       ^ "' as "
       ^ tipe_to_sql_tipe tipe
-      ^ ") "
+      ^ "))"
   | _ ->
       error2 "unsupported code in DB::filter query" (show_expr expr)
 
@@ -177,7 +177,7 @@ let compile_lambda
     (symtable : dval_map)
     (paramName : string)
     (dbFields : tipe_ Prelude.StrDict.t)
-    (body : expr) =
+    (body : expr) : string =
   body
   |> canonicalize
   |> inline paramName Prelude.StrDict.empty

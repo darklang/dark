@@ -549,12 +549,48 @@ let t_db_getAllKeys_works () =
 let t_sql_compiler_works () =
   let open Types in
   let open Prelude in
-  let body = Filled (Util.create_id (), Value "true") in
-  let paramName = "value" in
-  let symtable = DvalMap.from_list [] in
-  let dbFields = StrDict.from_list [] in
-  let result = Sql_compiler.compile_lambda symtable paramName dbFields body in
-  AT.check AT.string "true is true" result "(true)" ;
+  let f nexpr = Filled (Util.create_id (), nexpr) in
+  let check
+      (msg : string)
+      ?(paramName = "value")
+      ?(dbFields = [])
+      ?(symtable = [])
+      (body : expr)
+      (generated : string) : unit =
+    let dbFields = StrDict.from_list dbFields in
+    let symtable = StrDict.from_list symtable in
+    let result = Sql_compiler.compile_lambda symtable paramName dbFields body in
+    AT.check AT.string msg result generated
+  in
+  let checkError
+      (msg : string)
+      ?(paramName = "value")
+      ?(dbFields = [])
+      ?(symtable = [])
+      (body : expr)
+      (expectedError : string) : unit =
+    try check msg ~paramName ~dbFields ~symtable body "<error expected>"
+    with Db.DBFilterException e -> AT.check AT.string msg e expectedError
+  in
+  let true' = f (Value "true") in
+  check "true is true" true' "(true)" ;
+  let fieldAccess = f (FieldAccess (f (Variable "value"), f "myfield")) in
+  check
+    "correct SQL for field access"
+    ~dbFields:[("myfield", TStr)]
+    fieldAccess
+    "(CAST(data::jsonb->>'myfield' as text))" ;
+  checkError
+    "no field gives error"
+    fieldAccess
+    "DB does not have field named: myfield" ;
+  let injection = "'; select * from user_data ;'field" in
+  let fieldAccess = f (FieldAccess (f (Variable "value"), f injection)) in
+  check
+    "correct SQL for field access"
+    ~dbFields:[(injection, TStr)]
+    fieldAccess
+    "(CAST(data::jsonb->>'''; select * from user_data ;''field' as text))" ;
   ()
 
 
