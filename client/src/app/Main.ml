@@ -1536,6 +1536,22 @@ let update_ (msg : msg) (m : model) : modification =
            (* not a great error ... but this is an api error without a
             * corresponding actual http error *)
            Tea.Http.Aborted)
+  | ReceiveFetch (TraceFetchFailure (params, url, error))
+    when error
+         = "Selected trace to large for the editor to load, maybe try another?"
+    ->
+      let traces =
+        StrDict.fromList
+          [ ( deTLID params.gtdrpTlid
+            , [(params.gtdrpTraceID, Error MaximumCallStackError)] ) ]
+      in
+      Many
+        [ TweakModel
+            (Sync.markResponseInModel
+               ~key:("tracefetch-" ^ params.gtdrpTraceID))
+        ; UpdateTraces traces
+        ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
+        ]
   | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
       Many
         [ TweakModel
