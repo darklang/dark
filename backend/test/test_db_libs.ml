@@ -585,29 +585,36 @@ let t_sql_compiler_works () =
     fieldAccess
     "The datastore does not have a field named: myfield" ;
   let injection = "'; select * from user_data ;'field" in
-  let fieldAccess = f (FieldAccess (f (Variable "value"), f injection)) in
+  let fieldAccess =
+    f
+      (FnCall
+         ( "=="
+         , [ f (FieldAccess (f (Variable "value"), f injection))
+           ; f (Value "\"x\"") ] ))
+  in
   check
     "field accesses are escaped"
     ~dbFields:[(injection, TStr)]
     fieldAccess
-    "(CAST(data::jsonb->>'''; select * from user_data ;''field' as text))" ;
-  let var = f (Variable "var") in
+    "((CAST(data::jsonb->>'''; select * from user_data ;''field' as text)) = ('x'))" ;
+  let var = f (FnCall ("==", [f (Variable "var"); f (Value "\"x\"")])) in
   check
     "symtable escapes correctly"
     ~symtable:[("var", Dval.dstr_of_string_exn "';select * from user_data;'")]
     var
-    "''';select * from user_data;'''" ;
+    "((''';select * from user_data;''') = ('x'))" ;
   let thread =
     f
       (Thread
          [ f (Value "5")
          ; f (FnCall ("-", [f (Value "2")]))
-         ; f (FnCall ("+", [f (Value "3")])) ])
+         ; f (FnCall ("+", [f (Value "3")]))
+         ; f (FnCall ("<", [f (Value "3")])) ])
   in
   check
     "pipes expand correctly into nested functions"
     thread
-    "(((5) - (2)) + (3))" ;
+    "((((5) - (2)) + (3)) < (3))" ;
   ()
 
 
@@ -693,7 +700,8 @@ let t_db_query_works () =
     "not a bool"
     (query "\\v -> 'x'" |> exec)
     (Db.dbQueryExceptionToString
-       (Db.DBQueryException "A type error occurred at run-time")) ;
+       (Db.DBQueryException
+          "Incorrect type in `\"x\"`, expected Bool but got a str")) ;
   check_error
     "bad variable name"
     (query "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)

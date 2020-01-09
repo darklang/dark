@@ -10,46 +10,50 @@ let error str = raise (DBQueryException str)
 
 let error2 msg str = error (msg ^ ": " ^ str)
 
-let binop_to_sql op : string =
+let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
+  let allInts str = (TInt, TInt, TInt, str) in
+  let boolOp tipe str = (tipe, tipe, TBool, str) in
   match op with
-  | ">" | "<" | "<=" | ">=" | "+" | "-" | "*" | "/" | "%" | "^" ->
-      op
+  | ">" | "<" | "<=" | ">=" ->
+      boolOp TInt op
+  | "+" | "-" | "*" | "/" | "%" | "^" ->
+      allInts op
   | "Int::mod" ->
-      "%"
+      allInts "%"
   | "Int::add" ->
-      "+"
+      allInts "+"
   | "Int::substract" ->
-      "-"
+      allInts "-"
   | "Int::multiply" ->
-      "*"
+      allInts "*"
   | "Int::power" ->
-      "^"
+      allInts "^"
   | "Int::divide" ->
-      "/"
+      allInts "/"
   | "Int::greaterThan" ->
-      ">"
+      boolOp TInt ">"
   | "Int::greaterThanOrEqualTo" ->
-      ">="
+      boolOp TInt ">="
   | "Int::lessThan" ->
-      "<"
+      boolOp TInt "<"
   | "Int::lessThanOrEqualTo" ->
-      "%"
+      boolOp TInt "%"
   | "==" | "equals" ->
-      "="
+      boolOp TAny "="
   | "!=" | "notEquals" ->
-      "<>"
+      boolOp TAny "<>"
   | "&&" ->
-      "AND"
+      boolOp TBool "AND"
   | "||" ->
-      "OR"
+      boolOp TBool "OR"
   | _ ->
       error2 "This function is not yet implemented" op
 
 
-let unary_op_to_sql op : string =
+let unary_op_to_sql op : tipe_ * tipe_ * string =
   match op with
   | "Bool::not" ->
-      "not"
+      (TBool, TBool, "not")
   | _ ->
       error2 "This function is not yet implemented" op
 
@@ -147,33 +151,67 @@ let dval_to_sql (dval : dval) : string =
 (* TODO: support characters, floats, dates, and uuids. And maybe lists and
  * bytes. Probably something can be done with options and results. *)
 
+let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe_) : unit =
+  if Dval.tipe_of dval = expected_tipe || expected_tipe = TAny
+  then ()
+  else
+    error
+      ( "Incorrect type in `"
+      ^ name
+      ^ "`, expected "
+      ^ Dval.tipe_to_string expected_tipe
+      ^ " but got a "
+      ^ Dval.tipename dval )
+
+
+let typecheck (name : string) (actual_tipe : tipe_) (expected_tipe : tipe_) :
+    unit =
+  if actual_tipe = expected_tipe || expected_tipe = TAny
+  then ()
+  else
+    error
+      ( "Incorrect type in `"
+      ^ name
+      ^ "`, expected "
+      ^ Dval.tipe_to_string expected_tipe
+      ^ " but got a "
+      ^ Dval.tipe_to_string actual_tipe )
+
+
 let rec lambda_to_sql
     (symtable : dval_map)
     (paramName : string)
     (dbFields : tipe_ Prelude.StrDict.t)
+    (expected_tipe : tipe_)
     (expr : expr) : string =
-  let lts e = lambda_to_sql symtable paramName dbFields e in
+  let lts tipe e = lambda_to_sql symtable paramName dbFields tipe e in
   match expr with
   (* The correct way to handle null in SQL is "is null" or "is not null"
    * rather than a comparison with null. *)
   | Filled (_, FnCall ("==", [Filled (_, Value "null"); e]))
   | Filled (_, FnCall ("==", [e; Filled (_, Value "null")])) ->
-      "(" ^ lts e ^ " is null)"
+      "(" ^ lts TNull e ^ " is null)"
   | Filled (_, FnCall ("!=", [Filled (_, Value "null"); e]))
   | Filled (_, FnCall ("!=", [e; Filled (_, Value "null")])) ->
-      "(" ^ lts e ^ " is not null)"
+      "(" ^ lts TNull e ^ " is not null)"
   | Filled (_, FnCall (op, [l; r])) ->
-      "(" ^ lts l ^ " " ^ binop_to_sql op ^ " " ^ lts r ^ ")"
+      let ltipe, rtipe, result_tipe, opname = binop_to_sql op in
+      typecheck op result_tipe expected_tipe ;
+      "(" ^ lts ltipe l ^ " " ^ opname ^ " " ^ lts rtipe r ^ ")"
   | Filled (_, FnCall (op, [e])) ->
-      "(" ^ unary_op_to_sql op ^ " " ^ lts e ^ ")"
+      let arg_tipe, result_tipe, opname = unary_op_to_sql op in
+      typecheck op result_tipe expected_tipe ;
+      "(" ^ opname ^ " " ^ lts arg_tipe e ^ ")"
   | Filled (_, Variable name) ->
     ( match DvalMap.get ~key:name symtable with
     | Some dval ->
-        dval_to_sql dval
+        typecheckDval name dval expected_tipe ;
+        "(" ^ dval_to_sql dval ^ ")"
     | None ->
         error2 "This variable is not defined" name )
   | Filled (_, Value str) ->
       let dval = Dval.parse_literal str |> Option.value_exn in
+      typecheckDval str dval expected_tipe ;
       "(" ^ dval_to_sql dval ^ ")"
   | Filled (_, FieldAccess (Filled (_, Variable v), Filled (_, fieldname)))
     when v = paramName ->
@@ -201,4 +239,4 @@ let compile_lambda
   body
   |> canonicalize
   |> inline paramName Prelude.StrDict.empty
-  |> lambda_to_sql symtable paramName dbFields
+  |> lambda_to_sql symtable paramName dbFields TBool
