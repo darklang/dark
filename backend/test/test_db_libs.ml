@@ -647,7 +647,7 @@ let t_db_filter_works () =
               ))))"
   |> ignore ;
   let exec (code : string) = exec_handler ~ops code in
-  let filter code = "(DB::filter Person (" ^ code ^ "))" in
+  let filter code = "(DB::query_v4 Person (" ^ code ^ "))" in
   let sort code =
     "(| "
     ^ code

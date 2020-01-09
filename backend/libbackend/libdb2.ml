@@ -678,7 +678,7 @@ let fns : shortfn list =
               fail args)
     ; ps = false
     ; dep = false }
-  ; { pns = ["DB::filter"]
+  ; { pns = ["DB::query_v4"]
     ; ins = []
     ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
     ; r = TList
