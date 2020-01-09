@@ -974,31 +974,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   (newm, Cmd.batch [cmd; newcmd])
 
 
-let findNewPos (m : model) : pos =
-  let open Native in
-  let {x; y} =
-    match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-        let o = m.canvasProps.offset in
-        let padLeft = 360 in (* leave space for incoming data & live values *)
-        let padTop = 200 in (* leave space for doc above handler *)
-        let padRight = 400 in (* leave space for toplevel width *)
-        let padBottom = 200 in (* leave space for toplevel height *)
-        let minX = o.x + padLeft in
-        let maxX = minX + (Window.viewportWidth - padLeft - padRight) in
-        let minY = o.y + padTop in
-        let maxY = minY + (Window.viewportHeight - padTop - padBottom) in
-        {x = Random.range minX maxX ; y = Random.range minY maxY }
-    | _ ->
-        Defaults.centerPos
-  in
-  (* if the sidebar is open, the users can't see the livevalues, which
-   * confused new users. Given we can't get z-index to work, moving it to the
-   * side a little seems the best solution for now. *)
-  let xOffset = if m.sidebarOpen then 160 else 0 in
-  {x = x + xOffset; y}
-
-
 let update_ (msg : msg) (m : model) : modification =
   if m.integrationTestState <> NoIntegrationTest
   then Debug.loG "msg update" (show_msg msg) ;
@@ -1046,9 +1021,8 @@ let update_ (msg : msg) (m : model) : modification =
           let defaultBehaviour = Deselect in
           match unwrapCursorState m.cursorState with
           | Deselected ->
-              Many
-                [ AutocompleteMod ACReset
-                ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
+              let openAt = Viewport.toAbsolute m event.mePos in
+              Many [AutocompleteMod ACReset; Enter (Creating (Some openAt))]
           | Entering (Filling _ as cursor) ->
               (* If we click away from an entry box, commit it before doing the default behaviour *)
               Many [Entry.commit m cursor; defaultBehaviour]
@@ -1705,7 +1679,7 @@ let update_ (msg : msg) (m : model) : modification =
   | PageVisibilityChange vis ->
       TweakModel (fun m_ -> {m_ with visibility = vis})
   | CreateHandlerFrom404 ({space; path; modifier; _} as fof) ->
-      let center = findNewPos m in
+      let center = Viewport.findNewPos m in
       let tlid = gtlid () in
       let pos = center in
       let ast = EBlank (gid ()) in
@@ -1761,16 +1735,16 @@ let update_ (msg : msg) (m : model) : modification =
   | ToggleSideBar ->
       TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
   | CreateRouteHandler action ->
-      let center = findNewPos m in
+      let center = Viewport.findNewPos m in
       Entry.submitOmniAction m center action
   | CreateDBTable ->
-      let center = findNewPos m
+      let center = Viewport.findNewPos m
       and genName = DB.generateDBName () in
       Entry.newDB genName center m
   | CreateGroup ->
-      let center = findNewPos m in
+      let center = Viewport.findNewPos m in
       Groups.createEmptyGroup None center
-  | CreateFunction -> 
+  | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
         [ AddOps ([SetFunction ufun], FocusNothing)
