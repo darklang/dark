@@ -564,7 +564,7 @@ and isLeftButton = bool
 (* CursorState *)
 (* ----------------------------- *)
 and entryCursor =
-  | Creating of pos
+  | Creating of pos option
   | Filling of tlid * id
 
 and hasMoved = bool

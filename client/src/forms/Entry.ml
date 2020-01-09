@@ -8,9 +8,7 @@ module RT = Runtime
 module TL = Toplevel
 module Regex = Util.Regex
 
-let openOmnibox (m : model) : modification =
-  Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
-
+let openOmnibox () : modification = Enter (Creating None)
 
 (* --------------------- *)
 (* Focus *)
@@ -165,7 +163,7 @@ let newHandler m space name modifier pos =
     | FocusedFn _ | FocusedType _ ->
         [SetPage (FocusedHandler (tlid, true))]
     | _ ->
-      [SetPage (FocusedHandler (tlid, false))]
+        [SetPage (FocusedHandler (tlid, false))]
   in
   let rpc =
     AddOps ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
@@ -531,15 +529,18 @@ let submitACItem
 
 let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
   match cursor with
-  | Creating pos ->
-    ( match AC.highlighted m.complete with
-    | Some (ACOmniAction act) ->
-        submitOmniAction m pos act
-    (* If empty, create an empty handler *)
-    | None when m.complete.value = "" ->
-        submitOmniAction m pos (NewReplHandler None)
-    | _ ->
-        NoChange )
+  | Creating p ->
+      let pos =
+        match p with Some pos -> pos | None -> Viewport.findNewPos m
+      in
+      ( match AC.highlighted m.complete with
+      | Some (ACOmniAction act) ->
+          submitOmniAction m pos act
+      (* If empty, create an empty handler *)
+      | None when m.complete.value = "" ->
+          submitOmniAction m pos (NewReplHandler None)
+      | _ ->
+          NoChange )
   | Filling _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->
