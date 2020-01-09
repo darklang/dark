@@ -1613,16 +1613,29 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : E.t =
             if str = "" then E.newB () else EPartial (gid (), str, oldVal))
 
 
-let rec deleteBinop (lhs : fluidExpr) (rhs : fluidExpr) : fluidExpr =
+let rec deletePartialBinop
+    (lhs : fluidExpr)
+    (rhs : fluidExpr)
+    (ti : T.tokenInfo)
+    (ast : ast)
+    (s : state) : fluidExpr * state =
   match (lhs, rhs) with
   | EString _, EBinOp (b, n, lhs2, rhs2, rail) ->
-      EBinOp (b, n, deleteBinop lhs lhs2, rhs2, rail)
-  | EBlank _, EString (rhsId, rhsStr) | EString (rhsId, rhsStr), EBlank _ ->
-      EString (rhsId, rhsStr)
+      let newExpr, newState = deletePartialBinop lhs lhs2 ti ast s in
+      (EBinOp (b, n, newExpr, rhs2, rail), newState)
+  | EBlank _, EString (rhsId, rhsStr) ->
+      ( EString (rhsId, rhsStr)
+      , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
+      )
+  | EString (lhsID, lhsStr), EBlank _ ->
+      ( EString (lhsID, lhsStr)
+      , moveToCaretTarget s ast (caretTargetForLastPartOfExpr (E.id lhs) ast) )
   | EString (lhsID, lhsStr), EString (_, rhsStr) ->
-      EString (lhsID, lhsStr ^ rhsStr)
+      ( EString (lhsID, lhsStr ^ rhsStr)
+      , moveToCaretTarget s ast (caretTargetForLastPartOfExpr (E.id lhs) ast) )
   | _ ->
-      E.newB ()
+      let b = E.newB () in
+      (b, moveToEndOfTarget (E.id b) ast s)
 
 
 let deletePartial (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
@@ -1631,9 +1644,9 @@ let deletePartial (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
     E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
         | EPartial (_, _, EBinOp (_bId, _flName, lhs, rhs, _rail)) ->
-            let newLhs = deleteBinop lhs rhs in
-            (newState := fun ast -> moveToEndOfTarget (E.id newLhs) ast s) ;
-            newLhs
+            let newExpr, newS = deletePartialBinop lhs rhs ti ast s in
+            (newState := fun _ -> newS) ;
+            newExpr
         | EPartial (_, _, _) ->
             let b = E.newB () in
             (newState := fun ast -> moveToEndOfTarget (E.id b) ast s) ;
