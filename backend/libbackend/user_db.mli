@@ -26,9 +26,6 @@ val query_exact_fields :
 
 val filter : state:exec_state -> DbT.db -> dblock_args -> (string * dval) list
 
-val query_exact_fields_by_one :
-  state:exec_state -> DbT.db -> string -> dval -> (string * dval) list
-
 val count : state:exec_state -> DbT.db -> int
 
 val delete : state:exec_state -> DbT.db -> string -> unit

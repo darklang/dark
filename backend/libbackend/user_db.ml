@@ -72,11 +72,6 @@ let rec query_exact_fields ~state db query_obj : (string * dval) list =
              Exception.internal "bad format received in fetch_all")
 
 
-and query_exact_fields_by_one ~state db (col : string) (dv : dval) :
-    (string * dval) list =
-  query_exact_fields ~state db (DObj (DvalMap.singleton col dv))
-
-
 and
     (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
