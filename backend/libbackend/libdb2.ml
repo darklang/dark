@@ -684,7 +684,7 @@ let fns : shortfn list =
     ; dep = false }
   ; { pns = ["DB::query_v4"]
     ; ins = []
-    ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
+    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; r = TList
     ; d =
         "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -697,15 +697,15 @@ let fns : shortfn list =
                 User_db.query ~state db b
                 |> List.map ~f:(fun (k, v) -> v)
                 |> Dval.to_list
-              with Db.DBFilterException _ as e ->
-                DError (SourceNone, Db.dbFilterExceptionToString e) )
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DB::queryWithKey_v3"]
     ; ins = []
-    ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
+    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; r = TObj
     ; d =
         "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -716,15 +716,15 @@ let fns : shortfn list =
             ( try
                 let db = find_db state.dbs dbname in
                 User_db.query ~state db b |> DvalMap.from_list |> DObj
-              with Db.DBFilterException _ as e ->
-                DError (SourceNone, Db.dbFilterExceptionToString e) )
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DB::queryOne_v3"]
     ; ins = []
-    ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
+    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; r = TList
     ; d =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -740,15 +740,15 @@ let fns : shortfn list =
                     Dval.to_opt_just v
                 | _ ->
                     DOption OptNothing
-              with Db.DBFilterException _ as e ->
-                DError (SourceNone, Db.dbFilterExceptionToString e) )
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DB::queryOneWithKey_v3"]
     ; ins = []
-    ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
+    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; r = TOption
     ; d =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -764,8 +764,8 @@ let fns : shortfn list =
                     DOption (OptJust (DObj (DvalMap.singleton k v)))
                 | _ ->
                     DOption OptNothing
-              with Db.DBFilterException _ as e ->
-                DError (SourceNone, Db.dbFilterExceptionToString e) )
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
     ; ps = false
