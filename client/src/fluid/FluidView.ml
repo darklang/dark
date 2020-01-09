@@ -431,16 +431,6 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
   let ({analysisStore; tlid; _} : ViewUtils.viewState) = vs in
   let state = vs.fluidState in
-  let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
-  let event ~(key : string) (event : string) : Types.msg Vdom.property =
-    let decodeNothing =
-      let open Tea.Json.Decoder in
-      succeed Types.IgnoreMsg
-    in
-    (* There is a check to preventDefault() in the appsupport file *)
-    Html.on ~key event decodeNothing
-  in
-  let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
   let tokenInfos = vs.tokens in
   let errorRail =
     let indicators =
@@ -458,13 +448,26 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     else Vdom.noNode
   in
   let returnValue = viewReturnValue vs ast in
+  let onEvt
+      (constructor : Web.Node.event -> FluidTextInput.t option)
+      (evt : Web.Node.event) : 'a option =
+    constructor evt
+    |> Option.map ~f:(fun t -> Types.FluidMsg (Types.FluidTextInput t))
+  in
   [ liveValue
   ; Html.div
       [ Attrs.id Fluid.editorID
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
-      ; event ~key:eventKey "keydown" ]
+      ; Html.onCB
+          "input"
+          ("input" ^ show_tlid tlid)
+          (onEvt FluidTextInput.fromInputEvent)
+      ; Html.onCB
+          "compositionend"
+          ("compositionend" ^ show_tlid tlid)
+          (onEvt FluidTextInput.fromCompositionEndEvent) ]
       (toHtml ast ~vs ~tlid ~state)
   ; returnValue
   ; errorRail ]
