@@ -489,7 +489,11 @@ let submitACItem
               in
               saveH {h with spec = replacedName} (PEventSpace new_)
           | PFnName _, ACFnName value, TLFunc old ->
-              if List.member ~value (UserFunctions.allNames m.userFunctions)
+              if B.isFilledValue old.ufMetadata.ufmName value
+              then NoChange
+              else if List.member
+                        ~value
+                        (UserFunctions.allNames m.userFunctions)
               then DisplayError ("There is already a Function named " ^ value)
               else
                 let newPD = PFnName (B.newF value) in
