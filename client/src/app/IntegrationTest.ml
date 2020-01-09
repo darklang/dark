@@ -673,6 +673,14 @@ let fluid_test_copy_request_as_curl (m : model) : testResult =
       else pass
 
 
+let fluid_ac_validate_on_lose_focus (m : model) : testResult =
+  match onlyExpr m with
+  | EFieldAccess (_, EVariable (_, "request"), "body") ->
+      pass
+  | e ->
+      fail ("Expected: `request.body`, got `" ^ FluidPrinter.eToString e ^ "`")
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -791,5 +799,7 @@ let trigger (test_name : string) : integrationTestState =
         fluid_shift_tabbing_from_handler_ast_back_to_route
     | "fluid_test_copy_request_as_curl" ->
         fluid_test_copy_request_as_curl
+    | "fluid_ac_validate_on_lose_focus" ->
+        fluid_ac_validate_on_lose_focus
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

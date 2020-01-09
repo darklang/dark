@@ -4983,8 +4983,7 @@ let cleanUp (m : model) (tlid : tlid option) : model * modification =
     |> Option.andThen ~f:(TL.get m)
     |> Option.thenAlso ~f:TL.getAST
     |> Option.andThen ~f:(fun (tl, ast) ->
-           let ast = acMaybeCommit state.newPos ast state in
-           let newAST = AST.removePartials ast in
+           let newAST = acMaybeCommit 0 ast state |> AST.removePartials in
            if newAST <> ast then Some (TL.setASTMod tl newAST) else None)
     |> Option.withDefault ~default:NoChange
   in
