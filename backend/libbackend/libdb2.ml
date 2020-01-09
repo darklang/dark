@@ -703,6 +703,25 @@ let fns : shortfn list =
               fail args)
     ; ps = false
     ; dep = false }
+  ; { pns = ["DB::queryWithKey_v3"]
+    ; ins = []
+    ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
+    ; r = TObj
+    ; d =
+        "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+    ; f =
+        InProcess
+          (function
+          | state, [DDB dbname; DBlock b] ->
+            ( try
+                let db = find_db state.dbs dbname in
+                User_db.query ~state db b |> DvalMap.from_list |> DObj
+              with Db.DBFilterException _ as e ->
+                DError (SourceNone, Db.dbFilterExceptionToString e) )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DB::queryOne_v3"]
     ; ins = []
     ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
