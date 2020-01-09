@@ -162,7 +162,7 @@ let rec execute_dblock
           bindings
           |> List.map ~f:(Prelude.Tuple2.mapFirst ~f:Prelude.Tuple2.second)
           |> DvalMap.from_list
-          |> Util.merge_left symtable
+          |> Util.merge_right symtable
         in
         exec ~state new_st body
 
