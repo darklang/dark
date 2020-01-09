@@ -3411,6 +3411,12 @@ let rec updateKey
         acEnter ti ast s key
     (* When we type a letter/number after an infix operator, complete and
      * then enter the number/letter. *)
+    | InsertText txt, L (TRightPartial (_, _), ti), _
+      when onEdge && Util.isIdentifierChar txt ->
+        let ast, s = acEnter ti ast s K.Tab in
+        getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
+        |> Option.map ~f:(fun ti -> doInsert' ~pos:s.newPos txt ti ast s)
+        |> Option.withDefault ~default:(ast, s)
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline ast s =
           let startPos, endPos = fluidGetSelectionRange s in
@@ -3780,12 +3786,17 @@ let rec updateKey
         else (ast, s)
     | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
         doInsert' ~pos txt toTheLeft ast s
+    | Keypress {key = K.Space; _}, L (_, toTheLeft), _
+      when T.isAppendable toTheLeft.token ->
+        doInsert' ~pos " " toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
         (ast, s)
     | _, _, R (TRecordOpen _, _) ->
         (ast, s)
     | InsertText txt, _, R (_, toTheRight) ->
         doInsert' ~pos txt toTheRight ast s
+    | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
+        doInsert' ~pos " " toTheRight ast s
     | _ ->
         (* Unknown *)
         (ast, report ("Unknown action: " ^ show_fluidInputEvent inputEvent) s)
