@@ -321,7 +321,7 @@ let get_db_fields (db : db) : (string * tipe_) list =
           None)
 
 
-let filter ~state (db : db) (b : dblock_args) : (string * dval) list =
+let query ~state (db : db) (b : dblock_args) : (string * dval) list =
   let dbFields = Tablecloth.StrDict.from_list (get_db_fields db) in
   let paramName =
     match b.params with

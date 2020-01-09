@@ -24,7 +24,7 @@ val get_all_keys : state:exec_state -> DbT.db -> string list
 val query_exact_fields :
   state:exec_state -> DbT.db -> dval -> (string * dval) list
 
-val filter : state:exec_state -> DbT.db -> dblock_args -> (string * dval) list
+val query : state:exec_state -> DbT.db -> dblock_args -> (string * dval) list
 
 val count : state:exec_state -> DbT.db -> int
 

@@ -694,7 +694,7 @@ let fns : shortfn list =
           | state, [DDB dbname; DBlock b] ->
             ( try
                 let db = find_db state.dbs dbname in
-                User_db.filter ~state db b
+                User_db.query ~state db b
                 |> List.map ~f:(fun (k, v) -> v)
                 |> Dval.to_list
               with Db.DBFilterException str ->
