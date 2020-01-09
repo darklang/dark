@@ -165,7 +165,7 @@ let newHandler m space name modifier pos =
   Many (rpc :: (pageChanges @ fluidMods))
 
 
-let newDB (name : string) (pos : pos) (_m : model) : modification =
+let newDB (name : string) (pos : pos) : modification =
   let next = gid () in
   let tlid = gtlid () in
   let pageChanges = [SetPage (FocusedDB (tlid, true))] in
@@ -192,7 +192,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let name =
         match maybeName with Some n -> n | None -> DB.generateDBName ()
       in
-      newDB name pos m
+      newDB name pos
   | NewFunction name ->
       let blankfn = Refactor.generateEmptyFunction () in
       let newfn =
