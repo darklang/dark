@@ -349,7 +349,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["DB::queryExactFieldsWithKey"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
