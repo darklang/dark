@@ -422,6 +422,12 @@ let exec_ast ?(canvas_name = "test") (prog : string) : dval =
   result
 
 
+let exec_ast' ?(canvas_name = "test") (prog : Fluid.fluidExpr) : dval =
+  let c, state, input_vars = test_execution_data ~canvas_name [] in
+  let result = Ast.execute_ast ~input_vars ~state (Fluid.fromFluidExpr prog) in
+  result
+
+
 let exec_userfn (prog : string) : dval =
   let name = "test_function" in
   let ast = ast_for prog in
