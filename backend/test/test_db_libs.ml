@@ -718,7 +718,6 @@ let t_db_query_works () =
   (* Just check enough of the other functions to verify the signature -
    * they all use they same function behind the scenes. *)
   let _queryWithKeys code = "(DB::queryWithKeys_v3 Person (" ^ code ^ "))" in
-  let _queryOneWithKey code = "(DB::query_v4 Person (" ^ code ^ "))" in
   check_dval
     "queryOne - multiple"
     (DOption OptNothing)
@@ -745,6 +744,16 @@ let t_db_query_works () =
     "queryOneWithKey - one"
     (DOption (OptJust (Dval.dint 65)))
     ( "(| (DB::queryOneWithKey_v3 Person (\\value -> (== 'Rachel' (. value name)))) (Option::map_v1 (\\r -> (. r rachel))) (Option::map_v1 (\\r -> (. r height))))"
+    |> exec ) ;
+  check_dval
+    "queryOneWithKey - empty"
+    (DObj DvalMap.empty)
+    ( "(DB::queryWithKey_v3 Person (\\value -> (== 'bob' (. value name))))"
+    |> exec ) ;
+  check_dval
+    "queryOneWithKey - more than one"
+    (Dval.dint 65)
+    ( "(| (DB::queryWithKey_v3 Person (\\value -> (== 'Rachel' (. value name)))) (\\r -> (. r rachel)) (\\r -> (. r height)))"
     |> exec ) ;
   ()
 
