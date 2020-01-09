@@ -105,9 +105,13 @@ let viewTrace
 
 let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
   let traceToHtml ((traceID, traceData) : trace) =
-    let value = Option.map ~f:(fun td -> td.input) traceData in
+    let value =
+      Option.map ~f:(fun td -> td.input) (traceData |> Result.to_option)
+    in
     let timestamp =
-      Option.map ~f:(fun (td : traceData) -> td.timestamp) traceData
+      Option.map
+        ~f:(fun (td : traceData) -> td.timestamp)
+        (traceData |> Result.toOption)
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =

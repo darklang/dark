@@ -639,7 +639,16 @@ and traceData =
   ; timestamp : string
   ; functionResults : functionResult list }
 
-and trace = traceID * traceData option
+and traceOpt = traceID * traceData option
+
+and traceError =
+  (* NoneYet is a replacement for what was None when trace was a
+     (traceID * traceData option) *)
+  | NoneYet
+  (* MaximumCallStackError is unrecoverable - don't try again *)
+  | MaximumCallStackError
+
+and trace = traceID * (traceError, traceData) Result.t
 
 and traces = trace list (* indexed by tlid *) StrDict.t
 
