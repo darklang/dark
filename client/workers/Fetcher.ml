@@ -65,8 +65,19 @@ let fetch_
              Fetch.Response.text resp
              |> then_ (fun body -> resolve (postMessage self (on_failure body)))
          | _ ->
-             reportError "fetch error" (url, err) ;
-             resolve (postMessage self (on_failure (Obj.magic err)##message)))
+             let message = (Obj.magic err)##message in
+             let message =
+               if String.endsWith
+                    ~suffix:"Maximum call stack size exceeded"
+                    message
+               then
+                 "Selected trace too large for the editor to load, maybe try another?"
+               else message
+             in
+             (* data here is jsonified params; ex: for a get_trace_data failure,
+              * it contains a tlid and a trace id *)
+             reportError "fetch error" (url, err, data) ;
+             resolve (postMessage self (on_failure message)))
 
 
 let fetch (context : Types.fetchContext) (request : Types.fetchRequest) =
