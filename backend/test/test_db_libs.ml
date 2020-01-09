@@ -630,19 +630,19 @@ let t_db_query_works () =
     ~ops
     "(let _ (DB::set_v1
               (obj (height 73) (name 'Ross') (human true))
-              'first'
+              'ross'
               Person)
      (let _ (DB::set_v1
               (obj (height 65) (name 'Rachel') (human true))
-              'second'
+              'rachel'
               Person)
      (let _ (DB::set_v1
               (obj (height 10) (name 'GrumpyCat') (human false))
-              'third'
+              'cat'
               Person)
      (let _ (DB::set_v1
               (obj (height null) (name null) (human null))
-              'fourth'
+              'null'
               Person)
               ))))"
   |> ignore ;
@@ -731,6 +731,20 @@ let t_db_query_works () =
     "queryOne - one"
     (DOption (OptJust (Dval.dint 65)))
     ( "(| (DB::queryOne_v3 Person (\\value -> (== 'Rachel' (. value name)))) (Option::map_v1 (\\r -> (. r height))))"
+    |> exec ) ;
+  check_dval
+    "queryOneWithKey - multiple"
+    (DOption OptNothing)
+    ("(DB::queryOneWithKey_v3 Person (\\value -> (. value human)))" |> exec) ;
+  check_dval
+    "queryOneWithKey - none"
+    (DOption OptNothing)
+    ( "(DB::queryOneWithKey_v3 Person (\\value -> (== 'bob' (. value name))))"
+    |> exec ) ;
+  check_dval
+    "queryOneWithKey - one"
+    (DOption (OptJust (Dval.dint 65)))
+    ( "(| (DB::queryOneWithKey_v3 Person (\\value -> (== 'Rachel' (. value name)))) (Option::map_v1 (\\r -> (. r rachel))) (Option::map_v1 (\\r -> (. r height))))"
     |> exec ) ;
   ()
 
