@@ -739,7 +739,11 @@ and traceData (t : Types.traceData) : Js.Json.t =
 
 
 and trace (t : Types.trace) : Js.Json.t =
-  let data v = Option.map ~f:traceData v |> Option.withDefault ~default:null in
+  let data v =
+    Result.map traceData v
+    |> Result.toOption
+    |> Option.withDefault ~default:null
+  in
   pair traceID data t
 
 

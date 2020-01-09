@@ -638,7 +638,15 @@ let traceData j : traceData =
   ; functionResults = field "function_results" (list functionResult) j }
 
 
-let trace j : trace = pair traceID (optional traceData) j
+let trace j : trace =
+  pair traceID (optional traceData) j
+  |> fun (id, traceData) ->
+  match traceData with
+  | None ->
+      (id, Result.fail NoneYet)
+  | Some traceData ->
+      (id, Result.succeed traceData)
+
 
 let traces j : traces =
   j |> list (tuple2 wireIdentifier (list trace)) |> StrDict.fromList

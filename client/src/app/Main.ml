@@ -639,7 +639,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newTraces =
           Analysis.mergeTraces
             ~onConflict:(fun (oldID, oldData) (newID, newData) ->
-              if newData <> None then (newID, newData) else (oldID, oldData))
+              (* Update if we have a new valid data, or a new error, but not
+               * if we had valid data and now do not *)
+              if Result.isOk newData || not (Result.isOk oldData)
+              then (newID, newData)
+              else (oldID, oldData))
             m.traces
             traces
         in
@@ -658,7 +662,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * stored function results *)
         let newTraces =
           Analysis.mergeTraces
-            ~onConflict:(fun _old (newID, _) -> (newID, None))
+            ~onConflict:(fun _old (newID, _) -> (newID, Error NoneYet))
             m.traces
             traces
         in
@@ -878,7 +882,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TriggerHandlerAPICall tlid ->
         let traceID = Analysis.getSelectedTraceID m tlid in
         ( match Option.andThen traceID ~f:(Analysis.getTrace m tlid) with
-        | Some (traceID, Some traceData) ->
+        | Some (traceID, Ok traceData) ->
             let handlerProps =
               RT.setHandlerExeState tlid Executing m.handlerProps
             in
@@ -1035,7 +1039,7 @@ let update_ (msg : msg) (m : model) : modification =
   | TraceMouseEnter (tlid, traceID, _) ->
       let traceCmd =
         match Analysis.getTrace m tlid traceID with
-        | Some (_, None) ->
+        | Some (_, Error _) ->
             let m, cmd = Analysis.requestTrace m tlid traceID in
             [ TweakModel (fun old -> {old with syncState = m.syncState})
             ; MakeCmd cmd ]
@@ -1414,7 +1418,7 @@ let update_ (msg : msg) (m : model) : modification =
       let allTLs = TL.all pfM in
       let traces : traces =
         List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
-            let trace = (traceid, None) in
+            let trace = (traceid, Error NoneYet) in
             StrDict.update dict ~key:(deTLID tlid) ~f:(fun old ->
                 match old with
                 | Some existing ->
@@ -1446,7 +1450,7 @@ let update_ (msg : msg) (m : model) : modification =
       (params, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
         List.map
-          ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, None)]))
+          ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, Error NoneYet)]))
           tlids
       in
       Many
@@ -1462,9 +1466,9 @@ let update_ (msg : msg) (m : model) : modification =
         ; OverrideTraces (StrDict.fromList traces)
         ; SetUnlockedDBs unlockedDBs ]
   | TriggerHandlerAPICallback (params, Ok tlids) ->
-      let traces =
+      let (traces : Prelude.traces) =
         List.map
-          ~f:(fun tlid -> (deTLID tlid, [(params.thTraceID, None)]))
+          ~f:(fun tlid -> (deTLID tlid, [(params.thTraceID, Error NoneYet)]))
           tlids
         |> StrDict.fromList
       in
@@ -1482,7 +1486,9 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUnlockedDBs unlockedDBs ]
   | NewTracePush (traceID, tlids) ->
       let traces =
-        List.map ~f:(fun tlid -> (deTLID tlid, [(traceID, None)])) tlids
+        List.map
+          ~f:(fun tlid -> (deTLID tlid, [(traceID, Error NoneYet)]))
+          tlids
       in
       UpdateTraces (StrDict.fromList traces)
   | New404Push f404 ->
@@ -1696,7 +1702,7 @@ let update_ (msg : msg) (m : model) : modification =
             if search.space = fof.space
                && search.path = fof.path
                && search.modifier = fof.modifier
-            then (search.traceID, None) :: acc
+            then (search.traceID, Error NoneYet) :: acc
             else acc)
           m.f404s
       in
