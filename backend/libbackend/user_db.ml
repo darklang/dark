@@ -44,7 +44,7 @@ let cols_for (db : db) : (string * tipe) list =
              None)
 
 
-let rec query ~state db query_obj : (string * dval) list =
+let rec query_exact_fields ~state db query_obj : (string * dval) list =
   let sql =
     "SELECT key, data
      FROM user_data
@@ -72,8 +72,9 @@ let rec query ~state db query_obj : (string * dval) list =
              Exception.internal "bad format received in fetch_all")
 
 
-and query_by_one ~state db (col : string) (dv : dval) : (string * dval) list =
-  query ~state db (DObj (DvalMap.singleton col dv))
+and query_exact_fields_by_one ~state db (col : string) (dv : dval) :
+    (string * dval) list =
+  query_exact_fields ~state db (DObj (DvalMap.singleton col dv))
 
 
 and

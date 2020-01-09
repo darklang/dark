@@ -247,7 +247,7 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj
+              User_db.query_exact_fields ~state db obj
               |> List.map ~f:(fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -266,7 +266,7 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj
+              User_db.query_exact_fields ~state db obj
               |> List.map ~f:(fun (k, v) -> v)
               |> Dval.to_list
           | args ->
@@ -285,7 +285,7 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj
+              User_db.query_exact_fields ~state db obj
               |> List.map ~f:(fun (k, v) -> v)
               |> Dval.to_list
           | args ->
@@ -303,7 +303,7 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj
+              User_db.query_exact_fields ~state db obj
               |> List.map ~f:(fun (k, v) -> v)
               |> Dval.to_list
           | args ->
@@ -322,7 +322,7 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj
+              User_db.query_exact_fields ~state db obj
               |> List.map ~f:(fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -343,7 +343,9 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj |> DvalMap.from_list |> DObj
+              User_db.query_exact_fields ~state db obj
+              |> DvalMap.from_list
+              |> DObj
           | args ->
               fail args)
     ; ps = false
@@ -360,7 +362,9 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj |> DvalMap.from_list |> DObj
+              User_db.query_exact_fields ~state db obj
+              |> DvalMap.from_list
+              |> DObj
           | args ->
               fail args)
     ; ps = false
@@ -377,7 +381,7 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(_, v)] ->
@@ -400,7 +404,7 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(_, v)] ->
@@ -424,7 +428,7 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(_, v)] ->
@@ -447,7 +451,7 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(k, v)] ->
@@ -470,7 +474,7 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(k, v)] ->
@@ -494,7 +498,7 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(k, v)] ->
