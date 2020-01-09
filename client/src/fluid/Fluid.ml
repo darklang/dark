@@ -1629,11 +1629,11 @@ let rec deletePartialBinop
       ( lhs
       , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
       )
-  | EBlank _, _ ->
+  | _, EBool _ | _, EInteger _ | _, EFloat _ | EBlank _, _ ->
       ( rhs
       , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
       )
-  | _, EBlank _ ->
+  | EFloat _, _ | EInteger _, _ | EBool _, _ | _, EBlank _ ->
       ( lhs
       , moveToCaretTarget s ast (caretTargetForLastPartOfExpr (E.id lhs) ast) )
   | _ ->
