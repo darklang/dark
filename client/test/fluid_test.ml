@@ -470,7 +470,7 @@ let run () =
       t "insert after end" aStr (ins "c" 13) "\"some string\"~" ;
       t "del after end of string" aStr (del 13) "\"some string\"~" ;
       t "bs after end" aStr (bs 13) "\"some string~\"" ;
-      t "insert space in string" aStr (ins " " 3) "\"so ~me string\"" ;
+      t "insert space in string" aStr (key K.Space 3) "\"so ~me string\"" ;
       t "del space in string" aStr (del 5) "\"some~string\"" ;
       t "bs space in string" aStr (bs 6) "\"some~string\"" ;
       t "final quote is swallowed" aStr (ins "\"" 12) "\"some string\"~" ;
