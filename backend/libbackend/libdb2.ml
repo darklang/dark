@@ -687,7 +687,7 @@ let fns : shortfn list =
     ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
     ; r = TList
     ; d =
-        "Fetch all the values from `table` for which filter returns true. Note that this does not check every function, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
     ; f =
         InProcess
           (function
