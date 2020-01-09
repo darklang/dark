@@ -410,15 +410,6 @@ let variablesIn (ast : E.t) : avDict =
 let removePartials (ast : E.t) : E.t =
   let rec remove expr =
     match expr with
-    | EInteger _
-    | EBlank _
-    | EString _
-    | EVariable _
-    | EBool _
-    | ENull _
-    | EPipeTarget _
-    | EFloat _ ->
-        (* base case: terminating conditions *) expr
     | EPartial (_, _, e) | ERightPartial (_, _, e) ->
         (* if partial walk down underying expression to look for other partials inside *)
         E.walk ~f:remove e
