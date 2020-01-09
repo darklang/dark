@@ -715,6 +715,23 @@ let t_db_query_works () =
     "null is not 'null'"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
     (query "\\v -> (!= (. v name) 'null')" |> sort |> exec) ;
+  (* Just check enough of the other functions to verify the signature -
+   * they all use they same function behind the scenes. *)
+  let _queryWithKeys code = "(DB::queryWithKeys_v3 Person (" ^ code ^ "))" in
+  let _queryOneWithKey code = "(DB::query_v4 Person (" ^ code ^ "))" in
+  check_dval
+    "queryOne - multiple"
+    (DOption OptNothing)
+    ("(DB::queryOne_v3 Person (\\value -> (. value human)))" |> exec) ;
+  check_dval
+    "queryOne - none"
+    (DOption OptNothing)
+    ("(DB::queryOne_v3 Person (\\value -> (== 'bob' (. value name))))" |> exec) ;
+  check_dval
+    "queryOne - one"
+    (DOption (OptJust (Dval.dint 65)))
+    ( "(| (DB::queryOne_v3 Person (\\value -> (== 'Rachel' (. value name)))) (Option::map_v1 (\\r -> (. r height))))"
+    |> exec ) ;
   ()
 
 
