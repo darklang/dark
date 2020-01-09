@@ -26,6 +26,20 @@ let fuunctions =
         "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
     ; fnPreviewExecutionSafe = true
     ; fnDeprecated = false
+    ; fnInfix = false }
+  ; { fnName = "+"
+    ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
+    ; fnReturnTipe = TInt
+    ; fnDescription = "Some infix function"
+    ; fnPreviewExecutionSafe = true
+    ; fnDeprecated = false
+    ; fnInfix = true }
+  ; { fnName = "Bool::not"
+    ; fnParameters = [fnParam "a" TBool false]
+    ; fnReturnTipe = TBool
+    ; fnDescription = "Reverse the truth"
+    ; fnPreviewExecutionSafe = true
+    ; fnDeprecated = false
     ; fnInfix = false } ]
 
 
@@ -74,4 +88,42 @@ let run () =
             |> Option.andThen ~f:(fun d -> StrDict.get ~key:"a" d) )
           |> toEqual (Some a1id)) ;
       ()) ;
+  describe "removePartials" (fun () ->
+      let b () = EBlank (gid ()) in
+      test "No changes when blank" (fun () ->
+          let expr = b () in
+          expect (removePartials expr) |> toEqual expr) ;
+      test "No changes when not-partial" (fun () ->
+          let expr =
+            EFnCall
+              ( gid ()
+              , "+"
+              , [EInteger (gid (), "3"); EInteger (gid (), "9")]
+              , NoRail )
+          in
+          expect (removePartials expr) |> toEqual expr) ;
+      test "Updates AST when there's a partial in fn args" (fun () ->
+          let fnid = gid () in
+          let argid = gid () in
+          let blank = b () in
+          let expr =
+            EFnCall
+              ( fnid
+              , "+"
+              , [EInteger (argid, "3"); EPartial (gid (), "abc", blank)]
+              , NoRail )
+          in
+          expect (removePartials expr)
+          |> toEqual
+               (EFnCall (fnid, "+", [EInteger (argid, "3"); blank], NoRail))) ;
+      test "Updates AST when there's a fn rename partial" (fun () ->
+          let fnid = gid () in
+          let b1 = b () in
+          let b2 = b () in
+          let expr =
+            ERightPartial
+              (gid (), "Int::a", EFnCall (fnid, "Int::add", [b1; b2], NoRail))
+          in
+          expect (removePartials expr)
+          |> toEqual (EFnCall (fnid, "Int::add", [b1; b2], NoRail)))) ;
   ()

@@ -973,3 +973,14 @@ test("fluid_test_copy_request_as_curl", async t => {
   // test logic in IntegrationTest.ml; we load it here because we need an
   // analysis done before we can call the command
 });
+
+test("fluid_ac_validate_on_lose_focus", async t => {
+  await createHTTPHandler(t);
+  await gotoAST(t);
+  await t
+    .pressKey("r e q u e s t . b o d y")
+    .click("#app", { offsetX: 500, offsetY: 50 }) //click away from fluid
+    .expect(true)
+    .ok();
+  // validate AST in IntegrationTest.ml
+});
