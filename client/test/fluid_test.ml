@@ -73,29 +73,19 @@ type modifierKeys =
   ; metaKey : bool
   ; ctrlKey : bool }
 
-let processMsg (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : ast)
-    : E.t * fluidState =
+let processMsg (inputs : fluidInputEvent list) (s : fluidState) (ast : ast) :
+    E.t * fluidState =
   let h = Fluid_utils.h ast in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
-  List.foldl keys ~init:(ast, s) ~f:(fun (key, modifierKeys) (ast, s) ->
-      updateMsg
-        m
-        h.hTLID
-        ast
-        (FluidKeyPress
-           { key
-           ; shiftKey = modifierKeys.shiftKey
-           ; altKey = modifierKeys.altKey
-           ; metaKey = modifierKeys.metaKey
-           ; ctrlKey = modifierKeys.ctrlKey })
-        s)
+  List.foldl inputs ~init:(ast, s) ~f:(fun input (ast, s) ->
+      updateMsg m h.hTLID ast (FluidInputEvent input) s)
 
 
 let process
     ~(debug : bool)
     ~(clone : bool)
     ~(wrap : bool)
-    (keys : (K.key * modifierKeys) list)
+    (inputs : fluidInputEvent list)
     (selectionStart : int option)
     (pos : int)
     (ast : ast) : testResult =
@@ -126,7 +116,7 @@ let process
   then (
     Js.log2 "state before " (Fluid_utils.debugState s) ;
     Js.log2 "expr before" (eToStructure ~includeIDs:true ast) ) ;
-  let newAST, newState = processMsg keys s ast in
+  let newAST, newState = processMsg inputs s ast in
   let result =
     match newAST with
     | EIf (_, _, expr, _) when wrap ->
@@ -184,6 +174,11 @@ let render (expr : fluidExpr) : testResult =
   process ~wrap:true ~clone:false ~debug:false [] None 0 expr
 
 
+let keypress ?(shiftHeld = false) (key : K.key) : fluidInputEvent =
+  Keypress
+    {key; shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+
+
 let del
     ?(wrap = true)
     ?(debug = false)
@@ -191,16 +186,7 @@ let del
     ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [ ( K.Delete
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
-    None
-    pos
-    expr
+  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Delete] None pos expr
 
 
 let bs
@@ -210,16 +196,7 @@ let bs
     ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [ ( K.Backspace
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
-    None
-    pos
-    expr
+  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Backspace] None pos expr
 
 
 let tab
@@ -229,16 +206,7 @@ let tab
     ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [ ( K.Tab
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
-    None
-    pos
-    expr
+  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Tab] None pos expr
 
 
 let ctrlLeft
@@ -252,9 +220,7 @@ let ctrlLeft
     ~wrap
     ~clone
     ~debug
-    [ ( K.GoToStartOfWord
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
+    [keypress ~shiftHeld K.GoToStartOfWord]
     None
     pos
     expr
@@ -271,9 +237,7 @@ let ctrlRight
     ~wrap
     ~clone
     ~debug
-    [ ( K.GoToEndOfWord
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
+    [keypress ~shiftHeld K.GoToEndOfWord]
     None
     pos
     expr
@@ -286,35 +250,16 @@ let shiftTab
     ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [ ( K.ShiftTab
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
-    None
-    pos
-    expr
+  process ~wrap ~clone ~debug [keypress ~shiftHeld K.ShiftTab] None pos expr
 
 
 let space
     ?(wrap = true)
     ?(debug = false)
     ?(clone = true)
-    ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [ ( K.Space
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
-    None
-    pos
-    expr
+  process ~wrap ~clone ~debug [keypress K.Space] None pos expr
 
 
 let enter
@@ -324,16 +269,7 @@ let enter
     ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [ ( K.Enter
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
-    None
-    pos
-    expr
+  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Enter] None pos expr
 
 
 let key
@@ -344,16 +280,7 @@ let key
     (key : K.key)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [ ( key
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
-    None
-    pos
-    expr
+  process ~wrap ~clone ~debug [keypress ~shiftHeld key] None pos expr
 
 
 let selectionPress
@@ -369,9 +296,7 @@ let selectionPress
     ~wrap
     ~clone
     ~debug
-    [ ( key
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
+    [keypress ~shiftHeld key]
     (Some selectionStart)
     pos
     expr
@@ -389,14 +314,7 @@ let keys
     ~wrap
     ~debug
     ~clone
-    (List.map
-       ~f:(fun key ->
-         ( key
-         , { shiftKey = shiftHeld
-           ; altKey = false
-           ; metaKey = false
-           ; ctrlKey = false } ))
-       keys)
+    (List.map ~f:(keypress ~shiftHeld) keys)
     None
     pos
     expr
@@ -409,28 +327,59 @@ let modkeys
     (keys : (K.key * modifierKeys) list)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug keys None pos expr
+  process
+    ~wrap
+    ~clone
+    ~debug
+    (List.map
+       ~f:(fun (key, mods) ->
+         Keypress
+           { key
+           ; shiftKey = mods.shiftKey
+           ; altKey = mods.altKey
+           ; metaKey = mods.metaKey
+           ; ctrlKey = mods.ctrlKey })
+       keys)
+    None
+    pos
+    expr
 
 
 let ins
     ?(debug = false)
     ?(wrap = true)
     ?(clone = true)
-    ?(shiftHeld = false)
-    (char : char)
+    (s : string)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  let key = K.fromChar char in
+  process ~wrap ~debug ~clone [InsertText s] None pos expr
+
+
+let insMany
+    ?(debug = false)
+    ?(wrap = true)
+    ?(clone = true)
+    (strings : string list)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
   process
     ~wrap
     ~debug
     ~clone
-    [ ( key
-      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
-      ) ]
+    (List.map strings ~f:(fun s -> InsertText s))
     None
     pos
     expr
+
+
+let inputs
+    ?(debug = false)
+    ?(wrap = true)
+    ?(clone = true)
+    (inputs : fluidInputEvent list)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process ~wrap ~debug ~clone inputs None pos expr
 
 
 (* Test expecting no partials found and an expected caret position but no selection *)
@@ -499,33 +448,33 @@ let ts
 let run () =
   E.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
-      t "insert mid string" aStr (ins 'c' 3) "\"soc~me string\"" ;
+      t "insert mid string" aStr (ins "c" 3) "\"soc~me string\"" ;
       t "del mid string" aStr (del 3) "\"so~e string\"" ;
       t "bs mid string" aStr (bs 4) "\"so~e string\"" ;
-      t "insert empty string" emptyStr (ins 'c' 1) "\"c~\"" ;
+      t "insert empty string" emptyStr (ins "c" 1) "\"c~\"" ;
       t "del empty string" emptyStr (del 1) "~___" ;
       t "del empty string from outside" emptyStr (del 0) "~___" ;
       t "bs empty string" emptyStr (bs 1) "~___" ;
       t "bs outside empty string" emptyStr (bs 2) "\"~\"" ;
       t "bs near-empty string" oneCharStr (bs 2) "\"~\"" ;
       t "del near-empty string" oneCharStr (del 1) "\"~\"" ;
-      t "insert outside string" aStr (ins 'c' 0) "~\"some string\"" ;
+      t "insert outside string" aStr (ins "c" 0) "~\"some string\"" ;
       t "del outside string" aStr (del 0) "~\"some string\"" ;
       t "bs outside string" aStr (bs 0) "~\"some string\"" ;
-      t "insert start of string" aStr (ins 'c' 1) "\"c~some string\"" ;
+      t "insert start of string" aStr (ins "c" 1) "\"c~some string\"" ;
       t "del start of string" aStr (del 1) "\"~ome string\"" ;
       t "bs start of string" aStr (bs 1) "~\"some string\"" ;
-      t "insert end of string" aStr (ins 'c' 12) "\"some stringc~\"" ;
+      t "insert end of string" aStr (ins "c" 12) "\"some stringc~\"" ;
       t "del end of string" aStr (del 12) "\"some string~\"" ;
       t "bs end of string" aStr (bs 12) "\"some strin~\"" ;
-      t "insert after end" aStr (ins 'c' 13) "\"some string\"~" ;
+      t "insert after end" aStr (ins "c" 13) "\"some string\"~" ;
       t "del after end of string" aStr (del 13) "\"some string\"~" ;
       t "bs after end" aStr (bs 13) "\"some string~\"" ;
-      t "insert space in string" aStr (ins ' ' 3) "\"so ~me string\"" ;
+      t "insert space in string" aStr (ins " " 3) "\"so ~me string\"" ;
       t "del space in string" aStr (del 5) "\"some~string\"" ;
       t "bs space in string" aStr (bs 6) "\"some~string\"" ;
-      t "final quote is swallowed" aStr (ins '"' 12) "\"some string\"~" ;
-      t "insert backtick in string" aStr (key K.Backtick 1) "\"`~some string\"" ;
+      t "final quote is swallowed" aStr (ins "\"" 12) "\"some string\"~" ;
+      t "insert backtick in string" aStr (ins "`" 1) "\"`~some string\"" ;
       t
         "ctrl+left from mid string goes front of word in string"
         aStr
@@ -596,21 +545,21 @@ let run () =
       t
         "insert into start string"
         mlStr
-        (ins 'c' 3)
+        (ins "c" 3)
         ( "\"12c~3456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert into middle string"
         mlStr
-        (ins 'c' 44 (* quote + 2 + newline *))
+        (ins "c" 44 (* quote + 2 + newline *))
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12c~3456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert into end string"
         mlStr
-        (ins 'c' 85 (* quote + 2 + newline*2 *))
+        (ins "c" 85 (* quote + 2 + newline*2 *))
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12c~3456789_\"" ) ;
@@ -659,7 +608,7 @@ let run () =
       t
         "insert outside string"
         mlStr
-        (ins 'c' 0)
+        (ins "c" 0)
         ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
@@ -680,21 +629,21 @@ let run () =
       t
         "insert start of start string"
         mlStr
-        (ins 'c' 1)
+        (ins "c" 1)
         ( "\"c~123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert start of middle string"
         mlStr
-        (ins 'c' 42)
+        (ins "c" 42)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "c~123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert start of end string"
         mlStr
-        (ins 'c' 83)
+        (ins "c" 83)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "c~123456789_\"" ) ;
@@ -743,40 +692,40 @@ let run () =
       t
         "insert end of start string"
         mlStr
-        (ins 'c' 41)
+        (ins "c" 41)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\nc~"
         ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert end of middle string"
         mlStr
-        (ins 'c' 82)
+        (ins "c" 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\nc~"
         ^ "123456789_\"" ) ;
       t
         "insert end of end string"
         mlStr
-        (ins 'c' 93)
+        (ins "c" 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_c~\"" ) ;
       t
         "string converts to ml string"
         (str mlSegment)
-        (ins 'c' 41)
+        (ins "c" 41)
         "\"123456789_abcdefghi,123456789_abcdefghi,\nc~\"" ;
       t
         "indented string converts to ml string"
         (if' (str mlSegment) b b)
-        (ins 'c' 44)
+        (ins "c" 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "insert end of indented start string"
         (if' (str (mlSegment ^ mlSegment)) b b)
-        (ins 'c' 44)
+        (ins "c" 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~123456789_abcdefghi,123456789_abcdefghi\n"
         ^ "   ,\"\n"
@@ -784,7 +733,7 @@ let run () =
       t
         "insert end of indented end string"
         (if' (str (mlSegment ^ mlSegment)) b b)
-        (ins 'c' 88)
+        (ins "c" 88)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~\"\n"
@@ -834,7 +783,7 @@ let run () =
       t
         "insert after end of end string"
         mlStr
-        (ins 'c' 94)
+        (ins "c" 94)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"~" ) ;
@@ -856,7 +805,7 @@ let run () =
       t
         "final quote is swallowed"
         mlStr
-        (ins '"' 93)
+        (ins "\"" 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"~" ) ;
@@ -956,41 +905,41 @@ let run () =
       t
         "adding a quote at the front turns a partial into a string"
         (partial "abcdefgh\"" b)
-        (ins '"' 0)
+        (ins "\"" 0)
         "\"~abcdefgh\"" ;
       t
         "adding a quote at the back turns a partial into a string"
         (partial "\"abcdefgh" b)
-        (ins '"' 9)
+        (ins "\"" 9)
         "\"abcdefgh\"~" ;
       tp
         "just one quote doesn't turn a partial into a string"
         (partial "abcdefgh" b)
-        (ins '"' 0)
+        (ins "\"" 0)
         "\"~abcdefgh" ;
       ()) ;
   describe "Integers" (fun () ->
-      t "insert 0 at front " anInt (ins '0' 0) "~12345" ;
-      t "insert at end of short" aShortInt (ins '2' 1) "12~" ;
-      t "insert not a number" anInt (ins 'c' 0) "~12345" ;
-      t "insert start of number" anInt (ins '5' 0) "5~12345" ;
+      t "insert 0 at front " anInt (ins "0" 0) "~12345" ;
+      t "insert at end of short" aShortInt (ins "2" 1) "12~" ;
+      t "insert not a number" anInt (ins "c" 0) "~12345" ;
+      t "insert start of number" anInt (ins "5" 0) "5~12345" ;
       t "del start of number" anInt (del 0) "~2345" ;
       t "bs start of number" anInt (bs 0) "~12345" ;
-      t "insert end of number" anInt (ins '0' 5) "123450~" ;
+      t "insert end of number" anInt (ins "0" 5) "123450~" ;
       t "del end of number" anInt (del 5) "12345~" ;
       t "bs end of number" anInt (bs 5) "1234~" ;
-      t "insert number at scale" aHugeInt (ins '9' 5) "200009~0000000000000" ;
-      t "insert number at scale" aHugeInt (ins '9' 0) "9~20000000000000000" ;
-      t "insert number at scale" aHugeInt (ins '9' 19) "2000000000000000000~" ;
+      t "insert number at scale" aHugeInt (ins "9" 5) "200009~0000000000000" ;
+      t "insert number at scale" aHugeInt (ins "9" 0) "9~20000000000000000" ;
+      t "insert number at scale" aHugeInt (ins "9" 19) "2000000000000000000~" ;
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
-        (ins '3' 18)
+        (ins "3" 18)
         "4611686018427387903~" ;
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
-        (ins '4' 18)
+        (ins "4" 18)
         "461168601842738790~" ;
       t
         "ctrl+left go to beg of int moves to beg"
@@ -1014,20 +963,20 @@ let run () =
         "~___" ;
       ()) ;
   describe "Floats" (fun () ->
-      t "insert . converts to float - end" anInt (ins '.' 5) "12345.~" ;
-      t "insert . converts to float - middle" anInt (ins '.' 3) "123.~45" ;
-      t "insert . converts to float - start" anInt (ins '.' 0) "~12345" ;
-      t "insert . converts to float - short" aShortInt (ins '.' 1) "1.~" ;
-      t "continue after adding dot" aPartialFloat (ins '2' 2) "1.2~" ;
-      t "insert zero in whole - start" aFloat (ins '0' 0) "~123.456" ;
-      t "insert int in whole - start" aFloat (ins '9' 0) "9~123.456" ;
-      t "insert int in whole - middle" aFloat (ins '0' 1) "10~23.456" ;
-      t "insert int in whole - end" aFloat (ins '0' 3) "1230~.456" ;
-      t "insert int in fraction - start" aFloat (ins '0' 4) "123.0~456" ;
-      t "insert int in fraction - middle" aFloat (ins '0' 6) "123.450~6" ;
-      t "insert int in fraction - end" aFloat (ins '0' 7) "123.4560~" ;
-      t "insert non-int in whole" aFloat (ins 'c' 2) "12~3.456" ;
-      t "insert non-int in fraction" aFloat (ins 'c' 6) "123.45~6" ;
+      t "insert . converts to float - end" anInt (ins "." 5) "12345.~" ;
+      t "insert . converts to float - middle" anInt (ins "." 3) "123.~45" ;
+      t "insert . converts to float - start" anInt (ins "." 0) "~12345" ;
+      t "insert . converts to float - short" aShortInt (ins "." 1) "1.~" ;
+      t "continue after adding dot" aPartialFloat (ins "2" 2) "1.2~" ;
+      t "insert zero in whole - start" aFloat (ins "0" 0) "~123.456" ;
+      t "insert int in whole - start" aFloat (ins "9" 0) "9~123.456" ;
+      t "insert int in whole - middle" aFloat (ins "0" 1) "10~23.456" ;
+      t "insert int in whole - end" aFloat (ins "0" 3) "1230~.456" ;
+      t "insert int in fraction - start" aFloat (ins "0" 4) "123.0~456" ;
+      t "insert int in fraction - middle" aFloat (ins "0" 6) "123.450~6" ;
+      t "insert int in fraction - end" aFloat (ins "0" 7) "123.4560~" ;
+      t "insert non-int in whole" aFloat (ins "c" 2) "12~3.456" ;
+      t "insert non-int in fraction" aFloat (ins "c" 6) "123.45~6" ;
       t "del dot" aFloat (del 3) "123~456" ;
       t "del dot at scale" aHugeFloat (del 9) "123456789~123456789" ;
       t "del dot at limit1" maxPosIntWithDot (del 16) "4611686018427387~903" ;
@@ -1052,7 +1001,7 @@ let run () =
       t "bs end of fraction" aFloat (bs 7) "123.45~" ;
       t "bs dot converts to int" aFloat (bs 4) "123~456" ;
       t "bs dot converts to int, no fraction" aPartialFloat (bs 2) "1~" ;
-      t "continue after adding dot" aPartialFloat (ins '2' 2) "1.2~" ;
+      t "continue after adding dot" aPartialFloat (ins "2" 2) "1.2~" ;
       t "ctrl+left start of whole moves to beg" aFloat (ctrlLeft 0) "~123.456" ;
       t "ctrl+left middle of whole moves to beg" aFloat (ctrlLeft 1) "~123.456" ;
       t "ctrl+left end of whole moves to beg" aFloat (ctrlLeft 2) "~123.456" ;
@@ -1132,22 +1081,22 @@ let run () =
         "123~456" ;
       ()) ;
   describe "Bools" (fun () ->
-      tp "insert start of true" trueBool (ins 'c' 0) "c~true" ;
+      tp "insert start of true" trueBool (ins "c" 0) "c~true" ;
       tp "del start of true" trueBool (del 0) "~rue" ;
       t "bs start of true" trueBool (bs 0) "~true" ;
-      tp "insert end of true" trueBool (ins '0' 4) "true0~" ;
+      tp "insert end of true" trueBool (ins "0" 4) "true0~" ;
       t "del end of true" trueBool (del 4) "true~" ;
       tp "bs end of true" trueBool (bs 4) "tru~" ;
-      tp "insert middle of true" trueBool (ins '0' 2) "tr0~ue" ;
+      tp "insert middle of true" trueBool (ins "0" 2) "tr0~ue" ;
       tp "del middle of true" trueBool (del 2) "tr~e" ;
       tp "bs middle of true" trueBool (bs 2) "t~ue" ;
-      tp "insert start of false" falseBool (ins 'c' 0) "c~false" ;
+      tp "insert start of false" falseBool (ins "c" 0) "c~false" ;
       tp "del start of false" falseBool (del 0) "~alse" ;
       t "bs start of false" falseBool (bs 0) "~false" ;
-      tp "insert end of false" falseBool (ins '0' 5) "false0~" ;
+      tp "insert end of false" falseBool (ins "0" 5) "false0~" ;
       t "del end of false" falseBool (del 5) "false~" ;
       tp "bs end of false" falseBool (bs 5) "fals~" ;
-      tp "insert middle of false" falseBool (ins '0' 2) "fa0~lse" ;
+      tp "insert middle of false" falseBool (ins "0" 2) "fa0~lse" ;
       tp "del middle of false" falseBool (del 2) "fa~se" ;
       tp "bs middle of false" falseBool (bs 2) "f~lse" ;
       t "ctrl+left start of true doesnt move" trueBool (ctrlLeft 0) "~true" ;
@@ -1212,17 +1161,17 @@ let run () =
         "fal~" ;
       ()) ;
   describe "Nulls" (fun () ->
-      tp "insert start of null" aNull (ins 'c' 0) "c~null" ;
+      tp "insert start of null" aNull (ins "c" 0) "c~null" ;
       tp "del start of null" aNull (del 0) "~ull" ;
       t "bs start of null" aNull (bs 0) "~null" ;
       t "ctrl+left start of null doesnt move" aNull (ctrlLeft 0) "~null" ;
       t "ctrl+right start of null moves to end" aNull (ctrlRight 0) "null~" ;
-      tp "insert end of null" aNull (ins '0' 4) "null0~" ;
+      tp "insert end of null" aNull (ins "0" 4) "null0~" ;
       t "del end of null" aNull (del 4) "null~" ;
       tp "bs end of null" aNull (bs 4) "nul~" ;
       t "ctrl+left end of null doesnt move" aNull (ctrlLeft 4) "~null" ;
       t "ctrl+right end of null moves to beg" aNull (ctrlRight 4) "null~" ;
-      tp "insert middle of null" aNull (ins '0' 2) "nu0~ll" ;
+      tp "insert middle of null" aNull (ins "0" 2) "nu0~ll" ;
       tp "del middle of null" aNull (del 2) "nu~l" ;
       tp "bs middle of null" aNull (bs 2) "n~ll" ;
       t "ctrl+left middle of null moves to beg" aNull (ctrlLeft 2) "~null" ;
@@ -1249,20 +1198,20 @@ let run () =
         "nu~" ;
       ()) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" b (ins '"' 3) "\"~\"" ;
+      t "insert middle of blank->string" b (ins "\"" 3) "\"~\"" ;
       t "del middle of blank->blank" b (del 3) "___~" ;
       t "bs middle of blank->blank" b (bs 3) "~___" ;
       t "ctrl+left middle of null moves to beg" b (ctrlLeft 2) "~___" ;
       t "ctrl+right middle of null moves to end" b (ctrlRight 2) "___~" ;
-      t "insert blank->string" b (ins '"' 0) "\"~\"" ;
+      t "insert blank->string" b (ins "\"" 0) "\"~\"" ;
       t "del blank->string" emptyStr (del 0) "~___" ;
       t "bs blank->string" emptyStr (bs 1) "~___" ;
-      t "insert blank->int" b (ins '5' 0) "5~" ;
-      t "insert blank->int" b (ins '0' 0) "0~" ;
+      t "insert blank->int" b (ins "5" 0) "5~" ;
+      t "insert blank->int" b (ins "0" 0) "0~" ;
       t "del int->blank " five (del 0) "~___" ;
       t "bs int->blank " five (bs 1) "~___" ;
-      t "insert end of blank->int" b (ins '5' 1) "5~" ;
-      tp "insert partial" b (ins 't' 0) "t~" ;
+      t "insert end of blank->int" b (ins "5" 1) "5~" ;
+      tp "insert partial" b (ins "t" 0) "t~" ;
       t
         "backspacing your way through a partial finishes"
         trueBool
@@ -1281,24 +1230,24 @@ let run () =
         "___~" ;
       ()) ;
   describe "Fields" (fun () ->
-      tp "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
-      t "cant insert invalid chars fieldname" aField (ins '$' 5) "obj.f~ield" ;
+      tp "insert middle of fieldname" aField (ins "c" 5) "obj.fc~ield" ;
+      t "cant insert invalid chars fieldname" aField (ins "$" 5) "obj.f~ield" ;
       tp "del middle of fieldname" aField (del 5) "obj.f~eld@" ;
       tp "del fieldname" aShortField (del 4) "obj.~***" ;
       tp "bs fieldname" aShortField (bs 5) "obj.~***" ;
-      tp "insert end of fieldname" aField (ins 'c' 9) "obj.fieldc~" ;
-      tp "insert end of varname" aField (ins 'c' 3) "objc~.field" ;
-      tp "insert start of fieldname" aField (ins 'c' 4) "obj.c~field" ;
-      tp "insert blank fieldname" aBlankField (ins 'c' 4) "obj.c~" ;
+      tp "insert end of fieldname" aField (ins "c" 9) "obj.fieldc~" ;
+      tp "insert end of varname" aField (ins "c" 3) "objc~.field" ;
+      tp "insert start of fieldname" aField (ins "c" 4) "obj.c~field" ;
+      tp "insert blank fieldname" aBlankField (ins "c" 4) "obj.c~" ;
       t "del fieldop with name" aShortField (del 3) "obj~" ;
       t "bs fieldop with name" aShortField (bs 4) "obj~" ;
       t "del fieldop with blank" aBlankField (del 3) "obj~" ;
       t "bs fieldop with blank" aBlankField (bs 4) "obj~" ;
       t "del fieldop in nested" aNestedField (del 3) "obj~.field2" ;
       t "bs fieldop in nested" aNestedField (bs 4) "obj~.field2" ;
-      tp "add dot after variable" aVar (ins '.' 8) "variable.~***" ;
-      tp "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
-      tp "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
+      tp "add dot after variable" aVar (ins "." 8) "variable.~***" ;
+      tp "add dot after partial " aPartialVar (ins "." 3) "request.~***" ;
+      tp "add dot after field" aField (ins "." 9) "obj.field.~***" ;
       t "insert space in blank " aBlankField (space 4) "obj.~***" ;
       t
         "ctrl+left in name moves to beg of name"
@@ -1367,12 +1316,12 @@ let run () =
            , "body"
            , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
            ))
-        (ins ~clone:false '.' 11)
+        (ins ~clone:false "." 11)
         "request.body.~***" ;
       tp
         "insert dot even when no content in the field"
         (EVariable (ID "fake-acdata1", "request"))
-        (keys ~clone:false [K.Period; K.Period] 7)
+        (insMany ~clone:false ["."; "."] 7)
         "request.body.~***" ;
       tp
         "bs fieldpartial character"
@@ -1396,17 +1345,17 @@ let run () =
       t
         "renaming a function maintains unaligned params in let scope"
         (partial "Int::" (fn "Int::add" [five; six]))
-        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
         "let b = 6\n~Int::sqrt 5" ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
         (partial "Int::" (fn "Int::add" [var "a"; var "b"]))
-        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
         "Int::sqrt ~a" ;
       t
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
         (partial "Int::" (fn "Int::add" [b; b]))
-        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
         "Int::sqrt ~_________" ;
       (* TODO: functions are not implemented fully. I deld bs and
        * del because we were switching to partials, but this isn't
@@ -1446,7 +1395,7 @@ let run () =
       t
         "adding function with version goes to the right place"
         b
-        (keys [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
+        (inputs [InsertText "d"; InsertText "b"; keypress K.Enter] 0)
         "DB::getAllv1 ~___________________" ;
       t
         "backspacing a fn arg's separator goes to the right place"
@@ -1511,7 +1460,7 @@ let run () =
          fn
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
-        (ins ~wrap:false 'x' 120)
+        (ins ~wrap:false "x" 120)
         "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
       (* TODO: This should be 129, but reflow puts the caret in the wrong
            * place for new partials *) ;
@@ -1549,28 +1498,28 @@ let run () =
         "DB::getAll~v1 ___________________" ;
       ()) ;
   describe "Binops" (fun () ->
-      tp "pipe key starts partial" trueBool (key K.Pipe 4) "true |~" ;
+      tp "pipe key starts partial" trueBool (ins "|" 4) "true |~" ;
       t
         "pressing enter completes partial"
         trueBool
-        (keys [K.Pipe; K.Down; K.Enter] 4)
+        (inputs [InsertText "|"; keypress K.Down; keypress K.Enter] 4)
         "true ||~ __________" ;
       t
         "pressing space completes partial"
         trueBool
-        (keys [K.Pipe; K.Down; K.Space] 4)
+        (inputs [InsertText "|"; keypress K.Down; keypress K.Space] 4)
         "true || ~__________" ;
-      tp "pressing plus key starts partial" trueBool (key K.Plus 4) "true +~" ;
-      tp "pressing caret key starts partial" anInt (key K.Caret 5) "12345 ^~" ;
+      tp "pressing plus key starts partial" trueBool (ins "+" 4) "true +~" ;
+      tp "pressing caret key starts partial" anInt (ins "^" 5) "12345 ^~" ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
-        (keys [K.Pipe; K.Pipe; K.Space] 4)
+        (inputs [InsertText "|"; InsertText "|"; keypress K.Space] 4)
         "true || ~__________" ;
       t
         "piping into newline creates pipe"
         trueBool
-        (keys [K.Pipe; K.GreaterThan; K.Space] 4)
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Space] 4)
         "true\n|>~___\n" ;
       t
         "pressing bs to clear partial reverts for blank rhs"
@@ -1640,17 +1589,17 @@ let run () =
       t
         "pressing letters and numbers on a partial completes it"
         b
-        (keys [K.Number '5'; K.Plus; K.Number '5'] 0)
+        (insMany ["5"; "+"; "5"] 0)
         "5 + 5~" ;
       tp
         "pressing pipe while editing a partial works properly"
         (partial "|" (binop "||" anInt anInt))
-        (key K.Pipe 7)
+        (ins "|" 7)
         "12345 ||~ 12345" ;
       tp
         "pressing = after < should go to partial"
         (binop "<" anInt anInt)
-        (key K.Equals 7)
+        (ins "=" 7)
         "12345 <=~ 12345" ;
       t
         "changing binop to fn should work"
@@ -1665,12 +1614,12 @@ let run () =
       t
         "changing binop should work"
         (binop "<" anInt anInt)
-        (keys [K.Equals; K.Enter] 7)
+        (inputs [InsertText "="; keypress K.Enter] 7)
         "12345 <=~ 12345" ;
       tp
         "adding binop in `if` works"
         (if' b b b)
-        (key K.Percent 3)
+        (ins "%" 3)
         "if %~\nthen\n  ___\nelse\n  ___" ;
       tp "show ghost partial" aFullBinOp (bs 8) "myvar |~@ 5" ;
       t
@@ -1718,8 +1667,8 @@ let run () =
       (* TODO pressing enter at the end of the partialGhost *)
       ()) ;
   describe "Constructors" (fun () ->
-      tp "arguments work in constructors" aConstructor (ins 't' 5) "Just t~" ;
-      t "int arguments work in constructors" aConstructor (ins '5' 5) "Just 5~" ;
+      tp "arguments work in constructors" aConstructor (ins "t" 5) "Just t~" ;
+      t "int arguments work in constructors" aConstructor (ins "5" 5) "Just 5~" ;
       tp
         "bs on a constructor converts it to a partial with ghost"
         aConstructor
@@ -1776,17 +1725,17 @@ let run () =
       t
         "type - after a lambda var to move into a lambda arrow"
         aLambda
-        (key Minus 4)
+        (ins "-" 4)
         "\\*** -~> ___" ;
       t
         "type - before a lambda arrow to move into a lambda arrow"
         aLambda
-        (key Minus 5)
+        (ins "-" 5)
         "\\*** -~> ___" ;
       t
         "type > inside a lambda arrow to move past it"
         aLambda
-        (key GreaterThan 6)
+        (ins ">" 6)
         "\\*** -> ~___" ;
       (* end type -> to move through a lambda *)
       t "bs over lambda symbol" aLambda (bs 1) "~___" ;
@@ -1797,46 +1746,50 @@ let run () =
       t
         "insert changes occurence of binding var"
         (lambdaWithUsedBinding "binding")
-        (ins 'c' 8)
+        (ins "c" 8)
         "\\bindingc~ -> bindingc" ;
       t
         "insert changes occurence of binding 2nd var"
         (lambdaWithUsed2ndBinding "binding")
-        (ins 'c' 17)
+        (ins "c" 17)
         "\\somevar, bindingc~ -> bindingc" ;
       t
         "dont jump in lambdavars with infix chars"
         aLambda
-        (key K.Plus 1)
+        (ins "+" 1)
         "\\~*** -> ___" ;
       t
         "dont allow name to start with a number"
         aLambda
-        (ins '5' 1)
+        (ins "5" 1)
         "\\~*** -> ___" ;
       t
         "dont allow name to start with a number, pt 2"
         (lambdaWithBinding "test" five)
-        (ins '2' 1)
+        (ins "2" 1)
         "\\~test -> 5" ;
       t
         "dont allow name to start with a number, pt 3"
         aLambda
-        (ins '5' 3)
+        (ins "5" 3)
         (* TODO: this looks wrong *)
         "\\**~* -> ___" ;
       t
         "creating lambda in block placeholder should set arguments"
         aFnCallWithBlockArg
-        (key (K.Letter '\\') 24)
+        (ins "\\" 24)
         "Dict::map _____________ \\~key, value -> ___" ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe"
         (pipe b [b])
-        (keys
+        (inputs
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the pipe *)
-           [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
+           [ InsertText "m"
+           ; InsertText "a"
+           ; InsertText "p"
+           ; keypress K.Enter
+           ; InsertText "\\" ]
            6)
         "___\n|>Dict::map \\~key, value -> ___\n" ;
       t
@@ -1857,32 +1810,32 @@ let run () =
       t
         "can add lambda arguments when blank"
         aLambda
-        (ins ',' 4)
+        (ins "," 4)
         "\\***, ~*** -> ___" ;
       t
         "can add lambda arguments to used binding"
         lambdaWithTwoBindings
-        (ins ',' 5)
+        (ins "," 5)
         "\\x, y, ~*** -> ___" ;
       t
         "can add lambda arguments in middle used binding"
         lambdaWithTwoBindings
-        (ins ',' 2)
+        (ins "," 2)
         "\\x, ~***, y -> ___" ;
       t
         "can add lambda arguments in the front"
         lambdaWithTwoBindings
-        (ins ',' 1)
+        (ins "," 1)
         "\\~***, x, y -> ___" ;
       t
         "can add lambda arguments in front of middle"
         lambdaWithTwoBindings
-        (ins ',' 4)
+        (ins "," 4)
         "\\x, ~***, y -> ___" ;
       t
         "cant insert a blank from outside the lambda"
         lambdaWithTwoBindings
-        (ins ',' 0)
+        (ins "," 0)
         "~\\x, y -> ___" ;
       t
         "cant bs a blank from the space in a lambda"
@@ -1911,10 +1864,10 @@ let run () =
         "\\x, y -> ___~" ;
       ()) ;
   describe "Variables" (fun () ->
-      tp "insert middle of variable" aVar (ins 'c' 5) "variac~ble" ;
+      tp "insert middle of variable" aVar (ins "c" 5) "variac~ble" ;
       tp "del middle of variable" aVar (del 5) "varia~le" ;
-      tp "insert capital works" aVar (key (K.Letter 'A') 5) "variaA~ble" ;
-      t "can't insert invalid" aVar (key K.Dollar 5) "varia~ble" ;
+      tp "insert capital works" aVar (ins "A" 5) "variaA~ble" ;
+      t "can't insert invalid" aVar (ins "$" 5) "varia~ble" ;
       t "del variable" aShortVar (del 0) "~___" ;
       tp "del long variable" aVar (del 0) "~ariable" ;
       tp "del mid variable" aVar (del 6) "variab~e" ;
@@ -1924,7 +1877,7 @@ let run () =
       t
         "variable doesn't override if"
         (let' "i" b (partial "i" b))
-        (keys [K.Letter 'f'; K.Enter] 13)
+        (inputs [InsertText "f"; keypress K.Enter] 13)
         "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "ctrl+left from beg of variable doesnt move"
@@ -2013,12 +1966,12 @@ let run () =
       t
         "insert changes occurence of non-shadowed var in case"
         (matchWithBinding "binding" (var "binding"))
-        (ins 'c' 19)
+        (ins "c" 19)
         "match ___\n  bindingc~ -> bindingc\n" ;
       t
         "insert changes occurence of non-shadowed var in case constructor"
         (matchWithConstructorBinding "binding" (var "binding"))
-        (ins 'c' 22)
+        (ins "c" 22)
         "match ___\n  Ok bindingc~ -> bindingc\n" ;
       t
         "insert space in blank match"
@@ -2132,29 +2085,29 @@ let run () =
       t "bs over non-empty let" nonEmptyLet (bs 3) "let~ *** = 6\n5" ;
       t "del non-empty let" nonEmptyLet (del 0) "~let *** = 6\n5" ;
       t "insert space on blank let" emptyLet (key K.Space 4) "let ~*** = ___\n5" ;
-      t "lhs on empty" emptyLet (ins 'c' 4) "let c~ = ___\n5" ;
-      t "middle of blank" emptyLet (ins 'c' 5) "let c~ = ___\n5" ;
+      t "lhs on empty" emptyLet (ins "c" 4) "let c~ = ___\n5" ;
+      t "middle of blank" emptyLet (ins "c" 5) "let c~ = ___\n5" ;
       t "bs letlhs" letWithLhs (bs 5) "let ~*** = 6\n5" ;
       t "del letlhs" letWithLhs (del 4) "let ~*** = 6\n5" ;
       t
         "equals skips over assignment"
         emptyLet
-        (keys [K.Letter 'c'; K.Equals] 4)
+        (insMany ["c"; "="] 4)
         "let c = ~___\n5" ;
       t
         "equals skips over assignment 1"
         emptyLet
-        (key K.Equals 7)
+        (ins "=" 7)
         "let *** = ~___\n5" ;
       t
         "equals skips over assignment 2"
         emptyLet
-        (key K.Equals 8)
+        (ins "=" 8)
         "let *** = ~___\n5" ;
       t
         "equals skips over assignment 3"
         emptyLet
-        (key K.Equals 9)
+        (ins "=" 9)
         "let *** = ~___\n5" ;
       t
         "bs changes occurence of binding var"
@@ -2164,7 +2117,7 @@ let run () =
       t
         "insert changes occurence of binding var"
         (letWithUsedBinding "binding")
-        (ins 'c' 11)
+        (ins "c" 11)
         "let bindingc~ = 6\nbindingc" ;
       t
         "insert changes occurence of binding in match nested expr"
@@ -2173,37 +2126,37 @@ let run () =
            (match'
               b
               [(pVar "binding", var "binding"); (pInt "5", var "binding")]))
-        (ins 'c' 11)
+        (ins "c" 11)
         "let bindingc~ = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n" ;
       t
         "insert doesn't change occurence of binding in shadowed lambda expr"
         (letWithBinding "binding" (lambda ["binding"] (var "binding")))
-        (ins 'c' 11)
+        (ins "c" 11)
         "let bindingc~ = 6\n\\binding -> binding" ;
       t
         "insert changes occurence of binding in lambda expr"
         (letWithBinding "binding" (lambda ["somevar"] (var "binding")))
-        (ins 'c' 11)
+        (ins "c" 11)
         "let bindingc~ = 6\n\\somevar -> bindingc" ;
       t
         "dont jump in letlhs with infix chars"
         emptyLet
-        (key K.Plus 4)
+        (ins "+" 4)
         "let ~*** = ___\n5" ;
       t
         "dont allow letlhs to start with a number"
         emptyLet
-        (ins '5' 4)
+        (ins "5" 4)
         "let ~*** = ___\n5" ;
       t
         "dont allow letlhs to start with a number, pt 2"
         letWithLhs
-        (ins '2' 4)
+        (ins "2" 4)
         "let ~n = 6\n5" ;
       t
         "dont allow letlhs to start with a number, pt 3"
         emptyLet
-        (ins '5' 6)
+        (ins "5" 6)
         "let **~* = ___\n5" ;
       t
         "enter on the end of let goes to blank"
@@ -2416,7 +2369,7 @@ let run () =
       t
         "adding infix functions adds the right number of blanks"
         emptyPipe
-        (keys [K.Plus; K.Enter] 6)
+        (inputs [InsertText "+"; keypress K.Enter] 6)
         "___\n|>+ ~_________\n" ;
       t
         "creating a pipe from an fn via a partial works"
@@ -2603,26 +2556,26 @@ let run () =
         "if 5\nthen\n  6~\nelse\n  7" ;
       ()) ;
   describe "Lists" (fun () ->
-      t "create list" b (key K.LeftSquareBracket 0) "[~]" ;
-      t "insert into empty list inserts" emptyList (ins '5' 1) "[5~]" ;
-      t "inserting before the list does nothing" emptyList (ins '5' 0) "~[]" ;
+      t "create list" b (ins "[" 0) "[~]" ;
+      t "insert into empty list inserts" emptyList (ins "5" 1) "[5~]" ;
+      t "inserting before the list does nothing" emptyList (ins "5" 0) "~[]" ;
       t "insert space into multi list" multi (key K.Space 6) "[56,78~]" ;
       t "insert space into single list" single (key K.Space 3) "[56~]" ;
-      t "insert into existing list item" single (ins '4' 1) "[4~56]" ;
+      t "insert into existing list item" single (ins "4" 1) "[4~56]" ;
       t
         "insert separator before item creates blank"
         single
-        (ins ',' 1)
+        (ins "," 1)
         "[~___,56]" ;
       t
         "insert separator after item creates blank"
         single
-        (ins ',' 3)
+        (ins "," 3)
         "[56,~___]" ;
       t
         "insert separator between items creates blank"
         multi
-        (ins ',' 3)
+        (ins "," 3)
         "[56,~___,78]" ;
       (* t "insert separator mid integer makes two items" single (ins ',' 2) *)
       (*   ("[5,6]", 3) ; *)
@@ -2630,7 +2583,7 @@ let run () =
       t
         "insert separator mid string does nothing special "
         withStr
-        (ins ',' 3)
+        (ins "," 3)
         "[\"a,~b\"]" ;
       t
         "backspacing open bracket of empty list dels list"
@@ -2643,11 +2596,7 @@ let run () =
         (bs 2)
         "[~]" ;
       t "deleting open bracket of empty list dels list" emptyList (del 0) "~___" ;
-      t
-        "close bracket at end of list is swallowed"
-        emptyList
-        (key K.RightSquareBracket 1)
-        "[]~" ;
+      t "close bracket at end of list is swallowed" emptyList (ins "]" 1) "[]~" ;
       t
         "bs on first separator between items dels item after separator"
         multi
@@ -2710,8 +2659,8 @@ let run () =
         "[56,78,56,78,56~,78]" ;
       ()) ;
   describe "Record" (fun () ->
-      t "create record" b (key K.LeftCurlyBrace 0) "{~}" ;
-      t "inserting before the record does nothing" emptyRecord (ins '5' 0) "~{}" ;
+      t "create record" b (ins "{" 0) "{~}" ;
+      t "inserting before the record does nothing" emptyRecord (ins "5" 0) "~{}" ;
       t
         "inserting space between empty record does nothing"
         emptyRecord
@@ -2720,17 +2669,17 @@ let run () =
       t
         "inserting valid text in an empty record works"
         emptyRecord
-        (ins 'f' 1 ~wrap:false)
+        (ins "f" 1 ~wrap:false)
         "{\n  f~ : ___\n}" ;
       t
         "inserting valid text in an empty record works"
         emptyRecord
-        (ins 'f' 1 ~wrap:false)
+        (ins "f" 1 ~wrap:false)
         "{\n  f~ : ___\n}" ;
       t
         "inserting text in nested record gets correct position"
         listWithRecord
-        (ins 'f' 2 ~wrap:false)
+        (ins "f" 2 ~wrap:false)
         "[{\n   f~ : ___\n }]" ;
       t
         "inserting space in empty record field does nothing"
@@ -2747,7 +2696,7 @@ let run () =
         emptyRecord
         (enter 1)
         "{\n  ~*** : ___\n}" ;
-      t "enter fieldname" emptyRowRecord (ins 'c' 4) "{\n  c~ : ___\n}" ;
+      t "enter fieldname" emptyRowRecord (ins "c" 4) "{\n  c~ : ___\n}" ;
       t
         "move to the front of an empty record"
         emptyRowRecord
@@ -2761,7 +2710,7 @@ let run () =
       t
         "cant enter invalid fieldname"
         emptyRowRecord
-        (ins '^' 4)
+        (ins "^" 4)
         "{\n  ~*** : ___\n}" ;
       t
         "backspacing open brace of empty record dels record"
@@ -2781,7 +2730,7 @@ let run () =
       t
         "close brace at end of record is swallowed"
         emptyRecord
-        (key K.RightCurlyBrace 1)
+        (ins "}" 1)
         "{}~" ;
       t
         "backspacing empty record field clears entry"
@@ -2796,12 +2745,12 @@ let run () =
       t
         "appending to int in expr works"
         singleRowRecord
-        (ins '1' 11)
+        (ins "1" 11)
         "{\n  f1 : 561~\n}" ;
       t
         "appending to int in expr works"
         multiRowRecord
-        (ins '1' 21)
+        (ins "1" 21)
         "{\n  f1 : 56\n  f2 : 781~\n}" ;
       t
         "move to the front of a record with multiRowRecordple values"
@@ -2816,7 +2765,7 @@ let run () =
       t
         "inserting at the end of the key works"
         emptyRowRecord
-        (ins 'f' 6)
+        (ins "f" 6)
         "{\n  f~ : ___\n}" ;
       t
         "pressing enter at start adds a row"
@@ -2846,37 +2795,37 @@ let run () =
       t
         "dont allow weird chars in recordFieldnames"
         emptyRowRecord
-        (key K.RightParens 4)
+        (ins ")" 4)
         "{\n  ~*** : ___\n}" ;
       t
         "dont jump in recordFieldnames with infix chars"
         emptyRowRecord
-        (key K.Plus 4)
+        (ins "+" 4)
         "{\n  ~*** : ___\n}" ;
       t
         "dont jump in recordFieldnames with infix chars, pt 2"
         singleRowRecord
-        (key K.Plus 6)
+        (ins "+" 6)
         "{\n  f1~ : 56\n}" ;
       t
         "colon should skip over the record colon"
         emptyRowRecord
-        (key K.Colon 7)
+        (ins ":" 7)
         "{\n  *** : ~___\n}" ;
       t
         "dont allow key to start with a number"
         emptyRowRecord
-        (ins '5' 4)
+        (ins "5" 4)
         "{\n  ~*** : ___\n}" ;
       t
         "dont allow key to start with a number, pt 2"
         singleRowRecord
-        (ins '5' 4)
+        (ins "5" 4)
         "{\n  ~f1 : 56\n}" ;
       t
         "dont allow key to start with a number, pt 3"
         emptyRowRecord
-        (ins '5' 6)
+        (ins "5" 6)
         (* TODO: looks wrong *)
         "{\n  **~* : ___\n}" ;
       t
@@ -2906,23 +2855,23 @@ let run () =
       t
         "autocomplete space moves forward by 1"
         aBinOp
-        (keys [K.Letter 'r'; K.Space] 0)
+        (inputs [InsertText "r"; keypress K.Space] 0)
         "request ~== _________" ;
       t
         "autocomplete enter moves to end of value"
         aBinOp
-        (keys [K.Letter 'r'; K.Enter] 0)
+        (inputs [InsertText "r"; keypress K.Enter] 0)
         "request~ == _________" ;
       t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
       t
         "autocomplete tab moves to next blank"
         aBinOp
-        (keys [K.Letter 'r'; K.Tab] 0)
+        (inputs [InsertText "r"; keypress K.Tab] 0)
         "request == ~_________" ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
         b
-        (keys [K.Equals; K.Enter] 0)
+        (inputs [InsertText "="; keypress K.Enter] 0)
         "~_________ == _________" ;
       t
         "autocomplete enter on function with parameters moves to start of first blank"
@@ -2937,38 +2886,38 @@ let run () =
       t
         "autocomplete tab on bin-op moves to start of second blank"
         b
-        (keys [K.Equals; K.Tab] 0)
+        (inputs [InsertText "="; keypress K.Tab] 0)
         "_________ == ~_________" ;
       t
         "autocomplete space on bin-op moves to start of first blank"
         b
-        (keys [K.Equals; K.Space] 0)
+        (inputs [InsertText "="; keypress K.Space] 0)
         "~_________ == _________" ;
       t "variable moves to right place" (partial "req" b) (enter 3) "request~" ;
       t
         "pipe moves to right place on blank"
         b
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 2)
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 2)
         "___\n|>~___\n" ;
       t
         "pipe moves to right place on placeholder"
         aFnCall
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 11)
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 11)
         "Int::add 5 _________\n|>~___\n" ;
       t
         "pipe moves to right place in if then"
         emptyIf
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 14)
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 14)
         "if ___\nthen\n  ___\n  |>~___\nelse\n  ___" ;
       t
         "pipe moves to right place in lambda body"
         aLambda
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 8)
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 8)
         "\\*** -> ___\n        |>~___\n" ;
       t
         "pipe moves to right place in match body"
         emptyMatch
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 19)
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 19)
         "match ___\n  *** -> ___\n         |>~___\n" ;
       t
         "shift enter autocompletes and creates pipe"
@@ -3010,12 +2959,15 @@ let run () =
       t
         "autocomplete shows first alphabetical item for fields"
         (let' "request" (int "5") (EVariable (ID "fake-acdata2", "request")))
-        (keys [K.Period; K.Enter] ~clone:false 23)
+        (inputs [InsertText "."; keypress K.Enter] ~clone:false 23)
         "let request = 5\nrequest.author~" ;
       t
         "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
         (let' "request" (int "5") (EVariable (ID "fake-acdata2", "request")))
-        (keys [K.Period; K.Letter 't'; K.Enter] ~clone:false 23)
+        (inputs
+           [InsertText "."; InsertText "t"; keypress K.Enter]
+           ~clone:false
+           23)
         "let request = 5\nrequest.title~" ;
       t
         "autocomplete for field autocommits"
@@ -3042,7 +2994,7 @@ let run () =
                (gid (), EVariable (ID "fake-acdata1", "request"), "longfield")
            ))
         (* Dot should select the autocomplete *)
-        (key ~clone:false K.Period 11)
+        (ins ~clone:false "." 11)
         "request.body.~***" ;
       t
         "autocomplete with space moves to next non-whitespace rather than blank"
@@ -3177,17 +3129,17 @@ let run () =
       test "up goes through the autocomplete" (fun () ->
           expect
             ( moveTo 143 s
-            |> (fun s -> updateKey K.Up ast s)
-            |> (fun (ast, s) -> updateKey K.Up ast s)
-            |> (fun (ast, s) -> updateKey K.Up ast s)
+            |> (fun s -> updateKey (keypress K.Up) ast s)
+            |> (fun (ast, s) -> updateKey (keypress K.Up) ast s)
+            |> (fun (ast, s) -> updateKey (keypress K.Up) ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 13) ;
       test "down goes through the autocomplete" (fun () ->
           expect
             ( moveTo 14 s
-            |> (fun s -> updateKey K.Down ast s)
-            |> (fun (ast, s) -> updateKey K.Down ast s)
-            |> (fun (ast, s) -> updateKey K.Down ast s)
+            |> (fun s -> updateKey (keypress K.Down) ast s)
+            |> (fun (ast, s) -> updateKey (keypress K.Down) ast s)
+            |> (fun (ast, s) -> updateKey (keypress K.Down) ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 144) ;
       test "clicking away from autocomplete commits" (fun () ->
@@ -3216,12 +3168,12 @@ let run () =
       tp
         "pressing an infix which could be valid doesn't commit"
         b
-        (keys [K.Pipe; K.Pipe] 0)
+        (insMany ["|"; "|"] 0)
         "||~" ;
       tp
         "pressing an infix after true commits it "
         (partial "true" b)
-        (key K.Plus 4)
+        (ins "+" 4)
         "true +~" ;
       t
         "moving left off a function autocompletes it anyway"
@@ -3232,16 +3184,16 @@ let run () =
           expect
             (let ast = b in
              moveTo 0 s
-             |> (fun s -> updateKey (K.Letter 'r') ast s)
-             |> (fun (ast, s) -> updateKey K.Escape ast s)
+             |> (fun s -> updateKey (InsertText "r") ast s)
+             |> (fun (ast, s) -> updateKey (keypress K.Escape) ast s)
              |> fun (_, s) -> s.ac.index)
           |> toEqual None) ;
       test "right/left brings back autocomplete" (fun () ->
           expect
             (let ast = b in
              moveTo 0 s
-             |> (fun s -> updateKey (K.Letter 'r') ast s)
-             |> (fun (ast, s) -> updateKey K.Escape ast s)
+             |> (fun s -> updateKey (InsertText "r") ast s)
+             |> (fun (ast, s) -> updateKey (keypress K.Escape) ast s)
              |> fun (_, s) -> s.ac.index)
           |> toEqual None) ;
       ()) ;
@@ -3438,7 +3390,7 @@ let run () =
       t
         "shift tab completes autocomplete"
         completelyEmptyLet
-        (keys [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
+        (inputs [InsertText "i"; InsertText "f"; keypress K.ShiftTab] 14)
         "let *** = ~___\nif ___\nthen\n  ___\nelse\n  ___" ;
       t
         "shift-tab goes when on blank"
@@ -3498,13 +3450,13 @@ let run () =
   tp
     "typing an unsupported char after an escape leaves us with a partial"
     aStrEscape
-    (ins 'f' 3)
+    (ins "f" 3)
     "so\\f~me string" ;
   (* Not quite a regression, in that I noticed it pre-review, but still a thing
    * to check *)
   tp
     "typing and then deleting an unsupported char after an escape leaves us with a partial with the caret in the right place"
     aStrEscape
-    (keys [K.Letter 'f'; K.Backspace] 3)
+    (inputs [InsertText "f"; keypress K.Backspace] 3)
     "so\\~me string" ;
   ()

@@ -448,12 +448,6 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     else Vdom.noNode
   in
   let returnValue = viewReturnValue vs ast in
-  let onEvt
-      (constructor : Web.Node.event -> FluidTextInput.t option)
-      (evt : Web.Node.event) : 'a option =
-    constructor evt
-    |> Option.map ~f:(fun t -> Types.FluidMsg (Types.FluidTextInput t))
-  in
   [ liveValue
   ; Html.div
       [ Attrs.id Fluid.editorID
@@ -461,13 +455,18 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
       ; Html.onCB
-          "input"
-          ("input" ^ show_tlid tlid)
-          (onEvt FluidTextInput.fromInputEvent)
+          "keydown"
+          ("keydown" ^ show_tlid tlid)
+          (FluidKeyboard.fromKeyboardEvent (fun x ->
+               FluidMsg (FluidInputEvent (Keypress x))))
+      ; Html.onCB
+          "beforeinput"
+          ("beforeinput" ^ show_tlid tlid)
+          FluidTextInput.fromInputEvent
       ; Html.onCB
           "compositionend"
           ("compositionend" ^ show_tlid tlid)
-          (onEvt FluidTextInput.fromCompositionEndEvent) ]
+          FluidTextInput.fromCompositionEndEvent ]
       (toHtml ast ~vs ~tlid ~state)
   ; returnValue
   ; errorRail ]
@@ -512,15 +511,8 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
             ( s.upDownCol
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
-    ; dtText "lastKey"
-    ; Html.dd
-        []
-        [ Html.text
-            ( K.toName s.lastKey
-            ^ ", "
-            ^ ( K.toChar s.lastKey
-              |> Option.map ~f:String.fromChar
-              |> Option.withDefault ~default:"" ) ) ]
+    ; dtText "lastInput"
+    ; Html.dd [] [Html.text (show_fluidInputEvent s.lastInput)]
     ; dtText "selection"
     ; Html.dd
         []
