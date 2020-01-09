@@ -534,7 +534,15 @@ test("rename_function", async t => {
   await t
     .navigateTo("#fn=123")
     .expect(available(fnNameBlankOr))
-    .ok({ timeout: 1000 })
+    .ok({ timeout: 1000 });
+
+  // check not changing function name does not cause error message to show
+  await t.doubleClick(Selector(fnNameBlankOr));
+  await gotoAST(t);
+  await t.expect(available(".error-panel.show")).notOk();
+
+  // now actually rename the function to a different name
+  await t
     .click(Selector(fnNameBlankOr))
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "hello")
@@ -956,12 +964,12 @@ test("fluid_shift_tabbing_from_handler_ast_back_to_route", async t => {
 });
 
 test("fluid_test_copy_request_as_curl", async t => {
-  await t
-    .navigateTo("#handler=91390945");
+  await t.navigateTo("#handler=91390945");
   await Selector(".tl-91390945", { timeout: 5000 })();
-    await t.expect(available(".tl-91390945"))
+  await t
+    .expect(available(".tl-91390945"))
     .ok()
     .click(Selector(".id-753586717"));
   // test logic in IntegrationTest.ml; we load it here because we need an
   // analysis done before we can call the command
-})
+});
