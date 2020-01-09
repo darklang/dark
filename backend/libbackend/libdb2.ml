@@ -702,4 +702,28 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::queryOne_v3"]
+    ; ins = []
+    ; p = [par "table" TDB; par "cond" TBlock ~args:["value"]]
+    ; r = TList
+    ; d =
+        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+    ; f =
+        InProcess
+          (function
+          | state, [DDB dbname; DBlock b] ->
+            ( try
+                let db = find_db state.dbs dbname in
+                let results = User_db.query ~state db b in
+                match results with
+                | [(_, v)] ->
+                    Dval.to_opt_just v
+                | _ ->
+                    DOption OptNothing
+              with Db.DBFilterException _ as e ->
+                DError (SourceNone, Db.dbFilterExceptionToString e) )
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false } ]
