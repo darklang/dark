@@ -50,8 +50,10 @@ let sampleFunctions =
     ; fnInfix = false } ]
 
 
+let defaultTLID = TLID "handler1"
+
 let defaultHandler =
-  { hTLID = TLID "handler1"
+  { hTLID = defaultTLID
   ; pos = {x = 0; y = 0}
   ; ast = EBlank (gid ())
   ; spec =
@@ -173,7 +175,7 @@ let run () =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
-            ; hTLID = TLID "handler1"
+            ; hTLID = defaultTLID
             ; pos = {x = 0; y = 0} }
           in
           let f =
@@ -212,7 +214,7 @@ let run () =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
-            ; hTLID = TLID "handler1"
+            ; hTLID = defaultTLID
             ; pos = {x = 0; y = 0} }
           in
           let model =
@@ -290,7 +292,7 @@ let run () =
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->
       let modelAndTl (ast : fluidExpr) =
-        let hTLID = TLID "handler1" in
+        let hTLID = defaultTLID in
         let tl =
           { hTLID
           ; ast

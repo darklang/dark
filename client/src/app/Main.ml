@@ -241,14 +241,6 @@ let isACOpened (m : model) : bool =
   || AC.isOpened m.complete
 
 
-let updateDropdownVisibilty (m : model) : model =
-  if FluidAutocomplete.isOpened m.fluidState.ac
-  then FluidAutocomplete.updateAutocompleteVisibility m
-  else if FluidCommands.isOpened m.fluidState.cp
-  then FluidCommands.updateCommandPaletteVisibility m
-  else m
-
-
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
@@ -970,8 +962,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
-  let newm = updateDropdownVisibilty newm in
-  (newm, Cmd.batch [cmd; newcmd])
+  let cmds = Cmd.batch [cmd; newcmd] in
+  let newm, modi =
+    let mTLID =
+      match m.cursorState with
+      | FluidEntering tlid when Some tlid <> tlidOf newm.cursorState ->
+          Some tlid
+      | _ ->
+          None
+    in
+    Fluid.cleanUp newm mTLID
+  in
+  match modi with NoChange -> (newm, cmds) | _ -> updateMod modi (newm, cmds)
 
 
 let findCenter (m : model) : pos =
