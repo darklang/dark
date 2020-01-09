@@ -118,18 +118,14 @@ let findNewPos (m : model) : pos =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
         let o = m.canvasProps.offset in
-        let padLeft = 360 in
-        (* leave space for incoming data & live values *)
-        let padTop = 200 in
-        (* leave space for doc above handler *)
         let padRight = 400 in
         (* leave space for toplevel width *)
-        let padBottom = 200 in
+        let padBottom = 300 in
         (* leave space for toplevel height *)
-        let minX = o.x + padLeft in
-        let maxX = minX + (Window.viewportWidth - padLeft - padRight) in
-        let minY = o.y + padTop in
-        let maxY = minY + (Window.viewportHeight - padTop - padBottom) in
+        let minX = o.x in
+        let maxX = minX + (Window.viewportWidth - padRight) in
+        let minY = o.y in
+        let maxY = minY + (Window.viewportHeight - padBottom) in
         {x = Random.range minX maxX; y = Random.range minY maxY}
     | _ ->
         Defaults.centerPos

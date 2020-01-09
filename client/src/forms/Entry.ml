@@ -158,29 +158,17 @@ let newHandler m space name modifier pos =
     [ TweakModel (fun m -> {m with fluidState = newS})
     ; SetCursorState cursorState ]
   in
-  let pageChanges =
-    match m.currentPage with
-    | FocusedFn _ | FocusedType _ ->
-        [SetPage (FocusedHandler (tlid, true))]
-    | _ ->
-        [SetPage (FocusedHandler (tlid, false))]
-  in
+  let pageChanges = [SetPage (FocusedHandler (tlid, true))] in
   let rpc =
     AddOps ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
   in
   Many (rpc :: (pageChanges @ fluidMods))
 
 
-let newDB (name : string) (pos : pos) (m : model) : modification =
+let newDB (name : string) (pos : pos) (_m : model) : modification =
   let next = gid () in
   let tlid = gtlid () in
-  let pageChanges =
-    match m.currentPage with
-    | FocusedFn _ | FocusedType _ ->
-        [SetPage (FocusedDB (tlid, true))]
-    | _ ->
-        []
-  in
+  let pageChanges = [SetPage (FocusedDB (tlid, true))] in
   let rpcCalls =
     [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
     ; AddDBCol (tlid, next, Prelude.gid ()) ]
