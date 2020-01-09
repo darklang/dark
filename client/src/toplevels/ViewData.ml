@@ -97,7 +97,10 @@ let viewTrace
     else [Html.div [Vdom.noProp] [Html.text {js|•|js}]]
   in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
-  Html.li ~key:viewKey (Html.class' classes :: events) (dotHtml @ [viewData])
+  Html.li
+    ~key:viewKey
+    (Html.class' ("traceid-" ^ traceID ^ " " ^ classes) :: events)
+    (dotHtml @ [viewData])
 
 
 let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
