@@ -630,8 +630,9 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
   match cs with
   | Selecting (tlid_, mId) ->
       ev "Selecting" [tlid tlid_; nullable id mId]
-  | Entering (Creating pos_) ->
-      ev "Entering" [ev "Creating" [nullable pos pos_]]
+  | Entering (Creating maybePos) ->
+      let pos_ = Option.withDefault ~default:Defaults.origin maybePos in
+      ev "Entering" [ev "Creating" [pos pos_]]
   | Entering (Filling (tlid_, id_)) ->
       ev "Entering" [ev "Filling" [tlid tlid_; id id_]]
   | Dragging (tlid_, vpos_, hasMoved, cursor) ->
