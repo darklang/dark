@@ -415,7 +415,10 @@ and entering j =
   let dv1 = variant1 in
   let dv2 = variant2 in
   variants
-    [ ("Creating", dv1 (fun x -> Creating x) (optional pos))
+    [ ( "Creating"
+      , dv1
+          (fun x -> Creating (if x = Defaults.origin then None else Some x))
+          pos )
     ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
     j
 
