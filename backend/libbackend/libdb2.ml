@@ -697,11 +697,8 @@ let fns : shortfn list =
                 User_db.query ~state db b
                 |> List.map ~f:(fun (k, v) -> v)
                 |> Dval.to_list
-              with Db.DBFilterException str ->
-                let preamble =
-                  "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::filter lambdas for now, and some of it won't be supported because it's an odd thing to do in a datstore query. If you think your operation should be supported, let us know in #general.\n\n  Error: "
-                in
-                DError (SourceNone, preamble ^ str) )
+              with Db.DBFilterException _ as e ->
+                DError (SourceNone, Db.dbFilterExceptionToString e) )
           | args ->
               fail args)
     ; ps = false
