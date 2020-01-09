@@ -1129,6 +1129,7 @@ and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
   | FluidCopy
   | FluidKeyPress of FluidKeyboard.keyEvent
+  | FluidTextInput of FluidTextInput.t
   | FluidCut
   | FluidPaste of [`Json of Js.Json.t | `Text of string | `None]
       [@printer opaque "FluidPaste"]
