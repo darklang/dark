@@ -6,7 +6,7 @@ open Types.RuntimeT.DbT
 module RT = Runtime
 open Db
 
-let error str = raise (DBFilterException str)
+let error str = raise (DBQueryException str)
 
 let error2 msg str = error (msg ^ ": " ^ str)
 

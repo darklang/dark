@@ -570,7 +570,7 @@ let t_sql_compiler_works () =
       (body : expr)
       (expectedError : string) : unit =
     try check msg ~paramName ~dbFields ~symtable body "<error expected>"
-    with Db.DBFilterException e -> AT.check AT.string msg e expectedError
+    with Db.DBQueryException e -> AT.check AT.string msg e expectedError
   in
   let true' = f (Value "true") in
   check "true is true" true' "(true)" ;
@@ -611,7 +611,7 @@ let t_sql_compiler_works () =
   ()
 
 
-let t_db_filter_works () =
+let t_db_query_works () =
   clear_test_data () ;
   let ops =
     [ Op.CreateDB (dbid, pos, "Person")
@@ -647,7 +647,7 @@ let t_db_filter_works () =
               ))))"
   |> ignore ;
   let exec (code : string) = exec_handler ~ops code in
-  let filter code = "(DB::query_v4 Person (" ^ code ^ "))" in
+  let query code = "(DB::query_v4 Person (" ^ code ^ "))" in
   let sort code =
     "(| "
     ^ code
@@ -660,60 +660,60 @@ let t_db_filter_works () =
   check_dval
     "Find all"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73; DNull])
-    (filter "\\value -> true" |> sort |> exec) ;
+    (query "\\value -> true" |> sort |> exec) ;
   check_dval
     "Find all with condition"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (filter "\\value -> (> (. value height) 3)" |> sort |> exec) ;
+    (query "\\value -> (> (. value height) 3)" |> sort |> exec) ;
   check_dval
     "boolean"
     (DList [Dval.dint 65; Dval.dint 73])
-    (filter "\\value -> (. value human)" |> sort |> exec) ;
+    (query "\\value -> (. value human)" |> sort |> exec) ;
   check_dval
     "different param name"
     (DList [Dval.dint 65; Dval.dint 73])
-    (filter "\\v -> (. v human)" |> sort |> exec) ;
+    (query "\\v -> (. v human)" |> sort |> exec) ;
   check_dval
     "&&"
     (DList [Dval.dint 73])
-    (filter "\\v -> (&& (. v human) (> (. v height) 66) )" |> sort |> exec) ;
+    (query "\\v -> (&& (. v human) (> (. v height) 66) )" |> sort |> exec) ;
   check_dval
     "inlining"
     (DList [Dval.dint 65; Dval.dint 73])
-    (filter "\\v -> (let x 32 (&& true (> (. v height) x) ))" |> sort |> exec) ;
+    (query "\\v -> (let x 32 (&& true (> (. v height) x) ))" |> sort |> exec) ;
   check_dval
     "pipes"
     (DList [Dval.dint 10])
-    (filter "\\v -> (| (. v height) (* 2) (+ 6) (< 40))" |> sort |> exec) ;
+    (query "\\v -> (| (. v height) (* 2) (+ 6) (< 40))" |> sort |> exec) ;
   check_dval
     "external variable works"
     (DList [Dval.dint 10])
-    (filter "\\v -> (| (. v height) (< x))" |> sort |> withvar "x" "20" |> exec) ;
+    (query "\\v -> (| (. v height) (< x))" |> sort |> withvar "x" "20" |> exec) ;
   (* check_dval *)
   (*   "not a bool" *)
   (*   (DList [Dval.dint 10]) *)
-  (*   (filter "\\v -> 'x'" |> sort |> withvar "x" "20" |> exec) ; *)
+  (*   (query "\\v -> 'x'" |> sort |> withvar "x" "20" |> exec) ; *)
   check_error
     "bad variable name"
-    (filter "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)
-    (Db.dbFilterExceptionToString
-       (Db.DBFilterException "This variable is not defined: y")) ;
+    (query "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)
+    (Db.dbQueryExceptionToString
+       (Db.DBQueryException "This variable is not defined: y")) ;
   check_dval
     "sql injection"
     (DList [])
-    (filter "\\v -> (== '; select * from users ;' (. v name) )" |> exec) ;
+    (query "\\v -> (== '; select * from users ;' (. v name) )" |> exec) ;
   check_dval
     "null equality works"
     (DList [DNull])
-    (filter "\\v -> (== (. v name) null)" |> sort |> exec) ;
+    (query "\\v -> (== (. v name) null)" |> sort |> exec) ;
   check_dval
     "null inequality works"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (filter "\\v -> (!= (. v name) null)" |> sort |> exec) ;
+    (query "\\v -> (!= (. v name) null)" |> sort |> exec) ;
   check_dval
     "null is not 'null'"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (filter "\\v -> (!= (. v name) 'null')" |> sort |> exec) ;
+    (query "\\v -> (!= (. v name) 'null')" |> sort |> exec) ;
   ()
 
 
@@ -765,5 +765,5 @@ let suite =
     , `Quick
     , t_db_queryOneWithKey_v2_returns_nothing_multiple )
   ; ("t_db_getAllKeys_works returns List of keys", `Quick, t_db_getAllKeys_works)
-  ; ("t_db_filter works", `Quick, t_db_filter_works)
+  ; ("t_db_query works", `Quick, t_db_query_works)
   ; ("t_sql_compiler_works", `Quick, t_sql_compiler_works) ]

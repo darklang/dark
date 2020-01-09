@@ -98,6 +98,6 @@ val date_of_sqlstring : string -> Core_kernel.Time.t
 (* Misc *)
 val delete_benchmarking_data : unit -> unit
 
-exception DBFilterException of string
+exception DBQueryException of string
 
-val dbFilterExceptionToString : exn -> string
+val dbQueryExceptionToString : exn -> string
