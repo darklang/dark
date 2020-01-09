@@ -1740,7 +1740,7 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateDBTable ->
       let center = Viewport.findNewPos m
       and genName = DB.generateDBName () in
-      Entry.newDB genName center m
+      Entry.newDB genName center
   | CreateGroup ->
       let center = Viewport.findNewPos m in
       Groups.createEmptyGroup None center
