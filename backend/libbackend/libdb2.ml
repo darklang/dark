@@ -273,12 +273,31 @@ let fns : shortfn list =
               fail args)
     ; ps = false
     ; dep = true }
+    (* see queryExactFields *)
   ; { pns = ["DB::query_v3"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
     ; r = TList
     ; d =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              User_db.query ~state db obj
+              |> List.map ~f:(fun (k, v) -> v)
+              |> Dval.to_list
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::queryExactFields"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TList
+    ; d =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
     ; f =
         InProcess
           (function
@@ -311,6 +330,7 @@ let fns : shortfn list =
               fail args)
     ; ps = false
     ; dep = true }
+    (* see queryExactFieldsWithKey *)
   ; { pns = ["DB::queryWithKey_v2"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -318,6 +338,23 @@ let fns : shortfn list =
     ; d =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning {key : value} as an object"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              User_db.query ~state db obj |> DvalMap.from_list |> DObj
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::queryExactFieldsWithKey"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TObj
+    ; d =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has
+        , returning {key : value} as an object. Previous called DB::queryWithKey_v2"
     ; f =
         InProcess
           (function
@@ -373,6 +410,30 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+    (* see queryOneExactFields *)
+  ; { pns = ["DB::queryOneWithExactFields"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TOption
+    ; d =
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let results =
+                let db = find_db state.dbs dbname in
+                User_db.query ~state db obj
+              in
+              ( match results with
+              | [(_, v)] ->
+                  Dval.to_opt_just v
+              | _ ->
+                  DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["DB::queryOneWithKey_v1"]
     ; ins = []
@@ -403,6 +464,30 @@ let fns : shortfn list =
     ; r = TOption
     ; d =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let results =
+                let db = find_db state.dbs dbname in
+                User_db.query ~state db obj
+              in
+              ( match results with
+              | [(k, v)] ->
+                  DOption (OptJust (DObj (DvalMap.singleton k v)))
+              | _ ->
+                  DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = true }
+    (* see queryOneExactFieldsWithKey *)
+  ; { pns = ["DB::queryOneWithExactFieldsWithKey"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TOption
+    ; d =
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"
     ; f =
         InProcess
           (function
