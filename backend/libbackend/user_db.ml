@@ -331,9 +331,11 @@ let query ~state (db : db) (b : dblock_args) : (string * dval) list =
         Exception.internal "wrong number of args"
   in
   let sql = Sql_compiler.compile_lambda b.symtable paramName dbFields b.body in
-  Db.fetch
-    ~name:"filter"
-    ( "SELECT key, data
+  let result =
+    try
+      Db.fetch
+        ~name:"filter"
+        ( "SELECT key, data
      FROM user_data
      WHERE table_tlid = $1
      AND account_id = $2
@@ -341,14 +343,19 @@ let query ~state (db : db) (b : dblock_args) : (string * dval) list =
      AND user_version = $4
      AND dark_version = $5
      AND ("
-    ^ sql
-    ^ ")" )
-    ~params:
-      [ ID db.tlid
-      ; Uuid state.account_id
-      ; Uuid state.canvas_id
-      ; Int db.version
-      ; Int current_dark_version ]
+        ^ sql
+        ^ ")" )
+        ~params:
+          [ ID db.tlid
+          ; Uuid state.account_id
+          ; Uuid state.canvas_id
+          ; Int db.version
+          ; Int current_dark_version ]
+    with e ->
+      (* TODO: log *)
+      raise (DBQueryException "A type error occurred at run-time")
+  in
+  result
   |> List.map ~f:(fun return_val ->
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)

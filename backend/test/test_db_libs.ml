@@ -689,10 +689,11 @@ let t_db_query_works () =
     "external variable works"
     (DList [Dval.dint 10])
     (query "\\v -> (| (. v height) (< x))" |> sort |> withvar "x" "20" |> exec) ;
-  (* check_dval *)
-  (*   "not a bool" *)
-  (*   (DList [Dval.dint 10]) *)
-  (*   (query "\\v -> 'x'" |> sort |> withvar "x" "20" |> exec) ; *)
+  check_error
+    "not a bool"
+    (query "\\v -> 'x'" |> exec)
+    (Db.dbQueryExceptionToString
+       (Db.DBQueryException "A type error occurred at run-time")) ;
   check_error
     "bad variable name"
     (query "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)
