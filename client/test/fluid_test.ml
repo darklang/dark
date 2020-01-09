@@ -1638,6 +1638,35 @@ let run () =
         (keys [K.Backspace; K.Backspace] 9)
         "\"five~six\"" ;
       t
+        "pressing bs to remove a binop after a blank doesnt delete rhs"
+        (binop "++" b (str "six"))
+        (keys [K.Backspace; K.Backspace] 15)
+        "~\"six\"" ;
+      t
+        "pressing bs to remove a string binop combines lhs and rhs"
+        (binop
+           "++"
+           (str "one")
+           (binop "++" (str "two") (binop "++" (str "three") (str "four"))))
+        (keys [K.Backspace; K.Backspace] 17)
+        "\"one\" ++ \"two~three\" ++ \"four\"" ;
+      t
+        "pressing bs to remove binop before a blank doesnt entire delete rhs"
+        (binop
+           "++"
+           (str "one")
+           (binop "++" (str "two") (binop "++" b (str "four"))))
+        (keys [K.Backspace; K.Backspace] 17)
+        "\"one\" ++ \"two\"~ ++ \"four\"" ;
+      t
+        "pressing bs to remove binop after a blank doesnt entire delete rhs"
+        (binop
+           "++"
+           (str "one")
+           (binop "++" (str "two") (binop "++" b (str "four"))))
+        (keys [K.Backspace; K.Backspace] 33)
+        "\"one\" ++ \"two\" ++ ~\"four\"" ;
+      t
         "pressing letters and numbers on a partial completes it"
         b
         (keys [K.Number '5'; K.Plus; K.Number '5'] 0)

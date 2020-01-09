@@ -1623,15 +1623,18 @@ let rec deletePartialBinop
   | EString _, EBinOp (b, n, lhs2, rhs2, rail) ->
       let newExpr, newState = deletePartialBinop lhs lhs2 ti ast s in
       (EBinOp (b, n, newExpr, rhs2, rail), newState)
-  | EBlank _, EString (rhsId, rhsStr) ->
-      ( EString (rhsId, rhsStr)
+  | EString (id, lhsStr), EString (_, rhsStr) ->
+      (EString (id, lhsStr ^ rhsStr), moveTo (ti.startPos - 2) s)
+  | EBlank _, EBlank _ ->
+      ( lhs
       , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
       )
-  | EString (lhsID, lhsStr), EBlank _ ->
-      ( EString (lhsID, lhsStr)
-      , moveToCaretTarget s ast (caretTargetForLastPartOfExpr (E.id lhs) ast) )
-  | EString (lhsID, lhsStr), EString (_, rhsStr) ->
-      ( EString (lhsID, lhsStr ^ rhsStr)
+  | EBlank _, _ ->
+      ( rhs
+      , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
+      )
+  | _, EBlank _ ->
+      ( lhs
       , moveToCaretTarget s ast (caretTargetForLastPartOfExpr (E.id lhs) ast) )
   | _ ->
       let b = E.newB () in
