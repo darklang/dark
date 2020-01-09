@@ -23,43 +23,7 @@ let getBrowserPlatform () : browserPlatform =
  *)
 
 type key =
-  (* Valid ascii characters. Any key that can be converted will be. *)
   | Space
-  | ExclamationMark
-  | DoubleQuote
-  | Hash
-  | Dollar
-  | Percent
-  | Ampersand
-  | SingleQuote
-  | LeftParens
-  | RightParens
-  | Multiply
-  | Plus
-  | Comma
-  | Minus
-  | Period
-  | ForwardSlash
-  | Colon
-  | SemiColon
-  | LessThan
-  | Equals
-  | GreaterThan
-  | QuestionMark
-  | At
-  | Letter of char
-  | Number of char
-  | LeftSquareBracket
-  | RightSquareBracket
-  | Backslash
-  | Caret
-  | Underscore
-  | Backtick
-  | LeftCurlyBrace
-  | Pipe
-  | RightCurlyBrace
-  | Tilde
-  (* None of these are valid characters *)
   | Left
   | Right
   | Up
@@ -77,27 +41,6 @@ type key =
   | Delete
   | PageUp
   | PageDown
-  | Insert
-  | PrintScreen
-  | PauseBreak
-  | Windows
-  | Command
-  | ChromeSearch
-  | NumLock
-  | ScrollLock
-  | F1
-  | F2
-  | F3
-  | F4
-  | F5
-  | F6
-  | F7
-  | F8
-  | F9
-  | F10
-  | F11
-  | F12
-  | Unknown of string
   | GoToStartOfLine
   | GoToEndOfLine
   | DeletePrevWord
@@ -109,6 +52,9 @@ type key =
   | Undo
   | Redo
   | SelectAll
+  | CommandPalette
+  | Omnibox
+  | Unhandled of string
 [@@deriving show]
 
 and side =
@@ -116,207 +62,7 @@ and side =
   | RightHand
 [@@deriving show]
 
-let toChar key : char option =
-  match key with
-  | Space ->
-      Some ' '
-  | ExclamationMark ->
-      Some '!'
-  | DoubleQuote ->
-      Some '"'
-  | Hash ->
-      Some '#'
-  | Dollar ->
-      Some '$'
-  | Percent ->
-      Some '%'
-  | Ampersand ->
-      Some '&'
-  | SingleQuote ->
-      Some '\''
-  | LeftParens ->
-      Some '('
-  | RightParens ->
-      Some ')'
-  | Multiply ->
-      Some '*'
-  | Plus ->
-      Some '+'
-  | Comma ->
-      Some ','
-  | Minus ->
-      Some '-'
-  | Period ->
-      Some '.'
-  | ForwardSlash ->
-      Some '/'
-  | Colon ->
-      Some ':'
-  | SemiColon ->
-      Some ';'
-  | LessThan ->
-      Some '<'
-  | Equals ->
-      Some '='
-  | GreaterThan ->
-      Some '>'
-  | QuestionMark ->
-      Some '?'
-  | At ->
-      Some '@'
-  | Letter l ->
-      Some l
-  | Number n ->
-      Some n
-  | LeftSquareBracket ->
-      Some '['
-  | RightSquareBracket ->
-      Some ']'
-  | Backslash ->
-      Some '\\'
-  | Caret ->
-      Some '^'
-  | Underscore ->
-      Some '_'
-  | Backtick ->
-      Some '`'
-  | LeftCurlyBrace ->
-      Some '{'
-  | Pipe ->
-      Some '|'
-  | RightCurlyBrace ->
-      Some '}'
-  | Tilde ->
-      Some '~'
-  | Left
-  | Right
-  | Up
-  | Down
-  | Tab
-  | Alt
-  | ShiftTab
-  | Escape
-  | CapsLock
-  | Enter
-  | ShiftEnter
-  | Backspace
-  | Delete
-  | PageUp
-  | PageDown
-  | Insert
-  | PrintScreen
-  | PauseBreak
-  | Windows
-  | Command
-  | ChromeSearch
-  | NumLock
-  | ScrollLock
-  | F1
-  | F2
-  | F3
-  | F4
-  | F5
-  | F6
-  | F7
-  | F8
-  | F9
-  | F10
-  | F11
-  | F12
-  | Shift _
-  | Ctrl _
-  | Unknown _
-  | GoToStartOfLine
-  | GoToEndOfLine
-  | DeletePrevWord
-  | DeleteNextWord
-  | DeleteToStartOfLine
-  | DeleteToEndOfLine
-  | GoToStartOfWord
-  | GoToEndOfWord
-  | Undo
-  | Redo
-  | SelectAll ->
-      None
-
-
 let toName = show_key
-
-let fromChar (c : char) : key =
-  match c with
-  | ' ' ->
-      Space
-  | '`' ->
-      Backtick
-  | '~' ->
-      Tilde
-  | '!' ->
-      ExclamationMark
-  | '"' ->
-      DoubleQuote
-  | '#' ->
-      Hash
-  | '$' ->
-      Dollar
-  | '%' ->
-      Percent
-  | '^' ->
-      Caret
-  | '&' ->
-      Ampersand
-  | '\'' ->
-      SingleQuote
-  | '(' ->
-      LeftParens
-  | ')' ->
-      RightParens
-  | '*' ->
-      Multiply
-  | '+' ->
-      Plus
-  | ',' ->
-      Comma
-  | '-' ->
-      Minus
-  | '_' ->
-      Underscore
-  | '.' ->
-      Period
-  | '/' ->
-      ForwardSlash
-  | '\\' ->
-      Backslash
-  | '|' ->
-      Pipe
-  | ':' ->
-      Colon
-  | ';' ->
-      SemiColon
-  | '[' ->
-      LeftSquareBracket
-  | ']' ->
-      RightSquareBracket
-  | '{' ->
-      LeftCurlyBrace
-  | '}' ->
-      RightCurlyBrace
-  | '<' ->
-      LessThan
-  | '=' ->
-      Equals
-  | '>' ->
-      GreaterThan
-  | '?' ->
-      QuestionMark
-  | '@' ->
-      At
-  | '0' .. '9' ->
-      Number c
-  | 'A' .. 'Z' | 'a' .. 'z' ->
-      Letter c
-  | _ ->
-      Unknown (String.fromChar c)
-
 
 let fromKeyboardEvent
     (key : string) (shift : bool) (ctrl : bool) (meta : bool) (alt : bool) : key
@@ -336,6 +82,8 @@ let fromKeyboardEvent
       Delete
   | "e" when ctrl ->
       GoToEndOfLine
+  | "k" when ctrl || meta ->
+      Omnibox
   | "y" when (not isMac) && ctrl && not shift ->
       (* CTRL+Y is Windows redo
       but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
@@ -416,11 +164,9 @@ let fromKeyboardEvent
       Enter
   | "Escape" ->
       Escape
-  (****************
-   * Single Chars *
-   ****************
-
-   *~*~*~*~ HERE BE DRAGONS ~*~*~*~*
+  | " " ->
+      Space
+  (*~*~*~*~ HERE BE DRAGONS ~*~*~*~*
    * alt-x opens command palatte.
    *
    * On macOS, is key = '≈', which we have to hack in with bucklescript JS
@@ -443,15 +189,10 @@ let fromKeyboardEvent
    * editor right now, which we probably should fix at some point. This all
    * points to the fact that it may be easier to do shortcuts with Cmd/Ctrl
    * instead of Alt. *)
-  | _ when String.length key = 1 ->
-      if key = {js|≈|js}
-      then Letter 'x'
-      else
-        Char.fromString key
-        |> Option.map ~f:fromChar
-        |> Option.withDefault ~default:(Unknown key)
+  | _ when alt && String.length key = 1 ->
+      if key = {js|≈|js} then CommandPalette else Unhandled key
   | _ ->
-      Unknown key
+      Unhandled key
 
 
 type keyEvent =
@@ -462,32 +203,31 @@ type keyEvent =
   ; metaKey : bool }
 [@@deriving show]
 
-let keyEvent j =
-  let open Json.Decode in
-  let shift = field "shiftKey" bool j in
-  let ctrl = field "ctrlKey" bool j in
-  let alt = field "altKey" bool j in
-  let meta = field "metaKey" bool j in
-  let key = field "key" string j in
-  let parsedKey = fromKeyboardEvent key shift ctrl meta alt in
-  { key = parsedKey
-  ; shiftKey = shift
-  ; ctrlKey = ctrl
-  ; altKey = alt
-  ; metaKey = meta }
-
-
-let registerGlobal name key tagger =
-  let enableCall callbacks_base =
-    let callbacks = ref callbacks_base in
-    let fn ev = try Some (tagger (keyEvent (Obj.magic ev))) with _ -> None in
-    let handler = Vdom.EventHandlerCallback (key, fn) in
-    (* TODO: put on window, not document *)
-    let elem = Web_node.document_node in
-    let cache = Vdom.eventHandler_Register callbacks elem name handler in
-    fun () -> ignore (Vdom.eventHandler_Unregister elem name cache)
+(** fromKeyboardEvent converts the JS KeyboardEvent [evt] into a keyEvent, then
+  * calls the [tagger] with it if successful.
+  *
+  * [tagger] is a (keyEvent -> Types.msg). It would be nice to simply return
+  * the msg option here, but we cannot reference Types here otherwise we get
+  * a dependency cycle. *)
+let fromKeyboardEvent tagger (evt : Web.Node.event) =
+  let open Tea.Json.Decoder in
+  let decoder =
+    map5
+      (fun rawKey shiftKey ctrlKey altKey metaKey ->
+        let key = fromKeyboardEvent rawKey shiftKey ctrlKey metaKey altKey in
+        {key; shiftKey; ctrlKey; altKey; metaKey})
+      (field "key" string)
+      (field "shiftKey" bool)
+      (field "ctrlKey" bool)
+      (field "altKey" bool)
+      (field "metaKey" bool)
   in
-  Tea_sub.registration key enableCall
-
-
-let downs ?(key = "") tagger = registerGlobal "keydown" key tagger
+  decodeEvent decoder evt
+  |> Tea_result.result_to_option
+  |> Option.andThen ~f:(function
+         | {key = Unhandled _; _} ->
+             None
+         | kevt ->
+             (* if we are going to handle the key, then preventDefault *)
+             evt##preventDefault () ;
+             Some (tagger kevt))

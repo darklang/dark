@@ -1735,13 +1735,8 @@ let replacePartialWithArguments
 (* Binops (plus right partials) *)
 (* ---------------- *)
 
-let convertToBinOp (char : char option) (id : id) (ast : ast) : E.t =
-  match char with
-  | None ->
-      ast
-  | Some c ->
-      E.update id ast ~f:(fun expr ->
-          ERightPartial (gid (), String.fromChar c, expr))
+let convertToBinOp (s : string) (id : id) (ast : ast) : E.t =
+  E.update id ast ~f:(fun expr -> ERightPartial (gid (), s, expr))
 
 
 let deleteRightPartial (ti : T.tokenInfo) (ast : ast) : E.t * id =
@@ -3276,20 +3271,22 @@ let getTopmostSelectionID startPos endPos ast : id option =
   |> Tuple2.first
 
 
-let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
-    E.t * state =
+let onEdge left right =
+  match (left, right) with
+  | L (lt, lti), R (rt, rti) ->
+      (lt, lti) <> (rt, rti)
+  | _ ->
+      true
+
+
+let rec updateKey
+    ?(recursing = false) (inputEvent : fluidInputEvent) (ast : ast) (s : state)
+    : E.t * state =
   let pos = s.newPos in
-  let keyChar = K.toChar key in
   let tokens = toTokens ast in
   (* These might be the same token *)
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos tokens in
-  let onEdge =
-    match (toTheLeft, toTheRight) with
-    | L (lt, lti), R (rt, rti) ->
-        (lt, lti) <> (rt, rti)
-    | _ ->
-        true
-  in
+  let onEdge = onEdge toTheLeft toTheRight in
   (* This expresses whether or not the expression to the left of
    * the insert should be wrapped in a binary operator, and determines
    * that fact based on the _next_ token *)
@@ -3319,21 +3316,13 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       | _ ->
           true )
   in
-  let infixKeys =
-    [ K.Plus
-    ; K.Percent
-    ; K.Minus
-    ; K.Multiply
-    ; K.ForwardSlash
-    ; K.LessThan
-    ; K.GreaterThan
-    ; K.Ampersand
-    ; K.ExclamationMark
-    ; K.Caret
-    ; K.Equals
-    ; K.Pipe ]
+  let keyIsInfix =
+    match inputEvent with
+    | InsertText txt when FluidTextInput.isInfixSymbol txt ->
+        true
+    | _ ->
+        false
   in
-  let keyIsInfix = List.member ~value:key infixKeys in
   (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
   (* Checks to see if the token is within an if-condition statement *)
@@ -3362,71 +3351,67 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * sensitive to ordering. If you're adding a case that's sensitive to
      * ordering ADD A TEST, even if it's otherwise redundant from a product
      * POV. *)
-    match (key, toTheLeft, toTheRight) with
+    match (inputEvent, toTheLeft, toTheRight) with
     (* Entering a string escape *)
-    | K.Backslash, L (TString _, _), R (TString _, ti)
+    | InsertText "\\", L (TString _, _), R (TString _, ti)
       when false (* disable for now *) && pos - ti.startPos != 0 ->
         startEscapingString pos ti s ast
     (* Moving through a lambda arrow with '->' *)
-    | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
+    | InsertText "-", L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
         (ast, moveOneRight (ti.startPos + 1) s)
-    | K.Minus, L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
+    | InsertText "-", L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
       when pos = ti.startPos + 1 ->
         (ast, moveOneRight (ti.startPos + 1) s)
-    | K.GreaterThan, L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
+    | InsertText ">", L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
       when pos = ti.startPos + 2 ->
         (ast, moveToNextNonWhitespaceToken ~pos ast s)
     (* Deleting *)
-    | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
-      ->
+    | Keypress {key = K.Delete; _}, _, _
+    | Keypress {key = K.Backspace; _}, _, _
+      when Option.isSome s.selectionStart ->
         deleteSelection ~state:s ~ast
-    | K.Backspace, L (TPatternString _, ti), _
-    | K.Backspace, L (TString _, ti), _
+    | Keypress {key = K.Backspace; _}, L (TPatternString _, ti), _
+    | Keypress {key = K.Backspace; _}, L (TString _, ti), _
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
-    | K.Backspace, _, R (TRecordFieldname {fieldName = ""; _}, ti) ->
+    | ( Keypress {key = K.Backspace; _}
+      , _
+      , R (TRecordFieldname {fieldName = ""; _}, ti) ) ->
         doBackspace ~pos ti ast s
-    | K.Backspace, _, R (TPatternBlank _, ti) ->
+    | Keypress {key = K.Backspace; _}, _, R (TPatternBlank _, ti) ->
         doBackspace ~pos ti ast s
-    | K.Backspace, L (_, ti), _ ->
+    | Keypress {key = K.Backspace; _}, L (_, ti), _ ->
         doBackspace ~pos ti ast s
-    | K.Delete, _, R (_, ti) ->
+    | Keypress {key = K.Delete; _}, _, R (_, ti) ->
         doDelete ~pos ti ast s
     (* Autocomplete menu *)
     (* Note that these are spelt out explicitly on purpose, else they'll
      * trigger on the wrong element sometimes. *)
-    | K.Escape, L (_, ti), _ when isAutocompleting ti s ->
+    | Keypress {key = K.Escape; _}, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acClear s)
-    | K.Escape, _, R (_, ti) when isAutocompleting ti s ->
+    | Keypress {key = K.Escape; _}, _, R (_, ti) when isAutocompleting ti s ->
         (ast, acClear s)
-    | K.Up, _, R (_, ti) when isAutocompleting ti s ->
+    | Keypress {key = K.Up; _}, _, R (_, ti) when isAutocompleting ti s ->
         (ast, acMoveUp s)
-    | K.Up, L (_, ti), _ when isAutocompleting ti s ->
+    | Keypress {key = K.Up; _}, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveUp s)
-    | K.Down, _, R (_, ti) when isAutocompleting ti s ->
+    | Keypress {key = K.Down; _}, _, R (_, ti) when isAutocompleting ti s ->
         (ast, acMoveDown s)
-    | K.Down, L (_, ti), _ when isAutocompleting ti s ->
+    | Keypress {key = K.Down; _}, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveDown s)
     (* Autocomplete finish *)
-    | _, L (_, ti), _
+    | Keypress {key; _}, L (_, ti), _
       when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
         acEnter ti ast s key
-    | _, _, R (_, ti)
+    | Keypress {key; _}, _, R (_, ti)
       when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
         acEnter ti ast s key
     (* When we type a letter/number after an infix operator, complete and
      * then enter the number/letter. *)
-    | K.Number _, L (TRightPartial (_, _), ti), _
-    | K.Letter _, L (TRightPartial (_, _), ti), _
-      when onEdge ->
-        let ast, s = acEnter ti ast s K.Tab in
-        getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
-        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
-        |> Option.withDefault ~default:(ast, s)
-    | K.ShiftEnter, left, _ ->
+    | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline ast s =
           let startPos, endPos = fluidGetSelectionRange s in
           let findParent = startPos = endPos in
@@ -3450,39 +3435,45 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             doPipeline ast s )
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
-    | K.Period, L (TPartial _, ti), _
+    | InsertText ".", L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
         acStartField ti ast s
-    | K.Period, L (TFieldPartial _, ti), _
-    | K.Period, _, R (TFieldPartial _, ti)
+    | InsertText ".", L (TFieldPartial _, ti), _
+    | InsertText ".", _, R (TFieldPartial _, ti)
       when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
         acStartField ti ast s
     (* Tab to next blank *)
-    | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
+    | Keypress {key = K.Tab; _}, _, R (_, _)
+    | Keypress {key = K.Tab; _}, L (_, _), _ ->
         (ast, moveToNextBlank ~pos ast s)
-    | K.ShiftTab, _, R (_, _) | K.ShiftTab, L (_, _), _ ->
+    | Keypress {key = K.ShiftTab; _}, _, R (_, _)
+    | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
         (ast, moveToPrevBlank ~pos ast s)
-    | K.SelectAll, _, R (_, _) | K.SelectAll, L (_, _), _ ->
+    | Keypress {key = K.SelectAll; _}, _, R (_, _)
+    | Keypress {key = K.SelectAll; _}, L (_, _), _ ->
         (ast, selectAll ~pos ast s)
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
     (* TODO: press equals when in a let *)
     (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
-    | K.GoToEndOfWord, _, R (_, ti) | K.GoToEndOfWord, L (_, ti), _ ->
+    | Keypress {key = K.GoToEndOfWord; _}, _, R (_, ti)
+    | Keypress {key = K.GoToEndOfWord; _}, L (_, ti), _ ->
         (ast, goToEndOfWord ~pos ast ti s)
-    | K.GoToStartOfWord, _, R (_, ti) | K.GoToStartOfWord, L (_, ti), _ ->
+    | Keypress {key = K.GoToStartOfWord; _}, _, R (_, ti)
+    | Keypress {key = K.GoToStartOfWord; _}, L (_, ti), _ ->
         (ast, goToStartOfWord ~pos ast ti s)
-    | K.Left, L (_, ti), _ ->
+    | Keypress {key = K.Left; _}, L (_, ti), _ ->
         (ast, doLeft ~pos ti s |> acMaybeShow ti)
-    | K.Right, _, R (_, ti) ->
+    | Keypress {key = K.Right; _}, _, R (_, ti) ->
         (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
-    | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
+    | Keypress {key = K.GoToStartOfLine; _}, _, R (_, ti)
+    | Keypress {key = K.GoToStartOfLine; _}, L (_, ti), _ ->
         (ast, moveToStartOfLine ast ti s)
-    | K.GoToEndOfLine, _, R (_, ti) ->
+    | Keypress {key = K.GoToEndOfLine; _}, _, R (_, ti) ->
         (ast, moveToEndOfLine ast ti s)
-    | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
-      ->
+    | Keypress {key = K.DeleteToStartOfLine; _}, _, R (_, ti)
+    | Keypress {key = K.DeleteToStartOfLine; _}, L (_, ti), _ ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
            The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
            For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
@@ -3495,7 +3486,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             ~state:s
             ~ast
             (s.newPos, getStartOfLineCaretPos ast ti) )
-    | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _ ->
+    | Keypress {key = K.DeleteToEndOfLine; _}, _, R (_, ti)
+    | Keypress {key = K.DeleteToEndOfLine; _}, L (_, ti), _ ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
            The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
            For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
@@ -3506,7 +3498,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       | None ->
           deleteCaretRange ~state:s ~ast (s.newPos, getEndOfLineCaretPos ast ti)
       )
-    | K.DeleteNextWord, _, R (_, ti) ->
+    | Keypress {key = K.DeleteNextWord; _}, _, R (_, ti) ->
       ( match fluidGetOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
@@ -3518,7 +3510,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           if newAst = ast && newState.newPos = pos
           then (newAst, movedState)
           else (newAst, newState) )
-    | K.DeletePrevWord, L (_, ti), _ ->
+    | Keypress {key = K.DeletePrevWord; _}, L (_, ti), _ ->
       ( match fluidGetOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
@@ -3529,57 +3521,57 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             else ti.startPos
           in
           deleteCaretRange ~state:s ~ast (rangeStart, pos) )
-    | K.Up, _, _ ->
+    | Keypress {key = K.Up; _}, _, _ ->
         (ast, doUp ~pos ast s)
-    | K.Down, _, _ ->
+    | Keypress {key = K.Down; _}, _, _ ->
         (ast, doDown ~pos ast s)
-    | K.Space, _, R (TSep _, _) ->
+    | Keypress {key = K.Space; _}, _, R (TSep _, _) ->
         (ast, moveOneRight pos s)
     (* comma - add another of the thing *)
-    | K.Comma, L (TListOpen _, toTheLeft), _
-    | K.Comma, L (TLambdaSymbol _, toTheLeft), _
-    | K.Comma, L (TLambdaVar _, toTheLeft), _
+    | InsertText ",", L (TListOpen _, toTheLeft), _
+    | InsertText ",", L (TLambdaSymbol _, toTheLeft), _
+    | InsertText ",", L (TLambdaVar _, toTheLeft), _
       when onEdge ->
-        doInsert ~pos keyChar toTheLeft ast s
-    | K.Comma, _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
+        doInsert' ~pos "," toTheLeft ast s
+    | InsertText ",", _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
         (insertLambdaVar ~index id ~name:"" ast, s)
-    | K.Comma, L (t, ti), _ ->
+    | InsertText ",", L (t, ti), _ ->
         if onEdge
         then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
-        else doInsert ~pos keyChar ti ast s
+        else doInsert' ~pos "," ti ast s
     (* list-specific insertions *)
-    | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
+    | InsertText "}", _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
         (ast, moveOneRight pos s)
-    | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
+    | InsertText "]", _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close square to go over the last square *)
         (ast, moveOneRight pos s)
     (* String-specific insertions *)
-    | K.DoubleQuote, _, R (TPatternString _, ti)
-    | K.DoubleQuote, _, R (TString _, ti)
-    | K.DoubleQuote, _, R (TStringMLEnd _, ti)
+    | InsertText "\"", _, R (TPatternString _, ti)
+    | InsertText "\"", _, R (TString _, ti)
+    | InsertText "\"", _, R (TStringMLEnd _, ti)
       when pos = ti.endPos - 1 ->
         (* Allow pressing quote to go over the last quote *)
         (ast, moveOneRight pos s)
     (* Field access *)
-    | K.Period, L (TVariable _, toTheLeft), _
-    | K.Period, L (TFieldName _, toTheLeft), _
+    | InsertText ".", L (TVariable _, toTheLeft), _
+    | InsertText ".", L (TFieldName _, toTheLeft), _
       when onEdge ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert' ~pos "." toTheLeft ast s
     (***********)
     (* K.Enter *)
     (***********)
     (*
      * Caret to right of record open {
      * Add new initial record row and move caret to it. *)
-    | K.Enter, L (TRecordOpen id, _), _ ->
+    | Keypress {key = K.Enter; _}, L (TRecordOpen id, _), _ ->
         let ast = addRecordRowAt 0 id ast in
         let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) in
         (ast, s)
     (*
      * Caret to left of record close }
      * Add new final record but leave caret to left of } *)
-    | K.Enter, _, R (TRecordClose id, _) ->
+    | Keypress {key = K.Enter; _}, _, R (TRecordClose id, _) ->
         let s = recordAction "addRecordRowToBack" s in
         let ast = addRecordRowToBack id ast in
         let s = moveToAstRef s ast (ARRecord (id, RPClose)) in
@@ -3588,7 +3580,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * Caret between pipe symbol |> and following expression.
      * Move current pipe expr down by adding new expr above it.
      * Keep caret "the same", only moved down by 1 column. *)
-    | K.Enter, L (TPipe (id, idx, _), _), R _ ->
+    | Keypress {key = K.Enter; _}, L (TPipe (id, idx, _), _), R _ ->
         let ast, s, _ = addPipeExprAt id (idx + 1) ast s in
         let s =
           moveToAstRef s ast (ARPipe (id, PPPipeKeyword (idx + 1))) ~offset:2
@@ -3598,7 +3590,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * Caret on end-of-line.
      * Following newline contains a parent and index, meaning we're inside some
      * special construct. Special-case each of those. *)
-    | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), ti) ->
+    | ( Keypress {key = K.Enter; _}
+      , _
+      , R (TNewline (Some (_, parentId, Some idx)), ti) ) ->
       ( match E.find parentId ast with
       | Some (EPipe _) ->
           let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in
@@ -3625,18 +3619,18 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           (ast, s) )
     (*
      * Caret at end of line with nothing in newline. *)
-    | K.Enter, L (lt, lti), R (TNewline None, rti)
+    | Keypress {key = K.Enter; _}, L (lt, lti), R (TNewline None, rti)
       when not (T.isLet lt || isAutocompleting rti s || isInIfCondition lt) ->
         wrapInLet lti ast s
     (*
      * Caret at end-of-line with no data in the TNewline.
      * Just move right (ie, * to beginning of next line) *)
-    | K.Enter, L _, R (TNewline None, ti) ->
+    | Keypress {key = K.Enter; _}, L _, R (TNewline None, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
     (*
      * Caret at end-of-line generally adds a let on the line below,
      * unless the next line starts with a blank, in which case we go to it. *)
-    | K.Enter, L _, R (TNewline (Some (id, _, _)), ti) ->
+    | Keypress {key = K.Enter; _}, L _, R (TNewline (Some (id, _, _)), ti) ->
         if mNext
            |> Option.map ~f:(fun n ->
                   match n.token with TBlank _ -> true | _ -> false)
@@ -3660,7 +3654,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * in each case the idx is one more than the number of elements in the construct.
      * Eg, a match with 2 rows will have idx=3 here.
      *)
-    | K.Enter, L (TNewline (Some (_, parentId, Some idx)), _), R (rTok, _) ->
+    | ( Keypress {key = K.Enter; _}
+      , L (TNewline (Some (_, parentId, Some idx)), _)
+      , R (rTok, _) ) ->
         let applyToRightToken () : E.t * state =
           let parentID = T.toParentID rTok in
           let index = T.toIndex rTok in
@@ -3728,7 +3724,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             (ast, s) )
     (*
      * Caret at very beginning of tokens or at beginning of non-special line. *)
-    | K.Enter, No, R (t, _) | K.Enter, L (TNewline _, _), R (t, _) ->
+    | Keypress {key = K.Enter; _}, No, R (t, _)
+    | Keypress {key = K.Enter; _}, L (TNewline _, _), R (t, _) ->
         let id = FluidToken.tid t in
         let ast, s, _ = makeIntoLetBody id ast s in
         let s =
@@ -3737,65 +3734,61 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, s)
     (*
      * Caret at very end of tokens where last line is non-let expression. *)
-    | K.Enter, L (token, ti), No when not (T.isLet token) ->
+    | Keypress {key = K.Enter; _}, L (token, ti), No when not (T.isLet token) ->
         wrapInLet ti ast s
     (****************)
     (* Int to float *)
     (****************)
-    | K.Period, L (TInteger (id, _), ti), _ ->
+    | InsertText ".", L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertIntToFloat offset id ast, moveOneRight pos s)
-    | K.Period, L (TPatternInteger (mID, id, _, _), ti), _ ->
+    | InsertText ".", L (TPatternInteger (mID, id, _, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
     (* Skipping over specific characters, this must come before the
      * more general binop cases or we lose the jumping behaviour *)
-    | K.Equals, _, R (TLetAssignment _, toTheRight) ->
+    | InsertText "=", _, R (TLetAssignment _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)
-    | K.Colon, _, R (TRecordSep _, toTheRight) ->
+    | InsertText ":", _, R (TRecordSep _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)
     (* Binop specific, all of the specific cases must come before the
      * big general `key, L (_, toTheLeft), _` case. *)
-    | _, L (TPartial _, toTheLeft), _
-    | _, L (TRightPartial _, toTheLeft), _
-    | _, L (TBinOp _, toTheLeft), _
+    | InsertText txt, L (TPartial _, toTheLeft), _
+    | InsertText txt, L (TRightPartial _, toTheLeft), _
+    | InsertText txt, L (TBinOp _, toTheLeft), _
       when keyIsInfix ->
-        doInsert ~pos keyChar toTheLeft ast s
-    | _, _, R (TBlank _, toTheRight) when keyIsInfix ->
-        doInsert ~pos keyChar toTheRight ast s
-    | _, L (_, toTheLeft), _
+        doInsert' ~pos txt toTheLeft ast s
+    | InsertText txt, _, R (TBlank _, toTheRight) when keyIsInfix ->
+        doInsert' ~pos txt toTheRight ast s
+    | InsertText txt, L (_, toTheLeft), _
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
-        ( convertToBinOp keyChar (T.tid toTheLeft.token) ast
-        , s |> moveTo (pos + 2) )
+        (convertToBinOp txt (T.tid toTheLeft.token) ast, s |> moveTo (pos + 2))
     (* Rest of Insertions *)
-    | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
-        doInsert ~pos keyChar toTheLeft ast s
+    | InsertText txt, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
+        doInsert' ~pos txt toTheLeft ast s
     (*
      * Caret between empty record symbols {}
      * Adds new initial record row with the typed
      * value as the key (if value entered is valid),
      * then move caret to end of key *)
-    | _, L (TRecordOpen id, _), R (TRecordClose _, _) ->
-      ( match keyChar with
-      | Some keyCharStr when Util.isIdentifierChar (String.fromChar keyCharStr)
-        ->
-          let letterSTr = String.fromChar keyCharStr in
-          let ast = addRecordRowAt ~letter:letterSTr 0 id ast in
+    | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+        if Util.isIdentifierChar txt
+        then
+          let ast = addRecordRowAt ~letter:txt 0 id ast in
           let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1 in
           (ast, s)
-      | _ ->
-          (ast, s) )
-    | _, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
-        doInsert ~pos keyChar toTheLeft ast s
+        else (ast, s)
+    | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
+        doInsert' ~pos txt toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
         (ast, s)
     | _, _, R (TRecordOpen _, _) ->
         (ast, s)
-    | _, _, R (_, toTheRight) ->
-        doInsert ~pos keyChar toTheRight ast s
+    | InsertText txt, _, R (_, toTheRight) ->
+        doInsert' ~pos txt toTheRight ast s
     | _ ->
         (* Unknown *)
-        (ast, report ("Unknown action: " ^ K.toName key) s)
+        (ast, report ("Unknown action: " ^ show_fluidInputEvent inputEvent) s)
   in
   let newAST, newState =
     (* This is a hack to make Enter create a new entry in matches and pipes
@@ -3835,6 +3828,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   if recursing
   then (newAST, newState)
   else
+    let key =
+      match inputEvent with Keypress {key; _} -> Some key | _ -> None
+    in
     match (toTheLeft, toTheRight) with
     | L (TPartial (_, str), ti), _
     | L (TFieldPartial (_, _, _, str), ti), _
@@ -3848,24 +3844,27 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * again could be an attempt to make ++, not `+ + ___`.
      *
      * So if the new function _could_ be valid, don't commit. *)
-      when key = K.Right || key = K.Left || keyIsInfix ->
+      when key = Some K.Right || key = Some K.Left || keyIsInfix ->
         let shouldCommit =
-          match keyChar with
-          | None ->
+          match inputEvent with
+          | Keypress {key = K.Right; _} | Keypress {key = K.Left; _} ->
               true
-          | Some keyChar ->
-              let newQueryString = str ^ String.fromChar keyChar in
+          | InsertText txt ->
+              let newQueryString = str ^ txt in
               s.ac.allCompletions
               |> List.filter ~f:(fun aci ->
                      String.contains ~substring:newQueryString (AC.asName aci))
               |> ( == ) []
+          | _ ->
+              (* unreachable due to when condition on enclosing match branch *)
+              true
         in
         if shouldCommit
         then
           let committedAST = commitIfValid newState.newPos ti (newAST, s) in
           updateKey
             ~recursing:true
-            key
+            inputEvent
             committedAST
             (* keep the actions for debugging *)
             {s with actions = newState.actions}
@@ -3889,7 +3888,14 @@ and deleteCaretRange ~state ~(ast : ast) (caretRange : int * int) :
   let currAst, currState = (ref ast, ref state) in
   let nothingChanged = ref false in
   while (not !nothingChanged) && !currState.newPos > rangeStart do
-    let newAst, newState = updateKey K.Backspace !currAst !currState in
+    let kevt =
+      { K.key = K.Backspace
+      ; shiftKey = false
+      ; ctrlKey = false
+      ; altKey = false
+      ; metaKey = false }
+    in
+    let newAst, newState = updateKey (Keypress kevt) !currAst !currState in
     if newState.newPos = !currState.newPos && newAst = !currAst
     then
       (* stop if nothing changed--guarantees loop termination *)
@@ -4712,7 +4718,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
-    | FluidKeyPress {key; shiftKey = true; altKey = _; ctrlKey = _; metaKey = _}
+    | FluidInputEvent
+        ( Keypress {key; shiftKey = true; altKey = _; ctrlKey = _; metaKey = _}
+        as ievt )
       when key = K.Right || key = K.Left || key = K.Up || key = K.Down ->
         (* Ultimately, all we want is for shift to move the end of the selection to where the caret would have been if shift were not held.
          * Since the caret is tracked the same for end of selection and movement, we actually just want to store the start position in selection
@@ -4720,7 +4728,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
          *)
         (* TODO(JULIAN): We need to refactor updateKey and key handling in general so that modifiers compose more easily with shift *)
         (* XXX(JULIAN): We need to be able to use alt and ctrl and meta to change selection! *)
-        let ast, newS = updateKey key ast s in
+        let ast, newS = updateKey ievt ast s in
         ( match s.selectionStart with
         | None ->
             ( ast
@@ -4729,7 +4737,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         | Some pos ->
             (ast, {newS with newPos = newS.newPos; selectionStart = Some pos})
         )
-    | FluidKeyPress {key; shiftKey = false; altKey = _; ctrlKey = _; metaKey = _}
+    | FluidInputEvent
+        ( Keypress {key; shiftKey = false; altKey = _; ctrlKey = _; metaKey = _}
+        as ievt )
       when s.selectionStart <> None && (key = K.Right || key = K.Left) ->
         (* Aborting a selection using the left and right arrows should
          place the caret on the side of the selection in the direction
@@ -4740,14 +4750,14 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           in
           if key = K.Left then left else right
         in
-        (ast, {s with lastKey = key; newPos; selectionStart = None})
-    | FluidKeyPress {key; altKey; metaKey; ctrlKey; shiftKey = _}
+        (ast, {s with lastInput = ievt; newPos; selectionStart = None})
+    | FluidInputEvent (Keypress {key; altKey; metaKey; ctrlKey; shiftKey = _})
       when (altKey || metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
         (ast, s)
-    | FluidKeyPress {key; shiftKey; _} ->
-        let s = {s with lastKey = key} in
-        let newAST, newState = updateKey key ast s in
+    | FluidInputEvent (Keypress {key; shiftKey; _} as ievt) ->
+        let s = {s with lastInput = ievt} in
+        let newAST, newState = updateKey ievt ast s in
         let selectionStart =
           if key = K.SelectAll
           then newState.selectionStart
@@ -4757,17 +4767,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           else None
         in
         (newAST, {newState with selectionStart})
-    | FluidTextInput evt ->
-        let s = recordAction "FluidTextEntry" s in
-        let pos = s.newPos in
-        let toLeft, toRight, _nextTok = getNeighbours ~pos (toTokens ast) in
-        ( match (toLeft, toRight) with
-        | L (_, ti), _ when T.isAppendable ti.token ->
-            doInsert' ~pos evt.data ti ast s
-        | _, R (_, ti) ->
-            doInsert' ~pos evt.data ti ast s
-        | _ ->
-            (ast, s) )
+    | FluidInputEvent (InsertText _ as ievt) ->
+        let s = {s with lastInput = ievt} in
+        updateKey ievt ast s
     | FluidAutocompleteClick entry ->
         Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
         |> Option.withDefault ~default:(ast, s)
@@ -4790,16 +4792,15 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidUpdateDropdownIndex index ->
       let newState = acSetIndex index s in
       Types.TweakModel (fun m -> {m with fluidState = newState})
-  | FluidKeyPress {key = K.Undo; _} ->
+  | FluidInputEvent (Keypress {key = K.Undo; _}) ->
       KeyPress.undo_redo m false
-  | FluidKeyPress {key = K.Redo; _} ->
+  | FluidInputEvent (Keypress {key = K.Redo; _}) ->
       KeyPress.undo_redo m true
-  | FluidKeyPress {key = K.Letter 'x'; altKey = true; _} ->
+  | FluidInputEvent (Keypress {key = K.CommandPalette; _}) ->
       maybeOpenCmd m
-  | FluidKeyPress {key = K.Letter 'k'; metaKey; ctrlKey; _}
-    when metaKey || ctrlKey ->
+  | FluidInputEvent (Keypress {key = K.Omnibox; _}) ->
       KeyPress.openOmnibox m
-  | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
+  | FluidInputEvent (Keypress ke) when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
   | FluidClearErrorDvSrc ->
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
@@ -4836,8 +4837,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              else Many [moveMod; FluidSetState fluidState])
       |> Option.withDefault ~default:NoChange
   | FluidMouseDown _
-  | FluidKeyPress _
-  | FluidTextInput _
+  | FluidInputEvent _
   | FluidCopy
   | FluidPaste _
   | FluidCut
@@ -4867,8 +4867,15 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
             in
             let enter id = Enter (tlid, id) in
             (* if tab is wrapping... *)
+            let lastKey =
+              match newState.lastInput with
+              | Keypress {key; _} ->
+                  Some key
+              | _ ->
+                  None
+            in
             if isFluidEntering
-               && newState.lastKey = K.Tab
+               && lastKey = Some K.Tab
                && newState.newPos <= newState.oldPos
             then
               (* get the first blank spec header, or fall back to NoChange *)
@@ -4882,7 +4889,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
               | _ ->
                   (NoChange, newAST, newState)
             else if isFluidEntering
-                    && newState.lastKey = K.ShiftTab
+                    && lastKey = Some K.ShiftTab
                     && newState.newPos >= newState.oldPos
             then
               (* get the last blank spec header, or fall back to NoChange *)
