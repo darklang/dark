@@ -46,12 +46,13 @@ let viewTrace
     (timestamp : string option)
     (isActive : bool)
     (isHover : bool)
+    (isUnfetchable : bool)
     (tipe : tipe) : msg Html.html =
   let tlid = TL.id tl in
-  let activeClass = if isActive then "active" else "" in
-  let hoverClass = if isHover then "mouseovered" else "" in
-  let tipeClass = "tipe-" ^ Runtime.tipe2str tipe in
-  let classes = "" ^ activeClass ^ " " ^ hoverClass ^ " " ^ tipeClass ^ "" in
+  let activeClass = if isActive then Some "active" else None in
+  let hoverClass = if isHover then Some "mouseovered" else None in
+  let tipeClass = Some ("tipe-" ^ Runtime.tipe2str tipe) in
+  let classes = [activeClass; hoverClass; tipeClass] in
   let eventKey constructor =
     constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
   in
@@ -90,17 +91,23 @@ let viewTrace
    traceID  - to update with every new traceId,
    classes  - to update when hover/mouseover,
    valueStr - to update from loading to loaded *)
-  let viewKey = traceID ^ classes ^ valueStr in
   let dotHtml =
     if isHover && not isActive
     then [Html.div [Html.class' "empty-dot"] [Vdom.noNode]]
     else [Html.div [Vdom.noProp] [Html.text {js|•|js}]]
   in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
-  Html.li
-    ~key:viewKey
-    (Html.class' ("traceid-" ^ traceID ^ " " ^ classes) :: events)
-    (dotHtml @ [viewData])
+  let classes =
+    Some ("traceid-" ^ traceID)
+    :: (if isUnfetchable then Some "unfetchable" else None)
+    :: classes
+    |> List.filterMap ~f:identity
+    |> String.join ~sep:" "
+  in
+  let viewKey = traceID ^ classes ^ valueStr in
+  if traceID == "55bb02e5-7d85-4339-88ea-7e9ea3f9cb25"
+  then Js.log3 "Trace" traceID isUnfetchable ;
+  Html.li ~key:viewKey (Html.class' classes :: events) (dotHtml @ [viewData])
 
 
 let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
@@ -118,11 +125,22 @@ let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
       Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid = Some traceID
     in
     let isHover = vs.hovering = Some (vs.tlid, ID traceID) in
+    let isUnfetchable =
+      match traceData with Error MaximumCallStackError -> true | _ -> false
+    in
     let astTipe =
       Analysis.getTipeOf' vs.analysisStore astID
       |> Option.withDefault ~default:TIncomplete
     in
-    viewTrace vs.tl traceID value timestamp isActive isHover astTipe
+    viewTrace
+      vs.tl
+      traceID
+      value
+      timestamp
+      isActive
+      isHover
+      isUnfetchable
+      astTipe
   in
   List.map ~f:traceToHtml vs.traces
 
