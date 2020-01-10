@@ -4442,11 +4442,8 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
              , reconstructExpr cond |> orDefaultExpr
              , reconstructExpr thenBody |> orDefaultExpr
              , reconstructExpr elseBody |> orDefaultExpr ))
-    (* Unknowns:
-     * - EPipeTarget: assuming it can't be selected since it doesn't produce tokens
-     *)
-    | _, _ ->
-        Some (EBlank (gid ()))
+    | EPipeTarget _, _ ->
+        Some (EPipeTarget (gid ()))
   in
   let topmostID = getTopmostSelectionID startPos endPos ast in
   reconstruct ~topmostID (startPos, endPos)
