@@ -2997,6 +2997,13 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                       ~default:{astRef = ARList (id, LPOpen); offset = 1}
                in
                Some (EList (id, List.removeAt ~index:remIdx exprs), target)
+           | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
+             when E.isEmpty expr ->
+               (* COMPRESS(JULIAN): this could possibly collapse with a bunch of other cases, including
+           Delete leading keywords of empty expressions, if we want to expand the definition of
+           E.isEmpty *)
+               let bID = gid () in
+               Some (EBlank bID, {astRef = ARBlank bID; offset = 0})
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3137,8 +3144,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (removeLambdaSepToken id ast idx, LeftOne) *)
     (*     | TListSep (id, idx) ->
         (removeListSepToken id ast idx, LeftOne) *)
-    | (TRecordOpen id | TListOpen id) when E.hasEmptyWithId id ast ->
-        (E.replace id ~replacement:(EBlank newID) ast, LeftOne)
+    (*     | (TRecordOpen id | TListOpen id) when E.hasEmptyWithId id ast ->
+        (E.replace id ~replacement:(EBlank newID) ast, LeftOne) *)
     | TRecordFieldname {recordID; index; fieldName = ""; _}
       when pos = ti.startPos ->
         let newAst = removeRecordField recordID index ast in
