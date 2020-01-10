@@ -4057,7 +4057,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
       |> Option.andThen ~f:(fun id -> E.find id ast)
       |> Option.withDefault ~default:(EBlank (gid ()))
     in
-    let simplifiedTokens =
+    let tokens =
       (* simplify tokens to make them homogenous, easier to parse *)
       tokensInRange startPos endPos ast
       |> List.map ~f:(fun ti ->
@@ -4098,15 +4098,15 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
       Option.withDefault ~default:(EBlank (gid ()))
     in
     let id = gid () in
-    match (topmostExpr, simplifiedTokens) with
-    | _, [] ->
+    match topmostExpr with
+    | _ when tokens = [] ->
         None
     (* basic, single/fixed-token expressions *)
-    | EInteger (eID, _), tokens ->
+    | EInteger (eID, _) ->
         findTokenValue tokens eID "integer"
         |> Option.map ~f:Util.coerceStringTo63BitInt
         |> Option.map ~f:(fun v -> EInteger (gid (), v))
-    | EBool (eID, value), tokens ->
+    | EBool (eID, value) ->
         Option.or_
           (findTokenValue tokens eID "true")
           (findTokenValue tokens eID "false")
@@ -4116,13 +4116,13 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                else if newValue <> string_of_bool value
                then Some (EPartial (gid (), newValue, EBool (id, value)))
                else Some (EBool (id, value)))
-    | ENull eID, tokens ->
+    | ENull eID ->
         findTokenValue tokens eID "null"
         |> Option.map ~f:(fun newValue ->
                if newValue = "null"
                then ENull id
                else EPartial (gid (), newValue, ENull id))
-    | EString (eID, _), tokens ->
+    | EString (eID, _) ->
         let merged =
           tokens
           |> List.filter ~f:(fun (_, _, type_) ->
@@ -4133,7 +4133,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         if merged = ""
         then None
         else Some (EString (eID, Util.trimQuotes merged))
-    | EFloat (eID, _, _), tokens ->
+    | EFloat (eID, _, _) ->
         let newWhole = findTokenValue tokens eID "float-whole" in
         let pointSelected = findTokenValue tokens eID "float-point" <> None in
         let newFraction = findTokenValue tokens eID "float-fraction" in
@@ -4150,10 +4150,10 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some (EFloat (id, "0", "0"))
         | _, _, _ ->
             None )
-    | EBlank _, _ ->
+    | EBlank _ ->
         Some (EBlank id)
     (* empty let expr and subsets *)
-    | ELet (eID, _lhs, rhs, body), tokens ->
+    | ELet (eID, _lhs, rhs, body) ->
         let letKeywordSelected =
           findTokenValue tokens eID "let-keyword" <> None
         in
@@ -4173,7 +4173,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some (ELet (id, newLhs, EBlank (gid ()), EBlank (gid ())))
         | _, _ ->
             None )
-    | EIf (eID, cond, thenBody, elseBody), tokens ->
+    | EIf (eID, cond, thenBody, elseBody) ->
         let ifKeywordSelected =
           findTokenValue tokens eID "if-keyword" <> None
         in
@@ -4201,7 +4201,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some e
         | _ ->
             None )
-    | EBinOp (eID, name, expr1, expr2, ster), tokens ->
+    | EBinOp (eID, name, expr1, expr2, ster) ->
         let newName =
           findTokenValue tokens eID "binop" |> Option.withDefault ~default:""
         in
@@ -4249,7 +4249,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             else Some e
         | _, _ ->
             None )
-    | ELambda (eID, _, body), tokens ->
+    | ELambda (eID, _, body) ->
         (* might be an edge case here where one of the vars is not (fully) selected but
          * is still bound in the body, would be worth turning the EVars in the body to partials somehow *)
         let newVars =
@@ -4263,7 +4263,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                      None)
         in
         Some (ELambda (id, newVars, reconstructExpr body |> orDefaultExpr))
-    | EFieldAccess (eID, e, _), tokens ->
+    | EFieldAccess (eID, e, _) ->
         let newFieldName =
           findTokenValue tokens eID "field-name"
           |> Option.withDefault ~default:""
@@ -4280,7 +4280,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some (EFieldAccess (id, e, newFieldName))
         | _ ->
             e )
-    | EVariable (eID, value), tokens ->
+    | EVariable (eID, value) ->
         let newValue =
           findTokenValue tokens eID "variable" |> Option.withDefault ~default:""
         in
@@ -4290,7 +4290,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         else if value <> newValue
         then Some (EPartial (gid (), newValue, e))
         else Some e
-    | EFnCall (eID, fnName, args, ster), tokens ->
+    | EFnCall (eID, fnName, args, ster) ->
         let newArgs =
           match args with
           | EPipeTarget _ :: args ->
@@ -4317,23 +4317,23 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         else if fnName <> newFnName
         then Some (EPartial (gid (), newFnName, e))
         else Some e
-    | EPartial (eID, _, expr), tokens ->
+    | EPartial (eID, _, expr) ->
         let expr = reconstructExpr expr |> orDefaultExpr in
         let newName =
           findTokenValue tokens eID "partial" |> Option.withDefault ~default:""
         in
         Some (EPartial (id, newName, expr))
-    | ERightPartial (eID, _, expr), tokens ->
+    | ERightPartial (eID, _, expr) ->
         let expr = reconstructExpr expr |> orDefaultExpr in
         let newName =
           findTokenValue tokens eID "partial-right"
           |> Option.withDefault ~default:""
         in
         Some (ERightPartial (id, newName, expr))
-    | EList (_, exprs), _ ->
+    | EList (_, exprs) ->
         let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
         Some (EList (id, newExprs))
-    | ERecord (id, entries), _ ->
+    | ERecord (id, entries) ->
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
@@ -4355,7 +4355,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                      None)
         in
         Some (ERecord (id, newEntries))
-    | EPipe (_, exprs), _ ->
+    | EPipe (_, exprs) ->
         let newExprs =
           List.map exprs ~f:reconstructExpr
           |> Option.values
@@ -4368,7 +4368,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
               exprs
         in
         Some (EPipe (id, newExprs))
-    | EConstructor (eID, name, exprs), tokens ->
+    | EConstructor (eID, name, exprs) ->
         let newName =
           findTokenValue tokens eID "constructor-name"
           |> Option.withDefault ~default:""
@@ -4380,7 +4380,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         else if name <> newName
         then Some (EPartial (gid (), newName, e))
         else Some e
-    | EMatch (mID, cond, patternsAndExprs), tokens ->
+    | EMatch (mID, cond, patternsAndExprs) ->
         let newPatternAndExprs =
           List.map patternsAndExprs ~f:(fun (pattern, expr) ->
               let toksToPattern tokens pID =
@@ -4432,7 +4432,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         in
         Some
           (EMatch (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
-    | EFeatureFlag (_, name, cond, thenBody, elseBody), _ ->
+    | EFeatureFlag (_, name, cond, thenBody, elseBody) ->
         (* since we don't have any tokens associated with feature flags yet *)
         Some
           (EFeatureFlag
@@ -4442,7 +4442,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
              , reconstructExpr cond |> orDefaultExpr
              , reconstructExpr thenBody |> orDefaultExpr
              , reconstructExpr elseBody |> orDefaultExpr ))
-    | EPipeTarget _, _ ->
+    | EPipeTarget _ ->
         Some (EPipeTarget (gid ()))
   in
   let topmostID = getTopmostSelectionID startPos endPos ast in
