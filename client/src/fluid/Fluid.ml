@@ -3000,39 +3000,36 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
            | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
              when E.isEmpty expr ->
                (* COMPRESS(JULIAN): this could possibly collapse with a bunch of other cases, including
-           Delete leading keywords of empty expressions, if we want to expand the definition of
-           E.isEmpty *)
+                  Delete leading keywords of empty expressions, if we want to expand the definition of
+                  E.isEmpty *)
                let bID = gid () in
                Some (EBlank bID, {astRef = ARBlank bID; offset = 0})
            | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
-               let maybeFieldName =
-                 List.getAt ~index nameValPairs
-                 |> Option.map ~f:(fun (name, _) -> name)
-               in
-               ( match maybeFieldName with
-               | Some "" ->
-                   (* TODO(JULIAN): Consider only deleting
-                  if the field value is blank. *)
-                   let maybeExprID = recordExprIdAtIndex id (index - 1) ast in
-                   let target =
-                     match maybeExprID with
-                     | None ->
-                         { astRef = ARRecord (id, RPOpen)
-                         ; offset = 1 (* right after the { *) }
-                     | Some exprId ->
-                         caretTargetForLastPartOfExpr exprId ast
-                   in
-                   Some (ERecord (id, List.removeAt ~index nameValPairs), target)
-               | Some name ->
-                   let nameValPairs =
-                     List.updateAt nameValPairs ~index ~f:(fun (_, expr) ->
-                         (mutation name, expr))
-                   in
-                   Some (ERecord (id, nameValPairs), desiredCaretTarget)
-               | None ->
-                   recover
-                     "doExplicitBackspace ARRecord (_, RPFieldname index)"
-                     None )
+               List.getAt ~index nameValPairs
+               |> Option.map ~f:(function
+                      | "", _ ->
+                          (* TODO(JULIAN): Consider only deleting if the field value is blank. *)
+                          let maybeExprID =
+                            recordExprIdAtIndex id (index - 1) ast
+                          in
+                          let target =
+                            match maybeExprID with
+                            | None ->
+                                { astRef = ARRecord (id, RPOpen)
+                                ; offset = 1 (* right after the { *) }
+                            | Some exprId ->
+                                caretTargetForLastPartOfExpr exprId ast
+                          in
+                          ( ERecord (id, List.removeAt ~index nameValPairs)
+                          , target )
+                      | name, _ ->
+                          let nameValPairs =
+                            List.updateAt
+                              nameValPairs
+                              ~index
+                              ~f:(fun (_, expr) -> (mutation name, expr))
+                          in
+                          (ERecord (id, nameValPairs), desiredCaretTarget))
            (*
            Delete leading keywords of empty expressions
            *)
