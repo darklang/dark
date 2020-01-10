@@ -163,10 +163,18 @@ let dequeue_and_process execution_id :
              * so put it back as an error *)
                               let bt = Exception.get_backtrace () in
                               ignore
-                                (Event_queue.put_back
-                                   transaction
-                                   event
-                                   ~status:`Err) ;
+                                ( try
+                                    Event_queue.put_back
+                                      transaction
+                                      event
+                                      ~status:`Err
+                                  with e ->
+                                    Log.erroR
+                                      "Unhanled
+exception in Event_queue.put_back"
+                                      ~data:
+                                        (Libexecution.Exception.exn_to_string e)
+                                ) ;
                               Error (bt, e)))))
 
 
