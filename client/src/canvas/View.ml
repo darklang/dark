@@ -198,7 +198,12 @@ let tlCacheKey (m : model) tl =
     in
     let tracesLoaded =
       Analysis.getTraces m tlid
-      |> List.map ~f:(fun (_, traceData) -> Result.isOk traceData)
+      |> List.map ~f:(fun (_, traceData) ->
+             match traceData with
+             | Ok _ | Error MaximumCallStackError ->
+                 true
+             | _ ->
+                 false)
     in
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
     let props = TLIDDict.get ~tlid m.handlerProps in

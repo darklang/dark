@@ -639,9 +639,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newTraces =
           Analysis.mergeTraces
             ~onConflict:(fun (oldID, oldData) (newID, newData) ->
-              (* Update if we have a new valid data, or a new error, but not
-               * if we had valid data and now do not *)
-              if Result.isOk newData || not (Result.isOk oldData)
+              (* Update if:
+               * - new data is ok (successful fetch)
+               * - old data is an error, so is new data, but different errors
+               * *)
+              if Result.isOk newData
+                 || ((not (Result.isOk oldData)) && oldData <> newData)
               then (newID, newData)
               else (oldID, oldData))
             m.traces
@@ -1538,7 +1541,8 @@ let update_ (msg : msg) (m : model) : modification =
            Tea.Http.Aborted)
   | ReceiveFetch (TraceFetchFailure (params, url, error))
     when error
-         = "Selected trace to large for the editor to load, maybe try another?"
+         (* TODO ismith string types kinda suck here *)
+         = "Selected trace too large for the editor to load, maybe try another?"
     ->
       let traces =
         StrDict.fromList
