@@ -676,8 +676,6 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARBool id, (TTrue id' | TFalse id')
     | ARConstructor (id, CPName), TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
-    | ARFloat (id, FPWhole), TFloatWhole (id', _)
-    | ARFloat (id, FPDecimal), TFloatFraction (id', _)
     | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
     | ARIf (id, IPThenKeyword), TIfThenKeyword id'
@@ -719,6 +717,23 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARLambda (id, LPVarName idx), TLambdaVar (id', _, idx', _)
     | ARLambda (id, LPSeparator idx), TLambdaSep (id', idx')
       when id = id' && idx = idx' ->
+        posForTi ti
+    (*
+      Floats
+     *)
+    | ARFloat (id, FPWhole), TFloatWhole (id', _) when id = id' ->
+        posForTi ti
+    | ARFloat (id, FPWhole), TFloatPoint id' when id = id' ->
+        (* This accounts for situations like `|.45`, where the float doesn't have a whole part but
+           we're still targeting it (perhaps due to deletion).
+           Because the 'findMap' below scans from left to right and we try to match the whole first,
+           we can still find positions like `1|2.54` *)
+        Some ti.startPos
+    | ARFloat (id, FPDecimal), TFloatPoint id' when id = id' && ct.offset = 0 ->
+        (* This accounts for situations like `12.|`, where the float doesn't have a decimal part but
+           we're still targeting it (perhaps due to deletion). *)
+        Some ti.endPos
+    | ARFloat (id, FPDecimal), TFloatFraction (id', _) when id = id' ->
         posForTi ti
     (*
     * Single-line Strings
@@ -894,8 +909,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARString (id, SPOpenQuote); offset}
   | TStringMLMiddle (id, _, startOffset, _)
   | TStringMLEnd (id, _, startOffset, _) ->
-      { astRef = ARString (id, SPText)
-      ; offset = startOffset + pos - ti.startPos }
+      {astRef = ARString (id, SPText); offset = startOffset + pos - ti.startPos}
   | TInteger (id, _) ->
       {astRef = ARInteger id; offset}
   | TBlank id | TPlaceholder (_, id) ->
