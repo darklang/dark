@@ -2953,25 +2953,35 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                then Some (newExpr, {astRef = currAstRef; offset = 0})
                else Some (newExpr, desiredCaretTarget)
            | ARMatch (id, MPBranchSep idx), expr ->
-              Some (expr, (caretTargetForEndOfMatchPattern id idx ast))
-           | ARLambda (_, LPSeparator idx), ELambda (id, oldVars, expr) ->
-              (* TODO(JULIAN): Consider only deleting if the expr in
+               Some (expr, caretTargetForEndOfMatchPattern id idx ast)
+           | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr)
+             ->
+               (* TODO(JULIAN): Consider only deleting if the expr in
               front of the sep is a blank. *)
-              let remIdx =
-                (* remove expression in front of sep, not behind it *)
-                idx + 1 in
-              let varNameToDel =
-                List.getAt ~index:remIdx oldVars
-                |> Option.map ~f:Tuple2.second
-                |> Option.withDefault ~default:""
-              in
-              let target =
-                List.getAt ~index:idx oldVars
-                (* The target is the end of the var that preceeds the separator *)
-                |> Option.map ~f:(fun (_,varName) -> {astRef=ARLambda (id, LPVarName idx); offset=(String.length varName)})
-                |> Option.withDefault ~default:{astRef=ARLambda (id, LPKeyword); offset=1}
-              in
-              Some (ELambda (id, List.removeAt ~index:remIdx oldVars, E.removeVariableUse varNameToDel expr), target)              
+               let remIdx =
+                 (* remove expression in front of sep, not behind it *)
+                 varAndSepIdx + 1
+               in
+               let varNameToRem =
+                 List.getAt ~index:remIdx oldVars
+                 |> Option.map ~f:Tuple2.second
+                 |> Option.withDefault ~default:""
+               in
+               let target =
+                 List.getAt ~index:varAndSepIdx oldVars
+                 (* The target is the end of the var that preceeds the separator *)
+                 |> Option.map ~f:(fun (_, varName) ->
+                        { astRef = ARLambda (id, LPVarName varAndSepIdx)
+                        ; offset = String.length varName })
+                 |> Option.withDefault
+                      ~default:{astRef = ARLambda (id, LPKeyword); offset = 1}
+               in
+               Some
+                 ( ELambda
+                     ( id
+                     , List.removeAt ~index:remIdx oldVars
+                     , E.removeVariableUse varNameToRem expr )
+                 , target )
            (*
            Delete leading keywords of empty expressions
            *)
