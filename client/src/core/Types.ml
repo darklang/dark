@@ -564,7 +564,7 @@ and isLeftButton = bool
 (* CursorState *)
 (* ----------------------------- *)
 and entryCursor =
-  | Creating of pos option
+  | Creating of pos option (* Is Some pos, when user opens omnibox by clicking on a specific location, and none when they launch it via keyboard and the omnibox is centered *)
   | Filling of tlid * id
 
 and hasMoved = bool
