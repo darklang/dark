@@ -222,6 +222,7 @@ let rec lambda_to_sql
         | None ->
             error2 "The datastore does not have a field named" fieldname
       in
+      typecheck fieldname tipe expected_tipe ;
       "(CAST(data::jsonb->>'"
       ^ Db.escape_string fieldname
       ^ "' as "
