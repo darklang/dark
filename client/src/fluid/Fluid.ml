@@ -2894,6 +2894,89 @@ let tryReplaceStringAndMove2
              None)
 
 
+let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
+    E.t * newPosition =
+  let {astRef = currAstRef; offset = currOffset} = currCaretTarget in
+  let desiredCaretTarget = {astRef = currAstRef; offset = currOffset - 1} in
+  let mutation : string -> string =
+   fun str -> Util.removeCharAt str (currOffset - 1)
+  in
+  idOfASTRef currAstRef
+  |> Option.andThen ~f:(fun exprID ->
+         match E.find exprID ast with
+         | Some expr ->
+             Some (exprID, expr)
+         | None ->
+             None)
+  |> Option.andThen ~f:(fun (exprID, expr) ->
+         let maybeTransformedExprAndCaretTarget =
+           match (currAstRef, expr) with
+           | ARInteger _, EInteger (id, intStr) ->
+               let str = mutation intStr in
+               if str = ""
+               then Some (EBlank id, {astRef = ARBlank id; offset = 0})
+               else
+                 let coerced = Util.coerceStringTo63BitInt str in
+                 if coerced = intStr
+                 then None
+                 else Some (EInteger (id, coerced), desiredCaretTarget)
+           | ARString (_, SPOpenQuote), EString (id, str)
+           (* The minus 2 here (one more than the default `mutation`) accounts for the open quote,
+            which isn't part of the `str` but is part of the SPOpenQuote *)
+             ->
+               Some
+                 ( EString (id, Util.removeCharAt str (currOffset - 2))
+                 , desiredCaretTarget )
+           | ARString (_, SPText), EString (id, str) ->
+               Some (EString (id, mutation str), desiredCaretTarget)
+           | ARString (_, SPCloseQuote), EString (id, str)
+           (* XXX(JULIAN): This may be the incorrect mutation, but this path doesn't currently happen in practice *)
+             ->
+               Some (EString (id, mutation str), desiredCaretTarget)
+           | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
+               Some (EFloat (id, mutation whole, frac), desiredCaretTarget)
+           | ARFloat (_, FPDecimal), EFloat (id, whole, frac) ->
+               Some (EFloat (id, whole, mutation frac), desiredCaretTarget)
+           | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
+               let newName = mutation oldName in
+               let newExpr =
+                 ELet
+                   ( id
+                   , newName
+                   , value
+                   , E.renameVariableUses ~oldName ~newName body )
+               in
+               if newName = ""
+               then Some (newExpr, {astRef = currAstRef; offset = 0})
+               else Some (newExpr, desiredCaretTarget)
+           | ARLet (_, LPKeyword), ELet (_, "", EBlank _, body) ->
+               (* TODO(JULIAN): change this to work more directly by
+                 exposing a version of caretTargetForBeginningOfExpr
+                 that accept a fluidExpr *)
+               Some (body, caretTargetForBeginningOfExpr (E.id body) ast)
+           (* Immutable; just jump to the start *)
+           | ARLet (_, LPAssignment), expr ->
+               Some (expr, {astRef = currAstRef; offset = 0})
+           (* Exhaustiveness *)
+           | ARInteger _, _
+           | ( ( ARString (_, SPOpenQuote)
+               | ARString (_, SPText)
+               | ARString (_, SPCloseQuote) )
+             , _ )
+           | (ARFloat (_, FPWhole) | ARFloat (_, FPDecimal)), _
+           | _ ->
+               None
+         in
+         match maybeTransformedExprAndCaretTarget with
+         | Some (transformedExpr, desiredCaretTarget) ->
+             Some
+               ( E.replace exprID ~replacement:transformedExpr ast
+               , AtTarget desiredCaretTarget )
+         | _ ->
+             None)
+  |> Option.withDefault ~default:(ast, SamePlace)
+
+
 (* tryReplaceStringAndMoveOrSame has the same behavior as tryReplaceStringAndMove but
    produces `newPosition` instead of `caretTarget option`.
 
@@ -2954,7 +3037,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (ast, MoveToStart)
     | TMatchSep {matchID = id; index = idx; _} ->
         (ast, AtTarget (caretTargetForEndOfMatchPattern id idx ast))
-    | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
+    | TIfKeyword _ (* | TLetKeyword _ *) | TLambdaSymbol _ | TMatchKeyword _ ->
         let newAST = removeEmptyExpr (T.tid ti.token) ast in
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
     | TLambdaSep (id, idx) ->
@@ -3023,18 +3106,18 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TString (id, "") ->
         ( E.replace id ~replacement:(EBlank newID) ast
         , AtTarget {astRef = ARBlank newID; offset = 0} )
-    | TString (id, _)
+    (*     | TString (id, _)
     | TStringMLStart (id, _, _, _)
     | TStringMLMiddle (id, _, _, _)
     | TStringMLEnd (id, _, _, _)
       when offset = -1 (* on right side of open quote *) ->
-        (ast, AtTarget {astRef = ARString (id, SPOpenQuote); offset = 0})
-    | TString (id, fullStr)
+        (ast, AtTarget {astRef = ARString (id, SPOpenQuote); offset = 0}) *)
+    (*     | TString (id, fullStr)
     | TStringMLStart (id, _, _, fullStr)
     | TStringMLMiddle (id, _, _, fullStr)
     | TStringMLEnd (id, _, _, fullStr)
       when offset = String.length fullStr (* on right side of open quote *) ->
-        (ast, AtTarget {astRef = ARString (id, SPText); offset})
+        (ast, AtTarget {astRef = ARString (id, SPText); offset}) *)
     | TPatternString _
     | TRecordFieldname _
     | TTrue _
@@ -3084,18 +3167,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         in
         (removePipe id ast i, newPosition)
     | _ ->
-        let o = offset in
-        let {astRef; offset} = caretTargetFromTokenInfo pos ti in
-        if offset > 0
-        then
-          tryReplaceStringAndMoveOrSame2
-            ~mutation:(fun str -> Util.removeCharAt str o)
-            astRef
-            ast
-            {astRef; offset = offset - 1}
-        else if offset = 0
-        then (ast, LeftOne)
-        else (ast, SamePlace)
+        doExplicitBackspace (caretTargetFromTokenInfo pos ti) ast
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
