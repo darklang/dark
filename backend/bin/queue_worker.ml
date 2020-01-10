@@ -54,9 +54,11 @@ let queue_worker execution_id =
 let () =
   Random.self_init () ;
   let execution_id = Libexecution.Util.create_id () in
-  (* If either thread sets the shutdown ref, the other will see it and
-   * terminate; block until both have terminated. *)
-  let health_check_thread = Thread.create (health_check shutdown) () in
-  let queue_worker_thread = Thread.create queue_worker execution_id in
-  Thread.join health_check_thread ;
-  Thread.join queue_worker_thread
+  (* Three cases where we want to exit:
+   * - healthcheck worker is instructed to die (/pkill), it sets the shutdown
+   *   ref, queue_worker loop terminates
+   * - heathcheck worker dies/is killed (unhandled exn), kubernetes will kill
+   *   the pod when it fails healthcheck
+   * - queue_worker thread dies; it's the main loop, the process exits *)
+  let _ = Thread.create (health_check shutdown) () in
+  queue_worker execution_id

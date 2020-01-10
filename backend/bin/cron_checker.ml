@@ -37,7 +37,12 @@ let () =
   Libbackend.Init.init ~run_side_effects:false ;
   (* If either thread sets the shutdown ref, the other will see it and
    * terminate; block until both have terminated. *)
-  let health_check_thread = Thread.create (health_check shutdown) () in
-  let cron_checker_thread = Thread.create cron_checker execution_id in
-  Thread.join health_check_thread ;
-  Thread.join cron_checker_thread
+  let _ = Thread.create (health_check shutdown) () in
+  (* Three cases where we want to exit:
+   * - healthcheck worker is instructed to die (/pkill), it sets the shutdown
+   *   ref, cron_checker loop terminates
+   * - heathcheck worker dies/is killed (unhandled exn), kubernetes will kill
+   *   the pod when it fails healthcheck
+   * - cron_checker thread dies; it's the main loop, the process exits *)
+  let _ = Thread.create (health_check shutdown) () in
+  cron_checker execution_id
