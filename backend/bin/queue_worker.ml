@@ -15,9 +15,9 @@ let queue_worker execution_id =
         then
           let%lwt () = Lwt_unix.sleep 1.0 in
           (queue_worker [@tailcall]) ()
-        else Lwt.return ()
+        else exit 0
     | Ok (Some _) ->
-        if not !shutdown then (queue_worker [@tailcall]) () else Lwt.return ()
+        if not !shutdown then (queue_worker [@tailcall]) () else exit 0
     | Error (bt, e) ->
         Log.erroR
           "queue_worker"

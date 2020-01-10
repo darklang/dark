@@ -11,7 +11,7 @@ let cron_checker execution_id =
     let result = Libbackend.Cron.check_all_canvases execution_id in
     match result with
     | Ok _ ->
-        if not !shutdown then (cron_checker [@tailcall]) () else Lwt.return ()
+        if not !shutdown then (cron_checker [@tailcall]) () else (exit 0)
     | Error (bt, e) ->
         Libcommon.Log.erroR
           "cron_checker"
