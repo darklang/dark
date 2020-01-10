@@ -82,6 +82,13 @@
         color: $red;
       }
 
+      &.unfetchable {
+        width: 6px;
+        height: 6px;
+        border: dotted 2px $live-value-foreground;
+        border-radius: 50%;
+      }
+
       &.mouseovered .empty-dot {
         width: 6px;
         height: 6px;
