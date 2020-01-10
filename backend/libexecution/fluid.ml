@@ -60,6 +60,9 @@ type fluidExpr =
   (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * fluidExpr * fluidExpr * fluidExpr
 
+(* ----------------------- *)
+(* Convenience constructors *)
+(* ----------------------- *)
 let gid () = Util.create_id ()
 
 let newB () = Types.Blank (gid ())
@@ -154,6 +157,9 @@ let pNull : fluidPattern = FPNull (gid (), gid ())
 
 let pBlank : fluidPattern = FPBlank (gid (), gid ())
 
+(* ----------------------- *)
+(* From Fluid to Exprs *)
+(* ----------------------- *)
 let literalToString
     (v : [> `Bool of bool | `Int of string | `Null | `Float of string * string])
     : string =
@@ -306,3 +312,183 @@ and fromFluidExpr (expr : fluidExpr) : Types.RuntimeT.expr =
               , fromFluidExpr ~inPipe caseB ) )
   in
   fromFluidExpr expr
+
+
+(* ----------------------- *)
+(* From Exprs to Fluid *)
+(* ----------------------- *)
+let parseString str :
+    [> `Bool of bool
+    | `Int of string
+    | `Null
+    | `Float of string * string
+    | `Unknown ] =
+  let open Prelude in
+  let asBool =
+    if str = "true"
+    then Some (`Bool true)
+    else if str = "false"
+    then Some (`Bool false)
+    else if str = "null"
+    then Some `Null
+    else None
+  in
+  let asInt =
+    try
+      ignore (Dint.of_string_exn str) ;
+      Some (`Int str)
+    with _ -> None
+  in
+  let asFloat =
+    try
+      (* for the exception *)
+      ignore (float_of_string str) ;
+      match String.split ~on:"." str with
+      | [whole; fraction] ->
+          Some (`Float (whole, fraction))
+      | _ ->
+          None
+    with _ -> None
+  in
+  let asString =
+    if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
+    then
+      Some
+        (`String (str |> String.dropLeft ~count:1 |> String.dropRight ~count:1))
+    else None
+  in
+  asInt
+  |> Option.or_ asString
+  |> Option.or_ asBool
+  |> Option.or_ asFloat
+  |> Option.withDefault ~default:`Unknown
+
+
+let rec toFluidPattern (mid : id) (p : Types.RuntimeT.pattern) : fluidPattern =
+  let open Types in
+  let open RuntimeT in
+  match p with
+  | Blank id | Partial (id, _) ->
+      FPBlank (mid, id)
+  | Filled (id, np) ->
+    ( match np with
+    | PVariable name ->
+        FPVariable (mid, id, name)
+    | PConstructor (name, patterns) ->
+        FPConstructor (mid, id, name, List.map ~f:(toFluidPattern mid) patterns)
+    | PLiteral str ->
+      ( match parseString str with
+      | `Bool b ->
+          FPBool (mid, id, b)
+      | `Int i ->
+          FPInteger (mid, id, i)
+      | `String s ->
+          FPString (mid, id, s)
+      | `Null ->
+          FPNull (mid, id)
+      | `Float (whole, fraction) ->
+          FPFloat (mid, id, whole, fraction)
+      | `Unknown ->
+          FPBlank (mid, id) ) )
+
+
+let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) : fluidExpr =
+  let open Types in
+  let open RuntimeT in
+  let open Prelude in
+  let f = toFluidExpr ~inPipe:false in
+  let varToName var =
+    match var with Partial _ | Blank _ -> "" | Filled (_, name) -> name
+  in
+  match expr with
+  | Blank id | Partial (id, _) ->
+      EBlank id
+  | Filled (id, nExpr) ->
+    ( match nExpr with
+    | Let (name, rhs, body) ->
+        ELet (id, varToName name, f rhs, f body)
+    | Variable varname ->
+        EVariable (id, varname)
+    | If (cond, thenExpr, elseExpr) ->
+        EIf (id, f cond, f thenExpr, f elseExpr)
+    | ListLiteral exprs ->
+        EList (id, List.map ~f exprs)
+    | ObjectLiteral pairs ->
+        ERecord (id, List.map pairs ~f:(fun (k, v) -> (varToName k, f v)))
+    | FieldAccess (expr, field) ->
+        EFieldAccess (id, f expr, varToName field)
+    | FnCall (name, args) ->
+        let args = List.map ~f args in
+        (* add a pipetarget in the front *)
+        let args = if inPipe then EPipeTarget (gid ()) :: args else args in
+        let fnCall = EFnCall (id, name, args, NoRail) in
+        let fn = Libs.get_fn ~user_fns:[] name in
+        ( match fn with
+        | Some fn when List.member ~value:name fn.infix_names ->
+          ( match args with
+          | [a; b] ->
+              EBinOp (id, name, a, b, NoRail)
+          | _ ->
+              fnCall )
+        | _ ->
+            fnCall )
+    | FnCallSendToRail (name, args) ->
+        let args = List.map ~f args in
+        (* add a pipetarget in the front *)
+        let args = if inPipe then EPipeTarget (gid ()) :: args else args in
+        let fnCall = EFnCall (id, name, args, Rail) in
+        let fn = Libs.get_fn ~user_fns:[] name in
+        ( match fn with
+        | Some fn when List.member ~value:name fn.infix_names ->
+          ( match args with
+          | [a; b] ->
+              EBinOp (id, name, a, b, Rail)
+          | _ ->
+              fnCall )
+        | _ ->
+            fnCall )
+    | Thread exprs ->
+      ( match exprs with
+      | head :: tail ->
+          EPipe (id, f head :: List.map ~f:(toFluidExpr ~inPipe:true) tail)
+      | _ ->
+          EBlank (gid ()) )
+    | Lambda (varnames, exprs) ->
+        ELambda
+          ( id
+          , List.map varnames ~f:(fun var ->
+                (Ast.blank_to_id var, varToName var))
+          , f exprs )
+    | Value str ->
+      ( match parseString str with
+      | `Bool b ->
+          EBool (id, b)
+      | `Int i ->
+          EInteger (id, i)
+      | `String s ->
+          EString (id, s)
+      | `Null ->
+          ENull id
+      | `Float (whole, fraction) ->
+          EFloat (id, whole, fraction)
+      | `Unknown ->
+          EBlank id )
+    | Constructor (name, exprs) ->
+        EConstructor (id, varToName name, List.map ~f exprs)
+    | Match (mexpr, pairs) ->
+        let mid = id in
+        let pairs =
+          List.map pairs ~f:(fun (p, e) -> (toFluidPattern mid p, f e))
+        in
+        EMatch (id, f mexpr, pairs)
+    | FeatureFlag (msg, cond, casea, caseb) ->
+        EFeatureFlag
+          ( id
+          , varToName msg
+          , f cond
+          , toFluidExpr ~inPipe casea
+          , toFluidExpr ~inPipe caseb )
+    | FluidPartial (str, oldExpr) ->
+        EPartial (id, str, toFluidExpr ~inPipe oldExpr)
+    | FluidRightPartial (str, oldExpr) ->
+        ERightPartial (id, str, toFluidExpr ~inPipe oldExpr) )
