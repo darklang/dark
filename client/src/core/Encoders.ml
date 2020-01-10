@@ -631,7 +631,7 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
   | Selecting (tlid_, mId) ->
       ev "Selecting" [tlid tlid_; nullable id mId]
   | Entering (Creating maybePos) ->
-      (* Temp hack to not break editorState in local storage. When we refactor omnibox we probably want to make a new sumtype instead of hijacking Creating _ *)
+      (* We are temporary encoding None (position at center) with at (0,0) *)
       let pos_ = Option.withDefault ~default:Defaults.origin maybePos in
       ev "Entering" [ev "Creating" [pos pos_]]
   | Entering (Filling (tlid_, id_)) ->
