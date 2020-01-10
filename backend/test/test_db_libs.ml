@@ -577,9 +577,9 @@ let t_sql_compiler_works () =
   let fieldAccess = f (FieldAccess (f (Variable "value"), f "myfield")) in
   check
     "correct SQL for field access"
-    ~dbFields:[("myfield", TStr)]
+    ~dbFields:[("myfield", TBool)]
     fieldAccess
-    "(CAST(data::jsonb->>'myfield' as text))" ;
+    "(CAST(data::jsonb->>'myfield' as bool))" ;
   checkError
     "no field gives error"
     fieldAccess
