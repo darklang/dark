@@ -1603,15 +1603,20 @@ let run () =
         (bs 3)
         "5~" ;
       t
+        "deleting binop between bools does not combine them"
+        (partial "|" (binop "||" trueBool falseBool))
+        (bs 6)
+        "true~" ;
+      t
         "pressing bs to clear rightpartial reverts for blank rhs"
         (rightPartial "|" b)
         (bs 5)
         "~___" ;
       t
-        "pressing bs on single digit binop leaves lhs"
+        "pressing bs on single digit binop combines the lhs and rhs"
         (binop "+" anInt anInt)
         (bs 7)
-        "12345~" ;
+        "12345~12345" ;
       t
         "using del to remove an infix with a placeholder goes to right place"
         (partial "|" (binop "||" b b))
@@ -1623,10 +1628,10 @@ let run () =
         (del 4)
         "~___" ;
       t
-        "pressing del on single digit binop leaves lhs"
+        "pressing del on single digit binop combines the lhs and rhs"
         (binop "+" anInt anInt)
         (del 6)
-        "12345~" ;
+        "12345~12345" ;
       t
         "pressing del to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
@@ -1723,10 +1728,10 @@ let run () =
         (ctrlRight 6)
         "12345 <~ 12345" ;
       t
-        "DeletePrevWord in end of binop deletes binop and first int"
+        "DeletePrevWord in end of binop deletes binop and combines the lhs and rhs"
         (binop "<" anInt anInt)
         (key K.DeletePrevWord 7)
-        "12345~" ;
+        "12345~12345" ;
       t
         "DeletePrevWord in front of binop deletes first int"
         (binop "<" anInt anInt)
@@ -1738,10 +1743,10 @@ let run () =
         (key K.DeleteNextWord 8)
         "12345 < ~_________" ;
       t
-        "DeleteNextWord in front of binop deletes binop and second int"
+        "DeleteNextWord in front of binop deletes binop and combines the lhs and rhs"
         (binop "<" anInt anInt)
         (key K.DeleteNextWord 6)
-        "12345~" ;
+        "12345~12345" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
