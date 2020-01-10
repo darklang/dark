@@ -631,7 +631,7 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
   | Selecting (tlid_, mId) ->
       ev "Selecting" [tlid tlid_; nullable id mId]
   | Entering (Creating maybePos) ->
-      (* We are temporary encoding None (position at center) with at (0,0) *)
+      (* Hack to avoid changing the decoder: encode none as (0,0) *)
       let pos_ = Option.withDefault ~default:Defaults.origin maybePos in
       ev "Entering" [ev "Creating" [pos pos_]]
   | Entering (Filling (tlid_, id_)) ->
