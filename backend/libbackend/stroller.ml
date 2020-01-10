@@ -251,15 +251,11 @@ let segment_identify_user (username : string) : unit =
            |> Authorization.orgs_for
            (* A user's orgs for this purpose do not include orgs it has
             * read-only access to *)
-           |> List.filter ~f:(function
-                  | _, Read ->
-                      false
-                  | _, ReadWrite ->
-                      true)
+           |> List.filter ~f:(function _, rw -> rw = ReadWrite)
            (* If you have one org, that's your org! If you have no orgs, or
-            * more than one, then we just use your username. *)
-           |> fun orgs ->
-           match orgs with [(org_name, _)] -> org_name | _ -> p.username)
+            * more than one, then we just use your username. This is because
+            * Heap's properties/traits don't support lists. *)
+           |> function [(org_name, _)] -> org_name | _ -> p.username)
   in
   Option.map2 organization payload ~f:(fun organization payload ->
       { username = payload.username
