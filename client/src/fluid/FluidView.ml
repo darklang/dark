@@ -196,8 +196,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   List.map vs.tokens ~f:(fun ti ->
       let dropdown () =
         match state.cp.onExpr with
-        | Some id when id = (T.tid ti.token) && not !isCmdDrawn ->
-            isCmdDrawn := true;
+        | Some id when id = T.tid ti.token && not !isCmdDrawn ->
+            isCmdDrawn := true ;
             FluidCommands.viewCommandPalette state.cp
         | _ ->
             if Fluid.isAutocompleting ti state

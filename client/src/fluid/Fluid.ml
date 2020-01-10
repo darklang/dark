@@ -4677,17 +4677,25 @@ let getCopySelection (m : model) : clipboardContents =
       `None
 
 
+let getSelectedExprID (s : state) (ast : ast) : id option =
+  match fluidGetOptionalSelectionRange s with
+  | Some (startPos, endPos) ->
+      getTopmostSelectionID startPos endPos ast
+  | None ->
+      None
+
+
 let maybeOpenCmd (m : Types.model) : Types.modification =
-  Debug.loG "vox" "maybeOpenCmd";
   TL.selected m
   |> Option.thenAlso ~f:TL.getAST
-  |> Option.andThen ~f:(fun (tl, ast) -> 
-    let state = m.fluidState in
-    fluidGetOptionalSelectionRange state
-    |> Option.andThen ~f:(fun (startPos, endPos) -> getTopmostSelectionID startPos endPos ast)
-    |> Option.map ~f:(fun id -> (TL.id tl, id) )
-  )
-  |> Option.map ~f:(fun (tlid, id) -> FluidCommandsShow (tlid, id) )
+  |> Option.andThen ~f:(fun (tl, ast) ->
+         let state = m.fluidState in
+         match getSelectedExprID state ast with
+         | Some id ->
+             Some (TL.id tl, id)
+         | None ->
+             None)
+  |> Option.map ~f:(fun (tlid, id) -> FluidCommandsShow (tlid, id))
   |> Option.withDefault ~default:NoChange
 
 

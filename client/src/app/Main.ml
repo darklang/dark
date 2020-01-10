@@ -899,8 +899,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | RefreshUsages tlids ->
         (Introspect.refreshUsages m tlids, Cmd.none)
     | FluidCommandsShow (tlid, id) ->
-        Debug.loG "vox" "FluidCommandsShow";
-        ( FluidCommands.show m tlid id , Tea_html_cmds.focus FluidCommands.filterInputID )
+        ( FluidCommands.show m tlid id
+        , Tea_html_cmds.focus FluidCommands.filterInputID )
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
         ({m with fluidState = {m.fluidState with cp}}, Cmd.none)

@@ -14,13 +14,16 @@ let fluidCommands =
 
 
 let reset : fluidCommandState =
-  {index = 0; commands = fluidCommands; onTL = None ; onExpr = None; filter = None}
+  { index = 0
+  ; commands = fluidCommands
+  ; onTL = None
+  ; onExpr = None
+  ; filter = None }
 
 
 let commandsFor (expr : fluidExpr) : command list =
   (* NB: do not structurally compare entire Command.command records here, as
    * they contain functions, which BS cannot compare.*)
-  Debug.loG "vox" "commandsFor";
   let noPutOn c = c.commandName <> Commands.putFunctionOnRail.commandName in
   let noTakeOff c = c.commandName <> Commands.takeFunctionOffRail.commandName in
   let railFilters =
@@ -43,13 +46,9 @@ let commandsFor (expr : fluidExpr) : command list =
     | _ ->
         fun c -> c.commandName <> "copy-request-as-curl"
   in
-  let cmds = 
-    fluidCommands
-    |> List.filter ~f:railFilters
-    |> List.filter ~f:httpClientRequestFilter
-  in
-  Debug.loG "vox filtered commands" cmds;
-  cmds
+  fluidCommands
+  |> List.filter ~f:railFilters
+  |> List.filter ~f:httpClientRequestFilter
 
 
 let show (m : model) (tlid : tlid) (id : id) : model =
@@ -57,15 +56,14 @@ let show (m : model) (tlid : tlid) (id : id) : model =
   |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(FluidExpression.find id)
   |> Option.map ~f:(fun expr ->
-    let cp =
-      { index = 0
-      ; commands = commandsFor expr
-      ; onTL = Some tlid
-      ; onExpr = Some id
-      ; filter = None }
-    in
-    {m with fluidState = {m.fluidState with cp}}
-  )
+         let cp =
+           { index = 0
+           ; commands = commandsFor expr
+           ; onTL = Some tlid
+           ; onExpr = Some id
+           ; filter = None }
+         in
+         {m with fluidState = {m.fluidState with cp}})
   |> Option.withDefault ~default:m
 
 
@@ -79,11 +77,7 @@ let executeCommand (m : model) (id : id) (cmd : command) : modification =
 
 let runCommand (m : model) (cmd : command) : modification =
   let cp = m.fluidState.cp in
-  match cp.onExpr with
-  | Some id ->
-      executeCommand m id cmd
-  | _ ->
-      NoChange
+  match cp.onExpr with Some id -> executeCommand m id cmd | _ -> NoChange
 
 
 let highlighted (s : fluidCommandState) : command option =
@@ -140,13 +134,13 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 let filter (m : model) (query : string) (cp : fluidCommandState) :
     fluidCommandState =
   let allCmds =
-    match cp.onTL, cp.onExpr with
+    match (cp.onTL, cp.onExpr) with
     | Some tlid, Some id ->
-      TL.get m tlid
-      |> Option.andThen ~f:TL.getAST
-      |> Option.andThen ~f:(FluidExpression.find id)
-      |> Option.map ~f:commandsFor
-      |> Option.withDefault ~default:fluidCommands
+        TL.get m tlid
+        |> Option.andThen ~f:TL.getAST
+        |> Option.andThen ~f:(FluidExpression.find id)
+        |> Option.map ~f:commandsFor
+        |> Option.withDefault ~default:fluidCommands
     | _ ->
         fluidCommands
   in
@@ -161,7 +155,6 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
 
 
 let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
-  Debug.loG "vox viewCommandPalette" cp;
   let viewCommands i item =
     let highlighted = cp.index = i in
     let name = asName item in
@@ -237,7 +230,6 @@ let isOpened (cp : fluidCommandState) : bool = cp.onExpr <> None
 
 let updateCommandPaletteVisibility (m : model) : model =
   let cmdState = m.fluidState.cp in
-  if isOpened cmdState && cmdState.onTL <> (tlidOf m.cursorState)	
-  then
-    {m with fluidState = {m.fluidState with cp = reset}}	
+  if isOpened cmdState && cmdState.onTL <> tlidOf m.cursorState
+  then {m with fluidState = {m.fluidState with cp = reset}}
   else m
