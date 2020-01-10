@@ -688,6 +688,8 @@ let show_tokenInfo (ti : tokenInfo) =
     []
     [ Html.dt [] [Html.text "pos"]
     ; Html.dd [] [Html.text (Printf.sprintf "(%d, %d)" ti.startPos ti.endPos)]
+    ; Html.dt [] [Html.text "len"]
+    ; Html.dd [] [Html.text (Printf.sprintf "%d" ti.length)]
     ; Html.dt [] [Html.text "tok"]
     ; Html.dd [] [Html.text (toText ti.token)]
     ; Html.dt [] [Html.text "id"]
