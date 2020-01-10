@@ -4678,12 +4678,13 @@ let getCopySelection (m : model) : clipboardContents =
 
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
+  Debug.loG "vox" "maybeOpenCmd";
   fluidDataFromModel m
   |> Option.andThen ~f:(fun (state, ast) ->
-    fluidGetOptionalSelectionRange state
-    |> Option.andThen ~f:(reconstructExprFromRange ~ast)
+      fluidGetOptionalSelectionRange state
+      |> Option.andThen ~f:(fun (startPos, endPos) -> getTopmostSelectionID startPos endPos ast)
   ) 
-  |> Option.map ~f:(fun ast -> FluidCommandsShow ast)
+  |> Option.map ~f:(fun id -> FluidCommandsShow id)
   |> Option.withDefault ~default:NoChange
 
 

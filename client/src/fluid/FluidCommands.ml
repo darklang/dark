@@ -20,6 +20,7 @@ let reset : fluidCommandState =
 let commandsFor (expr : fluidExpr) : command list =
   (* NB: do not structurally compare entire Command.command records here, as
    * they contain functions, which BS cannot compare.*)
+  Debug.loG "vox" "commandsFor";
   let noPutOn c = c.commandName <> Commands.putFunctionOnRail.commandName in
   let noTakeOff c = c.commandName <> Commands.takeFunctionOffRail.commandName in
   let railFilters =
@@ -42,16 +43,28 @@ let commandsFor (expr : fluidExpr) : command list =
     | _ ->
         fun c -> c.commandName <> "copy-request-as-curl"
   in
-  fluidCommands
-  |> List.filter ~f:railFilters
-  |> List.filter ~f:httpClientRequestFilter
+  let cmds = 
+    fluidCommands
+    |> List.filter ~f:railFilters
+    |> List.filter ~f:httpClientRequestFilter
+  in
+  Debug.loG "vox filtered commands" cmds;
+  cmds
 
 
-let show (ast : fluidExpr) : fluidCommandState =
-  { index = 0
-  ; commands = commandsFor ast
-  ; location = Some (FluidExpression.id ast)
-  ; filter = None }
+let show (m : model) (id : id) : model =
+  TL.selectedAST m
+  |> Option.andThen ~f:(FluidExpression.find id)
+  |> Option.map ~f:(fun expr ->
+    let cp =
+      { index = 0
+      ; commands = commandsFor expr
+      ; location = Some id
+      ; filter = None }
+    in
+    {m with fluidState = {m.fluidState with cp}}
+  )
+  |> Option.withDefault ~default:m
 
 
 let executeCommand (m : model) (id : id) (cmd : command) : modification =
@@ -146,6 +159,7 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
 
 
 let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
+  Debug.loG "vox viewCommandPalette" cp;
   let viewCommands i item =
     let highlighted = cp.index = i in
     let name = asName item in
@@ -220,8 +234,5 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
 let isOpened (cp : fluidCommandState) : bool = cp.location <> None
 
 let updateCommandPaletteVisibility (m : model) : model =
-  if isOpened m.fluidState.cp
-  then
-    let newCp = reset in
-    {m with fluidState = {m.fluidState with cp = newCp}}
-  else m
+  (* TODO(alice) calculate visibility *)
+  m

@@ -1104,7 +1104,7 @@ and modification =
   | InitIntrospect of toplevel list
   | RefreshUsages of tlid list
   | UpdateDBStats of dbStatsStore
-  | FluidCommandsShow of fluidExpr
+  | FluidCommandsShow of id
   | FluidCommandsClose
   (* We need to track clicks so that we don't mess with the caret while a
    * click is happening. *)
