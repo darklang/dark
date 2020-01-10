@@ -57,12 +57,21 @@ let viewTrace
     constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
   in
   let events =
-    [ ViewUtils.eventNoPropagation ~key:(eventKey "dc") "click" (fun x ->
-          TraceClick (tlid, traceID, x))
-    ; ViewUtils.eventNoPropagation ~key:(eventKey "dme") "mouseenter" (fun x ->
-          TraceMouseEnter (tlid, traceID, x))
-    ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
-          TraceMouseLeave (tlid, traceID, x)) ]
+    if isUnfetchable
+    then
+      [ ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
+            TraceMouseLeave (tlid, traceID, x)) ]
+    else
+      [ ViewUtils.eventNoPropagation ~key:(eventKey "dc") "click" (fun x ->
+            TraceClick (tlid, traceID, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:(eventKey "dme")
+          "mouseenter"
+          (fun x -> TraceMouseEnter (tlid, traceID, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:(eventKey "dml")
+          "mouseleave"
+          (fun x -> TraceMouseLeave (tlid, traceID, x)) ]
   in
   let valueDiv, valueStr =
     match value with
@@ -107,7 +116,13 @@ let viewTrace
   let viewKey = traceID ^ classes ^ valueStr in
   if traceID == "55bb02e5-7d85-4339-88ea-7e9ea3f9cb25"
   then Js.log3 "Trace" traceID isUnfetchable ;
-  Html.li ~key:viewKey (Html.class' classes :: events) (dotHtml @ [viewData])
+  let props = Html.class' classes :: events in
+  let props =
+    if isUnfetchable
+    then Html.title "Trace is too large for the editor to load" :: props
+    else props
+  in
+  Html.li ~key:viewKey props (dotHtml @ [viewData])
 
 
 let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
