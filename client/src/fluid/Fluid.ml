@@ -3004,6 +3004,35 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
            E.isEmpty *)
                let bID = gid () in
                Some (EBlank bID, {astRef = ARBlank bID; offset = 0})
+           | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
+               let maybeFieldName =
+                 List.getAt ~index nameValPairs
+                 |> Option.map ~f:(fun (name, _) -> name)
+               in
+               ( match maybeFieldName with
+               | Some "" ->
+                   (* TODO(JULIAN): Consider only deleting
+                  if the field value is blank. *)
+                   let maybeExprID = recordExprIdAtIndex id (index - 1) ast in
+                   let target =
+                     match maybeExprID with
+                     | None ->
+                         { astRef = ARRecord (id, RPOpen)
+                         ; offset = 1 (* right after the { *) }
+                     | Some exprId ->
+                         caretTargetForLastPartOfExpr exprId ast
+                   in
+                   Some (ERecord (id, List.removeAt ~index nameValPairs), target)
+               | Some name ->
+                   let nameValPairs =
+                     List.updateAt nameValPairs ~index ~f:(fun (_, expr) ->
+                         (mutation name, expr))
+                   in
+                   Some (ERecord (id, nameValPairs), desiredCaretTarget)
+               | None ->
+                   recover
+                     "doExplicitBackspace ARRecord (_, RPFieldname index)"
+                     None )
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3146,7 +3175,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (removeListSepToken id ast idx, LeftOne) *)
     (*     | (TRecordOpen id | TListOpen id) when E.hasEmptyWithId id ast ->
         (E.replace id ~replacement:(EBlank newID) ast, LeftOne) *)
-    | TRecordFieldname {recordID; index; fieldName = ""; _}
+    (*     | TRecordFieldname {recordID; index; fieldName = ""; _}
       when pos = ti.startPos ->
         let newAst = removeRecordField recordID index ast in
         let maybeExprID = recordExprIdAtIndex recordID (index - 1) newAst in
@@ -3158,7 +3187,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
           | Some exprId ->
               caretTargetForLastPartOfExpr exprId newAst
         in
-        (newAst, AtTarget target)
+        (newAst, AtTarget target) *)
     | TPatternBlank (mID, id, _) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
     | TIndent _
@@ -3226,7 +3255,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
       when offset = String.length fullStr (* on right side of open quote *) ->
         (ast, AtTarget {astRef = ARString (id, SPText); offset}) *)
     | TPatternString _
-    | TRecordFieldname _
+    (* | TRecordFieldname _ *)
     | TTrue _
     | TFalse _
     | TPatternTrue _
