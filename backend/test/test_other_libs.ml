@@ -541,7 +541,15 @@ let t_old_functions_deprecated () =
   ()
 
 
-(* Lib.static_fns *)
+let t_url_encode () =
+  let open Fluid in
+  check_dval
+    "percent escaping works"
+    (Dval.dstr_of_string_exn
+       "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den")
+    (exec_ast'
+       (fn "Twitter::urlencode" [str "https://google.com?q=left shark&l=en"]))
+
 
 let suite =
   [ ("Stdlib fns work", `Quick, t_stdlib_works)
@@ -556,4 +564,5 @@ let suite =
   ; ("Functions deprecated correctly", `Quick, t_old_functions_deprecated)
   ; ("Internal functions work", `Quick, t_internal_functions)
   ; ("Crypto::sha digest functions work", `Quick, t_crypto_sha)
-  ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws) ]
+  ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws)
+  ; ("URL percent encoding", `Quick, t_url_encode) ]
