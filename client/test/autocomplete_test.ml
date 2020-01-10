@@ -34,7 +34,7 @@ let fillingCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
   Entering (Filling (tlid, id))
 
 
-let creatingCS : cursorState = Entering (Creating {x = 0; y = 0})
+let creatingCS : cursorState = Entering (Creating None)
 
 (* Sets the model with the appropriate toplevels *)
 let defaultModel
@@ -151,7 +151,7 @@ let enteringEventNameHandler ?(space : string option = None) () : model =
 
 let creatingOmni : model =
   { Defaults.defaultModel with
-    cursorState = Entering (Creating {x = 0; y = 0})
+    cursorState = Entering (Creating None)
   ; builtInFunctions = sampleFunctions }
 
 

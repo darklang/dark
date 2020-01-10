@@ -8,9 +8,7 @@ module RT = Runtime
 module TL = Toplevel
 module Regex = Util.Regex
 
-let openOmnibox (m : model) : modification =
-  Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
-
+let openOmnibox () : modification = Enter (Creating None)
 
 (* --------------------- *)
 (* Focus *)
@@ -160,29 +158,17 @@ let newHandler m space name modifier pos =
     [ TweakModel (fun m -> {m with fluidState = newS})
     ; SetCursorState cursorState ]
   in
-  let pageChanges =
-    match m.currentPage with
-    | FocusedFn _ | FocusedType _ ->
-        [SetPage (FocusedHandler (tlid, true))]
-    | _ ->
-        []
-  in
+  let pageChanges = [SetPage (FocusedHandler (tlid, true))] in
   let rpc =
     AddOps ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
   in
   Many (rpc :: (pageChanges @ fluidMods))
 
 
-let newDB (name : string) (pos : pos) (m : model) : modification =
+let newDB (name : string) (pos : pos) : modification =
   let next = gid () in
   let tlid = gtlid () in
-  let pageChanges =
-    match m.currentPage with
-    | FocusedFn _ | FocusedType _ ->
-        [SetPage (FocusedDB (tlid, true))]
-    | _ ->
-        []
-  in
+  let pageChanges = [SetPage (FocusedDB (tlid, true))] in
   let rpcCalls =
     [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
     ; AddDBCol (tlid, next, Prelude.gid ()) ]
@@ -206,7 +192,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let name =
         match maybeName with Some n -> n | None -> DB.generateDBName ()
       in
-      newDB name pos m
+      newDB name pos
   | NewFunction name ->
       let blankfn = Refactor.generateEmptyFunction () in
       let newfn =
@@ -535,15 +521,18 @@ let submitACItem
 
 let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
   match cursor with
-  | Creating pos ->
-    ( match AC.highlighted m.complete with
-    | Some (ACOmniAction act) ->
-        submitOmniAction m pos act
-    (* If empty, create an empty handler *)
-    | None when m.complete.value = "" ->
-        submitOmniAction m pos (NewReplHandler None)
-    | _ ->
-        NoChange )
+  | Creating p ->
+      let pos =
+        match p with Some pos -> pos | None -> Viewport.findNewPos m
+      in
+      ( match AC.highlighted m.complete with
+      | Some (ACOmniAction act) ->
+          submitOmniAction m pos act
+      (* If empty, create an empty handler *)
+      | None when m.complete.value = "" ->
+          submitOmniAction m pos (NewReplHandler None)
+      | _ ->
+          NoChange )
   | Filling _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->

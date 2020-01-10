@@ -110,3 +110,24 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
       (xTarget, yTarget)
   | None ->
       (None, None)
+
+
+let findNewPos (m : model) : pos =
+  let open Native in
+  match m.currentPage with
+  | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+      let o = m.canvasProps.offset in
+      (* We add padding to the viewport range, to ensure we don't have new handlers too far from eachother. *)
+      let padRight = 400 in
+      let padBottom = 400 in
+      let minX = o.x in
+      let maxX = minX + (Window.viewportWidth - padRight) in
+      let minY = o.y in
+      let maxY = minY + (Window.viewportHeight - padBottom) in
+      {x = Random.range minX maxX; y = Random.range minY maxY}
+  | FocusedFn _ | FocusedType _ ->
+      (* if the sidebar is open, the users can't see the livevalues, which
+      * confused new users. Given we can't get z-index to work, moving it to the
+      * side a little seems the best solution for now. *)
+      let offset = {x = (if m.sidebarOpen then 320 else 0); y = 0} in
+      addPos Defaults.centerPos offset
