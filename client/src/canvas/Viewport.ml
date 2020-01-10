@@ -118,8 +118,8 @@ let findNewPos (m : model) : pos =
   | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
       let o = m.canvasProps.offset in
       (* We add padding to the viewport range, to ensure we don't have new handlers too far from eachother. *)
-      let padRight = 0 in
-      let padBottom = 0 in
+      let padRight = 400 in
+      let padBottom = 400 in
       let minX = o.x in
       let maxX = minX + (Window.viewportWidth - padRight) in
       let minY = o.y in
