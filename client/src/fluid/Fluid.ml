@@ -2982,6 +2982,21 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                      , List.removeAt ~index:remIdx oldVars
                      , E.removeVariableUse varNameToRem expr )
                  , target )
+           | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
+               (* TODO(JULIAN): Consider only deleting if the expr in
+              front of the sep is a blank. *)
+               let remIdx =
+                 (* remove expression in front of sep, not behind it *)
+                 elemAndSepIdx + 1
+               in
+               let target =
+                 List.getAt ~index:elemAndSepIdx exprs
+                 |> Option.map ~f:(fun expr ->
+                        caretTargetForLastPartOfExpr (E.id expr) ast)
+                 |> Option.withDefault
+                      ~default:{astRef = ARList (id, LPOpen); offset = 1}
+               in
+               Some (EList (id, List.removeAt ~index:remIdx exprs), target)
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3113,15 +3128,15 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     (*     | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
         (ast, MoveToStart) *)
-(*     | TMatchSep {matchID = id; index = idx; _} ->
+    (*     | TMatchSep {matchID = id; index = idx; _} ->
         (ast, AtTarget (caretTargetForEndOfMatchPattern id idx ast)) *)
     (*     | TIfKeyword _ (* | TLetKeyword _ *) | TLambdaSymbol _ | TMatchKeyword _ ->
         let newAST = removeEmptyExpr (T.tid ti.token) ast in
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart) *)
-(*     | TLambdaSep (id, idx) ->
+    (*     | TLambdaSep (id, idx) ->
         (removeLambdaSepToken id ast idx, LeftOne) *)
-    | TListSep (id, idx) ->
-        (removeListSepToken id ast idx, LeftOne)
+    (*     | TListSep (id, idx) ->
+        (removeListSepToken id ast idx, LeftOne) *)
     | (TRecordOpen id | TListOpen id) when E.hasEmptyWithId id ast ->
         (E.replace id ~replacement:(EBlank newID) ast, LeftOne)
     | TRecordFieldname {recordID; index; fieldName = ""; _}
