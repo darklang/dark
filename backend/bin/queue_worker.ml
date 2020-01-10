@@ -33,7 +33,9 @@ let queue_worker execution_id =
                   EventQueue
                   (Libexecution.Types.string_of_id execution_id)
               with e ->
-                Log.erroR "Error in Rollbar.report_lwt in queue worker" ;
+                Log.erroR
+                  "Error in Rollbar.report_lwt in queue worker"
+                  ~data:(Libexecution.Exception.exn_to_string e) ;
                 Lwt.return (`Failure : Libbackend.Rollbar.result) )
             >>= fun _ -> Lwt.return ()) ;
         Thread.yield () ;
