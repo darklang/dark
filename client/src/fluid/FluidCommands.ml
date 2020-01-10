@@ -17,31 +17,26 @@ let reset : fluidCommandState =
   {index = 0; commands = fluidCommands; location = None; filter = None}
 
 
-let commandsFor (tl : toplevel) (id : id) : command list =
+let commandsFor (expr : fluidExpr) : command list =
   (* NB: do not structurally compare entire Command.command records here, as
    * they contain functions, which BS cannot compare.*)
   let noPutOn c = c.commandName <> Commands.putFunctionOnRail.commandName in
   let noTakeOff c = c.commandName <> Commands.takeFunctionOffRail.commandName in
-  let expr =
-    Toplevel.getAST tl |> Option.andThen ~f:(FluidExpression.find id)
-  in
   let railFilters =
-    expr
-    |> Option.map ~f:(function
-           | EFnCall (_, _, _, Rail) ->
-               noPutOn
-           | EFnCall (_, _, _, NoRail) ->
-               noTakeOff
-           | _ ->
-               fun c -> noTakeOff c && noPutOn c)
-    |> Option.withDefault ~default:(fun _ -> true)
+    match expr with
+    | EFnCall (_, _, _, Rail) ->
+        noPutOn
+    | EFnCall (_, _, _, NoRail) ->
+        noTakeOff
+    | _ ->
+        fun c -> noTakeOff c && noPutOn c
   in
   let httpClientRegex =
     Regex.regex "HttpClient::(delete|get|head|options|patch|post|put)"
   in
   let httpClientRequestFilter =
     match expr with
-    | Some (EFnCall (_, fluidName, _, _))
+    | EFnCall (_, fluidName, _, _)
       when Regex.contains ~re:httpClientRegex fluidName ->
         fun _ -> true
     | _ ->
@@ -52,28 +47,26 @@ let commandsFor (tl : toplevel) (id : id) : command list =
   |> List.filter ~f:httpClientRequestFilter
 
 
-let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
+let show (ast : fluidExpr) : fluidCommandState =
   { index = 0
-  ; commands = commandsFor tl (FluidToken.tid token)
-  ; location = Some (TL.id tl, token)
+  ; commands = commandsFor ast
+  ; location = Some (FluidExpression.id ast)
   ; filter = None }
 
 
-let executeCommand
-    (m : model) (tlid : tlid) (token : fluidToken) (cmd : command) :
-    modification =
-  match TL.get m tlid with
+let executeCommand (m : model) (id : id) (cmd : command) : modification =
+  match TL.selected m with
   | Some tl ->
-      cmd.action m tl (FluidToken.tid token)
+      cmd.action m tl id
   | _ ->
-      recover "No pd for the command" ~debug:(tlid, token, cmd) NoChange
+      recover "Can't find selected toplevel" ~debug:(id, cmd) NoChange
 
 
 let runCommand (m : model) (cmd : command) : modification =
   let cp = m.fluidState.cp in
   match cp.location with
-  | Some (tlid, token) ->
-      executeCommand m tlid token cmd
+  | Some id ->
+      executeCommand m id cmd
   | _ ->
       NoChange
 
@@ -133,10 +126,12 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
     fluidCommandState =
   let allCmds =
     match cp.location with
-    | Some (tlid, token) ->
-        Option.map (TL.get m tlid) ~f:(fun tl ->
-            commandsFor tl (FluidToken.tid token))
-        |> recoverOpt "no tl for location" ~default:[]
+    | Some id ->
+      TL.selected m
+      |> Option.andThen ~f:TL.getAST
+      |> Option.andThen ~f:(FluidExpression.find id)
+      |> Option.map ~f:commandsFor
+      |> Option.withDefault ~default:fluidCommands
     | _ ->
         fluidCommands
   in
@@ -148,10 +143,6 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
     else (None, fluidCommands)
   in
   {cp with filter; commands; index = 0}
-
-
-let isOpenOnTL (s : fluidCommandState) (tlid : tlid) : bool =
-  match s.location with Some (ltlid, _) when tlid = ltlid -> true | _ -> false
 
 
 let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
@@ -202,10 +193,10 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
   match key with
   | K.Enter ->
     ( match s.cp.location with
-    | Some (tlid, token) ->
+    | Some id ->
       ( match highlighted s.cp with
       | Some cmd ->
-          Many [executeCommand m tlid token cmd; FluidCommandsClose]
+          Many [executeCommand m id cmd; FluidCommandsClose]
       | None ->
           NoChange )
     | _ ->
@@ -229,15 +220,7 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
 let isOpened (cp : fluidCommandState) : bool = cp.location <> None
 
 let updateCommandPaletteVisibility (m : model) : model =
-  let oldTlid =
-    match m.fluidState.cp.location with
-    | Some (tlid, _) ->
-        Some tlid
-    | None ->
-        tlidOf m.cursorState
-  in
-  let newTlid = tlidOf m.cursorState in
-  if isOpened m.fluidState.cp && oldTlid <> newTlid
+  if isOpened m.fluidState.cp
   then
     let newCp = reset in
     {m with fluidState = {m.fluidState with cp = newCp}}

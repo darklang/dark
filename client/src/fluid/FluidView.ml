@@ -195,7 +195,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   List.map vs.tokens ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
-        | Some (ltlid, token) when tlid = ltlid && ti.token = token ->
+        | Some _ ->
             FluidCommands.viewCommandPalette state.cp
         | _ ->
             if Fluid.isAutocompleting ti state

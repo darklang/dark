@@ -3221,15 +3221,6 @@ let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
       (ast, s)
 
 
-let maybeOpenCmd (m : Types.model) : Types.modification =
-  Toplevel.selected m
-  |> Option.andThen ~f:(fun tl ->
-         TL.getAST tl
-         |> Option.andThen ~f:(getToken m.fluidState)
-         |> Option.map ~f:(fun ti -> FluidCommandsShow (TL.id tl, ti.token)))
-  |> Option.withDefault ~default:NoChange
-
-
 let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
   if rangeBegin > rangeEnd
   then (rangeEnd, rangeBegin)
@@ -4684,6 +4675,16 @@ let getCopySelection (m : model) : clipboardContents =
       |> Option.withDefault ~default:`None
   | None ->
       `None
+
+
+let maybeOpenCmd (m : Types.model) : Types.modification =
+  fluidDataFromModel m
+  |> Option.andThen ~f:(fun (state, ast) ->
+    fluidGetOptionalSelectionRange state
+    |> Option.andThen ~f:(reconstructExprFromRange ~ast)
+  ) 
+  |> Option.map ~f:(fun ast -> FluidCommandsShow ast)
+  |> Option.withDefault ~default:NoChange
 
 
 let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =

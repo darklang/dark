@@ -1104,7 +1104,7 @@ and modification =
   | InitIntrospect of toplevel list
   | RefreshUsages of tlid list
   | UpdateDBStats of dbStatsStore
-  | FluidCommandsShow of tlid * fluidToken
+  | FluidCommandsShow of fluidExpr
   | FluidCommandsClose
   (* We need to track clicks so that we don't mess with the caret while a
    * click is happening. *)
@@ -1462,7 +1462,7 @@ and fluidAutocompleteState =
 and fluidCommandState =
   { index : int
   ; commands : command list
-  ; location : (tlid * fluidToken) option
+  ; location : id option
   ; filter : string option }
 
 and fluidState =

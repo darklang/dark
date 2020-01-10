@@ -898,14 +898,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (Introspect.refreshUsages m (List.map ~f:TL.id tls), Cmd.none)
     | RefreshUsages tlids ->
         (Introspect.refreshUsages m tlids, Cmd.none)
-    | FluidCommandsShow (tlid, token) ->
-      ( match TL.get m tlid with
-      | Some tl ->
-          let cp = FluidCommands.show tl token in
-          ( {m with fluidState = {m.fluidState with cp}}
-          , Tea_html_cmds.focus FluidCommands.filterInputID )
-      | None ->
-          (m, Cmd.none) )
+    | FluidCommandsShow ast ->
+        let cp = FluidCommands.show ast in
+        ( {m with fluidState = {m.fluidState with cp}}
+        , Tea_html_cmds.focus FluidCommands.filterInputID )
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
         ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
