@@ -676,6 +676,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARBool id, (TTrue id' | TFalse id')
     | ARConstructor (id, CPName), TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
+    | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _)
     | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
     | ARIf (id, IPThenKeyword), TIfThenKeyword id'
@@ -827,6 +828,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARBool _, _
     | ARConstructor (_, CPName), _
     | ARFieldAccess (_, FAPFieldname), _
+    | ARFieldAccess (_, FAPFieldOp), _
     | ARFloat (_, FPWhole), _
     | ARFloat (_, FPDecimal), _
     | ARFnCall (_, FCPFnName), _
@@ -942,6 +944,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARBinOp (id, BOPOperator); offset}
   | TFieldName (id, _, _) ->
       {astRef = ARFieldAccess (id, FAPFieldname); offset}
+  | TFieldOp (id, _) ->
+      {astRef = ARFieldAccess (id, FAPFieldOp); offset}
   | TFieldPartial (id, _, _, _) ->
       {astRef = ARPartial id; offset}
   | TVariable (id, _) ->
@@ -1003,7 +1007,6 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
   | TPartialGhost _ (* (id, _) *)
   | TNewline _ (* (id * id * int option) option *)
   | TSep _ (* id *)
-  | TFieldOp _ (* (* fieldAccess *) id * (* lhs *) id *)
   | TIndent _ (* int *)
   | TFnVersion _ (* id * string * string * string *)
   | TParenOpen _ (* id *)
@@ -3030,6 +3033,10 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                               ~f:(fun (_, expr) -> (mutation name, expr))
                           in
                           (ERecord (id, nameValPairs), desiredCaretTarget))
+           | ARFieldAccess (_, FAPFieldOp), EFieldAccess (_, faExpr, _)
+           | ( ARFieldAccess (_, FAPFieldOp)
+             , EPartial (_, _, EFieldAccess (_, faExpr, _)) ) ->
+               Some (faExpr, caretTargetForLastPartOfExpr (E.id faExpr) ast)
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3037,7 +3044,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
            | ARLet (_, LPKeyword), ELet (_, varName, EBlank _, expr) when varName = "" || varName = "_" ->
                (* TODO(JULIAN): change this to work more directly by
                  exposing a version of caretTargetForBeginningOfExpr
-                 that accept a fluidExpr *)
+                 that accepts a fluidExpr *)
                Some (expr, caretTargetForBeginningOfExpr (E.id expr) ast)
            | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
            | ARLambda (_, LPKeyword), ELambda (_, _, EBlank _) ->
@@ -3090,7 +3097,11 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              , _ )
            | (ARFloat (_, FPWhole) | ARFloat (_, FPDecimal)), _
            | _ ->
-               let _ = Debug.loG "Unhandled" (show_astRef currAstRef) in
+               let _ =
+                 Debug.loG
+                   "Unhandled"
+                   (show_astRef currAstRef, show_fluidExpr expr)
+               in
                None
          in
          match maybeTransformedExprAndCaretTarget with
@@ -3187,7 +3198,6 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (newAst, AtTarget target) *)
     | TPatternBlank (mID, id, _) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
-    | TIndent _
     (*
     | TBlank _
     | TPlaceholder _
@@ -3198,6 +3208,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TRecordClose _
     | TRecordSep _
 *)
+    | TIndent _
     | TPatternBlank _
     | TSep _
     | TParenOpen _
@@ -3211,9 +3222,9 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (ast, LeftOne)
     | TNewline _ ->
         (ast, Exactly ti.startPos)
-    | TFieldOp (id, lhsId) ->
+    (*     | TFieldOp (id, lhsId) ->
         let newAst = removeField id ast in
-        (newAst, AtTarget (caretTargetForLastPartOfExpr lhsId newAst))
+        (newAst, AtTarget (caretTargetForLastPartOfExpr lhsId newAst)) *)
     | TFloatPoint id ->
         (removePointFromFloat id ast, LeftOne)
     | TPatternFloatPoint (mID, id, _) ->

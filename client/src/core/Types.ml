@@ -457,7 +457,10 @@ type astLambdaPart =
   | LPArrow
 [@@deriving show {with_path = false}]
 
-type astFieldAccessPart = FAPFieldname [@@deriving show {with_path = false}]
+type astFieldAccessPart =
+  | FAPFieldname
+  | FAPFieldOp
+[@@deriving show {with_path = false}]
 
 type astFnCallPart = FCPFnName [@@deriving show {with_path = false}]
 
