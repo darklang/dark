@@ -2954,6 +2954,24 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                else Some (newExpr, desiredCaretTarget)
            | ARMatch (id, MPBranchSep idx), expr ->
               Some (expr, (caretTargetForEndOfMatchPattern id idx ast))
+           | ARLambda (_, LPSeparator idx), ELambda (id, oldVars, expr) ->
+              (* TODO(JULIAN): Consider only deleting if the expr in
+              front of the sep is a blank. *)
+              let remIdx =
+                (* remove expression in front of sep, not behind it *)
+                idx + 1 in
+              let varNameToDel =
+                List.getAt ~index:remIdx oldVars
+                |> Option.map ~f:Tuple2.second
+                |> Option.withDefault ~default:""
+              in
+              let target =
+                List.getAt ~index:idx oldVars
+                (* The target is the end of the var that preceeds the separator *)
+                |> Option.map ~f:(fun (_,varName) -> {astRef=ARLambda (id, LPVarName idx); offset=(String.length varName)})
+                |> Option.withDefault ~default:{astRef=ARLambda (id, LPKeyword); offset=1}
+              in
+              Some (ELambda (id, List.removeAt ~index:remIdx oldVars, E.removeVariableUse varNameToDel expr), target)              
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3090,8 +3108,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (*     | TIfKeyword _ (* | TLetKeyword _ *) | TLambdaSymbol _ | TMatchKeyword _ ->
         let newAST = removeEmptyExpr (T.tid ti.token) ast in
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart) *)
-    | TLambdaSep (id, idx) ->
-        (removeLambdaSepToken id ast idx, LeftOne)
+(*     | TLambdaSep (id, idx) ->
+        (removeLambdaSepToken id ast idx, LeftOne) *)
     | TListSep (id, idx) ->
         (removeListSepToken id ast idx, LeftOne)
     | (TRecordOpen id | TListOpen id) when E.hasEmptyWithId id ast ->
