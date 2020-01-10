@@ -127,4 +127,21 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = false }
+  ; { pns = ["Crypto::sha1hmac"]
+    ; ins = []
+    ; p = [par "key" TBytes; par "data" TBytes]
+    ; r = TBytes
+    ; d =
+        "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given `key` and `data`."
+    ; f =
+        InProcess
+          (function
+          | _, [DBytes key; DBytes data] ->
+              let key = Cstruct.of_bytes key in
+              let data = Cstruct.of_bytes data in
+              Nocrypto.Hash.SHA1.hmac ~key data |> digest_to_bytes |> DBytes
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false } ]
