@@ -39,11 +39,7 @@ let queue_worker execution_id =
                 Lwt.return (`Failure : Libbackend.Rollbar.result) )
             >>= fun _ -> Lwt.return ()) ;
         Thread.yield () ;
-        if not !shutdown
-        then (queue_worker [@tailcall]) ()
-        else (
-          shutdown := true ;
-          Lwt.return () )
+        if not !shutdown then (queue_worker [@tailcall]) () else exit 0
   in
   Lwt_main.run
     (Log.add_log_annotations
@@ -60,5 +56,5 @@ let () =
    * - heathcheck worker dies/is killed (unhandled exn), kubernetes will kill
    *   the pod when it fails healthcheck
    * - queue_worker thread dies; it's the main loop, the process exits *)
-  let _ = Thread.create (health_check shutdown) () in
+  ignore (Thread.create (health_check shutdown) ()) ;
   queue_worker execution_id

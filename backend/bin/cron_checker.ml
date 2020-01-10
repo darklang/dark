@@ -24,7 +24,7 @@ let cron_checker execution_id =
               CronChecker
               (Libexecution.Types.string_of_id execution_id)
             >>= fun _ -> Lwt.return ()) ;
-        if not !shutdown then (cron_checker [@tailcall]) () else Lwt.return ()
+        if not !shutdown then (cron_checker [@tailcall]) () else exit 0
   in
   Lwt_main.run
     (Log.add_log_annotations
@@ -37,12 +37,11 @@ let () =
   Libbackend.Init.init ~run_side_effects:false ;
   (* If either thread sets the shutdown ref, the other will see it and
    * terminate; block until both have terminated. *)
-  let _ = Thread.create (health_check shutdown) () in
   (* Three cases where we want to exit:
    * - healthcheck worker is instructed to die (/pkill), it sets the shutdown
    *   ref, cron_checker loop terminates
    * - heathcheck worker dies/is killed (unhandled exn), kubernetes will kill
    *   the pod when it fails healthcheck
    * - cron_checker thread dies; it's the main loop, the process exits *)
-  let _ = Thread.create (health_check shutdown) () in
+  ignore (Thread.create (health_check shutdown) ()) ;
   cron_checker execution_id
