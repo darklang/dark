@@ -1,14 +1,15 @@
 open Core_kernel
 
-type fluidName = string
+type fluidName = string [@@deriving show]
 
-type fnName = string
+type fnName = string [@@deriving show]
 
 type sendToRail =
   | Rail
   | NoRail
+[@@deriving show]
 
-type id = Types.id
+type id = Types.id [@@deriving show]
 
 (* match id, then the pattern id. We have a pattern id cause they can be
  * nested. *)
@@ -23,6 +24,7 @@ type fluidPattern =
   | FPFloat of id * id * string * string
   | FPNull of id * id
   | FPBlank of id * id
+[@@deriving show]
 
 type fluidExpr =
   (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
@@ -59,6 +61,7 @@ type fluidExpr =
   | EPipeTarget of id
   (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * fluidExpr * fluidExpr * fluidExpr
+[@@deriving show]
 
 (* ----------------------- *)
 (* Convenience constructors *)
@@ -67,7 +70,7 @@ let gid () = Util.create_id ()
 
 let newB () = Types.Blank (gid ())
 
-let b = newB ()
+let b = EBlank (gid ())
 
 let str (str : string) : fluidExpr = EString (gid (), str)
 
@@ -492,3 +495,185 @@ let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) : fluidExpr =
         EPartial (id, str, toFluidExpr ~inPipe oldExpr)
     | FluidRightPartial (str, oldExpr) ->
         ERightPartial (id, str, toFluidExpr ~inPipe oldExpr) )
+
+
+(* ----------------------- *)
+(* Functions on Fluid *)
+(* ----------------------- *)
+let id (expr : fluidExpr) : Types.id =
+  match expr with
+  | EInteger (id, _)
+  | EString (id, _)
+  | EBool (id, _)
+  | ENull id
+  | EFloat (id, _, _)
+  | EVariable (id, _)
+  | EFieldAccess (id, _, _)
+  | EFnCall (id, _, _, _)
+  | ELambda (id, _, _)
+  | EBlank id
+  | ELet (id, _, _, _)
+  | EIf (id, _, _, _)
+  | EPartial (id, _, _)
+  | ERightPartial (id, _, _)
+  | EList (id, _)
+  | ERecord (id, _)
+  | EPipe (id, _)
+  | EPipeTarget id
+  | EBinOp (id, _, _, _, _)
+  | EConstructor (id, _, _)
+  | EFeatureFlag (id, _, _, _, _)
+  | EMatch (id, _, _) ->
+      id
+
+
+let patternID (p : fluidPattern) : id =
+  match p with
+  | FPVariable (_, id, _)
+  | FPConstructor (_, id, _, _)
+  | FPInteger (_, id, _)
+  | FPBool (_, id, _)
+  | FPString (_, id, _)
+  | FPFloat (_, id, _, _)
+  | FPNull (_, id)
+  | FPBlank (_, id) ->
+      id
+
+
+let walk ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
+  match expr with
+  | EInteger _
+  | EBlank _
+  | EString _
+  | EVariable _
+  | EBool _
+  | ENull _
+  | EPipeTarget _
+  | EFloat _ ->
+      expr
+  | ELet (id, name, rhs, next) ->
+      ELet (id, name, f rhs, f next)
+  | EIf (id, cond, ifexpr, elseexpr) ->
+      EIf (id, f cond, f ifexpr, f elseexpr)
+  | EBinOp (id, op, lexpr, rexpr, ster) ->
+      EBinOp (id, op, f lexpr, f rexpr, ster)
+  | EFieldAccess (id, expr, fieldname) ->
+      EFieldAccess (id, f expr, fieldname)
+  | EFnCall (id, name, exprs, ster) ->
+      EFnCall (id, name, List.map ~f exprs, ster)
+  | ELambda (id, names, expr) ->
+      ELambda (id, names, f expr)
+  | EList (id, exprs) ->
+      EList (id, List.map ~f exprs)
+  | EMatch (id, mexpr, pairs) ->
+      EMatch
+        (id, f mexpr, List.map ~f:(fun (name, expr) -> (name, f expr)) pairs)
+  | ERecord (id, fields) ->
+      ERecord (id, List.map ~f:(fun (name, expr) -> (name, f expr)) fields)
+  | EPipe (id, exprs) ->
+      EPipe (id, List.map ~f exprs)
+  | EConstructor (id, name, exprs) ->
+      EConstructor (id, name, List.map ~f exprs)
+  | EPartial (id, str, oldExpr) ->
+      EPartial (id, str, f oldExpr)
+  | ERightPartial (id, str, oldExpr) ->
+      ERightPartial (id, str, f oldExpr)
+  | EFeatureFlag (id, msg, cond, casea, caseb) ->
+      EFeatureFlag (id, msg, f cond, f casea, f caseb)
+
+
+let filterMap ~(f : fluidExpr -> 'a option) (expr : fluidExpr) : 'a list =
+  let results = ref [] in
+  let rec myWalk (e : fluidExpr) : fluidExpr =
+    ( match f e with
+    | Some r ->
+        results := r :: !results ;
+        ()
+    | None ->
+        () ) ;
+    walk ~f:myWalk e
+  in
+  ignore (myWalk expr) ;
+  Prelude.List.reverse !results
+
+
+let allIDs (expr : fluidExpr) : id list =
+  filterMap ~f:(fun x -> Some (id x)) expr
+
+
+let rec clonePattern (matchID : id) (p : fluidPattern) : fluidPattern =
+  match p with
+  | FPVariable (_, _, name) ->
+      FPVariable (matchID, gid (), name)
+  | FPConstructor (_, _, name, patterns) ->
+      FPConstructor
+        ( matchID
+        , gid ()
+        , name
+        , List.map ~f:(fun p -> clonePattern matchID p) patterns )
+  | FPInteger (_, _, i) ->
+      FPInteger (matchID, gid (), i)
+  | FPBool (_, _, b) ->
+      FPBool (matchID, gid (), b)
+  | FPString (_, _, s) ->
+      FPString (matchID, gid (), s)
+  | FPBlank (_, _) ->
+      FPBlank (matchID, gid ())
+  | FPNull (_, _) ->
+      FPNull (matchID, gid ())
+  | FPFloat (_, _, whole, fraction) ->
+      FPFloat (matchID, gid (), whole, fraction)
+
+
+let rec clone (expr : fluidExpr) : fluidExpr =
+  let c e = clone e in
+  let cl es = List.map ~f:c es in
+  match expr with
+  | ELet (_, lhs, rhs, body) ->
+      ELet (gid (), lhs, c rhs, c body)
+  | EIf (_, cond, ifbody, elsebody) ->
+      EIf (gid (), c cond, c ifbody, c elsebody)
+  | EFnCall (_, name, exprs, r) ->
+      EFnCall (gid (), name, cl exprs, r)
+  | EBinOp (_, name, left, right, r) ->
+      EBinOp (gid (), name, c left, c right, r)
+  | ELambda (_, vars, body) ->
+      ELambda (gid (), List.map vars ~f:(fun (_, var) -> (gid (), var)), c body)
+  | EPipe (_, exprs) ->
+      EPipe (gid (), cl exprs)
+  | EFieldAccess (_, obj, field) ->
+      EFieldAccess (gid (), c obj, field)
+  | EString (_, v) ->
+      EString (gid (), v)
+  | EInteger (_, v) ->
+      EInteger (gid (), v)
+  | EBool (_, v) ->
+      EBool (gid (), v)
+  | EFloat (_, whole, fraction) ->
+      EFloat (gid (), whole, fraction)
+  | ENull _ ->
+      ENull (gid ())
+  | EBlank _ ->
+      EBlank (gid ())
+  | EVariable (_, name) ->
+      EVariable (gid (), name)
+  | EList (_, exprs) ->
+      EList (gid (), cl exprs)
+  | ERecord (_, pairs) ->
+      ERecord (gid (), List.map ~f:(fun (k, v) -> (k, c v)) pairs)
+  | EFeatureFlag (_, name, cond, a, b) ->
+      EFeatureFlag (gid (), name, c cond, c a, c b)
+  | EMatch (_, matchExpr, cases) ->
+      let mid = gid () in
+      EMatch
+        ( mid
+        , c matchExpr
+        , List.map ~f:(fun (k, v) -> (clonePattern mid k, c v)) cases )
+  | EConstructor (_, name, args) ->
+      EConstructor (gid (), name, cl args)
+  | EPartial (_, str, oldExpr) ->
+      EPartial (gid (), str, c oldExpr)
+  | ERightPartial (_, str, oldExpr) ->
+      ERightPartial (gid (), str, c oldExpr)
+  | EPipeTarget _ ->
+      EPipeTarget (gid ())

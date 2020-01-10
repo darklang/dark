@@ -36,6 +36,15 @@
 )
 
 (executable
+  (name fuzzer)
+  (public_name fuzzer)
+  (modules fuzzer)
+  (flags (-warn-error +A -w +9))
+  (libraries libbackend libexecution)
+  (package dark)
+)
+
+(executable
   (name queue_worker)
   (public_name queue_worker)
   (modules queue_worker)
