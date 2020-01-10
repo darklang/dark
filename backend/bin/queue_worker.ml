@@ -26,11 +26,15 @@ let queue_worker execution_id =
             [ ("execution_id", Libexecution.Types.string_of_id execution_id)
             ; ("exn", Libexecution.Exception.exn_to_string e) ] ;
         Lwt.async (fun () ->
-            Libbackend.Rollbar.report_lwt
-              e
-              bt
-              EventQueue
-              (Libexecution.Types.string_of_id execution_id)
+            ( try
+                Libbackend.Rollbar.report_lwt
+                  e
+                  bt
+                  EventQueue
+                  (Libexecution.Types.string_of_id execution_id)
+              with e ->
+                Log.erroR "Error in Rollbar.report_lwt in queue worker" ;
+                Lwt.return (`Failure : Libbackend.Rollbar.result) )
             >>= fun _ -> Lwt.return ()) ;
         Thread.yield () ;
         if not !shutdown
