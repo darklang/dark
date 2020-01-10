@@ -52,8 +52,9 @@ let commandsFor (expr : fluidExpr) : command list =
   cmds
 
 
-let show (m : model) (id : id) : model =
-  TL.selectedAST m
+let show (m : model) (tlid : tlid) (id : id) : model =
+  TL.get m tlid
+  |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(FluidExpression.find id)
   |> Option.map ~f:(fun expr ->
     let cp =

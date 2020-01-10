@@ -1104,7 +1104,7 @@ and modification =
   | InitIntrospect of toplevel list
   | RefreshUsages of tlid list
   | UpdateDBStats of dbStatsStore
-  | FluidCommandsShow of id
+  | FluidCommandsShow of tlid * id
   | FluidCommandsClose
   (* We need to track clicks so that we don't mess with the caret while a
    * click is happening. *)
@@ -1462,6 +1462,8 @@ and fluidAutocompleteState =
 and fluidCommandState =
   { index : int
   ; commands : command list
+  (* ; onTL: tlid option
+  ; onExpr : id option *)
   ; location : id option
   ; filter : string option }
 
