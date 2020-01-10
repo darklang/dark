@@ -6,7 +6,7 @@ module Exception = Libexecution.Exception
 module Dval = Libexecution.Dval
 module Unicode_string = Libexecution.Unicode_string
 
-let find_db = Libdb.find_db
+let find_db = Libexecution.Ast.find_db
 
 let fns : shortfn list =
   [ { pns = ["DB::set_v1"]
