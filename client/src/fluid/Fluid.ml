@@ -2952,6 +2952,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                if newName = ""
                then Some (newExpr, {astRef = currAstRef; offset = 0})
                else Some (newExpr, desiredCaretTarget)
+           | ARMatch (id, MPBranchSep idx), expr ->
+              Some (expr, (caretTargetForEndOfMatchPattern id idx ast))
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3083,8 +3085,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     (*     | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
         (ast, MoveToStart) *)
-    | TMatchSep {matchID = id; index = idx; _} ->
-        (ast, AtTarget (caretTargetForEndOfMatchPattern id idx ast))
+(*     | TMatchSep {matchID = id; index = idx; _} ->
+        (ast, AtTarget (caretTargetForEndOfMatchPattern id idx ast)) *)
     (*     | TIfKeyword _ (* | TLetKeyword _ *) | TLambdaSymbol _ | TMatchKeyword _ ->
         let newAST = removeEmptyExpr (T.tid ti.token) ast in
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart) *)
