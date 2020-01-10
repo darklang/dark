@@ -1462,9 +1462,8 @@ and fluidAutocompleteState =
 and fluidCommandState =
   { index : int
   ; commands : command list
-  (* ; onTL: tlid option
-  ; onExpr : id option *)
-  ; location : id option
+  ; onTL: tlid option
+  ; onExpr : id option
   ; filter : string option }
 
 and fluidState =

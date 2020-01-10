@@ -14,7 +14,7 @@ let fluidCommands =
 
 
 let reset : fluidCommandState =
-  {index = 0; commands = fluidCommands; location = None; filter = None}
+  {index = 0; commands = fluidCommands; onTL = None ; onExpr = None; filter = None}
 
 
 let commandsFor (expr : fluidExpr) : command list =
@@ -60,7 +60,8 @@ let show (m : model) (tlid : tlid) (id : id) : model =
     let cp =
       { index = 0
       ; commands = commandsFor expr
-      ; location = Some id
+      ; onTL = Some tlid
+      ; onExpr = Some id
       ; filter = None }
     in
     {m with fluidState = {m.fluidState with cp}}
@@ -78,7 +79,7 @@ let executeCommand (m : model) (id : id) (cmd : command) : modification =
 
 let runCommand (m : model) (cmd : command) : modification =
   let cp = m.fluidState.cp in
-  match cp.location with
+  match cp.onExpr with
   | Some id ->
       executeCommand m id cmd
   | _ ->
@@ -139,9 +140,9 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 let filter (m : model) (query : string) (cp : fluidCommandState) :
     fluidCommandState =
   let allCmds =
-    match cp.location with
-    | Some id ->
-      TL.selected m
+    match cp.onTL, cp.onExpr with
+    | Some tlid, Some id ->
+      TL.get m tlid
       |> Option.andThen ~f:TL.getAST
       |> Option.andThen ~f:(FluidExpression.find id)
       |> Option.map ~f:commandsFor
@@ -207,7 +208,7 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
   let key = keyEvt.key in
   match key with
   | K.Enter ->
-    ( match s.cp.location with
+    ( match s.cp.onExpr with
     | Some id ->
       ( match highlighted s.cp with
       | Some cmd ->
@@ -232,8 +233,11 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
       NoChange
 
 
-let isOpened (cp : fluidCommandState) : bool = cp.location <> None
+let isOpened (cp : fluidCommandState) : bool = cp.onExpr <> None
 
 let updateCommandPaletteVisibility (m : model) : model =
-  (* TODO(alice) calculate visibility *)
-  m
+  let cmdState = m.fluidState.cp in
+  if isOpened cmdState && cmdState.onTL <> (tlidOf m.cursorState)	
+  then
+    {m with fluidState = {m.fluidState with cp = reset}}	
+  else m
