@@ -116,7 +116,7 @@ let fns : Lib.shortfn list =
     ; p = [par "key" TBytes; par "data" TBytes]
     ; r = TBytes
     ; d =
-        "Computes the 256 HMAC (hash-based message authentication code) digest of the given `key` and `data`."
+        "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given `key` and `data`."
     ; f =
         InProcess
           (function
