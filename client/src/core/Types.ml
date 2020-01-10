@@ -564,7 +564,7 @@ and isLeftButton = bool
 (* CursorState *)
 (* ----------------------------- *)
 and entryCursor =
-  | Creating of pos
+  | Creating of pos option (* If we know the position the user wants the handler to be at (presumably because they clicked there to get the omnibox), then use it. Otherwise, if there's no position, we'll pick one for them later *)
   | Filling of tlid * id
 
 and hasMoved = bool

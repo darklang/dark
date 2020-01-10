@@ -104,11 +104,15 @@ let viewEntry (m : model) : msg Html.html =
   match unwrapCursorState m.cursorState with
   | Entering (Creating pos) ->
       let styleProp =
-        let offset = m.canvasProps.offset in
-        let loc = Viewport.subPos pos offset in
-        Html.styles
-          [ ("left", string_of_int loc.x ^ "px")
-          ; ("top", string_of_int loc.y ^ "px") ]
+        match pos with
+        | Some p ->
+            let offset = m.canvasProps.offset in
+            let loc = Viewport.subPos p offset in
+            Html.styles
+              [ ("left", string_of_int loc.x ^ "px")
+              ; ("top", string_of_int loc.y ^ "px") ]
+        | None ->
+            Vdom.noProp
       in
       Html.div [Html.class' "omnibox"; styleProp] [normalEntryHtml "" m.complete]
   | _ ->
