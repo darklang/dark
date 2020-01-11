@@ -339,7 +339,9 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
 let rec remove (id : id) (expr : E.t) : E.t =
   let r e = remove id e in
   let f e = if E.id e = id then EBlank id else remove id e in
-  let removeFromList exprs = List.filter exprs ~f:(fun e -> E.id e <> id) in
+  let removeFromList exprs =
+    List.filterMap exprs ~f:(fun e -> if E.id e = id then None else Some (r e))
+  in
   if E.id expr = id
   then EBlank id
   else
@@ -393,7 +395,7 @@ let rec remove (id : id) (expr : E.t) : E.t =
       | EConstructor (id, name, exprs) ->
           EConstructor (id, name, removeFromList exprs)
       | _ ->
-          expr
+          E.walk ~f expr
     in
     E.walk ~f newExpr
 
