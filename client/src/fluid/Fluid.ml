@@ -1791,16 +1791,14 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : E.t =
 
 
 let deleteBinOp (ti : T.tokenInfo) (ast : ast) : E.t * id =
-  let id = ref FluidToken.fakeid in
+  (* Note similar code in deletePartial *)
+  let id = ref T.fakeid in
   let ast =
-    E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
+    E.update (T.tid ti.token) ast ~f:(fun e ->
         match e with
-        | EBinOp (_, _, EPipeTarget _, rhs, _) ->
-            id := E.id rhs ;
-            rhs
-        | EBinOp (_, _, lhs, _, _) ->
-            id := E.id lhs ;
-            lhs
+        | EBinOp (_, _, EPipeTarget _, expr, _) | EBinOp (_, _, expr, _, _) ->
+            id := E.id expr ;
+            expr
         | _ ->
             recover "not a binop in deleteBinOp" ~debug:e e)
   in
