@@ -402,10 +402,12 @@ let rec remove (id : id) (expr : E.t) : E.t =
 
 let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
+    let tokenIDs =
+      ast |> FluidPrinter.toTokens |> List.map ~f:(fun ti -> T.tid ti.token)
+    in
+    let eIDs = ast |> E.filterMap ~f:(fun e -> Some (E.id e)) in
     let ids =
-      ast
-      |> FluidPrinter.toTokens
-      |> List.map ~f:(fun ti -> T.tid ti.token)
+      tokenIDs @ eIDs
       |> List.uniqueBy ~f:Prelude.deID
       |> List.indexedMap ~f:(fun i v -> (i, v))
     in
