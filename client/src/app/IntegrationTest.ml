@@ -234,20 +234,6 @@ let rename_db_type (m : model) : testResult =
   |> Result.map (fun _ -> ())
 
 
-let paste_right_number_of_blanks (m : model) : testResult =
-  m.handlers
-  |> TD.mapValues ~f:(fun {ast; _} ->
-         match ast with
-         | EPipe (_, [_; EFnCall (_, "-", [EBlank _], _)]) ->
-             pass
-         | EFnCall (_, "-", [EBlank _; EBlank _], _) ->
-             pass (* ignore this TL *)
-         | _ ->
-             fail ~f:show_fluidExpr ast)
-  |> Result.combine
-  |> Result.map (fun _ -> ())
-
-
 let feature_flag_works (m : model) : testResult =
   let h = onlyHandler m in
   let ast = h.ast in
@@ -717,8 +703,6 @@ let trigger (test_name : string) : integrationTestState =
         rename_db_fields
     | "rename_db_type" ->
         rename_db_type
-    | "paste_right_number_of_blanks" ->
-        paste_right_number_of_blanks
     | "feature_flag_works" ->
         feature_flag_works
     | "rename_function" ->
