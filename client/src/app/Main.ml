@@ -339,7 +339,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           Js.log "Already at latest redo - ignoring server error" ;
           String.contains
             (APIError.msg apiError)
-            ~substring:"(client): Already at latest redo (API)"
+            ~substring:"(client): Already at latest redo"
         in
         let cmd =
           if shouldReload
