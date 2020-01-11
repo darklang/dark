@@ -493,6 +493,30 @@ let eToStructure ?(includeIDs = false) (e : E.t) : string =
   |> String.join ~sep:""
 
 
+let rec eToTestcase (e : E.t) : string =
+  let r = eToTestcase in
+  let quoted str = "\"" ^ str ^ "\"" in
+  let listed elems = "[" ^ String.join ~sep:"," elems ^ "]" in
+  let result =
+    match e with
+    | EBlank _ ->
+        "b"
+    | EString (_, str) ->
+        "str " ^ quoted str
+    | EInteger (_, int) ->
+        "int  " ^ quoted int
+    | ENull _ ->
+        "null"
+    | EPartial (_, str, e) ->
+        "partial " ^ quoted str ^ " " ^ r e
+    | EFnCall (_, name, exprs, _) ->
+        "fn " ^ quoted name ^ " " ^ listed (List.map ~f:r exprs)
+    | _ ->
+        "todo: " ^ E.show e
+  in
+  "(" ^ result ^ ")"
+
+
 let pToString (p : fluidPattern) : string =
   p
   |> patternToToken ~idx:0
