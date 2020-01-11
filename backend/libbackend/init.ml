@@ -20,7 +20,6 @@ let init ~run_side_effects =
         @ Libtwilio.fns
         @ Libdarkinternal.fns
         @ Libstaticassets.fns
-        @ Libtwitter.fns
         @ Libjwt.fns
       in
       Libexecution.Init.init Config.log_level Config.log_format non_client_fns ;
