@@ -1273,6 +1273,8 @@ let removeEmptyExpr (id : id) (ast : ast) : E.t =
       match e with
       | ELet (_, "", EBlank _, body) ->
           body
+      | ELet (_, "", rhs, EBlank _) ->
+          rhs
       | EIf (_, EBlank _, EBlank _, EBlank _) ->
           E.newB ()
       | ELambda (_, _, EBlank _) ->
