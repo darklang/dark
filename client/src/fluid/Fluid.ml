@@ -1624,9 +1624,11 @@ let deletePartial (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
           ->
             (newState := fun _ -> moveTo (ti.startPos - 2) s) ;
             EString (lhsID, lhsStr ^ rhsStr)
-        | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
-            (newState := fun ast -> moveToEndOfTarget (E.id lhs) ast s) ;
-            lhs
+        | EPartial (_, _, EBinOp (_, _, EPipeTarget _, expr, _))
+        | EPartial (_, _, EBinOp (_, _, expr, _, _)) ->
+            (* Note similar code in deleteBinOp *)
+            (newState := fun ast -> moveToEndOfTarget (E.id expr) ast s) ;
+            expr
         | EPartial (_, _, _) ->
             let b = E.newB () in
             (newState := fun ast -> moveToEndOfTarget (E.id b) ast s) ;
