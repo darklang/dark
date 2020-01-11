@@ -1762,17 +1762,11 @@ let update_ (msg : msg) (m : model) : modification =
           (fun m ->
             {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
-      let clipboardData =
-        if true (* unclear if old copy/paste works *)
-        then Fluid.getCopySelection m
-        else Clipboard.copy m
-      in
+      let clipboardData = Fluid.getCopySelection m in
       Many [SetClipboardContents (clipboardData, e); toast]
   | ClipboardPasteEvent e ->
       let data = Clipboard.getData e in
-      if true (* unclear if old copy/paste works *)
-      then Fluid.update m (FluidPaste data)
-      else Clipboard.paste m data
+      Fluid.update m (FluidPaste data)
   | ClipboardCutEvent e ->
       let toast =
         TweakModel
@@ -1780,9 +1774,7 @@ let update_ (msg : msg) (m : model) : modification =
             {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let copyData, mod_ =
-        if true (* unclear if old copy/paste works *)
-        then (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
-        else Clipboard.cut m
+        (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
       in
       Many [SetClipboardContents (copyData, e); mod_; toast]
   | ClipboardCopyLivevalue (lv, pos) ->
