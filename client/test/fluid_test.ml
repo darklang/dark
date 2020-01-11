@@ -2139,6 +2139,8 @@ let run () =
       t "move forward over let" emptyLet (key K.Right 0) "let ~*** = ___\n5" ;
       t "bs over empty let" emptyLet (bs 3) "~5" ;
       t "del empty let" emptyLet (del 0) "~5" ;
+      t "bs over empty let - underscore" (let' "_" b b) (bs 3) "~___" ;
+      t "del empty let - underscore" (let' "_" b b) (del 0) "~___" ;
       t "bs over non-empty let" nonEmptyLet (bs 3) "let~ *** = 6\n5" ;
       t "del non-empty let" nonEmptyLet (del 0) "~let *** = 6\n5" ;
       t "bs with let empty body" (let' "" (int "5") b) (bs 3) "~5" ;
