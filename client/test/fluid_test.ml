@@ -2141,6 +2141,8 @@ let run () =
       t "del empty let" emptyLet (del 0) "~5" ;
       t "bs over non-empty let" nonEmptyLet (bs 3) "let~ *** = 6\n5" ;
       t "del non-empty let" nonEmptyLet (del 0) "~let *** = 6\n5" ;
+      t "bs with let empty body" (let' "" (int "5") b) (bs 3) "~5" ;
+      t "del with let empty body" (let' "" (int "5") b) (del 0) "~5" ;
       t "insert space on blank let" emptyLet (key K.Space 4) "let ~*** = ___\n5" ;
       t "lhs on empty" emptyLet (ins 'c' 4) "let c~ = ___\n5" ;
       t "middle of blank" emptyLet (ins 'c' 5) "let c~ = ___\n5" ;
