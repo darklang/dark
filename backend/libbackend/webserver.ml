@@ -2030,6 +2030,8 @@ let callback ~k8s_callback ip req body execution_id =
       match e with
       | Exception.DarkException e when e.tipe = EndUser ->
           respond ~execution_id `Bad_request e.short
+      | Exception.DarkException e when e.tipe = DarkClient ->
+          respond ~execution_id `Bad_request real_err
       | _ ->
           let body =
             if include_internals || Config.show_stacktrace
