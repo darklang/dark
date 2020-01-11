@@ -3046,6 +3046,17 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  Some
                    ( EPartial (newID, str, oldExpr)
                    , {astRef = ARPartial newID; offset = currOffset - 1} )
+           | ARFnCall (_, FCPFnName), (EFnCall (_, fnName, _, _) as oldExpr) ->
+               let str =
+                 fnName |> FluidUtil.partialName |> mutation |> String.trim
+               in
+               let newID = gid () in
+               if str = ""
+               then Some (EBlank newID, {astRef = ARBlank newID; offset = 0})
+               else
+                 Some
+                   ( EPartial (newID, str, oldExpr)
+                   , {astRef = ARPartial newID; offset = currOffset - 1} )
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3240,7 +3251,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (removePatternPointFromFloat mID id ast, LeftOne)
     (* | TConstructorName (id, str) *)
     (* str is the partialName: *)
-    | TFnName (id, str, _, _, _) | TFnVersion (id, str, _, _) ->
+    (* | TFnName (id, str, _, _, _) *)
+    | TFnVersion (id, str, _, _) ->
         let f str = Util.removeCharAt str offset in
         (replaceWithPartial (f str) id ast, LeftOne)
     | TRightPartial (_, str) when String.length str = 1 ->
