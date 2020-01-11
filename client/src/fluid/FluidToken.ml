@@ -252,7 +252,8 @@ let isErrorDisplayable (t : t) : bool =
 
 let toText (t : t) : string =
   let shouldntBeEmpty name =
-    asserT ~debug:t "shouldn't be empty" (name <> "") ;
+    if name = ""
+    then asserT ~debug:(show_fluidToken t) "shouldn't be empty" (name <> "") ;
     name
   in
   let canBeEmpty name = if name = "" then "   " else name in
