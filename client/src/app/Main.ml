@@ -78,12 +78,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   in
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
-  let functions =
-    List.filter complete ~f:(fun fn ->
-        if String.contains ~substring:"Twitter::" fn.fnName
-        then VariantTesting.libtwitterAvailable variants
-        else true)
-  in
+  let functions = complete in
   FluidExpression.functions := functions ;
   let m =
     { m with
