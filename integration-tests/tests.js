@@ -443,19 +443,6 @@ test("rename_db_type", async t => {
     .pressKey("enter");
 });
 
-// Testcafe doesn't actually generate ClipboardEvents for copy/paste
-// keystrokes. So I've disabled these tests for now.
-/*
-test("paste_right_number_of_blanks", async t => {
-  await t
-    .click(Selector('.fnname').withText('-'))
-    .pressKey("meta+c")
-    .click(Selector('.fnname').withText('(+)'))
-    .pressKey("meta+v")
-});
-
-*/
-
 /* Disable for now, will bring back as command palette fn
 test("feature_flag_works", async t => {
   await t
