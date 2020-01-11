@@ -296,31 +296,6 @@ let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
         recover "Changing group metadata on non-fn" ~debug:replacement tl )
 
 
-let replaceOp (pd : blankOrData) (replacement : blankOrData) (tl : toplevel) :
-    op list =
-  let newTL = replace pd replacement tl in
-  if newTL = tl
-  then []
-  else
-    match newTL with
-    | TLHandler h ->
-        [SetHandler (h.hTLID, h.pos, h)]
-    | TLFunc f ->
-        [SetFunction f]
-    | TLTipe t ->
-        [SetType t]
-    | TLDB _ ->
-        recover "no vars in DBs" ~debug:tl []
-    | TLGroup _ ->
-        recover "groups are front end only" ~debug:tl []
-
-
-let replaceMod (pd : blankOrData) (replacement : blankOrData) (tl : toplevel) :
-    modification =
-  let ops = replaceOp pd replacement tl in
-  if ops = [] then NoChange else AddOps (ops, FocusNoChange)
-
-
 let combine
     (handlers : handler TD.t)
     (dbs : db TD.t)
