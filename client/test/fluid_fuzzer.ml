@@ -308,19 +308,30 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
   E.walk ~f newExpr
 
 
-let rec blankVarNames (id : id) (expr : E.t) : E.t =
-  let f = blankVarNames id in
-  let fStr strid str = if strid = id then "" else str in
+let rec changeStrings (id : id) ~(f : string -> string) (expr : E.t) : E.t =
+  let fStr strid str = if strid = id then f str else str in
   let newExpr =
     match expr with
     | ELet (id, name, rhs, next) ->
         ELet (id, fStr id name, rhs, next)
     | EFieldAccess (id, expr, fieldname) ->
         EFieldAccess (id, expr, fStr id fieldname)
+    | EPartial (id, name, expr) ->
+        let newName = f name in
+        if newName = "" then expr else EPartial (id, newName, expr)
+    | ERightPartial (id, name, expr) ->
+        let newName = f name in
+        if newName = "" then expr else ERightPartial (id, newName, expr)
+    | EFnCall (id, name, exprs, ster) ->
+        let newName = f name in
+        if newName = "" then expr else EFnCall (id, newName, exprs, ster)
+    | EBinOp (id, name, lhs, rhs, ster) ->
+        let newName = f name in
+        if newName = "" then expr else EBinOp (id, newName, lhs, rhs, ster)
     | ELambda (id, names, expr) ->
         let names =
           List.map names ~f:(fun (nid, name) ->
-              if nid = id then (nid, "") else (nid, name))
+              if nid = id then (nid, f name) else (nid, name))
         in
         ELambda (id, names, expr)
     | ERecord (rid, fields) ->
@@ -328,12 +339,22 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
           ( rid
           , List.map
               ~f:(fun (name, expr) ->
-                if id = E.id expr then ("", expr) else (name, expr))
+                if id = E.id expr then (f name, expr) else (name, expr))
               fields )
+    | EString (id, str) ->
+        EString (id, f str)
     | _ ->
         expr
   in
-  E.walk ~f newExpr
+  E.walk ~f:(changeStrings id ~f) newExpr
+
+
+let blankVarNames (id : id) (expr : E.t) : E.t =
+  changeStrings ~f:(fun _ -> "") id expr
+
+
+let shortenNames (id : id) (expr : E.t) : E.t =
+  changeStrings ~f:(String.dropRight ~count:1) id expr
 
 
 let rec remove (id : id) (expr : E.t) : E.t =
@@ -453,6 +474,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
       |> runThrough "unwrapping" unwrap
       |> runThrough "removing" remove
       |> runThrough "blankVarNames" blankVarNames
+      |> runThrough "shortenNames" shortenNames
     in
     newAST := latestAST
   done ;
