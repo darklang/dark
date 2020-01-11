@@ -891,6 +891,7 @@ let run () =
        * without quotes, and then parsed as JSON. *)
       (* roundtrip (str ("[1 , 5]")) ; *)
       (* roundtrip (str ("12345678987654321.12345678987654321")) ; *)
+      roundtrip ~debug:true (pipe (str "a") [binop "++" pipeTarget (str "b")]) ;
       roundtrip aPipe ;
       roundtrip (fn "HttpClient::post_v4" [str ""]) ;
       roundtrip longString ;

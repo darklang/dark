@@ -4082,17 +4082,19 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
              (tid t, text, toTypeName t))
     in
     let reconstructExpr expr : E.t option =
-      let exprID =
-        match expr with EPipeTarget _ -> None | _ -> Some (E.id expr)
-      in
-      exprID
-      |> Option.andThen ~f:(exprRangeInAst ~ast)
-      |> Option.andThen ~f:(fun (exprStartPos, exprEndPos) ->
-             (* ensure expression range is not totally outside selection range *)
-             if exprStartPos > endPos || exprEndPos < startPos
-             then None
-             else Some (max exprStartPos startPos, min exprEndPos endPos))
-      |> Option.andThen ~f:(reconstruct ~topmostID:exprID)
+      match expr with
+      | EPipeTarget _ ->
+          Some expr
+      | _ ->
+          let exprID = E.id expr in
+          exprID
+          |> exprRangeInAst ~ast
+          |> Option.andThen ~f:(fun (exprStartPos, exprEndPos) ->
+                 (* ensure expression range is not totally outside selection range *)
+                 if exprStartPos > endPos || exprEndPos < startPos
+                 then None
+                 else Some (max exprStartPos startPos, min exprEndPos endPos))
+          |> Option.andThen ~f:(reconstruct ~topmostID:(Some exprID))
     in
     let orDefaultExpr : E.t option -> E.t =
       Option.withDefault ~default:(EBlank (gid ()))
