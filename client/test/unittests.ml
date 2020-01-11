@@ -49,6 +49,7 @@ let () =
   describe "Rpc_test" Rpc_test.run ;
   describe "Runtime_test" Runtime_test.run ;
   describe "View_blankor" View_blankor.run ;
+  describe "Fluid_functions_test" Fluid_functions_test.run ;
   if !domTests
   then (
     DOMSupport.init () ;
