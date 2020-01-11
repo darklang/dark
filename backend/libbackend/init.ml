@@ -20,7 +20,6 @@ let init ~run_side_effects =
         @ Libtwilio.fns
         @ Libdarkinternal.fns
         @ Libstaticassets.fns
-        @ Libtwitter.fns
         @ Libjwt.fns
         @ Libx509.fns
       in
