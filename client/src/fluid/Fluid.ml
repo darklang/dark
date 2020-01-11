@@ -1271,10 +1271,9 @@ let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
 let removeEmptyExpr (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
-      | ELet (_, "", EBlank _, body) ->
-          body
-      | ELet (_, "", rhs, EBlank _) ->
-          rhs
+      | (ELet (_, var, EBlank _, expr) | ELet (_, var, expr, EBlank _))
+        when var = "" || var = "_" ->
+          expr
       | EIf (_, EBlank _, EBlank _, EBlank _) ->
           E.newB ()
       | ELambda (_, _, EBlank _) ->
