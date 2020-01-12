@@ -448,14 +448,14 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
               then (
                 Js.log "removed the good bit, trying next id" ;
                 debugAST length "started with" !latestAST ;
-                debugAST length "reduced " reducedAST ;
+                debugAST length "reduced" reducedAST ;
                 debugAST length "after testing" newAST ;
                 Js.log2 "pos is" newState.newPos )
               else (
                 Js.log
                   "Success! We've reduced and it still fails. Let's keep going!" ;
                 debugAST length "started with" !latestAST ;
-                debugAST length "reduced " reducedAST ;
+                debugAST length "reduced" reducedAST ;
                 debugAST length "after testing" newAST ;
                 if length < !verbosityThreshold
                 then Js.log2 "pos is" newState.newPos ;
