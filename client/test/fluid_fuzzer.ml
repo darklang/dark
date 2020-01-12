@@ -359,14 +359,13 @@ let shortenNames (id : id) (expr : E.t) : E.t =
 
 let rec remove (id : id) (expr : E.t) : E.t =
   let r e = remove id e in
-  let f e = if E.id e = id then EBlank id else remove id e in
   let removeFromList exprs =
     List.filterMap exprs ~f:(fun e -> if E.id e = id then None else Some (r e))
   in
   if E.id expr = id
   then EBlank id
   else
-    let newExpr =
+    let f expr =
       match expr with
       | EFieldAccess (faID, expr, fieldname) ->
           if id = faID then expr else EFieldAccess (faID, r expr, fieldname)
@@ -379,13 +378,13 @@ let rec remove (id : id) (expr : E.t) : E.t =
                    if nid = id then None else Some (nid, name))
             |> fun x -> if x = [] then List.take ~count:1 names else x
           in
-          ELambda (id, names, f expr)
+          ELambda (id, names, expr)
       | EList (id, exprs) ->
           EList (id, removeFromList exprs)
       | EMatch (mid, mexpr, pairs) ->
           EMatch
             ( mid
-            , f mexpr
+            , mexpr
             , List.filterMap
                 ~f:(fun (pattern, expr) ->
                   if E.id expr = id || FluidPattern.id pattern = id
@@ -416,9 +415,9 @@ let rec remove (id : id) (expr : E.t) : E.t =
       | EConstructor (id, name, exprs) ->
           EConstructor (id, name, removeFromList exprs)
       | _ ->
-          E.walk ~f expr
+          expr
     in
-    E.walk ~f newExpr
+    E.walk ~f expr
 
 
 let reduce (test : FuzzTest.t) (ast : E.t) =
@@ -447,14 +446,14 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
               then (
                 Js.log "removed the good bit, trying next id" ;
                 debugAST length "started with" !latestAST ;
-                debugAST length "result was" reducedAST ;
+                debugAST length "reduced " reducedAST ;
                 debugAST length "after testing" newAST ;
                 Js.log2 "pos is" newState.newPos )
               else (
                 Js.log
                   "Success! We've reduced and it still fails. Let's keep going!" ;
                 debugAST length "started with" !latestAST ;
-                debugAST length "result was" reducedAST ;
+                debugAST length "reduced " reducedAST ;
                 debugAST length "after testing" newAST ;
                 if length < !verbosityThreshold
                 then Js.log2 "pos is" newState.newPos ;
