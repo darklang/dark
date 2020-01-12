@@ -261,7 +261,9 @@ module FuzzTest = struct
   type t =
     { name : string
     ; fn : E.t -> E.t * fluidState
-    ; check : testcase:E.t -> newAST:E.t -> fluidState -> bool }
+    ; check : testcase:E.t -> newAST:E.t -> fluidState -> bool
+    ; ignore : (* Sometimes you know some things are broken *)
+               E.t -> bool }
 end
 
 (* ------------------ *)
@@ -437,7 +439,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
         ( try
             Js.log2 msg (idx, length, id) ;
             let reducedAST = reducer id !latestAST in
-            if !latestAST = reducedAST
+            if !latestAST = reducedAST || test.ignore reducedAST
             then Js.log "no change, trying next id"
             else
               let newAST, newState = test.fn reducedAST in
