@@ -511,6 +511,10 @@ let rec eToTestcase (e : E.t) : string =
         "partial " ^ quoted str ^ " " ^ r e
     | EFnCall (_, name, exprs, _) ->
         "fn " ^ quoted name ^ " " ^ listed (List.map ~f:r exprs)
+    | EBinOp (_, name, lhs, rhs, _) ->
+        "binop " ^ quoted name ^ " " ^ r lhs ^ " " ^ r rhs
+    | EVariable (_, name) ->
+        "var " ^ quoted name
     | _ ->
         "todo: " ^ E.show e
   in
