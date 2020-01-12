@@ -30,7 +30,7 @@ let toText ast = FluidPrinter.eToString ast
 let pointerToText (p : blankOrData) : string = Pointer.toContent p
 
 let debugAST (length : int) (msg : string) (e : E.t) : unit =
-  if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ toText e)
+  if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ E.show e)
 
 
 (* ------------------ *)
