@@ -102,6 +102,16 @@ let copyPasteTest : FuzzTest.t =
         (Fluid_clipboard_test.execute_roundtrip testcase, defaultTestState)) }
 
 
+let encodingRoundtrip : FuzzTest.t =
+  { name = "encoder/decoder roundtrips successfully"
+  ; check = (fun ~testcase ~newAST _ -> testcase = newAST)
+  ; ignore = (fun _ -> false)
+  ; fn =
+      (fun testcase ->
+        (testcase |> Encoders.fluidExpr |> Decoders.fluidExpr, defaultTestState))
+  }
+
+
 (* ------------------ *)
 (* Run the tests *)
 (* ------------------ *)
@@ -111,5 +121,6 @@ let () =
   Tester.verbose := true ;
   process_cmdline_args () ;
   runTest deleteAllTest ;
+  runTest encodingRoundtrip ;
   runTest copyPasteTest ;
   ()
