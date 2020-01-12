@@ -515,6 +515,11 @@ let rec eToTestcase (e : E.t) : string =
         "binop " ^ quoted name ^ " " ^ r lhs ^ " " ^ r rhs
     | EVariable (_, name) ->
         "var " ^ quoted name
+    | ERecord (_, pairs) ->
+        "record "
+        ^ listed (List.map pairs ~f:(fun (k, v) -> "(" ^ k ^ ", " ^ r v))
+    | EConstructor (_, name, exprs) ->
+        "constructor " ^ quoted name ^ " " ^ listed (List.map exprs ~f:r)
     | _ ->
         "todo: " ^ E.show e
   in
