@@ -83,6 +83,7 @@ let deleteAllTest : FuzzTest.t =
   ; check =
       (fun ~testcase:_ ~newAST newState ->
         toText newAST = "___" && newState.newPos = 0)
+  ; ignore = (fun _ -> false)
   ; fn =
       (fun testcase ->
         processMsg
@@ -95,6 +96,7 @@ let deleteAllTest : FuzzTest.t =
 let copyPasteTest : FuzzTest.t =
   { name = "copy paste roundtrips successfully"
   ; check = (fun ~testcase ~newAST _ -> toText testcase = toText newAST)
+  ; ignore = (function EString _ -> true | _ -> false)
   ; fn =
       (fun testcase ->
         (Fluid_clipboard_test.execute_roundtrip testcase, defaultTestState)) }
