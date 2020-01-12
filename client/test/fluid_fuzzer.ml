@@ -501,8 +501,9 @@ let runTest (test : FuzzTest.t) : unit =
             Js.log2 "failed: " name ;
             let reduced = reduce test testcase in
             let text = toText reduced in
-            Js.log2 "finished program:\n" text ;
-            Js.log2 "testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
+            Js.log2 "finished program:\n  " text ;
+            Js.log2 "as expr:\n  " (E.show reduced) ;
+            Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
             fail () )
           else pass ())
     done
