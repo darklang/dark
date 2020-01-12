@@ -207,7 +207,7 @@ let rec generatePipeArgumentExpr () =
 
 
 and generateExpr () =
-  match range 17 with
+  match range 19 with
   | 0 ->
       b
   | 1 ->
