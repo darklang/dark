@@ -8,41 +8,6 @@ type ('a, 'b) transformation_test_result =
   | Pass
   | Fail of 'a * 'b
 
-let fuunctions =
-  let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
-      Types.parameter =
-    { paramName = name
-    ; paramTipe = t
-    ; paramBlock_args = blockArgs
-    ; paramOptional = opt
-    ; paramDescription = "" }
-  in
-  [ { fnName = "Dict::map"
-    ; fnParameters =
-        [ fnParam "dict" TObj false
-        ; fnParam "f" TBlock false ~blockArgs:["key"; "value"] ]
-    ; fnReturnTipe = TObj
-    ; fnDescription =
-        "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
-    ; fnPreviewExecutionSafe = true
-    ; fnDeprecated = false
-    ; fnInfix = false }
-  ; { fnName = "+"
-    ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
-    ; fnReturnTipe = TInt
-    ; fnDescription = "Some infix function"
-    ; fnPreviewExecutionSafe = true
-    ; fnDeprecated = false
-    ; fnInfix = true }
-  ; { fnName = "Bool::not"
-    ; fnParameters = [fnParam "a" TBool false]
-    ; fnReturnTipe = TBool
-    ; fnDescription = "Reverse the truth"
-    ; fnPreviewExecutionSafe = true
-    ; fnDeprecated = false
-    ; fnInfix = false } ]
-
-
 let run () =
   describe "ast" (fun () ->
       let id1 = ID "5" in
