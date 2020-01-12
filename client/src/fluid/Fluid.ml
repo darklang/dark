@@ -4321,7 +4321,26 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         then Some (EPartial (gid (), newFnName, e))
         else Some e
     | EPartial (eID, _, expr) ->
-        let expr = reconstructExpr expr |> orDefaultExpr in
+        let expr =
+          match expr with
+          | EBinOp (id, name, lhs, rhs, ster) ->
+              (* keep the name cause it might be covered *)
+              EBinOp
+                ( id
+                , name
+                , reconstructExpr lhs |> orDefaultExpr
+                , reconstructExpr rhs |> orDefaultExpr
+                , ster )
+          | EFnCall (id, name, exprs, ster) ->
+              (* keep the name cause it might be covered *)
+              EFnCall
+                ( id
+                , name
+                , List.map ~f:(reconstructExpr >> orDefaultExpr) exprs
+                , ster )
+          | _ ->
+              reconstructExpr expr |> orDefaultExpr
+        in
         let newName =
           findTokenValue tokens eID "partial" |> Option.withDefault ~default:""
         in
