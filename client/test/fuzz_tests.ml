@@ -15,18 +15,22 @@ let process_cmdline_args () =
       match (!command, str) with
       | None, "--pattern"
       | None, "--count"
+      | None, "--size"
       | None, "--initialSeed"
       | None, "--verbosityThreshold" ->
           command := Some str
       | None, "--help" ->
           Js.log
-            "Run Dark's client-side fuzzer. Supported arguments:\n  --initialSeed: change the seed\n  --count: run count number of tests\n  --verbosityThreshold: once the number of expressions drops below this number, start printing more verbosity\n  --help: Print this message\n  --pattern 'some-regex': Only run tests that contains this regex" ;
+            "Run Dark's client-side fuzzer. Supported arguments:\n  --initialSeed: change the seed\n  --count: run count number of tests\n  --size: the size of the test cases\n  --verbosityThreshold: once the number of expressions drops below this number, start printing more verbosity\n  --help: Print this message\n  --pattern 'some-regex': Only run tests that contains this regex" ;
           exit 0
       | Some "--pattern", str ->
           Tester.pattern := Some (Js.Re.fromString str) ;
           command := None
       | Some "--count", str ->
           Fluid_fuzzer.count := int_of_string str ;
+          command := None
+      | Some "--size", str ->
+          Fluid_fuzzer.size := int_of_string str ;
           command := None
       | Some "--initialSeed", str ->
           Fluid_fuzzer.initialSeed := int_of_string str ;

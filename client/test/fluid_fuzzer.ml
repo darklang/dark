@@ -21,6 +21,10 @@ let defaultCount = 3
 
 let count = ref defaultCount
 
+let defaultSize = 4
+
+let size = ref defaultSize
+
 (* ------------------ *)
 (* Debugging *)
 (* ------------------ *)
@@ -57,8 +61,13 @@ let range (max : int) : int = Js_math.floor (float_of_int max *. random ())
 
 let generateLength maxLength = max 0 (1 + range (maxLength - 1))
 
-let generateList ~(f : unit -> 'a) () : 'a list =
-  List.initialize (generateLength 3) (fun _ -> f ())
+let generateList ~(minSize : int) ~(f : unit -> 'a) () : 'a list =
+  (* Lower the list lengths as we go so eventually the program converges *)
+  size := !size - 1 ;
+  let s = max minSize !size in
+  let result = List.initialize (generateLength s) (fun _ -> f ()) in
+  size := !size + 1 ;
+  result
 
 
 let generateName () =
@@ -89,7 +98,7 @@ let generateName () =
     | _ ->
         'z'
   in
-  generateList ~f:generateChar () |> String.fromList
+  generateList ~minSize:1 ~f:generateChar () |> String.fromList
 
 
 let generateString () =
@@ -120,7 +129,7 @@ let generateString () =
     | _ ->
         ' '
   in
-  generateList ~f:generateChar () |> String.fromList
+  generateList ~minSize:0 ~f:generateChar () |> String.fromList
 
 
 let generateInfixName () =
@@ -181,7 +190,9 @@ let rec generatePattern () =
   | 2 ->
       pNull
   | 3 ->
-      pConstructor (generateName ()) (generateList ~f:generatePattern ())
+      pConstructor
+        (generateName ())
+        (generateList ~minSize:0 ~f:generatePattern ())
   | 4 ->
       pVar (generateName ())
   | 5 ->
@@ -195,11 +206,13 @@ let rec generatePattern () =
 let rec generatePipeArgumentExpr () =
   match range 4 with
   | 0 ->
-      lambda (generateList ~f:generateName ()) (generateExpr ())
+      lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
   | 1 ->
       b
   | 2 ->
-      fn (generateName ()) (pipeTarget :: generateList ~f:generateExpr ())
+      fn
+        (generateName ())
+        (pipeTarget :: generateList ~minSize:0 ~f:generateExpr ())
   | 3 ->
       binop (generateName ()) pipeTarget (generateExpr ())
   | _ ->
@@ -219,37 +232,42 @@ and generateExpr () =
   | 4 ->
       float' (Int.toString (range 5000000)) (Int.toString (range 500000))
   | 5 ->
-      record (generateList () ~f:(fun () -> (generateName (), generateExpr ())))
+      null
   | 6 ->
-      list (generateList () ~f:generateExpr)
-  | 7 ->
-      fn (generateFnName ()) (generateList ~f:generateExpr ())
-  | 8 ->
-      partial (generateFnName ()) (generateExpr ())
-  | 9 ->
-      rightPartial (generateInfixName ()) (generateExpr ())
-  | 10 ->
       var (generateName ())
+  | 7 ->
+      partial (generateFnName ()) (generateExpr ())
+  | 8 ->
+      list (generateList () ~minSize:0 ~f:generateExpr)
+  | 9 ->
+      fn (generateFnName ()) (generateList ~minSize:0 ~f:generateExpr ())
+  | 10 ->
+      rightPartial (generateInfixName ()) (generateExpr ())
   | 11 ->
       fieldAccess (generateFieldAccessExpr ()) (generateName ())
   | 12 ->
-      if' (generateExpr ()) (generateExpr ()) (generateExpr ())
+      lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
   | 13 ->
       let' (generateName ()) (generateExpr ()) (generateExpr ())
   | 14 ->
-      lambda (generateList ~f:generateName ()) (generateExpr ())
-  | 15 ->
-      pipe (generateExpr ()) (generateList ~f:generatePipeArgumentExpr ())
-  | 16 ->
       binop (generateInfixName ()) (generateExpr ()) (generateExpr ())
+  | 15 ->
+      if' (generateExpr ()) (generateExpr ()) (generateExpr ())
+  | 16 ->
+      constructor (generateName ()) (generateList ~minSize:0 ~f:generateExpr ())
   | 17 ->
-      null
+      pipe
+        (generateExpr ())
+        (generateList ~minSize:2 ~f:generatePipeArgumentExpr ())
   | 18 ->
-      constructor (generateName ()) (generateList ~f:generateExpr ())
+      record
+        (generateList ~minSize:1 () ~f:(fun () ->
+             (generateName (), generateExpr ())))
   | 19 ->
       match'
         (generateExpr ())
-        (generateList () ~f:(fun () -> (generatePattern (), generateExpr ())))
+        (generateList ~minSize:1 () ~f:(fun () ->
+             (generatePattern (), generateExpr ())))
   | _ ->
       b
 
@@ -493,6 +511,7 @@ let runTest (test : FuzzTest.t) : unit =
           setSeed i ;
           let testcase = generateExpr () |> FluidExpression.clone in
           Js.log2 "testing: " name ;
+          Js.log2 "testcase: " (E.show testcase) ;
           let newAST, newState = test.fn testcase in
           Js.log2 "checking: " name ;
           let passed = test.check ~testcase ~newAST newState in
