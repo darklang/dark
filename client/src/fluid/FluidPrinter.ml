@@ -507,6 +507,10 @@ let rec eToTestcase (e : E.t) : string =
         "b"
     | EString (_, str) ->
         spaced ["str"; quoted str]
+    | EBool (_, true) ->
+        "true"
+    | EBool (_, false) ->
+        "false"
     | EInteger (_, int) ->
         spaced ["int"; quoted int]
     | ENull _ ->
