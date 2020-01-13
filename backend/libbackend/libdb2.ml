@@ -6,7 +6,7 @@ module Exception = Libexecution.Exception
 module Dval = Libexecution.Dval
 module Unicode_string = Libexecution.Unicode_string
 
-let find_db = Libdb.find_db
+let find_db = Libexecution.Ast.find_db
 
 let fns : shortfn list =
   [ { pns = ["DB::set_v1"]
@@ -247,7 +247,7 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj
+              User_db.query_exact_fields ~state db obj
               |> List.map ~f:(fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -266,13 +266,14 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj
+              User_db.query_exact_fields ~state db obj
               |> List.map ~f:(fun (k, v) -> v)
               |> Dval.to_list
           | args ->
               fail args)
     ; ps = false
     ; dep = true }
+    (* see queryExactFields *)
   ; { pns = ["DB::query_v3"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -284,7 +285,25 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj
+              User_db.query_exact_fields ~state db obj
+              |> List.map ~f:(fun (k, v) -> v)
+              |> Dval.to_list
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::queryExactFields"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TList
+    ; d =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              User_db.query_exact_fields ~state db obj
               |> List.map ~f:(fun (k, v) -> v)
               |> Dval.to_list
           | args ->
@@ -303,7 +322,7 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj
+              User_db.query_exact_fields ~state db obj
               |> List.map ~f:(fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -311,6 +330,7 @@ let fns : shortfn list =
               fail args)
     ; ps = false
     ; dep = true }
+    (* see queryExactFieldsWithKey *)
   ; { pns = ["DB::queryWithKey_v2"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -323,7 +343,28 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query ~state db obj |> DvalMap.from_list |> DObj
+              User_db.query_exact_fields ~state db obj
+              |> DvalMap.from_list
+              |> DObj
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::queryExactFieldsWithKey"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TObj
+    ; d =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has
+        , returning {key : value} as an object. Previous called DB::queryWithKey_v2"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              User_db.query_exact_fields ~state db obj
+              |> DvalMap.from_list
+              |> DObj
           | args ->
               fail args)
     ; ps = false
@@ -340,7 +381,7 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(_, v)] ->
@@ -363,7 +404,31 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
+              in
+              ( match results with
+              | [(_, v)] ->
+                  Dval.to_opt_just v
+              | _ ->
+                  DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = true }
+    (* see queryOneExactFields *)
+  ; { pns = ["DB::queryOneWithExactFields"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TOption
+    ; d =
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let results =
+                let db = find_db state.dbs dbname in
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(_, v)] ->
@@ -386,7 +451,7 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(k, v)] ->
@@ -409,7 +474,31 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
+                User_db.query_exact_fields ~state db obj
+              in
+              ( match results with
+              | [(k, v)] ->
+                  DOption (OptJust (DObj (DvalMap.singleton k v)))
+              | _ ->
+                  DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = true }
+    (* see queryOneExactFieldsWithKey *)
+  ; { pns = ["DB::queryOneWithExactFieldsWithKey"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TOption
+    ; d =
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let results =
+                let db = find_db state.dbs dbname in
+                User_db.query_exact_fields ~state db obj
               in
               ( match results with
               | [(k, v)] ->
@@ -589,6 +678,94 @@ let fns : shortfn list =
               User_db.get_all_keys ~state db
               |> List.map ~f:(fun k -> Dval.dstr_of_string_exn k)
               |> DList
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::query_v4"]
+    ; ins = []
+    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; r = TList
+    ; d =
+        "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+    ; f =
+        InProcess
+          (function
+          | state, [DDB dbname; DBlock b] ->
+            ( try
+                let db = find_db state.dbs dbname in
+                User_db.query ~state db b
+                |> List.map ~f:(fun (k, v) -> v)
+                |> Dval.to_list
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::queryWithKey_v3"]
+    ; ins = []
+    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; r = TObj
+    ; d =
+        "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+    ; f =
+        InProcess
+          (function
+          | state, [DDB dbname; DBlock b] ->
+            ( try
+                let db = find_db state.dbs dbname in
+                User_db.query ~state db b |> DvalMap.from_list |> DObj
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::queryOne_v3"]
+    ; ins = []
+    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; r = TList
+    ; d =
+        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+    ; f =
+        InProcess
+          (function
+          | state, [DDB dbname; DBlock b] ->
+            ( try
+                let db = find_db state.dbs dbname in
+                let results = User_db.query ~state db b in
+                match results with
+                | [(_, v)] ->
+                    Dval.to_opt_just v
+                | _ ->
+                    DOption OptNothing
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::queryOneWithKey_v3"]
+    ; ins = []
+    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; r = TOption
+    ; d =
+        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+    ; f =
+        InProcess
+          (function
+          | state, [DDB dbname; DBlock b] ->
+            ( try
+                let db = find_db state.dbs dbname in
+                let results = User_db.query ~state db b in
+                match results with
+                | [(k, v)] ->
+                    DOption (OptJust (DObj (DvalMap.singleton k v)))
+                | _ ->
+                    DOption OptNothing
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
     ; ps = false

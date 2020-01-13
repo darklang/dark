@@ -44,7 +44,7 @@ let cols_for (db : db) : (string * tipe) list =
              None)
 
 
-let rec query ~state db query_obj : (string * dval) list =
+let rec query_exact_fields ~state db query_obj : (string * dval) list =
   let sql =
     "SELECT key, data
      FROM user_data
@@ -70,10 +70,6 @@ let rec query ~state db query_obj : (string * dval) list =
              (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in fetch_all")
-
-
-and query_by_one ~state db (col : string) (dv : dval) : (string * dval) list =
-  query ~state db (DObj (DvalMap.singleton col dv))
 
 
 and
@@ -308,6 +304,58 @@ let get_all ~state (db : db) : (string * dval) list =
       ; Uuid state.canvas_id
       ; Int db.version
       ; Int current_dark_version ]
+  |> List.map ~f:(fun return_val ->
+         match return_val with
+         (* TODO(ian): change `to_obj` to just take a string *)
+         | [key; data] ->
+             (key, to_obj db [data])
+         | _ ->
+             Exception.internal "bad format received in get_all")
+
+
+let get_db_fields (db : db) : (string * tipe_) list =
+  List.filter_map db.cols ~f:(function
+      | Filled (_, field), Filled (_, tipe) ->
+          Some (field, tipe)
+      | _ ->
+          None)
+
+
+let query ~state (db : db) (b : dblock_args) : (string * dval) list =
+  let dbFields = Tablecloth.StrDict.from_list (get_db_fields db) in
+  let paramName =
+    match b.params with
+    | [(_, name)] ->
+        name
+    | _ ->
+        Exception.internal "wrong number of args"
+  in
+  let sql = Sql_compiler.compile_lambda b.symtable paramName dbFields b.body in
+  let result =
+    try
+      Db.fetch
+        ~name:"filter"
+        ( "SELECT key, data
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5
+     AND ("
+        ^ sql
+        ^ ")" )
+        ~params:
+          [ ID db.tlid
+          ; Uuid state.account_id
+          ; Uuid state.canvas_id
+          ; Int db.version
+          ; Int current_dark_version ]
+    with e ->
+      (* TODO: log *)
+      raise (DBQueryException "A type error occurred at run-time")
+  in
+  result
   |> List.map ~f:(fun return_val ->
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)

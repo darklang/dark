@@ -205,13 +205,7 @@ let coltypeid2 = Int63.of_int 14
 
 let colnameid3 = Int63.of_int 15
 
-(* Keep scripts/ocaml-find-unused happy *)
-let _ = colnameid3
-
 let coltypeid3 = Int63.of_int 16
-
-(* Keep scripts/ocaml-find-unused happy *)
-let _ = coltypeid3
 
 let nameid = Int63.of_int 17
 
