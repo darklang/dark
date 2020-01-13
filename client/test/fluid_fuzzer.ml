@@ -32,6 +32,9 @@ let size = ref defaultSize
 (* Only run this one test *)
 let only : int option ref = ref None
 
+(* Stop after getting our first failure  *)
+let stop_on_fail : bool ref = ref false
+
 (* ------------------ *)
 (* Debugging *)
 (* ------------------ *)
@@ -513,6 +516,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
 let runTest (test : FuzzTest.t) : unit =
   try
     for i = !initialSeed to !initialSeed + !count - 1 do
+      if !stop_on_fail && Tester.fails () <> [] then exit (-1) ;
       let name = test.name ^ " #" ^ string_of_int i in
       Tester.test name (fun () ->
           setSeed i ;
