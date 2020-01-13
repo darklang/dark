@@ -678,6 +678,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
     | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _)
     | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _)
+    | ARFnCall (id, FCPFnName), TFnVersion (id', _, _, _)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
     | ARIf (id, IPThenKeyword), TIfThenKeyword id'
     | ARIf (id, IPElseKeyword), TIfElseKeyword id'
@@ -952,6 +953,13 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARVariable id; offset}
   | TFnName (id, _, _, _, _) ->
       {astRef = ARFnCall (id, FCPFnName); offset}
+  | TFnVersion (id, _, versionName, backendFnName) ->
+      (* TODO(JULIAN): This is very brittle and should probably be moved into a function responsible
+         for grabbing the appropriate bits of functions *)
+      { astRef = ARFnCall (id, FCPFnName)
+      ; offset =
+          offset + String.length backendFnName - String.length versionName - 1
+      }
   | TLambdaSep (id, idx) ->
       {astRef = ARLambda (id, LPSeparator idx); offset}
   | TLambdaArrow id ->
@@ -1008,7 +1016,6 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
   | TNewline _ (* (id * id * int option) option *)
   | TSep _ (* id *)
   | TIndent _ (* int *)
-  | TFnVersion _ (* id * string * string * string *)
   | TParenOpen _ (* id *)
   | TParenClose _ (* id *) ->
       (* XXX(JULIAN): These are unhandleable right now and posFromCaretTarget can't target them *)
@@ -3252,9 +3259,9 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (* | TConstructorName (id, str) *)
     (* str is the partialName: *)
     (* | TFnName (id, str, _, _, _) *)
-    | TFnVersion (id, str, _, _) ->
+    (* | TFnVersion (id, str, _, _) ->
         let f str = Util.removeCharAt str offset in
-        (replaceWithPartial (f str) id ast, LeftOne)
+        (replaceWithPartial (f str) id ast, LeftOne) *)
     | TRightPartial (_, str) when String.length str = 1 ->
         let ast, targetID = deleteRightPartial ti ast in
         (ast, MoveToTokenEnd (targetID, 0))
