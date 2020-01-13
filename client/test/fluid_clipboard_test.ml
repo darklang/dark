@@ -894,6 +894,8 @@ let run () =
       roundtrip (pipe (str "a") [binop "++" pipeTarget (str "b")]) ;
       roundtrip (pipe (str "a") [fn "String::append" [pipeTarget; str "b"]]) ;
       roundtrip aPipe ;
+      (* TODO: broken because of backspacing on binops *)
+      (* roundtrip (binop "+" (if' (int "5") (int "5") (int "5")) (int "5")) ; *)
       roundtrip (partial "D" (constructor "d" [fn "k" []])) ;
       roundtrip (partial "D" (fn "X" [str "F"])) ;
       roundtrip (fn "HttpClient::post_v4" [str ""]) ;
