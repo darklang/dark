@@ -210,8 +210,8 @@ and set ~state ~upsert (db : db) (key : string) (vals : dval_map) : Uuidm.t =
   id
 
 
-and get ~state (db : db) (key : string) : dval =
-  Db.fetch_one
+and get_option ~state (db : db) (key : string) : dval option =
+  Db.fetch_one_option
     ~name:"get"
     "SELECT data
      FROM user_data
@@ -228,7 +228,7 @@ and get ~state (db : db) (key : string) : dval =
       ; Int db.version
       ; Int current_dark_version
       ; String key ]
-  |> to_obj db
+  |> Option.map ~f:(to_obj db)
 
 
 and get_many ~state (db : db) (keys : string list) : (string * dval) list =
