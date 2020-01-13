@@ -155,7 +155,7 @@ let run () =
       (fun () ->
         if debug then Js.log2 "ast before" (Printer.eToStructure ast) ;
         let newAST = execute_roundtrip ast in
-        expect expectedString |> toEqual (Printer.eToString newAST))
+        expect (Printer.eToString newAST) |> toEqual expectedString)
   in
   describe "Booleans" (fun () ->
       t
