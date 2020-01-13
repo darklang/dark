@@ -170,7 +170,7 @@ let dequeue_and_process execution_id :
                                       ~status:`Err
                                   with e ->
                                     Log.erroR
-                                      "Unhanled
+                                      "Unhandled
 exception in Event_queue.put_back"
                                       ~data:
                                         (Libexecution.Exception.exn_to_string e)
