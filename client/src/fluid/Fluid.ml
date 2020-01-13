@@ -4321,26 +4321,11 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         then Some (EPartial (gid (), newFnName, e))
         else Some e
     | EPartial (eID, _, expr) ->
-        let expr =
-          match expr with
-          | EBinOp (id, name, lhs, rhs, ster) ->
-              (* keep the name cause it might be covered *)
-              EBinOp
-                ( id
-                , name
-                , reconstructExpr lhs |> orDefaultExpr
-                , reconstructExpr rhs |> orDefaultExpr
-                , ster )
-          | EFnCall (id, name, exprs, ster) ->
-              (* keep the name cause it might be covered *)
-              EFnCall
-                ( id
-                , name
-                , List.map ~f:(reconstructExpr >> orDefaultExpr) exprs
-                , ster )
-          | _ ->
-              reconstructExpr expr |> orDefaultExpr
-        in
+        (* What should we do with the expr? Some of the name is covered by
+         * the partial name which breaks the reconstruction algorithm. In
+         * addtion, copying a partial without the old expr breaks the whole
+         * concept of a partial. So it makes more sense to copy the whole
+         * thing. *)
         let newName =
           findTokenValue tokens eID "partial" |> Option.withDefault ~default:""
         in
