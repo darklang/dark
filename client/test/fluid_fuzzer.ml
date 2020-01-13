@@ -450,6 +450,12 @@ let rec remove (id : id) (expr : E.t) : E.t =
     E.walk ~f expr
 
 
+let rec simplify (id : id) (expr : E.t) : E.t =
+  if E.id expr = id && not (E.isBlank expr)
+  then EInteger (id, "5")
+  else E.walk ~f:(simplify id) expr
+
+
 let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
     let tokenIDs =
@@ -500,6 +506,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
     oldAST := !newAST ;
     let latestAST =
       !newAST
+      |> runThrough "simplify" simplify
       |> runThrough "unwrapping" unwrap
       |> runThrough "removing" remove
       |> runThrough "blankVarNames" blankVarNames
