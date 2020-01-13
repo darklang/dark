@@ -19,7 +19,7 @@ chrono = "0.4"
 config = "0.9"
 failure = "0.1.6"
 postgres = { version = "0.15", features = ["with-uuid"] }
-rand = "0.7.2"
+rand = "0.7.3"
 rollbar = "0.7.0"
 slog = "2.5.2"
 slog-json = "2.3.0"
