@@ -125,6 +125,16 @@ let rec iter ~(f : expr -> unit) (expr : expr) : unit =
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
+let find_db (dbs : DbT.db list) (name : string) : DbT.db =
+  dbs
+  |> List.filter ~f:(fun db ->
+         match db.name with
+         | Partial _ | Blank _ ->
+             false
+         | Filled (_, dbname) ->
+             dbname = name)
+  |> List.hd_exn
+
 
 let find_derrorrail (dvals : dval list) : dval option =
   List.find dvals ~f:Dval.is_errorrail
@@ -519,13 +529,39 @@ and call_fn
       let result =
         match fn with
         (* Functions which aren't implemented in the client may have results
-   * available, otherwise they just return incomplete. *)
+         * available, otherwise they just return incomplete. *)
         | None ->
             let sfr_desc = (state.tlid, name, id) in
-            ( match state.load_fn_result sfr_desc argvals with
+            let fn_result = state.load_fn_result sfr_desc argvals in
+            (* In the case of DB::query, we want to backfill the
+             * lambda's livevalues, as the lambda was never actually
+             * executed. We hack this is here as we have no idea what
+             * this abstraction might look like in the future. *)
+            ( if state.context = Preview && name = "DB::query_v4"
+            then
+              match argvals with
+              | [DDB dbname; DBlock b] ->
+                  let sample =
+                    match fn_result with
+                    | Some (DList (sample :: _), _) ->
+                        sample
+                    | _ ->
+                        find_db state.dbs dbname
+                        |> (fun (db : DbT.db) -> db.cols)
+                        |> List.filter_map ~f:(function
+                               | Filled (_, field), Filled _ ->
+                                   Some (field, DIncomplete SourceNone)
+                               | _ ->
+                                   None)
+                        |> Dval.to_dobj_exn
+                  in
+                  ignore (execute_dblock ~state b [sample])
+              | _ ->
+                  () ) ;
+            ( match fn_result with
             | Some (result, _ts) ->
                 result
-            | inc ->
+            | _ ->
                 DIncomplete (SourceId id) )
         | Some fn ->
             (* equalize length *)

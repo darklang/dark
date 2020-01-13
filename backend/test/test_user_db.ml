@@ -140,9 +140,9 @@ let t_password_hash_db_roundtrip () =
 
 
 let t_escape_pg_escaping () =
-  AT.check AT.string "no quotes" "asdd" (Db.escape_single "asdd") ;
-  AT.check AT.string "single" "as''dd" (Db.escape_single "as'dd") ;
-  AT.check AT.string "double" "as\"dd" (Db.escape_single "as\"dd") ;
+  AT.check AT.string "no quotes" "asdd" (Db.escape_string "asdd") ;
+  AT.check AT.string "single" "as''dd" (Db.escape_string "as'dd") ;
+  AT.check AT.string "double" "as\"dd" (Db.escape_string "as\"dd") ;
   ()
 
 

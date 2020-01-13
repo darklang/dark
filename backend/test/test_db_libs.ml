@@ -546,6 +546,226 @@ let t_db_getAllKeys_works () =
     (exec_handler ~ops ast)
 
 
+let t_sql_compiler_works () =
+  let open Types in
+  let open Prelude in
+  let f nexpr = Filled (Util.create_id (), nexpr) in
+  let check
+      (msg : string)
+      ?(paramName = "value")
+      ?(dbFields = [])
+      ?(symtable = [])
+      (body : expr)
+      (generated : string) : unit =
+    let dbFields = StrDict.from_list dbFields in
+    let symtable = StrDict.from_list symtable in
+    let result = Sql_compiler.compile_lambda symtable paramName dbFields body in
+    AT.check AT.string msg result generated
+  in
+  let checkError
+      (msg : string)
+      ?(paramName = "value")
+      ?(dbFields = [])
+      ?(symtable = [])
+      (body : expr)
+      (expectedError : string) : unit =
+    try check msg ~paramName ~dbFields ~symtable body "<error expected>"
+    with Db.DBQueryException e -> AT.check AT.string msg e expectedError
+  in
+  let true' = f (Value "true") in
+  check "true is true" true' "(true)" ;
+  let fieldAccess = f (FieldAccess (f (Variable "value"), f "myfield")) in
+  check
+    "correct SQL for field access"
+    ~dbFields:[("myfield", TBool)]
+    fieldAccess
+    "(CAST(data::jsonb->>'myfield' as bool))" ;
+  checkError
+    "no field gives error"
+    fieldAccess
+    "The datastore does not have a field named: myfield" ;
+  let injection = "'; select * from user_data ;'field" in
+  let fieldAccess =
+    f
+      (FnCall
+         ( "=="
+         , [ f (FieldAccess (f (Variable "value"), f injection))
+           ; f (Value "\"x\"") ] ))
+  in
+  check
+    "field accesses are escaped"
+    ~dbFields:[(injection, TStr)]
+    fieldAccess
+    "((CAST(data::jsonb->>'''; select * from user_data ;''field' as text)) = ('x'))" ;
+  let var = f (FnCall ("==", [f (Variable "var"); f (Value "\"x\"")])) in
+  check
+    "symtable escapes correctly"
+    ~symtable:[("var", Dval.dstr_of_string_exn "';select * from user_data;'")]
+    var
+    "((''';select * from user_data;''') = ('x'))" ;
+  let thread =
+    f
+      (Thread
+         [ f (Value "5")
+         ; f (FnCall ("-", [f (Value "2")]))
+         ; f (FnCall ("+", [f (Value "3")]))
+         ; f (FnCall ("<", [f (Value "3")])) ])
+  in
+  check
+    "pipes expand correctly into nested functions"
+    thread
+    "((((5) - (2)) + (3)) < (3))" ;
+  ()
+
+
+let t_db_query_works () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDB (dbid, pos, "Person")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid)
+    ; Op.SetDBColName (dbid, colnameid, "name")
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
+    ; Op.SetDBColName (dbid, colnameid2, "human")
+    ; Op.SetDBColType (dbid, coltypeid2, "Bool")
+    ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
+    ; Op.SetDBColName (dbid, colnameid3, "height")
+    ; Op.SetDBColType (dbid, coltypeid3, "Int") ]
+  in
+  (* Prepopulate the DB for tests *)
+  exec_handler
+    ~ops
+    "(let _ (DB::set_v1
+              (obj (height 73) (name 'Ross') (human true))
+              'ross'
+              Person)
+     (let _ (DB::set_v1
+              (obj (height 65) (name 'Rachel') (human true))
+              'rachel'
+              Person)
+     (let _ (DB::set_v1
+              (obj (height 10) (name 'GrumpyCat') (human false))
+              'cat'
+              Person)
+     (let _ (DB::set_v1
+              (obj (height null) (name null) (human null))
+              'null'
+              Person)
+              ))))"
+  |> ignore ;
+  let exec (code : string) = exec_handler ~ops code in
+  let query code = "(DB::query_v4 Person (" ^ code ^ "))" in
+  let sort code =
+    "(| "
+    ^ code
+    ^ "  (List::map (\\v -> (. v height)))
+           (List::sort))"
+  in
+  let withvar (name : string) (value : string) code =
+    "(let " ^ name ^ " " ^ value ^ " " ^ code ^ ")"
+  in
+  check_dval
+    "Find all"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73; DNull])
+    (query "\\value -> true" |> sort |> exec) ;
+  check_dval
+    "Find all with condition"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (query "\\value -> (> (. value height) 3)" |> sort |> exec) ;
+  check_dval
+    "boolean"
+    (DList [Dval.dint 65; Dval.dint 73])
+    (query "\\value -> (. value human)" |> sort |> exec) ;
+  check_dval
+    "different param name"
+    (DList [Dval.dint 65; Dval.dint 73])
+    (query "\\v -> (. v human)" |> sort |> exec) ;
+  check_dval
+    "&&"
+    (DList [Dval.dint 73])
+    (query "\\v -> (&& (. v human) (> (. v height) 66) )" |> sort |> exec) ;
+  check_dval
+    "inlining"
+    (DList [Dval.dint 65; Dval.dint 73])
+    (query "\\v -> (let x 32 (&& true (> (. v height) x) ))" |> sort |> exec) ;
+  check_dval
+    "pipes"
+    (DList [Dval.dint 10])
+    (query "\\v -> (| (. v height) (* 2) (+ 6) (< 40))" |> sort |> exec) ;
+  check_dval
+    "external variable works"
+    (DList [Dval.dint 10])
+    (query "\\v -> (| (. v height) (< x))" |> sort |> withvar "x" "20" |> exec) ;
+  check_error
+    "not a bool"
+    (query "\\v -> 'x'" |> exec)
+    (Db.dbQueryExceptionToString
+       (Db.DBQueryException
+          "Incorrect type in `\"x\"`, expected Bool but got a str")) ;
+  check_error
+    "bad variable name"
+    (query "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)
+    (Db.dbQueryExceptionToString
+       (Db.DBQueryException "This variable is not defined: y")) ;
+  check_dval
+    "sql injection"
+    (DList [])
+    (query "\\v -> (== '; select * from users ;' (. v name) )" |> exec) ;
+  check_dval
+    "null equality works"
+    (DList [DNull])
+    (query "\\v -> (== (. v name) null)" |> sort |> exec) ;
+  check_dval
+    "null inequality works"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (query "\\v -> (!= (. v name) null)" |> sort |> exec) ;
+  check_dval
+    "null is not 'null'"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (query "\\v -> (!= (. v name) 'null')" |> sort |> exec) ;
+  (* Just check enough of the other functions to verify the signature -
+   * they all use they same function behind the scenes. *)
+  let _queryWithKeys code = "(DB::queryWithKeys_v3 Person (" ^ code ^ "))" in
+  check_dval
+    "queryOne - multiple"
+    (DOption OptNothing)
+    ("(DB::queryOne_v3 Person (\\value -> (. value human)))" |> exec) ;
+  check_dval
+    "queryOne - none"
+    (DOption OptNothing)
+    ("(DB::queryOne_v3 Person (\\value -> (== 'bob' (. value name))))" |> exec) ;
+  check_dval
+    "queryOne - one"
+    (DOption (OptJust (Dval.dint 65)))
+    ( "(| (DB::queryOne_v3 Person (\\value -> (== 'Rachel' (. value name)))) (Option::map_v1 (\\r -> (. r height))))"
+    |> exec ) ;
+  check_dval
+    "queryOneWithKey - multiple"
+    (DOption OptNothing)
+    ("(DB::queryOneWithKey_v3 Person (\\value -> (. value human)))" |> exec) ;
+  check_dval
+    "queryOneWithKey - none"
+    (DOption OptNothing)
+    ( "(DB::queryOneWithKey_v3 Person (\\value -> (== 'bob' (. value name))))"
+    |> exec ) ;
+  check_dval
+    "queryOneWithKey - one"
+    (DOption (OptJust (Dval.dint 65)))
+    ( "(| (DB::queryOneWithKey_v3 Person (\\value -> (== 'Rachel' (. value name)))) (Option::map_v1 (\\r -> (. r rachel))) (Option::map_v1 (\\r -> (. r height))))"
+    |> exec ) ;
+  check_dval
+    "queryOneWithKey - empty"
+    (DObj DvalMap.empty)
+    ( "(DB::queryWithKey_v3 Person (\\value -> (== 'bob' (. value name))))"
+    |> exec ) ;
+  check_dval
+    "queryOneWithKey - more than one"
+    (Dval.dint 65)
+    ( "(| (DB::queryWithKey_v3 Person (\\value -> (== 'Rachel' (. value name)))) (\\r -> (. r rachel)) (\\r -> (. r height)))"
+    |> exec ) ;
+  ()
+
+
 let suite =
   [ ("DB::getAll_v1 works", `Quick, t_db_getAll_v1_works)
   ; ("DB::getAll_v2 works", `Quick, t_db_getAll_v2_works)
@@ -594,4 +814,5 @@ let suite =
     , `Quick
     , t_db_queryOneWithKey_v2_returns_nothing_multiple )
   ; ("t_db_getAllKeys_works returns List of keys", `Quick, t_db_getAllKeys_works)
-  ]
+  ; ("t_db_query works", `Quick, t_db_query_works)
+  ; ("t_sql_compiler_works", `Quick, t_sql_compiler_works) ]
