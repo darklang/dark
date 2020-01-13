@@ -1623,8 +1623,6 @@ let rec deleteBinOp'
   | _, EBinOp (b, n, lhs2, rhs2, rail) ->
       let newExpr, newState = deleteBinOp' lhs lhs2 ti ast s in
       (EBinOp (b, n, newExpr, rhs2, rail), newState)
-  | EInteger (id, lhsVal), EInteger (_, rhsVal) ->
-      (EInteger (id, lhsVal ^ rhsVal), moveTo (ti.startPos - 1) s)
   | EString (id, lhsVal), EString (_, rhsVal) ->
       (EString (id, lhsVal ^ rhsVal), moveTo (ti.startPos - 2) s)
   | EBlank _, EBlank _ ->
@@ -1833,6 +1831,7 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : E.t =
             ERightPartial (id, str, oldVal)
         | oldVal ->
             ERightPartial (gid (), str, oldVal))
+
 
 (* ---------------- *)
 (* Pipes *)
