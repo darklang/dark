@@ -2930,6 +2930,12 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  if coerced = intStr
                  then None
                  else Some (EInteger (id, coerced), desiredCaretTarget)
+           | ARString (_, SPOpenQuote), EString (_, "") when currOffset = 1 ->
+               let bID = gid () in
+               Some (EBlank bID, {astRef = ARBlank bID; offset = 0})
+           | ARString (_, SPText), EString (_, "") when currOffset = 0 ->
+               let bID = gid () in
+               Some (EBlank bID, {astRef = ARBlank bID; offset = 0})
            | ARString (_, SPOpenQuote), EString (id, str)
            (* The minus 2 here (one more than the default `mutation`) accounts for the open quote,
             which isn't part of the `str` but is part of the SPOpenQuote *)
@@ -3293,9 +3299,9 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TPatternString {matchID = mID; patternID = id; str = ""; _} ->
         ( replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast
         , AtTarget {astRef = ARPattern (newID, PPBlank); offset = 0} )
-    | TString (id, "") ->
+    (*     | TString (id, "") ->
         ( E.replace id ~replacement:(EBlank newID) ast
-        , AtTarget {astRef = ARBlank newID; offset = 0} )
+        , AtTarget {astRef = ARBlank newID; offset = 0} ) *)
     (*     | TString (id, _)
     | TStringMLStart (id, _, _, _)
     | TStringMLMiddle (id, _, _, _)
