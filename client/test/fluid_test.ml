@@ -1750,6 +1750,86 @@ let run () =
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
+      t
+        "pressing bs on || in binop deletes right side"
+        (binop "||" trueBool falseBool)
+        (keys [K.Backspace; K.Backspace] 7)
+        "true~" ;
+      t
+        "pressing bs on || in binop deletes blank on rhs"
+        (binop "||" falseBool b)
+        (keys [K.Backspace; K.Backspace] 8)
+        "false~" ;
+      t
+        "pressing bs on || in binop deletes blank on lhs"
+        (binop "||" b falseBool)
+        (keys [K.Backspace; K.Backspace] 13)
+        "~false" ;
+      t
+        "pressing bs on || in binop after blank deletes blank but rest of the lhs"
+        (binop "||" falseBool (binop "||" b trueBool))
+        (keys [K.Backspace; K.Backspace] 22)
+        "false || ~true" ;
+      t
+        "pressing bs on || in binop before blank deletes blank but rest of the lhs"
+        (binop "||" falseBool (binop "||" b trueBool))
+        (keys [K.Backspace; K.Backspace] 8)
+        "false~ || true" ;
+      t
+        "pressing bs on ++ binop before blank deletes blank but rest of the lhs"
+        (binop "+" anInt (binop "+" anInt (binop "+" b anInt)))
+        (bs 15)
+        "12345 + 12345~ + 12345" ;
+      t
+        "pressing bs on ++ binop after blank deletes blank but rest of the lhs"
+        (binop "+" anInt (binop "+" anInt (binop "+" b anInt)))
+        (bs 27)
+        "12345 + 12345 + ~12345" ;
+      t
+        "pressing bs on < binop before blank deletes blank but rest of the lhs"
+        (binop "<" anInt (binop "<" b anInt))
+        (bs 7)
+        "12345~ < 12345" ;
+      t
+        "pressing bs on < binop after blank deletes blank but rest of the lhs"
+        (binop "<" anInt (binop "<" b anInt))
+        (bs 19)
+        "12345 < ~12345" ;
+      t
+        "pressing bs on - binop before blank deletes blank but rest of the lhs"
+        (binop "-" anInt (binop "-" anInt (binop "-" b anInt)))
+        (bs 15)
+        "12345 - 12345~ - 12345" ;
+      t
+        "pressing bs on - binop after blank deletes blank but rest of the lhs"
+        (binop "-" anInt (binop "-" anInt (binop "-" b anInt)))
+        (bs 21)
+        "12345 - 12345 - ~12345" ;
+      t
+        "pressing bs on != binop before blank deletes blank but rest of the lhs"
+        (binop "!=" anInt (binop "!=" anInt (binop "!=" b anInt)))
+        (keys [K.Backspace; K.Backspace] 17)
+        "12345 != 12345~ != 12345" ;
+      t
+        "pressing bs on != binop after blank deletes blank but rest of the lhs"
+        (binop "!=" anInt (binop "!=" anInt (binop "!=" b anInt)))
+        (keys [K.Backspace; K.Backspace] 24)
+        "12345 != 12345 != ~12345" ;
+      t
+        "pressing bs on != binop combines lhs and rhs string"
+        (binop "!=" (str "One") (binop "!=" (str "Two") (str "Three")))
+        (keys [K.Backspace; K.Backspace] 8)
+        "\"One~Two\" != \"Three\"" ;
+      t
+        "pressing bs on / binop deletes rhs"
+        (binop "/" aFloat aFloat)
+        (bs 9)
+        "123.456~" ;
+      t
+        "pressing bs on / binop before blank deletes blank"
+        (binop "/" b aFloat)
+        (bs 5)
+        "~123.456" ;
       ()) ;
   describe "Constructors" (fun () ->
       tp "arguments work in constructors" aConstructor (ins 't' 5) "Just t~" ;
