@@ -493,33 +493,40 @@ let eToStructure ?(includeIDs = false) (e : E.t) : string =
   |> String.join ~sep:""
 
 
+(* This constructs a testcase that we can enter in our test suite. This is
+ * similar to show_fluidExpr except that instead of the full code, it uses
+ * the shortcuts from Fluid_test_data. *)
 let rec eToTestcase (e : E.t) : string =
   let r = eToTestcase in
   let quoted str = "\"" ^ str ^ "\"" in
   let listed elems = "[" ^ String.join ~sep:"," elems ^ "]" in
+  let spaced elems = String.join ~sep:" " elems in
   let result =
     match e with
     | EBlank _ ->
         "b"
     | EString (_, str) ->
-        "str " ^ quoted str
+        spaced ["str"; quoted str]
     | EInteger (_, int) ->
-        "int  " ^ quoted int
+        spaced ["int"; quoted int]
     | ENull _ ->
         "null"
     | EPartial (_, str, e) ->
-        "partial " ^ quoted str ^ " " ^ r e
+        spaced ["partial"; quoted str; r e]
     | EFnCall (_, name, exprs, _) ->
-        "fn " ^ quoted name ^ " " ^ listed (List.map ~f:r exprs)
+        spaced ["fn"; quoted name; listed (List.map ~f:r exprs)]
     | EBinOp (_, name, lhs, rhs, _) ->
-        "binop " ^ quoted name ^ " " ^ r lhs ^ " " ^ r rhs
+        spaced ["binop"; quoted name; r lhs; r rhs]
     | EVariable (_, name) ->
-        "var " ^ quoted name
+        spaced ["var"; quoted name]
     | ERecord (_, pairs) ->
-        "record "
-        ^ listed (List.map pairs ~f:(fun (k, v) -> "(" ^ k ^ ", " ^ r v))
+        spaced
+          [ "record"
+          ; listed (List.map pairs ~f:(fun (k, v) -> "(" ^ k ^ ", " ^ r v)) ]
     | EConstructor (_, name, exprs) ->
-        "constructor " ^ quoted name ^ " " ^ listed (List.map exprs ~f:r)
+        spaced ["constructor"; quoted name; listed (List.map exprs ~f:r)]
+    | EIf (_, cond, thenExpr, elseExpr) ->
+        spaced ["if"; r cond; r thenExpr; r elseExpr]
     | _ ->
         "todo: " ^ E.show e
   in
