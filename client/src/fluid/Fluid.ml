@@ -3064,6 +3064,25 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  Some
                    ( EPartial (newID, str, oldExpr)
                    , {astRef = ARPartial newID; offset = currOffset - 1} )
+           | ( ARBinOp (_, BOPOperator)
+             , (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr) ) ->
+               let str =
+                 op |> FluidUtil.partialName |> mutation |> String.trim
+               in
+               if str = ""
+               then
+                 (* Delete the binop *)
+                 match lhsExpr with
+                 | EPipeTarget _ ->
+                     Some
+                       (rhsExpr, caretTargetForLastPartOfExpr (E.id rhsExpr) ast)
+                 | lhs ->
+                     Some (lhs, caretTargetForLastPartOfExpr (E.id lhs) ast)
+               else
+                 let newID = gid () in
+                 Some
+                   ( EPartial (newID, str, oldExpr)
+                   , {astRef = ARPartial newID; offset = currOffset - 1} )
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3268,9 +3287,9 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TPartial (_, str) when String.length str = 1 ->
         let newAST, newState = deletePartial ti ast s in
         (newAST, Exactly newState.newPos)
-    | TBinOp (_, str) when String.length str = 1 ->
+    (*     | TBinOp (_, str) when String.length str = 1 ->
         let ast, targetID = deleteBinOp ti ast in
-        (ast, MoveToTokenEnd (targetID, 0))
+        (ast, MoveToTokenEnd (targetID, 0)) *)
     | TPatternString {matchID = mID; patternID = id; str = ""; _} ->
         ( replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast
         , AtTarget {astRef = ARPattern (newID, PPBlank); offset = 0} )
@@ -3305,7 +3324,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TPatternVariable _
     | TRightPartial _
     | TPartial _
-    | TBinOp _
+    (* | TBinOp _ *)
     | TLambdaVar _ ->
         let f str = Util.removeCharAt str offset in
         (replaceStringToken ~f ti.token ast, LeftOne)
