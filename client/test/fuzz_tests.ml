@@ -20,9 +20,11 @@ let process_cmdline_args () =
       | None, "--initialSeed"
       | None, "--verbosityThreshold" ->
           command := Some str
+      | None, "--stopOnFail" ->
+          Fluid_fuzzer.stop_on_fail := true
       | None, "--help" ->
           Js.log
-            "Run Dark's client-side fuzzer. Supported arguments:\n  --initialSeed: change the seed\n  --only: only run the test number passed in\n  --count: run count number of tests\n  --size: the size of the test cases\n  --verbosityThreshold: once the number of expressions drops below this number, start printing more verbosity\n  --help: Print this message\n  --pattern 'some-regex': Only run tests that contains this regex" ;
+            "Run Dark's client-side fuzzer. Supported arguments:\n  --initialSeed: change the seed\n  --stopOnFail: stop running after the first test fails\n  --only: only run the test number passed in\n  --count: run count number of tests\n  --size: the size of the test cases\n  --verbosityThreshold: once the number of expressions drops below this number, start printing more verbosity\n  --help: Print this message\n  --pattern 'some-regex': Only run tests that contains this regex" ;
           exit 0
       | Some "--pattern", str ->
           Tester.pattern := Some (Js.Re.fromString str) ;
