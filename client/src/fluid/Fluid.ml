@@ -1620,7 +1620,7 @@ let rec deleteBinOp'
     (ast : ast)
     (s : state) : fluidExpr * state =
   match (lhs, rhs) with
-  | EString _, EBinOp (b, n, lhs2, rhs2, rail) ->
+  | _, EBinOp (b, n, lhs2, rhs2, rail) ->
       let newExpr, newState = deleteBinOp' lhs lhs2 ti ast s in
       (EBinOp (b, n, newExpr, rhs2, rail), newState)
   | EInteger (id, lhsVal), EInteger (_, rhsVal) ->
@@ -1631,16 +1631,15 @@ let rec deleteBinOp'
       ( lhs
       , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
       )
-  | EFloat _, _ | EInteger _, _ | EBool _, _ | _, EBlank _ ->
+  | _, EBlank _ ->
       ( lhs
       , moveToCaretTarget s ast (caretTargetForLastPartOfExpr (E.id lhs) ast) )
-  | EBlank _, _ when E.isBlank lhs ->
+  | EBlank _, _ ->
       ( rhs
       , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
       )
   | _ ->
-      ( lhs
-      , moveToCaretTarget s ast (caretTargetForLastPartOfExpr (E.id lhs) ast) )
+      (lhs, moveToEndOfTarget (E.id lhs) ast s)
 
 
 let deleteBinOp (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
@@ -1666,6 +1665,9 @@ let deletePartial (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
   let ast =
     E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
+        | EPartial (_, _, EBinOp (_, _, EPipeTarget _, rhs, _)) ->
+            (newState := fun ast -> moveToEndOfTarget (E.id rhs) ast s) ;
+            rhs
         | EPartial (_, _, EBinOp (_, _, lhs, rhs, _)) ->
             let newExpr, newS = deleteBinOp' lhs rhs ti ast s in
             (newState := fun _ -> newS) ;
