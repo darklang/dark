@@ -530,7 +530,7 @@ let rec eToTestcase (e : E.t) : string =
     | EConstructor (_, name, exprs) ->
         spaced ["constructor"; quoted name; listed (List.map exprs ~f:r)]
     | EIf (_, cond, thenExpr, elseExpr) ->
-        spaced ["if"; r cond; r thenExpr; r elseExpr]
+        spaced ["if'"; r cond; r thenExpr; r elseExpr]
     | _ ->
         "todo: " ^ E.show e
   in
