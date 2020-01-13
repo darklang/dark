@@ -3099,6 +3099,15 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  Some
                    ( EPartial (newID, str, oldExpr)
                    , {astRef = ARPartial newID; offset = currOffset - 1} )
+           | ARNull _, (ENull _ as oldExpr) ->
+               let str = mutation "null" in
+               let newID = gid () in
+               if str = ""
+               then Some (EBlank newID, {astRef = ARBlank newID; offset = 0})
+               else
+                 Some
+                   ( EPartial (newID, str, oldExpr)
+                   , {astRef = ARPartial newID; offset = currOffset - 1} )
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3330,7 +3339,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TFalse _ *)
     | TPatternTrue _
     | TPatternFalse _
-    | TNullToken _
+    (* | TNullToken _ *)
     | TVariable _
     | TFieldName _
     | TFieldPartial _
