@@ -9,21 +9,28 @@ open Tester
 (* Settings *)
 (* ------------------ *)
 
+(* At what size do we start to print more data? *)
 let defaultVerbosityThreshold = 20
 
 let verbosityThreshold = ref defaultVerbosityThreshold
 
+(* The seed can be changed to get new test data *)
 let defaultInitialSeed = 0
 
 let initialSeed = ref defaultInitialSeed
 
+(* How many tests do we create/run *)
 let defaultCount = 3
 
 let count = ref defaultCount
 
+(* How big should the generated lists be *)
 let defaultSize = 4
 
 let size = ref defaultSize
+
+(* Only run this one test *)
+let only : int option ref = ref None
 
 (* ------------------ *)
 (* Debugging *)
@@ -510,19 +517,24 @@ let runTest (test : FuzzTest.t) : unit =
       Tester.test name (fun () ->
           setSeed i ;
           let testcase = generateExpr () |> FluidExpression.clone in
-          Js.log2 "testing: " name ;
-          (* Js.log2 "testcase: " (E.show testcase) ; *)
-          let newAST, newState = test.fn testcase in
-          Js.log2 "checking: " name ;
-          let passed = test.check ~testcase ~newAST newState in
-          if passed = false
+          if !only = None || !only = Some i
           then (
-            Js.log2 "failed: " name ;
-            let reduced = reduce test testcase in
-            Js.log2 "finished program:\n  " (toText reduced) ;
-            Js.log2 "as expr:\n  " (E.show reduced) ;
-            Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
-            fail () )
-          else pass ())
+            Js.log2 "testing: " name ;
+            (* Js.log2 "testcase: " (E.show testcase) ; *)
+            let newAST, newState = test.fn testcase in
+            Js.log2 "checking: " name ;
+            let passed = test.check ~testcase ~newAST newState in
+            if passed = false
+            then (
+              Js.log2 "failed: " name ;
+              let reduced = reduce test testcase in
+              Js.log2 "finished program:\n  " (toText reduced) ;
+              Js.log2 "as expr:\n  " (E.show reduced) ;
+              Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
+              fail () )
+            else pass () )
+          else (
+            Js.log2 "skipping: " name ;
+            skip () ))
     done
   with _ -> ()
