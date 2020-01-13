@@ -10,7 +10,7 @@ val cols_for : DbT.db -> (string * tipe) list
 val set :
   state:exec_state -> upsert:bool -> DbT.db -> string -> dval_map -> Uuidm.t
 
-val get : state:exec_state -> DbT.db -> string -> dval
+val get_option : state:exec_state -> DbT.db -> string -> dval option
 
 val get_many : state:exec_state -> DbT.db -> string list -> (string * dval) list
 
