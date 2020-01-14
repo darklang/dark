@@ -3555,6 +3555,42 @@ let run () =
         (key K.SelectAll 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 89) ) ;
+      ts
+        "K.SelectToStartOfWord selects to start of word"
+        longLets
+        (key K.SelectToStartOfWord 16)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 16, 4) ) ;
+      ts
+        "K.SelectToEndOfWord selects to end of word"
+        longLets
+        (key K.SelectToEndOfWord 4)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 4, 16) ) ;
+      ts
+        "K.SelectToStartOfLine selects from mid to start of line"
+        longLets
+        (key K.SelectToStartOfLine 29)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 29, 0) ) ;
+      ts
+        "K.SelectToEndOfLine selects from mid to end of line"
+        longLets
+        (key K.SelectToEndOfLine 29)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 29, 47) ) ;
+      ts
+        "K.SelectToStartOfLine selects from end to start of line"
+        longLets
+        (key K.SelectToStartOfLine 47)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 47, 0) ) ;
+      ts
+        "K.SelectToEndOfLine selects to end of line"
+        longLets
+        (key K.SelectToEndOfLine 0)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 0, 47) ) ;
       ()) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
