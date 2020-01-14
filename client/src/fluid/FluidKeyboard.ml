@@ -101,6 +101,7 @@ type key =
   | GoToStartOfLine
   | SelectToStartOfLine
   | GoToEndOfLine
+  | SelectToEndOfLine
   | DeletePrevWord
   | DeleteNextWord
   | DeleteToStartOfLine
@@ -230,6 +231,7 @@ let toString (key : key) : string option =
   | GoToStartOfLine
   | SelectToStartOfLine
   | GoToEndOfLine
+  | SelectToEndOfLine
   | DeletePrevWord
   | DeleteNextWord
   | DeleteToStartOfLine
@@ -389,6 +391,8 @@ let fromKeyboardEvent
       GoToStartOfLine
   | "d" when ctrl ->
       Delete
+  | "e" when ctrl && shift ->
+      SelectToEndOfLine
   | "e" when ctrl ->
       GoToEndOfLine
   | "y" when (not isMac) && ctrl && not shift ->
@@ -416,6 +420,8 @@ let fromKeyboardEvent
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
       GoToStartOfWord
+  | "ArrowRight" when meta && shift ->
+      SelectToEndOfLine
   | "ArrowRight" when meta ->
       GoToEndOfLine
   | "ArrowRight" when (isMac && alt) || ctrl ->
@@ -433,8 +439,12 @@ let fromKeyboardEvent
       SelectToStartOfLine
   | "End" when ctrl ->
       GoToStartOfLine
+  | "End" when shift ->
+      SelectToEndOfLine
   | "End" ->
       GoToEndOfLine
+  | "Home" when ctrl && shift ->
+      SelectToEndOfLine
   | "Home" when ctrl ->
       GoToEndOfLine
   | "Home" when shift ->

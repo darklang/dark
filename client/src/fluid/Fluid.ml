@@ -4207,6 +4207,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         , { s with
             newPos = getStartOfLineCaretPos ast ti
           ; selectionStart = Some s.newPos } )
+    | K.SelectToEndOfLine, _, R (_, ti) ->
+        (ast, { s with
+        newPos = getEndOfLineCaretPos ast ti
+      ; selectionStart = Some s.newPos} )
     | K.GoToEndOfLine, _, R (_, ti) ->
         (ast, moveToEndOfLine ast ti s)
     | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
@@ -4670,6 +4674,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
 let shouldDoDefaultAction (key : K.key) : bool =
   match key with
   | K.SelectToStartOfLine
+  | K.SelectToEndOfLine
   | K.GoToStartOfLine
   | K.GoToEndOfLine
   | K.Delete
@@ -4686,7 +4691,11 @@ let shouldDoDefaultAction (key : K.key) : bool =
 
 
 let shouldSelect (key : K.key) : bool =
-  match key with K.SelectToStartOfLine | K.SelectAll -> true | _ -> false
+  match key with 
+  | K.SelectToEndOfLine
+  | K.SelectToStartOfLine
+  | K.SelectAll -> true
+   | _ -> false
 
 
 let exprRangeInAst ~ast (exprID : id) : (int * int) option =
