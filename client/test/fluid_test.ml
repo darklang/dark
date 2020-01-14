@@ -2832,7 +2832,7 @@ let run () =
         "bs on last separator between a blank and item dels item after separator"
         listWithBlank
         (bs 11)
-        "[56,78,___~]" ;
+        "[56,78,~___]" ;
       t
         "del before last separator between a blank and item dels item after separator"
         listWithBlank
