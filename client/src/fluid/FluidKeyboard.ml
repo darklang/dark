@@ -107,6 +107,8 @@ type key =
   | DeleteToStartOfLine
   | DeleteToEndOfLine
   | GoToStartOfWord
+  | SelectToStartOfWord
+  | SelectToEndOfWord
   | GoToEndOfWord
   | Undo
   | Redo
@@ -237,6 +239,8 @@ let toString (key : key) : string option =
   | DeleteToStartOfLine
   | DeleteToEndOfLine
   | GoToStartOfWord
+  | SelectToStartOfWord
+  | SelectToEndOfWord
   | GoToEndOfWord
   | Undo
   | Redo
@@ -416,6 +420,10 @@ let fromKeyboardEvent
       SelectToStartOfLine
   | "ArrowLeft" when meta ->
       GoToStartOfLine
+  | "ArrowLeft" when ((isMac && alt) || ctrl) && shift ->
+      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
+      SelectToStartOfWord
   | "ArrowLeft" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
@@ -424,6 +432,10 @@ let fromKeyboardEvent
       SelectToEndOfLine
   | "ArrowRight" when meta ->
       GoToEndOfLine
+  | "ArrowRight" when ((isMac && alt) || ctrl) && shift ->
+      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
+      SelectToEndOfWord
   | "ArrowRight" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)

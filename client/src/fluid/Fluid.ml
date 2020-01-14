@@ -434,7 +434,7 @@ let moveToEndOfLine (ast : ast) (ti : T.tokenInfo) (s : state) : state =
   setPosition s (getEndOfLineCaretPos ast ti)
 
 
-  (* We want to find the closest editable token that is before the current cursor position
+(* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
 let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
   let previousToken =
@@ -442,10 +442,10 @@ let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
     |> List.reverse
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos > t.startPos)
   in
-    let tokenInfo = previousToken |> Option.withDefault ~default:ti in
-    if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
-    then getBegOfWordInStrCaretPos ~pos tokenInfo
-    else tokenInfo.startPos
+  let tokenInfo = previousToken |> Option.withDefault ~default:ti in
+  if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
+  then getBegOfWordInStrCaretPos ~pos tokenInfo
+  else tokenInfo.startPos
 
 
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
@@ -454,7 +454,7 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
   setPosition s (getStartOfWordPos ~pos ast ti)
 
 
-  (* We want to find the closest editable token that is after the current cursor position
+(* We want to find the closest editable token that is after the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
 let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
   let tokenInfo =
@@ -462,9 +462,9 @@ let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
     |> Option.withDefault ~default:ti
   in
-    if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
-    then getEndOfWordInStrCaretPos ~pos tokenInfo
-    else tokenInfo.endPos
+  if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
+  then getEndOfWordInStrCaretPos ~pos tokenInfo
+  else tokenInfo.endPos
 
 
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
@@ -3932,6 +3932,17 @@ let getCollapsedSelectionStart (s : fluidState) : int =
   getSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
 
 
+let updateSelectionRange (s : fluidState) (newPos : int) : fluidState =
+  let startPos =
+    match s.selectionStart with
+    | Some _ ->
+        s.selectionStart
+    | None ->
+        Some s.newPos
+  in
+  {s with newPos; selectionStart = startPos}
+
+
 let getOptionalSelectionRange (s : fluidState) : (int * int) option =
   let endIdx = s.newPos in
   match s.selectionStart with
@@ -4193,6 +4204,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* TODO: press equals when in a let *)
     (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
+    | K.SelectToStartOfWord, _, R (_, ti) | K.SelectToStartOfWord, L (_, ti), _
+      ->
+        (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
+    | K.SelectToEndOfWord, _, R (_, ti) | K.SelectToEndOfWord, L (_, ti), _ ->
+        (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti))
     | K.GoToEndOfWord, _, R (_, ti) | K.GoToEndOfWord, L (_, ti), _ ->
         (ast, goToEndOfWord ~pos ast ti s)
     | K.GoToStartOfWord, _, R (_, ti) | K.GoToStartOfWord, L (_, ti), _ ->
@@ -4205,14 +4221,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, moveToStartOfLine ast ti s)
     | K.SelectToStartOfLine, _, R (_, ti) | K.SelectToStartOfLine, L (_, ti), _
       ->
-        ( ast
-        , { s with
-            newPos = getStartOfLineCaretPos ast ti
-          ; selectionStart = Some s.newPos } )
+        (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti))
     | K.SelectToEndOfLine, _, R (_, ti) ->
-        (ast, { s with
-        newPos = getEndOfLineCaretPos ast ti
-      ; selectionStart = Some s.newPos} )
+        (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
     | K.GoToEndOfLine, _, R (_, ti) ->
         (ast, moveToEndOfLine ast ti s)
     | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
@@ -4675,6 +4686,8 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
 
 let shouldDoDefaultAction (key : K.key) : bool =
   match key with
+  | K.SelectToStartOfWord
+  | K.SelectToEndOfWord
   | K.SelectToStartOfLine
   | K.SelectToEndOfLine
   | K.GoToStartOfLine
@@ -4693,11 +4706,15 @@ let shouldDoDefaultAction (key : K.key) : bool =
 
 
 let shouldSelect (key : K.key) : bool =
-  match key with 
+  match key with
+  | K.SelectToStartOfWord
+  | K.SelectToEndOfWord
   | K.SelectToEndOfLine
   | K.SelectToStartOfLine
-  | K.SelectAll -> true
-   | _ -> false
+  | K.SelectAll ->
+      true
+  | _ ->
+      false
 
 
 let exprRangeInAst ~ast (exprID : id) : (int * int) option =
