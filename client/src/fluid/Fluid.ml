@@ -927,6 +927,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARFloat (id, FPDecimal); offset}
   | TPartial (id, _) ->
       {astRef = ARPartial id; offset}
+  | TFieldPartial (id, _, _, _) ->
+      {astRef = ARPartial id; offset}
   | TRightPartial (id, _) ->
       {astRef = ARRightPartial id; offset}
   | TLetKeyword (id, _) ->
@@ -947,8 +949,6 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARFieldAccess (id, FAPFieldname); offset}
   | TFieldOp (id, _) ->
       {astRef = ARFieldAccess (id, FAPFieldOp); offset}
-  | TFieldPartial (id, _, _, _) ->
-      {astRef = ARPartial id; offset}
   | TVariable (id, _) ->
       {astRef = ARVariable id; offset}
   | TFnName (id, _, _, _, _) ->
@@ -3112,6 +3112,41 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  Some
                    ( EPartial (newID, str, oldExpr)
                    , {astRef = ARPartial newID; offset = currOffset - 1} )
+           | ARFieldAccess (_, FAPFieldname), (EFieldAccess (_, _, fieldName) as oldExpr) ->
+           (* XXX(JULIAN): Why does this not check for empty string?
+              Does this have a weird special case? *)
+              let str = mutation fieldName in
+              let newID = gid () in
+                Some
+                   ( EPartial (newID, str, oldExpr)
+                   , {astRef = ARPartial newID; offset = currOffset - 1} )
+            | ARPartial _, EPartial (id, oldStr, oldExpr) ->
+                let str = oldStr |> mutation |> String.trim in
+                if str = "" then
+                (* inlined version of deletePartial, with appropriate exceptions added *)
+                  (match oldExpr with
+                  | EFieldAccess _ ->
+                    (* This is allowed to be the empty string. *)
+                    Some (EPartial (id, str, oldExpr), desiredCaretTarget)
+                  | EBinOp (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _) ->
+                    Some (EString (lhsID, lhsStr ^ rhsStr), {astRef=ARString (lhsID, SPText); offset = String.length lhsStr})
+                  | EBinOp (_, _, lhs, _, _) ->
+                    Some (lhs, caretTargetForLastPartOfExpr (E.id lhs) ast)
+                  | _ -> 
+                    let newID = gid () in
+                    Some (EBlank newID, {astRef = ARBlank newID; offset = 0})
+                  )
+                else if (String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str) then
+                    (let newID = gid () in
+                    Some (EString (newID, String.slice ~from:1 ~to_:(-1) str), {astRef = ARString (newID, SPText); offset = currOffset - 1}))
+                else
+                    Some (EPartial (id, str, oldExpr), desiredCaretTarget)
+            | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
+                let str = oldStr |> mutation |> String.trim in
+                if str = "" then
+                Some (oldValue, caretTargetForLastPartOfExpr (E.id oldValue) ast)
+                else
+                Some (ERightPartial (id, str, oldValue), desiredCaretTarget)
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3310,12 +3345,12 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (* | TFnVersion (id, str, _, _) ->
         let f str = Util.removeCharAt str offset in
         (replaceWithPartial (f str) id ast, LeftOne) *)
-    | TRightPartial (_, str) when String.length str = 1 ->
+    (* | TRightPartial (_, str) when String.length str = 1 ->
         let ast, targetID = deleteRightPartial ti ast in
         (ast, MoveToTokenEnd (targetID, 0))
     | TPartial (_, str) when String.length str = 1 ->
         let newAST, newState = deletePartial ti ast s in
-        (newAST, Exactly newState.newPos)
+        (newAST, Exactly newState.newPos) *)
     (*     | TBinOp (_, str) when String.length str = 1 ->
         let ast, targetID = deleteBinOp ti ast in
         (ast, MoveToTokenEnd (targetID, 0)) *)
@@ -3345,14 +3380,14 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TPatternFalse _
     (* | TNullToken _ *)
     (* | TVariable _ *)
-    | TFieldName _
-    | TFieldPartial _
+    (* | TFieldName _ *)
+    (* | TFieldPartial _ *)
     (*     | TLetLHS _ *)
     | TPatternInteger _
     | TPatternNullToken _
     | TPatternVariable _
-    | TRightPartial _
-    | TPartial _
+    (* | TRightPartial _
+    | TPartial _ *)
     (* | TBinOp _ *)
     | TLambdaVar _ ->
         let f str = Util.removeCharAt str offset in
