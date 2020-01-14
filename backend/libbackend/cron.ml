@@ -203,7 +203,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                          [ ("execution_id", Types.string_of_id execution_id)
                          ; ("canvas", endp)
                          ; ("tlid", Types.string_of_id cr.tlid)
-                         ; ("name", name)
+                         ; ("handler_name", name)
                            (* method here to use the spec-handler name for
                             * consistency with http/worker logs *)
                          ; ("method", modifier) ]))
