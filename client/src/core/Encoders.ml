@@ -114,7 +114,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
         object_
           [ ("symtable", tcStrDict dval symtable)
           ; ("params", list (pair id string) params)
-          ; ("body", fluidExpr body) ]
+          ; ("body", body |> OldExpr.fromFluidExpr |> expr) ]
       in
       ev "DBlock" [dblock_args]
   | DIncomplete SourceNone ->
@@ -285,7 +285,9 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
 
 and handler (h : Types.handler) : Js.Json.t =
   object_
-    [("tlid", tlid h.hTLID); ("spec", spec h.spec); ("ast", fluidExpr h.ast)]
+    [ ("tlid", tlid h.hTLID)
+    ; ("spec", spec h.spec)
+    ; ("ast", h.ast |> OldExpr.fromFluidExpr |> expr) ]
 
 
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
@@ -312,8 +314,8 @@ and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("version", int dbm.version)
     ; ("state", dbMigrationState dbm.state)
     ; ("cols", colList dbm.cols)
-    ; ("rollforward", fluidExpr dbm.rollforward)
-    ; ("rollback", fluidExpr dbm.rollback) ]
+    ; ("rollforward", dbm.rollforward |> OldExpr.fromFluidExpr |> expr)
+    ; ("rollback", dbm.rollback |> OldExpr.fromFluidExpr |> expr) ]
 
 
 and db (db : Types.db) : Js.Json.t =
@@ -378,7 +380,7 @@ and op (call : Types.op) : Js.Json.t =
   | DeleteFunction t ->
       ev "DeleteFunction" [tlid t]
   | SetExpr (t, i, e) ->
-      ev "SetExpr" [tlid t; id i; fluidExpr e]
+      ev "SetExpr" [tlid t; id i; e |> OldExpr.fromFluidExpr |> expr]
   | RenameDBname (t, name) ->
       ev "RenameDBname" [tlid t; string name]
   | CreateDBWithBlankOr (t, p, i, name) ->
@@ -473,7 +475,7 @@ and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", fluidExpr uf.ufAST) ]
+    ; ("ast", uf.ufAST |> OldExpr.fromFluidExpr |> expr) ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
@@ -621,8 +623,81 @@ and nPattern (npat : OldExpr.nPattern) : Js.Json.t =
       ev "PConstructor" [string a; list pattern b]
 
 
-and fluidExpr (e : Types.fluidExpr) : Js.Json.t =
-  e |> OldExpr.fromFluidExpr |> expr
+and sendToRail (sendToRail : sendToRail) : Js.Json.t =
+  let ev = variant in
+  match sendToRail with Rail -> ev "Rail" [] | NoRail -> ev "NoRail" []
+
+
+and fluidPattern (pattern : Types.fluidPattern) : Js.Json.t =
+  let fp = fluidPattern in
+  let ev = variant in
+  match pattern with
+  | FPVariable (id', mid, name) ->
+      ev "FPVariable" [id id'; id mid; string name]
+  | FPConstructor (id', mid, name, patterns) ->
+      ev "FPConstructor" [id id'; id mid; string name; list fp patterns]
+  | FPInteger (id', mid, v) ->
+      ev "FPInteger" [id id'; id mid; string v]
+  | FPBool (id', mid, v) ->
+      ev "FPBool" [id id'; id mid; bool v]
+  | FPFloat (id', mid, whole, fraction) ->
+      ev "FPFloat" [id id'; id mid; string whole; string fraction]
+  | FPString (id', mid, v) ->
+      ev "FPString" [id id'; id mid; string v]
+  | FPNull (id', mid) ->
+      ev "FPNull" [id id'; id mid]
+  | FPBlank (id', mid) ->
+      ev "FPBlank" [id id'; id mid]
+
+
+and fluidExpr (expr : Types.fluidExpr) : Js.Json.t =
+  let fe = fluidExpr in
+  let ev = variant in
+  match expr with
+  | ELet (id', lhs, rhs, body) ->
+      ev "ELet" [id id'; string lhs; fe rhs; fe body]
+  | EIf (id', cond, ifbody, elsebody) ->
+      ev "EIf" [id id'; fe cond; fe ifbody; fe elsebody]
+  | EFnCall (id', name, exprs, r) ->
+      ev "EFnCall" [id id'; string name; list fe exprs; sendToRail r]
+  | EBinOp (id', name, left, right, r) ->
+      ev "EBinOp" [id id'; string name; fe left; fe right; sendToRail r]
+  | ELambda (id', vars, body) ->
+      ev "ELambda" [id id'; list (pair id string) vars; fe body]
+  | EPipe (id', exprs) ->
+      ev "EPipe" [id id'; list fe exprs]
+  | EFieldAccess (id', obj, field) ->
+      ev "EFieldAccess" [id id'; fe obj; string field]
+  | EString (id', v) ->
+      ev "EString" [id id'; string v]
+  | EInteger (id', v) ->
+      ev "EInteger" [id id'; string v]
+  | EBool (id', v) ->
+      ev "EBool" [id id'; bool v]
+  | EFloat (id', whole, fraction) ->
+      ev "EFloat" [id id'; string whole; string fraction]
+  | ENull id' ->
+      ev "ENull" [id id']
+  | EBlank id' ->
+      ev "EBlank" [id id']
+  | EVariable (id', name) ->
+      ev "EVariable" [id id'; string name]
+  | EList (id', exprs) ->
+      ev "EList" [id id'; list fe exprs]
+  | ERecord (id', pairs) ->
+      ev "ERecord" [id id'; list (pair string fe) pairs]
+  | EFeatureFlag (id', name, cond, a, b) ->
+      ev "EFeatureFlag" [id id'; string name; fe cond; fe a; fe b]
+  | EMatch (id', matchExpr, cases) ->
+      ev "EMatch" [id id'; fe matchExpr; list (pair fluidPattern fe) cases]
+  | EConstructor (id', name, args) ->
+      ev "EConstructor" [id id'; string name; list fe args]
+  | EPartial (id', str, oldExpr) ->
+      ev "EPartial" [id id'; string str; fe oldExpr]
+  | ERightPartial (id', str, oldExpr) ->
+      ev "ERightPartial" [id id'; string str; fe oldExpr]
+  | EPipeTarget id' ->
+      ev "EPipeTarget" [id id']
 
 
 and cursorState (cs : Types.cursorState) : Js.Json.t =

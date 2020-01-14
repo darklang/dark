@@ -155,7 +155,7 @@ let run () =
       (fun () ->
         if debug then Js.log2 "ast before" (Printer.eToStructure ast) ;
         let newAST = execute_roundtrip ast in
-        expect expectedString |> toEqual (Printer.eToString newAST))
+        expect (Printer.eToString newAST) |> toEqual expectedString)
   in
   describe "Booleans" (fun () ->
       t
@@ -894,6 +894,10 @@ let run () =
       roundtrip (pipe (str "a") [binop "++" pipeTarget (str "b")]) ;
       roundtrip (pipe (str "a") [fn "String::append" [pipeTarget; str "b"]]) ;
       roundtrip aPipe ;
+      (* TODO: broken because of backspacing on binops *)
+      (* roundtrip (binop "+" (if' (int "5") (int "5") (int "5")) (int "5")) ; *)
+      roundtrip (partial "D" (constructor "d" [fn "k" []])) ;
+      roundtrip (partial "D" (fn "X" [str "F"])) ;
       roundtrip (fn "HttpClient::post_v4" [str ""]) ;
       roundtrip longString ;
       roundtrip (let' "myVariable" longString b) ;
