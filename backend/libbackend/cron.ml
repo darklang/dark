@@ -155,7 +155,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                ~data:"Deserialization error"
                ~bt
                ~params:
-                 [ ("host", endp)
+                 [ ("canvas", endp)
                  ; ("exn", Log.dump e)
                  ; ("execution_id", Types.string_of_id execution_id) ] ;
              ignore (Rollbar.report e bt CronChecker (Log.dump execution_id)) ;
@@ -175,7 +175,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              ~data:"checking canvas"
              ~params:
                [ ("execution_id", Types.string_of_id execution_id)
-               ; ("host", endp) ]
+               ; ("canvas", endp) ]
              ~jsonparams:[("number_of_crons", `Int cron_count)] ;
            List.iter
              ~f:(fun cr ->
@@ -201,10 +201,12 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                        ~data:"enqueued event"
                        ~params:
                          [ ("execution_id", Types.string_of_id execution_id)
-                         ; ("host", endp)
+                         ; ("canvas", endp)
                          ; ("tlid", Types.string_of_id cr.tlid)
-                         ; ("event_name", name)
-                         ; ("cron_freq", modifier) ]))
+                         ; ("handler_name", name)
+                           (* method here to use the spec-handler name for
+                            * consistency with http/worker logs *)
+                         ; ("method", modifier) ]))
              crons)
     |> (fun x ->
          Log.infO
