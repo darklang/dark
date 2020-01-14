@@ -53,15 +53,9 @@ let fns : shortfn list =
         InProcess
           (function
           | state, [DStr key; DDB dbname] ->
-            ( try
-                let key = Unicode_string.to_string key in
-                let db = find_db state.dbs dbname in
-                DOption (OptJust (User_db.get ~state db key))
-              with
-            | Exception.DarkException e when e.tipe = Exception.DarkStorage ->
-                DOption OptNothing
-            | e ->
-                raise e )
+              let key = Unicode_string.to_string key in
+              let db = find_db state.dbs dbname in
+              User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               fail args)
     ; ps = false
@@ -75,15 +69,9 @@ let fns : shortfn list =
         InProcess
           (function
           | state, [DStr key; DDB dbname] ->
-            ( try
-                let key = Unicode_string.to_string key in
-                let db = find_db state.dbs dbname in
-                Dval.to_opt_just (User_db.get ~state db key)
-              with
-            | Exception.DarkException e when e.tipe = Exception.DarkStorage ->
-                DOption OptNothing
-            | e ->
-                raise e )
+              let key = Unicode_string.to_string key in
+              let db = find_db state.dbs dbname in
+              User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               fail args)
     ; ps = false
