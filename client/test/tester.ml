@@ -193,14 +193,39 @@ let fail () : Private.t =
   ; expected = None }
 
 
+let skip () : Private.t =
+  let open Private in
+  { categories = !categories
+  ; name = !runningTest
+  ; success = Skipped
+  ; actual = None
+  ; expected = None }
+
+
 (* ------------------ *)
 (* Announce completion *)
 (* ------------------ *)
+
+let successes () =
+  let open Private in
+  List.filter !results ~f:(fun r -> r.success = Passed)
+
+
+let fails () =
+  let open Private in
+  List.filter !results ~f:(fun r -> r.success = Failed)
+
+
+let skips () =
+  let open Private in
+  List.filter !results ~f:(fun r -> r.success = Skipped)
+
+
 let finish () =
   let open Private in
-  let successes = List.filter !results ~f:(fun r -> r.success = Passed) in
-  let fails = List.filter !results ~f:(fun r -> r.success = Failed) in
-  let skips = List.filter !results ~f:(fun r -> r.success = Skipped) in
+  let successes = successes () in
+  let fails = fails () in
+  let skips = skips () in
   let successCount = List.length successes |> string_of_int in
   let failCount = List.length fails |> string_of_int in
   let skipCount = List.length skips |> string_of_int in

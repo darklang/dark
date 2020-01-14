@@ -9,17 +9,31 @@ open Tester
 (* Settings *)
 (* ------------------ *)
 
+(* At what size do we start to print more data? *)
 let defaultVerbosityThreshold = 20
 
 let verbosityThreshold = ref defaultVerbosityThreshold
 
+(* The seed can be changed to get new test data *)
 let defaultInitialSeed = 0
 
 let initialSeed = ref defaultInitialSeed
 
+(* How many tests do we create/run *)
 let defaultCount = 3
 
 let count = ref defaultCount
+
+(* How big should the generated lists be *)
+let defaultSize = 4
+
+let size = ref defaultSize
+
+(* Only run this one test *)
+let only : int option ref = ref None
+
+(* Stop after getting our first failure  *)
+let stop_on_fail : bool ref = ref false
 
 (* ------------------ *)
 (* Debugging *)
@@ -30,7 +44,7 @@ let toText ast = FluidPrinter.eToString ast
 let pointerToText (p : blankOrData) : string = Pointer.toContent p
 
 let debugAST (length : int) (msg : string) (e : E.t) : unit =
-  if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ toText e)
+  if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ E.show e)
 
 
 (* ------------------ *)
@@ -57,8 +71,13 @@ let range (max : int) : int = Js_math.floor (float_of_int max *. random ())
 
 let generateLength maxLength = max 0 (1 + range (maxLength - 1))
 
-let generateList ~(f : unit -> 'a) () : 'a list =
-  List.initialize (generateLength 3) (fun _ -> f ())
+let generateList ~(minSize : int) ~(f : unit -> 'a) () : 'a list =
+  (* Lower the list lengths as we go so eventually the program converges *)
+  size := !size - 1 ;
+  let s = max minSize !size in
+  let result = List.initialize (generateLength s) (fun _ -> f ()) in
+  size := !size + 1 ;
+  result
 
 
 let generateName () =
@@ -89,7 +108,7 @@ let generateName () =
     | _ ->
         'z'
   in
-  generateList ~f:generateChar () |> String.fromList
+  generateList ~minSize:1 ~f:generateChar () |> String.fromList
 
 
 let generateString () =
@@ -120,7 +139,7 @@ let generateString () =
     | _ ->
         ' '
   in
-  generateList ~f:generateChar () |> String.fromList
+  generateList ~minSize:0 ~f:generateChar () |> String.fromList
 
 
 let generateInfixName () =
@@ -181,7 +200,9 @@ let rec generatePattern () =
   | 2 ->
       pNull
   | 3 ->
-      pConstructor (generateName ()) (generateList ~f:generatePattern ())
+      pConstructor
+        (generateName ())
+        (generateList ~minSize:0 ~f:generatePattern ())
   | 4 ->
       pVar (generateName ())
   | 5 ->
@@ -195,11 +216,13 @@ let rec generatePattern () =
 let rec generatePipeArgumentExpr () =
   match range 4 with
   | 0 ->
-      lambda (generateList ~f:generateName ()) (generateExpr ())
+      lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
   | 1 ->
       b
   | 2 ->
-      fn (generateName ()) (pipeTarget :: generateList ~f:generateExpr ())
+      fn
+        (generateName ())
+        (pipeTarget :: generateList ~minSize:0 ~f:generateExpr ())
   | 3 ->
       binop (generateName ()) pipeTarget (generateExpr ())
   | _ ->
@@ -207,7 +230,7 @@ let rec generatePipeArgumentExpr () =
 
 
 and generateExpr () =
-  match range 17 with
+  match range 19 with
   | 0 ->
       b
   | 1 ->
@@ -219,37 +242,42 @@ and generateExpr () =
   | 4 ->
       float' (Int.toString (range 5000000)) (Int.toString (range 500000))
   | 5 ->
-      record (generateList () ~f:(fun () -> (generateName (), generateExpr ())))
+      null
   | 6 ->
-      list (generateList () ~f:generateExpr)
-  | 7 ->
-      fn (generateFnName ()) (generateList ~f:generateExpr ())
-  | 8 ->
-      partial (generateFnName ()) (generateExpr ())
-  | 9 ->
-      rightPartial (generateInfixName ()) (generateExpr ())
-  | 10 ->
       var (generateName ())
+  | 7 ->
+      partial (generateFnName ()) (generateExpr ())
+  | 8 ->
+      list (generateList () ~minSize:0 ~f:generateExpr)
+  | 9 ->
+      fn (generateFnName ()) (generateList ~minSize:0 ~f:generateExpr ())
+  | 10 ->
+      rightPartial (generateInfixName ()) (generateExpr ())
   | 11 ->
       fieldAccess (generateFieldAccessExpr ()) (generateName ())
   | 12 ->
-      if' (generateExpr ()) (generateExpr ()) (generateExpr ())
+      lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
   | 13 ->
       let' (generateName ()) (generateExpr ()) (generateExpr ())
   | 14 ->
-      lambda (generateList ~f:generateName ()) (generateExpr ())
-  | 15 ->
-      pipe (generateExpr ()) (generateList ~f:generatePipeArgumentExpr ())
-  | 16 ->
       binop (generateInfixName ()) (generateExpr ()) (generateExpr ())
+  | 15 ->
+      if' (generateExpr ()) (generateExpr ()) (generateExpr ())
+  | 16 ->
+      constructor (generateName ()) (generateList ~minSize:0 ~f:generateExpr ())
   | 17 ->
-      null
+      pipe
+        (generateExpr ())
+        (generateList ~minSize:2 ~f:generatePipeArgumentExpr ())
   | 18 ->
-      constructor (generateName ()) (generateList ~f:generateExpr ())
+      record
+        (generateList ~minSize:1 () ~f:(fun () ->
+             (generateName (), generateExpr ())))
   | 19 ->
       match'
         (generateExpr ())
-        (generateList () ~f:(fun () -> (generatePattern (), generateExpr ())))
+        (generateList ~minSize:1 () ~f:(fun () ->
+             (generatePattern (), generateExpr ())))
   | _ ->
       b
 
@@ -261,7 +289,9 @@ module FuzzTest = struct
   type t =
     { name : string
     ; fn : E.t -> E.t * fluidState
-    ; check : testcase:E.t -> newAST:E.t -> fluidState -> bool }
+    ; check : testcase:E.t -> newAST:E.t -> fluidState -> bool
+    ; ignore : (* Sometimes you know some things are broken *)
+               E.t -> bool }
 end
 
 (* ------------------ *)
@@ -308,19 +338,30 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
   E.walk ~f newExpr
 
 
-let rec blankVarNames (id : id) (expr : E.t) : E.t =
-  let f = blankVarNames id in
-  let fStr strid str = if strid = id then "" else str in
+let rec changeStrings (id : id) ~(f : string -> string) (expr : E.t) : E.t =
+  let fStr strid str = if strid = id then f str else str in
   let newExpr =
     match expr with
     | ELet (id, name, rhs, next) ->
         ELet (id, fStr id name, rhs, next)
     | EFieldAccess (id, expr, fieldname) ->
         EFieldAccess (id, expr, fStr id fieldname)
+    | EPartial (id, name, expr) ->
+        let newName = f name in
+        if newName = "" then expr else EPartial (id, newName, expr)
+    | ERightPartial (id, name, expr) ->
+        let newName = f name in
+        if newName = "" then expr else ERightPartial (id, newName, expr)
+    | EFnCall (id, name, exprs, ster) ->
+        let newName = f name in
+        if newName = "" then expr else EFnCall (id, newName, exprs, ster)
+    | EBinOp (id, name, lhs, rhs, ster) ->
+        let newName = f name in
+        if newName = "" then expr else EBinOp (id, newName, lhs, rhs, ster)
     | ELambda (id, names, expr) ->
         let names =
           List.map names ~f:(fun (nid, name) ->
-              if nid = id then (nid, "") else (nid, name))
+              if nid = id then (nid, f name) else (nid, name))
         in
         ELambda (id, names, expr)
     | ERecord (rid, fields) ->
@@ -328,22 +369,33 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
           ( rid
           , List.map
               ~f:(fun (name, expr) ->
-                if id = E.id expr then ("", expr) else (name, expr))
+                if id = E.id expr then (f name, expr) else (name, expr))
               fields )
+    | EString (id, str) ->
+        EString (id, f str)
     | _ ->
         expr
   in
-  E.walk ~f newExpr
+  E.walk ~f:(changeStrings id ~f) newExpr
+
+
+let blankVarNames (id : id) (expr : E.t) : E.t =
+  changeStrings ~f:(fun _ -> "") id expr
+
+
+let shortenNames (id : id) (expr : E.t) : E.t =
+  changeStrings ~f:(String.dropRight ~count:1) id expr
 
 
 let rec remove (id : id) (expr : E.t) : E.t =
   let r e = remove id e in
-  let f e = if E.id e = id then EBlank id else remove id e in
-  let removeFromList exprs = List.filter exprs ~f:(fun e -> E.id e <> id) in
+  let removeFromList exprs =
+    List.filterMap exprs ~f:(fun e -> if E.id e = id then None else Some (r e))
+  in
   if E.id expr = id
   then EBlank id
   else
-    let newExpr =
+    let f expr =
       match expr with
       | EFieldAccess (faID, expr, fieldname) ->
           if id = faID then expr else EFieldAccess (faID, r expr, fieldname)
@@ -356,13 +408,13 @@ let rec remove (id : id) (expr : E.t) : E.t =
                    if nid = id then None else Some (nid, name))
             |> fun x -> if x = [] then List.take ~count:1 names else x
           in
-          ELambda (id, names, f expr)
+          ELambda (id, names, expr)
       | EList (id, exprs) ->
           EList (id, removeFromList exprs)
       | EMatch (mid, mexpr, pairs) ->
           EMatch
             ( mid
-            , f mexpr
+            , mexpr
             , List.filterMap
                 ~f:(fun (pattern, expr) ->
                   if E.id expr = id || FluidPattern.id pattern = id
@@ -395,15 +447,23 @@ let rec remove (id : id) (expr : E.t) : E.t =
       | _ ->
           expr
     in
-    E.walk ~f newExpr
+    E.walk ~f expr
+
+
+let rec simplify (id : id) (expr : E.t) : E.t =
+  if E.id expr = id && not (E.isBlank expr)
+  then EInteger (id, "5")
+  else E.walk ~f:(simplify id) expr
 
 
 let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
+    let tokenIDs =
+      ast |> FluidPrinter.toTokens |> List.map ~f:(fun ti -> T.tid ti.token)
+    in
+    let eIDs = ast |> E.filterMap ~f:(fun e -> Some (E.id e)) in
     let ids =
-      ast
-      |> FluidPrinter.toTokens
-      |> List.map ~f:(fun ti -> T.tid ti.token)
+      tokenIDs @ eIDs
       |> List.uniqueBy ~f:Prelude.deID
       |> List.indexedMap ~f:(fun i v -> (i, v))
     in
@@ -413,7 +473,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
         ( try
             Js.log2 msg (idx, length, id) ;
             let reducedAST = reducer id !latestAST in
-            if !latestAST = reducedAST
+            if !latestAST = reducedAST || test.ignore reducedAST
             then Js.log "no change, trying next id"
             else
               let newAST, newState = test.fn reducedAST in
@@ -422,14 +482,14 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
               then (
                 Js.log "removed the good bit, trying next id" ;
                 debugAST length "started with" !latestAST ;
-                debugAST length "result was" reducedAST ;
+                debugAST length "reduced" reducedAST ;
                 debugAST length "after testing" newAST ;
                 Js.log2 "pos is" newState.newPos )
               else (
                 Js.log
                   "Success! We've reduced and it still fails. Let's keep going!" ;
                 debugAST length "started with" !latestAST ;
-                debugAST length "result was" reducedAST ;
+                debugAST length "reduced" reducedAST ;
                 debugAST length "after testing" newAST ;
                 if length < !verbosityThreshold
                 then Js.log2 "pos is" newState.newPos ;
@@ -446,9 +506,11 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
     oldAST := !newAST ;
     let latestAST =
       !newAST
+      |> runThrough "simplify" simplify
       |> runThrough "unwrapping" unwrap
       |> runThrough "removing" remove
       |> runThrough "blankVarNames" blankVarNames
+      |> runThrough "shortenNames" shortenNames
     in
     newAST := latestAST
   done ;
@@ -461,22 +523,29 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
 let runTest (test : FuzzTest.t) : unit =
   try
     for i = !initialSeed to !initialSeed + !count - 1 do
+      if !stop_on_fail && Tester.fails () <> [] then exit (-1) ;
       let name = test.name ^ " #" ^ string_of_int i in
       Tester.test name (fun () ->
           setSeed i ;
           let testcase = generateExpr () |> FluidExpression.clone in
-          Js.log2 "testing: " name ;
-          let newAST, newState = test.fn testcase in
-          Js.log2 "checking: " name ;
-          let passed = test.check ~testcase ~newAST newState in
-          if passed = false
+          if !only = None || !only = Some i
           then (
-            Js.log2 "failed: " name ;
-            let reduced = reduce test testcase in
-            let text = toText reduced in
-            Js.log2 "finished program:\n" text ;
-            Js.log2 "structure" (E.show reduced) ;
-            fail () )
-          else pass ())
+            Js.log2 "testing: " name ;
+            (* Js.log2 "testcase: " (E.show testcase) ; *)
+            let newAST, newState = test.fn testcase in
+            Js.log2 "checking: " name ;
+            let passed = test.check ~testcase ~newAST newState in
+            if passed = false
+            then (
+              Js.log2 "failed: " name ;
+              let reduced = reduce test testcase in
+              Js.log2 "finished program:\n  " (toText reduced) ;
+              Js.log2 "as expr:\n  " (E.show reduced) ;
+              Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
+              fail () )
+            else pass () )
+          else (
+            Js.log2 "skipping: " name ;
+            skip () ))
     done
   with _ -> ()

@@ -493,6 +493,50 @@ let eToStructure ?(includeIDs = false) (e : E.t) : string =
   |> String.join ~sep:""
 
 
+(* This constructs a testcase that we can enter in our test suite. This is
+ * similar to show_fluidExpr except that instead of the full code, it uses
+ * the shortcuts from Fluid_test_data. *)
+let rec eToTestcase (e : E.t) : string =
+  let r = eToTestcase in
+  let quoted str = "\"" ^ str ^ "\"" in
+  let listed elems = "[" ^ String.join ~sep:"," elems ^ "]" in
+  let spaced elems = String.join ~sep:" " elems in
+  let result =
+    match e with
+    | EBlank _ ->
+        "b"
+    | EString (_, str) ->
+        spaced ["str"; quoted str]
+    | EBool (_, true) ->
+        "true"
+    | EBool (_, false) ->
+        "false"
+    | EInteger (_, int) ->
+        spaced ["int"; quoted int]
+    | ENull _ ->
+        "null"
+    | EPartial (_, str, e) ->
+        spaced ["partial"; quoted str; r e]
+    | EFnCall (_, name, exprs, _) ->
+        spaced ["fn"; quoted name; listed (List.map ~f:r exprs)]
+    | EBinOp (_, name, lhs, rhs, _) ->
+        spaced ["binop"; quoted name; r lhs; r rhs]
+    | EVariable (_, name) ->
+        spaced ["var"; quoted name]
+    | ERecord (_, pairs) ->
+        spaced
+          [ "record"
+          ; listed (List.map pairs ~f:(fun (k, v) -> "(" ^ k ^ ", " ^ r v)) ]
+    | EConstructor (_, name, exprs) ->
+        spaced ["constructor"; quoted name; listed (List.map exprs ~f:r)]
+    | EIf (_, cond, thenExpr, elseExpr) ->
+        spaced ["if'"; r cond; r thenExpr; r elseExpr]
+    | _ ->
+        "todo: " ^ E.show e
+  in
+  "(" ^ result ^ ")"
+
+
 let pToString (p : fluidPattern) : string =
   p
   |> patternToToken ~idx:0

@@ -15,18 +15,29 @@ let process_cmdline_args () =
       match (!command, str) with
       | None, "--pattern"
       | None, "--count"
+      | None, "--only"
+      | None, "--size"
       | None, "--initialSeed"
       | None, "--verbosityThreshold" ->
           command := Some str
+      | None, "--stopOnFail" ->
+          Fluid_fuzzer.stop_on_fail := true
       | None, "--help" ->
           Js.log
-            "Run Dark's client-side fuzzer. Supported arguments:\n  --initialSeed: change the seed\n  --count: run count number of tests\n  --verbosityThreshold: once the number of expressions drops below this number, start printing more verbosity\n  --help: Print this message\n  --pattern 'some-regex': Only run tests that contains this regex" ;
+            "Run Dark's client-side fuzzer. Supported arguments:\n  --initialSeed: change the seed\n  --stopOnFail: stop running after the first test fails\n  --only: only run the test number passed in\n  --count: run count number of tests\n  --size: the size of the test cases\n  --verbosityThreshold: once the number of expressions drops below this number, start printing more verbosity\n  --help: Print this message\n  --pattern 'some-regex': Only run tests that contains this regex" ;
           exit 0
       | Some "--pattern", str ->
           Tester.pattern := Some (Js.Re.fromString str) ;
           command := None
       | Some "--count", str ->
           Fluid_fuzzer.count := int_of_string str ;
+          command := None
+      | Some "--only", str ->
+          Fluid_fuzzer.only := Some (int_of_string str) ;
+          Fluid_fuzzer.count := max (int_of_string str + 1) !Fluid_fuzzer.count ;
+          command := None
+      | Some "--size", str ->
+          Fluid_fuzzer.size := int_of_string str ;
           command := None
       | Some "--initialSeed", str ->
           Fluid_fuzzer.initialSeed := int_of_string str ;
@@ -83,6 +94,7 @@ let deleteAllTest : FuzzTest.t =
   ; check =
       (fun ~testcase:_ ~newAST newState ->
         toText newAST = "___" && newState.newPos = 0)
+  ; ignore = (fun _ -> false)
   ; fn =
       (fun testcase ->
         processMsg
@@ -95,9 +107,20 @@ let deleteAllTest : FuzzTest.t =
 let copyPasteTest : FuzzTest.t =
   { name = "copy paste roundtrips successfully"
   ; check = (fun ~testcase ~newAST _ -> toText testcase = toText newAST)
+  ; ignore = (function EString _ -> true | _ -> false)
   ; fn =
       (fun testcase ->
         (Fluid_clipboard_test.execute_roundtrip testcase, defaultTestState)) }
+
+
+let encodingRoundtrip : FuzzTest.t =
+  { name = "encoder/decoder roundtrips successfully"
+  ; check = (fun ~testcase ~newAST _ -> testcase = newAST)
+  ; ignore = (fun _ -> false)
+  ; fn =
+      (fun testcase ->
+        (testcase |> Encoders.fluidExpr |> Decoders.fluidExpr, defaultTestState))
+  }
 
 
 (* ------------------ *)
@@ -109,5 +132,6 @@ let () =
   Tester.verbose := true ;
   process_cmdline_args () ;
   runTest deleteAllTest ;
+  runTest encodingRoundtrip ;
   runTest copyPasteTest ;
   ()
