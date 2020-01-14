@@ -4,27 +4,21 @@ open Prelude
 module P = Pointer
 module TL = Toplevel
 
-let setData (data : clipboardContents) (e : clipboardEvent) =
-  match data with
-  | `Text text ->
-      e##clipboardData##setData "text/plain" text ;
-      e##preventDefault ()
-  | `Json json ->
-      let data = Json.stringify json in
-      e##clipboardData##setData "application/json" data ;
-      e##preventDefault ()
-  | `None ->
-      ()
+let setData ((text, json) : clipboardContents) (e : clipboardEvent) =
+  e##clipboardData##setData "text/plain" text ;
+  Option.map json ~f:(fun data ->
+      let data = Json.stringify data in
+      e##clipboardData##setData "application/json" data)
+  |> ignore ;
+  e##preventDefault ()
 
 
 let getData (e : clipboardEvent) : clipboardContents =
-  let json = e##clipboardData##getData "application/json" in
-  if json <> ""
-  then (
-    try `Json (Json.parseOrRaise json)
+  let json =
+    let json = e##clipboardData##getData "application/json" in
+    try Some (Json.parseOrRaise json)
     with _ ->
       reportError "could not parse clipboard data" json ;
-      `None )
-  else
-    let text = e##clipboardData##getData "text/plain" in
-    if text <> "" then `Text text else `None
+      None
+  in
+  (e##clipboardData##getData "text/plain", json)

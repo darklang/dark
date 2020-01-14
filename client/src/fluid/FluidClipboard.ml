@@ -18,15 +18,15 @@ type viewState = ViewUtils.viewState
 
 type ast = E.t
 
-let exprToClipboardContents (ast : ast) : clipboardContents =
-  match ast with
-  | EString (_, str) ->
-      `Text str
-  | _ ->
-      `Json (Encoders.fluidExpr ast)
+let exprToClipboardContents (expr : E.t) : clipboardContents =
+  let text = FluidPrinter.eToString expr in
+  let json = Encoders.fluidExpr expr in
+  (text, Some json)
 
 
-let jsonToExpr (jsonStr : string) : E.t =
+let emptyContents = ("", None)
+
+let jsonToExpr (jsonStr : string) : E.t option =
   let open Js.Json in
   let rec jsJsonToExpr (j : t) : E.t =
     match classify j with
@@ -72,32 +72,19 @@ let jsonToExpr (jsonStr : string) : E.t =
   in
   try
     let j = Json.parseOrRaise jsonStr in
-    jsJsonToExpr j
-  with _ -> EString (gid (), jsonStr)
+    Some (jsJsonToExpr j)
+  with _ -> None
 
 
-let clipboardContentsToExpr (data : clipboardContents) : E.t option =
-  match data with
-  | `Json json ->
+let clipboardContentsToExpr ((text, json) : clipboardContents) : E.t option =
+  match json with
+  | Some json ->
     ( try
         let expr = Decoders.fluidExpr json in
         Some (E.clone expr)
       with _ -> recover "could not decode" ~debug:json None )
-  | `Text text ->
-      Some (jsonToExpr text)
-  | `None ->
-      None
+  | None ->
+      jsonToExpr text
 
 
-let clipboardContentsToString (data : clipboardContents) : string =
-  match data with
-  | `Json _ ->
-      data
-      |> clipboardContentsToExpr
-      |> Option.map ~f:Printer.eToString
-      |> Option.withDefault ~default:""
-      |> Util.trimQuotes
-  | `Text text ->
-      text
-  | `None ->
-      ""
+let clipboardContentsToString ((text, _) : clipboardContents) : string = text

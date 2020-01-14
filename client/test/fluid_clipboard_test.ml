@@ -120,7 +120,7 @@ let run () =
       (range : int * int)
       (expr : fluidExpr) : testResult =
     let e = clipboardEvent () in
-    DClipboard.setData (`Text clipboard) e ;
+    DClipboard.setData (clipboard, None) e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
   let t

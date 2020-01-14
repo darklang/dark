@@ -957,9 +957,11 @@ and clipboardEvent =
   [@opaque])
 
 and clipboardContents =
-  [ `Text of string
-  | `Json of (Js.Json.t[@opaque])
-  | `None ]
+  (* Clipboard supports both text and encoded fluidExprs. At the moment,
+   * there is always a text option - there isn't a json option if the copied
+   * string wasn't a fluidExpr *)
+  (string * Js.Json.t option
+  [@opaque])
 
 (* ------------------- *)
 (* Modifications *)
@@ -1130,8 +1132,7 @@ and fluidMsg =
   | FluidKeyPress of FluidKeyboard.keyEvent
   | FluidTextInput of FluidTextInput.t
   | FluidCut
-  | FluidPaste of [`Json of Js.Json.t | `Text of string | `None]
-      [@printer opaque "FluidPaste"]
+  | FluidPaste of clipboardContents
   (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
    * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
    * This bi-directionality is not ideal and could use some rethinking.
