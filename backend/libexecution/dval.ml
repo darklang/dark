@@ -287,6 +287,14 @@ let to_opt_just (dv : dval) : dval =
   if is_fake_marker_dval dv then dv else DOption (OptJust dv)
 
 
+(* If we are writing ocaml code in stdlib, we want to keep the (dval option)
+ * type as long as we can, because we don't have a way to express (in ocaml)
+ * 'DOption'. But then we have to convert it to a proper (DOption of OptJust
+ * dval | OptNothing at the end *)
+let dopt_of_option (dv : dval option) : dval =
+  match dv with None -> DOption OptNothing | Some dv -> dv |> to_opt_just
+
+
 (* ------------------------- *)
 (* Obj Functions *)
 (* ------------------------- *)

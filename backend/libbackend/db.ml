@@ -231,12 +231,20 @@ let execute
             ~params:
               [ ( "exn"
                 , Exception.exception_data_to_yojson de |> Yojson.Safe.to_string
-                ) ] ;
+                )
+              ; ("query_name", name)
+              ; ("sql", sql) ] ;
           Caml.Printexc.raise_with_backtrace e bt
       | e ->
           Exception.exn_to_string e
     in
-    Exception.storage msg ~bt ~info:[("time", time () |> string_of_float)]
+    Exception.storage
+      msg
+      ~bt
+      ~info:
+        [ ("time", time () |> string_of_float)
+        ; ("query_name", name)
+        ; ("sql", sql) ]
 
 
 (* largely cribbed from
@@ -313,11 +321,19 @@ let iter_with_cursor
       Log.erroR
         msg
         ~bt
-        ~params:[("msg", msg); ("time", time () |> string_of_float)] ;
+        ~params:
+          [ ("msg", msg)
+          ; ("time", time () |> string_of_float)
+          ; ("query_name", name)
+          ; ("sql", sql) ] ;
       Exception.storage
         "iter_with_cursor"
         ~bt
-        ~info:[("msg", msg); ("time", time () |> string_of_float)] ) ;
+        ~info:
+          [ ("msg", msg)
+          ; ("time", time () |> string_of_float)
+          ; ("query_name", name)
+          ; ("sql", sql) ] ) ;
   ()
 
 
