@@ -147,8 +147,8 @@ let saveSexp (m : model) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/save_sexps"]
   in
-  let request = postEmptyString Decoders.saveTestRPCResult m.csrfToken url in
-  Tea.Http.send (fun x -> SaveTestRPCCallback x) request
+  let request = postEmptyString Decoders.saveTestAPIResult m.csrfToken url in
+  Tea.Http.send (fun x -> SaveTestAPICallback x) request
 
 
 let integration (m : model) (name : string) : msg Tea.Cmd.t =

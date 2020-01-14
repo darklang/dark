@@ -632,15 +632,14 @@ let save_sexps (c : canvas) : string =
              |> List.map ~f:(fun (param : RTT.ufn_param) ->
                     Sexp.List
                       [ Sexp.Atom (param.name |> string_orblank)
-                      ; Sexp.Atom (param.tipe |> tipe_orblank |> show_tipe_) ]
-                )
+                      ; Sexp.Atom (param.tipe |> tipe_orblank |> show_tipe_) ])
            in
            Sexp.List
              [ Sexp.Atom name
              ; Sexp.Atom description
              ; Sexp.List params
              ; Sexp.Atom return_type
-             ; ast ] )
+             ; ast ])
   in
   ufns
   |> Sexp.List

@@ -1196,7 +1196,6 @@ and msg =
   | SaveTestButton
   | ToggleEditorSetting of (editorSettings -> editorSettings)
   | SaveSexpsButton
-  | ToggleTimers
   | ExecuteFunctionButton of tlid * id * string
   | CreateHandlerFrom404 of fourOhFour
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]

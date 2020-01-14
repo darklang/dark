@@ -10,7 +10,7 @@ let sexp_fns : fn list =
     (*File.lsdir ~root:Config.Testdata "/"*)
     Core.Sys.ls_dir (Config.dir Config.Testdata ^ "/")
     |> Tablecloth.List.filter ~f:(fun file ->
-           String.is_prefix file ~prefix:"sexp-" )
+           String.is_prefix file ~prefix:"sexp-")
   in
   files
   |> List.map ~f:(fun file ->
@@ -46,11 +46,9 @@ let sexp_fns : fn list =
                         |> List.map ~f:(fun param ->
                                let name, tipe =
                                  match param with
-                                 | Sexp.List [Sexp.Atom name; Sexp.Atom tipe]
-                                   ->
+                                 | Sexp.List [Sexp.Atom name; Sexp.Atom tipe] ->
                                      ( name
-                                     , tipe |> Libexecution.Types.tipe_of_str
-                                     )
+                                     , tipe |> Libexecution.Types.tipe_of_str )
                                  | _ ->
                                      Libexecution.Exception.internal
                                        "BAD FORMAT"
@@ -60,7 +58,7 @@ let sexp_fns : fn list =
                                  ; block_args = []
                                  ; optional = false
                                  ; description = "" }
-                                 : RTT.param ) )
+                                 : RTT.param ))
                     ; return_type = Libexecution.Types.tipe_of_str return_type
                     ; description
                     ; func =
@@ -76,12 +74,12 @@ let sexp_fns : fn list =
                                                      be true? *)
                     ; deprecated = false (* TODO deprecated could be true *) }
                 | _ ->
-                    Libexecution.Exception.internal "Bad format" ) )
+                    Libexecution.Exception.internal "Bad format"))
   |> Tablecloth.List.flatten
   |> fun fns ->
   fns
   |> List.iter ~f:(fun fn ->
-         Caml.print_endline ("FN: " ^ List.hd_exn fn.prefix_names) ) ;
+         Caml.print_endline ("FN: " ^ List.hd_exn fn.prefix_names)) ;
   fns
 
 

@@ -94,8 +94,8 @@ let rec sexp_for_ (e : expr) : Sexp.t =
           ( Sexp.Atom "obj"
           :: ( alist
              |> List.map ~f:(fun (k, v) ->
-                    Sexp.List [Sexp.Atom (string_of_orblank k); sexp_for_ v] )
-             ) )
+                    Sexp.List [Sexp.Atom (string_of_orblank k); sexp_for_ v]) )
+          )
     | ListLiteral exprs ->
         Sexp.List (List.map ~f:sexp_for_ exprs)
     | FeatureFlag (name, cond, oldcode, newcode) ->
