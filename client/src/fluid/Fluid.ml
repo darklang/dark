@@ -434,41 +434,43 @@ let moveToEndOfLine (ast : ast) (ti : T.tokenInfo) (s : state) : state =
   setPosition s (getEndOfLineCaretPos ast ti)
 
 
-let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
-    state =
-  let s = recordAction "goToStartOfWord" s in
   (* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
+let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
   let previousToken =
     toTokens ast
     |> List.reverse
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos > t.startPos)
   in
-  let newPos =
     let tokenInfo = previousToken |> Option.withDefault ~default:ti in
     if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
     then getBegOfWordInStrCaretPos ~pos tokenInfo
     else tokenInfo.startPos
+
+
+let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
+    state =
+  let s = recordAction "goToStartOfWord" s in
+  setPosition s (getStartOfWordPos ~pos ast ti)
+
+
+  (* We want to find the closest editable token that is after the current cursor position
+  * so the cursor always lands in a position where a user is able to type *)
+let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
+  let tokenInfo =
+    toTokens ast
+    |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
+    |> Option.withDefault ~default:ti
   in
-  setPosition s newPos
+    if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
+    then getEndOfWordInStrCaretPos ~pos tokenInfo
+    else tokenInfo.endPos
 
 
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
     state =
   let s = recordAction "goToEndOfWord" s in
-  (* We want to find the closest editable token that is after the current cursor position
-  * so the cursor always lands in a position where a user is able to type *)
-  let nextToken =
-    toTokens ast
-    |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
-  in
-  let newPos =
-    let tokenInfo = nextToken |> Option.withDefault ~default:ti in
-    if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
-    then getEndOfWordInStrCaretPos ~pos tokenInfo
-    else tokenInfo.endPos
-  in
-  setPosition s newPos
+  setPosition s (getEndOfWordPos ~pos ast ti)
 
 
 let moveToEnd (ti : T.tokenInfo) (s : state) : state =
