@@ -4201,6 +4201,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
     | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
         (ast, moveToStartOfLine ast ti s)
+    | K.SelectToStartOfLine, _, R (_, ti) | K.SelectToStartOfLine, L (_, ti), _
+      ->
+        ( ast
+        , { s with
+            newPos = getStartOfLineCaretPos ast ti
+          ; selectionStart = Some s.newPos } )
     | K.GoToEndOfLine, _, R (_, ti) ->
         (ast, moveToEndOfLine ast ti s)
     | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
@@ -4663,6 +4669,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
 
 let shouldDoDefaultAction (key : K.key) : bool =
   match key with
+  | K.SelectToStartOfLine
   | K.GoToStartOfLine
   | K.GoToEndOfLine
   | K.Delete
@@ -4676,6 +4683,10 @@ let shouldDoDefaultAction (key : K.key) : bool =
       false
   | _ ->
       true
+
+
+let shouldSelect (key : K.key) : bool =
+  match key with K.SelectToStartOfLine | K.SelectAll -> true | _ -> false
 
 
 let exprRangeInAst ~ast (exprID : id) : (int * int) option =
@@ -5310,7 +5321,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         let s = {s with lastKey = key} in
         let newAST, newState = updateKey key ast s in
         let selectionStart =
-          if key = K.SelectAll
+          if shouldSelect key
           then newState.selectionStart
           else if shiftKey && not (key = K.ShiftEnter)
                   (* We dont want to persist selection on ShiftEnter *)

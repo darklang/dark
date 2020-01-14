@@ -99,6 +99,7 @@ type key =
   | F12
   | Unknown of string
   | GoToStartOfLine
+  | SelectToStartOfLine
   | GoToEndOfLine
   | DeletePrevWord
   | DeleteNextWord
@@ -227,6 +228,7 @@ let toString (key : key) : string option =
   | Ctrl _
   | Unknown _
   | GoToStartOfLine
+  | SelectToStartOfLine
   | GoToEndOfLine
   | DeletePrevWord
   | DeleteNextWord
@@ -381,6 +383,8 @@ let fromKeyboardEvent
    *************)
   | "a" when osCmdKeyHeld ->
       SelectAll
+  | "a" when ctrl && shift ->
+      SelectToStartOfLine
   | "a" when ctrl ->
       GoToStartOfLine
   | "d" when ctrl ->
@@ -404,6 +408,8 @@ let fromKeyboardEvent
       DeleteToEndOfLine
   | "Delete" when (isMac && alt) || ((not isMac) && ctrl) ->
       DeleteNextWord
+  | "ArrowLeft" when meta && shift ->
+      SelectToStartOfLine
   | "ArrowLeft" when meta ->
       GoToStartOfLine
   | "ArrowLeft" when (isMac && alt) || ctrl ->
@@ -423,12 +429,16 @@ let fromKeyboardEvent
       PageUp
   | "PageDown" ->
       PageDown
+  | "End" when ctrl && shift ->
+      SelectToStartOfLine
   | "End" when ctrl ->
       GoToStartOfLine
   | "End" ->
       GoToEndOfLine
   | "Home" when ctrl ->
       GoToEndOfLine
+  | "Home" when shift ->
+      SelectToStartOfLine
   | "Home" ->
       GoToStartOfLine
   | "ArrowUp" ->
