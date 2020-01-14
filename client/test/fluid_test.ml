@@ -1613,10 +1613,10 @@ let run () =
         (bs 5)
         "~___" ;
       t
-        "pressing bs on single digit binop deletes binop and rhs"
+        "pressing bs on single digit binop deletes binop and combines rhs and lhs"
         (binop "+" anInt anInt)
         (bs 7)
-        "12345~" ;
+        "12345~12345" ;
       t
         "using del to remove an infix with a placeholder goes to right place"
         (partial "|" (binop "||" b b))
@@ -1628,10 +1628,10 @@ let run () =
         (del 4)
         "~___" ;
       t
-        "pressing del on single digit binop deletes binop and rhs"
+        "pressing del on single digit binop deletes binop and combines rhs and lhs"
         (binop "+" anInt anInt)
         (del 6)
-        "12345~" ;
+        "12345~12345" ;
       t
         "pressing del to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
@@ -1728,10 +1728,10 @@ let run () =
         (ctrlRight 6)
         "12345 <~ 12345" ;
       t
-        "DeletePrevWord in end of binop deletes binop and rhs"
+        "DeletePrevWord in end of binop deletes binop and combines rhs and lhs"
         (binop "<" anInt anInt)
         (key K.DeletePrevWord 7)
-        "12345~" ;
+        "12345~12345" ;
       t
         "DeletePrevWord in front of binop deletes first int"
         (binop "<" anInt anInt)
@@ -1743,10 +1743,10 @@ let run () =
         (key K.DeleteNextWord 8)
         "12345 < ~_________" ;
       t
-        "DeleteNextWord in front of binop deletes binop and rhs"
+        "DeleteNextWord in front of binop deletes binop and combines rhs and lhs"
         (binop "<" anInt anInt)
         (key K.DeleteNextWord 6)
-        "12345~" ;
+        "12345~12345" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
