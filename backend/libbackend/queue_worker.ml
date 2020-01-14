@@ -52,12 +52,16 @@ let dequeue_and_process execution_id :
                         let canvas_id = !c.id in
                         let desc = Event_queue.to_event_desc event in
                         Log.add_log_annotations
-                          [ ("host", `String host)
+                          [ ("canvas", `String host)
                           ; ("trace_id", `String (Uuidm.to_string trace_id))
                           ; ("canvas_id", `String (Uuidm.to_string canvas_id))
-                          ; ("event_space", `String event.space)
-                          ; ("event_name", `String event.name)
-                          ; ("event_modifier", `String event.modifier)
+                            (* name/module/method because those are the names of
+                             * the fields in a handler spec, and we want these
+                             * names to be shared between http logs and
+                             * cron/worker logs *)
+                          ; ("module", `String event.space)
+                          ; ("name", `String event.name)
+                          ; ("method", `String event.modifier)
                           ; ("retries", `Int event.retries) ]
                           (fun _ ->
                             try
