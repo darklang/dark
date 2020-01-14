@@ -78,9 +78,9 @@ data:
         dataset: kubernetes-bwd-ocaml
         parser: json
         processors:
-        # 'request' is what we used to call 'name'; it's in here for the moment
-        # so honeycomb knows how to handle both for the brief period when we
-        # have logs with the old name and logs with the new name.
+        # 'request' is what we now call 'handler_name'; it's in here for the
+        # moment so honeycomb knows how to handle both for the brief period when
+        # we have logs with the old name and logs with the new name.
         - request_shape:
             field: request
             patterns:
@@ -98,7 +98,7 @@ data:
             - /api/:canvas/static_assets
             - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
         - request_shape:
-            field: name
+            field: handler_name
             patterns:
             - /a/:canvas
             - /api/:canvas/save_test

@@ -55,12 +55,12 @@ let dequeue_and_process execution_id :
                           [ ("canvas", `String host)
                           ; ("trace_id", `String (Uuidm.to_string trace_id))
                           ; ("canvas_id", `String (Uuidm.to_string canvas_id))
-                            (* name/module/method because those are the names of
-                             * the fields in a handler spec, and we want these
-                             * names to be shared between http logs and
-                             * cron/worker logs *)
+                            (* handler_name/module/method because those are the
+                             * names of the fields in a handler spec, and we
+                             * want these names to be shared between http logs
+                             * and cron/worker logs *)
                           ; ("module", `String event.space)
-                          ; ("name", `String event.name)
+                          ; ("handler_name", `String event.name)
                           ; ("method", `String event.modifier)
                           ; ("retries", `Int event.retries) ]
                           (fun _ ->
