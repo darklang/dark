@@ -1056,12 +1056,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
     | ENull id ->
         {astRef = ARNull id; offset = String.length "null"}
     | EBlank id ->
-        { astRef = ARBlank id
-        ; offset =
-            3
-            (* It might be better to return offset 0 here,
-              because we might not want to be in the actual end of the blank? *)
-        }
+        { astRef = ARBlank id; offset = 0}
     | ELet (_, _, _, bodyExpr) ->
         caretTargetForLastPartOfExpr' bodyExpr
     | EIf (_, _, _, elseExpr) ->
