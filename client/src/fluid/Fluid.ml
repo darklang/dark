@@ -3162,6 +3162,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                |> List.getAt ~index
                |> Option.map ~f:(fun (_, oldName) ->
                       let newName = oldName |> mutation in
+                      (* Note that newName is intentionally
+                        allowed to be "" with no special handling *)
                       let vars =
                         List.updateAt vars ~index ~f:(fun (varId, _) ->
                             (varId, newName))
@@ -3169,6 +3171,23 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                       ( ELambda
                           (id, vars, E.renameVariableUses ~oldName ~newName expr)
                       , desiredCaretTarget ))
+           | ARPipe (_, PPPipeKeyword idx), EPipe (id, exprChain) ->
+             (* TODO(JULIAN): This can probably be cleaned up *)
+             ( match exprChain with
+             | [e1; _] ->
+                 Some (e1, caretTargetForLastPartOfExpr (E.id e1) ast)
+             | exprs ->
+                 let index =
+                   (* remove expression in front of pipe, not behind it *)
+                   idx + 1
+                 in
+                 exprs
+                 |> List.getAt ~index:idx
+                 |> Option.map ~f:(fun expr ->
+                        Some
+                          ( EPipe (id, List.removeAt ~index exprs)
+                          , caretTargetForLastPartOfExpr (E.id expr) ast ))
+                 |> recoverOpt "doExplicitBackspace ARPipe" ~default:None )
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3429,7 +3448,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TPatternConstructorName (mID, id, str, _) ->
         let f str = Util.removeCharAt str offset in
         (replacePatternWithPartial (f str) mID id ast, LeftOne)
-    | TPipe (id, i, _) ->
+    (*     | TPipe (id, i, _) ->
         let newPosition =
           match getTokensAtPosition ~pos:ti.startPos (toTokens ast) with
           | Some leftTI, _, _ ->
@@ -3441,7 +3460,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
                 ~debug:ti
                 SamePlace
         in
-        (removePipe id ast i, newPosition)
+        (removePipe id ast i, newPosition) *)
     | _ ->
         doExplicitBackspace (caretTargetFromTokenInfo pos ti) ast
   in
