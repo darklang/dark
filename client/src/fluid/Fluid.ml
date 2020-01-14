@@ -1056,7 +1056,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
     | ENull id ->
         {astRef = ARNull id; offset = String.length "null"}
     | EBlank id ->
-        { astRef = ARBlank id; offset = 0}
+        {astRef = ARBlank id; offset = 0}
     | ELet (_, _, _, bodyExpr) ->
         caretTargetForLastPartOfExpr' bodyExpr
     | EIf (_, _, _, elseExpr) ->
@@ -3112,41 +3112,63 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  Some
                    ( EPartial (newID, str, oldExpr)
                    , {astRef = ARPartial newID; offset = currOffset - 1} )
-           | ARFieldAccess (_, FAPFieldname), (EFieldAccess (_, _, fieldName) as oldExpr) ->
-           (* XXX(JULIAN): Why does this not check for empty string?
-              Does this have a weird special case? *)
-              let str = mutation fieldName in
-              let newID = gid () in
-                Some
-                   ( EPartial (newID, str, oldExpr)
-                   , {astRef = ARPartial newID; offset = currOffset - 1} )
-            | ARPartial _, EPartial (id, oldStr, oldExpr) ->
-                let str = oldStr |> mutation |> String.trim in
-                if str = "" then
-                (* inlined version of deletePartial, with appropriate exceptions added *)
-                  (match oldExpr with
-                  | EFieldAccess _ ->
-                    (* This is allowed to be the empty string. *)
-                    Some (EPartial (id, str, oldExpr), desiredCaretTarget)
-                  | EBinOp (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _) ->
-                    Some (EString (lhsID, lhsStr ^ rhsStr), {astRef=ARString (lhsID, SPText); offset = String.length lhsStr})
-                  | EBinOp (_, _, lhs, _, _) ->
-                    Some (lhs, caretTargetForLastPartOfExpr (E.id lhs) ast)
-                  | _ -> 
-                    let newID = gid () in
-                    Some (EBlank newID, {astRef = ARBlank newID; offset = 0})
-                  )
-                else if (String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str) then
-                    (let newID = gid () in
-                    Some (EString (newID, String.slice ~from:1 ~to_:(-1) str), {astRef = ARString (newID, SPText); offset = currOffset - 1}))
-                else
-                    Some (EPartial (id, str, oldExpr), desiredCaretTarget)
-            | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
-                let str = oldStr |> mutation |> String.trim in
-                if str = "" then
-                Some (oldValue, caretTargetForLastPartOfExpr (E.id oldValue) ast)
-                else
-                Some (ERightPartial (id, str, oldValue), desiredCaretTarget)
+           | ( ARFieldAccess (_, FAPFieldname)
+             , (EFieldAccess (_, _, fieldName) as oldExpr) ) ->
+               (* XXX(JULIAN): Why does this not check for empty string?
+                Does this have a weird special case? *)
+               let str = mutation fieldName in
+               let newID = gid () in
+               Some
+                 ( EPartial (newID, str, oldExpr)
+                 , {astRef = ARPartial newID; offset = currOffset - 1} )
+           | ARPartial _, EPartial (id, oldStr, oldExpr) ->
+               let str = oldStr |> mutation |> String.trim in
+               if str = ""
+               then
+                 (* inlined version of deletePartial, with appropriate exceptions added *)
+                 match oldExpr with
+                 | EFieldAccess _ ->
+                     (* This is allowed to be the empty string. *)
+                     Some (EPartial (id, str, oldExpr), desiredCaretTarget)
+                 | EBinOp (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _)
+                   ->
+                     Some
+                       ( EString (lhsID, lhsStr ^ rhsStr)
+                       , { astRef = ARString (lhsID, SPText)
+                         ; offset = String.length lhsStr } )
+                 | EBinOp (_, _, lhs, _, _) ->
+                     Some (lhs, caretTargetForLastPartOfExpr (E.id lhs) ast)
+                 | _ ->
+                     let newID = gid () in
+                     Some (EBlank newID, {astRef = ARBlank newID; offset = 0})
+               else if String.startsWith ~prefix:"\"" str
+                       && String.endsWith ~suffix:"\"" str
+               then
+                 let newID = gid () in
+                 Some
+                   ( EString (newID, String.slice ~from:1 ~to_:(-1) str)
+                   , {astRef = ARString (newID, SPText); offset = currOffset - 1}
+                   )
+               else Some (EPartial (id, str, oldExpr), desiredCaretTarget)
+           | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
+               let str = oldStr |> mutation |> String.trim in
+               if str = ""
+               then
+                 Some
+                   (oldValue, caretTargetForLastPartOfExpr (E.id oldValue) ast)
+               else Some (ERightPartial (id, str, oldValue), desiredCaretTarget)
+           | ARLambda (_, LPVarName index), ELambda (id, vars, expr) ->
+               vars
+               |> List.getAt ~index
+               |> Option.map ~f:(fun (_, oldName) ->
+                      let newName = oldName |> mutation in
+                      let vars =
+                        List.updateAt vars ~index ~f:(fun (varId, _) ->
+                            (varId, newName))
+                      in
+                      ( ELambda
+                          (id, vars, E.renameVariableUses ~oldName ~newName expr)
+                      , desiredCaretTarget ))
            (*
            Delete leading keywords of empty expressions
            *)
@@ -3389,7 +3411,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (* | TRightPartial _
     | TPartial _ *)
     (* | TBinOp _ *)
-    | TLambdaVar _ ->
+    (* | TLambdaVar _ *) ->
         let f str = Util.removeCharAt str offset in
         (replaceStringToken ~f ti.token ast, LeftOne)
     | TPatternFloatWhole (mID, id, str, _) ->
