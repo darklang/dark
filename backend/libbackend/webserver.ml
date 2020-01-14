@@ -2117,7 +2117,12 @@ let server () =
     in
     Log.add_log_annotations
       [ ("execution_id", `String (Types.string_of_id execution_id))
-      ; ("request", `String request_path)
+        (* We call this handler_name and not request for a reason - we want to
+         * unify with what other spec-having handlers use, since
+         * qw+cron+webserver all share logs (and not just "name" because that's
+         * the field we use for a Log call's unlabeled string argument *)
+      ; ("handler_name", `String request_path)
+      ; ("module", `String "HTTP")
       ; ("method", `String (Cohttp.Code.string_of_method (CRequest.meth req)))
       ; ("host", `String (Uri.host_with_default ~default:"" (CRequest.uri req)))
       ; ("ip", `String ip) ]
