@@ -4714,9 +4714,9 @@ let getCopySelection (m : model) : clipboardContents =
       getOptionalSelectionRange state
       |> Option.andThen ~f:(reconstructExprFromRange ~ast)
       |> Option.map ~f:Clipboard.exprToClipboardContents
-      |> Option.withDefault ~default:`None
+      |> Option.withDefault ~default:("", None)
   | None ->
-      `None
+      FluidClipboard.emptyContents
 
 
 let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =
