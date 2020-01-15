@@ -2636,6 +2636,11 @@ let tryReplaceStringAndMove
         else
           ( Some (EInteger (id, Util.coerceStringTo63BitInt str))
           , desiredCaretTarget )
+    | TString (id, fullStr)
+    | TStringMLStart (id, _, _, fullStr)
+    | TStringMLMiddle (id, _, _, fullStr)
+    | TStringMLEnd (id, _, _, fullStr) ->
+      (Some (EString (id, f fullStr)), desiredCaretTarget)
     | _ ->
         todo "still need to handle all cases" (None, desiredCaretTarget)
   in
@@ -2671,11 +2676,12 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let s = recordAction ~pos ~ti "doBackspace" s in
   let offset =
     match ti.token with
-    | TPatternString _ | TString _ | TStringMLStart _ ->
-        pos - ti.startPos - 2
+    | TPatternString _ | TString _
+    | TStringMLStart _ ->
+        pos - ti.startPos - 2 (* -1 if on right side of the open quote *)
     | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
       ->
-        pos - ti.startPos - 1 + strOffset
+        pos - ti.startPos - 1 + strOffset (* equal to string length if on the right side of the close quote *)
     | TFnVersion (_, partialName, _, _) ->
         (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
         let startPos = ti.endPos - String.length partialName in
@@ -2693,8 +2699,6 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
         let newAST = removeEmptyExpr (T.tid ti.token) ast in
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
-    | TString (id, "") ->
-        (E.replace id ~replacement:(EBlank newID) ast, LeftOne)
     | TPatternString (mID, id, "", _) ->
         (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, LeftOne)
     | TLambdaSep (id, idx) ->
@@ -2755,13 +2759,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         let newAST, newState = deletePartial ti ast s in
         (newAST, Exactly newState.newPos)
     | TBinOp (_, str) when String.length str = 1 ->
-        let ast, newState = deleteBinOp ti ast s in
-        (ast, Exactly newState.newPos)
-    | TStringMLEnd (id, thisStr, strOffset, _)
-      when String.length thisStr = 1 && offset = strOffset ->
-        let f str = Util.removeCharAt str offset in
-        let newAST = replaceStringToken ~f ti.token ast in
-        (newAST, MoveToTokenEnd (id, -1) (* quote *))
+        let ast, targetID = deleteBinOp ti ast in
+        (ast, MoveToTokenEnd (targetID, 0))
     | TInteger (id, _) ->
         let f str = Util.removeCharAt str offset in
         tryReplaceStringAndMoveOrSame
@@ -2769,10 +2768,33 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
           ti.token
           ast
           {astRef = ARInteger id; offset}
-    | TString _
-    | TStringMLStart _
-    | TStringMLMiddle _
-    | TStringMLEnd _
+    | TString (id, "") ->
+        (E.replace id ~replacement:(EBlank newID) ast, AtTarget {astRef=ARBlank newID; offset=0})
+    | TStringMLEnd (id, thisStr, strOffset, _)
+      when String.length thisStr = 1 && offset = strOffset ->
+        let f str = Util.removeCharAt str offset in
+        let newAST = replaceStringToken ~f ti.token ast in
+        (newAST, MoveToTokenEnd (id, -1) (* quote *))
+    | TString (id, fullStr)
+    | TStringMLStart (id, _, _, fullStr)
+    | TStringMLMiddle (id, _, _, fullStr)
+    | TStringMLEnd (id, _, _, fullStr) ->
+        if offset = -1 then
+        (* on right side of open quote *)
+        (ast, AtTarget {astRef = ARString (id, SPOpenQuote); offset = 0})
+        else
+        let len = String.length fullStr in
+        if offset = len then
+        (* on right side of close quote *)
+        (ast, AtTarget {astRef = ARString (id, SPText); offset})
+        else
+        (* somewhere in the string *)
+        (let f str = Util.removeCharAt str offset in
+        tryReplaceStringAndMoveOrSame
+          ~f
+          ti.token
+          ast
+          {astRef = ARString (id, SPText); offset})
     | TPatternString _
     | TRecordFieldname _
     | TTrue _
