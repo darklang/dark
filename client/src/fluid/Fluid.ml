@@ -4561,8 +4561,15 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
           )
       | EInteger (id, str), _, _ ->
           let text, offset = insertInt str offset in
-          let replacement = EInteger (id, text) in
-          (E.replace ~replacement id ast, Some {astRef = ARInteger id; offset})
+          if text = str && text <> ""
+          then
+            let newString = String.insertAt ~insert:word ~index:offset str in
+            let offset = offset + String.length word in
+            let replacement = EPartial (id, newString, expr) in
+            (E.replace ~replacement id ast, Some {astRef = ARPartial id; offset})
+          else
+            let replacement = EInteger (id, text) in
+            (E.replace ~replacement id ast, Some {astRef = ARInteger id; offset})
       | EFloat (id, whole, fraction), _, {token = TFloatFraction _; _} ->
           let newFraction, offset = insertInt fraction offset in
           let replacement = EFloat (id, whole, newFraction) in
