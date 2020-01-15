@@ -3136,8 +3136,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                        ( EString (lhsID, lhsStr ^ rhsStr)
                        , { astRef = ARString (lhsID, SPText)
                          ; offset = String.length lhsStr } )
-                 | EBinOp (_, _, lhs, _, _) ->
-                     Some (lhs, caretTargetForLastPartOfExpr (E.id lhs) ast)
+                 | EBinOp (_, _, EPipeTarget _, expr, _)
+                 | EBinOp (_, _, expr, _, _) ->
+                     Some (expr, caretTargetForLastPartOfExpr (E.id expr) ast)
                  | _ ->
                      let newID = gid () in
                      Some (EBlank newID, {astRef = ARBlank newID; offset = 0})
@@ -3192,7 +3193,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
            Delete leading keywords of empty expressions
            *)
            | ARLet (_, LPKeyword), ELet (_, varName, expr, EBlank _)
-           | ARLet (_, LPKeyword), ELet (_, varName, EBlank _, expr) when varName = "" || varName = "_" ->
+           | ARLet (_, LPKeyword), ELet (_, varName, EBlank _, expr)
+             when varName = "" || varName = "_" ->
                (* TODO(JULIAN): change this to work more directly by
                  exposing a version of caretTargetForBeginningOfExpr
                  that accepts a fluidExpr *)
@@ -3305,7 +3307,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let s = recordAction ~pos ~ti "doBackspace" s in
   let offset =
     match ti.token with
-    | TPatternString _ (* | TString _ | TStringMLStart _ *)  ->
+    | TPatternString _ (* | TString _ | TStringMLStart _ *) ->
         pos - ti.startPos - 2 (* -1 if on right side of the open quote *)
     (* | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
       ->
