@@ -56,7 +56,7 @@ let tid (t : t) : id =
   | TPatternInteger (_, id, _, _)
   | TPatternVariable (_, id, _, _)
   | TPatternConstructorName (_, id, _, _)
-  | TPatternString (_, id, _, _)
+  | TPatternString {patternID = id; _}
   | TPatternTrue (_, id, _)
   | TPatternFalse (_, id, _)
   | TPatternNullToken (_, id, _)
@@ -366,7 +366,7 @@ let toText (t : t) : string =
       "."
   | TPatternFloatFraction (_, _, f, _) ->
       f
-  | TPatternString (_, _, str, _) ->
+  | TPatternString {str; _} ->
       "\"" ^ str ^ "\""
   | TPatternTrue _ ->
       "true"
@@ -431,7 +431,7 @@ let toIndex (t : t) : int option =
   | TPatternInteger (_, _, _, index)
   | TPatternVariable (_, _, _, index)
   | TPatternConstructorName (_, _, _, index)
-  | TPatternString (_, _, _, index)
+  | TPatternString {branchIdx = index; _}
   | TPatternTrue (_, _, index)
   | TPatternFalse (_, _, index)
   | TPatternNullToken (_, _, index)
@@ -450,7 +450,7 @@ let toParentID (t : t) : id option =
   | TPatternInteger (id, _, _, _)
   | TPatternVariable (id, _, _, _)
   | TPatternConstructorName (id, _, _, _)
-  | TPatternString (id, _, _, _)
+  | TPatternString {matchID = id; _}
   | TPatternTrue (id, _, _)
   | TPatternFalse (id, _, _)
   | TPatternNullToken (id, _, _)
@@ -660,7 +660,7 @@ let toDebugInfo (t : t) : string =
   | TPatternInteger (mid, _, _, idx)
   | TPatternVariable (mid, _, _, idx)
   | TPatternConstructorName (mid, _, _, idx)
-  | TPatternString (mid, _, _, idx)
+  | TPatternString {matchID = mid; branchIdx = idx; _}
   | TPatternTrue (mid, _, idx)
   | TPatternFalse (mid, _, idx)
   | TPatternNullToken (mid, _, idx)

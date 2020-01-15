@@ -212,7 +212,10 @@ and fluidPattern =
   (* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
   | FPInteger of id * id * string
   | FPBool of id * id * bool
-  | FPString of id * id * string
+  | FPString of
+      { matchID : id
+      ; patternID : id
+      ; str : string }
   | FPFloat of id * id * string * string
   | FPNull of id * id
   | FPBlank of id * id
@@ -1415,7 +1418,11 @@ and fluidToken =
   | TPatternVariable of id * id * string * int
   | TPatternConstructorName of id * id * string * int
   | TPatternInteger of id * id * string * int
-  | TPatternString of id * id * string * int
+  | TPatternString of
+      { matchID : id
+      ; patternID : id
+      ; str : string
+      ; branchIdx : int }
   | TPatternTrue of id * id * int
   | TPatternFalse of id * id * int
   | TPatternNullToken of id * id * int

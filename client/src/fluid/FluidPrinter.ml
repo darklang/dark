@@ -110,8 +110,8 @@ let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
       [TPatternInteger (mid, id, i, idx)]
   | FPBool (mid, id, b) ->
       if b then [TPatternTrue (mid, id, idx)] else [TPatternFalse (mid, id, idx)]
-  | FPString (mid, id, s) ->
-      [TPatternString (mid, id, s, idx)]
+  | FPString {matchID = mid; patternID = id; str} ->
+      [TPatternString {matchID = mid; patternID = id; str; branchIdx = idx}]
   | FPFloat (mID, id, whole, fraction) ->
       let whole =
         if whole = "" then [] else [TPatternFloatWhole (mID, id, whole, idx)]

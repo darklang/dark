@@ -724,15 +724,16 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     * Single-line Strings
     *)
     | ARString (id, SPOpenQuote), TString (id', _)
-    | ARPattern (id, PPString SPOpenQuote), TPatternString (_, id', _, _)
+    | ARPattern (id, PPString SPOpenQuote), TPatternString {patternID = id'; _}
       when id = id' ->
         posForTi ti
     | ARString (id, SPText), TString (id', _)
-    | ARPattern (id, PPString SPText), TPatternString (_, id', _, _)
+    | ARPattern (id, PPString SPText), TPatternString {patternID = id'; _}
       when id = id' ->
         clampedPosForTi ti (ct.offset + 1)
     | ARString (id, SPCloseQuote), TString (id', str)
-    | ARPattern (id, PPString SPCloseQuote), TPatternString (_, id', str, _)
+    | ( ARPattern (id, PPString SPCloseQuote)
+      , TPatternString {patternID = id'; str; _} )
       when id = id' ->
         clampedPosForTi ti (ct.offset + String.length str + 1)
     (*
@@ -1050,7 +1051,7 @@ let caretTargetForBeginningOfPattern (pattern : fluidPattern) : caretTarget =
       {astRef = ARPattern (id, PPInteger); offset = 0}
   | FPBool (_, id, _) ->
       {astRef = ARPattern (id, PPBool); offset = 0}
-  | FPString (_, id, _) ->
+  | FPString {patternID = id; _} ->
       {astRef = ARPattern (id, PPString SPOpenQuote); offset = 0}
   | FPFloat (_, id, _, _) ->
       {astRef = ARPattern (id, PPFloat FPWhole); offset = 0}
@@ -1083,7 +1084,7 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
       {astRef = ARPattern (id, PPBool); offset = String.length "true"}
   | FPBool (_, id, false) ->
       {astRef = ARPattern (id, PPBool); offset = String.length "false"}
-  | FPString (_, id, _) ->
+  | FPString {patternID = id; _} ->
       { astRef = ARPattern (id, PPString SPCloseQuote)
       ; offset = 1 (* end of close quote *) }
   | FPFloat (_, id, _, frac) ->
@@ -1884,8 +1885,12 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) : E.t
   | TStringMLEnd (id, _, _, str)
   | TString (id, str) ->
       E.replace id ~replacement:(EString (id, f str)) ast
-  | TPatternString (mID, id, str, _) ->
-      replacePattern mID id ~newPat:(FPString (mID, id, f str)) ast
+  | TPatternString {matchID = mID; patternID = id; str; _} ->
+      replacePattern
+        mID
+        id
+        ~newPat:(FPString {matchID = mID; patternID = id; str = f str})
+        ast
   | TInteger (id, str) ->
       let str = f str in
       let replacement =
@@ -2640,7 +2645,9 @@ let tryReplaceStringAndMove
     | TStringMLStart (id, _, _, fullStr)
     | TStringMLMiddle (id, _, _, fullStr)
     | TStringMLEnd (id, _, _, fullStr) ->
-      (Some (EString (id, f fullStr)), desiredCaretTarget)
+        (Some (EString (id, f fullStr)), desiredCaretTarget)
+    (*     | TPatternString { matchID : id ; patternID : id ; str : string ; branchIdx : int } ->
+        (Some ()) *)
     | _ ->
         todo "still need to handle all cases" (None, desiredCaretTarget)
   in
@@ -2676,12 +2683,12 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let s = recordAction ~pos ~ti "doBackspace" s in
   let offset =
     match ti.token with
-    | TPatternString _ | TString _
-    | TStringMLStart _ ->
+    | TPatternString _ | TString _ | TStringMLStart _ ->
         pos - ti.startPos - 2 (* -1 if on right side of the open quote *)
     | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
       ->
-        pos - ti.startPos - 1 + strOffset (* equal to string length if on the right side of the close quote *)
+        pos - ti.startPos - 1 + strOffset
+        (* equal to string length if on the right side of the close quote *)
     | TFnVersion (_, partialName, _, _) ->
         (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
         let startPos = ti.endPos - String.length partialName in
@@ -2699,8 +2706,6 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
         let newAST = removeEmptyExpr (T.tid ti.token) ast in
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
-    | TPatternString (mID, id, "", _) ->
-        (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, LeftOne)
     | TLambdaSep (id, idx) ->
         (removeLambdaSepToken id ast idx, LeftOne)
     | TListSep (id, idx) ->
@@ -2768,33 +2773,34 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
           ti.token
           ast
           {astRef = ARInteger id; offset}
+    | TPatternString {matchID = mID; patternID = id; str = ""; _} ->
+        ( replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast
+        , AtTarget {astRef = ARPattern (newID, PPBlank); offset = 0} )
     | TString (id, "") ->
-        (E.replace id ~replacement:(EBlank newID) ast, AtTarget {astRef=ARBlank newID; offset=0})
-    | TStringMLEnd (id, thisStr, strOffset, _)
-      when String.length thisStr = 1 && offset = strOffset ->
-        let f str = Util.removeCharAt str offset in
-        let newAST = replaceStringToken ~f ti.token ast in
-        (newAST, MoveToTokenEnd (id, -1) (* quote *))
+        ( E.replace id ~replacement:(EBlank newID) ast
+        , AtTarget {astRef = ARBlank newID; offset = 0} )
     | TString (id, fullStr)
     | TStringMLStart (id, _, _, fullStr)
     | TStringMLMiddle (id, _, _, fullStr)
     | TStringMLEnd (id, _, _, fullStr) ->
-        if offset = -1 then
-        (* on right side of open quote *)
-        (ast, AtTarget {astRef = ARString (id, SPOpenQuote); offset = 0})
+        if offset = -1
+        then
+          (* on right side of open quote *)
+          (ast, AtTarget {astRef = ARString (id, SPOpenQuote); offset = 0})
         else
-        let len = String.length fullStr in
-        if offset = len then
-        (* on right side of close quote *)
-        (ast, AtTarget {astRef = ARString (id, SPText); offset})
-        else
-        (* somewhere in the string *)
-        (let f str = Util.removeCharAt str offset in
-        tryReplaceStringAndMoveOrSame
-          ~f
-          ti.token
-          ast
-          {astRef = ARString (id, SPText); offset})
+          let len = String.length fullStr in
+          if offset = len
+          then
+            (* on right side of close quote *)
+            (ast, AtTarget {astRef = ARString (id, SPText); offset})
+          else
+            (* somewhere in the string *)
+            let f str = Util.removeCharAt str offset in
+            tryReplaceStringAndMoveOrSame
+              ~f
+              ti.token
+              ast
+              {astRef = ARString (id, SPText); offset}
     | TPatternString _
     | TRecordFieldname _
     | TTrue _
@@ -2925,7 +2931,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         else s
       in
       (newAST, newState)
-  | TPatternString (mID, id, str, _) ->
+  | TPatternString {matchID = mID; patternID = id; str; _} ->
       let target s =
         (* if we're in front of the quotes vs within it *)
         if offset == 0 then s else left s
@@ -2935,7 +2941,12 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (ast |> replacePattern mID id ~newPat:(FPBlank (mID, newID)), target s)
       else
         let str = Util.removeCharAt str (offset - 1) in
-        (replacePattern mID id ~newPat:(FPString (mID, newID, str)) ast, s)
+        ( replacePattern
+            mID
+            id
+            ~newPat:(FPString {matchID = mID; patternID = newID; str})
+            ast
+        , s )
   | TRightPartial (_, str) when String.length str = 1 ->
       let ast, targetID = deleteRightPartial ti ast in
       (ast, moveToEndOfTarget targetID ast s)
@@ -3207,7 +3218,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TPatternBlank (mID, pID, _) ->
         let newPat =
           if letter = "\""
-          then FPString (mID, newID, "")
+          then FPString {matchID = mID; patternID = newID; str = ""}
           else if Util.isNumber letter
           then FPInteger (mID, newID, letter |> Util.coerceStringTo63BitInt)
           else FPVariable (mID, newID, letter)
@@ -4486,7 +4497,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                         | _ ->
                             [] )
                 | [(id, "pattern-string", value)] ->
-                    FPString (mID, id, value)
+                    FPString {matchID = mID; patternID = id; str = value}
                 | [(id, value, "pattern-true")] | [(id, value, "pattern-false")]
                   ->
                     FPBool (mID, id, toBool_ value)

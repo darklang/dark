@@ -8,7 +8,7 @@ let id (p : t) : id =
   | FPConstructor (_, id, _, _)
   | FPInteger (_, id, _)
   | FPBool (_, id, _)
-  | FPString (_, id, _)
+  | FPString {patternID = id; _}
   | FPFloat (_, id, _, _)
   | FPNull (_, id)
   | FPBlank (_, id) ->
@@ -21,7 +21,7 @@ let matchID (p : t) : id =
   | FPConstructor (mid, _, _, _)
   | FPInteger (mid, _, _)
   | FPBool (mid, _, _)
-  | FPString (mid, _, _)
+  | FPString {matchID = mid; _}
   | FPFloat (mid, _, _, _)
   | FPNull (mid, _)
   | FPBlank (mid, _) ->
@@ -39,8 +39,8 @@ let rec clone (matchID : id) (p : t) : t =
       FPInteger (matchID, gid (), i)
   | FPBool (_, _, b) ->
       FPBool (matchID, gid (), b)
-  | FPString (_, _, s) ->
-      FPString (matchID, gid (), s)
+  | FPString {str; _} ->
+      FPString {matchID; patternID = gid (); str}
   | FPBlank (_, _) ->
       FPBlank (matchID, gid ())
   | FPNull (_, _) ->
