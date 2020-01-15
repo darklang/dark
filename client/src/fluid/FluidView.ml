@@ -192,10 +192,12 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
              someId)
   in
   let nesting = ref 0 in
+  let isCmdDrawn = ref false in
   List.map vs.tokens ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
-        | Some (ltlid, token) when tlid = ltlid && ti.token = token ->
+        | Some (ltlid, id) when tlid = ltlid && FluidToken.tid ti.token = id ->
+            isCmdDrawn := true ;
             FluidCommands.viewCommandPalette state.cp
         | _ ->
             if Fluid.isAutocompleting ti state
