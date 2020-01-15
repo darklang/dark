@@ -4595,6 +4595,8 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
           ( E.replace ~replacement id ast
           , Some {astRef = ARLet (id, LPVarName); offset = offset + wordLength}
           )
+      (* TODO: support pasting into other places that allow strings - match
+       * patterns, fn/constructor/binops names, record keys, field names *)
       | _expr, Some _cp, _ ->
           (ast, None)
       | _expr, None, _ ->
