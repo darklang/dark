@@ -412,12 +412,12 @@ let run () =
       ()) ;
   describe "Floats" (fun () ->
       t
-        "copying a float adds a float' to clipboard"
+        "copying a float adds a float to clipboard"
         (float' "1234" "5678")
         (copy (0, 9))
         ("1234.5678", "1234.5678", 9) ;
       t
-        "copying a float adds a float' to clipboard 2"
+        "copying a float adds a float to clipboard 2"
         (fn "Float::round" [float' "1234" "5678"])
         (copy (13, 22))
         ("Float::round 1234.5678", "1234.5678", 22) ;
@@ -427,7 +427,7 @@ let run () =
         (copy (0, 4))
         ("1234.5678", "1234", 4) ;
       t
-        "copying the whole part w/ the point adds a float' with fraction value of 0 to clipboard"
+        "copying the whole part w/ the point adds a float with fraction value of 0 to clipboard"
         (float' "1234" "5678")
         (copy (0, 5))
         ("1234.5678", "1234.0", 5) ;
@@ -437,22 +437,22 @@ let run () =
         (copy (5, 9))
         ("1234.5678", "5678", 9) ;
       t
-        "copying the fraction part w/ the point adds a float' with whole value of 0 to clipboard"
+        "copying the fraction part w/ the point adds a float with whole value of 0 to clipboard"
         (float' "1234" "5678")
         (copy (4, 9))
         ("1234.5678", "0.5678", 9) ;
       t
-        "copying just the point adds a float' with 0.0 to clipboard"
+        "copying just the point adds a float with 0.0 to clipboard"
         (float' "1234" "5678")
         (copy (4, 5))
         ("1234.5678", "0.0", 5) ;
       t
-        "cutting a float adds a float' to clipboard"
+        "cutting a float adds a float to clipboard"
         (float' "1234" "5678")
         (cut (0, 9))
         ("___", "1234.5678", 0) ;
       t
-        "cutting a float adds a float' to clipboard 2"
+        "cutting a float adds a float to clipboard 2"
         (fn "Float::round" [float' "1234" "5678"])
         (cut (13, 22))
         ("Float::round ___", "1234.5678", 13) ;
@@ -462,7 +462,7 @@ let run () =
         (cut (0, 4))
         (".5678", "1234", 0) ;
       t
-        "cutting the whole part w/ the point adds a float' with fraction value of 0 to clipboard, leaves int"
+        "cutting the whole part w/ the point adds a float with fraction value of 0 to clipboard, leaves int"
         (float' "1234" "5678")
         (cut (0, 5))
         ("5678", "1234.0", 0) ;
@@ -472,17 +472,17 @@ let run () =
         (cut (5, 9))
         ("1234.", "5678", 5) ;
       t
-        "cutting the fraction part w/ the point adds a float' with whole value of 0 to clipboard, leaves int"
+        "cutting the fraction part w/ the point adds a float with whole value of 0 to clipboard, leaves int"
         (float' "1234" "5678")
         (cut (4, 9))
         ("1234", "0.5678", 4) ;
       t
-        "cutting just the point adds a float' with 0.0 to clipboard, leaves int of joint expr"
+        "cutting just the point adds a float with 0.0 to clipboard, leaves int of joint expr"
         (float' "1234" "5678")
         (cut (4, 5))
         ("12345678", "0.0", 4) ;
       t
-        "pasting a float' from clipboard on a blank should paste it"
+        "pasting a float from clipboard on a blank should paste it"
         b
         (pasteBoth ~clipboard:("1234.5678", float' "1234" "5678") (0, 0))
         ("1234.5678", "1234.5678", 9) ;
