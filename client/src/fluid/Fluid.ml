@@ -3227,7 +3227,9 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   |> Option.andThen ~f:(fun tl ->
          TL.getAST tl
          |> Option.andThen ~f:(getToken m.fluidState)
-         |> Option.map ~f:(fun ti -> FluidCommandsShow (TL.id tl, ti.token)))
+         (* Do this for now to get type changes to compile*)
+         |> Option.map ~f:(fun ti ->
+                FluidCommandsShow (TL.id tl, T.tid ti.token)))
   |> Option.withDefault ~default:NoChange
 
 
