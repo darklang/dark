@@ -704,6 +704,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
     | ( ARPattern (id, PPBool)
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
+    | ARPattern (id, PPFloat FPPoint), TPatternFloatPoint (_, id', _)
     | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
     | ARPattern (id, PPFloat FPDecimal), TPatternFloatFraction (_, id', _, _)
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
@@ -723,7 +724,9 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     (*
       Floats
      *)
-    | ARFloat (id, FPWhole), TFloatWhole (id', _) when id = id' ->
+    | ARFloat (id, FPPoint), TFloatPoint id'
+    | ARFloat (id, FPWhole), TFloatWhole (id', _)
+      when id = id' ->
         posForTi ti
     | ARFloat (id, FPWhole), TFloatPoint id' when id = id' ->
         (* This accounts for situations like `|.45`, where the float doesn't have a whole part but
@@ -831,6 +834,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARFieldAccess (_, FAPFieldname), _
     | ARFieldAccess (_, FAPFieldOp), _
     | ARFloat (_, FPWhole), _
+    | ARFloat (_, FPPoint), _
     | ARFloat (_, FPDecimal), _
     | ARFnCall (_, FCPFnName), _
     | ARIf (_, IPIfKeyword), _
@@ -862,6 +866,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (_, PPConstructor CPName), _
     | ARPattern (_, PPInteger), _
     | ARPattern (_, PPBool), _
+    | ARPattern (_, PPFloat FPPoint), _
     | ARPattern (_, PPFloat FPWhole), _
     | ARPattern (_, PPFloat FPDecimal), _
     | ARPattern (_, PPBlank), _
