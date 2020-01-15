@@ -4497,207 +4497,225 @@ let getStringIndex ti pos : int =
       recover "getting index of non-string" ~debug:(ti.token, pos) 0
 
 
-let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
+let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
   let ast, state = deleteSelection ~state ~ast in
-  let token = getToken state ast in
-  let exprID = token |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
+  let mTi = getToken state ast in
+  let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> E.find id ast) in
-  let collapsedSelStart = getCollapsedSelectionStart state in
+  (* let collapsedSelStart = getCollapsedSelectionStart state in *)
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
   let text = Clipboard.clipboardContentsToString data in
-  match (clipboardExpr, expr, token) with
-  | Some clipboardExpr, Some (EBlank exprID), _ ->
-      let newPos =
-        (clipboardExpr |> Printer.eToString |> String.length)
-        + collapsedSelStart
-      in
-      (E.replace ~replacement:clipboardExpr exprID ast, {state with newPos})
-  (* inserting record key (record expression with single key and no value) into string *)
-  | ( Some (ERecord (_, [(insert, EBlank _)]))
-    , Some (EString (_, str))
-    , Some {startPos; _} ) ->
-      let index = state.newPos - startPos - 1 in
-      let replacement = EString (gid (), String.insertAt ~insert ~index str) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
-  (* inserting other kinds of expressions into string *)
-  | _, Some (EString (_, str)), Some ti ->
-      let index = getStringIndex ti state.newPos in
-      let replacement =
-        EString (gid (), String.insertAt ~insert:text ~index str)
-      in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (* TODO: needs reflow: if the string becomes multi-line, we end up in the wrong place. *)
-      let newPos = state.newPos + String.length text in
-      (newAST, {state with newPos})
-  (* inserting integer into another integer *)
-  | ( Some (EInteger (_, clippedInt))
-    , Some (EInteger (_, pasting))
-    , Some {startPos; _} ) ->
-      let index = state.newPos - startPos in
-      let insert = clippedInt in
-      let newVal =
-        String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt
-      in
-      let replacement = EInteger (gid (), newVal) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
-  (* inserting float into an integer *)
-  | ( Some (EFloat (_, whole, fraction))
-    , Some (EInteger (_, pasting))
-    , Some {startPos; _} ) ->
-      let whole', fraction' =
-        let str = pasting in
-        let open String in
-        ( slice ~from:0 ~to_:(state.newPos - startPos) str
-        , slice ~from:(state.newPos - startPos) ~to_:(String.length str) str )
-      in
-      let replacement = EFloat (gid (), whole' ^ whole, fraction ^ fraction') in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      ( newAST
-      , { state with
-          newPos = collapsedSelStart + (whole ^ "." ^ fraction |> String.length)
-        } )
-  (* inserting variable into an integer *)
-  | ( Some (EVariable (_, varName))
-    , Some (EInteger (_, intVal))
-    , Some {startPos; _} ) ->
-      let index = state.newPos - startPos in
-      let newVal = String.insertAt ~insert:varName ~index intVal in
-      let replacement = EPartial (gid (), newVal, EVariable (gid (), newVal)) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length varName})
-  (* inserting int-only string into an integer *)
-  | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos; _}
-    when String.toInt insert |> Result.toOption <> None ->
-      let index = state.newPos - startPos in
-      let newVal =
-        String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt
-      in
-      let replacement = EInteger (gid (), newVal) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
-  (* inserting integer into a float whole *)
-  | ( Some (EInteger (_, intVal))
-    , Some (EFloat (_, whole, fraction))
-    , Some {startPos; token = TFloatWhole _; _} ) ->
-      let index = state.newPos - startPos in
-      let replacement =
-        EFloat (gid (), String.insertAt ~index ~insert:intVal whole, fraction)
-      in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
-  (* inserting integer into a float fraction *)
-  | ( Some (EInteger (_, intVal))
-    , Some (EFloat (_, whole, fraction))
-    , Some {startPos; token = TFloatFraction _; _} ) ->
-      let index = state.newPos - startPos in
-      let replacement =
-        EFloat (gid (), whole, String.insertAt ~index ~insert:intVal fraction)
-      in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
-  (* inserting integer after float point *)
-  | ( Some (EInteger (_, intVal))
-    , Some (EFloat (_, whole, fraction))
-    , Some {token = TFloatPoint _; _} ) ->
-      let replacement = EFloat (gid (), whole, intVal ^ fraction) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
-  (* inserting variable into let LHS *)
-  | ( Some (EVariable (_, varName))
-    , Some (ELet (_, lhs, rhs, body))
-    , Some {startPos; token = TLetLHS _; _} ) ->
-      let index = state.newPos - startPos in
-      let newLhs =
-        if lhs <> ""
-        then String.insertAt ~insert:varName ~index lhs
-        else varName
-      in
-      let replacement = ELet (gid (), newLhs, rhs, body) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length varName})
-  (* inserting list expression into another list at separator *)
-  | ( Some (EList (_, itemsToPaste) as exprToPaste)
-    , Some (EList (_, items))
-    , Some {token = TListSep (_, index); _} ) ->
-      let newItems =
-        let front, back = List.splitAt ~index items in
-        front @ itemsToPaste @ back
-      in
-      let replacement = EList (gid (), newItems) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      ( newAST
-      , { state with
-          newPos =
-            collapsedSelStart + String.length (Printer.eToString exprToPaste) }
-      )
-  (* inserting other expressions into list *)
-  | ( Some exprToPaste
-    , Some (EList (_, items))
-    , Some {token = TListSep (_, index); _} ) ->
-      let newItems = List.insertAt ~value:exprToPaste ~index items in
-      let replacement = EList (gid (), newItems) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      ( newAST
-      , { state with
-          newPos =
-            collapsedSelStart + String.length (Printer.eToString exprToPaste) }
-      )
-  (* TODO:
-   * - inserting pipe after expression
-   * - *)
+  let textLength = String.length text in
+  let intText =
+    FluidUtil.truncateStringTo63BitInt text |> Result.withDefault ~default:""
+  in
+  let intLength = String.length intText in
+  let word = "a word" in
+  let _wordLength = String.length word in
+  match (expr, mTi) with
+  | Some expr, Some ({startPos; _} as ti) ->
+      let offset = state.newPos - startPos in
+      ( match (expr, clipboardExpr) with
+      | EBlank id, Some cp ->
+          (* Paste into a blank *)
+          let newAST = E.replace ~replacement:cp id ast in
+          (newAST, Some (caretTargetForLastPartOfExpr (E.id cp) newAST))
+      | EString (id, str), _ ->
+          (* Paste into a string *)
+          let index = getStringIndex ti state.newPos in
+          let replacement =
+            EString (id, String.insertAt ~insert:text ~index str)
+          in
+          ( E.replace ~replacement id ast
+          , Some {astRef = ARString (id, SPText); offset = index + textLength}
+          )
+      | EInteger (id, str), _ ->
+          (* Paste into an int *)
+          let replacement =
+            EInteger (id, String.insertAt ~insert:intText ~index:offset str)
+          in
+          ( E.replace ~replacement id ast
+          , Some {astRef = ARInteger id; offset = offset + intLength} )
+      | _ ->
+          (ast, None) )
   | _ ->
-      (ast, state)
+      (ast, None)
 
+
+(*  *)
+(* match (clipboardExpr, expr, token) with *)
+(* (* inserting record key (record expression with single key and no value) into string *) *)
+(* | ( Some (ERecord (_, [(insert, EBlank _)])) *)
+(*   , Some (EString (_, str)) *)
+(*   , Some {startPos; _} ) -> *)
+(*     let index = state.newPos - startPos - 1 in *)
+(*     let replacement = EString (gid (), String.insertAt ~insert ~index str) in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     (newAST, {state with newPos = collapsedSelStart + String.length insert}) *)
+(* (* inserting integer into another integer *) *)
+(* | ( Some (EInteger (_, clippedInt)) *)
+(*   , Some (EInteger (_, pasting)) *)
+(*   , Some {startPos; _} ) -> *)
+(*     let index = state.newPos - startPos in *)
+(*     let insert = clippedInt in *)
+(*     let newVal = *)
+(*       String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt *)
+(*     in *)
+(*     let replacement = EInteger (gid (), newVal) in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     (newAST, {state with newPos = collapsedSelStart + String.length insert}) *)
+(* (* inserting float into an integer *) *)
+(* | ( Some (EFloat (_, whole, fraction)) *)
+(*   , Some (EInteger (_, pasting)) *)
+(*   , Some {startPos; _} ) -> *)
+(*     let whole', fraction' = *)
+(*       let str = pasting in *)
+(*       let open String in *)
+(*       ( slice ~from:0 ~to_:(state.newPos - startPos) str *)
+(*       , slice ~from:(state.newPos - startPos) ~to_:(String.length str) str ) *)
+(*     in *)
+(*     let replacement = EFloat (gid (), whole' ^ whole, fraction ^ fraction') in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     ( newAST *)
+(*     , { state with *)
+(*         newPos = collapsedSelStart + (whole ^ "." ^ fraction |> String.length) *)
+(*       } ) *)
+(* (* inserting variable into an integer *) *)
+(* | ( Some (EVariable (_, varName)) *)
+(*   , Some (EInteger (_, intVal)) *)
+(*   , Some {startPos; _} ) -> *)
+(*     let index = state.newPos - startPos in *)
+(*     let newVal = String.insertAt ~insert:varName ~index intVal in *)
+(*     let replacement = EPartial (gid (), newVal, EVariable (gid (), newVal)) in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     (newAST, {state with newPos = collapsedSelStart + String.length varName}) *)
+(* (* inserting int-only string into an integer *) *)
+(* | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos; _} *)
+(*   when String.toInt insert |> Result.toOption <> None -> *)
+(*     let index = state.newPos - startPos in *)
+(*     let newVal = *)
+(*       String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt *)
+(*     in *)
+(*     let replacement = EInteger (gid (), newVal) in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     (newAST, {state with newPos = collapsedSelStart + String.length insert}) *)
+(* (* inserting integer into a float whole *) *)
+(* | ( Some (EInteger (_, intVal)) *)
+(*   , Some (EFloat (_, whole, fraction)) *)
+(*   , Some {startPos; token = TFloatWhole _; _} ) -> *)
+(*     let index = state.newPos - startPos in *)
+(*     let replacement = *)
+(*       EFloat (gid (), String.insertAt ~index ~insert:intVal whole, fraction) *)
+(*     in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     (newAST, {state with newPos = collapsedSelStart + String.length intVal}) *)
+(* (* inserting integer into a float fraction *) *)
+(* | ( Some (EInteger (_, intVal)) *)
+(*   , Some (EFloat (_, whole, fraction)) *)
+(*   , Some {startPos; token = TFloatFraction _; _} ) -> *)
+(*     let index = state.newPos - startPos in *)
+(*     let replacement = *)
+(*       EFloat (gid (), whole, String.insertAt ~index ~insert:intVal fraction) *)
+(*     in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     (newAST, {state with newPos = collapsedSelStart + String.length intVal}) *)
+(* (* inserting integer after float point *) *)
+(* | ( Some (EInteger (_, intVal)) *)
+(*   , Some (EFloat (_, whole, fraction)) *)
+(*   , Some {token = TFloatPoint _; _} ) -> *)
+(*     let replacement = EFloat (gid (), whole, intVal ^ fraction) in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     (newAST, {state with newPos = collapsedSelStart + String.length intVal}) *)
+(* (* inserting variable into let LHS *) *)
+(* | ( Some (EVariable (_, varName)) *)
+(*   , Some (ELet (_, lhs, rhs, body)) *)
+(*   , Some {startPos; token = TLetLHS _; _} ) -> *)
+(*     let index = state.newPos - startPos in *)
+(*     let newLhs = *)
+(*       if lhs <> "" *)
+(*       then String.insertAt ~insert:varName ~index lhs *)
+(*       else varName *)
+(*     in *)
+(*     let replacement = ELet (gid (), newLhs, rhs, body) in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     (newAST, {state with newPos = collapsedSelStart + String.length varName}) *)
+(* (* inserting list expression into another list at separator *) *)
+(* | ( Some (EList (_, itemsToPaste) as exprToPaste) *)
+(*   , Some (EList (_, items)) *)
+(*   , Some {token = TListSep (_, index); _} ) -> *)
+(*     let newItems = *)
+(*       let front, back = List.splitAt ~index items in *)
+(*       front @ itemsToPaste @ back *)
+(*     in *)
+(*     let replacement = EList (gid (), newItems) in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     ( newAST *)
+(*     , { state with *)
+(*         newPos = *)
+(*           collapsedSelStart + String.length (Printer.eToString exprToPaste) } *)
+(*     ) *)
+(* (* inserting other expressions into list *) *)
+(* | ( Some exprToPaste *)
+(*   , Some (EList (_, items)) *)
+(*   , Some {token = TListSep (_, index); _} ) -> *)
+(*     let newItems = List.insertAt ~value:exprToPaste ~index items in *)
+(*     let replacement = EList (gid (), newItems) in *)
+(*     let newAST = *)
+(*       exprID *)
+(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
+(*       |> Option.withDefault ~default:ast *)
+(*     in *)
+(*     ( newAST *)
+(*     , { state with *)
+(*         newPos = *)
+(*           collapsedSelStart + String.length (Printer.eToString exprToPaste) } *)
+(*     ) *)
+(* TODO:
+ * - inserting pipe after expression
+ * - *)
+(* | _ -> *)
+(*     (ast, state) *)
+(*  *)
 
 let fluidDataFromModel m : (fluidState * E.t) option =
   match Toplevel.selectedAST m with
@@ -4758,8 +4776,12 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
-        let ast, state = pasteOverSelection ~state:s ~ast data in
-        (ast, updateAutocomplete m tlid ast state)
+        let newAST, caretTarget = pasteOverSelection ~state:s ~ast data in
+        let state =
+          Option.map caretTarget ~f:(moveToCaretTarget s newAST)
+          |> Option.withDefault ~default:s
+        in
+        (newAST, updateAutocomplete m tlid newAST state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
     | FluidKeyPress {key; shiftKey = true; altKey = _; ctrlKey = _; metaKey = _}
