@@ -119,7 +119,7 @@ let run () =
       (expr : fluidExpr) : testResult =
     let e = clipboardEvent () in
     let data = FluidClipboard.exprToClipboardContents clipboard in
-    DClipboard.setData ("", Some data) e ;
+    DClipboard.setData (FluidPrinter.eToString clipboard, Some data) e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
   let pasteText
@@ -131,6 +131,12 @@ let run () =
     DClipboard.setData (clipboard, None) e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
+  (* Test that code works whether an expression or text is passed in. This
+   * is kinda superfluous as most times if you copy an expression you get
+   * the text as well, so no need to go overboard in doing this test, or
+   * we'll implement lots of paste code that isn't necessary. Typically,
+   * if we expect text to be pasted into another text field, then
+   * pasteText is fine. *)
   let pasteBoth
       ?(debug = false)
       ~(clipboard : string * fluidExpr)
@@ -396,13 +402,8 @@ let run () =
       t
         "pasting an int in a string should paste it"
         (str "abcd EFGH ijkl 1234")
-        (pasteBoth ~clipboard:("XXX", int "5678") (11, 15))
+        (pasteText ~clipboard:"5678" (11, 15))
         ("\"abcd EFGH 5678 1234\"", "5678", 15) ;
-      t
-        "pasting a record with a single key & no value in a string should paste key"
-        (str "abcd EFGH ijkl 1234")
-        (pasteExpr ~clipboard:(record [("key1", b)]) (11, 15))
-        ("\"abcd EFGH key1 1234\"", "{\n  key1 : ___\n}", 15) ;
       t
         "pasting a regular record with a single key in a string should paste stringified expr"
         (str "abcd EFGH ijkl 1234")
