@@ -138,16 +138,12 @@ let run () =
     let text, clipboardExpr = clipboard in
     let r1 = pasteExpr ~clipboard:clipboardExpr ~debug range expr in
     let r2 = pasteText ~clipboard:text ~debug range expr in
-    ( if r1 <> r2
-    then
-      (* TODO: check other numbers *)
-      let r1output, _, _ = insertCursor r1 in
-      let r2output, _, _ = insertCursor r2 in
-      failwith
-        ( "the results of pasteBoth did not agree:\n  r1:  "
-        ^ r1output
-        ^ "\n  "
-        ^ r2output ) ) ;
+    let r1output, _, _ = insertCursor r1 in
+    let r2output, _, _ = insertCursor r2 in
+    if r1output <> r2output
+    then (
+      Js.log3 "the results of pasteBoth did not agree" r1output r2output ;
+      failwith "results of pasteBoth do not agree" ) ;
     r1
   in
   let t
