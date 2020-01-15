@@ -427,6 +427,7 @@ and dval =
 
 type astFloatPart =
   | FPWhole
+  | FPPoint
   | FPDecimal
 [@@deriving show {with_path = false}]
 
