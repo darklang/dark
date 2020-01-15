@@ -1099,7 +1099,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
     | (EFeatureFlag (_, _, _, _, _) | EPipeTarget _) as expr ->
         recover
           "we don't yet support caretTargetForLastPartOfExpr for this"
-          ~debug:expr
+          ~debug:(show_fluidExpr expr)
           {astRef = ARInvalid; offset = 0}
   in
   match E.find astPartId ast with
@@ -2932,7 +2932,10 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
            | ARString (_, SPCloseQuote), EString (id, str)
            (* XXX(JULIAN): This may be the incorrect mutation, but this path doesn't currently happen in practice *)
              ->
-               Some (EString (id, mutation str), desiredCaretTarget)
+               Some
+                 ( EString
+                     (id, Util.removeCharAt str (String.length str + currOffset))
+                 , desiredCaretTarget )
            | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
                Some (EFloat (id, mutation whole, frac), desiredCaretTarget)
            | ARFloat (_, FPDecimal), EFloat (id, whole, frac) ->
@@ -2949,15 +2952,59 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                if newName = ""
                then Some (newExpr, {astRef = currAstRef; offset = 0})
                else Some (newExpr, desiredCaretTarget)
-           | ARLet (_, LPKeyword), ELet (_, "", EBlank _, body) ->
+           (*
+           Delete leading keywords of empty expressions
+           *)
+           | ARLet (_, LPKeyword), ELet (_, varName, expr, EBlank _)
+           | ARLet (_, LPKeyword), ELet (_, varName, EBlank _, expr) when varName = "" || varName = "_" ->
                (* TODO(JULIAN): change this to work more directly by
                  exposing a version of caretTargetForBeginningOfExpr
                  that accept a fluidExpr *)
-               Some (body, caretTargetForBeginningOfExpr (E.id body) ast)
-           (* Immutable; just jump to the start *)
-           | ARLet (_, LPAssignment), expr ->
+               Some (expr, caretTargetForBeginningOfExpr (E.id expr) ast)
+           | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
+           | ARLambda (_, LPKeyword), ELambda (_, _, EBlank _) ->
+               (* If the expr is empty and thus can be removed *)
+               let bID = gid () in
+               Some (EBlank bID, {astRef = ARBlank bID; offset = 0})
+           | ARMatch (_, MPKeyword), EMatch (_, EBlank _, pairs)
+             when List.all pairs ~f:(fun (p, e) ->
+                      match (p, e) with
+                      | FPBlank _, EBlank _ ->
+                          true
+                      | _ ->
+                          false) ->
+               (* the match has no content and can safely be deleted *)
+               let bID = gid () in
+               Some (EBlank bID, {astRef = ARBlank bID; offset = 0})
+           | ARMatch (_, MPKeyword), EMatch _
+           | ARLet (_, LPKeyword), ELet _
+           | ARIf (_, IPIfKeyword), EIf _
+           | ARLambda (_, LPKeyword), ELambda _ ->
+               (* keywords of "non-empty" exprs shouldn't be deletable at all *)
+               None
+           (*
+           Immutable; just jump to the start
+           *)
+           (*   | ARPattern (_, PPBlank), pat <---- this is unhandleable right now because patterns don't match exprs*)
+           | ARIf (_, IPThenKeyword), expr
+           | ARIf (_, IPElseKeyword), expr
+           | ARLambda (_, LPArrow), expr
+           | ARBlank _, expr
+           | ARLet (_, LPAssignment), expr
+           | ARRecord (_, RPOpen), expr
+           | ARRecord (_, RPClose), expr
+           | ARRecord (_, RPFieldSep _), expr
+           | ARList (_, LPOpen), expr
+           | ARList (_, LPClose), expr ->
+               (* We could alternatively move by a single character instead,
+              which is what the old version did with minor exceptions;
+              that isn't particularly useful as typing within these
+              is meaningless and we want this to bring you to a location
+              where you can meaningfully type. *)
                Some (expr, {astRef = currAstRef; offset = 0})
-           (* Exhaustiveness *)
+           (*
+           Exhaustiveness
+           *)
            | ARInteger _, _
            | ( ( ARString (_, SPOpenQuote)
                | ARString (_, SPText)
@@ -2965,6 +3012,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              , _ )
            | (ARFloat (_, FPWhole) | ARFloat (_, FPDecimal)), _
            | _ ->
+               let _ = Debug.loG "Unhandled" (show_astRef currAstRef) in
                None
          in
          match maybeTransformedExprAndCaretTarget with
@@ -3033,13 +3081,13 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let newID = gid () in
   let newAST, newPosition =
     match ti.token with
-    | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
-        (ast, MoveToStart)
+    (*     | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
+        (ast, MoveToStart) *)
     | TMatchSep {matchID = id; index = idx; _} ->
         (ast, AtTarget (caretTargetForEndOfMatchPattern id idx ast))
-    | TIfKeyword _ (* | TLetKeyword _ *) | TLambdaSymbol _ | TMatchKeyword _ ->
+    (*     | TIfKeyword _ (* | TLetKeyword _ *) | TLambdaSymbol _ | TMatchKeyword _ ->
         let newAST = removeEmptyExpr (T.tid ti.token) ast in
-        if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
+        if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart) *)
     | TLambdaSep (id, idx) ->
         (removeLambdaSepToken id ast idx, LeftOne)
     | TListSep (id, idx) ->
@@ -3061,20 +3109,27 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (newAst, AtTarget target)
     | TPatternBlank (mID, id, _) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
+    | TIndent _
+    (*
     | TBlank _
     | TPlaceholder _
-    | TIndent _
     | TLetAssignment _
     | TListClose _
     | TListOpen _
     | TRecordOpen _
     | TRecordClose _
     | TRecordSep _
+*)
+    | TPatternBlank _
     | TSep _
     | TParenOpen _
     | TParenClose _
-    | TPatternBlank _
     | TPartialGhost _ ->
+        (* XXX(JULIAN): These can't be handled explicitly
+        until we do more work -- to allow finding patterns by id,
+        implement some outstanding stuff in caretTargetFromTokenInfo,
+        etc...
+         *)
         (ast, LeftOne)
     | TNewline _ ->
         (ast, Exactly ti.startPos)
