@@ -4506,21 +4506,17 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
   let text = Clipboard.clipboardContentsToString data in
   let textLength = String.length text in
-  let intText =
-    FluidUtil.truncateStringTo63BitInt text |> Result.withDefault ~default:""
-  in
-  let intLength = String.length intText in
   let word = "a word" in
   let _wordLength = String.length word in
   match (expr, mTi) with
   | Some expr, Some ({startPos; _} as ti) ->
       let offset = state.newPos - startPos in
-      ( match (expr, clipboardExpr) with
-      | EBlank id, Some cp ->
+      ( match (expr, clipboardExpr, text) with
+      | EBlank id, Some cp, _ ->
           (* Paste into a blank *)
           let newAST = E.replace ~replacement:cp id ast in
           (newAST, Some (caretTargetForLastPartOfExpr (E.id cp) newAST))
-      | EString (id, str), _ ->
+      | EString (id, str), _, _ ->
           (* Paste into a string *)
           let index = getStringIndex ti state.newPos in
           let replacement =
@@ -4529,14 +4525,24 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
           ( E.replace ~replacement id ast
           , Some {astRef = ARString (id, SPText); offset = index + textLength}
           )
-      | EInteger (id, str), _ ->
-          (* Paste into an int *)
+      | EInteger (id, str), Some (EString (_, text)), _
+      | EInteger (id, str), Some (EInteger (_, text)), _
+      | EInteger (id, str), _, text ->
+          let intText =
+            FluidUtil.truncateStringTo63BitInt text
+            |> Result.withDefault ~default:""
+          in
+          (* If the text is an int, it will already be converted to an int
+           * expr from the JSON conversion. *)
           let replacement =
             EInteger (id, String.insertAt ~insert:intText ~index:offset str)
           in
           ( E.replace ~replacement id ast
-          , Some {astRef = ARInteger id; offset = offset + intLength} )
-      | _ ->
+          , Some {astRef = ARInteger id; offset = offset + String.length intText}
+          )
+      | _expr, Some _cp, _ ->
+          (ast, None)
+      | _expr, None, _ ->
           (ast, None) )
   | _ ->
       (ast, None)
