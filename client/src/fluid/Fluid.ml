@@ -706,7 +706,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
     | ARPattern (id, PPFloat FPPoint), TPatternFloatPoint (_, id', _)
     | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
-    | ARPattern (id, PPFloat FPDecimal), TPatternFloatFraction (_, id', _, _)
+    | ARPattern (id, PPFloat FPFractional), TPatternFloatFractional (_, id', _, _)
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
       when id = id' ->
@@ -734,11 +734,12 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
            Because the 'findMap' below scans from left to right and we try to match the whole first,
            we can still find positions like `1|2.54` *)
         Some ti.startPos
-    | ARFloat (id, FPDecimal), TFloatPoint id' when id = id' && ct.offset = 0 ->
+    | ARFloat (id, FPFractional), TFloatPoint id' when id = id' && ct.offset = 0
+      ->
         (* This accounts for situations like `12.|`, where the float doesn't have a decimal part but
            we're still targeting it (perhaps due to deletion). *)
         Some ti.endPos
-    | ARFloat (id, FPDecimal), TFloatFraction (id', _) when id = id' ->
+    | ARFloat (id, FPFractional), TFloatFractional (id', _) when id = id' ->
         posForTi ti
     (*
     * Single-line Strings
@@ -835,7 +836,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARFieldAccess (_, FAPFieldOp), _
     | ARFloat (_, FPWhole), _
     | ARFloat (_, FPPoint), _
-    | ARFloat (_, FPDecimal), _
+    | ARFloat (_, FPFractional), _
     | ARFnCall (_, FCPFnName), _
     | ARIf (_, IPIfKeyword), _
     | ARIf (_, IPThenKeyword), _
@@ -868,7 +869,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (_, PPBool), _
     | ARPattern (_, PPFloat FPPoint), _
     | ARPattern (_, PPFloat FPWhole), _
-    | ARPattern (_, PPFloat FPDecimal), _
+    | ARPattern (_, PPFloat FPFractional), _
     | ARPattern (_, PPBlank), _
     | ARPattern (_, PPNull), _
     | ARPattern (_, PPString SPOpenQuote), _
@@ -928,8 +929,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARNull id; offset}
   | TFloatWhole (id, _) ->
       {astRef = ARFloat (id, FPWhole); offset}
-  | TFloatFraction (id, _) ->
-      {astRef = ARFloat (id, FPDecimal); offset}
+  | TFloatFractional (id, _) ->
+      {astRef = ARFloat (id, FPFractional); offset}
   | TPartial (id, _) ->
       {astRef = ARPartial id; offset}
   | TFieldPartial (id, _, _, _) ->
@@ -1007,8 +1008,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARPattern (id, PPNull); offset}
   | TPatternFloatWhole (_, id, _, _) ->
       {astRef = ARPattern (id, PPFloat FPWhole); offset}
-  | TPatternFloatFraction (_, id, _, _) ->
-      {astRef = ARPattern (id, PPFloat FPDecimal); offset}
+  | TPatternFloatFractional (_, id, _, _) ->
+      {astRef = ARPattern (id, PPFloat FPFractional); offset}
   | TPatternBlank (_, id, _) ->
       {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
@@ -1057,7 +1058,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
     | EString (id, _) ->
         {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
     | EFloat (id, _, decimalStr) ->
-        {astRef = ARFloat (id, FPDecimal); offset = String.length decimalStr}
+        {astRef = ARFloat (id, FPFractional); offset = String.length decimalStr}
     | ENull id ->
         {astRef = ARNull id; offset = String.length "null"}
     | EBlank id ->
@@ -1231,7 +1232,8 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
       { astRef = ARPattern (id, PPString SPCloseQuote)
       ; offset = 1 (* end of close quote *) }
   | FPFloat (_, id, _, frac) ->
-      {astRef = ARPattern (id, PPFloat FPDecimal); offset = String.length frac}
+      { astRef = ARPattern (id, PPFloat FPFractional)
+      ; offset = String.length frac }
   | FPNull (_, id) ->
       {astRef = ARPattern (id, PPNull); offset = String.length "null"}
   | FPBlank (_, id) ->
@@ -2862,7 +2864,7 @@ let tryReplaceStringAndMove2
                Some (EString (id, mutation str), desiredCaretTarget)
            | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
                Some (EFloat (id, mutation whole, frac), desiredCaretTarget)
-           | ARFloat (_, FPDecimal), EFloat (id, whole, frac) ->
+           | ARFloat (_, FPFractional), EFloat (id, whole, frac) ->
                Some (EFloat (id, whole, mutation frac), desiredCaretTarget)
            | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
                let newName = mutation oldName in
@@ -2891,7 +2893,7 @@ let tryReplaceStringAndMove2
                | ARString (_, SPText)
                | ARString (_, SPCloseQuote) )
              , _ )
-           | (ARFloat (_, FPWhole) | ARFloat (_, FPDecimal)), _
+           | (ARFloat (_, FPWhole) | ARFloat (_, FPFractional)), _
            | _ ->
                None
          in
@@ -2954,7 +2956,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  , desiredCaretTarget )
            | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
                Some (EFloat (id, mutation whole, frac), desiredCaretTarget)
-           | ARFloat (_, FPDecimal), EFloat (id, whole, frac) ->
+           | ARFloat (_, FPFractional), EFloat (id, whole, frac) ->
                Some (EFloat (id, whole, mutation frac), desiredCaretTarget)
            | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
                let newName = mutation oldName in
@@ -3253,7 +3255,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                | ARString (_, SPText)
                | ARString (_, SPCloseQuote) )
              , _ )
-           | (ARFloat (_, FPWhole) | ARFloat (_, FPDecimal)), _
+           | (ARFloat (_, FPWhole) | ARFloat (_, FPFractional)), _
            | _ ->
                let _ =
                  Debug.loG
@@ -3443,13 +3445,13 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TPatternFloatWhole (mID, id, str, _) ->
         let str = Util.removeCharAt str offset in
         (replacePatternFloatWhole str mID id ast, LeftOne)
-    | TPatternFloatFraction (mID, id, str, _) ->
+    | TPatternFloatFractional (mID, id, str, _) ->
         let str = Util.removeCharAt str offset in
         (replacePatternFloatFraction str mID id ast, LeftOne)
     (*     | TFloatWhole (id, str) ->
         let str = Util.removeCharAt str offset in
         (replaceFloatWhole str id ast, LeftOne)
-    | TFloatFraction (id, str) ->
+    | TFloatFractional (id, str) ->
         let str = Util.removeCharAt str offset in
         (replaceFloatFraction str id ast, LeftOne) *)
     | TPatternConstructorName (mID, id, str, _) ->
@@ -3607,11 +3609,11 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
       (removePointFromFloat id ast, s)
   | TFloatWhole (id, str) ->
       (replaceFloatWhole (f str) id ast, s)
-  | TFloatFraction (id, str) ->
+  | TFloatFractional (id, str) ->
       (replaceFloatFraction (f str) id ast, s)
   | TPatternFloatPoint (mID, id, _) ->
       (removePatternPointFromFloat mID id ast, s)
-  | TPatternFloatFraction (mID, id, str, _) ->
+  | TPatternFloatFractional (mID, id, str, _) ->
       (replacePatternFloatFraction (f str) mID id ast, s)
   | TPatternFloatWhole (mID, id, str, _) ->
       (replacePatternFloatWhole (f str) mID id ast, s)
@@ -3735,10 +3737,10 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     | TInteger _
     | TPatternInteger _
-    | TFloatFraction _
+    | TFloatFractional _
     | TFloatWhole _
     | TPatternFloatWhole _
-    | TPatternFloatFraction _
+    | TPatternFloatFractional _
       when not (Util.isNumber letter) ->
         (ast, SamePlace)
     | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
@@ -3821,16 +3823,17 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TFloatWhole (id, str) ->
         ( replaceFloatWhole (f str) id ast
         , AtTarget {astRef = ARFloat (id, FPWhole); offset = offset + 1} )
-    | TFloatFraction (id, str) ->
+    | TFloatFractional (id, str) ->
         ( replaceFloatFraction (f str) id ast
-        , AtTarget {astRef = ARFloat (id, FPDecimal); offset = offset + 1} )
+        , AtTarget {astRef = ARFloat (id, FPFractional); offset = offset + 1} )
     | TFloatPoint id ->
         ( insertAtFrontOfFloatFraction letter id ast
         , AtTarget
-            {astRef = ARFloat (id, FPDecimal); offset = String.length letter} )
+            {astRef = ARFloat (id, FPFractional); offset = String.length letter}
+        )
     | TPatternFloatWhole (mID, id, str, _) ->
         (replacePatternFloatWhole (f str) mID id ast, RightOne)
-    | TPatternFloatFraction (mID, id, str, _) ->
+    | TPatternFloatFractional (mID, id, str, _) ->
         (replacePatternFloatFraction (f str) mID id ast, RightOne)
     | TPatternFloatPoint (mID, id, _) ->
         (insertAtFrontOfPatternFloatFraction letter mID id ast, RightOne)

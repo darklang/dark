@@ -428,7 +428,7 @@ and dval =
 type astFloatPart =
   | FPWhole
   | FPPoint
-  | FPDecimal
+  | FPFractional
 [@@deriving show {with_path = false}]
 
 type astStringPart =
@@ -1356,7 +1356,7 @@ and fluidToken =
   | TNullToken of id
   | TFloatWhole of id * string
   | TFloatPoint of id
-  | TFloatFraction of id * string
+  | TFloatFractional of id * string
   (* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. *)
   | TPartial of id * string
@@ -1432,7 +1432,7 @@ and fluidToken =
   | TPatternNullToken of id * id * int
   | TPatternFloatWhole of id * id * string * int
   | TPatternFloatPoint of id * id * int
-  | TPatternFloatFraction of id * id * string * int
+  | TPatternFloatFractional of id * id * string * int
   | TPatternBlank of id * id * int
   | TConstructorName of id * string
   | TParenOpen of id
