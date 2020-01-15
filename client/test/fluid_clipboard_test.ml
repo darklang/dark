@@ -67,10 +67,11 @@ let run () =
   in
   let process (e : clipboardEvent) ~debug (start, pos) ast msg : testResult =
     let clipboardData e =
-      DClipboard.getData e
+      let data = DClipboard.getData e in
+      data
       |> FluidClipboard.clipboardContentsToExpr
       |> Option.map ~f:Printer.eToString
-      |> Option.withDefault ~default:"Nothing in clipboard"
+      |> Option.withDefault ~default:(Tuple2.first data)
     in
     let h = Fluid_utils.h ast in
     let m =
@@ -142,7 +143,9 @@ let run () =
     let r2output, _, _ = insertCursor r2 in
     if r1output <> r2output
     then (
-      Js.log3 "the results of pasteBoth did not agree" r1output r2output ;
+      Js.log "the results of pasteBoth did not agree" ;
+      Js.log2 "expr output" r1output ;
+      Js.log2 "text output" r2output ;
       failwith "results of pasteBoth do not agree" ) ;
     r1
   in
@@ -542,22 +545,22 @@ let run () =
       t
         "pasting variable into blank works"
         b
-        (pasteBoth ~clipboard:("varName", var "varName") (0, 0))
+        (pasteExpr ~clipboard:(var "varName") (0, 0))
         ("varName", "varName", 7) ;
       t
         "pasting variable into empty let lhs works"
         (let' "" b b)
-        (pasteBoth ~clipboard:("varName", var "varName") (7, 7))
-        ("let varName = ___\n___", "varName", 14) ;
+        (pasteText ~clipboard:"varName" (7, 7))
+        ("let varName = ___\n___", "varName", 11) ;
       t
         "pasting variable into filled let lhs works"
         (let' "oldLetLhs" b b)
-        (pasteBoth ~clipboard:("varName", var "varName") (7, 7))
+        (pasteText ~clipboard:"varName" (7, 7))
         ("let oldvarNameLetLhs = ___\n___", "varName", 14) ;
       t
         "pasting variable over filled let lhs works"
         (let' "oldLetLhs" b b)
-        (pasteBoth ~clipboard:("varName", var "varName") (7, 13))
+        (pasteText ~clipboard:"varName" (7, 13))
         ("let oldvarName = ___\n___", "varName", 14) ;
       ()) ;
   describe "Field Accesses" (fun () ->

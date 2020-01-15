@@ -4506,8 +4506,15 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
   let text = Clipboard.clipboardContentsToString data in
   let textLength = String.length text in
-  let word = "a word" in
-  let _wordLength = String.length word in
+  let word =
+    (* TODO: remove all disallowed characters *)
+    text
+    |> String.trim
+    |> String.split ~on:" "
+    |> List.head
+    |> Option.withDefault ~default:""
+  in
+  let wordLength = String.length word in
   match (expr, mTi) with
   | Some expr, Some ({startPos; _} as ti) ->
       let insertInt str offset =
@@ -4555,6 +4562,16 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
           let replacement = EFloat (id, newWhole, fraction) in
           ( E.replace ~replacement id ast
           , Some {astRef = ARFloat (id, FPWhole); offset} )
+      | ELet (id, lhs, rhs, body), _, {token = TLetLHS _; _} ->
+          let newLhs =
+            if lhs = ""
+            then word
+            else String.insertAt ~insert:word ~index:offset lhs
+          in
+          let replacement = ELet (id, newLhs, rhs, body) in
+          ( E.replace ~replacement id ast
+          , Some {astRef = ARLet (id, LPVarName); offset = offset + wordLength}
+          )
       | _expr, Some _cp, _ ->
           (ast, None)
       | _expr, None, _ ->
@@ -4649,23 +4666,6 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
 (*       |> Option.withDefault ~default:ast *)
 (*     in *)
 (*     (newAST, {state with newPos = collapsedSelStart + String.length intVal}) *)
-(* (* inserting variable into let LHS *) *)
-(* | ( Some (EVariable (_, varName)) *)
-(*   , Some (ELet (_, lhs, rhs, body)) *)
-(*   , Some {startPos; token = TLetLHS _; _} ) -> *)
-(*     let index = state.newPos - startPos in *)
-(*     let newLhs = *)
-(*       if lhs <> "" *)
-(*       then String.insertAt ~insert:varName ~index lhs *)
-(*       else varName *)
-(*     in *)
-(*     let replacement = ELet (gid (), newLhs, rhs, body) in *)
-(*     let newAST = *)
-(*       exprID *)
-(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
-(*       |> Option.withDefault ~default:ast *)
-(*     in *)
-(*     (newAST, {state with newPos = collapsedSelStart + String.length varName}) *)
 (* (* inserting list expression into another list at separator *) *)
 (* | ( Some (EList (_, itemsToPaste) as exprToPaste) *)
 (*   , Some (EList (_, items)) *)
