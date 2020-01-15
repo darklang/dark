@@ -4511,12 +4511,23 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
   match (expr, mTi) with
   | Some expr, Some ({startPos; _} as ti) ->
       let offset = state.newPos - startPos in
-      ( match (expr, clipboardExpr, ti, text) with
-      | EBlank id, Some cp, _, _ ->
+      let insertInt str =
+        match (clipboardExpr, text) with
+        | Some (EString (_, text)), _ | Some (EInteger (_, text)), _ | _, text
+          ->
+            let intText =
+              FluidUtil.truncateStringTo63BitInt text
+              |> Result.withDefault ~default:""
+            in
+            ( String.insertAt ~insert:intText ~index:offset str
+            , offset + String.length intText )
+      in
+      ( match (expr, clipboardExpr, ti) with
+      | EBlank id, Some cp, _ ->
           (* Paste into a blank *)
           let newAST = E.replace ~replacement:cp id ast in
           (newAST, Some (caretTargetForLastPartOfExpr (E.id cp) newAST))
-      | EString (id, str), _, _, _ ->
+      | EString (id, str), _, _ ->
           (* Paste into a string *)
           let index = getStringIndex ti state.newPos in
           let replacement =
@@ -4525,67 +4536,23 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
           ( E.replace ~replacement id ast
           , Some {astRef = ARString (id, SPText); offset = index + textLength}
           )
-      | EInteger (id, str), Some (EString (_, text)), _, _
-      (* We'd like to paste a string, even if there are quotes *)
-      | EInteger (id, str), Some (EInteger (_, text)), _, _
-      | EInteger (id, str), _, _, text ->
-          let intText =
-            FluidUtil.truncateStringTo63BitInt text
-            |> Result.withDefault ~default:""
-          in
-          (* If the text is an int, it will already be converted to an int
-           * expr from the JSON conversion. *)
-          let replacement =
-            EInteger (id, String.insertAt ~insert:intText ~index:offset str)
-          in
+      | EInteger (id, str), _, _ ->
+          let text, offset = insertInt str in
+          let replacement = EInteger (id, text) in
+          (E.replace ~replacement id ast, Some {astRef = ARInteger id; offset})
+      | EFloat (id, whole, fraction), _, {token = TFloatFraction _; _} ->
+          let newFraction, offset = insertInt fraction in
+          let replacement = EFloat (id, whole, newFraction) in
           ( E.replace ~replacement id ast
-          , Some {astRef = ARInteger id; offset = offset + String.length intText}
-          )
-      | ( EFloat (id, whole, fraction)
-        , Some (EString (_, text))
-        , {token = TFloatFraction _; _}
-        , _ )
-      | ( EFloat (id, whole, fraction)
-        , Some (EInteger (_, text))
-        , {token = TFloatFraction _; _}
-        , _ )
-      | EFloat (id, whole, fraction), _, {token = TFloatFraction _; _}, text ->
-          let intText =
-            FluidUtil.truncateStringTo63BitInt text
-            |> Result.withDefault ~default:""
-          in
-          let replacement =
-            EFloat
-              (id, whole, String.insertAt ~insert:intText ~index:offset fraction)
-          in
+          , Some {astRef = ARFloat (id, FPDecimal); offset} )
+      | EFloat (id, whole, fraction), _, {token = TFloatWhole _; _} ->
+          let newWhole, offset = insertInt whole in
+          let replacement = EFloat (id, newWhole, fraction) in
           ( E.replace ~replacement id ast
-          , Some
-              { astRef = ARFloat (id, FPDecimal)
-              ; offset = offset + String.length intText } )
-      | ( EFloat (id, whole, fraction)
-        , Some (EString (_, text))
-        , {token = TFloatWhole _; _}
-        , _ )
-      | ( EFloat (id, whole, fraction)
-        , Some (EInteger (_, text))
-        , {token = TFloatWhole _; _}
-        , _ )
-      | EFloat (id, whole, fraction), _, {token = TFloatWhole _; _}, text ->
-          let intText =
-            FluidUtil.truncateStringTo63BitInt text
-            |> Result.withDefault ~default:""
-          in
-          let replacement =
-            EFloat
-              (id, String.insertAt ~insert:intText ~index:offset whole, fraction)
-          in
-          ( E.replace ~replacement id ast
-          , Some
-              { astRef = ARFloat (id, FPWhole)
-              ; offset = offset + String.length intText } )
-      | _expr, Some _cp, _, _ ->
+          , Some {astRef = ARFloat (id, FPWhole); offset} )
+      | _expr, Some _cp, _ ->
           (ast, None)
-      | _expr, None, _, _ ->
+      | _expr, None, _ ->
           (ast, None) )
   | _ ->
       (ast, None)
