@@ -642,7 +642,10 @@ and fluidPattern (pattern : Types.fluidPattern) : Js.Json.t =
       ev "FPBool" [id id'; id mid; bool v]
   | FPFloat (id', mid, whole, fraction) ->
       ev "FPFloat" [id id'; id mid; string whole; string fraction]
-  | FPString (id', mid, v) ->
+  | FPString { matchID = id'; patternID = mid; str = v } ->
+      (* XXX(JULIAN): A bunch of stuff here seems to expect that the
+         second thing is a match id but it is actually a pattern id.
+         I'm leaving this alone for now, but it needs to be fixed. *)
       ev "FPString" [id id'; id mid; string v]
   | FPNull (id', mid) ->
       ev "FPNull" [id id'; id mid]
