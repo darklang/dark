@@ -3305,16 +3305,16 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let s = recordAction ~pos ~ti "doBackspace" s in
   let offset =
     match ti.token with
-    | TPatternString _ | TString _ | TStringMLStart _ ->
+    | TPatternString _ (* | TString _ | TStringMLStart _ *)  ->
         pos - ti.startPos - 2 (* -1 if on right side of the open quote *)
-    | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
+    (* | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
       ->
         pos - ti.startPos - 1 + strOffset
         (* equal to string length if on the right side of the close quote *)
     | TFnVersion (_, partialName, _, _) ->
         (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
         let startPos = ti.endPos - String.length partialName in
-        pos - startPos - 1
+        pos - startPos - 1 *)
     | _ ->
         pos - ti.startPos - 1
   in
