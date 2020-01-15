@@ -4543,6 +4543,18 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
           ( E.replace ~replacement id ast
           , Some {astRef = ARString (id, SPText); offset = index + textLength}
           )
+      | EInteger (id, original), Some (EFloat (_, whole, fraction)), _ ->
+          (* Convert int to float *)
+          let newWhole = String.slice ~from:0 ~to_:offset original ^ whole in
+          let newFraction =
+            fraction
+            ^ String.slice ~from:offset ~to_:(String.length original) original
+          in
+          let replacement = EFloat (id, newWhole, newFraction) in
+          ( E.replace ~replacement id ast
+          , Some
+              {astRef = ARFloat (id, FPDecimal); offset = String.length fraction}
+          )
       | EInteger (id, str), _, _ ->
           let text, offset = insertInt str offset in
           let replacement = EInteger (id, text) in
@@ -4593,26 +4605,6 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
 (*       |> Option.withDefault ~default:ast *)
 (*     in *)
 (*     (newAST, {state with newPos = collapsedSelStart + String.length insert}) *)
-(* (* inserting float into an integer *) *)
-(* | ( Some (EFloat (_, whole, fraction)) *)
-(*   , Some (EInteger (_, pasting)) *)
-(*   , Some {startPos; _} ) -> *)
-(*     let whole', fraction' = *)
-(*       let str = pasting in *)
-(*       let open String in *)
-(*       ( slice ~from:0 ~to_:(state.newPos - startPos) str *)
-(*       , slice ~from:(state.newPos - startPos) ~to_:(String.length str) str ) *)
-(*     in *)
-(*     let replacement = EFloat (gid (), whole' ^ whole, fraction ^ fraction') in *)
-(*     let newAST = *)
-(*       exprID *)
-(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
-(*       |> Option.withDefault ~default:ast *)
-(*     in *)
-(*     ( newAST *)
-(*     , { state with *)
-(*         newPos = collapsedSelStart + (whole ^ "." ^ fraction |> String.length) *)
-(*       } ) *)
 (* (* inserting list expression into another list at separator *) *)
 (* | ( Some (EList (_, itemsToPaste) as exprToPaste) *)
 (*   , Some (EList (_, items)) *)
