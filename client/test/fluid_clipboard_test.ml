@@ -175,54 +175,54 @@ let run () =
   in
   describe "Booleans" (fun () ->
       t
-        "copying a bool adds an EBool to clipboard"
+        "copying a bool adds a bool to clipboard"
         (bool true)
         (copy (0, 4))
         ("true", "true", 4) ;
       t
-        "copying a bool adds an EBool to clipboard 2"
+        "copying a bool adds a bool to clipboard 2"
         (fn "Bool::not" [bool true])
         (copy (10, 14))
         ("Bool::not true", "true", 14) ;
       t
-        "cutting a bool adds an EBool to clipboard and leave a blank"
+        "cutting a bool adds a bool to clipboard and leave a blank"
         (bool false)
         (cut (0, 5))
         ("___", "false", 0) ;
       t
-        "cutting a bool adds an EBool to clipboard 2"
+        "cutting a bool adds a bool to clipboard 2"
         (fn "Bool::not" [bool true])
         (cut (10, 14))
         ("Bool::not ___", "true", 10) ;
       t
-        "pasting an EBool from clipboard on a blank should paste it"
+        "pasting a bool from clipboard on a blank should paste it"
         b
         (pasteBoth ~clipboard:("true", bool true) (0, 0))
         ("true", "true", 4) ;
       ()) ;
   describe "Nulls" (fun () ->
       t
-        "copying a null adds an ENull to clipboard"
+        "copying a null adds a null to clipboard"
         null
         (copy (0, 4))
         ("null", "null", 4) ;
       t
-        "copying a null adds an ENull to clipboard 2"
+        "copying a null adds a null to clipboard 2"
         (fn "Bool::isNull" [null])
         (copy (13, 17))
         ("Bool::isNull null", "null", 17) ;
       t
-        "cutting a null adds an ENull to clipboard and leave a blank"
+        "cutting a null adds a null to clipboard and leave a blank"
         null
         (cut (0, 4))
         ("___", "null", 0) ;
       t
-        "cutting a null adds an ENull to clipboard 2"
+        "cutting a null adds a null to clipboard 2"
         (fn "Bool::isNull" [null])
         (cut (13, 17))
         ("Bool::isNull ___", "null", 13) ;
       t
-        "pasting an ENull from clipboard on a blank should paste it"
+        "pasting a null from clipboard on a blank should paste it"
         b
         (pasteBoth ~clipboard:("null", null) (0, 0))
         ("null", "null", 4) ;
@@ -269,27 +269,27 @@ let run () =
         (pasteBoth ~clipboard:("1234", int "1234") (1, 3))
         ("512348", "1234", 5) ;
       t
-        "pasting an float' into an integer should convert to float"
+        "pasting a float' into an integer should convert to float"
         (int "5678")
         (pasteBoth ~clipboard:("12.34", float' "12" "34") (1, 3))
         ("512.348", "12.34", 6) ;
       t
-        "pasting an float' into an integer should convert to float 2"
+        "pasting a float' into an integer should convert to float 2"
         (int "5678")
         (pasteBoth ~clipboard:("12.34", float' "12" "34") (0, 0))
         ("12.345678", "12.34", 5) ;
       t
-        "pasting an float' into an integer should convert to float 3"
+        "pasting a float' into an integer should convert to float 3"
         (int "5678")
         (pasteBoth ~clipboard:("12.34", float' "12" "34") (4, 4))
         ("567812.34", "12.34", 9) ;
       t
-        "pasting an var into an integer should convert to parital"
+        "pasting a var into an integer should convert to parital"
         (int "5678")
         (pasteBoth ~clipboard:("myVar", var "myVar") (0, 0))
         ("myVar5678", "myVar", 5) ;
       t
-        "pasting an var into an integer should convert to parital 2"
+        "pasting a var into an integer should convert to parital 2"
         (int "5678")
         (pasteBoth ~clipboard:("myVar", var "myVar") (1, 1))
         ("5myVar678", "myVar", 6) ;
@@ -396,7 +396,7 @@ let run () =
         (pasteBoth ~clipboard:("XXX", int "5678") (11, 15))
         ("\"abcd EFGH 5678 1234\"", "5678", 15) ;
       t
-        "pasting an ERecord with a single key & no value in a string should paste key"
+        "pasting a record with a single key & no value in a string should paste key"
         (str "abcd EFGH ijkl 1234")
         (pasteExpr ~clipboard:(record [("key1", b)]) (11, 15))
         ("\"abcd EFGH key1 1234\"", "{\n  key1 : ___\n}", 15) ;
@@ -408,77 +408,77 @@ let run () =
       ()) ;
   describe "Floats" (fun () ->
       t
-        "copying a float adds an float' to clipboard"
+        "copying a float adds a float' to clipboard"
         (float' "1234" "5678")
         (copy (0, 9))
         ("1234.5678", "1234.5678", 9) ;
       t
-        "copying a float adds an float' to clipboard 2"
+        "copying a float adds a float' to clipboard 2"
         (fn "Float::round" [float' "1234" "5678"])
         (copy (13, 22))
         ("Float::round 1234.5678", "1234.5678", 22) ;
       t
-        "copying the whole part w/o the point adds an EInt to clipboard"
+        "copying the whole part w/o the point adds an int to clipboard"
         (float' "1234" "5678")
         (copy (0, 4))
         ("1234.5678", "1234", 4) ;
       t
-        "copying the whole part w/ the point adds an float' with fraction value of 0 to clipboard"
+        "copying the whole part w/ the point adds a float' with fraction value of 0 to clipboard"
         (float' "1234" "5678")
         (copy (0, 5))
         ("1234.5678", "1234.0", 5) ;
       t
-        "copying the fraction part w/o the point adds an EInt to clipboard"
+        "copying the fraction part w/o the point adds an int to clipboard"
         (float' "1234" "5678")
         (copy (5, 9))
         ("1234.5678", "5678", 9) ;
       t
-        "copying the fraction part w/ the point adds an float' with whole value of 0 to clipboard"
+        "copying the fraction part w/ the point adds a float' with whole value of 0 to clipboard"
         (float' "1234" "5678")
         (copy (4, 9))
         ("1234.5678", "0.5678", 9) ;
       t
-        "copying just the point adds an float' with 0.0 to clipboard"
+        "copying just the point adds a float' with 0.0 to clipboard"
         (float' "1234" "5678")
         (copy (4, 5))
         ("1234.5678", "0.0", 5) ;
       t
-        "cutting a float adds an float' to clipboard"
+        "cutting a float adds a float' to clipboard"
         (float' "1234" "5678")
         (cut (0, 9))
         ("___", "1234.5678", 0) ;
       t
-        "cutting a float adds an float' to clipboard 2"
+        "cutting a float adds a float' to clipboard 2"
         (fn "Float::round" [float' "1234" "5678"])
         (cut (13, 22))
         ("Float::round ___", "1234.5678", 13) ;
       t
-        "cutting the whole part w/o the point adds an EInt to clipboard, leaves float'"
+        "cutting the whole part w/o the point adds an int to clipboard, leaves float'"
         (float' "1234" "5678")
         (cut (0, 4))
         (".5678", "1234", 0) ;
       t
-        "cutting the whole part w/ the point adds an float' with fraction value of 0 to clipboard, leaves EInt"
+        "cutting the whole part w/ the point adds a float' with fraction value of 0 to clipboard, leaves int"
         (float' "1234" "5678")
         (cut (0, 5))
         ("5678", "1234.0", 0) ;
       t
-        "cutting the fraction part w/o the point adds an EInt to clipboard, leaves float'"
+        "cutting the fraction part w/o the point adds an int to clipboard, leaves float'"
         (float' "1234" "5678")
         (cut (5, 9))
         ("1234.", "5678", 5) ;
       t
-        "cutting the fraction part w/ the point adds an float' with whole value of 0 to clipboard, leaves EInt"
+        "cutting the fraction part w/ the point adds a float' with whole value of 0 to clipboard, leaves int"
         (float' "1234" "5678")
         (cut (4, 9))
         ("1234", "0.5678", 4) ;
       t
-        "cutting just the point adds an float' with 0.0 to clipboard, leaves EInt of joint expr"
+        "cutting just the point adds a float' with 0.0 to clipboard, leaves int of joint expr"
         (float' "1234" "5678")
         (cut (4, 5))
         ("12345678", "0.0", 4) ;
       t
-        "pasting an float' from clipboard on a blank should paste it"
+        "pasting a float' from clipboard on a blank should paste it"
         b
         (pasteBoth ~clipboard:("1234.5678", float' "1234" "5678") (0, 0))
         ("1234.5678", "1234.5678", 9) ;
@@ -520,12 +520,12 @@ let run () =
       ()) ;
   describe "Variables" (fun () ->
       t
-        "copying adds an var to clipboard"
+        "copying adds a var to clipboard"
         (var "varName")
         (copy (0, 7))
         ("varName", "varName", 7) ;
       t
-        "copying part of it adds an var to clipboard"
+        "copying part of it adds a var to clipboard"
         (var "varName")
         (copy (0, 3))
         ("varName", "var", 3) ;
@@ -535,7 +535,7 @@ let run () =
         (cut (0, 7))
         ("___", "varName", 0) ;
       t
-        "cutting part of it adds an var to clipboard and leaves a partial"
+        "cutting part of it adds a var to clipboard and leaves a partial"
         (var "varName")
         (cut (0, 3))
         ("Name", "var", 0) ;
@@ -562,7 +562,7 @@ let run () =
       ()) ;
   describe "Field Accesses" (fun () ->
       t
-        "copying adds an fieldAccess to clipboard"
+        "copying adds a fieldAccess to clipboard"
         (fieldAccess (var "request") "body")
         (copy (0, 12))
         ("request.body", "request.body", 12) ;
@@ -573,36 +573,36 @@ let run () =
         ("request.body", "request", 7) ;
       (* NOT WORKING YET
       t
-        "copying field part adds an var to clipboard"
+        "copying field part adds a var to clipboard"
         (fieldAccess (var "request") "body")
         (copy (8, 12))
         ("request.body", "body", 8) ;
       t
-        "cutting adds an fieldAccess to clipboard and leaves a blank"
+        "cutting adds a fieldAccess to clipboard and leaves a blank"
         (fieldAccess (var "request") "body")
         (cut (0, 12))
         ("___", "request.body", 0) ;
       t
-        "cutting the preceding expression adds an fieldAccess w empty field to clipboard and leaves the field"
+        "cutting the preceding expression adds a fieldAccess w empty field to clipboard and leaves the field"
         (fieldAccess (var "request") "body")
         (cut (0, 12))
         ("___.body", "request.***", 8) ;
       t
-        "cutting the field part adds an fieldAccess on a blank to clipboard and leaves the expression"
+        "cutting the field part adds a fieldAccess on a blank to clipboard and leaves the expression"
         (fieldAccess (var "request") "body")
         (cut (8, 12))
         ("request.***", "___.body", 8) ; *)
       ()) ;
   describe "If conditions" (fun () ->
       t
-        "copying the whole expression adds an if' to clipboard"
+        "copying the whole expression adds an if to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (copy (0, 45))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , 45 ) ;
       t
-        "cutting the whole expression adds an if' to clipboard and leaves a blank"
+        "cutting the whole expression adds an if to clipboard and leaves a blank"
         (if' (bool true) (str "then body") (str "else body"))
         (cut (0, 45))
         ("___", "if true\nthen\n  \"then body\"\nelse\n  \"else body\"", 0) ;
@@ -612,14 +612,14 @@ let run () =
         (copy (3, 7))
         ("if true\nthen\n  \"then body\"\nelse\n  \"else body\"", "true", 7) ;
       t
-        "copying the if keyword and the condition adds an if' with blank then & else body to clipboard"
+        "copying the if keyword and the condition adds an if with blank then & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (copy (0, 7))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if true\nthen\n  ___\nelse\n  ___"
         , 7 ) ;
       t
-        "copying the condition and the then keyword adds an if' with blank then & else body to clipboard"
+        "copying the condition and the then keyword adds an if with blank then & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (copy (3, 12))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
@@ -633,14 +633,14 @@ let run () =
         , "\"then body\""
         , 26 ) ;
       t
-        "copying the then keyword and the then body adds an if' with blank condition & else body to clipboard"
+        "copying the then keyword and the then body adds an if with blank condition & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (copy (8, 26))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if ___\nthen\n  \"then body\"\nelse\n  ___"
         , 26 ) ;
       t
-        "copying the then body and the else keyword adds an if' with blank condition & else body to clipboard"
+        "copying the then body and the else keyword adds an if with blank condition & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (copy (12, 31))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
@@ -654,7 +654,7 @@ let run () =
         , "\"else body\""
         , 45 ) ;
       t
-        "copying the else keyword and else body adds an if' with blank condition &then body to clipboard"
+        "copying the else keyword and else body adds an if with blank condition &then body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (copy (27, 45))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
@@ -666,14 +666,14 @@ let run () =
         (cut (3, 7))
         ("if ___\nthen\n  \"then body\"\nelse\n  \"else body\"", "true", 3) ;
       t
-        "cutting the if keyword and the condition adds an if' with blank then & else body to clipboard"
+        "cutting the if keyword and the condition adds an if with blank then & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (cut (0, 7))
         ( "if ___\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if true\nthen\n  ___\nelse\n  ___"
         , 3 ) ;
       t
-        "cutting the condition and the then keyword adds an if' with blank then & else body to clipboard"
+        "cutting the condition and the then keyword adds an if with blank then & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (cut (3, 12))
         ( "if ___\nthen\n  \"then body\"\nelse\n  \"else body\""
@@ -685,14 +685,14 @@ let run () =
         (cut (15, 26))
         ("if true\nthen\n  ___\nelse\n  \"else body\"", "\"then body\"", 15) ;
       t
-        "cutting the then keyword and the then body adds an if' with blank condition & else body to clipboard"
+        "cutting the then keyword and the then body adds an if with blank condition & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (cut (8, 26))
         ( "if true\nthen\n  ___\nelse\n  \"else body\""
         , "if ___\nthen\n  \"then body\"\nelse\n  ___"
         , 8 ) ;
       t
-        "cutting the then body and the else keyword adds an if' with blank condition & else body to clipboard"
+        "cutting the then body and the else keyword adds an if with blank condition & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (cut (12, 31))
         ( "if true\nthen\n  ___\nelse\n  \"else body\""
@@ -704,7 +704,7 @@ let run () =
         (cut (34, 45))
         ("if true\nthen\n  \"then body\"\nelse\n  ___", "\"else body\"", 34) ;
       t
-        "cutting the else keyword and else body adds an if' with blank condition &then body to clipboard"
+        "cutting the else keyword and else body adds an if with blank condition &then body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
         (cut (27, 45))
         ( "if true\nthen\n  \"then body\"\nelse\n  ___"
@@ -732,12 +732,12 @@ let run () =
       ()) ;
   describe "Functions" (fun () ->
       t
-        "copying a function name adds an fn w blank arguments to clipboard"
+        "copying a function name adds a fn w blank arguments to clipboard"
         (fn "Int::sqrt" [int "122"])
         (copy (0, 9))
         ("Int::sqrt 122", "Int::sqrt _________", 9) ;
       t
-        "copying a function name with a version adds an fn, not a partial"
+        "copying a function name with a version adds a fn, not a partial"
         (fn "HttpClient::post_v4" [str ""])
         (copy (0, 18))
         ("HttpClient::postv4 \"\"", "HttpClient::postv4 ______________", 18) ;
@@ -752,7 +752,7 @@ let run () =
         (copy (10, 13))
         ("Int::sqrt 122", "122", 13) ;
       t
-        "cutting a function name adds an fn w blank arguments to clipboard and leaves a blank"
+        "cutting a function name adds a fn w blank arguments to clipboard and leaves a blank"
         (fn "Int::sqrt" [int "122"])
         (cut (0, 9))
         ("___", "Int::sqrt _________", 0) ;
