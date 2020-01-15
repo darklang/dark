@@ -4511,12 +4511,12 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
   match (expr, mTi) with
   | Some expr, Some ({startPos; _} as ti) ->
       let offset = state.newPos - startPos in
-      ( match (expr, clipboardExpr, text) with
-      | EBlank id, Some cp, _ ->
+      ( match (expr, clipboardExpr, ti, text) with
+      | EBlank id, Some cp, _, _ ->
           (* Paste into a blank *)
           let newAST = E.replace ~replacement:cp id ast in
           (newAST, Some (caretTargetForLastPartOfExpr (E.id cp) newAST))
-      | EString (id, str), _, _ ->
+      | EString (id, str), _, _, _ ->
           (* Paste into a string *)
           let index = getStringIndex ti state.newPos in
           let replacement =
@@ -4525,9 +4525,10 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
           ( E.replace ~replacement id ast
           , Some {astRef = ARString (id, SPText); offset = index + textLength}
           )
-      | EInteger (id, str), Some (EString (_, text)), _
-      | EInteger (id, str), Some (EInteger (_, text)), _
-      | EInteger (id, str), _, text ->
+      | EInteger (id, str), Some (EString (_, text)), _, _
+      (* We'd like to paste a string, even if there are quotes *)
+      | EInteger (id, str), Some (EInteger (_, text)), _, _
+      | EInteger (id, str), _, _, text ->
           let intText =
             FluidUtil.truncateStringTo63BitInt text
             |> Result.withDefault ~default:""
@@ -4540,9 +4541,51 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
           ( E.replace ~replacement id ast
           , Some {astRef = ARInteger id; offset = offset + String.length intText}
           )
-      | _expr, Some _cp, _ ->
+      | ( EFloat (id, whole, fraction)
+        , Some (EString (_, text))
+        , {token = TFloatFraction _; _}
+        , _ )
+      | ( EFloat (id, whole, fraction)
+        , Some (EInteger (_, text))
+        , {token = TFloatFraction _; _}
+        , _ )
+      | EFloat (id, whole, fraction), _, {token = TFloatFraction _; _}, text ->
+          let intText =
+            FluidUtil.truncateStringTo63BitInt text
+            |> Result.withDefault ~default:""
+          in
+          let replacement =
+            EFloat
+              (id, whole, String.insertAt ~insert:intText ~index:offset fraction)
+          in
+          ( E.replace ~replacement id ast
+          , Some
+              { astRef = ARFloat (id, FPDecimal)
+              ; offset = offset + String.length intText } )
+      | ( EFloat (id, whole, fraction)
+        , Some (EString (_, text))
+        , {token = TFloatWhole _; _}
+        , _ )
+      | ( EFloat (id, whole, fraction)
+        , Some (EInteger (_, text))
+        , {token = TFloatWhole _; _}
+        , _ )
+      | EFloat (id, whole, fraction), _, {token = TFloatWhole _; _}, text ->
+          let intText =
+            FluidUtil.truncateStringTo63BitInt text
+            |> Result.withDefault ~default:""
+          in
+          let replacement =
+            EFloat
+              (id, String.insertAt ~insert:intText ~index:offset whole, fraction)
+          in
+          ( E.replace ~replacement id ast
+          , Some
+              { astRef = ARFloat (id, FPWhole)
+              ; offset = offset + String.length intText } )
+      | _expr, Some _cp, _, _ ->
           (ast, None)
-      | _expr, None, _ ->
+      | _expr, None, _, _ ->
           (ast, None) )
   | _ ->
       (ast, None)
@@ -4556,22 +4599,6 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
 (*   , Some {startPos; _} ) -> *)
 (*     let index = state.newPos - startPos - 1 in *)
 (*     let replacement = EString (gid (), String.insertAt ~insert ~index str) in *)
-(*     let newAST = *)
-(*       exprID *)
-(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
-(*       |> Option.withDefault ~default:ast *)
-(*     in *)
-(*     (newAST, {state with newPos = collapsedSelStart + String.length insert}) *)
-(* (* inserting integer into another integer *) *)
-(* | ( Some (EInteger (_, clippedInt)) *)
-(*   , Some (EInteger (_, pasting)) *)
-(*   , Some {startPos; _} ) -> *)
-(*     let index = state.newPos - startPos in *)
-(*     let insert = clippedInt in *)
-(*     let newVal = *)
-(*       String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt *)
-(*     in *)
-(*     let replacement = EInteger (gid (), newVal) in *)
 (*     let newAST = *)
 (*       exprID *)
 (*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
@@ -4611,20 +4638,6 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
 (*       |> Option.withDefault ~default:ast *)
 (*     in *)
 (*     (newAST, {state with newPos = collapsedSelStart + String.length varName}) *)
-(* (* inserting int-only string into an integer *) *)
-(* | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos; _} *)
-(*   when String.toInt insert |> Result.toOption <> None -> *)
-(*     let index = state.newPos - startPos in *)
-(*     let newVal = *)
-(*       String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt *)
-(*     in *)
-(*     let replacement = EInteger (gid (), newVal) in *)
-(*     let newAST = *)
-(*       exprID *)
-(*       |> Option.map ~f:(fun id -> E.replace ~replacement id ast) *)
-(*       |> Option.withDefault ~default:ast *)
-(*     in *)
-(*     (newAST, {state with newPos = collapsedSelStart + String.length insert}) *)
 (* (* inserting integer into a float whole *) *)
 (* | ( Some (EInteger (_, intVal)) *)
 (*   , Some (EFloat (_, whole, fraction)) *)
