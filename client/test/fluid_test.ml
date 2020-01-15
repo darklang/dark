@@ -951,8 +951,12 @@ let run () =
         "DeleteNextWord at the beg of line deletes until the next whitespace"
         mlStrWSpace
         (key K.DeleteNextWord 42)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-        ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ;
+        (* ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ; *)
+        (* The non-commented version is a bit weird for caret placement,
+           but matches what happens in XCode *)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ " abcdefghi, 123456789_ abcdefghi,\"" ) ;
       t
         "adding a quote at the front turns a partial into a string"
         (partial "abcdefgh\"" b)
