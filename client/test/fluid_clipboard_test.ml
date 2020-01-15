@@ -316,58 +316,58 @@ let run () =
       ()) ;
   describe "Strings" (fun () ->
       t
-        "copying a string adds an string to clipboard"
+        "copying a string adds a string to clipboard"
         (str "abcd EFGH ijkl 1234")
         (copy (0, 21))
         ("\"abcd EFGH ijkl 1234\"", "\"abcd EFGH ijkl 1234\"", 21) ;
       t
-        "copying a string adds an string to clipboard 2"
+        "copying a string adds a string to clipboard 2"
         (fn "String::reverse" [str "abcd EFGH ijkl 1234"])
         (copy (16, 37))
         ( "String::reverse \"abcd EFGH ijkl 1234\""
         , "\"abcd EFGH ijkl 1234\""
         , 37 ) ;
       t
-        "copying part of a string adds an string to clipboard"
+        "copying part of a string adds a string to clipboard"
         (str "abcd EFGH ijkl 1234")
         (copy (4, 14))
         ("\"abcd EFGH ijkl 1234\"", "\"d EFGH ijk\"", 14) ;
       t
-        "cutting a string adds an string to clipboard"
+        "cutting a string adds a string to clipboard"
         (str "abcd EFGH ijkl 1234")
         (cut (0, 21))
         ("___", "\"abcd EFGH ijkl 1234\"", 0) ;
       t
-        "cutting a string adds an string to clipboard 2"
+        "cutting a string adds a string to clipboard 2"
         (fn "String::reverse" [str "abcd EFGH ijkl 1234"])
         (cut (16, 37))
         ("String::reverse ___", "\"abcd EFGH ijkl 1234\"", 16) ;
       t
-        "cutting part of a string adds an string to clipboard"
+        "cutting part of a string adds a string to clipboard"
         (str "abcd EFGH ijkl 1234")
         (cut (4, 14))
         ("\"abcl 1234\"", "\"d EFGH ijk\"", 4) ;
       t
-        "pasting an string on a blank should paste it"
+        "pasting a string on a blank should paste it"
         b
         (pasteBoth
            ~clipboard:("abcd EFGH ijkl 1234", str "abcd EFGH ijkl 1234")
            (0, 0))
         ("\"abcd EFGH ijkl 1234\"", "\"abcd EFGH ijkl 1234\"", 21) ;
       t
-        "pasting an string in another string should paste it"
+        "pasting a string in another string should paste it"
         (str "abcd EFGH ijkl 1234")
         (pasteBoth ~clipboard:("newString", str "newString") (11, 15))
         ("\"abcd EFGH newString 1234\"", "\"newString\"", 20) ;
       t
-        "pasting an string in a TLStringMLStart should paste it"
+        "pasting a string in a TLStringMLStart should paste it"
         (str "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
         (pasteBoth ~clipboard:("XXX", str "XXX") (11, 15))
         ( "\"0123456789XXXefghij0123456789abcdefghij0\n123456789abcdefghij\""
         , "\"XXX\""
         , 14 ) ;
       t
-        "pasting an string in the first TLStringMLMiddle should paste it"
+        "pasting a string in the first TLStringMLMiddle should paste it"
         (str
            "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
         (pasteBoth ~clipboard:("XXX", str "XXX") (43, 50))
@@ -375,7 +375,7 @@ let run () =
         , "\"XXX\""
         , 46 ) ;
       t
-        "pasting an string in the second TLStringMLMiddle should paste it"
+        "pasting a string in the second TLStringMLMiddle should paste it"
         (str
            "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
         (pasteBoth ~clipboard:("XXX", str "XXX") (96, 84))
@@ -383,7 +383,7 @@ let run () =
         , "\"XXX\""
         , 87 ) ;
       t
-        "pasting an string in a TLStringMLEnd should paste it"
+        "pasting a string in a TLStringMLEnd should paste it"
         (str
            "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
         (pasteBoth ~clipboard:("XXX", str "XXX") (125, 126))
