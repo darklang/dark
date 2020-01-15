@@ -706,7 +706,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
     | ARPattern (id, PPFloat FPPoint), TPatternFloatPoint (_, id', _)
     | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
-    | ARPattern (id, PPFloat FPFractional), TPatternFloatFractional (_, id', _, _)
+    | ( ARPattern (id, PPFloat FPFractional)
+      , TPatternFloatFractional (_, id', _, _) )
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
       when id = id' ->
@@ -929,6 +930,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARNull id; offset}
   | TFloatWhole (id, _) ->
       {astRef = ARFloat (id, FPWhole); offset}
+  | TFloatPoint id ->
+      {astRef = ARFloat (id, FPPoint); offset}
   | TFloatFractional (id, _) ->
       {astRef = ARFloat (id, FPFractional); offset}
   | TPartial (id, _) ->
@@ -1008,16 +1011,14 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARPattern (id, PPNull); offset}
   | TPatternFloatWhole (_, id, _, _) ->
       {astRef = ARPattern (id, PPFloat FPWhole); offset}
+  | TPatternFloatPoint (_, id, _) ->
+      {astRef = ARPattern (id, PPFloat FPPoint); offset}
   | TPatternFloatFractional (_, id, _, _) ->
       {astRef = ARPattern (id, PPFloat FPFractional); offset}
   | TPatternBlank (_, id, _) ->
       {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
       {astRef = ARConstructor (id, CPName); offset}
-  | TFloatPoint _ (* id *) | TPatternFloatPoint _ (* (id * id * int) *) ->
-      (* XXX(JULIAN): These won't work because of truncation and the fact that we don't know the length of the float.
-       We may need an ARFloat (id, FPPoint) and an ARPattern (id, PPFloat FPPoint) *)
-      {astRef = ARInvalid; offset = 0}
   | TPartialGhost _ (* (id, _) *)
   | TNewline _ (* (id * id * int option) option *)
   | TSep _ (* id *)
@@ -2956,6 +2957,15 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  , desiredCaretTarget )
            | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
                Some (EFloat (id, mutation whole, frac), desiredCaretTarget)
+           | ARFloat (_, FPPoint), EFloat (_, whole, frac) ->
+               (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
+                it should become a blank. Instead, it currently becomes a 0, which is weird.
+                Leaving it for later because it matches current behavior *)
+               let i = Util.coerceStringTo63BitInt (whole ^ frac) in
+               let iID = gid () in
+               Some
+                 ( EInteger (iID, i)
+                 , {astRef = ARInteger iID; offset = String.length whole} )
            | ARFloat (_, FPFractional), EFloat (id, whole, frac) ->
                Some (EFloat (id, whole, mutation frac), desiredCaretTarget)
            | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
@@ -3385,8 +3395,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (*     | TFieldOp (id, lhsId) ->
         let newAst = removeField id ast in
         (newAst, AtTarget (caretTargetForLastPartOfExpr lhsId newAst)) *)
-    | TFloatPoint id ->
-        (removePointFromFloat id ast, LeftOne)
+    (* | TFloatPoint id ->
+        (removePointFromFloat id ast, LeftOne) *)
     | TPatternFloatPoint (mID, id, _) ->
         (removePatternPointFromFloat mID id ast, LeftOne)
     (* | TConstructorName (id, str) *)
