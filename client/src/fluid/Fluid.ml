@@ -4510,8 +4510,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
   let _wordLength = String.length word in
   match (expr, mTi) with
   | Some expr, Some ({startPos; _} as ti) ->
-      let offset = state.newPos - startPos in
-      let insertInt str =
+      let insertInt str offset =
         match (clipboardExpr, text) with
         | Some (EString (_, text)), _ | Some (EInteger (_, text)), _ | _, text
           ->
@@ -4522,6 +4521,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
             ( String.insertAt ~insert:intText ~index:offset str
             , offset + String.length intText )
       in
+      let offset = state.newPos - startPos in
       ( match (expr, clipboardExpr, ti) with
       | EBlank id, Some cp, _ ->
           (* Paste into a blank *)
@@ -4537,16 +4537,21 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
           , Some {astRef = ARString (id, SPText); offset = index + textLength}
           )
       | EInteger (id, str), _, _ ->
-          let text, offset = insertInt str in
+          let text, offset = insertInt str offset in
           let replacement = EInteger (id, text) in
           (E.replace ~replacement id ast, Some {astRef = ARInteger id; offset})
       | EFloat (id, whole, fraction), _, {token = TFloatFraction _; _} ->
-          let newFraction, offset = insertInt fraction in
+          let newFraction, offset = insertInt fraction offset in
+          let replacement = EFloat (id, whole, newFraction) in
+          ( E.replace ~replacement id ast
+          , Some {astRef = ARFloat (id, FPDecimal); offset} )
+      | EFloat (id, whole, fraction), _, {token = TFloatPoint _; _} ->
+          let newFraction, offset = insertInt fraction (offset - 1) in
           let replacement = EFloat (id, whole, newFraction) in
           ( E.replace ~replacement id ast
           , Some {astRef = ARFloat (id, FPDecimal); offset} )
       | EFloat (id, whole, fraction), _, {token = TFloatWhole _; _} ->
-          let newWhole, offset = insertInt whole in
+          let newWhole, offset = insertInt whole offset in
           let replacement = EFloat (id, newWhole, fraction) in
           ( E.replace ~replacement id ast
           , Some {astRef = ARFloat (id, FPWhole); offset} )
