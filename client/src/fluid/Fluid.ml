@@ -4504,6 +4504,10 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
   let expr = Option.andThen exprID ~f:(fun id -> E.find id ast) in
   (* let collapsedSelStart = getCollapsedSelectionStart state in *)
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
+  (* We don't need to support every type of pasted expression, as for the
+   * most part the pasted expression will be available in string form. The
+   * only time it's useful to use the expr form is when the text might be
+   * parsed as JSON. *)
   let text = Clipboard.clipboardContentsToString data in
   let textLength = String.length text in
   let word =
