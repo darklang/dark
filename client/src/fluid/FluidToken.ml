@@ -11,7 +11,7 @@ let tid (t : t) : id =
   | TInteger (id, _)
   | TFloatWhole (id, _)
   | TFloatPoint id
-  | TFloatFraction (id, _)
+  | TFloatFractional (id, _)
   | TTrue id
   | TFalse id
   | TNullToken id
@@ -62,7 +62,7 @@ let tid (t : t) : id =
   | TPatternNullToken (_, id, _)
   | TPatternFloatWhole (_, id, _, _)
   | TPatternFloatPoint (_, id, _)
-  | TPatternFloatFraction (_, id, _, _)
+  | TPatternFloatFractional (_, id, _, _)
   | TSep id
   | TParenOpen id
   | TParenClose id
@@ -122,7 +122,7 @@ let isTextToken t : bool =
   | TLambdaVar _
   | TFloatWhole _
   | TFloatPoint _
-  | TFloatFraction _
+  | TFloatFractional _
   | TPatternInteger _
   | TPatternVariable _
   | TPatternConstructorName _
@@ -133,7 +133,7 @@ let isTextToken t : bool =
   | TPatternNullToken _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
-  | TPatternFloatFraction _ ->
+  | TPatternFloatFractional _ ->
       true
   | TListOpen _
   | TListClose _
@@ -268,7 +268,7 @@ let toText (t : t) : string =
       shouldntBeEmpty w
   | TFloatPoint _ ->
       "."
-  | TFloatFraction (_, f) ->
+  | TFloatFractional (_, f) ->
       f
   | TString (_, str) ->
       "\"" ^ str ^ "\""
@@ -364,7 +364,7 @@ let toText (t : t) : string =
       shouldntBeEmpty w
   | TPatternFloatPoint _ ->
       "."
-  | TPatternFloatFraction (_, _, f, _) ->
+  | TPatternFloatFractional (_, _, f, _) ->
       f
   | TPatternString {str; _} ->
       "\"" ^ str ^ "\""
@@ -437,7 +437,7 @@ let toIndex (t : t) : int option =
   | TPatternNullToken (_, _, index)
   | TPatternFloatWhole (_, _, _, index)
   | TPatternFloatPoint (_, _, index)
-  | TPatternFloatFraction (_, _, _, index) ->
+  | TPatternFloatFractional (_, _, _, index) ->
       Some index
   | _ ->
       None
@@ -456,7 +456,7 @@ let toParentID (t : t) : id option =
   | TPatternNullToken (id, _, _)
   | TPatternFloatWhole (id, _, _, _)
   | TPatternFloatPoint (id, _, _)
-  | TPatternFloatFraction (id, _, _, _) ->
+  | TPatternFloatFractional (id, _, _, _) ->
       Some id
   | _ ->
       None
@@ -470,7 +470,7 @@ let toTypeName (t : t) : string =
       "float-whole"
   | TFloatPoint _ ->
       "float-point"
-  | TFloatFraction _ ->
+  | TFloatFractional _ ->
       "float-fraction"
   | TString _ ->
       "string"
@@ -578,7 +578,7 @@ let toTypeName (t : t) : string =
       "pattern-float-whole"
   | TPatternFloatPoint _ ->
       "pattern-float-point"
-  | TPatternFloatFraction _ ->
+  | TPatternFloatFractional _ ->
       "pattern-float-fraction"
   | TParenOpen _ ->
       "paren-open"
@@ -596,7 +596,7 @@ let toCategoryName (t : t) : string =
       ""
   | TPartial _ | TRightPartial _ | TPartialGhost _ ->
       "partial"
-  | TFloatWhole _ | TFloatPoint _ | TFloatFraction _ ->
+  | TFloatWhole _ | TFloatPoint _ | TFloatFractional _ ->
       "float"
   | TTrue _ | TFalse _ ->
       "boolean"
@@ -634,7 +634,7 @@ let toCategoryName (t : t) : string =
   | TPatternNullToken _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
-  | TPatternFloatFraction _ ->
+  | TPatternFloatFractional _ ->
       "pattern"
   | TParenOpen _ | TParenClose _ ->
       "paren"
@@ -666,7 +666,7 @@ let toDebugInfo (t : t) : string =
   | TPatternNullToken (mid, _, idx)
   | TPatternFloatWhole (mid, _, _, idx)
   | TPatternFloatPoint (mid, _, idx)
-  | TPatternFloatFraction (mid, _, _, idx) ->
+  | TPatternFloatFractional (mid, _, _, idx) ->
       "match=" ^ deID mid ^ " idx=" ^ string_of_int idx
   | _ ->
       ""

@@ -119,7 +119,7 @@ let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
       let fraction =
         if fraction = ""
         then []
-        else [TPatternFloatFraction (mID, id, fraction, idx)]
+        else [TPatternFloatFractional (mID, id, fraction, idx)]
       in
       whole @ [TPatternFloatPoint (mID, id, idx)] @ fraction
   | FPNull (mid, id) ->
@@ -214,7 +214,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EFloat (id, whole, fraction) ->
       let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
       let fraction =
-        if fraction = "" then [] else [TFloatFraction (id, fraction)]
+        if fraction = "" then [] else [TFloatFractional (id, fraction)]
       in
       addMany (whole @ [TFloatPoint id] @ fraction) b
   | EBlank id ->
