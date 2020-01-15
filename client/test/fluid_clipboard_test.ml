@@ -112,16 +112,30 @@ let run () =
     let e = clipboardEvent () in
     process ~debug e range expr (ClipboardCutEvent e)
   in
+  (* Test that paste works when an expression was copied in the app. Use
+   * ~clipboardText if you expect the contents of the clipboard to be
+   * different that the stringified expr. *)
   let pasteExpr
       ?(debug = false)
+      ?((* use the generated text unless we know it's not what we'd copy *)
+      clipboardText = "sentinel value")
       ~(clipboard : fluidExpr)
       (range : int * int)
       (expr : fluidExpr) : testResult =
     let e = clipboardEvent () in
-    let data = FluidClipboard.exprToClipboardContents clipboard in
-    DClipboard.setData (FluidPrinter.eToString clipboard, Some data) e ;
+    let text =
+      if clipboardText = "sentinel value"
+      then FluidPrinter.eToString clipboard
+      else clipboardText
+    in
+    let data =
+      (text, Some (FluidClipboard.exprToClipboardContents clipboard))
+    in
+    DClipboard.setData data e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
+  (* Test that paste works when pasting text from outside the app. You'll
+   * typically want pasteBoth instead here. *)
   let pasteText
       ?(debug = false)
       ~(clipboard : string)
@@ -131,19 +145,17 @@ let run () =
     DClipboard.setData (clipboard, None) e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
-  (* Test that code works whether an expression or text is passed in. This
-   * is kinda superfluous as most times if you copy an expression you get
-   * the text as well, so no need to go overboard in doing this test, or
-   * we'll implement lots of paste code that isn't necessary. Typically,
-   * if we expect text to be pasted into another text field, then
-   * pasteText is fine. *)
+  (* Test that paste works whether an expression was copied, or whether the
+   * text was copied from outside the app. *)
   let pasteBoth
       ?(debug = false)
       ~(clipboard : string * fluidExpr)
       (range : int * int)
       (expr : fluidExpr) : testResult =
     let text, clipboardExpr = clipboard in
-    let r1 = pasteExpr ~clipboard:clipboardExpr ~debug range expr in
+    let r1 =
+      pasteExpr ~clipboardText:text ~clipboard:clipboardExpr ~debug range expr
+    in
     let r2 = pasteText ~clipboard:text ~debug range expr in
     let r1output, _, _ = insertCursor r1 in
     let r2output, _, _ = insertCursor r2 in
@@ -206,7 +218,7 @@ let run () =
       t
         "pasting a bool from clipboard on a blank should paste it"
         b
-        (pasteBoth ~clipboard:("true", bool true) (0, 0))
+        (pasteExpr ~clipboard:(bool true) (0, 0))
         ("true", "true", 4) ;
       ()) ;
   describe "Nulls" (fun () ->
@@ -359,9 +371,7 @@ let run () =
       t
         "pasting a string on a blank should paste it"
         b
-        (pasteBoth
-           ~clipboard:("abcd EFGH ijkl 1234", str "abcd EFGH ijkl 1234")
-           (0, 0))
+        (pasteExpr ~clipboard:(str "abcd EFGH ijkl 1234") (0, 0))
         ("\"abcd EFGH ijkl 1234\"", "\"abcd EFGH ijkl 1234\"", 21) ;
       t
         "pasting a string in another string should paste it"
@@ -402,7 +412,7 @@ let run () =
       t
         "pasting an int in a string should paste it"
         (str "abcd EFGH ijkl 1234")
-        (pasteText ~clipboard:"5678" (11, 15))
+        (pasteBoth ~clipboard:("5678", int "5678") (11, 15))
         ("\"abcd EFGH 5678 1234\"", "5678", 15) ;
       t
         "pasting a regular record with a single key in a string should paste stringified expr"
@@ -551,17 +561,17 @@ let run () =
       t
         "pasting variable into empty let lhs works"
         (let' "" b b)
-        (pasteText ~clipboard:"varName" (7, 7))
+        (pasteBoth ~clipboard:("varName", var "varName") (7, 7))
         ("let varName = ___\n___", "varName", 11) ;
       t
         "pasting variable into filled let lhs works"
         (let' "oldLetLhs" b b)
-        (pasteText ~clipboard:"varName" (7, 7))
+        (pasteBoth ~clipboard:("varName", var "varName") (7, 7))
         ("let oldvarNameLetLhs = ___\n___", "varName", 14) ;
       t
         "pasting variable over filled let lhs works"
         (let' "oldLetLhs" b b)
-        (pasteText ~clipboard:"varName" (7, 13))
+        (pasteBoth ~clipboard:("varName", var "varName") (7, 13))
         ("let oldvarName = ___\n___", "varName", 14) ;
       ()) ;
   describe "Field Accesses" (fun () ->
