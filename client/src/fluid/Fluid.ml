@@ -4748,12 +4748,23 @@ let fluidDataFromModel m : (fluidState * E.t) option =
 let getCopySelection (m : model) : clipboardContents =
   match fluidDataFromModel m with
   | Some (state, ast) ->
-      getOptionalSelectionRange state
-      |> Option.andThen ~f:(reconstructExprFromRange ~ast)
-      |> Option.map ~f:Clipboard.exprToClipboardContents
-      |> Option.withDefault ~default:("", None)
+      let range = getOptionalSelectionRange state in
+      let expr =
+        range
+        |> Option.andThen ~f:(reconstructExprFromRange ~ast)
+        |> Option.map ~f:Clipboard.exprToClipboardContents
+      in
+      let text =
+        let asText = FluidPrinter.eToString ast in
+        match range with
+        | Some (from, to_) ->
+            String.slice ~from ~to_ asText
+        | None ->
+            asText
+      in
+      (text, expr)
   | None ->
-      FluidClipboard.emptyContents
+      ("", None)
 
 
 let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =

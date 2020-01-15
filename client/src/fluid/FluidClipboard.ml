@@ -18,13 +18,10 @@ type viewState = ViewUtils.viewState
 
 type ast = E.t
 
-let exprToClipboardContents (expr : E.t) : clipboardContents =
-  let text = FluidPrinter.eToString expr in
-  let json = Encoders.fluidExpr expr in
-  (text, Some json)
+let exprToClipboardContents (expr : E.t) : Js.Json.t =
+  (* The text here comes from the selected text *)
+  Encoders.fluidExpr expr
 
-
-let emptyContents = ("", None)
 
 let jsonToExpr (jsonStr : string) : E.t option =
   let open Js.Json in
