@@ -4510,8 +4510,9 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
    * parsed as JSON. *)
   let text = Clipboard.clipboardContentsToString data in
   let textLength = String.length text in
+  (* Word is when we want to paste into thing that only allow a single word,
+   * such as letlhs, etc. TODO: remove all disallowed characters *)
   let word =
-    (* TODO: remove all disallowed characters *)
     text
     |> String.trim
     |> String.split ~on:" "
