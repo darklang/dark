@@ -597,6 +597,16 @@ let run () =
         (fieldAccess (var "request") "body")
         (cut (0, 8))
         ("___.body", "request.***", 0) ; *)
+      t
+        "pasting into a field pastes"
+        (fieldAccess (var "request") "")
+        (pasteText ~clipboard:"body" (8, 8))
+        ("request.body", "body", 12) ;
+      t
+        "pasting into the middle of a field pastes"
+        (fieldAccess (var "request") "existing")
+        (pasteText ~clipboard:"body" (10, 10))
+        ("request.exbodyisting", "body", 14) ;
       ()) ;
   describe "If conditions" (fun () ->
       t
@@ -840,6 +850,16 @@ let run () =
         (record [("key1", int "1234")])
         (copy (2, 15))
         ("{\n  key1 : 1234\n}", "{\n  key1 : 1234\n}", 15) ;
+      t
+        "pasting text into record keys works"
+        (record [("", b)])
+        (pasteText ~clipboard:"mykey" (4, 4))
+        ("{\n  mykey : ___\n}", "mykey", 9) ;
+      t
+        "pasting text into existing record keys works"
+        (record [("existing", b)])
+        (pasteText ~clipboard:"myKey" (7, 7))
+        ("{\n  eximyKeysting : ___\n}", "myKey", 12) ;
       ()) ;
   describe "Constructors" (fun () ->
       t
