@@ -65,7 +65,7 @@ data:
         labelSelector: "k8s-app=dns-controller"
         namespace: kube-system
         parser: glog
-      - labelSelector: "app in (bwd-app, qw-worker)"
+      - labelSelector: "app in (bwd-app, editor-app, qw-worker)"
         containerName: stroller
         dataset: kubernetes-stroller
         parser: json
@@ -73,7 +73,7 @@ data:
         containerName: scheduler-ctr
         dataset: kubernetes-scheduler
         parser: json
-      - labelSelector: "app=bwd-app"
+      - labelSelector: "app in(bwd-app, editor-app)"
         containerName: bwd-ctr
         dataset: kubernetes-bwd-ocaml
         parser: json
@@ -121,7 +121,7 @@ data:
         containerName: qw-ctr
         dataset: kubernetes-bwd-ocaml
         parser: json
-      - labelSelector: "app=bwd-app"
+      - labelSelector: "app in (bwd-app, editor-app)"
         containerName: http-proxy
         dataset: kubernetes-bwd-nginx
         parser:
