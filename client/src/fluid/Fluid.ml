@@ -4499,12 +4499,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
   let mTi = getToken state ast in
   let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> E.find id ast) in
-  (* let collapsedSelStart = getCollapsedSelectionStart state in *)
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
-  (* We don't need to support every type of pasted expression, as for the
-   * most part the pasted expression will be available in string form. The
-   * only time it's useful to use the expr form is when the text might be
-   * parsed as JSON. *)
   let text = Clipboard.clipboardContentsToString data in
   match expr with
   | Some expr ->
