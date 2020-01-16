@@ -1603,15 +1603,20 @@ let run () =
         (bs 3)
         "5~" ;
       t
+        "deleting binop between bools does not combine them"
+        (partial "|" (binop "||" trueBool falseBool))
+        (bs 6)
+        "true~" ;
+      t
         "pressing bs to clear rightpartial reverts for blank rhs"
         (rightPartial "|" b)
         (bs 5)
         "~___" ;
       t
-        "pressing bs on single digit binop leaves lhs"
+        "pressing bs on single digit binop deletes binop and combines rhs and lhs"
         (binop "+" anInt anInt)
         (bs 7)
-        "12345~" ;
+        "12345~12345" ;
       t
         "using del to remove an infix with a placeholder goes to right place"
         (partial "|" (binop "||" b b))
@@ -1623,10 +1628,10 @@ let run () =
         (del 4)
         "~___" ;
       t
-        "pressing del on single digit binop leaves lhs"
+        "pressing del on single digit binop deletes binop and combines rhs and lhs"
         (binop "+" anInt anInt)
         (del 6)
-        "12345~" ;
+        "12345~12345" ;
       t
         "pressing del to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
@@ -1637,6 +1642,35 @@ let run () =
         (binop "++" (str "five") (str "six"))
         (keys [K.Backspace; K.Backspace] 9)
         "\"five~six\"" ;
+      t
+        "pressing bs to remove a binop after a blank doesnt delete rhs"
+        (binop "++" b (str "six"))
+        (keys [K.Backspace; K.Backspace] 15)
+        "~\"six\"" ;
+      t
+        "pressing bs to remove a string binop combines lhs and rhs"
+        (binop
+           "++"
+           (str "one")
+           (binop "++" (str "two") (binop "++" (str "three") (str "four"))))
+        (keys [K.Backspace; K.Backspace] 17)
+        "\"one\" ++ \"two~three\" ++ \"four\"" ;
+      t
+        "pressing bs to remove binop before a blank doesnt entire delete rhs"
+        (binop
+           "++"
+           (str "one")
+           (binop "++" (str "two") (binop "++" b (str "four"))))
+        (keys [K.Backspace; K.Backspace] 17)
+        "\"one\" ++ \"two\"~ ++ \"four\"" ;
+      t
+        "pressing bs to remove binop after a blank doesnt entire delete rhs"
+        (binop
+           "++"
+           (str "one")
+           (binop "++" (str "two") (binop "++" b (str "four"))))
+        (keys [K.Backspace; K.Backspace] 33)
+        "\"one\" ++ \"two\" ++ ~\"four\"" ;
       t
         "pressing letters and numbers on a partial completes it"
         b
@@ -1694,10 +1728,10 @@ let run () =
         (ctrlRight 6)
         "12345 <~ 12345" ;
       t
-        "DeletePrevWord in end of binop deletes binop and first int"
+        "DeletePrevWord in end of binop deletes binop and combines rhs and lhs"
         (binop "<" anInt anInt)
         (key K.DeletePrevWord 7)
-        "12345~" ;
+        "12345~12345" ;
       t
         "DeletePrevWord in front of binop deletes first int"
         (binop "<" anInt anInt)
@@ -1709,13 +1743,99 @@ let run () =
         (key K.DeleteNextWord 8)
         "12345 < ~_________" ;
       t
-        "DeleteNextWord in front of binop deletes binop and second int"
+        "DeleteNextWord in front of binop deletes binop and combines rhs and lhs"
         (binop "<" anInt anInt)
         (key K.DeleteNextWord 6)
-        "12345~" ;
+        "12345~12345" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
+      t
+        "pressing bs on || in binop deletes right side"
+        (binop "||" trueBool falseBool)
+        (keys [K.Backspace; K.Backspace] 7)
+        "true~" ;
+      t
+        "pressing bs on || in binop deletes blank on rhs"
+        (binop "||" falseBool b)
+        (keys [K.Backspace; K.Backspace] 8)
+        "false~" ;
+      t
+        "pressing bs on || in binop deletes blank on lhs"
+        (binop "||" b falseBool)
+        (keys [K.Backspace; K.Backspace] 13)
+        "~false" ;
+      t
+        "pressing bs on || in binop after blank deletes blank but rest of the lhs"
+        (binop "||" falseBool (binop "||" b trueBool))
+        (keys [K.Backspace; K.Backspace] 22)
+        "false || ~true" ;
+      t
+        "pressing bs on || in binop before blank deletes blank but rest of the lhs"
+        (binop "||" falseBool (binop "||" b trueBool))
+        (keys [K.Backspace; K.Backspace] 8)
+        "false~ || true" ;
+      t
+        "pressing bs on ++ binop before blank deletes blank but rest of the lhs"
+        (binop "+" (int "10") (binop "*" (int "5") (binop "+" b (int "10"))))
+        (bs 8)
+        "10 + 5~ + 10" ;
+      t
+        "pressing bs on ++ binop after blank deletes blank but rest of the lhs"
+        (binop "+" (int "20") (binop "*" (int "1") (binop "+" b (int "5"))))
+        (bs 20)
+        "20 + 1 * ~5" ;
+      t
+        "pressing bs on < binop before blank deletes blank but rest of the lhs"
+        (binop "<" (int "20") (binop "<" b (int "50")))
+        (bs 4)
+        "20~ < 50" ;
+      t
+        "pressing bs on < binop after blank deletes blank but rest of the lhs"
+        (binop "<" (int "25") (binop "<" b (int "50")))
+        (bs 16)
+        "25 < ~50" ;
+      t
+        "pressing bs on - binop before blank deletes blank but rest of the lhs"
+        (binop "-" (int "200") (binop "-" (int "5") (binop "*" b (int "24"))))
+        (bs 9)
+        "200 - 5~ * 24" ;
+      t
+        "pressing bs on - binop after blank deletes blank but rest of the lhs"
+        (binop "-" (int "200") (binop "-" (int "5") (binop "*" b (int "24"))))
+        (bs 15)
+        "200 - 5 - ~24" ;
+      t
+        "pressing bs on != binop before blank deletes blank but rest of the lhs"
+        (binop
+           "!="
+           (int "54321")
+           (binop "!=" (int "21") (binop "!=" b (int "5"))))
+        (keys [K.Backspace; K.Backspace] 14)
+        "54321 != 21~ != 5" ;
+      t
+        "pressing bs on != binop after blank deletes blank but rest of the lhs"
+        (binop
+           "!="
+           (int "54321")
+           (binop "!=" (int "21") (binop "!=" b (int "5"))))
+        (keys [K.Backspace; K.Backspace] 21)
+        "54321 != 21 != ~5" ;
+      t
+        "pressing bs on != binop combines lhs and rhs string"
+        (binop "!=" (str "One") (binop "!=" (str "Two") (str "Three")))
+        (keys [K.Backspace; K.Backspace] 8)
+        "\"One~Two\" != \"Three\"" ;
+      t
+        "pressing bs on / binop deletes rhs"
+        (binop "/" aFloat aFloat)
+        (bs 9)
+        "123.456~" ;
+      t
+        "pressing bs on / binop before blank deletes blank"
+        (binop "/" b aFloat)
+        (bs 5)
+        "~123.456" ;
       ()) ;
   describe "Constructors" (fun () ->
       tp "arguments work in constructors" aConstructor (ins 't' 5) "Just t~" ;
