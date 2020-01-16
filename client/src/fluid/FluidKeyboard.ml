@@ -116,7 +116,7 @@ and side =
   | RightHand
 [@@deriving show]
 
-let toString key : string option =
+let toString (key : key) : string option =
   match key with
   | Space ->
       Some " "
@@ -334,6 +334,7 @@ let fromString (s : string) : key =
   | "T"
   | "U"
   | "V"
+  | "W"
   | "X"
   | "Y"
   | "Z"
@@ -359,6 +360,7 @@ let fromString (s : string) : key =
   | "t"
   | "u"
   | "v"
+  | "w"
   | "x"
   | "y"
   | "z" ->
@@ -493,7 +495,7 @@ let fromKeyboardEvent
    * points to the fact that it may be easier to do shortcuts with Cmd/Ctrl
    * instead of Alt. *)
   | _ when String.length key = 1 ->
-      if key = {js|≈|js} then Letter "x" else Unknown key
+      if key = {js|≈|js} then Letter "x" else fromString key
   | _ ->
       Unknown key
 
