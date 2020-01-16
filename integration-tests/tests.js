@@ -681,11 +681,14 @@ test("load_with_unnamed_function", async t => {
 });
 
 test("extract_from_function", async t => {
+  const exprElem = Selector(".user-fn-toplevel #fluid-editor > span");
+
   await t
     .navigateTo("#fn=123")
     .expect(available(".tl-123"))
     .ok()
-    .click(Selector(".user-fn-toplevel #fluid-editor > span"))
+    .click(exprElem)
+    .selectText(exprElem, 0, 1)
     .pressKey("alt+x")
     .typeText("#cmd-filter", "extract-function")
     .pressKey("enter");
