@@ -575,27 +575,22 @@ let run () =
         (fieldAccess (var "request") "body")
         (copy (0, 7))
         ("request.body", "request", 7) ;
-      (* NOT WORKING YET
       t
         "copying field part adds a var to clipboard"
         (fieldAccess (var "request") "body")
         (copy (8, 12))
-        ("request.body", "body", 8) ;
+        ("request.body", "body", 12) ;
       t
         "cutting adds a fieldAccess to clipboard and leaves a blank"
         (fieldAccess (var "request") "body")
         (cut (0, 12))
         ("___", "request.body", 0) ;
+      (* NOT WORKING YET
       t
         "cutting the preceding expression adds a fieldAccess w empty field to clipboard and leaves the field"
         (fieldAccess (var "request") "body")
-        (cut (0, 12))
-        ("___.body", "request.***", 8) ;
-      t
-        "cutting the field part adds a fieldAccess on a blank to clipboard and leaves the expression"
-        (fieldAccess (var "request") "body")
-        (cut (8, 12))
-        ("request.***", "___.body", 8) ; *)
+        (cut (0, 8))
+        ("___.body", "request.***", 0) ; *)
       ()) ;
   describe "If conditions" (fun () ->
       t
