@@ -4508,11 +4508,22 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
   let text = Clipboard.clipboardContentsToString data in
   match expr with
   | Some expr ->
-    ( match (expr, clipboardExpr) with
-    | EBlank id, Some cp ->
+    ( match (expr, clipboardExpr, mTi) with
+    | EBlank id, Some cp, _ ->
         (* Paste into a blank *)
         let newAST = E.replace ~replacement:cp id ast in
         let caretTarget = caretTargetForLastPartOfExpr (E.id cp) newAST in
+        (newAST, moveToCaretTarget state newAST caretTarget)
+    | EString (id, str), _, Some ti ->
+        (* Paste into a string, to take care of newlines *)
+        let index = getStringIndex ti state.newPos in
+        let replacement =
+          EString (id, String.insertAt ~insert:text ~index str)
+        in
+        let newAST = E.replace ~replacement id ast in
+        let caretTarget =
+          {astRef = ARString (id, SPText); offset = index + String.length text}
+        in
         (newAST, moveToCaretTarget state newAST caretTarget)
     | _ ->
         text
