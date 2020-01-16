@@ -4518,7 +4518,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
         text
         |> String.split ~on:""
         |> List.foldl ~init:(ast, state) ~f:(fun str (newAST, s) ->
-               updateKey (K.Letter str) newAST s) )
+               updateKey (K.fromString str) newAST s) )
   | _ ->
       recover "pasting over non-existant handler" (ast, state)
 
