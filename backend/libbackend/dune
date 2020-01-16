@@ -15,6 +15,7 @@
   (libraries  libtarget_ocaml
               libexecution
               libservice
+              librust
               cohttp-lwt
               core_extended
               cstruct

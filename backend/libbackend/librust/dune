@@ -1,0 +1,19 @@
+(rule
+  (deps Cargo.toml Cargo.lock (source_tree src))
+  (targets librust_stubs.a)
+  (action
+    (progn
+      ; dune copies the entire source tree into _build on each build, wiping away
+      ; the previous content. This means if we just build into the normal rust
+      ; target/release, it will get wiped on each build and rust will need to
+      ; recompile everything from scratch every time. Instead, we build into
+      ; _build/rust, which won't get wiped because it's not within an existing
+      ; source directory.
+      (bash "PATH=$PATH:/usr/bin:/usr/local/cargo/bin RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/home/dark/.cargo cargo build --target-dir ../../../rust --release")
+      (run cp ../../../rust/release/librust_stubs.a .))))
+
+(library
+  (name librust)
+  (self_build_stubs_archive (rust))
+  (c_library_flags (-lpthread -lc -lm)))
+

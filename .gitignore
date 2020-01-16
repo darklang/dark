@@ -2,7 +2,7 @@
 /.browser-trigger
 /gzipped_assets
 /rundir
-/backend/*/.merlin
+/backend/**/.merlin
 /backend/_build
 /backend/profile.json
 /backend/static/
@@ -26,6 +26,7 @@ tunnel.yaml
 
 # Rust projects build into target/
 /*/target
+/backend/libbackend/librust/target
 
 # Files that get created on CI. We check that status is clean so need to list these.
 /client/node_modules

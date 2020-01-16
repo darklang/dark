@@ -22,6 +22,7 @@ let init ~run_side_effects =
         @ Libstaticassets.fns
         @ Libjwt.fns
         @ Libx509.fns
+        @ Librust.fns
       in
       Libexecution.Init.init Config.log_level Config.log_format non_client_fns ;
       (* init the Random module, will be seeded from /dev/urandom on Linux *)

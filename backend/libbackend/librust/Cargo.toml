@@ -1,0 +1,13 @@
+[package]
+name = "rust_stubs"
+version = "0.1.0"
+authors = ["Dean Strelau <dean@darklang.com>"]
+edition = "2018"
+
+[dependencies]
+derive-ocaml = { version = "0.1.1", features= ["stubs", "derive"] }
+ocaml = "*"
+rand = "0.7.3"
+
+[lib]
+crate-type = ["staticlib"]

@@ -1,4 +1,3 @@
-
 (executable
   (name server)
   (public_name server)

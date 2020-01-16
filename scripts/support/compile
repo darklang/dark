@@ -392,6 +392,7 @@ def ignore(filename):
             , "backend/_esy/"
             , "backend/esy.lock"
             , "backend/node_modules"
+            , "backend/libbackend/librust/target"
             , "/home/dark/.esy"
             , "client/node_modules"
             , "client/lib"
