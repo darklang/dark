@@ -24,10 +24,10 @@ spec:
           resources:
             requests:
               memory: "1000Mi"
-              cpu: "250m"
+              cpu: "125m"
             limits:
               memory: "1000Mi"
-              cpu: "250m"
+              cpu: "125m"
           ports:
             - name: bwd-ctr-port
               containerPort: 80
@@ -92,10 +92,10 @@ spec:
           resources:
             requests:
               memory: "500Mi"
-              cpu: "250m"
+              cpu: "125m"
             limits:
               memory: "500Mi"
-              cpu: "250m"
+              cpu: "125m"
           # https://github.com/GoogleCloudPlatform/cloudsql-proxy/issues/128
           command: ["/bin/sh",
                     "-c",
