@@ -37,8 +37,8 @@ let execute_roundtrip (ast : fluidExpr) =
   let expectedString = Printer.eToString ast in
   let pos = String.length expectedString in
   let e = clipboardEvent () in
-  let h = Fluid_utils.h ast in
-  let m =
+  let mFor ast =
+    let h = Fluid_utils.h ast in
     { defaultTestModel with
       handlers = Handlers.fromList [h]
     ; cursorState = FluidEntering h.hTLID
@@ -48,11 +48,17 @@ let execute_roundtrip (ast : fluidExpr) =
         ; oldPos = pos
         ; newPos = pos } }
   in
-  let mod_ = Main.update_ (ClipboardCutEvent e) m in
-  let newM, _cmd = Main.updateMod mod_ (m, Tea.Cmd.none) in
-  let mod_ = Main.update_ (ClipboardPasteEvent e) newM in
-  let newM, _cmd = Main.updateMod mod_ (newM, Tea.Cmd.none) in
-  let newAST = TL.selectedAST newM |> Option.withDefault ~default:(E.newB ()) in
+  let m1 = mFor (FluidExpression.clone ast) in
+  let mod_ = Main.update_ (ClipboardCutEvent e) m1 in
+  let _m, _cmd = Main.updateMod mod_ (m1, Tea.Cmd.none) in
+  let m2 = mFor (E.newB ()) in
+  let mod_ = Main.update_ (ClipboardPasteEvent e) m2 in
+  let newM, _cmd = Main.updateMod mod_ (m2, Tea.Cmd.none) in
+  let newAST =
+    TL.selectedAST newM
+    |> Option.withDefault
+         ~default:(EString (gid (), "fake result value for testing"))
+  in
   newAST
 
 
@@ -907,8 +913,7 @@ let run () =
       roundtrip (pipe (str "a") [binop "++" pipeTarget (str "b")]) ;
       roundtrip (pipe (str "a") [fn "String::append" [pipeTarget; str "b"]]) ;
       roundtrip aPipe ;
-      (* TODO: broken because of backspacing on binops *)
-      (* roundtrip (binop "+" (if' (int "5") (int "5") (int "5")) (int "5")) ; *)
+      roundtrip (binop "+" (if' (int "5") (int "5") (int "5")) (int "5")) ;
       roundtrip (partial "D" (constructor "d" [fn "k" []])) ;
       roundtrip (partial "D" (fn "X" [str "F"])) ;
       roundtrip (fn "HttpClient::post_v4" [str ""]) ;
