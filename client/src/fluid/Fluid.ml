@@ -3222,17 +3222,6 @@ let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
       (ast, s)
 
 
-let maybeOpenCmd (m : Types.model) : Types.modification =
-  Toplevel.selected m
-  |> Option.andThen ~f:(fun tl ->
-         TL.getAST tl
-         |> Option.andThen ~f:(getToken m.fluidState)
-         (* Do this for now to get type changes to compile*)
-         |> Option.map ~f:(fun ti ->
-                FluidCommandsShow (TL.id tl, T.tid ti.token)))
-  |> Option.withDefault ~default:NoChange
-
-
 let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
   if rangeBegin > rangeEnd
   then (rangeEnd, rangeBegin)
@@ -3294,6 +3283,32 @@ let getTopmostSelectionID startPos endPos ast : id option =
          then (Some curID, curDepth)
          else (topmostID, topmostDepth))
   |> Tuple2.first
+
+
+let getSelectedExprID (s : state) (ast : ast) : id option =
+  getOptionalSelectionRange s
+  |> Option.andThen ~f:(fun (startPos, endPos) ->
+         getTopmostSelectionID startPos endPos ast)
+
+
+let maybeOpenCmd (m : Types.model) : Types.modification =
+  let getExprIDOnCaret state tl ast =
+    match getToken state ast with
+    | Some ti ->
+        let id = T.tid ti.token in
+        if T.validID id then Some (TL.id tl, id) else None
+    | None ->
+        None
+  in
+  TL.selected m
+  |> Option.thenAlso ~f:TL.getAST
+  |> Option.andThen ~f:(fun (tl, ast) ->
+         let state = m.fluidState in
+         getSelectedExprID state ast
+         |> Option.map ~f:(fun id -> (TL.id tl, id))
+         |> Option.orElse (getExprIDOnCaret state tl ast))
+  |> Option.map ~f:(fun (tlid, id) -> FluidCommandsShow (tlid, id))
+  |> Option.withDefault ~default:NoChange
 
 
 let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
