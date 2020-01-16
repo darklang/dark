@@ -10,7 +10,7 @@ module TL = Toplevel
 
 let eToStructure = Printer.eToStructure
 
-let eToString = Printer.eToString
+let eToTestString = Printer.eToTestString
 
 let pToString = Printer.pToString
 
@@ -84,7 +84,7 @@ let run () =
       | EMatch (_, _, [(pat, _)]) ->
           pat
       | _ ->
-          failwith ("can't match: " ^ eToString newAST)
+          failwith ("can't match: " ^ eToTestString newAST)
     in
     if debug
     then (

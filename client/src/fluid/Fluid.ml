@@ -4548,7 +4548,7 @@ let getCopySelection (m : model) : clipboardContents =
         |> Option.map ~f:Clipboard.exprToClipboardContents
       in
       let text =
-        let asText = FluidPrinter.eToString ast in
+        let asText = FluidPrinter.eToHumanString ast in
         match range with
         | Some (from, to_) ->
             String.slice ~from ~to_ asText
@@ -4807,7 +4807,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                 [ Types.TweakModel (fun m -> TL.withAST m tlid newAST)
                 ; Toplevel.setSelectedAST m newAST
                 ; requestAnalysis
-                ; UpdateASTCache (tlid, Printer.eToString newAST) ]
+                ; UpdateASTCache (tlid, Printer.eToHumanString newAST) ]
             else Types.NoChange
           in
           Types.Many

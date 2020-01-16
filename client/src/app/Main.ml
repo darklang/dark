@@ -941,13 +941,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let hcache =
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
-                 let value = FluidPrinter.eToString h.ast in
+                 let value = FluidPrinter.eToHumanString h.ast in
                  cache |> TLIDDict.insert ~tlid:h.hTLID ~value)
         in
         let searchCache =
           userFunctions
           |> List.foldl ~init:hcache ~f:(fun f cache ->
-                 let value = FluidPrinter.eToString f.ufAST in
+                 let value = FluidPrinter.eToHumanString f.ufAST in
                  cache |> TLIDDict.insert ~tlid:f.ufTLID ~value)
         in
         ({m with searchCache}, Cmd.none)

@@ -39,7 +39,7 @@ let stop_on_fail : bool ref = ref false
 (* Debugging *)
 (* ------------------ *)
 
-let toText ast = FluidPrinter.eToString ast
+let toText ast = FluidPrinter.eToHumanString ast
 
 let pointerToText (p : blankOrData) : string = Pointer.toContent p
 

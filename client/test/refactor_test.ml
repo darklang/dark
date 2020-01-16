@@ -320,7 +320,7 @@ let run () =
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.id ast) "var" ast
-            |> FluidPrinter.eToString )
+            |> FluidPrinter.eToTestString )
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
           let expr = fn "Int::add" [var "b"; int "4"] in
@@ -328,7 +328,7 @@ let run () =
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.id expr) "var" ast
-            |> FluidPrinter.eToString )
+            |> FluidPrinter.eToTestString )
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
           let expr =
@@ -342,6 +342,6 @@ let run () =
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.id expr) "var" ast
-            |> FluidPrinter.eToString )
+            |> FluidPrinter.eToTestString )
           |> toEqual
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"))
