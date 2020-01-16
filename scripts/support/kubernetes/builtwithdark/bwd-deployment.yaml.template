@@ -24,10 +24,10 @@ spec:
           resources:
             requests:
               memory: "1000Mi"
-              cpu: "500m"
+              cpu: "250m"
             limits:
               memory: "1000Mi"
-              cpu: "500m"
+              cpu: "250m"
           ports:
             - name: bwd-ctr-port
               containerPort: 80
