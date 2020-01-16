@@ -118,7 +118,7 @@ let run () =
   in
   let insert ?(debug = false) (char : char) (pos : int) (pat : fluidPattern) :
       string * int =
-    let key = K.fromChar char in
+    let key = K.fromString (Char.toString char) in
     process ~debug [key] pos pat
   in
   let blank = "***" in
@@ -309,7 +309,7 @@ let run () =
   describe "Variables" (fun () ->
       t "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
       t "del middle of variable" aVar (del 5) ("variale", 5) ;
-      t "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
+      t "insert capital works" aVar (press (K.Letter "A") 5) ("variaAble", 6) ;
       t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
       t "del variable" aShortVar (del 0) (blank, 0) ;
       t "del long variable" aVar (del 0) ("ariable", 0) ;

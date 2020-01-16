@@ -1797,13 +1797,12 @@ let replacePartialWithArguments
 (* Binops (plus right partials) *)
 (* ---------------- *)
 
-let convertToBinOp (char : char option) (id : id) (ast : ast) : E.t =
-  match char with
+let convertToBinOp (str : string option) (id : id) (ast : ast) : E.t =
+  match str with
   | None ->
       ast
-  | Some c ->
-      E.update id ast ~f:(fun expr ->
-          ERightPartial (gid (), String.fromChar c, expr))
+  | Some s ->
+      E.update id ast ~f:(fun expr -> ERightPartial (gid (), s, expr))
 
 
 let deleteRightPartial (ti : T.tokenInfo) (ast : ast) : E.t * id =
@@ -3218,13 +3217,13 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
 
 
 let doInsert
-    ~pos (letter : char option) (ti : T.tokenInfo) (ast : ast) (s : state) :
+    ~pos (letter : string option) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   match letter with
   | None ->
       (ast, s)
   | Some letter ->
-      doInsert' ~pos (String.fromChar letter) ti ast s
+      doInsert' ~pos letter ti ast s
 
 
 let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
@@ -3326,7 +3325,7 @@ let getTopmostSelectionID startPos endPos ast : id option =
 let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     E.t * state =
   let pos = s.newPos in
-  let keyChar = K.toChar key in
+  let keyStr = K.toString key in
   let tokens = toTokens ast in
   (* These might be the same token *)
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos tokens in
@@ -3471,7 +3470,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when onEdge ->
         let ast, s = acEnter ti ast s K.Tab in
         getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
-        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
+        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyStr ti ast s)
         |> Option.withDefault ~default:(ast, s)
     | K.ShiftEnter, left, _ ->
         let doPipeline ast s =
@@ -3587,13 +3586,13 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Comma, L (TLambdaSymbol _, toTheLeft), _
     | K.Comma, L (TLambdaVar _, toTheLeft), _
       when onEdge ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     | K.Comma, _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
         (insertLambdaVar ~index id ~name:"" ast, s)
     | K.Comma, L (t, ti), _ ->
         if onEdge
         then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
-        else doInsert ~pos keyChar ti ast s
+        else doInsert ~pos keyStr ti ast s
     (* list-specific insertions *)
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
@@ -3612,7 +3611,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Period, L (TVariable _, toTheLeft), _
     | K.Period, L (TFieldName _, toTheLeft), _
       when onEdge ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     (***********)
     (* K.Enter *)
     (***********)
@@ -3807,39 +3806,37 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | _, L (TRightPartial _, toTheLeft), _
     | _, L (TBinOp _, toTheLeft), _
       when keyIsInfix ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     | _, _, R (TBlank _, toTheRight) when keyIsInfix ->
-        doInsert ~pos keyChar toTheRight ast s
+        doInsert ~pos keyStr toTheRight ast s
     | _, L (_, toTheLeft), _
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
-        ( convertToBinOp keyChar (T.tid toTheLeft.token) ast
+        ( convertToBinOp keyStr (T.tid toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     (*
      * Caret between empty record symbols {}
      * Adds new initial record row with the typed
      * value as the key (if value entered is valid),
      * then move caret to end of key *)
     | _, L (TRecordOpen id, _), R (TRecordClose _, _) ->
-      ( match keyChar with
-      | Some keyCharStr when Util.isIdentifierChar (String.fromChar keyCharStr)
-        ->
-          let letterSTr = String.fromChar keyCharStr in
-          let ast = addRecordRowAt ~letter:letterSTr 0 id ast in
+      ( match keyStr with
+      | Some keyStr when Util.isIdentifierChar keyStr ->
+          let ast = addRecordRowAt ~letter:keyStr 0 id ast in
           let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1 in
           (ast, s)
       | _ ->
           (ast, s) )
     | _, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
         (ast, s)
     | _, _, R (TRecordOpen _, _) ->
         (ast, s)
     | _, _, R (_, toTheRight) ->
-        doInsert ~pos keyChar toTheRight ast s
+        doInsert ~pos keyStr toTheRight ast s
     | _ ->
         (* Unknown *)
         (ast, report ("Unknown action: " ^ K.toName key) s)
@@ -3897,11 +3894,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * So if the new function _could_ be valid, don't commit. *)
       when key = K.Right || key = K.Left || keyIsInfix ->
         let shouldCommit =
-          match keyChar with
+          match keyStr with
           | None ->
               true
-          | Some keyChar ->
-              let newQueryString = str ^ String.fromChar keyChar in
+          | Some keyStr ->
+              let newQueryString = str ^ keyStr in
               s.ac.allCompletions
               |> List.filter ~f:(fun aci ->
                      String.contains ~substring:newQueryString (AC.asName aci))
@@ -4497,7 +4494,7 @@ let getStringIndex ti pos : int =
       recover "getting index of non-string" ~debug:(ti.token, pos) 0
 
 
-let pasteOverSelection ~state ~(ast : ast) data : E.t * caretTarget option =
+let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
   let ast, state = deleteSelection ~state ~ast in
   let mTi = getToken state ast in
   let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
@@ -4819,9 +4816,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.undo_redo m false
   | FluidKeyPress {key = K.Redo; _} ->
       KeyPress.undo_redo m true
-  | FluidKeyPress {key = K.Letter 'x'; altKey = true; _} ->
+  | FluidKeyPress {key = K.Letter "x"; altKey = true; _} ->
       maybeOpenCmd m
-  | FluidKeyPress {key = K.Letter 'k'; metaKey; ctrlKey; _}
+  | FluidKeyPress {key = K.Letter "k"; metaKey; ctrlKey; _}
     when metaKey || ctrlKey ->
       KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
