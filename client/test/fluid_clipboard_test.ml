@@ -34,7 +34,7 @@ let clipboardEvent () =
 
 let execute_roundtrip (ast : fluidExpr) =
   let ast = FluidExpression.clone ast in
-  let expectedString = Printer.eToString ast in
+  let expectedString = Printer.eToTestString ast in
   let pos = String.length expectedString in
   let e = clipboardEvent () in
   let mFor ast =
@@ -76,7 +76,7 @@ let run () =
       let data = DClipboard.getData e in
       data
       |> FluidClipboard.clipboardContentsToExpr
-      |> Option.map ~f:Printer.eToString
+      |> Option.map ~f:Printer.eToTestString
       |> Option.withDefault ~default:(Tuple2.first data)
     in
     let h = Fluid_utils.h ast in
@@ -107,7 +107,7 @@ let run () =
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "expr after" (Printer.eToStructure newAST) ;
       Js.log2 "clipboard after" (clipboardData e) ) ;
-    (Printer.eToString newAST, clipboardData e, finalPos)
+    (Printer.eToTestString newAST, clipboardData e, finalPos)
   in
   let copy ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
@@ -131,7 +131,7 @@ let run () =
     let e = clipboardEvent () in
     let text =
       if clipboardText = "sentinel value"
-      then FluidPrinter.eToString clipboard
+      then FluidPrinter.eToTestString clipboard
       else clipboardText
     in
     let data =
@@ -181,7 +181,7 @@ let run () =
     test
       ( name
       ^ " - `"
-      ^ ( Printer.eToString initial
+      ^ ( Printer.eToTestString initial
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
@@ -189,7 +189,7 @@ let run () =
   in
   let roundtrip ?(debug = false) (ast : fluidExpr) =
     let name = "roundtripping: " in
-    let expectedString = Printer.eToString ast in
+    let expectedString = Printer.eToTestString ast in
     test
       ( name
       ^ " - `"
@@ -198,7 +198,7 @@ let run () =
       (fun () ->
         if debug then Js.log2 "ast before" (Printer.eToStructure ast) ;
         let newAST = execute_roundtrip ast in
-        expect (Printer.eToString newAST) |> toEqual expectedString)
+        expect (Printer.eToTestString newAST) |> toEqual expectedString)
   in
   describe "Booleans" (fun () ->
       t

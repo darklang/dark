@@ -5,7 +5,7 @@ open Fluid_test_data
 module B = BlankOr
 module K = FluidKeyboard
 
-let eToString = Printer.eToString
+let toString = Printer.eToTestString
 
 let eToStructure = Printer.eToStructure
 
@@ -134,7 +134,7 @@ let process
     | expr when not wrap ->
         expr
     | expr ->
-        failwith ("the wrapper is broken: " ^ eToString expr)
+        failwith ("the wrapper is broken: " ^ toString expr)
   in
   let removeWrapperFromCaretPos (p : int) : int =
     let endPos = ref (p - wrapperOffset) in
@@ -176,7 +176,7 @@ let process
   then (
     Js.log2 "state after" (Fluid_utils.debugState newState) ;
     Js.log2 "expr after" (eToStructure ~includeIDs:true result) ) ;
-  ( (eToString result, (selPos, finalPos))
+  ( (toString result, (selPos, finalPos))
   , if partialsFound then ContainsPartial else NoPartial )
 
 
@@ -450,7 +450,7 @@ let t
   test
     ( name
     ^ " - `"
-    ^ (eToString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
+    ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
     (fun () ->
       expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial))
@@ -473,7 +473,7 @@ let tp
   test
     ( name
     ^ " - `"
-    ^ (eToString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
+    ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
     (fun () ->
       expect (fn initial |> insertCaret)
@@ -491,7 +491,7 @@ let ts
   test
     ( name
     ^ " - `"
-    ^ (eToString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
+    ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
     (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
 
