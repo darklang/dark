@@ -1835,6 +1835,8 @@ let route_host req =
       Some (Canvas "andymoe-talkpay")
   | ["www"; "kiksht"; "com"] | ["kiksht"; "com"] ->
       Some (Canvas "alex")
+  | ["rest"; "sankhe"; "com"] ->
+      Some (Canvas "vinayski")
   | ["food"; "placeofthin"; "gs"] ->
       Some (Canvas "scottriley-trellomap")
   (* admin interface + outer site, conditionally *)
