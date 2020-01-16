@@ -193,6 +193,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   in
   let nesting = ref 0 in
   let isCmdDrawn = ref false in
+  (* Only open the cmd palette for the first token that matches the exprID *)
   List.map vs.tokens ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
