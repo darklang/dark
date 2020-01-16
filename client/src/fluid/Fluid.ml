@@ -4506,101 +4506,21 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
    * only time it's useful to use the expr form is when the text might be
    * parsed as JSON. *)
   let text = Clipboard.clipboardContentsToString data in
-  let textLength = String.length text in
-  (* Word is when we want to paste into thing that only allow a single word,
-   * such as letlhs, etc. TODO: remove all disallowed characters *)
-  let word =
-    text
-    |> String.trim
-    |> String.split ~on:" "
-    |> List.head
-    |> Option.withDefault ~default:""
-  in
-  let wordLength = String.length word in
-  match (expr, mTi) with
-  | Some expr, Some ({startPos; _} as ti) ->
-      let insertInt str offset =
-        match (clipboardExpr, text) with
-        | Some (EString (_, text)), _ | Some (EInteger (_, text)), _ | _, text
-          ->
-            let intText =
-              FluidUtil.truncateStringTo63BitInt text
-              |> Result.withDefault ~default:""
-            in
-            ( String.insertAt ~insert:intText ~index:offset str
-            , offset + String.length intText )
-      in
-      let offset = state.newPos - startPos in
-      ( match (expr, clipboardExpr, ti) with
-      | EBlank id, Some cp, _ ->
-          (* Paste into a blank *)
-          let newAST = E.replace ~replacement:cp id ast in
-          (newAST, Some (caretTargetForLastPartOfExpr (E.id cp) newAST))
-      | EString (id, str), _, _ ->
-          (* Paste into a string *)
-          let index = getStringIndex ti state.newPos in
-          let replacement =
-            EString (id, String.insertAt ~insert:text ~index str)
-          in
-          ( E.replace ~replacement id ast
-          , Some {astRef = ARString (id, SPText); offset = index + textLength}
-          )
-      | EInteger (id, original), Some (EFloat (_, whole, fraction)), _ ->
-          (* Convert int to float *)
-          let newWhole = String.slice ~from:0 ~to_:offset original ^ whole in
-          let newFraction =
-            fraction
-            ^ String.slice ~from:offset ~to_:(String.length original) original
-          in
-          let replacement = EFloat (id, newWhole, newFraction) in
-          ( E.replace ~replacement id ast
-          , Some
-              {astRef = ARFloat (id, FPDecimal); offset = String.length fraction}
-          )
-      | EInteger (id, str), _, _ ->
-          let text, offset = insertInt str offset in
-          if text = str && text <> ""
-          then
-            let newString = String.insertAt ~insert:word ~index:offset str in
-            let offset = offset + String.length word in
-            let replacement = EPartial (id, newString, expr) in
-            (E.replace ~replacement id ast, Some {astRef = ARPartial id; offset})
-          else
-            let replacement = EInteger (id, text) in
-            (E.replace ~replacement id ast, Some {astRef = ARInteger id; offset})
-      | EFloat (id, whole, fraction), _, {token = TFloatFraction _; _} ->
-          let newFraction, offset = insertInt fraction offset in
-          let replacement = EFloat (id, whole, newFraction) in
-          ( E.replace ~replacement id ast
-          , Some {astRef = ARFloat (id, FPDecimal); offset} )
-      | EFloat (id, whole, fraction), _, {token = TFloatPoint _; _} ->
-          let newFraction, offset = insertInt fraction (offset - 1) in
-          let replacement = EFloat (id, whole, newFraction) in
-          ( E.replace ~replacement id ast
-          , Some {astRef = ARFloat (id, FPDecimal); offset} )
-      | EFloat (id, whole, fraction), _, {token = TFloatWhole _; _} ->
-          let newWhole, offset = insertInt whole offset in
-          let replacement = EFloat (id, newWhole, fraction) in
-          ( E.replace ~replacement id ast
-          , Some {astRef = ARFloat (id, FPWhole); offset} )
-      | ELet (id, lhs, rhs, body), _, {token = TLetLHS _; _} ->
-          let newLhs =
-            if lhs = ""
-            then word
-            else String.insertAt ~insert:word ~index:offset lhs
-          in
-          let replacement = ELet (id, newLhs, rhs, body) in
-          ( E.replace ~replacement id ast
-          , Some {astRef = ARLet (id, LPVarName); offset = offset + wordLength}
-          )
-      (* TODO: support pasting into other places that allow strings - match
-       * patterns, fn/constructor/binops names, record keys, field names *)
-      | _expr, Some _cp, _ ->
-          (ast, None)
-      | _expr, None, _ ->
-          (ast, None) )
+  match expr with
+  | Some expr ->
+    ( match (expr, clipboardExpr) with
+    | EBlank id, Some cp ->
+        (* Paste into a blank *)
+        let newAST = E.replace ~replacement:cp id ast in
+        let caretTarget = caretTargetForLastPartOfExpr (E.id cp) newAST in
+        (newAST, moveToCaretTarget state newAST caretTarget)
+    | _ ->
+        text
+        |> String.split ~on:""
+        |> List.foldl ~init:(ast, state) ~f:(fun str (newAST, s) ->
+               updateKey (K.Letter str) newAST s) )
   | _ ->
-      (ast, None)
+      recover "pasting over non-existant handler" (ast, state)
 
 
 (* match (clipboardExpr, expr, token) with *)
@@ -4728,12 +4648,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
-        let newAST, caretTarget = pasteOverSelection ~state:s ~ast data in
-        let state =
-          Option.map caretTarget ~f:(moveToCaretTarget s newAST)
-          |> Option.withDefault ~default:s
-        in
-        (newAST, updateAutocomplete m tlid newAST state)
+        let newAST, newState = pasteOverSelection ~state:s ~ast data in
+        (newAST, updateAutocomplete m tlid newAST newState)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
     | FluidKeyPress {key; shiftKey = true; altKey = _; ctrlKey = _; metaKey = _}
