@@ -3933,14 +3933,10 @@ let getCollapsedSelectionStart (s : fluidState) : int =
 
 
 let updateSelectionRange (s : fluidState) (newPos : int) : fluidState =
-  let startPos =
-    match s.selectionStart with
-    | Some _ ->
-        s.selectionStart
-    | None ->
-        Some s.newPos
-  in
-  {s with newPos; selectionStart = startPos}
+  { s with
+    newPos
+  ; selectionStart =
+      Some (s.selectionStart |> Option.withDefault ~default:s.newPos) }
 
 
 let getOptionalSelectionRange (s : fluidState) : (int * int) option =
