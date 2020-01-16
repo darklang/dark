@@ -1613,6 +1613,8 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : E.t =
             if str = "" then E.newB () else EPartial (gid (), str, oldVal))
 
 
+(* deleteBinOp' looks at the expr to the left(lhs)andright(rhs)side of a binop to figure out 
+ * what to do when the binop is deleted instead of just deleting the entire rhs *)
 let rec deleteBinOp'
     (lhs : fluidExpr)
     (rhs : fluidExpr)

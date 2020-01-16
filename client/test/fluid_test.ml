@@ -1777,44 +1777,50 @@ let run () =
         "false~ || true" ;
       t
         "pressing bs on ++ binop before blank deletes blank but rest of the lhs"
-        (binop "+" anInt (binop "+" anInt (binop "+" b anInt)))
-        (bs 15)
-        "12345 + 12345~ + 12345" ;
+        (binop "+" (int "10") (binop "*" (int "5") (binop "+" b (int "10"))))
+        (bs 8)
+        "10 + 5~ + 10" ;
       t
         "pressing bs on ++ binop after blank deletes blank but rest of the lhs"
-        (binop "+" anInt (binop "+" anInt (binop "+" b anInt)))
-        (bs 27)
-        "12345 + 12345 + ~12345" ;
+        (binop "+" (int "20") (binop "*" (int "1") (binop "+" b (int "5"))))
+        (bs 20)
+        "20 + 1 * ~5" ;
       t
         "pressing bs on < binop before blank deletes blank but rest of the lhs"
-        (binop "<" anInt (binop "<" b anInt))
-        (bs 7)
-        "12345~ < 12345" ;
+        (binop "<" (int "20") (binop "<" b (int "50")))
+        (bs 4)
+        "20~ < 50" ;
       t
         "pressing bs on < binop after blank deletes blank but rest of the lhs"
-        (binop "<" anInt (binop "<" b anInt))
-        (bs 19)
-        "12345 < ~12345" ;
+        (binop "<" (int "25") (binop "<" b (int "50")))
+        (bs 16)
+        "25 < ~50" ;
       t
         "pressing bs on - binop before blank deletes blank but rest of the lhs"
-        (binop "-" anInt (binop "-" anInt (binop "-" b anInt)))
-        (bs 15)
-        "12345 - 12345~ - 12345" ;
+        (binop "-" (int "200") (binop "-" (int "5") (binop "*" b (int "24"))))
+        (bs 9)
+        "200 - 5~ * 24" ;
       t
         "pressing bs on - binop after blank deletes blank but rest of the lhs"
-        (binop "-" anInt (binop "-" anInt (binop "-" b anInt)))
-        (bs 21)
-        "12345 - 12345 - ~12345" ;
+        (binop "-" (int "200") (binop "-" (int "5") (binop "*" b (int "24"))))
+        (bs 15)
+        "200 - 5 - ~24" ;
       t
         "pressing bs on != binop before blank deletes blank but rest of the lhs"
-        (binop "!=" anInt (binop "!=" anInt (binop "!=" b anInt)))
-        (keys [K.Backspace; K.Backspace] 17)
-        "12345 != 12345~ != 12345" ;
+        (binop
+           "!="
+           (int "54321")
+           (binop "!=" (int "21") (binop "!=" b (int "5"))))
+        (keys [K.Backspace; K.Backspace] 14)
+        "54321 != 21~ != 5" ;
       t
         "pressing bs on != binop after blank deletes blank but rest of the lhs"
-        (binop "!=" anInt (binop "!=" anInt (binop "!=" b anInt)))
-        (keys [K.Backspace; K.Backspace] 24)
-        "12345 != 12345 != ~12345" ;
+        (binop
+           "!="
+           (int "54321")
+           (binop "!=" (int "21") (binop "!=" b (int "5"))))
+        (keys [K.Backspace; K.Backspace] 21)
+        "54321 != 21 != ~5" ;
       t
         "pressing bs on != binop combines lhs and rhs string"
         (binop "!=" (str "One") (binop "!=" (str "Two") (str "Three")))
