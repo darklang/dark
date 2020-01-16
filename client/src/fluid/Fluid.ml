@@ -1613,23 +1613,67 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : E.t =
             if str = "" then E.newB () else EPartial (gid (), str, oldVal))
 
 
+(* deleteBinOp' looks at the expr to the left(lhs)andright(rhs)side of a binop to figure out 
+ * what to do when the binop is deleted instead of just deleting the entire rhs *)
+let rec deleteBinOp'
+    (lhs : fluidExpr)
+    (rhs : fluidExpr)
+    (ti : T.tokenInfo)
+    (ast : ast)
+    (s : state) : fluidExpr * state =
+  match (lhs, rhs) with
+  | _, EBinOp (b, n, lhs2, rhs2, rail) ->
+      let newExpr, newState = deleteBinOp' lhs lhs2 ti ast s in
+      (EBinOp (b, n, newExpr, rhs2, rail), newState)
+  | EInteger (id, lhsVal), EInteger (_, rhsVal) ->
+      (EInteger (id, lhsVal ^ rhsVal), moveTo (ti.startPos - 1) s)
+  | EString (id, lhsVal), EString (_, rhsVal) ->
+      (EString (id, lhsVal ^ rhsVal), moveTo (ti.startPos - 2) s)
+  | EBlank _, EBlank _ ->
+      ( lhs
+      , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
+      )
+  | _, EBlank _ ->
+      ( lhs
+      , moveToCaretTarget s ast (caretTargetForLastPartOfExpr (E.id lhs) ast) )
+  | EBlank _, _ ->
+      ( rhs
+      , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
+      )
+  | _ ->
+      (lhs, moveToEndOfTarget (E.id lhs) ast s)
+
+
+let deleteBinOp (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
+  let newState = ref (fun (_ : E.t) -> s) in
+  let ast =
+    E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
+        match e with
+        | EBinOp (_, _, EPipeTarget _, rhs, _) ->
+            (newState := fun ast -> moveToEndOfTarget (E.id rhs) ast s) ;
+            rhs
+        | EBinOp (_, _, lhs, rhs, _) ->
+            let newExpr, newS = deleteBinOp' lhs rhs ti ast s in
+            (newState := fun _ -> newS) ;
+            newExpr
+        | _ ->
+            recover "not a binop in deleteBinOp" ~debug:e e)
+  in
+  (ast, !newState ast)
+
+
 let deletePartial (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
   let newState = ref (fun (_ : E.t) -> s) in
   let ast =
     E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
-        | EPartial
-            ( _
-            , _
-            , EBinOp (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _) )
-          ->
-            (newState := fun _ -> moveTo (ti.startPos - 2) s) ;
-            EString (lhsID, lhsStr ^ rhsStr)
-        | EPartial (_, _, EBinOp (_, _, EPipeTarget _, expr, _))
-        | EPartial (_, _, EBinOp (_, _, expr, _, _)) ->
-            (* Note similar code in deleteBinOp *)
-            (newState := fun ast -> moveToEndOfTarget (E.id expr) ast s) ;
-            expr
+        | EPartial (_, _, EBinOp (_, _, EPipeTarget _, rhs, _)) ->
+            (newState := fun ast -> moveToEndOfTarget (E.id rhs) ast s) ;
+            rhs
+        | EPartial (_, _, EBinOp (_, _, lhs, rhs, _)) ->
+            let newExpr, newS = deleteBinOp' lhs rhs ti ast s in
+            (newState := fun _ -> newS) ;
+            newExpr
         | EPartial (_, _, _) ->
             let b = E.newB () in
             (newState := fun ast -> moveToEndOfTarget (E.id b) ast s) ;
@@ -1791,21 +1835,6 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : E.t =
             ERightPartial (id, str, oldVal)
         | oldVal ->
             ERightPartial (gid (), str, oldVal))
-
-
-let deleteBinOp (ti : T.tokenInfo) (ast : ast) : E.t * id =
-  (* Note similar code in deletePartial *)
-  let id = ref T.fakeid in
-  let ast =
-    E.update (T.tid ti.token) ast ~f:(fun e ->
-        match e with
-        | EBinOp (_, _, EPipeTarget _, expr, _) | EBinOp (_, _, expr, _, _) ->
-            id := E.id expr ;
-            expr
-        | _ ->
-            recover "not a binop in deleteBinOp" ~debug:e e)
-  in
-  (ast, !id)
 
 
 (* ---------------- *)
@@ -2719,8 +2748,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         let newAST, newState = deletePartial ti ast s in
         (newAST, Exactly newState.newPos)
     | TBinOp (_, str) when String.length str = 1 ->
-        let ast, targetID = deleteBinOp ti ast in
-        (ast, MoveToTokenEnd (targetID, 0))
+        let ast, newState = deleteBinOp ti ast s in
+        (ast, Exactly newState.newPos)
     | TStringMLEnd (id, thisStr, strOffset, _)
       when String.length thisStr = 1 && offset = strOffset ->
         let f str = Util.removeCharAt str offset in
@@ -2884,8 +2913,8 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   | TPartial (_, str) when String.length str = 1 ->
       deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
-      let ast, targetID = deleteBinOp ti ast in
-      (ast, moveToEndOfTarget targetID ast s)
+      let ast, newState = deleteBinOp ti ast s in
+      (ast, newState)
   | TInteger (id, _) ->
       let ast, maybeTarget =
         tryReplaceStringAndMove ~f ti.token ast {astRef = ARInteger id; offset}
