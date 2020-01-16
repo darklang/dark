@@ -199,7 +199,7 @@ jobs:
             - v1d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
             - v1d-client-{{ checksum "client/yarn.lock" }}
             - v1d-client
-      - run: scripts/support/compile --test client/package.json client/src/styles/app.scss 
+      - run: scripts/support/compile --test client/package.json client/src/styles/app.scss
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
       - show-large-files-and-directories
@@ -221,7 +221,7 @@ jobs:
       - store_test_results: { path: rundir/test_results }
 
   build-backend:
-    executor: in-container
+    executor: in-rust-container
     steps:
       - checkout
       - setup-app
