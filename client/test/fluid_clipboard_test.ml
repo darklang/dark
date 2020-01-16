@@ -290,30 +290,20 @@ let run () =
         (pasteBoth ~clipboard:("1234", int "1234") (1, 3))
         ("512348", "1234", 5) ;
       t
-        "pasting a float' into an integer should convert to float"
+        "pasting a float into an integer should convert to float"
         (int "5678")
         (pasteBoth ~clipboard:("12.34", float' "12" "34") (1, 3))
         ("512.348", "12.34", 6) ;
       t
-        "pasting a float' into an integer should convert to float 2"
+        "pasting a float into an integer should convert to float 2"
         (int "5678")
         (pasteBoth ~clipboard:("12.34", float' "12" "34") (0, 0))
         ("12.345678", "12.34", 5) ;
       t
-        "pasting a float' into an integer should convert to float 3"
+        "pasting a float into an integer should convert to float 3"
         (int "5678")
         (pasteBoth ~clipboard:("12.34", float' "12" "34") (4, 4))
         ("567812.34", "12.34", 9) ;
-      t
-        "pasting a var into an integer should convert to parital"
-        (int "5678")
-        (pasteBoth ~clipboard:("myVar", var "myVar") (0, 0))
-        ("myVar5678", "myVar", 5) ;
-      t
-        "pasting a var into an integer should convert to parital 2"
-        (int "5678")
-        (pasteBoth ~clipboard:("myVar", var "myVar") (1, 1))
-        ("5myVar678", "myVar", 6) ;
       t
         "pasting an int-only string into an integer should extend integer"
         (int "5678")
