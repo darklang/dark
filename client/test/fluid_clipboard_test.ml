@@ -904,10 +904,8 @@ let run () =
       in
       roundtrip b ;
       roundtrip (int "6") ;
-      (* TODO: broken. These are broken because they are copied as strings
-       * without quotes, and then parsed as JSON. *)
-      (* roundtrip (str ("[1 , 5]")) ; *)
-      (* roundtrip (str ("12345678987654321.12345678987654321")) ; *)
+      roundtrip (str "[1 , 5]") ;
+      roundtrip (str "12345678987654321.12345678987654321") ;
       roundtrip (pipe (str "a") [binop "++" pipeTarget (str "b")]) ;
       roundtrip (pipe (str "a") [fn "String::append" [pipeTarget; str "b"]]) ;
       roundtrip aPipe ;
