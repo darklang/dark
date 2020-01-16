@@ -314,6 +314,7 @@ def mark(should, f):
 
   elif ("backend/" in f) \
           and ((".mli" in f) \
+                  or (".rs" in f) \
                   or (".ml" in f) \
                   or ("dune" in f) \
                   or ("_tags" in f) \
