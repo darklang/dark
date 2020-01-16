@@ -711,23 +711,21 @@ let run () =
         , 27 ) ;
       ()) ;
   describe "Bin-ops" (fun () ->
-      (* NOT WORKING YET
       t
         "copying a single-char operator works"
         (binop "<" (int "123") (int "456"))
-        (copy (6, 7))
-        ("123 < 456", "_________ < _________", 4) ;
+        (copy (4, 5))
+        ("123 < 456", "_________ < _________", 5) ;
       t
         "copying a multi-char operator works"
         (binop "==" (int "123") (int "456"))
         (copy (4, 6))
-        ("123 == 456", "_________ == _________", 4) ;
+        ("123 == 456", "_________ == _________", 6) ;
       t
         "copying part of a multi-char operator works"
         (binop "==" (int "123") (int "456"))
         (copy (4, 5))
-        ("123 == 456", "_________ =@ _________", 4) ;
- *)
+        ("123 == 456", "_________ =@ _________", 5) ;
       ()) ;
   describe "Functions" (fun () ->
       t
