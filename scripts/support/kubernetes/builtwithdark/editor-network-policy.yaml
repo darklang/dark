@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: editor-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: editor-app
+  policyTypes:
+  - Egress
+  - Ingress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        # make sure to block link-local addresses,
+        # since there's sensitive data in http://metadata
+        - 169.254.0.0/16
+  ingress:
+    - ports:
+      - protocol: TCP
+        port: 8000
