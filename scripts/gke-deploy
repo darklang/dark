@@ -215,6 +215,12 @@ sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
   scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml.template > scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
 
+sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  scripts/support/kubernetes/builtwithdark/editor-deployment.yaml.template > scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
+
 sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
@@ -244,9 +250,11 @@ sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
 kubectl apply -f scripts/support/kubernetes/cronchecker/cron-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/cronchecker/cc-network-policy.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
+kubectl apply -f scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-ingress.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-nodeport.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-network-policy.yaml
+kubectl apply -f scripts/support/kubernetes/builtwithdark/editor-network-policy.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/darklang-nodeport.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/darklang-ingress.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/honeycomb.yaml

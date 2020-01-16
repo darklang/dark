@@ -1,19 +1,19 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: bwd-deployment
+  name: editor-deployment
   annotations:
     kubernetes.io/change-cause: {CHANGE_CAUSE}
 spec:
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: bwd-app
+      app: editor-app
   replicas: 72
   template:
     metadata:
       labels:
-        app: bwd-app
+        app: editor-app
     spec:
       containers:
         - name: bwd-ctr
