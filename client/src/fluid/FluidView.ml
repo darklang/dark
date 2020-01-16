@@ -518,9 +518,7 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
         [ Html.text
             ( K.toName s.lastKey
             ^ ", "
-            ^ ( K.toChar s.lastKey
-              |> Option.map ~f:String.fromChar
-              |> Option.withDefault ~default:"" ) ) ]
+            ^ (K.toString s.lastKey |> Option.withDefault ~default:"") ) ]
     ; dtText "selection"
     ; Html.dd
         []

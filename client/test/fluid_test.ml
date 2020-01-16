@@ -420,7 +420,7 @@ let ins
     (char : char)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  let key = K.fromChar char in
+  let key = K.fromString (Char.toString char) in
   process
     ~wrap
     ~debug
@@ -1396,17 +1396,17 @@ let run () =
       t
         "renaming a function maintains unaligned params in let scope"
         (partial "Int::" (fn "Int::add" [five; six]))
-        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (keys [K.Letter "s"; K.Letter "q"; K.Enter] 5)
         "let b = 6\n~Int::sqrt 5" ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
         (partial "Int::" (fn "Int::add" [var "a"; var "b"]))
-        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (keys [K.Letter "s"; K.Letter "q"; K.Enter] 5)
         "Int::sqrt ~a" ;
       t
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
         (partial "Int::" (fn "Int::add" [b; b]))
-        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (keys [K.Letter "s"; K.Letter "q"; K.Enter] 5)
         "Int::sqrt ~_________" ;
       (* TODO: functions are not implemented fully. I deld bs and
        * del because we were switching to partials, but this isn't
@@ -1446,7 +1446,7 @@ let run () =
       t
         "adding function with version goes to the right place"
         b
-        (keys [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
+        (keys [K.Letter "d"; K.Letter "b"; K.Enter] 0)
         "DB::getAllv1 ~___________________" ;
       t
         "backspacing a fn arg's separator goes to the right place"
@@ -1674,7 +1674,7 @@ let run () =
       t
         "pressing letters and numbers on a partial completes it"
         b
-        (keys [K.Number '5'; K.Plus; K.Number '5'] 0)
+        (keys [K.Number "5"; K.Plus; K.Number "5"] 0)
         "5 + 5~" ;
       tp
         "pressing pipe while editing a partial works properly"
@@ -1948,7 +1948,7 @@ let run () =
       t
         "creating lambda in block placeholder should set arguments"
         aFnCallWithBlockArg
-        (key (K.Letter '\\') 24)
+        (key (K.Letter "\\") 24)
         "Dict::map _____________ \\~key, value -> ___" ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe"
@@ -1956,7 +1956,7 @@ let run () =
         (keys
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the pipe *)
-           [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
+           [K.Letter "m"; K.Letter "a"; K.Letter "p"; K.Enter; K.Letter "\\"]
            6)
         "___\n|>Dict::map \\~key, value -> ___\n" ;
       t
@@ -2033,7 +2033,7 @@ let run () =
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (ins 'c' 5) "variac~ble" ;
       tp "del middle of variable" aVar (del 5) "varia~le" ;
-      tp "insert capital works" aVar (key (K.Letter 'A') 5) "variaA~ble" ;
+      tp "insert capital works" aVar (key (K.Letter "A") 5) "variaA~ble" ;
       t "can't insert invalid" aVar (key K.Dollar 5) "varia~ble" ;
       t "del variable" aShortVar (del 0) "~___" ;
       tp "del long variable" aVar (del 0) "~ariable" ;
@@ -2044,7 +2044,7 @@ let run () =
       t
         "variable doesn't override if"
         (let' "i" b (partial "i" b))
-        (keys [K.Letter 'f'; K.Enter] 13)
+        (keys [K.Letter "f"; K.Enter] 13)
         "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "ctrl+left from beg of variable doesnt move"
@@ -2275,7 +2275,7 @@ let run () =
       t
         "equals skips over assignment"
         emptyLet
-        (keys [K.Letter 'c'; K.Equals] 4)
+        (keys [K.Letter "c"; K.Equals] 4)
         "let c = ~___\n5" ;
       t
         "equals skips over assignment 1"
@@ -3042,18 +3042,18 @@ let run () =
       t
         "autocomplete space moves forward by 1"
         aBinOp
-        (keys [K.Letter 'r'; K.Space] 0)
+        (keys [K.Letter "r"; K.Space] 0)
         "request ~== _________" ;
       t
         "autocomplete enter moves to end of value"
         aBinOp
-        (keys [K.Letter 'r'; K.Enter] 0)
+        (keys [K.Letter "r"; K.Enter] 0)
         "request~ == _________" ;
       t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
       t
         "autocomplete tab moves to next blank"
         aBinOp
-        (keys [K.Letter 'r'; K.Tab] 0)
+        (keys [K.Letter "r"; K.Tab] 0)
         "request == ~_________" ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
@@ -3084,27 +3084,27 @@ let run () =
       t
         "pipe moves to right place on blank"
         b
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 2)
+        (keys [K.Letter "|"; K.Letter ">"; K.Enter] 2)
         "___\n|>~___\n" ;
       t
         "pipe moves to right place on placeholder"
         aFnCall
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 11)
+        (keys [K.Letter "|"; K.Letter ">"; K.Enter] 11)
         "Int::add 5 _________\n|>~___\n" ;
       t
         "pipe moves to right place in if then"
         emptyIf
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 14)
+        (keys [K.Letter "|"; K.Letter ">"; K.Enter] 14)
         "if ___\nthen\n  ___\n  |>~___\nelse\n  ___" ;
       t
         "pipe moves to right place in lambda body"
         aLambda
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 8)
+        (keys [K.Letter "|"; K.Letter ">"; K.Enter] 8)
         "\\*** -> ___\n        |>~___\n" ;
       t
         "pipe moves to right place in match body"
         emptyMatch
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 19)
+        (keys [K.Letter "|"; K.Letter ">"; K.Enter] 19)
         "match ___\n  *** -> ___\n         |>~___\n" ;
       t
         "shift enter autocompletes and creates pipe"
@@ -3151,7 +3151,7 @@ let run () =
       t
         "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
         (let' "request" (int "5") (EVariable (ID "fake-acdata2", "request")))
-        (keys [K.Period; K.Letter 't'; K.Enter] ~clone:false 23)
+        (keys [K.Period; K.Letter "t"; K.Enter] ~clone:false 23)
         "let request = 5\nrequest.title~" ;
       t
         "autocomplete for field autocommits"
@@ -3368,7 +3368,7 @@ let run () =
           expect
             (let ast = b in
              moveTo 0 s
-             |> (fun s -> updateKey (K.Letter 'r') ast s)
+             |> (fun s -> updateKey (K.Letter "r") ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
              |> fun (_, s) -> s.ac.index)
           |> toEqual None) ;
@@ -3376,7 +3376,7 @@ let run () =
           expect
             (let ast = b in
              moveTo 0 s
-             |> (fun s -> updateKey (K.Letter 'r') ast s)
+             |> (fun s -> updateKey (K.Letter "r") ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
              |> fun (_, s) -> s.ac.index)
           |> toEqual None) ;
@@ -3574,7 +3574,7 @@ let run () =
       t
         "shift tab completes autocomplete"
         completelyEmptyLet
-        (keys [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
+        (keys [K.Letter "i"; K.Letter "f"; K.ShiftTab] 14)
         "let *** = ~___\nif ___\nthen\n  ___\nelse\n  ___" ;
       t
         "shift-tab goes when on blank"
@@ -3641,6 +3641,6 @@ let run () =
   tp
     "typing and then deleting an unsupported char after an escape leaves us with a partial with the caret in the right place"
     aStrEscape
-    (keys [K.Letter 'f'; K.Backspace] 3)
+    (keys [K.Letter "f"; K.Backspace] 3)
     "so\\~me string" ;
   ()

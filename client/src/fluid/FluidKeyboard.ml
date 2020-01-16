@@ -47,8 +47,8 @@ type key =
   | GreaterThan
   | QuestionMark
   | At
-  | Letter of char
-  | Number of char
+  | Letter of string
+  | Number of string
   | LeftSquareBracket
   | RightSquareBracket
   | Backslash
@@ -116,78 +116,78 @@ and side =
   | RightHand
 [@@deriving show]
 
-let toChar key : char option =
+let toString key : string option =
   match key with
   | Space ->
-      Some ' '
+      Some " "
   | ExclamationMark ->
-      Some '!'
+      Some "!"
   | DoubleQuote ->
-      Some '"'
+      Some "\""
   | Hash ->
-      Some '#'
+      Some "#"
   | Dollar ->
-      Some '$'
+      Some "$"
   | Percent ->
-      Some '%'
+      Some "%"
   | Ampersand ->
-      Some '&'
+      Some "&"
   | SingleQuote ->
-      Some '\''
+      Some "'"
   | LeftParens ->
-      Some '('
+      Some "("
   | RightParens ->
-      Some ')'
+      Some ")"
   | Multiply ->
-      Some '*'
+      Some "*"
   | Plus ->
-      Some '+'
+      Some "+"
   | Comma ->
-      Some ','
+      Some ","
   | Minus ->
-      Some '-'
+      Some "-"
   | Period ->
-      Some '.'
+      Some "."
   | ForwardSlash ->
-      Some '/'
+      Some "/"
   | Colon ->
-      Some ':'
+      Some ":"
   | SemiColon ->
-      Some ';'
+      Some ";"
   | LessThan ->
-      Some '<'
+      Some "<"
   | Equals ->
-      Some '='
+      Some "="
   | GreaterThan ->
-      Some '>'
+      Some ">"
   | QuestionMark ->
-      Some '?'
+      Some "?"
   | At ->
-      Some '@'
+      Some "@"
   | Letter l ->
       Some l
   | Number n ->
       Some n
   | LeftSquareBracket ->
-      Some '['
+      Some "["
   | RightSquareBracket ->
-      Some ']'
+      Some "]"
   | Backslash ->
-      Some '\\'
+      Some "\\"
   | Caret ->
-      Some '^'
+      Some "^"
   | Underscore ->
-      Some '_'
+      Some "_"
   | Backtick ->
-      Some '`'
+      Some "`"
   | LeftCurlyBrace ->
-      Some '{'
+      Some "{"
   | Pipe ->
-      Some '|'
+      Some "|"
   | RightCurlyBrace ->
-      Some '}'
+      Some "}"
   | Tilde ->
-      Some '~'
+      Some "~"
   | Left
   | Right
   | Up
@@ -242,80 +242,129 @@ let toChar key : char option =
 
 let toName = show_key
 
-let fromChar (c : char) : key =
-  match c with
-  | ' ' ->
+let fromString (s : string) : key =
+  match s with
+  | " " ->
       Space
-  | '`' ->
+  | "`" ->
       Backtick
-  | '~' ->
+  | "~" ->
       Tilde
-  | '!' ->
+  | "!" ->
       ExclamationMark
-  | '"' ->
+  | "\"" ->
       DoubleQuote
-  | '#' ->
+  | "#" ->
       Hash
-  | '$' ->
+  | "$" ->
       Dollar
-  | '%' ->
+  | "%" ->
       Percent
-  | '^' ->
+  | "^" ->
       Caret
-  | '&' ->
+  | "&" ->
       Ampersand
-  | '\'' ->
+  | "'" ->
       SingleQuote
-  | '(' ->
+  | "(" ->
       LeftParens
-  | ')' ->
+  | ")" ->
       RightParens
-  | '*' ->
+  | "*" ->
       Multiply
-  | '+' ->
+  | "+" ->
       Plus
-  | ',' ->
+  | "," ->
       Comma
-  | '-' ->
+  | "-" ->
       Minus
-  | '_' ->
+  | "_" ->
       Underscore
-  | '.' ->
+  | "." ->
       Period
-  | '/' ->
+  | "/" ->
       ForwardSlash
-  | '\\' ->
+  | "\\" ->
       Backslash
-  | '|' ->
+  | "|" ->
       Pipe
-  | ':' ->
+  | ":" ->
       Colon
-  | ';' ->
+  | ";" ->
       SemiColon
-  | '[' ->
+  | "[" ->
       LeftSquareBracket
-  | ']' ->
+  | "]" ->
       RightSquareBracket
-  | '{' ->
+  | "{" ->
       LeftCurlyBrace
-  | '}' ->
+  | "}" ->
       RightCurlyBrace
-  | '<' ->
+  | "<" ->
       LessThan
-  | '=' ->
+  | "=" ->
       Equals
-  | '>' ->
+  | ">" ->
       GreaterThan
-  | '?' ->
+  | "?" ->
       QuestionMark
-  | '@' ->
+  | "@" ->
       At
-  | '0' .. '9' ->
-      Number c
-  | 'A' .. 'Z' | 'a' .. 'z' ->
-      Letter c
+  | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ->
+      Number s
+  | "A"
+  | "B"
+  | "C"
+  | "D"
+  | "E"
+  | "F"
+  | "G"
+  | "H"
+  | "I"
+  | "J"
+  | "K"
+  | "L"
+  | "M"
+  | "N"
+  | "O"
+  | "P"
+  | "Q"
+  | "R"
+  | "S"
+  | "T"
+  | "U"
+  | "V"
+  | "X"
+  | "Y"
+  | "Z"
+  | "a"
+  | "b"
+  | "c"
+  | "d"
+  | "e"
+  | "f"
+  | "g"
+  | "h"
+  | "i"
+  | "j"
+  | "k"
+  | "l"
+  | "m"
+  | "n"
+  | "o"
+  | "p"
+  | "q"
+  | "r"
+  | "s"
+  | "t"
+  | "u"
+  | "v"
+  | "x"
+  | "y"
+  | "z" ->
+      Letter s
   | _ ->
-      Unknown (String.fromChar c)
+      Unknown s
 
 
 let fromKeyboardEvent
@@ -444,12 +493,7 @@ let fromKeyboardEvent
    * points to the fact that it may be easier to do shortcuts with Cmd/Ctrl
    * instead of Alt. *)
   | _ when String.length key = 1 ->
-      if key = {js|≈|js}
-      then Letter 'x'
-      else
-        Char.fromString key
-        |> Option.map ~f:fromChar
-        |> Option.withDefault ~default:(Unknown key)
+      if key = {js|≈|js} then Letter "x" else Unknown key
   | _ ->
       Unknown key
 
