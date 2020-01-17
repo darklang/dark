@@ -2940,14 +2940,49 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    ( Pat (FPVariable (mID, newID, str))
                    , { astRef = ARPattern (newID, PPVariable)
                      ; offset = currOffset - 1 } )
-              | ARPattern (_, PPBool), FPBool (mID, _, bool) ->
-                let str = if bool then "true" else "false" in
-                let newStr = mutation str in
-                let newID = gid () in
-                Some
+             | ARPattern (_, PPBool), FPBool (mID, _, bool) ->
+                 let str = if bool then "true" else "false" in
+                 let newStr = mutation str in
+                 let newID = gid () in
+                 Some
                    ( Pat (FPVariable (mID, newID, newStr))
                    , { astRef = ARPattern (newID, PPVariable)
                      ; offset = currOffset - 1 } )
+             | ARPattern (_, PPInteger), FPInteger (mID, pID, intStr) ->
+                 let str = mutation intStr in
+                 if str = ""
+                    (* XXX(JULIAN): Why does the ID stay the same here? *)
+                 then
+                   Some
+                     ( Pat (FPBlank (mID, pID))
+                     , {astRef = ARPattern (pID, PPBlank); offset = 0} )
+                 else
+                   let coerced = Util.coerceStringTo63BitInt str in
+                   if coerced = intStr
+                   then None
+                   else
+                     Some
+                       (Pat (FPInteger (mID, pID, coerced)), desiredCaretTarget)
+             | ARPattern (_, PPFloat FPWhole), FPFloat (mID, pID, whole, frac)
+               ->
+                 Some
+                   ( Pat (FPFloat (mID, pID, mutation whole, frac))
+                   , desiredCaretTarget )
+             | ARPattern (_, PPFloat FPPoint), FPFloat (mID, _, whole, frac) ->
+                 (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
+                it should become a blank. Instead, it currently becomes a 0, which is weird.
+                Leaving it for later because it matches current behavior *)
+                 let i = Util.coerceStringTo63BitInt (whole ^ frac) in
+                 let iID = gid () in
+                 Some
+                   ( Pat (FPInteger (mID, iID, i))
+                   , { astRef = ARPattern (iID, PPInteger)
+                     ; offset = String.length whole } )
+             | ( ARPattern (_, PPFloat FPFractional)
+               , FPFloat (mID, pID, whole, frac) ) ->
+                 Some
+                   ( Pat (FPFloat (mID, pID, whole, mutation frac))
+                   , desiredCaretTarget )
              (*
               Strings
              *)
@@ -2985,6 +3020,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              | ARInteger _, EInteger (id, intStr) ->
                  let str = mutation intStr in
                  if str = ""
+                    (* XXX(JULIAN): Why does the ID stay the same here? *)
                  then Some (Expr (EBlank id), {astRef = ARBlank id; offset = 0})
                  else
                    let coerced = Util.coerceStringTo63BitInt str in
@@ -3496,8 +3532,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (newAst, AtTarget (caretTargetForLastPartOfExpr lhsId newAst)) *)
     (* | TFloatPoint id ->
         (removePointFromFloat id ast, LeftOne) *)
-    | TPatternFloatPoint (mID, id, _) ->
-        (removePatternPointFromFloat mID id ast, LeftOne)
+    (*     | TPatternFloatPoint (mID, id, _) ->
+        (removePatternPointFromFloat mID id ast, LeftOne) *)
     (* | TConstructorName (id, str) *)
     (* str is the partialName: *)
     (* | TFnName (id, str, _, _, _) *)
@@ -3542,7 +3578,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (* | TFieldName _ *)
     (* | TFieldPartial _ *)
     (*     | TLetLHS _ *)
-    | TPatternInteger _
+    (* | TPatternInteger _ *)
     (* | TPatternNullToken _ *)
     | TPatternVariable _
     (* | TRightPartial _
@@ -3551,12 +3587,12 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (* | TLambdaVar _ *) ->
         let f str = Util.removeCharAt str offset in
         (replaceStringToken ~f ti.token ast, LeftOne)
-    | TPatternFloatWhole (mID, id, str, _) ->
+    (*     | TPatternFloatWhole (mID, id, str, _) ->
         let str = Util.removeCharAt str offset in
         (replacePatternFloatWhole str mID id ast, LeftOne)
     | TPatternFloatFractional (mID, id, str, _) ->
         let str = Util.removeCharAt str offset in
-        (replacePatternFloatFraction str mID id ast, LeftOne)
+        (replacePatternFloatFraction str mID id ast, LeftOne) *)
     (*     | TFloatWhole (id, str) ->
         let str = Util.removeCharAt str offset in
         (replaceFloatWhole str id ast, LeftOne)
