@@ -2940,6 +2940,14 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    ( Pat (FPVariable (mID, newID, str))
                    , { astRef = ARPattern (newID, PPVariable)
                      ; offset = currOffset - 1 } )
+              | ARPattern (_, PPBool), FPBool (mID, _, bool) ->
+                let str = if bool then "true" else "false" in
+                let newStr = mutation str in
+                let newID = gid () in
+                Some
+                   ( Pat (FPVariable (mID, newID, newStr))
+                   , { astRef = ARPattern (newID, PPVariable)
+                     ; offset = currOffset - 1 } )
              (*
               Strings
              *)
@@ -3527,8 +3535,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (* | TRecordFieldname _ *)
     (*     | TTrue _
     | TFalse _ *)
-    | TPatternTrue _
-    | TPatternFalse _
+    (* | TPatternTrue _
+    | TPatternFalse _ *)
     (* | TNullToken _ *)
     (* | TVariable _ *)
     (* | TFieldName _ *)
