@@ -135,7 +135,7 @@ let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
     in
     let isHover = vs.hovering = Some (vs.tlid, ID traceID) in
     let isUnfetchable =
-        match traceData with Error MaximumCallStackError -> true | _ -> false
+      match traceData with Error MaximumCallStackError -> true | _ -> false
     in
     let astTipe =
       Analysis.getTipeOf' vs.analysisStore astID
