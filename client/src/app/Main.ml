@@ -1422,8 +1422,7 @@ let update_ (msg : msg) (m : model) : modification =
       let traces : traces =
         List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
             let trace = (traceid, Error NoneYet) in
-            StrDict.update dict ~key:(deTLID tlid) ~f:(fun old ->
-                match old with
+            StrDict.update dict ~key:(deTLID tlid) ~f:(function
                 | Some existing ->
                     Some (existing @ [trace])
                 | None ->
