@@ -2940,6 +2940,40 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    ( Pat (FPVariable (mID, newID, str))
                    , { astRef = ARPattern (newID, PPVariable)
                      ; offset = currOffset - 1 } )
+             (*
+              Strings
+             *)
+             | ( ARPattern (_, PPString SPOpenQuote)
+               , FPString {matchID; patternID = _; str = ""} )
+               when currOffset = 1 ->
+                 let bID = gid () in
+                 Some
+                   ( Pat (FPBlank (matchID, bID))
+                   , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+             | ( ARPattern (_, PPString SPText)
+               , FPString {matchID; patternID = _; str = ""} )
+               when currOffset = 0 ->
+                 let bID = gid () in
+                 Some
+                   ( Pat (FPBlank (matchID, bID))
+                   , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+             | ( ARPattern (_, PPString SPOpenQuote)
+               , FPString {matchID; patternID; str} ) ->
+                 let str = Util.removeCharAt str (currOffset - 2) in
+                 Some
+                   (Pat (FPString {matchID; patternID; str}), desiredCaretTarget)
+             | ARPattern (_, PPString SPText), FPString {matchID; patternID; str}
+               ->
+                 let str = mutation str in
+                 Some
+                   (Pat (FPString {matchID; patternID; str}), desiredCaretTarget)
+             | ( ARPattern (_, PPString SPCloseQuote)
+               , FPString {matchID; patternID; str} ) ->
+                 let str =
+                   Util.removeCharAt str (String.length str + currOffset)
+                 in
+                 Some
+                   (Pat (FPString {matchID; patternID; str}), desiredCaretTarget)
              | _ ->
                  None )
            | Expr expr ->
@@ -2971,14 +3005,10 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              | ARString (_, SPCloseQuote), EString (id, str)
              (* XXX(JULIAN): This may be the incorrect mutation, but this path doesn't currently happen in practice *)
                ->
-                 Some
-                   ( Expr
-                       (EString
-                          ( id
-                          , Util.removeCharAt
-                              str
-                              (String.length str + currOffset) ))
-                   , desiredCaretTarget )
+                 let str =
+                   Util.removeCharAt str (String.length str + currOffset)
+                 in
+                 Some (Expr (EString (id, str)), desiredCaretTarget)
              | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
                  Some
                    (Expr (EFloat (id, mutation whole, frac)), desiredCaretTarget)
@@ -3388,7 +3418,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
   let offset =
-    match ti.token with
+    (*     match ti.token with
     | TPatternString _ (* | TString _ | TStringMLStart _ *) ->
         pos - ti.startPos - 2 (* -1 if on right side of the open quote *)
     (* | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
@@ -3399,10 +3429,10 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
         let startPos = ti.endPos - String.length partialName in
         pos - startPos - 1 *)
-    | _ ->
-        pos - ti.startPos - 1
+    | _ -> *)
+    pos - ti.startPos - 1
   in
-  let newID = gid () in
+  (* let newID = gid () in *)
   let newAST, newPosition =
     match ti.token with
     (*     | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
@@ -3479,9 +3509,9 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (*     | TBinOp (_, str) when String.length str = 1 ->
         let ast, targetID = deleteBinOp ti ast in
         (ast, MoveToTokenEnd (targetID, 0)) *)
-    | TPatternString {matchID = mID; patternID = id; str = ""; _} ->
+    (*     | TPatternString {matchID = mID; patternID = id; str = ""; _} ->
         ( replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast
-        , AtTarget {astRef = ARPattern (newID, PPBlank); offset = 0} )
+        , AtTarget {astRef = ARPattern (newID, PPBlank); offset = 0} ) *)
     (*     | TString (id, "") ->
         ( E.replace id ~replacement:(EBlank newID) ast
         , AtTarget {astRef = ARBlank newID; offset = 0} ) *)
@@ -3497,7 +3527,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TStringMLEnd (id, _, _, fullStr)
       when offset = String.length fullStr (* on right side of open quote *) ->
         (ast, AtTarget {astRef = ARString (id, SPText); offset}) *)
-    | TPatternString _
+    (* | TPatternString _ *)
     (* | TRecordFieldname _ *)
     (*     | TTrue _
     | TFalse _ *)
