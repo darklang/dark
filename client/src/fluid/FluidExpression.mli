@@ -30,6 +30,12 @@ val filterMap : f:(t -> 'a option) -> t -> 'a list
  * in the result list.  *)
 val filter : f:(t -> bool) -> t -> t list
 
+(** [findExprOrPat target within] recursively finds the subtree
+    with the id = [target] inside the [within] tree, returning the subtree
+    wrapped in fluidPatOrExpr, or None if there is no subtree with the id [target] *)
+val findExprOrPat :
+  Types.id -> Types.fluidPatOrExpr -> Types.fluidPatOrExpr option
+
 (** [find target ast] recursively finds the expression having an id of [target]
    and returns it if found. *)
 val find : Types.id -> t -> t option
