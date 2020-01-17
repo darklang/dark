@@ -36,6 +36,8 @@ and tlid = TLID of string
 
 and id = ID of string
 
+and analysisId = id
+
 and 'a blankOr =
   | Blank of id
   | F of id * 'a
@@ -234,7 +236,7 @@ and fluidExpr =
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
   (* the id in the varname list is the analysis ID, used to get a livevalue
    * from the analysis engine *)
-  | ELambda of id * (id * fluidName) list * fluidExpr
+  | ELambda of id * (analysisId * fluidName) list * fluidExpr
   | EFieldAccess of id * fluidExpr * fluidName
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
@@ -1339,8 +1341,6 @@ and integrationTestState =
 
 (* Fluid *)
 and placeholder = string * string
-
-and analysisId = id
 
 and fluidToken =
   | TInteger of id * string
