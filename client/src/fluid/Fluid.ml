@@ -890,7 +890,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
   | None ->
       (*
         NOTE(JULIAN): This is very useful for fixing issues in dev, but much too large for Rollbar:
-        Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(eToStructure ~includeIDs:true s ast)) ();
+        (Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(Printer.eToStructure ~includeIDs:true ast)) ());
       *)
       recover
         "We expected to find the given caretTarget in the token stream but couldn't."
