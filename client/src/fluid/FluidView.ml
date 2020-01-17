@@ -367,9 +367,8 @@ let viewLiveValue
     | LoadableSuccess (DError (SourceId srcId, _) as dv)
       when srcId <> id ->
         let msg =
-          "<"
+          "Click here to find cause of "
           ^ (dv |> Runtime.typeOf |> Runtime.tipe2str)
-          ^ "> Click to locate source"
         in
         [ Html.div
             [ ViewUtils.eventNoPropagation
