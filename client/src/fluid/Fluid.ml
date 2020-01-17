@@ -1021,6 +1021,12 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
       {astRef = ARConstructor (id, CPName); offset}
   | TPartialGhost _ (* (id, _) *)
   | TNewline _ (* (id * id * int option) option *)
+  (* NOTE(JULIAN): some suggestions from Paul:
+   we use this information here to return an astRef but this information is an option
+      it is an option because we do not always have information to put in here -- look at when we put info for tokens
+      the info put in tokens is "what gets extended by pressing enter" but that may be incompatible with infor needed for pressing backspace
+      may want TNewline to include id that matters when press enter and id for press backspace -- unclear if that's true
+     *)
   | TSep _ (* id *)
   | TIndent _ (* int *)
   | TParenOpen _ (* id *)
@@ -3496,6 +3502,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         in
         (removePipe id ast i, newPosition) *)
     | _ ->
+        (* TODO(JULIAN): consider if token has no explicit caretTarget, do left, else do backspace *)
         doExplicitBackspace (caretTargetFromTokenInfo pos ti) ast
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
