@@ -2920,6 +2920,15 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
   let mutation : string -> string =
    fun str -> Util.removeCharAt str (currOffset - 1)
   in
+  (* XXX(JULIAN): This is an ugly hack so we can replace stuff inside patterns.
+     There's probably a nice way to do this without a ref, but that's a bigger change.
+     
+    One option may be to do the operation on a match, and match responsible for doing the thing,
+    and at bottom replace the expr.
+    idOfASTRef could instead be exprIdOfAstRef.
+    Then if astRef is a pattern, we could have pattern-specific logic.
+   *)
+  let patContainerRef : Types.id option ref = ref None in
   idOfASTRef currAstRef
   (* TODO(JULIAN): consider using andAlso *)
   |> Option.andThen ~f:(fun patOrExprID ->
@@ -2933,6 +2942,38 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
            match patOrExpr with
            | Pat pat ->
              ( match (currAstRef, pat) with
+             | ARPattern (_, PPBlank), FPBlank (mID, pID) ->
+                 if currOffset = 0
+                 then
+                   match E.find mID ast with
+                   | Some (EMatch (_, cond, patterns)) ->
+                       patContainerRef := Some mID ;
+                       patterns
+                       |> List.findIndex ~f:(fun (p, _) -> P.id p = pID)
+                       |> Option.map ~f:(fun remIdx ->
+                              let newPatterns =
+                                if List.length patterns = 1
+                                then patterns
+                                else List.removeAt patterns ~index:remIdx
+                              in
+                              let targetExpr =
+                                patterns
+                                |> List.getAt ~index:(remIdx - 1)
+                                |> Option.map ~f:(fun (_, e) -> e)
+                                |> Option.withDefault ~default:cond
+                              in
+                              let target =
+                                caretTargetForLastPartOfExpr
+                                  (E.id targetExpr)
+                                  ast
+                              in
+                              (Expr (EMatch (mID, cond, newPatterns)), target))
+                   | _ ->
+                       None
+                 else
+                   Some
+                     ( Pat (FPBlank (mID, pID))
+                     , {astRef = currAstRef; offset = 0} )
              | ARPattern (_, PPNull), FPNull (mID, _) ->
                  let str = mutation "null" in
                  let newID = gid () in
@@ -3423,6 +3464,13 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
          in
          match maybeTransformedExprAndCaretTarget with
          | Some (Expr newExpr, desiredCaretTarget) ->
+             let patOrExprID =
+               match !patContainerRef with
+               | None ->
+                   patOrExprID
+               | Some mID ->
+                   mID
+             in
              Some
                ( E.replace patOrExprID ~replacement:newExpr ast
                , AtTarget desiredCaretTarget )
@@ -3519,8 +3567,9 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
               caretTargetForLastPartOfExpr exprId newAst
         in
         (newAst, AtTarget target) *)
-    | TPatternBlank (mID, id, _) when pos = ti.startPos ->
-        (removePatternRow mID id ast, LeftThree)
+    (* | TPatternBlank (mID, id, _) when pos = ti.startPos ->
+        ((Debug.loG "TPatternBlank bs removePatternRow" ());
+        (removePatternRow mID id ast, LeftThree)) *)
     (*
     | TBlank _
     | TPlaceholder _
@@ -3532,7 +3581,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TRecordSep _
 *)
     | TIndent _
-    | TPatternBlank _
+    (* | TPatternBlank _ *)
     | TSep _
     | TParenOpen _
     | TParenClose _

@@ -2205,17 +2205,17 @@ let run () =
         "backspace first row deletes it"
         emptyMatchWithTwoPatterns
         (bs 12)
-        "match ___~\n  *** -> ___\n" ;
+        "match ~___\n  *** -> ___\n" ;
       t
         "backspace second row deletes it"
         emptyMatchWithTwoPatterns
         (bs 25)
-        "match ___\n  *** -> ___~\n" ;
+        "match ___\n  *** -> ~___\n" ;
       t
         "backspacing only row doesn't delete"
         emptyMatch
         (bs 12)
-        "match ___~\n  *** -> ___\n" ;
+        "match ~___\n  *** -> ___\n" ;
       t
         "backspacing second matchSep ( |-> ) moves to end of pattern"
         emptyMatchWithTwoPatterns
