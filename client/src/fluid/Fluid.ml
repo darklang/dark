@@ -2951,8 +2951,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              | ARPattern (_, PPInteger), FPInteger (mID, pID, intStr) ->
                  let str = mutation intStr in
                  if str = ""
-                    (* XXX(JULIAN): Why does the ID stay the same here? *)
                  then
+                   (* XXX(JULIAN): Why does the ID stay the same here? *)
                    Some
                      ( Pat (FPBlank (mID, pID))
                      , {astRef = ARPattern (pID, PPBlank); offset = 0} )
@@ -2963,6 +2963,24 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    else
                      Some
                        (Pat (FPInteger (mID, pID, coerced)), desiredCaretTarget)
+             | ( ARPattern (_, PPConstructor CPName)
+               , FPConstructor (mID, _, str, _patterns) ) ->
+                 (* TODO(JULIAN): Consider doing something to preserve the patterns *)
+                 let str = str |> mutation |> String.trim in
+                 let newID = gid () in
+                 if str = ""
+                 then
+                   Some
+                     ( Pat (FPBlank (mID, newID))
+                     , {astRef = ARPattern (newID, PPBlank); offset = 0} )
+                 else
+                   Some
+                     ( Pat (FPVariable (mID, newID, str))
+                     , { astRef = ARPattern (newID, PPVariable)
+                       ; offset = currOffset - 1 } )
+             (* 
+              Floats
+             *)
              | ARPattern (_, PPFloat FPWhole), FPFloat (mID, pID, whole, frac)
                ->
                  Some
@@ -3599,9 +3617,9 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TFloatFractional (id, str) ->
         let str = Util.removeCharAt str offset in
         (replaceFloatFraction str id ast, LeftOne) *)
-    | TPatternConstructorName (mID, id, str, _) ->
+    (* | TPatternConstructorName (mID, id, str, _) ->
         let f str = Util.removeCharAt str offset in
-        (replacePatternWithPartial (f str) mID id ast, LeftOne)
+        (replacePatternWithPartial (f str) mID id ast, LeftOne) *)
     (*     | TPipe (id, i, _) ->
         let newPosition =
           match getTokensAtPosition ~pos:ti.startPos (toTokens ast) with
