@@ -2453,6 +2453,14 @@ let acEnter (ti : T.tokenInfo) (ast : ast) (s : state) (key : K.key) :
     ( match ti.token with
     | TPatternVariable _ ->
         (ast, moveToNextBlank ~pos:s.newPos ast s)
+    | TFieldPartial (partialID, _fieldAccessID, anaID, fieldname) ->
+      (* Accept fieldname, even if it's not in the autocomplete *)
+      E.find anaID ast
+      |> Option.map ~f:(fun expr ->
+        let replacement = EFieldAccess (gid (), expr,fieldname) in
+        (E.replace ~replacement partialID ast, s)
+      )
+      |> Option.withDefault ~default:(ast, s)
     | _ ->
         (ast, s) )
   | Some entry ->
