@@ -101,6 +101,41 @@ let validate_account (account : account) : (unit, string) Result.t =
   |> Prelude.Result.and_ (validate_email account.email)
 
 
+let insert_account ?(validate : bool = true) (account : account) :
+    (unit, string) Result.t =
+  let result = if validate then validate_account account else Ok () in
+  Result.map result ~f:(fun () ->
+      Db.run
+        ~name:"insert_account"
+        ~subject:account.username
+        "INSERT INTO accounts
+    (id, username, name, email, admin, password)
+    VALUES
+    ($1, $2, $3, $4, false, $5)
+    ON CONFLICT DO NOTHING"
+        ~params:
+          [ Uuid (Util.create_uuid ())
+          ; String account.username
+          ; String account.name
+          ; String account.email
+          ; String (Password.to_bytes account.password) ])
+  |> Result.bind ~f:(fun () ->
+         if Db.exists
+              ~name:"check_inserted_account"
+              ~subject:account.username
+              "SELECT 1 from ACCOUNTS where
+               username = $1 AND name = $2 AND email = $3 AND password = $4"
+              ~params:
+                [ String account.username
+                ; String account.name
+                ; String account.email
+                ; String (Password.to_bytes account.password) ]
+         then Ok ()
+         else
+           Error
+             "Insert failed, probably because the username is already taken.")
+
+
 let upsert_account ?(validate : bool = true) (account : account) :
     (unit, string) Result.t =
   let result = if validate then validate_account account else Ok () in
@@ -317,6 +352,16 @@ let for_host_exn (host : string) : Uuidm.t =
 (************************)
 (* Darkinternal functions *)
 (************************)
+
+(* Any external calls to this should also call Stroller.segment_identify_user;
+ * we can't do it here because that sets up a module dependency cycle *)
+let insert_user ~(username : string) ~(email : string) ~(name : string) () :
+    (string, string) Result.t =
+  let plaintext = Util.random_string 16 in
+  let password = Password.from_plaintext plaintext in
+  insert_account {username; email; name; password}
+  |> Result.map ~f:(fun () -> plaintext)
+
 
 (* Any external calls to this should also call Stroller.segment_identify_user;
  * we can't do it here because that sets up a module dependency cycle *)

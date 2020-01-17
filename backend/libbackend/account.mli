@@ -38,6 +38,14 @@ val upsert_user :
   -> unit
   -> (string, string) Result.t
 
+(* Add a user; return error if we can't b/c username (unique) was taken *)
+val insert_user :
+     username:string
+  -> email:string
+  -> name:string
+  -> unit
+  -> (string, string) Result.t
+
 (* Set whether user is an admin *)
 val set_admin : username:string -> bool -> unit
 
