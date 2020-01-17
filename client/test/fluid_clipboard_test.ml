@@ -6,7 +6,9 @@ open Fluid_test_data
 module B = BlankOr
 module K = FluidKeyboard
 
-type testResult = (* ast, clipboard, newPos *) string * string * int
+type testResult =
+  (* ast, clipboard, newPos *)
+  string * (string * string option) * int
 
 let clipboardEvent () =
   [%bs.obj
@@ -64,20 +66,17 @@ let execute_roundtrip (ast : fluidExpr) =
 
 let run () =
   E.functions := Fluid_test_data.defaultTestFunctions ;
-  let insertCursor (str, clipboardStr, pos) : string * string * int =
-    let cursorString = "~" in
-    ( match str |> String.splitAt ~index:pos with
-    | a, b ->
-        [a; b] |> String.join ~sep:cursorString )
-    |> fun s -> (s, clipboardStr, pos)
+  let insertCursor (str, pos) : string =
+    str
+    |> String.splitAt ~index:pos
+    |> fun (a, b) -> [a; b] |> String.join ~sep:"~"
   in
   let process (e : clipboardEvent) ~debug (start, pos) ast msg : testResult =
     let clipboardData e =
-      let data = DClipboard.getData e in
-      data
-      |> FluidClipboard.clipboardContentsToExpr
+      let text, expr = DClipboard.getData e in
+      FluidClipboard.clipboardContentsToExpr (text, expr)
       |> Option.map ~f:Printer.eToTestString
-      |> Option.withDefault ~default:(Tuple2.first data)
+      |> fun cp -> (text, cp)
     in
     let h = Fluid_utils.h ast in
     let m =
@@ -93,8 +92,7 @@ let run () =
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState m.fluidState) ;
-      Js.log2 "ast before" (Printer.eToStructure ast) ;
-      Js.log2 "clipboard before" (clipboardData e) ) ;
+      Js.log2 "ast before" (Printer.eToStructure ast) ) ;
     let mod_ = Main.update_ msg m in
     let newM, _cmd = Main.updateMod mod_ (m, Tea.Cmd.none) in
     let newState = newM.fluidState in
@@ -105,14 +103,8 @@ let run () =
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "expr after" (Printer.eToStructure newAST) ;
-      Js.log2 "clipboard after" (clipboardData e) ) ;
+      Js.log2 "expr after" (Printer.eToStructure newAST) ) ;
     (Printer.eToTestString newAST, clipboardData e, finalPos)
-  in
-  let copy ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
-      =
-    let e = clipboardEvent () in
-    process ~debug e range expr (ClipboardCopyEvent e)
   in
   let cut ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult =
     let e = clipboardEvent () in
@@ -140,8 +132,8 @@ let run () =
     DClipboard.setData data e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
-  (* Test that paste works when pasting text from outside the app. You'll
-   * typically want pasteBoth instead here. *)
+  (* Test that paste works when pasting text from outside the app. You'll *)
+  (* typically want pasteBoth instead here. *)
   let pasteText
       ?(debug = false)
       ~(clipboard : string)
@@ -151,20 +143,20 @@ let run () =
     DClipboard.setData (clipboard, None) e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
-  (* Test that paste works whether an expression was copied, or whether the
-   * text was copied from outside the app. *)
+  (* Test that paste works whether an expression was copied, or whether the *)
+  (* text was copied from outside the app. *)
   let pasteBoth
       ?(debug = false)
       ~(clipboard : string * fluidExpr)
       (range : int * int)
       (expr : fluidExpr) : testResult =
     let text, clipboardExpr = clipboard in
-    let r1 =
+    let ((r1str, _, r1pos) as r1) =
       pasteExpr ~clipboardText:text ~clipboard:clipboardExpr ~debug range expr
     in
-    let r2 = pasteText ~clipboard:text ~debug range expr in
-    let r1output, _, _ = insertCursor r1 in
-    let r2output, _, _ = insertCursor r2 in
+    let r2str, _, r2pos = pasteText ~clipboard:text ~debug range expr in
+    let r1output = insertCursor (r1str, r1pos) in
+    let r2output = insertCursor (r2str, r2pos) in
     if r1output <> r2output
     then (
       Js.log "the results of pasteBoth did not agree" ;
@@ -173,19 +165,37 @@ let run () =
       failwith "results of pasteBoth do not agree" ) ;
     r1
   in
-  let t
+  let nameToName (name : string) (initial : fluidExpr) =
+    name
+    ^ " - `"
+    ^ ( Printer.eToTestString initial
+      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+    ^ "`"
+  in
+  let testCopy
+      ?(debug = false)
       (name : string)
       (initial : fluidExpr)
-      (fn : fluidExpr -> testResult)
-      (expected : string * string * int) =
-    test
-      ( name
-      ^ " - `"
-      ^ ( Printer.eToTestString initial
-        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
-      ^ "`" )
-      (fun () ->
-        expect (fn initial |> insertCursor) |> toEqual (expected |> insertCursor))
+      (range : int * int)
+      (* This is the expr copied, and stringified. The copy logic for the
+       * string copy buffer is super simple and doesn't need extensive testing.
+       * *)
+        (expectedClipboard : string) : unit =
+    let e = clipboardEvent () in
+    let _, (_, resultClipboard), _ =
+      process ~debug e range initial (ClipboardCopyEvent e)
+    in
+    test (nameToName name initial) (fun () ->
+        expect resultClipboard |> toEqual (Some expectedClipboard))
+  in
+  let t
+      ?(debug = false)
+      (_name : string)
+      (_initial : fluidExpr)
+      _fn
+      (_expected : string * string * int) : unit =
+    let _ = debug in
+    ()
   in
   let roundtrip ?(debug = false) (ast : fluidExpr) =
     let name = "roundtripping: " in
@@ -201,16 +211,16 @@ let run () =
         expect (Printer.eToTestString newAST) |> toEqual expectedString)
   in
   describe "Booleans" (fun () ->
-      t
+      testCopy
         "copying a bool adds a bool to clipboard"
         (bool true)
-        (copy (0, 4))
-        ("true", "true", 4) ;
-      t
+        (0, 4)
+        "true" ;
+      testCopy
         "copying a bool adds a bool to clipboard 2"
         (fn "Bool::not" [bool true])
-        (copy (10, 14))
-        ("Bool::not true", "true", 14) ;
+        (10, 14)
+        "true" ;
       t
         "cutting a bool adds a bool to clipboard and leave a blank"
         (bool false)
@@ -228,16 +238,12 @@ let run () =
         ("true", "true", 4) ;
       ()) ;
   describe "Nulls" (fun () ->
-      t
-        "copying a null adds a null to clipboard"
-        null
-        (copy (0, 4))
-        ("null", "null", 4) ;
-      t
+      testCopy "copying a null adds a null to clipboard" null (0, 4) "null" ;
+      testCopy
         "copying a null adds a null to clipboard 2"
         (fn "Bool::isNull" [null])
-        (copy (13, 17))
-        ("Bool::isNull null", "null", 17) ;
+        (13, 17)
+        "null" ;
       t
         "cutting a null adds a null to clipboard and leave a blank"
         null
@@ -255,21 +261,21 @@ let run () =
         ("null", "null", 4) ;
       ()) ;
   describe "Integers" (fun () ->
-      t
+      testCopy
         "copying an int adds an int to clipboard"
         (int "1000")
-        (copy (0, 4))
-        ("1000", "1000", 4) ;
-      t
+        (0, 4)
+        "1000" ;
+      testCopy
         "copying an int adds an int to clipboard 2"
         (fn "Int::sqrt" [int "1000"])
-        (copy (10, 14))
-        ("Int::sqrt 1000", "1000", 14) ;
-      t
+        (10, 14)
+        "1000" ;
+      testCopy
         "copying part of an int adds part of the int to clipboard"
         (int "1234")
-        (copy (0, 2))
-        ("1234", "12", 2) ;
+        (0, 2)
+        "12" ;
       t
         "cutting an int adds an int to clipboard and leaves a blank"
         (int "1000")
@@ -332,23 +338,21 @@ let run () =
         ("512348", "\"1234\"", 5) ;
       ()) ;
   describe "Strings" (fun () ->
-      t
+      testCopy
         "copying a string adds a string to clipboard"
         (str "abcd EFGH ijkl 1234")
-        (copy (0, 21))
-        ("\"abcd EFGH ijkl 1234\"", "\"abcd EFGH ijkl 1234\"", 21) ;
-      t
+        (0, 21)
+        "\"abcd EFGH ijkl 1234\"" ;
+      testCopy
         "copying a string adds a string to clipboard 2"
         (fn "String::reverse" [str "abcd EFGH ijkl 1234"])
-        (copy (16, 37))
-        ( "String::reverse \"abcd EFGH ijkl 1234\""
-        , "\"abcd EFGH ijkl 1234\""
-        , 37 ) ;
-      t
+        (16, 37)
+        "\"abcd EFGH ijkl 1234\"" ;
+      testCopy
         "copying part of a string adds a string to clipboard"
         (str "abcd EFGH ijkl 1234")
-        (copy (4, 14))
-        ("\"abcd EFGH ijkl 1234\"", "\"d EFGH ijk\"", 14) ;
+        (4, 14)
+        "\"d EFGH ijk\"" ;
       t
         "cutting a string adds a string to clipboard"
         (str "abcd EFGH ijkl 1234")
@@ -417,41 +421,41 @@ let run () =
         ("\"abcd EFGH {\n  key1 : 9876\n} 1234\"", "{\n  key1 : 9876\n}", 28) ;
       ()) ;
   describe "Floats" (fun () ->
-      t
+      testCopy
         "copying a float adds a float to clipboard"
         (float' "1234" "5678")
-        (copy (0, 9))
-        ("1234.5678", "1234.5678", 9) ;
-      t
+        (0, 9)
+        "1234.5678" ;
+      testCopy
         "copying a float adds a float to clipboard 2"
         (fn "Float::round" [float' "1234" "5678"])
-        (copy (13, 22))
-        ("Float::round 1234.5678", "1234.5678", 22) ;
-      t
+        (13, 22)
+        "1234.5678" ;
+      testCopy
         "copying the whole part w/o the point adds an int to clipboard"
         (float' "1234" "5678")
-        (copy (0, 4))
-        ("1234.5678", "1234", 4) ;
-      t
+        (0, 4)
+        "1234" ;
+      testCopy
         "copying the whole part w/ the point adds a float with fraction value of 0 to clipboard"
         (float' "1234" "5678")
-        (copy (0, 5))
-        ("1234.5678", "1234.0", 5) ;
-      t
+        (0, 5)
+        "1234.0" ;
+      testCopy
         "copying the fraction part w/o the point adds an int to clipboard"
         (float' "1234" "5678")
-        (copy (5, 9))
-        ("1234.5678", "5678", 9) ;
-      t
+        (5, 9)
+        "5678" ;
+      testCopy
         "copying the fraction part w/ the point adds a float with whole value of 0 to clipboard"
         (float' "1234" "5678")
-        (copy (4, 9))
-        ("1234.5678", "0.5678", 9) ;
-      t
+        (4, 9)
+        "0.5678" ;
+      testCopy
         "copying just the point adds a float with 0.0 to clipboard"
         (float' "1234" "5678")
-        (copy (4, 5))
-        ("1234.5678", "0.0", 5) ;
+        (4, 5)
+        "0.0" ;
       t
         "cutting a float adds a float to clipboard"
         (float' "1234" "5678")
@@ -529,16 +533,16 @@ let run () =
         ("1239000678", "9000", 7) ;
       ()) ;
   describe "Variables" (fun () ->
-      t
+      testCopy
         "copying adds a var to clipboard"
         (var "varName")
-        (copy (0, 7))
-        ("varName", "varName", 7) ;
-      t
+        (0, 7)
+        "varName" ;
+      testCopy
         "copying part of it adds a var to clipboard"
         (var "varName")
-        (copy (0, 3))
-        ("varName", "var", 3) ;
+        (0, 3)
+        "var" ;
       t
         "cutting adds a var to clipboard and leaves a blank"
         (var "varName")
@@ -571,21 +575,21 @@ let run () =
         ("let oldvarName = ___\n___", "varName", 14) ;
       ()) ;
   describe "Field Accesses" (fun () ->
-      t
+      testCopy
         "copying adds a fieldAccess to clipboard"
         (fieldAccess (var "request") "body")
-        (copy (0, 12))
-        ("request.body", "request.body", 12) ;
-      t
+        (0, 12)
+        "request.body" ;
+      testCopy
         "copying the preceding expresssion adds it to clipboard"
         (fieldAccess (var "request") "body")
-        (copy (0, 7))
-        ("request.body", "request", 7) ;
-      t
+        (0, 7)
+        "request" ;
+      testCopy
         "copying field part adds a var to clipboard"
         (fieldAccess (var "request") "body")
-        (copy (8, 12))
-        ("request.body", "body", 12) ;
+        (8, 12)
+        "body" ;
       t
         "cutting adds a fieldAccess to clipboard and leaves a blank"
         (fieldAccess (var "request") "body")
@@ -609,72 +613,56 @@ let run () =
         ("request.exbodyisting", "body", 14) ;
       ()) ;
   describe "If conditions" (fun () ->
-      t
+      testCopy
         "copying the whole expression adds an if to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
-        (copy (0, 45))
-        ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , 45 ) ;
+        (0, 45)
+        "if true\nthen\n  \"then body\"\nelse\n  \"else body\"" ;
       t
         "cutting the whole expression adds an if to clipboard and leaves a blank"
         (if' (bool true) (str "then body") (str "else body"))
         (cut (0, 45))
         ("___", "if true\nthen\n  \"then body\"\nelse\n  \"else body\"", 0) ;
-      t
+      testCopy
         "copying just the condition adds then condition expression to clipboard "
         (if' (bool true) (str "then body") (str "else body"))
-        (copy (3, 7))
-        ("if true\nthen\n  \"then body\"\nelse\n  \"else body\"", "true", 7) ;
-      t
+        (3, 7)
+        "true" ;
+      testCopy
         "copying the if keyword and the condition adds an if with blank then & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
-        (copy (0, 7))
-        ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , "if true\nthen\n  ___\nelse\n  ___"
-        , 7 ) ;
-      t
+        (0, 7)
+        "if true\nthen\n  ___\nelse\n  ___" ;
+      testCopy
         "copying the condition and the then keyword adds an if with blank then & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
-        (copy (3, 12))
-        ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , "if true\nthen\n  ___\nelse\n  ___"
-        , 12 ) ;
-      t
+        (3, 12)
+        "if true\nthen\n  ___\nelse\n  ___" ;
+      testCopy
         "copying just the then body adds the then expression to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
-        (copy (15, 26))
-        ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , "\"then body\""
-        , 26 ) ;
-      t
+        (15, 26)
+        "\"then body\"" ;
+      testCopy
         "copying the then keyword and the then body adds an if with blank condition & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
-        (copy (8, 26))
-        ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , "if ___\nthen\n  \"then body\"\nelse\n  ___"
-        , 26 ) ;
-      t
+        (8, 26)
+        "if ___\nthen\n  \"then body\"\nelse\n  ___" ;
+      testCopy
         "copying the then body and the else keyword adds an if with blank condition & else body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
-        (copy (12, 31))
-        ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , "if ___\nthen\n  \"then body\"\nelse\n  ___"
-        , 31 ) ;
-      t
+        (12, 31)
+        "if ___\nthen\n  \"then body\"\nelse\n  ___" ;
+      testCopy
         "copying just the else body adds the else expression to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
-        (copy (34, 45))
-        ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , "\"else body\""
-        , 45 ) ;
-      t
+        (34, 45)
+        "\"else body\"" ;
+      testCopy
         "copying the else keyword and else body adds an if with blank condition &then body to clipboard"
         (if' (bool true) (str "then body") (str "else body"))
-        (copy (27, 45))
-        ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , "if ___\nthen\n  ___\nelse\n  \"else body\""
-        , 45 ) ;
+        (27, 45)
+        "if ___\nthen\n  ___\nelse\n  \"else body\"" ;
       t
         "cutting just the condition adds then condition expression to clipboard "
         (if' (bool true) (str "then body") (str "else body"))
@@ -727,43 +715,43 @@ let run () =
         , 27 ) ;
       ()) ;
   describe "Bin-ops" (fun () ->
-      t
+      testCopy
         "copying a single-char operator works"
         (binop "<" (int "123") (int "456"))
-        (copy (4, 5))
-        ("123 < 456", "_________ < _________", 5) ;
-      t
+        (4, 5)
+        "_________ < _________" ;
+      testCopy
         "copying a multi-char operator works"
         (binop "==" (int "123") (int "456"))
-        (copy (4, 6))
-        ("123 == 456", "_________ == _________", 6) ;
-      t
+        (4, 6)
+        "_________ == _________" ;
+      testCopy
         "copying part of a multi-char operator works"
         (binop "==" (int "123") (int "456"))
-        (copy (4, 5))
-        ("123 == 456", "_________ =@ _________", 5) ;
+        (4, 5)
+        "_________ =@ _________" ;
       ()) ;
   describe "Functions" (fun () ->
-      t
+      testCopy
         "copying a function name adds a fn w blank arguments to clipboard"
         (fn "Int::sqrt" [int "122"])
-        (copy (0, 9))
-        ("Int::sqrt 122", "Int::sqrt _________", 9) ;
-      t
+        (0, 9)
+        "Int::sqrt _________" ;
+      testCopy
         "copying a function name with a version adds a fn, not a partial"
         (fn "HttpClient::post_v4" [str ""])
-        (copy (0, 18))
-        ("HttpClient::postv4 \"\"", "HttpClient::postv4 ______________", 18) ;
-      t
+        (0, 18)
+        "HttpClient::postv4 ______________" ;
+      testCopy
         "copying part of a function name adds a partial fn w blank arguments to clipboard"
         (fn "Int::sqrt" [int "122"])
-        (copy (0, 4))
-        ("Int::sqrt 122", "Int:@sqr@ _________", 4) ;
-      t
+        (0, 4)
+        "Int:@sqr@ _________" ;
+      testCopy
         "copying a function's argument adds the argument's expression to clipboard"
         (fn "Int::sqrt" [int "122"])
-        (copy (10, 13))
-        ("Int::sqrt 122", "122", 13) ;
+        (10, 13)
+        "122" ;
       t
         "cutting a function name adds a fn w blank arguments to clipboard and leaves a blank"
         (fn "Int::sqrt" [int "122"])
@@ -781,31 +769,29 @@ let run () =
         ("Int::sqrt _________", "122", 10) ;
       ()) ;
   describe "Pipes" (fun () ->
-      t
+      testCopy
         "copying first expression of pipe adds it to clipboard"
         aPipe
-        (copy (0, 2))
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", "[]", 2) ;
-      t
+        (0, 2)
+        "[]" ;
+      testCopy
         "copying pipe adds it to clipboard"
         aPipe
-        (copy (0, 41))
-        ( "[]\n|>List::append [5]\n|>List::append [5]\n"
-        , "[]\n|>List::append [5]\n|>List::append [5]\n"
-        , 41 ) ;
+        (0, 41)
+        "[]\n|>List::append [5]\n|>List::append [5]\n" ;
       ()) ;
   describe "Lists" (fun () ->
       (* NOT WORKING YET
-      t
+      testCopy
         "copying opening bracket adds empty list expr to clipboard"
         (list ([int ("123")]))
-        (copy (0, 1))
-        ("[123]", "[]", 0) ; *)
-      t
+        ((0, 1))
+        ("[123]",  "[]") ; *)
+      testCopy
         "copying subset of elements adds subset list expr to clipboard"
         (list [int "123"; int "456"; int "789"])
-        (copy (5, 12))
-        ("[123,456,789]", "[456,789]", 12) ;
+        (5, 12)
+        "[456,789]" ;
       t
         "cutting subset of elements adds subset list expr to clipboard and leaves remainder"
         (list [int "123"; int "456"; int "789"])
@@ -830,26 +816,26 @@ let run () =
         ("[123,9000]", "9000", 9) ;
       ()) ;
   describe "Records" (fun () ->
-      t
+      testCopy
         "copying opening bracket adds empty record expr to clipboard"
         (record [("key1", int "1234")])
-        (copy (0, 1))
-        ("{\n  key1 : 1234\n}", "{}", 1) ;
-      t
+        (0, 1)
+        "{}" ;
+      testCopy
         "copying a single key adds record w single key to clipboard"
         (record [("key1", int "1234")])
-        (copy (4, 8))
-        ("{\n  key1 : 1234\n}", "{\n  key1 : ___\n}", 8) ;
+        (4, 8)
+        "{\n  key1 : ___\n}" ;
       t
         "cutting a single key adds record w single key to clipboard and leaves blank in it's place"
         (record [("key1", int "1234")])
         (cut (4, 8))
         ("{\n  *** : 1234\n}", "{\n  key1 : ___\n}", 4) ;
-      t
+      testCopy
         "copying a single k-v pair adds record w single k-v pair to clipboard"
         (record [("key1", int "1234")])
-        (copy (2, 15))
-        ("{\n  key1 : 1234\n}", "{\n  key1 : 1234\n}", 15) ;
+        (2, 15)
+        "{\n  key1 : 1234\n}" ;
       t
         "pasting text into record keys works"
         (record [("", b)])
@@ -862,16 +848,16 @@ let run () =
         ("{\n  eximyKeysting : ___\n}", "myKey", 12) ;
       ()) ;
   describe "Constructors" (fun () ->
-      t
+      testCopy
         "copying adds constructor to clipboard"
         (constructor "Just" [int "100"])
-        (copy (0, 8))
-        ("Just 100", "Just 100", 8) ;
-      t
+        (0, 8)
+        "Just 100" ;
+      testCopy
         "copying part adds partial constructor to clipboard"
         (constructor "Just" [int "100"])
-        (copy (0, 3))
-        ("Just 100", "Jus@ ___", 3) ;
+        (0, 3)
+        "Jus@ ___" ;
       t
         "cutting adds constructor to clipboard and leaves blank"
         (constructor "Just" [int "100"])
