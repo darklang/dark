@@ -134,6 +134,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
            try
              (* serialization can fail, attempt first *)
              let c = Canvas.load_cron endp in
+             Thread.yield () ;
              match c with
              | Ok c ->
                  Some (endp, c)
@@ -206,7 +207,8 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                          ; ("handler_name", name)
                            (* method here to use the spec-handler name for
                             * consistency with http/worker logs *)
-                         ; ("method", modifier) ]))
+                         ; ("method", modifier) ] ;
+                     Thread.yield ()))
              crons)
     |> (fun x ->
          Log.infO
