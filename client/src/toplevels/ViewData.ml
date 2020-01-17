@@ -49,10 +49,13 @@ let viewTrace
     (isUnfetchable : bool)
     (tipe : tipe) : msg Html.html =
   let tlid = TL.id tl in
-  let activeClass = if isActive then Some "active" else None in
-  let hoverClass = if isHover then Some "mouseovered" else None in
-  let tipeClass = Some ("tipe-" ^ Runtime.tipe2str tipe) in
-  let classes = [activeClass; hoverClass; tipeClass] in
+  let classes =
+    [ ("active", isActive)
+    ; ("mouseovered", isHover)
+    ; ("tipe-" ^ Runtime.tipe2str tipe, true)
+    ; ("traceid-" ^ traceID, true)
+    ; ("unfetchable", isUnfetchable) ]
+  in
   let eventKey constructor =
     constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
   in
@@ -106,22 +109,13 @@ let viewTrace
     else [Html.div [Vdom.noProp] [Html.text {js|•|js}]]
   in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
-  let classes =
-    Some ("traceid-" ^ traceID)
-    :: (if isUnfetchable then Some "unfetchable" else None)
-    :: classes
-    |> List.filterMap ~f:identity
-    |> String.join ~sep:" "
-  in
-  let viewKey = traceID ^ classes ^ valueStr in
-  if traceID == "55bb02e5-7d85-4339-88ea-7e9ea3f9cb25"
-  then Js.log3 "Trace" traceID isUnfetchable ;
-  let props = Html.class' classes :: events in
-  let props =
+  let viewKey = ViewUtils.classListAsKey classes ^ valueStr in
+  let unfetchableAltText =
     if isUnfetchable
-    then Html.title "Trace is too large for the editor to load" :: props
-    else props
+    then Html.title "Trace is too large for the editor to load"
+    else Vdom.noProp
   in
+  let props = Html.classList classes :: unfetchableAltText :: events in
   Html.li ~key:viewKey props (dotHtml @ [viewData])
 
 
