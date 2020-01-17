@@ -2928,7 +2928,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              Some (patOrExprID, patOrExpr)
          | None ->
              None)
-  |> Option.andThen ~f:(fun (exprID, patOrExpr) ->
+  |> Option.andThen ~f:(fun (patOrExprID, patOrExpr) ->
          let maybeTransformedExprAndCaretTarget =
            match patOrExpr with
            | Pat pat ->
@@ -3336,13 +3336,14 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
          match maybeTransformedExprAndCaretTarget with
          | Some (Expr newExpr, desiredCaretTarget) ->
              Some
-               ( E.replace exprID ~replacement:newExpr ast
+               ( E.replace patOrExprID ~replacement:newExpr ast
                , AtTarget desiredCaretTarget )
          | Some (Pat newPat, desiredCaretTarget) ->
+             (* TODO(JULIAN): Consider using a replacement function that only needs the patOrExprID,
+               not the mID *)
              let mID = P.matchID newPat in
-             let id = P.id newPat in
-             Some
-               (replacePattern mID id ~newPat ast, AtTarget desiredCaretTarget)
+             let newAST = replacePattern mID patOrExprID ~newPat ast in
+             Some (newAST, AtTarget desiredCaretTarget)
          | _ ->
              None)
   |> Option.withDefault ~default:(ast, SamePlace)
