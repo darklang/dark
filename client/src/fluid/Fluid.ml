@@ -2957,23 +2957,19 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  Some
                    ( Pat (FPBlank (matchID, bID))
                    , {astRef = ARPattern (bID, PPBlank); offset = 0} )
-             | ( ARPattern (_, PPString SPOpenQuote)
-               , FPString {matchID; patternID; str} ) ->
-                 let str = Util.removeCharAt str (currOffset - 2) in
-                 Some
-                   (Pat (FPString {matchID; patternID; str}), desiredCaretTarget)
-             | ARPattern (_, PPString SPText), FPString {matchID; patternID; str}
-               ->
-                 let str = mutation str in
-                 Some
-                   (Pat (FPString {matchID; patternID; str}), desiredCaretTarget)
-             | ( ARPattern (_, PPString SPCloseQuote)
-               , FPString {matchID; patternID; str} ) ->
+             | ARPattern (_, PPString SPOpenQuote), FPString data ->
+                 let str = Util.removeCharAt data.str (currOffset - 2) in
+                 Some (Pat (FPString {data with str}), desiredCaretTarget)
+             | ARPattern (_, PPString SPText), FPString data ->
+                 let str = mutation data.str in
+                 Some (Pat (FPString {data with str}), desiredCaretTarget)
+             | ARPattern (_, PPString SPCloseQuote), FPString data ->
                  let str =
-                   Util.removeCharAt str (String.length str + currOffset)
+                   Util.removeCharAt
+                     data.str
+                     (String.length data.str + currOffset)
                  in
-                 Some
-                   (Pat (FPString {matchID; patternID; str}), desiredCaretTarget)
+                 Some (Pat (FPString {data with str}), desiredCaretTarget)
              | _ ->
                  None )
            | Expr expr ->
