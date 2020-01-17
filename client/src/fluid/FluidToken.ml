@@ -250,6 +250,10 @@ let isErrorDisplayable (t : t) : bool =
   isTextToken t && match t with TFnVersion _ -> false | _ -> true
 
 
+let isFieldPartial (t : t) : bool =
+  match t with TFieldPartial _ -> true | _ -> false
+
+
 let toText (t : t) : string =
   let shouldntBeEmpty name =
     if name = ""

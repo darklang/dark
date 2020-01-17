@@ -2454,13 +2454,12 @@ let acEnter (ti : T.tokenInfo) (ast : ast) (s : state) (key : K.key) :
     | TPatternVariable _ ->
         (ast, moveToNextBlank ~pos:s.newPos ast s)
     | TFieldPartial (partialID, _fieldAccessID, anaID, fieldname) ->
-      (* Accept fieldname, even if it's not in the autocomplete *)
-      E.find anaID ast
-      |> Option.map ~f:(fun expr ->
-        let replacement = EFieldAccess (gid (), expr,fieldname) in
-        (E.replace ~replacement partialID ast, s)
-      )
-      |> Option.withDefault ~default:(ast, s)
+        (* Accept fieldname, even if it's not in the autocomplete *)
+        E.find anaID ast
+        |> Option.map ~f:(fun expr ->
+               let replacement = EFieldAccess (gid (), expr, fieldname) in
+               (E.replace ~replacement partialID ast, s))
+        |> Option.withDefault ~default:(ast, s)
     | _ ->
         (ast, s) )
   | Some entry ->
@@ -2478,7 +2477,8 @@ let commitIfValid
   let isInside = newPos >= ti.startPos && newPos <= ti.endPos in
   (* TODO: if we can't move off because it's the start/end etc of the ast, we
    * may want to commit anyway. *)
-  if (not isInside) && Some (T.toText ti.token) = highlightedText
+  if (not isInside)
+     && (Some (T.toText ti.token) = highlightedText || T.isFieldPartial ti.token)
   then
     let newAST, _ = acEnter ti ast s K.Enter in
     newAST

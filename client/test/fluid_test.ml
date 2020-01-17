@@ -1386,9 +1386,14 @@ let run () =
         "___.~***" ;
       t
         "commit fieldpartial on enter"
-        (partial "name" (fieldAccess aShortVar ""))
-        (enter 6)
-        "v.name~" ;
+        (partial "u" (fieldAccess aShortVar ""))
+        (enter 3)
+        "v.u~" ;
+      t
+        "commit fieldpartial when cursor moves elsewhere"
+        (partial "u" (fieldAccess aShortVar ""))
+        (keys [K.Left; K.Left] 3)
+        "v~.u" ;
       ()) ;
   describe "Functions" (fun () ->
       t
