@@ -257,11 +257,17 @@ and fluidExpr =
   | EPipeTarget of id
   (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * fluidExpr * fluidExpr * fluidExpr
+[@@deriving show {with_path = false}]
+
+type fluidPatOrExpr =
+  | Expr of fluidExpr
+  | Pat of fluidPattern
+[@@deriving show {with_path = false}]
 
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
-and handlerSpaceName = string
+type handlerSpaceName = string
 
 and handlerName = string
 
