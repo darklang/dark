@@ -1541,7 +1541,6 @@ let update_ (msg : msg) (m : model) : modification =
            Tea.Http.Aborted)
   | ReceiveFetch (TraceFetchFailure (params, url, error))
     when error
-         (* TODO ismith string types kinda suck here *)
          = "Selected trace too large for the editor to load, maybe try another?"
     ->
       let traces =
