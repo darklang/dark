@@ -106,7 +106,7 @@ let viewTrace
   let dotHtml =
     if isHover && not isActive
     then [Html.div [Html.class' "empty-dot"] [Vdom.noNode]]
-    else [Html.div [Vdom.noProp] [Html.text {js|•|js}]]
+    else [Html.div [Html.class' "dot"] [Html.text {js|•|js}]]
   in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
   let viewKey = ViewUtils.classListAsKey classes ^ valueStr in
@@ -135,7 +135,7 @@ let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
     in
     let isHover = vs.hovering = Some (vs.tlid, ID traceID) in
     let isUnfetchable =
-      match traceData with Error MaximumCallStackError -> true | _ -> false
+        match traceData with Error MaximumCallStackError -> true | _ -> false
     in
     let astTipe =
       Analysis.getTipeOf' vs.analysisStore astID
