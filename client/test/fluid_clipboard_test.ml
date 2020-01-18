@@ -188,6 +188,20 @@ let run () =
     test (nameToName name initial) (fun () ->
         expect resultClipboard |> toEqual (Some expectedClipboard))
   in
+  let testCopyText
+      ?(debug = false)
+      (name : string)
+      (initial : fluidExpr)
+      (range : int * int)
+      (* This is the string copied.  *)
+        (expectedClipboard : string) : unit =
+    let e = clipboardEvent () in
+    let _, (resultClipboard, _), _ =
+      process ~debug e range initial (ClipboardCopyEvent e)
+    in
+    test (nameToName name initial) (fun () ->
+        expect resultClipboard |> toEqual expectedClipboard)
+  in
   let t
       ?(debug = false)
       (_name : string)
@@ -210,6 +224,14 @@ let run () =
         let newAST = execute_roundtrip ast in
         expect (Printer.eToTestString newAST) |> toEqual expectedString)
   in
+  describe "Copy text" (fun () ->
+      testCopyText
+        "copying text just gets text"
+        complexExpr
+        (132, 257)
+        "Http::Forbidden 403\nelse\n  Http::Forbidden" ;
+      testCopyText "copying empty gets empty text" complexExpr (0, 0) "" ;
+      ()) ;
   describe "Booleans" (fun () ->
       testCopy
         "copying a bool adds a bool to clipboard"
