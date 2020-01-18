@@ -474,8 +474,56 @@ let load_with_context ~tlids host (newops : Op.op list) :
 
 
 let load_http ~verb ~path host owner : (canvas ref, string list) Result.t =
+  (* Attempt to load all required toplvels via their
+   * cached repr, and then go and fetch whatever we were missing*)
   let owner = Account.for_host_exn host in
-  load_from ~f:(Serialize.load_for_http ~path ~verb) host owner []
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+  let relevant_tlids =
+    Serialize.relevant_tlids ~host ~canvas_id ~path ~verb ()
+  in
+  let handlers, dbs, user_fns, user_tipes =
+    Serialize.load_only_rendered_tlids ~host ~canvas_id ~tlids:relevant_tlids ()
+  in
+  let fast_loaded_tlids =
+    IDMap.keys handlers
+    @ IDMap.keys dbs
+    @ IDMap.keys user_fns
+    @ IDMap.keys user_tipes
+  in
+  let extras =
+    List.filter
+      ~f:(fun x -> not (List.mem ~equal:( = ) fast_loaded_tlids x))
+      relevant_tlids
+  in
+  (* urgh *)
+  let pos = {x = 0; y = 0} in
+  load_only_tlids ~tlids:extras host []
+  |> Result.map ~f:(fun canvas ->
+         List.iter (IDMap.to_alist handlers) ~f:(fun (tlid, h) ->
+             let c = !canvas in
+             let c =
+               { c with
+                 handlers =
+                   IDMap.set c.handlers tlid {tlid; pos; data = Handler h} }
+             in
+             canvas := c) ;
+         List.iter (IDMap.to_alist dbs) ~f:(fun (tlid, db) ->
+             let c = !canvas in
+             let c =
+               {c with dbs = IDMap.set c.dbs tlid {tlid; pos; data = DB db}}
+             in
+             canvas := c) ;
+         List.iter (IDMap.to_alist user_fns) ~f:(fun (tlid, ufn) ->
+             let c = !canvas in
+             let c =
+               {c with user_functions = IDMap.set c.user_functions tlid ufn}
+             in
+             canvas := c) ;
+         List.iter (IDMap.to_alist user_tipes) ~f:(fun (tlid, ut) ->
+             let c = !canvas in
+             let c = {c with user_tipes = IDMap.set c.user_tipes tlid ut} in
+             canvas := c) ;
+         canvas)
 
 
 let load_without_tls host : (canvas ref, string list) Result.t =
