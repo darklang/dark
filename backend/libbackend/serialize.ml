@@ -110,11 +110,14 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
          (tlid, ops))
 
 
-let strs2rendered_query_result strs :
-    RTT.HandlerT.handler IDMap.t
-    * RTT.DbT.db IDMap.t
-    * RTT.user_fn IDMap.t
-    * RTT.user_tipe IDMap.t =
+type rendered_oplist_cache_query_result =
+  RTT.HandlerT.handler IDMap.t
+  * RTT.DbT.db IDMap.t
+  * RTT.user_fn IDMap.t
+  * RTT.user_tipe IDMap.t
+
+let strs2rendered_oplist_cache_query_result strs :
+    rendered_oplist_cache_query_result =
   let handlers = IDMap.empty in
   let dbs = IDMap.empty in
   let user_fns = IDMap.empty in
@@ -194,12 +197,17 @@ let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
   |> strs2tlid_oplists
 
 
+(* This is a special `load_*` function that specifically loads toplevels
+ * via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
+ * stores a binary-serialized representation of the toplevel after the oplist
+ * is applied. This should be much faster because we don't have to ship
+ * the full oplist across the network from Postgres to the OCaml boxes,
+ * and similarly they don't have to apply the full history of the canvas
+ * in memory before they can execute the code.
+ * *)
 let load_only_rendered_tlids
     ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
-    RTT.HandlerT.handler IDMap.t
-    * RTT.DbT.db IDMap.t
-    * RTT.user_fn IDMap.t
-    * RTT.user_tipe IDMap.t =
+    rendered_oplist_cache_query_result =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   Db.fetch
     ~name:"load_only_rendered_tlids"
@@ -208,7 +216,7 @@ let load_only_rendered_tlids
       AND tlid = ANY (string_to_array($2, $3)::bigint[])"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
-  |> strs2rendered_query_result
+  |> strs2rendered_oplist_cache_query_result
 
 
 let load_with_context ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
