@@ -481,25 +481,33 @@ let load_http ~verb ~path host owner : (canvas ref, string list) Result.t =
   let relevant_tlids =
     Serialize.relevant_tlids ~host ~canvas_id ~path ~verb ()
   in
-  let handlers, dbs, user_fns, user_tipes =
+  let ( fast_loaded_handlers
+      , fast_loaded_dbs
+      , fast_loaded_user_fns
+      , fast_loaded_user_tipes ) =
     Serialize.load_only_rendered_tlids ~host ~canvas_id ~tlids:relevant_tlids ()
   in
   let fast_loaded_tlids =
-    IDMap.keys handlers
-    @ IDMap.keys dbs
-    @ IDMap.keys user_fns
-    @ IDMap.keys user_tipes
+    IDMap.keys fast_loaded_handlers
+    @ IDMap.keys fast_loaded_dbs
+    @ IDMap.keys fast_loaded_user_fns
+    @ IDMap.keys fast_loaded_user_tipes
   in
-  let extras =
+  let not_loaded_tlids =
     List.filter
       ~f:(fun x -> not (List.mem ~equal:( = ) fast_loaded_tlids x))
       relevant_tlids
   in
-  (* urgh *)
+  (* urgh, handlers/dbs need a pos but we can't get them from their serialized/cached definition.
+   * It's okay to just set an arbitrary default here, because we're _only using these for execution_ and
+   * pos's are only needed for the editor *)
   let pos = {x = 0; y = 0} in
-  load_only_tlids ~tlids:extras host []
+  (* canvas initialized via the normal loading path with the non-fast loaded tlids
+   * loaded traditionally via the oplist *)
+  let canvas = load_only_tlids ~tlids:not_loaded_tlids host [] in
+  canvas
   |> Result.map ~f:(fun canvas ->
-         List.iter (IDMap.to_alist handlers) ~f:(fun (tlid, h) ->
+         List.iter (IDMap.to_alist fast_loaded_handlers) ~f:(fun (tlid, h) ->
              let c = !canvas in
              let c =
                { c with
@@ -507,19 +515,19 @@ let load_http ~verb ~path host owner : (canvas ref, string list) Result.t =
                    IDMap.set c.handlers tlid {tlid; pos; data = Handler h} }
              in
              canvas := c) ;
-         List.iter (IDMap.to_alist dbs) ~f:(fun (tlid, db) ->
+         List.iter (IDMap.to_alist fast_loaded_dbs) ~f:(fun (tlid, db) ->
              let c = !canvas in
              let c =
                {c with dbs = IDMap.set c.dbs tlid {tlid; pos; data = DB db}}
              in
              canvas := c) ;
-         List.iter (IDMap.to_alist user_fns) ~f:(fun (tlid, ufn) ->
+         List.iter (IDMap.to_alist fast_loaded_user_fns) ~f:(fun (tlid, ufn) ->
              let c = !canvas in
              let c =
                {c with user_functions = IDMap.set c.user_functions tlid ufn}
              in
              canvas := c) ;
-         List.iter (IDMap.to_alist user_tipes) ~f:(fun (tlid, ut) ->
+         List.iter (IDMap.to_alist fast_loaded_user_tipes) ~f:(fun (tlid, ut) ->
              let c = !canvas in
              let c = {c with user_tipes = IDMap.set c.user_tipes tlid ut} in
              canvas := c) ;
