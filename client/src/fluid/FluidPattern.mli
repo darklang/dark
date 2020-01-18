@@ -9,3 +9,7 @@ val clone : Types.id -> t -> t
 val variableNames : t -> string list
 
 val hasVariableNamed : string -> t -> bool
+
+(** [findPattern patID within] returns Some pattern
+  with id = [patID] in the [within] tree, or None. *)
+val findPattern : Types.id -> t -> t option
