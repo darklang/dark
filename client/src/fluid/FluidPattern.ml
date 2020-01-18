@@ -61,3 +61,19 @@ let rec variableNames (p : t) : string list =
 
 let hasVariableNamed (varName : string) (p : fluidPattern) : bool =
   List.member ~value:varName (variableNames p)
+
+
+let rec findPattern (patID : Types.id) (within : t) : t option =
+  match within with
+  | FPVariable (_, pid, _)
+  | FPInteger (_, pid, _)
+  | FPBool (_, pid, _)
+  | FPNull (_, pid)
+  | FPBlank (_, pid)
+  | FPFloat (_, pid, _, _)
+  | FPString {matchID = _; patternID = pid; str = _} ->
+      if patID = pid then Some within else None
+  | FPConstructor (_, pid, _, pats) ->
+      if patID = pid
+      then Some within
+      else List.findMap pats ~f:(fun p -> findPattern patID p)
