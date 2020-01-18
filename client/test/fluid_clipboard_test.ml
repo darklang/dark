@@ -188,6 +188,25 @@ let run () =
     test (nameToName name initial) (fun () ->
         expect resultClipboard |> toEqual (Some expectedClipboard))
   in
+  let testPasteExpr
+      ?(debug = false)
+      (name : string)
+      (initial : fluidExpr)
+      (range : int * int)
+      (clipboard : fluidExpr)
+      (expectedText : string) : unit =
+    let e = clipboardEvent () in
+    let text = FluidPrinter.eToTestString clipboard in
+    let data =
+      (text, Some (FluidClipboard.exprToClipboardContents clipboard))
+    in
+    DClipboard.setData data e ;
+    let resultText, _, resultPos =
+      process ~debug e range initial (ClipboardPasteEvent e)
+    in
+    test (nameToName name initial) (fun () ->
+        expect (insertCursor (resultText, resultPos)) |> toEqual expectedText)
+  in
   let testCopyText
       ?(debug = false)
       (name : string)
@@ -253,11 +272,12 @@ let run () =
         (fn "Bool::not" [bool true])
         (cut (10, 14))
         ("Bool::not ___", "true", 10) ;
-      t
+      testPasteExpr
         "pasting a bool from clipboard on a blank should paste it"
         b
-        (pasteExpr ~clipboard:(bool true) (0, 0))
-        ("true", "true", 4) ;
+        (0, 0)
+        (bool true)
+        "true~" ;
       ()) ;
   describe "Nulls" (fun () ->
       testCopy "copying a null adds a null to clipboard" null (0, 4) "null" ;
@@ -390,11 +410,12 @@ let run () =
         (str "abcd EFGH ijkl 1234")
         (cut (4, 14))
         ("\"abcl 1234\"", "\"d EFGH ijk\"", 4) ;
-      t
+      testPasteExpr
         "pasting a string on a blank should paste it"
         b
-        (pasteExpr ~clipboard:(str "abcd EFGH ijkl 1234") (0, 0))
-        ("\"abcd EFGH ijkl 1234\"", "\"abcd EFGH ijkl 1234\"", 21) ;
+        (0, 0)
+        (str "abcd EFGH ijkl 1234")
+        "\"abcd EFGH ijkl 1234\"~" ;
       t
         "pasting a string in another string should paste it"
         (str "abcd EFGH ijkl 1234")
@@ -436,11 +457,12 @@ let run () =
         (str "abcd EFGH ijkl 1234")
         (pasteBoth ~clipboard:("5678", int "5678") (11, 15))
         ("\"abcd EFGH 5678 1234\"", "5678", 15) ;
-      t
+      testPasteExpr
         "pasting a regular record with a single key in a string should paste stringified expr"
         (str "abcd EFGH ijkl 1234")
-        (pasteExpr ~clipboard:(record [("key1", int "9876")]) (11, 15))
-        ("\"abcd EFGH {\n  key1 : 9876\n} 1234\"", "{\n  key1 : 9876\n}", 28) ;
+        (11, 15)
+        (record [("key1", int "9876")])
+        "\"abcd EFGH {\n  key1 : 9876\n}~ 1234\"" ;
       ()) ;
   describe "Floats" (fun () ->
       testCopy
@@ -575,11 +597,12 @@ let run () =
         (var "varName")
         (cut (0, 3))
         ("Name", "var", 0) ;
-      t
+      testPasteExpr
         "pasting variable into blank works"
         b
-        (pasteExpr ~clipboard:(var "varName") (0, 0))
-        ("varName", "varName", 7) ;
+        (0, 0)
+        (var "varName")
+        "varName~" ;
       t
         "pasting variable into empty let lhs works"
         (let' "" b b)
