@@ -207,6 +207,21 @@ let run () =
     test (nameToName name initial) (fun () ->
         expect (insertCursor (resultText, resultPos)) |> toEqual expectedText)
   in
+  let testPasteText
+      ?(debug = false)
+      (name : string)
+      (initial : fluidExpr)
+      (range : int * int)
+      (clipboard : string)
+      (expectedText : string) : unit =
+    let e = clipboardEvent () in
+    DClipboard.setData (clipboard, None) e ;
+    let resultText, _, resultPos =
+      process ~debug e range initial (ClipboardPasteEvent e)
+    in
+    test (nameToName name initial) (fun () ->
+        expect (insertCursor (resultText, resultPos)) |> toEqual expectedText)
+  in
   let testCopyText
       ?(debug = false)
       (name : string)
@@ -646,16 +661,18 @@ let run () =
         (fieldAccess (var "request") "body")
         (cut (0, 8))
         ("___.body", "request.***", 0) ; *)
-      t
+      testPasteText
         "pasting into a field pastes"
         (fieldAccess (var "request") "")
-        (pasteText ~clipboard:"body" (8, 8))
-        ("request.body", "body", 12) ;
-      t
+        (8, 8)
+        "body"
+        "request.body~" ;
+      testPasteText
         "pasting into the middle of a field pastes"
         (fieldAccess (var "request") "existing")
-        (pasteText ~clipboard:"body" (10, 10))
-        ("request.exbodyisting", "body", 14) ;
+        (10, 10)
+        "body"
+        "request.exbody~isting" ;
       ()) ;
   describe "If conditions" (fun () ->
       testCopy
@@ -881,16 +898,18 @@ let run () =
         (record [("key1", int "1234")])
         (2, 15)
         "{\n  key1 : 1234\n}" ;
-      t
+      testPasteText
         "pasting text into record keys works"
         (record [("", b)])
-        (pasteText ~clipboard:"mykey" (4, 4))
-        ("{\n  mykey : ___\n}", "mykey", 9) ;
-      t
+        (4, 4)
+        "mykey"
+        "{\n  mykey~ : ___\n}" ;
+      testPasteText
         "pasting text into existing record keys works"
         (record [("existing", b)])
-        (pasteText ~clipboard:"myKey" (7, 7))
-        ("{\n  eximyKeysting : ___\n}", "myKey", 12) ;
+        (7, 7)
+        "myKey"
+        "{\n  eximyKey~sting : ___\n}" ;
       ()) ;
   describe "Constructors" (fun () ->
       testCopy
@@ -918,37 +937,26 @@ let run () =
       (* TODO: test match statements, implementation is slightly inconsistent*)
       ()) ;
   describe "json" (fun () ->
-      t
-        "pasting a json int makes an int"
-        b
-        (pasteText ~clipboard:"6" (0, 0))
-        ("6", "6", 1) ;
-      t
-        "pasting a json float makes a float"
-        b
-        (pasteText ~clipboard:"6.6" (0, 0))
-        ("6.6", "6.6", 3) ;
-      t
+      testPasteText "pasting a json int makes an int" b (0, 0) "6" "6~" ;
+      testPasteText "pasting a json float makes a float" b (0, 0) "6.6" "6.6~" ;
+      testPasteText
         "pasting a json array makes a list"
         b
-        (pasteText ~clipboard:"[ 1 , 2 , 3 , 4 ]" (0, 0))
-        ("[1,2,3,4]", "[1,2,3,4]", 9) ;
-      t
+        (0, 0)
+        "[ 1 , 2 , 3 , 4 ]"
+        "[1,2,3,4]~" ;
+      testPasteText
         "pasting a object list makes a record"
         b
-        (pasteText
-           ~clipboard:"{ \"a\": \n\"b\", \"c\":[\n1\n,\n2], \"d\" : \n4.5 }"
-           (0, 0))
-        ( "{\n  a : \"b\"\n  c : [1,2]\n  d : 4.5\n}"
-        , "{\n  a : \"b\"\n  c : [1,2]\n  d : 4.5\n}"
-        , 35 ) ;
-      t
+        (0, 0)
+        "{ \"a\": \n\"b\", \"c\":[\n1\n,\n2], \"d\" : \n4.5 }"
+        "{\n  a : \"b\"\n  c : [1,2]\n  d : 4.5\n}~" ;
+      testPasteText
         "pasting text into a string doesn't use the json conversion"
         (str "")
-        (pasteText ~clipboard:"[ 1 , 5 ]" (1, 1))
-        ( "\"[ 1 , 5 ]\""
-        , (* this is wrong due to how the test works *) "[1,5]"
-        , 10 ) ;
+        (1, 1)
+        "[ 1 , 5 ]"
+        "\"[ 1 , 5 ]~\"" ;
       ()) ;
   describe "Feature Flags" (fun () ->
       (* TODO: test feature flags, not yet in fluid *) ()) ;
