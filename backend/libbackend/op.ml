@@ -115,68 +115,68 @@ let has_effect (op : op) : bool =
   match op with TLSavepoint _ -> false | _ -> true
 
 
-let tlidOf (op : op) : tlid option =
+let tlidOf (op : op) : tlid =
   match op with
   | SetHandler (tlid, _, _) ->
-      Some tlid
+      tlid
   | CreateDB (tlid, _, _) ->
-      Some tlid
+      tlid
   | AddDBCol (tlid, _, _) ->
-      Some tlid
+      tlid
   | SetDBColName (tlid, _, _) ->
-      Some tlid
+      tlid
   | ChangeDBColName (tlid, _, _) ->
-      Some tlid
+      tlid
   | SetDBColType (tlid, _, _) ->
-      Some tlid
+      tlid
   | ChangeDBColType (tlid, _, _) ->
-      Some tlid
+      tlid
   | DeprecatedInitDbm (tlid, _, _, _, _) ->
-      Some tlid
+      tlid
   | SetExpr (tlid, _, _) ->
-      Some tlid
+      tlid
   | TLSavepoint tlid ->
-      Some tlid
+      tlid
   | UndoTL tlid ->
-      Some tlid
+      tlid
   | RedoTL tlid ->
-      Some tlid
+      tlid
   | DeleteTL tlid ->
-      Some tlid
+      tlid
   | MoveTL (tlid, _) ->
-      Some tlid
+      tlid
   | SetFunction f ->
-      Some f.tlid
+      f.tlid
   | DeleteFunction tlid ->
-      Some tlid
+      tlid
   | CreateDBMigration (tlid, _, _, _) ->
-      Some tlid
+      tlid
   | AddDBColToDBMigration (tlid, _, _) ->
-      Some tlid
+      tlid
   | SetDBColNameInDBMigration (tlid, _, _) ->
-      Some tlid
+      tlid
   | SetDBColTypeInDBMigration (tlid, _, _) ->
-      Some tlid
+      tlid
   | AbandonDBMigration tlid ->
-      Some tlid
+      tlid
   | DeleteColInDBMigration (tlid, _) ->
-      Some tlid
+      tlid
   | DeleteDBCol (tlid, _) ->
-      Some tlid
+      tlid
   | RenameDBname (tlid, _) ->
-      Some tlid
+      tlid
   | CreateDBWithBlankOr (tlid, _, _, _) ->
-      Some tlid
+      tlid
   | DeleteTLForever tlid ->
-      Some tlid
+      tlid
   | DeleteFunctionForever tlid ->
-      Some tlid
+      tlid
   | SetType ut ->
-      Some ut.tlid
+      ut.tlid
   | DeleteType tlid ->
-      Some tlid
+      tlid
   | DeleteTypeForever tlid ->
-      Some tlid
+      tlid
 
 
 let oplist_to_string (ops : op list) : string =
@@ -189,10 +189,10 @@ let oplist_of_string (str : string) : op list =
 
 let oplist2tlid_oplists (oplist : oplist) : tlid_oplists =
   oplist
-  |> List.map ~f:(fun op -> tlidOf op |> Option.value_exn)
+  |> List.map ~f:tlidOf
   |> List.stable_dedup
   |> List.map ~f:(fun tlid ->
-         (tlid, List.filter oplist ~f:(fun op -> tlidOf op = Some tlid)))
+         (tlid, List.filter oplist ~f:(fun op -> tlidOf op = tlid)))
 
 
 let tlid_oplists2oplist (tos : tlid_oplists) : oplist =

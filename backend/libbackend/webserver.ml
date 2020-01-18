@@ -702,7 +702,7 @@ let admin_add_op_handler
           , canvas_id ))
   in
   let ops = params.ops in
-  let tlids = List.filter_map ~f:Op.tlidOf ops in
+  let tlids = List.map ~f:Op.tlidOf ops in
   let t2, maybe_c =
     (* NOTE: Because we run canvas-wide validation logic, it's important
      * that we load _at least_ the context (ie. datastores, functions, types etc. )
