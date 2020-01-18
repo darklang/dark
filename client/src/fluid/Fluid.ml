@@ -912,14 +912,17 @@ let moveToCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) =
    
    (note that there are some cases, like strings,
     where multiple caretTargets could refer to the same pos) *)
-let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option =
+let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
+    =
   let offset = pos - ti.startPos in
   match ti.token with
   | TString (id, _) | TStringMLStart (id, _, _, _) ->
       Some {astRef = ARString (id, SPOpenQuote); offset}
   | TStringMLMiddle (id, _, startOffset, _)
   | TStringMLEnd (id, _, startOffset, _) ->
-      Some {astRef = ARString (id, SPText); offset = startOffset + pos - ti.startPos}
+      Some
+        { astRef = ARString (id, SPText)
+        ; offset = startOffset + pos - ti.startPos }
   | TInteger (id, _) ->
       Some {astRef = ARInteger id; offset}
   | TBlank id | TPlaceholder (_, id) ->
@@ -965,10 +968,11 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TFnVersion (id, _, versionName, backendFnName) ->
       (* TODO(JULIAN): This is very brittle and should probably be moved into a function responsible
          for grabbing the appropriate bits of functions *)
-      Some { astRef = ARFnCall (id, FCPFnName)
-      ; offset =
-          offset + String.length backendFnName - String.length versionName - 1
-      }
+      Some
+        { astRef = ARFnCall (id, FCPFnName)
+        ; offset =
+            offset + String.length backendFnName - String.length versionName - 1
+        }
   | TLambdaSep (id, idx) ->
       Some {astRef = ARLambda (id, LPSeparator idx); offset}
   | TLambdaArrow id ->
@@ -3553,8 +3557,10 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let s = recordAction ~pos ~ti "doBackspace" s in
   let newAST, newPosition =
     match caretTargetFromTokenInfo pos ti with
-    | Some ct -> doExplicitBackspace ct ast
-    | None -> (ast, Exactly ti.startPos)
+    | Some ct ->
+        doExplicitBackspace ct ast
+    | None ->
+        (ast, Exactly ti.startPos)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
