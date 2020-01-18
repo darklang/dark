@@ -1343,6 +1343,7 @@ let replacePattern
 
 let replaceVarInPattern
     (mID : id) (oldName : string) (newName : string) (ast : ast) : E.t =
+  (* XXX(JULIAN): This function does not do what it should; it renames in all branches! *)
   E.update mID ast ~f:(fun e ->
       match e with
       | EMatch (mID, cond, cases) ->
@@ -2943,12 +2944,16 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
            | Pat pat ->
              ( match (currAstRef, pat) with
              | ARPattern (_, PPBlank), FPBlank (mID, pID) ->
+                 (* XXX(JULIAN): This has a bug in that you cannot bs here:
+                Just |___ -> ___ *)
                  if currOffset = 0
                  then
                    match E.find mID ast with
                    | Some (EMatch (_, cond, patterns)) ->
                        patContainerRef := Some mID ;
                        patterns
+                       (* XXX(JULIAN): This is super broken because the pattern id could be anywhere
+                          but we only check at the pattern root *)
                        |> List.findIndex ~f:(fun (p, _) -> P.id p = pID)
                        |> Option.map ~f:(fun remIdx ->
                               let newPatterns =
