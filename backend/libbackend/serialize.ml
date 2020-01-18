@@ -236,9 +236,10 @@ let load_all_dbs ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   |> strs2tlid_oplists
 
 
-let relevant_tlids ~host ~canvas_id ~path ~verb () : Types.tlid list =
+let fetch_relevant_tlids_for_http ~host ~canvas_id ~path ~verb () :
+    Types.tlid list =
   Db.fetch
-    ~name:"relevant_tlids"
+    ~name:"fetch_relevant_tlids_for_http"
     (* The pattern `$2 like name` is deliberate, to leverage the DB's
      * pattern matching to solve our routing. *)
     "SELECT tlid FROM toplevel_oplists

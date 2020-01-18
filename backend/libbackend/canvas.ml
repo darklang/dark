@@ -479,7 +479,7 @@ let load_http ~verb ~path host owner : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let relevant_tlids =
-    Serialize.relevant_tlids ~host ~canvas_id ~path ~verb ()
+    Serialize.fetch_relevant_tlids_for_http ~host ~canvas_id ~path ~verb ()
   in
   let ( fast_loaded_handlers
       , fast_loaded_dbs
