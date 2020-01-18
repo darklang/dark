@@ -69,6 +69,7 @@ let t_db_oplist_roundtrip () =
   in
   Serialize.save_toplevel_oplist
     oplist
+    ~binary_repr:None
     ~tlid
     ~canvas_id
     ~account_id:owner
@@ -83,7 +84,8 @@ let t_db_oplist_roundtrip () =
 let t_http_oplist_roundtrip () =
   clear_test_data () ;
   let host = "test-http_oplist_roundtrip" in
-  let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
+  let handler = http_route_handler () in
+  let oplist = [Op.SetHandler (tlid, pos, handler)] in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c1 ;
   let owner = Account.for_host_exn host in
@@ -92,7 +94,17 @@ let t_http_oplist_roundtrip () =
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
-  check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
+  (* check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops *)
+  AT.check
+    AT.bool
+    "handler is same"
+    true
+    ( handler
+    = ( !c2.handlers
+      |> IDMap.data
+      |> List.hd_exn
+      |> Toplevel.as_handler
+      |> Option.value_exn ) )
 
 
 let t_http_oplist_loads_user_tipes () =
