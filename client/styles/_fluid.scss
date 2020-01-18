@@ -62,6 +62,33 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
     color: $blue;
     cursor: pointer;
   }
+
+  .src-arrow {
+    border-style: solid;
+    border-color: $live-value-background;
+    border-top-width: 2px;
+    border-left-width: 2px;
+    border-right: 0;
+    border-bottom: 0;
+    border-top-left-radius: 10px;
+
+    display: block;
+    width: 20px;
+    height: 2em;
+
+    position: absolute;
+    left: calc(100% - 2px);
+    bottom: 0;
+
+    &:after {
+      @include font-awesome("\f0da");
+      color: $live-value-background;
+      font-size: 2em;
+      position: absolute;
+      top: -0.5em;
+      right: -0.1em;
+    }
+  }
 }
 
 .return-value {
