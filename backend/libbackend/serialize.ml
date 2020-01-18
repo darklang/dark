@@ -1,6 +1,24 @@
 open Core_kernel
 open Libcommon
 open Libexecution
+open Types
+module RTT = RuntimeT
+
+let handler_of_binary_string (str : string) : RTT.HandlerT.handler =
+  Core_extended.Bin_io_utils.of_line str RTT.HandlerT.bin_handler
+
+
+let db_of_binary_string (str : string) : RTT.DbT.db =
+  Core_extended.Bin_io_utils.of_line str RTT.DbT.bin_db
+
+
+let user_fn_of_binary_string (str : string) : RTT.user_fn =
+  Core_extended.Bin_io_utils.of_line str RTT.bin_user_fn
+
+
+let user_tipe_of_binary_string (str : string) : RTT.user_tipe =
+  Core_extended.Bin_io_utils.of_line str RTT.bin_user_tipe
+
 
 (* We serialize oplists for each toplevel in the DB. This affects making
  * changes to almost any fundamental type in Dark, so must be
@@ -92,6 +110,70 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
          (tlid, ops))
 
 
+type rendered_oplist_cache_query_result =
+  RTT.HandlerT.handler IDMap.t
+  * RTT.DbT.db IDMap.t
+  * RTT.user_fn IDMap.t
+  * RTT.user_tipe IDMap.t
+
+let strs2rendered_oplist_cache_query_result strs :
+    rendered_oplist_cache_query_result =
+  let handlers = IDMap.empty in
+  let dbs = IDMap.empty in
+  let user_fns = IDMap.empty in
+  let user_tipes = IDMap.empty in
+  let try_parse ~f data = try Some (f data) with _ -> None in
+  strs
+  |> List.map ~f:(fun results ->
+         match results with
+         | [data] ->
+             data
+         | _ ->
+             Exception.internal "Shape of per_tlid cached reprs")
+  |> List.fold
+       ~init:(handlers, dbs, user_fns, user_tipes)
+       ~f:(fun (handlers, dbs, user_fns, user_tipes) str ->
+         (* This is especially nasty because we don't know the
+          * tlid of the blob we're trying to parse, so we have
+          * to try all 4 of our various serializers -- which
+          * helpfully throw exceptions which we have to catch for
+          * control-flow
+          *
+          * Ordered as follows based on expected numbers
+          * Fns > Dbs > Handlers > types
+          *
+          * *)
+         match try_parse ~f:user_fn_of_binary_string str with
+         | Some ufn ->
+             ( handlers
+             , dbs
+             , IDMap.add_exn user_fns ~key:ufn.tlid ~data:ufn
+             , user_tipes )
+         | None ->
+           ( match try_parse ~f:db_of_binary_string str with
+           | Some db ->
+               ( handlers
+               , IDMap.add_exn dbs ~key:db.tlid ~data:db
+               , user_fns
+               , user_tipes )
+           | None ->
+             ( match try_parse ~f:handler_of_binary_string str with
+             | Some h ->
+                 ( IDMap.add_exn handlers ~key:h.tlid ~data:h
+                 , dbs
+                 , user_fns
+                 , user_tipes )
+             | None ->
+               ( match try_parse ~f:user_tipe_of_binary_string str with
+               | Some t ->
+                   ( handlers
+                   , dbs
+                   , user_fns
+                   , IDMap.add_exn user_tipes ~key:t.tlid ~data:t )
+               | None ->
+                   (handlers, dbs, user_fns, user_tipes) ) ) ))
+
+
 let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   Db.fetch
     ~name:"load_all_from_db"
@@ -113,6 +195,28 @@ let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2tlid_oplists
+
+
+(* This is a special `load_*` function that specifically loads toplevels
+ * via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
+ * stores a binary-serialized representation of the toplevel after the oplist
+ * is applied. This should be much faster because we don't have to ship
+ * the full oplist across the network from Postgres to the OCaml boxes,
+ * and similarly they don't have to apply the full history of the canvas
+ * in memory before they can execute the code.
+ * *)
+let load_only_rendered_tlids
+    ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
+    rendered_oplist_cache_query_result =
+  let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
+  Db.fetch
+    ~name:"load_only_rendered_tlids"
+    "SELECT rendered_oplist_cache FROM toplevel_oplists
+      WHERE canvas_id = $1
+      AND tlid = ANY (string_to_array($2, $3)::bigint[])"
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
+    ~result:BinaryResult
+  |> strs2rendered_oplist_cache_query_result
 
 
 let load_with_context ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
@@ -140,22 +244,25 @@ let load_all_dbs ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   |> strs2tlid_oplists
 
 
-let load_for_http
-    ~host ~(canvas_id : Uuidm.t) ~(path : string) ~(verb : string) () :
-    Op.tlid_oplists =
+let fetch_relevant_tlids_for_http ~host ~canvas_id ~path ~verb () :
+    Types.tlid list =
   Db.fetch
-    ~name:"load_for_http"
+    ~name:"fetch_relevant_tlids_for_http"
     (* The pattern `$2 like name` is deliberate, to leverage the DB's
      * pattern matching to solve our routing. *)
-    "SELECT data FROM toplevel_oplists
+    "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = $1
         AND ((module = 'HTTP'
               AND $2 like name
               AND modifier = $3)
               OR tipe <> 'handler'::toplevel_type)"
     ~params:[Db.Uuid canvas_id; String path; String verb]
-    ~result:BinaryResult
-  |> strs2tlid_oplists
+  |> List.map ~f:(fun l ->
+         match l with
+         | [data] ->
+             Types.id_of_string data
+         | _ ->
+             Exception.internal "Shape of per_tlid oplists")
 
 
 let load_for_cron ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
