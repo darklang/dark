@@ -16,32 +16,6 @@ type tl_tipe =
   | TLUserTipe
 [@@deriving eq, show]
 
-let tl_tipe_to_string t =
-  match t with
-  | TLDB ->
-      "db"
-  | TLHandler ->
-      "handler"
-  | TLUserFunction ->
-      "user_function"
-  | TLUserTipe ->
-      "user_tipe"
-
-
-let tl_tipe_of_string s =
-  match s with
-  | "db" ->
-      Some TLDB
-  | "handler" ->
-      Some TLHandler
-  | "user_function" ->
-      Some TLUserFunction
-  | "user_tipe" ->
-      Some TLUserTipe
-  | _ ->
-      None
-
-
 type toplevel =
   { tlid : id
   ; pos : pos

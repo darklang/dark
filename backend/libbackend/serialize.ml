@@ -172,7 +172,6 @@ let load_for_cron ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
 
 
 let save_toplevel_oplist
-    ~(binary_repr : string option)
     ~(tlid : Types.tlid)
     ~(canvas_id : Uuidm.t)
     ~(account_id : Uuidm.t)
@@ -184,15 +183,22 @@ let save_toplevel_oplist
   let string_option o =
     match o with Some str -> Db.String str | None -> Db.Null
   in
-  let binary_option o =
-    match o with Some bin -> Db.Binary bin | None -> Db.Null
+  let tipe_str =
+    match tipe with
+    | Toplevel.TLDB ->
+        "db"
+    | Toplevel.TLHandler ->
+        "handler"
+    | Toplevel.TLUserFunction ->
+        "user_function"
+    | Toplevel.TLUserTipe ->
+        "user_tipe"
   in
-  let tipe_str = Toplevel.tl_tipe_to_string tipe in
   Db.run
     ~name:"save per tlid oplist"
     "INSERT INTO toplevel_oplists
     (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache)
-    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10)
+    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, NULL)
     ON CONFLICT (canvas_id, tlid) DO UPDATE
     SET account_id = $2,
         digest = $4,
@@ -200,8 +206,7 @@ let save_toplevel_oplist
         name = $6,
         module = $7,
         modifier = $8,
-        data = $9,
-        rendered_oplist_cache = $10;"
+        data = $9;"
     ~params:
       [ Uuid canvas_id
       ; Uuid account_id
@@ -211,8 +216,7 @@ let save_toplevel_oplist
       ; string_option name
       ; string_option module_
       ; string_option modifier
-      ; Binary (Op.oplist_to_string ops)
-      ; binary_option binary_repr ]
+      ; Binary (Op.oplist_to_string ops) ]
 
 
 (* ------------------------- *)

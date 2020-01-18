@@ -174,17 +174,19 @@ module RuntimeT = struct
   (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
   module DbT = struct
-    (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
     type col = string or_blank * tipe_ or_blank
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, compare, show, yojson]
 
+    (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
     type migration_kind = DeprecatedMigrationKind
     [@@deriving eq, compare, show, yojson, bin_io]
+
+    (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
     type db_migration_state =
       | DBMigrationAbandoned
       | DBMigrationInitialized
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, compare, show, yojson]
 
     type db_migration =
       { starting_version : int
@@ -193,7 +195,7 @@ module RuntimeT = struct
       ; rollforward : expr
       ; rollback : expr
       ; cols : col list }
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, compare, show, yojson]
 
     type db =
       { tlid : tlid
@@ -202,9 +204,7 @@ module RuntimeT = struct
       ; version : int
       ; old_migrations : db_migration list
       ; active_migration : db_migration option }
-    [@@deriving eq, compare, show, yojson, bin_io]
-
-    (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
+    [@@deriving eq, compare, show, yojson]
   end
 
   module HandlerT = struct

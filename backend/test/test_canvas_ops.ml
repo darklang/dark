@@ -69,7 +69,6 @@ let t_db_oplist_roundtrip () =
   in
   Serialize.save_toplevel_oplist
     oplist
-    ~binary_repr:None
     ~tlid
     ~canvas_id
     ~account_id:owner
