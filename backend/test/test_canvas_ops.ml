@@ -94,10 +94,12 @@ let t_http_oplist_roundtrip () =
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
-  (* check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops *)
+  (* Can tell it was loaded from the cache, as the canvas object has no
+   * oplists *)
+  AT.check AT.bool "handler is loaded from cache" true (!c2.ops = []) ;
   AT.check
     AT.bool
-    "handler is same"
+    "handler is loaded correctly from cache"
     true
     ( handler
     = ( !c2.handlers
