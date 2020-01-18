@@ -27,6 +27,28 @@ type canvas =
   ; deleted_user_tipes : RTT.user_tipe IDMap.t }
 [@@deriving eq, show]
 
+let handler_to_binary_string (h : RTT.HandlerT.handler) : string =
+  h
+  |> Core_extended.Bin_io_utils.to_line RTT.HandlerT.bin_handler
+  |> Bigstring.to_string
+
+
+let db_to_binary_string (db : RTT.DbT.db) : string =
+  db |> Core_extended.Bin_io_utils.to_line RTT.DbT.bin_db |> Bigstring.to_string
+
+
+let user_fn_to_binary_string (ufn : RTT.user_fn) : string =
+  ufn
+  |> Core_extended.Bin_io_utils.to_line RTT.bin_user_fn
+  |> Bigstring.to_string
+
+
+let user_tipe_to_binary_string (ut : RTT.user_tipe) : string =
+  ut
+  |> Core_extended.Bin_io_utils.to_line RTT.bin_user_tipe
+  |> Bigstring.to_string
+
+
 (* ------------------------- *)
 (* Toplevel *)
 (* ------------------------- *)
@@ -524,15 +546,45 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
           let name, module_, modifier =
             IDMap.find routes tlid |> Option.value ~default:(None, None, None)
           in
-          let tipe =
-            IDMap.find tipes tlid
-            (* If the user calls Undo enough, we might not know
-                    * the tipe here. In that case, set to handler cause
-                    * it won't be used anyway *)
-            |> Option.value ~default:TL.TLHandler
+          let tipe_opt = IDMap.find tipes tlid in
+          let binary_repr =
+            match tipe_opt with
+            | Some TL.TLHandler ->
+                IDMap.find c.handlers tlid
+                |> Option.value_map
+                     ~f:(fun h -> Some h)
+                     ~default:(IDMap.find c.deleted_handlers tlid)
+                |> Option.bind ~f:TL.as_handler
+                |> Option.map ~f:handler_to_binary_string
+            | Some TL.TLDB ->
+                IDMap.find c.dbs tlid
+                |> Option.value_map
+                     ~f:(fun db -> Some db)
+                     ~default:(IDMap.find c.deleted_dbs tlid)
+                |> Option.bind ~f:TL.as_db
+                |> Option.map ~f:db_to_binary_string
+            | Some TL.TLUserFunction ->
+                IDMap.find c.user_functions tlid
+                |> Option.value_map
+                     ~f:(fun fn -> Some fn)
+                     ~default:(IDMap.find c.deleted_user_functions tlid)
+                |> Option.map ~f:user_fn_to_binary_string
+            | Some TL.TLUserTipe ->
+                IDMap.find c.user_tipes tlid
+                |> Option.value_map
+                     ~f:(fun t -> Some t)
+                     ~default:(IDMap.find c.deleted_user_tipes tlid)
+                |> Option.map ~f:user_tipe_to_binary_string
+            | None ->
+                None
           in
+          (* If the user calls Undo enough, we might not know
+            * the tipe here. In that case, set to handler cause
+            * it won't be used anyway *)
+          let tipe = Option.value ~default:TL.TLHandler tipe_opt in
           Serialize.save_toplevel_oplist
             oplist
+            ~binary_repr
             ~tlid
             ~canvas_id:c.id
             ~account_id:c.owner
