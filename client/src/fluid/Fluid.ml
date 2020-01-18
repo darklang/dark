@@ -2974,11 +2974,37 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                               in
                               (Expr (EMatch (mID, cond, newPatterns)), target))
                    | _ ->
-                       None
+                       recover "doExplicitBackspace PPBlank" None
                  else
                    Some
                      ( Pat (FPBlank (mID, pID))
                      , {astRef = currAstRef; offset = 0} )
+             | ARPattern (_, PPVariable), FPVariable (mID, pID, oldName) ->
+                 patContainerRef := Some mID ;
+                 let newName = mutation oldName in
+                 let newPat, target =
+                   if newName = ""
+                   then
+                     ( FPBlank (mID, pID)
+                     , {astRef = ARPattern (pID, PPBlank); offset = 0} )
+                   else (FPVariable (mID, pID, newName), desiredCaretTarget)
+                 in
+                 ( match E.find mID ast with
+                 | Some (EMatch (_, cond, cases)) ->
+                     let rec run p =
+                       if pID = P.id p then newPat else recursePattern ~f:run p
+                     in
+                     let newCases =
+                       List.map cases ~f:(fun (pat, body) ->
+                           if P.findPattern pID pat <> None
+                           then
+                             ( run pat
+                             , E.renameVariableUses ~oldName ~newName body )
+                           else (pat, body))
+                     in
+                     Some (Expr (EMatch (mID, cond, newCases)), target)
+                 | _ ->
+                     recover "doExplicitBackspace FPVariable" None )
              | ARPattern (_, PPNull), FPNull (mID, _) ->
                  let str = mutation "null" in
                  let newID = gid () in
@@ -3528,7 +3554,7 @@ let tryReplaceStringAndMoveOrSame2
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
-  let offset =
+  (*   let offset =
     (*     match ti.token with
     | TPatternString _ (* | TString _ | TStringMLStart _ *) ->
         pos - ti.startPos - 2 (* -1 if on right side of the open quote *)
@@ -3542,7 +3568,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         pos - startPos - 1 *)
     | _ -> *)
     pos - ti.startPos - 1
-  in
+  in *)
   (* let newID = gid () in *)
   let newAST, newPosition =
     match ti.token with
@@ -3652,13 +3678,13 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (*     | TLetLHS _ *)
     (* | TPatternInteger _ *)
     (* | TPatternNullToken _ *)
-    | TPatternVariable _
+    (* | TPatternVariable _
     (* | TRightPartial _
     | TPartial _ *)
     (* | TBinOp _ *)
-    (* | TLambdaVar _ *) ->
-        let f str = Util.removeCharAt str offset in
-        (replaceStringToken ~f ti.token ast, LeftOne)
+    (* | TLambdaVar _ *) -> *)
+    (*         let f str = Util.removeCharAt str offset in
+        (replaceStringToken ~f ti.token ast, LeftOne) *)
     (*     | TPatternFloatWhole (mID, id, str, _) ->
         let str = Util.removeCharAt str offset in
         (replacePatternFloatWhole str mID id ast, LeftOne)
