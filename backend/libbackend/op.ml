@@ -103,7 +103,89 @@ let event_name_of_op (op : op) : string =
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
+(* Note the ord *)
+type required_context =
+  | NoContext
+  | AllDatastores
+[@@deriving eq, ord]
+
+(* Returns the 'context', ie. the other stuff on the canvas, that
+ * you need to also load in order validate that this op could be added
+ * to the oplist/canvas correctly *)
+let required_context_to_validate (op : op) : required_context =
+  match op with
+  | SetHandler _ ->
+      NoContext
+  | CreateDB _ ->
+      NoContext
+  | AddDBCol _ ->
+      NoContext
+  | SetDBColName _ ->
+      AllDatastores
+  | ChangeDBColName _ ->
+      AllDatastores
+  | SetDBColType _ ->
+      NoContext
+  | ChangeDBColType _ ->
+      NoContext
+  | DeprecatedInitDbm _ ->
+      NoContext
+  | SetExpr _ ->
+      NoContext
+  | TLSavepoint _ ->
+      NoContext
+  | UndoTL _ ->
+      (* Can undo/redo ops on dbs *)
+      AllDatastores
+  | RedoTL _ ->
+      (* Can undo/redo ops on dbs *)
+      AllDatastores
+  | DeleteTL _ ->
+      NoContext
+  | MoveTL _ ->
+      NoContext
+  | SetFunction _ ->
+      NoContext
+  | DeleteFunction _ ->
+      NoContext
+  | CreateDBMigration _ ->
+      NoContext
+  | AddDBColToDBMigration _ ->
+      NoContext
+  | SetDBColNameInDBMigration _ ->
+      NoContext
+  | SetDBColTypeInDBMigration _ ->
+      NoContext
+  | AbandonDBMigration _ ->
+      NoContext
+  | DeleteColInDBMigration _ ->
+      NoContext
+  | DeleteDBCol _ ->
+      NoContext
+  | RenameDBname _ ->
+      AllDatastores
+  | CreateDBWithBlankOr _ ->
+      NoContext
+  | DeleteTLForever _ ->
+      NoContext
+  | DeleteFunctionForever _ ->
+      NoContext
+  | SetType _ ->
+      NoContext
+  | DeleteType _ ->
+      NoContext
+  | DeleteTypeForever _ ->
+      NoContext
+
+
 type oplist = op list [@@deriving eq, yojson, show, bin_io]
+
+let required_context_to_validate_oplist (oplist : oplist) : required_context =
+  oplist
+  |> List.map ~f:required_context_to_validate
+  |> List.max_elt ~compare:compare_required_context
+  |> Option.value ~default:NoContext
+
 
 type tlid_oplists = (tlid * oplist) list [@@deriving eq, yojson, show, bin_io]
 

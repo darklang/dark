@@ -707,11 +707,14 @@ let admin_add_op_handler
     (* NOTE: Because we run canvas-wide validation logic, it's important
      * that we load _at least_ the context (ie. datastores, functions, types etc. )
      * and not just the tlids in the API payload.
-     *
-     * `load_with_context` is currently sufficient because the only global check is across
-     * DBs, but if it were across all handlers in the future we would need `load_all`
      * *)
-    time "2-load-saved-ops" (fun _ -> C.load_with_context ~tlids host ops)
+    time "2-load-saved-ops" (fun _ ->
+        match Op.required_context_to_validate_oplist ops with
+        | NoContext ->
+            C.load_only_tlids ~tlids host ops
+        | AllDatastores ->
+            (* This also loads all user functions, but can trim later *)
+            C.load_with_context ~tlids host ops)
   in
   match maybe_c with
   | Ok c ->
