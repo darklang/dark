@@ -904,135 +904,132 @@ let moveToCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) =
   {s with newPos = posFromCaretTarget s ast ct}
 
 
-(* caretTargetFromTokenInfo returns a caretTarget corresponding to
+(* caretTargetFromTokenInfo returns Some caretTarget corresponding to
    the given top-level-global caret `pos`, with the precondition that
    the pos is within the passed tokenInfo `ti`.
-   There are a few tokens that (currently) have no corresponding caretTarget.
-   In such cases, we return {astRef = ARInvalid; offset = 0} instead.
+   There are a few tokens that have no corresponding caretTarget.
+   In such cases, we return None instead.
    
    (note that there are some cases, like strings,
     where multiple caretTargets could refer to the same pos) *)
-let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget =
+let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option =
   let offset = pos - ti.startPos in
   match ti.token with
   | TString (id, _) | TStringMLStart (id, _, _, _) ->
-      {astRef = ARString (id, SPOpenQuote); offset}
+      Some {astRef = ARString (id, SPOpenQuote); offset}
   | TStringMLMiddle (id, _, startOffset, _)
   | TStringMLEnd (id, _, startOffset, _) ->
-      {astRef = ARString (id, SPText); offset = startOffset + pos - ti.startPos}
+      Some {astRef = ARString (id, SPText); offset = startOffset + pos - ti.startPos}
   | TInteger (id, _) ->
-      {astRef = ARInteger id; offset}
+      Some {astRef = ARInteger id; offset}
   | TBlank id | TPlaceholder (_, id) ->
-      {astRef = ARBlank id; offset}
+      Some {astRef = ARBlank id; offset}
   | TTrue id | TFalse id ->
-      {astRef = ARBool id; offset}
+      Some {astRef = ARBool id; offset}
   | TNullToken id ->
-      {astRef = ARNull id; offset}
+      Some {astRef = ARNull id; offset}
   | TFloatWhole (id, _) ->
-      {astRef = ARFloat (id, FPWhole); offset}
+      Some {astRef = ARFloat (id, FPWhole); offset}
   | TFloatPoint id ->
-      {astRef = ARFloat (id, FPPoint); offset}
+      Some {astRef = ARFloat (id, FPPoint); offset}
   | TFloatFractional (id, _) ->
-      {astRef = ARFloat (id, FPFractional); offset}
+      Some {astRef = ARFloat (id, FPFractional); offset}
   | TPartial (id, _) ->
-      {astRef = ARPartial id; offset}
+      Some {astRef = ARPartial id; offset}
   | TFieldPartial (id, _, _, _) ->
-      {astRef = ARPartial id; offset}
+      Some {astRef = ARPartial id; offset}
   | TRightPartial (id, _) ->
-      {astRef = ARRightPartial id; offset}
+      Some {astRef = ARRightPartial id; offset}
   | TLetKeyword (id, _) ->
-      {astRef = ARLet (id, LPKeyword); offset}
+      Some {astRef = ARLet (id, LPKeyword); offset}
   | TLetLHS (id, _, _) ->
-      {astRef = ARLet (id, LPVarName); offset}
+      Some {astRef = ARLet (id, LPVarName); offset}
   | TLetAssignment (id, _) ->
-      {astRef = ARLet (id, LPAssignment); offset}
+      Some {astRef = ARLet (id, LPAssignment); offset}
   | TIfKeyword id ->
-      {astRef = ARIf (id, IPIfKeyword); offset}
+      Some {astRef = ARIf (id, IPIfKeyword); offset}
   | TIfThenKeyword id ->
-      {astRef = ARIf (id, IPThenKeyword); offset}
+      Some {astRef = ARIf (id, IPThenKeyword); offset}
   | TIfElseKeyword id ->
-      {astRef = ARIf (id, IPElseKeyword); offset}
+      Some {astRef = ARIf (id, IPElseKeyword); offset}
   | TBinOp (id, _) ->
-      {astRef = ARBinOp (id, BOPOperator); offset}
+      Some {astRef = ARBinOp (id, BOPOperator); offset}
   | TFieldName (id, _, _) ->
-      {astRef = ARFieldAccess (id, FAPFieldname); offset}
+      Some {astRef = ARFieldAccess (id, FAPFieldname); offset}
   | TFieldOp (id, _) ->
-      {astRef = ARFieldAccess (id, FAPFieldOp); offset}
+      Some {astRef = ARFieldAccess (id, FAPFieldOp); offset}
   | TVariable (id, _) ->
-      {astRef = ARVariable id; offset}
+      Some {astRef = ARVariable id; offset}
   | TFnName (id, _, _, _, _) ->
-      {astRef = ARFnCall (id, FCPFnName); offset}
+      Some {astRef = ARFnCall (id, FCPFnName); offset}
   | TFnVersion (id, _, versionName, backendFnName) ->
       (* TODO(JULIAN): This is very brittle and should probably be moved into a function responsible
          for grabbing the appropriate bits of functions *)
-      { astRef = ARFnCall (id, FCPFnName)
+      Some { astRef = ARFnCall (id, FCPFnName)
       ; offset =
           offset + String.length backendFnName - String.length versionName - 1
       }
   | TLambdaSep (id, idx) ->
-      {astRef = ARLambda (id, LPSeparator idx); offset}
+      Some {astRef = ARLambda (id, LPSeparator idx); offset}
   | TLambdaArrow id ->
-      {astRef = ARLambda (id, LPArrow); offset}
+      Some {astRef = ARLambda (id, LPArrow); offset}
   | TLambdaSymbol id ->
-      {astRef = ARLambda (id, LPKeyword); offset}
+      Some {astRef = ARLambda (id, LPKeyword); offset}
   | TLambdaVar (id, _, idx, _) ->
-      {astRef = ARLambda (id, LPVarName idx); offset}
+      Some {astRef = ARLambda (id, LPVarName idx); offset}
   | TListOpen id ->
-      {astRef = ARList (id, LPOpen); offset}
+      Some {astRef = ARList (id, LPOpen); offset}
   | TListClose id ->
-      {astRef = ARList (id, LPClose); offset}
+      Some {astRef = ARList (id, LPClose); offset}
   | TListSep (id, idx) ->
-      {astRef = ARList (id, LPSeparator idx); offset}
+      Some {astRef = ARList (id, LPSeparator idx); offset}
   | TPipe (id, idx, _) ->
-      {astRef = ARPipe (id, PPPipeKeyword idx); offset}
+      Some {astRef = ARPipe (id, PPPipeKeyword idx); offset}
   | TRecordOpen id ->
-      {astRef = ARRecord (id, RPOpen); offset}
+      Some {astRef = ARRecord (id, RPOpen); offset}
   | TRecordFieldname {recordID = id; index = idx; _} ->
-      {astRef = ARRecord (id, RPFieldname idx); offset}
+      Some {astRef = ARRecord (id, RPFieldname idx); offset}
   | TRecordSep (id, idx, _) ->
-      {astRef = ARRecord (id, RPFieldSep idx); offset}
+      Some {astRef = ARRecord (id, RPFieldSep idx); offset}
   | TRecordClose id ->
-      {astRef = ARRecord (id, RPClose); offset}
+      Some {astRef = ARRecord (id, RPClose); offset}
   | TMatchKeyword id ->
-      {astRef = ARMatch (id, MPKeyword); offset}
+      Some {astRef = ARMatch (id, MPKeyword); offset}
   | TMatchSep {matchID = id; index = idx; _} ->
-      {astRef = ARMatch (id, MPBranchSep idx); offset}
+      Some {astRef = ARMatch (id, MPBranchSep idx); offset}
   | TPatternVariable (_, id, _, _) ->
-      {astRef = ARPattern (id, PPVariable); offset}
+      Some {astRef = ARPattern (id, PPVariable); offset}
   | TPatternConstructorName (_, id, _, _) ->
-      {astRef = ARPattern (id, PPConstructor CPName); offset}
+      Some {astRef = ARPattern (id, PPConstructor CPName); offset}
   | TPatternInteger (_, id, _, _) ->
-      {astRef = ARPattern (id, PPInteger); offset}
+      Some {astRef = ARPattern (id, PPInteger); offset}
   | TPatternString {patternID = id; _} ->
-      {astRef = ARPattern (id, PPString SPOpenQuote); offset}
+      Some {astRef = ARPattern (id, PPString SPOpenQuote); offset}
   | TPatternTrue (_, id, _) | TPatternFalse (_, id, _) ->
-      {astRef = ARPattern (id, PPBool); offset}
+      Some {astRef = ARPattern (id, PPBool); offset}
   | TPatternNullToken (_, id, _) ->
-      {astRef = ARPattern (id, PPNull); offset}
+      Some {astRef = ARPattern (id, PPNull); offset}
   | TPatternFloatWhole (_, id, _, _) ->
-      {astRef = ARPattern (id, PPFloat FPWhole); offset}
+      Some {astRef = ARPattern (id, PPFloat FPWhole); offset}
   | TPatternFloatPoint (_, id, _) ->
-      {astRef = ARPattern (id, PPFloat FPPoint); offset}
+      Some {astRef = ARPattern (id, PPFloat FPPoint); offset}
   | TPatternFloatFractional (_, id, _, _) ->
-      {astRef = ARPattern (id, PPFloat FPFractional); offset}
+      Some {astRef = ARPattern (id, PPFloat FPFractional); offset}
   | TPatternBlank (_, id, _) ->
-      {astRef = ARPattern (id, PPBlank); offset}
+      Some {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
-      {astRef = ARConstructor (id, CPName); offset}
-  | TPartialGhost _ (* (id, _) *)
-  | TNewline _ (* (id * id * int option) option *)
-  (* NOTE(JULIAN): some suggestions from Paul:
-   we use this information here to return an astRef but this information is an option
-      it is an option because we do not always have information to put in here -- look at when we put info for tokens
-      the info put in tokens is "what gets extended by pressing enter" but that may be incompatible with infor needed for pressing backspace
-      may want TNewline to include id that matters when press enter and id for press backspace -- unclear if that's true
-     *)
-  | TSep _ (* id *)
-  | TIndent _ (* int *)
-  | TParenOpen _ (* id *)
-  | TParenClose _ (* id *) ->
-      (* XXX(JULIAN): These are unhandleable right now and posFromCaretTarget can't target them *)
-      {astRef = ARInvalid; offset = 0}
+      Some {astRef = ARConstructor (id, CPName); offset}
+  (* 
+    These have no valid caretTarget because they are not 
+    strictly part of the AST.
+   *)
+  | TPartialGhost _
+  | TNewline _
+  | TSep _
+  | TIndent _
+  | TParenOpen _
+  | TParenClose _ ->
+      None
 
 
 (** moveToAstRef returns a modified fluidState with newPos set to reflect
@@ -3554,168 +3551,10 @@ let tryReplaceStringAndMoveOrSame2
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
-  (*   let offset =
-    (*     match ti.token with
-    | TPatternString _ (* | TString _ | TStringMLStart _ *) ->
-        pos - ti.startPos - 2 (* -1 if on right side of the open quote *)
-    (* | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
-      ->
-        pos - ti.startPos - 1 + strOffset
-        (* equal to string length if on the right side of the close quote *)
-    | TFnVersion (_, partialName, _, _) ->
-        (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
-        let startPos = ti.endPos - String.length partialName in
-        pos - startPos - 1 *)
-    | _ -> *)
-    pos - ti.startPos - 1
-  in *)
-  (* let newID = gid () in *)
   let newAST, newPosition =
-    match ti.token with
-    (*     | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ ->
-        (ast, MoveToStart) *)
-    (*     | TMatchSep {matchID = id; index = idx; _} ->
-        (ast, AtTarget (caretTargetForEndOfMatchPattern id idx ast)) *)
-    (*     | TIfKeyword _ (* | TLetKeyword _ *) | TLambdaSymbol _ | TMatchKeyword _ ->
-        let newAST = removeEmptyExpr (T.tid ti.token) ast in
-        if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart) *)
-    (*     | TLambdaSep (id, idx) ->
-        (removeLambdaSepToken id ast idx, LeftOne) *)
-    (*     | TListSep (id, idx) ->
-        (removeListSepToken id ast idx, LeftOne) *)
-    (*     | (TRecordOpen id | TListOpen id) when E.hasEmptyWithId id ast ->
-        (E.replace id ~replacement:(EBlank newID) ast, LeftOne) *)
-    (*     | TRecordFieldname {recordID; index; fieldName = ""; _}
-      when pos = ti.startPos ->
-        let newAst = removeRecordField recordID index ast in
-        let maybeExprID = recordExprIdAtIndex recordID (index - 1) newAst in
-        let target =
-          match maybeExprID with
-          | None ->
-              { astRef = ARRecord (recordID, RPOpen)
-              ; offset = 1 (* right after the { *) }
-          | Some exprId ->
-              caretTargetForLastPartOfExpr exprId newAst
-        in
-        (newAst, AtTarget target) *)
-    (* | TPatternBlank (mID, id, _) when pos = ti.startPos ->
-        ((Debug.loG "TPatternBlank bs removePatternRow" ());
-        (removePatternRow mID id ast, LeftThree)) *)
-    (*
-    | TBlank _
-    | TPlaceholder _
-    | TLetAssignment _
-    | TListClose _
-    | TListOpen _
-    | TRecordOpen _
-    | TRecordClose _
-    | TRecordSep _
-*)
-    | TIndent _
-    (* | TPatternBlank _ *)
-    | TSep _
-    | TParenOpen _
-    | TParenClose _
-    | TPartialGhost _ ->
-        (* XXX(JULIAN): These can't be handled explicitly
-        until we do more work -- to allow finding patterns by id,
-        implement some outstanding stuff in caretTargetFromTokenInfo,
-        etc...
-         *)
-        (ast, LeftOne)
-    | TNewline _ ->
-        (ast, Exactly ti.startPos)
-    (*     | TFieldOp (id, lhsId) ->
-        let newAst = removeField id ast in
-        (newAst, AtTarget (caretTargetForLastPartOfExpr lhsId newAst)) *)
-    (* | TFloatPoint id ->
-        (removePointFromFloat id ast, LeftOne) *)
-    (*     | TPatternFloatPoint (mID, id, _) ->
-        (removePatternPointFromFloat mID id ast, LeftOne) *)
-    (* | TConstructorName (id, str) *)
-    (* str is the partialName: *)
-    (* | TFnName (id, str, _, _, _) *)
-    (* | TFnVersion (id, str, _, _) ->
-        let f str = Util.removeCharAt str offset in
-        (replaceWithPartial (f str) id ast, LeftOne) *)
-    (* | TRightPartial (_, str) when String.length str = 1 ->
-        let ast, targetID = deleteRightPartial ti ast in
-        (ast, MoveToTokenEnd (targetID, 0))
-    | TPartial (_, str) when String.length str = 1 ->
-        let newAST, newState = deletePartial ti ast s in
-        (newAST, Exactly newState.newPos) *)
-    (*     | TBinOp (_, str) when String.length str = 1 ->
-        let ast, targetID = deleteBinOp ti ast in
-        (ast, MoveToTokenEnd (targetID, 0)) *)
-    (*     | TPatternString {matchID = mID; patternID = id; str = ""; _} ->
-        ( replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast
-        , AtTarget {astRef = ARPattern (newID, PPBlank); offset = 0} ) *)
-    (*     | TString (id, "") ->
-        ( E.replace id ~replacement:(EBlank newID) ast
-        , AtTarget {astRef = ARBlank newID; offset = 0} ) *)
-    (*     | TString (id, _)
-    | TStringMLStart (id, _, _, _)
-    | TStringMLMiddle (id, _, _, _)
-    | TStringMLEnd (id, _, _, _)
-      when offset = -1 (* on right side of open quote *) ->
-        (ast, AtTarget {astRef = ARString (id, SPOpenQuote); offset = 0}) *)
-    (*     | TString (id, fullStr)
-    | TStringMLStart (id, _, _, fullStr)
-    | TStringMLMiddle (id, _, _, fullStr)
-    | TStringMLEnd (id, _, _, fullStr)
-      when offset = String.length fullStr (* on right side of open quote *) ->
-        (ast, AtTarget {astRef = ARString (id, SPText); offset}) *)
-    (* | TPatternString _ *)
-    (* | TRecordFieldname _ *)
-    (*     | TTrue _
-    | TFalse _ *)
-    (* | TPatternTrue _
-    | TPatternFalse _ *)
-    (* | TNullToken _ *)
-    (* | TVariable _ *)
-    (* | TFieldName _ *)
-    (* | TFieldPartial _ *)
-    (*     | TLetLHS _ *)
-    (* | TPatternInteger _ *)
-    (* | TPatternNullToken _ *)
-    (* | TPatternVariable _
-    (* | TRightPartial _
-    | TPartial _ *)
-    (* | TBinOp _ *)
-    (* | TLambdaVar _ *) -> *)
-    (*         let f str = Util.removeCharAt str offset in
-        (replaceStringToken ~f ti.token ast, LeftOne) *)
-    (*     | TPatternFloatWhole (mID, id, str, _) ->
-        let str = Util.removeCharAt str offset in
-        (replacePatternFloatWhole str mID id ast, LeftOne)
-    | TPatternFloatFractional (mID, id, str, _) ->
-        let str = Util.removeCharAt str offset in
-        (replacePatternFloatFraction str mID id ast, LeftOne) *)
-    (*     | TFloatWhole (id, str) ->
-        let str = Util.removeCharAt str offset in
-        (replaceFloatWhole str id ast, LeftOne)
-    | TFloatFractional (id, str) ->
-        let str = Util.removeCharAt str offset in
-        (replaceFloatFraction str id ast, LeftOne) *)
-    (* | TPatternConstructorName (mID, id, str, _) ->
-        let f str = Util.removeCharAt str offset in
-        (replacePatternWithPartial (f str) mID id ast, LeftOne) *)
-    (*     | TPipe (id, i, _) ->
-        let newPosition =
-          match getTokensAtPosition ~pos:ti.startPos (toTokens ast) with
-          | Some leftTI, _, _ ->
-              let newState = doLeft ~pos:ti.startPos leftTI s in
-              Exactly newState.newPos
-          | _ ->
-              recover
-                "TPipe should never occur on first line of AST"
-                ~debug:ti
-                SamePlace
-        in
-        (removePipe id ast i, newPosition) *)
-    | _ ->
-        (* TODO(JULIAN): consider if token has no explicit caretTarget, do left, else do backspace *)
-        doExplicitBackspace (caretTargetFromTokenInfo pos ti) ast
+    match caretTargetFromTokenInfo pos ti with
+    | Some ct -> doExplicitBackspace ct ast
+    | None -> (ast, Exactly ti.startPos)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
