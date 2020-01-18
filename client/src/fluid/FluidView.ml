@@ -335,6 +335,24 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   |> List.flatten
 
 
+let viewArrow (curID : id) (srcID : id) : Types.msg Html.html =
+  let curSelector = ".id-" ^ deID curID in
+  let srcSelector = ".id-" ^ deID srcID in
+  match
+    (Native.Ext.querySelector curSelector, Native.Ext.querySelector srcSelector)
+  with
+  | Some curElem, Some srcElem ->
+      let curRect = Native.Ext.getBoundingClient curElem curSelector in
+      let srcRect = Native.Ext.getBoundingClient srcElem srcSelector in
+      let height = curRect.bottom - srcRect.top in
+      Html.div
+        [ Html.class' "src-arrow"
+        ; Html.styles [("height", string_of_int height ^ "px")] ]
+        []
+  | _ ->
+      Vdom.noNode
+
+
 let viewDval tlid dval ~(canCopy : bool) =
   let text = Runtime.toRepr dval in
   [Html.text text; (if canCopy then viewCopyButton tlid text else Vdom.noNode)]
@@ -370,7 +388,8 @@ let viewLiveValue
           "Click here to find cause of "
           ^ (dv |> Runtime.typeOf |> Runtime.tipe2str)
         in
-        [ Html.div
+        [ viewArrow id srcId
+        ; Html.div
             [ ViewUtils.eventNoPropagation
                 ~key:("lv-src-" ^ deID srcId)
                 "click"
