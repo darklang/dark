@@ -181,11 +181,11 @@ let run () =
        * string copy buffer is super simple and doesn't need extensive testing.
        * *)
         (expectedClipboard : string) : unit =
-    let e = clipboardEvent () in
-    let _, (_, resultClipboard), _ =
-      process ~debug e range initial (ClipboardCopyEvent e)
-    in
     test (nameToName name initial) (fun () ->
+        let e = clipboardEvent () in
+        let _, (_, resultClipboard), _ =
+          process ~debug e range initial (ClipboardCopyEvent e)
+        in
         expect resultClipboard |> toEqual (Some expectedClipboard))
   in
   let testPasteExpr
@@ -195,16 +195,16 @@ let run () =
       (range : int * int)
       (clipboard : fluidExpr)
       (expectedText : string) : unit =
-    let e = clipboardEvent () in
-    let text = FluidPrinter.eToTestString clipboard in
-    let data =
-      (text, Some (FluidClipboard.exprToClipboardContents clipboard))
-    in
-    DClipboard.setData data e ;
-    let resultText, _, resultPos =
-      process ~debug e range initial (ClipboardPasteEvent e)
-    in
     test (nameToName name initial) (fun () ->
+        let e = clipboardEvent () in
+        let text = FluidPrinter.eToTestString clipboard in
+        let data =
+          (text, Some (FluidClipboard.exprToClipboardContents clipboard))
+        in
+        DClipboard.setData data e ;
+        let resultText, _, resultPos =
+          process ~debug e range initial (ClipboardPasteEvent e)
+        in
         expect (insertCursor (resultText, resultPos)) |> toEqual expectedText)
   in
   let testPasteText
@@ -214,12 +214,12 @@ let run () =
       (range : int * int)
       (clipboard : string)
       (expectedText : string) : unit =
-    let e = clipboardEvent () in
-    DClipboard.setData (clipboard, None) e ;
-    let resultText, _, resultPos =
-      process ~debug e range initial (ClipboardPasteEvent e)
-    in
     test (nameToName name initial) (fun () ->
+        let e = clipboardEvent () in
+        DClipboard.setData (clipboard, None) e ;
+        let resultText, _, resultPos =
+          process ~debug e range initial (ClipboardPasteEvent e)
+        in
         expect (insertCursor (resultText, resultPos)) |> toEqual expectedText)
   in
   let testCopyText
@@ -229,11 +229,11 @@ let run () =
       (range : int * int)
       (* This is the string copied.  *)
         (expectedClipboard : string) : unit =
-    let e = clipboardEvent () in
-    let _, (resultClipboard, _), _ =
-      process ~debug e range initial (ClipboardCopyEvent e)
-    in
     test (nameToName name initial) (fun () ->
+        let e = clipboardEvent () in
+        let _, (resultClipboard, _), _ =
+          process ~debug e range initial (ClipboardCopyEvent e)
+        in
         expect resultClipboard |> toEqual expectedClipboard)
   in
   let t
