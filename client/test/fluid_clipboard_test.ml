@@ -222,6 +222,63 @@ let run () =
         in
         expect (insertCursor (resultText, resultPos)) |> toEqual expectedText)
   in
+  let testCopyPaste
+      (name : string)
+      (initial : fluidExpr)
+      (copyRange : int * int)
+      (pasteRange : int * int)
+      (expectedText : string) : unit =
+    test (nameToName name initial) (fun () ->
+        let h = Fluid_utils.h initial in
+        let start, pos = copyRange in
+        let preCopyModel =
+          { defaultTestModel with
+            handlers = Handlers.fromList [h]
+          ; cursorState = FluidEntering h.hTLID
+          ; fluidState =
+              { defaultTestState with
+                selectionStart = Some start
+              ; oldPos = pos
+              ; newPos = pos } }
+        in
+        let e = clipboardEvent () in
+        let copyMod = Main.update_ (ClipboardCopyEvent e) preCopyModel in
+        let copiedModel, _cmd =
+          Main.updateMod copyMod (preCopyModel, Tea.Cmd.none)
+        in
+        let prePasteModel =
+          let newPos, newStart = pasteRange in
+          let newFluidState =
+            {copiedModel.fluidState with newPos; selectionStart = Some newStart}
+          in
+          {copiedModel with fluidState = newFluidState}
+        in
+        let pasteMod = Main.update_ (ClipboardPasteEvent e) prePasteModel in
+        let pastedModel, _cmd =
+          Main.updateMod pasteMod (prePasteModel, Tea.Cmd.none)
+        in
+        let finalPos = pastedModel.fluidState.newPos in
+        let newAST =
+          TL.selectedAST pastedModel |> Option.withDefault ~default:(E.newB ())
+        in
+        let resultText =
+          newAST
+          |> Printer.eToTestString
+          |> fun str -> insertCursor (str, finalPos)
+        in
+        expect resultText |> toEqual expectedText)
+  in
+  let testPaste
+      ?(debug = false)
+      (name : string)
+      (initial : fluidExpr)
+      (range : int * int)
+      (clipboard : fluidExpr)
+      (expectedText : string) : unit =
+    let text = FluidPrinter.eToTestString clipboard in
+    testPasteText ~debug name initial range text expectedText ;
+    testPasteExpr ~debug name initial range clipboard expectedText
+  in
   let testCopyText
       ?(debug = false)
       (name : string)
@@ -311,11 +368,12 @@ let run () =
         (fn "Bool::isNull" [null])
         (cut (13, 17))
         ("Bool::isNull ___", "null", 13) ;
-      t
+      testPaste
         "pasting a null from clipboard on a blank should paste it"
         b
-        (pasteBoth ~clipboard:("null", null) (0, 0))
-        ("null", "null", 4) ;
+        (0, 0)
+        null
+        "null~" ;
       ()) ;
   describe "Integers" (fun () ->
       testCopy
@@ -348,51 +406,60 @@ let run () =
         (int "1234")
         (cut (0, 2))
         ("34", "12", 0) ;
-      t
+      testPaste
         "pasting an int from clipboard on a blank should paste it"
         b
-        (pasteBoth ~clipboard:("1234", int "1234") (0, 0))
-        ("1234", "1234", 4) ;
-      t
+        (0, 0)
+        (int "1234")
+        "1234~" ;
+      testPaste
         "pasting an int into another integer should join the integers"
         (int "5678")
-        (pasteBoth ~clipboard:("1234", int "1234") (1, 3))
-        ("512348", "1234", 5) ;
-      t
+        (1, 3)
+        (int "1234")
+        "51234~8" ;
+      testPaste
         "pasting a float into an integer should convert to float"
         (int "5678")
-        (pasteBoth ~clipboard:("12.34", float' "12" "34") (1, 3))
-        ("512.348", "12.34", 6) ;
-      t
+        (1, 3)
+        (float' "12" "34")
+        "512.34~8" ;
+      testPaste
         "pasting a float into an integer should convert to float 2"
         (int "5678")
-        (pasteBoth ~clipboard:("12.34", float' "12" "34") (0, 0))
-        ("12.345678", "12.34", 5) ;
-      t
+        (0, 0)
+        (float' "12" "34")
+        "12.34~5678" ;
+      testPaste
         "pasting a float into an integer should convert to float 3"
         (int "5678")
-        (pasteBoth ~clipboard:("12.34", float' "12" "34") (4, 4))
-        ("567812.34", "12.34", 9) ;
-      t
+        (4, 4)
+        (float' "12" "34")
+        "567812.34~" ;
+      testPaste
         "pasting an int-only string into an integer should extend integer"
         (int "5678")
-        (pasteBoth ~clipboard:("1234", str "1234") (0, 0))
-        ("12345678", "\"1234\"", 4) ;
-      t
+        (0, 0)
+        (str "1234")
+        "1234~5678" ;
+      testPaste
         "pasting an int-only string into an integer should extend integer 2"
         (int "5678")
-        (pasteBoth ~clipboard:("1234", str "1234") (4, 4))
-        ("56781234", "\"1234\"", 8) ;
-      t
+        (4, 4)
+        (str "1234")
+        "56781234~" ;
+      testPaste
         "pasting an int-only string into an integer should extend integer 2"
         (int "5678")
-        (pasteBoth ~clipboard:("1234", str "1234") (2, 2))
-        ("56123478", "\"1234\"", 6) ;
-      t
+        (2, 2)
+        (str "1234")
+        "561234~78" ;
+      testPaste
         "pasting an int-only string over part of an integer should extend integer"
         (int "5678")
-        (pasteBoth ~clipboard:("1234", str "1234") (1, 3))
-        ("512348", "\"1234\"", 5) ;
+        (1, 3)
+        (str "1234")
+        "51234~8" ;
       ()) ;
   describe "Strings" (fun () ->
       testCopy
@@ -431,47 +498,45 @@ let run () =
         (0, 0)
         (str "abcd EFGH ijkl 1234")
         "\"abcd EFGH ijkl 1234\"~" ;
-      t
+      testCopyPaste
         "pasting a string in another string should paste it"
         (str "abcd EFGH ijkl 1234")
-        (pasteBoth ~clipboard:("newString", str "newString") (11, 15))
-        ("\"abcd EFGH newString 1234\"", "\"newString\"", 20) ;
-      t
+        (0, 4)
+        (11, 15)
+        "\"abcd EFGH abcd~ 1234\"" ;
+      testCopyPaste
         "pasting a string in a TLStringMLStart should paste it"
         (str "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
-        (pasteBoth ~clipboard:("XXX", str "XXX") (11, 15))
-        ( "\"0123456789XXXefghij0123456789abcdefghij0\n123456789abcdefghij\""
-        , "\"XXX\""
-        , 14 ) ;
-      t
+        (2, 5)
+        (11, 15)
+        "\"0123456789123~efghij0123456789abcdefghij0\n123456789abcdefghij\"" ;
+      testCopyPaste
         "pasting a string in the first TLStringMLMiddle should paste it"
         (str
            "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
-        (pasteBoth ~clipboard:("XXX", str "XXX") (43, 50))
-        ( "\"0123456789abcdefghij0123456789abcdefghij\n0XXX89abcdefghij0123456789abcdefghij0123\n456789abcdefghij0123456789abcdefghij0123\n456789abcdefghij\""
-        , "\"XXX\""
-        , 46 ) ;
-      t
+        (2, 5)
+        (43, 50)
+        "\"0123456789abcdefghij0123456789abcdefghij\n0234~89abcdefghij0123456789abcdefghij0123\n456789abcdefghij0123456789abcdefghij0123\n456789abcdefghij\"" ;
+      testCopyPaste
         "pasting a string in the second TLStringMLMiddle should paste it"
         (str
            "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
-        (pasteBoth ~clipboard:("XXX", str "XXX") (96, 84))
-        ( "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0XXXdefghij0123456789abcdefghij012345678\n9abcdefghij\""
-        , "\"XXX\""
-        , 87 ) ;
-      t
+        (2, 5)
+        (96, 84)
+        "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0123~defghij0123456789abcdefghij012345678\n9abcdefghij\"" ;
+      testCopyPaste
         "pasting a string in a TLStringMLEnd should paste it"
         (str
            "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
-        (pasteBoth ~clipboard:("XXX", str "XXX") (125, 126))
-        ( "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0XXX23456789abcdefghij\""
-        , "\"XXX\""
-        , 128 ) ;
-      t
+        (2, 5)
+        (125, 126)
+        "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0123~23456789abcdefghij\"" ;
+      testPaste
         "pasting an int in a string should paste it"
         (str "abcd EFGH ijkl 1234")
-        (pasteBoth ~clipboard:("5678", int "5678") (11, 15))
-        ("\"abcd EFGH 5678 1234\"", "5678", 15) ;
+        (11, 15)
+        (int "5678")
+        "\"abcd EFGH 5678~ 1234\"" ;
       testPasteExpr
         "pasting a regular record with a single key in a string should paste stringified expr"
         (str "abcd EFGH ijkl 1234")
@@ -550,46 +615,54 @@ let run () =
         (float' "1234" "5678")
         (cut (4, 5))
         ("12345678", "0.0", 4) ;
-      t
+      testPaste
         "pasting a float from clipboard on a blank should paste it"
         b
-        (pasteBoth ~clipboard:("1234.5678", float' "1234" "5678") (0, 0))
-        ("1234.5678", "1234.5678", 9) ;
-      t
+        (0, 0)
+        (float' "1234" "5678")
+        "1234.5678~" ;
+      testPaste
         "pasting an int in a float whole part should paste it"
         (float' "1234" "5678")
-        (pasteBoth ~clipboard:("9000", int "9000") (0, 0))
-        ("90001234.5678", "9000", 4) ;
-      t
+        (0, 0)
+        (int "9000")
+        "9000~1234.5678" ;
+      testPaste
         "pasting an int in a float whole part should paste it 2"
         (float' "1234" "5678")
-        (pasteBoth ~clipboard:("9000", int "9000") (1, 3))
-        ("190004.5678", "9000", 5) ;
-      t
+        (1, 3)
+        (int "9000")
+        "19000~4.5678" ;
+      testPaste
         "pasting an int in a float fraction part should paste it"
         (float' "1234" "5678")
-        (pasteBoth ~clipboard:("9000", int "9000") (8, 8))
-        ("1234.56790008", "9000", 12) ;
-      t
+        (8, 8)
+        (int "9000")
+        "1234.5679000~8" ;
+      testPaste
         "pasting an int over a float fraction part should paste it and remove selection"
         (float' "1234" "5678")
-        (pasteBoth ~clipboard:("9000", int "9000") (6, 8))
-        ("1234.590008", "9000", 10) ;
-      t
+        (6, 8)
+        (int "9000")
+        "1234.59000~8" ;
+      testPaste
         "pasting an int before a float point should paste it"
         (float' "1234" "5678")
-        (pasteBoth ~clipboard:("9000", int "9000") (4, 4))
-        ("12349000.5678", "9000", 8) ;
-      t
+        (4, 4)
+        (int "9000")
+        "12349000~.5678" ;
+      testPaste
         "pasting an int after a float point should paste it"
         (float' "1234" "5678")
-        (pasteBoth ~clipboard:("9000", int "9000") (5, 5))
-        ("1234.90005678", "9000", 9) ;
-      t
+        (5, 5)
+        (int "9000")
+        "1234.9000~5678" ;
+      testPaste
         "pasting an int over a float point should paste it"
         (float' "1234" "5678")
-        (pasteBoth ~clipboard:("9000", int "9000") (3, 6))
-        ("1239000678", "9000", 7) ;
+        (3, 6)
+        (int "9000")
+        "1239000~678" ;
       ()) ;
   describe "Variables" (fun () ->
       testCopy
@@ -618,21 +691,24 @@ let run () =
         (0, 0)
         (var "varName")
         "varName~" ;
-      t
+      testPaste
         "pasting variable into empty let lhs works"
         (let' "" b b)
-        (pasteBoth ~clipboard:("varName", var "varName") (7, 7))
-        ("let varName = ___\n___", "varName", 11) ;
-      t
+        (7, 7)
+        (var "varName")
+        "let varName~ = ___\n___" ;
+      testPaste
         "pasting variable into filled let lhs works"
         (let' "oldLetLhs" b b)
-        (pasteBoth ~clipboard:("varName", var "varName") (7, 7))
-        ("let oldvarNameLetLhs = ___\n___", "varName", 14) ;
-      t
+        (7, 7)
+        (var "varName")
+        "let oldvarName~LetLhs = ___\n___" ;
+      testPaste
         "pasting variable over filled let lhs works"
         (let' "oldLetLhs" b b)
-        (pasteBoth ~clipboard:("varName", var "varName") (7, 13))
-        ("let oldvarName = ___\n___", "varName", 14) ;
+        (7, 13)
+        (var "varName")
+        "let oldvarName~ = ___\n___" ;
       ()) ;
   describe "Field Accesses" (fun () ->
       testCopy
