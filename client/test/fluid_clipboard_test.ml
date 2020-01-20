@@ -106,58 +106,6 @@ let run () =
       Js.log2 "expr after" (Printer.eToStructure newAST) ) ;
     (Printer.eToTestString newAST, clipboardData e, finalPos)
   in
-  let pasteExpr
-      ?(debug = false)
-      ?((* use the generated text unless we know it's not what we'd copy *)
-      clipboardText = "sentinel value")
-      ~(clipboard : fluidExpr)
-      (range : int * int)
-      (expr : fluidExpr) : testResult =
-    let e = clipboardEvent () in
-    let text =
-      if clipboardText = "sentinel value"
-      then FluidPrinter.eToTestString clipboard
-      else clipboardText
-    in
-    let data =
-      (text, Some (FluidClipboard.exprToClipboardContents clipboard))
-    in
-    DClipboard.setData data e ;
-    process ~debug e range expr (ClipboardPasteEvent e)
-  in
-  (* Test that paste works when pasting text from outside the app. You'll *)
-  (* typically want pasteBoth instead here. *)
-  let pasteText
-      ?(debug = false)
-      ~(clipboard : string)
-      (range : int * int)
-      (expr : fluidExpr) : testResult =
-    let e = clipboardEvent () in
-    DClipboard.setData (clipboard, None) e ;
-    process ~debug e range expr (ClipboardPasteEvent e)
-  in
-  (* Test that paste works whether an expression was copied, or whether the *)
-  (* text was copied from outside the app. *)
-  let pasteBoth
-      ?(debug = false)
-      ~(clipboard : string * fluidExpr)
-      (range : int * int)
-      (expr : fluidExpr) : testResult =
-    let text, clipboardExpr = clipboard in
-    let ((r1str, _, r1pos) as r1) =
-      pasteExpr ~clipboardText:text ~clipboard:clipboardExpr ~debug range expr
-    in
-    let r2str, _, r2pos = pasteText ~clipboard:text ~debug range expr in
-    let r1output = insertCursor (r1str, r1pos) in
-    let r2output = insertCursor (r2str, r2pos) in
-    if r1output <> r2output
-    then (
-      Js.log "the results of pasteBoth did not agree" ;
-      Js.log2 "expr output" r1output ;
-      Js.log2 "text output" r2output ;
-      failwith "results of pasteBoth do not agree" ) ;
-    r1
-  in
   let nameToName (name : string) (initial : fluidExpr) =
     name
     ^ " - `"
@@ -299,15 +247,6 @@ let run () =
           process ~debug e range initial (ClipboardCopyEvent e)
         in
         expect resultClipboard |> toEqual expectedClipboard)
-  in
-  let t
-      ?(debug = false)
-      (_name : string)
-      (_initial : fluidExpr)
-      _fn
-      (_expected : string * string * int) : unit =
-    let _ = debug in
-    ()
   in
   let roundtrip ?(debug = false) (ast : fluidExpr) =
     let name = "roundtripping: " in
@@ -955,11 +894,12 @@ let run () =
         (paste ~clipboard:(int ("9000")) (4, 5))
         ("[123,9000,456,789]", "9000", 9) ;
        *)
-      t
+      testPasteExpr
         "pasting an expression over subset of list expr works"
         (list [int "123"; int "456"; int "789"])
-        (pasteBoth ~clipboard:("9000", int "9000") (5, 12))
-        ("[123,9000]", "9000", 9) ;
+        (5, 12)
+        (int "9000")
+        "[123,9000~]" ;
       ()) ;
   describe "Records" (fun () ->
       testCopy
