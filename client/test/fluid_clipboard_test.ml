@@ -505,6 +505,12 @@ let run () =
         (11, 15)
         "\"abcd EFGH abcd~ 1234\"" ;
       testCopyPaste
+        "pasting a string in another string should paste it - opposite selection direction"
+        (str "abcd EFGH ijkl 1234")
+        (5, 1)
+        (11, 15)
+        "\"abcd EFGH abcd~ 1234\"" ;
+      testCopyPaste
         "pasting a string in a TLStringMLStart should paste it"
         (str "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
         (2, 5)
