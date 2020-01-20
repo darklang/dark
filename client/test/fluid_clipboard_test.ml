@@ -501,7 +501,7 @@ let run () =
       testCopyPaste
         "pasting a string in another string should paste it"
         (str "abcd EFGH ijkl 1234")
-        (0, 4)
+        (1, 5)
         (11, 15)
         "\"abcd EFGH abcd~ 1234\"" ;
       testCopyPaste
@@ -516,7 +516,7 @@ let run () =
            "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij")
         (2, 5)
         (43, 50)
-        "\"0123456789abcdefghij0123456789abcdefghij\n0234~89abcdefghij0123456789abcdefghij0123\n456789abcdefghij0123456789abcdefghij0123\n456789abcdefghij\"" ;
+        "\"0123456789abcdefghij0123456789abcdefghij\n0123~89abcdefghij0123456789abcdefghij0123\n456789abcdefghij0123456789abcdefghij0123\n456789abcdefghij\"" ;
       testCopyPaste
         "pasting a string in the second TLStringMLMiddle should paste it"
         (str
