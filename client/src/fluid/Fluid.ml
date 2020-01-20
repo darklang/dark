@@ -4541,19 +4541,15 @@ let fluidDataFromModel m : (fluidState * E.t) option =
 let getCopySelection (m : model) : clipboardContents =
   match fluidDataFromModel m with
   | Some (state, ast) ->
-      let range = getOptionalSelectionRange state in
+      let range = getSelectionRange state in
       let expr =
         range
-        |> Option.andThen ~f:(reconstructExprFromRange ~ast)
+        |> reconstructExprFromRange ~ast
         |> Option.map ~f:Clipboard.exprToClipboardContents
       in
       let text =
         let asText = FluidPrinter.eToHumanString ast in
-        match range with
-        | Some (from, to_) ->
-            String.slice ~from ~to_ asText
-        | None ->
-            asText
+        match range with from, to_ -> String.slice ~from ~to_ asText
       in
       (text, expr)
   | None ->
