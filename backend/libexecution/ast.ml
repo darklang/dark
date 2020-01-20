@@ -533,11 +533,14 @@ and call_fn
         | None ->
             let sfr_desc = (state.tlid, name, id) in
             let fn_result = state.load_fn_result sfr_desc argvals in
-            (* In the case of DB::query, we want to backfill the
-             * lambda's livevalues, as the lambda was never actually
-             * executed. We hack this is here as we have no idea what
-             * this abstraction might look like in the future. *)
-            ( if state.context = Preview && name = "DB::query_v4"
+            (* In the case of DB::query (and friends), we want to backfill
+             * the lambda's livevalues, as the lambda was never actually
+             * executed. We hack this is here as we have no idea what this
+             * abstraction might look like in the future. *)
+            ( if state.context = Preview
+                 (* The prefix might match too much but that's fixed by the
+                  * match which is very specific *)
+                 && Prelude.String.startsWith ~prefix:"DB::query" name
             then
               match argvals with
               | [DDB dbname; DBlock b] ->
