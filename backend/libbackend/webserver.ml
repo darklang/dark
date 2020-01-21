@@ -825,8 +825,9 @@ let initial_load
       time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
     in
     let t3, f404s =
-      let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
-      time "3-get-404s" (fun _ -> Analysis.get_404s ~since:latest !c)
+      time "3-get-404s" (fun _ ->
+          let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
+          Analysis.get_404s ~since:latest !c)
     in
     let t4, traces =
       time "4-traces" (fun _ ->
