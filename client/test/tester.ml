@@ -99,30 +99,31 @@ let print_test_end name (t : Private.t) : unit =
 (* Framework - test creation functions *)
 (* ------------------ *)
 
+let shouldRun name =
+  match !pattern with
+  | None ->
+      true
+  | Some pattern ->
+      let fullname = String.join ~sep:" " (name :: !Private.categories) in
+      Util.Regex.contains ~re:pattern fullname
+
+
 let describe (name : string) (testFn : unit -> unit) : unit =
   let open Private in
-  categories := name :: !categories ;
-  if List.length !categories <= 1 || !verbose then print_category_start name ;
-  testFn () ;
-  match !categories with [] -> () | _ :: rest -> categories := rest
+  if shouldRun name
+  then (
+    categories := name :: !categories ;
+    if List.length !categories <= 1 || !verbose then print_category_start name ;
+    testFn () ;
+    match !categories with [] -> () | _ :: rest -> categories := rest )
 
 
 let test (name : string) (testFn : unit -> Private.t) : unit =
   let open Private in
-  let shouldRun =
-    match !pattern with
-    | None ->
-        true
-    | Some pattern ->
-        let fullname = String.join ~sep:" " (name :: !categories) in
-        Util.Regex.contains ~re:pattern fullname
-  in
-  if shouldRun
-  then runningTest := name
-  else if !verbose
-  then print_test_skip name ;
+  let run = shouldRun name in
+  if run then runningTest := name else if !verbose then print_test_skip name ;
   let result =
-    if shouldRun
+    if run
     then
       try testFn ()
       with e ->
@@ -138,7 +139,7 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
       ; actual = None
       ; expected = None }
   in
-  if shouldRun && (result.success = Failed || !verbose)
+  if run && (result.success = Failed || !verbose)
   then print_test_end name result ;
   results := result :: !results
 
