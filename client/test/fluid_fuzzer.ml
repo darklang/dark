@@ -15,25 +15,24 @@ let defaultVerbosityThreshold = 20
 let verbosityThreshold = ref defaultVerbosityThreshold
 
 (* The seed can be changed to get new test data *)
-let defaultInitialSeed = 0
+let initialSeed : int ref =
+  Js.Date.now ()
+  |> int_of_float
+  |> (fun n -> if n < 0 then n * -1 else n)
+  |> ( mod ) 1000000000
+  |> ref
 
-let initialSeed = ref defaultInitialSeed
-
-(* How many tests do we create/run *)
-let defaultCount = 3
-
-let count = ref defaultCount
 
 (* How big should the generated lists be *)
 let defaultSize = 4
 
 let size = ref defaultSize
 
-(* Only run this one test *)
-let only : int option ref = ref None
+(* Continue after the first seed *)
+let continue : bool ref = ref false
 
 (* Stop after getting our first failure  *)
-let stop_on_fail : bool ref = ref false
+let stopOnFail : bool ref = ref true
 
 (* ------------------ *)
 (* Debugging *)
@@ -52,9 +51,7 @@ let debugAST (length : int) (msg : string) (e : E.t) : unit =
 (* ------------------ *)
 
 (* aim is to be deterministic *)
-let defaultSeed = 1.0
-
-let state = ref defaultSeed
+let state = ref 1.0
 
 let setSeed (seed : int) : unit = state := float_of_int seed
 
@@ -522,30 +519,31 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
 (* ------------------ *)
 let runTest (test : FuzzTest.t) : unit =
   try
-    for i = !initialSeed to !initialSeed + !count - 1 do
-      if !stop_on_fail && Tester.fails () <> [] then exit (-1) ;
-      let name = test.name ^ " #" ^ string_of_int i in
-      Tester.test name (fun () ->
-          setSeed i ;
-          let testcase = generateExpr () |> FluidExpression.clone in
-          if !only = None || !only = Some i
-          then (
-            Js.log2 "testing: " name ;
-            (* Js.log2 "testcase: " (E.show testcase) ; *)
-            let newAST, newState = test.fn testcase in
-            Js.log2 "checking: " name ;
-            let passed = test.check ~testcase ~newAST newState in
-            if passed = false
-            then (
-              Js.log2 "failed: " name ;
-              let reduced = reduce test testcase in
-              Js.log2 "finished program:\n  " (toText reduced) ;
-              Js.log2 "as expr:\n  " (E.show reduced) ;
-              Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
-              fail () )
-            else pass () )
-          else (
-            Js.log2 "skipping: " name ;
-            skip () ))
-    done
+    let seed = ref !initialSeed in
+    let continue_loop = ref true in
+    Tester.describe test.name (fun () ->
+        while !continue_loop do
+          let name = test.name ^ " #" ^ string_of_int !seed in
+          Tester.test name (fun () ->
+              setSeed !seed ;
+              let testcase = generateExpr () |> FluidExpression.clone in
+              Js.log2 "testing: " name ;
+              (* Js.log2 "testcase: " (E.show testcase) ; *)
+              let newAST, newState = test.fn testcase in
+              Js.log2 "checking: " name ;
+              let passed = test.check ~testcase ~newAST newState in
+              if passed = false
+              then (
+                Js.log2 "failed: " name ;
+                let reduced = reduce test testcase in
+                Js.log2 "finished program:\n  " (toText reduced) ;
+                Js.log2 "as expr:\n  " (E.show reduced) ;
+                Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
+                fail () )
+              else pass ()) ;
+          seed := !seed + 1 ;
+          continue_loop := !continue ;
+          if !stopOnFail && Tester.fails () <> [] then exit (-1) ;
+          ()
+        done)
   with _ -> ()
