@@ -1046,81 +1046,85 @@ let moveToAstRef (s : fluidState) (ast : ast) ?(offset = 0) (astRef : astRef) :
   moveToCaretTarget s ast {astRef; offset}
 
 
-(* caretTargetForLastPartOfExpr takes an ast and produces a caretTarget
- * corresponding to the "very end" of that ast. The concept of "very end"
- * is related to an understanding of the tokenization of the ast, even though
- * this function doesn't explicitly depend on any tokenization functions. *)
+(* [caretTargetForLastPartOfExpr' expr] produces a caretTarget corresponding
+ * to the very end of the expr. The concept of "very end" is related to an
+ * understanding of the tokenization of the expr, even though this function
+ * doesn't explicitly depend on any tokenization functions. *)
+let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
+  | EVariable (id, str) ->
+      {astRef = ARVariable id; offset = String.length str}
+  | EFieldAccess (id, _, fieldName) ->
+      { astRef = ARFieldAccess (id, FAPFieldname)
+      ; offset = String.length fieldName }
+  | EInteger (id, valueStr) ->
+      {astRef = ARInteger id; offset = String.length valueStr}
+  | EBool (id, true) ->
+      {astRef = ARBool id; offset = String.length "true"}
+  | EBool (id, false) ->
+      {astRef = ARBool id; offset = String.length "false"}
+  | EString (id, _) ->
+      {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
+  | EFloat (id, _, decimalStr) ->
+      {astRef = ARFloat (id, FPFractional); offset = String.length decimalStr}
+  | ENull id ->
+      {astRef = ARNull id; offset = String.length "null"}
+  | EBlank id ->
+      {astRef = ARBlank id; offset = 0}
+  | ELet (_, _, _, bodyExpr) ->
+      caretTargetForLastPartOfExpr' bodyExpr
+  | EIf (_, _, _, elseExpr) ->
+      caretTargetForLastPartOfExpr' elseExpr
+  | EBinOp (_, _, _, rhsExpr, _) ->
+      caretTargetForLastPartOfExpr' rhsExpr
+  | ELambda (_, _, bodyExpr) ->
+      caretTargetForLastPartOfExpr' bodyExpr
+  | EFnCall (id, fnName, argExprs, _) ->
+    ( match List.last argExprs with
+    | Some lastExpr ->
+        caretTargetForLastPartOfExpr' lastExpr
+    | None ->
+        { astRef = ARFnCall (id, FCPFnName)
+        ; offset = fnName |> FluidUtil.partialName |> String.length } )
+  | EPartial (id, str, _) ->
+      (* Intentionally using the thing that was typed; not the existing expr *)
+      {astRef = ARPartial id; offset = String.length str}
+  | ERightPartial (id, str, _) ->
+      (* Intentionally using the thing that was typed; not the existing expr *)
+      {astRef = ARRightPartial id; offset = String.length str}
+  | EList (id, _) ->
+      {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
+  | ERecord (id, _) ->
+      {astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *)}
+  | EPipe (id, pipeExprs) ->
+    ( match List.last pipeExprs with
+    | Some lastExpr ->
+        caretTargetForLastPartOfExpr' lastExpr
+    | None ->
+        {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"} )
+  | EMatch (_, matchedExpr, matchItems) ->
+    ( match List.last matchItems with
+    | Some (_, branchBody) ->
+        caretTargetForLastPartOfExpr' branchBody
+    | None ->
+        caretTargetForLastPartOfExpr' matchedExpr )
+  | EConstructor (id, name, containedExprs) ->
+    ( match List.last containedExprs with
+    | Some lastExpr ->
+        caretTargetForLastPartOfExpr' lastExpr
+    | None ->
+        {astRef = ARConstructor (id, CPName); offset = String.length name} )
+  | (EFeatureFlag (_, _, _, _, _) | EPipeTarget _) as expr ->
+      recover
+        "we don't yet support caretTargetForLastPartOfExpr' for this"
+        ~debug:(show_fluidExpr expr)
+        {astRef = ARInvalid; offset = 0}
+
+
+(* [caretTargetForLastPartOfExpr id ast] produces a caretTarget corresponding
+ * to the "very end" of the expr identified by id within the [ast].
+ * The concept of "very end" depends on caretTargetForLastPartOfExpr'.
+ *)
 let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
-  let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
-    | EVariable (id, str) ->
-        {astRef = ARVariable id; offset = String.length str}
-    | EFieldAccess (id, _, fieldName) ->
-        { astRef = ARFieldAccess (id, FAPFieldname)
-        ; offset = String.length fieldName }
-    | EInteger (id, valueStr) ->
-        {astRef = ARInteger id; offset = String.length valueStr}
-    | EBool (id, true) ->
-        {astRef = ARBool id; offset = String.length "true"}
-    | EBool (id, false) ->
-        {astRef = ARBool id; offset = String.length "false"}
-    | EString (id, _) ->
-        {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
-    | EFloat (id, _, decimalStr) ->
-        {astRef = ARFloat (id, FPFractional); offset = String.length decimalStr}
-    | ENull id ->
-        {astRef = ARNull id; offset = String.length "null"}
-    | EBlank id ->
-        {astRef = ARBlank id; offset = 0}
-    | ELet (_, _, _, bodyExpr) ->
-        caretTargetForLastPartOfExpr' bodyExpr
-    | EIf (_, _, _, elseExpr) ->
-        caretTargetForLastPartOfExpr' elseExpr
-    | EBinOp (_, _, _, rhsExpr, _) ->
-        caretTargetForLastPartOfExpr' rhsExpr
-    | ELambda (_, _, bodyExpr) ->
-        caretTargetForLastPartOfExpr' bodyExpr
-    | EFnCall (id, fnName, argExprs, _) ->
-      ( match List.last argExprs with
-      | Some lastExpr ->
-          caretTargetForLastPartOfExpr' lastExpr
-      | None ->
-          { astRef = ARFnCall (id, FCPFnName)
-          ; offset = fnName |> FluidUtil.partialName |> String.length } )
-    | EPartial (id, str, _) ->
-        (* Intentionally using the thing that was typed; not the existing expr *)
-        {astRef = ARPartial id; offset = String.length str}
-    | ERightPartial (id, str, _) ->
-        (* Intentionally using the thing that was typed; not the existing expr *)
-        {astRef = ARRightPartial id; offset = String.length str}
-    | EList (id, _) ->
-        {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
-    | ERecord (id, _) ->
-        {astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *)}
-    | EPipe (id, pipeExprs) ->
-      ( match List.last pipeExprs with
-      | Some lastExpr ->
-          caretTargetForLastPartOfExpr' lastExpr
-      | None ->
-          {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"}
-      )
-    | EMatch (_, matchedExpr, matchItems) ->
-      ( match List.last matchItems with
-      | Some (_, branchBody) ->
-          caretTargetForLastPartOfExpr' branchBody
-      | None ->
-          caretTargetForLastPartOfExpr' matchedExpr )
-    | EConstructor (id, name, containedExprs) ->
-      ( match List.last containedExprs with
-      | Some lastExpr ->
-          caretTargetForLastPartOfExpr' lastExpr
-      | None ->
-          {astRef = ARConstructor (id, CPName); offset = String.length name} )
-    | (EFeatureFlag (_, _, _, _, _) | EPipeTarget _) as expr ->
-        recover
-          "we don't yet support caretTargetForLastPartOfExpr for this"
-          ~debug:(show_fluidExpr expr)
-          {astRef = ARInvalid; offset = 0}
-  in
   match E.find astPartId ast with
   | Some expr ->
       caretTargetForLastPartOfExpr' expr
@@ -1131,56 +1135,63 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARInvalid; offset = 0}
 
 
-(* caretTargetForBeginningOfExpr returns a caretTarget representing the
- * beginning of the expression in `ast` having the given `id`. *)
+(* [caretTargetForBeginningOfExpr' expr] produces a caretTarget corresponding
+ * to the very beginning of the [expr]. The concept of "very beginning" is related to an
+ * understanding of the tokenization of the expr, even though this function
+ * doesn't explicitly depend on any tokenization functions. *)
+let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
+  | EInteger (id, _) ->
+      {astRef = ARInteger id; offset = 0}
+  | EBool (id, _) ->
+      {astRef = ARBool id; offset = 0}
+  | EString (id, _) ->
+      {astRef = ARString (id, SPOpenQuote); offset = 0}
+  | EFloat (id, _, _) ->
+      {astRef = ARFloat (id, FPWhole); offset = 0}
+  | ENull id ->
+      {astRef = ARNull id; offset = 0}
+  | EBlank id ->
+      {astRef = ARBlank id; offset = 0}
+  | ELet (id, _, _, _) ->
+      {astRef = ARLet (id, LPKeyword); offset = 0}
+  | EIf (id, _, _, _) ->
+      {astRef = ARIf (id, IPIfKeyword); offset = 0}
+  | EMatch (id, _, _) ->
+      {astRef = ARMatch (id, MPKeyword); offset = 0}
+  | EBinOp (_, _, lhsExpr, _, _) ->
+      caretTargetForBeginningOfExpr' lhsExpr
+  | EFnCall (id, _, _, _) ->
+      {astRef = ARFnCall (id, FCPFnName); offset = 0}
+  | ELambda (id, _, _) ->
+      {astRef = ARLambda (id, LPKeyword); offset = 0}
+  | EFieldAccess (_, expr, _) ->
+      caretTargetForBeginningOfExpr' expr
+  | EVariable (id, _) ->
+      {astRef = ARVariable id; offset = 0}
+  | EPartial (id, _, _) ->
+      {astRef = ARPartial id; offset = 0}
+  | ERightPartial (id, _, _) ->
+      {astRef = ARRightPartial id; offset = 0}
+  | EList (id, _) ->
+      {astRef = ARList (id, LPOpen); offset = 0}
+  | ERecord (id, _) ->
+      {astRef = ARRecord (id, RPOpen); offset = 0}
+  | EPipe (id, _) ->
+      {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
+  | EConstructor (id, _, _) ->
+      {astRef = ARConstructor (id, CPName); offset = 0}
+  | (EFeatureFlag _ | EPipeTarget _) as expr ->
+      recover
+        "unhandled expr in caretTargetForBeginningOfExpr'"
+        ~debug:(show_fluidExpr expr)
+        {astRef = ARInvalid; offset = 0}
+
+
+(* [caretTargetForBeginningOfExpr id ast] produces a caretTarget corresponding
+ * to the "very beginning" of the expr identified by [id] within the [ast].
+ * The concept of "very beginning" depends on caretTargetForBeginningOfExpr'.
+ *)
 let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
-  let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
-    | EInteger (id, _) ->
-        {astRef = ARInteger id; offset = 0}
-    | EBool (id, _) ->
-        {astRef = ARBool id; offset = 0}
-    | EString (id, _) ->
-        {astRef = ARString (id, SPOpenQuote); offset = 0}
-    | EFloat (id, _, _) ->
-        {astRef = ARFloat (id, FPWhole); offset = 0}
-    | ENull id ->
-        {astRef = ARNull id; offset = 0}
-    | EBlank id ->
-        {astRef = ARBlank id; offset = 0}
-    | ELet (id, _, _, _) ->
-        {astRef = ARLet (id, LPKeyword); offset = 0}
-    | EIf (id, _, _, _) ->
-        {astRef = ARIf (id, IPIfKeyword); offset = 0}
-    | EMatch (id, _, _) ->
-        {astRef = ARMatch (id, MPKeyword); offset = 0}
-    | EBinOp (_, _, lhsExpr, _, _) ->
-        caretTargetForBeginningOfExpr' lhsExpr
-    | EFnCall (id, _, _, _) ->
-        {astRef = ARFnCall (id, FCPFnName); offset = 0}
-    | ELambda (id, _, _) ->
-        {astRef = ARLambda (id, LPKeyword); offset = 0}
-    | EFieldAccess (_, expr, _) ->
-        caretTargetForBeginningOfExpr' expr
-    | EVariable (id, _) ->
-        {astRef = ARVariable id; offset = 0}
-    | EPartial (id, _, _) ->
-        {astRef = ARPartial id; offset = 0}
-    | ERightPartial (id, _, _) ->
-        {astRef = ARRightPartial id; offset = 0}
-    | EList (id, _) ->
-        {astRef = ARList (id, LPOpen); offset = 0}
-    | ERecord (id, _) ->
-        {astRef = ARRecord (id, RPOpen); offset = 0}
-    | EPipe (id, _) ->
-        {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
-    | EConstructor (id, _, _) ->
-        {astRef = ARConstructor (id, CPName); offset = 0}
-    | (EFeatureFlag _ | EPipeTarget _) as expr ->
-        recover
-          "unhandled expr in caretTargetForBeginningOfExpr"
-          ~debug:(astPartId, expr)
-          {astRef = ARInvalid; offset = 0}
-  in
   match E.find astPartId ast with
   | Some expr ->
       caretTargetForBeginningOfExpr' expr
@@ -1766,6 +1777,37 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : E.t =
             EPartial (id, str, oldVal)
         | oldVal ->
             if str = "" then E.newB () else EPartial (gid (), str, oldVal))
+
+
+(* [mergeExprs e1 e2] "merges" the given exprs [e1] and [e2] into a single expr
+ * and returns that merged expr along with a caret target corresponding to the
+ * "middle" of the merge.
+ * 
+ * An example of where this is useful is when deleting a binary operator.
+ *   Given 12 + 34, deleting the + results in the EInteger 1234.
+ *)
+let rec mergeExprs (e1 : fluidExpr) (e2 : fluidExpr) : fluidExpr * caretTarget =
+  match (e1, e2) with
+  | EPipeTarget _, e2 ->
+      (e2, caretTargetForLastPartOfExpr' e2)
+  | _, EBinOp (id, op, lhs, rhs, rail) ->
+      (* Example: 1 , (2+3) -> (1|2+3) *)
+      let merged, target = mergeExprs e1 lhs in
+      (EBinOp (id, op, merged, rhs, rail), target)
+  | e1, EBlank _ ->
+      (e1, caretTargetForLastPartOfExpr' e1)
+  | EBlank _, e2 ->
+      (e2, caretTargetForBeginningOfExpr' e2)
+  | EInteger (id, i1), EInteger (_, i2) ->
+      ( EInteger (id, Util.coerceStringTo63BitInt (i1 ^ i2))
+      , {astRef = ARInteger id; offset = String.length i1} )
+  | EString (id, s1), EString (_, s2) ->
+      ( EString (id, s1 ^ s2)
+      , {astRef = ARString (id, SPText); offset = String.length s1} )
+  | e1, _e2 ->
+      (* TODO(JULIAN): consider preserving e2 as well, by (for example) creating a partial. *)
+      (* recover "mergeExprs can't handle this" ~debug:(show_fluidExpr e1, show_fluidExpr e2) (e1, caretTargetForLastPartOfExpr' e1) *)
+      (e1, caretTargetForLastPartOfExpr' e1)
 
 
 (* deleteBinOp' looks at the expr to the left(lhs)andright(rhs)side of a binop to figure out 
@@ -3288,14 +3330,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  if str = ""
                  then
                    (* Delete the binop *)
-                   match lhsExpr with
-                   | EPipeTarget _ ->
-                       Some
-                         ( Expr rhsExpr
-                         , caretTargetForLastPartOfExpr (E.id rhsExpr) ast )
-                   | lhs ->
-                       Some
-                         (Expr lhs, caretTargetForLastPartOfExpr (E.id lhs) ast)
+                   let expr, target = mergeExprs lhsExpr rhsExpr in
+                   Some (Expr expr, target)
                  else
                    let newID = gid () in
                    Some
@@ -3354,7 +3390,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                        (* This is allowed to be the empty string. *)
                        Some
                          (Expr (EPartial (id, str, oldExpr)), desiredCaretTarget)
-                   | EBinOp
+                   (* | EBinOp
                        (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _)
                      ->
                        Some
@@ -3365,7 +3401,10 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    | EBinOp (_, _, expr, _, _) ->
                        Some
                          ( Expr expr
-                         , caretTargetForLastPartOfExpr (E.id expr) ast )
+                         , caretTargetForLastPartOfExpr (E.id expr) ast ) *)
+                   | EBinOp (_, _, lhsExpr, rhsExpr, _) ->
+                       let expr, target = mergeExprs lhsExpr rhsExpr in
+                       Some (Expr expr, target)
                    | _ ->
                        let newID = gid () in
                        Some
