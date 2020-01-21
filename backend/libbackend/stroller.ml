@@ -236,6 +236,26 @@ let segment_track
 let segment_identify_user (username : string) : unit =
   let payload =
     Account.get_user_and_created_at_and_segment_metadata username
+    (* If we fail to get the user from the db, we want to continue but rollbar
+     * *)
+    |> (function
+         | None ->
+             let bt = Exception.get_backtrace () in
+             ( match
+                 Rollbar.report
+                   (Exception.internal
+                      "No user found when calling segment_identify user")
+                   bt
+                   (Other "segment_identify_user")
+                   "No execution id"
+               with
+             | `Failure ->
+                 Log.erroR "Failed to Rollbar.report in segment_identify_user"
+             | _ ->
+                 () ) ;
+             None
+         | Some payload ->
+             Some payload)
     |> Option.map ~f:(fun (user_info_and_created_at, segment_metadata) ->
            let payload =
              user_info_and_created_at
