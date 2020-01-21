@@ -35,6 +35,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html =
         let typeStr = Autocomplete.asTypeString item in
         let specialClass = Autocomplete.asTypeClass item in
         Html.li
+          ~unique:name
           [ Attributes.classList
               [ ("autocomplete-item", true)
               ; ("highlighted", highlighted)
@@ -51,7 +52,9 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html =
   in
   let autocompleteList = toList ac.completions "valid" ac.index in
   let autocomplete =
-    Html.ul [Attributes.id "autocomplete-holder"] autocompleteList
+    if ac.visible
+    then Html.ul [Attributes.id "autocomplete-holder"] autocompleteList
+    else Vdom.noNode
   in
   (* two overlapping input boxes, one to provide suggestions, one * to provide
    * the search. (Note: we used to use this, but took it out. Leaving in the
@@ -91,13 +94,11 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html =
       [Attributes.id "search-container"; widthInCh searchWidth]
       [searchInput; suggestionSpan; fluidWidthSpan]
   in
-  let viewForm =
-    Html.form
-      [onSubmit ~key:"esm2" (fun _ -> EntrySubmitMsg)]
-      (if ac.visible then [input; autocomplete] else [input])
-  in
-  let wrapper = Html.div [Html.class' "entry"] [viewForm] in
-  wrapper
+  Html.div
+    [Html.class' "entry"]
+    [ Html.form
+        [onSubmit ~key:"esm2" (fun _ -> EntrySubmitMsg)]
+        [input; autocomplete] ]
 
 
 let viewEntry (m : model) : msg Html.html =
