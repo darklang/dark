@@ -237,10 +237,11 @@ let run () =
             |> TL.ufToTL
           in
           test "don't allow duplicate param names" (fun () ->
-              expect (validateFnParamNameFree fnAsTL "title")
+              expect (validateFnParamNameFree fnAsTL (B.new_ ()) "title")
               |> toEqual (Some "`title` is already declared. Use another name.")) ;
           test "allow unused names" (fun () ->
-              expect (validateFnParamNameFree fnAsTL "rating") |> toEqual None)) ;
+              expect (validateFnParamNameFree fnAsTL (B.new_ ()) "rating")
+              |> toEqual None)) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           test "empty autocomplete doesn't highlight" (fun () ->
