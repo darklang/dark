@@ -12,6 +12,13 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
   |> Result.all
 
 
+(* Placing this here instead of Dval like in Dval.to_int because dval.ml will require a Lib import, which cases circular dependencies. And for now this function is only used by Float::sum, no need to prematurely abstract out this function *)
+let to_float dv : Float.t option =
+  match dv with DFloat i -> Some i | _ -> None
+
+
+let zero = 0.0
+
 let ( >>| ) = Result.( >>| )
 
 let fns : Lib.shortfn list =
@@ -153,5 +160,34 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Float::sum"]
+    ; ins = []
+    ; p = [par "a" TList]
+    ; r = TFloat
+    ; d = "Returns the sum of all the floats in the list"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l] ->
+              l
+              |> list_coerce ~f:to_float
+              >>| List.fold_left ~f:( +. ) ~init:zero
+              >>| (fun x -> DFloat x)
+              |> Result.map_error ~f:(fun (result, example_value) ->
+                     RT.error
+                       ~actual:(DList result)
+                       ~result:(DList result)
+                       ~long:
+                         ( "Float::sum requires all values to be floats, but "
+                         ^ Dval.to_developer_repr_v0 example_value
+                         ^ " is a "
+                         ^ Dval.tipename example_value )
+                       ~expected:"every list item to be an float "
+                       "Sum expects you to pass a list of floats")
+              |> Result.ok_exn
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false } ]
