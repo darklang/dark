@@ -46,33 +46,46 @@ let viewTrace
     (timestamp : string option)
     (isActive : bool)
     (isHover : bool)
+    (isUnfetchable : bool)
     (tipe : tipe) : msg Html.html =
   let tlid = TL.id tl in
-  let activeClass = if isActive then "active" else "" in
-  let hoverClass = if isHover then "mouseovered" else "" in
-  let tipeClass = "tipe-" ^ Runtime.tipe2str tipe in
-  let classes = "" ^ activeClass ^ " " ^ hoverClass ^ " " ^ tipeClass ^ "" in
+  let classes =
+    [ ("active", isActive)
+    ; ("mouseovered", isHover)
+    ; ("tipe-" ^ Runtime.tipe2str tipe, true)
+    ; ("traceid-" ^ traceID, true)
+    ; ("unfetchable", isUnfetchable) ]
+  in
   let eventKey constructor =
     constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
   in
   let events =
-    [ ViewUtils.eventNoPropagation ~key:(eventKey "dc") "click" (fun x ->
-          TraceClick (tlid, traceID, x))
-    ; ViewUtils.eventNoPropagation ~key:(eventKey "dme") "mouseenter" (fun x ->
-          TraceMouseEnter (tlid, traceID, x))
-    ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
-          TraceMouseLeave (tlid, traceID, x)) ]
+    if isUnfetchable
+    then
+      [ ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
+            TraceMouseLeave (tlid, traceID, x)) ]
+    else
+      [ ViewUtils.eventNoPropagation ~key:(eventKey "dc") "click" (fun x ->
+            TraceClick (tlid, traceID, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:(eventKey "dme")
+          "mouseenter"
+          (fun x -> TraceMouseEnter (tlid, traceID, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:(eventKey "dml")
+          "mouseleave"
+          (fun x -> TraceMouseLeave (tlid, traceID, x)) ]
   in
-  let valueDiv, valueStr =
+  let valueDiv =
     match value with
     | None ->
-        (ViewUtils.fontAwesome "spinner", "loading")
+        ViewUtils.fontAwesome "spinner"
     | Some v ->
         let asString = Runtime.inputValueAsString tl v in
         let asString =
           if String.length asString = 0 then "No input parameters" else asString
         in
-        (Html.div [Vdom.noProp] [Html.text asString], "")
+        Html.div [Vdom.noProp] [Html.text asString]
   in
   let timestampDiv =
     match timestamp with
@@ -85,40 +98,52 @@ let viewTrace
         in
         Html.div [Html.title ts] [Html.text ("Made " ^ human ^ " ago")]
   in
-  (* Fixes: https://trello.com/c/Vv8mMOls/1595-top-request-cursor-is-unselectable-10-6 *)
-  (* viewKey contains the:
-   traceID  - to update with every new traceId,
-   classes  - to update when hover/mouseover,
-   valueStr - to update from loading to loaded *)
-  let viewKey = traceID ^ classes ^ valueStr in
   let dotHtml =
     if isHover && not isActive
     then [Html.div [Html.class' "empty-dot"] [Vdom.noNode]]
-    else [Html.div [Vdom.noProp] [Html.text {js|•|js}]]
+    else [Html.div [Html.class' "dot"] [Html.text {js|•|js}]]
   in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
-  Html.li
-    ~key:viewKey
-    (Html.class' ("traceid-" ^ traceID ^ " " ^ classes) :: events)
-    (dotHtml @ [viewData])
+  let unfetchableAltText =
+    if isUnfetchable
+    then Html.title "Trace is too large for the editor to load"
+    else Vdom.noProp
+  in
+  let props = Html.classList classes :: unfetchableAltText :: events in
+  Html.li props (dotHtml @ [viewData])
 
 
 let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
   let traceToHtml ((traceID, traceData) : trace) =
-    let value = Option.map ~f:(fun td -> td.input) traceData in
+    let value =
+      Option.map ~f:(fun td -> td.input) (traceData |> Result.to_option)
+    in
     let timestamp =
-      Option.map ~f:(fun (td : traceData) -> td.timestamp) traceData
+      Option.map
+        ~f:(fun (td : traceData) -> td.timestamp)
+        (traceData |> Result.toOption)
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =
       Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid = Some traceID
     in
     let isHover = vs.hovering = Some (vs.tlid, ID traceID) in
+    let isUnfetchable =
+      match traceData with Error MaximumCallStackError -> true | _ -> false
+    in
     let astTipe =
       Analysis.getTipeOf' vs.analysisStore astID
       |> Option.withDefault ~default:TIncomplete
     in
-    viewTrace vs.tl traceID value timestamp isActive isHover astTipe
+    viewTrace
+      vs.tl
+      traceID
+      value
+      timestamp
+      isActive
+      isHover
+      isUnfetchable
+      astTipe
   in
   List.map ~f:traceToHtml vs.traces
 

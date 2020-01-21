@@ -122,7 +122,7 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
     |> Option.andThen ~f:(Analysis.getTrace m tlid)
   in
   match trace with
-  | Some (_, Some td) ->
+  | Some (_, Ok td) ->
       StrDict.get ~key:"request" td.input
       |> Option.andThen ~f:(fun obj ->
              match obj with DObj r -> Some r | _ -> None)
