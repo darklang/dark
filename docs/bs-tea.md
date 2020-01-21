@@ -53,24 +53,25 @@ This is exactly like Vdom.noNode, except for node properties.
 
 # Key
 
-`key` is a performance optimization that means that bs-tea will never
-recurse into this node if the key is that same as  in the previous vdom. If
-the key is equal, it will not compare the actual nodes, their properties, or
-children. It will simply move on.
+`key` is a performance optimization that means that bs-tea will never recurse
+into this node if the key is that same as in the previous vdom. If the key is
+equal, it will not compare the vdom nodes, their properties, or children, and
+will not make any changes to the DOM below this. It will simply move on.
 
-Note that this does not replace our cache - the cache caches the generated
-vdom, but does not prevent bs-tea from recursing into it.
+Note that this is sligtly different to our custom caching. Our cache prevents
+the Vdom nodes from being created during the `view`, while the `key` property
+is used after the view is created when bs-tea is comparing the old and new
+Vdom.
 
 To use `key` well, you need to make sure that the key depends on every value
 within it. If not, the nodes will not update when any values that are missed
 are updated. We have found that the fastest way to turn values into a key
-are to use `Js.Json.stringifyAny`.
+is to use `Js.Json.stringifyAny`.
 
 
 # Key vs uniq
 
-Most places where we use `key` in the codebase were actually intended to be
-`uniq`.
+Most places where we use `key` in the codebase were probably better as `uniq`.
 
 Given two nodes that bs-tea is comparing, if they have different `key`s or
 different `uniq`s, bs-tea will know they are not the same in both cases. If
@@ -79,7 +80,12 @@ subnodes. If they have the same `key`, bs-tea will stop there.
 
 ## Closed over values
 
-An important consideration in using keys is that sometimes the value of a property is a function. Since OCaml cannot compare functions, you need to use the `key` to tell bs-tea whether the nested value is the same or not. If you do not include all data in the key, there will be a bug.
+An important consideration in using keys is that sometimes the value of a
+property is a function. Since OCaml cannot compare functions, you need to use
+the `key` to tell bs-tea whether the nested value is the same or not. If you do
+not include all data in the key, bs-tea will not change the DOM, and so the DOM will continue to include stale nodes (which are rendering the old Vdom).
 
-If you use `uniq` instead, it will just recalculate it each time, which has
-been known to cause events to be lost in testcafe tests.
+If you use `uniq` instead, it will just recalculate the vdom each time. This
+seems like it should be fine, but hides a subtle bug: it will always replace
+the DOM nodes, which causes events triggered on those nodes to be dropped
+(presumably becaue the event handler is briefly missing). 
