@@ -110,6 +110,15 @@ let getBrowserPlatform () : browserPlatform =
   |> Option.withDefault ~default:UnknownPlatform
 
 
+external jsIsBrowserChrome : unit -> bool Js.Nullable.t = "isBrowserChrome"
+  [@@bs.val] [@@bs.scope "window"]
+
+let isBrowserChrome () : bool =
+  jsIsBrowserChrome ()
+  |> Js.Nullable.toOption
+  |> Option.withDefault ~default:false
+
+
 let focusEntry (m : model) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
   | Entering _ ->
