@@ -24,7 +24,8 @@ let queue_worker execution_id =
           ~data:"Unhandled exception bubbled to queue worker"
           ~params:
             [ ("execution_id", Libexecution.Types.string_of_id execution_id)
-            ; ("exn", Libexecution.Exception.exn_to_string e) ] ;
+            ; ("exn", Libexecution.Exception.exn_to_string e)
+            ; ("backtrace", bt |> Libexecution.Exception.backtrace_to_string) ] ;
         Lwt.async (fun () ->
             ( try
                 Libbackend.Rollbar.report_lwt
