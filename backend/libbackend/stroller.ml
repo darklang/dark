@@ -268,19 +268,17 @@ let segment_identify_user (username : string) : unit =
            Yojson.Safe.Util.combine payload segment_metadata)
   in
   let organization =
-    payload
-    |> Option.map ~f:(fun p ->
-           username
-           |> Authorization.orgs_for
-           (* A user's orgs for this purpose do not include orgs it has
-            * read-only access to *)
-           |> List.filter ~f:(function _, rw -> rw = ReadWrite)
-           (* If you have one org, that's your org! If you have no orgs, or
-            * more than one, then we just use your username. This is because
-            * Heap's properties/traits don't support lists. *)
-           |> function [(org_name, _)] -> org_name | _ -> username)
+    username
+    |> Authorization.orgs_for
+    (* A user's orgs for this purpose do not include orgs it has
+     * read-only access to *)
+    |> List.filter ~f:(function _, rw -> rw = ReadWrite)
+    (* If you have one org, that's your org! If you have no orgs, or
+     * more than one, then we just use your username. This is because
+     * Heap's properties/traits don't support lists. *)
+    |> function [(org_name, _)] -> org_name | _ -> username
   in
-  Option.map2 organization payload ~f:(fun organization payload ->
+  Option.map payload ~f:(fun payload ->
       Yojson.Safe.Util.combine
         payload
         (`Assoc [("organization", `String organization)]))
