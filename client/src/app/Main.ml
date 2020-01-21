@@ -102,7 +102,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; buildHash
     ; username
     ; teaDebuggerEnabled = Url.isDebugging ()
-    ; unsupportedBrowser = Entry.unsupportedBrowser ()}
+    ; unsupportedBrowser = Entry.unsupportedBrowser () }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
