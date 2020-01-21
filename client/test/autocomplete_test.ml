@@ -220,15 +220,17 @@ let run () =
               |> toEqual (Some "Every 5mins is an invalid CRON interval")) ;
           ()) ;
       describe "validate functions" (fun () ->
+          let pn1 = B.newF "title" in
+          let pn2 = B.newF "author" in
           let fnAsTL =
             aFunction
               ~params:
-                [ { ufpName = B.newF "title"
+                [ { ufpName = pn1
                   ; ufpTipe = B.newF TStr
                   ; ufpBlock_args = []
                   ; ufpOptional = false
                   ; ufpDescription = "" }
-                ; { ufpName = B.newF "author"
+                ; { ufpName = pn2
                   ; ufpTipe = B.newF TStr
                   ; ufpBlock_args = []
                   ; ufpOptional = false
@@ -237,10 +239,14 @@ let run () =
             |> TL.ufToTL
           in
           test "don't allow duplicate param names" (fun () ->
-              expect (validateFnParamNameFree fnAsTL "title")
+              expect (validateFnParamNameFree fnAsTL (B.new_ ()) "title")
               |> toEqual (Some "`title` is already declared. Use another name.")) ;
           test "allow unused names" (fun () ->
-              expect (validateFnParamNameFree fnAsTL "rating") |> toEqual None)) ;
+              expect (validateFnParamNameFree fnAsTL (B.new_ ()) "rating")
+              |> toEqual None) ;
+          test "allow param name to be renamed the same" (fun () ->
+              expect (validateFnParamNameFree fnAsTL pn2 "author")
+              |> toEqual None)) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           test "empty autocomplete doesn't highlight" (fun () ->

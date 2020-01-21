@@ -267,9 +267,9 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
       v AC.eventSpaceValidator "event space"
   | PFnName _ ->
       v AC.fnNameValidator "function name"
-  | PParamName _ ->
+  | PParamName oldParam ->
       v AC.paramNameValidator "param name"
-      |> Option.orElse (AC.validateFnParamNameFree tl value)
+      |> Option.orElse (AC.validateFnParamNameFree tl oldParam value)
   | PParamTipe _ ->
       v AC.paramTypeValidator "param type"
   | PTypeName _ ->
