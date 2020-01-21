@@ -2884,79 +2884,6 @@ let idOfASTRef (astRef : astRef) : id option =
 
 let idOfCaretTarget ({astRef; _} : caretTarget) : id option = idOfASTRef astRef
 
-let tryReplaceStringAndMove2
-    ~(mutation : string -> string)
-    (currAstRef : astRef)
-    (ast : ast)
-    (desiredCaretTarget : caretTarget) : (E.t * caretTarget) option =
-  idOfASTRef currAstRef
-  |> Option.andThen ~f:(fun exprID ->
-         match E.find exprID ast with
-         | Some expr ->
-             Some (exprID, expr)
-         | None ->
-             None)
-  |> Option.andThen ~f:(fun (exprID, expr) ->
-         let maybeTransformedExprAndCaretTarget =
-           match (currAstRef, expr) with
-           | ARInteger _, EInteger (id, intStr) ->
-               let str = mutation intStr in
-               if str = ""
-               then Some (EBlank id, {astRef = ARBlank id; offset = 0})
-               else
-                 let coerced = Util.coerceStringTo63BitInt str in
-                 if coerced = intStr
-                 then None
-                 else Some (EInteger (id, coerced), desiredCaretTarget)
-           | ( ( ARString (_, SPOpenQuote)
-               | ARString (_, SPText)
-               | ARString (_, SPCloseQuote) )
-             , EString (id, str) ) ->
-               Some (EString (id, mutation str), desiredCaretTarget)
-           | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
-               Some (EFloat (id, mutation whole, frac), desiredCaretTarget)
-           | ARFloat (_, FPFractional), EFloat (id, whole, frac) ->
-               Some (EFloat (id, whole, mutation frac), desiredCaretTarget)
-           | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
-               let newName = mutation oldName in
-               let newExpr =
-                 ELet
-                   ( id
-                   , newName
-                   , value
-                   , E.renameVariableUses ~oldName ~newName body )
-               in
-               if newName = ""
-               then
-                 (* XXX(JULIAN):
-                Hack to move left when backspacing here: `let ___| =`
-                This is probably bad because pressing delete there shouldn't, strictly speaking,
-                move the caret, and we might want to use this function for that purpose.
-              *)
-                 Some (newExpr, {astRef = ARLet (id, LPVarName); offset = 0})
-               else Some (newExpr, desiredCaretTarget)
-           (* Immutable; might be a bit wonky because we expect to be able to backspace over them to move the caret *)
-           | (ARLet (_, LPKeyword) | ARLet (_, LPAssignment)), _ ->
-               None
-           (* Exhaustiveness *)
-           | ARInteger _, _
-           | ( ( ARString (_, SPOpenQuote)
-               | ARString (_, SPText)
-               | ARString (_, SPCloseQuote) )
-             , _ )
-           | (ARFloat (_, FPWhole) | ARFloat (_, FPFractional)), _
-           | _ ->
-               None
-         in
-         match maybeTransformedExprAndCaretTarget with
-         | Some (transformedExpr, desiredCaretTarget) ->
-             Some
-               ( E.replace exprID ~replacement:transformedExpr ast
-               , desiredCaretTarget )
-         | _ ->
-             None)
-
-
 let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     E.t * newPosition =
   let {astRef = currAstRef; offset = currOffset} = currCaretTarget in
@@ -3574,22 +3501,6 @@ let tryReplaceStringAndMoveOrSame
       (newAst, AtTarget target)
   | None ->
       (newAst, SamePlace)
-
-
-let tryReplaceStringAndMoveOrSame2
-    ~(mutation : string -> string)
-    (astRef : astRef)
-    (ast : ast)
-    (desiredCaretTarget : caretTarget) : E.t * newPosition =
-  let maybeNewAstAndTarget =
-    tryReplaceStringAndMove2 ~mutation astRef ast desiredCaretTarget
-  in
-  match maybeNewAstAndTarget with
-  | Some (newAst, target) ->
-      (newAst, AtTarget target)
-  | None ->
-      (ast, SamePlace)
-
 
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
