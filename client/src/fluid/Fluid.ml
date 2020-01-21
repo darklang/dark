@@ -2914,8 +2914,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
            | Pat pat ->
              ( match (currAstRef, pat) with
              | ARPattern (_, PPBlank), FPBlank (mID, pID) ->
-                 (* XXX(JULIAN): This has a bug in that you cannot bs here:
-                Just |___ -> ___ *)
                  if currOffset = 0
                  then
                    match E.find mID ast with
