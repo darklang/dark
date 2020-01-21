@@ -35,6 +35,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html =
         let typeStr = Autocomplete.asTypeString item in
         let specialClass = Autocomplete.asTypeClass item in
         Html.li
+          ~unique:name
           [ Attributes.classList
               [ ("autocomplete-item", true)
               ; ("highlighted", highlighted)
