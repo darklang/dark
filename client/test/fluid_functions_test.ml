@@ -15,13 +15,7 @@ let run () =
           let ast = plainIf in
           expect (getSelectedExprID s ast) |> toEqual None) ;
       test "select atomic expression" (fun () ->
-          let ast =
-            ELet
-              ( ID "wholeLet"
-              , "a"
-              , EInteger (ID "letVal", "1999")
-              , EBlank (ID "letBody") )
-          in
+          let ast = let' "a" (EInteger (ID "letVal", "1999")) b in
           let s =
             { defaultTestState with
               oldPos = 8
@@ -30,13 +24,7 @@ let run () =
           in
           expect (getSelectedExprID s ast) |> toEqual (Some (ID "letVal"))) ;
       test "select larger expressions" (fun () ->
-          let ast =
-            EFnCall
-              ( ID "fn"
-              , "+"
-              , [EInteger (ID "arg1", "1"); EInteger (ID "arg2", "2")]
-              , NoRail )
-          in
+          let ast = EFnCall (ID "fn", "+", [int "1"; int "2"], NoRail) in
           let s =
             { defaultTestState with
               oldPos = 0
@@ -46,15 +34,7 @@ let run () =
           expect (getSelectedExprID s ast) |> toEqual (Some (ID "fn"))) ;
       test "selects part of AST" (fun () ->
           let ast =
-            ELet
-              ( ID "wholeLet"
-              , "a"
-              , EFnCall
-                  ( ID "fn"
-                  , "+"
-                  , [EInteger (ID "arg1", "1"); EInteger (ID "arg2", "2")]
-                  , NoRail )
-              , EBlank (ID "letBody") )
+            let' "a" (EFnCall (ID "fn", "+", [int "1"; int "2"], NoRail)) b
           in
           let s =
             { defaultTestState with
