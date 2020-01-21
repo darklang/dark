@@ -551,6 +551,52 @@ let t_url_encode () =
        (fn "Twitter::urlencode" [str "https://google.com?q=left shark&l=en"]))
 
 
+let t_float_stdlibs () =
+  check_dval "Float::sum works" (exec_ast "(Float::sum (1.0 0.2))") (DFloat 1.2) ;
+  AT.check
+    AT.bool
+    "Float::sum fails on list elements that are not floats"
+    (match exec_ast "(Float::sum (1.0 2))" with DError _ -> true | _ -> false)
+    true ;
+  check_dval
+    "Float::ceiling works"
+    (exec_ast "(Float::ceiling 1.3)")
+    (Dval.dint 2) ;
+  check_dval "Float::floor works" (exec_ast "(Float::floor 1.8)") (Dval.dint 1) ;
+  check_dval "Float::round works" (exec_ast "(Float::round 1.5)") (Dval.dint 2) ;
+  check_dval "Float::sqrt works" (exec_ast "(Float::sqrt 25.0)") (DFloat 5.0) ;
+  check_dval
+    "Float::divide works"
+    (exec_ast "(Float::divide 9.0 2.0)")
+    (DFloat 4.5) ;
+  check_dval "Float::add works" (exec_ast "(Float::add 1.2 1.3)") (DFloat 2.5) ;
+  check_dval
+    "Float::multiply works"
+    (exec_ast "(Float::multiply 26.0 0.5)")
+    (DFloat 13.0) ;
+  check_dval
+    "Float::subtract works"
+    (exec_ast "(Float::subtract 1.0 0.2)")
+    (DFloat 0.8) ;
+  check_dval
+    "Float::greaterThan works"
+    (exec_ast "(Float::greaterThan 0.2 0.1)")
+    (DBool true) ;
+  check_dval
+    "Float::greaterThanOrEqualTo works"
+    (exec_ast "(Float::greaterThanOrEqualTo 0.1 0.1)")
+    (DBool true) ;
+  check_dval
+    "Float::lessThan works"
+    (exec_ast "(Float::lessThan 0.2 0.1)")
+    (DBool false) ;
+  check_dval
+    "Float::lessThanOrEqualTo works"
+    (exec_ast "(Float::lessThanOrEqualTo 0.1 0.1)")
+    (DBool true) ;
+  ()
+
+
 let suite =
   [ ("Stdlib fns work", `Quick, t_stdlib_works)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
@@ -565,4 +611,5 @@ let suite =
   ; ("Internal functions work", `Quick, t_internal_functions)
   ; ("Crypto::sha digest functions work", `Quick, t_crypto_sha)
   ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws)
-  ; ("URL percent encoding", `Quick, t_url_encode) ]
+  ; ("URL percent encoding", `Quick, t_url_encode)
+  ; ("Float stdlibs work", `Quick, t_float_stdlibs) ]
