@@ -192,10 +192,20 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
              someId)
   in
   let nesting = ref 0 in
+  let cmdToken =
+    match state.cp.location with
+    | Some (ltlid, id) when tlid = ltlid ->
+        (* Reversing list will get us the last token visually rendered with matching expression ID, so we don't have to keep track of max pos *)
+        vs.tokens
+        |> List.reverse
+        |> List.getBy ~f:(fun ti -> FluidToken.tid ti.token = id)
+    | _ ->
+        None
+  in
   List.map vs.tokens ~f:(fun ti ->
       let dropdown () =
-        match state.cp.location with
-        | Some (ltlid, token) when tlid = ltlid && ti.token = token ->
+        match cmdToken with
+        | Some onTi when onTi = ti ->
             FluidCommands.viewCommandPalette state.cp
         | _ ->
             if Fluid.isAutocompleting ti state
