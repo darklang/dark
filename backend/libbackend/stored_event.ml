@@ -10,6 +10,8 @@ type event_record = string * string * string * RTT.time * Analysis_types.traceid
 
 type four_oh_four = event_record [@@deriving show, yojson]
 
+let event_subject module_ path modifier = module_ ^ "_" ^ path ^ "_" ^ modifier
+
 (* ------------------------- *)
 (* Event data *)
 (* ------------------------- *)
@@ -20,6 +22,7 @@ let store_event
     (event : RTT.dval) : RTT.time =
   Db.fetch_one
     ~name:"stored_event.store_event"
+    ~subject:(event_subject module_ path modifier)
     "INSERT INTO stored_events_v2
      (canvas_id, trace_id, module, path, modifier, timestamp, value)
      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
@@ -82,6 +85,7 @@ let load_events ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc)
   let route = Http.route_to_postgres_pattern route in
   Db.fetch
     ~name:"load_events"
+    ~subject:(event_subject module_ route modifier)
     "SELECT path, value, timestamp, trace_id FROM stored_events_v2
     WHERE canvas_id = $1
       AND module = $2
@@ -105,6 +109,7 @@ let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
     (string * RTT.time * RTT.dval) option =
   Db.fetch
     ~name:"load_event_for_trace"
+    ~subject:(Uuidm.to_string trace_id)
     "SELECT path, value, timestamp FROM stored_events_v2
     WHERE canvas_id = $1
       AND trace_id = $2
@@ -137,6 +142,7 @@ let load_event_ids
   in
   Db.fetch
     ~name:"load_events"
+    ~subject:(event_subject module_ route modifier)
     "SELECT trace_id, path FROM stored_events_v2
     WHERE canvas_id = $1
       AND module = $2
@@ -164,6 +170,7 @@ let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
   let module_, path, modifier, _, _ = event_rec in
   Db.fetch
     ~name:"stored_event.get_recent_traces"
+    ~subject:(event_subject module_ path modifier)
     "SELECT trace_id FROM stored_events_v2
      WHERE canvas_id = $1
        AND module = $2
