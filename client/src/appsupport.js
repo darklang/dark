@@ -6,7 +6,7 @@ const mousewheel = function(callback) {
   });
 };
 
-function isBrowserChrome() {
+function unsupportedBrowser() {
   var isChromium = window.chrome;
   var winNav = window.navigator;
   var vendorName = winNav.vendor;
@@ -19,12 +19,13 @@ function isBrowserChrome() {
     isOpera === false &&
     isIEedge === false
   ) {
-    return true;
-  } else {
+    // Is chrome
     return false;
+  } else {
+    return true;
   }
 }
-window.isBrowserChrome = isBrowserChrome;
+window.unsupportedBrowser = unsupportedBrowser;
 
 // ---------------------------
 // Allows us capture certain keys and stop them from affecting the browser.

@@ -110,11 +110,11 @@ let getBrowserPlatform () : browserPlatform =
   |> Option.withDefault ~default:UnknownPlatform
 
 
-external jsIsBrowserChrome : unit -> bool Js.Nullable.t = "isBrowserChrome"
+external jsUnsupportedBrowser : unit -> bool Js.Nullable.t = "unsupportedBrowser"
   [@@bs.val] [@@bs.scope "window"]
 
-let isBrowserChrome () : bool =
-  jsIsBrowserChrome ()
+let unsupportedBrowser () : bool =
+  jsUnsupportedBrowser ()
   |> Js.Nullable.toOption
   |> Option.withDefault ~default:false
 
