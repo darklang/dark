@@ -230,24 +230,27 @@ let segment_track
     payload
 
 
-type identify_payload =
-  { username : string
-  ; email : string
-  ; name : string
-  ; admin : bool
-  ; created_at : string
-  ; organization : string }
-[@@deriving yojson]
-
 (* We call this in two contexts: DarkInternal:: fns, and
  * bin/segment_identify_users.exe. Neither of those is an async/lwt context, so
  * we use the blocking_curl_post instead of Curl_lwt. *)
 let segment_identify_user (username : string) : unit =
-  let payload = Account.get_user_and_created_at username in
+  let payload =
+    Account.get_user_and_created_at_and_segment_metadata username
+    |> Option.map ~f:(fun (user_info_and_created_at, segment_metadata) ->
+           let payload =
+             user_info_and_created_at
+             |> Account.user_info_and_created_at_to_yojson
+           in
+           (* We do zero checking of fields in segment_metadata, but this is ok
+            * because it's a field we control, going to a service only we see.
+            * If we wanted to harden this later, we could List.filter the
+            * segment_metadata yojson *)
+           Yojson.Safe.Util.combine payload segment_metadata)
+  in
   let organization =
     payload
     |> Option.map ~f:(fun p ->
-           p.username
+           username
            |> Authorization.orgs_for
            (* A user's orgs for this purpose do not include orgs it has
             * read-only access to *)
@@ -255,16 +258,12 @@ let segment_identify_user (username : string) : unit =
            (* If you have one org, that's your org! If you have no orgs, or
             * more than one, then we just use your username. This is because
             * Heap's properties/traits don't support lists. *)
-           |> function [(org_name, _)] -> org_name | _ -> p.username)
+           |> function [(org_name, _)] -> org_name | _ -> username)
   in
   Option.map2 organization payload ~f:(fun organization payload ->
-      { username = payload.username
-      ; email = payload.email
-      ; name = payload.name
-      ; admin = payload.admin
-      ; created_at = payload.created_at
-      ; organization })
-  |> Option.map ~f:identify_payload_to_yojson
+      Yojson.Safe.Util.combine
+        payload
+        (`Assoc [("organization", `String organization)]))
   |> Option.map ~f:(fun payload ->
          segment_event_blocking ~username Identify payload)
   |> Option.value ~default:()

@@ -101,24 +101,31 @@ let validate_account (account : account) : (unit, string) Result.t =
   |> Prelude.Result.and_ (validate_email account.email)
 
 
-let insert_account ?(validate : bool = true) (account : account) :
-    (unit, string) Result.t =
+let insert_account
+    ?(validate : bool = true)
+    ~(segment_metadata : Types.RuntimeT.dval_map option)
+    (account : account) : (unit, string) Result.t =
   let result = if validate then validate_account account else Ok () in
+  let segment_metadata =
+    segment_metadata
+    |> Option.value ~default:([] |> Types.RuntimeT.DvalMap.from_list)
+  in
   Result.map result ~f:(fun () ->
       Db.run
         ~name:"insert_account"
         ~subject:account.username
         "INSERT INTO accounts
-    (id, username, name, email, admin, password)
+    (id, username, name, email, admin, password, segment_metadata)
     VALUES
-    ($1, $2, $3, $4, false, $5)
+    ($1, $2, $3, $4, false, $5, $6::jsonb)
     ON CONFLICT DO NOTHING"
         ~params:
           [ Uuid (Util.create_uuid ())
           ; String account.username
           ; String account.name
           ; String account.email
-          ; String (Password.to_bytes account.password) ])
+          ; String (Password.to_bytes account.password)
+          ; QueryableDvalmap segment_metadata ])
   |> Result.bind ~f:(fun () ->
          if Db.exists
               ~name:"check_inserted_account"
@@ -230,25 +237,30 @@ let get_user username =
              None)
 
 
-let get_user_and_created_at username =
+let get_user_and_created_at_and_segment_metadata username =
   Db.fetch_one_option
     ~name:"get_user_and_created_at"
     ~subject:username
-    "SELECT name, email, admin, created_at from accounts
+    "SELECT name, email, admin, created_at, segment_metadata from accounts
      WHERE accounts.username = $1"
     ~params:[String username]
   |> Option.bind ~f:(function
-         | [name; email; admin; created_at] ->
+         | [name; email; admin; created_at; segment_metadata] ->
              Some
-               { username
-               ; name
-               ; admin = admin = "t"
-               ; email
-               ; created_at =
-                   created_at
-                   |> Db.date_of_sqlstring
-                   |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
-               }
+               ( { username
+                 ; name
+                 ; admin = admin = "t"
+                 ; email
+                 ; created_at =
+                     created_at
+                     |> Db.date_of_sqlstring
+                     |> Core.Time.to_string_iso8601_basic
+                          ~zone:Core.Time.Zone.utc }
+               , segment_metadata
+                 |> fun s ->
+                 (* If it's NULL,then we'll get an empty string, don't bother
+                  * trying to parse *)
+                 if s = "" then `Assoc [] else Yojson.Safe.from_string s )
          | _ ->
              None)
 
@@ -355,11 +367,15 @@ let for_host_exn (host : string) : Uuidm.t =
 
 (* Any external calls to this should also call Stroller.segment_identify_user;
  * we can't do it here because that sets up a module dependency cycle *)
-let insert_user ~(username : string) ~(email : string) ~(name : string) () :
-    (string, string) Result.t =
+let insert_user
+    ~(username : string)
+    ~(email : string)
+    ~(name : string)
+    ?(segment_metadata : Types.RuntimeT.dval_map option)
+    () : (string, string) Result.t =
   let plaintext = Util.random_string 16 in
   let password = Password.from_plaintext plaintext in
-  insert_account {username; email; name; password}
+  insert_account {username; email; name; password} ~segment_metadata
   |> Result.map ~f:(fun () -> plaintext)
 
 
