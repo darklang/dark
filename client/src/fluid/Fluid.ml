@@ -3217,8 +3217,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              | ARFieldAccess (_, FAPFieldOp), EFieldAccess (_, faExpr, _)
              | ( ARFieldAccess (_, FAPFieldOp)
                , EPartial (_, _, EFieldAccess (_, faExpr, _)) ) ->
-                 Some
-                   (Expr faExpr, caretTargetForLastPartOfExpr' faExpr)
+                 Some (Expr faExpr, caretTargetForLastPartOfExpr' faExpr)
              | ARConstructor (_, CPName), (EConstructor (_, str, _) as oldExpr)
                ->
                  let str = String.trim (mutation str) in
@@ -3347,9 +3346,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  let str = oldStr |> mutation |> String.trim in
                  if str = ""
                  then
-                   Some
-                     ( Expr oldValue
-                     , caretTargetForLastPartOfExpr' oldValue)
+                   Some (Expr oldValue, caretTargetForLastPartOfExpr' oldValue)
                  else
                    Some
                      ( Expr (ERightPartial (id, str, oldValue))
@@ -3386,7 +3383,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    |> Option.map ~f:(fun expr ->
                           Some
                             ( Expr (EPipe (id, List.removeAt ~index exprs))
-                            , caretTargetForLastPartOfExpr' expr))
+                            , caretTargetForLastPartOfExpr' expr ))
                    |> recoverOpt "doExplicitBackspace ARPipe" ~default:None )
              (*
            Delete leading keywords of empty expressions
@@ -3494,6 +3491,7 @@ let tryReplaceStringAndMoveOrSame
       (newAst, AtTarget target)
   | None ->
       (newAst, SamePlace)
+
 
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
