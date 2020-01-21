@@ -233,6 +233,20 @@ let load_with_context ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
   |> strs2tlid_oplists
 
 
+let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
+    Op.tlid_oplists =
+  let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
+  Db.fetch
+    ~name:"load_with_dbs"
+    "SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+        AND (tlid = ANY (string_to_array($2, $3)::bigint[])
+             OR tipe = 'db'::toplevel_type)"
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
+    ~result:BinaryResult
+  |> strs2tlid_oplists
+
+
 let load_all_dbs ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   Db.fetch
     ~name:"load_all_dbs"
