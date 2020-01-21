@@ -41,9 +41,3 @@ val fromFluidExpr : FluidExpression.t -> expr
 
 (** [toFluid e] recursively converts a corresponding [nExpr Types.blankOr] to [e] *)
 val toFluidExpr : expr -> FluidExpression.t
-
-(** The assertion in toFluidExpr will eventually go away as the server will
-  * also use fluidExprs and so there won't be a need to convert. But we
-  * sometimes need to call this from a place without the functions available,
-  * and we don't want to set off rollbar. *)
-val toFluidExprNoAssertion : expr -> FluidExpression.t

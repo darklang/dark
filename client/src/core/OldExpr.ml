@@ -123,14 +123,7 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
         ERightPartial (id, str, toFluidExpr' ~inPipe oldExpr) )
 
 
-and toFluidExpr (expr : expr) : FluidExpression.t =
-  asserT
-    "empty functions passed to toFluidExpr'"
-    (!FluidExpression.functions <> []) ;
-  toFluidExpr' expr
-
-
-and toFluidExprNoAssertion (expr : expr) : FluidExpression.t = toFluidExpr' expr
+and toFluidExpr (expr : expr) : FluidExpression.t = toFluidExpr' expr
 
 and fromFluidExpr (expr : FluidExpression.t) : expr =
   let open Types in
