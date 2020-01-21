@@ -558,13 +558,13 @@ let run () =
             m.searchCache
             |> TLIDDict.insert
                  ~tlid:http.hTLID
-                 ~value:(FluidPrinter.eToString http.ast)
+                 ~value:(FluidPrinter.eToHumanString http.ast)
             |> TLIDDict.insert
                  ~tlid:repl.hTLID
-                 ~value:(FluidPrinter.eToString repl.ast)
+                 ~value:(FluidPrinter.eToHumanString repl.ast)
             |> TLIDDict.insert
                  ~tlid:fn.ufTLID
-                 ~value:(FluidPrinter.eToString fn.ufAST)
+                 ~value:(FluidPrinter.eToHumanString fn.ufAST)
           in
           let m = {m with searchCache} in
           test "find variable" (fun () ->

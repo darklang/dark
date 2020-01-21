@@ -1797,13 +1797,12 @@ let replacePartialWithArguments
 (* Binops (plus right partials) *)
 (* ---------------- *)
 
-let convertToBinOp (char : char option) (id : id) (ast : ast) : E.t =
-  match char with
+let convertToBinOp (str : string option) (id : id) (ast : ast) : E.t =
+  match str with
   | None ->
       ast
-  | Some c ->
-      E.update id ast ~f:(fun expr ->
-          ERightPartial (gid (), String.fromChar c, expr))
+  | Some s ->
+      E.update id ast ~f:(fun expr -> ERightPartial (gid (), s, expr))
 
 
 let deleteRightPartial (ti : T.tokenInfo) (ast : ast) : E.t * id =
@@ -3218,13 +3217,13 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
 
 
 let doInsert
-    ~pos (letter : char option) (ti : T.tokenInfo) (ast : ast) (s : state) :
+    ~pos (letter : string option) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   match letter with
   | None ->
       (ast, s)
   | Some letter ->
-      doInsert' ~pos (String.fromChar letter) ti ast s
+      doInsert' ~pos letter ti ast s
 
 
 let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
@@ -3326,7 +3325,7 @@ let getTopmostSelectionID startPos endPos ast : id option =
 let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     E.t * state =
   let pos = s.newPos in
-  let keyChar = K.toChar key in
+  let keyStr = K.toString key in
   let tokens = toTokens ast in
   (* These might be the same token *)
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos tokens in
@@ -3471,7 +3470,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when onEdge ->
         let ast, s = acEnter ti ast s K.Tab in
         getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
-        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
+        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyStr ti ast s)
         |> Option.withDefault ~default:(ast, s)
     | K.ShiftEnter, left, _ ->
         let doPipeline ast s =
@@ -3587,13 +3586,13 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Comma, L (TLambdaSymbol _, toTheLeft), _
     | K.Comma, L (TLambdaVar _, toTheLeft), _
       when onEdge ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     | K.Comma, _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
         (insertLambdaVar ~index id ~name:"" ast, s)
     | K.Comma, L (t, ti), _ ->
         if onEdge
         then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
-        else doInsert ~pos keyChar ti ast s
+        else doInsert ~pos keyStr ti ast s
     (* list-specific insertions *)
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
@@ -3612,7 +3611,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Period, L (TVariable _, toTheLeft), _
     | K.Period, L (TFieldName _, toTheLeft), _
       when onEdge ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     (***********)
     (* K.Enter *)
     (***********)
@@ -3807,39 +3806,37 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | _, L (TRightPartial _, toTheLeft), _
     | _, L (TBinOp _, toTheLeft), _
       when keyIsInfix ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     | _, _, R (TBlank _, toTheRight) when keyIsInfix ->
-        doInsert ~pos keyChar toTheRight ast s
+        doInsert ~pos keyStr toTheRight ast s
     | _, L (_, toTheLeft), _
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
-        ( convertToBinOp keyChar (T.tid toTheLeft.token) ast
+        ( convertToBinOp keyStr (T.tid toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     (*
      * Caret between empty record symbols {}
      * Adds new initial record row with the typed
      * value as the key (if value entered is valid),
      * then move caret to end of key *)
     | _, L (TRecordOpen id, _), R (TRecordClose _, _) ->
-      ( match keyChar with
-      | Some keyCharStr when Util.isIdentifierChar (String.fromChar keyCharStr)
-        ->
-          let letterSTr = String.fromChar keyCharStr in
-          let ast = addRecordRowAt ~letter:letterSTr 0 id ast in
+      ( match keyStr with
+      | Some keyStr when Util.isIdentifierChar keyStr ->
+          let ast = addRecordRowAt ~letter:keyStr 0 id ast in
           let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1 in
           (ast, s)
       | _ ->
           (ast, s) )
     | _, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
-        doInsert ~pos keyChar toTheLeft ast s
+        doInsert ~pos keyStr toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
         (ast, s)
     | _, _, R (TRecordOpen _, _) ->
         (ast, s)
     | _, _, R (_, toTheRight) ->
-        doInsert ~pos keyChar toTheRight ast s
+        doInsert ~pos keyStr toTheRight ast s
     | _ ->
         (* Unknown *)
         (ast, report ("Unknown action: " ^ K.toName key) s)
@@ -3897,11 +3894,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * So if the new function _could_ be valid, don't commit. *)
       when key = K.Right || key = K.Left || keyIsInfix ->
         let shouldCommit =
-          match keyChar with
+          match keyStr with
           | None ->
               true
-          | Some keyChar ->
-              let newQueryString = str ^ String.fromChar keyChar in
+          | Some keyStr ->
+              let newQueryString = str ^ keyStr in
               s.ac.allCompletions
               |> List.filter ~f:(fun aci ->
                      String.contains ~substring:newQueryString (AC.asName aci))
@@ -4497,206 +4494,39 @@ let getStringIndex ti pos : int =
       recover "getting index of non-string" ~debug:(ti.token, pos) 0
 
 
-let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
+let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
   let ast, state = deleteSelection ~state ~ast in
-  let token = getToken state ast in
-  let exprID = token |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
+  let mTi = getToken state ast in
+  let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> E.find id ast) in
-  let collapsedSelStart = getCollapsedSelectionStart state in
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
   let text = Clipboard.clipboardContentsToString data in
-  match (clipboardExpr, expr, token) with
-  | Some clipboardExpr, Some (EBlank exprID), _ ->
-      let newPos =
-        (clipboardExpr |> Printer.eToString |> String.length)
-        + collapsedSelStart
-      in
-      (E.replace ~replacement:clipboardExpr exprID ast, {state with newPos})
-  (* inserting record key (record expression with single key and no value) into string *)
-  | ( Some (ERecord (_, [(insert, EBlank _)]))
-    , Some (EString (_, str))
-    , Some {startPos; _} ) ->
-      let index = state.newPos - startPos - 1 in
-      let replacement = EString (gid (), String.insertAt ~insert ~index str) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
-  (* inserting other kinds of expressions into string *)
-  | _, Some (EString (_, str)), Some ti ->
-      let index = getStringIndex ti state.newPos in
-      let replacement =
-        EString (gid (), String.insertAt ~insert:text ~index str)
-      in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (* TODO: needs reflow: if the string becomes multi-line, we end up in the wrong place. *)
-      let newPos = state.newPos + String.length text in
-      (newAST, {state with newPos})
-  (* inserting integer into another integer *)
-  | ( Some (EInteger (_, clippedInt))
-    , Some (EInteger (_, pasting))
-    , Some {startPos; _} ) ->
-      let index = state.newPos - startPos in
-      let insert = clippedInt in
-      let newVal =
-        String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt
-      in
-      let replacement = EInteger (gid (), newVal) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
-  (* inserting float into an integer *)
-  | ( Some (EFloat (_, whole, fraction))
-    , Some (EInteger (_, pasting))
-    , Some {startPos; _} ) ->
-      let whole', fraction' =
-        let str = pasting in
-        let open String in
-        ( slice ~from:0 ~to_:(state.newPos - startPos) str
-        , slice ~from:(state.newPos - startPos) ~to_:(String.length str) str )
-      in
-      let replacement = EFloat (gid (), whole' ^ whole, fraction ^ fraction') in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      ( newAST
-      , { state with
-          newPos = collapsedSelStart + (whole ^ "." ^ fraction |> String.length)
-        } )
-  (* inserting variable into an integer *)
-  | ( Some (EVariable (_, varName))
-    , Some (EInteger (_, intVal))
-    , Some {startPos; _} ) ->
-      let index = state.newPos - startPos in
-      let newVal = String.insertAt ~insert:varName ~index intVal in
-      let replacement = EPartial (gid (), newVal, EVariable (gid (), newVal)) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length varName})
-  (* inserting int-only string into an integer *)
-  | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos; _}
-    when String.toInt insert |> Result.toOption <> None ->
-      let index = state.newPos - startPos in
-      let newVal =
-        String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt
-      in
-      let replacement = EInteger (gid (), newVal) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
-  (* inserting integer into a float whole *)
-  | ( Some (EInteger (_, intVal))
-    , Some (EFloat (_, whole, fraction))
-    , Some {startPos; token = TFloatWhole _; _} ) ->
-      let index = state.newPos - startPos in
-      let replacement =
-        EFloat (gid (), String.insertAt ~index ~insert:intVal whole, fraction)
-      in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
-  (* inserting integer into a float fraction *)
-  | ( Some (EInteger (_, intVal))
-    , Some (EFloat (_, whole, fraction))
-    , Some {startPos; token = TFloatFraction _; _} ) ->
-      let index = state.newPos - startPos in
-      let replacement =
-        EFloat (gid (), whole, String.insertAt ~index ~insert:intVal fraction)
-      in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
-  (* inserting integer after float point *)
-  | ( Some (EInteger (_, intVal))
-    , Some (EFloat (_, whole, fraction))
-    , Some {token = TFloatPoint _; _} ) ->
-      let replacement = EFloat (gid (), whole, intVal ^ fraction) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
-  (* inserting variable into let LHS *)
-  | ( Some (EVariable (_, varName))
-    , Some (ELet (_, lhs, rhs, body))
-    , Some {startPos; token = TLetLHS _; _} ) ->
-      let index = state.newPos - startPos in
-      let newLhs =
-        if lhs <> ""
-        then String.insertAt ~insert:varName ~index lhs
-        else varName
-      in
-      let replacement = ELet (gid (), newLhs, rhs, body) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length varName})
-  (* inserting list expression into another list at separator *)
-  | ( Some (EList (_, itemsToPaste) as exprToPaste)
-    , Some (EList (_, items))
-    , Some {token = TListSep (_, index); _} ) ->
-      let newItems =
-        let front, back = List.splitAt ~index items in
-        front @ itemsToPaste @ back
-      in
-      let replacement = EList (gid (), newItems) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      ( newAST
-      , { state with
-          newPos =
-            collapsedSelStart + String.length (Printer.eToString exprToPaste) }
-      )
-  (* inserting other expressions into list *)
-  | ( Some exprToPaste
-    , Some (EList (_, items))
-    , Some {token = TListSep (_, index); _} ) ->
-      let newItems = List.insertAt ~value:exprToPaste ~index items in
-      let replacement = EList (gid (), newItems) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      ( newAST
-      , { state with
-          newPos =
-            collapsedSelStart + String.length (Printer.eToString exprToPaste) }
-      )
-  (* TODO:
-   * - inserting pipe after expression
-   * - *)
+  match expr with
+  | Some expr ->
+    ( match (expr, clipboardExpr, mTi) with
+    | EBlank id, Some cp, _ ->
+        (* Paste into a blank *)
+        let newAST = E.replace ~replacement:cp id ast in
+        let caretTarget = caretTargetForLastPartOfExpr (E.id cp) newAST in
+        (newAST, moveToCaretTarget state newAST caretTarget)
+    | EString (id, str), _, Some ti ->
+        (* Paste into a string, to take care of newlines *)
+        let index = getStringIndex ti state.newPos in
+        let replacement =
+          EString (id, String.insertAt ~insert:text ~index str)
+        in
+        let newAST = E.replace ~replacement id ast in
+        let caretTarget =
+          {astRef = ARString (id, SPText); offset = index + String.length text}
+        in
+        (newAST, moveToCaretTarget state newAST caretTarget)
+    | _ ->
+        text
+        |> String.split ~on:""
+        |> List.foldl ~init:(ast, state) ~f:(fun str (newAST, s) ->
+               updateKey (K.fromString str) newAST s) )
   | _ ->
-      (ast, state)
+      recover "pasting over non-existant handler" (ast, state)
 
 
 let fluidDataFromModel m : (fluidState * E.t) option =
@@ -4711,12 +4541,19 @@ let fluidDataFromModel m : (fluidState * E.t) option =
 let getCopySelection (m : model) : clipboardContents =
   match fluidDataFromModel m with
   | Some (state, ast) ->
-      getOptionalSelectionRange state
-      |> Option.andThen ~f:(reconstructExprFromRange ~ast)
-      |> Option.map ~f:Clipboard.exprToClipboardContents
-      |> Option.withDefault ~default:`None
+      let range = getSelectionRange state in
+      let expr =
+        range
+        |> reconstructExprFromRange ~ast
+        |> Option.map ~f:Clipboard.exprToClipboardContents
+      in
+      let text =
+        let asText = FluidPrinter.eToHumanString ast in
+        match range with from, to_ -> String.slice ~from ~to_ asText
+      in
+      (text, expr)
   | None ->
-      `None
+      ("", None)
 
 
 let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =
@@ -4758,8 +4595,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
-        let ast, state = pasteOverSelection ~state:s ~ast data in
-        (ast, updateAutocomplete m tlid ast state)
+        let newAST, newState = pasteOverSelection ~state:s ~ast data in
+        (newAST, updateAutocomplete m tlid newAST newState)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
     | FluidKeyPress {key; shiftKey = true; altKey = _; ctrlKey = _; metaKey = _}
@@ -4842,9 +4679,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.undo_redo m false
   | FluidKeyPress {key = K.Redo; _} ->
       KeyPress.undo_redo m true
-  | FluidKeyPress {key = K.Letter 'x'; altKey = true; _} ->
+  | FluidKeyPress {key = K.Letter "x"; altKey = true; _} ->
       maybeOpenCmd m
-  | FluidKeyPress {key = K.Letter 'k'; metaKey; ctrlKey; _}
+  | FluidKeyPress {key = K.Letter "k"; metaKey; ctrlKey; _}
     when metaKey || ctrlKey ->
       KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
@@ -4966,7 +4803,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                 [ Types.TweakModel (fun m -> TL.withAST m tlid newAST)
                 ; Toplevel.setSelectedAST m newAST
                 ; requestAnalysis
-                ; UpdateASTCache (tlid, Printer.eToString newAST) ]
+                ; UpdateASTCache (tlid, Printer.eToHumanString newAST) ]
             else Types.NoChange
           in
           Types.Many

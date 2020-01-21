@@ -469,16 +469,18 @@ let toTokens (e : E.t) : tokenInfo list =
   |> infoize ~pos:0
 
 
-let eToString (e : E.t) : string =
+let tokensToString (tis : tokenInfo list) : string =
+  tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
+
+
+let eToTestString (e : E.t) : string =
   e
   |> toTokens
   |> List.map ~f:(fun ti -> T.toTestText ti.token)
   |> String.join ~sep:""
 
 
-let tokensToString (tis : tokenInfo list) : string =
-  tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
-
+let eToHumanString (e : E.t) : string = e |> toTokens |> tokensToString
 
 let eToStructure ?(includeIDs = false) (e : E.t) : string =
   e
