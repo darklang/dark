@@ -82,6 +82,18 @@
         color: $red;
       }
 
+      &.unfetchable {
+        cursor: not-allowed;
+
+        .dot {
+          width: 8px;
+          height: 8px;
+          border: dashed 1px $white1;
+          box-sizing: border-box;
+          border-radius: 50%;
+        }
+      }
+
       &.mouseovered .empty-dot {
         width: 6px;
         height: 6px;

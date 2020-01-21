@@ -22,7 +22,7 @@ let getTraces (m : model) (tlid : tlid) : trace list =
                ~name:(deTLID tlid)
                ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
              |> BsUuid.Uuid.V5.toString
-           , None ) ]
+           , Result.fail NoneYet ) ]
 
 
 let getTrace (m : model) (tlid : tlid) (traceID : traceID) : trace option =
@@ -64,7 +64,7 @@ let replaceFunctionResult
            |> Option.withDefault
                 ~default:
                   [ ( traceID
-                    , Some
+                    , Result.succeed
                         { input = StrDict.empty
                         ; timestamp = ""
                         ; functionResults = [newResult] } ) ]
@@ -72,10 +72,12 @@ let replaceFunctionResult
                   if tid = traceID
                   then
                     ( tid
-                    , Option.map tdata ~f:(fun tdata ->
+                    , Result.map
+                        (fun tdata ->
                           { tdata with
                             functionResults = newResult :: tdata.functionResults
-                          }) )
+                          })
+                        tdata )
                   else t)
            |> fun x -> Some x)
   in
@@ -151,7 +153,7 @@ let getAvailableVarnames
   let tlid = TL.id tl in
   let traceDict =
     getTrace m tlid traceID
-    |> Option.andThen ~f:(fun (_tid, td) -> td)
+    |> Option.andThen ~f:(fun (_tid, td) -> td |> Result.toOption)
     |> Option.andThen ~f:(fun t -> Some t.input)
     |> Option.withDefault ~default:StrDict.empty
   in
@@ -379,12 +381,12 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
   let trace = getTrace m tlid traceID in
   let tl = TL.get m tlid in
   match (tl, trace) with
-  | Some (TLHandler h), Some (_, Some traceData) ->
+  | Some (TLHandler h), Some (_, Ok traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeHandler
                {handler = h; traceID; traceData; dbs; userFns; userTipes}))
-  | Some (TLFunc f), Some (_, Some traceData) ->
+  | Some (TLFunc f), Some (_, Ok traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeFunction
@@ -400,10 +402,11 @@ let analyzeFocused (m : model) : model * msg Cmd.t =
         getSelectedTraceID m tlid |> Option.andThen ~f:(getTrace m tlid)
       in
       ( match trace with
-      | Some (traceID, None) ->
+      | Some (traceID, Error _) ->
+          (* TODO ismith don't fetch depending on error type *)
           (* Fetch the trace data, if missing *)
           requestTrace m tlid traceID
-      | Some (traceID, Some _) ->
+      | Some (traceID, Ok _) ->
           (* Run the analysis, if missing *)
           (m, requestAnalysis m tlid traceID)
       | None ->
