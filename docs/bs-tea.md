@@ -63,10 +63,11 @@ the Vdom nodes from being created during the `view`, while the `key` property
 is used after the view is created when bs-tea is comparing the old and new
 Vdom.
 
-To use `key` well, you need to make sure that the key depends on every value
-within it. If not, the nodes will not update when any values that are missed
-are updated. We have found that the fastest way to turn values into a key
-is to use `Js.Json.stringifyAny`.
+To use `key` well, you need to make sure that you include all values for which
+a re-render is required - typically all values that this node depends on. If
+not, the nodes will not update when any values that are missed are updated. We
+have found that the fastest way to turn values into a key is to use
+`Js.Json.stringifyAny`.
 
 
 # Key vs uniq
