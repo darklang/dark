@@ -43,6 +43,7 @@ val insert_user :
      username:string
   -> email:string
   -> name:string
+  -> ?segment_metadata:Libexecution.Types.RuntimeT.dval_map
   -> unit
   -> (string, string) Result.t
 
@@ -52,7 +53,8 @@ val set_admin : username:string -> bool -> unit
 (* Get a user's info *)
 val get_user : string -> user_info option
 
-val get_user_and_created_at : string -> user_info_and_created_at option
+val get_user_and_created_at_and_segment_metadata :
+  string -> (user_info_and_created_at * Yojson.Safe.t) option
 
 (* Get a user's info by their email address *)
 val get_user_by_email : string -> user_info option
