@@ -106,7 +106,7 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
            try_multiple str ~fs:[("oplist", Op.oplist_of_string)]
          in
          (* there must be at least one op *)
-         let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
+         let tlid = ops |> List.hd_exn |> Op.tlidOf in
          (tlid, ops))
 
 
