@@ -313,7 +313,7 @@ https://github.com/chriskempson/tomorrow-theme */
   }
 
   .fluid-partial-ghost {
-    color: $grey3;
+    color: darken($grey3, 25%);
   }
 
   // <Position autocomplete as a dropdown>
