@@ -5,8 +5,8 @@ When we started using bucklescript-tea, we misunderstood how to use `key`, `uniq
 ## The problems
 
 Bucklescript-tea does vdom diffing: when it calls `view`, it generates a
-virtual dom, then it diffs the virtual dom to determine what changes it
-needs to make to the real DOM as a result.
+virtual dom, then it diffs new virtual dom against the old one to determine
+what changes it needs to make to the real DOM as a result.
 
 # Uniq
 
@@ -22,19 +22,20 @@ different concept which is called a "key", which is really confusing.
 
 Uniq is a property on a node to identify it. If you have a list of elements
 with uniqs "a", "b", and "c", and you reorder the list, the "uniq" string
-will tell bs-tea that they are the same node. That will cause bs-tea to continue it's diffing in the right place.
+will tell bs-tea that two vdom nodes represent the same thing. That will
+allow bs-tea to continue its diffing in the right place.
 
-If it can't tell, it will just blow away the existing nodes and recreate
-everything beneath it.
+If it can't tell, it will just blow away the existing DOM nodes and recreate
+everything beneath it, which can be very slow.
 
 
 # Vdom.noNode
 
-A common way for a list to be blown away is when toggling an optional
-element in the list. For example, the documentation box only sometimes
-shows. When it appears, bs-tea doesn't know that the list has only changed
-slightly, and so it blows it away and starts again. This leads to
-performance problems.
+A common way for a list to be blown away in our code is when toggling an
+optional element in the list. For example, the documentation box only
+sometimes shows. When it appears, bs-tea doesn't know that the list has only
+changed slightly, and so it deletes the whole list and starts again. This
+leads to performance problems.
 
 Using uniq is one way to fix this, but probably not the right way. `uniq` is
 really designed for lists that change order. For something like this, the
@@ -46,7 +47,7 @@ optional node appears or disappears, bs-tea will have a node to swap in/out,
 without changing anything else. This means that not only does it not do
 excess work to create the node, it also avoids rerendering.
 
-# Vdon.noProp
+# Vdom.noProp
 
 This is exactly like Vdom.noNode, except for node properties.
 
