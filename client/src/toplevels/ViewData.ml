@@ -76,16 +76,16 @@ let viewTrace
           "mouseleave"
           (fun x -> TraceMouseLeave (tlid, traceID, x)) ]
   in
-  let valueDiv, valueStr =
+  let valueDiv =
     match value with
     | None ->
-        (ViewUtils.fontAwesome "spinner", "loading")
+        ViewUtils.fontAwesome "spinner"
     | Some v ->
         let asString = Runtime.inputValueAsString tl v in
         let asString =
           if String.length asString = 0 then "No input parameters" else asString
         in
-        (Html.div [Vdom.noProp] [Html.text asString], "")
+        Html.div [Vdom.noProp] [Html.text asString]
   in
   let timestampDiv =
     match timestamp with
@@ -98,25 +98,19 @@ let viewTrace
         in
         Html.div [Html.title ts] [Html.text ("Made " ^ human ^ " ago")]
   in
-  (* Fixes: https://trello.com/c/Vv8mMOls/1595-top-request-cursor-is-unselectable-10-6 *)
-  (* viewKey contains the:
-   traceID  - to update with every new traceId,
-   classes  - to update when hover/mouseover,
-   valueStr - to update from loading to loaded *)
   let dotHtml =
     if isHover && not isActive
     then [Html.div [Html.class' "empty-dot"] [Vdom.noNode]]
     else [Html.div [Html.class' "dot"] [Html.text {js|•|js}]]
   in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
-  let viewKey = ViewUtils.classListAsKey classes ^ valueStr in
   let unfetchableAltText =
     if isUnfetchable
     then Html.title "Trace is too large for the editor to load"
     else Vdom.noProp
   in
   let props = Html.classList classes :: unfetchableAltText :: events in
-  Html.li ~key:viewKey props (dotHtml @ [viewData])
+  Html.li props (dotHtml @ [viewData])
 
 
 let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
