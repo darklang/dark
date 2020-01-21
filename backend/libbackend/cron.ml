@@ -233,4 +233,4 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
         ; ("canvas.errors", `Int !stat_canvas_errors)
         ; ("cron.checked", `Int !stat_crons)
         ; ("cron.queued", `Int !stat_events) ] ;
-    Error (bt, e)
+    Error (bt, e, Log.current_log_annotations ())
