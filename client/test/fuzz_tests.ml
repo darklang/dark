@@ -14,33 +14,26 @@ let process_cmdline_args () =
   Tc.Array.iter Sys.argv ~f:(fun str ->
       match (!command, str) with
       | None, "--pattern"
-      | None, "--count"
-      | None, "--only"
       | None, "--size"
-      | None, "--initialSeed"
+      | None, "--seed"
       | None, "--verbosityThreshold" ->
           command := Some str
       | None, "--stopOnFail" ->
-          Fluid_fuzzer.stop_on_fail := true
+          Fluid_fuzzer.stopOnFail := true
+      | None, "--continue" ->
+          Fluid_fuzzer.continue := true
       | None, "--help" ->
           Js.log
-            "Run Dark's client-side fuzzer. Supported arguments:\n  --initialSeed: change the seed\n  --stopOnFail: stop running after the first test fails\n  --only: only run the test number passed in\n  --count: run count number of tests\n  --size: the size of the test cases\n  --verbosityThreshold: once the number of expressions drops below this number, start printing more verbosity\n  --help: Print this message\n  --pattern 'some-regex': Only run tests that contains this regex" ;
+            "Run Dark's client-side fuzzer. Supported arguments:\n  --seed: set the seed (otherwise uses timestamp)\n  --continue: continue running after first test case\n  --stopOnFail: stop on the first failed test case\n  --size: the size of the test cases\n  --verbosityThreshold: once the number of expressions drops below this number, start printing more verbosity\n  --help: Print this message\n  --pattern 'some-regex': Only run tests that contains this regex" ;
           exit 0
       | Some "--pattern", str ->
           Tester.pattern := Some (Js.Re.fromString str) ;
           command := None
-      | Some "--count", str ->
-          Fluid_fuzzer.count := int_of_string str ;
-          command := None
-      | Some "--only", str ->
-          Fluid_fuzzer.only := Some (int_of_string str) ;
-          Fluid_fuzzer.count := max (int_of_string str + 1) !Fluid_fuzzer.count ;
+      | Some "--seed", str ->
+          Fluid_fuzzer.initialSeed := int_of_string str ;
           command := None
       | Some "--size", str ->
           Fluid_fuzzer.size := int_of_string str ;
-          command := None
-      | Some "--initialSeed", str ->
-          Fluid_fuzzer.initialSeed := int_of_string str ;
           command := None
       | Some "--verbosityThreshold", str ->
           Fluid_fuzzer.verbosityThreshold := int_of_string str ;
