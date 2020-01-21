@@ -252,7 +252,7 @@ let ctrlLeft
     ~wrap
     ~clone
     ~debug
-    [ ( K.GoToStartOfWord
+    [ ( K.GoToStartOfWord shiftHeld
       , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
       ) ]
     None
@@ -271,7 +271,7 @@ let ctrlRight
     ~wrap
     ~clone
     ~debug
-    [ ( K.GoToEndOfWord
+    [ ( K.GoToEndOfWord shiftHeld
       , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
       ) ]
     None
@@ -2026,22 +2026,22 @@ let run () =
       t
         "ctrl+left twice over lamda from beg moves to beg of first param"
         lambdaWithTwoBindings
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 1)
+        (keys [K.GoToStartOfWord false; K.GoToStartOfWord false] 1)
         "~\\x, y -> ___" ;
       t
         "ctrl+right twice over lamda from beg moves to last blank"
         lambdaWithTwoBindings
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 1)
+        (keys [K.GoToEndOfWord false; K.GoToEndOfWord false] 1)
         "\\x, y~ -> ___" ;
       t
         "ctrl+left twice over lamda from end moves to end of second param"
         lambdaWithTwoBindings
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 12)
+        (keys [K.GoToStartOfWord false; K.GoToStartOfWord false] 12)
         "\\x, ~y -> ___" ;
       t
         "ctrl+right twice over lamda from end doesnt move"
         lambdaWithTwoBindings
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 12)
+        (keys [K.GoToEndOfWord false; K.GoToEndOfWord false] 12)
         "\\x, y -> ___~" ;
       ()) ;
   describe "Variables" (fun () ->
@@ -2085,22 +2085,22 @@ let run () =
       t
         "move to the front of match"
         emptyMatch
-        (key K.GoToStartOfLine 6)
+        (key (K.GoToStartOfLine false) 6)
         "~match ___\n  *** -> ___\n" ;
       t
         "move to the end of match"
         emptyMatch
-        (key K.GoToEndOfLine 0)
+        (key (K.GoToEndOfLine false) 0)
         "match ___~\n  *** -> ___\n" ;
       t
         "move to the front of match on line 2"
         emptyMatch
-        (key K.GoToStartOfLine 15)
+        (key (K.GoToStartOfLine false) 15)
         "match ___\n  ~*** -> ___\n" ;
       t
         "move to the end of match on line 2"
         emptyMatch
-        (key K.GoToEndOfLine 12)
+        (key (K.GoToEndOfLine false) 12)
         "match ___\n  *** -> ___~\n" ;
       t
         "move back over match"
@@ -2229,22 +2229,22 @@ let run () =
       t
         "ctrl+left 2 times from end moves to first blank"
         emptyMatch
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 22)
+        (keys [K.GoToStartOfWord false; K.GoToStartOfWord false] 22)
         "match ___\n  ~*** -> ___\n" ;
       t
         "ctrl+right 2 times from end doesnt move"
         emptyMatch
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 22)
+        (keys [K.GoToEndOfWord false; K.GoToEndOfWord false] 22)
         "match ___\n  *** -> ___\n~" ;
       t
         "ctrl+left 2 times from beg doesnt move"
         emptyMatch
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 0)
+        (keys [K.GoToStartOfWord false; K.GoToStartOfWord false] 0)
         "~match ___\n  *** -> ___\n" ;
       t
         "ctrl+right 2 times from beg moves to last blank"
         emptyMatch
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 0)
+        (keys [K.GoToEndOfWord false; K.GoToEndOfWord false] 0)
         "match ___\n  ***~ -> ___\n" ;
       t
         "ctrl+left from mid moves to previous blank "
@@ -2262,12 +2262,12 @@ let run () =
       t
         "move to the front of let"
         emptyLet
-        (key K.GoToStartOfLine 4)
+        (key (K.GoToStartOfLine false) 4)
         "~let *** = ___\n5" ;
       t
         "move to the end of let"
         emptyLet
-        (key K.GoToEndOfLine 4)
+        (key (K.GoToEndOfLine false) 4)
         "let *** = ___~\n5" ;
       t "move back over let" emptyLet (key K.Left 4) "~let *** = ___\n5" ;
       t "move forward over let" emptyLet (key K.Right 0) "let ~*** = ___\n5" ;
@@ -2436,32 +2436,32 @@ let run () =
       t
         "move to the front of pipe on line 1"
         aPipe
-        (key K.GoToStartOfLine 2)
+        (key (K.GoToStartOfLine false) 2)
         "~[]\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 1"
         aPipe
-        (key K.GoToEndOfLine 0)
+        (key (K.GoToEndOfLine false) 0)
         "[]~\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 2"
         aPipe
-        (key K.GoToStartOfLine 8)
+        (key (K.GoToStartOfLine false) 8)
         "[]\n|>~List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 2"
         aPipe
-        (key K.GoToEndOfLine 5)
+        (key (K.GoToEndOfLine false) 5)
         "[]\n|>List::append [5]~\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 3"
         aPipe
-        (key K.GoToStartOfLine 40)
+        (key (K.GoToStartOfLine false) 40)
         "[]\n|>List::append [5]\n|>~List::append [5]\n" ;
       t
         "move to the end of pipe on line 3"
         aPipe
-        (key K.GoToEndOfLine 24)
+        (key (K.GoToEndOfLine false) 24)
         "[]\n|>List::append [5]\n|>List::append [5]~\n" ;
       t
         "pipes appear on new lines"
@@ -2672,32 +2672,32 @@ let run () =
       t
         "move to front of line 1"
         plainIf
-        (key K.GoToStartOfLine 4)
+        (key (K.GoToStartOfLine false) 4)
         "~if 5\nthen\n  6\nelse\n  7" ;
       t
         "move to end of line 1"
         plainIf
-        (key K.GoToEndOfLine 0)
+        (key (K.GoToEndOfLine false) 0)
         "if 5~\nthen\n  6\nelse\n  7" ;
       t
         "move to front of line 3"
         plainIf
-        (key K.GoToStartOfLine 13)
+        (key (K.GoToStartOfLine false) 13)
         "if 5\nthen\n  ~6\nelse\n  7" ;
       t
         "move to end of line 3"
         plainIf
-        (key K.GoToEndOfLine 12)
+        (key (K.GoToEndOfLine false) 12)
         "if 5\nthen\n  6~\nelse\n  7" ;
       t
         "move to front of line 5 in nested if"
         nestedIf
-        (key K.GoToStartOfLine 16)
+        (key (K.GoToStartOfLine false) 16)
         "if 5\nthen\n  ~if 5\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "move to end of line 5 in nested if"
         nestedIf
-        (key K.GoToEndOfLine 12)
+        (key (K.GoToEndOfLine false) 12)
         "if 5\nthen\n  if 5~\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "try to insert space on blank"
@@ -2901,12 +2901,12 @@ let run () =
       t
         "move to the front of an empty record"
         emptyRowRecord
-        (key K.GoToStartOfLine 13)
+        (key (K.GoToStartOfLine false) 13)
         "{\n  ~*** : ___\n}" ;
       t
         "move to the end of an empty record"
         emptyRowRecord
-        (key K.GoToEndOfLine 4)
+        (key (K.GoToEndOfLine false) 4)
         "{\n  *** : ___~\n}" ;
       t
         "cant enter invalid fieldname"
@@ -2956,12 +2956,12 @@ let run () =
       t
         "move to the front of a record with multiRowRecordple values"
         multiRowRecord
-        (key K.GoToStartOfLine 21)
+        (key (K.GoToStartOfLine false) 21)
         "{\n  f1 : 56\n  ~f2 : 78\n}" ;
       t
         "move to the end of a record with multiRowRecordple values"
         multiRowRecord
-        (key K.GoToEndOfLine 14)
+        (key (K.GoToEndOfLine false) 14)
         "{\n  f1 : 56\n  f2 : 78~\n}" ;
       t
         "inserting at the end of the key works"
@@ -3556,39 +3556,39 @@ let run () =
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 89) ) ;
       ts
-        "K.SelectToStartOfWord selects to start of word"
+        "K.GoToStartOfWord + shift selects to start of word"
         longLets
-        (key K.SelectToStartOfWord 16)
+        (key (K.GoToStartOfWord true) 16)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 16, 4) ) ;
       ts
-        "K.SelectToEndOfWord selects to end of word"
+        "K.GoToEndOfWord selects to end of word"
         longLets
-        (key K.SelectToEndOfWord 4)
+        (key (K.GoToEndOfWord true) 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 4, 16) ) ;
       ts
-        "K.SelectToStartOfLine selects from mid to start of line"
+        "K.GoToStartOfLine selects from mid to start of line"
         longLets
-        (key K.SelectToStartOfLine 29)
+        (key (K.GoToStartOfLine true) 29)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 29, 0) ) ;
       ts
-        "K.SelectToEndOfLine selects from mid to end of line"
+        "K.GoToEndOfLine selects from mid to end of line"
         longLets
-        (key K.SelectToEndOfLine 29)
+        (key (K.GoToEndOfLine true) 29)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 29, 47) ) ;
       ts
-        "K.SelectToStartOfLine selects from end to start of line"
+        "K.GoToStartOfLine selects from end to start of line"
         longLets
-        (key K.SelectToStartOfLine 47)
+        (key (K.GoToStartOfLine true) 47)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 47, 0) ) ;
       ts
-        "K.SelectToEndOfLine selects to end of line"
+        "K.GoToEndOfLine selects to end of line"
         longLets
-        (key K.SelectToEndOfLine 0)
+        (key (K.GoToEndOfLine true) 0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 47) ) ;
       ()) ;

@@ -4200,27 +4200,27 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* TODO: press equals when in a let *)
     (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
-    | K.SelectToStartOfWord, _, R (_, ti) | K.SelectToStartOfWord, L (_, ti), _
-      ->
-        (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
-    | K.SelectToEndOfWord, _, R (_, ti) | K.SelectToEndOfWord, L (_, ti), _ ->
+    | K.GoToEndOfWord true, _, R (_, ti) | K.GoToEndOfWord true, L (_, ti), _ ->
         (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti))
-    | K.GoToEndOfWord, _, R (_, ti) | K.GoToEndOfWord, L (_, ti), _ ->
+    | K.GoToEndOfWord _, _, R (_, ti) | K.GoToEndOfWord _, L (_, ti), _ ->
         (ast, goToEndOfWord ~pos ast ti s)
-    | K.GoToStartOfWord, _, R (_, ti) | K.GoToStartOfWord, L (_, ti), _ ->
+    | K.GoToStartOfWord true, _, R (_, ti)
+    | K.GoToStartOfWord true, L (_, ti), _ ->
+        (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
+    | K.GoToStartOfWord _, _, R (_, ti) | K.GoToStartOfWord _, L (_, ti), _ ->
         (ast, goToStartOfWord ~pos ast ti s)
     | K.Left, L (_, ti), _ ->
         (ast, doLeft ~pos ti s |> acMaybeShow ti)
     | K.Right, _, R (_, ti) ->
         (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
-    | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
-        (ast, moveToStartOfLine ast ti s)
-    | K.SelectToStartOfLine, _, R (_, ti) | K.SelectToStartOfLine, L (_, ti), _
-      ->
+    | K.GoToStartOfLine true, _, R (_, ti)
+    | K.GoToStartOfLine true, L (_, ti), _ ->
         (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti))
-    | K.SelectToEndOfLine, _, R (_, ti) ->
+    | K.GoToStartOfLine _, _, R (_, ti) | K.GoToStartOfLine _, L (_, ti), _ ->
+        (ast, moveToStartOfLine ast ti s)
+    | K.GoToEndOfLine true, _, R (_, ti) ->
         (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
-    | K.GoToEndOfLine, _, R (_, ti) ->
+    | K.GoToEndOfLine _, _, R (_, ti) ->
         (ast, moveToEndOfLine ast ti s)
     | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
       ->
@@ -4682,18 +4682,14 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
 
 let shouldDoDefaultAction (key : K.key) : bool =
   match key with
-  | K.SelectToStartOfWord
-  | K.SelectToEndOfWord
-  | K.SelectToStartOfLine
-  | K.SelectToEndOfLine
-  | K.GoToStartOfLine
-  | K.GoToEndOfLine
+  | K.GoToStartOfLine _
+  | K.GoToEndOfLine _
   | K.Delete
   | K.SelectAll
   | K.DeleteToEndOfLine
   | K.DeleteToStartOfLine
-  | K.GoToStartOfWord
-  | K.GoToEndOfWord
+  | K.GoToStartOfWord _
+  | K.GoToEndOfWord _
   | K.DeletePrevWord
   | K.DeleteNextWord ->
       false
@@ -4703,10 +4699,10 @@ let shouldDoDefaultAction (key : K.key) : bool =
 
 let shouldSelect (key : K.key) : bool =
   match key with
-  | K.SelectToStartOfWord
-  | K.SelectToEndOfWord
-  | K.SelectToEndOfLine
-  | K.SelectToStartOfLine
+  | K.GoToStartOfWord true
+  | K.GoToEndOfWord true
+  | K.GoToStartOfLine true
+  | K.GoToEndOfLine true
   | K.SelectAll ->
       true
   | _ ->

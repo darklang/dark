@@ -98,18 +98,15 @@ type key =
   | F11
   | F12
   | Unknown of string
-  | GoToStartOfLine
-  | SelectToStartOfLine
-  | GoToEndOfLine
-  | SelectToEndOfLine
   | DeletePrevWord
   | DeleteNextWord
   | DeleteToStartOfLine
   | DeleteToEndOfLine
-  | GoToStartOfWord
-  | SelectToStartOfWord
-  | SelectToEndOfWord
-  | GoToEndOfWord
+  (* Bool = shift held *)
+  | GoToStartOfLine of bool
+  | GoToEndOfLine of bool
+  | GoToStartOfWord of bool
+  | GoToEndOfWord of bool
   | Undo
   | Redo
   | SelectAll
@@ -230,18 +227,14 @@ let toString (key : key) : string option =
   | Shift _
   | Ctrl _
   | Unknown _
-  | GoToStartOfLine
-  | SelectToStartOfLine
-  | GoToEndOfLine
-  | SelectToEndOfLine
+  | GoToStartOfLine _
+  | GoToEndOfLine _
   | DeletePrevWord
   | DeleteNextWord
   | DeleteToStartOfLine
   | DeleteToEndOfLine
-  | GoToStartOfWord
-  | SelectToStartOfWord
-  | SelectToEndOfWord
-  | GoToEndOfWord
+  | GoToStartOfWord _
+  | GoToEndOfWord _
   | Undo
   | Redo
   | SelectAll ->
@@ -389,16 +382,12 @@ let fromKeyboardEvent
    *************)
   | "a" when osCmdKeyHeld ->
       SelectAll
-  | "a" when ctrl && shift ->
-      SelectToStartOfLine
   | "a" when ctrl ->
-      GoToStartOfLine
+      GoToStartOfLine shift
   | "d" when ctrl ->
       Delete
-  | "e" when ctrl && shift ->
-      SelectToEndOfLine
   | "e" when ctrl ->
-      GoToEndOfLine
+      GoToEndOfLine shift
   | "y" when (not isMac) && ctrl && not shift ->
       (* CTRL+Y is Windows redo
       but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
@@ -416,30 +405,18 @@ let fromKeyboardEvent
       DeleteToEndOfLine
   | "Delete" when (isMac && alt) || ((not isMac) && ctrl) ->
       DeleteNextWord
-  | "ArrowLeft" when meta && shift ->
-      SelectToStartOfLine
   | "ArrowLeft" when meta ->
-      GoToStartOfLine
-  | "ArrowLeft" when ((isMac && alt) || ctrl) && shift ->
-      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
-       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      SelectToStartOfWord
+      GoToStartOfLine shift
   | "ArrowLeft" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToStartOfWord
-  | "ArrowRight" when meta && shift ->
-      SelectToEndOfLine
+      GoToStartOfWord shift
   | "ArrowRight" when meta ->
-      GoToEndOfLine
-  | "ArrowRight" when ((isMac && alt) || ctrl) && shift ->
-      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
-       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      SelectToEndOfWord
+      GoToEndOfLine shift
   | "ArrowRight" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToEndOfWord
+      GoToEndOfWord shift
   (************
    * Movement *
    ************)
@@ -447,22 +424,14 @@ let fromKeyboardEvent
       PageUp
   | "PageDown" ->
       PageDown
-  | "End" when ctrl && shift ->
-      SelectToStartOfLine
   | "End" when ctrl ->
-      GoToStartOfLine
-  | "End" when shift ->
-      SelectToEndOfLine
+      GoToStartOfLine shift
   | "End" ->
-      GoToEndOfLine
-  | "Home" when ctrl && shift ->
-      SelectToEndOfLine
+      GoToEndOfLine shift
   | "Home" when ctrl ->
-      GoToEndOfLine
-  | "Home" when shift ->
-      SelectToStartOfLine
+      GoToEndOfLine shift
   | "Home" ->
-      GoToStartOfLine
+      GoToStartOfLine shift
   | "ArrowUp" ->
       Up
   | "ArrowDown" ->
