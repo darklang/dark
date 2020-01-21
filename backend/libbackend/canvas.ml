@@ -271,9 +271,10 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
 (* NOTE: If you add a new verification here, please ensure all places that
  * load canvases/apply ops correctly load the requisite data.
  *
- * eg. The `admin_add_op_handler` in webserver.ml uses `load_with_context` at
- * time of writing. This would not be sufficient if the new verifier required
- * an invariant across eg. all handlers.
+ *
+ * See `Op.required_context` for how we determine which ops need what other
+ * context to be loaded to appropriately verify.
+ *
  * *)
 let verify (c : canvas ref) : (unit, string list) Result.t =
   let duped_db_names =
@@ -465,6 +466,12 @@ let load_all_dbs host (newops : Op.op list) : (canvas ref, string list) Result.t
     =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_dbs host owner newops
+
+
+let load_with_dbs ~tlids host (newops : Op.op list) :
+    (canvas ref, string list) Result.t =
+  let owner = Account.for_host_exn host in
+  load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
 
 
 let load_with_context ~tlids host (newops : Op.op list) :
