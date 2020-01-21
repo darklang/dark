@@ -40,7 +40,6 @@ let () =
   describe "Darkstorage_test" Darkstorage_test.run ;
   describe "Fluid_ac_test" Fluid_ac_test.run ;
   describe "Fluid_pattern_test" Fluid_pattern_test.run ;
-  describe "Fluid_keyboard" Fluid_keyboard_test.run ;
   describe "Fluid_test" Fluid_test.run ;
   describe "Fluid_token_test" Fluid_token_test.run ;
   describe "Introspect_test" Introspect_test.run ;

@@ -263,7 +263,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       wrap s
   | DBlock {params; body; _} ->
       (* TODO: show relevant symtable entries *)
-      FluidPrinter.eToString (ELambda (gid (), params, body))
+      FluidPrinter.eToHumanString (ELambda (gid (), params, body))
   | DIncomplete _ ->
       asType
   | DResp (Redirect url, dv_) ->

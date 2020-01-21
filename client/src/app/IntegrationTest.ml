@@ -664,7 +664,8 @@ let fluid_ac_validate_on_lose_focus (m : model) : testResult =
   | EFieldAccess (_, EVariable (_, "request"), "body") ->
       pass
   | e ->
-      fail ("Expected: `request.body`, got `" ^ FluidPrinter.eToString e ^ "`")
+      fail
+        ("Expected: `request.body`, got `" ^ FluidPrinter.eToHumanString e ^ "`")
 
 
 let trigger (test_name : string) : integrationTestState =
