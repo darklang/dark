@@ -326,15 +326,16 @@ let fataL = pP ~level:`Fatal
 
 let succesS = pP ~level:`Success
 
+let current_log_annotations () : (string * Yojson.Safe.t) list =
+  match Lwt.get !logkey with None -> [] | Some annotations -> annotations
+
+
 (* Add to the current set of thread-local log annotations. *)
 (* We make no attempt whatsoever to deal with dupe keys, except to put new ones
  * later in the ordering *)
 let add_log_annotations (annotations : (string * Yojson.Safe.t) list) :
     (unit -> 'a) -> 'a =
-  let existing =
-    match Lwt.get !logkey with None -> [] | Some annotations -> annotations
-  in
-  Lwt.with_value !logkey (Some (existing @ annotations))
+  Lwt.with_value !logkey (Some (current_log_annotations () @ annotations))
 
 
 (* ----------------- *)

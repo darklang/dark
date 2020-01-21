@@ -17,7 +17,7 @@ let dequeue_and_process execution_id :
           let bt = Exception.get_backtrace () in
           Log.erroR "Exception while dequeueing" ;
           (* execution_id will be in this log *)
-          Error (bt, e)
+          Error (bt, e, [])
       in
       event
       |> Result.bind ~f:(fun event ->
@@ -43,7 +43,7 @@ let dequeue_and_process execution_id :
                        (Event_queue.put_back transaction event ~status:`Err) ;
                      Log.erroR "Exception while loading canvas" ;
                      (* execution_id will be in this log *)
-                     Error (bt, e)
+                     Error (bt, e, [])
                  in
                  c
                  |> Result.bind ~f:(fun c ->
@@ -179,7 +179,8 @@ exception in Event_queue.put_back"
                                       ~data:
                                         (Libexecution.Exception.exn_to_string e)
                                 ) ;
-                              Error (bt, e)))))
+                              let log_params = Log.current_log_annotations () in
+                              Error (bt, e, log_params)))))
 
 
 let run (execution_id : Types.id) :

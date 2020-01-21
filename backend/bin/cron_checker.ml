@@ -12,11 +12,12 @@ let cron_checker execution_id =
     match result with
     | Ok _ ->
         if not !shutdown then (cron_checker [@tailcall]) () else exit 0
-    | Error (bt, e) ->
+    | Error (bt, e, log_params) ->
         Libcommon.Log.erroR
           "cron_checker"
           ~data:"Uncaught error"
-          ~params:[("exn", Libexecution.Exception.exn_to_string e)] ;
+          ~params:[("exn", Libexecution.Exception.exn_to_string e)]
+          ~jsonparams:log_params ;
         Lwt.async (fun () ->
             Libbackend.Rollbar.report_lwt
               e

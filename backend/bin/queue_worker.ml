@@ -18,14 +18,15 @@ let queue_worker execution_id =
         else exit 0
     | Ok (Some _) ->
         if not !shutdown then (queue_worker [@tailcall]) () else exit 0
-    | Error (bt, e) ->
+    | Error (bt, e, log_params) ->
         Log.erroR
           "queue_worker"
           ~data:"Unhandled exception bubbled to queue worker"
           ~params:
             [ ("execution_id", Libexecution.Types.string_of_id execution_id)
             ; ("exn", Libexecution.Exception.exn_to_string e)
-            ; ("backtrace", bt |> Libexecution.Exception.backtrace_to_string) ] ;
+            ; ("backtrace", bt |> Libexecution.Exception.backtrace_to_string) ]
+          ~jsonparams:log_params ;
         Lwt.async (fun () ->
             ( try
                 Libbackend.Rollbar.report_lwt
