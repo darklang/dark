@@ -2936,9 +2936,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                                 |> Option.withDefault ~default:cond
                               in
                               let target =
-                                caretTargetForLastPartOfExpr
-                                  (E.id targetExpr)
-                                  ast
+                                caretTargetForLastPartOfExpr' targetExpr
                               in
                               (Expr (EMatch (mID, cond, newPatterns)), target))
                    | _ ->
@@ -3175,7 +3173,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  let target =
                    List.getAt ~index:elemAndSepIdx exprs
                    |> Option.map ~f:(fun expr ->
-                          caretTargetForLastPartOfExpr (E.id expr) ast)
+                          caretTargetForLastPartOfExpr' expr)
                    |> Option.withDefault
                         ~default:{astRef = ARList (id, LPOpen); offset = 1}
                  in
@@ -3220,7 +3218,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              | ( ARFieldAccess (_, FAPFieldOp)
                , EPartial (_, _, EFieldAccess (_, faExpr, _)) ) ->
                  Some
-                   (Expr faExpr, caretTargetForLastPartOfExpr (E.id faExpr) ast)
+                   (Expr faExpr, caretTargetForLastPartOfExpr' faExpr)
              | ARConstructor (_, CPName), (EConstructor (_, str, _) as oldExpr)
                ->
                  let str = String.trim (mutation str) in
@@ -3351,7 +3349,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  then
                    Some
                      ( Expr oldValue
-                     , caretTargetForLastPartOfExpr (E.id oldValue) ast )
+                     , caretTargetForLastPartOfExpr' oldValue)
                  else
                    Some
                      ( Expr (ERightPartial (id, str, oldValue))
@@ -3377,7 +3375,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                (* TODO(JULIAN): This can probably be cleaned up *)
                ( match exprChain with
                | [e1; _] ->
-                   Some (Expr e1, caretTargetForLastPartOfExpr (E.id e1) ast)
+                   Some (Expr e1, caretTargetForLastPartOfExpr' e1)
                | exprs ->
                    let index =
                      (* remove expression in front of pipe, not behind it *)
@@ -3388,7 +3386,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    |> Option.map ~f:(fun expr ->
                           Some
                             ( Expr (EPipe (id, List.removeAt ~index exprs))
-                            , caretTargetForLastPartOfExpr (E.id expr) ast ))
+                            , caretTargetForLastPartOfExpr' expr))
                    |> recoverOpt "doExplicitBackspace ARPipe" ~default:None )
              (*
            Delete leading keywords of empty expressions
@@ -3396,10 +3394,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              | ARLet (_, LPKeyword), ELet (_, varName, expr, EBlank _)
              | ARLet (_, LPKeyword), ELet (_, varName, EBlank _, expr)
                when varName = "" || varName = "_" ->
-                 (* TODO(JULIAN): change this to work more directly by
-                 exposing a version of caretTargetForBeginningOfExpr
-                 that accepts a fluidExpr *)
-                 Some (Expr expr, caretTargetForBeginningOfExpr (E.id expr) ast)
+                 Some (Expr expr, caretTargetForBeginningOfExpr' expr)
              | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
              | ARLambda (_, LPKeyword), ELambda (_, _, EBlank _) ->
                  (* If the expr is empty and thus can be removed *)
