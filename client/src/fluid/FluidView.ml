@@ -395,7 +395,7 @@ let viewLiveValue
          Option.pair content (Some row))
   (* Render live value to the side *)
   |> Option.map ~f:(fun (content, row) ->
-         let offset = float_of_int row +. 1.5 in
+         let offset = float_of_int row in
          Html.div
            [ Html.class' "live-value"
            ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
