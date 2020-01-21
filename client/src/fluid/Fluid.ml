@@ -4204,7 +4204,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, moveOneLeft pos s)
     | K.Backspace, _, R (TRecordFieldname {fieldName = ""; _}, ti) ->
         doBackspace ~pos ti ast s
-    | K.Backspace, _, R (TPatternBlank _, ti) ->
+    | K.Backspace, L (TNewline _, _), R (TPatternBlank _, ti) ->
+        (* Special-case hack for deleting rows of a match or record *)
         doBackspace ~pos ti ast s
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
