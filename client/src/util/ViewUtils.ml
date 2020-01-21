@@ -288,8 +288,3 @@ let toggleIconButton
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
-
-let classListAsKey (classes : (string * bool) list) : string =
-  classes
-  |> List.filterMap ~f:(function cls, true -> Some cls | _, false -> None)
-  |> String.join ~sep:"-"
