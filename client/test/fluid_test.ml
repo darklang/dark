@@ -1384,6 +1384,16 @@ let run () =
         (partial "a" (fieldAccess b ""))
         (del 4)
         "___.~***" ;
+      t
+        "commit fieldpartial on enter"
+        (partial "u" (fieldAccess aShortVar ""))
+        (enter 3)
+        "v.u~" ;
+      t
+        "commit fieldpartial when cursor moves elsewhere"
+        (partial "u" (fieldAccess aShortVar ""))
+        (keys [K.Left; K.Left] 3)
+        "v~.u" ;
       ()) ;
   describe "Functions" (fun () ->
       t
