@@ -4200,28 +4200,29 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* TODO: press equals when in a let *)
     (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
-    | K.GoToEndOfWord true, _, R (_, ti) | K.GoToEndOfWord true, L (_, ti), _ ->
-        (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti))
-    | K.GoToEndOfWord _, _, R (_, ti) | K.GoToEndOfWord _, L (_, ti), _ ->
-        (ast, goToEndOfWord ~pos ast ti s)
-    | K.GoToStartOfWord true, _, R (_, ti)
-    | K.GoToStartOfWord true, L (_, ti), _ ->
-        (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
-    | K.GoToStartOfWord _, _, R (_, ti) | K.GoToStartOfWord _, L (_, ti), _ ->
-        (ast, goToStartOfWord ~pos ast ti s)
+    | K.GoToEndOfWord maintainSelection, _, R (_, ti)
+    | K.GoToEndOfWord maintainSelection, L (_, ti), _ ->
+        if maintainSelection
+        then (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti))
+        else (ast, goToEndOfWord ~pos ast ti s)
+    | K.GoToStartOfWord maintainSelection, _, R (_, ti)
+    | K.GoToStartOfWord maintainSelection, L (_, ti), _ ->
+        if maintainSelection
+        then (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
+        else (ast, goToStartOfWord ~pos ast ti s)
     | K.Left, L (_, ti), _ ->
         (ast, doLeft ~pos ti s |> acMaybeShow ti)
     | K.Right, _, R (_, ti) ->
         (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
-    | K.GoToStartOfLine true, _, R (_, ti)
-    | K.GoToStartOfLine true, L (_, ti), _ ->
-        (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti))
-    | K.GoToStartOfLine _, _, R (_, ti) | K.GoToStartOfLine _, L (_, ti), _ ->
-        (ast, moveToStartOfLine ast ti s)
-    | K.GoToEndOfLine true, _, R (_, ti) ->
-        (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
-    | K.GoToEndOfLine _, _, R (_, ti) ->
-        (ast, moveToEndOfLine ast ti s)
+    | K.GoToStartOfLine maintainSelection, _, R (_, ti)
+    | K.GoToStartOfLine maintainSelection, L (_, ti), _ ->
+        if maintainSelection
+        then (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti))
+        else (ast, moveToStartOfLine ast ti s)
+    | K.GoToEndOfLine maintainSelection, _, R (_, ti) ->
+        if maintainSelection
+        then (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
+        else (ast, moveToEndOfLine ast ti s)
     | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
       ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.

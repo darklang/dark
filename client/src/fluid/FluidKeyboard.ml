@@ -102,11 +102,10 @@ type key =
   | DeleteNextWord
   | DeleteToStartOfLine
   | DeleteToEndOfLine
-  (* Bool = shift held *)
-  | GoToStartOfLine of bool
-  | GoToEndOfLine of bool
-  | GoToStartOfWord of bool
-  | GoToEndOfWord of bool
+  | GoToStartOfLine of maintainSelection
+  | GoToEndOfLine of maintainSelection
+  | GoToStartOfWord of maintainSelection
+  | GoToEndOfWord of maintainSelection
   | Undo
   | Redo
   | SelectAll
@@ -116,6 +115,8 @@ and side =
   | LeftHand
   | RightHand
 [@@deriving show]
+
+and maintainSelection = bool [@@deriving show]
 
 let toString (key : key) : string option =
   match key with
