@@ -713,8 +713,7 @@ let admin_add_op_handler
         | NoContext ->
             C.load_only_tlids ~tlids host ops
         | AllDatastores ->
-            (* This also loads all user functions, but can trim later *)
-            C.load_with_context ~tlids host ops)
+            C.load_with_dbs ~tlids host ops)
   in
   match maybe_c with
   | Ok c ->
