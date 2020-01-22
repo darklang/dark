@@ -58,9 +58,24 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
     @extend .copy-value;
   }
 
-  .jump-src:hover {
-    color: $blue;
-    cursor: pointer;
+  .jump-src {
+    &:hover {
+      color: $blue;
+      cursor: pointer;
+    }
+
+    i.fa {
+      position: absolute;
+      top: -2px;
+      right: -$spacing-medium;
+      color: $white1;
+
+      opacity: 0.7;
+
+      &:hover {
+        opacity: 0.85;
+      }
+    }
   }
 
   .src-arrow {

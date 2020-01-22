@@ -384,18 +384,17 @@ let viewLiveValue
     | LoadableSuccess (DIncomplete (SourceId srcId) as dv)
     | LoadableSuccess (DError (SourceId srcId, _) as dv)
       when srcId <> id ->
-        let msg =
-          "Click here to find cause of "
-          ^ (dv |> Runtime.typeOf |> Runtime.tipe2str)
-        in
+        let errType = dv |> Runtime.typeOf |> Runtime.tipe2str in
+        let msg = "<" ^ errType ^ ">" in
         [ viewArrow id srcId
         ; Html.div
             [ ViewUtils.eventNoPropagation
                 ~key:("lv-src-" ^ deID srcId)
                 "click"
                 (fun _ -> FluidMsg (FluidFocusOnToken srcId))
-            ; Html.class' "jump-src" ]
-            [Html.text msg] ]
+            ; Html.class' "jump-src"
+            ; Html.title ("Click here to go to the source of " ^ errType) ]
+            [Html.text msg; ViewUtils.fontAwesome "arrow-alt-circle-up"] ]
     | LoadableSuccess (DError _ as dv) | LoadableSuccess (DIncomplete _ as dv)
       ->
         renderDval dv ~canCopy:false
