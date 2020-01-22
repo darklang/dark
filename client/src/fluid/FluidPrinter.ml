@@ -110,8 +110,8 @@ let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
       [TPatternInteger (mid, id, i, idx)]
   | FPBool (mid, id, b) ->
       if b then [TPatternTrue (mid, id, idx)] else [TPatternFalse (mid, id, idx)]
-  | FPString (mid, id, s) ->
-      [TPatternString (mid, id, s, idx)]
+  | FPString {matchID = mid; patternID = id; str} ->
+      [TPatternString {matchID = mid; patternID = id; str; branchIdx = idx}]
   | FPFloat (mID, id, whole, fraction) ->
       let whole =
         if whole = "" then [] else [TPatternFloatWhole (mID, id, whole, idx)]
@@ -119,7 +119,7 @@ let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
       let fraction =
         if fraction = ""
         then []
-        else [TPatternFloatFraction (mID, id, fraction, idx)]
+        else [TPatternFloatFractional (mID, id, fraction, idx)]
       in
       whole @ [TPatternFloatPoint (mID, id, idx)] @ fraction
   | FPNull (mid, id) ->
@@ -214,7 +214,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EFloat (id, whole, fraction) ->
       let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
       let fraction =
-        if fraction = "" then [] else [TFloatFraction (id, fraction)]
+        if fraction = "" then [] else [TFloatFractional (id, fraction)]
       in
       addMany (whole @ [TFloatPoint id] @ fraction) b
   | EBlank id ->

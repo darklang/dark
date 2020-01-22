@@ -261,7 +261,16 @@ let rec fluidPattern j : fluidPattern =
       )
     ; ("FPInteger", dv3 (fun a b c -> FPInteger (a, b, c)) id id string)
     ; ("FPBool", dv3 (fun a b c -> FPBool (a, b, c)) id id bool)
-    ; ("FPString", dv3 (fun a b c -> FPString (a, b, c)) id id string)
+      (* Warning: this is a bit dangerous due to ordering; we'll need to find a saner way to do this.
+      * Unfortunately, this is the first time that we have needed to decode an inline record,
+      * and implementing that decoding is a bit tricky.
+      *)
+    ; ( "FPString"
+      , dv3
+          (fun a b c -> FPString {matchID = a; patternID = b; str = c})
+          id
+          id
+          string )
     ; ("FPFloat", dv4 (fun a b c d -> FPFloat (a, b, c, d)) id id string string)
     ; ("FPNull", dv2 (fun a b -> FPNull (a, b)) id id) ]
     j

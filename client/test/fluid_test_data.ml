@@ -83,7 +83,9 @@ let pConstructor (name : string) (patterns : fluidPattern list) : fluidPattern =
 
 let pBool (b : bool) : fluidPattern = FPBool (gid (), gid (), b)
 
-let pString (str : string) : fluidPattern = FPString (gid (), gid (), str)
+let pString (str : string) : fluidPattern =
+  FPString {matchID = gid (); patternID = gid (); str}
+
 
 let pFloat (whole : string) (fraction : string) : fluidPattern =
   FPFloat (gid (), gid (), whole, fraction)
