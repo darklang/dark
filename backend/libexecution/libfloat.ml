@@ -12,8 +12,6 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
   |> Result.all
 
 
-let zero = 0.0
-
 let ( >>| ) = Result.( >>| )
 
 let fns : Lib.shortfn list =
@@ -168,7 +166,7 @@ let fns : Lib.shortfn list =
           | _, [DList l] ->
               l
               |> list_coerce ~f:Dval.to_float
-              >>| List.fold_left ~f:( +. ) ~init:zero
+              >>| List.fold_left ~f:( +. ) ~init:0.0
               >>| (fun x -> DFloat x)
               |> Result.map_error ~f:(fun (result, example_value) ->
                      RT.error
