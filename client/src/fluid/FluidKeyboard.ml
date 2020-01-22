@@ -116,7 +116,10 @@ and side =
   | RightHand
 [@@deriving show]
 
-and maintainSelection = bool [@@deriving show]
+and maintainSelection =
+  | KeepSelection
+  | DropSelection
+[@@deriving show]
 
 let toString (key : key) : string option =
   match key with
@@ -377,6 +380,7 @@ let fromKeyboardEvent
   let isMac = getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then meta else ctrl in
   let isMacCmdHeld = isMac && meta in
+  let maintainSelection = if shift then KeepSelection else DropSelection in
   match key with
   (*************
    * Shortcuts *
@@ -384,11 +388,11 @@ let fromKeyboardEvent
   | "a" when osCmdKeyHeld ->
       SelectAll
   | "a" when ctrl ->
-      GoToStartOfLine shift
+      GoToStartOfLine maintainSelection
   | "d" when ctrl ->
       Delete
   | "e" when ctrl ->
-      GoToEndOfLine shift
+      GoToEndOfLine maintainSelection
   | "y" when (not isMac) && ctrl && not shift ->
       (* CTRL+Y is Windows redo
       but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
@@ -407,17 +411,17 @@ let fromKeyboardEvent
   | "Delete" when (isMac && alt) || ((not isMac) && ctrl) ->
       DeleteNextWord
   | "ArrowLeft" when meta ->
-      GoToStartOfLine shift
+      GoToStartOfLine maintainSelection
   | "ArrowLeft" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToStartOfWord shift
+      GoToStartOfWord maintainSelection
   | "ArrowRight" when meta ->
-      GoToEndOfLine shift
+      GoToEndOfLine maintainSelection
   | "ArrowRight" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToEndOfWord shift
+      GoToEndOfWord maintainSelection
   (************
    * Movement *
    ************)
@@ -426,13 +430,13 @@ let fromKeyboardEvent
   | "PageDown" ->
       PageDown
   | "End" when ctrl ->
-      GoToStartOfLine shift
+      GoToStartOfLine maintainSelection
   | "End" ->
-      GoToEndOfLine shift
+      GoToEndOfLine maintainSelection
   | "Home" when ctrl ->
-      GoToEndOfLine shift
+      GoToEndOfLine maintainSelection
   | "Home" ->
-      GoToStartOfLine shift
+      GoToStartOfLine maintainSelection
   | "ArrowUp" ->
       Up
   | "ArrowDown" ->
