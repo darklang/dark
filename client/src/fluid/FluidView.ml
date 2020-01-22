@@ -39,6 +39,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
           else Vdom.noNode
         in
         Html.li
+          ~unique:name
           [ Attrs.classList
               [ ("autocomplete-item", true)
               ; ("fluid-selected", highlighted)
