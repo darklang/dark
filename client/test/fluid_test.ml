@@ -1911,6 +1911,12 @@ let run () =
         aConstructor
         (key K.DeleteNextWord 2)
         "Ju~@@ ___" ;
+      t
+        "backspace after selecting all with a `Just |___` in a match deletes all"
+        (match' b [(pConstructor "Just" [pBlank], b)])
+        (* wrap false because 'the wrapper is broken: ___' *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
