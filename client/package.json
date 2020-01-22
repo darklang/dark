@@ -15,7 +15,7 @@
     "jsdom": "16.0.1",
     "dom-storage": "2.1.0",
     "jsdom-global": "3.0.2",
-    "ppx-deriving": "44.1.0"
+    "ppx-deriving": "44.1.1"
   },
   "dependencies": {
     "@glennsl/bs-json": "5.0.1",
