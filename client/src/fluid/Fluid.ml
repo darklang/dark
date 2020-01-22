@@ -889,7 +889,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       newPos
   | None ->
       (*
-        NOTE(JULIAN): This is very useful for fixing issues in dev, but much too large for Rollbar:
+        NOTE: This is very useful for fixing issues in dev, but much too large for Rollbar:
         (Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(Printer.eToStructure ~includeIDs:true ast)) ());
       *)
       recover
@@ -966,7 +966,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TFnName (id, _, _, _, _) ->
       Some {astRef = ARFnCall (id, FCPFnName); offset}
   | TFnVersion (id, _, versionName, backendFnName) ->
-      (* TODO(JULIAN): This is very brittle and should probably be moved into a function responsible
+      (* TODO: This is very brittle and should probably be moved into a function responsible
          for grabbing the appropriate bits of functions *)
       Some
         { astRef = ARFnCall (id, FCPFnName)
@@ -1355,7 +1355,7 @@ let replacePattern
 
 let replaceVarInPattern
     (mID : id) (oldName : string) (newName : string) (ast : ast) : E.t =
-  (* XXX(JULIAN): This function does not do what it should; it renames in all branches! *)
+  (* WARNING: This function does not do what it should; it renames in all branches! *)
   E.update mID ast ~f:(fun e ->
       match e with
       | EMatch (mID, cond, cases) ->
@@ -2809,7 +2809,8 @@ let adjustPosForReflow
       posFromCaretTarget state newAST target
 
 
-(* tryReplaceStringAndMove attempts to transform the string identified by the given `token` using `f` within the `ast` and
+(* Deprecated: Don't use this for new code; try to mirror doExplicitBackspace.
+   tryReplaceStringAndMove attempts to transform the string identified by the given `token` using `f` within the `ast` and
    validates/coerces the result.
    If a successful transformation occured while preserving the expr, we return (newAst, Some desiredCaretTarget) indicating where the caret should end up.
    If the transformation resulted in replacing the token's corresponding expr with an EBlank, we return (newAst, Some {astRef = ARBlank id; offset = 0}).
@@ -2827,9 +2828,6 @@ let tryReplaceStringAndMove
   let tokExpr = E.find tokId ast in
   let maybeTransformedExpr, desiredCaretTarget =
     match token with
-    (* multiline string and float are multi-token and may be special
-    int needs special validation and may be special
-  *)
     | TInteger (id, intStr) ->
         let str = f intStr in
         if str = ""
@@ -2842,8 +2840,6 @@ let tryReplaceStringAndMove
     | TStringMLMiddle (id, _, _, fullStr)
     | TStringMLEnd (id, _, _, fullStr) ->
         (Some (EString (id, f fullStr)), desiredCaretTarget)
-    (*     | TPatternString { matchID : id ; patternID : id ; str : string ; branchIdx : int } ->
-        (Some ()) *)
     | _ ->
         todo "still need to handle all cases" (None, desiredCaretTarget)
   in
@@ -2896,8 +2892,10 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     match (currAstRef, expr) with
     | ARInteger _, EInteger (id, intStr) ->
         let str = mutation intStr in
-        if str = "" (* XXX(JULIAN): Why does the ID stay the same here? *)
-        then Some (Expr (EBlank id), {astRef = ARBlank id; offset = 0})
+        if str = ""
+        then
+          let bID = gid () in
+          Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
         else
           let coerced = Util.coerceStringTo63BitInt str in
           if coerced = intStr
@@ -2918,17 +2916,14 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           , currCTMinusOne )
     | ARString (_, SPText), EString (id, str) ->
         Some (Expr (EString (id, mutation str)), currCTMinusOne)
-    | ARString (_, SPCloseQuote), EString (id, str)
-    (* XXX(JULIAN): This may be the incorrect mutation, but this path doesn't currently happen in practice *)
-      ->
+    | ARString (_, SPCloseQuote), EString (id, str) ->
         let str = Util.removeCharAt str (String.length str + currOffset) in
         Some (Expr (EString (id, str)), currCTMinusOne)
     | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
         Some (Expr (EFloat (id, mutation whole, frac)), currCTMinusOne)
     | ARFloat (_, FPPoint), EFloat (_, whole, frac) ->
-        (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
-                it should become a blank. Instead, it currently becomes a 0, which is weird.
-                Leaving it for later because it matches current behavior *)
+        (* Todo: If the float only consists of a . and has no whole or frac,
+          it should become a blank. Instead, it currently becomes a 0, which is weird. *)
         let i = Util.coerceStringTo63BitInt (whole ^ frac) in
         let iID = gid () in
         Some
@@ -2947,8 +2942,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARMatch (id, MPBranchSep idx), expr ->
         Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr) ->
-        (* TODO(JULIAN): Consider only deleting if the expr in
-              front of the sep is a blank. *)
         let remIdx =
           (* remove expression in front of sep, not behind it *)
           varAndSepIdx + 1
@@ -2975,8 +2968,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  , E.removeVariableUse varNameToRem expr ))
           , target )
     | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
-        (* TODO(JULIAN): Consider only deleting if the expr in
-              front of the sep is a blank. *)
         let remIdx =
           (* remove expression in front of sep, not behind it *)
           elemAndSepIdx + 1
@@ -2990,16 +2981,12 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         Some (Expr (EList (id, List.removeAt ~index:remIdx exprs)), target)
     | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
       when E.isEmpty expr ->
-        (* COMPRESS(JULIAN): this could possibly collapse with a bunch of other cases, including
-                  Delete leading keywords of empty expressions, if we want to expand the definition of
-                  E.isEmpty *)
         let bID = gid () in
         Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
     | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
         List.getAt ~index nameValPairs
         |> Option.map ~f:(function
                | "", _ ->
-                   (* TODO(JULIAN): Consider only deleting if the field value is blank. *)
                    let maybeExprID = recordExprIdAtIndex id (index - 1) ast in
                    let target =
                      match maybeExprID with
@@ -3082,8 +3069,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
             , {astRef = ARPartial newID; offset = currOffset - 1} )
     | ( ARFieldAccess (_, FAPFieldname)
       , (EFieldAccess (_, _, fieldName) as oldExpr) ) ->
-        (* XXX(JULIAN): Why does this not check for empty string?
-                Does this have a weird special case? *)
+        (* Note that str is allowed to be empty in partials *)
         let str = mutation fieldName in
         let newID = gid () in
         Some
@@ -3183,25 +3169,50 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARList (_, LPOpen), expr
     | ARList (_, LPClose), expr ->
         (* We could alternatively move by a single character instead,
-              which is what the old version did with minor exceptions;
-              that isn't particularly useful as typing within these
-              is meaningless and we want this to bring you to a location
-              where you can meaningfully type. *)
+           which is what the old version did with minor exceptions;
+           that isn't particularly useful as typing within these
+           is meaningless and we want this to bring you to a location
+           where you can meaningfully type. *)
         Some (Expr expr, {astRef = currAstRef; offset = 0})
-    (*
+    (*****************
      * Exhaustiveness
      *)
+    | ARBinOp (_, BOPOperator), _
+    | ARBool _, _
+    | ARConstructor (_, CPName), _
+    | ARFieldAccess (_, FAPFieldname), _
+    | ARFieldAccess (_, FAPFieldOp), _
+    | ARFloat (_, FPFractional), _
+    | ARFloat (_, FPPoint), _
+    | ARFloat (_, FPWhole), _
+    | ARFnCall (_, FCPFnName), _
+    | ARIf (_, IPIfKeyword), _
     | ARInteger _, _
-    | ( ( ARString (_, SPOpenQuote)
-        | ARString (_, SPText)
-        | ARString (_, SPCloseQuote) )
-      , _ )
-    | (ARFloat (_, FPWhole) | ARFloat (_, FPFractional)), _
-    | _ ->
-        let _ =
-          Debug.loG "Unhandled" (show_astRef currAstRef, show_fluidExpr expr)
-        in
-        None
+    | ARLambda (_, LPKeyword), _
+    | ARLambda (_, LPSeparator _), _
+    | ARLambda (_, LPVarName _), _
+    | ARLet (_, LPKeyword), _
+    | ARLet (_, LPVarName), _
+    | ARList (_, LPSeparator _), _
+    | ARMatch (_, MPKeyword), _
+    | ARNull _, _
+    | ARPartial _, _
+    | ARPipe (_, PPPipeKeyword _), _
+    | ARRecord (_, RPFieldname _), _
+    | ARRightPartial _, _
+    | ARString (_, SPCloseQuote), _
+    | ARString (_, SPOpenQuote), _
+    | ARString (_, SPText), _
+    | ARVariable _, _
+    (*
+     * Non-exprs
+     *)
+    | ARPattern _, _
+    | ARInvalid, _ ->
+        recover
+          "doExplicitBackspace - unexpected expr"
+          ~debug:(show_astRef currAstRef)
+          None
   in
   let doPatternBackspace
       (patContainerRef : Types.id option ref)
@@ -3215,8 +3226,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           | Some (EMatch (_, cond, patterns)) ->
               patContainerRef := Some mID ;
               patterns
-              (* XXX(JULIAN): This is super broken because the pattern id could be anywhere
-                          but we only check at the pattern root *)
+              (* FIXME: This is super broken because the pattern id could be anywhere
+                 but we only check at the pattern root *)
               |> List.findIndex ~f:(fun (p, _) -> P.id p = pID)
               |> Option.map ~f:(fun remIdx ->
                      let newPatterns =
@@ -3275,10 +3286,10 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         let str = mutation intStr in
         if str = ""
         then
-          (* XXX(JULIAN): Why does the ID stay the same here? *)
+          let bID = gid () in
           Some
-            ( Pat (FPBlank (mID, pID))
-            , {astRef = ARPattern (pID, PPBlank); offset = 0} )
+            ( Pat (FPBlank (mID, bID))
+            , {astRef = ARPattern (bID, PPBlank); offset = 0} )
         else
           let coerced = Util.coerceStringTo63BitInt str in
           if coerced = intStr
@@ -3286,7 +3297,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           else Some (Pat (FPInteger (mID, pID, coerced)), currCTMinusOne)
     | ARPattern (_, PPConstructor CPName), FPConstructor (mID, _, str, _patterns)
       ->
-        (* TODO(JULIAN): Consider doing something to preserve the patterns *)
         let str = str |> mutation |> String.trim in
         let newID = gid () in
         if str = ""
@@ -3305,9 +3315,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARPattern (_, PPFloat FPWhole), FPFloat (mID, pID, whole, frac) ->
         Some (Pat (FPFloat (mID, pID, mutation whole, frac)), currCTMinusOne)
     | ARPattern (_, PPFloat FPPoint), FPFloat (mID, _, whole, frac) ->
-        (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
-                it should become a blank. Instead, it currently becomes a 0, which is weird.
-                Leaving it for later because it matches current behavior *)
+        (* TODO: If the float only consists of a . and has no whole or frac,
+           it should become a blank. Instead, it currently becomes a 0, which is weird. *)
         let i = Util.coerceStringTo63BitInt (whole ^ frac) in
         let iID = gid () in
         Some
@@ -3343,20 +3352,55 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           Util.removeCharAt data.str (String.length data.str + currOffset)
         in
         Some (Pat (FPString {data with str}), currCTMinusOne)
-    | _ ->
-        None
+    (*****************
+     * Exhaustiveness
+     *)
+    | ARPattern (_, PPBlank), _
+    | ARPattern (_, PPBool), _
+    | ARPattern (_, PPConstructor CPName), _
+    | ARPattern (_, PPFloat FPFractional), _
+    | ARPattern (_, PPFloat FPPoint), _
+    | ARPattern (_, PPFloat FPWhole), _
+    | ARPattern (_, PPInteger), _
+    | ARPattern (_, PPNull), _
+    | ARPattern (_, PPString SPCloseQuote), _
+    | ARPattern (_, PPString SPOpenQuote), _
+    | ARPattern (_, PPString SPText), _
+    | ARPattern (_, PPVariable), _
+    (*
+     * non-patterns
+     *)
+    | ARBinOp _, _
+    | ARBlank _, _
+    | ARBool _, _
+    | ARConstructor _, _
+    | ARFieldAccess _, _
+    | ARFloat _, _
+    | ARFnCall _, _
+    | ARIf _, _
+    | ARInteger _, _
+    | ARLambda _, _
+    | ARLet _, _
+    | ARList _, _
+    | ARMatch _, _
+    | ARNull _, _
+    | ARPartial _, _
+    | ARPipe _, _
+    | ARRecord _, _
+    | ARRightPartial _, _
+    | ARString _, _
+    | ARVariable _, _
+    | ARInvalid, _ ->
+        recover
+          "doExplicitBackspace - unexpected pat"
+          ~debug:(show_astRef currAstRef)
+          None
   in
-  (* XXX(JULIAN): This is an ugly hack so we can replace stuff inside patterns.
+  (* FIXME: This is an ugly hack so we can replace stuff inside patterns.
      There's probably a nice way to do this without a ref, but that's a bigger change.
-     
-    One option may be to do the operation on a match, and match responsible for doing the thing,
-    and at bottom replace the expr.
-    idOfASTRef could instead be exprIdOfAstRef.
-    Then if astRef is a pattern, we could have pattern-specific logic.
    *)
   let patContainerRef : Types.id option ref = ref None in
   idOfASTRef currAstRef
-  (* TODO(JULIAN): consider using andAlso *)
   |> Option.andThen ~f:(fun patOrExprID ->
          match E.findExprOrPat patOrExprID (Expr ast) with
          | Some patOrExpr ->
@@ -3384,8 +3428,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                ( E.replace patOrExprID ~replacement:newExpr ast
                , AtTarget currCTMinusOne )
          | Some (Pat newPat, currCTMinusOne) ->
-             (* TODO(JULIAN): Consider using a replacement function that only needs the patOrExprID,
-               not the mID *)
              let mID = P.matchID newPat in
              let newAST = replacePattern mID patOrExprID ~newPat ast in
              Some (newAST, AtTarget currCTMinusOne)
