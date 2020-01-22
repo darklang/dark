@@ -2891,6 +2891,461 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
   let mutation : string -> string =
    fun str -> Util.removeCharAt str (currOffset - 1)
   in
+  let doExprBackspace (currAstRef : astRef) (expr : fluidExpr) :
+      (fluidPatOrExpr * caretTarget) option =
+    match (currAstRef, expr) with
+    | ARInteger _, EInteger (id, intStr) ->
+        let str = mutation intStr in
+        if str = "" (* XXX(JULIAN): Why does the ID stay the same here? *)
+        then Some (Expr (EBlank id), {astRef = ARBlank id; offset = 0})
+        else
+          let coerced = Util.coerceStringTo63BitInt str in
+          if coerced = intStr
+          then None
+          else Some (Expr (EInteger (id, coerced)), desiredCaretTarget)
+    | ARString (_, SPOpenQuote), EString (_, "") when currOffset = 1 ->
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARString (_, SPText), EString (_, "") when currOffset = 0 ->
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARString (_, SPOpenQuote), EString (id, str)
+    (* The minus 2 here (one more than the default `mutation`) accounts for the open quote,
+            which isn't part of the `str` but is part of the SPOpenQuote *)
+      ->
+        Some
+          ( Expr (EString (id, Util.removeCharAt str (currOffset - 2)))
+          , desiredCaretTarget )
+    | ARString (_, SPText), EString (id, str) ->
+        Some (Expr (EString (id, mutation str)), desiredCaretTarget)
+    | ARString (_, SPCloseQuote), EString (id, str)
+    (* XXX(JULIAN): This may be the incorrect mutation, but this path doesn't currently happen in practice *)
+      ->
+        let str = Util.removeCharAt str (String.length str + currOffset) in
+        Some (Expr (EString (id, str)), desiredCaretTarget)
+    | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
+        Some (Expr (EFloat (id, mutation whole, frac)), desiredCaretTarget)
+    | ARFloat (_, FPPoint), EFloat (_, whole, frac) ->
+        (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
+                it should become a blank. Instead, it currently becomes a 0, which is weird.
+                Leaving it for later because it matches current behavior *)
+        let i = Util.coerceStringTo63BitInt (whole ^ frac) in
+        let iID = gid () in
+        Some
+          ( Expr (EInteger (iID, i))
+          , {astRef = ARInteger iID; offset = String.length whole} )
+    | ARFloat (_, FPFractional), EFloat (id, whole, frac) ->
+        Some (Expr (EFloat (id, whole, mutation frac)), desiredCaretTarget)
+    | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
+        let newName = mutation oldName in
+        let newExpr =
+          ELet (id, newName, value, E.renameVariableUses ~oldName ~newName body)
+        in
+        if newName = ""
+        then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
+        else Some (Expr newExpr, desiredCaretTarget)
+    | ARMatch (id, MPBranchSep idx), expr ->
+        Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
+    | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr) ->
+        (* TODO(JULIAN): Consider only deleting if the expr in
+              front of the sep is a blank. *)
+        let remIdx =
+          (* remove expression in front of sep, not behind it *)
+          varAndSepIdx + 1
+        in
+        let varNameToRem =
+          List.getAt ~index:remIdx oldVars
+          |> Option.map ~f:Tuple2.second
+          |> Option.withDefault ~default:""
+        in
+        let target =
+          List.getAt ~index:varAndSepIdx oldVars
+          (* The target is the end of the var that preceeds the separator *)
+          |> Option.map ~f:(fun (_, varName) ->
+                 { astRef = ARLambda (id, LPVarName varAndSepIdx)
+                 ; offset = String.length varName })
+          |> Option.withDefault
+               ~default:{astRef = ARLambda (id, LPKeyword); offset = 1}
+        in
+        Some
+          ( Expr
+              (ELambda
+                 ( id
+                 , List.removeAt ~index:remIdx oldVars
+                 , E.removeVariableUse varNameToRem expr ))
+          , target )
+    | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
+        (* TODO(JULIAN): Consider only deleting if the expr in
+              front of the sep is a blank. *)
+        let remIdx =
+          (* remove expression in front of sep, not behind it *)
+          elemAndSepIdx + 1
+        in
+        let target =
+          List.getAt ~index:elemAndSepIdx exprs
+          |> Option.map ~f:(fun expr -> caretTargetForLastPartOfExpr' expr)
+          |> Option.withDefault
+               ~default:{astRef = ARList (id, LPOpen); offset = 1}
+        in
+        Some (Expr (EList (id, List.removeAt ~index:remIdx exprs)), target)
+    | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
+      when E.isEmpty expr ->
+        (* COMPRESS(JULIAN): this could possibly collapse with a bunch of other cases, including
+                  Delete leading keywords of empty expressions, if we want to expand the definition of
+                  E.isEmpty *)
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
+        List.getAt ~index nameValPairs
+        |> Option.map ~f:(function
+               | "", _ ->
+                   (* TODO(JULIAN): Consider only deleting if the field value is blank. *)
+                   let maybeExprID = recordExprIdAtIndex id (index - 1) ast in
+                   let target =
+                     match maybeExprID with
+                     | None ->
+                         { astRef = ARRecord (id, RPOpen)
+                         ; offset = 1 (* right after the { *) }
+                     | Some exprId ->
+                         caretTargetForLastPartOfExpr exprId ast
+                   in
+                   ( Expr (ERecord (id, List.removeAt ~index nameValPairs))
+                   , target )
+               | name, _ ->
+                   let nameValPairs =
+                     List.updateAt nameValPairs ~index ~f:(fun (_, expr) ->
+                         (mutation name, expr))
+                   in
+                   (Expr (ERecord (id, nameValPairs)), desiredCaretTarget))
+    | ARFieldAccess (_, FAPFieldOp), EFieldAccess (_, faExpr, _)
+    | ARFieldAccess (_, FAPFieldOp), EPartial (_, _, EFieldAccess (_, faExpr, _))
+      ->
+        Some (Expr faExpr, caretTargetForLastPartOfExpr' faExpr)
+    | ARConstructor (_, CPName), (EConstructor (_, str, _) as oldExpr) ->
+        let str = String.trim (mutation str) in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARFnCall (_, FCPFnName), (EFnCall (_, fnName, _, _) as oldExpr) ->
+        let str = fnName |> FluidUtil.partialName |> mutation |> String.trim in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARBinOp (_, BOPOperator), (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr)
+      ->
+        let str = op |> FluidUtil.partialName |> mutation |> String.trim in
+        if str = ""
+        then
+          (* Delete the binop *)
+          let expr, target = mergeExprs lhsExpr rhsExpr in
+          Some (Expr expr, target)
+        else
+          let newID = gid () in
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARBool _, (EBool (_, bool) as oldExpr) ->
+        let str = if bool then "true" else "false" in
+        let str = mutation str in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARNull _, (ENull _ as oldExpr) ->
+        let str = mutation "null" in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARVariable _, (EVariable (_, varName) as oldExpr) ->
+        let str = mutation varName in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ( ARFieldAccess (_, FAPFieldname)
+      , (EFieldAccess (_, _, fieldName) as oldExpr) ) ->
+        (* XXX(JULIAN): Why does this not check for empty string?
+                Does this have a weird special case? *)
+        let str = mutation fieldName in
+        let newID = gid () in
+        Some
+          ( Expr (EPartial (newID, str, oldExpr))
+          , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARPartial _, EPartial (id, oldStr, oldExpr) ->
+        let str = oldStr |> mutation |> String.trim in
+        if str = ""
+        then
+          (* inlined version of deletePartial, with appropriate exceptions added *)
+          match oldExpr with
+          | EFieldAccess _ ->
+              (* This is allowed to be the empty string. *)
+              Some (Expr (EPartial (id, str, oldExpr)), desiredCaretTarget)
+          | EBinOp (_, _, lhsExpr, rhsExpr, _) ->
+              let expr, target = mergeExprs lhsExpr rhsExpr in
+              Some (Expr expr, target)
+          | _ ->
+              let newID = gid () in
+              Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else if String.startsWith ~prefix:"\"" str
+                && String.endsWith ~suffix:"\"" str
+        then
+          let newID = gid () in
+          Some
+            ( Expr (EString (newID, String.slice ~from:1 ~to_:(-1) str))
+            , {astRef = ARString (newID, SPText); offset = currOffset - 1} )
+        else Some (Expr (EPartial (id, str, oldExpr)), desiredCaretTarget)
+    | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
+        let str = oldStr |> mutation |> String.trim in
+        if str = ""
+        then Some (Expr oldValue, caretTargetForLastPartOfExpr' oldValue)
+        else Some (Expr (ERightPartial (id, str, oldValue)), desiredCaretTarget)
+    | ARLambda (_, LPVarName index), ELambda (id, vars, expr) ->
+        vars
+        |> List.getAt ~index
+        |> Option.map ~f:(fun (_, oldName) ->
+               let newName = oldName |> mutation in
+               (* Note that newName is intentionally
+                        allowed to be "" with no special handling *)
+               let vars =
+                 List.updateAt vars ~index ~f:(fun (varId, _) ->
+                     (varId, newName))
+               in
+               ( Expr
+                   (ELambda
+                      (id, vars, E.renameVariableUses ~oldName ~newName expr))
+               , desiredCaretTarget ))
+    | ARPipe (_, PPPipeKeyword idx), EPipe (id, exprChain) ->
+      ( match exprChain with
+      | [e1; _] ->
+          Some (Expr e1, caretTargetForLastPartOfExpr' e1)
+      | exprs ->
+          exprs
+          |> List.getAt ~index:idx
+          |> Option.map ~f:(fun expr ->
+                 (* remove expression in front of pipe, not behind it *)
+                 Some
+                   ( Expr (EPipe (id, List.removeAt ~index:(idx + 1) exprs))
+                   , caretTargetForLastPartOfExpr' expr ))
+          |> recoverOpt "doExplicitBackspace ARPipe" ~default:None )
+    (*
+     * Delete leading keywords of empty expressions
+     *)
+    | ARLet (_, LPKeyword), ELet (_, varName, expr, EBlank _)
+    | ARLet (_, LPKeyword), ELet (_, varName, EBlank _, expr)
+      when varName = "" || varName = "_" ->
+        Some (Expr expr, caretTargetForBeginningOfExpr' expr)
+    | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
+    | ARLambda (_, LPKeyword), ELambda (_, _, EBlank _) ->
+        (* If the expr is empty and thus can be removed *)
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARMatch (_, MPKeyword), EMatch (_, EBlank _, pairs)
+      when List.all pairs ~f:(fun (p, e) ->
+               match (p, e) with FPBlank _, EBlank _ -> true | _ -> false) ->
+        (* the match has no content and can safely be deleted *)
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARMatch (_, MPKeyword), EMatch _
+    | ARLet (_, LPKeyword), ELet _
+    | ARIf (_, IPIfKeyword), EIf _
+    | ARLambda (_, LPKeyword), ELambda _ ->
+        (* keywords of "non-empty" exprs shouldn't be deletable at all *)
+        None
+    (*
+     * Immutable; just jump to the start
+     *)
+    | ARIf (_, IPThenKeyword), expr
+    | ARIf (_, IPElseKeyword), expr
+    | ARLambda (_, LPArrow), expr
+    | ARBlank _, expr
+    | ARLet (_, LPAssignment), expr
+    | ARRecord (_, RPOpen), expr
+    | ARRecord (_, RPClose), expr
+    | ARRecord (_, RPFieldSep _), expr
+    | ARList (_, LPOpen), expr
+    | ARList (_, LPClose), expr ->
+        (* We could alternatively move by a single character instead,
+              which is what the old version did with minor exceptions;
+              that isn't particularly useful as typing within these
+              is meaningless and we want this to bring you to a location
+              where you can meaningfully type. *)
+        Some (Expr expr, {astRef = currAstRef; offset = 0})
+    (*
+     * Exhaustiveness
+     *)
+    | ARInteger _, _
+    | ( ( ARString (_, SPOpenQuote)
+        | ARString (_, SPText)
+        | ARString (_, SPCloseQuote) )
+      , _ )
+    | (ARFloat (_, FPWhole) | ARFloat (_, FPFractional)), _
+    | _ ->
+        let _ =
+          Debug.loG "Unhandled" (show_astRef currAstRef, show_fluidExpr expr)
+        in
+        None
+  in
+  let doPatternBackspace
+      (patContainerRef : Types.id option ref)
+      (currAstRef : astRef)
+      (pat : fluidPattern) : (fluidPatOrExpr * caretTarget) option =
+    match (currAstRef, pat) with
+    | ARPattern (_, PPBlank), FPBlank (mID, pID) ->
+        if currOffset = 0
+        then
+          match E.find mID ast with
+          | Some (EMatch (_, cond, patterns)) ->
+              patContainerRef := Some mID ;
+              patterns
+              (* XXX(JULIAN): This is super broken because the pattern id could be anywhere
+                          but we only check at the pattern root *)
+              |> List.findIndex ~f:(fun (p, _) -> P.id p = pID)
+              |> Option.map ~f:(fun remIdx ->
+                     let newPatterns =
+                       if List.length patterns = 1
+                       then patterns
+                       else List.removeAt patterns ~index:remIdx
+                     in
+                     let targetExpr =
+                       patterns
+                       |> List.getAt ~index:(remIdx - 1)
+                       |> Option.map ~f:(fun (_, e) -> e)
+                       |> Option.withDefault ~default:cond
+                     in
+                     let target = caretTargetForLastPartOfExpr' targetExpr in
+                     (Expr (EMatch (mID, cond, newPatterns)), target))
+          | _ ->
+              recover "doExplicitBackspace PPBlank" None
+        else Some (Pat (FPBlank (mID, pID)), {astRef = currAstRef; offset = 0})
+    | ARPattern (_, PPVariable), FPVariable (mID, pID, oldName) ->
+        patContainerRef := Some mID ;
+        let newName = mutation oldName in
+        let newPat, target =
+          if newName = ""
+          then
+            (FPBlank (mID, pID), {astRef = ARPattern (pID, PPBlank); offset = 0})
+          else (FPVariable (mID, pID, newName), desiredCaretTarget)
+        in
+        ( match E.find mID ast with
+        | Some (EMatch (_, cond, cases)) ->
+            let rec run p =
+              if pID = P.id p then newPat else recursePattern ~f:run p
+            in
+            let newCases =
+              List.map cases ~f:(fun (pat, body) ->
+                  if P.findPattern pID pat <> None
+                  then (run pat, E.renameVariableUses ~oldName ~newName body)
+                  else (pat, body))
+            in
+            Some (Expr (EMatch (mID, cond, newCases)), target)
+        | _ ->
+            recover "doExplicitBackspace FPVariable" None )
+    | ARPattern (_, PPNull), FPNull (mID, _) ->
+        let str = mutation "null" in
+        let newID = gid () in
+        Some
+          ( Pat (FPVariable (mID, newID, str))
+          , {astRef = ARPattern (newID, PPVariable); offset = currOffset - 1} )
+    | ARPattern (_, PPBool), FPBool (mID, _, bool) ->
+        let str = if bool then "true" else "false" in
+        let newStr = mutation str in
+        let newID = gid () in
+        Some
+          ( Pat (FPVariable (mID, newID, newStr))
+          , {astRef = ARPattern (newID, PPVariable); offset = currOffset - 1} )
+    | ARPattern (_, PPInteger), FPInteger (mID, pID, intStr) ->
+        let str = mutation intStr in
+        if str = ""
+        then
+          (* XXX(JULIAN): Why does the ID stay the same here? *)
+          Some
+            ( Pat (FPBlank (mID, pID))
+            , {astRef = ARPattern (pID, PPBlank); offset = 0} )
+        else
+          let coerced = Util.coerceStringTo63BitInt str in
+          if coerced = intStr
+          then None
+          else Some (Pat (FPInteger (mID, pID, coerced)), desiredCaretTarget)
+    | ARPattern (_, PPConstructor CPName), FPConstructor (mID, _, str, _patterns)
+      ->
+        (* TODO(JULIAN): Consider doing something to preserve the patterns *)
+        let str = str |> mutation |> String.trim in
+        let newID = gid () in
+        if str = ""
+        then
+          Some
+            ( Pat (FPBlank (mID, newID))
+            , {astRef = ARPattern (newID, PPBlank); offset = 0} )
+        else
+          Some
+            ( Pat (FPVariable (mID, newID, str))
+            , {astRef = ARPattern (newID, PPVariable); offset = currOffset - 1}
+            )
+    (* 
+    * Floats
+    *)
+    | ARPattern (_, PPFloat FPWhole), FPFloat (mID, pID, whole, frac) ->
+        Some (Pat (FPFloat (mID, pID, mutation whole, frac)), desiredCaretTarget)
+    | ARPattern (_, PPFloat FPPoint), FPFloat (mID, _, whole, frac) ->
+        (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
+                it should become a blank. Instead, it currently becomes a 0, which is weird.
+                Leaving it for later because it matches current behavior *)
+        let i = Util.coerceStringTo63BitInt (whole ^ frac) in
+        let iID = gid () in
+        Some
+          ( Pat (FPInteger (mID, iID, i))
+          , {astRef = ARPattern (iID, PPInteger); offset = String.length whole}
+          )
+    | ARPattern (_, PPFloat FPFractional), FPFloat (mID, pID, whole, frac) ->
+        Some (Pat (FPFloat (mID, pID, whole, mutation frac)), desiredCaretTarget)
+    (*
+    * Strings
+    *)
+    | ( ARPattern (_, PPString SPOpenQuote)
+      , FPString {matchID; patternID = _; str = ""} )
+      when currOffset = 1 ->
+        let bID = gid () in
+        Some
+          ( Pat (FPBlank (matchID, bID))
+          , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+    | ARPattern (_, PPString SPText), FPString {matchID; patternID = _; str = ""}
+      when currOffset = 0 ->
+        let bID = gid () in
+        Some
+          ( Pat (FPBlank (matchID, bID))
+          , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+    | ARPattern (_, PPString SPOpenQuote), FPString data ->
+        let str = Util.removeCharAt data.str (currOffset - 2) in
+        Some (Pat (FPString {data with str}), desiredCaretTarget)
+    | ARPattern (_, PPString SPText), FPString data ->
+        let str = mutation data.str in
+        Some (Pat (FPString {data with str}), desiredCaretTarget)
+    | ARPattern (_, PPString SPCloseQuote), FPString data ->
+        let str =
+          Util.removeCharAt data.str (String.length data.str + currOffset)
+        in
+        Some (Pat (FPString {data with str}), desiredCaretTarget)
+    | _ ->
+        None
+  in
   (* XXX(JULIAN): This is an ugly hack so we can replace stuff inside patterns.
      There's probably a nice way to do this without a ref, but that's a bigger change.
      
@@ -2912,527 +3367,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
          let maybeTransformedExprAndCaretTarget =
            match patOrExpr with
            | Pat pat ->
-             ( match (currAstRef, pat) with
-             | ARPattern (_, PPBlank), FPBlank (mID, pID) ->
-                 if currOffset = 0
-                 then
-                   match E.find mID ast with
-                   | Some (EMatch (_, cond, patterns)) ->
-                       patContainerRef := Some mID ;
-                       patterns
-                       (* XXX(JULIAN): This is super broken because the pattern id could be anywhere
-                          but we only check at the pattern root *)
-                       |> List.findIndex ~f:(fun (p, _) -> P.id p = pID)
-                       |> Option.map ~f:(fun remIdx ->
-                              let newPatterns =
-                                if List.length patterns = 1
-                                then patterns
-                                else List.removeAt patterns ~index:remIdx
-                              in
-                              let targetExpr =
-                                patterns
-                                |> List.getAt ~index:(remIdx - 1)
-                                |> Option.map ~f:(fun (_, e) -> e)
-                                |> Option.withDefault ~default:cond
-                              in
-                              let target =
-                                caretTargetForLastPartOfExpr' targetExpr
-                              in
-                              (Expr (EMatch (mID, cond, newPatterns)), target))
-                   | _ ->
-                       recover "doExplicitBackspace PPBlank" None
-                 else
-                   Some
-                     ( Pat (FPBlank (mID, pID))
-                     , {astRef = currAstRef; offset = 0} )
-             | ARPattern (_, PPVariable), FPVariable (mID, pID, oldName) ->
-                 patContainerRef := Some mID ;
-                 let newName = mutation oldName in
-                 let newPat, target =
-                   if newName = ""
-                   then
-                     ( FPBlank (mID, pID)
-                     , {astRef = ARPattern (pID, PPBlank); offset = 0} )
-                   else (FPVariable (mID, pID, newName), desiredCaretTarget)
-                 in
-                 ( match E.find mID ast with
-                 | Some (EMatch (_, cond, cases)) ->
-                     let rec run p =
-                       if pID = P.id p then newPat else recursePattern ~f:run p
-                     in
-                     let newCases =
-                       List.map cases ~f:(fun (pat, body) ->
-                           if P.findPattern pID pat <> None
-                           then
-                             ( run pat
-                             , E.renameVariableUses ~oldName ~newName body )
-                           else (pat, body))
-                     in
-                     Some (Expr (EMatch (mID, cond, newCases)), target)
-                 | _ ->
-                     recover "doExplicitBackspace FPVariable" None )
-             | ARPattern (_, PPNull), FPNull (mID, _) ->
-                 let str = mutation "null" in
-                 let newID = gid () in
-                 Some
-                   ( Pat (FPVariable (mID, newID, str))
-                   , { astRef = ARPattern (newID, PPVariable)
-                     ; offset = currOffset - 1 } )
-             | ARPattern (_, PPBool), FPBool (mID, _, bool) ->
-                 let str = if bool then "true" else "false" in
-                 let newStr = mutation str in
-                 let newID = gid () in
-                 Some
-                   ( Pat (FPVariable (mID, newID, newStr))
-                   , { astRef = ARPattern (newID, PPVariable)
-                     ; offset = currOffset - 1 } )
-             | ARPattern (_, PPInteger), FPInteger (mID, pID, intStr) ->
-                 let str = mutation intStr in
-                 if str = ""
-                 then
-                   (* XXX(JULIAN): Why does the ID stay the same here? *)
-                   Some
-                     ( Pat (FPBlank (mID, pID))
-                     , {astRef = ARPattern (pID, PPBlank); offset = 0} )
-                 else
-                   let coerced = Util.coerceStringTo63BitInt str in
-                   if coerced = intStr
-                   then None
-                   else
-                     Some
-                       (Pat (FPInteger (mID, pID, coerced)), desiredCaretTarget)
-             | ( ARPattern (_, PPConstructor CPName)
-               , FPConstructor (mID, _, str, _patterns) ) ->
-                 (* TODO(JULIAN): Consider doing something to preserve the patterns *)
-                 let str = str |> mutation |> String.trim in
-                 let newID = gid () in
-                 if str = ""
-                 then
-                   Some
-                     ( Pat (FPBlank (mID, newID))
-                     , {astRef = ARPattern (newID, PPBlank); offset = 0} )
-                 else
-                   Some
-                     ( Pat (FPVariable (mID, newID, str))
-                     , { astRef = ARPattern (newID, PPVariable)
-                       ; offset = currOffset - 1 } )
-             (* 
-              Floats
-             *)
-             | ARPattern (_, PPFloat FPWhole), FPFloat (mID, pID, whole, frac)
-               ->
-                 Some
-                   ( Pat (FPFloat (mID, pID, mutation whole, frac))
-                   , desiredCaretTarget )
-             | ARPattern (_, PPFloat FPPoint), FPFloat (mID, _, whole, frac) ->
-                 (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
-                it should become a blank. Instead, it currently becomes a 0, which is weird.
-                Leaving it for later because it matches current behavior *)
-                 let i = Util.coerceStringTo63BitInt (whole ^ frac) in
-                 let iID = gid () in
-                 Some
-                   ( Pat (FPInteger (mID, iID, i))
-                   , { astRef = ARPattern (iID, PPInteger)
-                     ; offset = String.length whole } )
-             | ( ARPattern (_, PPFloat FPFractional)
-               , FPFloat (mID, pID, whole, frac) ) ->
-                 Some
-                   ( Pat (FPFloat (mID, pID, whole, mutation frac))
-                   , desiredCaretTarget )
-             (*
-              Strings
-             *)
-             | ( ARPattern (_, PPString SPOpenQuote)
-               , FPString {matchID; patternID = _; str = ""} )
-               when currOffset = 1 ->
-                 let bID = gid () in
-                 Some
-                   ( Pat (FPBlank (matchID, bID))
-                   , {astRef = ARPattern (bID, PPBlank); offset = 0} )
-             | ( ARPattern (_, PPString SPText)
-               , FPString {matchID; patternID = _; str = ""} )
-               when currOffset = 0 ->
-                 let bID = gid () in
-                 Some
-                   ( Pat (FPBlank (matchID, bID))
-                   , {astRef = ARPattern (bID, PPBlank); offset = 0} )
-             | ARPattern (_, PPString SPOpenQuote), FPString data ->
-                 let str = Util.removeCharAt data.str (currOffset - 2) in
-                 Some (Pat (FPString {data with str}), desiredCaretTarget)
-             | ARPattern (_, PPString SPText), FPString data ->
-                 let str = mutation data.str in
-                 Some (Pat (FPString {data with str}), desiredCaretTarget)
-             | ARPattern (_, PPString SPCloseQuote), FPString data ->
-                 let str =
-                   Util.removeCharAt
-                     data.str
-                     (String.length data.str + currOffset)
-                 in
-                 Some (Pat (FPString {data with str}), desiredCaretTarget)
-             | _ ->
-                 None )
+               doPatternBackspace patContainerRef currAstRef pat
            | Expr expr ->
-             ( match (currAstRef, expr) with
-             | ARInteger _, EInteger (id, intStr) ->
-                 let str = mutation intStr in
-                 if str = ""
-                    (* XXX(JULIAN): Why does the ID stay the same here? *)
-                 then Some (Expr (EBlank id), {astRef = ARBlank id; offset = 0})
-                 else
-                   let coerced = Util.coerceStringTo63BitInt str in
-                   if coerced = intStr
-                   then None
-                   else Some (Expr (EInteger (id, coerced)), desiredCaretTarget)
-             | ARString (_, SPOpenQuote), EString (_, "") when currOffset = 1 ->
-                 let bID = gid () in
-                 Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
-             | ARString (_, SPText), EString (_, "") when currOffset = 0 ->
-                 let bID = gid () in
-                 Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
-             | ARString (_, SPOpenQuote), EString (id, str)
-             (* The minus 2 here (one more than the default `mutation`) accounts for the open quote,
-            which isn't part of the `str` but is part of the SPOpenQuote *)
-               ->
-                 Some
-                   ( Expr (EString (id, Util.removeCharAt str (currOffset - 2)))
-                   , desiredCaretTarget )
-             | ARString (_, SPText), EString (id, str) ->
-                 Some (Expr (EString (id, mutation str)), desiredCaretTarget)
-             | ARString (_, SPCloseQuote), EString (id, str)
-             (* XXX(JULIAN): This may be the incorrect mutation, but this path doesn't currently happen in practice *)
-               ->
-                 let str =
-                   Util.removeCharAt str (String.length str + currOffset)
-                 in
-                 Some (Expr (EString (id, str)), desiredCaretTarget)
-             | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
-                 Some
-                   (Expr (EFloat (id, mutation whole, frac)), desiredCaretTarget)
-             | ARFloat (_, FPPoint), EFloat (_, whole, frac) ->
-                 (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
-                it should become a blank. Instead, it currently becomes a 0, which is weird.
-                Leaving it for later because it matches current behavior *)
-                 let i = Util.coerceStringTo63BitInt (whole ^ frac) in
-                 let iID = gid () in
-                 Some
-                   ( Expr (EInteger (iID, i))
-                   , {astRef = ARInteger iID; offset = String.length whole} )
-             | ARFloat (_, FPFractional), EFloat (id, whole, frac) ->
-                 Some
-                   (Expr (EFloat (id, whole, mutation frac)), desiredCaretTarget)
-             | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
-                 let newName = mutation oldName in
-                 let newExpr =
-                   ELet
-                     ( id
-                     , newName
-                     , value
-                     , E.renameVariableUses ~oldName ~newName body )
-                 in
-                 if newName = ""
-                 then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
-                 else Some (Expr newExpr, desiredCaretTarget)
-             | ARMatch (id, MPBranchSep idx), expr ->
-                 Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
-             | ( ARLambda (_, LPSeparator varAndSepIdx)
-               , ELambda (id, oldVars, expr) ) ->
-                 (* TODO(JULIAN): Consider only deleting if the expr in
-              front of the sep is a blank. *)
-                 let remIdx =
-                   (* remove expression in front of sep, not behind it *)
-                   varAndSepIdx + 1
-                 in
-                 let varNameToRem =
-                   List.getAt ~index:remIdx oldVars
-                   |> Option.map ~f:Tuple2.second
-                   |> Option.withDefault ~default:""
-                 in
-                 let target =
-                   List.getAt ~index:varAndSepIdx oldVars
-                   (* The target is the end of the var that preceeds the separator *)
-                   |> Option.map ~f:(fun (_, varName) ->
-                          { astRef = ARLambda (id, LPVarName varAndSepIdx)
-                          ; offset = String.length varName })
-                   |> Option.withDefault
-                        ~default:{astRef = ARLambda (id, LPKeyword); offset = 1}
-                 in
-                 Some
-                   ( Expr
-                       (ELambda
-                          ( id
-                          , List.removeAt ~index:remIdx oldVars
-                          , E.removeVariableUse varNameToRem expr ))
-                   , target )
-             | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
-                 (* TODO(JULIAN): Consider only deleting if the expr in
-              front of the sep is a blank. *)
-                 let remIdx =
-                   (* remove expression in front of sep, not behind it *)
-                   elemAndSepIdx + 1
-                 in
-                 let target =
-                   List.getAt ~index:elemAndSepIdx exprs
-                   |> Option.map ~f:(fun expr ->
-                          caretTargetForLastPartOfExpr' expr)
-                   |> Option.withDefault
-                        ~default:{astRef = ARList (id, LPOpen); offset = 1}
-                 in
-                 Some
-                   (Expr (EList (id, List.removeAt ~index:remIdx exprs)), target)
-             | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
-               when E.isEmpty expr ->
-                 (* COMPRESS(JULIAN): this could possibly collapse with a bunch of other cases, including
-                  Delete leading keywords of empty expressions, if we want to expand the definition of
-                  E.isEmpty *)
-                 let bID = gid () in
-                 Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
-             | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
-                 List.getAt ~index nameValPairs
-                 |> Option.map ~f:(function
-                        | "", _ ->
-                            (* TODO(JULIAN): Consider only deleting if the field value is blank. *)
-                            let maybeExprID =
-                              recordExprIdAtIndex id (index - 1) ast
-                            in
-                            let target =
-                              match maybeExprID with
-                              | None ->
-                                  { astRef = ARRecord (id, RPOpen)
-                                  ; offset = 1 (* right after the { *) }
-                              | Some exprId ->
-                                  caretTargetForLastPartOfExpr exprId ast
-                            in
-                            ( Expr
-                                (ERecord (id, List.removeAt ~index nameValPairs))
-                            , target )
-                        | name, _ ->
-                            let nameValPairs =
-                              List.updateAt
-                                nameValPairs
-                                ~index
-                                ~f:(fun (_, expr) -> (mutation name, expr))
-                            in
-                            ( Expr (ERecord (id, nameValPairs))
-                            , desiredCaretTarget ))
-             | ARFieldAccess (_, FAPFieldOp), EFieldAccess (_, faExpr, _)
-             | ( ARFieldAccess (_, FAPFieldOp)
-               , EPartial (_, _, EFieldAccess (_, faExpr, _)) ) ->
-                 Some (Expr faExpr, caretTargetForLastPartOfExpr' faExpr)
-             | ARConstructor (_, CPName), (EConstructor (_, str, _) as oldExpr)
-               ->
-                 let str = String.trim (mutation str) in
-                 let newID = gid () in
-                 if str = ""
-                 then
-                   Some
-                     (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-                 else
-                   Some
-                     ( Expr (EPartial (newID, str, oldExpr))
-                     , {astRef = ARPartial newID; offset = currOffset - 1} )
-             | ARFnCall (_, FCPFnName), (EFnCall (_, fnName, _, _) as oldExpr)
-               ->
-                 let str =
-                   fnName |> FluidUtil.partialName |> mutation |> String.trim
-                 in
-                 let newID = gid () in
-                 if str = ""
-                 then
-                   Some
-                     (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-                 else
-                   Some
-                     ( Expr (EPartial (newID, str, oldExpr))
-                     , {astRef = ARPartial newID; offset = currOffset - 1} )
-             | ( ARBinOp (_, BOPOperator)
-               , (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr) ) ->
-                 let str =
-                   op |> FluidUtil.partialName |> mutation |> String.trim
-                 in
-                 if str = ""
-                 then
-                   (* Delete the binop *)
-                   let expr, target = mergeExprs lhsExpr rhsExpr in
-                   Some (Expr expr, target)
-                 else
-                   let newID = gid () in
-                   Some
-                     ( Expr (EPartial (newID, str, oldExpr))
-                     , {astRef = ARPartial newID; offset = currOffset - 1} )
-             | ARBool _, (EBool (_, bool) as oldExpr) ->
-                 let str = if bool then "true" else "false" in
-                 let str = mutation str in
-                 let newID = gid () in
-                 if str = ""
-                 then
-                   Some
-                     (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-                 else
-                   Some
-                     ( Expr (EPartial (newID, str, oldExpr))
-                     , {astRef = ARPartial newID; offset = currOffset - 1} )
-             | ARNull _, (ENull _ as oldExpr) ->
-                 let str = mutation "null" in
-                 let newID = gid () in
-                 if str = ""
-                 then
-                   Some
-                     (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-                 else
-                   Some
-                     ( Expr (EPartial (newID, str, oldExpr))
-                     , {astRef = ARPartial newID; offset = currOffset - 1} )
-             | ARVariable _, (EVariable (_, varName) as oldExpr) ->
-                 let str = mutation varName in
-                 let newID = gid () in
-                 if str = ""
-                 then
-                   Some
-                     (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-                 else
-                   Some
-                     ( Expr (EPartial (newID, str, oldExpr))
-                     , {astRef = ARPartial newID; offset = currOffset - 1} )
-             | ( ARFieldAccess (_, FAPFieldname)
-               , (EFieldAccess (_, _, fieldName) as oldExpr) ) ->
-                 (* XXX(JULIAN): Why does this not check for empty string?
-                Does this have a weird special case? *)
-                 let str = mutation fieldName in
-                 let newID = gid () in
-                 Some
-                   ( Expr (EPartial (newID, str, oldExpr))
-                   , {astRef = ARPartial newID; offset = currOffset - 1} )
-             | ARPartial _, EPartial (id, oldStr, oldExpr) ->
-                 let str = oldStr |> mutation |> String.trim in
-                 if str = ""
-                 then
-                   (* inlined version of deletePartial, with appropriate exceptions added *)
-                   match oldExpr with
-                   | EFieldAccess _ ->
-                       (* This is allowed to be the empty string. *)
-                       Some
-                         (Expr (EPartial (id, str, oldExpr)), desiredCaretTarget)
-                   | EBinOp (_, _, lhsExpr, rhsExpr, _) ->
-                       let expr, target = mergeExprs lhsExpr rhsExpr in
-                       Some (Expr expr, target)
-                   | _ ->
-                       let newID = gid () in
-                       Some
-                         ( Expr (EBlank newID)
-                         , {astRef = ARBlank newID; offset = 0} )
-                 else if String.startsWith ~prefix:"\"" str
-                         && String.endsWith ~suffix:"\"" str
-                 then
-                   let newID = gid () in
-                   Some
-                     ( Expr (EString (newID, String.slice ~from:1 ~to_:(-1) str))
-                     , { astRef = ARString (newID, SPText)
-                       ; offset = currOffset - 1 } )
-                 else
-                   Some (Expr (EPartial (id, str, oldExpr)), desiredCaretTarget)
-             | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
-                 let str = oldStr |> mutation |> String.trim in
-                 if str = ""
-                 then
-                   Some (Expr oldValue, caretTargetForLastPartOfExpr' oldValue)
-                 else
-                   Some
-                     ( Expr (ERightPartial (id, str, oldValue))
-                     , desiredCaretTarget )
-             | ARLambda (_, LPVarName index), ELambda (id, vars, expr) ->
-                 vars
-                 |> List.getAt ~index
-                 |> Option.map ~f:(fun (_, oldName) ->
-                        let newName = oldName |> mutation in
-                        (* Note that newName is intentionally
-                        allowed to be "" with no special handling *)
-                        let vars =
-                          List.updateAt vars ~index ~f:(fun (varId, _) ->
-                              (varId, newName))
-                        in
-                        ( Expr
-                            (ELambda
-                               ( id
-                               , vars
-                               , E.renameVariableUses ~oldName ~newName expr ))
-                        , desiredCaretTarget ))
-             | ARPipe (_, PPPipeKeyword idx), EPipe (id, exprChain) ->
-               ( match exprChain with
-               | [e1; _] ->
-                   Some (Expr e1, caretTargetForLastPartOfExpr' e1)
-               | exprs ->
-                   exprs
-                   |> List.getAt ~index:idx
-                   |> Option.map ~f:(fun expr ->
-                          (* remove expression in front of pipe, not behind it *)
-                          Some
-                            ( Expr
-                                (EPipe (id, List.removeAt ~index:(idx + 1) exprs))
-                            , caretTargetForLastPartOfExpr' expr ))
-                   |> recoverOpt "doExplicitBackspace ARPipe" ~default:None )
-             (*
-           Delete leading keywords of empty expressions
-           *)
-             | ARLet (_, LPKeyword), ELet (_, varName, expr, EBlank _)
-             | ARLet (_, LPKeyword), ELet (_, varName, EBlank _, expr)
-               when varName = "" || varName = "_" ->
-                 Some (Expr expr, caretTargetForBeginningOfExpr' expr)
-             | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
-             | ARLambda (_, LPKeyword), ELambda (_, _, EBlank _) ->
-                 (* If the expr is empty and thus can be removed *)
-                 let bID = gid () in
-                 Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
-             | ARMatch (_, MPKeyword), EMatch (_, EBlank _, pairs)
-               when List.all pairs ~f:(fun (p, e) ->
-                        match (p, e) with
-                        | FPBlank _, EBlank _ ->
-                            true
-                        | _ ->
-                            false) ->
-                 (* the match has no content and can safely be deleted *)
-                 let bID = gid () in
-                 Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
-             | ARMatch (_, MPKeyword), EMatch _
-             | ARLet (_, LPKeyword), ELet _
-             | ARIf (_, IPIfKeyword), EIf _
-             | ARLambda (_, LPKeyword), ELambda _ ->
-                 (* keywords of "non-empty" exprs shouldn't be deletable at all *)
-                 None
-             (*
-           Immutable; just jump to the start
-           *)
-             | ARIf (_, IPThenKeyword), expr
-             | ARIf (_, IPElseKeyword), expr
-             | ARLambda (_, LPArrow), expr
-             | ARBlank _, expr
-             | ARLet (_, LPAssignment), expr
-             | ARRecord (_, RPOpen), expr
-             | ARRecord (_, RPClose), expr
-             | ARRecord (_, RPFieldSep _), expr
-             | ARList (_, LPOpen), expr
-             | ARList (_, LPClose), expr ->
-                 (* We could alternatively move by a single character instead,
-              which is what the old version did with minor exceptions;
-              that isn't particularly useful as typing within these
-              is meaningless and we want this to bring you to a location
-              where you can meaningfully type. *)
-                 Some (Expr expr, {astRef = currAstRef; offset = 0})
-             (*
-              Exhaustiveness
-              *)
-             | ARInteger _, _
-             | ( ( ARString (_, SPOpenQuote)
-                 | ARString (_, SPText)
-                 | ARString (_, SPCloseQuote) )
-               , _ )
-             | (ARFloat (_, FPWhole) | ARFloat (_, FPFractional)), _
-             | _ ->
-                 let _ =
-                   Debug.loG
-                     "Unhandled"
-                     (show_astRef currAstRef, show_fluidExpr expr)
-                 in
-                 None )
+               doExprBackspace currAstRef expr
          in
          match maybeTransformedExprAndCaretTarget with
          | Some (Expr newExpr, desiredCaretTarget) ->
