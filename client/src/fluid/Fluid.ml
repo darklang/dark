@@ -677,8 +677,6 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARConstructor (id, CPName), TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
     | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _)
-    | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _)
-    | ARFnCall (id, FCPFnName), TFnVersion (id', _, _, _)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
     | ARIf (id, IPThenKeyword), TIfThenKeyword id'
     | ARIf (id, IPElseKeyword), TIfElseKeyword id'
@@ -723,7 +721,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       when id = id' && idx = idx' ->
         posForTi ti
     (*
-      Floats
+     * Floats
      *)
     | ARFloat (id, FPPoint), TFloatPoint id'
     | ARFloat (id, FPWhole), TFloatWhole (id', _)
@@ -742,6 +740,21 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
         Some ti.endPos
     | ARFloat (id, FPFractional), TFloatFractional (id', _) when id = id' ->
         posForTi ti
+    (*
+     * Function calls
+     *)
+    | ARFnCall (id, FCPFnName), TFnName (id', partialName, displayName, _, _)
+      when id = id' ->
+        let dispLen = String.length displayName in
+        if ct.offset > dispLen && String.length partialName > dispLen
+        then (* A version token exists and we must be there instead *)
+          None
+        else (* Within current token *)
+          clampedPosForTi ti ct.offset
+    | ARFnCall (id, FCPFnName), TFnVersion (id', _, _, backendFnName)
+      when id = id' ->
+        let nameWithoutVersion = FluidUtil.fnDisplayName backendFnName in
+        clampedPosForTi ti (ct.offset - String.length nameWithoutVersion)
     (*
     * Single-line Strings
     *)
