@@ -4202,12 +4202,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* Left/Right movement *)
     | K.GoToEndOfWord maintainSelection, _, R (_, ti)
     | K.GoToEndOfWord maintainSelection, L (_, ti), _ ->
-        if maintainSelection
+        if maintainSelection == K.KeepSelection
         then (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti))
         else (ast, goToEndOfWord ~pos ast ti s)
     | K.GoToStartOfWord maintainSelection, _, R (_, ti)
     | K.GoToStartOfWord maintainSelection, L (_, ti), _ ->
-        if maintainSelection
+        if maintainSelection == K.KeepSelection
         then (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
         else (ast, goToStartOfWord ~pos ast ti s)
     | K.Left, L (_, ti), _ ->
@@ -4216,11 +4216,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
     | K.GoToStartOfLine maintainSelection, _, R (_, ti)
     | K.GoToStartOfLine maintainSelection, L (_, ti), _ ->
-        if maintainSelection
+        if maintainSelection == K.KeepSelection
         then (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti))
         else (ast, moveToStartOfLine ast ti s)
     | K.GoToEndOfLine maintainSelection, _, R (_, ti) ->
-        if maintainSelection
+        if maintainSelection == K.KeepSelection
         then (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
         else (ast, moveToEndOfLine ast ti s)
     | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
@@ -4700,10 +4700,10 @@ let shouldDoDefaultAction (key : K.key) : bool =
 
 let shouldSelect (key : K.key) : bool =
   match key with
-  | K.GoToStartOfWord true
-  | K.GoToEndOfWord true
-  | K.GoToStartOfLine true
-  | K.GoToEndOfLine true
+  | K.GoToStartOfWord K.KeepSelection
+  | K.GoToEndOfWord K.KeepSelection
+  | K.GoToStartOfLine K.KeepSelection
+  | K.GoToEndOfLine K.KeepSelection
   | K.SelectAll ->
       true
   | _ ->
