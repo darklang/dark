@@ -839,7 +839,6 @@ let initialLoadAPIResult j : initialLoadAPIResult =
       j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
   ; fofs = field "fofs" (list fof) j
   ; staticDeploys = field "assets" (list sDeploy) j
-  ; traces = field "traces" (list (pair tlid traceID)) j
   ; userTipes = field "user_tipes" (list userTipe) j
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
   ; opCtrs =
@@ -851,6 +850,10 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
   ; worker_schedules = field "worker_schedules" (strDict string) j }
+
+
+let allTracesResult j : allTracesAPIResult =
+  {traces = field "traces" (list (pair tlid traceID)) j}
 
 
 let executeFunctionAPIResult j : executeFunctionAPIResult =
