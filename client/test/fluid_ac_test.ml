@@ -230,23 +230,6 @@ let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
 
 let run () =
   describe "autocomplete" (fun () ->
-      describe "validate httpName varnames" (fun () ->
-          let space = Some "HTTP" in
-          let tl = TLHandler (aHandler ~space ()) in
-          let pd = PEventName (Types.F (ID "0", "foo")) in
-          test "/foo/bar is valid, no variables" (fun () ->
-              let value = "/foo/bar" in
-              expect (Entry.validate tl pd value) |> toEqual None) ;
-          test "/:some/:variableNames/:here_1 is valid" (fun () ->
-              let value = "/:some/:variableNames/:here_1" in
-              expect (Entry.validate tl pd value) |> toEqual None) ;
-          test
-            "/:here-1 is not valid, no hyphens allowed in varnames"
-            (fun () ->
-              let value = "/:here-1" in
-              expect (Entry.validate tl pd value)
-              |> toEqual
-                   (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/"))) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           let acForQueries (qs : string list) =
