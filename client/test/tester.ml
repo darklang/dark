@@ -127,10 +127,17 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
     then
       try testFn ()
       with e ->
+        let error =
+          match e with
+          | Failure msg ->
+              "Failure: " ^ msg
+          | _ ->
+              Printexc.to_string e
+        in
         { categories = !categories
         ; name = !runningTest
         ; success = Failed
-        ; actual = Some (Printexc.to_string e)
+        ; actual = Some error
         ; expected = None }
     else
       { categories = !categories
