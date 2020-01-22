@@ -470,6 +470,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
+      ; Vdom.attribute "" (* disable grammarly crashes *) "data-gramm" "false"
       ; Html.onCB
           "input"
           ("input" ^ show_tlid tlid)
