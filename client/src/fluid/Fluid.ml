@@ -3312,18 +3312,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                        (* This is allowed to be the empty string. *)
                        Some
                          (Expr (EPartial (id, str, oldExpr)), desiredCaretTarget)
-                   (* | EBinOp
-                       (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _)
-                     ->
-                       Some
-                         ( Expr (EString (lhsID, lhsStr ^ rhsStr))
-                         , { astRef = ARString (lhsID, SPText)
-                           ; offset = String.length lhsStr } )
-                   | EBinOp (_, _, EPipeTarget _, expr, _)
-                   | EBinOp (_, _, expr, _, _) ->
-                       Some
-                         ( Expr expr
-                         , caretTargetForLastPartOfExpr (E.id expr) ast ) *)
                    | EBinOp (_, _, lhsExpr, rhsExpr, _) ->
                        let expr, target = mergeExprs lhsExpr rhsExpr in
                        Some (Expr expr, target)
@@ -3369,20 +3357,17 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                                , E.renameVariableUses ~oldName ~newName expr ))
                         , desiredCaretTarget ))
              | ARPipe (_, PPPipeKeyword idx), EPipe (id, exprChain) ->
-               (* TODO(JULIAN): This can probably be cleaned up *)
                ( match exprChain with
                | [e1; _] ->
                    Some (Expr e1, caretTargetForLastPartOfExpr' e1)
                | exprs ->
-                   let index =
-                     (* remove expression in front of pipe, not behind it *)
-                     idx + 1
-                   in
                    exprs
                    |> List.getAt ~index:idx
                    |> Option.map ~f:(fun expr ->
+                          (* remove expression in front of pipe, not behind it *)
                           Some
-                            ( Expr (EPipe (id, List.removeAt ~index exprs))
+                            ( Expr
+                                (EPipe (id, List.removeAt ~index:(idx + 1) exprs))
                             , caretTargetForLastPartOfExpr' expr ))
                    |> recoverOpt "doExplicitBackspace ARPipe" ~default:None )
              (*
@@ -3416,7 +3401,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              (*
            Immutable; just jump to the start
            *)
-             (*   | ARPattern (_, PPBlank), pat <---- this is unhandleable right now because patterns don't match exprs*)
              | ARIf (_, IPThenKeyword), expr
              | ARIf (_, IPElseKeyword), expr
              | ARLambda (_, LPArrow), expr
@@ -3434,8 +3418,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
               where you can meaningfully type. *)
                  Some (Expr expr, {astRef = currAstRef; offset = 0})
              (*
-           Exhaustiveness
-           *)
+              Exhaustiveness
+              *)
              | ARInteger _, _
              | ( ( ARString (_, SPOpenQuote)
                  | ARString (_, SPText)
