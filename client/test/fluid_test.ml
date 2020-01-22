@@ -3169,17 +3169,14 @@ let run () =
         "let request = 5\nrequest.title~" ;
       t
         "autocomplete for field autocommits"
-        (ELet
-           ( gid ()
-           , "x"
-           , EPartial
-               ( gid ()
-               , "body"
-               , EFieldAccess
-                   ( gid ()
-                   , EVariable (ID "fake-acdata1", "request")
-                   , "longfield" ) )
-           , EBlank (gid ()) ))
+        (let'
+           "x"
+           (partial
+              "body"
+              (fieldAccess
+                 (EVariable (ID "fake-acdata1", "request"))
+                 "longfield"))
+           b)
         (* Right should make it commit *)
         (key ~clone:false K.Right 20)
         "let x = request.body\n~___" ;
