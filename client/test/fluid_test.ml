@@ -1561,6 +1561,12 @@ let run () =
         aFnCallWithVersion
         (ctrlRight 7)
         "DB::getAll~v1 ___________________" ;
+      t
+        "backspace after selecting a versioned 0-arg fnCall deletes all"
+        (fn "HttpClient::post_v4" [])
+        (* wrap false because 'the wrapper is broken: ___' *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       ()) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (key K.Pipe 4) "true |~" ;
@@ -1850,6 +1856,12 @@ let run () =
         (binop "/" b aFloat)
         (bs 5)
         "~123.456" ;
+      t
+        "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all"
+        (binop "/" (fn "HttpClient::post_v4" []) (int "5"))
+        (* wrap false because 'the wrapper is broken: ___' *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       ()) ;
   describe "Constructors" (fun () ->
       tp "arguments work in constructors" aConstructor (ins 't' 5) "Just t~" ;
