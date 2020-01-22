@@ -177,7 +177,7 @@ def rust_reload(name):
 def rust_test(name):
   start = time.time()
   result = run_test(start,
-      f"cd {name} && {test_db_env()} RUST_BACKTRACE=1 unbuffer cargo test")
+      f"cd {name} && {test_db_env()} RUST_BACKTRACE=1 unbuffer cargo test -- --test-threads=1")
   if not result:
       return result
 
