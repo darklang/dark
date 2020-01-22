@@ -1098,6 +1098,12 @@ let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
     | None ->
         { astRef = ARFnCall (id, FCPFnName)
         ; offset = fnName |> FluidUtil.partialName |> String.length } )
+  | EPartial (_, _, EBinOp (_, _, _, rhsExpr, _)) ->
+      (* We need this so that (for example) when we backspace a binop containing a binop within a partial,
+       * we can keep hitting backspace to delete the whole thing. This isn't (currently) needed for
+       * other types of partials because deleting non-binop partials deletes their args,
+       * whereas deleting binop partials merges and hoists the args. *)
+      caretTargetForLastPartOfExpr' rhsExpr
   | EPartial (id, str, _) ->
       (* Intentionally using the thing that was typed; not the existing expr *)
       {astRef = ARPartial id; offset = String.length str}
