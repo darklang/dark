@@ -12,11 +12,6 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
   |> Result.all
 
 
-(* Placing this here instead of Dval like in Dval.to_int because dval.ml will require a Lib import, which cases circular dependencies. And for now this function is only used by Float::sum, no need to prematurely abstract out this function *)
-let to_float dv : Float.t option =
-  match dv with DFloat i -> Some i | _ -> None
-
-
 let zero = 0.0
 
 let ( >>| ) = Result.( >>| )
@@ -172,7 +167,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DList l] ->
               l
-              |> list_coerce ~f:to_float
+              |> list_coerce ~f:Dval.to_float
               >>| List.fold_left ~f:( +. ) ~init:zero
               >>| (fun x -> DFloat x)
               |> Result.map_error ~f:(fun (result, example_value) ->
