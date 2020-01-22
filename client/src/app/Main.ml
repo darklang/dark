@@ -1400,6 +1400,19 @@ let update_ (msg : msg) (m : model) : modification =
           applyOpsToClient false params (result |> Option.valueExn)
         in
         Many (initialMods @ [MakeCmd (Entry.focusEntry m)])
+  | FetchAllTracesAPICallback (Ok x) ->
+      let traces =
+        List.foldl x.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
+            let trace = (traceid, Error NoneYet) in
+            StrDict.update dict ~key:(deTLID tlid) ~f:(function
+                | Some existing ->
+                    Some (existing @ [trace])
+                | None ->
+                    Some [trace]))
+      in
+      UpdateTraces traces
+  | FetchAllTracesAPICallback (Error x) ->
+      DisplayError ("Failed to load traces: " ^ Tea_http.string_of_error x)
   | InitialLoadAPICallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
@@ -1414,15 +1427,6 @@ let update_ (msg : msg) (m : model) : modification =
       in
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in
-      let traces : traces =
-        List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
-            let trace = (traceid, Error NoneYet) in
-            StrDict.update dict ~key:(deTLID tlid) ~f:(function
-                | Some existing ->
-                    Some (existing @ [trace])
-                | None ->
-                    Some [trace]))
-      in
       Many
         [ TweakModel (fun m -> {m with opCtrs = r.opCtrs; account = r.account})
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
@@ -1438,7 +1442,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; ClearError
         ; extraMod
         ; newState
-        ; UpdateTraces traces
+        ; MakeCmd (API.fetchAllTraces m)
         ; InitIntrospect (TD.values allTLs)
         ; InitASTCache (r.handlers, r.userFunctions) ]
   | SaveTestAPICallback (Ok msg_) ->
