@@ -26,9 +26,11 @@ let h ast =
 
 let run () =
   let mID = gid () in
-  let aStr = FPString (mID, gid (), "some string") in
-  let emptyStr = FPString (mID, gid (), "") in
-  let oneCharStr = FPString (mID, gid (), "c") in
+  let aStr =
+    FPString {matchID = mID; patternID = gid (); str = "some string"}
+  in
+  let emptyStr = FPString {matchID = mID; patternID = gid (); str = ""} in
+  let oneCharStr = FPString {matchID = mID; patternID = gid (); str = "c"} in
   let aShortInt = FPInteger (mID, gid (), "1") in
   let anInt = FPInteger (mID, gid (), "12345") in
   let aHugeInt = FPInteger (mID, gid (), "2000000000000000000") in

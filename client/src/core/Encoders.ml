@@ -632,6 +632,9 @@ and fluidPattern (pattern : Types.fluidPattern) : Js.Json.t =
   let fp = fluidPattern in
   let ev = variant in
   match pattern with
+  (* Warning: A bunch of stuff here seems to expect that the
+    second element of the tuples are match id but they are actually
+    pattern ids. *)
   | FPVariable (id', mid, name) ->
       ev "FPVariable" [id id'; id mid; string name]
   | FPConstructor (id', mid, name, patterns) ->
@@ -642,7 +645,7 @@ and fluidPattern (pattern : Types.fluidPattern) : Js.Json.t =
       ev "FPBool" [id id'; id mid; bool v]
   | FPFloat (id', mid, whole, fraction) ->
       ev "FPFloat" [id id'; id mid; string whole; string fraction]
-  | FPString (id', mid, v) ->
+  | FPString {matchID = id'; patternID = mid; str = v} ->
       ev "FPString" [id id'; id mid; string v]
   | FPNull (id', mid) ->
       ev "FPNull" [id id'; id mid]

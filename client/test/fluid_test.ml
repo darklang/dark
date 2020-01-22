@@ -951,8 +951,12 @@ let run () =
         "DeleteNextWord at the beg of line deletes until the next whitespace"
         mlStrWSpace
         (key K.DeleteNextWord 42)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-        ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ;
+        (* ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ; *)
+        (* The non-commented version is a bit weird for caret placement,
+           but matches what happens in XCode *)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ " abcdefghi, 123456789_ abcdefghi,\"" ) ;
       t
         "adding a quote at the front turns a partial into a string"
         (partial "abcdefgh\"" b)
@@ -2201,17 +2205,17 @@ let run () =
         "backspace first row deletes it"
         emptyMatchWithTwoPatterns
         (bs 12)
-        "match ___~\n  *** -> ___\n" ;
+        "match ~___\n  *** -> ___\n" ;
       t
         "backspace second row deletes it"
         emptyMatchWithTwoPatterns
         (bs 25)
-        "match ___\n  *** -> ___~\n" ;
+        "match ___\n  *** -> ~___\n" ;
       t
         "backspacing only row doesn't delete"
         emptyMatch
         (bs 12)
-        "match ___~\n  *** -> ___\n" ;
+        "match ~___\n  *** -> ___\n" ;
       t
         "backspacing second matchSep ( |-> ) moves to end of pattern"
         emptyMatchWithTwoPatterns
@@ -2828,7 +2832,7 @@ let run () =
         "bs on last separator between a blank and item dels item after separator"
         listWithBlank
         (bs 11)
-        "[56,78,___~]" ;
+        "[56,78,~___]" ;
       t
         "del before last separator between a blank and item dels item after separator"
         listWithBlank
