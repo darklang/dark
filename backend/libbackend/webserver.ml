@@ -38,12 +38,7 @@ let ready = ref false
 let server_timing (times : timing_header list) =
   times
   |> List.map ~f:(fun (name, time, desc) ->
-         name
-         ^ ";desc=\""
-         ^ desc
-         ^ "\""
-         ^ ";dur="
-         ^ (time |> Float.to_string_hum ~decimals:3))
+         Printf.sprintf "%s;desc=\"%s\";dur=%0.2f" name desc time)
   |> String.concat ~sep:","
   |> fun x -> [("Server-timing", x)] |> Header.of_list
 
@@ -792,6 +787,46 @@ let admin_add_op_handler
         body
 
 
+let fetch_all_traces
+    ~(execution_id : Types.id)
+    ~(username : Account.username)
+    ~(canvas : string)
+    ~(permission : Authorization.permission option)
+    body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, c =
+      time "1-load-canvas" (fun _ ->
+          C.load_all canvas []
+          |> Result.map_error ~f:(String.concat ~sep:", ")
+          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
+    in
+    let t2, traces =
+      time "2-load-traces" (fun _ ->
+          let htraces =
+            !c.handlers
+            |> TL.handlers
+            |> List.map ~f:(fun h ->
+                   Analysis.traceids_for_handler !c h
+                   |> List.map ~f:(fun traceid -> (h.tlid, traceid)))
+            |> List.concat
+          in
+          let uftraces =
+            !c.user_functions
+            |> Types.IDMap.data
+            |> List.map ~f:(fun uf ->
+                   Analysis.traceids_for_user_fn !c uf
+                   |> List.map ~f:(fun traceid -> (uf.tlid, traceid)))
+            |> List.concat
+          in
+          htraces @ uftraces)
+    in
+    let t3, result =
+      time "3-to-frontend" (fun _ -> Analysis.to_all_traces_result traces)
+    in
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  with e -> Libexecution.Exception.reraise_as_pageable e
+
+
 let initial_load
     ~(execution_id : Types.id)
     ~(username : Account.username)
@@ -828,49 +863,28 @@ let initial_load
           let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
           Analysis.get_404s ~since:latest !c)
     in
-    let t4, traces =
-      time "4-traces" (fun _ ->
-          let htraces =
-            !c.handlers
-            |> TL.handlers
-            |> List.map ~f:(fun h ->
-                   Analysis.traceids_for_handler !c h
-                   |> List.map ~f:(fun traceid -> (h.tlid, traceid)))
-            |> List.concat
-          in
-          let uftraces =
-            !c.user_functions
-            |> Types.IDMap.data
-            |> List.map ~f:(fun uf ->
-                   Analysis.traceids_for_user_fn !c uf
-                   |> List.map ~f:(fun traceid -> (uf.tlid, traceid)))
-            |> List.concat
-          in
-          htraces @ uftraces)
+    let t4, assets =
+      time "4-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
     in
-    let t5, assets =
-      time "5-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
-    in
-    let t6, account =
-      time "6-account" (fun _ ->
+    let t5, account =
+      time "5-account" (fun _ ->
           match A.get_user username with
           | Some u ->
               u
           | None ->
               {username; email = ""; name = ""; admin = false})
     in
-    let t7, worker_schedules =
-      time "7-worker-schedules" (fun _ ->
+    let t6, worker_schedules =
+      time "6-worker-schedules" (fun _ ->
           Event_queue.get_worker_schedules_for_canvas !c.id)
     in
-    let t8, result =
-      time "8-to-frontend" (fun _ ->
+    let t7, result =
+      time "7-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
             permission
             f404s
-            traces
             unlocked
             assets
             account
@@ -878,7 +892,7 @@ let initial_load
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8])
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
       `OK
       result
   with e -> Libexecution.Exception.reraise_as_pageable e
@@ -1686,6 +1700,10 @@ let admin_api_handler
       when_can_view ~canvas (fun permission ->
           wrap_editor_api_headers
             (initial_load ~execution_id ~username ~canvas ~permission body))
+  | `POST, ["api"; canvas; "all_traces"] ->
+      when_can_view ~canvas (fun permission ->
+          wrap_editor_api_headers
+            (fetch_all_traces ~execution_id ~username ~canvas ~permission body))
   | `POST, ["api"; canvas; "execute_function"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers (execute_function ~execution_id canvas body))
