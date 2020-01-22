@@ -2887,7 +2887,7 @@ let idOfCaretTarget ({astRef; _} : caretTarget) : id option = idOfASTRef astRef
 let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     E.t * newPosition =
   let {astRef = currAstRef; offset = currOffset} = currCaretTarget in
-  let desiredCaretTarget = {astRef = currAstRef; offset = currOffset - 1} in
+  let currCTMinusOne = {astRef = currAstRef; offset = currOffset - 1} in
   let mutation : string -> string =
    fun str -> Util.removeCharAt str (currOffset - 1)
   in
@@ -2902,7 +2902,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           let coerced = Util.coerceStringTo63BitInt str in
           if coerced = intStr
           then None
-          else Some (Expr (EInteger (id, coerced)), desiredCaretTarget)
+          else Some (Expr (EInteger (id, coerced)), currCTMinusOne)
     | ARString (_, SPOpenQuote), EString (_, "") when currOffset = 1 ->
         let bID = gid () in
         Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
@@ -2915,16 +2915,16 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
       ->
         Some
           ( Expr (EString (id, Util.removeCharAt str (currOffset - 2)))
-          , desiredCaretTarget )
+          , currCTMinusOne )
     | ARString (_, SPText), EString (id, str) ->
-        Some (Expr (EString (id, mutation str)), desiredCaretTarget)
+        Some (Expr (EString (id, mutation str)), currCTMinusOne)
     | ARString (_, SPCloseQuote), EString (id, str)
     (* XXX(JULIAN): This may be the incorrect mutation, but this path doesn't currently happen in practice *)
       ->
         let str = Util.removeCharAt str (String.length str + currOffset) in
-        Some (Expr (EString (id, str)), desiredCaretTarget)
+        Some (Expr (EString (id, str)), currCTMinusOne)
     | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
-        Some (Expr (EFloat (id, mutation whole, frac)), desiredCaretTarget)
+        Some (Expr (EFloat (id, mutation whole, frac)), currCTMinusOne)
     | ARFloat (_, FPPoint), EFloat (_, whole, frac) ->
         (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
                 it should become a blank. Instead, it currently becomes a 0, which is weird.
@@ -2935,7 +2935,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           ( Expr (EInteger (iID, i))
           , {astRef = ARInteger iID; offset = String.length whole} )
     | ARFloat (_, FPFractional), EFloat (id, whole, frac) ->
-        Some (Expr (EFloat (id, whole, mutation frac)), desiredCaretTarget)
+        Some (Expr (EFloat (id, whole, mutation frac)), currCTMinusOne)
     | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
         let newName = mutation oldName in
         let newExpr =
@@ -2943,7 +2943,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         in
         if newName = ""
         then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
-        else Some (Expr newExpr, desiredCaretTarget)
+        else Some (Expr newExpr, currCTMinusOne)
     | ARMatch (id, MPBranchSep idx), expr ->
         Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr) ->
@@ -3016,7 +3016,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                      List.updateAt nameValPairs ~index ~f:(fun (_, expr) ->
                          (mutation name, expr))
                    in
-                   (Expr (ERecord (id, nameValPairs)), desiredCaretTarget))
+                   (Expr (ERecord (id, nameValPairs)), currCTMinusOne))
     | ARFieldAccess (_, FAPFieldOp), EFieldAccess (_, faExpr, _)
     | ARFieldAccess (_, FAPFieldOp), EPartial (_, _, EFieldAccess (_, faExpr, _))
       ->
@@ -3097,7 +3097,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           match oldExpr with
           | EFieldAccess _ ->
               (* This is allowed to be the empty string. *)
-              Some (Expr (EPartial (id, str, oldExpr)), desiredCaretTarget)
+              Some (Expr (EPartial (id, str, oldExpr)), currCTMinusOne)
           | EBinOp (_, _, lhsExpr, rhsExpr, _) ->
               let expr, target = mergeExprs lhsExpr rhsExpr in
               Some (Expr expr, target)
@@ -3111,12 +3111,12 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           Some
             ( Expr (EString (newID, String.slice ~from:1 ~to_:(-1) str))
             , {astRef = ARString (newID, SPText); offset = currOffset - 1} )
-        else Some (Expr (EPartial (id, str, oldExpr)), desiredCaretTarget)
+        else Some (Expr (EPartial (id, str, oldExpr)), currCTMinusOne)
     | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
         let str = oldStr |> mutation |> String.trim in
         if str = ""
         then Some (Expr oldValue, caretTargetForLastPartOfExpr' oldValue)
-        else Some (Expr (ERightPartial (id, str, oldValue)), desiredCaretTarget)
+        else Some (Expr (ERightPartial (id, str, oldValue)), currCTMinusOne)
     | ARLambda (_, LPVarName index), ELambda (id, vars, expr) ->
         vars
         |> List.getAt ~index
@@ -3131,7 +3131,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                ( Expr
                    (ELambda
                       (id, vars, E.renameVariableUses ~oldName ~newName expr))
-               , desiredCaretTarget ))
+               , currCTMinusOne ))
     | ARPipe (_, PPPipeKeyword idx), EPipe (id, exprChain) ->
       ( match exprChain with
       | [e1; _] ->
@@ -3242,7 +3242,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           if newName = ""
           then
             (FPBlank (mID, pID), {astRef = ARPattern (pID, PPBlank); offset = 0})
-          else (FPVariable (mID, pID, newName), desiredCaretTarget)
+          else (FPVariable (mID, pID, newName), currCTMinusOne)
         in
         ( match E.find mID ast with
         | Some (EMatch (_, cond, cases)) ->
@@ -3283,7 +3283,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           let coerced = Util.coerceStringTo63BitInt str in
           if coerced = intStr
           then None
-          else Some (Pat (FPInteger (mID, pID, coerced)), desiredCaretTarget)
+          else Some (Pat (FPInteger (mID, pID, coerced)), currCTMinusOne)
     | ARPattern (_, PPConstructor CPName), FPConstructor (mID, _, str, _patterns)
       ->
         (* TODO(JULIAN): Consider doing something to preserve the patterns *)
@@ -3303,7 +3303,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     * Floats
     *)
     | ARPattern (_, PPFloat FPWhole), FPFloat (mID, pID, whole, frac) ->
-        Some (Pat (FPFloat (mID, pID, mutation whole, frac)), desiredCaretTarget)
+        Some (Pat (FPFloat (mID, pID, mutation whole, frac)), currCTMinusOne)
     | ARPattern (_, PPFloat FPPoint), FPFloat (mID, _, whole, frac) ->
         (* XXX(JULIAN): If the float only consists of a . and has no whole or frac,
                 it should become a blank. Instead, it currently becomes a 0, which is weird.
@@ -3315,7 +3315,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           , {astRef = ARPattern (iID, PPInteger); offset = String.length whole}
           )
     | ARPattern (_, PPFloat FPFractional), FPFloat (mID, pID, whole, frac) ->
-        Some (Pat (FPFloat (mID, pID, whole, mutation frac)), desiredCaretTarget)
+        Some (Pat (FPFloat (mID, pID, whole, mutation frac)), currCTMinusOne)
     (*
     * Strings
     *)
@@ -3334,15 +3334,15 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           , {astRef = ARPattern (bID, PPBlank); offset = 0} )
     | ARPattern (_, PPString SPOpenQuote), FPString data ->
         let str = Util.removeCharAt data.str (currOffset - 2) in
-        Some (Pat (FPString {data with str}), desiredCaretTarget)
+        Some (Pat (FPString {data with str}), currCTMinusOne)
     | ARPattern (_, PPString SPText), FPString data ->
         let str = mutation data.str in
-        Some (Pat (FPString {data with str}), desiredCaretTarget)
+        Some (Pat (FPString {data with str}), currCTMinusOne)
     | ARPattern (_, PPString SPCloseQuote), FPString data ->
         let str =
           Util.removeCharAt data.str (String.length data.str + currOffset)
         in
-        Some (Pat (FPString {data with str}), desiredCaretTarget)
+        Some (Pat (FPString {data with str}), currCTMinusOne)
     | _ ->
         None
   in
@@ -3372,7 +3372,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                doExprBackspace currAstRef expr
          in
          match maybeTransformedExprAndCaretTarget with
-         | Some (Expr newExpr, desiredCaretTarget) ->
+         | Some (Expr newExpr, currCTMinusOne) ->
              let patOrExprID =
                match !patContainerRef with
                | None ->
@@ -3382,13 +3382,13 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              in
              Some
                ( E.replace patOrExprID ~replacement:newExpr ast
-               , AtTarget desiredCaretTarget )
-         | Some (Pat newPat, desiredCaretTarget) ->
+               , AtTarget currCTMinusOne )
+         | Some (Pat newPat, currCTMinusOne) ->
              (* TODO(JULIAN): Consider using a replacement function that only needs the patOrExprID,
                not the mID *)
              let mID = P.matchID newPat in
              let newAST = replacePattern mID patOrExprID ~newPat ast in
-             Some (newAST, AtTarget desiredCaretTarget)
+             Some (newAST, AtTarget currCTMinusOne)
          | _ ->
              None)
   |> Option.withDefault ~default:(ast, SamePlace)
