@@ -139,6 +139,8 @@ val to_char : Types.RuntimeT.dval -> string option
 
 val to_int : Types.RuntimeT.dval -> Dint.t option
 
+val to_float : Types.RuntimeT.dval -> Base.Float.t option
+
 val dint : int -> Types.RuntimeT.dval
 
 (* Converts a Dark String to an OCaml string. *)

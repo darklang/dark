@@ -154,4 +154,33 @@ let fns : Lib.shortfn list =
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["Float::sum"]
+    ; ins = []
+    ; p = [par "a" TList]
+    ; r = TFloat
+    ; d = "Returns the sum of all the floats in the list"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l] ->
+              l
+              |> list_coerce ~f:Dval.to_float
+              >>| List.fold_left ~f:( +. ) ~init:0.0
+              >>| (fun x -> DFloat x)
+              |> Result.map_error ~f:(fun (result, example_value) ->
+                     RT.error
+                       ~actual:(DList result)
+                       ~result:(DList result)
+                       ~long:
+                         ( "Float::sum requires all values to be floats, but "
+                         ^ Dval.to_developer_repr_v0 example_value
+                         ^ " is a "
+                         ^ Dval.tipename example_value )
+                       ~expected:"every list item to be an float "
+                       "Sum expects you to pass a list of floats")
+              |> Result.ok_exn
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]

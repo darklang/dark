@@ -1082,6 +1082,10 @@ let to_char dv : string option =
 
 let to_int dv : Dint.t option = match dv with DInt i -> Some i | _ -> None
 
+let to_float dv : Float.t option =
+  match dv with DFloat f -> Some f | _ -> None
+
+
 let dint (i : int) : dval = DInt (Dint.of_int i)
 
 let to_dobj_exn (pairs : (string * dval) list) : dval =
