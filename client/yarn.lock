@@ -1324,10 +1324,10 @@ browserslist@^3.2.6:
     caniuse-lite "^1.0.30000844"
     electron-to-chromium "^1.3.47"
 
-bs-deriving@44.1.0:
-  version "44.1.0"
-  resolved "https://registry.yarnpkg.com/bs-deriving/-/bs-deriving-44.1.0.tgz#889c123af852ef225ea3626ad8b2613cd01ded14"
-  integrity sha512-4OFK+2sqCSDBnLTVtc2gPbIUF8Q2mgCC8Z+5Iz1NdWHVWSOcDuwMBvLAtadOBAV94sE9BfjcMdhcKlPYMW5i1w==
+bs-deriving@44.1.1:
+  version "44.1.1"
+  resolved "https://registry.yarnpkg.com/bs-deriving/-/bs-deriving-44.1.1.tgz#8282cccebbfd37235b1a165d38bf09ed13d50f6b"
+  integrity sha512-EYlG4neHeC+ZYEnnZZYhKFyaEIVYbm6uuhyXLSF2hIhOIlGs68pBFg4FSKYro5GOkXCuqe0fEqftDAW5vICD6w==
   dependencies:
     "@elliottcable/bs-result" "^12.0.0-pre.2"
 
