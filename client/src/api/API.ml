@@ -129,6 +129,14 @@ let initialLoad (m : model) (focus : focus) : msg Tea.Cmd.t =
   Tea.Http.send (fun x -> InitialLoadAPICallback (focus, NoChange, x)) request
 
 
+let fetchAllTraces (m : model) : msg Tea.Cmd.t =
+  let url =
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/all_traces"]
+  in
+  let request = postEmptyJson Decoders.allTracesResult m.csrfToken url in
+  Tea.Http.send (fun x -> FetchAllTracesAPICallback x) request
+
+
 let logout (m : model) : msg Tea.Cmd.t =
   let url = "/logout" in
   let request = postEmptyString Decoders.saveTestAPIResult m.csrfToken url in

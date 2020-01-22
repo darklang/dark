@@ -836,6 +836,8 @@ and dbStatsAPIResult = dbStatsStore
 
 and workerStatsAPIResult = workerStats
 
+and allTracesAPIResult = {traces : (tlid * traceID) list}
+
 and initialLoadAPIResult =
   { handlers : handler list
   ; deletedHandlers : handler list
@@ -846,7 +848,6 @@ and initialLoadAPIResult =
   ; unlockedDBs : unlockedDBs
   ; fofs : fourOhFour list
   ; staticDeploys : staticDeploy list
-  ; traces : (tlid * traceID) list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
   ; permission : permission option
@@ -1205,6 +1206,8 @@ and msg =
   | InitialLoadAPICallback of
       focus * modification * (initialLoadAPIResult, httpError) Tea.Result.t
       [@printer opaque "InitialLoadAPICallback"]
+  | FetchAllTracesAPICallback of (allTracesAPIResult, httpError) Tea.Result.t
+      [@printer opaque "FetchAllTracesAPICallback"]
   | ExecuteFunctionAPICallback of
       executeFunctionAPIParams
       * (executeFunctionAPIResult, httpError) Tea.Result.t

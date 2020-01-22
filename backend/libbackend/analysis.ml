@@ -326,6 +326,12 @@ let to_add_op_rpc_result (c : canvas) : add_op_rpc_result =
   ; deleted_user_tipes = IDMap.data c.deleted_user_tipes }
 
 
+type all_traces_result = {traces : tlid_traceid list} [@@deriving to_yojson]
+
+let to_all_traces_result (traces : tlid_traceid list) : string =
+  {traces} |> all_traces_result_to_yojson |> Yojson.Safe.to_string ~std:true
+
+
 (* Initial load *)
 type initial_load_rpc_result =
   { toplevels : TL.toplevel list
@@ -334,7 +340,6 @@ type initial_load_rpc_result =
   ; deleted_user_functions : RTT.user_fn list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list
-  ; traces : tlid_traceid list
   ; assets : SA.static_deploy list
   ; user_tipes : RTT.user_tipe list
   ; deleted_user_tipes : RTT.user_tipe list
@@ -349,7 +354,6 @@ let to_initial_load_rpc_result
     (op_ctrs : (string * int) list)
     (permission : Authorization.permission option)
     (fofs : SE.four_oh_four list)
-    (traces : tlid_traceid list)
     (unlocked_dbs : tlid list)
     (assets : SA.static_deploy list)
     (account : Account.user_info)
@@ -362,7 +366,6 @@ let to_initial_load_rpc_result
   ; deleted_user_tipes = IDMap.data c.deleted_user_tipes
   ; unlocked_dbs
   ; fofs
-  ; traces
   ; assets
   ; op_ctrs
   ; permission
