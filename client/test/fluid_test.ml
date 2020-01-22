@@ -1564,7 +1564,7 @@ let run () =
       t
         "backspace after selecting a versioned 0-arg fnCall deletes all"
         (fn "HttpClient::post_v4" [])
-        (* wrap false because 'the wrapper is broken: ___' *)
+        (* wrap false because else we delete the wrapper *)
         (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
         "~___" ;
       ()) ;
@@ -1859,7 +1859,13 @@ let run () =
       t
         "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all"
         (binop "/" (fn "HttpClient::post_v4" []) (int "5"))
-        (* wrap false because 'the wrapper is broken: ___' *)
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
+      t
+        "backspace after selecting all with a binop partial in a binop deletes all"
+        (binop "+" (partial "D" (binop "-" (int "5") (int "5"))) (int "5"))
+        (* wrap false because else we delete the wrapper *)
         (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
         "~___" ;
       ()) ;
@@ -1914,7 +1920,7 @@ let run () =
       t
         "backspace after selecting all with a `Just |___` in a match deletes all"
         (match' b [(pConstructor "Just" [pBlank], b)])
-        (* wrap false because 'the wrapper is broken: ___' *)
+        (* wrap false because else we delete the wrapper *)
         (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
         "~___" ;
       (* TODO: test renaming constructors.
