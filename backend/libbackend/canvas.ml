@@ -654,6 +654,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             ~name
             ~module_
             ~modifier
+            ~deleted:None
             ~tipe
         else ())
   with e -> Libexecution.Exception.reraise_as_pageable e
