@@ -378,6 +378,22 @@ that's already taken, returns an error."
             |> DList)
     ; ps = false
     ; dep = false }
+  ; { pns = ["DarkInternal::canvasesFor"]
+    ; ins = []
+    ; p = [par "account" TStr]
+    ; r = TList
+    ; d =
+        "Returns a list of all canvases owned by a particular account (user OR org)"
+    ; f =
+        internal_fn (function
+            | _, [DStr account] ->
+                Serialize.hosts_for (Unicode_string.to_string account)
+                |> List.map ~f:Dval.dstr_of_string_exn
+                |> DList
+            | args ->
+                fail args)
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DarkInternal::schema"]
     ; ins = []
     ; p = [par "host" TStr; par "dbid" TStr]
