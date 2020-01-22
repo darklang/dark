@@ -4,5 +4,5 @@
 set -euo pipefail
 
 cd $1
-RUST_BACKTRACE=1 cargo test
+RUST_BACKTRACE=1 cargo test -- --test-threads=1
 cargo clippy --all-targets --tests -- -D warnings
