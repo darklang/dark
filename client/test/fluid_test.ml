@@ -3180,6 +3180,18 @@ let run () =
         (* Right should make it commit *)
         (key ~clone:false K.Right 20)
         "let x = request.body\n~___" ;
+      t
+        "down works on autocomplete for fields"
+        (let'
+           "x"
+           (partial
+              "body"
+              (fieldAccess
+                 (EVariable (ID "fake-acdata1", "request"))
+                 "longfield"))
+           b)
+        (keys ~clone:false [K.Down; K.Enter] 16)
+        "let x = request.formBody~\n___" ;
       tp
         "autocomplete for field is committed by dot"
         (EPartial
