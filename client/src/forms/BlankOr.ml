@@ -16,6 +16,10 @@ let isBlank (b : 'a blankOr) : bool =
 
 let isF (b : 'a blankOr) : bool = not (isBlank b)
 
+let isFilledValue (b : 'a blankOr) (a : 'a) : bool =
+  match b with F (_, v) when v = a -> true | _ -> false
+
+
 let valueWithDefault (a : 'a) (b : 'a blankOr) : 'a =
   match b with F (_, v) -> v | Blank _ -> a
 

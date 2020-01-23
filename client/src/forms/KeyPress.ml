@@ -42,9 +42,9 @@ let undo_redo (m : model) (redo : bool) : modification =
 let openOmnibox (m : model) : modification =
   match m.currentPage with
   | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-      Many [Deselect; Entry.openOmnibox m]
+      Many [Deselect; Entry.openOmnibox ()]
   | FocusedFn _ | FocusedType _ ->
-      Entry.openOmnibox m
+      Entry.openOmnibox ()
 
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
@@ -129,7 +129,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           if osCmdKeyHeld then openOmnibox m else NoChange
       | _ ->
           NoChange )
-    | Omnibox pos ->
+    | Entering cursor ->
         if event.ctrlKey
         then
           match event.keyCode with
@@ -141,56 +141,39 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               NoChange
         else (
           match event.keyCode with
-          | Key.Enter ->
-            ( match AC.highlighted m.complete with
-            | Some (ACOmniAction act) ->
-                Entry.submitOmniAction m pos act
-            | Some _ ->
-                NoChange
-            (* If empty, create an empty handler *)
-            | None when m.complete.value = "" ->
-                Entry.submitOmniAction m pos (NewReplHandler None)
-            | None ->
-                NoChange )
           | Key.Spacebar ->
-              AutocompleteMod (ACSetQuery (m.complete.value ^ " "))
-          | Key.Escape ->
-              Many [Deselect; AutocompleteMod ACReset]
-          | Key.Up ->
-              AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
-          | Key.Down ->
-              AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
-          | _ ->
-              AutocompleteMod (ACSetVisible true) )
-    | Entering (tlid, id) ->
-        if event.ctrlKey
-        then
-          match event.keyCode with
-          | Key.P ->
-              AutocompleteMod ACSelectUp
-          | Key.N ->
-              AutocompleteMod ACSelectDown
-          | _ ->
-              NoChange
-        else (
-          match event.keyCode with
+            ( match cursor with
+            | Creating _ ->
+                if AC.isOmnibox m.complete
+                then AutocompleteMod (ACSetQuery (m.complete.value ^ " "))
+                else NoChange
+            | _ ->
+                NoChange )
           | Key.Enter ->
-              Entry.submit m tlid id Entry.StayHere
+              Entry.submit m cursor Entry.StayHere
           | Key.Tab ->
-              let content = AC.getValue m.complete in
-              let hasContent = content <> "" in
-              if event.shiftKey
-              then
-                if hasContent
-                then NoChange
-                else Selection.enterPrevBlank m tlid id
-              else if hasContent
-              then Entry.submit m tlid id Entry.GotoNext
-              else Selection.enterNextBlank m tlid id
+            ( match cursor with
+            | Filling (tlid, id) ->
+                let content = AC.getValue m.complete in
+                let hasContent = content <> "" in
+                if event.shiftKey
+                then
+                  if hasContent
+                  then NoChange
+                  else Selection.enterPrevBlank m tlid id
+                else if hasContent
+                then Entry.submit m cursor Entry.GotoNext
+                else Selection.enterNextBlank m tlid id
+            | Creating _ ->
+                NoChange )
           | Key.Unknown _ ->
               NoChange
           | Key.Escape ->
-              Many [Select (tlid, STID id); AutocompleteMod ACReset]
+            ( match cursor with
+            | Creating _ ->
+                Many [Deselect; AutocompleteMod ACReset]
+            | Filling (tlid, p) ->
+                Many [Select (tlid, STID p); AutocompleteMod ACReset] )
           | Key.Up ->
               AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
           | Key.Down ->
@@ -211,9 +194,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       | Architecture ->
         ( match event.keyCode with
         | Key.Enter ->
-            Entry.openOmnibox m
+            Entry.openOmnibox ()
         | Key.K ->
-            if osCmdKeyHeld then Entry.openOmnibox m else NoChange
+            if osCmdKeyHeld then Entry.openOmnibox () else NoChange
         | Key.A ->
             if event.ctrlKey then Viewport.pageLeft m else NoChange
         | Key.E ->

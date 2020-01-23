@@ -50,8 +50,10 @@ let sampleFunctions =
     ; fnInfix = false } ]
 
 
+let defaultTLID = TLID "handler1"
+
 let defaultHandler =
-  { hTLID = TLID "handler1"
+  { hTLID = defaultTLID
   ; pos = {x = 0; y = 0}
   ; ast = EBlank (gid ())
   ; spec =
@@ -173,7 +175,7 @@ let run () =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
-            ; hTLID = TLID "handler1"
+            ; hTLID = defaultTLID
             ; pos = {x = 0; y = 0} }
           in
           let f =
@@ -212,7 +214,7 @@ let run () =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
-            ; hTLID = TLID "handler1"
+            ; hTLID = defaultTLID
             ; pos = {x = 0; y = 0} }
           in
           let model =
@@ -290,7 +292,7 @@ let run () =
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->
       let modelAndTl (ast : fluidExpr) =
-        let hTLID = TLID "handler1" in
+        let hTLID = defaultTLID in
         let tl =
           { hTLID
           ; ast
@@ -318,7 +320,7 @@ let run () =
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.id ast) "var" ast
-            |> FluidPrinter.eToString )
+            |> FluidPrinter.eToTestString )
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
           let expr = fn "Int::add" [var "b"; int "4"] in
@@ -326,7 +328,7 @@ let run () =
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.id expr) "var" ast
-            |> FluidPrinter.eToString )
+            |> FluidPrinter.eToTestString )
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
           let expr =
@@ -340,6 +342,6 @@ let run () =
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.id expr) "var" ast
-            |> FluidPrinter.eToString )
+            |> FluidPrinter.eToTestString )
           |> toEqual
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"))

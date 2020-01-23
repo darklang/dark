@@ -123,14 +123,7 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
         ERightPartial (id, str, toFluidExpr' ~inPipe oldExpr) )
 
 
-and toFluidExpr (expr : expr) : FluidExpression.t =
-  asserT
-    "empty functions passed to toFluidExpr'"
-    (!FluidExpression.functions <> []) ;
-  toFluidExpr' expr
-
-
-and toFluidExprNoAssertion (expr : expr) : FluidExpression.t = toFluidExpr' expr
+and toFluidExpr (expr : expr) : FluidExpression.t = toFluidExpr' expr
 
 and fromFluidExpr (expr : FluidExpression.t) : expr =
   let open Types in
@@ -279,7 +272,7 @@ and fromFluidPattern (p : fluidPattern) : pattern =
       F (id, PLiteral (FluidUtil.literalToString (`Int i)))
   | FPBool (_, id, b) ->
       F (id, PLiteral (FluidUtil.literalToString (`Bool b)))
-  | FPString (_, id, str) ->
+  | FPString {patternID = id; str; _} ->
       F (id, PLiteral (FluidUtil.literalToString (`String str)))
   | FPFloat (_, id, whole, fraction) ->
       F (id, PLiteral (FluidUtil.literalToString (`Float (whole, fraction))))
@@ -306,7 +299,7 @@ and toFluidPattern (mid : id) (p : pattern) : fluidPattern =
       | `Int i ->
           FPInteger (mid, id, i)
       | `String s ->
-          FPString (mid, id, s)
+          FPString {matchID = mid; patternID = id; str = s}
       | `Null ->
           FPNull (mid, id)
       | `Float (whole, fraction) ->

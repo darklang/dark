@@ -76,7 +76,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
           Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
           |> Option.andThen ~f:(fun trace_id ->
                  List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-                 |> Option.andThen ~f:(fun (_, data) -> data))
+                 |> Option.andThen ~f:(fun (_, data) -> data |> Result.toOption))
           |> Option.is_some
         in
         let classes =
@@ -115,7 +115,7 @@ let externalLink (vs : viewState) (name : string) =
       Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
       |> Option.andThen ~f:(fun trace_id ->
              List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-             |> Option.andThen ~f:(fun (_, data) -> data))
+             |> Option.andThen ~f:(fun (_, data) -> data |> Result.toOption))
     in
     match currentTraceData with
     | Some data ->

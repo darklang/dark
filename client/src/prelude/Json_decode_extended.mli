@@ -3,6 +3,15 @@
 
 include module type of Json.Decode
 
+val variant5 :
+     ('b -> 'c -> 'd -> 'e -> 'f -> 'a)
+  -> 'b decoder
+  -> 'c decoder
+  -> 'd decoder
+  -> 'e decoder
+  -> 'f decoder
+  -> 'a decoder
+
 val variant4 :
      ('b -> 'c -> 'd -> 'e -> 'a)
   -> 'b decoder

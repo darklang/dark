@@ -36,6 +36,8 @@ and tlid = TLID of string
 
 and id = ID of string
 
+and analysisId = id
+
 and 'a blankOr =
   | Blank of id
   | F of id * 'a
@@ -212,7 +214,10 @@ and fluidPattern =
   (* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
   | FPInteger of id * id * string
   | FPBool of id * id * bool
-  | FPString of id * id * string
+  | FPString of
+      { matchID : id
+      ; patternID : id
+      ; str : string }
   | FPFloat of id * id * string * string
   | FPNull of id * id
   | FPBlank of id * id
@@ -231,7 +236,7 @@ and fluidExpr =
   | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
   (* the id in the varname list is the analysis ID, used to get a livevalue
    * from the analysis engine *)
-  | ELambda of id * (id * fluidName) list * fluidExpr
+  | ELambda of id * (analysisId * fluidName) list * fluidExpr
   | EFieldAccess of id * fluidExpr * fluidName
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
@@ -252,11 +257,17 @@ and fluidExpr =
   | EPipeTarget of id
   (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * fluidExpr * fluidExpr * fluidExpr
+[@@deriving show {with_path = false}]
+
+type fluidPatOrExpr =
+  | Expr of fluidExpr
+  | Pat of fluidPattern
+[@@deriving show {with_path = false}]
 
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
-and handlerSpaceName = string
+type handlerSpaceName = string
 
 and handlerName = string
 
@@ -424,7 +435,8 @@ and dval =
 
 type astFloatPart =
   | FPWhole
-  | FPDecimal
+  | FPPoint
+  | FPFractional
 [@@deriving show {with_path = false}]
 
 type astStringPart =
@@ -454,7 +466,10 @@ type astLambdaPart =
   | LPArrow
 [@@deriving show {with_path = false}]
 
-type astFieldAccessPart = FAPFieldname [@@deriving show {with_path = false}]
+type astFieldAccessPart =
+  | FAPFieldname
+  | FAPFieldOp
+[@@deriving show {with_path = false}]
 
 type astFnCallPart = FCPFnName [@@deriving show {with_path = false}]
 
@@ -563,12 +578,15 @@ and isLeftButton = bool
 (* ----------------------------- *)
 (* CursorState *)
 (* ----------------------------- *)
+and entryCursor =
+  | Creating of pos option (* If we know the position the user wants the handler to be at (presumably because they clicked there to get the omnibox), then use it. Otherwise, if there's no position, we'll pick one for them later *)
+  | Filling of tlid * id
+
 and hasMoved = bool
 
 and cursorState =
   | Selecting of tlid * id option
-  | Omnibox of pos
-  | Entering of tlid * id
+  | Entering of entryCursor
   | FluidEntering of tlid
   | Dragging of tlid * vPos * hasMoved * cursorState
   | Deselected
@@ -636,7 +654,16 @@ and traceData =
   ; timestamp : string
   ; functionResults : functionResult list }
 
-and trace = traceID * traceData option
+and traceOpt = traceID * traceData option
+
+and traceError =
+  (* NoneYet is a replacement for what was None when trace was a
+     (traceID * traceData option) *)
+  | NoneYet
+  (* MaximumCallStackError is unrecoverable - don't try again *)
+  | MaximumCallStackError
+
+and trace = traceID * (traceError, traceData) Result.t
 
 and traces = trace list (* indexed by tlid *) StrDict.t
 
@@ -809,6 +836,8 @@ and dbStatsAPIResult = dbStatsStore
 
 and workerStatsAPIResult = workerStats
 
+and allTracesAPIResult = {traces : (tlid * traceID) list}
+
 and initialLoadAPIResult =
   { handlers : handler list
   ; deletedHandlers : handler list
@@ -819,7 +848,6 @@ and initialLoadAPIResult =
   ; unlockedDBs : unlockedDBs
   ; fofs : fourOhFour list
   ; staticDeploys : staticDeploy list
-  ; traces : (tlid * traceID) list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
   ; permission : permission option
@@ -954,9 +982,11 @@ and clipboardEvent =
   [@opaque])
 
 and clipboardContents =
-  [ `Text of string
-  | `Json of (Js.Json.t[@opaque])
-  | `None ]
+  (* Clipboard supports both text and encoded fluidExprs. At the moment,
+   * there is always a text option - there isn't a json option if the copied
+   * string wasn't a fluidExpr *)
+  (string * Js.Json.t option
+  [@opaque])
 
 (* ------------------- *)
 (* Modifications *)
@@ -1062,9 +1092,8 @@ and modification =
   | AppendUnlockedDBs of unlockedDBs
   | Append404s of fourOhFour list
   | Delete404 of fourOhFour
-  | Enter of tlid * id
-  | EnterWithOffset of tlid * id * int
-  | EnterOmnibox of pos
+  | Enter of entryCursor
+  | EnterWithOffset of entryCursor * int
   | UpdateWorkerStats of tlid * workerStats
   | UpdateWorkerSchedules of string StrDict.t
   | NoChange
@@ -1102,7 +1131,7 @@ and modification =
   | InitIntrospect of toplevel list
   | RefreshUsages of tlid list
   | UpdateDBStats of dbStatsStore
-  | FluidCommandsShow of tlid * fluidToken
+  | FluidCommandsShow of tlid * id
   | FluidCommandsClose
   (* We need to track clicks so that we don't mess with the caret while a
    * click is happening. *)
@@ -1131,12 +1160,10 @@ and fluidInputEvent =
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
-  | FluidCopy
-  (* | FluidKeyPress of FluidKeyboard.keyEvent *)
   | FluidInputEvent of fluidInputEvent
+  | FluidCopy
   | FluidCut
-  | FluidPaste of [`Json of Js.Json.t | `Text of string | `None]
-      [@printer opaque "FluidPaste"]
+  | FluidPaste of clipboardContents
   (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
    * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
    * This bi-directionality is not ideal and could use some rethinking.
@@ -1185,6 +1212,8 @@ and msg =
   | InitialLoadAPICallback of
       focus * modification * (initialLoadAPIResult, httpError) Tea.Result.t
       [@printer opaque "InitialLoadAPICallback"]
+  | FetchAllTracesAPICallback of (allTracesAPIResult, httpError) Tea.Result.t
+      [@printer opaque "FetchAllTracesAPICallback"]
   | ExecuteFunctionAPICallback of
       executeFunctionAPIParams
       * (executeFunctionAPIResult, httpError) Tea.Result.t
@@ -1275,8 +1304,6 @@ and msg =
 (* just a stub *)
 and variantTest =
   | StubVariant
-  (* Without this libtwitter functions aren't available *)
-  | LibtwitterVariant
   | GroupVariant
 
 (* ----------------------------- *)
@@ -1330,8 +1357,6 @@ and integrationTestState =
 (* Fluid *)
 and placeholder = string * string
 
-and analysisId = id
-
 and fluidToken =
   | TInteger of id * string
   | TString of id * string
@@ -1346,7 +1371,7 @@ and fluidToken =
   | TNullToken of id
   | TFloatWhole of id * string
   | TFloatPoint of id
-  | TFloatFraction of id * string
+  | TFloatFractional of id * string
   (* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. *)
   | TPartial of id * string
@@ -1401,8 +1426,10 @@ and fluidToken =
   | TRecordSep of id * int * analysisId
   | TRecordClose of id
   | TMatchKeyword of id
-  (* match id, index of match row *)
-  | TMatchSep of id * int
+  | TMatchSep of
+      { matchID : id
+      ; patternID : id
+      ; index : int }
   (* for all these TPattern* variants:
    * - the first id is the match id
    * - the second id is the pattern id
@@ -1410,13 +1437,17 @@ and fluidToken =
   | TPatternVariable of id * id * string * int
   | TPatternConstructorName of id * id * string * int
   | TPatternInteger of id * id * string * int
-  | TPatternString of id * id * string * int
+  | TPatternString of
+      { matchID : id
+      ; patternID : id
+      ; str : string
+      ; branchIdx : int }
   | TPatternTrue of id * id * int
   | TPatternFalse of id * id * int
   | TPatternNullToken of id * id * int
   | TPatternFloatWhole of id * id * string * int
   | TPatternFloatPoint of id * id * int
-  | TPatternFloatFraction of id * id * string * int
+  | TPatternFloatFractional of id * id * string * int
   | TPatternBlank of id * id * int
   | TConstructorName of id * string
   | TParenOpen of id
@@ -1464,7 +1495,7 @@ and fluidAutocompleteState =
 and fluidCommandState =
   { index : int
   ; commands : command list
-  ; location : (tlid * fluidToken) option
+  ; location : (tlid * id) option
   ; filter : string option }
 
 and fluidState =

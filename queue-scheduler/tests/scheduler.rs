@@ -5,8 +5,8 @@ use helpers::*;
 
 #[test]
 fn schedules_new_events() -> Result<(), Error> {
-    let (conn, mut looper) = helpers::setup()?;
-    let (canvas_id, account_id) = helpers::setup_canvas(&conn)?;
+    let (conn, mut looper) = setup()?;
+    let (canvas_id, account_id) = setup_canvas(&conn)?;
 
     let current_event_id = insert_event(
         &conn,
@@ -43,8 +43,8 @@ fn schedules_new_events() -> Result<(), Error> {
 
 #[test]
 fn does_not_schedule_paused_events() -> Result<(), Error> {
-    let (conn, mut looper) = helpers::setup()?;
-    let (canvas_id, account_id) = helpers::setup_canvas(&conn)?;
+    let (conn, mut looper) = setup()?;
+    let (canvas_id, account_id) = setup_canvas(&conn)?;
 
     insert_pause_rule(&conn, &canvas_id, "worker-2")?;
 

@@ -17,7 +17,7 @@ let dequeue_and_process execution_id :
           let bt = Exception.get_backtrace () in
           Log.erroR "Exception while dequeueing" ;
           (* execution_id will be in this log *)
-          Error (bt, e)
+          Error (bt, e, [])
       in
       event
       |> Result.bind ~f:(fun event ->
@@ -43,7 +43,7 @@ let dequeue_and_process execution_id :
                        (Event_queue.put_back transaction event ~status:`Err) ;
                      Log.erroR "Exception while loading canvas" ;
                      (* execution_id will be in this log *)
-                     Error (bt, e)
+                     Error (bt, e, [])
                  in
                  c
                  |> Result.bind ~f:(fun c ->
@@ -52,12 +52,16 @@ let dequeue_and_process execution_id :
                         let canvas_id = !c.id in
                         let desc = Event_queue.to_event_desc event in
                         Log.add_log_annotations
-                          [ ("host", `String host)
+                          [ ("canvas", `String host)
                           ; ("trace_id", `String (Uuidm.to_string trace_id))
                           ; ("canvas_id", `String (Uuidm.to_string canvas_id))
-                          ; ("event_space", `String event.space)
-                          ; ("event_name", `String event.name)
-                          ; ("event_modifier", `String event.modifier)
+                            (* handler_name/module/method because those are the
+                             * names of the fields in a handler spec, and we
+                             * want these names to be shared between http logs
+                             * and cron/worker logs *)
+                          ; ("module", `String event.space)
+                          ; ("handler_name", `String event.name)
+                          ; ("method", `String event.modifier)
                           ; ("retries", `Int event.retries) ]
                           (fun _ ->
                             try
@@ -163,11 +167,20 @@ let dequeue_and_process execution_id :
              * so put it back as an error *)
                               let bt = Exception.get_backtrace () in
                               ignore
-                                (Event_queue.put_back
-                                   transaction
-                                   event
-                                   ~status:`Err) ;
-                              Error (bt, e)))))
+                                ( try
+                                    Event_queue.put_back
+                                      transaction
+                                      event
+                                      ~status:`Err
+                                  with e ->
+                                    Log.erroR
+                                      "Unhandled
+exception in Event_queue.put_back"
+                                      ~data:
+                                        (Libexecution.Exception.exn_to_string e)
+                                ) ;
+                              let log_params = Log.current_log_annotations () in
+                              Error (bt, e, log_params)))))
 
 
 let run (execution_id : Types.id) :

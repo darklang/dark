@@ -15,6 +15,7 @@ module TL = Toplevel
 module Regex = Util.Regex
 module DUtil = Util
 module AC = FluidAutocomplete
+module Commands = FluidCommands
 module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
@@ -675,9 +676,9 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARBool id, (TTrue id' | TFalse id')
     | ARConstructor (id, CPName), TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
-    | ARFloat (id, FPWhole), TFloatWhole (id', _)
-    | ARFloat (id, FPDecimal), TFloatFraction (id', _)
+    | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _)
     | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _)
+    | ARFnCall (id, FCPFnName), TFnVersion (id', _, _, _)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
     | ARIf (id, IPThenKeyword), TIfThenKeyword id'
     | ARIf (id, IPElseKeyword), TIfElseKeyword id'
@@ -703,14 +704,16 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
     | ( ARPattern (id, PPBool)
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
+    | ARPattern (id, PPFloat FPPoint), TPatternFloatPoint (_, id', _)
     | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
-    | ARPattern (id, PPFloat FPDecimal), TPatternFloatFraction (_, id', _, _)
+    | ( ARPattern (id, PPFloat FPFractional)
+      , TPatternFloatFractional (_, id', _, _) )
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
       when id = id' ->
         posForTi ti
     | ARList (id, LPSeparator idx), TListSep (id', idx')
-    | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
+    | ARMatch (id, MPBranchSep idx), TMatchSep {matchID = id'; index = idx'; _}
     | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'; _} )
@@ -720,18 +723,39 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       when id = id' && idx = idx' ->
         posForTi ti
     (*
+      Floats
+     *)
+    | ARFloat (id, FPPoint), TFloatPoint id'
+    | ARFloat (id, FPWhole), TFloatWhole (id', _)
+      when id = id' ->
+        posForTi ti
+    | ARFloat (id, FPWhole), TFloatPoint id' when id = id' ->
+        (* This accounts for situations like `|.45`, where the float doesn't have a whole part but
+           we're still targeting it (perhaps due to deletion).
+           Because the 'findMap' below scans from left to right and we try to match the whole first,
+           we can still find positions like `1|2.54` *)
+        Some ti.startPos
+    | ARFloat (id, FPFractional), TFloatPoint id' when id = id' && ct.offset = 0
+      ->
+        (* This accounts for situations like `12.|`, where the float doesn't have a decimal part but
+           we're still targeting it (perhaps due to deletion). *)
+        Some ti.endPos
+    | ARFloat (id, FPFractional), TFloatFractional (id', _) when id = id' ->
+        posForTi ti
+    (*
     * Single-line Strings
     *)
     | ARString (id, SPOpenQuote), TString (id', _)
-    | ARPattern (id, PPString SPOpenQuote), TPatternString (_, id', _, _)
+    | ARPattern (id, PPString SPOpenQuote), TPatternString {patternID = id'; _}
       when id = id' ->
         posForTi ti
     | ARString (id, SPText), TString (id', _)
-    | ARPattern (id, PPString SPText), TPatternString (_, id', _, _)
+    | ARPattern (id, PPString SPText), TPatternString {patternID = id'; _}
       when id = id' ->
         clampedPosForTi ti (ct.offset + 1)
     | ARString (id, SPCloseQuote), TString (id', str)
-    | ARPattern (id, PPString SPCloseQuote), TPatternString (_, id', str, _)
+    | ( ARPattern (id, PPString SPCloseQuote)
+      , TPatternString {patternID = id'; str; _} )
       when id = id' ->
         clampedPosForTi ti (ct.offset + String.length str + 1)
     (*
@@ -810,8 +834,10 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARBool _, _
     | ARConstructor (_, CPName), _
     | ARFieldAccess (_, FAPFieldname), _
+    | ARFieldAccess (_, FAPFieldOp), _
     | ARFloat (_, FPWhole), _
-    | ARFloat (_, FPDecimal), _
+    | ARFloat (_, FPPoint), _
+    | ARFloat (_, FPFractional), _
     | ARFnCall (_, FCPFnName), _
     | ARIf (_, IPIfKeyword), _
     | ARIf (_, IPThenKeyword), _
@@ -842,8 +868,9 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (_, PPConstructor CPName), _
     | ARPattern (_, PPInteger), _
     | ARPattern (_, PPBool), _
+    | ARPattern (_, PPFloat FPPoint), _
     | ARPattern (_, PPFloat FPWhole), _
-    | ARPattern (_, PPFloat FPDecimal), _
+    | ARPattern (_, PPFloat FPFractional), _
     | ARPattern (_, PPBlank), _
     | ARPattern (_, PPNull), _
     | ARPattern (_, PPString SPOpenQuote), _
@@ -862,8 +889,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       newPos
   | None ->
       (*
-        NOTE(JULIAN): This is very useful for fixing issues in dev, but much too large for Rollbar:
-        Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(eToStructure ~includeIDs:true s ast)) ();
+        NOTE: This is very useful for fixing issues in dev, but much too large for Rollbar:
+        (Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(Printer.eToStructure ~includeIDs:true ast)) ());
       *)
       recover
         "We expected to find the given caretTarget in the token stream but couldn't."
@@ -877,6 +904,138 @@ let moveToCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) =
   {s with newPos = posFromCaretTarget s ast ct}
 
 
+(* caretTargetFromTokenInfo returns Some caretTarget corresponding to
+   the given top-level-global caret `pos`, with the precondition that
+   the pos is within the passed tokenInfo `ti`.
+   There are a few tokens that have no corresponding caretTarget.
+   In such cases, we return None instead.
+
+   (note that there are some cases, like strings,
+    where multiple caretTargets could refer to the same pos) *)
+let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
+    =
+  let offset = pos - ti.startPos in
+  match ti.token with
+  | TString (id, _) | TStringMLStart (id, _, _, _) ->
+      Some {astRef = ARString (id, SPOpenQuote); offset}
+  | TStringMLMiddle (id, _, startOffset, _)
+  | TStringMLEnd (id, _, startOffset, _) ->
+      Some
+        { astRef = ARString (id, SPText)
+        ; offset = startOffset + pos - ti.startPos }
+  | TInteger (id, _) ->
+      Some {astRef = ARInteger id; offset}
+  | TBlank id | TPlaceholder (_, id) ->
+      Some {astRef = ARBlank id; offset}
+  | TTrue id | TFalse id ->
+      Some {astRef = ARBool id; offset}
+  | TNullToken id ->
+      Some {astRef = ARNull id; offset}
+  | TFloatWhole (id, _) ->
+      Some {astRef = ARFloat (id, FPWhole); offset}
+  | TFloatPoint id ->
+      Some {astRef = ARFloat (id, FPPoint); offset}
+  | TFloatFractional (id, _) ->
+      Some {astRef = ARFloat (id, FPFractional); offset}
+  | TPartial (id, _) ->
+      Some {astRef = ARPartial id; offset}
+  | TFieldPartial (id, _, _, _) ->
+      Some {astRef = ARPartial id; offset}
+  | TRightPartial (id, _) ->
+      Some {astRef = ARRightPartial id; offset}
+  | TLetKeyword (id, _) ->
+      Some {astRef = ARLet (id, LPKeyword); offset}
+  | TLetLHS (id, _, _) ->
+      Some {astRef = ARLet (id, LPVarName); offset}
+  | TLetAssignment (id, _) ->
+      Some {astRef = ARLet (id, LPAssignment); offset}
+  | TIfKeyword id ->
+      Some {astRef = ARIf (id, IPIfKeyword); offset}
+  | TIfThenKeyword id ->
+      Some {astRef = ARIf (id, IPThenKeyword); offset}
+  | TIfElseKeyword id ->
+      Some {astRef = ARIf (id, IPElseKeyword); offset}
+  | TBinOp (id, _) ->
+      Some {astRef = ARBinOp (id, BOPOperator); offset}
+  | TFieldName (id, _, _) ->
+      Some {astRef = ARFieldAccess (id, FAPFieldname); offset}
+  | TFieldOp (id, _) ->
+      Some {astRef = ARFieldAccess (id, FAPFieldOp); offset}
+  | TVariable (id, _) ->
+      Some {astRef = ARVariable id; offset}
+  | TFnName (id, _, _, _, _) ->
+      Some {astRef = ARFnCall (id, FCPFnName); offset}
+  | TFnVersion (id, _, versionName, backendFnName) ->
+      (* TODO: This is very brittle and should probably be moved into a function responsible
+         for grabbing the appropriate bits of functions *)
+      Some
+        { astRef = ARFnCall (id, FCPFnName)
+        ; offset =
+            offset + String.length backendFnName - String.length versionName - 1
+        }
+  | TLambdaSep (id, idx) ->
+      Some {astRef = ARLambda (id, LPSeparator idx); offset}
+  | TLambdaArrow id ->
+      Some {astRef = ARLambda (id, LPArrow); offset}
+  | TLambdaSymbol id ->
+      Some {astRef = ARLambda (id, LPKeyword); offset}
+  | TLambdaVar (id, _, idx, _) ->
+      Some {astRef = ARLambda (id, LPVarName idx); offset}
+  | TListOpen id ->
+      Some {astRef = ARList (id, LPOpen); offset}
+  | TListClose id ->
+      Some {astRef = ARList (id, LPClose); offset}
+  | TListSep (id, idx) ->
+      Some {astRef = ARList (id, LPSeparator idx); offset}
+  | TPipe (id, idx, _) ->
+      Some {astRef = ARPipe (id, PPPipeKeyword idx); offset}
+  | TRecordOpen id ->
+      Some {astRef = ARRecord (id, RPOpen); offset}
+  | TRecordFieldname {recordID = id; index = idx; _} ->
+      Some {astRef = ARRecord (id, RPFieldname idx); offset}
+  | TRecordSep (id, idx, _) ->
+      Some {astRef = ARRecord (id, RPFieldSep idx); offset}
+  | TRecordClose id ->
+      Some {astRef = ARRecord (id, RPClose); offset}
+  | TMatchKeyword id ->
+      Some {astRef = ARMatch (id, MPKeyword); offset}
+  | TMatchSep {matchID = id; index = idx; _} ->
+      Some {astRef = ARMatch (id, MPBranchSep idx); offset}
+  | TPatternVariable (_, id, _, _) ->
+      Some {astRef = ARPattern (id, PPVariable); offset}
+  | TPatternConstructorName (_, id, _, _) ->
+      Some {astRef = ARPattern (id, PPConstructor CPName); offset}
+  | TPatternInteger (_, id, _, _) ->
+      Some {astRef = ARPattern (id, PPInteger); offset}
+  | TPatternString {patternID = id; _} ->
+      Some {astRef = ARPattern (id, PPString SPOpenQuote); offset}
+  | TPatternTrue (_, id, _) | TPatternFalse (_, id, _) ->
+      Some {astRef = ARPattern (id, PPBool); offset}
+  | TPatternNullToken (_, id, _) ->
+      Some {astRef = ARPattern (id, PPNull); offset}
+  | TPatternFloatWhole (_, id, _, _) ->
+      Some {astRef = ARPattern (id, PPFloat FPWhole); offset}
+  | TPatternFloatPoint (_, id, _) ->
+      Some {astRef = ARPattern (id, PPFloat FPPoint); offset}
+  | TPatternFloatFractional (_, id, _, _) ->
+      Some {astRef = ARPattern (id, PPFloat FPFractional); offset}
+  | TPatternBlank (_, id, _) ->
+      Some {astRef = ARPattern (id, PPBlank); offset}
+  | TConstructorName (id, _) ->
+      Some {astRef = ARConstructor (id, CPName); offset}
+  (*
+    These have no valid caretTarget because they are not
+    strictly part of the AST.
+   *)
+  | TPartialGhost _
+  | TNewline _
+  | TSep _
+  | TIndent _
+  | TParenOpen _
+  | TParenClose _ ->
+      None
+
+
 (** moveToAstRef returns a modified fluidState with newPos set to reflect
     the targeted astRef.
 
@@ -887,86 +1046,85 @@ let moveToAstRef (s : fluidState) (ast : ast) ?(offset = 0) (astRef : astRef) :
   moveToCaretTarget s ast {astRef; offset}
 
 
-(* caretTargetForLastPartOfExpr takes an ast and produces a caretTarget
- * corresponding to the "very end" of that ast. The concept of "very end"
- * is related to an understanding of the tokenization of the ast, even though
- * this function doesn't explicitly depend on any tokenization functions. *)
+(* [caretTargetForLastPartOfExpr' expr] produces a caretTarget corresponding
+ * to the very end of the expr. The concept of "very end" is related to an
+ * understanding of the tokenization of the expr, even though this function
+ * doesn't explicitly depend on any tokenization functions. *)
+let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
+  | EVariable (id, str) ->
+      {astRef = ARVariable id; offset = String.length str}
+  | EFieldAccess (id, _, fieldName) ->
+      { astRef = ARFieldAccess (id, FAPFieldname)
+      ; offset = String.length fieldName }
+  | EInteger (id, valueStr) ->
+      {astRef = ARInteger id; offset = String.length valueStr}
+  | EBool (id, true) ->
+      {astRef = ARBool id; offset = String.length "true"}
+  | EBool (id, false) ->
+      {astRef = ARBool id; offset = String.length "false"}
+  | EString (id, _) ->
+      {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
+  | EFloat (id, _, decimalStr) ->
+      {astRef = ARFloat (id, FPFractional); offset = String.length decimalStr}
+  | ENull id ->
+      {astRef = ARNull id; offset = String.length "null"}
+  | EBlank id ->
+      {astRef = ARBlank id; offset = 0}
+  | ELet (_, _, _, bodyExpr) ->
+      caretTargetForLastPartOfExpr' bodyExpr
+  | EIf (_, _, _, elseExpr) ->
+      caretTargetForLastPartOfExpr' elseExpr
+  | EBinOp (_, _, _, rhsExpr, _) ->
+      caretTargetForLastPartOfExpr' rhsExpr
+  | ELambda (_, _, bodyExpr) ->
+      caretTargetForLastPartOfExpr' bodyExpr
+  | EFnCall (id, fnName, argExprs, _) ->
+    ( match List.last argExprs with
+    | Some lastExpr ->
+        caretTargetForLastPartOfExpr' lastExpr
+    | None ->
+        { astRef = ARFnCall (id, FCPFnName)
+        ; offset = fnName |> FluidUtil.partialName |> String.length } )
+  | EPartial (id, str, _) ->
+      (* Intentionally using the thing that was typed; not the existing expr *)
+      {astRef = ARPartial id; offset = String.length str}
+  | ERightPartial (id, str, _) ->
+      (* Intentionally using the thing that was typed; not the existing expr *)
+      {astRef = ARRightPartial id; offset = String.length str}
+  | EList (id, _) ->
+      {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
+  | ERecord (id, _) ->
+      {astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *)}
+  | EPipe (id, pipeExprs) ->
+    ( match List.last pipeExprs with
+    | Some lastExpr ->
+        caretTargetForLastPartOfExpr' lastExpr
+    | None ->
+        {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"} )
+  | EMatch (_, matchedExpr, matchItems) ->
+    ( match List.last matchItems with
+    | Some (_, branchBody) ->
+        caretTargetForLastPartOfExpr' branchBody
+    | None ->
+        caretTargetForLastPartOfExpr' matchedExpr )
+  | EConstructor (id, name, containedExprs) ->
+    ( match List.last containedExprs with
+    | Some lastExpr ->
+        caretTargetForLastPartOfExpr' lastExpr
+    | None ->
+        {astRef = ARConstructor (id, CPName); offset = String.length name} )
+  | (EFeatureFlag (_, _, _, _, _) | EPipeTarget _) as expr ->
+      recover
+        "we don't yet support caretTargetForLastPartOfExpr' for this"
+        ~debug:(show_fluidExpr expr)
+        {astRef = ARInvalid; offset = 0}
+
+
+(* [caretTargetForLastPartOfExpr id ast] produces a caretTarget corresponding
+ * to the "very end" of the expr identified by id within the [ast].
+ * The concept of "very end" depends on caretTargetForLastPartOfExpr'.
+ *)
 let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
-  let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
-    | EVariable (id, str) ->
-        {astRef = ARVariable id; offset = String.length str}
-    | EFieldAccess (id, _, fieldName) ->
-        { astRef = ARFieldAccess (id, FAPFieldname)
-        ; offset = String.length fieldName }
-    | EInteger (id, valueStr) ->
-        {astRef = ARInteger id; offset = String.length valueStr}
-    | EBool (id, true) ->
-        {astRef = ARBool id; offset = String.length "true"}
-    | EBool (id, false) ->
-        {astRef = ARBool id; offset = String.length "false"}
-    | EString (id, _) ->
-        {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
-    | EFloat (id, _, decimalStr) ->
-        {astRef = ARFloat (id, FPDecimal); offset = String.length decimalStr}
-    | ENull id ->
-        {astRef = ARNull id; offset = String.length "null"}
-    | EBlank id ->
-        { astRef = ARBlank id
-        ; offset =
-            3
-            (* It might be better to return offset 0 here,
-              because we might not want to be in the actual end of the blank? *)
-        }
-    | ELet (_, _, _, bodyExpr) ->
-        caretTargetForLastPartOfExpr' bodyExpr
-    | EIf (_, _, _, elseExpr) ->
-        caretTargetForLastPartOfExpr' elseExpr
-    | EBinOp (_, _, _, rhsExpr, _) ->
-        caretTargetForLastPartOfExpr' rhsExpr
-    | ELambda (_, _, bodyExpr) ->
-        caretTargetForLastPartOfExpr' bodyExpr
-    | EFnCall (id, fnName, argExprs, _) ->
-      ( match List.last argExprs with
-      | Some lastExpr ->
-          caretTargetForLastPartOfExpr' lastExpr
-      | None ->
-          { astRef = ARFnCall (id, FCPFnName)
-          ; offset = fnName |> FluidUtil.partialName |> String.length } )
-    | EPartial (id, str, _) ->
-        (* Intentionally using the thing that was typed; not the existing expr *)
-        {astRef = ARPartial id; offset = String.length str}
-    | ERightPartial (id, str, _) ->
-        (* Intentionally using the thing that was typed; not the existing expr *)
-        {astRef = ARRightPartial id; offset = String.length str}
-    | EList (id, _) ->
-        {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
-    | ERecord (id, _) ->
-        {astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *)}
-    | EPipe (id, pipeExprs) ->
-      ( match List.last pipeExprs with
-      | Some lastExpr ->
-          caretTargetForLastPartOfExpr' lastExpr
-      | None ->
-          {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"}
-      )
-    | EMatch (_, matchedExpr, matchItems) ->
-      ( match List.last matchItems with
-      | Some (_, branchBody) ->
-          caretTargetForLastPartOfExpr' branchBody
-      | None ->
-          caretTargetForLastPartOfExpr' matchedExpr )
-    | EConstructor (id, name, containedExprs) ->
-      ( match List.last containedExprs with
-      | Some lastExpr ->
-          caretTargetForLastPartOfExpr' lastExpr
-      | None ->
-          {astRef = ARConstructor (id, CPName); offset = String.length name} )
-    | (EFeatureFlag (_, _, _, _, _) | EPipeTarget _) as expr ->
-        recover
-          "we don't yet support caretTargetForLastPartOfExpr for this"
-          ~debug:expr
-          {astRef = ARInvalid; offset = 0}
-  in
   match E.find astPartId ast with
   | Some expr ->
       caretTargetForLastPartOfExpr' expr
@@ -977,56 +1135,63 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARInvalid; offset = 0}
 
 
-(* caretTargetForBeginningOfExpr returns a caretTarget representing the
- * beginning of the expression in `ast` having the given `id`. *)
+(* [caretTargetForBeginningOfExpr' expr] produces a caretTarget corresponding
+ * to the very beginning of the [expr]. The concept of "very beginning" is related to an
+ * understanding of the tokenization of the expr, even though this function
+ * doesn't explicitly depend on any tokenization functions. *)
+let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
+  | EInteger (id, _) ->
+      {astRef = ARInteger id; offset = 0}
+  | EBool (id, _) ->
+      {astRef = ARBool id; offset = 0}
+  | EString (id, _) ->
+      {astRef = ARString (id, SPOpenQuote); offset = 0}
+  | EFloat (id, _, _) ->
+      {astRef = ARFloat (id, FPWhole); offset = 0}
+  | ENull id ->
+      {astRef = ARNull id; offset = 0}
+  | EBlank id ->
+      {astRef = ARBlank id; offset = 0}
+  | ELet (id, _, _, _) ->
+      {astRef = ARLet (id, LPKeyword); offset = 0}
+  | EIf (id, _, _, _) ->
+      {astRef = ARIf (id, IPIfKeyword); offset = 0}
+  | EMatch (id, _, _) ->
+      {astRef = ARMatch (id, MPKeyword); offset = 0}
+  | EBinOp (_, _, lhsExpr, _, _) ->
+      caretTargetForBeginningOfExpr' lhsExpr
+  | EFnCall (id, _, _, _) ->
+      {astRef = ARFnCall (id, FCPFnName); offset = 0}
+  | ELambda (id, _, _) ->
+      {astRef = ARLambda (id, LPKeyword); offset = 0}
+  | EFieldAccess (_, expr, _) ->
+      caretTargetForBeginningOfExpr' expr
+  | EVariable (id, _) ->
+      {astRef = ARVariable id; offset = 0}
+  | EPartial (id, _, _) ->
+      {astRef = ARPartial id; offset = 0}
+  | ERightPartial (id, _, _) ->
+      {astRef = ARRightPartial id; offset = 0}
+  | EList (id, _) ->
+      {astRef = ARList (id, LPOpen); offset = 0}
+  | ERecord (id, _) ->
+      {astRef = ARRecord (id, RPOpen); offset = 0}
+  | EPipe (id, _) ->
+      {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
+  | EConstructor (id, _, _) ->
+      {astRef = ARConstructor (id, CPName); offset = 0}
+  | (EFeatureFlag _ | EPipeTarget _) as expr ->
+      recover
+        "unhandled expr in caretTargetForBeginningOfExpr'"
+        ~debug:(show_fluidExpr expr)
+        {astRef = ARInvalid; offset = 0}
+
+
+(* [caretTargetForBeginningOfExpr id ast] produces a caretTarget corresponding
+ * to the "very beginning" of the expr identified by [id] within the [ast].
+ * The concept of "very beginning" depends on caretTargetForBeginningOfExpr'.
+ *)
 let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
-  let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
-    | EInteger (id, _) ->
-        {astRef = ARInteger id; offset = 0}
-    | EBool (id, _) ->
-        {astRef = ARBool id; offset = 0}
-    | EString (id, _) ->
-        {astRef = ARString (id, SPOpenQuote); offset = 0}
-    | EFloat (id, _, _) ->
-        {astRef = ARFloat (id, FPWhole); offset = 0}
-    | ENull id ->
-        {astRef = ARNull id; offset = 0}
-    | EBlank id ->
-        {astRef = ARBlank id; offset = 0}
-    | ELet (id, _, _, _) ->
-        {astRef = ARLet (id, LPKeyword); offset = 0}
-    | EIf (id, _, _, _) ->
-        {astRef = ARIf (id, IPIfKeyword); offset = 0}
-    | EMatch (id, _, _) ->
-        {astRef = ARMatch (id, MPKeyword); offset = 0}
-    | EBinOp (_, _, lhsExpr, _, _) ->
-        caretTargetForBeginningOfExpr' lhsExpr
-    | EFnCall (id, _, _, _) ->
-        {astRef = ARFnCall (id, FCPFnName); offset = 0}
-    | ELambda (id, _, _) ->
-        {astRef = ARLambda (id, LPKeyword); offset = 0}
-    | EFieldAccess (_, expr, _) ->
-        caretTargetForBeginningOfExpr' expr
-    | EVariable (id, _) ->
-        {astRef = ARVariable id; offset = 0}
-    | EPartial (id, _, _) ->
-        {astRef = ARPartial id; offset = 0}
-    | ERightPartial (id, _, _) ->
-        {astRef = ARRightPartial id; offset = 0}
-    | EList (id, _) ->
-        {astRef = ARList (id, LPOpen); offset = 0}
-    | ERecord (id, _) ->
-        {astRef = ARRecord (id, RPOpen); offset = 0}
-    | EPipe (id, _) ->
-        {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
-    | EConstructor (id, _, _) ->
-        {astRef = ARConstructor (id, CPName); offset = 0}
-    | (EFeatureFlag _ | EPipeTarget _) as expr ->
-        recover
-          "unhandled expr in caretTargetForBeginningOfExpr"
-          ~debug:(astPartId, expr)
-          {astRef = ARInvalid; offset = 0}
-  in
   match E.find astPartId ast with
   | Some expr ->
       caretTargetForBeginningOfExpr' expr
@@ -1049,7 +1214,7 @@ let caretTargetForBeginningOfPattern (pattern : fluidPattern) : caretTarget =
       {astRef = ARPattern (id, PPInteger); offset = 0}
   | FPBool (_, id, _) ->
       {astRef = ARPattern (id, PPBool); offset = 0}
-  | FPString (_, id, _) ->
+  | FPString {patternID = id; _} ->
       {astRef = ARPattern (id, PPString SPOpenQuote); offset = 0}
   | FPFloat (_, id, _, _) ->
       {astRef = ARPattern (id, PPFloat FPWhole); offset = 0}
@@ -1082,11 +1247,12 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
       {astRef = ARPattern (id, PPBool); offset = String.length "true"}
   | FPBool (_, id, false) ->
       {astRef = ARPattern (id, PPBool); offset = String.length "false"}
-  | FPString (_, id, _) ->
+  | FPString {patternID = id; _} ->
       { astRef = ARPattern (id, PPString SPCloseQuote)
       ; offset = 1 (* end of close quote *) }
   | FPFloat (_, id, _, frac) ->
-      {astRef = ARPattern (id, PPFloat FPDecimal); offset = String.length frac}
+      { astRef = ARPattern (id, PPFloat FPFractional)
+      ; offset = String.length frac }
   | FPNull (_, id) ->
       {astRef = ARPattern (id, PPNull); offset = String.length "null"}
   | FPBlank (_, id) ->
@@ -1094,29 +1260,7 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
       {astRef = ARPattern (id, PPBlank); offset = 3}
 
 
-(* maybeCaretTargetForBeginningOfMatchBranch returns (Some caretTarget) representing caret
- * placement at the very start of the match branch identified by `matchID` and `index`
- * within the `ast`, or None if no match branch with the passed index exists.
- * It is an error to pass an id of a non-match.
- *
- * "very start" is based on the definition of caretTargetForBeginningOfPattern
- *)
-let maybeCaretTargetForBeginningOfMatchBranch
-    (matchID : id) (index : int) (ast : ast) : caretTarget option =
-  match E.find matchID ast with
-  | Some (EMatch (_, _, branches)) ->
-      branches
-      |> List.getAt ~index
-      |> Option.map ~f:(fun (pattern, _) ->
-             caretTargetForBeginningOfPattern pattern)
-  | _ ->
-      recover
-        "maybeCaretTargetForBeginningOfMatchBranch"
-        ~debug:matchID
-        (Some {astRef = ARInvalid; offset = 0})
-
-
-(* maybeCaretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
+(* caretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
  * placement at the very start of the match branch identified by `matchID` and `index`
  * within the `ast`.
  * It is an error to pass an id of a non-match or an index outside the match.
@@ -1125,9 +1269,45 @@ let maybeCaretTargetForBeginningOfMatchBranch
  *)
 let caretTargetForBeginningOfMatchBranch
     (matchID : id) (index : int) (ast : ast) : caretTarget =
-  maybeCaretTargetForBeginningOfMatchBranch matchID index ast
+  let maybeTarget =
+    match E.find matchID ast with
+    | Some (EMatch (_, _, branches)) ->
+        branches
+        |> List.getAt ~index
+        |> Option.map ~f:(fun (pattern, _) ->
+               caretTargetForBeginningOfPattern pattern)
+    | _ ->
+        None
+  in
+  maybeTarget
   |> recoverOpt
-       "caretTargetForBeginningOfMatchBranch got an index outside of the match"
+       "caretTargetForBeginningOfMatchBranch got an invalid id/idx"
+       ~debug:(matchID, index)
+       ~default:{astRef = ARInvalid; offset = 0}
+
+
+(* caretTargetForEndOfMatchPattern returns a caretTarget representing caret
+ * placement at the end of the match pattern in the branch identified by `matchID` and `index`
+ * within the `ast`.
+ * It is an error to pass an id of a non-match or an index outside the match.
+ *
+ * "end" is based on the definition of caretTargetForEndOfPattern
+ *)
+let caretTargetForEndOfMatchPattern (matchID : id) (index : int) (ast : ast) :
+    caretTarget =
+  let maybeTarget =
+    match E.find matchID ast with
+    | Some (EMatch (_, _, branches)) ->
+        branches
+        |> List.getAt ~index
+        |> Option.map ~f:(fun (pattern, _) ->
+               caretTargetForEndOfPattern pattern)
+    | _ ->
+        None
+  in
+  maybeTarget
+  |> recoverOpt
+       "caretTargetForEndOfMatchPattern got an invalid id/index"
        ~debug:(matchID, index)
        ~default:{astRef = ARInvalid; offset = 0}
 
@@ -1175,6 +1355,7 @@ let replacePattern
 
 let replaceVarInPattern
     (mID : id) (oldName : string) (newName : string) (ast : ast) : E.t =
+  (* WARNING: This function does not do what it should; it renames in all branches! *)
   E.update mID ast ~f:(fun e ->
       match e with
       | EMatch (mID, cond, cases) ->
@@ -1256,8 +1437,9 @@ let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
 let removeEmptyExpr (id : id) (ast : ast) : E.t =
   E.update id ast ~f:(fun e ->
       match e with
-      | ELet (_, "", EBlank _, body) ->
-          body
+      | (ELet (_, var, EBlank _, expr) | ELet (_, var, expr, EBlank _))
+        when var = "" || var = "_" ->
+          expr
       | EIf (_, EBlank _, EBlank _, EBlank _) ->
           E.newB ()
       | ELambda (_, _, EBlank _) ->
@@ -1597,21 +1779,98 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : E.t =
             if str = "" then E.newB () else EPartial (gid (), str, oldVal))
 
 
+(* [mergeExprs e1 e2] "merges" the given exprs [e1] and [e2] into a single expr
+ * and returns that merged expr along with a caret target corresponding to the
+ * "middle" of the merge.
+ *
+ * An example of where this is useful is when deleting a binary operator.
+ *   Given 12 + 34, deleting the + results in the EInteger 1234.
+ *)
+let rec mergeExprs (e1 : fluidExpr) (e2 : fluidExpr) : fluidExpr * caretTarget =
+  match (e1, e2) with
+  | EPipeTarget _, e2 ->
+      (e2, caretTargetForLastPartOfExpr' e2)
+  | _, EBinOp (id, op, lhs, rhs, rail) ->
+      (* Example: 1 , (2+3) -> (1|2+3) *)
+      let merged, target = mergeExprs e1 lhs in
+      (EBinOp (id, op, merged, rhs, rail), target)
+  | e1, EBlank _ ->
+      (e1, caretTargetForLastPartOfExpr' e1)
+  | EBlank _, e2 ->
+      (e2, caretTargetForBeginningOfExpr' e2)
+  | EInteger (id, i1), EInteger (_, i2) ->
+      ( EInteger (id, Util.coerceStringTo63BitInt (i1 ^ i2))
+      , {astRef = ARInteger id; offset = String.length i1} )
+  | EString (id, s1), EString (_, s2) ->
+      ( EString (id, s1 ^ s2)
+      , {astRef = ARString (id, SPText); offset = String.length s1} )
+  | e1, _e2 ->
+      (* TODO(JULIAN): consider preserving e2 as well, by (for example) creating a partial. *)
+      (* recover "mergeExprs can't handle this" ~debug:(show_fluidExpr e1, show_fluidExpr e2) (e1, caretTargetForLastPartOfExpr' e1) *)
+      (e1, caretTargetForLastPartOfExpr' e1)
+
+
+(* deleteBinOp' looks at the expr to the left(lhs)andright(rhs)side of a binop to figure out
+ * what to do when the binop is deleted instead of just deleting the entire rhs *)
+let rec deleteBinOp'
+    (lhs : fluidExpr)
+    (rhs : fluidExpr)
+    (ti : T.tokenInfo)
+    (ast : ast)
+    (s : state) : fluidExpr * state =
+  match (lhs, rhs) with
+  | _, EBinOp (b, n, lhs2, rhs2, rail) ->
+      let newExpr, newState = deleteBinOp' lhs lhs2 ti ast s in
+      (EBinOp (b, n, newExpr, rhs2, rail), newState)
+  | EInteger (id, lhsVal), EInteger (_, rhsVal) ->
+      (EInteger (id, lhsVal ^ rhsVal), moveTo (ti.startPos - 1) s)
+  | EString (id, lhsVal), EString (_, rhsVal) ->
+      (EString (id, lhsVal ^ rhsVal), moveTo (ti.startPos - 2) s)
+  | EBlank _, EBlank _ ->
+      ( lhs
+      , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
+      )
+  | _, EBlank _ ->
+      ( lhs
+      , moveToCaretTarget s ast (caretTargetForLastPartOfExpr (E.id lhs) ast) )
+  | EBlank _, _ ->
+      ( rhs
+      , moveToCaretTarget s ast (caretTargetForBeginningOfExpr (E.id lhs) ast)
+      )
+  | _ ->
+      (lhs, moveToEndOfTarget (E.id lhs) ast s)
+
+
+let deleteBinOp (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
+  let newState = ref (fun (_ : E.t) -> s) in
+  let ast =
+    E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
+        match e with
+        | EBinOp (_, _, EPipeTarget _, rhs, _) ->
+            (newState := fun ast -> moveToEndOfTarget (E.id rhs) ast s) ;
+            rhs
+        | EBinOp (_, _, lhs, rhs, _) ->
+            let newExpr, newS = deleteBinOp' lhs rhs ti ast s in
+            (newState := fun _ -> newS) ;
+            newExpr
+        | _ ->
+            recover "not a binop in deleteBinOp" ~debug:e e)
+  in
+  (ast, !newState ast)
+
+
 let deletePartial (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
   let newState = ref (fun (_ : E.t) -> s) in
   let ast =
     E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
-        | EPartial
-            ( _
-            , _
-            , EBinOp (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _) )
-          ->
-            (newState := fun _ -> moveTo (ti.startPos - 2) s) ;
-            EString (lhsID, lhsStr ^ rhsStr)
-        | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
-            (newState := fun ast -> moveToEndOfTarget (E.id lhs) ast s) ;
-            lhs
+        | EPartial (_, _, EBinOp (_, _, EPipeTarget _, rhs, _)) ->
+            (newState := fun ast -> moveToEndOfTarget (E.id rhs) ast s) ;
+            rhs
+        | EPartial (_, _, EBinOp (_, _, lhs, rhs, _)) ->
+            let newExpr, newS = deleteBinOp' lhs rhs ti ast s in
+            (newState := fun _ -> newS) ;
+            newExpr
         | EPartial (_, _, _) ->
             let b = E.newB () in
             (newState := fun ast -> moveToEndOfTarget (E.id b) ast s) ;
@@ -1770,23 +2029,6 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : E.t =
             ERightPartial (gid (), str, oldVal))
 
 
-let deleteBinOp (ti : T.tokenInfo) (ast : ast) : E.t * id =
-  let id = ref FluidToken.fakeid in
-  let ast =
-    E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
-        match e with
-        | EBinOp (_, _, EPipeTarget _, rhs, _) ->
-            id := E.id rhs ;
-            rhs
-        | EBinOp (_, _, lhs, _, _) ->
-            id := E.id lhs ;
-            lhs
-        | _ ->
-            recover "not a binop in deleteBinOp" ~debug:e e)
-  in
-  (ast, !id)
-
-
 (* ---------------- *)
 (* Pipes *)
 (* ---------------- *)
@@ -1835,8 +2077,12 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) : E.t
   | TStringMLEnd (id, _, _, str)
   | TString (id, str) ->
       E.replace id ~replacement:(EString (id, f str)) ast
-  | TPatternString (mID, id, str, _) ->
-      replacePattern mID id ~newPat:(FPString (mID, id, f str)) ast
+  | TPatternString {matchID = mID; patternID = id; str; _} ->
+      replacePattern
+        mID
+        id
+        ~newPat:(FPString {matchID = mID; patternID = id; str = f str})
+        ast
   | TInteger (id, str) ->
       let str = f str in
       let replacement =
@@ -2403,6 +2649,13 @@ let acEnter (ti : T.tokenInfo) (ast : ast) (s : state) (key : K.key) :
     ( match ti.token with
     | TPatternVariable _ ->
         (ast, moveToNextBlank ~pos:s.newPos ast s)
+    | TFieldPartial (partialID, _fieldAccessID, anaID, fieldname) ->
+        (* Accept fieldname, even if it's not in the autocomplete *)
+        E.find anaID ast
+        |> Option.map ~f:(fun expr ->
+               let replacement = EFieldAccess (gid (), expr, fieldname) in
+               (E.replace ~replacement partialID ast, s))
+        |> Option.withDefault ~default:(ast, s)
     | _ ->
         (ast, s) )
   | Some entry ->
@@ -2420,7 +2673,8 @@ let commitIfValid
   let isInside = newPos >= ti.startPos && newPos <= ti.endPos in
   (* TODO: if we can't move off because it's the start/end etc of the ast, we
    * may want to commit anyway. *)
-  if (not isInside) && Some (T.toText ti.token) = highlightedText
+  if (not isInside)
+     && (Some (T.toText ti.token) = highlightedText || T.isFieldPartial ti.token)
   then
     let newAST, _ = acEnter ti ast s K.Enter in
     newAST
@@ -2551,7 +2805,8 @@ let adjustPosForReflow
       posFromCaretTarget state newAST target
 
 
-(* tryReplaceStringAndMove attempts to transform the string identified by the given `token` using `f` within the `ast` and
+(* Deprecated: Don't use this for new code; try to mirror doExplicitBackspace.
+   tryReplaceStringAndMove attempts to transform the string identified by the given `token` using `f` within the `ast` and
    validates/coerces the result.
    If a successful transformation occured while preserving the expr, we return (newAst, Some desiredCaretTarget) indicating where the caret should end up.
    If the transformation resulted in replacing the token's corresponding expr with an EBlank, we return (newAst, Some {astRef = ARBlank id; offset = 0}).
@@ -2569,9 +2824,6 @@ let tryReplaceStringAndMove
   let tokExpr = E.find tokId ast in
   let maybeTransformedExpr, desiredCaretTarget =
     match token with
-    (* multiline string and float are multi-token and may be special
-    int needs special validation and may be special
-  *)
     | TInteger (id, intStr) ->
         let str = f intStr in
         if str = ""
@@ -2579,6 +2831,11 @@ let tryReplaceStringAndMove
         else
           ( Some (EInteger (id, Util.coerceStringTo63BitInt str))
           , desiredCaretTarget )
+    | TString (id, fullStr)
+    | TStringMLStart (id, _, _, fullStr)
+    | TStringMLMiddle (id, _, _, fullStr)
+    | TStringMLEnd (id, _, _, fullStr) ->
+        (Some (EString (id, f fullStr)), desiredCaretTarget)
     | _ ->
         todo "still need to handle all cases" (None, desiredCaretTarget)
   in
@@ -2587,6 +2844,592 @@ let tryReplaceStringAndMove
       (E.replace tokId ~replacement:transformedExpr ast, Some desiredCaretTarget)
   | _ ->
       (ast, None)
+
+
+let idOfASTRef (astRef : astRef) : id option =
+  match astRef with
+  | ARInteger id
+  | ARBool id
+  | ARString (id, _)
+  | ARFloat (id, _)
+  | ARNull id
+  | ARBlank id
+  | ARLet (id, _)
+  | ARIf (id, _)
+  | ARBinOp (id, _)
+  | ARFieldAccess (id, _)
+  | ARVariable id
+  | ARFnCall (id, _)
+  | ARPartial id
+  | ARRightPartial id
+  | ARList (id, _)
+  | ARRecord (id, _)
+  | ARPipe (id, _)
+  | ARConstructor (id, _)
+  | ARMatch (id, _)
+  | ARLambda (id, _)
+  | ARPattern (id, _) ->
+      Some id
+  | ARInvalid ->
+      None
+
+
+let idOfCaretTarget ({astRef; _} : caretTarget) : id option = idOfASTRef astRef
+
+let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
+    E.t * newPosition =
+  let {astRef = currAstRef; offset = currOffset} = currCaretTarget in
+  let currCTMinusOne = {astRef = currAstRef; offset = currOffset - 1} in
+  let mutation : string -> string =
+   fun str -> Util.removeCharAt str (currOffset - 1)
+  in
+  let doExprBackspace (currAstRef : astRef) (expr : fluidExpr) :
+      (fluidPatOrExpr * caretTarget) option =
+    match (currAstRef, expr) with
+    | ARInteger _, EInteger (id, intStr) ->
+        let str = mutation intStr in
+        if str = ""
+        then
+          let bID = gid () in
+          Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        else
+          let coerced = Util.coerceStringTo63BitInt str in
+          if coerced = intStr
+          then None
+          else Some (Expr (EInteger (id, coerced)), currCTMinusOne)
+    | ARString (_, SPOpenQuote), EString (_, "") when currOffset = 1 ->
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARString (_, SPText), EString (_, "") when currOffset = 0 ->
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARString (_, SPOpenQuote), EString (id, str)
+    (* The minus 2 here (one more than the default `mutation`) accounts for the open quote,
+            which isn't part of the `str` but is part of the SPOpenQuote *)
+      ->
+        Some
+          ( Expr (EString (id, Util.removeCharAt str (currOffset - 2)))
+          , currCTMinusOne )
+    | ARString (_, SPText), EString (id, str) ->
+        Some (Expr (EString (id, mutation str)), currCTMinusOne)
+    | ARString (_, SPCloseQuote), EString (id, str) ->
+        let str = Util.removeCharAt str (String.length str + currOffset) in
+        Some (Expr (EString (id, str)), currCTMinusOne)
+    | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
+        Some (Expr (EFloat (id, mutation whole, frac)), currCTMinusOne)
+    | ARFloat (_, FPPoint), EFloat (_, whole, frac) ->
+        (* Todo: If the float only consists of a . and has no whole or frac,
+          it should become a blank. Instead, it currently becomes a 0, which is weird. *)
+        let i = Util.coerceStringTo63BitInt (whole ^ frac) in
+        let iID = gid () in
+        Some
+          ( Expr (EInteger (iID, i))
+          , {astRef = ARInteger iID; offset = String.length whole} )
+    | ARFloat (_, FPFractional), EFloat (id, whole, frac) ->
+        Some (Expr (EFloat (id, whole, mutation frac)), currCTMinusOne)
+    | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
+        let newName = mutation oldName in
+        let newExpr =
+          ELet (id, newName, value, E.renameVariableUses ~oldName ~newName body)
+        in
+        if newName = ""
+        then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
+        else Some (Expr newExpr, currCTMinusOne)
+    | ARMatch (id, MPBranchSep idx), expr ->
+        Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
+    | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr) ->
+        let remIdx =
+          (* remove expression in front of sep, not behind it *)
+          varAndSepIdx + 1
+        in
+        let varNameToRem =
+          List.getAt ~index:remIdx oldVars
+          |> Option.map ~f:Tuple2.second
+          |> Option.withDefault ~default:""
+        in
+        let target =
+          List.getAt ~index:varAndSepIdx oldVars
+          (* The target is the end of the var that preceeds the separator *)
+          |> Option.map ~f:(fun (_, varName) ->
+                 { astRef = ARLambda (id, LPVarName varAndSepIdx)
+                 ; offset = String.length varName })
+          |> Option.withDefault
+               ~default:{astRef = ARLambda (id, LPKeyword); offset = 1}
+        in
+        Some
+          ( Expr
+              (ELambda
+                 ( id
+                 , List.removeAt ~index:remIdx oldVars
+                 , E.removeVariableUse varNameToRem expr ))
+          , target )
+    | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
+        let remIdx =
+          (* remove expression in front of sep, not behind it *)
+          elemAndSepIdx + 1
+        in
+        let target =
+          List.getAt ~index:elemAndSepIdx exprs
+          |> Option.map ~f:(fun expr -> caretTargetForLastPartOfExpr' expr)
+          |> Option.withDefault
+               ~default:{astRef = ARList (id, LPOpen); offset = 1}
+        in
+        Some (Expr (EList (id, List.removeAt ~index:remIdx exprs)), target)
+    | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
+      when E.isEmpty expr ->
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
+        List.getAt ~index nameValPairs
+        |> Option.map ~f:(function
+               | "", _ ->
+                   let maybeExprID = recordExprIdAtIndex id (index - 1) ast in
+                   let target =
+                     match maybeExprID with
+                     | None ->
+                         { astRef = ARRecord (id, RPOpen)
+                         ; offset = 1 (* right after the { *) }
+                     | Some exprId ->
+                         caretTargetForLastPartOfExpr exprId ast
+                   in
+                   ( Expr (ERecord (id, List.removeAt ~index nameValPairs))
+                   , target )
+               | name, _ ->
+                   let nameValPairs =
+                     List.updateAt nameValPairs ~index ~f:(fun (_, expr) ->
+                         (mutation name, expr))
+                   in
+                   (Expr (ERecord (id, nameValPairs)), currCTMinusOne))
+    | ARFieldAccess (_, FAPFieldOp), EFieldAccess (_, faExpr, _)
+    | ARFieldAccess (_, FAPFieldOp), EPartial (_, _, EFieldAccess (_, faExpr, _))
+      ->
+        Some (Expr faExpr, caretTargetForLastPartOfExpr' faExpr)
+    | ARConstructor (_, CPName), (EConstructor (_, str, _) as oldExpr) ->
+        let str = String.trim (mutation str) in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARFnCall (_, FCPFnName), (EFnCall (_, fnName, _, _) as oldExpr) ->
+        let str = fnName |> FluidUtil.partialName |> mutation |> String.trim in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARBinOp (_, BOPOperator), (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr)
+      ->
+        let str = op |> FluidUtil.partialName |> mutation |> String.trim in
+        if str = ""
+        then
+          (* Delete the binop *)
+          let expr, target = mergeExprs lhsExpr rhsExpr in
+          Some (Expr expr, target)
+        else
+          let newID = gid () in
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARBool _, (EBool (_, bool) as oldExpr) ->
+        let str = if bool then "true" else "false" in
+        let str = mutation str in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARNull _, (ENull _ as oldExpr) ->
+        let str = mutation "null" in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARVariable _, (EVariable (_, varName) as oldExpr) ->
+        let str = mutation varName in
+        let newID = gid () in
+        if str = ""
+        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else
+          Some
+            ( Expr (EPartial (newID, str, oldExpr))
+            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ( ARFieldAccess (_, FAPFieldname)
+      , (EFieldAccess (_, _, fieldName) as oldExpr) ) ->
+        (* Note that str is allowed to be empty in partials *)
+        let str = mutation fieldName in
+        let newID = gid () in
+        Some
+          ( Expr (EPartial (newID, str, oldExpr))
+          , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARPartial _, EPartial (id, oldStr, oldExpr) ->
+        let str = oldStr |> mutation |> String.trim in
+        if str = ""
+        then
+          (* inlined version of deletePartial, with appropriate exceptions added *)
+          match oldExpr with
+          | EFieldAccess _ ->
+              (* This is allowed to be the empty string. *)
+              Some (Expr (EPartial (id, str, oldExpr)), currCTMinusOne)
+          | EBinOp (_, _, lhsExpr, rhsExpr, _) ->
+              let expr, target = mergeExprs lhsExpr rhsExpr in
+              Some (Expr expr, target)
+          | _ ->
+              let newID = gid () in
+              Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+        else if String.startsWith ~prefix:"\"" str
+                && String.endsWith ~suffix:"\"" str
+        then
+          let newID = gid () in
+          Some
+            ( Expr (EString (newID, String.slice ~from:1 ~to_:(-1) str))
+            , {astRef = ARString (newID, SPText); offset = currOffset - 1} )
+        else Some (Expr (EPartial (id, str, oldExpr)), currCTMinusOne)
+    | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
+        let str = oldStr |> mutation |> String.trim in
+        if str = ""
+        then Some (Expr oldValue, caretTargetForLastPartOfExpr' oldValue)
+        else Some (Expr (ERightPartial (id, str, oldValue)), currCTMinusOne)
+    | ARLambda (_, LPVarName index), ELambda (id, vars, expr) ->
+        vars
+        |> List.getAt ~index
+        |> Option.map ~f:(fun (_, oldName) ->
+               let newName = oldName |> mutation in
+               (* Note that newName is intentionally
+                        allowed to be "" with no special handling *)
+               let vars =
+                 List.updateAt vars ~index ~f:(fun (varId, _) ->
+                     (varId, newName))
+               in
+               ( Expr
+                   (ELambda
+                      (id, vars, E.renameVariableUses ~oldName ~newName expr))
+               , currCTMinusOne ))
+    | ARPipe (_, PPPipeKeyword idx), EPipe (id, exprChain) ->
+      ( match exprChain with
+      | [e1; _] ->
+          Some (Expr e1, caretTargetForLastPartOfExpr' e1)
+      | exprs ->
+          exprs
+          |> List.getAt ~index:idx
+          |> Option.map ~f:(fun expr ->
+                 (* remove expression in front of pipe, not behind it *)
+                 Some
+                   ( Expr (EPipe (id, List.removeAt ~index:(idx + 1) exprs))
+                   , caretTargetForLastPartOfExpr' expr ))
+          |> recoverOpt "doExplicitBackspace ARPipe" ~default:None )
+    (*
+     * Delete leading keywords of empty expressions
+     *)
+    | ARLet (_, LPKeyword), ELet (_, varName, expr, EBlank _)
+    | ARLet (_, LPKeyword), ELet (_, varName, EBlank _, expr)
+      when varName = "" || varName = "_" ->
+        Some (Expr expr, caretTargetForBeginningOfExpr' expr)
+    | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
+    | ARLambda (_, LPKeyword), ELambda (_, _, EBlank _) ->
+        (* If the expr is empty and thus can be removed *)
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARMatch (_, MPKeyword), EMatch (_, EBlank _, pairs)
+      when List.all pairs ~f:(fun (p, e) ->
+               match (p, e) with FPBlank _, EBlank _ -> true | _ -> false) ->
+        (* the match has no content and can safely be deleted *)
+        let bID = gid () in
+        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    | ARMatch (_, MPKeyword), EMatch _
+    | ARLet (_, LPKeyword), ELet _
+    | ARIf (_, IPIfKeyword), EIf _
+    | ARLambda (_, LPKeyword), ELambda _ ->
+        (* keywords of "non-empty" exprs shouldn't be deletable at all *)
+        None
+    (*
+     * Immutable; just jump to the start
+     *)
+    | ARIf (_, IPThenKeyword), expr
+    | ARIf (_, IPElseKeyword), expr
+    | ARLambda (_, LPArrow), expr
+    | ARBlank _, expr
+    | ARLet (_, LPAssignment), expr
+    | ARRecord (_, RPOpen), expr
+    | ARRecord (_, RPClose), expr
+    | ARRecord (_, RPFieldSep _), expr
+    | ARList (_, LPOpen), expr
+    | ARList (_, LPClose), expr ->
+        (* We could alternatively move by a single character instead,
+           which is what the old version did with minor exceptions;
+           that isn't particularly useful as typing within these
+           is meaningless and we want this to bring you to a location
+           where you can meaningfully type. *)
+        Some (Expr expr, {astRef = currAstRef; offset = 0})
+    (*****************
+     * Exhaustiveness
+     *)
+    | ARBinOp (_, BOPOperator), _
+    | ARBool _, _
+    | ARConstructor (_, CPName), _
+    | ARFieldAccess (_, FAPFieldname), _
+    | ARFieldAccess (_, FAPFieldOp), _
+    | ARFloat (_, FPFractional), _
+    | ARFloat (_, FPPoint), _
+    | ARFloat (_, FPWhole), _
+    | ARFnCall (_, FCPFnName), _
+    | ARIf (_, IPIfKeyword), _
+    | ARInteger _, _
+    | ARLambda (_, LPKeyword), _
+    | ARLambda (_, LPSeparator _), _
+    | ARLambda (_, LPVarName _), _
+    | ARLet (_, LPKeyword), _
+    | ARLet (_, LPVarName), _
+    | ARList (_, LPSeparator _), _
+    | ARMatch (_, MPKeyword), _
+    | ARNull _, _
+    | ARPartial _, _
+    | ARPipe (_, PPPipeKeyword _), _
+    | ARRecord (_, RPFieldname _), _
+    | ARRightPartial _, _
+    | ARString (_, SPCloseQuote), _
+    | ARString (_, SPOpenQuote), _
+    | ARString (_, SPText), _
+    | ARVariable _, _
+    (*
+     * Non-exprs
+     *)
+    | ARPattern _, _
+    | ARInvalid, _ ->
+        recover
+          "doExplicitBackspace - unexpected expr"
+          ~debug:(show_astRef currAstRef)
+          None
+  in
+  let doPatternBackspace
+      (patContainerRef : Types.id option ref)
+      (currAstRef : astRef)
+      (pat : fluidPattern) : (fluidPatOrExpr * caretTarget) option =
+    match (currAstRef, pat) with
+    | ARPattern (_, PPBlank), FPBlank (mID, pID) ->
+        if currOffset = 0
+        then
+          match E.find mID ast with
+          | Some (EMatch (_, cond, patterns)) ->
+              patContainerRef := Some mID ;
+              patterns
+              (* FIXME: This is super broken because the pattern id could be anywhere
+                 but we only check at the pattern root *)
+              |> List.findIndex ~f:(fun (p, _) -> P.id p = pID)
+              |> Option.map ~f:(fun remIdx ->
+                     let newPatterns =
+                       if List.length patterns = 1
+                       then patterns
+                       else List.removeAt patterns ~index:remIdx
+                     in
+                     let targetExpr =
+                       patterns
+                       |> List.getAt ~index:(remIdx - 1)
+                       |> Option.map ~f:(fun (_, e) -> e)
+                       |> Option.withDefault ~default:cond
+                     in
+                     let target = caretTargetForLastPartOfExpr' targetExpr in
+                     (Expr (EMatch (mID, cond, newPatterns)), target))
+          | _ ->
+              recover "doExplicitBackspace PPBlank" None
+        else Some (Pat (FPBlank (mID, pID)), {astRef = currAstRef; offset = 0})
+    | ARPattern (_, PPVariable), FPVariable (mID, pID, oldName) ->
+        patContainerRef := Some mID ;
+        let newName = mutation oldName in
+        let newPat, target =
+          if newName = ""
+          then
+            (FPBlank (mID, pID), {astRef = ARPattern (pID, PPBlank); offset = 0})
+          else (FPVariable (mID, pID, newName), currCTMinusOne)
+        in
+        ( match E.find mID ast with
+        | Some (EMatch (_, cond, cases)) ->
+            let rec run p =
+              if pID = P.id p then newPat else recursePattern ~f:run p
+            in
+            let newCases =
+              List.map cases ~f:(fun (pat, body) ->
+                  if P.findPattern pID pat <> None
+                  then (run pat, E.renameVariableUses ~oldName ~newName body)
+                  else (pat, body))
+            in
+            Some (Expr (EMatch (mID, cond, newCases)), target)
+        | _ ->
+            recover "doExplicitBackspace FPVariable" None )
+    | ARPattern (_, PPNull), FPNull (mID, _) ->
+        let str = mutation "null" in
+        let newID = gid () in
+        Some
+          ( Pat (FPVariable (mID, newID, str))
+          , {astRef = ARPattern (newID, PPVariable); offset = currOffset - 1} )
+    | ARPattern (_, PPBool), FPBool (mID, _, bool) ->
+        let str = if bool then "true" else "false" in
+        let newStr = mutation str in
+        let newID = gid () in
+        Some
+          ( Pat (FPVariable (mID, newID, newStr))
+          , {astRef = ARPattern (newID, PPVariable); offset = currOffset - 1} )
+    | ARPattern (_, PPInteger), FPInteger (mID, pID, intStr) ->
+        let str = mutation intStr in
+        if str = ""
+        then
+          let bID = gid () in
+          Some
+            ( Pat (FPBlank (mID, bID))
+            , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+        else
+          let coerced = Util.coerceStringTo63BitInt str in
+          if coerced = intStr
+          then None
+          else Some (Pat (FPInteger (mID, pID, coerced)), currCTMinusOne)
+    | ARPattern (_, PPConstructor CPName), FPConstructor (mID, _, str, _patterns)
+      ->
+        let str = str |> mutation |> String.trim in
+        let newID = gid () in
+        if str = ""
+        then
+          Some
+            ( Pat (FPBlank (mID, newID))
+            , {astRef = ARPattern (newID, PPBlank); offset = 0} )
+        else
+          Some
+            ( Pat (FPVariable (mID, newID, str))
+            , {astRef = ARPattern (newID, PPVariable); offset = currOffset - 1}
+            )
+    (*
+    * Floats
+    *)
+    | ARPattern (_, PPFloat FPWhole), FPFloat (mID, pID, whole, frac) ->
+        Some (Pat (FPFloat (mID, pID, mutation whole, frac)), currCTMinusOne)
+    | ARPattern (_, PPFloat FPPoint), FPFloat (mID, _, whole, frac) ->
+        (* TODO: If the float only consists of a . and has no whole or frac,
+           it should become a blank. Instead, it currently becomes a 0, which is weird. *)
+        let i = Util.coerceStringTo63BitInt (whole ^ frac) in
+        let iID = gid () in
+        Some
+          ( Pat (FPInteger (mID, iID, i))
+          , {astRef = ARPattern (iID, PPInteger); offset = String.length whole}
+          )
+    | ARPattern (_, PPFloat FPFractional), FPFloat (mID, pID, whole, frac) ->
+        Some (Pat (FPFloat (mID, pID, whole, mutation frac)), currCTMinusOne)
+    (*
+    * Strings
+    *)
+    | ( ARPattern (_, PPString SPOpenQuote)
+      , FPString {matchID; patternID = _; str = ""} )
+      when currOffset = 1 ->
+        let bID = gid () in
+        Some
+          ( Pat (FPBlank (matchID, bID))
+          , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+    | ARPattern (_, PPString SPText), FPString {matchID; patternID = _; str = ""}
+      when currOffset = 0 ->
+        let bID = gid () in
+        Some
+          ( Pat (FPBlank (matchID, bID))
+          , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+    | ARPattern (_, PPString SPOpenQuote), FPString data ->
+        let str = Util.removeCharAt data.str (currOffset - 2) in
+        Some (Pat (FPString {data with str}), currCTMinusOne)
+    | ARPattern (_, PPString SPText), FPString data ->
+        let str = mutation data.str in
+        Some (Pat (FPString {data with str}), currCTMinusOne)
+    | ARPattern (_, PPString SPCloseQuote), FPString data ->
+        let str =
+          Util.removeCharAt data.str (String.length data.str + currOffset)
+        in
+        Some (Pat (FPString {data with str}), currCTMinusOne)
+    (*****************
+     * Exhaustiveness
+     *)
+    | ARPattern (_, PPBlank), _
+    | ARPattern (_, PPBool), _
+    | ARPattern (_, PPConstructor CPName), _
+    | ARPattern (_, PPFloat FPFractional), _
+    | ARPattern (_, PPFloat FPPoint), _
+    | ARPattern (_, PPFloat FPWhole), _
+    | ARPattern (_, PPInteger), _
+    | ARPattern (_, PPNull), _
+    | ARPattern (_, PPString SPCloseQuote), _
+    | ARPattern (_, PPString SPOpenQuote), _
+    | ARPattern (_, PPString SPText), _
+    | ARPattern (_, PPVariable), _
+    (*
+     * non-patterns
+     *)
+    | ARBinOp _, _
+    | ARBlank _, _
+    | ARBool _, _
+    | ARConstructor _, _
+    | ARFieldAccess _, _
+    | ARFloat _, _
+    | ARFnCall _, _
+    | ARIf _, _
+    | ARInteger _, _
+    | ARLambda _, _
+    | ARLet _, _
+    | ARList _, _
+    | ARMatch _, _
+    | ARNull _, _
+    | ARPartial _, _
+    | ARPipe _, _
+    | ARRecord _, _
+    | ARRightPartial _, _
+    | ARString _, _
+    | ARVariable _, _
+    | ARInvalid, _ ->
+        recover
+          "doExplicitBackspace - unexpected pat"
+          ~debug:(show_astRef currAstRef)
+          None
+  in
+  (* FIXME: This is an ugly hack so we can replace stuff inside patterns.
+     There's probably a nice way to do this without a ref, but that's a bigger change.
+   *)
+  let patContainerRef : Types.id option ref = ref None in
+  idOfASTRef currAstRef
+  |> Option.andThen ~f:(fun patOrExprID ->
+         match E.findExprOrPat patOrExprID (Expr ast) with
+         | Some patOrExpr ->
+             Some (patOrExprID, patOrExpr)
+         | None ->
+             None)
+  |> Option.andThen ~f:(fun (patOrExprID, patOrExpr) ->
+         let maybeTransformedExprAndCaretTarget =
+           match patOrExpr with
+           | Pat pat ->
+               doPatternBackspace patContainerRef currAstRef pat
+           | Expr expr ->
+               doExprBackspace currAstRef expr
+         in
+         match maybeTransformedExprAndCaretTarget with
+         | Some (Expr newExpr, currCTMinusOne) ->
+             let patOrExprID =
+               match !patContainerRef with
+               | None ->
+                   patOrExprID
+               | Some mID ->
+                   mID
+             in
+             Some
+               ( E.replace patOrExprID ~replacement:newExpr ast
+               , AtTarget currCTMinusOne )
+         | Some (Pat newPat, currCTMinusOne) ->
+             let mID = P.matchID newPat in
+             let newAST = replacePattern mID patOrExprID ~newPat ast in
+             Some (newAST, AtTarget currCTMinusOne)
+         | _ ->
+             None)
+  |> Option.withDefault ~default:(ast, SamePlace)
 
 
 (* tryReplaceStringAndMoveOrSame has the same behavior as tryReplaceStringAndMove but
@@ -2612,156 +3455,12 @@ let tryReplaceStringAndMoveOrSame
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
-  let offset =
-    match ti.token with
-    | TPatternString _ | TString _ | TStringMLStart _ ->
-        pos - ti.startPos - 2
-    | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
-      ->
-        pos - ti.startPos - 1 + strOffset
-    | TFnVersion (_, partialName, _, _) ->
-        (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
-        let startPos = ti.endPos - String.length partialName in
-        pos - startPos - 1
-    | _ ->
-        pos - ti.startPos - 1
-  in
-  let newID = gid () in
   let newAST, newPosition =
-    match ti.token with
-    | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
-        (ast, MoveToStart)
-    | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
-        let newAST = removeEmptyExpr (T.tid ti.token) ast in
-        if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
-    | TString (id, "") ->
-        (E.replace id ~replacement:(EBlank newID) ast, LeftOne)
-    | TPatternString (mID, id, "", _) ->
-        (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, LeftOne)
-    | TLambdaSep (id, idx) ->
-        (removeLambdaSepToken id ast idx, LeftOne)
-    | TListSep (id, idx) ->
-        (removeListSepToken id ast idx, LeftOne)
-    | (TRecordOpen id | TListOpen id) when E.hasEmptyWithId id ast ->
-        (E.replace id ~replacement:(EBlank newID) ast, LeftOne)
-    | TRecordFieldname {recordID; index; fieldName = ""; _}
-      when pos = ti.startPos ->
-        let newAst = removeRecordField recordID index ast in
-        let maybeExprID = recordExprIdAtIndex recordID (index - 1) newAst in
-        let target =
-          match maybeExprID with
-          | None ->
-              { astRef = ARRecord (recordID, RPOpen)
-              ; offset = 1 (* right after the { *) }
-          | Some exprId ->
-              caretTargetForLastPartOfExpr exprId newAst
-        in
-        (newAst, AtTarget target)
-    | TPatternBlank (mID, id, _) when pos = ti.startPos ->
-        (removePatternRow mID id ast, LeftThree)
-    | TBlank _
-    | TPlaceholder _
-    | TIndent _
-    | TLetAssignment _
-    | TListClose _
-    | TListOpen _
-    | TRecordOpen _
-    | TRecordClose _
-    | TRecordSep _
-    | TSep _
-    | TParenOpen _
-    | TParenClose _
-    | TPatternBlank _
-    | TPartialGhost _ ->
-        (ast, LeftOne)
-    | TNewline _ ->
+    match caretTargetFromTokenInfo pos ti with
+    | Some ct ->
+        doExplicitBackspace ct ast
+    | None ->
         (ast, Exactly ti.startPos)
-    | TFieldOp (id, lhsId) ->
-        let newAst = removeField id ast in
-        (newAst, AtTarget (caretTargetForLastPartOfExpr lhsId newAst))
-    | TFloatPoint id ->
-        (removePointFromFloat id ast, LeftOne)
-    | TPatternFloatPoint (mID, id, _) ->
-        (removePatternPointFromFloat mID id ast, LeftOne)
-    | TConstructorName (id, str)
-    (* str is the partialName: *)
-    | TFnName (id, str, _, _, _)
-    | TFnVersion (id, str, _, _) ->
-        let f str = Util.removeCharAt str offset in
-        (replaceWithPartial (f str) id ast, LeftOne)
-    | TRightPartial (_, str) when String.length str = 1 ->
-        let ast, targetID = deleteRightPartial ti ast in
-        (ast, MoveToTokenEnd (targetID, 0))
-    | TPartial (_, str) when String.length str = 1 ->
-        let newAST, newState = deletePartial ti ast s in
-        (newAST, Exactly newState.newPos)
-    | TBinOp (_, str) when String.length str = 1 ->
-        let ast, targetID = deleteBinOp ti ast in
-        (ast, MoveToTokenEnd (targetID, 0))
-    | TStringMLEnd (id, thisStr, strOffset, _)
-      when String.length thisStr = 1 && offset = strOffset ->
-        let f str = Util.removeCharAt str offset in
-        let newAST = replaceStringToken ~f ti.token ast in
-        (newAST, MoveToTokenEnd (id, -1) (* quote *))
-    | TInteger (id, _) ->
-        let f str = Util.removeCharAt str offset in
-        tryReplaceStringAndMoveOrSame
-          ~f
-          ti.token
-          ast
-          {astRef = ARInteger id; offset}
-    | TString _
-    | TStringMLStart _
-    | TStringMLMiddle _
-    | TStringMLEnd _
-    | TPatternString _
-    | TRecordFieldname _
-    | TTrue _
-    | TFalse _
-    | TPatternTrue _
-    | TPatternFalse _
-    | TNullToken _
-    | TVariable _
-    | TFieldName _
-    | TFieldPartial _
-    | TLetLHS _
-    | TPatternInteger _
-    | TPatternNullToken _
-    | TPatternVariable _
-    | TRightPartial _
-    | TPartial _
-    | TBinOp _
-    | TLambdaVar _ ->
-        let f str = Util.removeCharAt str offset in
-        (replaceStringToken ~f ti.token ast, LeftOne)
-    | TPatternFloatWhole (mID, id, str, _) ->
-        let str = Util.removeCharAt str offset in
-        (replacePatternFloatWhole str mID id ast, LeftOne)
-    | TPatternFloatFraction (mID, id, str, _) ->
-        let str = Util.removeCharAt str offset in
-        (replacePatternFloatFraction str mID id ast, LeftOne)
-    | TFloatWhole (id, str) ->
-        let str = Util.removeCharAt str offset in
-        (replaceFloatWhole str id ast, LeftOne)
-    | TFloatFraction (id, str) ->
-        let str = Util.removeCharAt str offset in
-        (replaceFloatFraction str id ast, LeftOne)
-    | TPatternConstructorName (mID, id, str, _) ->
-        let f str = Util.removeCharAt str offset in
-        (replacePatternWithPartial (f str) mID id ast, LeftOne)
-    | TPipe (id, i, _) ->
-        let newPosition =
-          match getTokensAtPosition ~pos:ti.startPos (toTokens ast) with
-          | Some leftTI, _, _ ->
-              let newState = doLeft ~pos:ti.startPos leftTI s in
-              Exactly newState.newPos
-          | _ ->
-              recover
-                "TPipe should never occur on first line of AST"
-                ~debug:ti
-                SamePlace
-        in
-        (removePipe id ast i, newPosition)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
@@ -2844,7 +3543,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         else s
       in
       (newAST, newState)
-  | TPatternString (mID, id, str, _) ->
+  | TPatternString {matchID = mID; patternID = id; str; _} ->
       let target s =
         (* if we're in front of the quotes vs within it *)
         if offset == 0 then s else left s
@@ -2854,15 +3553,20 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (ast |> replacePattern mID id ~newPat:(FPBlank (mID, newID)), target s)
       else
         let str = Util.removeCharAt str (offset - 1) in
-        (replacePattern mID id ~newPat:(FPString (mID, newID, str)) ast, s)
+        ( replacePattern
+            mID
+            id
+            ~newPat:(FPString {matchID = mID; patternID = newID; str})
+            ast
+        , s )
   | TRightPartial (_, str) when String.length str = 1 ->
       let ast, targetID = deleteRightPartial ti ast in
       (ast, moveToEndOfTarget targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
       deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
-      let ast, targetID = deleteBinOp ti ast in
-      (ast, moveToEndOfTarget targetID ast s)
+      let ast, newState = deleteBinOp ti ast s in
+      (ast, newState)
   | TInteger (id, _) ->
       let ast, maybeTarget =
         tryReplaceStringAndMove ~f ti.token ast {astRef = ARInteger id; offset}
@@ -2894,11 +3598,11 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
       (removePointFromFloat id ast, s)
   | TFloatWhole (id, str) ->
       (replaceFloatWhole (f str) id ast, s)
-  | TFloatFraction (id, str) ->
+  | TFloatFractional (id, str) ->
       (replaceFloatFraction (f str) id ast, s)
   | TPatternFloatPoint (mID, id, _) ->
       (removePatternPointFromFloat mID id ast, s)
-  | TPatternFloatFraction (mID, id, str, _) ->
+  | TPatternFloatFractional (mID, id, str, _) ->
       (replacePatternFloatFraction (f str) mID id ast, s)
   | TPatternFloatWhole (mID, id, str, _) ->
       (replacePatternFloatWhole (f str) mID id ast, s)
@@ -3022,10 +3726,10 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     | TInteger _
     | TPatternInteger _
-    | TFloatFraction _
+    | TFloatFractional _
     | TFloatWhole _
     | TPatternFloatWhole _
-    | TPatternFloatFraction _
+    | TPatternFloatFractional _
       when not (Util.isNumber letter) ->
         (ast, SamePlace)
     | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
@@ -3108,16 +3812,17 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TFloatWhole (id, str) ->
         ( replaceFloatWhole (f str) id ast
         , AtTarget {astRef = ARFloat (id, FPWhole); offset = offset + 1} )
-    | TFloatFraction (id, str) ->
+    | TFloatFractional (id, str) ->
         ( replaceFloatFraction (f str) id ast
-        , AtTarget {astRef = ARFloat (id, FPDecimal); offset = offset + 1} )
+        , AtTarget {astRef = ARFloat (id, FPFractional); offset = offset + 1} )
     | TFloatPoint id ->
         ( insertAtFrontOfFloatFraction letter id ast
         , AtTarget
-            {astRef = ARFloat (id, FPDecimal); offset = String.length letter} )
+            {astRef = ARFloat (id, FPFractional); offset = String.length letter}
+        )
     | TPatternFloatWhole (mID, id, str, _) ->
         (replacePatternFloatWhole (f str) mID id ast, RightOne)
-    | TPatternFloatFraction (mID, id, str, _) ->
+    | TPatternFloatFractional (mID, id, str, _) ->
         (replacePatternFloatFraction (f str) mID id ast, RightOne)
     | TPatternFloatPoint (mID, id, _) ->
         (insertAtFrontOfPatternFloatFraction letter mID id ast, RightOne)
@@ -3126,7 +3831,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TPatternBlank (mID, pID, _) ->
         let newPat =
           if letter = "\""
-          then FPString (mID, newID, "")
+          then FPString {matchID = mID; patternID = newID; str = ""}
           else if Util.isNumber letter
           then FPInteger (mID, newID, letter |> Util.coerceStringTo63BitInt)
           else FPVariable (mID, newID, letter)
@@ -3166,13 +3871,13 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
 
 
 let doInsert
-    ~pos (letter : char option) (ti : T.tokenInfo) (ast : ast) (s : state) :
+    ~pos (letter : string option) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   match letter with
   | None ->
       (ast, s)
   | Some letter ->
-      doInsert' ~pos (String.fromChar letter) ti ast s
+      doInsert' ~pos letter ti ast s
 
 
 let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
@@ -3199,15 +3904,6 @@ let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
       (ast, s)
 
 
-let maybeOpenCmd (m : Types.model) : Types.modification =
-  Toplevel.selected m
-  |> Option.andThen ~f:(fun tl ->
-         TL.getAST tl
-         |> Option.andThen ~f:(getToken m.fluidState)
-         |> Option.map ~f:(fun ti -> FluidCommandsShow (TL.id tl, ti.token)))
-  |> Option.withDefault ~default:NoChange
-
-
 let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
   if rangeBegin > rangeEnd
   then (rangeEnd, rangeBegin)
@@ -3216,7 +3912,7 @@ let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
 
 (* Always returns a selection represented as two ints with the smaller int first.
    The numbers are identical if there is no selection. *)
-let fluidGetSelectionRange (s : fluidState) : int * int =
+let getSelectionRange (s : fluidState) : int * int =
   match s.selectionStart with
   | Some beginIdx when beginIdx < s.newPos ->
       (beginIdx, s.newPos)
@@ -3226,11 +3922,11 @@ let fluidGetSelectionRange (s : fluidState) : int * int =
       (s.newPos, s.newPos)
 
 
-let fluidGetCollapsedSelectionStart (s : fluidState) : int =
-  fluidGetSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
+let getCollapsedSelectionStart (s : fluidState) : int =
+  getSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
 
 
-let fluidGetOptionalSelectionRange (s : fluidState) : (int * int) option =
+let getOptionalSelectionRange (s : fluidState) : (int * int) option =
   let endIdx = s.newPos in
   match s.selectionStart with
   | Some beginIdx ->
@@ -3277,6 +3973,32 @@ let onEdge left right =
       (lt, lti) <> (rt, rti)
   | _ ->
       true
+
+
+let getSelectedExprID (s : state) (ast : ast) : id option =
+  getOptionalSelectionRange s
+  |> Option.andThen ~f:(fun (startPos, endPos) ->
+         getTopmostSelectionID startPos endPos ast)
+
+
+let maybeOpenCmd (m : Types.model) : Types.modification =
+  let getExprIDOnCaret state tl ast =
+    match getToken state ast with
+    | Some ti ->
+        let id = T.tid ti.token in
+        if T.validID id then Some (TL.id tl, id) else None
+    | None ->
+        None
+  in
+  TL.selected m
+  |> Option.thenAlso ~f:TL.getAST
+  |> Option.andThen ~f:(fun (tl, ast) ->
+         let state = m.fluidState in
+         getSelectedExprID state ast
+         |> Option.map ~f:(fun id -> (TL.id tl, id))
+         |> Option.orElse (getExprIDOnCaret state tl ast))
+  |> Option.map ~f:(fun (tlid, id) -> FluidCommandsShow (tlid, id))
+  |> Option.withDefault ~default:NoChange
 
 
 let rec updateKey
@@ -3379,7 +4101,9 @@ let rec updateKey
       , _
       , R (TRecordFieldname {fieldName = ""; _}, ti) ) ->
         doBackspace ~pos ti ast s
-    | Keypress {key = K.Backspace; _}, _, R (TPatternBlank _, ti) ->
+    | Keypress {key = K.Backspace; _}, L (TNewline _, _), R (TPatternBlank _, ti)
+      ->
+        (* Special-case hack for deleting rows of a match or record *)
         doBackspace ~pos ti ast s
     | Keypress {key = K.Backspace; _}, L (_, ti), _ ->
         doBackspace ~pos ti ast s
@@ -3419,7 +4143,7 @@ let rec updateKey
         |> Option.withDefault ~default:(ast, s)
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline ast s =
-          let startPos, endPos = fluidGetSelectionRange s in
+          let startPos, endPos = getSelectionRange s in
           let findParent = startPos = endPos in
           let topmostID = getTopmostSelectionID startPos endPos ast in
           Option.map topmostID ~f:(fun id ->
@@ -3484,7 +4208,7 @@ let rec updateKey
            The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
            For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
            K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. *)
-      ( match fluidGetOptionalSelectionRange s with
+      ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
@@ -3498,14 +4222,14 @@ let rec updateKey
            The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
            For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
            This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
-      ( match fluidGetOptionalSelectionRange s with
+      ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
           deleteCaretRange ~state:s ~ast (s.newPos, getEndOfLineCaretPos ast ti)
       )
     | Keypress {key = K.DeleteNextWord; _}, _, R (_, ti) ->
-      ( match fluidGetOptionalSelectionRange s with
+      ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
@@ -3517,7 +4241,7 @@ let rec updateKey
           then (newAst, movedState)
           else (newAst, newState) )
     | Keypress {key = K.DeletePrevWord; _}, L (_, ti), _ ->
-      ( match fluidGetOptionalSelectionRange s with
+      ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
@@ -3786,9 +4510,6 @@ let rec updateKey
         else (ast, s)
     | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
         doInsert' ~pos txt toTheLeft ast s
-    | Keypress {key = K.Space; _}, L (_, toTheLeft), _
-      when T.isAppendable toTheLeft.token ->
-        doInsert' ~pos " " toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
         (ast, s)
     | _, _, R (TRecordOpen _, _) ->
@@ -3921,7 +4642,7 @@ and deleteCaretRange ~state ~(ast : ast) (caretRange : int * int) :
 (* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
    forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
 and deleteSelection ~state ~(ast : ast) : E.t * fluidState =
-  fluidGetSelectionRange state |> deleteCaretRange ~state ~ast
+  getSelectionRange state |> deleteCaretRange ~state ~ast
 
 
 let updateAutocomplete m tlid (ast : ast) s : fluidState =
@@ -4057,7 +4778,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
       |> Option.andThen ~f:(fun id -> E.find id ast)
       |> Option.withDefault ~default:(EBlank (gid ()))
     in
-    let simplifiedTokens =
+    let tokens =
       (* simplify tokens to make them homogenous, easier to parse *)
       tokensInRange startPos endPos ast
       |> List.map ~f:(fun ti ->
@@ -4082,31 +4803,33 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
              (tid t, text, toTypeName t))
     in
     let reconstructExpr expr : E.t option =
-      let exprID =
-        match expr with EPipeTarget _ -> None | _ -> Some (E.id expr)
-      in
-      exprID
-      |> Option.andThen ~f:(exprRangeInAst ~ast)
-      |> Option.andThen ~f:(fun (exprStartPos, exprEndPos) ->
-             (* ensure expression range is not totally outside selection range *)
-             if exprStartPos > endPos || exprEndPos < startPos
-             then None
-             else Some (max exprStartPos startPos, min exprEndPos endPos))
-      |> Option.andThen ~f:(reconstruct ~topmostID:exprID)
+      match expr with
+      | EPipeTarget _ ->
+          Some expr
+      | _ ->
+          let exprID = E.id expr in
+          exprID
+          |> exprRangeInAst ~ast
+          |> Option.andThen ~f:(fun (exprStartPos, exprEndPos) ->
+                 (* ensure expression range is not totally outside selection range *)
+                 if exprStartPos > endPos || exprEndPos < startPos
+                 then None
+                 else Some (max exprStartPos startPos, min exprEndPos endPos))
+          |> Option.andThen ~f:(reconstruct ~topmostID:(Some exprID))
     in
     let orDefaultExpr : E.t option -> E.t =
       Option.withDefault ~default:(EBlank (gid ()))
     in
     let id = gid () in
-    match (topmostExpr, simplifiedTokens) with
-    | _, [] ->
+    match topmostExpr with
+    | _ when tokens = [] ->
         None
     (* basic, single/fixed-token expressions *)
-    | EInteger (eID, _), tokens ->
+    | EInteger (eID, _) ->
         findTokenValue tokens eID "integer"
         |> Option.map ~f:Util.coerceStringTo63BitInt
         |> Option.map ~f:(fun v -> EInteger (gid (), v))
-    | EBool (eID, value), tokens ->
+    | EBool (eID, value) ->
         Option.or_
           (findTokenValue tokens eID "true")
           (findTokenValue tokens eID "false")
@@ -4116,13 +4839,13 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                else if newValue <> string_of_bool value
                then Some (EPartial (gid (), newValue, EBool (id, value)))
                else Some (EBool (id, value)))
-    | ENull eID, tokens ->
+    | ENull eID ->
         findTokenValue tokens eID "null"
         |> Option.map ~f:(fun newValue ->
                if newValue = "null"
                then ENull id
                else EPartial (gid (), newValue, ENull id))
-    | EString (eID, _), tokens ->
+    | EString (eID, _) ->
         let merged =
           tokens
           |> List.filter ~f:(fun (_, _, type_) ->
@@ -4133,7 +4856,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         if merged = ""
         then None
         else Some (EString (eID, Util.trimQuotes merged))
-    | EFloat (eID, _, _), tokens ->
+    | EFloat (eID, _, _) ->
         let newWhole = findTokenValue tokens eID "float-whole" in
         let pointSelected = findTokenValue tokens eID "float-point" <> None in
         let newFraction = findTokenValue tokens eID "float-fraction" in
@@ -4150,10 +4873,10 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some (EFloat (id, "0", "0"))
         | _, _, _ ->
             None )
-    | EBlank _, _ ->
+    | EBlank _ ->
         Some (EBlank id)
     (* empty let expr and subsets *)
-    | ELet (eID, _lhs, rhs, body), tokens ->
+    | ELet (eID, _lhs, rhs, body) ->
         let letKeywordSelected =
           findTokenValue tokens eID "let-keyword" <> None
         in
@@ -4173,7 +4896,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some (ELet (id, newLhs, EBlank (gid ()), EBlank (gid ())))
         | _, _ ->
             None )
-    | EIf (eID, cond, thenBody, elseBody), tokens ->
+    | EIf (eID, cond, thenBody, elseBody) ->
         let ifKeywordSelected =
           findTokenValue tokens eID "if-keyword" <> None
         in
@@ -4201,7 +4924,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some e
         | _ ->
             None )
-    | EBinOp (eID, name, expr1, expr2, ster), tokens ->
+    | EBinOp (eID, name, expr1, expr2, ster) ->
         let newName =
           findTokenValue tokens eID "binop" |> Option.withDefault ~default:""
         in
@@ -4249,7 +4972,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             else Some e
         | _, _ ->
             None )
-    | ELambda (eID, _, body), tokens ->
+    | ELambda (eID, _, body) ->
         (* might be an edge case here where one of the vars is not (fully) selected but
          * is still bound in the body, would be worth turning the EVars in the body to partials somehow *)
         let newVars =
@@ -4263,7 +4986,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                      None)
         in
         Some (ELambda (id, newVars, reconstructExpr body |> orDefaultExpr))
-    | EFieldAccess (eID, e, _), tokens ->
+    | EFieldAccess (eID, e, _) ->
         let newFieldName =
           findTokenValue tokens eID "field-name"
           |> Option.withDefault ~default:""
@@ -4280,7 +5003,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
             Some (EFieldAccess (id, e, newFieldName))
         | _ ->
             e )
-    | EVariable (eID, value), tokens ->
+    | EVariable (eID, value) ->
         let newValue =
           findTokenValue tokens eID "variable" |> Option.withDefault ~default:""
         in
@@ -4290,7 +5013,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         else if value <> newValue
         then Some (EPartial (gid (), newValue, e))
         else Some e
-    | EFnCall (eID, fnName, args, ster), tokens ->
+    | EFnCall (eID, fnName, args, ster) ->
         let newArgs =
           match args with
           | EPipeTarget _ :: args ->
@@ -4317,23 +5040,27 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         else if fnName <> newFnName
         then Some (EPartial (gid (), newFnName, e))
         else Some e
-    | EPartial (eID, _, expr), tokens ->
-        let expr = reconstructExpr expr |> orDefaultExpr in
+    | EPartial (eID, _, expr) ->
+        (* What should we do with the expr? Some of the name is covered by
+         * the partial name which breaks the reconstruction algorithm. In
+         * addtion, copying a partial without the old expr breaks the whole
+         * concept of a partial. So it makes more sense to copy the whole
+         * thing. *)
         let newName =
           findTokenValue tokens eID "partial" |> Option.withDefault ~default:""
         in
         Some (EPartial (id, newName, expr))
-    | ERightPartial (eID, _, expr), tokens ->
+    | ERightPartial (eID, _, expr) ->
         let expr = reconstructExpr expr |> orDefaultExpr in
         let newName =
           findTokenValue tokens eID "partial-right"
           |> Option.withDefault ~default:""
         in
         Some (ERightPartial (id, newName, expr))
-    | EList (_, exprs), _ ->
+    | EList (_, exprs) ->
         let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
         Some (EList (id, newExprs))
-    | ERecord (id, entries), _ ->
+    | ERecord (id, entries) ->
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
@@ -4355,7 +5082,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                      None)
         in
         Some (ERecord (id, newEntries))
-    | EPipe (_, exprs), _ ->
+    | EPipe (_, exprs) ->
         let newExprs =
           List.map exprs ~f:reconstructExpr
           |> Option.values
@@ -4368,7 +5095,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
               exprs
         in
         Some (EPipe (id, newExprs))
-    | EConstructor (eID, name, exprs), tokens ->
+    | EConstructor (eID, name, exprs) ->
         let newName =
           findTokenValue tokens eID "constructor-name"
           |> Option.withDefault ~default:""
@@ -4380,7 +5107,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         else if name <> newName
         then Some (EPartial (gid (), newName, e))
         else Some e
-    | EMatch (mID, cond, patternsAndExprs), tokens ->
+    | EMatch (mID, cond, patternsAndExprs) ->
         let newPatternAndExprs =
           List.map patternsAndExprs ~f:(fun (pattern, expr) ->
               let toksToPattern tokens pID =
@@ -4406,7 +5133,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                         | _ ->
                             [] )
                 | [(id, "pattern-string", value)] ->
-                    FPString (mID, id, value)
+                    FPString {matchID = mID; patternID = id; str = value}
                 | [(id, value, "pattern-true")] | [(id, value, "pattern-false")]
                   ->
                     FPBool (mID, id, toBool_ value)
@@ -4432,7 +5159,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         in
         Some
           (EMatch (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
-    | EFeatureFlag (_, name, cond, thenBody, elseBody), _ ->
+    | EFeatureFlag (_, name, cond, thenBody, elseBody) ->
         (* since we don't have any tokens associated with feature flags yet *)
         Some
           (EFeatureFlag
@@ -4442,11 +5169,8 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
              , reconstructExpr cond |> orDefaultExpr
              , reconstructExpr thenBody |> orDefaultExpr
              , reconstructExpr elseBody |> orDefaultExpr ))
-    (* Unknowns:
-     * - EPipeTarget: assuming it can't be selected since it doesn't produce tokens
-     *)
-    | _, _ ->
-        Some (EBlank (gid ()))
+    | EPipeTarget _ ->
+        Some (EPipeTarget (gid ()))
   in
   let topmostID = getTopmostSelectionID startPos endPos ast in
   reconstruct ~topmostID (startPos, endPos)
@@ -4464,206 +5188,39 @@ let getStringIndex ti pos : int =
       recover "getting index of non-string" ~debug:(ti.token, pos) 0
 
 
-let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
+let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
   let ast, state = deleteSelection ~state ~ast in
-  let token = getToken state ast in
-  let exprID = token |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
+  let mTi = getToken state ast in
+  let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> E.find id ast) in
-  let collapsedSelStart = fluidGetCollapsedSelectionStart state in
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
   let text = Clipboard.clipboardContentsToString data in
-  match (clipboardExpr, expr, token) with
-  | Some clipboardExpr, Some (EBlank exprID), _ ->
-      let newPos =
-        (clipboardExpr |> Printer.eToString |> String.length)
-        + collapsedSelStart
-      in
-      (E.replace ~replacement:clipboardExpr exprID ast, {state with newPos})
-  (* inserting record key (record expression with single key and no value) into string *)
-  | ( Some (ERecord (_, [(insert, EBlank _)]))
-    , Some (EString (_, str))
-    , Some {startPos; _} ) ->
-      let index = state.newPos - startPos - 1 in
-      let replacement = EString (gid (), String.insertAt ~insert ~index str) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
-  (* inserting other kinds of expressions into string *)
-  | _, Some (EString (_, str)), Some ti ->
-      let index = getStringIndex ti state.newPos in
-      let replacement =
-        EString (gid (), String.insertAt ~insert:text ~index str)
-      in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (* TODO: needs reflow: if the string becomes multi-line, we end up in the wrong place. *)
-      let newPos = state.newPos + String.length text in
-      (newAST, {state with newPos})
-  (* inserting integer into another integer *)
-  | ( Some (EInteger (_, clippedInt))
-    , Some (EInteger (_, pasting))
-    , Some {startPos; _} ) ->
-      let index = state.newPos - startPos in
-      let insert = clippedInt in
-      let newVal =
-        String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt
-      in
-      let replacement = EInteger (gid (), newVal) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
-  (* inserting float into an integer *)
-  | ( Some (EFloat (_, whole, fraction))
-    , Some (EInteger (_, pasting))
-    , Some {startPos; _} ) ->
-      let whole', fraction' =
-        let str = pasting in
-        let open String in
-        ( slice ~from:0 ~to_:(state.newPos - startPos) str
-        , slice ~from:(state.newPos - startPos) ~to_:(String.length str) str )
-      in
-      let replacement = EFloat (gid (), whole' ^ whole, fraction ^ fraction') in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      ( newAST
-      , { state with
-          newPos = collapsedSelStart + (whole ^ "." ^ fraction |> String.length)
-        } )
-  (* inserting variable into an integer *)
-  | ( Some (EVariable (_, varName))
-    , Some (EInteger (_, intVal))
-    , Some {startPos; _} ) ->
-      let index = state.newPos - startPos in
-      let newVal = String.insertAt ~insert:varName ~index intVal in
-      let replacement = EPartial (gid (), newVal, EVariable (gid (), newVal)) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length varName})
-  (* inserting int-only string into an integer *)
-  | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos; _}
-    when String.toInt insert |> Result.toOption <> None ->
-      let index = state.newPos - startPos in
-      let newVal =
-        String.insertAt ~insert ~index pasting |> Util.coerceStringTo63BitInt
-      in
-      let replacement = EInteger (gid (), newVal) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
-  (* inserting integer into a float whole *)
-  | ( Some (EInteger (_, intVal))
-    , Some (EFloat (_, whole, fraction))
-    , Some {startPos; token = TFloatWhole _; _} ) ->
-      let index = state.newPos - startPos in
-      let replacement =
-        EFloat (gid (), String.insertAt ~index ~insert:intVal whole, fraction)
-      in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
-  (* inserting integer into a float fraction *)
-  | ( Some (EInteger (_, intVal))
-    , Some (EFloat (_, whole, fraction))
-    , Some {startPos; token = TFloatFraction _; _} ) ->
-      let index = state.newPos - startPos in
-      let replacement =
-        EFloat (gid (), whole, String.insertAt ~index ~insert:intVal fraction)
-      in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
-  (* inserting integer after float point *)
-  | ( Some (EInteger (_, intVal))
-    , Some (EFloat (_, whole, fraction))
-    , Some {token = TFloatPoint _; _} ) ->
-      let replacement = EFloat (gid (), whole, intVal ^ fraction) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
-  (* inserting variable into let LHS *)
-  | ( Some (EVariable (_, varName))
-    , Some (ELet (_, lhs, rhs, body))
-    , Some {startPos; token = TLetLHS _; _} ) ->
-      let index = state.newPos - startPos in
-      let newLhs =
-        if lhs <> ""
-        then String.insertAt ~insert:varName ~index lhs
-        else varName
-      in
-      let replacement = ELet (gid (), newLhs, rhs, body) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      (newAST, {state with newPos = collapsedSelStart + String.length varName})
-  (* inserting list expression into another list at separator *)
-  | ( Some (EList (_, itemsToPaste) as exprToPaste)
-    , Some (EList (_, items))
-    , Some {token = TListSep (_, index); _} ) ->
-      let newItems =
-        let front, back = List.splitAt ~index items in
-        front @ itemsToPaste @ back
-      in
-      let replacement = EList (gid (), newItems) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      ( newAST
-      , { state with
-          newPos =
-            collapsedSelStart + String.length (Printer.eToString exprToPaste) }
-      )
-  (* inserting other expressions into list *)
-  | ( Some exprToPaste
-    , Some (EList (_, items))
-    , Some {token = TListSep (_, index); _} ) ->
-      let newItems = List.insertAt ~value:exprToPaste ~index items in
-      let replacement = EList (gid (), newItems) in
-      let newAST =
-        exprID
-        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
-        |> Option.withDefault ~default:ast
-      in
-      ( newAST
-      , { state with
-          newPos =
-            collapsedSelStart + String.length (Printer.eToString exprToPaste) }
-      )
-  (* TODO:
-   * - inserting pipe after expression
-   * - *)
+  match expr with
+  | Some expr ->
+    ( match (expr, clipboardExpr, mTi) with
+    | EBlank id, Some cp, _ ->
+        (* Paste into a blank *)
+        let newAST = E.replace ~replacement:cp id ast in
+        let caretTarget = caretTargetForLastPartOfExpr (E.id cp) newAST in
+        (newAST, moveToCaretTarget state newAST caretTarget)
+    | EString (id, str), _, Some ti ->
+        (* Paste into a string, to take care of newlines *)
+        let index = getStringIndex ti state.newPos in
+        let replacement =
+          EString (id, String.insertAt ~insert:text ~index str)
+        in
+        let newAST = E.replace ~replacement id ast in
+        let caretTarget =
+          {astRef = ARString (id, SPText); offset = index + String.length text}
+        in
+        (newAST, moveToCaretTarget state newAST caretTarget)
+    | _ ->
+        text
+        |> String.split ~on:""
+        |> List.foldl ~init:(ast, state) ~f:(fun str (newAST, s) ->
+               updateKey (InsertText str) newAST s) )
   | _ ->
-      (ast, state)
+      recover "pasting over non-existant handler" (ast, state)
 
 
 let fluidDataFromModel m : (fluidState * E.t) option =
@@ -4678,12 +5235,19 @@ let fluidDataFromModel m : (fluidState * E.t) option =
 let getCopySelection (m : model) : clipboardContents =
   match fluidDataFromModel m with
   | Some (state, ast) ->
-      fluidGetOptionalSelectionRange state
-      |> Option.andThen ~f:(reconstructExprFromRange ~ast)
-      |> Option.map ~f:Clipboard.exprToClipboardContents
-      |> Option.withDefault ~default:`None
+      let range = getSelectionRange state in
+      let expr =
+        range
+        |> reconstructExprFromRange ~ast
+        |> Option.map ~f:Clipboard.exprToClipboardContents
+      in
+      let text =
+        let asText = FluidPrinter.eToHumanString ast in
+        match range with from, to_ -> String.slice ~from ~to_ asText
+      in
+      (text, expr)
   | None ->
-      `None
+      ("", None)
 
 
 let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =
@@ -4725,8 +5289,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
-        let ast, state = pasteOverSelection ~state:s ~ast data in
-        (ast, updateAutocomplete m tlid ast state)
+        let newAST, newState = pasteOverSelection ~state:s ~ast data in
+        (newAST, updateAutocomplete m tlid newAST newState)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
     | FluidInputEvent
@@ -4756,9 +5320,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
          place the caret on the side of the selection in the direction
          of the pressed arrow key *)
         let newPos =
-          let left, right =
-            fluidGetSelectionRange s |> orderRangeFromSmallToBig
-          in
+          let left, right = getSelectionRange s |> orderRangeFromSmallToBig in
           if key = K.Left then left else right
         in
         (ast, {s with lastInput = ievt; newPos; selectionStart = None})
@@ -4876,7 +5438,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                * entering, as some keypresses fire in both editors. *)
               match m.cursorState with FluidEntering _ -> true | _ -> false
             in
-            let enter id = Enter (tlid, id) in
+            let enter id = Enter (Filling (tlid, id)) in
             (* if tab is wrapping... *)
             let lastKey =
               match newState.lastInput with
@@ -4937,7 +5499,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                 [ Types.TweakModel (fun m -> TL.withAST m tlid newAST)
                 ; Toplevel.setSelectedAST m newAST
                 ; requestAnalysis
-                ; UpdateASTCache (tlid, Printer.eToString newAST) ]
+                ; UpdateASTCache (tlid, Printer.eToHumanString newAST) ]
             else Types.NoChange
           in
           Types.Many
@@ -4975,3 +5537,24 @@ let renderCallback (m : model) : unit =
             Entry.setFluidCaret m.fluidState.newPos )
   | _ ->
       ()
+
+
+let cleanUp (m : model) (tlid : tlid option) : model * modification =
+  let state = m.fluidState in
+  let rmPartialsMod =
+    tlid
+    |> Option.andThen ~f:(TL.get m)
+    |> Option.thenAlso ~f:TL.getAST
+    |> Option.andThen ~f:(fun (tl, ast) ->
+           let newAST = acMaybeCommit 0 ast state |> AST.removePartials in
+           if newAST <> ast then Some (TL.setASTMod tl newAST) else None)
+    |> Option.withDefault ~default:NoChange
+  in
+  let acVisibilityModel =
+    if AC.isOpened state.ac
+    then AC.updateAutocompleteVisibility m
+    else if Commands.isOpened state.cp
+    then Commands.updateCommandPaletteVisibility m
+    else m
+  in
+  (acVisibilityModel, rmPartialsMod)

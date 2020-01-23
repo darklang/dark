@@ -15,31 +15,33 @@ let queue_worker execution_id =
         then
           let%lwt () = Lwt_unix.sleep 1.0 in
           (queue_worker [@tailcall]) ()
-        else Lwt.return ()
+        else exit 0
     | Ok (Some _) ->
-        if not !shutdown then (queue_worker [@tailcall]) () else Lwt.return ()
-    | Error (bt, e) ->
+        if not !shutdown then (queue_worker [@tailcall]) () else exit 0
+    | Error (bt, e, log_params) ->
         Log.erroR
           "queue_worker"
           ~data:"Unhandled exception bubbled to queue worker"
           ~params:
             [ ("execution_id", Libexecution.Types.string_of_id execution_id)
-            ; ("exn", Libexecution.Exception.exn_to_string e) ] ;
+            ; ("exn", Libexecution.Exception.exn_to_string e)
+            ; ("backtrace", bt |> Libexecution.Exception.backtrace_to_string) ]
+          ~jsonparams:log_params ;
         Lwt.async (fun () ->
-            let _ =
-              Libbackend.Rollbar.report_lwt
-                e
-                bt
-                EventQueue
-                (Libexecution.Types.string_of_id execution_id)
-            in
-            Lwt.return ()) ;
+            ( try
+                Libbackend.Rollbar.report_lwt
+                  e
+                  bt
+                  EventQueue
+                  (Libexecution.Types.string_of_id execution_id)
+              with e ->
+                Log.erroR
+                  "Error in Rollbar.report_lwt in queue worker"
+                  ~data:(Libexecution.Exception.exn_to_string e) ;
+                Lwt.return (`Failure : Libbackend.Rollbar.result) )
+            >>= fun _ -> Lwt.return ()) ;
         Thread.yield () ;
-        if not !shutdown
-        then (queue_worker [@tailcall]) ()
-        else (
-          shutdown := true ;
-          Lwt.return () )
+        if not !shutdown then (queue_worker [@tailcall]) () else exit 0
   in
   Lwt_main.run
     (Log.add_log_annotations
@@ -50,9 +52,11 @@ let queue_worker execution_id =
 let () =
   Random.self_init () ;
   let execution_id = Libexecution.Util.create_id () in
-  (* If either thread sets the shutdown ref, the other will see it and
-   * terminate; block until both have terminated. *)
-  let health_check_thread = Thread.create (health_check shutdown) () in
-  let queue_worker_thread = Thread.create queue_worker execution_id in
-  Thread.join health_check_thread ;
-  Thread.join queue_worker_thread
+  (* Three cases where we want to exit:
+   * - healthcheck worker is instructed to die (/pkill), it sets the shutdown
+   *   ref, queue_worker loop terminates
+   * - heathcheck worker dies/is killed (unhandled exn), kubernetes will kill
+   *   the pod when it fails healthcheck
+   * - queue_worker thread dies; it's the main loop, the process exits *)
+  ignore (Thread.create (health_check shutdown) ()) ;
+  queue_worker execution_id

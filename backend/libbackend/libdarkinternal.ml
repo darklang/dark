@@ -163,6 +163,74 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args)
     ; ps = false
     ; dep = true }
+  ; { pns = ["DarkInternal::insertUser_v1"]
+    ; ins = []
+    ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
+    ; r = TResult
+    ; d =
+        "Add a user. Returns a result containing the password for the user,
+which was randomly generated. Usernames are unique; if you try to add a username
+that's already taken, returns an error."
+    ; f =
+        internal_fn (function
+            | _, [DStr username; DStr email; DStr name] ->
+                let username = Unicode_string.to_string username in
+                let email = Unicode_string.to_string email in
+                let name = Unicode_string.to_string name in
+                let result =
+                  Account.insert_user ~username ~email ~name ()
+                  |> Result.map ~f:(fun r ->
+                         Stroller.segment_identify_user username ;
+                         r)
+                in
+                ( match result with
+                | Ok password ->
+                    DResult (ResOk (Dval.dstr_of_string_exn password))
+                | Error msg ->
+                    DResult (ResError (Dval.dstr_of_string_exn msg)) )
+            | args ->
+                fail args)
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["DarkInternal::insertUser_v2"]
+    ; ins = []
+    ; p =
+        [ par "username" TStr
+        ; par "email" TStr
+        ; par "name" TStr
+        ; par "segment_metadata" TObj ]
+    ; r = TResult
+    ; d =
+        "Add a user. Returns a result containing the password for the user,
+which was randomly generated. Usernames are unique; if you try to add a username
+that's already taken, returns an error."
+    ; f =
+        internal_fn (function
+            | _, [DStr username; DStr email; DStr name; DObj segment_metadata]
+              ->
+                let username = Unicode_string.to_string username in
+                let email = Unicode_string.to_string email in
+                let name = Unicode_string.to_string name in
+                let result =
+                  Account.insert_user
+                    ~username
+                    ~email
+                    ~name
+                    ~segment_metadata
+                    ()
+                  |> Result.map ~f:(fun r ->
+                         Stroller.segment_identify_user username ;
+                         r)
+                in
+                ( match result with
+                | Ok password ->
+                    DResult (ResOk (Dval.dstr_of_string_exn password))
+                | Error msg ->
+                    DResult (ResError (Dval.dstr_of_string_exn msg)) )
+            | args ->
+                fail args)
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DarkInternal::upsertUser_v1"]
     ; ins = []
     ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
@@ -308,6 +376,22 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             Serialize.current_hosts ()
             |> List.map ~f:Dval.dstr_of_string_exn
             |> DList)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::canvasesFor"]
+    ; ins = []
+    ; p = [par "account" TStr]
+    ; r = TList
+    ; d =
+        "Returns a list of all canvases owned by a particular account (user OR org)"
+    ; f =
+        internal_fn (function
+            | _, [DStr account] ->
+                Serialize.hosts_for (Unicode_string.to_string account)
+                |> List.map ~f:Dval.dstr_of_string_exn
+                |> DList
+            | args ->
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::schema"]

@@ -134,6 +134,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
            try
              (* serialization can fail, attempt first *)
              let c = Canvas.load_cron endp in
+             Thread.yield () ;
              match c with
              | Ok c ->
                  Some (endp, c)
@@ -155,7 +156,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                ~data:"Deserialization error"
                ~bt
                ~params:
-                 [ ("host", endp)
+                 [ ("canvas", endp)
                  ; ("exn", Log.dump e)
                  ; ("execution_id", Types.string_of_id execution_id) ] ;
              ignore (Rollbar.report e bt CronChecker (Log.dump execution_id)) ;
@@ -175,7 +176,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              ~data:"checking canvas"
              ~params:
                [ ("execution_id", Types.string_of_id execution_id)
-               ; ("host", endp) ]
+               ; ("canvas", endp) ]
              ~jsonparams:[("number_of_crons", `Int cron_count)] ;
            List.iter
              ~f:(fun cr ->
@@ -201,10 +202,13 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                        ~data:"enqueued event"
                        ~params:
                          [ ("execution_id", Types.string_of_id execution_id)
-                         ; ("host", endp)
+                         ; ("canvas", endp)
                          ; ("tlid", Types.string_of_id cr.tlid)
-                         ; ("event_name", name)
-                         ; ("cron_freq", modifier) ]))
+                         ; ("handler_name", name)
+                           (* method here to use the spec-handler name for
+                            * consistency with http/worker logs *)
+                         ; ("method", modifier) ] ;
+                     Thread.yield ()))
              crons)
     |> (fun x ->
          Log.infO
@@ -229,4 +233,4 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
         ; ("canvas.errors", `Int !stat_canvas_errors)
         ; ("cron.checked", `Int !stat_crons)
         ; ("cron.queued", `Int !stat_events) ] ;
-    Error (bt, e)
+    Error (bt, e, Log.current_log_annotations ())
