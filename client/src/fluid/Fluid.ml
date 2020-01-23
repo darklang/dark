@@ -3002,31 +3002,31 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARMatch (id, MPBranchArrow idx), expr ->
         Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr) ->
-        let deletionIdx =
-          (* delete expression in front of sep, not behind it *)
-          varAndSepIdx + 1
+        let rec currAndNextIndex (lst : 'a list) (idx : int) : ('a * 'a) option
+            =
+          match lst with
+          | [] | [_] ->
+              None
+          | a :: (b :: _ as rest) ->
+              if idx > 0
+              then currAndNextIndex rest (idx - 1)
+              else if idx = 0
+              then Some (a, b)
+              else None
         in
-        let varNameToDelete =
-          List.getAt ~index:deletionIdx oldVars
-          |> Option.map ~f:Tuple2.second
-          |> Option.withDefault ~default:""
-        in
-        let target =
-          List.getAt ~index:varAndSepIdx oldVars
-          (* The target is the end of the var that preceeds the separator *)
-          |> Option.map ~f:(fun (_, varName) ->
-                 { astRef = ARLambda (id, LPVarName varAndSepIdx)
-                 ; offset = String.length varName })
-          |> Option.withDefault
-               ~default:{astRef = ARLambda (id, LPKeyword); offset = 1}
-        in
-        Some
-          ( Expr
-              (ELambda
-                 ( id
-                 , List.removeAt ~index:deletionIdx oldVars
-                 , E.removeVariableUse varNameToDelete expr ))
-          , target )
+        ( match currAndNextIndex oldVars varAndSepIdx with
+        | Some ((_, keepVarName), (_, deleteVarName)) ->
+            Some
+              ( Expr
+                  (ELambda
+                     ( id
+                       (* remove expression in front of sep, not behind it, hence + 1 *)
+                     , List.removeAt ~index:(varAndSepIdx + 1) oldVars
+                     , E.removeVariableUse deleteVarName expr ))
+              , { astRef = ARLambda (id, LPVarName varAndSepIdx)
+                ; offset = String.length keepVarName } )
+        | None ->
+            recover "doExplicitBackspace - LPSeparator" None )
     | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
         let target =
           List.getAt ~index:elemAndSepIdx exprs
