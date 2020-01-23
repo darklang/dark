@@ -3112,8 +3112,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
               let expr, target = mergeExprs lhsExpr rhsExpr in
               Some (Expr expr, target)
           | _ ->
-              let newID = gid () in
-              Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+              mkEBlank ()
         else if String.startsWith ~prefix:"\"" str
                 && String.endsWith ~suffix:"\"" str
         then
