@@ -223,6 +223,7 @@ let execute_function
     ~dbs:(TL.dbs c.dbs)
     ~user_fns:(c.user_functions |> IDMap.data)
     ~user_tipes:(c.user_tipes |> IDMap.data)
+    ~package_fns:c.package_fns
     ~account_id:c.owner
     ~canvas_id:c.id
     ~caller_id

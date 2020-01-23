@@ -93,6 +93,7 @@ let execute_handler
     ~dbs
     ~user_fns
     ~user_tipes
+    ~package_fns
     ~account_id
     ~canvas_id
     ?(load_fn_result = load_no_results)
@@ -109,6 +110,7 @@ let execute_handler
     ; canvas_id
     ; user_fns
     ; user_tipes
+    ; package_fns
     ; dbs
     ; trace = (fun ~on_execution_path _ _ -> ())
     ; trace_tlid
@@ -144,6 +146,7 @@ let execute_function
     ~dbs
     ~user_fns
     ~user_tipes
+    ~package_fns
     ~account_id
     ~canvas_id
     ~caller_id
@@ -159,6 +162,7 @@ let execute_function
     ; canvas_id
     ; user_fns
     ; user_tipes
+    ; package_fns
     ; dbs
     ; trace = (fun ~on_execution_path _ _ -> ())
     ; trace_tlid
@@ -186,6 +190,7 @@ let analyse_ast
     ~dbs
     ~user_fns
     ~user_tipes
+    ~package_fns
     ~account_id
     ~canvas_id
     ?(load_fn_result = load_no_results)
@@ -208,6 +213,7 @@ let analyse_ast
     ; canvas_id
     ; user_fns
     ; user_tipes
+    ; package_fns
     ; dbs
     ; trace
     ; trace_tlid = (fun _ -> ())

@@ -91,6 +91,20 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
 
 
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
+  let uploadButton =
+    if vs.isAdmin
+    then
+      Html.div
+        [Html.class' ""]
+        [ Html.div
+            [ Html.class' "upload-btn"
+            ; ViewUtils.eventNoPropagation
+                ~key:("aufp-" ^ showTLID fn.ufTLID)
+                "click"
+                (fun _ -> UploadFn fn.ufTLID) ]
+            [fontAwesome "upload"] ]
+    else Vdom.noNode
+  in
   let addParamBtn =
     if vs.permission = Some ReadWrite
     then
@@ -137,7 +151,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       [Html.id "fnparams"; Html.class' "params"]
       (FnParams.view fn vs @ [addParamBtn])
   in
-  Html.div [Html.class' "fn-header"] [titleRow; paramRows]
+  Html.div [Html.class' "fn-header"] [titleRow; paramRows; uploadButton]
 
 
 let view (vs : viewState) (fn : userFunction) : msg Html.html =

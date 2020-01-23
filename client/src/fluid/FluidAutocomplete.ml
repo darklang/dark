@@ -159,7 +159,18 @@ let allFunctions (m : model) : function_ list =
             * DB::getAll_v2, we want those to sort accordingly! *)
            f.fnName |> String.to_lower |> String.split ~on:"_v")
   in
-  functions @ userFunctionMetadata
+  let packageFunctions =
+    m.packages
+    |> TLIDDict.values
+    |> List.map ~f:PackageManager.fn_of_packageFn
+    |> List.filter ~f:(fun (f : function_) ->
+           (not f.fnDeprecated) || Refactor.usedFn m f.fnName)
+    |> List.sortBy ~f:(fun f ->
+           (* don't call List.head here - if we have DB::getAll_v1 and
+            * DB::getAll_v2, we want those to sort accordingly! *)
+           f.fnName |> String.to_lower |> String.split ~on:"_v")
+  in
+  functions @ userFunctionMetadata @ packageFunctions
 
 
 let allCompletions (a : autocomplete) : autocompleteItem list =

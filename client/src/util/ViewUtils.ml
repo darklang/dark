@@ -8,6 +8,7 @@ type viewState =
   { tl : toplevel
   ; cursorState : cursorState
   ; tlid : tlid
+  ; isAdmin : bool
   ; hovering : (tlid * id) option
   ; ac : autocomplete
   ; showEntry : bool
@@ -69,6 +70,7 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
   ; ac = m.complete
   ; showEntry = true
   ; showLivevalue = false
+  ; isAdmin = m.isAdmin
   ; dbLocked = DB.isLocked m tlid
   ; ufns = m.userFunctions |> TLIDDict.values
   ; fns = m.builtInFunctions

@@ -629,6 +629,27 @@ let userFunction j : userFunction =
   ; ufAST = field "ast" expr j |> OldExpr.toFluidExpr }
 
 
+let packageFnParameter (j : Js.Json.t) : Types.packageFnParameter =
+  { name = field "name" string j
+  ; tipe = field "tipe" tipe j
+  ; description = field "description" string j }
+
+
+let packageFn (j : Js.Json.t) : Types.packageFn =
+  { user = field "user" string j
+  ; package = field "package" string j
+  ; module_ = field "module" string j
+  ; fnname = field "fnname" string j
+  ; version = field "version" int j
+  ; body = OldExpr.toFluidExpr (field "body" expr j)
+  ; parameters = field "parameters" (list packageFnParameter) j
+  ; return_type = field "return_type" tipe j
+  ; description = field "description" string j
+  ; author = field "author" string j
+  ; deprecated = field "deprecated" bool j
+  ; pfTLID = field "tlid" tlid j }
+
+
 let fof j : fourOhFour =
   { space = index 0 string j
   ; path = index 1 string j
@@ -898,6 +919,10 @@ let executeFunctionAPIResult j : executeFunctionAPIResult =
   , field "touched_tlids" (list tlid) j
   , j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList )
 
+
+let uploadFnAPIResult _ : uploadFnAPIResult = ()
+
+let loadPackagesAPIResult j : loadPackagesAPIResult = list packageFn j
 
 let triggerHandlerAPIResult j : triggerHandlerAPIResult =
   field "touched_tlids" (list tlid) j

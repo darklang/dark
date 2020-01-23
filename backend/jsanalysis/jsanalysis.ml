@@ -129,6 +129,7 @@ let perform_analysis
           ~dbs
           ~user_fns
           ~user_tipes
+          ~package_fns:[]
           ~load_fn_result:(load_from_trace trace_data.function_results)
           ~load_fn_arguments:Execution.load_no_arguments )
       |> analysis_envelope_to_yojson

@@ -21,6 +21,7 @@ type canvas =
   ; dbs : TL.toplevels
   ; user_functions : RTT.user_fn IDMap.t
   ; user_tipes : RTT.user_tipe IDMap.t
+  ; package_fns : RTT.fn list [@opaque]
   ; deleted_handlers : TL.toplevels
   ; deleted_dbs : TL.toplevels
   ; deleted_user_functions : RTT.user_fn IDMap.t
@@ -337,6 +338,7 @@ let init (host : string) (ops : Op.op list) : (canvas ref, string list) Result.t
       ; dbs = IDMap.empty
       ; user_functions = IDMap.empty
       ; user_tipes = IDMap.empty
+      ; package_fns = []
       ; deleted_handlers = IDMap.empty
       ; deleted_dbs = IDMap.empty
       ; deleted_user_functions = IDMap.empty
@@ -408,6 +410,12 @@ let load_from
     let canvas_id = Serialize.fetch_canvas_id owner host in
     let cors = fetch_cors_setting canvas_id in
     let oldops = f ~host ~canvas_id () in
+    (* TODO optimization: can we get only the functions we need (based on
+     * fnnames found in the canvas) and/or cache this like we do the oplist? *)
+    let package_fns =
+      Package_manager.all_functions ()
+      |> List.map ~f:Package_manager.runtime_fn_of_package_fn
+    in
     let c =
       ref
         { host
@@ -419,6 +427,7 @@ let load_from
         ; dbs = IDMap.empty
         ; user_functions = IDMap.empty
         ; user_tipes = IDMap.empty
+        ; package_fns
         ; deleted_handlers = IDMap.empty
         ; deleted_dbs = IDMap.empty
         ; deleted_user_functions = IDMap.empty

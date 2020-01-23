@@ -304,6 +304,26 @@ and userTipe =
   ; utVersion : int
   ; utDefinition : userTipeDefinition }
 
+(* Package manager Functions *)
+and packageFnParameter =
+  { name : string
+  ; tipe : tipe
+  ; description : string }
+
+and packageFn =
+  { user : string
+  ; package : string
+  ; module_ : string
+  ; fnname : string
+  ; version : int
+  ; body : fluidExpr
+  ; parameters : packageFnParameter list
+  ; return_type : tipe
+  ; description : string
+  ; author : string
+  ; deprecated : bool
+  ; pfTLID : tlid }
+
 (* toplevels *)
 and toplevel =
   | TLHandler of handler
@@ -311,6 +331,8 @@ and toplevel =
   | TLFunc of userFunction
   | TLTipe of userTipe
   | TLGroup of group
+
+and packages = packageFn TLIDDict.t
 
 (* ---------------------- *)
 (* dvals *)
@@ -677,6 +699,8 @@ and executeFunctionAPIParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
+and uploadFnAPIParams = {uplFn : userFunction}
+
 and triggerHandlerAPIParams =
   { thTLID : tlid
   ; thTraceID : traceID
@@ -750,6 +774,10 @@ and dvalArgsHash = string
 
 and executeFunctionAPIResult =
   dval * dvalArgsHash * int * tlid list * unlockedDBs
+
+and uploadFnAPIResult = unit
+
+and loadPackagesAPIResult = packageFn list
 
 and triggerHandlerAPIResult = tlid list
 
@@ -1196,10 +1224,15 @@ and msg =
       executeFunctionAPIParams
       * (executeFunctionAPIResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionAPICallback"]
+  | UploadFnAPICallback of
+      uploadFnAPIParams * (uploadFnAPIResult, httpError) Tea.Result.t
+      [@printer opaque "UploadFunctionAPICallback"]
   | TriggerHandlerAPICallback of
       triggerHandlerAPIParams
       * (triggerHandlerAPIResult, httpError) Tea.Result.t
       [@printer opaque "TriggerHandlerAPICallback"]
+  | LoadPackagesAPICallback of (loadPackagesAPIResult, httpError) Tea.Result.t
+      [@printer opaque "LoadPackagesAPICallback"]
   | LogoutAPICallback [@printer opaque "LogoutAPICallback"]
   | Delete404APICall of fourOhFour
   | NewPresencePush of avatar list
@@ -1218,6 +1251,7 @@ and msg =
   | ToggleFeatureFlag of id * bool
   | DeleteUserFunctionParameter of tlid * userFunctionParameter
   | AddUserFunctionParameter of tlid
+  | UploadFn of tlid
   | DeleteUserTypeField of tlid * userRecordField
   | BlankOrClick of tlid * id * mouseEvent
   | BlankOrDoubleClick of tlid * id * mouseEvent
@@ -1546,6 +1580,7 @@ and model =
   ; userTipes : userTipe TLIDDict.t
   ; deletedUserTipes : userTipe TLIDDict.t
   ; deletedGroups : group TLIDDict.t
+  ; packages : packages
   ; traces : traces
   ; analyses : analyses
   ; f404s : fourOhFour list
