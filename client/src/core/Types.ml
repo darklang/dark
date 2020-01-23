@@ -471,8 +471,6 @@ type astFieldAccessPart =
   | FAPFieldOp
 [@@deriving show {with_path = false}]
 
-type astFnCallPart = FCPFnName [@@deriving show {with_path = false}]
-
 type astRecordPart =
   | RPOpen
   | RPFieldname of (* index of the <fieldname,value> pair *) int
@@ -536,7 +534,7 @@ type astRef =
   | ARBinOp of id * astBinOpPart
   | ARFieldAccess of id * astFieldAccessPart
   | ARVariable of id
-  | ARFnCall of id * astFnCallPart
+  | ARFnCall of id (* Matches the fn name+version *)
   | ARPartial of id
   | ARRightPartial of id
   | ARList of id * astListPart

@@ -1567,6 +1567,12 @@ let run () =
         aFnCallWithVersion
         (ctrlRight 7)
         "DB::getAll~v1 ___________________" ;
+      t
+        "backspace after selecting a versioned 0-arg fnCall deletes all"
+        (fn "HttpClient::post_v4" [])
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       ()) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (key K.Pipe 4) "true |~" ;
@@ -1856,6 +1862,18 @@ let run () =
         (binop "/" b aFloat)
         (bs 5)
         "~123.456" ;
+      t
+        "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all"
+        (binop "/" (fn "HttpClient::post_v4" []) (int "5"))
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
+      t
+        "backspace after selecting all with a binop partial in a binop deletes all"
+        (binop "+" (partial "D" (binop "-" (int "5") (int "5"))) (int "5"))
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       ()) ;
   describe "Constructors" (fun () ->
       tp "arguments work in constructors" aConstructor (ins 't' 5) "Just t~" ;
@@ -1905,6 +1923,12 @@ let run () =
         aConstructor
         (key K.DeleteNextWord 2)
         "Ju~@@ ___" ;
+      t
+        "backspace after selecting all with a `Just |___` in a match deletes all"
+        (match' b [(pConstructor "Just" [pBlank], b)])
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
@@ -2665,6 +2689,12 @@ let run () =
         aPipe
         (ctrlRight 20)
         "[]\n|>List::append [5]\n|>List::append~ [5]\n" ;
+      t
+        "bsing a blank pipe after a piped 1-arg function deletes all"
+        (pipe aList5 [fn "List::length" [pipeTarget]; b])
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
       (* TODO: test for deleting pipeed prefix fns *)
