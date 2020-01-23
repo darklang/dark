@@ -529,9 +529,15 @@ let runTest (test : FuzzTest.t) : unit =
               let testcase = generateExpr () |> FluidExpression.clone in
               Js.log2 "testing: " name ;
               (* Js.log2 "testcase: " (E.show testcase) ; *)
-              let newAST, newState = test.fn testcase in
               Js.log2 "checking: " name ;
-              let passed = test.check ~testcase ~newAST newState in
+              let passed =
+                match try Some (test.fn testcase) with _ -> None with
+                | Some (newAST, newState) ->
+                    Js.log2 "checking: " name ;
+                    test.check ~testcase ~newAST newState
+                | None ->
+                    false
+              in
               if passed = false
               then (
                 Js.log2 "failed: " name ;
