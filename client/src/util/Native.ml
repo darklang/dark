@@ -149,6 +149,9 @@ module Window = struct
 
   external pageHeight : int = "outerHeight" [@@bs.val] [@@bs.scope "window"]
 
+  external openUrl : string -> string -> unit = "open"
+    [@@bs.val] [@@bs.scope "window"]
+
   module OnFocusChange = struct
     let decode =
       let open Tea.Json.Decoder in

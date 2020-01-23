@@ -34,7 +34,8 @@ type viewState =
   ; workerStats : workerStats option
   ; tokens :
       (* Calculate the tokens once per render only *)
-      FluidToken.tokenInfo list }
+      FluidToken.tokenInfo list
+  ; menuState : menuState }
 
 (* ----------------------------- *)
 (* Events *)
@@ -124,7 +125,10 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
            Some {Defaults.defaultWorkerStats with schedule}
        | Some c, Some _ ->
            Some {c with schedule})
-  ; tokens }
+  ; tokens
+  ; menuState =
+      TLIDDict.get ~tlid m.tlMenus
+      |> Option.withDefault ~default:Defaults.defaultMenu }
 
 
 let fontAwesome (name : string) : msg Html.html =
