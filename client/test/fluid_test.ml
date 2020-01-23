@@ -2675,6 +2675,12 @@ let run () =
         aPipe
         (ctrlRight 20)
         "[]\n|>List::append [5]\n|>List::append~ [5]\n" ;
+      t
+        "bsing a blank pipe after a piped 1-arg function deletes all"
+        (pipe aList5 [fn "List::length" [pipeTarget]; b])
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
       (* TODO: test for deleting pipeed prefix fns *)
