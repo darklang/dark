@@ -2913,24 +2913,25 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
   in
   let doExprBackspace (currAstRef : astRef) (expr : fluidExpr) :
       (fluidPatOrExpr * caretTarget) option =
+    let mkEBlank : unit -> (fluidPatOrExpr * caretTarget) option =
+     fun () ->
+      let bID = gid () in
+      Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    in
     match (currAstRef, expr) with
     | ARInteger _, EInteger (id, intStr) ->
         let str = mutation intStr in
         if str = ""
-        then
-          let bID = gid () in
-          Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        then mkEBlank ()
         else
           let coerced = Util.coerceStringTo63BitInt str in
           if coerced = intStr
           then None
           else Some (Expr (EInteger (id, coerced)), currCTMinusOne)
     | ARString (_, SPOpenQuote), EString (_, "") when currOffset = 1 ->
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARString (_, SPText), EString (_, "") when currOffset = 0 ->
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARString (_, SPOpenQuote), EString (id, str)
     (* The minus 2 here (one more than the default `mutation`) accounts for the open quote,
             which isn't part of the `str` but is part of the SPOpenQuote *)
@@ -3005,8 +3006,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         Some (Expr (EList (id, List.removeAt ~index:remIdx exprs)), target)
     | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
       when E.isEmpty expr ->
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
         List.getAt ~index nameValPairs
         |> Option.map ~f:(function
@@ -3165,14 +3165,12 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
     | ARLambda (_, LPKeyword), ELambda (_, _, EBlank _) ->
         (* If the expr is empty and thus can be removed *)
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARMatch (_, MPKeyword), EMatch (_, EBlank _, pairs)
       when List.all pairs ~f:(fun (p, e) ->
                match (p, e) with FPBlank _, EBlank _ -> true | _ -> false) ->
         (* the match has no content and can safely be deleted *)
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARMatch (_, MPKeyword), EMatch _
     | ARLet (_, LPKeyword), ELet _
     | ARIf (_, IPIfKeyword), EIf _
@@ -3242,6 +3240,12 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
       (patContainerRef : Types.id option ref)
       (currAstRef : astRef)
       (pat : fluidPattern) : (fluidPatOrExpr * caretTarget) option =
+    let mkPBlank (matchID : id) : (fluidPatOrExpr * caretTarget) option =
+      let bID = gid () in
+      Some
+        ( Pat (FPBlank (matchID, bID))
+        , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+    in
     match (currAstRef, pat) with
     | ARPattern (_, PPBlank), FPBlank (mID, pID) ->
         if currOffset = 0
@@ -3309,11 +3313,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARPattern (_, PPInteger), FPInteger (mID, pID, intStr) ->
         let str = mutation intStr in
         if str = ""
-        then
-          let bID = gid () in
-          Some
-            ( Pat (FPBlank (mID, bID))
-            , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+        then mkPBlank mID
         else
           let coerced = Util.coerceStringTo63BitInt str in
           if coerced = intStr
@@ -3355,16 +3355,10 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ( ARPattern (_, PPString SPOpenQuote)
       , FPString {matchID; patternID = _; str = ""} )
       when currOffset = 1 ->
-        let bID = gid () in
-        Some
-          ( Pat (FPBlank (matchID, bID))
-          , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+        mkPBlank matchID
     | ARPattern (_, PPString SPText), FPString {matchID; patternID = _; str = ""}
       when currOffset = 0 ->
-        let bID = gid () in
-        Some
-          ( Pat (FPBlank (matchID, bID))
-          , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+        mkPBlank matchID
     | ARPattern (_, PPString SPOpenQuote), FPString data ->
         let str = Util.removeCharAt data.str (currOffset - 2) in
         Some (Pat (FPString {data with str}), currCTMinusOne)
