@@ -60,7 +60,7 @@ let viewDBData (vs : viewState) (db : db) : msg Html.html =
       Vdom.noNode
 
 
-let viewDBName (vs : viewState) (db : db) : msg Html.html list =
+let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
   let typeView =
     Html.span
       [Html.class' "handler-type"]
@@ -81,7 +81,24 @@ let viewDBName (vs : viewState) (db : db) : msg Html.html list =
           [Html.class' "version"]
           [Html.text (".v" ^ string_of_int db.version)] ]
   in
-  [typeView; titleView]
+  let menuView =
+    let delAct : TLMenu.menuItem =
+      let condition =
+        if vs.dbLocked
+        then Some "Cannot delete due to data inside"
+        else if not (List.isEmpty vs.usedInRefs)
+        then Some "Cannot delete because your code refers to this DB"
+        else None
+      in
+      { title = "Delete DB"
+      ; key = "del-db-"
+      ; icon = Some "times"
+      ; action = (fun _ -> ToplevelDelete vs.tlid)
+      ; condition }
+    in
+    Html.div [Html.class' "menu"] [TLMenu.viewMenu vs.menuState vs.tlid [delAct]]
+  in
+  [typeView; titleView; menuView]
 
 
 let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
@@ -180,14 +197,16 @@ let viewDB (vs : viewState) (db : db) (dragEvents : domEventList) :
   let lockClass =
     if vs.dbLocked && db.activeMigration = None then "lock" else "unlock"
   in
-  let namediv = viewDBName vs db in
   let cols =
     if (not (vs.permission = Some ReadWrite)) || vs.dbLocked
     then List.filter ~f:(fun (n, t) -> B.isF n && B.isF t) db.cols
     else db.cols
   in
-  let keyView = Html.div [Html.class' "col key"]
-    [ Html.text "All entries are identified by a unique string `key`."] in
+  let keyView =
+    Html.div
+      [Html.class' "col key"]
+      [Html.text "All entries are identified by a unique string `key`."]
+  in
   let coldivs = List.map ~f:(viewDBCol vs false db.dbTLID) cols in
   let data = viewDBData vs db in
   let migrationView =
@@ -200,7 +219,7 @@ let viewDB (vs : viewState) (db : db) (dragEvents : domEventList) :
         []
   in
   let headerView =
-    Html.div [Html.class' ("spec-header " ^ lockClass)] namediv
+    Html.div [Html.class' ("spec-header " ^ lockClass)] (viewDBHeader vs db)
   in
   [Html.div (Html.class' "db" :: dragEvents) (headerView :: keyView :: coldivs)]
   @ migrationView

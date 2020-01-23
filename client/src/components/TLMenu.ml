@@ -13,18 +13,7 @@ type menuItem =
   ; key : string
   ; icon : string option
   ; action : mouseEvent -> msg
-  ; condition : (bool * string) option }
-
-(*
-type state = { isOpened : bool; ofTL : Types.tlid; items : menuItem list } 
-
-let init ?(items=[]) (ofTL : Types.tlid) : state = { isOpened = false; items; ofTL}
-
-type msg =
-  | OpenMenu
-  | CloseMenu
-  [@@bs.deriving {accessors}]
-*)
+  ; condition : string option }
 
 let update (m : model) (tlid : tlid) (msg : menuMsg) : model =
   let tlMenus =
@@ -51,28 +40,29 @@ let closeMenu (m : model) : model =
       m
 
 
-(*
-let view (s: menuState) (tl : toplevel) : msg Html.html =
-*)
+let viewItem (keyID : string) (i : menuItem) : msg Html.html =
+  let icon =
+    match i.icon with
+    | Some iconName ->
+        fontAwesome iconName
+    | None ->
+        Vdom.noNode
+  in
+  let attrs =
+    match i.condition with
+    | Some msg ->
+        [Html.class' "item disable"; Html.title msg]
+    | None ->
+        [Html.class' "item"; onClick (i.key ^ keyID) i.action]
+  in
+  Html.div attrs [icon; Html.text i.title]
+
 
 let viewMenu (s : menuState) (tlid : tlid) (items : menuItem list) :
     msg Html.html =
   let strTLID = showTLID tlid in
   let showMenu = s.isOpen in
-  let actions =
-    items
-    |> List.map ~f:(fun i ->
-           let icon =
-             match i.icon with
-             | Some iconName ->
-                 fontAwesome iconName
-             | None ->
-                 Vdom.noNode
-           in
-           Html.div
-             [onClick (i.key ^ strTLID) i.action]
-             [icon; Html.text i.title])
-  in
+  let actions = List.map ~f:(viewItem strTLID) items in
   let toggleMenu =
     toggleButton
       ~name:"toggle-btn"
