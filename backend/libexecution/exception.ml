@@ -23,7 +23,7 @@ let reraise e =
   Caml.Printexc.raise_with_backtrace e bt
 
 
-type captured = backtrace * exn
+type captured = backtrace * exn * (string * Yojson.Safe.t) list
 
 (* -------------------- *)
 (* Dark exceptions *)

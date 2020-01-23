@@ -82,7 +82,7 @@ let run () =
              ~key:"7"
              ~value:
                [ ( "123"
-                 , Some
+                 , Ok
                      { input
                      ; timestamp = "2019-09-17T12:00:30Z"
                      ; functionResults = [] } ) ]

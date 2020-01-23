@@ -65,7 +65,7 @@ let preprocess (ops : op_with_newness list) : op_with_newness list =
              (* if the canvas is older than the new Savepoints, then its
             * possible to undo to a point with no Savepoints anymore *)
              let new_before =
-               List.filter before ~f:(fun (_, o) -> Op.tlidOf o <> Some tlid)
+               List.filter before ~f:(fun (_, o) -> Op.tlidOf o <> tlid)
              in
              let new_after = after |> List.tl |> Option.value ~default:[] in
              (* drop savepoint *)

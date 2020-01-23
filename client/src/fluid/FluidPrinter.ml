@@ -110,8 +110,8 @@ let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
       [TPatternInteger (mid, id, i, idx)]
   | FPBool (mid, id, b) ->
       if b then [TPatternTrue (mid, id, idx)] else [TPatternFalse (mid, id, idx)]
-  | FPString (mid, id, s) ->
-      [TPatternString (mid, id, s, idx)]
+  | FPString {matchID = mid; patternID = id; str} ->
+      [TPatternString {matchID = mid; patternID = id; str; branchIdx = idx}]
   | FPFloat (mID, id, whole, fraction) ->
       let whole =
         if whole = "" then [] else [TPatternFloatWhole (mID, id, whole, idx)]
@@ -119,7 +119,7 @@ let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
       let fraction =
         if fraction = ""
         then []
-        else [TPatternFloatFraction (mID, id, fraction, idx)]
+        else [TPatternFloatFractional (mID, id, fraction, idx)]
       in
       whole @ [TPatternFloatPoint (mID, id, idx)] @ fraction
   | FPNull (mid, id) ->
@@ -214,7 +214,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EFloat (id, whole, fraction) ->
       let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
       let fraction =
-        if fraction = "" then [] else [TFloatFraction (id, fraction)]
+        if fraction = "" then [] else [TFloatFractional (id, fraction)]
       in
       addMany (whole @ [TFloatPoint id] @ fraction) b
   | EBlank id ->
@@ -405,10 +405,11 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                     b
                     |> addNewlineIfNeeded (Some (id, id, Some i))
                     |> addMany (patternToToken pattern ~idx:i)
-                    |> addMany
-                         [ TSep id
-                         ; TMatchSep (Pattern.id pattern, i)
-                         ; TSep (Pattern.id pattern) ]
+                    |> add
+                         (TMatchSep
+                            { matchID = id
+                            ; patternID = Pattern.id pattern
+                            ; index = i })
                     |> addNested ~f:(fromExpr expr))
              |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))))
   | EPartial (id, str, _) ->
@@ -468,16 +469,18 @@ let toTokens (e : E.t) : tokenInfo list =
   |> infoize ~pos:0
 
 
-let eToString (e : E.t) : string =
+let tokensToString (tis : tokenInfo list) : string =
+  tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
+
+
+let eToTestString (e : E.t) : string =
   e
   |> toTokens
   |> List.map ~f:(fun ti -> T.toTestText ti.token)
   |> String.join ~sep:""
 
 
-let tokensToString (tis : tokenInfo list) : string =
-  tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
-
+let eToHumanString (e : E.t) : string = e |> toTokens |> tokensToString
 
 let eToStructure ?(includeIDs = false) (e : E.t) : string =
   e
@@ -490,6 +493,50 @@ let eToStructure ?(includeIDs = false) (e : E.t) : string =
          ^ T.toText ti.token
          ^ ">")
   |> String.join ~sep:""
+
+
+(* This constructs a testcase that we can enter in our test suite. This is
+ * similar to show_fluidExpr except that instead of the full code, it uses
+ * the shortcuts from Fluid_test_data. *)
+let rec eToTestcase (e : E.t) : string =
+  let r = eToTestcase in
+  let quoted str = "\"" ^ str ^ "\"" in
+  let listed elems = "[" ^ String.join ~sep:"," elems ^ "]" in
+  let spaced elems = String.join ~sep:" " elems in
+  let result =
+    match e with
+    | EBlank _ ->
+        "b"
+    | EString (_, str) ->
+        spaced ["str"; quoted str]
+    | EBool (_, true) ->
+        "true"
+    | EBool (_, false) ->
+        "false"
+    | EInteger (_, int) ->
+        spaced ["int"; quoted int]
+    | ENull _ ->
+        "null"
+    | EPartial (_, str, e) ->
+        spaced ["partial"; quoted str; r e]
+    | EFnCall (_, name, exprs, _) ->
+        spaced ["fn"; quoted name; listed (List.map ~f:r exprs)]
+    | EBinOp (_, name, lhs, rhs, _) ->
+        spaced ["binop"; quoted name; r lhs; r rhs]
+    | EVariable (_, name) ->
+        spaced ["var"; quoted name]
+    | ERecord (_, pairs) ->
+        spaced
+          [ "record"
+          ; listed (List.map pairs ~f:(fun (k, v) -> "(" ^ k ^ ", " ^ r v)) ]
+    | EConstructor (_, name, exprs) ->
+        spaced ["constructor"; quoted name; listed (List.map exprs ~f:r)]
+    | EIf (_, cond, thenExpr, elseExpr) ->
+        spaced ["if'"; r cond; r thenExpr; r elseExpr]
+    | _ ->
+        "todo: " ^ E.show e
+  in
+  "(" ^ result ^ ")"
 
 
 let pToString (p : fluidPattern) : string =

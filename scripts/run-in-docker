@@ -13,8 +13,11 @@ function fix_dir_stdout {
 # Replace any filenames with the in-container filenames (stdin)
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 # shellcheck disable=SC2124
-ARGS=${@}
-ARGS=$(echo ${ARGS} | fix_dir_stdin)
+ARGS=()
+for arg in "$@"
+do
+  ARGS+=( "$(echo "$arg" | fix_dir_stdin)" )
+done
 
 if [[ -v CURRENTLY_REBUILDING_DOCKER ]];
 then
@@ -30,8 +33,8 @@ fi
 
 if [ -t 0 ] ;
 then
-  docker exec -it "${NAME}" ${ARGS} ;
+  docker exec -it "${NAME}" "${ARGS[@]}" ;
 else
   # Replace any in-container filenames with host filenames (stdout + stderr)
-  { cat <&0 | fix_dir_stdin | docker exec -i "${NAME}" ${ARGS} 2>&1 1>&3 3>&- | fix_dir_stdout; } 3>&1 1>&2 | fix_dir_stdout
+  { cat <&0 | fix_dir_stdin | docker exec -i "${NAME}" "${ARGS[@]}" 2>&1 1>&3 3>&- | fix_dir_stdout; } 3>&1 1>&2 | fix_dir_stdout
 fi

@@ -5,7 +5,7 @@ metadata:
 spec:
   type: NodePort
   selector:
-    app: bwd-app
+    app: editor-app
   ports:
     - name: darklang-nodeport-port
       protocol: TCP

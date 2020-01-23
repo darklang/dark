@@ -9,7 +9,7 @@ module PG = Postgresql
 
 let conn = Libservice.Dbconnection.conn
 
-let escape_single s = conn#escape_string s
+let escape_string s = conn#escape_string s
 
 let single_quote v = "'" ^ v ^ "'"
 
@@ -41,6 +41,7 @@ type param =
   | Null
   | List of param list
   | Bool of bool
+[@@deriving show]
 
 (* only works for in-script params *)
 
@@ -59,38 +60,38 @@ let rec escape (param : param) : string =
   | ID id ->
       Types.string_of_id id
   | String str ->
-      str |> escape_single |> single_quote
+      str |> escape_string |> single_quote
   | Uuid uuid ->
       uuid
       |> Uuidm.to_string
-      |> escape_single
+      |> escape_string
       |> single_quote
       |> cast_to ~tipe:"uuid"
   | Binary str ->
       Exception.internal "Prefer not to escape binary data"
   | Secret str ->
-      str |> escape_single |> single_quote
+      str |> escape_string |> single_quote
   | RoundtrippableDval dv ->
-      dv |> Dval.to_internal_roundtrippable_v0 |> escape_single |> single_quote
+      dv |> Dval.to_internal_roundtrippable_v0 |> escape_string |> single_quote
   | RoundtrippableDvalmap dvm ->
       DObj dvm
       |> Dval.to_internal_roundtrippable_v0
-      |> escape_single
+      |> escape_string
       |> single_quote
   | QueryableDval dv ->
       dv
       |> Dval.to_internal_queryable_v1
-      |> escape_single
+      |> escape_string
       |> single_quote
       |> cast_to ~tipe:"jsonb"
   | QueryableDvalmap dvm ->
       DObj dvm
       |> Dval.to_internal_queryable_v1
-      |> escape_single
+      |> escape_string
       |> single_quote
       |> cast_to ~tipe:"jsonb"
   | Time t ->
-      t |> date_to_sqlstring |> escape_single |> single_quote
+      t |> date_to_sqlstring |> escape_string |> single_quote
   | Null ->
       "NULL"
   | List params ->
@@ -230,12 +231,20 @@ let execute
             ~params:
               [ ( "exn"
                 , Exception.exception_data_to_yojson de |> Yojson.Safe.to_string
-                ) ] ;
+                )
+              ; ("query_name", name)
+              ; ("sql", sql) ] ;
           Caml.Printexc.raise_with_backtrace e bt
       | e ->
           Exception.exn_to_string e
     in
-    Exception.storage msg ~bt ~info:[("time", time () |> string_of_float)]
+    Exception.storage
+      msg
+      ~bt
+      ~info:
+        [ ("time", time () |> string_of_float)
+        ; ("query_name", name)
+        ; ("sql", sql) ]
 
 
 (* largely cribbed from
@@ -312,11 +321,19 @@ let iter_with_cursor
       Log.erroR
         msg
         ~bt
-        ~params:[("msg", msg); ("time", time () |> string_of_float)] ;
+        ~params:
+          [ ("msg", msg)
+          ; ("time", time () |> string_of_float)
+          ; ("query_name", name)
+          ; ("sql", sql) ] ;
       Exception.storage
         "iter_with_cursor"
         ~bt
-        ~info:[("msg", msg); ("time", time () |> string_of_float)] ) ;
+        ~info:
+          [ ("msg", msg)
+          ; ("time", time () |> string_of_float)
+          ; ("query_name", name)
+          ; ("sql", sql) ] ) ;
   ()
 
 
@@ -456,3 +473,13 @@ let delete_benchmarking_data () : unit =
     "DELETE FROM oplists WHERE host like 'benchmarking\\_%%';
      DELETE FROM json_oplists WHERE host like 'benchmarking\\_%%';"
     ~params:[]
+
+
+exception DBQueryException of string
+
+let dbQueryExceptionToString = function
+  | DBQueryException str ->
+      "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datstore query. If you think your operation should be supported, let us know in #general.\n\n  Error: "
+      ^ str
+  | _ ->
+      ""

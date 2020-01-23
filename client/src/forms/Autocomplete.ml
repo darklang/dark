@@ -296,10 +296,22 @@ let validateHttpNameValidVarnames (httpName : string) =
   else Some ("route variables must match /" ^ varnameValidator ^ "/")
 
 
-let validateFnParamNameFree (tl : toplevel) (value : string) : string option =
+let validateFnParamNameFree
+    (tl : toplevel) (oldParam : string blankOr) (value : string) : string option
+    =
   match tl with
   | TLFunc fn ->
-      let params = UserFunctions.allParamNames fn in
+      let params =
+        UserFunctions.allParamData fn
+        |> List.filterMap ~f:(fun p ->
+               match p with
+               | PParamName pd when pd = oldParam ->
+                   None
+               | PParamName (F (_, n)) ->
+                   Some n
+               | _ ->
+                   None)
+      in
       if List.member ~value params
       then Some ("`" ^ value ^ "` is already declared. Use another name.")
       else None

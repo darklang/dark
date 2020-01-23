@@ -4,17 +4,6 @@ open Lib
 open Runtime
 open Types.RuntimeT
 
-let find_db (dbs : DbT.db list) (name : string) : DbT.db =
-  dbs
-  |> List.filter ~f:(fun db ->
-         match db.name with
-         | Partial _ | Blank _ ->
-             false
-         | Filled (_, dbname) ->
-             dbname = name)
-  |> List.hd_exn
-
-
 let fns : Lib.shortfn list =
   [ { pns = ["DB::insert"]
     ; ins = []

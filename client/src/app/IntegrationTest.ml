@@ -69,7 +69,7 @@ let onlyExpr (m : model) : E.t = m |> onlyTL |> TL.getAST |> deOption "onlyast4"
 
 let enter_changes_state (m : model) : testResult =
   match m.cursorState with
-  | Omnibox _ ->
+  | Entering (Creating _) ->
       pass
   | _ ->
       fail ~f:show_cursorState m.cursorState
@@ -230,20 +230,6 @@ let rename_db_type (m : model) : testResult =
                fail ~f:show_cursorState m.cursorState )
          | _ ->
              fail ~f:(show_list ~f:show_dbColumn) cols)
-  |> Result.combine
-  |> Result.map (fun _ -> ())
-
-
-let paste_right_number_of_blanks (m : model) : testResult =
-  m.handlers
-  |> TD.mapValues ~f:(fun {ast; _} ->
-         match ast with
-         | EPipe (_, [_; EFnCall (_, "-", [EBlank _], _)]) ->
-             pass
-         | EFnCall (_, "-", [EBlank _; EBlank _], _) ->
-             pass (* ignore this TL *)
-         | _ ->
-             fail ~f:show_fluidExpr ast)
   |> Result.combine
   |> Result.map (fun _ -> ())
 
@@ -654,6 +640,34 @@ let fluid_shift_tabbing_from_handler_ast_back_to_route (_m : model) : testResult
   pass
 
 
+let fluid_test_copy_request_as_curl (m : model) : testResult =
+  (* test logic is here b/c testcafe can't get clipboard data *)
+  let curl =
+    CurlCommand.curlFromHttpClientCall
+      m
+      (TLID "91390945")
+      (ID "753586717")
+      "HttpClient::post"
+  in
+  let expected = "curl -H 'h:3' -d 'some body' -X post 'https://foo.com?q=1'" in
+  match curl with
+  | None ->
+      fail "Expected a curl command, got nothing"
+  | Some s ->
+      if s != expected
+      then fail ("Expected: '" ^ expected ^ "', got '" ^ s ^ "'.")
+      else pass
+
+
+let fluid_ac_validate_on_lose_focus (m : model) : testResult =
+  match onlyExpr m with
+  | EFieldAccess (_, EVariable (_, "request"), "body") ->
+      pass
+  | e ->
+      fail
+        ("Expected: `request.body`, got `" ^ FluidPrinter.eToHumanString e ^ "`")
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -690,8 +704,6 @@ let trigger (test_name : string) : integrationTestState =
         rename_db_fields
     | "rename_db_type" ->
         rename_db_type
-    | "paste_right_number_of_blanks" ->
-        paste_right_number_of_blanks
     | "feature_flag_works" ->
         feature_flag_works
     | "rename_function" ->
@@ -770,5 +782,9 @@ let trigger (test_name : string) : integrationTestState =
         fluid_tabbing_from_handler_spec_past_ast_back_to_verb
     | "fluid_shift_tabbing_from_handler_ast_back_to_route" ->
         fluid_shift_tabbing_from_handler_ast_back_to_route
+    | "fluid_test_copy_request_as_curl" ->
+        fluid_test_copy_request_as_curl
+    | "fluid_ac_validate_on_lose_focus" ->
+        fluid_ac_validate_on_lose_focus
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

@@ -19,6 +19,10 @@ let map3 f d1 d2 d3 json = f (d1 json) (d2 json) (d3 json)
 
 let map4 f d1 d2 d3 d4 json = f (d1 json) (d2 json) (d3 json) (d4 json)
 
+let map5 f d1 d2 d3 d4 d5 json =
+  f (d1 json) (d2 json) (d3 json) (d4 json) (d5 json)
+
+
 let variant0 constructor = succeed constructor
 
 let variant1 constructor d1 = map constructor (index 1 d1)
@@ -31,6 +35,16 @@ let variant3 constructor d1 d2 d3 =
 
 let variant4 constructor d1 d2 d3 d4 =
   map4 constructor (index 1 d1) (index 2 d2) (index 3 d3) (index 4 d4)
+
+
+let variant5 constructor d1 d2 d3 d4 d5 =
+  map5
+    constructor
+    (index 1 d1)
+    (index 2 d2)
+    (index 3 d3)
+    (index 4 d4)
+    (index 5 d5)
 
 
 let variants decoders =

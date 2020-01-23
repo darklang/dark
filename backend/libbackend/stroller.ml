@@ -49,7 +49,9 @@ let _payload_for_segment_event
       `Assoc
         ( orig_payload_items
         @ ( canvas
-          |> Option.map ~f:(fun c -> [("canvas", `String c)])
+          |> Option.map ~f:(fun c ->
+                 [ ("canvas", `String c)
+                 ; ("organization", `String (Account.auth_domain_for c)) ])
           |> Option.value ~default:[] )
         @ ( canvas_id
           |> Option.map ~f:(fun c ->
@@ -233,10 +235,53 @@ let segment_track
  * we use the blocking_curl_post instead of Curl_lwt. *)
 let segment_identify_user (username : string) : unit =
   let payload =
-    Account.get_user_and_created_at username
-    |> Option.map ~f:Account.user_info_and_created_at_to_yojson
+    Account.get_user_and_created_at_and_segment_metadata username
+    (* If we fail to get the user from the db, we want to continue but rollbar
+     * *)
+    |> (function
+         | None ->
+             let bt = Exception.get_backtrace () in
+             ( match
+                 Rollbar.report
+                   (Exception.internal
+                      "No user found when calling segment_identify user")
+                   bt
+                   (Other "segment_identify_user")
+                   "No execution id"
+               with
+             | `Failure ->
+                 Log.erroR "Failed to Rollbar.report in segment_identify_user"
+             | _ ->
+                 () ) ;
+             None
+         | Some payload ->
+             Some payload)
+    |> Option.map ~f:(fun (user_info_and_created_at, segment_metadata) ->
+           let payload =
+             user_info_and_created_at
+             |> Account.user_info_and_created_at_to_yojson
+           in
+           (* We do zero checking of fields in segment_metadata, but this is ok
+            * because it's a field we control, going to a service only we see.
+            * If we wanted to harden this later, we could List.filter the
+            * segment_metadata yojson *)
+           Yojson.Safe.Util.combine payload segment_metadata)
   in
-  payload
+  let organization =
+    username
+    |> Authorization.orgs_for
+    (* A user's orgs for this purpose do not include orgs it has
+     * read-only access to *)
+    |> List.filter ~f:(function _, rw -> rw = ReadWrite)
+    (* If you have one org, that's your org! If you have no orgs, or
+     * more than one, then we just use your username. This is because
+     * Heap's properties/traits don't support lists. *)
+    |> function [(org_name, _)] -> org_name | _ -> username
+  in
+  Option.map payload ~f:(fun payload ->
+      Yojson.Safe.Util.combine
+        payload
+        (`Assoc [("organization", `String organization)]))
   |> Option.map ~f:(fun payload ->
          segment_event_blocking ~username Identify payload)
   |> Option.value ~default:()

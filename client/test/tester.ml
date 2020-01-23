@@ -99,30 +99,31 @@ let print_test_end name (t : Private.t) : unit =
 (* Framework - test creation functions *)
 (* ------------------ *)
 
+let shouldRun name =
+  match !pattern with
+  | None ->
+      true
+  | Some pattern ->
+      let fullname = String.join ~sep:" " (name :: !Private.categories) in
+      Util.Regex.contains ~re:pattern fullname
+
+
 let describe (name : string) (testFn : unit -> unit) : unit =
   let open Private in
-  categories := name :: !categories ;
-  if List.length !categories <= 1 || !verbose then print_category_start name ;
-  testFn () ;
-  match !categories with [] -> () | _ :: rest -> categories := rest
+  if shouldRun name
+  then (
+    categories := name :: !categories ;
+    if List.length !categories <= 1 || !verbose then print_category_start name ;
+    testFn () ;
+    match !categories with [] -> () | _ :: rest -> categories := rest )
 
 
 let test (name : string) (testFn : unit -> Private.t) : unit =
   let open Private in
-  let shouldRun =
-    match !pattern with
-    | None ->
-        true
-    | Some pattern ->
-        let fullname = String.join ~sep:" " (name :: !categories) in
-        Util.Regex.contains ~re:pattern fullname
-  in
-  if shouldRun
-  then runningTest := name
-  else if !verbose
-  then print_test_skip name ;
+  let run = shouldRun name in
+  if run then runningTest := name else if !verbose then print_test_skip name ;
   let result =
-    if shouldRun
+    if run
     then
       try testFn ()
       with e ->
@@ -138,7 +139,7 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
       ; actual = None
       ; expected = None }
   in
-  if shouldRun && (result.success = Failed || !verbose)
+  if run && (result.success = Failed || !verbose)
   then print_test_end name result ;
   results := result :: !results
 
@@ -193,14 +194,39 @@ let fail () : Private.t =
   ; expected = None }
 
 
+let skip () : Private.t =
+  let open Private in
+  { categories = !categories
+  ; name = !runningTest
+  ; success = Skipped
+  ; actual = None
+  ; expected = None }
+
+
 (* ------------------ *)
 (* Announce completion *)
 (* ------------------ *)
+
+let successes () =
+  let open Private in
+  List.filter !results ~f:(fun r -> r.success = Passed)
+
+
+let fails () =
+  let open Private in
+  List.filter !results ~f:(fun r -> r.success = Failed)
+
+
+let skips () =
+  let open Private in
+  List.filter !results ~f:(fun r -> r.success = Skipped)
+
+
 let finish () =
   let open Private in
-  let successes = List.filter !results ~f:(fun r -> r.success = Passed) in
-  let fails = List.filter !results ~f:(fun r -> r.success = Failed) in
-  let skips = List.filter !results ~f:(fun r -> r.success = Skipped) in
+  let successes = successes () in
+  let fails = fails () in
+  let skips = skips () in
   let successCount = List.length successes |> string_of_int in
   let failCount = List.length fails |> string_of_int in
   let skipCount = List.length skips |> string_of_int in

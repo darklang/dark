@@ -477,10 +477,11 @@ let refilter
   let index =
     if isFieldPartial
     then
-      if queryString = ""
+      if queryString = "" && queryString <> oldQueryString
       then
-        (* Show autocomplete - the fist item - when there's no text. If we
-         * just deleted the text, reset to the top. *)
+        (* Show autocomplete - the first item - when there's no text. If we
+         * just deleted the text, reset to the top. But only reset on change
+         * - we want the arrow keys to work *)
         Some 0
       else if oldQueryString = "" && old.index = Some 0
       then
@@ -613,7 +614,7 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
 
 let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index
 
-let updateAutocompleteVisability (m : model) : model =
+let updateAutocompleteVisibility (m : model) : model =
   let oldTlid =
     match m.fluidState.ac.query with
     | Some (tlid, _) ->

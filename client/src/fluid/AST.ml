@@ -405,3 +405,16 @@ let variablesIn (ast : E.t) : avDict =
   let trace expr st = IDTable.set sym_store (deID (E.id expr)) st in
   sym_exec ~trace VarDict.empty ast ;
   sym_store |> IDTable.toList |> StrDict.fromList
+
+
+let removePartials (ast : E.t) : E.t =
+  let rec remove expr =
+    match expr with
+    | EPartial (_, _, e) | ERightPartial (_, _, e) ->
+        (* if partial walk down underying expression to look for other partials inside *)
+        E.walk ~f:remove e
+    | e ->
+        (* else walk down the path to find partials *)
+        E.walk ~f:remove e
+  in
+  remove ast

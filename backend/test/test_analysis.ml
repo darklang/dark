@@ -47,6 +47,53 @@ let t_test_filter_slash () =
     loaded
 
 
+(* This test is failing because on the backend, the test is actually available *)
+let t_other_db_query_functions_have_analysis () =
+  let f () =
+    (* The SQL compiler inserts analysis results, but I forgot to support DB:queryOne and friends. *)
+    let dbTLID = fid () in
+    let fieldID = fid () in
+    let declID = fid () in
+    let faID = fid () in
+    let lambdaID = fid () in
+    let varID = fid () in
+    let dbID = fid () in
+    let colNameID = fid () in
+    let colTypeID = fid () in
+    let ast =
+      f
+        (FnCall
+           ( "DB::queryOne_v3"
+           , [ Filled (dbID, Variable "MyDB")
+             ; Filled
+                 ( lambdaID
+                 , Lambda
+                     ( [Filled (declID, "value")]
+                     , Filled
+                         ( faID
+                         , FieldAccess
+                             ( Filled (varID, Variable "value")
+                             , Filled (fieldID, "age") ) ) ) ) ] ))
+    in
+    let ops =
+      [ Op.CreateDB (dbTLID, pos, "MyDB")
+      ; Op.AddDBCol (dbTLID, colNameID, colTypeID)
+      ; Op.SetDBColName (dbTLID, colNameID, "age")
+      ; Op.SetDBColType (dbTLID, colTypeID, "int") ]
+    in
+    let dvalStore = exec_save_dvals ~ops ast in
+    check_condition
+      "Find the age field"
+      (IDTable.find_exn dvalStore varID)
+      ~f:(function
+        | DObj v ->
+            Option.is_some (DvalMap.get ~key:"age" v)
+        | dobj ->
+            false)
+  in
+  Libs.filter_out_non_preview_safe_functions_for_tests ~f ()
+
+
 let t_list_literals () =
   let blankId = fid () in
   let ast = f (ListLiteral [f (Value "1"); Blank blankId]) in
@@ -64,4 +111,7 @@ let t_list_literals () =
 let suite =
   [ ("Missing functions still check the rail", `Quick, t_on_the_rail)
   ; ("Filter / from /:rest", `Quick, t_test_filter_slash)
-  ; ("Analysis on List listerals", `Quick, t_list_literals) ]
+  ; ("Analysis on List listerals", `Quick, t_list_literals)
+  ; ( "Analysis supports all the DB::query functionns"
+    , `Quick
+    , t_other_db_query_functions_have_analysis ) ]

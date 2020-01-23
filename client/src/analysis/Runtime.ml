@@ -162,8 +162,19 @@ let typeOf (dv : dval) : tipe =
       TBytes
 
 
+(* Drop initial/final '"' *)
 let stripQuotes (s : string) : string =
-  s |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+  let s =
+    if String.starts_with ~prefix:"\"" s
+    then s |> String.dropLeft ~count:1
+    else s
+  in
+  let s =
+    if String.ends_with ~suffix:"\"" s
+    then s |> String.dropRight ~count:1
+    else s
+  in
+  s
 
 
 let isComplete (dv : dval) : bool =
@@ -252,7 +263,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       wrap s
   | DBlock {params; body; _} ->
       (* TODO: show relevant symtable entries *)
-      FluidPrinter.eToString (ELambda (gid (), params, body))
+      FluidPrinter.eToHumanString (ELambda (gid (), params, body))
   | DIncomplete _ ->
       asType
   | DResp (Redirect url, dv_) ->

@@ -4,10 +4,6 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member ~value:vt m.tests
 
 
-let libtwitterAvailable (vts : variantTest list) : bool =
-  List.member ~value:LibtwitterVariant vts
-
-
 let toVariantTest (s : string * bool) : variantTest option =
   match s with
   | _, false ->
@@ -16,8 +12,6 @@ let toVariantTest (s : string * bool) : variantTest option =
     ( match String.toLower test with
     | "stub" ->
         Some StubVariant
-    | "libtwitter" ->
-        Some LibtwitterVariant
     | "groups" ->
         Some GroupVariant
     | _ ->
@@ -26,13 +20,7 @@ let toVariantTest (s : string * bool) : variantTest option =
 
 let toCSSClass (vt : variantTest) : string =
   let test =
-    match vt with
-    | StubVariant ->
-        "stub"
-    | LibtwitterVariant ->
-        "libtwitter"
-    | GroupVariant ->
-        "grouping"
+    match vt with StubVariant -> "stub" | GroupVariant -> "grouping"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)

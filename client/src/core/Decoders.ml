@@ -244,10 +244,82 @@ and nExpr j : OldExpr.nExpr =
     j
 
 
-let fluidExpr (j : Js.Json.t) : fluidExpr =
-  (* This is used by AnalysisWrapper, which does not have functions
-   * available when decoding, so don't raise an error when that happens. *)
-  expr j |> OldExpr.toFluidExprNoAssertion
+let sendToRail j =
+  let dv0 = variant0 in
+  variants [("Rail", dv0 Rail); ("NoRail", dv0 NoRail)] j
+
+
+let rec fluidPattern j : fluidPattern =
+  let dp = fluidPattern in
+  let dv4 = variant4 in
+  let dv3 = variant3 in
+  let dv2 = variant2 in
+  variants
+    [ ("FPVariable", dv3 (fun a b c -> FPVariable (a, b, c)) id id string)
+    ; ( "FPConstructor"
+      , dv4 (fun a b c d -> FPConstructor (a, b, c, d)) id id string (list dp)
+      )
+    ; ("FPInteger", dv3 (fun a b c -> FPInteger (a, b, c)) id id string)
+    ; ("FPBool", dv3 (fun a b c -> FPBool (a, b, c)) id id bool)
+      (* Warning: this is a bit dangerous due to ordering; we'll need to find a saner way to do this.
+      * Unfortunately, this is the first time that we have needed to decode an inline record,
+      * and implementing that decoding is a bit tricky.
+      *)
+    ; ( "FPString"
+      , dv3
+          (fun a b c -> FPString {matchID = a; patternID = b; str = c})
+          id
+          id
+          string )
+    ; ("FPFloat", dv4 (fun a b c d -> FPFloat (a, b, c, d)) id id string string)
+    ; ("FPNull", dv2 (fun a b -> FPNull (a, b)) id id) ]
+    j
+
+
+let rec fluidExpr (j : Js.Json.t) : fluidExpr =
+  let de = fluidExpr in
+  let dv5 = variant5 in
+  let dv4 = variant4 in
+  let dv3 = variant3 in
+  let dv2 = variant2 in
+  let dv1 = variant1 in
+  variants
+    [ ("EInteger", dv2 (fun x y -> EInteger (x, y)) id string)
+    ; ("EBool", dv2 (fun x y -> EBool (x, y)) id bool)
+    ; ("EString", dv2 (fun x y -> EString (x, y)) id string)
+    ; ("EFloat", dv3 (fun x y z -> EFloat (x, y, z)) id string string)
+    ; ("ENull", dv1 (fun x -> ENull x) id)
+    ; ("EBlank", dv1 (fun x -> EBlank x) id)
+    ; ("ELet", dv4 (fun a b c d -> ELet (a, b, c, d)) id string de de)
+    ; ("EIf", dv4 (fun a b c d -> EIf (a, b, c, d)) id de de de)
+    ; ( "EBinOp"
+      , dv5 (fun a b c d e -> EBinOp (a, b, c, d, e)) id string de de sendToRail
+      )
+    ; ( "ELambda"
+      , dv3 (fun a b c -> ELambda (a, b, c)) id (list (pair id string)) de )
+    ; ("EFieldAccess", dv3 (fun a b c -> EFieldAccess (a, b, c)) id de string)
+    ; ("EVariable", dv2 (fun x y -> EVariable (x, y)) id string)
+    ; ( "EFnCall"
+      , dv4 (fun a b c d -> EFnCall (a, b, c, d)) id string (list de) sendToRail
+      )
+    ; ("EPartial", dv3 (fun a b c -> EPartial (a, b, c)) id string de)
+    ; ("ERightPartial", dv3 (fun a b c -> ERightPartial (a, b, c)) id string de)
+    ; ("EList", dv2 (fun x y -> EList (x, y)) id (list de))
+    ; ("ERecord", dv2 (fun x y -> ERecord (x, y)) id (list (pair string de)))
+    ; ("EPipe", dv2 (fun x y -> EPipe (x, y)) id (list de))
+    ; ( "EConstructor"
+      , dv3 (fun a b c -> EConstructor (a, b, c)) id string (list de) )
+    ; ( "EMatch"
+      , dv3
+          (fun a b c -> EMatch (a, b, c))
+          id
+          de
+          (list (tuple2 fluidPattern de)) )
+    ; ("EPipeTarget", dv1 (fun a -> EPipeTarget a) id)
+    ; ( "EFeatureFlag"
+      , dv5 (fun a b c d e -> EFeatureFlag (a, b, c, d, e)) id string de de de
+      ) ]
+    j
 
 
 let blankOrData j : blankOrData =
@@ -295,7 +367,7 @@ let rec dval j : dval =
   in
   let dblock_args j =
     { params = field "params" (list (pair id string)) j
-    ; body = field "body" fluidExpr j
+    ; body = field "body" (fun j -> expr j |> OldExpr.toFluidExpr) j
     ; symtable = field "symtable" (strDict dval) j }
   in
   variants
@@ -401,14 +473,9 @@ and cursorState j =
   let dv4 = variant4 in
   variants
     [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
-    ; ( "Entering"
-      , oneOf
-          (* Support the old serialized form for now *)
-          [dv1 identity oldEntering; dv2 (fun a b -> Entering (a, b)) tlid id]
-      )
+    ; ("Entering", dv1 (fun a -> Entering a) entering)
     ; ( "Dragging"
       , dv4 (fun a b c d -> Dragging (a, b, c, d)) tlid vPos bool cursorState )
-    ; ("Omnibox", dv1 (fun x -> Omnibox x) pos)
     ; ("Deselected", dv0 Deselected) (* Old value *)
     ; ("SelectingCommand", dv2 (fun a b -> Selecting (a, Some b)) tlid id)
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
@@ -416,12 +483,15 @@ and cursorState j =
     j
 
 
-and oldEntering j =
+and entering j =
   let dv1 = variant1 in
   let dv2 = variant2 in
   variants
-    [ ("Creating", dv1 (fun x -> Omnibox x) pos)
-    ; ("Filling", dv2 (fun a b -> Entering (a, b)) tlid id) ]
+    [ ( "Creating"
+      , dv1
+          (fun x -> Creating (if x = Defaults.origin then None else Some x))
+          pos )
+    ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
     j
 
 
@@ -450,7 +520,7 @@ let handlerSpec j : handlerSpec =
 
 
 let handler pos j : handler =
-  { ast = field "ast" fluidExpr j
+  { ast = field "ast" (fun j -> expr j |> OldExpr.toFluidExpr) j
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
   ; pos }
@@ -479,8 +549,8 @@ let dbMigration j : dbMigration =
   ; version = field "version" int j
   ; state = field "state" dbMigrationState j
   ; cols = field "cols" dbColList j
-  ; rollforward = field "rollforward" fluidExpr j
-  ; rollback = field "rollback" fluidExpr j }
+  ; rollforward = field "rollforward" (fun j -> expr j |> OldExpr.toFluidExpr) j
+  ; rollback = field "rollback" (fun j -> expr j |> OldExpr.toFluidExpr) j }
 
 
 let db pos j : db =
@@ -577,7 +647,15 @@ let traceData j : traceData =
   ; functionResults = field "function_results" (list functionResult) j }
 
 
-let trace j : trace = pair traceID (optional traceData) j
+let trace j : trace =
+  pair traceID (optional traceData) j
+  |> fun (id, traceData) ->
+  match traceData with
+  | None ->
+      (id, Result.fail NoneYet)
+  | Some traceData ->
+      (id, Result.succeed traceData)
+
 
 let traces j : traces =
   j |> list (tuple2 wireIdentifier (list trace)) |> StrDict.fromList
@@ -761,7 +839,6 @@ let initialLoadAPIResult j : initialLoadAPIResult =
       j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
   ; fofs = field "fofs" (list fof) j
   ; staticDeploys = field "assets" (list sDeploy) j
-  ; traces = field "traces" (list (pair tlid traceID)) j
   ; userTipes = field "user_tipes" (list userTipe) j
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
   ; opCtrs =
@@ -773,6 +850,10 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
   ; worker_schedules = field "worker_schedules" (strDict string) j }
+
+
+let allTracesResult j : allTracesAPIResult =
+  {traces = field "traces" (list (pair tlid traceID)) j}
 
 
 let executeFunctionAPIResult j : executeFunctionAPIResult =

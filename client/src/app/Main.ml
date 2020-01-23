@@ -78,12 +78,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   in
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
-  let functions =
-    List.filter complete ~f:(fun fn ->
-        if String.contains ~substring:"Twitter::" fn.fnName
-        then VariantTesting.libtwitterAvailable variants
-        else true)
-  in
+  let functions = complete in
   FluidExpression.functions := functions ;
   let m =
     { m with
@@ -139,7 +134,7 @@ let processFocus (m : model) (focus : focus) : modification =
         in
         ( match next with
         | Some id ->
-            Enter (tlid, id)
+            Enter (Filling (tlid, id))
         | None ->
           ( match pred with
           | Some id ->
@@ -150,7 +145,7 @@ let processFocus (m : model) (focus : focus) : modification =
     ( match TL.getPD m tlid id with
     | Some pd ->
         if P.isBlank pd || P.toContent pd = ""
-        then Enter (tlid, id)
+        then Enter (Filling (tlid, id))
         else Select (tlid, STID id)
     | _ ->
         NoChange )
@@ -166,7 +161,7 @@ let processFocus (m : model) (focus : focus) : modification =
           Select (tlid, STTopLevelRoot)
       | _ ->
           Deselect )
-    | Entering (tlid, id) ->
+    | Entering (Filling (tlid, id)) ->
       ( match TL.get m tlid with
       | Some tl ->
           if TL.isValidBlankOrID tl id
@@ -239,14 +234,6 @@ let isACOpened (m : model) : bool =
   FluidAutocomplete.isOpened m.fluidState.ac
   || FluidCommands.isOpened m.fluidState.cp
   || AC.isOpened m.complete
-
-
-let updateDropdownVisabilty (m : model) : model =
-  if FluidAutocomplete.isOpened m.fluidState.ac
-  then FluidAutocomplete.updateAutocompleteVisability m
-  else if FluidCommands.isOpened m.fluidState.cp
-  then FluidCommands.updateCommandPaletteVisability m
-  else m
 
 
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
@@ -352,7 +339,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           Js.log "Already at latest redo - ignoring server error" ;
           String.contains
             (APIError.msg apiError)
-            ~substring:"(client): Already at latest redo (API)"
+            ~substring:"(client): Already at latest redo"
         in
         let cmd =
           if shouldReload
@@ -518,29 +505,33 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let commands = [hashcmd; acCmd; API.sendPresence m avMessage] in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
-    | EnterOmnibox pos ->
-        let m, acCmd = processAutocompleteMods m [ACSetTarget None] in
-        let m = {m with cursorState = Omnibox pos} in
-        (m, Cmd.batch [acCmd; Entry.focusEntry m])
-    | Enter (tlid, id) ->
+    | Enter entry ->
         let cursorState, target =
-          match TL.getPD m tlid id with
-          | Some pd ->
-              (Entering (tlid, id), Some (tlid, pd))
-          | None ->
-              (FluidEntering tlid, None)
+          match entry with
+          | Creating _ ->
+              (Entering entry, None)
+          | Filling (tlid, id) ->
+            ( match TL.getPD m tlid id with
+            | Some pd ->
+                (Entering entry, Some (tlid, pd))
+            | None ->
+                (FluidEntering tlid, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, Cmd.batch [afCmd; acCmd; Entry.focusEntry m])
-    | EnterWithOffset (tlid, id, offset) ->
+    | EnterWithOffset (entry, offset) ->
         let cursorState, target =
-          match TL.getPD m tlid id with
-          | Some pd ->
-              (Entering (tlid, id), Some (tlid, pd))
-          | None ->
-              (FluidEntering tlid, None)
+          match entry with
+          | Creating _ ->
+              (Entering entry, None)
+          | Filling (tlid, id) ->
+            ( match TL.getPD m tlid id with
+            | Some pd ->
+                (Entering entry, Some (tlid, pd))
+            | None ->
+                (FluidEntering tlid, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
@@ -648,7 +639,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newTraces =
           Analysis.mergeTraces
             ~onConflict:(fun (oldID, oldData) (newID, newData) ->
-              if newData <> None then (newID, newData) else (oldID, oldData))
+              (* Update if:
+               * - new data is ok (successful fetch)
+               * - old data is an error, so is new data, but different errors
+               * *)
+              if Result.isOk newData
+                 || ((not (Result.isOk oldData)) && oldData <> newData)
+              then (newID, newData)
+              else (oldID, oldData))
             m.traces
             traces
         in
@@ -667,7 +665,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * stored function results *)
         let newTraces =
           Analysis.mergeTraces
-            ~onConflict:(fun _old (newID, _) -> (newID, None))
+            ~onConflict:(fun _old (newID, _) -> (newID, Error NoneYet))
             m.traces
             traces
         in
@@ -887,7 +885,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TriggerHandlerAPICall tlid ->
         let traceID = Analysis.getSelectedTraceID m tlid in
         ( match Option.andThen traceID ~f:(Analysis.getTrace m tlid) with
-        | Some (traceID, Some traceData) ->
+        | Some (traceID, Ok traceData) ->
             let handlerProps =
               RT.setHandlerExeState tlid Executing m.handlerProps
             in
@@ -902,14 +900,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (Introspect.refreshUsages m (List.map ~f:TL.id tls), Cmd.none)
     | RefreshUsages tlids ->
         (Introspect.refreshUsages m tlids, Cmd.none)
-    | FluidCommandsShow (tlid, token) ->
-      ( match TL.get m tlid with
-      | Some tl ->
-          let cp = FluidCommands.show tl token in
-          ( {m with fluidState = {m.fluidState with cp}}
-          , Tea_html_cmds.focus FluidCommands.filterInputID )
-      | None ->
-          (m, Cmd.none) )
+    | FluidCommandsShow (tlid, id) ->
+        ( FluidCommands.show m tlid id
+        , Tea_html_cmds.focus FluidCommands.filterInputID )
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
         ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
@@ -950,13 +943,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let hcache =
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
-                 let value = FluidPrinter.eToString h.ast in
+                 let value = FluidPrinter.eToHumanString h.ast in
                  cache |> TLIDDict.insert ~tlid:h.hTLID ~value)
         in
         let searchCache =
           userFunctions
           |> List.foldl ~init:hcache ~f:(fun f cache ->
-                 let value = FluidPrinter.eToString f.ufAST in
+                 let value = FluidPrinter.eToHumanString f.ufAST in
                  cache |> TLIDDict.insert ~tlid:f.ufTLID ~value)
         in
         ({m with searchCache}, Cmd.none)
@@ -966,23 +959,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
-  let newm = updateDropdownVisabilty newm in
-  (newm, Cmd.batch [cmd; newcmd])
-
-
-let findCenter (m : model) : pos =
-  let {x; y} =
-    match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-        Viewport.toCenter m.canvasProps.offset
-    | _ ->
-        Defaults.centerPos
+  let cmds = Cmd.batch [cmd; newcmd] in
+  let newm, modi =
+    let mTLID =
+      match m.cursorState with
+      | FluidEntering tlid when Some tlid <> tlidOf newm.cursorState ->
+          Some tlid
+      | _ ->
+          None
+    in
+    Fluid.cleanUp newm mTLID
   in
-  (* if the sidebar is open, the users can't see the livevalues, which
-   * confused new users. Given we can't get z-index to work, moving it to the
-   * side a little seems the best solution for now. *)
-  let xOffset = if m.sidebarOpen then 160 else 0 in
-  {x = x + xOffset; y}
+  match modi with NoChange -> (newm, cmds) | _ -> updateMod modi (newm, cmds)
 
 
 let update_ (msg : msg) (m : model) : modification =
@@ -1000,10 +988,10 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | AutocompleteClick index ->
     ( match unwrapCursorState m.cursorState with
-    | Entering (tlid, id) ->
+    | Entering cursor ->
         let newcomplete = {m.complete with index} in
         let newm = {m with complete = newcomplete} in
-        Entry.submit newm tlid id Entry.StayHere
+        Entry.submit newm cursor Entry.StayHere
     | _ ->
         NoChange )
   | FluidMsg (FluidUpdateDropdownIndex index) ->
@@ -1020,9 +1008,9 @@ let update_ (msg : msg) (m : model) : modification =
         (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
         let defaultBehaviour = Select (tlid, STTopLevelRoot) in
         ( match unwrapCursorState m.cursorState with
-        | Entering (tlid, id) ->
+        | Entering (Filling _ as cursor) ->
             (* If we click away from an entry box, commit it before doing the default behaviour *)
-            Many [Entry.commit m tlid id; defaultBehaviour]
+            Many [Entry.commit m cursor; defaultBehaviour]
         | _ ->
             defaultBehaviour )
     | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
@@ -1032,12 +1020,11 @@ let update_ (msg : msg) (m : model) : modification =
           let defaultBehaviour = Deselect in
           match unwrapCursorState m.cursorState with
           | Deselected ->
-              Many
-                [ AutocompleteMod ACReset
-                ; EnterOmnibox (Viewport.toAbsolute m event.mePos) ]
-          | Entering (tlid, id) ->
+              let openAt = Viewport.toAbsolute m event.mePos in
+              Many [AutocompleteMod ACReset; Enter (Creating (Some openAt))]
+          | Entering (Filling _ as cursor) ->
               (* If we click away from an entry box, commit it before doing the default behaviour *)
-              Many [Entry.commit m tlid id; defaultBehaviour]
+              Many [Entry.commit m cursor; defaultBehaviour]
           | _ ->
               defaultBehaviour
         else NoChange )
@@ -1050,7 +1037,7 @@ let update_ (msg : msg) (m : model) : modification =
   | TraceMouseEnter (tlid, traceID, _) ->
       let traceCmd =
         match Analysis.getTrace m tlid traceID with
-        | Some (_, None) ->
+        | Some (_, Error _) ->
             let m, cmd = Analysis.requestTrace m tlid traceID in
             [ TweakModel (fun old -> {old with syncState = m.syncState})
             ; MakeCmd cmd ]
@@ -1131,15 +1118,15 @@ let update_ (msg : msg) (m : model) : modification =
                 (* if we haven't moved, treat this as a single click and not a attempted drag *)
                 let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
                 ( match origCursorState with
-                | Entering (tlid, id) ->
-                    Many [Entry.commit m tlid id; defaultBehaviour]
+                | Entering (Filling _ as cursor) ->
+                    Many [Entry.commit m cursor; defaultBehaviour]
                 | _ ->
                     defaultBehaviour )
           | None ->
               SetCursorState origCursorState )
-        | Entering (tlid, id) ->
+        | Entering (Filling _ as cursor) ->
             Many
-              [ Entry.commit m tlid id
+              [ Entry.commit m cursor
               ; Select (tlid, STTopLevelRoot)
               ; FluidEndClick ]
         | _ ->
@@ -1159,15 +1146,17 @@ let update_ (msg : msg) (m : model) : modification =
           select targetID
       | Dragging (_, _, _, origCursorState) ->
           SetCursorState origCursorState
-      | Omnibox _ ->
-          select targetID
-      | Entering (tlid, id) ->
-          if id = targetID
-          then
-            (* If we click away from an entry box, commit it before doing
-             * the default behaviour *)
-            NoChange
-          else Many [Entry.commit m tlid id; select targetID]
+      | Entering cursor ->
+          let defaultBehaviour = select targetID in
+          ( match cursor with
+          | Filling (_, fillingID) ->
+              if fillingID = targetID
+              then
+                NoChange
+                (* If we click away from an entry box, commit it before doing the default behaviour *)
+              else Many [Entry.commit m cursor; defaultBehaviour]
+          | _ ->
+              defaultBehaviour )
       | Selecting (_, _) ->
           select targetID
       | FluidEntering _ ->
@@ -1184,8 +1173,8 @@ let update_ (msg : msg) (m : model) : modification =
       in
       ( match m.cursorState with
       (* If we click away from an entry box, commit it before doing the default behaviour *)
-      | Entering (tlid, id) ->
-          Many (Entry.commit m tlid id :: defaultBehaviour)
+      | Entering (Filling _ as cursor) ->
+          Many (Entry.commit m cursor :: defaultBehaviour)
       | _ ->
           Many defaultBehaviour )
   | ExecuteFunctionButton (tlid, id, name) ->
@@ -1411,6 +1400,19 @@ let update_ (msg : msg) (m : model) : modification =
           applyOpsToClient false params (result |> Option.valueExn)
         in
         Many (initialMods @ [MakeCmd (Entry.focusEntry m)])
+  | FetchAllTracesAPICallback (Ok x) ->
+      let traces =
+        List.foldl x.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
+            let trace = (traceid, Error NoneYet) in
+            StrDict.update dict ~key:(deTLID tlid) ~f:(function
+                | Some existing ->
+                    Some (existing @ [trace])
+                | None ->
+                    Some [trace]))
+      in
+      UpdateTraces traces
+  | FetchAllTracesAPICallback (Error x) ->
+      DisplayError ("Failed to load traces: " ^ Tea_http.string_of_error x)
   | InitialLoadAPICallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
@@ -1425,16 +1427,6 @@ let update_ (msg : msg) (m : model) : modification =
       in
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in
-      let traces : traces =
-        List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
-            let trace = (traceid, None) in
-            StrDict.update dict ~key:(deTLID tlid) ~f:(fun old ->
-                match old with
-                | Some existing ->
-                    Some (existing @ [trace])
-                | None ->
-                    Some [trace]))
-      in
       Many
         [ TweakModel (fun m -> {m with opCtrs = r.opCtrs; account = r.account})
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
@@ -1450,7 +1442,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; ClearError
         ; extraMod
         ; newState
-        ; UpdateTraces traces
+        ; MakeCmd (API.fetchAllTraces m)
         ; InitIntrospect (TD.values allTLs)
         ; InitASTCache (r.handlers, r.userFunctions) ]
   | SaveTestAPICallback (Ok msg_) ->
@@ -1459,7 +1451,7 @@ let update_ (msg : msg) (m : model) : modification =
       (params, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
         List.map
-          ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, None)]))
+          ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, Error NoneYet)]))
           tlids
       in
       Many
@@ -1475,9 +1467,9 @@ let update_ (msg : msg) (m : model) : modification =
         ; OverrideTraces (StrDict.fromList traces)
         ; SetUnlockedDBs unlockedDBs ]
   | TriggerHandlerAPICallback (params, Ok tlids) ->
-      let traces =
+      let (traces : Prelude.traces) =
         List.map
-          ~f:(fun tlid -> (deTLID tlid, [(params.thTraceID, None)]))
+          ~f:(fun tlid -> (deTLID tlid, [(params.thTraceID, Error NoneYet)]))
           tlids
         |> StrDict.fromList
       in
@@ -1495,7 +1487,9 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUnlockedDBs unlockedDBs ]
   | NewTracePush (traceID, tlids) ->
       let traces =
-        List.map ~f:(fun tlid -> (deTLID tlid, [(traceID, None)])) tlids
+        List.map
+          ~f:(fun tlid -> (deTLID tlid, [(traceID, Error NoneYet)]))
+          tlids
       in
       UpdateTraces (StrDict.fromList traces)
   | New404Push f404 ->
@@ -1543,6 +1537,22 @@ let update_ (msg : msg) (m : model) : modification =
            (* not a great error ... but this is an api error without a
             * corresponding actual http error *)
            Tea.Http.Aborted)
+  | ReceiveFetch (TraceFetchFailure (params, url, error))
+    when error
+         = "Selected trace too large for the editor to load, maybe try another?"
+    ->
+      let traces =
+        StrDict.fromList
+          [ ( deTLID params.gtdrpTlid
+            , [(params.gtdrpTraceID, Error MaximumCallStackError)] ) ]
+      in
+      Many
+        [ TweakModel
+            (Sync.markResponseInModel
+               ~key:("tracefetch-" ^ params.gtdrpTraceID))
+        ; UpdateTraces traces
+        ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
+        ]
   | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
       Many
         [ TweakModel
@@ -1689,7 +1699,7 @@ let update_ (msg : msg) (m : model) : modification =
   | PageVisibilityChange vis ->
       TweakModel (fun m_ -> {m_ with visibility = vis})
   | CreateHandlerFrom404 ({space; path; modifier; _} as fof) ->
-      let center = findCenter m in
+      let center = Viewport.findNewPos m in
       let tlid = gtlid () in
       let pos = center in
       let ast = EBlank (gid ()) in
@@ -1709,7 +1719,7 @@ let update_ (msg : msg) (m : model) : modification =
             if search.space = fof.space
                && search.path = fof.path
                && search.modifier = fof.modifier
-            then (search.traceID, None) :: acc
+            then (search.traceID, Error NoneYet) :: acc
             else acc)
           m.f404s
       in
@@ -1745,14 +1755,14 @@ let update_ (msg : msg) (m : model) : modification =
   | ToggleSideBar ->
       TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
   | CreateRouteHandler action ->
-      let center = findCenter m in
+      let center = Viewport.findNewPos m in
       Entry.submitOmniAction m center action
   | CreateDBTable ->
-      let center = findCenter m
+      let center = Viewport.findNewPos m
       and genName = DB.generateDBName () in
-      Entry.newDB genName center m
+      Entry.newDB genName center
   | CreateGroup ->
-      let center = findCenter m in
+      let center = Viewport.findNewPos m in
       Groups.createEmptyGroup None center
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
@@ -1775,17 +1785,11 @@ let update_ (msg : msg) (m : model) : modification =
           (fun m ->
             {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
-      let clipboardData =
-        if true (* unclear if old copy/paste works *)
-        then Fluid.getCopySelection m
-        else Clipboard.copy m
-      in
+      let clipboardData = Fluid.getCopySelection m in
       Many [SetClipboardContents (clipboardData, e); toast]
   | ClipboardPasteEvent e ->
       let data = Clipboard.getData e in
-      if true (* unclear if old copy/paste works *)
-      then Fluid.update m (FluidPaste data)
-      else Clipboard.paste m data
+      Fluid.update m (FluidPaste data)
   | ClipboardCutEvent e ->
       let toast =
         TweakModel
@@ -1793,9 +1797,7 @@ let update_ (msg : msg) (m : model) : modification =
             {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let copyData, mod_ =
-        if true (* unclear if old copy/paste works *)
-        then (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
-        else Clipboard.cut m
+        (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
       in
       Many [SetClipboardContents (copyData, e); mod_; toast]
   | ClipboardCopyLivevalue (lv, pos) ->
@@ -1837,7 +1839,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~importance:IgnorableError
            ~reload:false
            err)
-  | FluidMsg FluidCopy | FluidMsg FluidCut | FluidMsg (FluidPaste _) ->
+  | FluidMsg FluidCut | FluidMsg (FluidPaste _) ->
       recover "Fluid functions should not happen here" ~debug:msg NoChange
   | FluidMsg (FluidCommandsFilter query) ->
       TweakModel
@@ -1866,10 +1868,10 @@ let update_ (msg : msg) (m : model) : modification =
         [FluidStartClick; Select (targetExnID, STTopLevelRoot)]
       in
       ( match m.cursorState with
-      | Entering (tlid, id) ->
+      | Entering (Filling _ as cursor) ->
           Many
             (* If we click away from an entry box, commit it before doing the default behaviour *)
-            (Entry.commit m tlid id :: defaultBehaviour)
+            (Entry.commit m cursor :: defaultBehaviour)
       | _ ->
           Many defaultBehaviour )
   | FluidMsg (FluidMouseUp (targetExnID, _) as msg) ->

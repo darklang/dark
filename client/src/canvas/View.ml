@@ -198,7 +198,12 @@ let tlCacheKey (m : model) tl =
     in
     let tracesLoaded =
       Analysis.getTraces m tlid
-      |> List.map ~f:(fun (_, traceData) -> Option.isSome traceData)
+      |> List.map ~f:(fun (_, traceData) ->
+             match traceData with
+             | Ok _ | Error MaximumCallStackError ->
+                 true
+             | _ ->
+                 false)
     in
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
     let props = TLIDDict.get ~tlid m.handlerProps in
@@ -301,7 +306,11 @@ let viewCanvas (m : model) : msg Html.html =
       | FocusedHandler _ | FocusedDB _ ->
           true
       | Architecture ->
-        (match m.cursorState with Omnibox _ -> true | _ -> false)
+        ( match unwrapCursorState m.cursorState with
+        | Entering (Creating _) ->
+            true
+        | _ ->
+            false )
       | _ ->
           false
     in

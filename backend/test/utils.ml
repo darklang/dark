@@ -205,13 +205,7 @@ let coltypeid2 = Int63.of_int 14
 
 let colnameid3 = Int63.of_int 15
 
-(* Keep scripts/ocaml-find-unused happy *)
-let _ = colnameid3
-
 let coltypeid3 = Int63.of_int 16
-
-(* Keep scripts/ocaml-find-unused happy *)
-let _ = coltypeid3
 
 let nameid = Int63.of_int 17
 
@@ -416,9 +410,16 @@ let exec_handler ?(ops = []) (prog : string) : dval =
   |> fun h -> execute_ops (ops @ [h])
 
 
-let exec_ast ?(canvas_name = "test") (prog : string) : dval =
-  let c, state, input_vars = test_execution_data ~canvas_name [] in
+let exec_ast ?(ops = []) ?(canvas_name = "test") (prog : string) : dval =
+  let c, state, input_vars = test_execution_data ~canvas_name ops in
   let result = Ast.execute_ast ~input_vars ~state (ast_for prog) in
+  result
+
+
+let exec_ast' ?(ops = []) ?(canvas_name = "test") (prog : Fluid.fluidExpr) :
+    dval =
+  let c, state, input_vars = test_execution_data ~canvas_name ops in
+  let result = Ast.execute_ast ~input_vars ~state (Fluid.fromFluidExpr prog) in
   result
 
 
@@ -430,9 +431,9 @@ let exec_userfn (prog : string) : dval =
   Ast.execute_fn ~state name execution_id []
 
 
-let exec_save_dvals ?(canvas_name = "test") (ast : expr) :
+let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
     Analysis_types.dval_store =
-  let c, state, input_vars = test_execution_data ~canvas_name [] in
+  let c, state, input_vars = test_execution_data ~canvas_name ops in
   let { tlid
       ; execution_id
       ; dbs

@@ -27,6 +27,10 @@ pub fn setup_database(log: Arc<slog::Logger>) -> Result<postgres::Connection, Er
 }
 
 pub fn setup_canvas(conn: &postgres::Connection) -> Result<(Uuid, Uuid), Error> {
+    conn.execute("TRUNCATE events", &[])?;
+    conn.execute("TRUNCATE scheduling_rules", &[])?;
+    conn.execute("TRUNCATE accounts CASCADE", &[])?;
+
     conn.execute(
         "INSERT INTO accounts (id, username, name, email, admin, password)
         VALUES (

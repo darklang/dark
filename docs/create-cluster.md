@@ -27,9 +27,10 @@ the value you want is `darkcluster<timestamp>` (the current prod cluster is
 https://console.cloud.google.com/kubernetes/list?project=balmy-ground-195100.
 
 You may also want to edit
-`scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml.template` and set
-`replicas: 1`, or something _slightly_ less ridiculous than 72. (Deploys will be
-faster, and you likely won't have prod-level traffic.)
+`scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml.template` and
+`scripts/support/kubernetes/builtwithdark/editor-deployment.yaml.template` and
+set `replicas: 1`, or something _slightly_ less ridiculous than 72. (Deploys
+will be faster, and you likely won't have prod-level traffic.)
 
 
 Use

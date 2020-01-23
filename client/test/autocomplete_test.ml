@@ -31,10 +31,10 @@ let defaultBlankOr = Blank defaultID
 let defaultExpr = EBlank defaultID
 
 let fillingCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
-  Entering (tlid, id)
+  Entering (Filling (tlid, id))
 
 
-let creatingCS : cursorState = Omnibox {x = 0; y = 0}
+let creatingCS : cursorState = Entering (Creating None)
 
 (* Sets the model with the appropriate toplevels *)
 let defaultModel
@@ -151,7 +151,7 @@ let enteringEventNameHandler ?(space : string option = None) () : model =
 
 let creatingOmni : model =
   { Defaults.defaultModel with
-    cursorState = Omnibox {x = 0; y = 0}
+    cursorState = Entering (Creating None)
   ; builtInFunctions = sampleFunctions }
 
 
@@ -159,8 +159,10 @@ let creatingOmni : model =
 let acFor ?(target = Some (defaultTLID, PDBColType defaultBlankOr)) (m : model)
     : autocomplete =
   match m.cursorState with
-  | Omnibox _ ->
+  | Entering (Creating _) ->
       init m |> setTarget m None
+  | Entering (Filling _) ->
+      init m |> setTarget m target
   | _ ->
       init m |> setTarget m target
 
@@ -218,15 +220,17 @@ let run () =
               |> toEqual (Some "Every 5mins is an invalid CRON interval")) ;
           ()) ;
       describe "validate functions" (fun () ->
+          let pn1 = B.newF "title" in
+          let pn2 = B.newF "author" in
           let fnAsTL =
             aFunction
               ~params:
-                [ { ufpName = B.newF "title"
+                [ { ufpName = pn1
                   ; ufpTipe = B.newF TStr
                   ; ufpBlock_args = []
                   ; ufpOptional = false
                   ; ufpDescription = "" }
-                ; { ufpName = B.newF "author"
+                ; { ufpName = pn2
                   ; ufpTipe = B.newF TStr
                   ; ufpBlock_args = []
                   ; ufpOptional = false
@@ -235,10 +239,14 @@ let run () =
             |> TL.ufToTL
           in
           test "don't allow duplicate param names" (fun () ->
-              expect (validateFnParamNameFree fnAsTL "title")
+              expect (validateFnParamNameFree fnAsTL (B.new_ ()) "title")
               |> toEqual (Some "`title` is already declared. Use another name.")) ;
           test "allow unused names" (fun () ->
-              expect (validateFnParamNameFree fnAsTL "rating") |> toEqual None)) ;
+              expect (validateFnParamNameFree fnAsTL (B.new_ ()) "rating")
+              |> toEqual None) ;
+          test "allow param name to be renamed the same" (fun () ->
+              expect (validateFnParamNameFree fnAsTL pn2 "author")
+              |> toEqual None)) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           test "empty autocomplete doesn't highlight" (fun () ->
@@ -556,13 +564,13 @@ let run () =
             m.searchCache
             |> TLIDDict.insert
                  ~tlid:http.hTLID
-                 ~value:(FluidPrinter.eToString http.ast)
+                 ~value:(FluidPrinter.eToHumanString http.ast)
             |> TLIDDict.insert
                  ~tlid:repl.hTLID
-                 ~value:(FluidPrinter.eToString repl.ast)
+                 ~value:(FluidPrinter.eToHumanString repl.ast)
             |> TLIDDict.insert
                  ~tlid:fn.ufTLID
-                 ~value:(FluidPrinter.eToString fn.ufAST)
+                 ~value:(FluidPrinter.eToHumanString fn.ufAST)
           in
           let m = {m with searchCache} in
           test "find variable" (fun () ->

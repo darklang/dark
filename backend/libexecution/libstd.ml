@@ -164,4 +164,21 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["Twitter::urlencode"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TStr
+    ; d = "Url encode a string per Twitter's requirements"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              s
+              |> Unicode_string.to_string
+              |> Uri.pct_encode ~component:`Userinfo
+              |> Dval.dstr_of_string_exn
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]

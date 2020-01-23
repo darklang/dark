@@ -313,13 +313,20 @@ https://github.com/chriskempson/tomorrow-theme */
   }
 
   .fluid-partial-ghost {
-    color: $grey3;
+    color: darken($grey3, 25%);
   }
 
   // <Position autocomplete as a dropdown>
   .fluid-entry {
     position: relative;
     // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
+  }
+
+  .fluid-binop,
+  .fluid-pipe-symbol {
+    &:not(.fa) {
+      font-family: "Fira Code", monospace;
+    }
   }
 
   .fluid-pipe-symbol {
@@ -417,6 +424,7 @@ since they are essentially both commands just acting upon different things. */
   flex-direction: row;
   justify-content: space-between;
   width: 100%;
+  position: relative;
 
   @include precedence(1);
   @include precedence(2);

@@ -33,6 +33,61 @@ let id (expr : t) : Types.id =
       id
 
 
+let rec findExprOrPat (target : Types.id) (within : fluidPatOrExpr) :
+    fluidPatOrExpr option =
+  let id, patOrExprs =
+    match within with
+    | Expr expr ->
+      ( match expr with
+      | EInteger (id, _)
+      | EBool (id, _)
+      | EString (id, _)
+      | EFloat (id, _, _)
+      | ENull id
+      | EBlank id
+      | EVariable (id, _)
+      | EPipeTarget id ->
+          (id, [])
+      | ELet (id, _, e1, e2) | EBinOp (id, _, e1, e2, _) ->
+          (id, [Expr e1; Expr e2])
+      | EIf (id, e1, e2, e3) | EFeatureFlag (id, _, e1, e2, e3) ->
+          (id, [Expr e1; Expr e2; Expr e3])
+      | ELambda (id, _, e1)
+      | EFieldAccess (id, e1, _)
+      | EPartial (id, _, e1)
+      | ERightPartial (id, _, e1) ->
+          (id, [Expr e1])
+      | EFnCall (id, _, exprs, _)
+      | EList (id, exprs)
+      | EPipe (id, exprs)
+      | EConstructor (id, _, exprs) ->
+          (id, List.map exprs ~f:(fun e1 -> Expr e1))
+      | ERecord (id, nameAndExprs) ->
+          (id, List.map nameAndExprs ~f:(fun (_, e1) -> Expr e1))
+      | EMatch (id, e1, pairs) ->
+          ( id
+          , Expr e1
+            :: ( pairs
+               |> List.map ~f:(fun (p1, e1) -> [Pat p1; Expr e1])
+               |> List.flatten ) ) )
+    | Pat pat ->
+      ( match pat with
+      | FPVariable (_, pid, _)
+      | FPInteger (_, pid, _)
+      | FPBool (_, pid, _)
+      | FPNull (_, pid)
+      | FPBlank (_, pid)
+      | FPFloat (_, pid, _, _)
+      | FPString {matchID = _; patternID = pid; str = _} ->
+          (pid, [])
+      | FPConstructor (_, pid, _, pats) ->
+          (pid, List.map pats ~f:(fun p1 -> Pat p1)) )
+  in
+  if id = target
+  then Some within
+  else patOrExprs |> List.findMap ~f:(fun pOrE -> findExprOrPat target pOrE)
+
+
 let rec find (target : Types.id) (expr : t) : t option =
   let fe = find target in
   if id expr = target

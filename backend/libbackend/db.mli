@@ -20,6 +20,7 @@ type param =
   | Null
   | List of param list
   | Bool of bool
+[@@deriving show]
 
 (* only works for in-script params *)
 
@@ -88,6 +89,8 @@ val exists :
  * work, so we need to escape manually *)
 val escape : param -> string
 
+val escape_string : string -> string
+
 val array_separator : string
 
 val date_of_sqlstring : string -> Core_kernel.Time.t
@@ -95,5 +98,6 @@ val date_of_sqlstring : string -> Core_kernel.Time.t
 (* Misc *)
 val delete_benchmarking_data : unit -> unit
 
-(* exposed to test it *)
-val escape_single : string -> string
+exception DBQueryException of string
+
+val dbQueryExceptionToString : exn -> string

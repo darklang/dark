@@ -433,19 +433,6 @@ test("rename_db_type", async t => {
     .pressKey("enter");
 });
 
-// Testcafe doesn't actually generate ClipboardEvents for copy/paste
-// keystrokes. So I've disabled these tests for now.
-/*
-test("paste_right_number_of_blanks", async t => {
-  await t
-    .click(Selector('.fnname').withText('-'))
-    .pressKey("meta+c")
-    .click(Selector('.fnname').withText('(+)'))
-    .pressKey("meta+v")
-});
-
-*/
-
 /* Disable for now, will bring back as command palette fn
 test("feature_flag_works", async t => {
   await t
@@ -524,7 +511,15 @@ test("rename_function", async t => {
   await t
     .navigateTo("#fn=123")
     .expect(available(fnNameBlankOr))
-    .ok({ timeout: 1000 })
+    .ok({ timeout: 1000 });
+
+  // check not changing function name does not cause error message to show
+  await t.doubleClick(Selector(fnNameBlankOr));
+  await gotoAST(t);
+  await t.expect(available(".error-panel.show")).notOk();
+
+  // now actually rename the function to a different name
+  await t
     .click(Selector(fnNameBlankOr))
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "hello")
@@ -676,11 +671,14 @@ test("load_with_unnamed_function", async t => {
 });
 
 test("extract_from_function", async t => {
+  const exprElem = Selector(".user-fn-toplevel #fluid-editor > span");
+
   await t
     .navigateTo("#fn=123")
     .expect(available(".tl-123"))
     .ok()
-    .click(Selector(".user-fn-toplevel #fluid-editor > span"))
+    .click(exprElem)
+    .selectText(exprElem, 0, 1)
     .pressKey("alt+x")
     .typeText("#cmd-filter", "extract-function")
     .pressKey("enter");
@@ -943,4 +941,26 @@ test("fluid_shift_tabbing_from_handler_ast_back_to_route", async t => {
     .pressKey("down") // enter route
     .expect(acHighlightedText("/"))
     .ok();
+});
+
+test("fluid_test_copy_request_as_curl", async t => {
+  await t.navigateTo("#handler=91390945");
+  await Selector(".tl-91390945", { timeout: 5000 })();
+  await t
+    .expect(available(".tl-91390945"))
+    .ok()
+    .click(Selector(".id-753586717"));
+  // test logic in IntegrationTest.ml; we load it here because we need an
+  // analysis done before we can call the command
+});
+
+test("fluid_ac_validate_on_lose_focus", async t => {
+  await createHTTPHandler(t);
+  await gotoAST(t);
+  await t
+    .pressKey("r e q u e s t . b o d y")
+    .click("#app", { offsetX: 500, offsetY: 50 }) //click away from fluid
+    .expect(true)
+    .ok();
+  // validate AST in IntegrationTest.ml
 });
