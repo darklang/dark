@@ -96,7 +96,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
   in
-  let documentation =
+  let top =
     match (tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
@@ -163,10 +163,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         acFnDocString
         |> Option.orElse selectedParamDocString
         |> Option.orElse selectedFnDocString
+        |> Option.withDefault ~default:[Vdom.noNode]
     | _ ->
-        None
+        [Vdom.noNode]
   in
-  let top = match documentation with Some doc -> doc | _ -> [] in
   let pos =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->

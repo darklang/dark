@@ -989,9 +989,6 @@ let rec show dv =
       Uuidm.to_string uuid
   | DDB dbname ->
       "<DB: " ^ dbname ^ ">"
-  | DError (SourceId id, msg) ->
-      (* FIXME(ds) DEBUGGING REMOVE *)
-      Printf.sprintf "<Error(%s): %s>" (string_of_id id) msg
   | DError (_, msg) ->
       "<Error: " ^ msg ^ ">"
   | DIncomplete SourceNone ->

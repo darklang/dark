@@ -37,12 +37,10 @@ let fromInputEvent (evt : Web.Node.event) : msg option =
               * that's hard to detangle, so it's still handled as a Keypress
               * for now (see FluidKeyboard) *)
              None
-         | {inputType = "insertText"; data} as r ->
-             Js.log r ;
+         | {inputType = "insertText"; data} ->
              evt##preventDefault () ;
              Some (FluidMsg (FluidInputEvent (InsertText data)))
-         | other ->
-             Js.log other ;
+         | _ ->
              None)
 
 
