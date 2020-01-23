@@ -12,8 +12,6 @@ type domEventList = ViewUtils.domEventList
 
 let inUnit = ViewUtils.intAsUnit
 
-let toggleButton = ViewUtils.toggleIconButton
-
 let idConfigs = ViewBlankOr.idConfigs
 
 let fontAwesome = ViewUtils.fontAwesome
@@ -129,12 +127,12 @@ let externalLink (vs : viewState) (name : string) =
 let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let tlid = vs.tlid in
   let actions =
-    let commonActions : TLMenu.menuItem list =
-      [ { title = "Delete handler"
-        ; key = "del-tl-"
-        ; icon = Some "times"
-        ; action = (fun _ -> ToplevelDelete tlid)
-        ; condition = None } ]
+    let commonAction : TLMenu.menuItem =
+      { title = "Delete handler"
+      ; key = "del-tl-"
+      ; icon = Some "times"
+      ; action = (fun _ -> ToplevelDelete tlid)
+      ; disableMsg = None }
     in
     match (spec.space, spec.modifier, spec.name) with
     | F (_, "HTTP"), F (_, meth), F (_, name) ->
@@ -143,23 +141,23 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
           ; key = "del-tl-"
           ; icon = Some "copy"
           ; action = (fun m -> CopyCurl (tlid, m.mePos))
-          ; condition = None }
+          ; disableMsg = None }
         in
-        let httpActions = curlAction :: commonActions in
+        let httpActions = [curlAction; commonAction] in
         if meth = "GET"
         then
           let url = externalLink vs name in
           let newTabAction : TLMenu.menuItem =
-            { title = "OpenMenu in new tab"
+            { title = "Open in new tab"
             ; key = "hide-tl-opts"
             ; icon = Some "external-link-alt"
-            ; action = (fun _ -> NewTab (url, tlid))
-            ; condition = None }
+            ; action = (fun _ -> NewTabFromTLMenu (url, tlid))
+            ; disableMsg = None }
           in
           newTabAction :: httpActions
         else httpActions
     | _ ->
-        commonActions
+        [commonAction]
   in
   TLMenu.viewMenu vs.menuState tlid actions
 
@@ -168,7 +166,7 @@ let viewEventSpec
     (vs : viewState) (spec : handlerSpec) (dragEvents : domEventList) :
     msg Html.html =
   let viewEventName =
-    let configs = (enterable :: idConfigs) @ [wc "handler-name"] in
+    let configs = (enterable :: idConfigs) @ [wc "toplevel-name"] in
     viewText EventName vs configs spec.name
   in
   let viewEventSpace =
@@ -211,7 +209,7 @@ let viewEventSpec
     Html.div [Html.class' "handler-actions"] [triggerBtn; viewMenu vs spec]
   in
   let viewType =
-    Html.div [Html.class' "handler-type"] [viewEventSpace; viewEventModifier]
+    Html.div [Html.class' "toplevel-type"] [viewEventSpace; viewEventModifier]
   in
   Html.div
     (Html.class' classes :: dragEvents)
