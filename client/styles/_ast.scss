@@ -135,6 +135,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   padding-top: 4px;
   padding-left: $spacing-medium;
   padding-right: 16px;
+  cursor: move;
 
   @include handler-type(http-get, $http-get);
   @include handler-type(http-post, $http-post);
@@ -144,6 +145,10 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   @include handler-type(cron, $cron-color);
   @include handler-type(worker, $queue-color);
   @include handler-type(repl, $repl-color);
+
+  .blankOr {
+    cursor: text;
+  }
 
   .handler-type,
   .handler-actions,
@@ -282,6 +287,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 // TODO: figure out proper entry box positioning
 // -- this is a demo hack
 .spec-header .entry form {
+  cursor: text;
   margin-top: 0px;
   position: relative;
 }
