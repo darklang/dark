@@ -63,19 +63,19 @@ let viewDBData (vs : viewState) (db : db) : msg Html.html =
 let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
   let typeView =
     Html.span
-      [Html.class' "handler-type"]
+      [Html.class' "toplevel-type"]
       [fontAwesome "database"; Html.text "DB"]
   in
-  let nameField =
-    if vs.dbLocked
-    then Html.text (dbName2String db.dbName)
-    else
-      let c = (enterable :: idConfigs) @ [wc "dbname"] in
-      ViewBlankOr.viewText DBName vs c db.dbName
-  in
   let titleView =
+    let nameField =
+      if vs.dbLocked
+      then Html.text (dbName2String db.dbName)
+      else
+        let c = (enterable :: idConfigs) @ [wc "dbname"] in
+        ViewBlankOr.viewText DBName vs c db.dbName
+    in
     Html.span
-      [Html.class' "handler-name"]
+      [Html.class' "toplevel-name"]
       [ nameField
       ; Html.span
           [Html.class' "version"]
@@ -83,7 +83,7 @@ let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
   in
   let menuView =
     let delAct : TLMenu.menuItem =
-      let condition =
+      let disableMsg =
         if vs.dbLocked
         then Some "Cannot delete due to data inside"
         else if not (List.isEmpty vs.usedInRefs)
@@ -94,7 +94,7 @@ let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
       ; key = "del-db-"
       ; icon = Some "times"
       ; action = (fun _ -> ToplevelDelete vs.tlid)
-      ; condition }
+      ; disableMsg }
     in
     Html.div [Html.class' "menu"] [TLMenu.viewMenu vs.menuState vs.tlid [delAct]]
   in

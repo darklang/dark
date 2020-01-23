@@ -276,19 +276,4 @@ let isHoverOverTL (vs : viewState) : bool =
       false
 
 
-let toggleIconButton
-    ~(name : string)
-    ~(activeIcon : string)
-    ~(inactiveIcon : string)
-    ~(msg : mouseEvent -> msg)
-    ~(active : bool)
-    ~(key : string) : msg Html.html =
-  let icon = if active then activeIcon else inactiveIcon in
-  let cacheKey = key ^ "-" ^ string_of_bool active in
-  Html.div
-    [ Html.classList [(name, true); ("active", active)]
-    ; eventNoPropagation ~key:cacheKey "click" msg ]
-    [fontAwesome icon]
-
-
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u

@@ -956,6 +956,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with searchCache}, Cmd.none)
     | FluidSetState fluidState ->
         ({m with fluidState}, Cmd.none)
+    | TLMenuUpdate (tlid, msg) ->
+        (TLMenu.update m tlid msg, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1863,7 +1865,7 @@ let update_ (msg : msg) (m : model) : modification =
   | CopyCurl (tlid, pos) ->
       CurlCommand.copyCurlMod m tlid pos
   | TLMenuMsg (tlid, msg) ->
-      TweakModel (fun m -> TLMenu.update m tlid msg)
+      TLMenuUpdate (tlid, msg)
   | FluidMsg (FluidMouseDown targetExnID) ->
       let defaultBehaviour =
         [FluidStartClick; Select (targetExnID, STTopLevelRoot)]
@@ -1917,10 +1919,9 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateWorkerSchedules schedules
   | UpdateWorkerScheduleCallback (Error _) ->
       DisplayError "Failed to update worker schedule"
-  | NewTab (url, tlid) ->
+  | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
-      (* TODO(alice) clean this shit up *)
-      TweakModel (fun m -> TLMenu.update m tlid CloseMenu)
+      TLMenuUpdate (tlid, CloseMenu)
 
 
 let rec filter_read_only (m : model) (modification : modification) =

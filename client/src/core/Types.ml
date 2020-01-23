@@ -1150,6 +1150,7 @@ and modification =
   | UpdateASTCache of tlid * string
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
+  | TLMenuUpdate of tlid * menuMsg
 
 (* ------------------- *)
 (* Msgs *)
@@ -1298,7 +1299,7 @@ and msg =
   | RunWorker of string
   | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
       [@printer opaque "UpdateWorkerScheduleCallback"]
-  | NewTab of string * tlid
+  | NewTabFromTLMenu of string * tlid
 
 (* ----------------------------- *)
 (* AB tests *)

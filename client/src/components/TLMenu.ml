@@ -1,25 +1,20 @@
-(* This is a stateless component, we modify the model state directly *)
-
 open Prelude
 
 let onClick key fn = ViewUtils.eventNoPropagation ~key "click" fn
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let toggleButton = ViewUtils.toggleIconButton
-
 type menuItem =
   { title : string
   ; key : string
   ; icon : string option
   ; action : mouseEvent -> msg
-  ; condition : string option }
+  ; disableMsg : string option }
 
 let update (m : model) (tlid : tlid) (msg : menuMsg) : model =
   let tlMenus =
     m.tlMenus
     |> TLIDDict.update ~tlid ~f:(fun _s ->
-           (* let oldS = s |> Option.withDefault ~default in *)
            let newS =
              match msg with
              | OpenMenu ->
@@ -40,6 +35,20 @@ let closeMenu (m : model) : model =
       m
 
 
+let toggleButton
+    ~(name : string)
+    ~(activeIcon : string)
+    ~(inactiveIcon : string)
+    ~(msg : mouseEvent -> msg)
+    ~(active : bool)
+    ~(key : string) : msg Html.html =
+  let icon = if active then activeIcon else inactiveIcon in
+  let cacheKey = key ^ "-" ^ string_of_bool active in
+  Html.div
+    [Html.classList [(name, true); ("active", active)]; onClick cacheKey msg]
+    [fontAwesome icon]
+
+
 let viewItem (keyID : string) (i : menuItem) : msg Html.html =
   let icon =
     match i.icon with
@@ -49,7 +58,7 @@ let viewItem (keyID : string) (i : menuItem) : msg Html.html =
         Vdom.noNode
   in
   let attrs =
-    match i.condition with
+    match i.disableMsg with
     | Some msg ->
         [Html.class' "item disable"; Html.title msg]
     | None ->
