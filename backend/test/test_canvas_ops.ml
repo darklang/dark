@@ -89,9 +89,8 @@ let t_http_oplist_roundtrip () =
   let oplist = [Op.SetHandler (tlid, pos, handler)] in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c1 ;
-  let owner = Account.for_host_exn host in
   let c2 =
-    Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
+    Canvas.load_http ~path:http_request_path ~verb:"GET" host
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
@@ -118,9 +117,8 @@ let t_http_oplist_loads_user_tipes () =
   in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
-  let owner = Account.for_host_exn host in
   let c2 =
-    Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
+    Canvas.load_http ~path:http_request_path ~verb:"GET" host
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
@@ -145,9 +143,8 @@ let t_http_load_ignores_deleted_fns () =
   in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tlid2; tlid3] !c1 ;
-  let owner = Account.for_host_exn host in
   let c2 =
-    Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
+    Canvas.load_http ~path:http_request_path ~verb:"GET" host
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
@@ -250,38 +247,6 @@ let t_set_after_delete () =
   ()
 
 
-let t_load_for_context_only_loads_relevant_data () =
-  clear_test_data () ;
-  let sharedh = handler (ast_for "(+ 5 3)") in
-  let shared_oplist =
-    [Op.CreateDB (dbid, pos, "MyDB"); Op.SetHandler (tlid, pos, sharedh)]
-  in
-  (* c1 *)
-  let host1 = "test-load_for_context_one" in
-  let h = http_handler ~tlid:tlid2 (ast_for "(+ 5 2)") in
-  let c1 = ops2c_exn host1 (Op.SetHandler (tlid2, pos, h) :: shared_oplist) in
-  Canvas.serialize_only [dbid; tlid; tlid2] !c1 ;
-  (* c2 *)
-  let host2 = "test-load_for_context_two" in
-  let c2 = ops2c_exn host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist) in
-  Canvas.serialize_only [dbid; tlid; dbid2] !c2 ;
-  (* test *)
-  let owner = Account.for_host_exn host1 in
-  let canvas_id1 = Serialize.fetch_canvas_id owner host1 in
-  let ops =
-    Serialize.load_with_context
-      ~host:host1
-      ~canvas_id:canvas_id1
-      ~tlids:[tlid]
-      ()
-    |> Op.tlid_oplists2oplist
-    |> List.sort ~compare:(fun tl1 tl2 ->
-           compare (Op.tlidOf tl1) (Op.tlidOf tl2))
-    |> List.rev
-  in
-  check_oplist "only loads relevant data from same canvas" shared_oplist ops
-
-
 let t_canvas_verification_duplicate_creation () =
   let ops =
     [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
@@ -334,9 +299,6 @@ let suite =
     , t_db_create_with_orblank_name )
   ; ("Can rename DB with Op RenameDBname", `Quick, t_db_rename)
   ; ("set after delete doesn't crash", `Quick, t_set_after_delete)
-  ; ( "Canvas.load_for_context loads only that tlid and relevant context"
-    , `Quick
-    , t_load_for_context_only_loads_relevant_data )
   ; ( "Canvas verification catches duplicate DB name via creation"
     , `Quick
     , t_canvas_verification_duplicate_creation )

@@ -235,20 +235,6 @@ let load_only_rendered_tlids
   |> strs2rendered_oplist_cache_query_result
 
 
-let load_with_context ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
-    : Op.tlid_oplists =
-  let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
-  Db.fetch
-    ~name:"load_with_context"
-    "SELECT data FROM toplevel_oplists
-      WHERE canvas_id = $1
-        AND (tlid = ANY (string_to_array($2, $3)::bigint[])
-             OR tipe <> 'handler'::toplevel_type)"
-    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
-    ~result:BinaryResult
-  |> strs2tlid_oplists
-
-
 let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
     Op.tlid_oplists =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
@@ -287,6 +273,23 @@ let fetch_relevant_tlids_for_http ~host ~canvas_id ~path ~verb () :
               AND modifier = $3)
               OR tipe <> 'handler'::toplevel_type)"
     ~params:[Db.Uuid canvas_id; String path; String verb]
+  |> List.map ~f:(fun l ->
+         match l with
+         | [data] ->
+             Types.id_of_string data
+         | _ ->
+             Exception.internal "Shape of per_tlid oplists")
+
+
+let fetch_relevant_tlids_for_execution ~host ~canvas_id () : Types.tlid list =
+  Db.fetch
+    ~name:"fetch_relevant_tlids_for_execution"
+    (* The pattern `$2 like name` is deliberate, to leverage the DB's
+     * pattern matching to solve our routing. *)
+    "SELECT tlid FROM toplevel_oplists
+      WHERE canvas_id = $1
+      AND tipe <> 'handler'::toplevel_type"
+    ~params:[Db.Uuid canvas_id]
   |> List.map ~f:(fun l ->
          match l with
          | [data] ->
