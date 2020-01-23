@@ -2904,8 +2904,32 @@ let idOfASTRef (astRef : astRef) : id option =
 
 let idOfCaretTarget ({astRef; _} : caretTarget) : id option = idOfASTRef astRef
 
+(* [doExplicitBackspace [currCaretTarget] [ast]] produces the
+ * (newAST, newPosition) tuple resulting from performing
+ * a backspace-style deletion at [currCaretTarget] in the
+ * [ast]. Note that newPosition will be either
+ * AtTarget or SamePlace -- either the caret stays in the
+ * same place, or it ends up at a specific location.
+ *
+ * WARNING: in some cases, we may produce caret targets with
+ * offsets that are outside of the targetable range.
+ * In such cases, we currently rely on the behavio of
+ * posFromCaretTarget to clamp the offset.
+ * 
+ * Note also that doExplicitBackspace expects to receive
+ * only "real" caret targets (via caretTargetFromTokenInfo);
+ * we don't handle certain 0-offset [currCaretTarget]s because
+ * we expect to receive tokens to the left of the caret instead
+ * of the 0th offset of the caretTarget of the token to the right.
+ * 
+ * A hacky exception to this is Blanks -- there are a few circumstances
+ * where we obtain a zero offset for blanks even though the blank is to the
+ * right of the caret instead of the left. This is to account for
+ * deleting rows in eg a match (see doBackspace in updateKey).
+ * Ideally we wouldn't need these hacks.
+ *)
 let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
-    E.t * newPosition =
+    ast * newPosition =
   let {astRef = currAstRef; offset = currOffset} = currCaretTarget in
   let currCTMinusOne = {astRef = currAstRef; offset = currOffset - 1} in
   let mutation : string -> string =
