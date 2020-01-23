@@ -157,7 +157,7 @@ USER root
 
 RUN npm install -g yarn@1.21.1
 
-# esy uses the _build directory, none of the platform firs are needed but
+# esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
 RUN npm install -g esy@0.5.8 --unsafe-perm=true \
      && sudo rm -Rf /usr/lib/node_modules/esy/platform-*

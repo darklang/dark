@@ -448,8 +448,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     else Vdom.noNode
   in
   let returnValue = viewReturnValue vs ast in
-  [ liveValue
-  ; Html.div
+  [ Html.div
       [ Attrs.id Fluid.editorID
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
@@ -468,6 +467,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
           ("compositionend" ^ show_tlid tlid)
           FluidTextInput.fromCompositionEndEvent ]
       (toHtml ast ~vs ~tlid ~state)
+  ; liveValue
   ; returnValue
   ; errorRail ]
 
