@@ -491,7 +491,7 @@ type astListPart =
 
 type astMatchPart =
   | MPKeyword
-  | MPBranchSep of (* index of the branch *) int
+  | MPBranchArrow of (* index of the branch *) int
 [@@deriving show {with_path = false}]
 
 type astPatternPart =
@@ -1423,7 +1423,7 @@ and fluidToken =
   | TRecordSep of id * int * analysisId
   | TRecordClose of id
   | TMatchKeyword of id
-  | TMatchSep of
+  | TMatchArrow of
       { matchID : id
       ; patternID : id
       ; index : int }

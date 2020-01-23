@@ -50,7 +50,7 @@ let tid (t : t) : id =
   | TRecordFieldname {recordID = id; _}
   | TRecordSep (id, _, _)
   | TConstructorName (id, _)
-  | TMatchSep {matchID = id; _}
+  | TMatchArrow {matchID = id; _}
   | TMatchKeyword id
   | TPatternBlank (_, id, _)
   | TPatternInteger (_, id, _, _)
@@ -80,7 +80,7 @@ let analysisID (t : t) : id =
   | TRecordFieldname {exprID = id; _}
   | TLambdaVar (_, id, _, _)
   | TRecordSep (_, _, id)
-  | TMatchSep {patternID = id; _} ->
+  | TMatchArrow {patternID = id; _} ->
       id
   | _ ->
       tid t
@@ -153,7 +153,7 @@ let isTextToken t : bool =
   | TLambdaSymbol _
   | TLambdaSep _
   | TMatchKeyword _
-  | TMatchSep _
+  | TMatchArrow _
   | TPipe _
   | TLambdaArrow _
   | TParenOpen _
@@ -216,7 +216,7 @@ let isSkippable (t : t) : bool = match t with TIndent _ -> true | _ -> false
 
 let isAtom (t : t) : bool =
   match t with
-  | TMatchSep _ | TPipe _ | TLambdaArrow _ ->
+  | TMatchArrow _ | TPipe _ | TLambdaArrow _ ->
       true
   | _ ->
       isKeyword t || isBlank t
@@ -356,7 +356,7 @@ let toText (t : t) : string =
       "|>"
   | TMatchKeyword _ ->
       "match "
-  | TMatchSep _ ->
+  | TMatchArrow _ ->
       " -> "
   | TPatternInteger (_, _, i, _) ->
       shouldntBeEmpty i
@@ -556,7 +556,7 @@ let toTypeName (t : t) : string =
       "pipe-symbol"
   | TMatchKeyword _ ->
       "match-keyword"
-  | TMatchSep _ ->
+  | TMatchArrow _ ->
       "match-sep"
   | TPatternBlank _ ->
       "pattern-blank"
@@ -622,7 +622,7 @@ let toCategoryName (t : t) : string =
       "constructor"
   | TRecordOpen _ | TRecordClose _ | TRecordFieldname _ | TRecordSep _ ->
       "record"
-  | TMatchKeyword _ | TMatchSep _ ->
+  | TMatchKeyword _ | TMatchArrow _ ->
       "match"
   | TPatternBlank _
   | TPatternInteger _
@@ -654,7 +654,7 @@ let toDebugInfo (t : t) : string =
       "no parent"
   | TPipe (_, idx, len) ->
       Printf.sprintf "idx=%d len=%d" idx len
-  | TMatchSep {index = idx; _} ->
+  | TMatchArrow {index = idx; _} ->
       "idx=" ^ string_of_int idx
   | TPatternBlank (mid, _, idx)
   | TPatternInteger (mid, _, _, idx)

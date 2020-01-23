@@ -713,7 +713,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       when id = id' ->
         posForTi ti
     | ARList (id, LPSeparator idx), TListSep (id', idx')
-    | ARMatch (id, MPBranchSep idx), TMatchSep {matchID = id'; index = idx'; _}
+    | ( ARMatch (id, MPBranchArrow idx)
+      , TMatchArrow {matchID = id'; index = idx'; _} )
     | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'; _} )
@@ -864,7 +865,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARList (_, LPClose), _
     | ARList (_, LPSeparator _), _
     | ARMatch (_, MPKeyword), _
-    | ARMatch (_, MPBranchSep _), _
+    | ARMatch (_, MPBranchArrow _), _
     | ARNull _, _
     | ARPartial _, _
     | ARRightPartial _, _
@@ -1013,8 +1014,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARRecord (id, RPClose); offset}
   | TMatchKeyword id ->
       Some {astRef = ARMatch (id, MPKeyword); offset}
-  | TMatchSep {matchID = id; index = idx; _} ->
-      Some {astRef = ARMatch (id, MPBranchSep idx); offset}
+  | TMatchArrow {matchID = id; index = idx; _} ->
+      Some {astRef = ARMatch (id, MPBranchArrow idx); offset}
   | TPatternVariable (_, id, _, _) ->
       Some {astRef = ARPattern (id, PPVariable); offset}
   | TPatternConstructorName (_, id, _, _) ->
@@ -2988,7 +2989,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         if newName = ""
         then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
         else Some (Expr newExpr, currCTMinusOne)
-    | ARMatch (id, MPBranchSep idx), expr ->
+    | ARMatch (id, MPBranchArrow idx), expr ->
         Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr) ->
         let deletionIdx =
@@ -3527,7 +3528,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let newID = gid () in
   let f str = Util.removeCharAt str offset in
   match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
+  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchArrow _ ->
       (ast, s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       (removeEmptyExpr (T.tid ti.token) ast, s)
@@ -3904,7 +3905,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TLambdaArrow _
     | TConstructorName _
     | TLambdaSep _
-    | TMatchSep _
+    | TMatchArrow _
     | TMatchKeyword _
     | TPartialGhost _
     | TParenOpen _
