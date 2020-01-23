@@ -274,7 +274,7 @@ let worker name ast : HandlerT.handler =
 
 let hop h = Op.SetHandler (tlid, pos, h)
 
-let user_fn name params ast : user_fn =
+let user_fn ?(tlid = tlid) name params ast : user_fn =
   { tlid
   ; ast
   ; metadata =

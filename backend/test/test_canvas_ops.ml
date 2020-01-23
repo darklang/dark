@@ -71,6 +71,7 @@ let t_db_oplist_roundtrip () =
     oplist
     ~binary_repr:None
     ~tlid
+    ~deleted:None
     ~canvas_id
     ~account_id:owner
     ~tipe:TL.TLHandler
@@ -96,17 +97,16 @@ let t_http_oplist_roundtrip () =
   in
   (* Can tell it was loaded from the cache, as the canvas object has no
    * oplists *)
-  AT.check AT.bool "handler is loaded from cache" true (!c2.ops = []) ;
+  AT.check AT.bool "handler is loaded from cache #1" true (!c2.ops = []) ;
   AT.check
-    AT.bool
-    "handler is loaded correctly from cache"
-    true
-    ( handler
-    = ( !c2.handlers
-      |> IDMap.data
-      |> List.hd_exn
-      |> Toplevel.as_handler
-      |> Option.value_exn ) )
+    testable_handler
+    "handler is loaded correctly from cache #1"
+    handler
+    ( !c2.handlers
+    |> IDMap.data
+    |> List.hd_exn
+    |> Toplevel.as_handler
+    |> Option.value_exn )
 
 
 let t_http_oplist_loads_user_tipes () =
@@ -129,6 +129,48 @@ let t_http_oplist_loads_user_tipes () =
     "user tipes"
     [tipe]
     (IDMap.data !c2.user_tipes)
+
+
+let t_http_load_ignores_deleted_fns () =
+  clear_test_data () ;
+  let host = "test-http_load_ignores_deleted_fns_and_dbs" in
+  let handler = http_route_handler () in
+  let f = user_fn ~tlid:tlid2 "testfn" [] (ast_for "(+ 5 3)") in
+  let f2 = user_fn ~tlid:tlid3 "testfn" [] (ast_for "(+ 6 4)") in
+  let oplist =
+    [ Op.SetHandler (tlid, pos, handler)
+    ; Op.SetFunction f
+    ; Op.DeleteFunction tlid2
+    ; Op.SetFunction f2 ]
+  in
+  let c1 = ops2c_exn host oplist in
+  Canvas.serialize_only [tlid; tlid2; tlid3] !c1 ;
+  let owner = Account.for_host_exn host in
+  let c2 =
+    Canvas.load_http ~path:http_request_path ~verb:"GET" host owner
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Prelude.Result.ok_or_internal_exception "Canvas load error"
+  in
+  AT.check AT.bool "handler is loaded from cache #2" true (!c2.ops = []) ;
+  AT.check
+    testable_handler
+    "handler is loaded correctly from cache #2"
+    handler
+    ( !c2.handlers
+    |> IDMap.data
+    |> List.hd_exn
+    |> Toplevel.as_handler
+    |> Option.value_exn ) ;
+  AT.check
+    AT.int
+    "only one function is loaded from cache"
+    1
+    (IDMap.length !c2.user_functions) ;
+  AT.check
+    AT.bool
+    "the most recent function is loaded from the cache"
+    true
+    (f2 = (!c2.user_functions |> IDMap.data |> List.hd_exn))
 
 
 let t_db_create_with_orblank_name () =
@@ -309,4 +351,7 @@ let suite =
     , t_canvas_verification_undo_rename_duped_name )
   ; ( "Loading handler via HTTP router loads user tipes"
     , `Quick
-    , t_http_oplist_loads_user_tipes ) ]
+    , t_http_oplist_loads_user_tipes )
+  ; ( "Loading handler via HTTP router ignores deleted fns"
+    , `Quick
+    , t_http_load_ignores_deleted_fns ) ]

@@ -41,14 +41,14 @@ type key =
   | Delete
   | PageUp
   | PageDown
-  | GoToStartOfLine
-  | GoToEndOfLine
   | DeletePrevWord
   | DeleteNextWord
   | DeleteToStartOfLine
   | DeleteToEndOfLine
-  | GoToStartOfWord
-  | GoToEndOfWord
+  | GoToStartOfLine of maintainSelection
+  | GoToEndOfLine of maintainSelection
+  | GoToStartOfWord of maintainSelection
+  | GoToEndOfWord of maintainSelection
   | Undo
   | Redo
   | SelectAll
@@ -62,6 +62,11 @@ and side =
   | RightHand
 [@@deriving show]
 
+and maintainSelection =
+  | KeepSelection
+  | DropSelection
+[@@deriving show]
+
 let toName = show_key
 
 let fromKeyboardEvent
@@ -70,6 +75,7 @@ let fromKeyboardEvent
   let isMac = getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then meta else ctrl in
   let isMacCmdHeld = isMac && meta in
+  let maintainSelection = if shift then KeepSelection else DropSelection in
   match key with
   (*************
    * Shortcuts *
@@ -77,11 +83,11 @@ let fromKeyboardEvent
   | "a" when osCmdKeyHeld ->
       SelectAll
   | "a" when ctrl ->
-      GoToStartOfLine
+      GoToStartOfLine maintainSelection
   | "d" when ctrl ->
       Delete
   | "e" when ctrl ->
-      GoToEndOfLine
+      GoToEndOfLine maintainSelection
   | "k" when ctrl || meta ->
       Omnibox
   | "y" when (not isMac) && ctrl && not shift ->
@@ -102,17 +108,17 @@ let fromKeyboardEvent
   | "Delete" when (isMac && alt) || ((not isMac) && ctrl) ->
       DeleteNextWord
   | "ArrowLeft" when meta ->
-      GoToStartOfLine
+      GoToStartOfLine maintainSelection
   | "ArrowLeft" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToStartOfWord
+      GoToStartOfWord maintainSelection
   | "ArrowRight" when meta ->
-      GoToEndOfLine
+      GoToEndOfLine maintainSelection
   | "ArrowRight" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToEndOfWord
+      GoToEndOfWord maintainSelection
   (************
    * Movement *
    ************)
@@ -121,13 +127,13 @@ let fromKeyboardEvent
   | "PageDown" ->
       PageDown
   | "End" when ctrl ->
-      GoToStartOfLine
+      GoToStartOfLine maintainSelection
   | "End" ->
-      GoToEndOfLine
+      GoToEndOfLine maintainSelection
   | "Home" when ctrl ->
-      GoToEndOfLine
+      GoToEndOfLine maintainSelection
   | "Home" ->
-      GoToStartOfLine
+      GoToStartOfLine maintainSelection
   | "ArrowUp" ->
       Up
   | "ArrowDown" ->
