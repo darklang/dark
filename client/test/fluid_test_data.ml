@@ -351,6 +351,16 @@ let lambdaWithUsed2ndBinding (bindingName : string) =
     , EVariable (gid (), bindingName) )
 
 
+let lambdaWith3UsedBindings =
+  let b1 = "aVar" in
+  let b2 = "bVar" in
+  let b3 = "cVar" in
+  ELambda
+    ( gid ()
+    , [(gid (), b1); (gid (), b2); (gid (), b3)]
+    , binop "+" (var b1) (binop "*" (var b3) (var b2)) )
+
+
 (* ---------------- *)
 (* Functions *)
 (* ---------------- *)
