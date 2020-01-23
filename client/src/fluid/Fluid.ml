@@ -4488,7 +4488,9 @@ let rec updateKey
     | InsertText txt, L (TBinOp _, toTheLeft), _
       when keyIsInfix ->
         doInsert' ~pos txt toTheLeft ast s
-    | InsertText txt, _, R (TBlank _, toTheRight) when keyIsInfix ->
+    | InsertText txt, _, R (TPlaceholder _, toTheRight)
+    | InsertText txt, _, R (TBlank _, toTheRight)
+      when keyIsInfix ->
         doInsert' ~pos txt toTheRight ast s
     | InsertText txt, L (_, toTheLeft), _
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
