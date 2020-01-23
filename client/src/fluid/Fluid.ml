@@ -2991,12 +2991,12 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARMatch (id, MPBranchSep idx), expr ->
         Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr) ->
-        let remIdx =
-          (* remove expression in front of sep, not behind it *)
+        let deletionIdx =
+          (* delete expression in front of sep, not behind it *)
           varAndSepIdx + 1
         in
-        let varNameToRem =
-          List.getAt ~index:remIdx oldVars
+        let varNameToDelete =
+          List.getAt ~index:deletionIdx oldVars
           |> Option.map ~f:Tuple2.second
           |> Option.withDefault ~default:""
         in
@@ -3013,21 +3013,20 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           ( Expr
               (ELambda
                  ( id
-                 , List.removeAt ~index:remIdx oldVars
-                 , E.removeVariableUse varNameToRem expr ))
+                 , List.removeAt ~index:deletionIdx oldVars
+                 , E.removeVariableUse varNameToDelete expr ))
           , target )
     | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
-        let remIdx =
-          (* remove expression in front of sep, not behind it *)
-          elemAndSepIdx + 1
-        in
         let target =
           List.getAt ~index:elemAndSepIdx exprs
           |> Option.map ~f:(fun expr -> caretTargetForLastPartOfExpr' expr)
           |> Option.withDefault
                ~default:{astRef = ARList (id, LPOpen); offset = 1}
         in
-        Some (Expr (EList (id, List.removeAt ~index:remIdx exprs)), target)
+        (* remove expression in front of sep, not behind it, hence + 1 *)
+        Some
+          ( Expr (EList (id, List.removeAt ~index:(elemAndSepIdx + 1) exprs))
+          , target )
     | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
       when E.isEmpty expr ->
         mkEBlank ()
