@@ -3035,9 +3035,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         List.getAt ~index nameValPairs
         |> Option.map ~f:(function
                | "", _ ->
-                   let maybeExprID = recordExprIdAtIndex id (index - 1) ast in
                    let target =
-                     match maybeExprID with
+                     match recordExprIdAtIndex id (index - 1) ast with
                      | None ->
                          { astRef = ARRecord (id, RPOpen)
                          ; offset = 1 (* right after the { *) }
