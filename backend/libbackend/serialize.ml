@@ -197,6 +197,21 @@ let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
   |> strs2tlid_oplists
 
 
+let load_only_undeleted_tlids
+    ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () : Op.tlid_oplists
+    =
+  let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
+  Db.fetch
+    ~name:"load_only_undeleted_tlids"
+    "SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+      AND tlid = ANY (string_to_array($2, $3)::bigint[])
+      AND deleted IS NOT TRUE"
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
+    ~result:BinaryResult
+  |> strs2tlid_oplists
+
+
 (* This is a special `load_*` function that specifically loads toplevels
  * via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
  * stores a binary-serialized representation of the toplevel after the oplist
@@ -213,7 +228,8 @@ let load_only_rendered_tlids
     ~name:"load_only_rendered_tlids"
     "SELECT rendered_oplist_cache FROM toplevel_oplists
       WHERE canvas_id = $1
-      AND tlid = ANY (string_to_array($2, $3)::bigint[])"
+      AND tlid = ANY (string_to_array($2, $3)::bigint[])
+      AND deleted IS NOT TRUE"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2rendered_oplist_cache_query_result

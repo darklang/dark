@@ -462,6 +462,14 @@ let load_only_tlids ~tlids host (newops : Op.op list) :
   load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
 
 
+(* Same as `load_only_tlids` but filters out deleted tlids via
+ * the denormalized `deleted` attributed on toplevel_oplists *)
+let load_only_undeleted_tlids ~tlids host (newops : Op.op list) :
+    (canvas ref, string list) Result.t =
+  let owner = Account.for_host_exn host in
+  load_from ~f:(Serialize.load_only_undeleted_tlids ~tlids) host owner newops
+
+
 let load_all_dbs host (newops : Op.op list) : (canvas ref, string list) Result.t
     =
   let owner = Account.for_host_exn host in
@@ -511,7 +519,7 @@ let load_http ~verb ~path host owner : (canvas ref, string list) Result.t =
   let pos = {x = 0; y = 0} in
   (* canvas initialized via the normal loading path with the non-fast loaded tlids
    * loaded traditionally via the oplist *)
-  let canvas = load_only_tlids ~tlids:not_loaded_tlids host [] in
+  let canvas = load_only_undeleted_tlids ~tlids:not_loaded_tlids host [] in
   canvas
   |> Result.map ~f:(fun canvas ->
          List.iter (IDMap.to_alist fast_loaded_handlers) ~f:(fun (tlid, h) ->
@@ -610,36 +618,39 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             IDMap.find routes tlid |> Option.value ~default:(None, None, None)
           in
           let tipe_opt = IDMap.find tipes tlid in
-          let binary_repr =
+          (* Pull out denormalized attributes like the binary_repr and the deleted state *)
+          let binary_repr, deleted =
             match tipe_opt with
             | Some TL.TLHandler ->
                 IDMap.find c.handlers tlid
                 |> Option.value_map
-                     ~f:(fun h -> Some h)
-                     ~default:(IDMap.find c.deleted_handlers tlid)
-                |> Option.bind ~f:TL.as_handler
-                |> Option.map ~f:handler_to_binary_string
+                     ~f:(fun h -> (Some h, Some false))
+                     ~default:(IDMap.find c.deleted_handlers tlid, Some true)
+                |> Tuple.T2.map_fst ~f:(Option.bind ~f:TL.as_handler)
+                |> Tuple.T2.map_fst ~f:(Option.map ~f:handler_to_binary_string)
             | Some TL.TLDB ->
                 IDMap.find c.dbs tlid
                 |> Option.value_map
-                     ~f:(fun db -> Some db)
-                     ~default:(IDMap.find c.deleted_dbs tlid)
-                |> Option.bind ~f:TL.as_db
-                |> Option.map ~f:db_to_binary_string
+                     ~f:(fun db -> (Some db, Some false))
+                     ~default:(IDMap.find c.deleted_dbs tlid, Some true)
+                |> Tuple.T2.map_fst ~f:(Option.bind ~f:TL.as_db)
+                |> Tuple.T2.map_fst ~f:(Option.map ~f:db_to_binary_string)
             | Some TL.TLUserFunction ->
                 IDMap.find c.user_functions tlid
                 |> Option.value_map
-                     ~f:(fun fn -> Some fn)
-                     ~default:(IDMap.find c.deleted_user_functions tlid)
-                |> Option.map ~f:user_fn_to_binary_string
+                     ~f:(fun fn -> (Some fn, Some false))
+                     ~default:
+                       (IDMap.find c.deleted_user_functions tlid, Some true)
+                |> Tuple.T2.map_fst ~f:(Option.map ~f:user_fn_to_binary_string)
             | Some TL.TLUserTipe ->
                 IDMap.find c.user_tipes tlid
                 |> Option.value_map
-                     ~f:(fun t -> Some t)
-                     ~default:(IDMap.find c.deleted_user_tipes tlid)
-                |> Option.map ~f:user_tipe_to_binary_string
+                     ~f:(fun t -> (Some t, Some false))
+                     ~default:(IDMap.find c.deleted_user_tipes tlid, Some true)
+                |> Tuple.T2.map_fst
+                     ~f:(Option.map ~f:user_tipe_to_binary_string)
             | None ->
-                None
+                (None, None)
           in
           (* If the user calls Undo enough, we might not know
             * the tipe here. In that case, set to handler cause
@@ -654,7 +665,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             ~name
             ~module_
             ~modifier
-            ~deleted:None
+            ~deleted
             ~tipe
         else ())
   with e -> Libexecution.Exception.reraise_as_pageable e
