@@ -4529,7 +4529,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | _, L (TBinOp _, toTheLeft), _
       when keyIsInfix ->
         doInsert ~pos keyStr toTheLeft ast s
-    | _, _, R (TBlank _, toTheRight) when keyIsInfix ->
+    | (_, _, R (TPlaceholder _, toTheRight) | _, _, R (TBlank _, toTheRight))
+      when keyIsInfix ->
         doInsert ~pos keyStr toTheRight ast s
     | _, L (_, toTheLeft), _
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
