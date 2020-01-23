@@ -2943,6 +2943,16 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
       let bID = gid () in
       Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
     in
+    let mkPartialOrBlank ~(str : string) ~(oldExpr : fluidExpr) :
+        (fluidPatOrExpr * caretTarget) option =
+      if str = ""
+      then mkEBlank ()
+      else
+        let parID = gid () in
+        Some
+          ( Expr (EPartial (parID, str, oldExpr))
+          , {astRef = ARPartial parID; offset = currOffset - 1} )
+    in
     match (currAstRef, expr) with
     | ARInteger _, EInteger (id, intStr) ->
         let str = mutation intStr in
@@ -3056,23 +3066,18 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
       ->
         Some (Expr faExpr, caretTargetForLastPartOfExpr' faExpr)
     | ARConstructor (_, CPName), (EConstructor (_, str, _) as oldExpr) ->
-        let str = String.trim (mutation str) in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
+        mkPartialOrBlank ~str:(str |> mutation |> String.trim) ~oldExpr
     | ARFnCall _, (EFnCall (_, fnName, _, _) as oldExpr) ->
-        let str = fnName |> FluidUtil.partialName |> mutation |> String.trim in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
+        mkPartialOrBlank
+          ~str:(fnName |> FluidUtil.partialName |> mutation |> String.trim)
+          ~oldExpr
+    | ARBool _, (EBool (_, bool) as oldExpr) ->
+        let str = if bool then "true" else "false" in
+        mkPartialOrBlank ~str:(mutation str) ~oldExpr
+    | ARNull _, (ENull _ as oldExpr) ->
+        mkPartialOrBlank ~str:(mutation "null") ~oldExpr
+    | ARVariable _, (EVariable (_, varName) as oldExpr) ->
+        mkPartialOrBlank ~str:(mutation varName) ~oldExpr
     | ARBinOp (_, BOPOperator), (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr)
       ->
         let str = op |> FluidUtil.partialName |> mutation |> String.trim in
@@ -3083,34 +3088,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           Some (Expr expr, target)
         else
           let newID = gid () in
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
-    | ARBool _, (EBool (_, bool) as oldExpr) ->
-        let str = if bool then "true" else "false" in
-        let str = mutation str in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
-    | ARNull _, (ENull _ as oldExpr) ->
-        let str = mutation "null" in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
-    | ARVariable _, (EVariable (_, varName) as oldExpr) ->
-        let str = mutation varName in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
           Some
             ( Expr (EPartial (newID, str, oldExpr))
             , {astRef = ARPartial newID; offset = currOffset - 1} )
