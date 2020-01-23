@@ -1092,12 +1092,20 @@ let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
   | ELambda (_, _, bodyExpr) ->
       caretTargetForLastPartOfExpr' bodyExpr
   | EFnCall (id, fnName, argExprs, _) ->
-    ( match List.last argExprs with
-    | Some lastExpr ->
-        caretTargetForLastPartOfExpr' lastExpr
-    | None ->
-        { astRef = ARFnCall (id, FCPFnName)
-        ; offset = fnName |> FluidUtil.partialName |> String.length } )
+      (* Caret targets don't make sense for EPipeTargets, so we
+       * return a caret target for the end of the last fn argument
+       * that isn't an EPipeTarget, or the end of the extended
+       * function name, if there are no non-EPipeTargets. *)
+      argExprs
+      |> List.reverse
+      |> List.find ~f:(fun e ->
+             match e with EPipeTarget _ -> false | _ -> true)
+      |> Option.map ~f:(fun lastNonPipeTarget ->
+             caretTargetForLastPartOfExpr' lastNonPipeTarget)
+      |> Option.withDefault
+           ~default:
+             { astRef = ARFnCall (id, FCPFnName)
+             ; offset = fnName |> FluidUtil.partialName |> String.length }
   | EPartial (_, _, EBinOp (_, _, _, rhsExpr, _)) ->
       (* We need this so that (for example) when we backspace a binop containing a binop within a partial,
        * we can keep hitting backspace to delete the whole thing. This isn't (currently) needed for
