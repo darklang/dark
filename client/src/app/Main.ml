@@ -491,7 +491,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Deselect ->
         if m.cursorState <> Deselected
         then
-          let m = Handlers.closeMenu m in
+          let m = TLMenu.closeMenu m in
           let hashcmd = Url.updateUrl Architecture in
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
@@ -1862,8 +1862,8 @@ let update_ (msg : msg) (m : model) : modification =
           {m with handlerProps})
   | CopyCurl (tlid, pos) ->
       CurlCommand.copyCurlMod m tlid pos
-  | SetHandlerActionsMenu (tlid, show) ->
-      TweakModel (Handlers.setHandlerMenu tlid show)
+  | TLMenuMsg (tlid, msg) ->
+      TweakModel (fun m -> TLMenu.update m tlid msg)
   | FluidMsg (FluidMouseDown targetExnID) ->
       let defaultBehaviour =
         [FluidStartClick; Select (targetExnID, STTopLevelRoot)]
@@ -1917,6 +1917,10 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateWorkerSchedules schedules
   | UpdateWorkerScheduleCallback (Error _) ->
       DisplayError "Failed to update worker schedule"
+  | NewTab (url, tlid) ->
+      Native.Window.openUrl url "_blank" ;
+      (* TODO(alice) clean this shit up *)
+      TweakModel (fun m -> TLMenu.update m tlid CloseMenu)
 
 
 let rec filter_read_only (m : model) (modification : modification) =

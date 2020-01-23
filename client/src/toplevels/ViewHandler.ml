@@ -123,72 +123,45 @@ let externalLink (vs : viewState) (name : string) =
     | None ->
         name
   in
-  Html.a
-    [ Html.class' "external"
-    ; Html.href
-        ( "//"
-        ^ Tea.Http.encodeUri vs.canvasName
-        ^ "."
-        ^ vs.userContentHost
-        ^ urlPath )
-    ; Html.target "_blank"
-    ; ViewUtils.eventNoPropagation
-        ~key:("hide-tl-opts" ^ showTLID vs.tlid)
-        "click"
-        (fun _ -> SetHandlerActionsMenu (vs.tlid, false)) ]
-    [fontAwesome "external-link-alt"; Html.text "Open in new tab"]
+  "//" ^ Tea.Http.encodeUri vs.canvasName ^ "." ^ vs.userContentHost ^ urlPath
 
 
 let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
-  let strTLID = showTLID vs.tlid in
-  let showMenu =
-    match vs.handlerProp with Some hp -> hp.showActions | None -> false
-  in
+  let tlid = vs.tlid in
   let actions =
-    let commonActions =
-      [ Html.div
-          [ ViewUtils.eventNoPropagation
-              ~key:("del-tl-" ^ strTLID)
-              "click"
-              (fun _ -> ToplevelDelete vs.tlid) ]
-          [fontAwesome "times"; Html.text "Delete handler"] ]
+    let commonActions : TLMenu.menuItem list =
+      [ { title = "Delete handler"
+        ; key = "del-tl-"
+        ; icon = Some "times"
+        ; action = (fun _ -> ToplevelDelete tlid)
+        ; condition = None } ]
     in
     match (spec.space, spec.modifier, spec.name) with
     | F (_, "HTTP"), F (_, meth), F (_, name) ->
-        let curlAction =
-          Html.div
-            [ ViewUtils.eventNoPropagation
-                ~key:("del-tl-" ^ strTLID)
-                "click"
-                (fun m -> CopyCurl (vs.tlid, m.mePos)) ]
-            [fontAwesome "copy"; Html.text "Copy request as cURL"]
+        let curlAction : TLMenu.menuItem =
+          { title = "Copy request as cURL"
+          ; key = "del-tl-"
+          ; icon = Some "copy"
+          ; action = (fun m -> CopyCurl (tlid, m.mePos))
+          ; condition = None }
         in
         let httpActions = curlAction :: commonActions in
         if meth = "GET"
-        then externalLink vs name :: httpActions
+        then
+          let url = externalLink vs name in
+          let newTabAction : TLMenu.menuItem =
+            { title = "OpenMenu in new tab"
+            ; key = "hide-tl-opts"
+            ; icon = Some "external-link-alt"
+            ; action = (fun _ -> NewTab (url, tlid))
+            ; condition = None }
+          in
+          newTabAction :: httpActions
         else httpActions
     | _ ->
         commonActions
   in
-  let toggleMenu =
-    toggleButton
-      ~name:"toggle-btn"
-      ~activeIcon:"bars"
-      ~inactiveIcon:"bars"
-      ~msg:(fun _ -> SetHandlerActionsMenu (vs.tlid, not showMenu))
-      ~active:showMenu
-      ~key:("toggle-tl-menu-" ^ strTLID)
-  in
-  Html.div
-    [Html.classList [("more-actions", true); ("show", showMenu)]]
-    [ toggleMenu
-    ; Html.div
-        [ Html.class' "actions"
-        ; ViewUtils.eventNoPropagation
-            ~key:("hide-tl-opts" ^ strTLID)
-            "mouseleave"
-            (fun _ -> SetHandlerActionsMenu (vs.tlid, false)) ]
-        actions ]
+  TLMenu.viewMenu vs.menuState tlid actions
 
 
 let viewEventSpec
