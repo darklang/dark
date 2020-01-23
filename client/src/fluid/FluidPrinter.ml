@@ -406,7 +406,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                     |> addNewlineIfNeeded (Some (id, id, Some i))
                     |> addMany (patternToToken pattern ~idx:i)
                     |> add
-                         (TMatchSep
+                         (TMatchArrow
                             { matchID = id
                             ; patternID = Pattern.id pattern
                             ; index = i })
