@@ -434,41 +434,43 @@ let moveToEndOfLine (ast : ast) (ti : T.tokenInfo) (s : state) : state =
   setPosition s (getEndOfLineCaretPos ast ti)
 
 
-let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
-    state =
-  let s = recordAction "goToStartOfWord" s in
-  (* We want to find the closest editable token that is before the current cursor position
+(* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
+let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
   let previousToken =
     toTokens ast
     |> List.reverse
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos > t.startPos)
   in
-  let newPos =
-    let tokenInfo = previousToken |> Option.withDefault ~default:ti in
-    if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
-    then getBegOfWordInStrCaretPos ~pos tokenInfo
-    else tokenInfo.startPos
+  let tokenInfo = previousToken |> Option.withDefault ~default:ti in
+  if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
+  then getBegOfWordInStrCaretPos ~pos tokenInfo
+  else tokenInfo.startPos
+
+
+let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
+    state =
+  let s = recordAction "goToStartOfWord" s in
+  setPosition s (getStartOfWordPos ~pos ast ti)
+
+
+(* We want to find the closest editable token that is after the current cursor position
+  * so the cursor always lands in a position where a user is able to type *)
+let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
+  let tokenInfo =
+    toTokens ast
+    |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
+    |> Option.withDefault ~default:ti
   in
-  setPosition s newPos
+  if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
+  then getEndOfWordInStrCaretPos ~pos tokenInfo
+  else tokenInfo.endPos
 
 
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
     state =
   let s = recordAction "goToEndOfWord" s in
-  (* We want to find the closest editable token that is after the current cursor position
-  * so the cursor always lands in a position where a user is able to type *)
-  let nextToken =
-    toTokens ast
-    |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
-  in
-  let newPos =
-    let tokenInfo = nextToken |> Option.withDefault ~default:ti in
-    if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
-    then getEndOfWordInStrCaretPos ~pos tokenInfo
-    else tokenInfo.endPos
-  in
-  setPosition s newPos
+  setPosition s (getEndOfWordPos ~pos ast ti)
 
 
 let moveToEnd (ti : T.tokenInfo) (s : state) : state =
@@ -677,8 +679,6 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARConstructor (id, CPName), TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
     | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _)
-    | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _)
-    | ARFnCall (id, FCPFnName), TFnVersion (id', _, _, _)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
     | ARIf (id, IPThenKeyword), TIfThenKeyword id'
     | ARIf (id, IPElseKeyword), TIfElseKeyword id'
@@ -723,7 +723,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       when id = id' && idx = idx' ->
         posForTi ti
     (*
-      Floats
+     * Floats
      *)
     | ARFloat (id, FPPoint), TFloatPoint id'
     | ARFloat (id, FPWhole), TFloatWhole (id', _)
@@ -742,6 +742,20 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
         Some ti.endPos
     | ARFloat (id, FPFractional), TFloatFractional (id', _) when id = id' ->
         posForTi ti
+    (*
+     * Function calls
+     *)
+    | ARFnCall id, TFnName (id', partialName, displayName, _, _) when id = id'
+      ->
+        let dispLen = String.length displayName in
+        if ct.offset > dispLen && String.length partialName > dispLen
+        then (* A version token exists and we must be there instead *)
+          None
+        else (* Within current token *)
+          clampedPosForTi ti ct.offset
+    | ARFnCall id, TFnVersion (id', _, _, backendFnName) when id = id' ->
+        let nameWithoutVersion = FluidUtil.fnDisplayName backendFnName in
+        clampedPosForTi ti (ct.offset - String.length nameWithoutVersion)
     (*
     * Single-line Strings
     *)
@@ -838,7 +852,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARFloat (_, FPWhole), _
     | ARFloat (_, FPPoint), _
     | ARFloat (_, FPFractional), _
-    | ARFnCall (_, FCPFnName), _
+    | ARFnCall _, _
     | ARIf (_, IPIfKeyword), _
     | ARIf (_, IPThenKeyword), _
     | ARIf (_, IPElseKeyword), _
@@ -964,12 +978,12 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TVariable (id, _) ->
       Some {astRef = ARVariable id; offset}
   | TFnName (id, _, _, _, _) ->
-      Some {astRef = ARFnCall (id, FCPFnName); offset}
+      Some {astRef = ARFnCall id; offset}
   | TFnVersion (id, _, versionName, backendFnName) ->
       (* TODO: This is very brittle and should probably be moved into a function responsible
          for grabbing the appropriate bits of functions *)
       Some
-        { astRef = ARFnCall (id, FCPFnName)
+        { astRef = ARFnCall id
         ; offset =
             offset + String.length backendFnName - String.length versionName - 1
         }
@@ -1079,12 +1093,26 @@ let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
   | ELambda (_, _, bodyExpr) ->
       caretTargetForLastPartOfExpr' bodyExpr
   | EFnCall (id, fnName, argExprs, _) ->
-    ( match List.last argExprs with
-    | Some lastExpr ->
-        caretTargetForLastPartOfExpr' lastExpr
-    | None ->
-        { astRef = ARFnCall (id, FCPFnName)
-        ; offset = fnName |> FluidUtil.partialName |> String.length } )
+      (* Caret targets don't make sense for EPipeTargets, so we
+       * return a caret target for the end of the last fn argument
+       * that isn't an EPipeTarget, or the end of the extended
+       * function name, if there are no non-EPipeTargets. *)
+      argExprs
+      |> List.reverse
+      |> List.find ~f:(fun e ->
+             match e with EPipeTarget _ -> false | _ -> true)
+      |> Option.map ~f:(fun lastNonPipeTarget ->
+             caretTargetForLastPartOfExpr' lastNonPipeTarget)
+      |> Option.withDefault
+           ~default:
+             { astRef = ARFnCall id
+             ; offset = fnName |> FluidUtil.partialName |> String.length }
+  | EPartial (_, _, EBinOp (_, _, _, rhsExpr, _)) ->
+      (* We need this so that (for example) when we backspace a binop containing a binop within a partial,
+       * we can keep hitting backspace to delete the whole thing. This isn't (currently) needed for
+       * other types of partials because deleting non-binop partials deletes their args,
+       * whereas deleting binop partials merges and hoists the args. *)
+      caretTargetForLastPartOfExpr' rhsExpr
   | EPartial (id, str, _) ->
       (* Intentionally using the thing that was typed; not the existing expr *)
       {astRef = ARPartial id; offset = String.length str}
@@ -1161,7 +1189,7 @@ let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
   | EBinOp (_, _, lhsExpr, _, _) ->
       caretTargetForBeginningOfExpr' lhsExpr
   | EFnCall (id, _, _, _) ->
-      {astRef = ARFnCall (id, FCPFnName); offset = 0}
+      {astRef = ARFnCall id; offset = 0}
   | ELambda (id, _, _) ->
       {astRef = ARLambda (id, LPKeyword); offset = 0}
   | EFieldAccess (_, expr, _) ->
@@ -2859,7 +2887,7 @@ let idOfASTRef (astRef : astRef) : id option =
   | ARBinOp (id, _)
   | ARFieldAccess (id, _)
   | ARVariable id
-  | ARFnCall (id, _)
+  | ARFnCall id
   | ARPartial id
   | ARRightPartial id
   | ARList (id, _)
@@ -3013,7 +3041,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           Some
             ( Expr (EPartial (newID, str, oldExpr))
             , {astRef = ARPartial newID; offset = currOffset - 1} )
-    | ARFnCall (_, FCPFnName), (EFnCall (_, fnName, _, _) as oldExpr) ->
+    | ARFnCall _, (EFnCall (_, fnName, _, _) as oldExpr) ->
         let str = fnName |> FluidUtil.partialName |> mutation |> String.trim in
         let newID = gid () in
         if str = ""
@@ -3181,7 +3209,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARFloat (_, FPFractional), _
     | ARFloat (_, FPPoint), _
     | ARFloat (_, FPWhole), _
-    | ARFnCall (_, FCPFnName), _
+    | ARFnCall _, _
     | ARIf (_, IPIfKeyword), _
     | ARInteger _, _
     | ARLambda (_, LPKeyword), _
@@ -3926,6 +3954,13 @@ let getCollapsedSelectionStart (s : fluidState) : int =
   getSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
 
 
+let updateSelectionRange (s : fluidState) (newPos : int) : fluidState =
+  { s with
+    newPos
+  ; selectionStart =
+      Some (s.selectionStart |> Option.withDefault ~default:s.newPos) }
+
+
 let getOptionalSelectionRange (s : fluidState) : (int * int) option =
   let endIdx = s.newPos in
   match s.selectionStart with
@@ -4187,21 +4222,29 @@ let rec updateKey
     (* TODO: press equals when in a let *)
     (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
-    | Keypress {key = K.GoToEndOfWord; _}, _, R (_, ti)
-    | Keypress {key = K.GoToEndOfWord; _}, L (_, ti), _ ->
-        (ast, goToEndOfWord ~pos ast ti s)
-    | Keypress {key = K.GoToStartOfWord; _}, _, R (_, ti)
-    | Keypress {key = K.GoToStartOfWord; _}, L (_, ti), _ ->
-        (ast, goToStartOfWord ~pos ast ti s)
+    | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti)
+    | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ ->
+        if maintainSelection == K.KeepSelection
+        then (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti))
+        else (ast, goToEndOfWord ~pos ast ti s)
+    | Keypress {key = K.GoToStartOfWord maintainSelection; _}, _, R (_, ti)
+    | Keypress {key = K.GoToStartOfWord maintainSelection; _}, L (_, ti), _ ->
+        if maintainSelection == K.KeepSelection
+        then (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
+        else (ast, goToStartOfWord ~pos ast ti s)
     | Keypress {key = K.Left; _}, L (_, ti), _ ->
         (ast, doLeft ~pos ti s |> acMaybeShow ti)
     | Keypress {key = K.Right; _}, _, R (_, ti) ->
         (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
-    | Keypress {key = K.GoToStartOfLine; _}, _, R (_, ti)
-    | Keypress {key = K.GoToStartOfLine; _}, L (_, ti), _ ->
-        (ast, moveToStartOfLine ast ti s)
-    | Keypress {key = K.GoToEndOfLine; _}, _, R (_, ti) ->
-        (ast, moveToEndOfLine ast ti s)
+    | Keypress {key = K.GoToStartOfLine maintainSelection; _}, _, R (_, ti)
+    | Keypress {key = K.GoToStartOfLine maintainSelection; _}, L (_, ti), _ ->
+        if maintainSelection == K.KeepSelection
+        then (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti))
+        else (ast, moveToStartOfLine ast ti s)
+    | Keypress {key = K.GoToEndOfLine maintainSelection; _}, _, R (_, ti) ->
+        if maintainSelection == K.KeepSelection
+        then (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
+        else (ast, moveToEndOfLine ast ti s)
     | Keypress {key = K.DeleteToStartOfLine; _}, _, R (_, ti)
     | Keypress {key = K.DeleteToStartOfLine; _}, L (_, ti), _ ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
@@ -4683,19 +4726,31 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
 
 let shouldDoDefaultAction (key : K.key) : bool =
   match key with
-  | K.GoToStartOfLine
-  | K.GoToEndOfLine
+  | K.GoToStartOfLine _
+  | K.GoToEndOfLine _
   | K.Delete
   | K.SelectAll
   | K.DeleteToEndOfLine
   | K.DeleteToStartOfLine
-  | K.GoToStartOfWord
-  | K.GoToEndOfWord
+  | K.GoToStartOfWord _
+  | K.GoToEndOfWord _
   | K.DeletePrevWord
   | K.DeleteNextWord ->
       false
   | _ ->
       true
+
+
+let shouldSelect (key : K.key) : bool =
+  match key with
+  | K.GoToStartOfWord K.KeepSelection
+  | K.GoToEndOfWord K.KeepSelection
+  | K.GoToStartOfLine K.KeepSelection
+  | K.GoToEndOfLine K.KeepSelection
+  | K.SelectAll ->
+      true
+  | _ ->
+      false
 
 
 let exprRangeInAst ~ast (exprID : id) : (int * int) option =
@@ -5334,7 +5389,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         let s = {s with lastInput = ievt} in
         let newAST, newState = updateKey ievt ast s in
         let selectionStart =
-          if key = K.SelectAll
+          if shouldSelect key
           then newState.selectionStart
           else if shiftKey && not (key = K.ShiftEnter)
                   (* We dont want to persist selection on ShiftEnter *)

@@ -216,11 +216,14 @@ let ctrlLeft
     ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
+  let maintainSelection =
+    if shiftHeld then K.KeepSelection else K.DropSelection
+  in
   process
     ~wrap
     ~clone
     ~debug
-    [keypress ~shiftHeld K.GoToStartOfWord]
+    [keypress ~shiftHeld (K.GoToStartOfWord maintainSelection)]
     None
     pos
     expr
@@ -233,11 +236,14 @@ let ctrlRight
     ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
+  let maintainSelection =
+    if shiftHeld then K.KeepSelection else K.DropSelection
+  in
   process
     ~wrap
     ~clone
     ~debug
-    [keypress ~shiftHeld K.GoToEndOfWord]
+    [keypress ~shiftHeld (K.GoToEndOfWord maintainSelection)]
     None
     pos
     expr
@@ -1510,6 +1516,12 @@ let run () =
         aFnCallWithVersion
         (ctrlRight 7)
         "DB::getAll~v1 ___________________" ;
+      t
+        "backspace after selecting a versioned 0-arg fnCall deletes all"
+        (fn "HttpClient::post_v4" [])
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       ()) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (ins "|" 4) "true |~" ;
@@ -1799,6 +1811,18 @@ let run () =
         (binop "/" b aFloat)
         (bs 5)
         "~123.456" ;
+      t
+        "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all"
+        (binop "/" (fn "HttpClient::post_v4" []) (int "5"))
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
+      t
+        "backspace after selecting all with a binop partial in a binop deletes all"
+        (binop "+" (partial "D" (binop "-" (int "5") (int "5"))) (int "5"))
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       ()) ;
   describe "Constructors" (fun () ->
       tp "arguments work in constructors" aConstructor (ins "t" 5) "Just t~" ;
@@ -1848,6 +1872,12 @@ let run () =
         aConstructor
         (key K.DeleteNextWord 2)
         "Ju~@@ ___" ;
+      t
+        "backspace after selecting all with a `Just |___` in a match deletes all"
+        (match' b [(pConstructor "Just" [pBlank], b)])
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
@@ -1979,22 +2009,26 @@ let run () =
       t
         "ctrl+left twice over lamda from beg moves to beg of first param"
         lambdaWithTwoBindings
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 1)
+        (keys
+           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection]
+           1)
         "~\\x, y -> ___" ;
       t
         "ctrl+right twice over lamda from beg moves to last blank"
         lambdaWithTwoBindings
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 1)
+        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection] 1)
         "\\x, y~ -> ___" ;
       t
         "ctrl+left twice over lamda from end moves to end of second param"
         lambdaWithTwoBindings
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 12)
+        (keys
+           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection]
+           12)
         "\\x, ~y -> ___" ;
       t
         "ctrl+right twice over lamda from end doesnt move"
         lambdaWithTwoBindings
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 12)
+        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection] 12)
         "\\x, y -> ___~" ;
       ()) ;
   describe "Variables" (fun () ->
@@ -2038,22 +2072,22 @@ let run () =
       t
         "move to the front of match"
         emptyMatch
-        (key K.GoToStartOfLine 6)
+        (key (K.GoToStartOfLine DropSelection) 6)
         "~match ___\n  *** -> ___\n" ;
       t
         "move to the end of match"
         emptyMatch
-        (key K.GoToEndOfLine 0)
+        (key (K.GoToEndOfLine DropSelection) 0)
         "match ___~\n  *** -> ___\n" ;
       t
         "move to the front of match on line 2"
         emptyMatch
-        (key K.GoToStartOfLine 15)
+        (key (K.GoToStartOfLine DropSelection) 15)
         "match ___\n  ~*** -> ___\n" ;
       t
         "move to the end of match on line 2"
         emptyMatch
-        (key K.GoToEndOfLine 12)
+        (key (K.GoToEndOfLine DropSelection) 12)
         "match ___\n  *** -> ___~\n" ;
       t
         "move back over match"
@@ -2182,22 +2216,26 @@ let run () =
       t
         "ctrl+left 2 times from end moves to first blank"
         emptyMatch
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 22)
+        (keys
+           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection]
+           22)
         "match ___\n  ~*** -> ___\n" ;
       t
         "ctrl+right 2 times from end doesnt move"
         emptyMatch
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 22)
+        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection] 22)
         "match ___\n  *** -> ___\n~" ;
       t
         "ctrl+left 2 times from beg doesnt move"
         emptyMatch
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 0)
+        (keys
+           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection]
+           0)
         "~match ___\n  *** -> ___\n" ;
       t
         "ctrl+right 2 times from beg moves to last blank"
         emptyMatch
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 0)
+        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection] 0)
         "match ___\n  ***~ -> ___\n" ;
       t
         "ctrl+left from mid moves to previous blank "
@@ -2215,12 +2253,12 @@ let run () =
       t
         "move to the front of let"
         emptyLet
-        (key K.GoToStartOfLine 4)
+        (key (K.GoToStartOfLine DropSelection) 4)
         "~let *** = ___\n5" ;
       t
         "move to the end of let"
         emptyLet
-        (key K.GoToEndOfLine 4)
+        (key (K.GoToEndOfLine DropSelection) 4)
         "let *** = ___~\n5" ;
       t "move back over let" emptyLet (key K.Left 4) "~let *** = ___\n5" ;
       t "move forward over let" emptyLet (key K.Right 0) "let ~*** = ___\n5" ;
@@ -2389,32 +2427,32 @@ let run () =
       t
         "move to the front of pipe on line 1"
         aPipe
-        (key K.GoToStartOfLine 2)
+        (key (K.GoToStartOfLine DropSelection) 2)
         "~[]\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 1"
         aPipe
-        (key K.GoToEndOfLine 0)
+        (key (K.GoToEndOfLine DropSelection) 0)
         "[]~\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 2"
         aPipe
-        (key K.GoToStartOfLine 8)
+        (key (K.GoToStartOfLine DropSelection) 8)
         "[]\n|>~List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 2"
         aPipe
-        (key K.GoToEndOfLine 5)
+        (key (K.GoToEndOfLine DropSelection) 5)
         "[]\n|>List::append [5]~\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 3"
         aPipe
-        (key K.GoToStartOfLine 40)
+        (key (K.GoToStartOfLine DropSelection) 40)
         "[]\n|>List::append [5]\n|>~List::append [5]\n" ;
       t
         "move to the end of pipe on line 3"
         aPipe
-        (key K.GoToEndOfLine 24)
+        (key (K.GoToEndOfLine DropSelection) 24)
         "[]\n|>List::append [5]\n|>List::append [5]~\n" ;
       t
         "pipes appear on new lines"
@@ -2604,6 +2642,12 @@ let run () =
         aPipe
         (ctrlRight 20)
         "[]\n|>List::append [5]\n|>List::append~ [5]\n" ;
+      t
+        "bsing a blank pipe after a piped 1-arg function deletes all"
+        (pipe aList5 [fn "List::length" [pipeTarget]; b])
+        (* wrap false because else we delete the wrapper *)
+        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        "~___" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
       (* TODO: test for deleting pipeed prefix fns *)
@@ -2625,32 +2669,32 @@ let run () =
       t
         "move to front of line 1"
         plainIf
-        (key K.GoToStartOfLine 4)
+        (key (K.GoToStartOfLine DropSelection) 4)
         "~if 5\nthen\n  6\nelse\n  7" ;
       t
         "move to end of line 1"
         plainIf
-        (key K.GoToEndOfLine 0)
+        (key (K.GoToEndOfLine DropSelection) 0)
         "if 5~\nthen\n  6\nelse\n  7" ;
       t
         "move to front of line 3"
         plainIf
-        (key K.GoToStartOfLine 13)
+        (key (K.GoToStartOfLine DropSelection) 13)
         "if 5\nthen\n  ~6\nelse\n  7" ;
       t
         "move to end of line 3"
         plainIf
-        (key K.GoToEndOfLine 12)
+        (key (K.GoToEndOfLine DropSelection) 12)
         "if 5\nthen\n  6~\nelse\n  7" ;
       t
         "move to front of line 5 in nested if"
         nestedIf
-        (key K.GoToStartOfLine 16)
+        (key (K.GoToStartOfLine DropSelection) 16)
         "if 5\nthen\n  ~if 5\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "move to end of line 5 in nested if"
         nestedIf
-        (key K.GoToEndOfLine 12)
+        (key (K.GoToEndOfLine DropSelection) 12)
         "if 5\nthen\n  if 5~\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "try to insert space on blank"
@@ -2850,12 +2894,12 @@ let run () =
       t
         "move to the front of an empty record"
         emptyRowRecord
-        (key K.GoToStartOfLine 13)
+        (key (K.GoToStartOfLine DropSelection) 13)
         "{\n  ~*** : ___\n}" ;
       t
         "move to the end of an empty record"
         emptyRowRecord
-        (key K.GoToEndOfLine 4)
+        (key (K.GoToEndOfLine DropSelection) 4)
         "{\n  *** : ___~\n}" ;
       t
         "cant enter invalid fieldname"
@@ -2905,12 +2949,12 @@ let run () =
       t
         "move to the front of a record with multiRowRecordple values"
         multiRowRecord
-        (key K.GoToStartOfLine 21)
+        (key (K.GoToStartOfLine DropSelection) 21)
         "{\n  f1 : 56\n  ~f2 : 78\n}" ;
       t
         "move to the end of a record with multiRowRecordple values"
         multiRowRecord
-        (key K.GoToEndOfLine 14)
+        (key (K.GoToEndOfLine DropSelection) 14)
         "{\n  f1 : 56\n  f2 : 78~\n}" ;
       t
         "inserting at the end of the key works"
@@ -3507,6 +3551,42 @@ let run () =
         (key K.SelectAll 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 89) ) ;
+      ts
+        "K.GoToStartOfWord + shift selects to start of word"
+        longLets
+        (key (K.GoToStartOfWord KeepSelection) 16)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 16, 4) ) ;
+      ts
+        "K.GoToEndOfWord selects to end of word"
+        longLets
+        (key (K.GoToEndOfWord KeepSelection) 4)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 4, 16) ) ;
+      ts
+        "K.GoToStartOfLine selects from mid to start of line"
+        longLets
+        (key (K.GoToStartOfLine KeepSelection) 29)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 29, 0) ) ;
+      ts
+        "K.GoToEndOfLine selects from mid to end of line"
+        longLets
+        (key (K.GoToEndOfLine KeepSelection) 29)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 29, 47) ) ;
+      ts
+        "K.GoToStartOfLine selects from end to start of line"
+        longLets
+        (key (K.GoToStartOfLine KeepSelection) 47)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 47, 0) ) ;
+      ts
+        "K.GoToEndOfLine selects to end of line"
+        longLets
+        (key (K.GoToEndOfLine KeepSelection) 0)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 0, 47) ) ;
       ()) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->

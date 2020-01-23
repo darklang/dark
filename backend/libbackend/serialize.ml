@@ -197,6 +197,21 @@ let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
   |> strs2tlid_oplists
 
 
+let load_only_undeleted_tlids
+    ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () : Op.tlid_oplists
+    =
+  let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
+  Db.fetch
+    ~name:"load_only_undeleted_tlids"
+    "SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+      AND tlid = ANY (string_to_array($2, $3)::bigint[])
+      AND deleted IS NOT TRUE"
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
+    ~result:BinaryResult
+  |> strs2tlid_oplists
+
+
 (* This is a special `load_*` function that specifically loads toplevels
  * via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
  * stores a binary-serialized representation of the toplevel after the oplist
@@ -213,7 +228,8 @@ let load_only_rendered_tlids
     ~name:"load_only_rendered_tlids"
     "SELECT rendered_oplist_cache FROM toplevel_oplists
       WHERE canvas_id = $1
-      AND tlid = ANY (string_to_array($2, $3)::bigint[])"
+      AND tlid = ANY (string_to_array($2, $3)::bigint[])
+      AND deleted IS NOT TRUE"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2rendered_oplist_cache_query_result
@@ -298,6 +314,7 @@ let save_toplevel_oplist
     ~(canvas_id : Uuidm.t)
     ~(account_id : Uuidm.t)
     ~tipe
+    ~(deleted : bool option)
     ~(name : string option)
     ~(module_ : string option)
     ~(modifier : string option)
@@ -308,12 +325,15 @@ let save_toplevel_oplist
   let binary_option o =
     match o with Some bin -> Db.Binary bin | None -> Db.Null
   in
+  let bool_option o =
+    match o with Some boolean -> Db.Bool boolean | None -> Db.Null
+  in
   let tipe_str = Toplevel.tl_tipe_to_string tipe in
   Db.run
     ~name:"save per tlid oplist"
     "INSERT INTO toplevel_oplists
-    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache)
-    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10)
+    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache, deleted)
+    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10, $11)
     ON CONFLICT (canvas_id, tlid) DO UPDATE
     SET account_id = $2,
         digest = $4,
@@ -322,7 +342,9 @@ let save_toplevel_oplist
         module = $7,
         modifier = $8,
         data = $9,
-        rendered_oplist_cache = $10;"
+        rendered_oplist_cache = $10,
+        deleted = $11;
+        "
     ~params:
       [ Uuid canvas_id
       ; Uuid account_id
@@ -333,7 +355,8 @@ let save_toplevel_oplist
       ; string_option module_
       ; string_option modifier
       ; Binary (Op.oplist_to_string ops)
-      ; binary_option binary_repr ]
+      ; binary_option binary_repr
+      ; bool_option deleted ]
 
 
 (* ------------------------- *)

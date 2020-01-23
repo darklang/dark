@@ -71,7 +71,7 @@ let deleteAllTest : FuzzTest.t =
   { name = "delete-all deletes all"
   ; check =
       (fun ~testcase:_ ~newAST newState ->
-        toText newAST = "___" && newState.newPos = 0)
+        toText newAST = "   " && newState.newPos = 0)
   ; ignore = (fun _ -> false)
   ; fn =
       (fun testcase ->
