@@ -679,8 +679,6 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARConstructor (id, CPName), TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
     | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _)
-    | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _)
-    | ARFnCall (id, FCPFnName), TFnVersion (id', _, _, _)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
     | ARIf (id, IPThenKeyword), TIfThenKeyword id'
     | ARIf (id, IPElseKeyword), TIfElseKeyword id'
@@ -725,7 +723,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       when id = id' && idx = idx' ->
         posForTi ti
     (*
-      Floats
+     * Floats
      *)
     | ARFloat (id, FPPoint), TFloatPoint id'
     | ARFloat (id, FPWhole), TFloatWhole (id', _)
@@ -744,6 +742,20 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
         Some ti.endPos
     | ARFloat (id, FPFractional), TFloatFractional (id', _) when id = id' ->
         posForTi ti
+    (*
+     * Function calls
+     *)
+    | ARFnCall id, TFnName (id', partialName, displayName, _, _) when id = id'
+      ->
+        let dispLen = String.length displayName in
+        if ct.offset > dispLen && String.length partialName > dispLen
+        then (* A version token exists and we must be there instead *)
+          None
+        else (* Within current token *)
+          clampedPosForTi ti ct.offset
+    | ARFnCall id, TFnVersion (id', _, _, backendFnName) when id = id' ->
+        let nameWithoutVersion = FluidUtil.fnDisplayName backendFnName in
+        clampedPosForTi ti (ct.offset - String.length nameWithoutVersion)
     (*
     * Single-line Strings
     *)
@@ -840,7 +852,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARFloat (_, FPWhole), _
     | ARFloat (_, FPPoint), _
     | ARFloat (_, FPFractional), _
-    | ARFnCall (_, FCPFnName), _
+    | ARFnCall _, _
     | ARIf (_, IPIfKeyword), _
     | ARIf (_, IPThenKeyword), _
     | ARIf (_, IPElseKeyword), _
@@ -966,12 +978,12 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TVariable (id, _) ->
       Some {astRef = ARVariable id; offset}
   | TFnName (id, _, _, _, _) ->
-      Some {astRef = ARFnCall (id, FCPFnName); offset}
+      Some {astRef = ARFnCall id; offset}
   | TFnVersion (id, _, versionName, backendFnName) ->
       (* TODO: This is very brittle and should probably be moved into a function responsible
          for grabbing the appropriate bits of functions *)
       Some
-        { astRef = ARFnCall (id, FCPFnName)
+        { astRef = ARFnCall id
         ; offset =
             offset + String.length backendFnName - String.length versionName - 1
         }
@@ -1081,12 +1093,26 @@ let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
   | ELambda (_, _, bodyExpr) ->
       caretTargetForLastPartOfExpr' bodyExpr
   | EFnCall (id, fnName, argExprs, _) ->
-    ( match List.last argExprs with
-    | Some lastExpr ->
-        caretTargetForLastPartOfExpr' lastExpr
-    | None ->
-        { astRef = ARFnCall (id, FCPFnName)
-        ; offset = fnName |> FluidUtil.partialName |> String.length } )
+      (* Caret targets don't make sense for EPipeTargets, so we
+       * return a caret target for the end of the last fn argument
+       * that isn't an EPipeTarget, or the end of the extended
+       * function name, if there are no non-EPipeTargets. *)
+      argExprs
+      |> List.reverse
+      |> List.find ~f:(fun e ->
+             match e with EPipeTarget _ -> false | _ -> true)
+      |> Option.map ~f:(fun lastNonPipeTarget ->
+             caretTargetForLastPartOfExpr' lastNonPipeTarget)
+      |> Option.withDefault
+           ~default:
+             { astRef = ARFnCall id
+             ; offset = fnName |> FluidUtil.partialName |> String.length }
+  | EPartial (_, _, EBinOp (_, _, _, rhsExpr, _)) ->
+      (* We need this so that (for example) when we backspace a binop containing a binop within a partial,
+       * we can keep hitting backspace to delete the whole thing. This isn't (currently) needed for
+       * other types of partials because deleting non-binop partials deletes their args,
+       * whereas deleting binop partials merges and hoists the args. *)
+      caretTargetForLastPartOfExpr' rhsExpr
   | EPartial (id, str, _) ->
       (* Intentionally using the thing that was typed; not the existing expr *)
       {astRef = ARPartial id; offset = String.length str}
@@ -1163,7 +1189,7 @@ let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
   | EBinOp (_, _, lhsExpr, _, _) ->
       caretTargetForBeginningOfExpr' lhsExpr
   | EFnCall (id, _, _, _) ->
-      {astRef = ARFnCall (id, FCPFnName); offset = 0}
+      {astRef = ARFnCall id; offset = 0}
   | ELambda (id, _, _) ->
       {astRef = ARLambda (id, LPKeyword); offset = 0}
   | EFieldAccess (_, expr, _) ->
@@ -2865,7 +2891,7 @@ let idOfASTRef (astRef : astRef) : id option =
   | ARBinOp (id, _)
   | ARFieldAccess (id, _)
   | ARVariable id
-  | ARFnCall (id, _)
+  | ARFnCall id
   | ARPartial id
   | ARRightPartial id
   | ARList (id, _)
@@ -3019,7 +3045,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           Some
             ( Expr (EPartial (newID, str, oldExpr))
             , {astRef = ARPartial newID; offset = currOffset - 1} )
-    | ARFnCall (_, FCPFnName), (EFnCall (_, fnName, _, _) as oldExpr) ->
+    | ARFnCall _, (EFnCall (_, fnName, _, _) as oldExpr) ->
         let str = fnName |> FluidUtil.partialName |> mutation |> String.trim in
         let newID = gid () in
         if str = ""
@@ -3187,7 +3213,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARFloat (_, FPFractional), _
     | ARFloat (_, FPPoint), _
     | ARFloat (_, FPWhole), _
-    | ARFnCall (_, FCPFnName), _
+    | ARFnCall _, _
     | ARIf (_, IPIfKeyword), _
     | ARInteger _, _
     | ARLambda (_, LPKeyword), _

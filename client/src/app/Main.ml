@@ -1185,7 +1185,7 @@ let update_ (msg : msg) (m : model) : modification =
          * the length of the function name representing the offset into the
          * tokenized function call node corresponding to this location. Eg:
          * foo|v1 a b *)
-        STCaret {astRef = ARFnCall (id, FCPFnName); offset = String.length name}
+        STCaret {astRef = ARFnCall id; offset = String.length name}
       in
       Many
         [ ExecutingFunctionBegan (tlid, id)
