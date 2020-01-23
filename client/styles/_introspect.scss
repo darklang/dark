@@ -40,13 +40,13 @@ $arrow-height: 24px;
   }
 
   &.used-in::before {
-    @include font-awesome("\f30a");
+    @include font-awesome($fa-long-arrow-alt-left);
     left: -1 * ($space-between - 4px);
     color: $live-value-background;
   }
 
   &.refers-to::before {
-    @include font-awesome("\f30b");
+    @include font-awesome($fa-long-arrow-alt-right);
     left: -1 * $space-between;
     color: $black2;
   }

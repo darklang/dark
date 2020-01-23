@@ -197,7 +197,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
     &.complete {
       &:before {
-        @include font-awesome("\f00c");
+        @include font-awesome($fa-check);
 
         position: absolute;
         left: 0;
@@ -209,7 +209,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
       &.failed {
         &:before {
-          @include font-awesome("\f00d");
+          @include font-awesome($fa-times);
           color: $red;
 
           position: absolute;

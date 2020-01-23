@@ -157,7 +157,7 @@ $wrapper-background: $black2;
         // character is in line with the first character of the results
         margin-right: 4px;
 
-        @include font-awesome("\f002");
+        @include font-awesome($fa-search);
         color: $grey2;
         font-size: 16px;
       }

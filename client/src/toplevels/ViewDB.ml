@@ -60,20 +60,28 @@ let viewDBData (vs : viewState) (db : db) : msg Html.html =
       Vdom.noNode
 
 
-let viewDBName (vs : viewState) (db : db) : msg Html.html =
+let viewDBName (vs : viewState) (db : db) : msg Html.html list =
+  let typeView =
+    Html.span
+      [Html.class' "handler-type"]
+      [fontAwesome "database"; Html.text "DB"]
+  in
   let nameField =
     if vs.dbLocked
-    then Html.span [Html.class' "name"] [Html.text (dbName2String db.dbName)]
+    then Html.text (dbName2String db.dbName)
     else
       let c = (enterable :: idConfigs) @ [wc "dbname"] in
       ViewBlankOr.viewText DBName vs c db.dbName
   in
-  Html.div
-    [Html.class' "dbtitle"]
-    [ nameField
-    ; Html.span
-        [Html.class' "version"]
-        [Html.text (".v" ^ string_of_int db.version)] ]
+  let titleView =
+    Html.span
+      [Html.class' "handler-name"]
+      [ nameField
+      ; Html.span
+          [Html.class' "version"]
+          [Html.text (".v" ^ string_of_int db.version)] ]
+  in
+  [typeView; titleView]
 
 
 let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
@@ -169,19 +177,8 @@ let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
 
 let viewDB (vs : viewState) (db : db) (dragEvents : domEventList) :
     msg Html.html list =
-  let locked =
-    if vs.dbLocked && db.activeMigration = None
-    then
-      Html.div
-        (* DB migrations dont work yet, and they just confuse users who open
-         * them. *)
-        (* [ ViewUtils.eventNoPropagation *)
-        (*     ~key:("sm-" ^ showTLID db.dbTLID) *)
-        (*     "click" *)
-        (*     (fun _ -> StartMigration db.dbTLID) ] *)
-        []
-        [fontAwesome "lock"]
-    else fontAwesome "unlock"
+  let lockClass =
+    if vs.dbLocked && db.activeMigration = None then "lock" else "unlock"
   in
   let namediv = viewDBName vs db in
   let cols =
@@ -189,7 +186,8 @@ let viewDB (vs : viewState) (db : db) (dragEvents : domEventList) :
     then List.filter ~f:(fun (n, t) -> B.isF n && B.isF t) db.cols
     else db.cols
   in
-  let keyView = Html.div [Html.class' "col key"] [Html.text "key : String"] in
+  let keyView = Html.div [Html.class' "col key"]
+    [ Html.text "All entries are identified by a unique string `key`."] in
   let coldivs = List.map ~f:(viewDBCol vs false db.dbTLID) cols in
   let data = viewDBData vs db in
   let migrationView =
@@ -201,8 +199,9 @@ let viewDB (vs : viewState) (db : db) (dragEvents : domEventList) :
     | None ->
         []
   in
-  [ Html.div
-      (Html.class' "db" :: dragEvents)
-      (locked :: namediv :: keyView :: coldivs) ]
+  let headerView =
+    Html.div [Html.class' ("spec-header " ^ lockClass)] namediv
+  in
+  [Html.div (Html.class' "db" :: dragEvents) (headerView :: keyView :: coldivs)]
   @ migrationView
   @ [data]
