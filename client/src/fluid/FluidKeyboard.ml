@@ -98,14 +98,14 @@ type key =
   | F11
   | F12
   | Unknown of string
-  | GoToStartOfLine
-  | GoToEndOfLine
   | DeletePrevWord
   | DeleteNextWord
   | DeleteToStartOfLine
   | DeleteToEndOfLine
-  | GoToStartOfWord
-  | GoToEndOfWord
+  | GoToStartOfLine of maintainSelection
+  | GoToEndOfLine of maintainSelection
+  | GoToStartOfWord of maintainSelection
+  | GoToEndOfWord of maintainSelection
   | Undo
   | Redo
   | SelectAll
@@ -114,6 +114,11 @@ type key =
 and side =
   | LeftHand
   | RightHand
+[@@deriving show]
+
+and maintainSelection =
+  | KeepSelection
+  | DropSelection
 [@@deriving show]
 
 let toString (key : key) : string option =
@@ -226,14 +231,14 @@ let toString (key : key) : string option =
   | Shift _
   | Ctrl _
   | Unknown _
-  | GoToStartOfLine
-  | GoToEndOfLine
+  | GoToStartOfLine _
+  | GoToEndOfLine _
   | DeletePrevWord
   | DeleteNextWord
   | DeleteToStartOfLine
   | DeleteToEndOfLine
-  | GoToStartOfWord
-  | GoToEndOfWord
+  | GoToStartOfWord _
+  | GoToEndOfWord _
   | Undo
   | Redo
   | SelectAll ->
@@ -375,6 +380,7 @@ let fromKeyboardEvent
   let isMac = getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then meta else ctrl in
   let isMacCmdHeld = isMac && meta in
+  let maintainSelection = if shift then KeepSelection else DropSelection in
   match key with
   (*************
    * Shortcuts *
@@ -382,11 +388,11 @@ let fromKeyboardEvent
   | "a" when osCmdKeyHeld ->
       SelectAll
   | "a" when ctrl ->
-      GoToStartOfLine
+      GoToStartOfLine maintainSelection
   | "d" when ctrl ->
       Delete
   | "e" when ctrl ->
-      GoToEndOfLine
+      GoToEndOfLine maintainSelection
   | "y" when (not isMac) && ctrl && not shift ->
       (* CTRL+Y is Windows redo
       but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
@@ -405,17 +411,17 @@ let fromKeyboardEvent
   | "Delete" when (isMac && alt) || ((not isMac) && ctrl) ->
       DeleteNextWord
   | "ArrowLeft" when meta ->
-      GoToStartOfLine
+      GoToStartOfLine maintainSelection
   | "ArrowLeft" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToStartOfWord
+      GoToStartOfWord maintainSelection
   | "ArrowRight" when meta ->
-      GoToEndOfLine
+      GoToEndOfLine maintainSelection
   | "ArrowRight" when (isMac && alt) || ctrl ->
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToEndOfWord
+      GoToEndOfWord maintainSelection
   (************
    * Movement *
    ************)
@@ -424,13 +430,13 @@ let fromKeyboardEvent
   | "PageDown" ->
       PageDown
   | "End" when ctrl ->
-      GoToStartOfLine
+      GoToStartOfLine maintainSelection
   | "End" ->
-      GoToEndOfLine
+      GoToEndOfLine maintainSelection
   | "Home" when ctrl ->
-      GoToEndOfLine
+      GoToEndOfLine maintainSelection
   | "Home" ->
-      GoToStartOfLine
+      GoToStartOfLine maintainSelection
   | "ArrowUp" ->
       Up
   | "ArrowDown" ->

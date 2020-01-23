@@ -434,41 +434,43 @@ let moveToEndOfLine (ast : ast) (ti : T.tokenInfo) (s : state) : state =
   setPosition s (getEndOfLineCaretPos ast ti)
 
 
-let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
-    state =
-  let s = recordAction "goToStartOfWord" s in
-  (* We want to find the closest editable token that is before the current cursor position
+(* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
+let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
   let previousToken =
     toTokens ast
     |> List.reverse
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos > t.startPos)
   in
-  let newPos =
-    let tokenInfo = previousToken |> Option.withDefault ~default:ti in
-    if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
-    then getBegOfWordInStrCaretPos ~pos tokenInfo
-    else tokenInfo.startPos
+  let tokenInfo = previousToken |> Option.withDefault ~default:ti in
+  if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
+  then getBegOfWordInStrCaretPos ~pos tokenInfo
+  else tokenInfo.startPos
+
+
+let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
+    state =
+  let s = recordAction "goToStartOfWord" s in
+  setPosition s (getStartOfWordPos ~pos ast ti)
+
+
+(* We want to find the closest editable token that is after the current cursor position
+  * so the cursor always lands in a position where a user is able to type *)
+let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
+  let tokenInfo =
+    toTokens ast
+    |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
+    |> Option.withDefault ~default:ti
   in
-  setPosition s newPos
+  if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
+  then getEndOfWordInStrCaretPos ~pos tokenInfo
+  else tokenInfo.endPos
 
 
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
     state =
   let s = recordAction "goToEndOfWord" s in
-  (* We want to find the closest editable token that is after the current cursor position
-  * so the cursor always lands in a position where a user is able to type *)
-  let nextToken =
-    toTokens ast
-    |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
-  in
-  let newPos =
-    let tokenInfo = nextToken |> Option.withDefault ~default:ti in
-    if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
-    then getEndOfWordInStrCaretPos ~pos tokenInfo
-    else tokenInfo.endPos
-  in
-  setPosition s newPos
+  setPosition s (getEndOfWordPos ~pos ast ti)
 
 
 let moveToEnd (ti : T.tokenInfo) (s : state) : state =
@@ -3930,6 +3932,13 @@ let getCollapsedSelectionStart (s : fluidState) : int =
   getSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
 
 
+let updateSelectionRange (s : fluidState) (newPos : int) : fluidState =
+  { s with
+    newPos
+  ; selectionStart =
+      Some (s.selectionStart |> Option.withDefault ~default:s.newPos) }
+
+
 let getOptionalSelectionRange (s : fluidState) : (int * int) option =
   let endIdx = s.newPos in
   match s.selectionStart with
@@ -4191,18 +4200,29 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* TODO: press equals when in a let *)
     (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
-    | K.GoToEndOfWord, _, R (_, ti) | K.GoToEndOfWord, L (_, ti), _ ->
-        (ast, goToEndOfWord ~pos ast ti s)
-    | K.GoToStartOfWord, _, R (_, ti) | K.GoToStartOfWord, L (_, ti), _ ->
-        (ast, goToStartOfWord ~pos ast ti s)
+    | K.GoToEndOfWord maintainSelection, _, R (_, ti)
+    | K.GoToEndOfWord maintainSelection, L (_, ti), _ ->
+        if maintainSelection == K.KeepSelection
+        then (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti))
+        else (ast, goToEndOfWord ~pos ast ti s)
+    | K.GoToStartOfWord maintainSelection, _, R (_, ti)
+    | K.GoToStartOfWord maintainSelection, L (_, ti), _ ->
+        if maintainSelection == K.KeepSelection
+        then (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
+        else (ast, goToStartOfWord ~pos ast ti s)
     | K.Left, L (_, ti), _ ->
         (ast, doLeft ~pos ti s |> acMaybeShow ti)
     | K.Right, _, R (_, ti) ->
         (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
-    | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
-        (ast, moveToStartOfLine ast ti s)
-    | K.GoToEndOfLine, _, R (_, ti) ->
-        (ast, moveToEndOfLine ast ti s)
+    | K.GoToStartOfLine maintainSelection, _, R (_, ti)
+    | K.GoToStartOfLine maintainSelection, L (_, ti), _ ->
+        if maintainSelection == K.KeepSelection
+        then (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti))
+        else (ast, moveToStartOfLine ast ti s)
+    | K.GoToEndOfLine maintainSelection, _, R (_, ti) ->
+        if maintainSelection == K.KeepSelection
+        then (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
+        else (ast, moveToEndOfLine ast ti s)
     | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
       ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
@@ -4663,19 +4683,31 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
 
 let shouldDoDefaultAction (key : K.key) : bool =
   match key with
-  | K.GoToStartOfLine
-  | K.GoToEndOfLine
+  | K.GoToStartOfLine _
+  | K.GoToEndOfLine _
   | K.Delete
   | K.SelectAll
   | K.DeleteToEndOfLine
   | K.DeleteToStartOfLine
-  | K.GoToStartOfWord
-  | K.GoToEndOfWord
+  | K.GoToStartOfWord _
+  | K.GoToEndOfWord _
   | K.DeletePrevWord
   | K.DeleteNextWord ->
       false
   | _ ->
       true
+
+
+let shouldSelect (key : K.key) : bool =
+  match key with
+  | K.GoToStartOfWord K.KeepSelection
+  | K.GoToEndOfWord K.KeepSelection
+  | K.GoToStartOfLine K.KeepSelection
+  | K.GoToEndOfLine K.KeepSelection
+  | K.SelectAll ->
+      true
+  | _ ->
+      false
 
 
 let exprRangeInAst ~ast (exprID : id) : (int * int) option =
@@ -5310,7 +5342,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         let s = {s with lastKey = key} in
         let newAST, newState = updateKey key ast s in
         let selectionStart =
-          if key = K.SelectAll
+          if shouldSelect key
           then newState.selectionStart
           else if shiftKey && not (key = K.ShiftEnter)
                   (* We dont want to persist selection on ShiftEnter *)
