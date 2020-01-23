@@ -28,6 +28,16 @@ type execute_function_rpc_params =
   ; fnname : string }
 [@@deriving yojson]
 
+type upload_function_rpc_params = {fn : RuntimeT.user_fn} [@@deriving yojson]
+
+let to_upload_function_rpc_params (payload : string) :
+    upload_function_rpc_params =
+  payload
+  |> Yojson.Safe.from_string
+  |> upload_function_rpc_params_of_yojson
+  |> Result.ok_or_failwith
+
+
 type trigger_handler_rpc_params =
   { tlid : tlid
   ; trace_id : RuntimeT.uuid
@@ -155,6 +165,6 @@ let functions ~username =
          ; preview_execution_safe = v.preview_execution_safe
          ; infix = List.mem ~equal:( = ) v.infix_names k
          ; deprecated = v.deprecated })
-  |> fun l ->
-  `List (List.map ~f:function_metadata_to_yojson l)
+  |> List.map ~f:function_metadata_to_yojson
+  |> (fun l -> `List l)
   |> Yojson.Safe.pretty_to_string

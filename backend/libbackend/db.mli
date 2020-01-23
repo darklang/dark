@@ -5,6 +5,7 @@ open Libexecution
 
 type param =
   | Int of int
+  | Int63 of Int63.t
   | ID of Types.id
   | String of string
   | Uuid of Uuidm.t

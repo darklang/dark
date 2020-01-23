@@ -511,6 +511,7 @@ let user_page_handler
               ~canvas_id
               ~user_fns:(Types.IDMap.data !c.user_functions)
               ~user_tipes:(Types.IDMap.data !c.user_tipes)
+              ~package_fns:!c.package_fns
               ~tlid:page.tlid
               ~dbs:(TL.dbs !c.dbs)
               ~input_vars:([("request", PReq.to_dval input)] @ bound)
@@ -945,9 +946,46 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   in
   respond
     ~execution_id
-    ~resp_headers:(server_timing [t1; t2; t3; t4])
+    ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
     `OK
     response
+
+
+let upload_function
+    ~(execution_id : Types.id) (username : string) (body : string) :
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  let t1, params =
+    time "1-read-api" (fun _ -> Api.to_upload_function_rpc_params body)
+  in
+  let t2, result =
+    time "2-save" (fun _ -> Package_manager.save username params.fn)
+  in
+  let t3, (response_code, response) =
+    time "3-to-frontend" (fun _ ->
+        match result with
+        | Ok () ->
+            (`OK, "\"Success\"")
+        | Error msg ->
+            (`Bad_request, msg))
+  in
+  respond
+    ~execution_id
+    ~resp_headers:(server_timing [t1; t2; t3])
+    response_code
+    response
+
+
+let get_all_packages ~(execution_id : Types.id) () :
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  let t1, packages =
+    time "1-get-packages" (fun _ -> Package_manager.packages)
+  in
+  let t2, response =
+    time "2-to-frontend" (fun _ ->
+        Package_manager.to_get_packages_rpc_result
+          (Package_manager.all_functions ()))
+  in
+  respond ~execution_id ~resp_headers:(server_timing [t1; t2]) `OK response
 
 
 let trigger_handler ~(execution_id : Types.id) (host : string) body :
@@ -984,6 +1022,7 @@ let trigger_handler ~(execution_id : Types.id) (host : string) body :
                 ~dbs:(TL.dbs !c.dbs)
                 ~user_tipes:(!c.user_tipes |> Map.data)
                 ~user_fns:(!c.user_functions |> Map.data)
+                ~package_fns:!c.package_fns
                 ~account_id:!c.owner
                 ~canvas_id
                 ~store_fn_arguments:
@@ -1639,6 +1678,13 @@ let admin_api_handler
   | `POST, ["api"; canvas; "execute_function"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers (execute_function ~execution_id canvas body))
+  | `POST, ["api"; canvas; "packages"; "upload_function"]
+    when Account.is_admin ~username ->
+      when_can_edit ~canvas (fun _ ->
+          wrap_editor_api_headers (upload_function ~execution_id username body))
+  | `POST, ["api"; canvas; "packages"] ->
+      when_can_edit ~canvas (fun _ ->
+          wrap_editor_api_headers (get_all_packages ~execution_id ()))
   | `POST, ["api"; canvas; "trigger_handler"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers (trigger_handler ~execution_id canvas body))

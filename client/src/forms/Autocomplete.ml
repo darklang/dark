@@ -259,6 +259,8 @@ let fieldNameValidator = ".+"
 
 let fnNameValidator = "[a-z][a-zA-Z0-9_]*"
 
+let packageFnNameValidator = "[a-z][a-zA-Z0-9/:_]*"
+
 (* NB: disallowing inital-capitals also defends against having a collision
  * between a function param name and a db name *)
 let paramNameValidator = "[a-z][a-zA-Z0-9_]*"

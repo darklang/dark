@@ -490,7 +490,13 @@ let upsert_useful_canvases () : unit =
     { username = "sample"
     ; password = Password.invalid
     ; email = "nouser@example.com"
-    ; name = "Sample Owner" }
+    ; name = "Sample Owner" } ;
+  upsert_admin_exn
+    ~validate:false
+    { username = "dark"
+    ; password = Password.invalid
+    ; email = "ops+dark@darklang.com"
+    ; name = "Dark Inc." }
 
 
 let upsert_banned_accounts () : unit =

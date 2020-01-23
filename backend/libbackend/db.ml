@@ -27,6 +27,7 @@ let date_to_sqlstring (d : Core_kernel.Time.t) : string =
 
 type param =
   | Int of int
+  | Int63 of Int63.t
   | ID of Types.id
   | String of string
   | Uuid of Uuidm.t
@@ -58,6 +59,8 @@ let rec escape (param : param) : string =
   match param with
   | Int i ->
       string_of_int i
+  | Int63 i ->
+      Int63.to_string i
   | ID id ->
       Types.string_of_id id
   | String str ->
@@ -105,10 +108,14 @@ let rec escape (param : param) : string =
       "false"
 
 
+(* This is used to create values that are passed by the Postgres
+ * driver as parameterized arguments. They do not use SQL syntax. *)
 let rec to_sql param : string =
   match param with
   | Int i ->
       string_of_int i
+  | Int63 i ->
+      Int63.to_string i
   | ID i ->
       Types.string_of_id i
   | String str ->
@@ -134,6 +141,7 @@ let rec to_sql param : string =
   | Time t ->
       date_to_sqlstring t
   | List xs ->
+      (* Whenever using Arrays you must use string_to_array *)
       xs |> List.map ~f:to_sql |> String.concat ~sep:array_separator
   | Bool true ->
       "true"
@@ -151,10 +159,12 @@ let rec to_log param : string =
   match param with
   | Int i ->
       string_of_int i
+  | Int63 i ->
+      Int63.to_string i
   | ID i ->
       Types.string_of_id i
   | String str ->
-      abbrev str
+      abbrev ("'" ^ str ^ "'")
   | Uuid uuid ->
       Uuidm.to_string uuid
   | Float f ->
@@ -178,7 +188,7 @@ let rec to_log param : string =
   | List params ->
       params
       |> List.map ~f:to_log
-      |> String.concat ~sep:array_separator
+      |> String.concat ~sep:","
       |> fun s -> "[" ^ s ^ "]"
   | Bool true ->
       "true"

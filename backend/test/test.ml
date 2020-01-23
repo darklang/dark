@@ -18,6 +18,7 @@ let () =
     ; ("framework", Test_framework.suite)
     ; ("other-libs", Test_other_libs.suite)
     ; ("analysis", Test_analysis.suite)
+    ; ("package_manager", Test_package_manager.suite)
     ; ("event-queue", Test_event_queue.suite) ]
   in
   Init.init ~run_side_effects:true ;
