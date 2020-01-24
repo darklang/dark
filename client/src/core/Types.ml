@@ -479,7 +479,7 @@ type astRecordPart =
 type astListPart =
   | LPOpen
   | LPClose
-  | LPSeparator of int
+  | LPComma of int
 [@@deriving show {with_path = false}]
 
 type astMatchPart =
@@ -1404,7 +1404,7 @@ and fluidToken =
   | TLambdaVar of id * analysisId * int * string
   | TListOpen of id
   | TListClose of id
-  | TListSep of id * int
+  | TListComma of id * int
   (* 2nd int is the number of pipe segments there are *)
   | TPipe of id * int * int
   | TRecordOpen of id

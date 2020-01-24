@@ -711,7 +711,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
       when id = id' ->
         posForTi ti
-    | ARList (id, LPSeparator idx), TListSep (id', idx')
+    | ARList (id, LPComma idx), TListComma (id', idx')
     | ( ARMatch (id, MPBranchArrow idx)
       , TMatchArrow {matchID = id'; index = idx'; _} )
     | ARPipe (id, idx), TPipe (id', idx', _)
@@ -862,7 +862,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARLet (_, LPAssignment), _
     | ARList (_, LPOpen), _
     | ARList (_, LPClose), _
-    | ARList (_, LPSeparator _), _
+    | ARList (_, LPComma _), _
     | ARMatch (_, MPKeyword), _
     | ARMatch (_, MPBranchArrow _), _
     | ARNull _, _
@@ -999,8 +999,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARList (id, LPOpen); offset}
   | TListClose id ->
       Some {astRef = ARList (id, LPClose); offset}
-  | TListSep (id, idx) ->
-      Some {astRef = ARList (id, LPSeparator idx); offset}
+  | TListComma (id, idx) ->
+      Some {astRef = ARList (id, LPComma idx); offset}
   | TPipe (id, idx, _) ->
       Some {astRef = ARPipe (id, idx); offset}
   | TRecordOpen id ->
@@ -3027,10 +3027,10 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                  , { astRef = ARLambda (id, LBPVarName varAndSepIdx)
                    ; offset = String.length keepVarName } ))
         |> recoverOpt
-             "doExplicitBackspace - LPSeparator"
+             "doExplicitBackspace - LPComma"
              ~debug:(varAndSepIdx, oldVars)
              ~default:None
-    | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
+    | ARList (_, LPComma elemAndSepIdx), EList (id, exprs) ->
         let target =
           List.getAt ~index:elemAndSepIdx exprs
           |> Option.map ~f:(fun expr -> caretTargetForLastPartOfExpr' expr)
@@ -3216,7 +3216,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARLambda (_, LBPVarName _), _
     | ARLet (_, LPKeyword), _
     | ARLet (_, LPVarName), _
-    | ARList (_, LPSeparator _), _
+    | ARList (_, LPComma _), _
     | ARMatch (_, MPKeyword), _
     | ARNull _, _
     | ARPartial _, _
@@ -3512,7 +3512,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
       (E.replace id ~replacement:(E.newB ()) ast, s)
   | TLambdaComma (id, idx) ->
       (removeLambdaSepToken id ast idx, s)
-  | TListSep (id, idx) ->
+  | TListComma (id, idx) ->
       (removeListSepToken id ast idx, s)
   | TBlank _
   | TPlaceholder _
@@ -3871,7 +3871,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TLetAssignment _
     | TSep _
     | TListClose _
-    | TListSep _
+    | TListComma _
     | TIndent _
     | TRecordOpen _
     | TRecordClose _
