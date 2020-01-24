@@ -249,17 +249,6 @@ let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
   |> strs2tlid_oplists
 
 
-let load_all_dbs ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
-  Db.fetch
-    ~name:"load_all_dbs"
-    "SELECT data FROM toplevel_oplists
-      WHERE canvas_id = $1
-        AND tipe = 'db'::toplevel_type"
-    ~params:[Db.Uuid canvas_id]
-    ~result:BinaryResult
-  |> strs2tlid_oplists
-
-
 let fetch_relevant_tlids_for_http ~host ~canvas_id ~path ~verb () :
     Types.tlid list =
   Db.fetch
@@ -323,17 +312,34 @@ let fetch_relevant_tlids_for_event ~(event : Event_queue.t) ~canvas_id () :
              Exception.internal "Shape of per_tlid oplists")
 
 
-let load_for_cron ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
-  (* CRONs (atm at least) dont have access to DBs and other vars by design.
-   * Maybe we'll change that later. *)
+let fetch_relevant_tlids_for_cron_checker ~canvas_id () : Types.tlid list =
   Db.fetch
-    ~name:"load_for_cron"
-    "SELECT data FROM toplevel_oplists
+    ~name:"fetch_relevant_tlids_for_cron_checker"
+    "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = $1
-        AND module = 'CRON'"
+      AND module = 'CRON'"
     ~params:[Db.Uuid canvas_id]
-    ~result:BinaryResult
-  |> strs2tlid_oplists
+  |> List.map ~f:(fun l ->
+         match l with
+         | [data] ->
+             Types.id_of_string data
+         | _ ->
+             Exception.internal "Shape of per_tlid oplists")
+
+
+let fetch_tlids_for_all_dbs ~(canvas_id : Uuidm.t) () : Types.tlid list =
+  Db.fetch
+    ~name:"fetch_tlids_for_all_dbs"
+    "SELECT tlid FROM toplevel_oplists
+      WHERE canvas_id = $1
+        AND tipe = 'db'::toplevel_type"
+    ~params:[Db.Uuid canvas_id]
+  |> List.map ~f:(fun l ->
+         match l with
+         | [data] ->
+             Types.id_of_string data
+         | _ ->
+             Exception.internal "Shape of per_tlid oplists")
 
 
 let save_toplevel_oplist

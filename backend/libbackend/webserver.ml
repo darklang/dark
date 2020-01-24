@@ -1069,7 +1069,7 @@ let db_stats ~(execution_id : Types.id) (host : string) (body : string) :
     in
     let t2, c =
       time "2-load-saved-ops" (fun _ ->
-          C.load_all_dbs host []
+          C.load_all_dbs_from_cache host
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
     in
@@ -1119,7 +1119,7 @@ let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
   try
     let t1, c =
       time "1-load-saved-ops" (fun _ ->
-          C.load_all_dbs host []
+          C.load_all_dbs_from_cache host
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
     in
