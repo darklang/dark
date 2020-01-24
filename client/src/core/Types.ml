@@ -1159,7 +1159,6 @@ and fluidInputEvent =
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
   | FluidInputEvent of fluidInputEvent
-  | FluidCopy
   | FluidCut
   | FluidPaste of clipboardContents
   (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)

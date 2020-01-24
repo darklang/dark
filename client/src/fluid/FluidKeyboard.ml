@@ -211,7 +211,8 @@ type keyEvent =
   ; metaKey : bool }
 [@@deriving show]
 
-(** eventToKeyEvent converts the JS KeyboardEvent [evt] into a keyEvent if possible *)
+(** eventToKeyEvent converts the JS KeyboardEvent [evt] into a [keyEvent].
+ * Returns (Some keyEvent) or None if a decoding error occurs. *)
 let eventToKeyEvent (evt : Web.Node.event) : keyEvent option =
   let open Tea.Json.Decoder in
   let decoder =
