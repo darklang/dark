@@ -1380,7 +1380,7 @@ and fluidToken =
   | TIndent of int
   | TLetKeyword of id * analysisId
   (* Let-expr id * rhs id * varname *)
-  | TLetLHS of id * analysisId * string
+  | TLetVarName of id * analysisId * string
   | TLetAssignment of id * analysisId
   | TIfKeyword of id
   | TIfThenKeyword of id
