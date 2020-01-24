@@ -40,7 +40,7 @@ let tid (t : t) : id =
   | TLambdaVar (id, _, _, _)
   | TLambdaArrow id
   | TLambdaSymbol id
-  | TLambdaSep (id, _)
+  | TLambdaComma (id, _)
   | TListOpen id
   | TListClose id
   | TListSep (id, _)
@@ -151,7 +151,7 @@ let isTextToken t : bool =
   | TNewline _
   | TIndent _
   | TLambdaSymbol _
-  | TLambdaSep _
+  | TLambdaComma _
   | TMatchKeyword _
   | TMatchArrow _
   | TPipe _
@@ -328,7 +328,7 @@ let toText (t : t) : string =
       canBeEmpty name
   | TLambdaSymbol _ ->
       "\\"
-  | TLambdaSep _ ->
+  | TLambdaComma _ ->
       ","
   | TLambdaArrow _ ->
       " -> "
@@ -421,7 +421,7 @@ let toIndex (t : t) : int option =
   match t with
   | TStringMLMiddle (_, _, index, _)
   | TLambdaVar (_, _, index, _)
-  | TLambdaSep (_, index)
+  | TLambdaComma (_, index)
   | TPipe (_, _, index)
   | TRecordFieldname {index; _}
   | TRecordSep (_, index, _)
@@ -534,7 +534,7 @@ let toTypeName (t : t) : string =
       "lambda-symbol"
   | TLambdaArrow _ ->
       "lambda-arrow"
-  | TLambdaSep _ ->
+  | TLambdaComma _ ->
       "lambda-sep"
   | TListOpen _ ->
       "list-open"
@@ -612,7 +612,7 @@ let toCategoryName (t : t) : string =
       "if"
   | TFieldOp _ | TFieldName _ | TFieldPartial _ ->
       "field"
-  | TLambdaVar _ | TLambdaSymbol _ | TLambdaArrow _ | TLambdaSep _ ->
+  | TLambdaVar _ | TLambdaSymbol _ | TLambdaArrow _ | TLambdaComma _ ->
       "lambda"
   | TListOpen _ | TListClose _ | TListSep _ ->
       "list"

@@ -696,8 +696,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARRecord (id, RPOpen), TRecordOpen id'
     | ARRecord (id, RPClose), TRecordClose id'
     | ARVariable id, TVariable (id', _)
-    | ARLambda (id, LPKeyword), TLambdaSymbol id'
-    | ARLambda (id, LPArrow), TLambdaArrow id'
+    | ARLambda (id, LBPSymbol), TLambdaSymbol id'
+    | ARLambda (id, LBPArrow), TLambdaArrow id'
     | ARPattern (id, PPVariable), TPatternVariable (_, id', _, _)
     | ARPattern (id, PPConstructor), TPatternConstructorName (_, id', _, _)
     | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
@@ -718,8 +718,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'; _} )
     | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
-    | ARLambda (id, LPVarName idx), TLambdaVar (id', _, idx', _)
-    | ARLambda (id, LPSeparator idx), TLambdaSep (id', idx')
+    | ARLambda (id, LBPVarName idx), TLambdaVar (id', _, idx', _)
+    | ARLambda (id, LBPComma idx), TLambdaComma (id', idx')
       when id = id' && idx = idx' ->
         posForTi ti
     (*
@@ -874,10 +874,10 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARRecord (_, RPFieldname _), _
     | ARRecord (_, RPFieldSep _), _
     | ARVariable _, _
-    | ARLambda (_, LPKeyword), _
-    | ARLambda (_, LPArrow), _
-    | ARLambda (_, LPVarName _), _
-    | ARLambda (_, LPSeparator _), _
+    | ARLambda (_, LBPSymbol), _
+    | ARLambda (_, LBPArrow), _
+    | ARLambda (_, LBPVarName _), _
+    | ARLambda (_, LBPComma _), _
     | ARPattern (_, PPVariable), _
     | ARPattern (_, PPConstructor), _
     | ARPattern (_, PPInteger), _
@@ -987,14 +987,14 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
         ; offset =
             offset + String.length backendFnName - String.length versionName - 1
         }
-  | TLambdaSep (id, idx) ->
-      Some {astRef = ARLambda (id, LPSeparator idx); offset}
+  | TLambdaComma (id, idx) ->
+      Some {astRef = ARLambda (id, LBPComma idx); offset}
   | TLambdaArrow id ->
-      Some {astRef = ARLambda (id, LPArrow); offset}
+      Some {astRef = ARLambda (id, LBPArrow); offset}
   | TLambdaSymbol id ->
-      Some {astRef = ARLambda (id, LPKeyword); offset}
+      Some {astRef = ARLambda (id, LBPSymbol); offset}
   | TLambdaVar (id, _, idx, _) ->
-      Some {astRef = ARLambda (id, LPVarName idx); offset}
+      Some {astRef = ARLambda (id, LBPVarName idx); offset}
   | TListOpen id ->
       Some {astRef = ARList (id, LPOpen); offset}
   | TListClose id ->
@@ -1191,7 +1191,7 @@ let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
   | EFnCall (id, _, _, _) ->
       {astRef = ARFnCall id; offset = 0}
   | ELambda (id, _, _) ->
-      {astRef = ARLambda (id, LPKeyword); offset = 0}
+      {astRef = ARLambda (id, LBPSymbol); offset = 0}
   | EFieldAccess (_, expr, _) ->
       caretTargetForBeginningOfExpr' expr
   | EVariable (id, _) ->
@@ -2999,7 +2999,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         else Some (Expr newExpr, currCTMinusOne)
     | ARMatch (id, MPBranchArrow idx), expr ->
         Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
-    | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, oldExpr) ->
+    | ARLambda (_, LBPComma varAndSepIdx), ELambda (id, oldVars, oldExpr) ->
         let rec elAtCurrAndNextIndex (lst : 'a list) (idx : int) :
             ('a * 'a) option =
           match lst with
@@ -3024,7 +3024,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                let newExpr = E.removeVariableUse deleteVarName oldExpr in
                Some
                  ( Expr (ELambda (id, newVars, newExpr))
-                 , { astRef = ARLambda (id, LPVarName varAndSepIdx)
+                 , { astRef = ARLambda (id, LBPVarName varAndSepIdx)
                    ; offset = String.length keepVarName } ))
         |> recoverOpt
              "doExplicitBackspace - LPSeparator"
@@ -3128,7 +3128,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         if str = ""
         then Some (Expr oldValue, caretTargetForLastPartOfExpr' oldValue)
         else Some (Expr (ERightPartial (id, str, oldValue)), currCTMinusOne)
-    | ARLambda (_, LPVarName index), ELambda (id, vars, expr) ->
+    | ARLambda (_, LBPVarName index), ELambda (id, vars, expr) ->
         vars
         |> List.getAt ~index
         |> Option.map ~f:(fun (_, oldName) ->
@@ -3164,7 +3164,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
       when varName = "" || varName = "_" ->
         Some (Expr expr, caretTargetForBeginningOfExpr' expr)
     | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
-    | ARLambda (_, LPKeyword), ELambda (_, _, EBlank _) ->
+    | ARLambda (_, LBPSymbol), ELambda (_, _, EBlank _) ->
         (* If the expr is empty and thus can be removed *)
         mkEBlank ()
     | ARMatch (_, MPKeyword), EMatch (_, EBlank _, pairs)
@@ -3175,7 +3175,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARMatch (_, MPKeyword), EMatch _
     | ARLet (_, LPKeyword), ELet _
     | ARIf (_, IPIfKeyword), EIf _
-    | ARLambda (_, LPKeyword), ELambda _ ->
+    | ARLambda (_, LBPSymbol), ELambda _ ->
         (* keywords of "non-empty" exprs shouldn't be deletable at all *)
         None
     (*
@@ -3183,7 +3183,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
      *)
     | ARIf (_, IPThenKeyword), expr
     | ARIf (_, IPElseKeyword), expr
-    | ARLambda (_, LPArrow), expr
+    | ARLambda (_, LBPArrow), expr
     | ARBlank _, expr
     | ARLet (_, LPAssignment), expr
     | ARRecord (_, RPOpen), expr
@@ -3211,9 +3211,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARFnCall _, _
     | ARIf (_, IPIfKeyword), _
     | ARInteger _, _
-    | ARLambda (_, LPKeyword), _
-    | ARLambda (_, LPSeparator _), _
-    | ARLambda (_, LPVarName _), _
+    | ARLambda (_, LBPSymbol), _
+    | ARLambda (_, LBPComma _), _
+    | ARLambda (_, LBPVarName _), _
     | ARLet (_, LPKeyword), _
     | ARLet (_, LPVarName), _
     | ARList (_, LPSeparator _), _
@@ -3510,7 +3510,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
       (removeEmptyExpr (T.tid ti.token) ast, s)
   | (TListOpen id | TRecordOpen id) when E.hasEmptyWithId id ast ->
       (E.replace id ~replacement:(E.newB ()) ast, s)
-  | TLambdaSep (id, idx) ->
+  | TLambdaComma (id, idx) ->
       (removeLambdaSepToken id ast idx, s)
   | TListSep (id, idx) ->
       (removeListSepToken id ast idx, s)
@@ -3706,7 +3706,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     then
       ( ELambda (newID, lambdaArgs ti, EBlank (gid ()))
       , (* TODO(JULIAN): if lambdaArgs is a populated list, place caret at the end *)
-        {astRef = ARLambda (newID, LPKeyword); offset = 1} )
+        {astRef = ARLambda (newID, LBPSymbol); offset = 1} )
     else if letter = ","
     then
       (EBlank newID (* new separators *), {astRef = ARBlank newID; offset = 0})
@@ -3738,10 +3738,10 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* lambda *)
     | TLambdaSymbol id when letter = "," ->
         ( insertLambdaVar ~index:0 id ~name:"" ast
-        , AtTarget {astRef = ARLambda (id, LPVarName 0); offset = 0} )
+        , AtTarget {astRef = ARLambda (id, LBPVarName 0); offset = 0} )
     | TLambdaVar (id, _, index, _) when letter = "," ->
         ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
-        , AtTarget {astRef = ARLambda (id, LPVarName (index + 1)); offset = 0}
+        , AtTarget {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
         )
     (* Ignore invalid situations *)
     | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
@@ -3880,7 +3880,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TLambdaSymbol _
     | TLambdaArrow _
     | TConstructorName _
-    | TLambdaSep _
+    | TLambdaComma _
     | TMatchArrow _
     | TMatchKeyword _
     | TPartialGhost _
@@ -4058,7 +4058,7 @@ let rec updateKey
       | TFieldName _
       | TRecordFieldname _
       | TRecordSep _
-      | TLambdaSep _
+      | TLambdaComma _
       | TLambdaArrow _
       | TLambdaVar _ ->
           false

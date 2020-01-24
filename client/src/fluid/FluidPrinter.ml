@@ -344,7 +344,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addIter names ~f:(fun i (aid, name) b ->
              b
              |> add (TLambdaVar (id, aid, i, name))
-             |> addIf (not (isLast i)) (TLambdaSep (id, i))
+             |> addIf (not (isLast i)) (TLambdaComma (id, i))
              |> addIf (not (isLast i)) (TSep aid))
       |> add (TLambdaArrow id)
       |> nest ~indent:2 body
