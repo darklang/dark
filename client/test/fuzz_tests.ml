@@ -75,9 +75,10 @@ let deleteAllTest : FuzzTest.t =
   ; ignore = (fun _ -> false)
   ; fn =
       (fun testcase ->
-        let selectAll = keypress K.SelectAll in
-        processMsg [selectAll; keypress K.Backspace] defaultTestState testcase)
-  }
+        processMsg
+          [keypress K.SelectAll; keypress K.Backspace]
+          defaultTestState
+          testcase) }
 
 
 let copyPasteTest : FuzzTest.t =
