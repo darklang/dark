@@ -673,10 +673,10 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
   let targetAndTokenInfoToMaybeCaretPos ((ct, ti) : caretTarget * T.tokenInfo) :
       int option =
     match (ct.astRef, ti.token) with
-    | ARBinOp (id, BOPOperator), TBinOp (id', _)
+    | ARBinOp id, TBinOp (id', _)
     | ARBlank id, (TBlank id' | TPlaceholder (_, id'))
     | ARBool id, (TTrue id' | TFalse id')
-    | ARConstructor (id, CPName), TConstructorName (id', _)
+    | ARConstructor id, TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
     | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
@@ -699,8 +699,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARLambda (id, LPKeyword), TLambdaSymbol id'
     | ARLambda (id, LPArrow), TLambdaArrow id'
     | ARPattern (id, PPVariable), TPatternVariable (_, id', _, _)
-    | ( ARPattern (id, PPConstructor CPName)
-      , TPatternConstructorName (_, id', _, _) )
+    | ARPattern (id, PPConstructor), TPatternConstructorName (_, id', _, _)
     | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
     | ( ARPattern (id, PPBool)
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
@@ -715,7 +714,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARList (id, LPSeparator idx), TListSep (id', idx')
     | ( ARMatch (id, MPBranchArrow idx)
       , TMatchArrow {matchID = id'; index = idx'; _} )
-    | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
+    | ARPipe (id, idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'; _} )
     | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
@@ -844,10 +843,10 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     (*
     * Exhaustiveness satisfaction for astRefs
     *)
-    | ARBinOp (_, BOPOperator), _
+    | ARBinOp _, _
     | ARBlank _, _
     | ARBool _, _
-    | ARConstructor (_, CPName), _
+    | ARConstructor _, _
     | ARFieldAccess (_, FAPFieldname), _
     | ARFieldAccess (_, FAPFieldOp), _
     | ARFloat (_, FPWhole), _
@@ -869,7 +868,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARNull _, _
     | ARPartial _, _
     | ARRightPartial _, _
-    | ARPipe (_, PPPipeKeyword _), _
+    | ARPipe (_, _), _
     | ARRecord (_, RPOpen), _
     | ARRecord (_, RPClose), _
     | ARRecord (_, RPFieldname _), _
@@ -880,7 +879,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARLambda (_, LPVarName _), _
     | ARLambda (_, LPSeparator _), _
     | ARPattern (_, PPVariable), _
-    | ARPattern (_, PPConstructor CPName), _
+    | ARPattern (_, PPConstructor), _
     | ARPattern (_, PPInteger), _
     | ARPattern (_, PPBool), _
     | ARPattern (_, PPFloat FPPoint), _
@@ -971,7 +970,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TIfElseKeyword id ->
       Some {astRef = ARIf (id, IPElseKeyword); offset}
   | TBinOp (id, _) ->
-      Some {astRef = ARBinOp (id, BOPOperator); offset}
+      Some {astRef = ARBinOp id; offset}
   | TFieldName (id, _, _) ->
       Some {astRef = ARFieldAccess (id, FAPFieldname); offset}
   | TFieldOp (id, _) ->
@@ -1003,7 +1002,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TListSep (id, idx) ->
       Some {astRef = ARList (id, LPSeparator idx); offset}
   | TPipe (id, idx, _) ->
-      Some {astRef = ARPipe (id, PPPipeKeyword idx); offset}
+      Some {astRef = ARPipe (id, idx); offset}
   | TRecordOpen id ->
       Some {astRef = ARRecord (id, RPOpen); offset}
   | TRecordFieldname {recordID = id; index = idx; _} ->
@@ -1019,7 +1018,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TPatternVariable (_, id, _, _) ->
       Some {astRef = ARPattern (id, PPVariable); offset}
   | TPatternConstructorName (_, id, _, _) ->
-      Some {astRef = ARPattern (id, PPConstructor CPName); offset}
+      Some {astRef = ARPattern (id, PPConstructor); offset}
   | TPatternInteger (_, id, _, _) ->
       Some {astRef = ARPattern (id, PPInteger); offset}
   | TPatternString {patternID = id; _} ->
@@ -1037,8 +1036,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TPatternBlank (_, id, _) ->
       Some {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
-      Some {astRef = ARConstructor (id, CPName); offset}
-  (*
+      Some {astRef = ARConstructor id; offset}
+  (* 
     These have no valid caretTarget because they are not
     strictly part of the AST.
    *)
@@ -1129,7 +1128,7 @@ let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
     | Some lastExpr ->
         caretTargetForLastPartOfExpr' lastExpr
     | None ->
-        {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"} )
+        {astRef = ARPipe (id, 0); offset = String.length "|>"} )
   | EMatch (_, matchedExpr, matchItems) ->
     ( match List.last matchItems with
     | Some (_, branchBody) ->
@@ -1141,7 +1140,7 @@ let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
     | Some lastExpr ->
         caretTargetForLastPartOfExpr' lastExpr
     | None ->
-        {astRef = ARConstructor (id, CPName); offset = String.length name} )
+        {astRef = ARConstructor id; offset = String.length name} )
   | (EFeatureFlag (_, _, _, _, _) | EPipeTarget _) as expr ->
       recover
         "we don't yet support caretTargetForLastPartOfExpr' for this"
@@ -1206,9 +1205,9 @@ let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
   | ERecord (id, _) ->
       {astRef = ARRecord (id, RPOpen); offset = 0}
   | EPipe (id, _) ->
-      {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
+      {astRef = ARPipe (id, 0); offset = 0}
   | EConstructor (id, _, _) ->
-      {astRef = ARConstructor (id, CPName); offset = 0}
+      {astRef = ARConstructor id; offset = 0}
   | (EFeatureFlag _ | EPipeTarget _) as expr ->
       recover
         "unhandled expr in caretTargetForBeginningOfExpr'"
@@ -1238,7 +1237,7 @@ let caretTargetForBeginningOfPattern (pattern : fluidPattern) : caretTarget =
   | FPVariable (_, id, _) ->
       {astRef = ARPattern (id, PPVariable); offset = 0}
   | FPConstructor (_, id, _, _) ->
-      {astRef = ARPattern (id, PPConstructor CPName); offset = 0}
+      {astRef = ARPattern (id, PPConstructor); offset = 0}
   | FPInteger (_, id, _) ->
       {astRef = ARPattern (id, PPInteger); offset = 0}
   | FPBool (_, id, _) ->
@@ -1268,8 +1267,7 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
     | Some lastPattern ->
         caretTargetForEndOfPattern lastPattern
     | None ->
-        { astRef = ARPattern (id, PPConstructor CPName)
-        ; offset = String.length name } )
+        {astRef = ARPattern (id, PPConstructor); offset = String.length name} )
   | FPInteger (_, id, valueStr) ->
       {astRef = ARPattern (id, PPInteger); offset = String.length valueStr}
   | FPBool (_, id, true) ->
@@ -2885,7 +2883,7 @@ let idOfASTRef (astRef : astRef) : id option =
   | ARBlank id
   | ARLet (id, _)
   | ARIf (id, _)
-  | ARBinOp (id, _)
+  | ARBinOp id
   | ARFieldAccess (id, _)
   | ARVariable id
   | ARFnCall id
@@ -2894,7 +2892,7 @@ let idOfASTRef (astRef : astRef) : id option =
   | ARList (id, _)
   | ARRecord (id, _)
   | ARPipe (id, _)
-  | ARConstructor (id, _)
+  | ARConstructor id
   | ARMatch (id, _)
   | ARLambda (id, _)
   | ARPattern (id, _) ->
@@ -3070,7 +3068,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARFieldAccess (_, FAPFieldOp), EPartial (_, _, EFieldAccess (_, faExpr, _))
       ->
         Some (Expr faExpr, caretTargetForLastPartOfExpr' faExpr)
-    | ARConstructor (_, CPName), (EConstructor (_, str, _) as oldExpr) ->
+    | ARConstructor _, (EConstructor (_, str, _) as oldExpr) ->
         mkPartialOrBlank ~str:(str |> mutation |> String.trim) ~oldExpr
     | ARFnCall _, (EFnCall (_, fnName, _, _) as oldExpr) ->
         mkPartialOrBlank
@@ -3083,8 +3081,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         mkPartialOrBlank ~str:(mutation "null") ~oldExpr
     | ARVariable _, (EVariable (_, varName) as oldExpr) ->
         mkPartialOrBlank ~str:(mutation varName) ~oldExpr
-    | ARBinOp (_, BOPOperator), (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr)
-      ->
+    | ARBinOp _, (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr) ->
         let str = op |> FluidUtil.partialName |> mutation |> String.trim in
         if str = ""
         then
@@ -3146,7 +3143,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    (ELambda
                       (id, vars, E.renameVariableUses ~oldName ~newName expr))
                , currCTMinusOne ))
-    | ARPipe (_, PPPipeKeyword idx), EPipe (id, exprChain) ->
+    | ARPipe (_, idx), EPipe (id, exprChain) ->
       ( match exprChain with
       | [e1; _] ->
           Some (Expr e1, caretTargetForLastPartOfExpr' e1)
@@ -3203,9 +3200,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     (*****************
      * Exhaustiveness
      *)
-    | ARBinOp (_, BOPOperator), _
+    | ARBinOp _, _
     | ARBool _, _
-    | ARConstructor (_, CPName), _
+    | ARConstructor _, _
     | ARFieldAccess (_, FAPFieldname), _
     | ARFieldAccess (_, FAPFieldOp), _
     | ARFloat (_, FPFractional), _
@@ -3223,7 +3220,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARMatch (_, MPKeyword), _
     | ARNull _, _
     | ARPartial _, _
-    | ARPipe (_, PPPipeKeyword _), _
+    | ARPipe (_, _), _
     | ARRecord (_, RPFieldname _), _
     | ARRightPartial _, _
     | ARString (_, SPCloseQuote), _
@@ -3323,8 +3320,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           if coerced = intStr
           then None
           else Some (Pat (FPInteger (mID, pID, coerced)), currCTMinusOne)
-    | ARPattern (_, PPConstructor CPName), FPConstructor (mID, _, str, _patterns)
-      ->
+    | ARPattern (_, PPConstructor), FPConstructor (mID, _, str, _patterns) ->
         let str = str |> mutation |> String.trim in
         let newID = gid () in
         if str = ""
@@ -3379,7 +3375,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
      *)
     | ARPattern (_, PPBlank), _
     | ARPattern (_, PPBool), _
-    | ARPattern (_, PPConstructor CPName), _
+    | ARPattern (_, PPConstructor), _
     | ARPattern (_, PPFloat FPFractional), _
     | ARPattern (_, PPFloat FPPoint), _
     | ARPattern (_, PPFloat FPWhole), _
@@ -4351,9 +4347,7 @@ let rec updateKey
      * Keep caret "the same", only moved down by 1 column. *)
     | Keypress {key = K.Enter; _}, L (TPipe (id, idx, _), _), R _ ->
         let ast, s, _ = addPipeExprAt id (idx + 1) ast s in
-        let s =
-          moveToAstRef s ast (ARPipe (id, PPPipeKeyword (idx + 1))) ~offset:2
-        in
+        let s = moveToAstRef s ast (ARPipe (id, idx + 1)) ~offset:2 in
         (ast, s)
     (*
      * Caret on end-of-line.
@@ -4476,9 +4470,7 @@ let rec updateKey
             then applyToRightToken ()
             else
               let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
-              let s =
-                moveToAstRef s ast (ARPipe (parentId, PPPipeKeyword (idx + 1)))
-              in
+              let s = moveToAstRef s ast (ARPipe (parentId, idx + 1)) in
               (ast, s)
         | Some (ERecord _) ->
             (* No length special-case needed because records do not emit a
