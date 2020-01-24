@@ -1416,7 +1416,7 @@ and fluidToken =
   | TRecordSep of id * int * analysisId
   | TRecordClose of id
   | TMatchKeyword of id
-  | TMatchArrow of
+  | TMatchBranchArrow of
       { matchID : id
       ; patternID : id
       ; index : int }

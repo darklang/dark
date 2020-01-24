@@ -713,7 +713,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
         posForTi ti
     | ARList (id, LPComma idx), TListComma (id', idx')
     | ( ARMatch (id, MPBranchArrow idx)
-      , TMatchArrow {matchID = id'; index = idx'; _} )
+      , TMatchBranchArrow {matchID = id'; index = idx'; _} )
     | ARPipe (id, idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'; _} )
@@ -1013,7 +1013,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARRecord (id, RPClose); offset}
   | TMatchKeyword id ->
       Some {astRef = ARMatch (id, MPKeyword); offset}
-  | TMatchArrow {matchID = id; index = idx; _} ->
+  | TMatchBranchArrow {matchID = id; index = idx; _} ->
       Some {astRef = ARMatch (id, MPBranchArrow idx); offset}
   | TPatternVariable (_, id, _, _) ->
       Some {astRef = ARPattern (id, PPVariable); offset}
@@ -3504,7 +3504,8 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let newID = gid () in
   let f str = Util.removeCharAt str offset in
   match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchArrow _ ->
+  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchBranchArrow _
+    ->
       (ast, s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       (removeEmptyExpr (T.tid ti.token) ast, s)
@@ -3881,7 +3882,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TLambdaArrow _
     | TConstructorName _
     | TLambdaComma _
-    | TMatchArrow _
+    | TMatchBranchArrow _
     | TMatchKeyword _
     | TPartialGhost _
     | TParenOpen _
