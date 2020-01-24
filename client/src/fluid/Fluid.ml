@@ -3000,19 +3000,19 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARMatch (id, MPBranchArrow idx), expr ->
         Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARLambda (_, LBPComma varAndSepIdx), ELambda (id, oldVars, oldExpr) ->
-        let rec elAtCurrAndNextIndex (lst : 'a list) (idx : int) :
+        let rec itemsAtCurrAndNextIndex (lst : 'a list) (idx : int) :
             ('a * 'a) option =
           match lst with
           | [] | [_] ->
               None
           | a :: (b :: _ as rest) ->
               if idx > 0
-              then (elAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
+              then (itemsAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
               else if idx = 0
               then Some (a, b)
               else None
         in
-        elAtCurrAndNextIndex oldVars varAndSepIdx
+        itemsAtCurrAndNextIndex oldVars varAndSepIdx
         |> Option.map ~f:(fun ((_, keepVarName), (_, deleteVarName)) ->
                (* remove expression in front of sep, not behind it, hence + 1 *)
                let newVars = List.removeAt ~index:(varAndSepIdx + 1) oldVars in
