@@ -51,32 +51,17 @@ let process_cmdline_args () =
 (* ------------------ *)
 (* Keyboard-based fuzzing *)
 (* ------------------ *)
-type modifierKeys =
-  { shiftKey : bool
-  ; altKey : bool
-  ; metaKey : bool
-  ; ctrlKey : bool }
-
-let noModifiers =
-  {shiftKey = false; altKey = false; metaKey = false; ctrlKey = false}
+let keypress (key : K.key) : fluidInputEvent =
+  Keypress
+    {key; shiftKey = false; altKey = false; metaKey = false; ctrlKey = false}
 
 
-let processMsg (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : E.t)
-    : E.t * fluidState =
+let processMsg (inputs : fluidInputEvent list) (s : fluidState) (ast : E.t) :
+    E.t * fluidState =
   let h = Fluid_utils.h ast in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
-  List.foldl keys ~init:(ast, s) ~f:(fun (key, modifierKeys) (ast, s) ->
-      updateMsg
-        m
-        h.hTLID
-        ast
-        (FluidKeyPress
-           { key
-           ; shiftKey = modifierKeys.shiftKey
-           ; altKey = modifierKeys.altKey
-           ; metaKey = modifierKeys.metaKey
-           ; ctrlKey = modifierKeys.ctrlKey })
-        s)
+  List.foldl inputs ~init:(ast, s) ~f:(fun input (ast, s) ->
+      updateMsg m h.hTLID ast (FluidInputEvent input) s)
 
 
 (* ------------------ *)
@@ -91,8 +76,7 @@ let deleteAllTest : FuzzTest.t =
   ; fn =
       (fun testcase ->
         processMsg
-          [ (K.SelectAll, {noModifiers with shiftKey = true})
-          ; (K.Backspace, noModifiers) ]
+          [keypress K.SelectAll; keypress K.Backspace]
           defaultTestState
           testcase) }
 

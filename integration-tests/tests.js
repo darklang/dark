@@ -243,53 +243,44 @@ test("enter_changes_state", async t => {
 test("field_access_closes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
-  await t
-    .pressKey("r e q")
-    .expect(fluidAcHighlightedText("requestdict"))
-    .ok()
-    .pressKey(". b o")
-    .expect(fluidAcHighlightedText("bodyfield"))
-    .ok()
+  await t.typeText("#fluid-editor", "req")
+    .expect(fluidAcHighlightedText("requestdict")).ok()
+    .typeText("#fluid-editor", ".bo")
+    .expect(fluidAcHighlightedText("bodyfield")).ok()
     .pressKey("enter");
 });
 
 test("field_access_pipes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
-  await t
-    .pressKey("r e q")
-    .expect(fluidAcHighlightedText())
-    .contains("request")
-
-    .pressKey(". b o")
-    .expect(fluidAcHighlightedText())
-    .eql("bodyfield")
+  await t.typeText("#fluid-editor", "req")
+    .expect(fluidAcHighlightedText()).contains("request")
+    .typeText("#fluid-editor", ".bo")
+    .expect(fluidAcHighlightedText()) .eql("bodyfield")
     .pressKey("shift+enter");
 });
 
 test("tabbing_works", async t => {
   await createRepl(t);
   // Fill in "then" box in if stmt
-  await t.pressKey("i f space tab 5");
+  await t.typeText("#fluid-editor", "if")
+    .pressKey("space tab")
+    .typeText("#fluid-editor", "5");
 });
 
 test("autocomplete_highlights_on_partial_match", async t => {
   await createRepl(t);
   await gotoAST(t);
-  await t
-    .pressKey(" n t : : a d d")
-    .expect(fluidAcHighlightedText("Int::add"))
-    .ok()
+  await t.typeText("#fluid-editor", "nt::add")
+    .expect(fluidAcHighlightedText("Int::add")).ok()
     .pressKey("enter");
 });
 
 test("no_request_global_in_non_http_space", async t => {
   await createWorkerHandler(t);
   await gotoAST(t);
-  await t
-    .pressKey("r e q u e s t")
-    .expect(fluidAcHighlightedText("Http::badRequest"))
-    .ok()
+  await t.typeText("#fluid-editor", "request")
+    .expect(fluidAcHighlightedText("Http::badRequest")).ok()
     .pressKey("enter");
 });
 
@@ -305,7 +296,7 @@ test("ellen_hello_world_demo", async t => {
     .pressKey("enter")
 
     // string
-    .pressKey(' " H e l l o space w o r l d ! "');
+    .typeText("#fluid-editor", '"Hello world!"');
 });
 
 test("editing_headers", async t => {
@@ -361,20 +352,19 @@ test("switching_from_default_repl_space_removes_name", async t => {
 test("tabbing_through_let", async t => {
   await createRepl(t);
   await gotoAST(t);
-  await t
-    .pressKey("l e t enter")
-
+  await t.typeText("#fluid-editor", "let")
+    .pressKey("enter")
     // round trip through the let blanks once
     .pressKey("tab tab tab")
-
     // go to the body and fill it in
-    .pressKey("tab tab 5")
-
+    .pressKey("tab tab")
+    .typeText("#fluid-editor", "5")
     // go to the rhs and fill it in
-    .pressKey("tab tab 5")
-
+    .pressKey("tab tab")
+    .typeText("#fluid-editor", "5")
     // fill in the var
-    .pressKey("tab m y v a r");
+    .pressKey("tab")
+    .typeText("#fluid-editor", "myvar");
 });
 
 test("rename_db_fields", async t => {
@@ -538,7 +528,8 @@ test("rename_function", async t => {
 
 test("execute_function_works", async t => {
   await createRepl(t);
-  await t.pressKey("U u i d : : g e n enter").click(Selector(".execution-button-needed"));
+  await t.typeText("#fluid-editor", "Uuid::gen")
+    .pressKey("enter").click(Selector(".execution-button-needed"));
 
   let v1 = await Selector(".selected .live-value").innerText;
 
@@ -564,8 +555,7 @@ test("correct_field_livevalue", async t => {
 
 test("function_version_renders", async t => {
   await createRepl(t);
-  await t
-    .pressKey("D B : :  d e l")
+  await t.typeText("#fluid-editor", "DB::del")
     .expect(Selector(".autocomplete-item.fluid-selected .version").withText("v1"))
     .ok();
 });

@@ -37,7 +37,13 @@ let defaultFluidState : fluidState =
   ; oldPos = 0
   ; newPos = 0
   ; upDownCol = None
-  ; lastKey = FluidKeyboard.Escape
+  ; lastInput =
+      Keypress
+        { key = FluidKeyboard.Escape
+        ; shiftKey = false
+        ; altKey = false
+        ; metaKey = false
+        ; ctrlKey = false }
   ; ac =
       { functions = []
       ; index = None

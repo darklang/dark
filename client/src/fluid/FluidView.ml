@@ -476,28 +476,36 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     else Vdom.noNode
   in
   let returnValue = viewReturnValue vs ast in
-  let onEvt
-      (constructor : Web.Node.event -> FluidTextInput.t option)
-      (evt : Web.Node.event) : 'a option =
-    constructor evt
-    |> Option.map ~f:(fun t -> Types.FluidMsg (Types.FluidTextInput t))
-  in
-  [ liveValue
-  ; Html.div
-      [ Attrs.id Fluid.editorID
-      ; Vdom.prop "contentEditable" "true"
-      ; Attrs.autofocus true
-      ; Vdom.attribute "" "spellcheck" "false"
-      ; Vdom.attribute "" (* disable grammarly crashes *) "data-gramm" "false"
-      ; Html.onCB
-          "input"
-          ("input" ^ show_tlid tlid)
-          (onEvt FluidTextInput.fromInputEvent)
-      ; Html.onCB
+  let textInputListeners =
+    (* the command palette is inside div#fluid-editor but has it's own input
+     * handling, so don't do normal fluid input stuff if it's open *)
+    if FluidCommands.isOpened vs.fluidState.cp
+    then (Html.noProp, Html.noProp, Html.noProp)
+    else
+      ( Html.onCB
+          "keydown"
+          ("keydown" ^ show_tlid tlid)
+          (FluidKeyboard.onKeydown (fun x ->
+               FluidMsg (FluidInputEvent (Keypress x))))
+      , Html.onCB
+          "beforeinput"
+          ("beforeinput" ^ show_tlid tlid)
+          FluidTextInput.fromInputEvent
+      , Html.onCB
           "compositionend"
           ("compositionend" ^ show_tlid tlid)
-          (onEvt FluidTextInput.fromCompositionEndEvent) ]
+          FluidTextInput.fromCompositionEndEvent )
+  in
+  [ Html.div
+      ( [ Attrs.id Fluid.editorID
+        ; Vdom.prop "contentEditable" "true"
+        ; Attrs.autofocus true
+        ; Vdom.attribute "" "spellcheck" "false"
+        ; Vdom.attribute "" (* disable grammarly crashes *) "data-gramm" "false"
+        ]
+      @ Tuple3.toList textInputListeners )
       (toHtml ast ~vs ~tlid ~state)
+  ; liveValue
   ; returnValue
   ; errorRail ]
 
@@ -541,13 +549,8 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
             ( s.upDownCol
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
-    ; dtText "lastKey"
-    ; Html.dd
-        []
-        [ Html.text
-            ( K.toName s.lastKey
-            ^ ", "
-            ^ (K.toString s.lastKey |> Option.withDefault ~default:"") ) ]
+    ; dtText "lastInput"
+    ; Html.dd [] [Html.text (show_fluidInputEvent s.lastInput)]
     ; dtText "selection"
     ; Html.dd
         []
@@ -564,6 +567,7 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
   in
   let tokenData =
     let left, right, next = Fluid.getNeighbours tokens ~pos:s.newPos in
+    let ddNoProp1 txt = Html.dd [Html.noProp] [Html.text txt] in
     let tokenInfo tkn =
       Html.dd [Attrs.class' "tokenInfo"] [T.show_tokenInfo tkn]
     in
@@ -572,21 +576,21 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
       | L (_, left) ->
           tokenInfo left
       | R (_, _) ->
-          ddText "Right"
+          ddNoProp1 "Right"
       | No ->
-          ddText "None"
+          ddNoProp1 "None"
     in
     let ddRight =
       match right with
       | L (_, _) ->
-          ddText "Left"
+          ddNoProp1 "Left"
       | R (_, right) ->
           tokenInfo right
       | No ->
-          ddText "None"
+          ddNoProp1 "None"
     in
     let ddNext =
-      match next with Some next -> tokenInfo next | None -> ddText "None"
+      match next with Some next -> tokenInfo next | None -> ddNoProp1 "None"
     in
     [dtText "left"; ddLeft; dtText "right"; ddRight; dtText "next"; ddNext]
   in

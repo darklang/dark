@@ -1150,10 +1150,15 @@ and modification =
 (* ------------------- *)
 (* Msgs *)
 (* ------------------- *)
+
+(* https://rawgit.com/w3c/input-events/v1/index.html#interface-InputEvent-Attributes *)
+and fluidInputEvent =
+  | Keypress of FluidKeyboard.keyEvent (* Backwards compatibility. Not an InputEvent inputType.*)
+  | InsertText of string
+
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
-  | FluidKeyPress of FluidKeyboard.keyEvent
-  | FluidTextInput of FluidTextInput.t
+  | FluidInputEvent of fluidInputEvent
   | FluidCut
   | FluidPaste of clipboardContents
   (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
@@ -1498,7 +1503,7 @@ and fluidState =
   ; upDownCol : int option
         (* When moving up or down, and going through whitespace, track
          * the column so we can go back to it *)
-  ; lastKey : FluidKeyboard.key
+  ; lastInput : fluidInputEvent
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
   ; selectionStart : int option (* The selection ends at newPos *)
