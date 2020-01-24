@@ -130,6 +130,8 @@ let check_incomplete msg dval =
 
 let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
 
+let testable_id = AT.testable pp_id equal_id
+
 let testable_string_dval_pair =
   AT.testable pp_string_dval_pair equal_string_dval_pair
 
@@ -195,6 +197,8 @@ let dbid = Int63.of_int 89
 
 let dbid2 = Int63.of_int 189
 
+let dbid3 = Int63.of_int 289
+
 let colnameid = Int63.of_int 11
 
 let coltypeid = Int63.of_int 12
@@ -210,6 +214,8 @@ let coltypeid3 = Int63.of_int 16
 let nameid = Int63.of_int 17
 
 let nameid2 = Int63.of_int 217
+
+let nameid3 = Int63.of_int 317
 
 let pos = {x = 0; y = 0}
 
