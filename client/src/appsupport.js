@@ -17,7 +17,7 @@ function stopKeys(event) {
 
   // `Ctrl-K` is meant to open the omnibox on Linux, but without this preventDefault
   // it will focus the browser's URL bar after creating the omnibox.
-  if ( event.ctrlKey && event.key === 'k' && window.navigator.platform.includes("Linux")) {
+  if (event.ctrlKey && event.key === "k" && window.navigator.platform.includes("Linux")) {
     event.preventDefault();
   }
 }
