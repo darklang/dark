@@ -5466,7 +5466,6 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       |> Option.withDefault ~default:NoChange
   | FluidMouseDown _
   | FluidInputEvent _
-  | FluidCopy
   | FluidPaste _
   | FluidCut
   | FluidCommandsFilter _
