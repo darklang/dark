@@ -35,20 +35,6 @@ let closeMenu (m : model) : model =
       m
 
 
-let toggleButton
-    ~(name : string)
-    ~(activeIcon : string)
-    ~(inactiveIcon : string)
-    ~(msg : mouseEvent -> msg)
-    ~(active : bool)
-    ~(key : string) : msg Html.html =
-  let icon = if active then activeIcon else inactiveIcon in
-  let cacheKey = key ^ "-" ^ string_of_bool active in
-  Html.div
-    [Html.classList [(name, true); ("active", active)]; onClick cacheKey msg]
-    [fontAwesome icon]
-
-
 let viewItem (keyID : string) (i : menuItem) : msg Html.html =
   let icon =
     match i.icon with
@@ -73,13 +59,14 @@ let viewMenu (s : menuState) (tlid : tlid) (items : menuItem list) :
   let showMenu = s.isOpen in
   let actions = List.map ~f:(viewItem strTLID) items in
   let toggleMenu =
-    toggleButton
-      ~name:"toggle-btn"
-      ~activeIcon:"bars"
-      ~inactiveIcon:"bars"
-      ~msg:(fun _ -> TLMenuMsg (tlid, if showMenu then CloseMenu else OpenMenu))
-      ~active:showMenu
-      ~key:("toggle-tl-menu-" ^ strTLID)
+    let cacheKey =
+      "toggle-tl-menu-" ^ strTLID ^ "-" ^ string_of_bool showMenu
+    in
+    Html.div
+      [ Html.classList [("toggle-btn", true); ("active", showMenu)]
+      ; onClick cacheKey (fun _ ->
+            TLMenuMsg (tlid, if showMenu then CloseMenu else OpenMenu)) ]
+      [fontAwesome "bars"]
   in
   Html.div
     [Html.classList [("more-actions", true); ("show", showMenu)]]
