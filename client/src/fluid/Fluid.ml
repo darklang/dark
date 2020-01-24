@@ -4002,14 +4002,6 @@ let getTopmostSelectionID startPos endPos ast : id option =
   |> Tuple2.first
 
 
-let onEdge left right =
-  match (left, right) with
-  | L (lt, lti), R (rt, rti) ->
-      (lt, lti) <> (rt, rti)
-  | _ ->
-      true
-
-
 let getSelectedExprID (s : state) (ast : ast) : id option =
   getOptionalSelectionRange s
   |> Option.andThen ~f:(fun (startPos, endPos) ->
@@ -4043,7 +4035,13 @@ let rec updateKey
   let tokens = toTokens ast in
   (* These might be the same token *)
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos tokens in
-  let onEdge = onEdge toTheLeft toTheRight in
+  let onEdge =
+    match (toTheLeft, toTheRight) with
+    | L (lt, lti), R (rt, rti) ->
+        (lt, lti) <> (rt, rti)
+    | _ ->
+        true
+  in
   (* This expresses whether or not the expression to the left of
    * the insert should be wrapped in a binary operator, and determines
    * that fact based on the _next_ token *)
