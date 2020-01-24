@@ -4922,7 +4922,8 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
           findTokenValue tokens eID "let-keyword" <> None
         in
         let newLhs =
-          findTokenValue tokens eID "let-var-name" |> Option.withDefault ~default:""
+          findTokenValue tokens eID "let-var-name"
+          |> Option.withDefault ~default:""
         in
         ( match (reconstructExpr rhs, reconstructExpr body) with
         | None, None when newLhs <> "" ->
