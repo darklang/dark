@@ -535,6 +535,11 @@ let load_from_cache ~tlids host owner : (canvas ref, string list) Result.t =
              let c = {c with user_tipes = IDMap.set c.user_tipes tlid ut} in
              canvas := c) ;
          canvas)
+  |> Result.map ~f:(fun canvas ->
+         (* Empty out the oplist, this prevents anyone accidentally saving a canvas
+          * partially loaded from the cache. *)
+         canvas := {!canvas with ops = []} ;
+         canvas)
 
 
 let load_http_from_cache ~verb ~path host : (canvas ref, string list) Result.t =
