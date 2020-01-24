@@ -459,16 +459,16 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     else Vdom.noNode
   in
   let returnValue = viewReturnValue vs ast in
-  [ Html.div
-      [ Attrs.id Fluid.editorID
-      ; Vdom.prop "contentEditable" "true"
-      ; Attrs.autofocus true
-      ; Vdom.attribute "" "spellcheck" "false"
-      ; Vdom.attribute "" (* disable grammarly crashes *) "data-gramm" "false"
-      ; Html.onCB
+  let textInputListeners =
+    (* the command palette is inside div#fluid-editor but has it's own input
+     * handling, so don't do normal fluid input stuff if it's open *)
+    if FluidCommands.isOpened vs.fluidState.cp
+    then [Html.noProp; Html.noProp; Html.noProp]
+    else
+      [ Html.onCB
           "keydown"
           ("keydown" ^ show_tlid tlid)
-          (FluidKeyboard.fromKeyboardEvent (fun x ->
+          (FluidKeyboard.onKeydown (fun x ->
                FluidMsg (FluidInputEvent (Keypress x))))
       ; Html.onCB
           "beforeinput"
@@ -478,6 +478,15 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
           "compositionend"
           ("compositionend" ^ show_tlid tlid)
           FluidTextInput.fromCompositionEndEvent ]
+  in
+  [ Html.div
+      ( [ Attrs.id Fluid.editorID
+        ; Vdom.prop "contentEditable" "true"
+        ; Attrs.autofocus true
+        ; Vdom.attribute "" "spellcheck" "false"
+        ; Vdom.attribute "" (* disable grammarly crashes *) "data-gramm" "false"
+        ]
+      @ textInputListeners )
       (toHtml ast ~vs ~tlid ~state)
   ; liveValue
   ; returnValue
