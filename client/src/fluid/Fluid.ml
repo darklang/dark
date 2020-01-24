@@ -684,7 +684,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARIf (id, IPElseKeyword), TIfElseKeyword id'
     | ARInteger id, TInteger (id', _)
     | ARLet (id, LPKeyword), TLetKeyword (id', _)
-    | ARLet (id, LPVarName), TLetLHS (id', _, _)
+    | ARLet (id, LPVarName), TLetVarName (id', _, _)
     | ARLet (id, LPAssignment), TLetAssignment (id', _)
     | ARList (id, LPOpen), TListOpen id'
     | ARList (id, LPClose), TListClose id'
@@ -959,7 +959,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARRightPartial id; offset}
   | TLetKeyword (id, _) ->
       Some {astRef = ARLet (id, LPKeyword); offset}
-  | TLetLHS (id, _, _) ->
+  | TLetVarName (id, _, _) ->
       Some {astRef = ARLet (id, LPVarName); offset}
   | TLetAssignment (id, _) ->
       Some {astRef = ARLet (id, LPAssignment); offset}
@@ -2142,7 +2142,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) : E.t
       replaceVarInPattern mID str (f str) ast
   | TRecordFieldname {recordID; index; fieldName; _} ->
       replaceRecordField ~index (f fieldName) recordID ast
-  | TLetLHS (id, _, str) ->
+  | TLetVarName (id, _, str) ->
       replaceLetLHS (f str) id ast
   | TLambdaVar (id, _, index, str) ->
       replaceLamdaVar ~index str (f str) id ast
@@ -3608,7 +3608,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   | TRightPartial _
   | TFieldName _
   | TFieldPartial _
-  | TLetLHS _
+  | TLetVarName _
   | TPatternNullToken _
   | TPatternTrue _
   | TPatternFalse _
@@ -3759,7 +3759,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     | TVariable _
     | TPatternVariable _
-    | TLetLHS _
+    | TLetVarName _
     | TFieldName _
     | TFieldPartial _
     | TLambdaVar _
@@ -3768,7 +3768,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     | TVariable _
     | TPatternVariable _
-    | TLetLHS _
+    | TLetVarName _
     | TFieldName _
     | TFieldPartial _
     | TLambdaVar _
@@ -3806,7 +3806,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TStringMLMiddle _
     | TStringMLEnd _
     | TPatternString _
-    | TLetLHS _
+    | TLetVarName _
     | TTrue _
     | TFalse _
     | TPatternTrue _
@@ -4053,7 +4053,7 @@ let rec updateKey
       (* This almost certainly doesn't catch all cases,
          * if you find a bug please add a case + test *)
       ( match token with
-      | TLetLHS _
+      | TLetVarName _
       | TLetAssignment _
       | TFieldName _
       | TRecordFieldname _

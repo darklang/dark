@@ -4,8 +4,8 @@ open FluidToken
 
 let run () =
   describe "analysisID of token" (fun () ->
-      test "returns id of varBind if token is TLetLHS" (fun () ->
-          let leftLetToken = TLetLHS (ID "1", ID "2", "a") in
+      test "returns id of varBind if token is TLetVarName" (fun () ->
+          let leftLetToken = TLetVarName (ID "1", ID "2", "a") in
           expect (analysisID leftLetToken) |> toEqual (ID "2")) ;
       test
         "returns id of record field name if token is TRecordFieldname "

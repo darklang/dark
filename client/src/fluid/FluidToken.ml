@@ -22,7 +22,7 @@ let tid (t : t) : id =
   | TPartialGhost (id, _)
   | TLetKeyword (id, _)
   | TLetAssignment (id, _)
-  | TLetLHS (id, _, _)
+  | TLetVarName (id, _, _)
   | TString (id, _)
   | TStringMLStart (id, _, _, _)
   | TStringMLMiddle (id, _, _, _)
@@ -74,7 +74,7 @@ let tid (t : t) : id =
 
 let analysisID (t : t) : id =
   match t with
-  | TLetLHS (_, id, _)
+  | TLetVarName (_, id, _)
   | TLetKeyword (_, id)
   | TLetAssignment (_, id)
   | TRecordFieldname {exprID = id; _}
@@ -98,7 +98,7 @@ let validID id = id <> fakeid
 let isTextToken t : bool =
   match t with
   | TInteger _
-  | TLetLHS _
+  | TLetVarName _
   | TBinOp _
   | TFieldName _
   | TFieldPartial _
@@ -190,7 +190,7 @@ let isBlank t =
   | TVariable (_, "")
   | TFieldName (_, _, "")
   | TFieldPartial (_, _, _, "")
-  | TLetLHS (_, _, "")
+  | TLetVarName (_, _, "")
   | TLambdaVar (_, _, _, "")
   | TPartial (_, "")
   | TRightPartial (_, "")
@@ -225,7 +225,7 @@ let isAtom (t : t) : bool =
 let isNewline (t : t) : bool = match t with TNewline _ -> true | _ -> false
 
 let isLet (t : t) : bool =
-  match t with TLetAssignment _ | TLetLHS _ -> true | _ -> false
+  match t with TLetAssignment _ | TLetVarName _ -> true | _ -> false
 
 
 let isAutocompletable (t : t) : bool =
@@ -302,7 +302,7 @@ let toText (t : t) : string =
       "let "
   | TLetAssignment _ ->
       " = "
-  | TLetLHS (_, _, name) ->
+  | TLetVarName (_, _, name) ->
       canBeEmpty name
   | TIfKeyword _ ->
       "if "
@@ -500,7 +500,7 @@ let toTypeName (t : t) : string =
       "let-keyword"
   | TLetAssignment _ ->
       "let-assignment"
-  | TLetLHS _ ->
+  | TLetVarName _ ->
       "let-lhs"
   | TSep _ ->
       "sep"
@@ -604,7 +604,7 @@ let toCategoryName (t : t) : string =
       "null"
   | TFnName _ | TFnVersion _ | TBinOp _ ->
       "function"
-  | TLetKeyword _ | TLetAssignment _ | TLetLHS _ ->
+  | TLetKeyword _ | TLetAssignment _ | TLetVarName _ ->
       "let"
   | TIndent _ ->
       "indent"
