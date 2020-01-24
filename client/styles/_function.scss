@@ -70,19 +70,24 @@
   }
 
   .col.new-parameter {
+    justify-content: flex-start;
+    align-items: center;
+
     .parameter-btn.add i {
       margin-right: 8px;
     }
 
     .btn-label {
-      color: $grey2;
+      color: $grey3;
       font-style: italic;
       font-size: 0.7 * $code-font-size;
     }
 
     &:hover {
+      cursor: pointer;
+      .parameter-btn.add i,
       .btn-label {
-        color: $grey3;
+        color: $green;
       }
     }
   }
