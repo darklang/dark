@@ -1939,15 +1939,6 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =
-  (* let fluidSubs = *)
-  (*   match m.cursorState with *)
-  (*   | FluidEntering _ -> *)
-  (*       [ Native.Keyboard.keydownListener ~key:"fluid" (fun x -> *)
-  (*             FluidMsg (FluidKeyPress x)) ] *)
-  (*   | _ -> *)
-  (*       [] *)
-  (* in *)
-  (* let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] @ fluidSubs in *)
   let keySubs = [Keyboard.downs (fun x -> GlobalKeyPress x)] in
   let dragSubs =
     match m.cursorState with

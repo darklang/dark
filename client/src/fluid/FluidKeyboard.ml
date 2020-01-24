@@ -195,6 +195,8 @@ let fromKeyboardEvent
    * editor right now, which we probably should fix at some point. This all
    * points to the fact that it may be easier to do shortcuts with Cmd/Ctrl
    * instead of Alt. *)
+  | "x" when alt ->
+      CommandPalette
   | _ when alt && String.length key = 1 ->
       if key = {js|≈|js} then CommandPalette else Unhandled key
   | _ ->
@@ -209,13 +211,8 @@ type keyEvent =
   ; metaKey : bool }
 [@@deriving show]
 
-(** fromKeyboardEvent converts the JS KeyboardEvent [evt] into a keyEvent, then
-  * calls the [tagger] with it if successful.
-  *
-  * [tagger] is a (keyEvent -> Types.msg). It would be nice to simply return
-  * the msg option here, but we cannot reference Types here otherwise we get
-  * a dependency cycle. *)
-let fromKeyboardEvent tagger (evt : Web.Node.event) =
+(** eventToKeyEvent converts the JS KeyboardEvent [evt] into a keyEvent if possible *)
+let eventToKeyEvent (evt : Web.Node.event) : keyEvent option =
   let open Tea.Json.Decoder in
   let decoder =
     map5
@@ -228,8 +225,18 @@ let fromKeyboardEvent tagger (evt : Web.Node.event) =
       (field "altKey" bool)
       (field "metaKey" bool)
   in
-  decodeEvent decoder evt
-  |> Tea_result.result_to_option
+  decodeEvent decoder evt |> Tea_result.result_to_option
+
+
+(** onKeydown converts the JS KeyboardEvent [evt] into a keyEvent, then
+  * calls the [tagger] with it if successful.
+  *
+  * [tagger] is a (keyEvent -> Types.msg). It would be nice to simply return
+  * the msg option here, but we cannot reference Types here otherwise we get
+  * a dependency cycle. *)
+let onKeydown tagger (evt : Web.Node.event) =
+  evt
+  |> eventToKeyEvent
   |> Option.andThen ~f:(function
          | {key = Unhandled _; _} ->
              None
