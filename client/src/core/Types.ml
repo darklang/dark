@@ -457,8 +457,6 @@ type astIfPart =
   | IPElseKeyword
 [@@deriving show {with_path = false}]
 
-type astBinOpPart = BOPOperator [@@deriving show {with_path = false}]
-
 type astLambdaPart =
   | LPKeyword
   | LPVarName of (* index of the var *) int
@@ -478,11 +476,6 @@ type astRecordPart =
   | RPClose
 [@@deriving show {with_path = false}]
 
-type astPipePart = PPPipeKeyword of (* index of the pipe *) int
-[@@deriving show {with_path = false}]
-
-type astConstructorPart = CPName [@@deriving show {with_path = false}]
-
 type astListPart =
   | LPOpen
   | LPClose
@@ -496,7 +489,7 @@ type astMatchPart =
 
 type astPatternPart =
   | PPVariable
-  | PPConstructor of astConstructorPart
+  | PPConstructor
   | PPInteger
   | PPBool
   | PPString of astStringPart
@@ -531,7 +524,7 @@ type astRef =
   | ARBlank of id
   | ARLet of id * astLetPart
   | ARIf of id * astIfPart
-  | ARBinOp of id * astBinOpPart
+  | ARBinOp of id (* matches the operator *)
   | ARFieldAccess of id * astFieldAccessPart
   | ARVariable of id
   | ARFnCall of id (* Matches the fn name+version *)
@@ -539,8 +532,8 @@ type astRef =
   | ARRightPartial of id
   | ARList of id * astListPart
   | ARRecord of id * astRecordPart
-  | ARPipe of id * astPipePart
-  | ARConstructor of id * astConstructorPart
+  | ARPipe of id * int (* index of the pipe *)
+  | ARConstructor of id (* name of the constructor *)
   | ARMatch of id * astMatchPart
   | ARLambda of id * astLambdaPart
   | ARPattern of id * astPatternPart
