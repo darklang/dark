@@ -3012,11 +3012,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
               then Some (a, b)
               else None
         in
-        (* This would be nicer with List.sub oldVars ~pos:varAndSepIdx ~len:2,
-         * but we don't define List.sub and Janestreet's version seems to be incompatible
-         * with Tablecloth.
-         * https://github.com/janestreet/base/blob/eaab227499b36bb90c2537bc6358a2d5caf75227/src/list.ml#L931
-         *)
         elAtCurrAndNextIndex oldVars varAndSepIdx
         |> Option.map ~f:(fun ((_, keepVarName), (_, deleteVarName)) ->
                (* remove expression in front of sep, not behind it, hence + 1 *)
