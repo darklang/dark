@@ -458,10 +458,10 @@ type astIfPart =
 [@@deriving show {with_path = false}]
 
 type astLambdaPart =
-  | LPKeyword
-  | LPVarName of (* index of the var *) int
-  | LPSeparator of (* index of the var *) int
-  | LPArrow
+  | LBPSymbol
+  | LBPVarName of (* index of the var *) int
+  | LBPComma of (* index of the var *) int
+  | LBPArrow
 [@@deriving show {with_path = false}]
 
 type astFieldAccessPart =
@@ -1398,7 +1398,7 @@ and fluidToken =
   | TFnName of id * string * string * string * sendToRail
   (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
   | TFnVersion of id * string * string * string
-  | TLambdaSep of id * int
+  | TLambdaComma of id * int
   | TLambdaArrow of id
   | TLambdaSymbol of id
   | TLambdaVar of id * analysisId * int * string
