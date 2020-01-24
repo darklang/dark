@@ -2035,6 +2035,11 @@ let run () =
         lambdaWithTwoBindings
         (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection] 12)
         "\\x, y -> ___~" ;
+      t
+        "bs second sep in 3-var lambda"
+        lambdaWith3UsedBindings
+        (bs 12)
+        "\\aVar, bVar~ -> aVar + ___ * bVar" ;
       ()) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (ins "c" 5) "variac~ble" ;

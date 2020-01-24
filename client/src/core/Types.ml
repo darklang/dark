@@ -457,13 +457,11 @@ type astIfPart =
   | IPElseKeyword
 [@@deriving show {with_path = false}]
 
-type astBinOpPart = BOPOperator [@@deriving show {with_path = false}]
-
 type astLambdaPart =
-  | LPKeyword
-  | LPVarName of (* index of the var *) int
-  | LPSeparator of (* index of the var *) int
-  | LPArrow
+  | LBPSymbol
+  | LBPVarName of (* index of the var *) int
+  | LBPComma of (* index of the var *) int
+  | LBPArrow
 [@@deriving show {with_path = false}]
 
 type astFieldAccessPart =
@@ -478,25 +476,20 @@ type astRecordPart =
   | RPClose
 [@@deriving show {with_path = false}]
 
-type astPipePart = PPPipeKeyword of (* index of the pipe *) int
-[@@deriving show {with_path = false}]
-
-type astConstructorPart = CPName [@@deriving show {with_path = false}]
-
 type astListPart =
   | LPOpen
   | LPClose
-  | LPSeparator of int
+  | LPComma of int
 [@@deriving show {with_path = false}]
 
 type astMatchPart =
   | MPKeyword
-  | MPBranchSep of (* index of the branch *) int
+  | MPBranchArrow of (* index of the branch *) int
 [@@deriving show {with_path = false}]
 
 type astPatternPart =
   | PPVariable
-  | PPConstructor of astConstructorPart
+  | PPConstructor
   | PPInteger
   | PPBool
   | PPString of astStringPart
@@ -531,7 +524,7 @@ type astRef =
   | ARBlank of id
   | ARLet of id * astLetPart
   | ARIf of id * astIfPart
-  | ARBinOp of id * astBinOpPart
+  | ARBinOp of id (* matches the operator *)
   | ARFieldAccess of id * astFieldAccessPart
   | ARVariable of id
   | ARFnCall of id (* Matches the fn name+version *)
@@ -539,8 +532,8 @@ type astRef =
   | ARRightPartial of id
   | ARList of id * astListPart
   | ARRecord of id * astRecordPart
-  | ARPipe of id * astPipePart
-  | ARConstructor of id * astConstructorPart
+  | ARPipe of id * int (* index of the pipe *)
+  | ARConstructor of id (* name of the constructor *)
   | ARMatch of id * astMatchPart
   | ARLambda of id * astLambdaPart
   | ARPattern of id * astPatternPart
@@ -1387,7 +1380,7 @@ and fluidToken =
   | TIndent of int
   | TLetKeyword of id * analysisId
   (* Let-expr id * rhs id * varname *)
-  | TLetLHS of id * analysisId * string
+  | TLetVarName of id * analysisId * string
   | TLetAssignment of id * analysisId
   | TIfKeyword of id
   | TIfThenKeyword of id
@@ -1405,13 +1398,13 @@ and fluidToken =
   | TFnName of id * string * string * string * sendToRail
   (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
   | TFnVersion of id * string * string * string
-  | TLambdaSep of id * int
+  | TLambdaComma of id * int
   | TLambdaArrow of id
   | TLambdaSymbol of id
   | TLambdaVar of id * analysisId * int * string
   | TListOpen of id
   | TListClose of id
-  | TListSep of id * int
+  | TListComma of id * int
   (* 2nd int is the number of pipe segments there are *)
   | TPipe of id * int * int
   | TRecordOpen of id
@@ -1423,7 +1416,7 @@ and fluidToken =
   | TRecordSep of id * int * analysisId
   | TRecordClose of id
   | TMatchKeyword of id
-  | TMatchSep of
+  | TMatchBranchArrow of
       { matchID : id
       ; patternID : id
       ; index : int }

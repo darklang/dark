@@ -223,7 +223,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       let rhsID = E.id rhs in
       b
       |> add (TLetKeyword (id, rhsID))
-      |> add (TLetLHS (id, rhsID, lhs))
+      |> add (TLetVarName (id, rhsID, lhs))
       |> add (TLetAssignment (id, rhsID))
       |> addNested ~f:(fromExpr rhs)
       |> addNewlineIfNeeded (Some (E.id next, id, None))
@@ -344,7 +344,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addIter names ~f:(fun i (aid, name) b ->
              b
              |> add (TLambdaVar (id, aid, i, name))
-             |> addIf (not (isLast i)) (TLambdaSep (id, i))
+             |> addIf (not (isLast i)) (TLambdaComma (id, i))
              |> addIf (not (isLast i)) (TSep aid))
       |> add (TLambdaArrow id)
       |> nest ~indent:2 body
@@ -355,7 +355,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addIter exprs ~f:(fun i e b ->
              b
              |> addNested ~f:(fromExpr e)
-             |> addIf (i <> lastIndex) (TListSep (id, i)))
+             |> addIf (i <> lastIndex) (TListComma (id, i)))
       |> add (TListClose id)
   | ERecord (id, fields) ->
       if fields = []
@@ -406,7 +406,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                     |> addNewlineIfNeeded (Some (id, id, Some i))
                     |> addMany (patternToToken pattern ~idx:i)
                     |> add
-                         (TMatchSep
+                         (TMatchBranchArrow
                             { matchID = id
                             ; patternID = Pattern.id pattern
                             ; index = i })

@@ -22,7 +22,7 @@ let tid (t : t) : id =
   | TPartialGhost (id, _)
   | TLetKeyword (id, _)
   | TLetAssignment (id, _)
-  | TLetLHS (id, _, _)
+  | TLetVarName (id, _, _)
   | TString (id, _)
   | TStringMLStart (id, _, _, _)
   | TStringMLMiddle (id, _, _, _)
@@ -40,17 +40,17 @@ let tid (t : t) : id =
   | TLambdaVar (id, _, _, _)
   | TLambdaArrow id
   | TLambdaSymbol id
-  | TLambdaSep (id, _)
+  | TLambdaComma (id, _)
   | TListOpen id
   | TListClose id
-  | TListSep (id, _)
+  | TListComma (id, _)
   | TPipe (id, _, _)
   | TRecordOpen id
   | TRecordClose id
   | TRecordFieldname {recordID = id; _}
   | TRecordSep (id, _, _)
   | TConstructorName (id, _)
-  | TMatchSep {matchID = id; _}
+  | TMatchBranchArrow {matchID = id; _}
   | TMatchKeyword id
   | TPatternBlank (_, id, _)
   | TPatternInteger (_, id, _, _)
@@ -74,13 +74,13 @@ let tid (t : t) : id =
 
 let analysisID (t : t) : id =
   match t with
-  | TLetLHS (_, id, _)
+  | TLetVarName (_, id, _)
   | TLetKeyword (_, id)
   | TLetAssignment (_, id)
   | TRecordFieldname {exprID = id; _}
   | TLambdaVar (_, id, _, _)
   | TRecordSep (_, _, id)
-  | TMatchSep {patternID = id; _} ->
+  | TMatchBranchArrow {patternID = id; _} ->
       id
   | _ ->
       tid t
@@ -98,7 +98,7 @@ let validID id = id <> fakeid
 let isTextToken t : bool =
   match t with
   | TInteger _
-  | TLetLHS _
+  | TLetVarName _
   | TBinOp _
   | TFieldName _
   | TFieldPartial _
@@ -137,7 +137,7 @@ let isTextToken t : bool =
       true
   | TListOpen _
   | TListClose _
-  | TListSep (_, _)
+  | TListComma (_, _)
   | TSep _
   | TLetKeyword _
   | TRecordOpen _
@@ -151,9 +151,9 @@ let isTextToken t : bool =
   | TNewline _
   | TIndent _
   | TLambdaSymbol _
-  | TLambdaSep _
+  | TLambdaComma _
   | TMatchKeyword _
-  | TMatchSep _
+  | TMatchBranchArrow _
   | TPipe _
   | TLambdaArrow _
   | TParenOpen _
@@ -190,7 +190,7 @@ let isBlank t =
   | TVariable (_, "")
   | TFieldName (_, _, "")
   | TFieldPartial (_, _, _, "")
-  | TLetLHS (_, _, "")
+  | TLetVarName (_, _, "")
   | TLambdaVar (_, _, _, "")
   | TPartial (_, "")
   | TRightPartial (_, "")
@@ -216,7 +216,7 @@ let isSkippable (t : t) : bool = match t with TIndent _ -> true | _ -> false
 
 let isAtom (t : t) : bool =
   match t with
-  | TMatchSep _ | TPipe _ | TLambdaArrow _ ->
+  | TMatchBranchArrow _ | TPipe _ | TLambdaArrow _ ->
       true
   | _ ->
       isKeyword t || isBlank t
@@ -225,7 +225,7 @@ let isAtom (t : t) : bool =
 let isNewline (t : t) : bool = match t with TNewline _ -> true | _ -> false
 
 let isLet (t : t) : bool =
-  match t with TLetAssignment _ | TLetLHS _ -> true | _ -> false
+  match t with TLetAssignment _ | TLetVarName _ -> true | _ -> false
 
 
 let isAutocompletable (t : t) : bool =
@@ -302,7 +302,7 @@ let toText (t : t) : string =
       "let "
   | TLetAssignment _ ->
       " = "
-  | TLetLHS (_, _, name) ->
+  | TLetVarName (_, _, name) ->
       canBeEmpty name
   | TIfKeyword _ ->
       "if "
@@ -328,7 +328,7 @@ let toText (t : t) : string =
       canBeEmpty name
   | TLambdaSymbol _ ->
       "\\"
-  | TLambdaSep _ ->
+  | TLambdaComma _ ->
       ","
   | TLambdaArrow _ ->
       " -> "
@@ -340,7 +340,7 @@ let toText (t : t) : string =
       "["
   | TListClose _ ->
       "]"
-  | TListSep (_, _) ->
+  | TListComma (_, _) ->
       ","
   | TRecordOpen _ ->
       "{"
@@ -356,7 +356,7 @@ let toText (t : t) : string =
       "|>"
   | TMatchKeyword _ ->
       "match "
-  | TMatchSep _ ->
+  | TMatchBranchArrow _ ->
       " -> "
   | TPatternInteger (_, _, i, _) ->
       shouldntBeEmpty i
@@ -421,11 +421,11 @@ let toIndex (t : t) : int option =
   match t with
   | TStringMLMiddle (_, _, index, _)
   | TLambdaVar (_, _, index, _)
-  | TLambdaSep (_, index)
+  | TLambdaComma (_, index)
   | TPipe (_, _, index)
   | TRecordFieldname {index; _}
   | TRecordSep (_, index, _)
-  | TListSep (_, index)
+  | TListComma (_, index)
   | TNewline (Some (_, _, Some index))
   | TPatternBlank (_, _, index)
   | TPatternInteger (_, _, _, index)
@@ -471,7 +471,7 @@ let toTypeName (t : t) : string =
   | TFloatPoint _ ->
       "float-point"
   | TFloatFractional _ ->
-      "float-fraction"
+      "float-fractional"
   | TString _ ->
       "string"
   | TStringMLStart _ ->
@@ -500,8 +500,8 @@ let toTypeName (t : t) : string =
       "let-keyword"
   | TLetAssignment _ ->
       "let-assignment"
-  | TLetLHS _ ->
-      "let-lhs"
+  | TLetVarName _ ->
+      "let-var-name"
   | TSep _ ->
       "sep"
   | TIndent _ ->
@@ -534,20 +534,20 @@ let toTypeName (t : t) : string =
       "lambda-symbol"
   | TLambdaArrow _ ->
       "lambda-arrow"
-  | TLambdaSep _ ->
-      "lambda-sep"
+  | TLambdaComma _ ->
+      "lambda-comma"
   | TListOpen _ ->
       "list-open"
   | TListClose _ ->
       "list-close"
-  | TListSep (_, _) ->
-      "list-sep"
+  | TListComma (_, _) ->
+      "list-comma"
   | TRecordOpen _ ->
       "record-open"
   | TRecordClose _ ->
       "record-close"
   | TRecordFieldname _ ->
-      "record-field"
+      "record-fieldname"
   | TRecordSep _ ->
       "record-sep"
   | TConstructorName _ ->
@@ -556,8 +556,8 @@ let toTypeName (t : t) : string =
       "pipe-symbol"
   | TMatchKeyword _ ->
       "match-keyword"
-  | TMatchSep _ ->
-      "match-sep"
+  | TMatchBranchArrow _ ->
+      "match-branch-arrow"
   | TPatternBlank _ ->
       "pattern-blank"
   | TPatternInteger _ ->
@@ -579,7 +579,7 @@ let toTypeName (t : t) : string =
   | TPatternFloatPoint _ ->
       "pattern-float-point"
   | TPatternFloatFractional _ ->
-      "pattern-float-fraction"
+      "pattern-float-fractional"
   | TParenOpen _ ->
       "paren-open"
   | TParenClose _ ->
@@ -604,7 +604,7 @@ let toCategoryName (t : t) : string =
       "null"
   | TFnName _ | TFnVersion _ | TBinOp _ ->
       "function"
-  | TLetKeyword _ | TLetAssignment _ | TLetLHS _ ->
+  | TLetKeyword _ | TLetAssignment _ | TLetVarName _ ->
       "let"
   | TIndent _ ->
       "indent"
@@ -612,9 +612,9 @@ let toCategoryName (t : t) : string =
       "if"
   | TFieldOp _ | TFieldName _ | TFieldPartial _ ->
       "field"
-  | TLambdaVar _ | TLambdaSymbol _ | TLambdaArrow _ | TLambdaSep _ ->
+  | TLambdaVar _ | TLambdaSymbol _ | TLambdaArrow _ | TLambdaComma _ ->
       "lambda"
-  | TListOpen _ | TListClose _ | TListSep _ ->
+  | TListOpen _ | TListClose _ | TListComma _ ->
       "list"
   | TPipe _ ->
       "pipe"
@@ -622,7 +622,7 @@ let toCategoryName (t : t) : string =
       "constructor"
   | TRecordOpen _ | TRecordClose _ | TRecordFieldname _ | TRecordSep _ ->
       "record"
-  | TMatchKeyword _ | TMatchSep _ ->
+  | TMatchKeyword _ | TMatchBranchArrow _ ->
       "match"
   | TPatternBlank _
   | TPatternInteger _
@@ -654,7 +654,7 @@ let toDebugInfo (t : t) : string =
       "no parent"
   | TPipe (_, idx, len) ->
       Printf.sprintf "idx=%d len=%d" idx len
-  | TMatchSep {index = idx; _} ->
+  | TMatchBranchArrow {index = idx; _} ->
       "idx=" ^ string_of_int idx
   | TPatternBlank (mid, _, idx)
   | TPatternInteger (mid, _, _, idx)
