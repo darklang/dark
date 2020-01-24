@@ -355,7 +355,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addIter exprs ~f:(fun i e b ->
              b
              |> addNested ~f:(fromExpr e)
-             |> addIf (i <> lastIndex) (TListSep (id, i)))
+             |> addIf (i <> lastIndex) (TListComma (id, i)))
       |> add (TListClose id)
   | ERecord (id, fields) ->
       if fields = []

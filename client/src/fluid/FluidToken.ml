@@ -43,7 +43,7 @@ let tid (t : t) : id =
   | TLambdaComma (id, _)
   | TListOpen id
   | TListClose id
-  | TListSep (id, _)
+  | TListComma (id, _)
   | TPipe (id, _, _)
   | TRecordOpen id
   | TRecordClose id
@@ -137,7 +137,7 @@ let isTextToken t : bool =
       true
   | TListOpen _
   | TListClose _
-  | TListSep (_, _)
+  | TListComma (_, _)
   | TSep _
   | TLetKeyword _
   | TRecordOpen _
@@ -340,7 +340,7 @@ let toText (t : t) : string =
       "["
   | TListClose _ ->
       "]"
-  | TListSep (_, _) ->
+  | TListComma (_, _) ->
       ","
   | TRecordOpen _ ->
       "{"
@@ -425,7 +425,7 @@ let toIndex (t : t) : int option =
   | TPipe (_, _, index)
   | TRecordFieldname {index; _}
   | TRecordSep (_, index, _)
-  | TListSep (_, index)
+  | TListComma (_, index)
   | TNewline (Some (_, _, Some index))
   | TPatternBlank (_, _, index)
   | TPatternInteger (_, _, _, index)
@@ -540,7 +540,7 @@ let toTypeName (t : t) : string =
       "list-open"
   | TListClose _ ->
       "list-close"
-  | TListSep (_, _) ->
+  | TListComma (_, _) ->
       "list-sep"
   | TRecordOpen _ ->
       "record-open"
@@ -614,7 +614,7 @@ let toCategoryName (t : t) : string =
       "field"
   | TLambdaVar _ | TLambdaSymbol _ | TLambdaArrow _ | TLambdaComma _ ->
       "lambda"
-  | TListOpen _ | TListClose _ | TListSep _ ->
+  | TListOpen _ | TListClose _ | TListComma _ ->
       "list"
   | TPipe _ ->
       "pipe"
