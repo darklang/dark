@@ -3438,8 +3438,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    mID
              in
              Some
-               ( E.replace patOrExprID ~replacement:newExpr ast
-               , AtTarget target )
+               (E.replace patOrExprID ~replacement:newExpr ast, AtTarget target)
          | Some (Pat newPat, target) ->
              let mID = P.matchID newPat in
              let newAST = replacePattern mID patOrExprID ~newPat ast in
