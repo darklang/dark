@@ -35,7 +35,7 @@ BROWSER='unknown'
       BROWSER='chrome:headless --window-size="1600,1200"'
     fi
   else
-    BROWSER='chromium:headless --window-size="1600,1200"'
+    BROWSER='chrome:headless --window-size="1600,1200"'
   fi
 }
 
@@ -56,6 +56,25 @@ elif [[ -v IN_DEV_CONTAINER ]]; then
   CONCURRENCY=2
 fi
 
+##### HACKS #####
+if [[ -v IN_DEV_CONTAINER ]]; then
+  if [[ ! -f ~/.testcafe-installed ]]; then
+    cd
+    [[ -d "testcafe" ]] || git clone https://github.com/DevExpress/testcafe.git
+    cd testcafe
+    npm install
+    ./node_modules/.bin/gulp fast-build
+    touch ~/.testcafe-installed
+    cd ~/app
+  fi
+else
+  echo "!!!!!!!!!!!!!!!!!!!!!!"
+  echo "Ensure you have testcafe installed from master or things will be broken."
+  echo "$ git clone https://github.com/DevExpress/testcafe.git && cd testcafe"
+  echo "$ npm install && ./node_modules/.bin/gulp fast-build"
+  echo "!!!!!!!!!!!!!!!!!!!!!!"
+fi
+
 ######################
 # Run testcafe
 ######################
@@ -64,7 +83,9 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   echo "Starting testcafe"
   # shellcheck disable=SC2016
-  unbuffer client/node_modules/.bin/testcafe \
+  # HACK(ds) put this back once we're back to versioned testcafe
+  # unbuffer client/node_modules/.bin/testcafe \
+  unbuffer node ~/testcafe/bin/testcafe-with-v8-flag-filter.js \
     --concurrency "$CONCURRENCY" \
     --test-grep "$PATTERN" \
     --video rundir/videos \

@@ -162,6 +162,25 @@ let isOpenOnTL (s : fluidCommandState) (tlid : tlid) : bool =
   match s.location with Some (ltlid, _) when tlid = ltlid -> true | _ -> false
 
 
+(** onKeydown is a special keydown handler for the command palette,
+  * which handles a few specific keypresses and ignores everything else.
+  *
+  * We can't use the generic FluidKeyboard keydown handler for this, as it's
+  * too agreessive in capturing keys that we want delegated to the palette's
+  * input element for default handling (like backspace and left/right arrows). *)
+let onKeydown (evt : Web.Node.event) : Types.msg option =
+  K.eventToKeyEvent evt
+  |> Option.andThen ~f:(fun e ->
+         match e with
+         | {K.key = K.Enter; _}
+         | {key = K.Up; _}
+         | {key = K.Down; _}
+         | {key = K.Escape; _} ->
+             Some (FluidMsg (FluidInputEvent (Keypress e)))
+         | _ ->
+             None)
+
+
 let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
   let viewCommands i item =
     let highlighted = cp.index = i in
@@ -185,7 +204,8 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
       [ Attrs.id filterInputID
       ; Vdom.attribute "" "spellcheck" "false"
       ; Attrs.autocomplete false
-      ; Events.onInput (fun query -> FluidMsg (FluidCommandsFilter query)) ]
+      ; Events.onInput (fun query -> FluidMsg (FluidCommandsFilter query))
+      ; Html.onCB "keydown" "command-keydown" onKeydown ]
       []
   in
   let cmdsView =
