@@ -96,8 +96,6 @@ let check_dval = AT.check at_dval
 
 let check_dval_list = AT.check (AT.list at_dval)
 
-let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
-
 let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
 
 let check_condition msg dval ~(f : dval -> bool) =
