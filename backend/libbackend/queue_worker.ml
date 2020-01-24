@@ -28,7 +28,7 @@ let dequeue_and_process execution_id :
              | Some event ->
                  let c =
                    try
-                     Canvas.load_for_event event
+                     Canvas.load_for_event_from_cache event
                      |> Result.map_error ~f:(String.concat ~sep:", ")
                      |> Prelude.Result.ok_or_internal_exception
                           "Canvas load error"

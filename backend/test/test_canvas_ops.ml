@@ -90,7 +90,7 @@ let t_http_oplist_roundtrip () =
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c1 ;
   let c2 =
-    Canvas.load_http ~path:http_request_path ~verb:"GET" host
+    Canvas.load_http_from_cache ~path:http_request_path ~verb:"GET" host
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
@@ -118,7 +118,7 @@ let t_http_oplist_loads_user_tipes () =
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
   let c2 =
-    Canvas.load_http ~path:http_request_path ~verb:"GET" host
+    Canvas.load_http_from_cache ~path:http_request_path ~verb:"GET" host
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
@@ -144,7 +144,7 @@ let t_http_load_ignores_deleted_fns () =
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tlid2; tlid3] !c1 ;
   let c2 =
-    Canvas.load_http ~path:http_request_path ~verb:"GET" host
+    Canvas.load_http_from_cache ~path:http_request_path ~verb:"GET" host
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in

@@ -537,7 +537,7 @@ let load_from_cache ~tlids host owner : (canvas ref, string list) Result.t =
          canvas)
 
 
-let load_http ~verb ~path host : (canvas ref, string list) Result.t =
+let load_http_from_cache ~verb ~path host : (canvas ref, string list) Result.t =
   (* Attempt to load all required toplvels via their
    * cached repr, and then go and fetch whatever we were missing*)
   let owner = Account.for_host_exn host in
@@ -547,6 +547,11 @@ let load_http ~verb ~path host : (canvas ref, string list) Result.t =
       (Serialize.fetch_relevant_tlids_for_http ~host ~canvas_id ~path ~verb ())
     host
     owner
+
+
+let load_tlids_from_cache ~tlids host : (canvas ref, string list) Result.t =
+  let owner = Account.for_host_exn host in
+  load_from_cache ~tlids host owner
 
 
 let load_tlids_with_context_from_cache ~tlids host :
@@ -562,6 +567,16 @@ let load_tlids_with_context_from_cache ~tlids host :
   load_from_cache ~tlids host owner
 
 
+let load_for_event_from_cache (event : Event_queue.t) :
+    (canvas ref, string list) Result.t =
+  let owner = Account.for_host_exn event.host in
+  let canvas_id = Serialize.fetch_canvas_id owner event.host in
+  load_from_cache
+    ~tlids:(Serialize.fetch_relevant_tlids_for_event ~event ~canvas_id ())
+    event.host
+    owner
+
+
 let load_without_tls host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
@@ -570,11 +585,6 @@ let load_without_tls host : (canvas ref, string list) Result.t =
 let load_cron host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_for_cron host owner []
-
-
-let load_for_event (event : Event_queue.t) =
-  (* TODO: slim down by event description once we can do that *)
-  load_all event.host []
 
 
 let serialize_only (tlids : tlid list) (c : canvas) : unit =

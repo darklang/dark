@@ -298,6 +298,31 @@ let fetch_relevant_tlids_for_execution ~host ~canvas_id () : Types.tlid list =
              Exception.internal "Shape of per_tlid oplists")
 
 
+let fetch_relevant_tlids_for_event ~(event : Event_queue.t) ~canvas_id () :
+    Types.tlid list =
+  Db.fetch
+    ~name:"fetch_relevant_tlids_for_event"
+    (* The pattern `$2 like name` is deliberate, to leverage the DB's
+     * pattern matching to solve our routing. *)
+    "SELECT tlid FROM toplevel_oplists
+      WHERE canvas_id = $1
+        AND ((module = $2
+              AND name = $3
+              AND modifier = $4)
+              OR tipe <> 'handler'::toplevel_type)"
+    ~params:
+      [ Db.Uuid canvas_id
+      ; String event.space
+      ; String event.name
+      ; String event.modifier ]
+  |> List.map ~f:(fun l ->
+         match l with
+         | [data] ->
+             Types.id_of_string data
+         | _ ->
+             Exception.internal "Shape of per_tlid oplists")
+
+
 let load_for_cron ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   (* CRONs (atm at least) dont have access to DBs and other vars by design.
    * Maybe we'll change that later. *)
