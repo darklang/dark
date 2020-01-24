@@ -64,17 +64,14 @@ let viewMenu (s : menuState) (tlid : tlid) (items : menuItem list) :
     in
     Html.div
       [ Html.classList [("toggle-btn", true); ("active", showMenu)]
-      ; onClick cacheKey (fun _ ->
+      ; ViewUtils.eventPreventDefault ~key:cacheKey "mouseenter" (fun _ ->
             TLMenuMsg (tlid, if showMenu then CloseMenu else OpenMenu)) ]
       [fontAwesome "bars"]
   in
   Html.div
-    [Html.classList [("more-actions", true); ("show", showMenu)]]
-    [ toggleMenu
-    ; Html.div
-        [ Html.class' "actions"
-        ; ViewUtils.eventNoPropagation
-            ~key:("hide-tl-opts" ^ strTLID)
-            "mouseleave"
-            (fun _ -> TLMenuMsg (tlid, CloseMenu)) ]
-        actions ]
+    [ Html.classList [("more-actions", true); ("show", showMenu)]
+    ; ViewUtils.eventPreventDefault
+        ~key:("hide-tl-opts" ^ strTLID)
+        "mouseleave"
+        (fun _ -> TLMenuMsg (tlid, CloseMenu)) ]
+    [toggleMenu; Html.div [Html.class' "actions"] actions]
