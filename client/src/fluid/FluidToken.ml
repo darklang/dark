@@ -50,7 +50,7 @@ let tid (t : t) : id =
   | TRecordFieldname {recordID = id; _}
   | TRecordSep (id, _, _)
   | TConstructorName (id, _)
-  | TMatchArrow {matchID = id; _}
+  | TMatchBranchArrow {matchID = id; _}
   | TMatchKeyword id
   | TPatternBlank (_, id, _)
   | TPatternInteger (_, id, _, _)
@@ -80,7 +80,7 @@ let analysisID (t : t) : id =
   | TRecordFieldname {exprID = id; _}
   | TLambdaVar (_, id, _, _)
   | TRecordSep (_, _, id)
-  | TMatchArrow {patternID = id; _} ->
+  | TMatchBranchArrow {patternID = id; _} ->
       id
   | _ ->
       tid t
@@ -153,7 +153,7 @@ let isTextToken t : bool =
   | TLambdaSymbol _
   | TLambdaComma _
   | TMatchKeyword _
-  | TMatchArrow _
+  | TMatchBranchArrow _
   | TPipe _
   | TLambdaArrow _
   | TParenOpen _
@@ -216,7 +216,7 @@ let isSkippable (t : t) : bool = match t with TIndent _ -> true | _ -> false
 
 let isAtom (t : t) : bool =
   match t with
-  | TMatchArrow _ | TPipe _ | TLambdaArrow _ ->
+  | TMatchBranchArrow _ | TPipe _ | TLambdaArrow _ ->
       true
   | _ ->
       isKeyword t || isBlank t
@@ -356,7 +356,7 @@ let toText (t : t) : string =
       "|>"
   | TMatchKeyword _ ->
       "match "
-  | TMatchArrow _ ->
+  | TMatchBranchArrow _ ->
       " -> "
   | TPatternInteger (_, _, i, _) ->
       shouldntBeEmpty i
@@ -556,7 +556,7 @@ let toTypeName (t : t) : string =
       "pipe-symbol"
   | TMatchKeyword _ ->
       "match-keyword"
-  | TMatchArrow _ ->
+  | TMatchBranchArrow _ ->
       "match-sep"
   | TPatternBlank _ ->
       "pattern-blank"
@@ -622,7 +622,7 @@ let toCategoryName (t : t) : string =
       "constructor"
   | TRecordOpen _ | TRecordClose _ | TRecordFieldname _ | TRecordSep _ ->
       "record"
-  | TMatchKeyword _ | TMatchArrow _ ->
+  | TMatchKeyword _ | TMatchBranchArrow _ ->
       "match"
   | TPatternBlank _
   | TPatternInteger _
@@ -654,7 +654,7 @@ let toDebugInfo (t : t) : string =
       "no parent"
   | TPipe (_, idx, len) ->
       Printf.sprintf "idx=%d len=%d" idx len
-  | TMatchArrow {index = idx; _} ->
+  | TMatchBranchArrow {index = idx; _} ->
       "idx=" ^ string_of_int idx
   | TPatternBlank (mid, _, idx)
   | TPatternInteger (mid, _, _, idx)
