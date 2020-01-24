@@ -471,7 +471,7 @@ let toTypeName (t : t) : string =
   | TFloatPoint _ ->
       "float-point"
   | TFloatFractional _ ->
-      "float-fraction"
+      "float-fractional"
   | TString _ ->
       "string"
   | TStringMLStart _ ->
@@ -501,7 +501,7 @@ let toTypeName (t : t) : string =
   | TLetAssignment _ ->
       "let-assignment"
   | TLetVarName _ ->
-      "let-lhs"
+      "let-var-name"
   | TSep _ ->
       "sep"
   | TIndent _ ->
@@ -535,19 +535,19 @@ let toTypeName (t : t) : string =
   | TLambdaArrow _ ->
       "lambda-arrow"
   | TLambdaComma _ ->
-      "lambda-sep"
+      "lambda-comma"
   | TListOpen _ ->
       "list-open"
   | TListClose _ ->
       "list-close"
   | TListComma (_, _) ->
-      "list-sep"
+      "list-comma"
   | TRecordOpen _ ->
       "record-open"
   | TRecordClose _ ->
       "record-close"
   | TRecordFieldname _ ->
-      "record-field"
+      "record-fieldname"
   | TRecordSep _ ->
       "record-sep"
   | TConstructorName _ ->
@@ -557,7 +557,7 @@ let toTypeName (t : t) : string =
   | TMatchKeyword _ ->
       "match-keyword"
   | TMatchBranchArrow _ ->
-      "match-sep"
+      "match-branch-arrow"
   | TPatternBlank _ ->
       "pattern-blank"
   | TPatternInteger _ ->
@@ -579,7 +579,7 @@ let toTypeName (t : t) : string =
   | TPatternFloatPoint _ ->
       "pattern-float-point"
   | TPatternFloatFractional _ ->
-      "pattern-float-fraction"
+      "pattern-float-fractional"
   | TParenOpen _ ->
       "paren-open"
   | TParenClose _ ->
