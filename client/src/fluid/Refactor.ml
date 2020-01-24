@@ -372,16 +372,9 @@ let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : id) :
 let generateEmptyFunction (_ : unit) : userFunction =
   let funcName = generateFnName () in
   let tlid = gtlid () in
-  let params =
-    [ { ufpName = F (gid (), "var")
-      ; ufpTipe = F (gid (), TAny)
-      ; ufpBlock_args = []
-      ; ufpOptional = true
-      ; ufpDescription = "" } ]
-  in
   let metadata =
     { ufmName = F (gid (), funcName)
-    ; ufmParameters = params
+    ; ufmParameters = []
     ; ufmDescription = ""
     ; ufmReturnTipe = F (gid (), TAny)
     ; ufmInfix = false }
