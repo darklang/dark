@@ -273,8 +273,6 @@ let fetch_relevant_tlids_for_http ~host ~canvas_id ~path ~verb () :
 let fetch_relevant_tlids_for_execution ~host ~canvas_id () : Types.tlid list =
   Db.fetch
     ~name:"fetch_relevant_tlids_for_execution"
-    (* The pattern `$2 like name` is deliberate, to leverage the DB's
-     * pattern matching to solve our routing. *)
     "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = $1
       AND tipe <> 'handler'::toplevel_type"
@@ -291,8 +289,6 @@ let fetch_relevant_tlids_for_event ~(event : Event_queue.t) ~canvas_id () :
     Types.tlid list =
   Db.fetch
     ~name:"fetch_relevant_tlids_for_event"
-    (* The pattern `$2 like name` is deliberate, to leverage the DB's
-     * pattern matching to solve our routing. *)
     "SELECT tlid FROM toplevel_oplists
       WHERE canvas_id = $1
         AND ((module = $2
