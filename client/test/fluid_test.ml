@@ -1874,6 +1874,11 @@ let run () =
         (* wrap false because else we delete the wrapper *)
         (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
         "~___" ;
+      tp
+        "inserting a binop in a placeholder works"
+        (if' (binop "++" b b) b b)
+        (ins '&' 3)
+        "if &~ ++ ____________\nthen\n  ___\nelse\n  ___" ;
       ()) ;
   describe "Constructors" (fun () ->
       tp "arguments work in constructors" aConstructor (ins 't' 5) "Just t~" ;
