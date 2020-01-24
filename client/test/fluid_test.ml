@@ -1826,7 +1826,7 @@ let run () =
       tp
         "inserting a binop in a placeholder works"
         (if' (binop "++" b b) b b)
-        (ins '&' 3)
+        (ins "&" 3)
         "if &~ ++ ____________\nthen\n  ___\nelse\n  ___" ;
       ()) ;
   describe "Constructors" (fun () ->
