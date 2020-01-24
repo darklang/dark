@@ -4,15 +4,6 @@ type inputEvent =
   { data : string
   ; inputType : string }
 
-type keyboardEvent =
-  { key : string
-  ; shift : bool
-  ; ctrl : bool
-  ; alt : bool
-  ; meta : bool
-  ; selectionStart : int option
-  ; selectionEnd : int option }
-
 let isInfixSymbol (s : string) : bool =
   match s with
   | "+" | "%" | "-" | "*" | "/" | "<" | ">" | "&" | "!" | "^" | "=" | "|" ->
