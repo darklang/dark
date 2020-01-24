@@ -2912,7 +2912,7 @@ let idOfCaretTarget ({astRef; _} : caretTarget) : id option = idOfASTRef astRef
  *
  * WARNING: in some cases, we may produce caret targets with
  * offsets that are outside of the targetable range.
- * In such cases, we currently rely on the behavio of
+ * In such cases, we currently rely on the behavior of
  * posFromCaretTarget to clamp the offset.
  * 
  * Note also that doExplicitBackspace expects to receive
