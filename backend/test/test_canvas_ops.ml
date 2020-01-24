@@ -247,6 +247,29 @@ let t_set_after_delete () =
   ()
 
 
+let t_load_all_dbs_from_cache () =
+  clear_test_data () ;
+  let host = "test-http_oplist_loads_user_tipes" in
+  let oplist =
+    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
+    ; Op.CreateDBWithBlankOr (dbid3, pos, nameid3, "Books3")
+    ; Op.DeleteTL dbid ]
+  in
+  let c1 = ops2c_exn host oplist in
+  Canvas.serialize_only [dbid; dbid2; dbid3] !c1 ;
+  let c2 =
+    Canvas.load_all_dbs_from_cache host
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Prelude.Result.ok_or_internal_exception "Canvas load error"
+  in
+  AT.check
+    (AT.list testable_id)
+    "Loaded only undeleted dbs"
+    (List.sort ~compare:compare_id [dbid2; dbid3])
+    (!c2.dbs |> IDMap.keys |> List.sort ~compare:compare_id)
+
+
 let t_canvas_verification_duplicate_creation () =
   let ops =
     [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
@@ -316,4 +339,7 @@ let suite =
     , t_http_oplist_loads_user_tipes )
   ; ( "Loading handler via HTTP router ignores deleted fns"
     , `Quick
-    , t_http_load_ignores_deleted_fns ) ]
+    , t_http_load_ignores_deleted_fns )
+  ; ( "Loading dbs from load_all_dbs_from_cache ignores deleted dbs"
+    , `Quick
+    , t_load_all_dbs_from_cache ) ]
