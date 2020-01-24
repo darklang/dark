@@ -541,6 +541,7 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
   in
   let tokenData =
     let left, right, next = Fluid.getNeighbours tokens ~pos:s.newPos in
+    let ddNoProp1 txt = Html.dd [Html.noProp] [Html.text txt] in
     let tokenInfo tkn =
       Html.dd [Attrs.class' "tokenInfo"] [T.show_tokenInfo tkn]
     in
@@ -549,21 +550,21 @@ let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
       | L (_, left) ->
           tokenInfo left
       | R (_, _) ->
-          ddText "Right"
+          ddNoProp1 "Right"
       | No ->
-          ddText "None"
+          ddNoProp1 "None"
     in
     let ddRight =
       match right with
       | L (_, _) ->
-          ddText "Left"
+          ddNoProp1 "Left"
       | R (_, right) ->
           tokenInfo right
       | No ->
-          ddText "None"
+          ddNoProp1 "None"
     in
     let ddNext =
-      match next with Some next -> tokenInfo next | None -> ddText "None"
+      match next with Some next -> tokenInfo next | None -> ddNoProp1 "None"
     in
     [dtText "left"; ddLeft; dtText "right"; ddRight; dtText "next"; ddNext]
   in
