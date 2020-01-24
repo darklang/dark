@@ -673,10 +673,10 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
   let targetAndTokenInfoToMaybeCaretPos ((ct, ti) : caretTarget * T.tokenInfo) :
       int option =
     match (ct.astRef, ti.token) with
-    | ARBinOp (id, BOPOperator), TBinOp (id', _)
+    | ARBinOp id, TBinOp (id', _)
     | ARBlank id, (TBlank id' | TPlaceholder (_, id'))
     | ARBool id, (TTrue id' | TFalse id')
-    | ARConstructor (id, CPName), TConstructorName (id', _)
+    | ARConstructor id, TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
     | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
@@ -684,7 +684,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARIf (id, IPElseKeyword), TIfElseKeyword id'
     | ARInteger id, TInteger (id', _)
     | ARLet (id, LPKeyword), TLetKeyword (id', _)
-    | ARLet (id, LPVarName), TLetLHS (id', _, _)
+    | ARLet (id, LPVarName), TLetVarName (id', _, _)
     | ARLet (id, LPAssignment), TLetAssignment (id', _)
     | ARList (id, LPOpen), TListOpen id'
     | ARList (id, LPClose), TListClose id'
@@ -696,11 +696,10 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARRecord (id, RPOpen), TRecordOpen id'
     | ARRecord (id, RPClose), TRecordClose id'
     | ARVariable id, TVariable (id', _)
-    | ARLambda (id, LPKeyword), TLambdaSymbol id'
-    | ARLambda (id, LPArrow), TLambdaArrow id'
+    | ARLambda (id, LBPSymbol), TLambdaSymbol id'
+    | ARLambda (id, LBPArrow), TLambdaArrow id'
     | ARPattern (id, PPVariable), TPatternVariable (_, id', _, _)
-    | ( ARPattern (id, PPConstructor CPName)
-      , TPatternConstructorName (_, id', _, _) )
+    | ARPattern (id, PPConstructor), TPatternConstructorName (_, id', _, _)
     | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
     | ( ARPattern (id, PPBool)
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
@@ -712,14 +711,15 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
       when id = id' ->
         posForTi ti
-    | ARList (id, LPSeparator idx), TListSep (id', idx')
-    | ARMatch (id, MPBranchSep idx), TMatchSep {matchID = id'; index = idx'; _}
-    | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
+    | ARList (id, LPComma idx), TListComma (id', idx')
+    | ( ARMatch (id, MPBranchArrow idx)
+      , TMatchBranchArrow {matchID = id'; index = idx'; _} )
+    | ARPipe (id, idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'; _} )
     | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
-    | ARLambda (id, LPVarName idx), TLambdaVar (id', _, idx', _)
-    | ARLambda (id, LPSeparator idx), TLambdaSep (id', idx')
+    | ARLambda (id, LBPVarName idx), TLambdaVar (id', _, idx', _)
+    | ARLambda (id, LBPComma idx), TLambdaComma (id', idx')
       when id = id' && idx = idx' ->
         posForTi ti
     (*
@@ -843,10 +843,10 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     (*
     * Exhaustiveness satisfaction for astRefs
     *)
-    | ARBinOp (_, BOPOperator), _
+    | ARBinOp _, _
     | ARBlank _, _
     | ARBool _, _
-    | ARConstructor (_, CPName), _
+    | ARConstructor _, _
     | ARFieldAccess (_, FAPFieldname), _
     | ARFieldAccess (_, FAPFieldOp), _
     | ARFloat (_, FPWhole), _
@@ -862,24 +862,24 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARLet (_, LPAssignment), _
     | ARList (_, LPOpen), _
     | ARList (_, LPClose), _
-    | ARList (_, LPSeparator _), _
+    | ARList (_, LPComma _), _
     | ARMatch (_, MPKeyword), _
-    | ARMatch (_, MPBranchSep _), _
+    | ARMatch (_, MPBranchArrow _), _
     | ARNull _, _
     | ARPartial _, _
     | ARRightPartial _, _
-    | ARPipe (_, PPPipeKeyword _), _
+    | ARPipe (_, _), _
     | ARRecord (_, RPOpen), _
     | ARRecord (_, RPClose), _
     | ARRecord (_, RPFieldname _), _
     | ARRecord (_, RPFieldSep _), _
     | ARVariable _, _
-    | ARLambda (_, LPKeyword), _
-    | ARLambda (_, LPArrow), _
-    | ARLambda (_, LPVarName _), _
-    | ARLambda (_, LPSeparator _), _
+    | ARLambda (_, LBPSymbol), _
+    | ARLambda (_, LBPArrow), _
+    | ARLambda (_, LBPVarName _), _
+    | ARLambda (_, LBPComma _), _
     | ARPattern (_, PPVariable), _
-    | ARPattern (_, PPConstructor CPName), _
+    | ARPattern (_, PPConstructor), _
     | ARPattern (_, PPInteger), _
     | ARPattern (_, PPBool), _
     | ARPattern (_, PPFloat FPPoint), _
@@ -959,7 +959,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARRightPartial id; offset}
   | TLetKeyword (id, _) ->
       Some {astRef = ARLet (id, LPKeyword); offset}
-  | TLetLHS (id, _, _) ->
+  | TLetVarName (id, _, _) ->
       Some {astRef = ARLet (id, LPVarName); offset}
   | TLetAssignment (id, _) ->
       Some {astRef = ARLet (id, LPAssignment); offset}
@@ -970,7 +970,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TIfElseKeyword id ->
       Some {astRef = ARIf (id, IPElseKeyword); offset}
   | TBinOp (id, _) ->
-      Some {astRef = ARBinOp (id, BOPOperator); offset}
+      Some {astRef = ARBinOp id; offset}
   | TFieldName (id, _, _) ->
       Some {astRef = ARFieldAccess (id, FAPFieldname); offset}
   | TFieldOp (id, _) ->
@@ -987,22 +987,22 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
         ; offset =
             offset + String.length backendFnName - String.length versionName - 1
         }
-  | TLambdaSep (id, idx) ->
-      Some {astRef = ARLambda (id, LPSeparator idx); offset}
+  | TLambdaComma (id, idx) ->
+      Some {astRef = ARLambda (id, LBPComma idx); offset}
   | TLambdaArrow id ->
-      Some {astRef = ARLambda (id, LPArrow); offset}
+      Some {astRef = ARLambda (id, LBPArrow); offset}
   | TLambdaSymbol id ->
-      Some {astRef = ARLambda (id, LPKeyword); offset}
+      Some {astRef = ARLambda (id, LBPSymbol); offset}
   | TLambdaVar (id, _, idx, _) ->
-      Some {astRef = ARLambda (id, LPVarName idx); offset}
+      Some {astRef = ARLambda (id, LBPVarName idx); offset}
   | TListOpen id ->
       Some {astRef = ARList (id, LPOpen); offset}
   | TListClose id ->
       Some {astRef = ARList (id, LPClose); offset}
-  | TListSep (id, idx) ->
-      Some {astRef = ARList (id, LPSeparator idx); offset}
+  | TListComma (id, idx) ->
+      Some {astRef = ARList (id, LPComma idx); offset}
   | TPipe (id, idx, _) ->
-      Some {astRef = ARPipe (id, PPPipeKeyword idx); offset}
+      Some {astRef = ARPipe (id, idx); offset}
   | TRecordOpen id ->
       Some {astRef = ARRecord (id, RPOpen); offset}
   | TRecordFieldname {recordID = id; index = idx; _} ->
@@ -1013,12 +1013,12 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARRecord (id, RPClose); offset}
   | TMatchKeyword id ->
       Some {astRef = ARMatch (id, MPKeyword); offset}
-  | TMatchSep {matchID = id; index = idx; _} ->
-      Some {astRef = ARMatch (id, MPBranchSep idx); offset}
+  | TMatchBranchArrow {matchID = id; index = idx; _} ->
+      Some {astRef = ARMatch (id, MPBranchArrow idx); offset}
   | TPatternVariable (_, id, _, _) ->
       Some {astRef = ARPattern (id, PPVariable); offset}
   | TPatternConstructorName (_, id, _, _) ->
-      Some {astRef = ARPattern (id, PPConstructor CPName); offset}
+      Some {astRef = ARPattern (id, PPConstructor); offset}
   | TPatternInteger (_, id, _, _) ->
       Some {astRef = ARPattern (id, PPInteger); offset}
   | TPatternString {patternID = id; _} ->
@@ -1036,8 +1036,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TPatternBlank (_, id, _) ->
       Some {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
-      Some {astRef = ARConstructor (id, CPName); offset}
-  (*
+      Some {astRef = ARConstructor id; offset}
+  (* 
     These have no valid caretTarget because they are not
     strictly part of the AST.
    *)
@@ -1128,7 +1128,7 @@ let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
     | Some lastExpr ->
         caretTargetForLastPartOfExpr' lastExpr
     | None ->
-        {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"} )
+        {astRef = ARPipe (id, 0); offset = String.length "|>"} )
   | EMatch (_, matchedExpr, matchItems) ->
     ( match List.last matchItems with
     | Some (_, branchBody) ->
@@ -1140,7 +1140,7 @@ let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
     | Some lastExpr ->
         caretTargetForLastPartOfExpr' lastExpr
     | None ->
-        {astRef = ARConstructor (id, CPName); offset = String.length name} )
+        {astRef = ARConstructor id; offset = String.length name} )
   | (EFeatureFlag (_, _, _, _, _) | EPipeTarget _) as expr ->
       recover
         "we don't yet support caretTargetForLastPartOfExpr' for this"
@@ -1191,7 +1191,7 @@ let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
   | EFnCall (id, _, _, _) ->
       {astRef = ARFnCall id; offset = 0}
   | ELambda (id, _, _) ->
-      {astRef = ARLambda (id, LPKeyword); offset = 0}
+      {astRef = ARLambda (id, LBPSymbol); offset = 0}
   | EFieldAccess (_, expr, _) ->
       caretTargetForBeginningOfExpr' expr
   | EVariable (id, _) ->
@@ -1205,9 +1205,9 @@ let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
   | ERecord (id, _) ->
       {astRef = ARRecord (id, RPOpen); offset = 0}
   | EPipe (id, _) ->
-      {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
+      {astRef = ARPipe (id, 0); offset = 0}
   | EConstructor (id, _, _) ->
-      {astRef = ARConstructor (id, CPName); offset = 0}
+      {astRef = ARConstructor id; offset = 0}
   | (EFeatureFlag _ | EPipeTarget _) as expr ->
       recover
         "unhandled expr in caretTargetForBeginningOfExpr'"
@@ -1237,7 +1237,7 @@ let caretTargetForBeginningOfPattern (pattern : fluidPattern) : caretTarget =
   | FPVariable (_, id, _) ->
       {astRef = ARPattern (id, PPVariable); offset = 0}
   | FPConstructor (_, id, _, _) ->
-      {astRef = ARPattern (id, PPConstructor CPName); offset = 0}
+      {astRef = ARPattern (id, PPConstructor); offset = 0}
   | FPInteger (_, id, _) ->
       {astRef = ARPattern (id, PPInteger); offset = 0}
   | FPBool (_, id, _) ->
@@ -1267,8 +1267,7 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
     | Some lastPattern ->
         caretTargetForEndOfPattern lastPattern
     | None ->
-        { astRef = ARPattern (id, PPConstructor CPName)
-        ; offset = String.length name } )
+        {astRef = ARPattern (id, PPConstructor); offset = String.length name} )
   | FPInteger (_, id, valueStr) ->
       {astRef = ARPattern (id, PPInteger); offset = String.length valueStr}
   | FPBool (_, id, true) ->
@@ -2143,7 +2142,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) : E.t
       replaceVarInPattern mID str (f str) ast
   | TRecordFieldname {recordID; index; fieldName; _} ->
       replaceRecordField ~index (f fieldName) recordID ast
-  | TLetLHS (id, _, str) ->
+  | TLetVarName (id, _, str) ->
       replaceLetLHS (f str) id ast
   | TLambdaVar (id, _, index, str) ->
       replaceLamdaVar ~index str (f str) id ast
@@ -2884,7 +2883,7 @@ let idOfASTRef (astRef : astRef) : id option =
   | ARBlank id
   | ARLet (id, _)
   | ARIf (id, _)
-  | ARBinOp (id, _)
+  | ARBinOp id
   | ARFieldAccess (id, _)
   | ARVariable id
   | ARFnCall id
@@ -2893,7 +2892,7 @@ let idOfASTRef (astRef : astRef) : id option =
   | ARList (id, _)
   | ARRecord (id, _)
   | ARPipe (id, _)
-  | ARConstructor (id, _)
+  | ARConstructor id
   | ARMatch (id, _)
   | ARLambda (id, _)
   | ARPattern (id, _) ->
@@ -2904,8 +2903,32 @@ let idOfASTRef (astRef : astRef) : id option =
 
 let idOfCaretTarget ({astRef; _} : caretTarget) : id option = idOfASTRef astRef
 
+(* [doExplicitBackspace [currCaretTarget] [ast]] produces the
+ * (newAST, newPosition) tuple resulting from performing
+ * a backspace-style deletion at [currCaretTarget] in the
+ * [ast]. Note that newPosition will be either
+ * AtTarget or SamePlace -- either the caret stays in the
+ * same place, or it ends up at a specific location.
+ *
+ * WARNING: in some cases, we may produce caret targets with
+ * offsets that are outside of the targetable range.
+ * In such cases, we currently rely on the behavior of
+ * posFromCaretTarget to clamp the offset.
+ * 
+ * Note also that doExplicitBackspace expects to receive
+ * only "real" caret targets (via caretTargetFromTokenInfo);
+ * we don't handle certain 0-offset [currCaretTarget]s because
+ * we expect to receive tokens to the left of the caret instead
+ * of the 0th offset of the caretTarget of the token to the right.
+ * 
+ * A hacky exception to this is Blanks -- there are a few circumstances
+ * where we obtain a zero offset for blanks even though the blank is to the
+ * right of the caret instead of the left. This is to account for
+ * deleting rows in eg a match (see doBackspace in updateKey).
+ * Ideally we wouldn't need these hacks.
+ *)
 let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
-    E.t * newPosition =
+    ast * newPosition =
   let {astRef = currAstRef; offset = currOffset} = currCaretTarget in
   let currCTMinusOne = {astRef = currAstRef; offset = currOffset - 1} in
   let mutation : string -> string =
@@ -2913,24 +2936,35 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
   in
   let doExprBackspace (currAstRef : astRef) (expr : fluidExpr) :
       (fluidPatOrExpr * caretTarget) option =
+    let mkEBlank : unit -> (fluidPatOrExpr * caretTarget) option =
+     fun () ->
+      let bID = gid () in
+      Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+    in
+    let mkPartialOrBlank ~(str : string) ~(oldExpr : fluidExpr) :
+        (fluidPatOrExpr * caretTarget) option =
+      if str = ""
+      then mkEBlank ()
+      else
+        let parID = gid () in
+        Some
+          ( Expr (EPartial (parID, str, oldExpr))
+          , {astRef = ARPartial parID; offset = currOffset - 1} )
+    in
     match (currAstRef, expr) with
     | ARInteger _, EInteger (id, intStr) ->
         let str = mutation intStr in
         if str = ""
-        then
-          let bID = gid () in
-          Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        then mkEBlank ()
         else
           let coerced = Util.coerceStringTo63BitInt str in
           if coerced = intStr
           then None
           else Some (Expr (EInteger (id, coerced)), currCTMinusOne)
     | ARString (_, SPOpenQuote), EString (_, "") when currOffset = 1 ->
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARString (_, SPText), EString (_, "") when currOffset = 0 ->
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARString (_, SPOpenQuote), EString (id, str)
     (* The minus 2 here (one more than the default `mutation`) accounts for the open quote,
             which isn't part of the `str` but is part of the SPOpenQuote *)
@@ -2963,57 +2997,54 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         if newName = ""
         then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
         else Some (Expr newExpr, currCTMinusOne)
-    | ARMatch (id, MPBranchSep idx), expr ->
+    | ARMatch (id, MPBranchArrow idx), expr ->
         Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
-    | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr) ->
-        let remIdx =
-          (* remove expression in front of sep, not behind it *)
-          varAndSepIdx + 1
+    | ARLambda (_, LBPComma varAndSepIdx), ELambda (id, oldVars, oldExpr) ->
+        let rec itemsAtCurrAndNextIndex (lst : 'a list) (idx : int) :
+            ('a * 'a) option =
+          match lst with
+          | [] | [_] ->
+              None
+          | a :: (b :: _ as rest) ->
+              if idx > 0
+              then (itemsAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
+              else if idx = 0
+              then Some (a, b)
+              else None
         in
-        let varNameToRem =
-          List.getAt ~index:remIdx oldVars
-          |> Option.map ~f:Tuple2.second
-          |> Option.withDefault ~default:""
-        in
-        let target =
-          List.getAt ~index:varAndSepIdx oldVars
-          (* The target is the end of the var that preceeds the separator *)
-          |> Option.map ~f:(fun (_, varName) ->
-                 { astRef = ARLambda (id, LPVarName varAndSepIdx)
-                 ; offset = String.length varName })
-          |> Option.withDefault
-               ~default:{astRef = ARLambda (id, LPKeyword); offset = 1}
-        in
-        Some
-          ( Expr
-              (ELambda
-                 ( id
-                 , List.removeAt ~index:remIdx oldVars
-                 , E.removeVariableUse varNameToRem expr ))
-          , target )
-    | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
-        let remIdx =
-          (* remove expression in front of sep, not behind it *)
-          elemAndSepIdx + 1
-        in
+        itemsAtCurrAndNextIndex oldVars varAndSepIdx
+        |> Option.map ~f:(fun ((_, keepVarName), (_, deleteVarName)) ->
+               (* remove expression in front of sep, not behind it, hence + 1 *)
+               let newVars = List.removeAt ~index:(varAndSepIdx + 1) oldVars in
+               let newExpr = E.removeVariableUse deleteVarName oldExpr in
+               Some
+                 ( Expr (ELambda (id, newVars, newExpr))
+                 , { astRef = ARLambda (id, LBPVarName varAndSepIdx)
+                   ; offset = String.length keepVarName } ))
+        |> recoverOpt
+             "doExplicitBackspace - LPComma"
+             ~debug:(varAndSepIdx, oldVars)
+             ~default:None
+    | ARList (_, LPComma elemAndSepIdx), EList (id, exprs) ->
         let target =
           List.getAt ~index:elemAndSepIdx exprs
           |> Option.map ~f:(fun expr -> caretTargetForLastPartOfExpr' expr)
           |> Option.withDefault
                ~default:{astRef = ARList (id, LPOpen); offset = 1}
         in
-        Some (Expr (EList (id, List.removeAt ~index:remIdx exprs)), target)
+        (* remove expression in front of sep, not behind it, hence + 1 *)
+        Some
+          ( Expr (EList (id, List.removeAt ~index:(elemAndSepIdx + 1) exprs))
+          , target )
     | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
       when E.isEmpty expr ->
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
         List.getAt ~index nameValPairs
         |> Option.map ~f:(function
                | "", _ ->
-                   let maybeExprID = recordExprIdAtIndex id (index - 1) ast in
                    let target =
-                     match maybeExprID with
+                     match recordExprIdAtIndex id (index - 1) ast with
                      | None ->
                          { astRef = ARRecord (id, RPOpen)
                          ; offset = 1 (* right after the { *) }
@@ -3032,26 +3063,20 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARFieldAccess (_, FAPFieldOp), EPartial (_, _, EFieldAccess (_, faExpr, _))
       ->
         Some (Expr faExpr, caretTargetForLastPartOfExpr' faExpr)
-    | ARConstructor (_, CPName), (EConstructor (_, str, _) as oldExpr) ->
-        let str = String.trim (mutation str) in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
+    | ARConstructor _, (EConstructor (_, str, _) as oldExpr) ->
+        mkPartialOrBlank ~str:(str |> mutation |> String.trim) ~oldExpr
     | ARFnCall _, (EFnCall (_, fnName, _, _) as oldExpr) ->
-        let str = fnName |> FluidUtil.partialName |> mutation |> String.trim in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
-    | ARBinOp (_, BOPOperator), (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr)
-      ->
+        mkPartialOrBlank
+          ~str:(fnName |> FluidUtil.partialName |> mutation |> String.trim)
+          ~oldExpr
+    | ARBool _, (EBool (_, bool) as oldExpr) ->
+        let str = if bool then "true" else "false" in
+        mkPartialOrBlank ~str:(mutation str) ~oldExpr
+    | ARNull _, (ENull _ as oldExpr) ->
+        mkPartialOrBlank ~str:(mutation "null") ~oldExpr
+    | ARVariable _, (EVariable (_, varName) as oldExpr) ->
+        mkPartialOrBlank ~str:(mutation varName) ~oldExpr
+    | ARBinOp _, (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr) ->
         let str = op |> FluidUtil.partialName |> mutation |> String.trim in
         if str = ""
         then
@@ -3060,34 +3085,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           Some (Expr expr, target)
         else
           let newID = gid () in
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
-    | ARBool _, (EBool (_, bool) as oldExpr) ->
-        let str = if bool then "true" else "false" in
-        let str = mutation str in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
-    | ARNull _, (ENull _ as oldExpr) ->
-        let str = mutation "null" in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
-          Some
-            ( Expr (EPartial (newID, str, oldExpr))
-            , {astRef = ARPartial newID; offset = currOffset - 1} )
-    | ARVariable _, (EVariable (_, varName) as oldExpr) ->
-        let str = mutation varName in
-        let newID = gid () in
-        if str = ""
-        then Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
-        else
           Some
             ( Expr (EPartial (newID, str, oldExpr))
             , {astRef = ARPartial newID; offset = currOffset - 1} )
@@ -3112,8 +3109,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
               let expr, target = mergeExprs lhsExpr rhsExpr in
               Some (Expr expr, target)
           | _ ->
-              let newID = gid () in
-              Some (Expr (EBlank newID), {astRef = ARBlank newID; offset = 0})
+              mkEBlank ()
         else if String.startsWith ~prefix:"\"" str
                 && String.endsWith ~suffix:"\"" str
         then
@@ -3127,7 +3123,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         if str = ""
         then Some (Expr oldValue, caretTargetForLastPartOfExpr' oldValue)
         else Some (Expr (ERightPartial (id, str, oldValue)), currCTMinusOne)
-    | ARLambda (_, LPVarName index), ELambda (id, vars, expr) ->
+    | ARLambda (_, LBPVarName index), ELambda (id, vars, expr) ->
         vars
         |> List.getAt ~index
         |> Option.map ~f:(fun (_, oldName) ->
@@ -3142,7 +3138,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                    (ELambda
                       (id, vars, E.renameVariableUses ~oldName ~newName expr))
                , currCTMinusOne ))
-    | ARPipe (_, PPPipeKeyword idx), EPipe (id, exprChain) ->
+    | ARPipe (_, idx), EPipe (id, exprChain) ->
       ( match exprChain with
       | [e1; _] ->
           Some (Expr e1, caretTargetForLastPartOfExpr' e1)
@@ -3163,20 +3159,18 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
       when varName = "" || varName = "_" ->
         Some (Expr expr, caretTargetForBeginningOfExpr' expr)
     | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
-    | ARLambda (_, LPKeyword), ELambda (_, _, EBlank _) ->
+    | ARLambda (_, LBPSymbol), ELambda (_, _, EBlank _) ->
         (* If the expr is empty and thus can be removed *)
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARMatch (_, MPKeyword), EMatch (_, EBlank _, pairs)
       when List.all pairs ~f:(fun (p, e) ->
                match (p, e) with FPBlank _, EBlank _ -> true | _ -> false) ->
         (* the match has no content and can safely be deleted *)
-        let bID = gid () in
-        Some (Expr (EBlank bID), {astRef = ARBlank bID; offset = 0})
+        mkEBlank ()
     | ARMatch (_, MPKeyword), EMatch _
     | ARLet (_, LPKeyword), ELet _
     | ARIf (_, IPIfKeyword), EIf _
-    | ARLambda (_, LPKeyword), ELambda _ ->
+    | ARLambda (_, LBPSymbol), ELambda _ ->
         (* keywords of "non-empty" exprs shouldn't be deletable at all *)
         None
     (*
@@ -3184,7 +3178,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
      *)
     | ARIf (_, IPThenKeyword), expr
     | ARIf (_, IPElseKeyword), expr
-    | ARLambda (_, LPArrow), expr
+    | ARLambda (_, LBPArrow), expr
     | ARBlank _, expr
     | ARLet (_, LPAssignment), expr
     | ARRecord (_, RPOpen), expr
@@ -3201,9 +3195,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     (*****************
      * Exhaustiveness
      *)
-    | ARBinOp (_, BOPOperator), _
+    | ARBinOp _, _
     | ARBool _, _
-    | ARConstructor (_, CPName), _
+    | ARConstructor _, _
     | ARFieldAccess (_, FAPFieldname), _
     | ARFieldAccess (_, FAPFieldOp), _
     | ARFloat (_, FPFractional), _
@@ -3212,16 +3206,16 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARFnCall _, _
     | ARIf (_, IPIfKeyword), _
     | ARInteger _, _
-    | ARLambda (_, LPKeyword), _
-    | ARLambda (_, LPSeparator _), _
-    | ARLambda (_, LPVarName _), _
+    | ARLambda (_, LBPSymbol), _
+    | ARLambda (_, LBPComma _), _
+    | ARLambda (_, LBPVarName _), _
     | ARLet (_, LPKeyword), _
     | ARLet (_, LPVarName), _
-    | ARList (_, LPSeparator _), _
+    | ARList (_, LPComma _), _
     | ARMatch (_, MPKeyword), _
     | ARNull _, _
     | ARPartial _, _
-    | ARPipe (_, PPPipeKeyword _), _
+    | ARPipe (_, _), _
     | ARRecord (_, RPFieldname _), _
     | ARRightPartial _, _
     | ARString (_, SPCloseQuote), _
@@ -3242,6 +3236,12 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
       (patContainerRef : Types.id option ref)
       (currAstRef : astRef)
       (pat : fluidPattern) : (fluidPatOrExpr * caretTarget) option =
+    let mkPBlank (matchID : id) : (fluidPatOrExpr * caretTarget) option =
+      let bID = gid () in
+      Some
+        ( Pat (FPBlank (matchID, bID))
+        , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+    in
     match (currAstRef, pat) with
     | ARPattern (_, PPBlank), FPBlank (mID, pID) ->
         if currOffset = 0
@@ -3309,18 +3309,13 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARPattern (_, PPInteger), FPInteger (mID, pID, intStr) ->
         let str = mutation intStr in
         if str = ""
-        then
-          let bID = gid () in
-          Some
-            ( Pat (FPBlank (mID, bID))
-            , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+        then mkPBlank mID
         else
           let coerced = Util.coerceStringTo63BitInt str in
           if coerced = intStr
           then None
           else Some (Pat (FPInteger (mID, pID, coerced)), currCTMinusOne)
-    | ARPattern (_, PPConstructor CPName), FPConstructor (mID, _, str, _patterns)
-      ->
+    | ARPattern (_, PPConstructor), FPConstructor (mID, _, str, _patterns) ->
         let str = str |> mutation |> String.trim in
         let newID = gid () in
         if str = ""
@@ -3355,16 +3350,10 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ( ARPattern (_, PPString SPOpenQuote)
       , FPString {matchID; patternID = _; str = ""} )
       when currOffset = 1 ->
-        let bID = gid () in
-        Some
-          ( Pat (FPBlank (matchID, bID))
-          , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+        mkPBlank matchID
     | ARPattern (_, PPString SPText), FPString {matchID; patternID = _; str = ""}
       when currOffset = 0 ->
-        let bID = gid () in
-        Some
-          ( Pat (FPBlank (matchID, bID))
-          , {astRef = ARPattern (bID, PPBlank); offset = 0} )
+        mkPBlank matchID
     | ARPattern (_, PPString SPOpenQuote), FPString data ->
         let str = Util.removeCharAt data.str (currOffset - 2) in
         Some (Pat (FPString {data with str}), currCTMinusOne)
@@ -3381,7 +3370,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
      *)
     | ARPattern (_, PPBlank), _
     | ARPattern (_, PPBool), _
-    | ARPattern (_, PPConstructor CPName), _
+    | ARPattern (_, PPConstructor), _
     | ARPattern (_, PPFloat FPFractional), _
     | ARPattern (_, PPFloat FPPoint), _
     | ARPattern (_, PPFloat FPWhole), _
@@ -3510,15 +3499,16 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   let newID = gid () in
   let f str = Util.removeCharAt str offset in
   match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
+  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchBranchArrow _
+    ->
       (ast, s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       (removeEmptyExpr (T.tid ti.token) ast, s)
   | (TListOpen id | TRecordOpen id) when E.hasEmptyWithId id ast ->
       (E.replace id ~replacement:(E.newB ()) ast, s)
-  | TLambdaSep (id, idx) ->
+  | TLambdaComma (id, idx) ->
       (removeLambdaSepToken id ast idx, s)
-  | TListSep (id, idx) ->
+  | TListComma (id, idx) ->
       (removeListSepToken id ast idx, s)
   | TBlank _
   | TPlaceholder _
@@ -3614,7 +3604,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   | TRightPartial _
   | TFieldName _
   | TFieldPartial _
-  | TLetLHS _
+  | TLetVarName _
   | TPatternNullToken _
   | TPatternTrue _
   | TPatternFalse _
@@ -3712,7 +3702,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     then
       ( ELambda (newID, lambdaArgs ti, EBlank (gid ()))
       , (* TODO(JULIAN): if lambdaArgs is a populated list, place caret at the end *)
-        {astRef = ARLambda (newID, LPKeyword); offset = 1} )
+        {astRef = ARLambda (newID, LBPSymbol); offset = 1} )
     else if letter = ","
     then
       (EBlank newID (* new separators *), {astRef = ARBlank newID; offset = 0})
@@ -3744,10 +3734,10 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* lambda *)
     | TLambdaSymbol id when letter = "," ->
         ( insertLambdaVar ~index:0 id ~name:"" ast
-        , AtTarget {astRef = ARLambda (id, LPVarName 0); offset = 0} )
+        , AtTarget {astRef = ARLambda (id, LBPVarName 0); offset = 0} )
     | TLambdaVar (id, _, index, _) when letter = "," ->
         ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
-        , AtTarget {astRef = ARLambda (id, LPVarName (index + 1)); offset = 0}
+        , AtTarget {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
         )
     (* Ignore invalid situations *)
     | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
@@ -3765,7 +3755,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     | TVariable _
     | TPatternVariable _
-    | TLetLHS _
+    | TLetVarName _
     | TFieldName _
     | TFieldPartial _
     | TLambdaVar _
@@ -3774,7 +3764,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     | TVariable _
     | TPatternVariable _
-    | TLetLHS _
+    | TLetVarName _
     | TFieldName _
     | TFieldPartial _
     | TLambdaVar _
@@ -3812,7 +3802,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TStringMLMiddle _
     | TStringMLEnd _
     | TPatternString _
-    | TLetLHS _
+    | TLetVarName _
     | TTrue _
     | TFalse _
     | TPatternTrue _
@@ -3877,7 +3867,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TLetAssignment _
     | TSep _
     | TListClose _
-    | TListSep _
+    | TListComma _
     | TIndent _
     | TRecordOpen _
     | TRecordClose _
@@ -3886,8 +3876,8 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TLambdaSymbol _
     | TLambdaArrow _
     | TConstructorName _
-    | TLambdaSep _
-    | TMatchSep _
+    | TLambdaComma _
+    | TMatchBranchArrow _
     | TMatchKeyword _
     | TPartialGhost _
     | TParenOpen _
@@ -4059,12 +4049,12 @@ let rec updateKey
       (* This almost certainly doesn't catch all cases,
          * if you find a bug please add a case + test *)
       ( match token with
-      | TLetLHS _
+      | TLetVarName _
       | TLetAssignment _
       | TFieldName _
       | TRecordFieldname _
       | TRecordSep _
-      | TLambdaSep _
+      | TLambdaComma _
       | TLambdaArrow _
       | TLambdaVar _ ->
           false
@@ -4353,9 +4343,7 @@ let rec updateKey
      * Keep caret "the same", only moved down by 1 column. *)
     | Keypress {key = K.Enter; _}, L (TPipe (id, idx, _), _), R _ ->
         let ast, s, _ = addPipeExprAt id (idx + 1) ast s in
-        let s =
-          moveToAstRef s ast (ARPipe (id, PPPipeKeyword (idx + 1))) ~offset:2
-        in
+        let s = moveToAstRef s ast (ARPipe (id, idx + 1)) ~offset:2 in
         (ast, s)
     (*
      * Caret on end-of-line.
@@ -4478,9 +4466,7 @@ let rec updateKey
             then applyToRightToken ()
             else
               let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
-              let s =
-                moveToAstRef s ast (ARPipe (parentId, PPPipeKeyword (idx + 1)))
-              in
+              let s = moveToAstRef s ast (ARPipe (parentId, idx + 1)) in
               (ast, s)
         | Some (ERecord _) ->
             (* No length special-case needed because records do not emit a
@@ -4914,7 +4900,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
     | EFloat (eID, _, _) ->
         let newWhole = findTokenValue tokens eID "float-whole" in
         let pointSelected = findTokenValue tokens eID "float-point" <> None in
-        let newFraction = findTokenValue tokens eID "float-fraction" in
+        let newFraction = findTokenValue tokens eID "float-fractional" in
         ( match (newWhole, pointSelected, newFraction) with
         | Some value, true, None ->
             Some (EFloat (id, value, "0"))
@@ -4936,7 +4922,8 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
           findTokenValue tokens eID "let-keyword" <> None
         in
         let newLhs =
-          findTokenValue tokens eID "let-lhs" |> Option.withDefault ~default:""
+          findTokenValue tokens eID "let-var-name"
+          |> Option.withDefault ~default:""
         in
         ( match (reconstructExpr rhs, reconstructExpr body) with
         | None, None when newLhs <> "" ->
@@ -5196,15 +5183,15 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                     FPNull (mID, id)
                 | [ (id, whole, "pattern-float-whole")
                   ; (_, _, "pattern-float-point")
-                  ; (_, fraction, "pattern-float-fraction") ] ->
+                  ; (_, fraction, "pattern-float-fractional") ] ->
                     FPFloat (mID, id, whole, fraction)
                 | [ (id, value, "pattern-float-whole")
                   ; (_, _, "pattern-float-point") ]
                 | [(id, value, "pattern-float-whole")] ->
                     FPInteger (mID, id, Util.coerceStringTo63BitInt value)
                 | [ (_, _, "pattern-float-point")
-                  ; (id, value, "pattern-float-fraction") ]
-                | [(id, value, "pattern-float-fraction")] ->
+                  ; (id, value, "pattern-float-fractional") ]
+                | [(id, value, "pattern-float-fractional")] ->
                     FPInteger (mID, id, Util.coerceStringTo63BitInt value)
                 | _ ->
                     FPBlank (mID, gid ())

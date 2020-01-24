@@ -243,27 +243,34 @@ test("enter_changes_state", async t => {
 test("field_access_closes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
-  await t.typeText("#fluid-editor", "req")
-    .expect(fluidAcHighlightedText("requestdict")).ok()
+  await t
+    .typeText("#fluid-editor", "req")
+    .expect(fluidAcHighlightedText("requestdict"))
+    .ok()
     .typeText("#fluid-editor", ".bo")
-    .expect(fluidAcHighlightedText("bodyfield")).ok()
+    .expect(fluidAcHighlightedText("bodyfield"))
+    .ok()
     .pressKey("enter");
 });
 
 test("field_access_pipes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
-  await t.typeText("#fluid-editor", "req")
-    .expect(fluidAcHighlightedText()).contains("request")
+  await t
+    .typeText("#fluid-editor", "req")
+    .expect(fluidAcHighlightedText())
+    .contains("request")
     .typeText("#fluid-editor", ".bo")
-    .expect(fluidAcHighlightedText()) .eql("bodyfield")
+    .expect(fluidAcHighlightedText())
+    .eql("bodyfield")
     .pressKey("shift+enter");
 });
 
 test("tabbing_works", async t => {
   await createRepl(t);
   // Fill in "then" box in if stmt
-  await t.typeText("#fluid-editor", "if")
+  await t
+    .typeText("#fluid-editor", "if")
     .pressKey("space tab")
     .typeText("#fluid-editor", "5");
 });
@@ -271,16 +278,20 @@ test("tabbing_works", async t => {
 test("autocomplete_highlights_on_partial_match", async t => {
   await createRepl(t);
   await gotoAST(t);
-  await t.typeText("#fluid-editor", "nt::add")
-    .expect(fluidAcHighlightedText("Int::add")).ok()
+  await t
+    .typeText("#fluid-editor", "nt::add")
+    .expect(fluidAcHighlightedText("Int::add"))
+    .ok()
     .pressKey("enter");
 });
 
 test("no_request_global_in_non_http_space", async t => {
   await createWorkerHandler(t);
   await gotoAST(t);
-  await t.typeText("#fluid-editor", "request")
-    .expect(fluidAcHighlightedText("Http::badRequest")).ok()
+  await t
+    .typeText("#fluid-editor", "request")
+    .expect(fluidAcHighlightedText("Http::badRequest"))
+    .ok()
     .pressKey("enter");
 });
 
@@ -352,7 +363,8 @@ test("switching_from_default_repl_space_removes_name", async t => {
 test("tabbing_through_let", async t => {
   await createRepl(t);
   await gotoAST(t);
-  await t.typeText("#fluid-editor", "let")
+  await t
+    .typeText("#fluid-editor", "let")
     .pressKey("enter")
     // round trip through the let blanks once
     .pressKey("tab tab tab")
@@ -528,8 +540,10 @@ test("rename_function", async t => {
 
 test("execute_function_works", async t => {
   await createRepl(t);
-  await t.typeText("#fluid-editor", "Uuid::gen")
-    .pressKey("enter").click(Selector(".execution-button-needed"));
+  await t
+    .typeText("#fluid-editor", "Uuid::gen")
+    .pressKey("enter")
+    .click(Selector(".execution-button-needed"));
 
   let v1 = await Selector(".selected .live-value").innerText;
 
@@ -555,7 +569,8 @@ test("correct_field_livevalue", async t => {
 
 test("function_version_renders", async t => {
   await createRepl(t);
-  await t.typeText("#fluid-editor", "DB::del")
+  await t
+    .typeText("#fluid-editor", "DB::del")
     .expect(Selector(".autocomplete-item.fluid-selected .version").withText("v1"))
     .ok();
 });
@@ -706,25 +721,25 @@ test("fluid_execute_function_shows_live_value", async t => {
 
 test("fluid_single_click_on_token_in_deselected_handler_focuses", async t => {
   await t
-    .expect(available(".id-2068425241.fluid-let-lhs"))
+    .expect(available(".id-2068425241.fluid-let-var-name"))
     .ok()
-    .click(Selector(".id-2068425241.fluid-let-lhs"), { caretPos: 2 });
+    .click(Selector(".id-2068425241.fluid-let-var-name"), { caretPos: 2 });
 });
 
 test("fluid_click_2x_on_token_places_cursor", async t => {
   await t
-    .expect(available(".id-549681748.fluid-let-lhs"))
+    .expect(available(".id-549681748.fluid-let-var-name"))
     .ok()
-    .click(Selector(".id-549681748.fluid-let-lhs"), { caretPos: 2 })
-    .click(Selector(".id-549681748.fluid-let-lhs"), { caretPos: 2 });
+    .click(Selector(".id-549681748.fluid-let-var-name"), { caretPos: 2 })
+    .click(Selector(".id-549681748.fluid-let-var-name"), { caretPos: 2 });
 });
 
 test("fluid_click_2x_in_function_places_cursor", async t => {
   await t
     .navigateTo("#fn=1352039682")
-    .expect(available(".id-677483670.fluid-let-lhs"))
+    .expect(available(".id-677483670.fluid-let-var-name"))
     .ok()
-    .click(Selector(".id-677483670.fluid-let-lhs"), { caretPos: 2 })
+    .click(Selector(".id-677483670.fluid-let-var-name"), { caretPos: 2 })
     .expect(available(".id-96908617.fluid-category-string"))
     .ok()
     .click(Selector(".id-96908617.fluid-category-string"), { caretPos: 2 });
