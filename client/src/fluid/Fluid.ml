@@ -4900,7 +4900,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
     | EFloat (eID, _, _) ->
         let newWhole = findTokenValue tokens eID "float-whole" in
         let pointSelected = findTokenValue tokens eID "float-point" <> None in
-        let newFraction = findTokenValue tokens eID "float-fraction" in
+        let newFraction = findTokenValue tokens eID "float-fractional" in
         ( match (newWhole, pointSelected, newFraction) with
         | Some value, true, None ->
             Some (EFloat (id, value, "0"))
@@ -4922,7 +4922,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
           findTokenValue tokens eID "let-keyword" <> None
         in
         let newLhs =
-          findTokenValue tokens eID "let-lhs" |> Option.withDefault ~default:""
+          findTokenValue tokens eID "let-var-name" |> Option.withDefault ~default:""
         in
         ( match (reconstructExpr rhs, reconstructExpr body) with
         | None, None when newLhs <> "" ->
@@ -5182,15 +5182,15 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                     FPNull (mID, id)
                 | [ (id, whole, "pattern-float-whole")
                   ; (_, _, "pattern-float-point")
-                  ; (_, fraction, "pattern-float-fraction") ] ->
+                  ; (_, fraction, "pattern-float-fractional") ] ->
                     FPFloat (mID, id, whole, fraction)
                 | [ (id, value, "pattern-float-whole")
                   ; (_, _, "pattern-float-point") ]
                 | [(id, value, "pattern-float-whole")] ->
                     FPInteger (mID, id, Util.coerceStringTo63BitInt value)
                 | [ (_, _, "pattern-float-point")
-                  ; (id, value, "pattern-float-fraction") ]
-                | [(id, value, "pattern-float-fraction")] ->
+                  ; (id, value, "pattern-float-fractional") ]
+                | [(id, value, "pattern-float-fractional")] ->
                     FPInteger (mID, id, Util.coerceStringTo63BitInt value)
                 | _ ->
                     FPBlank (mID, gid ())

@@ -706,25 +706,25 @@ test("fluid_execute_function_shows_live_value", async t => {
 
 test("fluid_single_click_on_token_in_deselected_handler_focuses", async t => {
   await t
-    .expect(available(".id-2068425241.fluid-let-lhs"))
+    .expect(available(".id-2068425241.fluid-let-var-name"))
     .ok()
-    .click(Selector(".id-2068425241.fluid-let-lhs"), { caretPos: 2 });
+    .click(Selector(".id-2068425241.fluid-let-var-name"), { caretPos: 2 });
 });
 
 test("fluid_click_2x_on_token_places_cursor", async t => {
   await t
-    .expect(available(".id-549681748.fluid-let-lhs"))
+    .expect(available(".id-549681748.fluid-let-var-name"))
     .ok()
-    .click(Selector(".id-549681748.fluid-let-lhs"), { caretPos: 2 })
-    .click(Selector(".id-549681748.fluid-let-lhs"), { caretPos: 2 });
+    .click(Selector(".id-549681748.fluid-let-var-name"), { caretPos: 2 })
+    .click(Selector(".id-549681748.fluid-let-var-name"), { caretPos: 2 });
 });
 
 test("fluid_click_2x_in_function_places_cursor", async t => {
   await t
     .navigateTo("#fn=1352039682")
-    .expect(available(".id-677483670.fluid-let-lhs"))
+    .expect(available(".id-677483670.fluid-let-var-name"))
     .ok()
-    .click(Selector(".id-677483670.fluid-let-lhs"), { caretPos: 2 })
+    .click(Selector(".id-677483670.fluid-let-var-name"), { caretPos: 2 })
     .expect(available(".id-96908617.fluid-category-string"))
     .ok()
     .click(Selector(".id-96908617.fluid-category-string"), { caretPos: 2 });
