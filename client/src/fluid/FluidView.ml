@@ -335,6 +335,24 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   |> List.flatten
 
 
+let viewArrow (curID : id) (srcID : id) : Types.msg Html.html =
+  let curSelector = ".id-" ^ deID curID in
+  let srcSelector = ".id-" ^ deID srcID in
+  match
+    (Native.Ext.querySelector curSelector, Native.Ext.querySelector srcSelector)
+  with
+  | Some curElem, Some srcElem ->
+      let curRect = Native.Ext.getBoundingClient curElem curSelector in
+      let srcRect = Native.Ext.getBoundingClient srcElem srcSelector in
+      let height = curRect.bottom - srcRect.top in
+      Html.div
+        [ Html.class' "src-arrow"
+        ; Html.styles [("height", string_of_int height ^ "px")] ]
+        []
+  | _ ->
+      Vdom.noNode
+
+
 let viewDval tlid dval ~(canCopy : bool) =
   let text = Runtime.toRepr dval in
   [Html.text text; (if canCopy then viewCopyButton tlid text else Vdom.noNode)]
@@ -366,18 +384,17 @@ let viewLiveValue
     | LoadableSuccess (DIncomplete (SourceId srcId) as dv)
     | LoadableSuccess (DError (SourceId srcId, _) as dv)
       when srcId <> id ->
-        let msg =
-          "<"
-          ^ (dv |> Runtime.typeOf |> Runtime.tipe2str)
-          ^ "> Click to locate source"
-        in
-        [ Html.div
+        let errType = dv |> Runtime.typeOf |> Runtime.tipe2str in
+        let msg = "<" ^ errType ^ ">" in
+        [ viewArrow id srcId
+        ; Html.div
             [ ViewUtils.eventNoPropagation
                 ~key:("lv-src-" ^ deID srcId)
                 "click"
                 (fun _ -> FluidMsg (FluidFocusOnToken srcId))
-            ; Html.class' "jump-src" ]
-            [Html.text msg] ]
+            ; Html.class' "jump-src"
+            ; Html.title ("Click here to go to the source of " ^ errType) ]
+            [Html.text msg; ViewUtils.fontAwesome "arrow-alt-circle-up"] ]
     | LoadableSuccess (DError _ as dv) | LoadableSuccess (DIncomplete _ as dv)
       ->
         renderDval dv ~canCopy:false

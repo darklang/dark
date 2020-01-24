@@ -389,9 +389,9 @@ test("rename_db_fields", async t => {
   // around when the .fa-lock appears, and the selectors we'd expect
   // (below) doesn't work. But if we split it into two it works. Who
   // knows.
-  // await t.expect(Selector('.fa-lock', {timeout: 5000})().exists).ok() ;
+  // await t.expect(Selector('.fa-lock', {timeout: 8000})().exists).ok() ;
 
-  await Selector(".fa-lock", { timeout: 5000 })();
+  await Selector(".fa-lock", { timeout: 8000 })();
   await t.expect(Selector(".fa-lock").exists).ok();
 
   await t
