@@ -190,6 +190,10 @@
       color: darken($grey3, 15%);
     }
 
+    &.has-empty {
+      margin-left: 17px;
+    }
+
     .blankOr {
       cursor: text;
     }
@@ -223,16 +227,12 @@
         text-align: left;
       }
     }
+  }
 
-    .name.blank {
-      margin-left: 17px;
-    }
-
-    .migration-view {
-      @extend .default;
-      position: absolute;
-      width: max-content;
-      left: calc(#{"100% + 6px"});
-    }
+  .migration-view {
+    @extend .default;
+    position: absolute;
+    width: max-content;
+    left: calc(#{"100% + 6px"});
   }
 }

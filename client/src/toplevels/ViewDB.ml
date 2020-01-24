@@ -121,24 +121,23 @@ let viewDBCol
     (vs : viewState) (isMigra : bool) (tlid : tlid) ((n, t) : dbColumn) :
     msg Html.html =
   let deleteButton =
-    if isMigra || not vs.dbLocked
+    if vs.permission = Some ReadWrite
+       && (isMigra || not vs.dbLocked)
+       && (B.isF n || B.isF t)
     then
-      if B.isF n || B.isF t
-      then
-        Html.div
-          [ Html.class' "delete-col"
-          ; ViewUtils.eventNoPropagation
-              ~key:("dcidb-" ^ showTLID tlid ^ "-" ^ (n |> B.toID |> showID))
-              "click"
-              (fun _ -> DeleteColInDB (tlid, B.toID n)) ]
-          [fontAwesome "minus-circle"]
-      else Vdom.noNode
+      Html.div
+        [ Html.class' "delete-col"
+        ; ViewUtils.eventNoPropagation
+            ~key:("dcidb-" ^ showTLID tlid ^ "-" ^ (n |> B.toID |> showID))
+            "click"
+            (fun _ -> DeleteColInDB (tlid, B.toID n)) ]
+        [fontAwesome "minus-circle"]
     else Vdom.noNode
   in
   let row = [viewDBColName vs [wc "name"] n; viewDBColType vs [wc "type"] t] in
   Html.div
-    [Html.class' "col"]
-    ((if vs.permission = Some ReadWrite then [deleteButton] else []) @ row)
+    [Html.classList [("col", true); ("has-empty", deleteButton = Vdom.noNode)]]
+    (deleteButton :: row)
 
 
 let viewMigraFuncs
