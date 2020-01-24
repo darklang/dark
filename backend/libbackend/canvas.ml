@@ -451,6 +451,11 @@ let load_from
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
+let load_without_tls host : (canvas ref, string list) Result.t =
+  let owner = Account.for_host_exn host in
+  load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
+
+
 let load_all host (newops : Op.op list) : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_from_db host owner newops
@@ -468,12 +473,6 @@ let load_only_undeleted_tlids ~tlids host (newops : Op.op list) :
     (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_undeleted_tlids ~tlids) host owner newops
-
-
-let load_all_dbs host (newops : Op.op list) : (canvas ref, string list) Result.t
-    =
-  let owner = Account.for_host_exn host in
-  load_from ~f:Serialize.load_all_dbs host owner newops
 
 
 let load_with_dbs ~tlids host (newops : Op.op list) :
@@ -582,14 +581,22 @@ let load_for_event_from_cache (event : Event_queue.t) :
     owner
 
 
-let load_without_tls host : (canvas ref, string list) Result.t =
+let load_all_dbs_from_cache host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
-  load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+  load_from_cache
+    ~tlids:(Serialize.fetch_tlids_for_all_dbs ~canvas_id ())
+    host
+    owner
 
 
-let load_cron host : (canvas ref, string list) Result.t =
+let load_for_cron_checker_from_cache host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
-  load_from ~f:Serialize.load_for_cron host owner []
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+  load_from_cache
+    ~tlids:(Serialize.fetch_relevant_tlids_for_cron_checker ~canvas_id ())
+    host
+    owner
 
 
 let serialize_only (tlids : tlid list) (c : canvas) : unit =
