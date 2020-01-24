@@ -3429,7 +3429,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                doExprBackspace currAstRef expr
          in
          match maybeTransformedExprAndCaretTarget with
-         | Some (Expr newExpr, currCTMinusOne) ->
+         | Some (Expr newExpr, target) ->
              let patOrExprID =
                match !patContainerRef with
                | None ->
@@ -3439,12 +3439,12 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              in
              Some
                ( E.replace patOrExprID ~replacement:newExpr ast
-               , AtTarget currCTMinusOne )
-         | Some (Pat newPat, currCTMinusOne) ->
+               , AtTarget target )
+         | Some (Pat newPat, target) ->
              let mID = P.matchID newPat in
              let newAST = replacePattern mID patOrExprID ~newPat ast in
-             Some (newAST, AtTarget currCTMinusOne)
-         | _ ->
+             Some (newAST, AtTarget target)
+         | None ->
              None)
   |> Option.withDefault ~default:(ast, SamePlace)
 
