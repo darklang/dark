@@ -3001,32 +3001,37 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         else Some (Expr newExpr, currCTMinusOne)
     | ARMatch (id, MPBranchArrow idx), expr ->
         Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
-    | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, expr) ->
-        let rec currAndNextIndex (lst : 'a list) (idx : int) : ('a * 'a) option
-            =
+    | ARLambda (_, LPSeparator varAndSepIdx), ELambda (id, oldVars, oldExpr) ->
+        let rec elAtCurrAndNextIndex (lst : 'a list) (idx : int) :
+            ('a * 'a) option =
           match lst with
           | [] | [_] ->
               None
           | a :: (b :: _ as rest) ->
               if idx > 0
-              then currAndNextIndex rest (idx - 1)
+              then (elAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
               else if idx = 0
               then Some (a, b)
               else None
         in
-        ( match currAndNextIndex oldVars varAndSepIdx with
-        | Some ((_, keepVarName), (_, deleteVarName)) ->
-            Some
-              ( Expr
-                  (ELambda
-                     ( id
-                       (* remove expression in front of sep, not behind it, hence + 1 *)
-                     , List.removeAt ~index:(varAndSepIdx + 1) oldVars
-                     , E.removeVariableUse deleteVarName expr ))
-              , { astRef = ARLambda (id, LPVarName varAndSepIdx)
-                ; offset = String.length keepVarName } )
-        | None ->
-            recover "doExplicitBackspace - LPSeparator" None )
+        (* This would be nicer with List.sub oldVars ~pos:varAndSepIdx ~len:2,
+         * but we don't define List.sub and Janestreet's version seems to be incompatible
+         * with Tablecloth.
+         * https://github.com/janestreet/base/blob/eaab227499b36bb90c2537bc6358a2d5caf75227/src/list.ml#L931
+         *)
+        elAtCurrAndNextIndex oldVars varAndSepIdx
+        |> Option.map ~f:(fun ((_, keepVarName), (_, deleteVarName)) ->
+               (* remove expression in front of sep, not behind it, hence + 1 *)
+               let newVars = List.removeAt ~index:(varAndSepIdx + 1) oldVars in
+               let newExpr = E.removeVariableUse deleteVarName oldExpr in
+               Some
+                 ( Expr (ELambda (id, newVars, newExpr))
+                 , { astRef = ARLambda (id, LPVarName varAndSepIdx)
+                   ; offset = String.length keepVarName } ))
+        |> recoverOpt
+             "doExplicitBackspace - LPSeparator"
+             ~debug:(varAndSepIdx, oldVars)
+             ~default:None
     | ARList (_, LPSeparator elemAndSepIdx), EList (id, exprs) ->
         let target =
           List.getAt ~index:elemAndSepIdx exprs
