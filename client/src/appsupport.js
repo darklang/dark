@@ -10,138 +10,18 @@ const mousewheel = function(callback) {
 // Allows us capture certain keys and stop them from affecting the browser.
 // ---------------------------
 function stopKeys(event) {
-  // Fluid
-  if (event.target.id === "fluid-editor") {
-    fluidStopKeys(event);
-  }
-
-  if (event.keyCode == 9) {
-    // Tab
-    event.preventDefault();
-  }
-  if (
-    event.keyCode == 32 && // Space
-    !event.target.parentNode.className.includes("string-container")
-  ) {
-    event.preventDefault();
-  }
-  if (
-    event.keyCode == 13 && // Enter
-    !event.target.parentNode.className.includes("large-string")
-  ) {
-    event.preventDefault();
-  }
-  if (
-    event.keyCode == 38 || // Up
-    event.keyCode == 40
-  ) {
-    // Down
-    if (document.activeElement.tagName.toLowerCase() !== "textarea")
-      event.preventDefault();
-  }
-  // Cmd/Ctrl + S (keyCode: 83)
-  if ((event.ctrlKey || event.metaKey) && event.keyCode === 83) {
+  // Don't ever attempt to save the HTML of the page.
+  if ((event.ctrlKey || event.metaKey) && event.key === "s") {
     event.preventDefault();
   }
 
-  if (
-    event.ctrlKey &&
-    event.keyCode === 75 && // Ctrl-K
-    window.navigator.platform.includes("Linux")
-  ) {
-    // `Ctrl-K` is meant to open the omnibox on Linux, but without this preventDefault
-    // it will focus the browser's URL bar after creating the omnibox.
+  // `Ctrl-K` is meant to open the omnibox on Linux, but without this preventDefault
+  // it will focus the browser's URL bar after creating the omnibox.
+  if ( event.ctrlKey && event.key === 'k' && window.navigator.platform.includes("Linux")) {
     event.preventDefault();
   }
 }
 window.stopKeys = stopKeys;
-
-// ---------------------------
-// Fluid
-// ---------------------------
-
-function isHandledByFluid(evt) {
-  var isMac = window.navigator.platform == "MacIntel";
-
-  // ascii space (32) - tilde (126),
-  // which is all printable ascii characters
-  var printableChar = /^[ -~]$/.test(evt.key);
-
-  var editingKey = ["Backspace", "Delete", "Tab", "Enter", "Space"].includes(evt.key);
-
-  var movementKey = [
-    "ArrowLeft",
-    "ArrowRight",
-    "ArrowDown",
-    "ArrowUp",
-    "PageUp",
-    "PageDown",
-    "Home",
-    "End",
-    "Escape",
-  ].includes(evt.key);
-
-  // these are all the keys we handle, without regard for modifiers
-  var validAscii = printableChar || editingKey || movementKey;
-
-  var cmdShortcut = isMac && evt.metaKey;
-  var handledCmdShortcut =
-    cmdShortcut &&
-    [
-      "a", // select all
-      "z", // undo
-      "Z", // redo
-      "Left", // beginning of line
-      "Right", // end of line
-      "Backspace", // backspace to beginning of line
-      "Delete", // delete to end of line
-    ].includes(evt.key);
-
-  var ctrlShortcut = evt.ctrlKey;
-  var handledCtrlShortcut =
-    ctrlShortcut &&
-    [
-      "a", // start of line (mac) / select all (other)
-      "e", // end of line
-      "d", // delete
-      "Backspace", // backspace word
-      "Delete", // delete word
-    ].includes(evt.key);
-
-  // special case the command palette on mac, where alt-x registers as `≈`
-  // see FluidKeyboard.ml where this is translated to a (Letter 'x').
-  if (evt.key == "≈" && evt.altKey && !evt.metaKey && !evt.CtrlKey) {
-    return true;
-  }
-
-  // stop non-ascii because right now it wrecks the editor state.
-  if (!validAscii) {
-    return false;
-  }
-
-  // don't handle anything with command, unless it's something we care about.
-  if (cmdShortcut && !handledCmdShortcut) {
-    return false;
-  }
-
-  // don't handle anything with ctrl, unless it's something we care about.
-  if (ctrlShortcut && !handledCtrlShortcut) {
-    return false;
-  }
-
-  // Otherwise (valid ASCII without cmd or ctrl), then we want it.
-  // Notes:
-  // Alt is often used to type ascii chars on non-US layouts, so we
-  // actually do want to capture anything with alt.
-  // Same with shift: any non-cmd/ctrl keypress with shift is fine.
-  return true;
-}
-
-function fluidStopKeys(event) {
-  if (isHandledByFluid(event)) {
-    event.preventDefault();
-  }
-}
 
 function getBrowserPlatform(event) {
   // Checks if mac
