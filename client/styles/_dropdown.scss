@@ -210,6 +210,8 @@ $wrapper-background: $black2;
   .actions {
     display: none;
     margin-top: 5px;
+    margin-right: -4px;
+    padding-bottom: $spacing-medium;
     background: lighten($black2, 5%);
 
     .item {

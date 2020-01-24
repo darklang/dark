@@ -138,7 +138,7 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
     | F (_, "HTTP"), F (_, meth), F (_, name) ->
         let curlAction : TLMenu.menuItem =
           { title = "Copy request as cURL"
-          ; key = "del-tl-"
+          ; key = "copy-curl-"
           ; icon = Some "copy"
           ; action = (fun m -> CopyCurl (tlid, m.mePos))
           ; disableMsg = None }
@@ -149,7 +149,7 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
           let url = externalLink vs name in
           let newTabAction : TLMenu.menuItem =
             { title = "Open in new tab"
-            ; key = "hide-tl-opts"
+            ; key = "new-tab-"
             ; icon = Some "external-link-alt"
             ; action = (fun _ -> NewTabFromTLMenu (url, tlid))
             ; disableMsg = None }
