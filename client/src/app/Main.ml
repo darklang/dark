@@ -1680,13 +1680,17 @@ let update_ (msg : msg) (m : model) : modification =
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->
-      ( match Toplevel.selected m with
-      | Some tl when Toplevel.isDB tl ->
-          Many [UpdateDBStatsAPICall (TL.id tl); GetUnlockedDBsAPICall]
-      | Some tl when Toplevel.isWorkerHandler tl ->
-          Many [GetWorkerStatsAPICall (TL.id tl); GetUnlockedDBsAPICall]
-      | _ ->
-          GetUnlockedDBsAPICall )
+        let getUnlockedDBs =
+          (* Small optimization *)
+          if StrDict.count m.dbs > 0 then GetUnlockedDBsAPICall else NoChange
+        in
+        ( match Toplevel.selected m with
+        | Some tl when Toplevel.isDB tl ->
+            Many [UpdateDBStatsAPICall (TL.id tl); getUnlockedDBs]
+        | Some tl when Toplevel.isWorkerHandler tl ->
+            Many [GetWorkerStatsAPICall (TL.id tl); getUnlockedDBs]
+        | _ ->
+            getUnlockedDBs )
     | RefreshAvatars ->
         ExpireAvatars
     | _ ->
