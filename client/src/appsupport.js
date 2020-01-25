@@ -7,24 +7,12 @@ const mousewheel = function(callback) {
 };
 
 function unsupportedBrowser() {
-  var isChromium = window.chrome;
-  var winNav = window.navigator;
-  var vendorName = winNav.vendor;
-  var isOpera = typeof window.opr !== "undefined";
-  var isIEedge = winNav.userAgent.indexOf("Edge") > -1;
-  if (
-    isChromium !== null &&
-    typeof isChromium !== "undefined" &&
-    vendorName === "Google Inc." &&
-    isOpera === false &&
-    isIEedge === false
-  ) {
-    // Is chrome
-    return false;
-  } else {
-    return true;
-  }
+  var isChrome =
+    /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+
+  return !isChrome;
 }
+
 window.unsupportedBrowser = unsupportedBrowser;
 
 if (unsupportedBrowser) {
