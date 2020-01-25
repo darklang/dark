@@ -787,7 +787,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       | TStringMLMiddle (id', str, startOffsetIntoString, _) when id = id' ->
           let len = String.length str in
           let offsetInStr =
-            ct.offset + 1
+            ct.offset - 1
             (* to account for open quote in the start *)
           in
           let endOffset = startOffsetIntoString + len in
@@ -800,7 +800,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       | TStringMLEnd (id', _, startOffsetIntoString, _) when id = id' ->
           (* Must be in this token because it's the last token in the string *)
           let offsetInStr =
-            ct.offset + 1
+            ct.offset - 1
             (* to account for open quote in the start *)
           in
           clampedPosForTi ti (offsetInStr - startOffsetIntoString)
