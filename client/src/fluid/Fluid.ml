@@ -3655,10 +3655,11 @@ let doExplicitInsert
     (ast : ast) : ast * newPosition =
   let {astRef = currAstRef; offset = currOffset} = currCaretTarget in
   let caretDelta = extendedGraphemeCluster |> String.length in
-  (* let currCTPlusLen = {astRef = currAstRef; offset = currOffset + caretDelta} in *)
-  (*  let mutation : string -> string =
-    fun str -> str |> String.insertAt ~index:currOffset ~insert:extendedGraphemeCluster
-  in *)
+  let currCTPlusLen = {astRef = currAstRef; offset = currOffset + caretDelta} in
+  let mutation : string -> string =
+   fun str ->
+    str |> String.insertAt ~index:currOffset ~insert:extendedGraphemeCluster
+  in
   let mutationAt (str : string) ~(index : int) : string =
     str |> String.insertAt ~index ~insert:extendedGraphemeCluster
   in
@@ -3686,6 +3687,17 @@ let doExplicitInsert
             ( EString (id, newStr)
             , { astRef = ARString (id, SPText)
               ; offset = strRelOffset + caretDelta } )
+    | ARLambda (_, LBPVarName index), ELambda (id, vars, expr) ->
+        vars
+        |> List.getAt ~index
+        |> Option.map ~f:(fun (_, oldName) ->
+               let newName = oldName |> mutation in
+               let vars =
+                 List.updateAt vars ~index ~f:(fun (varId, _) ->
+                     (varId, newName))
+               in
+               ( ELambda (id, vars, E.renameVariableUses ~oldName ~newName expr)
+               , currCTPlusLen ))
     | _ ->
         recover
           "doExplicitInsert - unhandled astRef"
@@ -3890,8 +3902,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TNullToken _
     | TPatternNullToken _
     | TPatternVariable _
-    | TBinOp _
-    | TLambdaVar _ ->
+    | TBinOp _ (* | TLambdaVar _ *) ->
         (replaceStringToken ~f ti.token ast, RightOne)
     | TInteger (id, _) ->
         tryReplaceStringAndMoveOrSame
