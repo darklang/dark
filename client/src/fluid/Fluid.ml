@@ -2934,6 +2934,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
   let mutation : string -> string =
    fun str -> Util.removeCharAt str (currOffset - 1)
   in
+  let mutationAt (str : string) ~(index : int) : string =
+    Util.removeCharAt str index
+  in
   let doExprBackspace (currAstRef : astRef) (expr : fluidExpr) :
       (fluidPatOrExpr * caretTarget) option =
     let mkEBlank : unit -> (fluidPatOrExpr * caretTarget) option =
@@ -2961,22 +2964,24 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           if coerced = intStr
           then None
           else Some (Expr (EInteger (id, coerced)), currCTMinusOne)
-    | ARString (_, SPOpenQuote), EString (_, "") when currOffset = 1 ->
-        mkEBlank ()
-    | ARString (_, SPText), EString (_, "") when currOffset = 0 ->
-        mkEBlank ()
-    | ARString (_, SPOpenQuote), EString (id, str)
-    (* The minus 2 here (one more than the default `mutation`) accounts for the open quote,
-            which isn't part of the `str` but is part of the SPOpenQuote *)
-      ->
-        Some
-          ( Expr (EString (id, Util.removeCharAt str (currOffset - 2)))
-          , currCTMinusOne )
-    | ARString (_, SPText), EString (id, str) ->
-        Some (Expr (EString (id, mutation str)), currCTMinusOne)
-    | ARString (_, SPCloseQuote), EString (id, str) ->
-        let str = Util.removeCharAt str (String.length str + currOffset) in
-        Some (Expr (EString (id, str)), currCTMinusOne)
+    | ARString (_, kind), EString (id, str) ->
+        let len = String.length str in
+        let strRelOffset =
+          match kind with
+          | SPOpenQuote ->
+              currOffset - 1
+          | SPText ->
+              currOffset
+          | SPCloseQuote ->
+              currOffset + len
+        in
+        if strRelOffset = 0 && str = ""
+        then mkEBlank ()
+        else
+          let newStr = str |> mutationAt ~index:(strRelOffset - 1) in
+          Some
+            ( Expr (EString (id, newStr))
+            , {astRef = ARString (id, SPOpenQuote); offset = strRelOffset} )
     | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
         Some (Expr (EFloat (id, mutation whole, frac)), currCTMinusOne)
     | ARFloat (_, FPPoint), EFloat (_, whole, frac) ->
