@@ -8,6 +8,12 @@
 // - dragging node => 50
 // - selected node => 40
 // - unselected node => 20
+// - modal => 100
+// - fluid-status => 10000
+
+.modal-overlay {
+  z-index: 100 !important;
+}
 
 #buttons {
   z-index: 70;
