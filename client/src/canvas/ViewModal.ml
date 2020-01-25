@@ -16,7 +16,7 @@ let viewMessage : msg Html.html =
 
 
 let html (m : model) : msg Html.html =
-  if m.unsupportedBrowser && m.integrationTestState == NoIntegrationTest
+  if m.unsupportedBrowser
   then
     Html.div
       [ ViewUtils.nothingMouseEvent "mousedown"
