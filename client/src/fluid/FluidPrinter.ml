@@ -423,30 +423,25 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
 
 
 let infoize tokens : tokenInfo list =
-  let row, col, pos = (ref 0, ref 0, 0) in
-  let rec makeInfo p ts =
-    match ts with
-    | [] ->
-        []
-    | token :: rest ->
-        let length = String.length (T.toText token) in
-        let ti =
-          { token
-          ; startRow = !row
-          ; startCol = !col
-          ; startPos = p
-          ; endPos = p + length
-          ; length }
-        in
-        ( match token with
-        | TNewline _ ->
-            row := !row + 1 ;
-            col := 0
-        | _ ->
-            col := !col + length ) ;
-        ti :: makeInfo (p + length) rest
-  in
-  makeInfo pos tokens
+  let row, col, pos = (ref 0, ref 0, ref 0) in
+  List.map tokens ~f:(fun token ->
+      let length = String.length (T.toText token) in
+      let ti =
+        { token
+        ; startRow = !row
+        ; startCol = !col
+        ; startPos = !pos
+        ; endPos = !pos + length
+        ; length }
+      in
+      ( match token with
+      | TNewline _ ->
+          row := !row + 1 ;
+          col := 0
+      | _ ->
+          col := !col + length ) ;
+      pos := !pos + length ;
+      ti)
 
 
 let validateTokens (tokens : fluidToken list) : fluidToken list =
