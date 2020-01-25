@@ -3703,6 +3703,12 @@ let doExplicitInsert
                in
                ( ELambda (id, vars, E.renameVariableUses ~oldName ~newName expr)
                , currCTPlusLen ))
+    | ARBinOp _, (EBinOp (_, op, _, _, _) as oldExpr) ->
+        let str = op |> FluidUtil.partialName |> mutation |> String.trim in
+        let newID = gid () in
+        Some
+          ( EPartial (newID, str, oldExpr)
+          , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
     | _ ->
         recover
           "doExplicitInsert - unhandled astRef"
@@ -3906,8 +3912,8 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TPatternFalse _
     | TNullToken _
     | TPatternNullToken _
-    | TPatternVariable _
-    | TBinOp _ (* | TLambdaVar _ *) ->
+    | TPatternVariable _ (* | TBinOp _ *)
+                         (* | TLambdaVar _ *) ->
         (replaceStringToken ~f ti.token ast, RightOne)
     | TInteger (id, _) ->
         tryReplaceStringAndMoveOrSame
