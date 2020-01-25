@@ -3649,95 +3649,19 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
       (newAST, s)
 
 
-let doExplicitInsert
-    (extendedGraphemeCluster : string)
-    (currCaretTarget : caretTarget)
-    (ast : ast) : ast * newPosition =
-  let {astRef = currAstRef; offset = currOffset} = currCaretTarget in
-  let caretDelta = extendedGraphemeCluster |> String.length in
-  (* let currCTPlusLen = {astRef = currAstRef; offset = currOffset + caretDelta} in *)
-  (*  let mutation : string -> string =
-    fun str -> str |> String.insertAt ~index:currOffset ~insert:extendedGraphemeCluster
-  in *)
-  let mutationAt (str : string) ~(index : int) : string =
-    str |> String.insertAt ~index ~insert:extendedGraphemeCluster
-  in
-  let doExprInsert (currAstRef : astRef) (expr : fluidExpr) :
-      (fluidExpr * caretTarget) option =
-    match (currAstRef, expr) with
-    | ARString (_, kind), EString (id, str) ->
-        let len = String.length str in
-        let strRelOffset =
-          match kind with
-          | SPOpenQuote ->
-              currOffset - 1
-          | SPText ->
-              currOffset
-          | SPCloseQuote ->
-              currOffset + len
-        in
-        if strRelOffset < 0 || strRelOffset > len
-        then
-          (* out of string bounds means you can't insert into the string *)
-          None
-        else
-          let newStr = str |> mutationAt ~index:strRelOffset in
-          Some
-            ( EString (id, newStr)
-            , { astRef = ARString (id, SPText)
-              ; offset = strRelOffset + caretDelta } )
-    | _ ->
-        recover
-          "doExplicitInsert - unhandled astRef"
-          ~debug:(show_astRef currAstRef, show_fluidExpr expr)
-          None
-  in
-  idOfASTRef currAstRef
-  |> Option.andThen ~f:(fun patOrExprID ->
-         match E.findExprOrPat patOrExprID (Expr ast) with
-         | Some patOrExpr ->
-             Some (patOrExprID, patOrExpr)
-         | None ->
-             None)
-  |> Option.andThen ~f:(fun (patOrExprID, patOrExpr) ->
-         let maybeTransformedExprAndCaretTarget =
-           match patOrExpr with
-           | Pat _pat ->
-               recover "doExplicitInsert - patterns not yet handled" None
-           | Expr expr ->
-             ( match doExprInsert currAstRef expr with
-             | None ->
-                 None
-             | Some (expr, ct) ->
-                 Some (Expr expr, ct) )
-         in
-         match maybeTransformedExprAndCaretTarget with
-         | Some (Expr newExpr, target) ->
-             Some
-               (E.replace patOrExprID ~replacement:newExpr ast, AtTarget target)
-         (*          | Some (Pat newPat, target) ->
-             let mID = P.matchID newPat in
-             let newAST = replacePattern mID patOrExprID ~newPat ast in
-             Some (newAST, AtTarget target) *)
-         | _ ->
-             None)
-  |> Option.withDefault ~default:(ast, SamePlace)
-
-
 let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     : E.t * state =
   let s = recordAction ~ti ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
   let offset =
     match ti.token with
-    (* | TString _ *)
-    | TPatternString _ (* | TStringMLStart (_, _, _, _) *) ->
+    | TString _ | TPatternString _ | TStringMLStart (_, _, _, _) ->
         (* account for the quote *)
         pos - ti.startPos - 1
-    (* | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
+    | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
       ->
         (* no quote here, unlike TStringMLStart *)
-        pos - ti.startPos + strOffset *)
+        pos - ti.startPos + strOffset
     | _ ->
         pos - ti.startPos
   in
@@ -3814,11 +3738,8 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
         , AtTarget {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
         )
-    (*
-     * Ignore invalid situations
-     *)
-    (* | (TString _ *)
-    | TPatternString _ (* | TStringMLStart _ *) when offset < 0 ->
+    (* Ignore invalid situations *)
+    | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
         (ast, SamePlace)
     | TInteger _
     | TPatternInteger _
@@ -3852,10 +3773,8 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     | (TFnVersion _ | TFnName _) when not (Util.isFnNameChar letter) ->
         (ast, SamePlace)
-    (*
-     * Do the insert
-     *)
-    (*     | (TString (_, str) | TStringMLEnd (_, str, _, _))
+    (* Do the insert *)
+    | (TString (_, str) | TStringMLEnd (_, str, _, _))
       when pos = ti.endPos - 1 && String.length str = 40 ->
         (* Strings with end quotes *)
         let s = recordAction ~pos ~ti "string to mlstring" s in
@@ -3870,17 +3789,17 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (* Inserting at the end of an multi-line segment goes to next segment *)
         let newAST = replaceStringToken ~f ti.token ast in
         let newState = moveToNextNonWhitespaceToken ~pos newAST s in
-        (newAST, Exactly (newState.newPos + 1)) *)
+        (newAST, Exactly (newState.newPos + 1))
     | TRecordFieldname _
     | TFieldName _
     | TFieldPartial _
     | TVariable _
     | TPartial _
     | TRightPartial _
-    (* | TString _ *)
-    (* | TStringMLStart _
+    | TString _
+    | TStringMLStart _
     | TStringMLMiddle _
-    | TStringMLEnd _ *)
+    | TStringMLEnd _
     | TPatternString _
     | TLetVarName _
     | TTrue _
@@ -3963,12 +3882,6 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TParenOpen _
     | TParenClose _ ->
         (ast, SamePlace)
-    | _ ->
-      ( match caretTargetFromTokenInfo pos ti with
-      | Some ct ->
-          doExplicitInsert letter ct ast
-      | None ->
-          (ast, SamePlace) )
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
