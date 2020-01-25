@@ -151,4 +151,5 @@ let defaultModel : model =
   ; worker_schedules = StrDict.empty
   ; searchCache = TLIDDict.empty
   ; editorSettings = {showFluidDebugger = false; runTimers = true}
-  ; teaDebuggerEnabled = false }
+  ; teaDebuggerEnabled = false
+  ; unsupportedBrowser = false }

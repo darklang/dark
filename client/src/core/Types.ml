@@ -1603,7 +1603,8 @@ and model =
   ; worker_schedules : string StrDict.t
   ; searchCache : string TLIDDict.t
   ; editorSettings : editorSettings
-  ; teaDebuggerEnabled : bool }
+  ; teaDebuggerEnabled : bool
+  ; unsupportedBrowser : bool }
 
 and savedSettings =
   { editorSettings : editorSettings
