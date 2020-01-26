@@ -400,7 +400,7 @@ and op (call : Types.op) : Js.Json.t =
 and addOpAPIParams (params : Types.addOpAPIParams) : Js.Json.t =
   object_
     [ ("ops", ops params.ops)
-    ; ("opCtr", int (params.opCtr |> Option.valueExn))
+    ; ("opCtr", int params.opCtr)
     ; ("clientOpCtrId", string params.clientOpCtrId) ]
 
 
