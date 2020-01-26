@@ -733,7 +733,7 @@ and sendPresenceParams = avatarModelMessage
 
 and addOpAPIParams =
   { ops : op list
-  ; opCtr : int option
+  ; opCtr : int
   ; clientOpCtrId : string }
 
 and executeFunctionAPIParams =
