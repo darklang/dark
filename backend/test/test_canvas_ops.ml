@@ -279,6 +279,23 @@ let t_canvas_verification_duplicate_creation () =
   AT.check AT.bool "should not verify" false (Result.is_ok c)
 
 
+let t_canvas_verification_duplicate_creation_off_disk () =
+  clear_test_data () ;
+  let host = "test-verify_rename" in
+  let ops = [Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")] in
+  let c1 = ops2c_exn host ops in
+  Canvas.serialize_only [dbid] !c1 ;
+  let c2 =
+    let ops = [Op.CreateDBWithBlankOr (dbid2, pos, nameid, "Books")] in
+    match Op.required_context_to_validate_oplist ops with
+    | NoContext ->
+        Canvas.load_only_tlids ~tlids:[dbid2] host ops
+    | AllDatastores ->
+        Canvas.load_with_dbs ~tlids:[dbid2] host ops
+  in
+  AT.check AT.bool "should not verify" false (Result.is_ok c2)
+
+
 let t_canvas_verification_duplicate_renaming () =
   let ops =
     [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
@@ -342,4 +359,7 @@ let suite =
     , t_http_load_ignores_deleted_fns )
   ; ( "Loading dbs from load_all_dbs_from_cache ignores deleted dbs"
     , `Quick
-    , t_load_all_dbs_from_cache ) ]
+    , t_load_all_dbs_from_cache )
+  ; ( "Adding a DB with a duplicate name fails to verify"
+    , `Quick
+    , t_canvas_verification_duplicate_creation_off_disk ) ]
