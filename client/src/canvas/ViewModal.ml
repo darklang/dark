@@ -11,7 +11,7 @@ let viewMessage : msg Html.html =
     [ Html.p
         [Html.class' "title"]
         [ Html.text
-            "We're sorry, but Chrome is the only browser which currently supports the browser features we need to build Dark. We plan to extend to Firefox/Safari users once they have support for the features we use."
+            "We're sorry, but Chrome on desktop is the only browser which currently supports the browser features we need to build Dark. We plan to extend to Firefox/Safari/Mobile users once they have support for the features we use."
         ] ]
 
 
