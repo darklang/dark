@@ -4539,7 +4539,9 @@ let rec updateKey
     | _, _, R (TRecordOpen _, _) ->
         (ast, s)
     | InsertText txt, _, R (_, toTheRight) ->
-        doInsert' ~pos txt toTheRight ast s
+        doInsert' ~pos txt toTheRight ast s 
+    | ReplaceText txt, _, _ ->
+        replaceText ~ast ~state:s txt
     | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
         doInsert' ~pos " " toTheRight ast s
     | _ ->
@@ -4662,6 +4664,13 @@ and deleteCaretRange ~state ~(ast : ast) (caretRange : int * int) :
    forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
 and deleteSelection ~state ~(ast : ast) : E.t * fluidState =
   getSelectionRange state |> deleteCaretRange ~state ~ast
+
+
+and replaceText ~(ast : ast) ~state (str : string) : E.t * fluidState =
+  let newAST, newState =
+    getSelectionRange state |> deleteCaretRange ~state ~ast
+  in
+  updateKey (InsertText str) newAST newState
 
 
 let updateAutocomplete m tlid (ast : ast) s : fluidState =
@@ -5367,8 +5376,10 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           else None
         in
         (newAST, {newState with selectionStart})
-    | FluidInputEvent ievt ->
+    | FluidInputEvent (InsertText str as ievt) when Option.is_some s.selectionStart ->
         let s = {s with lastInput = ievt} in
+        updateKey (ReplaceText str) ast s
+    | FluidInputEvent ievt ->
         updateKey ievt ast s
     | FluidAutocompleteClick entry ->
         Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
