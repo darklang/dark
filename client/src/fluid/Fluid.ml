@@ -3728,6 +3728,12 @@ let doExplicitInsert
           then None
           else Some (EInteger (id, coerced), currCTPlusLen)
         else None
+    | ARBool _, (EBool (_, bool) as oldExpr) ->
+        let str = if bool then "true" else "false" in
+        let parID = gid () in
+        Some
+          ( EPartial (parID, mutation str, oldExpr)
+          , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
     | _ ->
         recover
           "doExplicitInsert - unhandled astRef"
@@ -3926,8 +3932,8 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TStringMLEnd _ *)
     | TPatternString _
     | TLetVarName _
-    | TTrue _
-    | TFalse _
+    (* | TTrue _
+    | TFalse _ *)
     | TPatternTrue _
     | TPatternFalse _
     | TNullToken _
