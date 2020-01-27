@@ -979,6 +979,17 @@ and clipboardContents =
   (string * Js.Json.t option
   [@opaque])
 
+(* --------------- *)
+(* Component Types *)
+(* --------------- *)
+
+(* TLMenu *)
+and menuState = {isOpen : bool}
+
+and menuMsg =
+  | OpenMenu
+  | CloseMenu
+
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
@@ -1139,6 +1150,7 @@ and modification =
   | UpdateASTCache of tlid * string
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
+  | TLMenuUpdate of tlid * menuMsg
 
 (* ------------------- *)
 (* Msgs *)
@@ -1273,7 +1285,7 @@ and msg =
   | TakeOffErrorRail of tlid * id
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
-  | SetHandlerActionsMenu of tlid * bool
+  | TLMenuMsg of tlid * menuMsg
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
@@ -1287,6 +1299,7 @@ and msg =
   | RunWorker of string
   | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
       [@printer opaque "UpdateWorkerScheduleCallback"]
+  | NewTabFromTLMenu of string * tlid
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1331,8 +1344,7 @@ and handlerProp =
       (* When hovering over a reference, this is the list of ids that refer to
        * the reference *)
       id list
-  ; execution : exeState
-  ; showActions : bool }
+  ; execution : exeState }
 
 and tlTraceIDs = traceID TLIDDict.t
 
@@ -1604,7 +1616,8 @@ and model =
   ; searchCache : string TLIDDict.t
   ; editorSettings : editorSettings
   ; teaDebuggerEnabled : bool
-  ; unsupportedBrowser : bool }
+  ; unsupportedBrowser : bool
+  ; tlMenus : menuState TLIDDict.t }
 
 and savedSettings =
   { editorSettings : editorSettings

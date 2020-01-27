@@ -57,7 +57,8 @@ let run () =
             ; avatarsList = []
             ; permission = Some ReadWrite
             ; workerStats = None
-            ; tokens = [] }
+            ; tokens = []
+            ; menuState = {isOpen = false} }
           in
           expect (placeHolderFor vs ParamName) |> toBe "param name") ;
       ()) ;
