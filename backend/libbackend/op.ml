@@ -165,7 +165,7 @@ let required_context_to_validate (op : op) : required_context =
   | RenameDBname _ ->
       AllDatastores
   | CreateDBWithBlankOr _ ->
-      NoContext
+      AllDatastores
   | DeleteTLForever _ ->
       NoContext
   | DeleteFunctionForever _ ->
