@@ -16,8 +16,19 @@ let literalToString
       whole ^ "." ^ fraction
 
 
-(* truncateStringTo63BitInt only supports positive numbers for now, but we should change this once fluid supports negative numbers *)
-(* If it is not an int after truncation, returns an error *)
+(** [truncateStringTo63BitInt s] attempts to chop off the
+ * least-significant base-10 digits of a string [s] intended
+ * to represent an integer, until the resulting truncated string
+ * is a valid base-10 representation of a 63bit integer.
+ * If it succeeds, it produces (Ok truncatedString).
+ * If the result after truncation is not a valid base-10 encoding
+ * of a 63 bit integer, it returns an Error.
+ *
+ * FIXME: This returns Error for strings with leading 0s.
+ *
+ * TODO: This only supports positive numbers for now, but we should change this
+ * (and probably support 64 bit integers) once fluid supports negative numbers.
+ *)
 let truncateStringTo63BitInt (s : string) : (string, string) Result.t =
   let is62BitInt s =
     match Native.BigInt.asUintN ~nBits:62 s with
@@ -38,7 +49,18 @@ let truncateStringTo63BitInt (s : string) : (string, string) Result.t =
     else Error "Invalid 63bit number even after truncate"
 
 
-(* Only supports positive numbers for now, but we should change this once fluid supports negative numbers *)
+(** [coerceStringTo63BitInt s] produces a string
+ * representing a 63-bit base-10 integer based on the
+ * input string [s], truncating the least significant
+ * base-10 digits if necessary.
+ *
+ * Unhandled representations produce "0" as output.
+ *
+ * FIXME: This returns "0" for strings with leading 0s due to truncateStringTo63BitInt.
+ *
+ * TODO: This only supports positive numbers for now, but we should change this
+ * (and probably support 64 bit integers) once fluid supports negative numbers.
+ *)
 let coerceStringTo63BitInt (s : string) : string =
   Result.withDefault (truncateStringTo63BitInt s) ~default:"0"
 
