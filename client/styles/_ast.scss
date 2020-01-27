@@ -135,6 +135,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   padding-top: 4px;
   padding-left: $spacing-medium;
   padding-right: 16px;
+  cursor: move;
 
   @include handler-type(http-get, $http-get);
   @include handler-type(http-post, $http-post);
@@ -145,18 +146,22 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   @include handler-type(worker, $queue-color);
   @include handler-type(repl, $repl-color);
 
-  .handler-type,
+  .blankOr {
+    cursor: text;
+  }
+
+  .toplevel-type,
   .handler-actions,
-  .handler-name {
+  .toplevel-name {
     margin: 0;
     display: inline-block;
   }
 
-  .handler-type div {
+  .toplevel-type div {
     display: inline-block;
   }
 
-  .handler-type .modifier {
+  .toplevel-type .modifier {
     margin-left: 1ch;
 
     .entry #autocomplete-holder {
@@ -192,7 +197,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
     &.complete {
       &:before {
-        @include font-awesome("\f00c");
+        @include font-awesome($fa-check);
 
         position: absolute;
         left: 0;
@@ -204,7 +209,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
       &.failed {
         &:before {
-          @include font-awesome("\f00d");
+          @include font-awesome($fa-times);
           color: $red;
 
           position: absolute;
@@ -282,6 +287,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 // TODO: figure out proper entry box positioning
 // -- this is a demo hack
 .spec-header .entry form {
+  cursor: text;
   margin-top: 0px;
   position: relative;
 }

@@ -186,7 +186,7 @@ test("switching_from_http_to_cron_space_removes_leading_slash", async t => {
     .pressKey("enter")
 
     // edit space
-    .click(".spec-header > .handler-type > .space")
+    .click(".spec-header > .toplevel-type > .space")
     .pressKey("ctrl+a")
     .pressKey("backspace")
     .typeText("#entry-box", "CRON")
@@ -206,7 +206,7 @@ test("switching_from_http_to_repl_space_removes_leading_slash", async t => {
     .pressKey("enter")
 
     // edit space
-    .click(".spec-header > .handler-type > .space")
+    .click(".spec-header > .toplevel-type > .space")
     .pressKey("ctrl+a")
     .pressKey("backspace")
     .typeText("#entry-box", "REPL")
@@ -226,7 +226,7 @@ test("switching_from_http_space_removes_variable_colons", async t => {
     .pressKey("enter")
 
     // edit space
-    .click(".spec-header > .handler-type > .space")
+    .click(".spec-header > .toplevel-type > .space")
     .pressKey("ctrl+a")
     .pressKey("backspace")
     .typeText("#entry-box", "REPL")
@@ -323,12 +323,12 @@ test("editing_headers", async t => {
     .pressKey("enter")
 
     // edit them
-    .click(".spec-header > .handler-name")
+    .click(".spec-header > .toplevel-name")
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "/myroute")
     .pressKey("enter")
 
-    .click(".spec-header > .handler-type > .modifier")
+    .click(".spec-header > .toplevel-type > .modifier")
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "GET")
     .pressKey("enter");
@@ -338,13 +338,13 @@ test("switching_to_http_space_adds_slash", async t => {
   await createWorkerHandler(t);
   await t
     // add headers
-    .click(".spec-header > .handler-name")
+    .click(".spec-header > .toplevel-name")
     .pressKey("enter")
     .typeText("#entry-box", "spec_name")
     .pressKey("enter")
 
     // edit space
-    .click(".spec-header > .handler-type > .space")
+    .click(".spec-header > .toplevel-type > .space")
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "HTTP")
     .pressKey("enter");
@@ -354,7 +354,7 @@ test("switching_from_default_repl_space_removes_name", async t => {
   await createRepl(t);
   await t
     // edit space
-    .click(".spec-header > .handler-type >.space")
+    .click(".spec-header > .toplevel-type >.space")
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "CRON")
     .pressKey("enter");
@@ -403,8 +403,9 @@ test("rename_db_fields", async t => {
   // knows.
   // await t.expect(Selector('.fa-lock', {timeout: 8000})().exists).ok() ;
 
-  await Selector(".fa-lock", { timeout: 8000 })();
-  await t.expect(Selector(".fa-lock").exists).ok();
+  const lockSel = ".db .spec-header.lock";
+  await Selector(lockSel, { timeout: 5000 })();
+  await t.expect(Selector(lockSel).exists).ok();
 
   await t
     .click(Selector(".name").withText("field6"))
@@ -436,8 +437,9 @@ test("rename_db_type", async t => {
   // knows.
   // await t.expect(Selector('.fa-lock', {timeout: 5000})().exists).ok() ;
 
-  await Selector(".fa-lock", { timeout: 5000 })();
-  await t.expect(Selector(".fa-lock").exists).ok();
+  const lockSel = ".db .spec-header.lock";
+  await Selector(lockSel, { timeout: 5000 })();
+  await t.expect(Selector(lockSel).exists).ok();
 
   await t
     .click(Selector(".type").withText("String"))
@@ -587,8 +589,9 @@ test("cant_delete_locked_col", async t => {
     .ok()
     .click(Selector(".execution-button-needed"));
 
-  await Selector(".fa-lock", { timeout: 5000 })();
-  await t.expect(Selector(".fa-lock").exists).ok();
+  const lockSel = ".db .spec-header.lock";
+  await Selector(lockSel, { timeout: 5000 })();
+  await t.expect(Selector(lockSel).exists).ok();
 
   await t
     .click(Selector(".db")) // this click is required due to caching
@@ -843,7 +846,7 @@ test("fluid_ctrl_left_on_empty_match", async t => {
 test("varnames_are_incomplete", async t => {
   await t
     .click(".toplevel")
-    .click(Selector(".spec-header > .handler-name"))
+    .click(Selector(".spec-header > .toplevel-name"))
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", ":a")
     .expect(acHighlightedText("/:a"))

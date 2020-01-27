@@ -34,7 +34,8 @@ type viewState =
   ; workerStats : workerStats option
   ; tokens :
       (* Calculate the tokens once per render only *)
-      FluidToken.tokenInfo list }
+      FluidToken.tokenInfo list
+  ; menuState : menuState }
 
 (* ----------------------------- *)
 (* Events *)
@@ -124,7 +125,10 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
            Some {Defaults.defaultWorkerStats with schedule}
        | Some c, Some _ ->
            Some {c with schedule})
-  ; tokens }
+  ; tokens
+  ; menuState =
+      TLIDDict.get ~tlid m.tlMenus
+      |> Option.withDefault ~default:Defaults.defaultMenu }
 
 
 let fontAwesome (name : string) : msg Html.html =
@@ -270,21 +274,6 @@ let isHoverOverTL (vs : viewState) : bool =
       true
   | _ ->
       false
-
-
-let toggleIconButton
-    ~(name : string)
-    ~(activeIcon : string)
-    ~(inactiveIcon : string)
-    ~(msg : mouseEvent -> msg)
-    ~(active : bool)
-    ~(key : string) : msg Html.html =
-  let icon = if active then activeIcon else inactiveIcon in
-  let cacheKey = key ^ "-" ^ string_of_bool active in
-  Html.div
-    [ Html.classList [(name, true); ("active", active)]
-    ; eventNoPropagation ~key:cacheKey "click" msg ]
-    [fontAwesome icon]
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u

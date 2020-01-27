@@ -157,7 +157,7 @@ $wrapper-background: $black2;
         // character is in line with the first character of the results
         margin-right: 4px;
 
-        @include font-awesome("\f002");
+        @include font-awesome($fa-search);
         color: $grey2;
         font-size: 16px;
       }
@@ -210,39 +210,42 @@ $wrapper-background: $black2;
   .actions {
     display: none;
     margin-top: 5px;
+    margin-right: -4px;
+    padding-bottom: $spacing-medium;
+    background: lighten($black2, 5%);
 
-    div,
-    a {
-      padding: 2px 4px;
+    .item {
+      padding-top: 2px;
+      padding-bottom: 2px;
+      padding-right: 4px;
       padding-left: 8px;
       color: $grey3;
-      background: lighten($black2, 5%);
 
       &:hover {
         cursor: pointer;
-        background: $hover-background;
+        background: darken($highlight-color, 15%);
+      }
+
+      &.disable {
+        color: darken($grey3, 40%);
+
+        &:hover {
+          cursor: not-allowed;
+          background: transparent;
+        }
       }
 
       i.fa {
         margin-left: 4px;
+        margin-right: 2px;
       }
-    }
-
-    a {
-      text-decoration: none;
-    }
-
-    div i.fa {
-      margin-right: 2px;
     }
   }
 
   /* Actions menu opened */
-  &.show {
-    .actions {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-    }
+  &.show .actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
   }
 }

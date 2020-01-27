@@ -13,8 +13,8 @@
   width: max-content;
   max-width: 250px;
 }
+
 .db {
-  margin: 10px;
   display: flex;
   flex-direction: column;
   background-color: $toplevel-background;
@@ -131,48 +131,49 @@
     }
   }
 
-  .fa-lock,
-  .fa-unlock {
-    position: fixed;
-    margin-left: -16px;
-    margin-top: -22px;
-    font-size: 12px;
+  .spec-header {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    color: $db-color;
+    border-bottom-color: $db-color;
 
-    &.fa-lock {
+    &.lock:before {
+      @include font-awesome($fa-lock);
       color: $lock-color;
+    }
 
-      &:hover {
-        color: saturate($lock-color, 15%);
+    &.unlock:before {
+      @include font-awesome($fa-unlock);
+      color: $unlock-color;
+    }
+
+    &.lock::before,
+    &.unlock:before {
+      position: absolute;
+      top: -6px;
+      left: -6px;
+      font-size: 12px;
+    }
+
+    .toplevel-type {
+      i.fa {
+        margin-right: $spacing-small;
       }
     }
 
-    &.fa-unlock {
-      color: $unlock-color;
-    }
-  }
+    .toplevel-name {
+      div,
+      span {
+        display: inline-block;
+      }
 
-  .dbtitle {
-    margin-bottom: 10px;
-    margin: 0 auto;
-
-    width: 100%;
-    text-align: center;
-    border-bottom: 1px solid #b8b8b8;
-    padding-bottom: $spacing-medium;
-
-    /* center the db name */
-    &::before {
-      background-image: url("/_db.png");
-      background-position: left center;
-      background-repeat: no-repeat;
-      padding-left: 20px;
-      /* Adjust according to image size to push text across. */
-      content: "DB: ";
-      font-weight: bold;
-      font-size: 110%;
+      .version {
+        color: $grey2;
+      }
     }
 
-    .dbname {
+    .menu {
       display: inline-block;
     }
   }
@@ -180,14 +181,21 @@
   .col {
     display: flex;
     flex-direction: row;
-    margin-bottom: 4px;
-    margin-top: 4px;
+    margin: 4px 8px;
     justify-content: flex-start;
     align-items: center;
 
     &.key {
       font-size: 10px;
       color: darken($grey3, 15%);
+    }
+
+    &.has-empty {
+      margin-left: 17px;
+    }
+
+    .blankOr {
+      cursor: text;
     }
 
     .name,
@@ -219,16 +227,12 @@
         text-align: left;
       }
     }
+  }
 
-    .name.blank {
-      margin-left: 17px;
-    }
-
-    .migration-view {
-      @extend .default;
-      position: absolute;
-      width: max-content;
-      left: calc(#{"100% + 6px"});
-    }
+  .migration-view {
+    @extend .default;
+    position: absolute;
+    width: max-content;
+    left: calc(#{"100% + 6px"});
   }
 }

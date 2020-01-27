@@ -207,6 +207,7 @@ let tlCacheKey (m : model) tl =
     in
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
     let props = TLIDDict.get ~tlid m.handlerProps in
+    let menuIsOpen = TLMenu.isOpen m tlid in
     let workerSchedule =
       tl |> TL.asHandler |> Option.andThen ~f:(Handlers.getWorkerSchedule m)
     in
@@ -217,6 +218,7 @@ let tlCacheKey (m : model) tl =
       , tracesLoaded
       , avatarsList
       , props
+      , menuIsOpen
       , workerSchedule )
 
 
@@ -226,7 +228,8 @@ let tlCacheKeyDB (m : model) tl =
   then None
   else
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
-    Some (tl, DB.isLocked m tlid, avatarsList)
+    let menuIsOpen = TLMenu.isOpen m tlid in
+    Some (tl, DB.isLocked m tlid, avatarsList, menuIsOpen)
 
 
 let tlCacheKeyTipe (m : model) tl =

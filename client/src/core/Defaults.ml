@@ -69,8 +69,7 @@ let defaultHandlerProp : handlerProp =
   { handlerLock = false
   ; handlerState = HandlerExpanded
   ; hoveringReferences = []
-  ; execution = Idle
-  ; showActions = false }
+  ; execution = Idle }
 
 
 let defaultToast : toast = {toastMessage = None; toastPos = None}
@@ -78,6 +77,8 @@ let defaultToast : toast = {toastMessage = None; toastPos = None}
 let defaultAccount : account = {name = ""; email = ""; username = ""}
 
 let defaultWorkerStats : workerStats = {count = 0; schedule = None}
+
+let defaultMenu : menuState = {isOpen = false}
 
 let defaultModel : model =
   { error = None
@@ -152,4 +153,5 @@ let defaultModel : model =
   ; searchCache = TLIDDict.empty
   ; editorSettings = {showFluidDebugger = false; runTimers = true}
   ; teaDebuggerEnabled = false
-  ; unsupportedBrowser = false }
+  ; unsupportedBrowser = false
+  ; tlMenus = TLIDDict.empty }
