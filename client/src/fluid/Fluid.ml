@@ -3734,6 +3734,21 @@ let doExplicitInsert
         Some
           ( EPartial (parID, mutation str, oldExpr)
           , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
+    | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
+        (* TODO(JULIAN): instead of the complexity of checking things as
+         * they are added, it would be easier to check if the result is
+         * a valid identifier. *)
+        if not (Util.isIdentifierChar extendedGraphemeCluster)
+        then None
+        else if Util.isNumber extendedGraphemeCluster
+                && (oldName = "" || currCaretTarget.offset = 0)
+        then None
+        else
+          let newName = mutation oldName in
+          Some
+            ( ELet
+                (id, newName, value, E.renameVariableUses ~oldName ~newName body)
+            , currCTPlusLen )
     | _ ->
         recover
           "doExplicitInsert - unhandled astRef"
@@ -3882,7 +3897,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     | TVariable _
     | TPatternVariable _
-    | TLetVarName _
+    (* | TLetVarName _ *)
     | TFieldName _
     | TFieldPartial _
     | TLambdaVar _
@@ -3891,7 +3906,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     | TVariable _
     | TPatternVariable _
-    | TLetVarName _
+    (* | TLetVarName _ *)
     | TFieldName _
     | TFieldPartial _
     | TLambdaVar _
@@ -3931,7 +3946,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TStringMLMiddle _
     | TStringMLEnd _ *)
     | TPatternString _
-    | TLetVarName _
+    (* | TLetVarName _ *)
     (* | TTrue _
     | TFalse _ *)
     | TPatternTrue _
