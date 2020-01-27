@@ -1517,9 +1517,7 @@ let run () =
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
         (ins ~wrap:false "x" 120)
-        "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
-      (* TODO: This should be 129, but reflow puts the caret in the wrong
-           * place for new partials *) ;
+        "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01x~" ;
       tp
         "reflows put the caret in the right place on bs"
         (let justLongEnoughToReflow =
