@@ -3728,6 +3728,18 @@ let doExplicitInsert
           then None
           else Some (EInteger (id, coerced), currCTPlusLen)
         else None
+    | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
+        List.getAt ~index nameValPairs
+        |> Option.andThen ~f:(fun (name, _) ->
+               let newName = mutation name in
+               if FluidUtil.isValidIdentifier newName
+               then
+                 let nameValPairs =
+                   List.updateAt nameValPairs ~index ~f:(fun (_, expr) ->
+                       (newName, expr))
+                 in
+                 Some (ERecord (id, nameValPairs), currCTPlusLen)
+               else None)
     | ARBool _, (EBool (_, bool) as oldExpr) ->
         let str = if bool then "true" else "false" in
         let parID = gid () in
@@ -3894,8 +3906,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* | TLetVarName _ *)
     | TFieldName _
     | TFieldPartial _
-    | TLambdaVar _
-    | TRecordFieldname _
+    | TLambdaVar _ (* | TRecordFieldname _ *)
       when not (Util.isIdentifierChar letter) ->
         (ast, SamePlace)
     | TVariable _
@@ -3903,8 +3914,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* | TLetVarName _ *)
     | TFieldName _
     | TFieldPartial _
-    | TLambdaVar _
-    | TRecordFieldname _
+    | TLambdaVar _ (* | TRecordFieldname _ *)
       when Util.isNumber letter && (offset = 0 || FluidToken.isBlank ti.token)
       ->
         (ast, SamePlace)
@@ -3929,7 +3939,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         let newAST = replaceStringToken ~f ti.token ast in
         let newState = moveToNextNonWhitespaceToken ~pos newAST s in
         (newAST, Exactly (newState.newPos + 1)) *)
-    | TRecordFieldname _
+    (* | TRecordFieldname _ *)
     | TFieldName _
     | TFieldPartial _
     | TVariable _
