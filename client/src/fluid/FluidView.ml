@@ -203,16 +203,16 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     | _ ->
         None
   in
+  let dropdown ti =
+    match cmdToken with
+    | Some onTi when onTi = ti ->
+        FluidCommands.viewCommandPalette state.cp
+    | _ ->
+        if Fluid.isAutocompleting ti state
+        then viewAutocomplete state.ac
+        else Vdom.noNode
+  in
   List.map vs.tokens ~f:(fun ti ->
-      let dropdown () =
-        match cmdToken with
-        | Some onTi when onTi = ti ->
-            FluidCommands.viewCommandPalette state.cp
-        | _ ->
-            if Fluid.isAutocompleting ti state
-            then viewAutocomplete state.ac
-            else Vdom.noNode
-      in
       let element nested =
         let tokenId = T.tid ti.token in
         let idStr = deID tokenId in
@@ -272,65 +272,21 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
               | SourceId id ->
                   id = tokenId ) ]
         in
-        let clickHandlers =
-          [ ViewUtils.eventNeither
-              ~key:("fluid-selection-dbl-click" ^ idStr)
-              "dblclick"
-              (fun ev ->
-                match Entry.getFluidCaretPos () with
-                | Some pos ->
-                    let state =
-                      {state with newPos = pos; oldPos = state.newPos}
-                    in
-                    ( match ev with
-                    | {detail = 2; altKey = true; _} ->
-                        FluidMsg
-                          (FluidMouseUp
-                             (tlid, Fluid.getExpressionRangeAtCaret state ast))
-                    | {detail = 2; altKey = false; _} ->
-                        FluidMsg
-                          (FluidMouseUp
-                             (tlid, Fluid.getTokenRangeAtCaret state ast))
-                    | _ ->
-                        recover
-                          "detail was not 2 in the doubleclick event"
-                          ~debug:ev
-                          (FluidMsg (FluidMouseUp (tlid, None))) )
-                | None ->
-                    recover
-                      "found no caret pos in the doubleclick handler"
-                      ~debug:ev
-                      (FluidMsg (FluidMouseUp (tlid, None))))
-          ; ViewUtils.eventNoPropagation
-              ~key:("fluid-selection-mousedown" ^ idStr)
-              "mousedown"
-              (fun _ -> FluidMsg (FluidMouseDown tlid))
-          ; ViewUtils.eventNoPropagation
-              ~key:("fluid-selection-mouseup" ^ idStr)
-              "mouseup"
-              (fun _ -> FluidMsg (FluidMouseUp (tlid, None)))
-          ; ViewUtils.onAnimationEnd
-              ~key:("anim-end" ^ idStr)
-              ~listener:(fun msg ->
-                if msg = "flashError" || msg = "flashIncomplete"
-                then FluidMsg FluidClearErrorDvSrc
-                else IgnoreMsg) ]
-        in
         let innerNode =
           match innerNestingClass with
           | Some cls ->
               [ Html.span
-                  ([Attrs.class' (cls |> String.join ~sep:" ")] @ clickHandlers)
+                  [Attrs.class' (cls |> String.join ~sep:" ")]
                   [Html.text content] ]
           | None ->
               [Html.text content]
         in
         Html.span
-          (Html.classList (cls @ conditionalClasses) :: clickHandlers)
+          [Html.classList (cls @ conditionalClasses)]
           (innerNode @ nested)
       in
       if vs.permission = Some ReadWrite
-      then [element [dropdown (); viewPlayIcon ast ti ~vs ~state]]
+      then [element [dropdown ti; viewPlayIcon ast ti ~vs ~state]]
       else [element []])
   |> List.flatten
 
@@ -496,6 +452,46 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
           ("compositionend" ^ show_tlid tlid)
           FluidTextInput.fromCompositionEndEvent )
   in
+  let clickHandlers =
+    let idStr = deTLID tlid in
+    [ ViewUtils.eventNeither
+        ~key:("fluid-selection-dbl-click" ^ idStr)
+        "dblclick"
+        (fun ev ->
+          match Entry.getFluidCaretPos () with
+          | Some pos ->
+              let state = {state with newPos = pos; oldPos = state.newPos} in
+              ( match ev with
+              | {detail = 2; altKey = true; _} ->
+                  FluidMsg
+                    (FluidMouseUp
+                       (tlid, Fluid.getExpressionRangeAtCaret state ast))
+              | {detail = 2; altKey = false; _} ->
+                  FluidMsg
+                    (FluidMouseUp (tlid, Fluid.getTokenRangeAtCaret state ast))
+              | _ ->
+                  recover
+                    "detail was not 2 in the doubleclick event"
+                    ~debug:ev
+                    (FluidMsg (FluidMouseUp (tlid, None))) )
+          | None ->
+              recover
+                "found no caret pos in the doubleclick handler"
+                ~debug:ev
+                (FluidMsg (FluidMouseUp (tlid, None))))
+    ; ViewUtils.eventNoPropagation
+        ~key:("fluid-selection-mousedown" ^ idStr)
+        "mousedown"
+        (fun _ -> FluidMsg (FluidMouseDown tlid))
+    ; ViewUtils.eventNoPropagation
+        ~key:("fluid-selection-mouseup" ^ idStr)
+        "mouseup"
+        (fun _ -> FluidMsg (FluidMouseUp (tlid, None)))
+    ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ idStr) ~listener:(fun msg ->
+          if msg = "flashError" || msg = "flashIncomplete"
+          then FluidMsg FluidClearErrorDvSrc
+          else IgnoreMsg) ]
+  in
   [ Html.div
       ( [ Attrs.id Fluid.editorID
         ; Vdom.prop "contentEditable" "true"
@@ -503,6 +499,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
         ; Vdom.attribute "" "spellcheck" "false"
         ; Vdom.attribute "" (* disable grammarly crashes *) "data-gramm" "false"
         ]
+      @ clickHandlers
       @ Tuple3.toList textInputListeners )
       (toHtml ast ~vs ~tlid ~state)
   ; liveValue

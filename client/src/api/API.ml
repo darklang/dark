@@ -42,7 +42,7 @@ let postEmptyString decoder (csrfToken : string) (url : string) =
     ; withCredentials = false }
 
 
-let opsParams (ops : op list) (opCtr : int option) (clientOpCtrId : string) :
+let opsParams (ops : op list) (opCtr : int) (clientOpCtrId : string) :
     addOpAPIParams =
   {ops; opCtr; clientOpCtrId}
 
@@ -203,16 +203,16 @@ let filterOpsAndResult
      * an updated map *)
     StrDict.update m.opCtrs ~key:params.clientOpCtrId ~f:(fun oldCtr ->
         match (oldCtr, params.opCtr) with
-        | Some oldCtr, Some paramsOpCtr ->
+        | Some oldCtr, paramsOpCtr ->
             Some (max oldCtr paramsOpCtr)
         | _ ->
-            params.opCtr)
+            Some params.opCtr)
   in
   let m2 = {m with opCtrs = newOpCtrs} in
   (* if the new opCtrs map was updated by params.opCtr, then this msg was the
    * latest; otherwise, we need to filter out some ops from params *)
   (* temporarily _don't_ filter ops *)
-  if StrDict.get m2.opCtrs ~key:params.clientOpCtrId = params.opCtr
+  if StrDict.get m2.opCtrs ~key:params.clientOpCtrId = Some params.opCtr
   then (m2, params.ops, result)
   else
     (* filter down to only those ops which can be applied out of order without

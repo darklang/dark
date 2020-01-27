@@ -422,31 +422,26 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       b |> addNested ~f:(fromExpr casea)
 
 
-let infoize ~(pos : int) tokens : tokenInfo list =
-  let row, col = (ref 0, ref 0) in
-  let rec makeInfo p ts =
-    match ts with
-    | [] ->
-        []
-    | token :: rest ->
-        let length = String.length (T.toText token) in
-        let ti =
-          { token
-          ; startRow = !row
-          ; startCol = !col
-          ; startPos = p
-          ; endPos = p + length
-          ; length }
-        in
-        ( match token with
-        | TNewline _ ->
-            row := !row + 1 ;
-            col := 0
-        | _ ->
-            col := !col + length ) ;
-        ti :: makeInfo (p + length) rest
-  in
-  makeInfo pos tokens
+let infoize tokens : tokenInfo list =
+  let row, col, pos = (ref 0, ref 0, ref 0) in
+  List.map tokens ~f:(fun token ->
+      let length = String.length (T.toText token) in
+      let ti =
+        { token
+        ; startRow = !row
+        ; startCol = !col
+        ; startPos = !pos
+        ; endPos = !pos + length
+        ; length }
+      in
+      ( match token with
+      | TNewline _ ->
+          row := !row + 1 ;
+          col := 0
+      | _ ->
+          col := !col + length ) ;
+      pos := !pos + length ;
+      ti)
 
 
 let validateTokens (tokens : fluidToken list) : fluidToken list =
@@ -466,7 +461,7 @@ let toTokens (e : E.t) : tokenInfo list =
   |> Builder.asTokens
   |> tidy
   |> validateTokens
-  |> infoize ~pos:0
+  |> infoize
 
 
 let tokensToString (tis : tokenInfo list) : string =
@@ -549,7 +544,7 @@ let pToString (p : fluidPattern) : string =
 let pToStructure (p : fluidPattern) : string =
   p
   |> patternToToken ~idx:0
-  |> infoize ~pos:0
+  |> infoize
   |> List.map ~f:(fun ti ->
          "<" ^ T.toTypeName ti.token ^ ":" ^ T.toText ti.token ^ ">")
   |> String.join ~sep:""

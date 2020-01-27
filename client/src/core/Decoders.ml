@@ -780,17 +780,12 @@ let addOpAPIResult j : addOpAPIResult =
 
 
 let addOpAPIParams j : addOpAPIParams =
-  (* if we roll back the server, we might get new client code (this code), but
-   * no opCtr from the server, so handle that case *)
-  let opCtr = try Some (field "opCtr" int j) with _ -> None in
   { ops = field "ops" (list op) j
-  ; opCtr
-    (* withDefault in case we roll back and have an old server that doesn't send
-* us this field *)
-  ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j }
+  ; opCtr = field "opCtr" int j
+  ; clientOpCtrId = (field "clientOpCtrId" string) j }
 
 
-let addOpAPIStrollerMsg j : addOpStrollerMsg =
+let addOpAPIStrollerMsg (j : Js.Json.t) : addOpStrollerMsg =
   { result = field "result" addOpAPIResult j
   ; params = field "params" addOpAPIParams j }
 
