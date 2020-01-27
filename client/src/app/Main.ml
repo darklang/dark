@@ -368,9 +368,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearError ->
         ({m with error = None}, Cmd.none)
     | AddOps (ops, focus) ->
-        handleAPI
-          (API.opsParams ops (Some ((m |> opCtr) + 1)) m.clientOpCtrId)
-          focus
+        handleAPI (API.opsParams ops ((m |> opCtr) + 1) m.clientOpCtrId) focus
     | GetUnlockedDBsAPICall ->
         Sync.attempt ~key:"unlocked" m (API.getUnlockedDBs m)
     | UpdateDBStatsAPICall tlid ->
@@ -1345,16 +1343,6 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
         ]
-  | AddOpsAPICallback (_, params, Ok _) when params.opCtr = None ->
-      HandleAPIError
-        (APIError.make
-           ~context:"AddOps - old server, no opCtr sent"
-           ~importance:ImportantError
-           ~requestParams:(Encoders.addOpAPIParams params)
-           ~reload:false
-           (* not a great error ... but this is an api error without a
-            * corresponding actual http error *)
-           Tea.Http.Aborted)
   | AddOpsAPICallback (focus, params, Ok r) ->
       let m, newOps, _ = API.filterOpsAndResult m params None in
       let params = {params with ops = newOps} in
@@ -1368,8 +1356,10 @@ let update_ (msg : msg) (m : model) : modification =
           let m =
             { m with
               opCtrs =
-                StrDict.update m.opCtrs ~key:params.clientOpCtrId ~f:(fun _ ->
-                    params.opCtr)
+                StrDict.insert
+                  m.opCtrs
+                  ~key:params.clientOpCtrId
+                  ~value:params.opCtr
             ; handlers =
                 TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
             ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
@@ -1681,13 +1671,17 @@ let update_ (msg : msg) (m : model) : modification =
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->
-      ( match Toplevel.selected m with
-      | Some tl when Toplevel.isDB tl ->
-          Many [UpdateDBStatsAPICall (TL.id tl); GetUnlockedDBsAPICall]
-      | Some tl when Toplevel.isWorkerHandler tl ->
-          Many [GetWorkerStatsAPICall (TL.id tl); GetUnlockedDBsAPICall]
-      | _ ->
-          GetUnlockedDBsAPICall )
+        let getUnlockedDBs =
+          (* Small optimization *)
+          if StrDict.count m.dbs > 0 then GetUnlockedDBsAPICall else NoChange
+        in
+        ( match Toplevel.selected m with
+        | Some tl when Toplevel.isDB tl ->
+            Many [UpdateDBStatsAPICall (TL.id tl); getUnlockedDBs]
+        | Some tl when Toplevel.isWorkerHandler tl ->
+            Many [GetWorkerStatsAPICall (TL.id tl); getUnlockedDBs]
+        | _ ->
+            getUnlockedDBs )
     | RefreshAvatars ->
         ExpireAvatars
     | _ ->
