@@ -3728,14 +3728,19 @@ let doExplicitInsert
     | ARLambda (_, LBPVarName index), ELambda (id, vars, expr) ->
         vars
         |> List.getAt ~index
-        |> Option.map ~f:(fun (_, oldName) ->
+        |> Option.andThen ~f:(fun (_, oldName) ->
                let newName = oldName |> mutation in
-               let vars =
-                 List.updateAt vars ~index ~f:(fun (varId, _) ->
-                     (varId, newName))
-               in
-               ( ELambda (id, vars, E.renameVariableUses ~oldName ~newName expr)
-               , currCTPlusLen ))
+               if FluidUtil.isValidIdentifier newName
+               then
+                 let vars =
+                   List.updateAt vars ~index ~f:(fun (varId, _) ->
+                       (varId, newName))
+                 in
+                 Some
+                   ( ELambda
+                       (id, vars, E.renameVariableUses ~oldName ~newName expr)
+                   , currCTPlusLen )
+               else None)
     | ARBinOp _, (EBinOp (_, op, _, _, _) as oldExpr) ->
         let str = op |> FluidUtil.partialName |> mutation |> String.trim in
         let newID = gid () in
@@ -3966,16 +3971,16 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TPatternVariable _
     (* | TLetVarName _ *)
     (* | TFieldName _ *)
-    | TFieldPartial _
-    | TLambdaVar _ (* | TRecordFieldname _ *)
+    | TFieldPartial _ (* | TLambdaVar _ *)
+                      (* | TRecordFieldname _ *)
       when not (Util.isIdentifierChar letter) ->
         (ast, SamePlace)
     (* | TVariable _ *)
     | TPatternVariable _
     (* | TLetVarName _ *)
     (* | TFieldName _ *)
-    | TFieldPartial _
-    | TLambdaVar _ (* | TRecordFieldname _ *)
+    | TFieldPartial _ (* | TLambdaVar _ *)
+                      (* | TRecordFieldname _ *)
       when Util.isNumber letter && (offset = 0 || FluidToken.isBlank ti.token)
       ->
         (ast, SamePlace)
