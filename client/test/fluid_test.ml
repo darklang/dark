@@ -391,10 +391,11 @@ let inputs
     ?(debug = false)
     ?(wrap = true)
     ?(clone = true)
+    ?(selectionStart = None)
     (inputs : fluidInputEvent list)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process ~wrap ~debug ~clone inputs None pos expr
+  process ~wrap ~debug ~clone inputs selectionStart pos expr
 
 
 (* Test expecting no partials found and an expected caret position but no selection *)
@@ -555,6 +556,11 @@ let run () =
         aStr
         (selectionInputs [DeleteContentBackward] 0 13)
         ("___", (None, 0)) ;
+      ts
+        "Replace text in string if text is inserted with selection"
+        aStr
+        (inputs [InsertText "a"] 1 ~selectionStart:(Some 5))
+        ("\"a string\"", (None, 2)) ;
       ()) ;
   describe "Multi-line Strings" (fun () ->
       t
@@ -936,6 +942,11 @@ let run () =
         (partial "abcdefgh" b)
         (ins "\"" 0)
         "\"~abcdefgh" ;
+      ts
+        "Replace text in multiline string if text is inserted with selection"
+        mlStrWSpace
+        (inputs [InsertText "a"] 1 ~selectionStart:(Some 72))
+        ("\"a89_ abcdefghi,\"", (None, 2)) ;
       ()) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins "0" 0) "~12345" ;
@@ -980,6 +991,11 @@ let run () =
         oneShorterThanMax62BitInt
         (inputs [DeleteWordBackward] 18)
         "~___" ;
+      ts
+        "Replace int if inserted with selection"
+        anInt
+        (inputs [InsertText "4"] 0 ~selectionStart:(Some 4))
+        ("45", (None, 1)) ;
       ()) ;
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (ins "." 5) "12345.~" ;
@@ -1098,6 +1114,11 @@ let run () =
         aFloat
         (inputs [DeleteWordForward] 3)
         "123~456" ;
+      ts
+        "Replace text in float if int is inserted with selection"
+        aFloat
+        (inputs [InsertText "4"] 1 ~selectionStart:(Some 6))
+        ("146", (None, 2)) ;
       ()) ;
   describe "Bools" (fun () ->
       tp "insert start of true" trueBool (ins "c" 0) "c~true" ;
@@ -3612,6 +3633,12 @@ let run () =
         (key (K.GoToEndOfLine KeepSelection) 0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 47) ) ;
+      ts
+        "Replace text in let if text is inserted with selection"
+        longLets
+        (inputs [InsertText "a"] 35 ~selectionStart:(Some 9))
+        ( "let firsta = \"PQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (None, 10) ) ;
       ()) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
