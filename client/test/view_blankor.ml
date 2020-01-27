@@ -5,10 +5,7 @@ open ViewBlankOr
 let run () =
   describe "placeholdersDisplayed" (fun () ->
       test "shows placeholders in user functions" (fun () ->
-          let id = gid () in
-          let ast =
-            EFnCall (gid (), "Int::add_v0", [EBlank id; EBlank (gid ())], NoRail)
-          in
+          let ast = FluidExpression.EBlank (gid ()) in
           let tlFunc =
             TLFunc
               { ufAST = ast

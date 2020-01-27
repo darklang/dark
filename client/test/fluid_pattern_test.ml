@@ -3,6 +3,7 @@ open Prelude
 open Fluid
 module K = FluidKeyboard
 module TL = Toplevel
+open FluidPattern
 
 (* These tests should be synced with the subset of tests in fluid_test.ml that
  * makes sense for patterns. See the extensive docs there for how this all
@@ -53,8 +54,8 @@ let run () =
       ~(debug : bool)
       (inputs : fluidInputEvent list)
       (pos : int)
-      (pat : fluidPattern) : string * int =
-    let ast = EMatch (mID, EBlank (gid ()), [(pat, EBlank (gid ()))]) in
+      (pat : FluidPattern.t) : string * int =
+    let ast = E.EMatch (mID, EBlank (gid ()), [(pat, EBlank (gid ()))]) in
     let extra = 12 in
     let pos = pos + extra in
     let s =

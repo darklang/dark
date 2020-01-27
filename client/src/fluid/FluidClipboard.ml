@@ -48,24 +48,24 @@ let jsonToExpr (jsonStr : string) : E.t option =
               recover
                 "invalid float passed the regex"
                 ~debug:str
-                (EInteger (gid (), "0"))
+                (E.EInteger (gid (), "0"))
         else
           (* TODO: support floats in the format 3.4e5 *)
           recover
             "unsupported float in json"
             ~debug:str
-            (EInteger (gid (), "0"))
+            (E.EInteger (gid (), "0"))
     | JSONObject dict ->
         dict
         |> Js_dict.entries
         |> Array.toList
         |> List.map ~f:(fun (k, json) -> (k, jsJsonToExpr json))
-        |> fun fields -> ERecord (gid (), fields)
+        |> fun fields -> E.ERecord (gid (), fields)
     | JSONArray arr ->
         arr
         |> Array.toList
         |> List.map ~f:jsJsonToExpr
-        |> fun exprs -> EList (gid (), exprs)
+        |> fun exprs -> E.EList (gid (), exprs)
   in
   try
     let j = Json.parseOrRaise jsonStr in

@@ -155,7 +155,7 @@ let viewPlayIcon
       (* Looking these up can be slow, so the fnPreviewExecutionSafe check
        * above is very important *)
       let allExprs = fnArgExprs ti.token ast in
-      let argIDs = List.map ~f:E.id allExprs in
+      let argIDs = List.map ~f:E.toID allExprs in
       ( match ti.token with
       | TFnVersion (id, _, _, _) ->
           ViewFnExecution.fnExecutionButton vs fn id argIDs
@@ -324,7 +324,7 @@ let viewLiveValue
     let fnLoading =
       (* If fn needs to be manually executed, check status *)
       let fn = fnForToken state token in
-      let args = fnArgExprs token ast |> List.map ~f:E.id in
+      let args = fnArgExprs token ast |> List.map ~f:E.toID in
       Option.andThen fn ~f:(fun fn ->
           if fn.fnPreviewExecutionSafe
           then None
@@ -394,7 +394,7 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
     =
   if tlidOf vs.cursorState = Some vs.tlid
   then
-    let id = E.id ast in
+    let id = E.toID ast in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
     | LoadableSuccess dval ->
         Html.div

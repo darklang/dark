@@ -2,6 +2,7 @@ open Prelude
 open Fluid
 open Fluid_test_data
 open Tester
+open FluidExpression
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
 
@@ -297,7 +298,9 @@ end
 
 let rec unwrap (id : id) (expr : E.t) : E.t =
   let f = unwrap id in
-  let childOr (exprs : E.t list) = List.find exprs ~f:(fun e -> E.id e = id) in
+  let childOr (exprs : E.t list) =
+    List.find exprs ~f:(fun e -> E.toID e = id)
+  in
   let newExpr =
     match expr with
     | ELet (_, _, rhs, next) ->
@@ -336,6 +339,7 @@ let rec unwrap (id : id) (expr : E.t) : E.t =
 
 
 let rec changeStrings (id : id) ~(f : string -> string) (expr : E.t) : E.t =
+  let open FluidExpression in
   let fStr strid str = if strid = id then f str else str in
   let newExpr =
     match expr with
@@ -366,7 +370,7 @@ let rec changeStrings (id : id) ~(f : string -> string) (expr : E.t) : E.t =
           ( rid
           , List.map
               ~f:(fun (name, expr) ->
-                if id = E.id expr then (f name, expr) else (name, expr))
+                if id = E.toID expr then (f name, expr) else (name, expr))
               fields )
     | EString (id, str) ->
         EString (id, f str)
@@ -387,9 +391,10 @@ let shortenNames (id : id) (expr : E.t) : E.t =
 let rec remove (id : id) (expr : E.t) : E.t =
   let r e = remove id e in
   let removeFromList exprs =
-    List.filterMap exprs ~f:(fun e -> if E.id e = id then None else Some (r e))
+    List.filterMap exprs ~f:(fun e ->
+        if E.toID e = id then None else Some (r e))
   in
-  if E.id expr = id
+  if E.toID expr = id
   then EBlank id
   else
     let f expr =
@@ -414,7 +419,7 @@ let rec remove (id : id) (expr : E.t) : E.t =
             , mexpr
             , List.filterMap
                 ~f:(fun (pattern, expr) ->
-                  if E.id expr = id || FluidPattern.id pattern = id
+                  if E.toID expr = id || FluidPattern.toID pattern = id
                   then None
                   else Some (pattern, expr))
                 pairs )
@@ -423,7 +428,7 @@ let rec remove (id : id) (expr : E.t) : E.t =
             ( rid
             , List.filterMap
                 ~f:(fun (name, expr) ->
-                  if E.id expr = id then None else Some (name, expr))
+                  if E.toID expr = id then None else Some (name, expr))
                 fields )
       | EPipe (id, exprs) ->
         ( match removeFromList exprs with
@@ -448,7 +453,7 @@ let rec remove (id : id) (expr : E.t) : E.t =
 
 
 let rec simplify (id : id) (expr : E.t) : E.t =
-  if E.id expr = id && not (E.isBlank expr)
+  if E.toID expr = id && not (E.isBlank expr)
   then EInteger (id, "5")
   else E.walk ~f:(simplify id) expr
 
@@ -458,7 +463,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
     let tokenIDs =
       ast |> FluidPrinter.toTokens |> List.map ~f:(fun ti -> T.tid ti.token)
     in
-    let eIDs = ast |> E.filterMap ~f:(fun e -> Some (E.id e)) in
+    let eIDs = ast |> E.filterMap ~f:(fun e -> Some (E.toID e)) in
     let ids =
       tokenIDs @ eIDs
       |> List.uniqueBy ~f:Prelude.deID

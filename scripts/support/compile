@@ -305,8 +305,16 @@ def execute(should):
 
 def mark(should, f):
   # Ocaml
-  if "backend/esy.json" in f:
+  if ("libshared/" in f) \
+          and ((".mli" in f) \
+            or (".ml" in f)):
+    should.backend_build = True
+    should.client_build = True
+
+
+  elif "backend/esy.json" in f:
     should.esy_install = True
+
   elif ("backend/test/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
@@ -319,6 +327,7 @@ def mark(should, f):
                   or ("_tags" in f) \
                   or ("libtarget.js" in f)):
     should.backend_build = True
+
 
   elif ("templates/" in f) and (".html" in f):
     should.backend_build = True

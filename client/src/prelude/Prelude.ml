@@ -46,15 +46,15 @@ end
 (* -------------------------------------- *)
 let deID (ID i : id) : string = i
 
-let showID (ID i) = i
+let showID (ID i : id) = i
+
+let gid () = Shared.gid ()
 
 let deTLID (TLID i : tlid) : string = i
 
 let showTLID (TLID i) = i
 
-let gid (unit : unit) : id = ID (Util.random unit |> string_of_int)
-
-let gtlid (unit : unit) : tlid = TLID (Util.random unit |> string_of_int)
+let gtlid () : tlid = TLID (Util.random () |> string_of_int)
 
 (* -------------------------------------- *)
 (* CursorState *)

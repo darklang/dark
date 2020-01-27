@@ -3,7 +3,8 @@ open Prelude
 (* Dark *)
 module B = BlankOr
 module E = FluidExpression
-module P = Pointer
+open FluidExpression
+open FluidPattern
 
 (* -------------------------------- *)
 (* PointerData *)
@@ -129,7 +130,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
   let fpowList xs =
     xs |> List.map ~f:fpow |> List.filterMap ~f:identity |> List.head
   in
-  if List.member ~value:eid (haystack |> children |> List.map ~f:E.id)
+  if List.member ~value:eid (haystack |> children |> List.map ~f:E.toID)
   then Some haystack
   else
     match haystack with
@@ -188,7 +189,7 @@ let getParamIndex (expr : E.t) (id : id) : (string * int) option =
   match parent with
   | Some (EFnCall (_, name, args, _)) ->
       args
-      |> List.findIndex ~f:(fun a -> E.id a = id)
+      |> List.findIndex ~f:(fun a -> E.toID a = id)
       |> Option.map ~f:(fun i -> (name, i))
   | _ ->
       None
@@ -199,7 +200,7 @@ let threadPrevious (id : id) (ast : E.t) : E.t option =
   match parent with
   | Some (EPipe (_, exprs)) ->
       exprs
-      |> List.find ~f:(fun e -> E.id e = id)
+      |> List.find ~f:(fun e -> E.toID e = id)
       |> Option.andThen ~f:(fun value -> Util.listPrevious ~value exprs)
   | _ ->
       None
@@ -214,7 +215,7 @@ let ancestors (id : id) (expr : E.t) : E.t list =
     let reclist id_ e_ walk_ exprs =
       exprs |> List.map ~f:(rec_ id_ e_ walk_) |> List.concat
     in
-    if E.id exp = tofind
+    if E.toID exp = tofind
     then walk
     else
       match exp with
@@ -291,7 +292,7 @@ let freeVariables (ast : E.t) : (id * string) list =
            | _ ->
                None)
     |> List.concat
-    |> List.map ~f:(E.id >> deID)
+    |> List.map ~f:(E.toID >> deID)
     |> StrSet.fromList
   in
   ast
@@ -310,7 +311,7 @@ let freeVariables (ast : E.t) : (id * string) list =
 let blanks (ast : E.t) : E.t list = E.filter ast ~f:E.isBlank
 
 let ids (ast : E.t) : id list =
-  E.filter ast ~f:(fun _ -> true) |> List.map ~f:E.id
+  E.filter ast ~f:(fun _ -> true) |> List.map ~f:E.toID
 
 
 module VarDict = StrDict
@@ -402,7 +403,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
 
 let variablesIn (ast : E.t) : avDict =
   let sym_store = IDTable.make () in
-  let trace expr st = IDTable.set sym_store (deID (E.id expr)) st in
+  let trace expr st = IDTable.set sym_store (deID (E.toID expr)) st in
   sym_exec ~trace VarDict.empty ast ;
   sym_store |> IDTable.toList |> StrDict.fromList
 

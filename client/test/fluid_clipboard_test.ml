@@ -5,6 +5,7 @@ open Fluid
 open Fluid_test_data
 module B = BlankOr
 module K = FluidKeyboard
+open FluidExpression
 
 type testResult =
   (* ast, clipboard, newPos *)
@@ -65,7 +66,7 @@ let execute_roundtrip (ast : fluidExpr) =
 
 
 let run () =
-  E.functions := Fluid_test_data.defaultTestFunctions ;
+  OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   let insertCursor (str, pos) : string =
     str
     |> String.splitAt ~index:pos

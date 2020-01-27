@@ -24,7 +24,7 @@ let run () =
           in
           expect (getSelectedExprID s ast) |> toEqual (Some (ID "letVal"))) ;
       test "select larger expressions" (fun () ->
-          let ast = EFnCall (ID "fn", "+", [int "1"; int "2"], NoRail) in
+          let ast = E.EFnCall (ID "fn", "+", [int "1"; int "2"], NoRail) in
           let s =
             { defaultTestState with
               oldPos = 0

@@ -1,12 +1,56 @@
-open Prelude
+include Tc
+open Shared
 
-type t = Types.fluidExpr [@@deriving show]
+type sendToRail =
+  | Rail
+  | NoRail
+[@@deriving show {with_path = false}]
 
-let functions = ref []
+type t =
+  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
+   * support *)
+  | EInteger of id * string
+  | EBool of id * bool
+  | EString of id * string
+  | EFloat of id * string * string
+  | ENull of id
+  | EBlank of id
+  | ELet of id * string * t * t
+  | EIf of id * t * t * t
+  | EBinOp of id * string * t * t * sendToRail
+  (* the id in the varname list is the analysis ID, used to get a livevalue
+   * from the analysis engine *)
+  | ELambda of id * (analysisID * string) list * t
+  | EFieldAccess of id * t * string
+  | EVariable of id * string
+  | EFnCall of id * string * t list * sendToRail
+  | EPartial of id * string * t
+  | ERightPartial of id * string * t
+  | EList of id * t list
+  (* The ID in the list is extra for the fieldname *)
+  | ERecord of id * (string * t) list
+  | EPipe of id * t list
+  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
+   * expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
+   * or length 0 (for `Nothing`).
+   *)
+  | EConstructor of id * string * t list
+  | EMatch of id * t * (FluidPattern.t * t) list
+  (* Placeholder that indicates the target of the Thread. May be movable at
+   * some point *)
+  | EPipeTarget of id
+  (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
+  | EFeatureFlag of id * string * t * t * t
+[@@deriving show {with_path = false}]
+
+type fluidPatOrExpr =
+  | Expr of t
+  | Pat of FluidPattern.t
+[@@deriving show {with_path = false}]
 
 let newB () = EBlank (gid ())
 
-let id (expr : t) : Types.id =
+let toID (expr : t) : id =
   match expr with
   | EInteger (id, _)
   | EString (id, _)
@@ -33,7 +77,7 @@ let id (expr : t) : Types.id =
       id
 
 
-let rec findExprOrPat (target : Types.id) (within : fluidPatOrExpr) :
+let rec findExprOrPat (target : id) (within : fluidPatOrExpr) :
     fluidPatOrExpr option =
   let id, patOrExprs =
     match within with
@@ -88,9 +132,9 @@ let rec findExprOrPat (target : Types.id) (within : fluidPatOrExpr) :
   else patOrExprs |> List.findMap ~f:(fun pOrE -> findExprOrPat target pOrE)
 
 
-let rec find (target : Types.id) (expr : t) : t option =
+let rec find (target : id) (expr : t) : t option =
   let fe = find target in
-  if id expr = target
+  if toID expr = target
   then Some expr
   else
     match expr with
@@ -132,11 +176,10 @@ let rec find (target : Types.id) (expr : t) : t option =
         |> Option.orElseLazy (fun () -> fe caseb)
 
 
-let findParent (target : Types.id) (expr : t) : t option =
-  let rec findParent' ~(parent : t option) (target : Types.id) (expr : t) :
-      t option =
+let findParent (target : id) (expr : t) : t option =
+  let rec findParent' ~(parent : t option) (target : id) (expr : t) : t option =
     let fp = findParent' ~parent:(Some expr) target in
-    if id expr = target
+    if toID expr = target
     then parent
     else
       match expr with
@@ -194,7 +237,7 @@ let isEmpty (expr : t) : bool =
       false
 
 
-let hasEmptyWithId (id : Types.id) (expr : t) : bool =
+let hasEmptyWithId (id : id) (expr : t) : bool =
   match find id expr with Some e -> isEmpty e | _ -> false
 
 
@@ -259,11 +302,10 @@ let filter ~(f : t -> bool) (expr : t) : 'a list =
   filterMap ~f:(fun t -> if f t then Some t else None) expr
 
 
-let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t) :
-    t =
+let update ?(failIfMissing = true) ~(f : t -> t) (target : id) (ast : t) : t =
   let found = ref false in
   let rec run e =
-    if target = id e
+    if target = toID e
     then (
       found := true ;
       f e )
@@ -274,11 +316,11 @@ let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t) :
   then
     if not !found
        (* prevents the significant performance cost of show_fluidExpr *)
-    then
-      asserT
-        ~debug:(show_id target, show_fluidExpr ast)
-        "didn't find the id in the expression to update"
-        !found ;
+    then () ;
+  (* asserT *)
+  (*   ~debug:(show_id target, show ast) *)
+  (*   "didn't find the id in the expression to update" *)
+  (*   !found ; *)
   finished
 
 
@@ -286,14 +328,13 @@ let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t) :
  * It's very unclear which to use at what point and likely to cause bugs.
  * We should either hide [update] from the public interface of FluidExpression
  * or remove [replace] and put the special-case EPipe logic into the calling code. *)
-let replace ~(replacement : t) (target : Types.id) (ast : t) : t =
-  let open Types in
+let replace ~(replacement : t) (target : id) (ast : t) : t =
   (* If we're putting a pipe into another pipe, fix it up *)
   let target', newExpr' =
     match (findParent target ast, replacement) with
     | Some (EPipe (parentID, oldExprs)), EPipe (newID, newExprs) ->
         let before, elemAndAfter =
-          List.splitWhen ~f:(fun nested -> id nested = target) oldExprs
+          List.splitWhen ~f:(fun nested -> toID nested = target) oldExprs
         in
         let after = List.tail elemAndAfter |> Option.withDefault ~default:[] in
         (parentID, EPipe (newID, before @ newExprs @ after))
