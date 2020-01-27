@@ -159,6 +159,8 @@ let seventyEight = EInteger (gid (), "78")
 (* ---------------- *)
 let aFloat = EFloat (gid (), "123", "456")
 
+let aFloatWithoutWhole = EFloat (gid (), "", "1")
+
 let aHugeFloat = EFloat (gid (), "123456789", "123456789")
 
 let aPartialFloat = EFloat (gid (), "1", "")
