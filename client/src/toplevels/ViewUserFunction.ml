@@ -68,16 +68,29 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
       buttonContent true
 
 
+let viewParam (fn : userFunction) (vs : viewState) (p : userFunctionParameter) :
+    msg Html.html =
+  Html.div
+    [Html.class' "col"]
+    [ ( if vs.permission = Some ReadWrite
+      then viewKillParameterBtn fn p
+      else Vdom.noNode )
+    ; viewParamName vs [wc "name"] p.ufpName
+    ; Html.div [Html.class' "param-divider"] [Html.text ":"]
+    ; viewParamTipe vs [wc "type"] p.ufpTipe ]
+
+
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let addParamBtn =
     Html.div
-      [Html.class' "col new-parameter"]
+      ~key:"add-param-col"
+      [ Html.class' "col new-parameter"
+      ; ViewUtils.eventNoPropagation
+          ~key:("aufp-" ^ showTLID fn.ufTLID)
+          "click"
+          (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
       [ Html.div
-          [ Html.class' "parameter-btn allowed add"
-          ; ViewUtils.eventNoPropagation
-              ~key:("aufp-" ^ showTLID fn.ufTLID)
-              "click"
-              (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
+          [Html.class' "parameter-btn allowed add"]
           [fontAwesome "plus-circle"]
       ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"] ]
   in
@@ -86,22 +99,11 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       [Html.class' "ufn-name"]
       [viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName]
   in
-  let coldivs =
-    fn.ufMetadata.ufmParameters
-    |> List.map ~f:(fun p ->
-           Html.div
-             [Html.class' "col"]
-             ( ( if vs.permission = Some ReadWrite
-               then [viewKillParameterBtn fn p]
-               else [] )
-             @ [ viewParamName vs [wc "name"] p.ufpName
-               ; Html.div [Html.class' "param-divider"] [Html.text ":"]
-               ; viewParamTipe vs [wc "type"] p.ufpTipe ] ))
-  in
+  let coldivs = fn.ufMetadata.ufmParameters |> List.map ~f:(viewParam fn vs) in
   Html.div
     [Html.class' "user-fn"]
     ( (namediv :: coldivs)
-    @ if vs.permission = Some ReadWrite then [addParamBtn] else [] )
+    @ [(if vs.permission = Some ReadWrite then addParamBtn else Vdom.noNode)] )
 
 
 let view (vs : viewState) (fn : userFunction) : msg Html.html =
