@@ -773,31 +773,65 @@ let migrate_all_hosts () : unit =
   ()
 
 
-let cleanup_old_traces () : float =
-  let runtime_since (start : float) : float =
-    (Unix.gettimeofday () -. start) *. 1000.0
-  in
+let time (fn : unit -> 'a) : float * 'a =
   let start = Unix.gettimeofday () in
-  let stored_events_start = Unix.gettimeofday () in
-  let trimmed_events = Stored_event.trim_events () in
-  let stored_events_time = runtime_since stored_events_start in
-  let function_results_start = Unix.gettimeofday () in
-  let trimmed_results = Stored_function_result.trim_results () in
-  let function_results_time = runtime_since function_results_start in
-  let function_arguments_start = Unix.gettimeofday () in
-  let trimmed_arguments = Stored_function_arguments.trim_arguments () in
-  let function_arguments_time = runtime_since function_arguments_start in
-  let total_time = runtime_since start in
+  let a = fn () in
+  let elapsed = (Unix.gettimeofday () -. start) *. 1000.0 in
+  (elapsed, a)
+
+
+let cleanup_old_traces () : float =
+  let logdata = ref [] in
+  let total_time, _ =
+    time (fun _ ->
+        let t_events, n_events = time Stored_event.trim_events in
+        let t_res, n_res = time Stored_function_result.trim_results in
+        let t_args, n_args = time Stored_function_arguments.trim_arguments in
+        logdata :=
+          [ ("trimmed_results", `Int n_res)
+          ; ("trimmed_events", `Int n_events)
+          ; ("trimmed_arguments", `Int n_args)
+          ; ("stored_events_time", `Float t_events)
+          ; ("function_results_time", `Float t_res)
+          ; ("function_arguments_time", `Float t_args) ] ;
+        ())
+  in
   Log.infO
     "cleanup_old_traces"
+    ~jsonparams:(("total_time", `Float total_time) :: !logdata) ;
+  total_time
+
+
+(** cleanup_old_traces_for_canvas is like cleanup_old_traces for a specific canvas *)
+let cleanup_old_traces_for_canvas (cid : Uuidm.t) : float =
+  let logdata = ref [] in
+  let total_time, _ =
+    time (fun _ ->
+        let t_events, n_events =
+          time (fun _ -> Stored_event.trim_events_for_canvas cid)
+        in
+        let t_res, n_res =
+          time (fun _ -> Stored_function_result.trim_results_for_canvas cid)
+        in
+        let t_args, n_args =
+          time (fun _ ->
+              Stored_function_arguments.trim_arguments_for_canvas cid)
+        in
+        logdata :=
+          [ ("trimmed_results", `Int n_res)
+          ; ("trimmed_events", `Int n_events)
+          ; ("trimmed_arguments", `Int n_args)
+          ; ("stored_events_time", `Float t_events)
+          ; ("function_results_time", `Float t_res)
+          ; ("function_arguments_time", `Float t_args) ] ;
+        ())
+  in
+  Log.infO
+    "cleanup_old_traces_for_canvas"
     ~jsonparams:
-      [ ("trimmed_results", `Int trimmed_results)
-      ; ("trimmed_events", `Int trimmed_events)
-      ; ("trimmed_arguments", `Int trimmed_arguments)
-      ; ("stored_events_time", `Float stored_events_time)
-      ; ("function_results_time", `Float function_results_time)
-      ; ("function_arguments_time", `Float function_arguments_time)
-      ; ("total_time", `Float total_time) ] ;
+      ( [ ("canvas_id", `String (Uuidm.to_string cid))
+        ; ("total_time", `Float total_time) ]
+      @ !logdata ) ;
   total_time
 
 

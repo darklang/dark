@@ -65,21 +65,56 @@ let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
                "Bad DB format for stored_functions.load_for_analysis")
 
 
-(* This is identical to Stored_function_result.trim_results except for the table
- * name, see that function for comments *)
+(** trim_arguments removes all function_arguments records older than a week,
+ * leaving at minimum 10 records for each tlid on a canvas regardless of age.
+ *
+ * Returns the number of rows deleted.
+ *
+ * CAVEAT: in order to keep our DB from bursting into flames given a large
+ * number of records to cleanup, we cap the maximum number of records deleted
+ * per call to 10_000.
+ *
+ * See also
+ * - Stored_event.trim_events
+ * - Stored_function_result.trim_results
+ * which are nearly identical queries on different tables *)
 let trim_arguments () : int =
   Db.delete
     ~name:"stored_function_argument.trim_arguments"
-    "DELETE FROM function_arguments
-    WHERE trace_id IN (
-      SELECT trace_id FROM (
-        SELECT row_number()
-        OVER (PARTITION BY canvas_id, tlid ORDER BY timestamp
-desc) as rownum, t.trace_id
-        FROM function_arguments t
-        WHERE timestamp < (NOW() - interval '1 week')
-        LIMIT 10000) as u
+    "WITH indexed_arguments AS (
+       SELECT trace_id, row_number() OVER (
+         PARTITION BY canvas_id, tlid
+         ORDER BY timestamp DESC
+       ) AS rownum
+       FROM function_arguments
+       WHERE timestamp < (NOW() - interval '1 week')
+    )
+    DELETE FROM function_arguments WHERE trace_id IN (
+      SELECT trace_id FROM indexed_arguments
       WHERE rownum > 10
       LIMIT 10000
     )"
     ~params:[]
+
+
+(** trim_arguments_for_canvas is like trim_arguments_for_canvas but for a single canvas.
+ *
+ * All the comments and warnings there apply. Please read them. *)
+let trim_arguments_for_canvas (canvas_id : Uuidm.t) : int =
+  Db.delete
+    ~name:"stored_function_argument.trim_arguments_for_canvas"
+    "WITH indexed_arguments AS (
+       SELECT trace_id, row_number() OVER (
+         PARTITION BY canvas_id, tlid
+         ORDER BY timestamp DESC
+       ) AS rownum
+       FROM function_arguments
+       WHERE canvas_id = $1
+       AND timestamp < (NOW() - interval '1 week')
+    )
+    DELETE FROM function_arguments WHERE trace_id IN (
+      SELECT trace_id FROM indexed_arguments
+      WHERE rownum > 10
+      LIMIT 10000
+    )"
+    ~params:[Uuid canvas_id]

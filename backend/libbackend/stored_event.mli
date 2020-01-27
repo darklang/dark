@@ -44,3 +44,5 @@ val clear_all_events : canvas_id:Uuidm.t -> unit -> unit
  * unless listed in keep.
  *)
 val trim_events : unit -> int
+
+val trim_events_for_canvas : Uuidm.t -> int

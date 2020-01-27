@@ -125,6 +125,20 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args)
     ; ps = false
     ; dep = false }
+  ; { pns = ["DarkInternal::cleanupOldTracesForCanvas_v1"]
+    ; ins = []
+    ; p = [par "canvas_id" TUuid]
+    ; r = TFloat
+    ; d =
+        "Cleanup the old traces for a specific canvas. Returns elapsed time in ms."
+    ; f =
+        internal_fn (function
+            | state, [DUuid canvas_id] ->
+                DFloat (Canvas.cleanup_old_traces_for_canvas canvas_id)
+            | args ->
+                fail args)
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DarkInternal::checkCanvas"]
     ; ins = []
     ; p = [par "host" TStr]

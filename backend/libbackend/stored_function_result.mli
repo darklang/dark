@@ -16,3 +16,5 @@ val load :
   -> Analysis_types.function_result list
 
 val trim_results : unit -> int
+
+val trim_results_for_canvas : Uuidm.t -> int
