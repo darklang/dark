@@ -1004,6 +1004,7 @@ let run () =
       t "insert . converts to float - short" aShortInt (ins "." 1) "1.~" ;
       t "continue after adding dot" aPartialFloat (ins "2" 2) "1.2~" ;
       t "insert zero in whole - start" aFloat (ins "0" 0) "~123.456" ;
+      t "insert zero in whole - no whole" aFloatWithoutWhole (ins "0" 0) "0~.1" ;
       t "insert int in whole - start" aFloat (ins "9" 0) "9~123.456" ;
       t "insert int in whole - middle" aFloat (ins "0" 1) "10~23.456" ;
       t "insert int in whole - end" aFloat (ins "0" 3) "1230~.456" ;
