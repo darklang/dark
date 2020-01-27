@@ -133,7 +133,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
     |> List.filter_map ~f:(fun endp ->
            try
              (* serialization can fail, attempt first *)
-             let c = Canvas.load_cron endp in
+             let c = Canvas.load_for_cron_checker_from_cache endp in
              Thread.yield () ;
              match c with
              | Ok c ->
