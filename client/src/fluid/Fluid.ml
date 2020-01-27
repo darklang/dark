@@ -4539,7 +4539,7 @@ let rec updateKey
     | _, _, R (TRecordOpen _, _) ->
         (ast, s)
     | InsertText txt, _, R (_, toTheRight) ->
-        doInsert' ~pos txt toTheRight ast s 
+        doInsert' ~pos txt toTheRight ast s
     | ReplaceText txt, _, _ ->
         replaceText ~ast ~state:s txt
     | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
