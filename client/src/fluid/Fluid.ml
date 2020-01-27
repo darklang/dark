@@ -3750,6 +3750,19 @@ let doExplicitInsert
             ( EPartial (newID, newName, oldExpr)
             , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
         else None
+    | ARVariable _, (EVariable (_, varName) as oldExpr) ->
+        let newName = mutation varName in
+        (* TODO(JULIAN): Is it really necessary or desirable to
+         * check if the result would be a valid identifier
+         * before creating a partial here? Consider the usecase of
+         * changing a var into a string by inserting quotes. *)
+        if FluidUtil.isValidIdentifier newName
+        then
+          let parID = gid () in
+          Some
+            ( EPartial (parID, newName, oldExpr)
+            , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
+        else None
     | ARBool _, (EBool (_, bool) as oldExpr) ->
         let str = if bool then "true" else "false" in
         let parID = gid () in
@@ -3911,7 +3924,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | (TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
       when "0" = letter && offset = 0 ->
         (ast, SamePlace)
-    | TVariable _
+    (* | TVariable _ *)
     | TPatternVariable _
     (* | TLetVarName _ *)
     (* | TFieldName _ *)
@@ -3919,7 +3932,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TLambdaVar _ (* | TRecordFieldname _ *)
       when not (Util.isIdentifierChar letter) ->
         (ast, SamePlace)
-    | TVariable _
+    (* | TVariable _ *)
     | TPatternVariable _
     (* | TLetVarName _ *)
     (* | TFieldName _ *)
@@ -3952,7 +3965,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* | TRecordFieldname _ *)
     (* | TFieldName _ *)
     | TFieldPartial _
-    | TVariable _
+    (* | TVariable _ *)
     | TPartial _
     | TRightPartial _
     (* | TString _ *)
