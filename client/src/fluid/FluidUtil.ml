@@ -88,6 +88,11 @@ let isNumber (str : string) = Js.Re.test_ [%re "/[0-9]+/"] str
 
 let isIdentifierChar (str : string) = Js.Re.test_ [%re "/[_a-zA-Z0-9]+/"] str
 
+(** [isValidIdentifier str] tests if [str] is a valid identifier for things like variable names *)
+let isValidIdentifier (str : string) : bool =
+  Js.Re.test_ [%re "/^[_a-zA-Z]+[0-9]*$/"] str
+
+
 let isFnNameChar str =
   Js.Re.test_ [%re "/[_:a-zA-Z0-9]/"] str && String.length str = 1
 

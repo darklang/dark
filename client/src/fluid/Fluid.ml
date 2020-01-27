@@ -3735,20 +3735,14 @@ let doExplicitInsert
           ( EPartial (parID, mutation str, oldExpr)
           , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
     | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
-        (* TODO(JULIAN): instead of the complexity of checking things as
-         * they are added, it would be easier to check if the result is
-         * a valid identifier. *)
-        if not (Util.isIdentifierChar extendedGraphemeCluster)
-        then None
-        else if Util.isNumber extendedGraphemeCluster
-                && (oldName = "" || currCaretTarget.offset = 0)
-        then None
-        else
-          let newName = mutation oldName in
+        let newName = mutation oldName in
+        if FluidUtil.isValidIdentifier newName
+        then
           Some
             ( ELet
                 (id, newName, value, E.renameVariableUses ~oldName ~newName body)
             , currCTPlusLen )
+        else None
     | _ ->
         recover
           "doExplicitInsert - unhandled astRef"
