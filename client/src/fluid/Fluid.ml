@@ -3752,6 +3752,9 @@ let doExplicitInsert
             , { astRef = ARString (newID, SPOpenQuote)
               ; offset = currOffset + caretDelta } )
         else Some (EPartial (id, str, oldExpr), currCTPlusLen)
+    | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
+        let str = oldStr |> mutation |> String.trim in
+        Some (ERightPartial (id, str, oldValue), currCTPlusLen)
     | ARBinOp _, (EBinOp (_, op, _, _, _) as oldExpr) ->
         let str = op |> FluidUtil.partialName |> mutation |> String.trim in
         let newID = gid () in
@@ -4021,7 +4024,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TFieldPartial _
     (* | TVariable _ *)
     (* | TPartial _ *)
-    | TRightPartial _
+    (* | TRightPartial _ *)
     (* | TString _ *)
     (* | TStringMLStart _
     | TStringMLMiddle _
