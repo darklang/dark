@@ -4,7 +4,7 @@ type t = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
-let fakeid = ID "fake-id"
+let fakeid : id = ID "fake-id"
 
 let tid (t : t) : id =
   match t with

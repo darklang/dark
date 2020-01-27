@@ -140,7 +140,7 @@ let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
     | _ ->
         []
   in
-  let argIDs = List.map ~f:FluidExpression.id args in
+  let argIDs = List.map ~f:FluidExpression.toID args in
   let dvals = List.filterMap argIDs ~f:(fun id -> getLiveValue m id traceID) in
   if List.length dvals = List.length argIDs then Some dvals else None
 

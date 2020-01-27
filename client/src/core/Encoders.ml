@@ -623,12 +623,12 @@ and nPattern (npat : OldExpr.nPattern) : Js.Json.t =
       ev "PConstructor" [string a; list pattern b]
 
 
-and sendToRail (sendToRail : sendToRail) : Js.Json.t =
+and sendToRail (sendToRail : FluidExpression.sendToRail) : Js.Json.t =
   let ev = variant in
   match sendToRail with Rail -> ev "Rail" [] | NoRail -> ev "NoRail" []
 
 
-and fluidPattern (pattern : Types.fluidPattern) : Js.Json.t =
+and fluidPattern (pattern : FluidPattern.t) : Js.Json.t =
   let fp = fluidPattern in
   let ev = variant in
   match pattern with
@@ -653,7 +653,7 @@ and fluidPattern (pattern : Types.fluidPattern) : Js.Json.t =
       ev "FPBlank" [id id'; id mid]
 
 
-and fluidExpr (expr : Types.fluidExpr) : Js.Json.t =
+and fluidExpr (expr : FluidExpression.t) : Js.Json.t =
   let fe = fluidExpr in
   let ev = variant in
   match expr with

@@ -79,7 +79,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
   let functions = complete in
-  FluidExpression.functions := functions ;
+  OldExpr.functions := functions ;
   let m =
     { m with
       cursorState =
@@ -1699,7 +1699,7 @@ let update_ (msg : msg) (m : model) : modification =
       let center = Viewport.findNewPos m in
       let tlid = gtlid () in
       let pos = center in
-      let ast = EBlank (gid ()) in
+      let ast = FluidExpression.EBlank (gid ()) in
       let aHandler =
         { ast
         ; spec =
@@ -1739,7 +1739,7 @@ let update_ (msg : msg) (m : model) : modification =
         ( traceMods
         @ [ AddOps
               ( [SetHandler (tlid, pos, aHandler)]
-              , FocusExact (tlid, FluidExpression.id ast) )
+              , FocusExact (tlid, FluidExpression.toID ast) )
           ; Delete404 fof ] )
   | MarkRoutingTableOpen (shouldOpen, key) ->
       TweakModel
