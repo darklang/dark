@@ -3763,6 +3763,11 @@ let doExplicitInsert
             ( EPartial (parID, newName, oldExpr)
             , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
         else None
+    | ARNull _, (ENull _ as oldExpr) ->
+        let parID = gid () in
+        Some
+          ( EPartial (parID, mutation "null", oldExpr)
+          , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
     | ARBool _, (EBool (_, bool) as oldExpr) ->
         let str = if bool then "true" else "false" in
         let parID = gid () in
@@ -3978,7 +3983,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TFalse _ *)
     | TPatternTrue _
     | TPatternFalse _
-    | TNullToken _
+    (* | TNullToken _ *)
     | TPatternNullToken _
     | TPatternVariable _ (* | TBinOp _ *)
                          (* | TLambdaVar _ *) ->
