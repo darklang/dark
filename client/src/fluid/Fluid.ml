@@ -3692,6 +3692,39 @@ let doExplicitInsert
             ( EString (id, newStr)
             , { astRef = ARString (id, SPText)
               ; offset = strRelOffset + caretDelta } )
+    | ARFloat (_, kind), EFloat (id, whole, frac) ->
+        if FluidUtil.isNumber extendedGraphemeCluster
+        then
+          let isWhole, index =
+            match kind with
+            | FPWhole ->
+                (true, currOffset)
+            | FPFractional ->
+                (false, currOffset)
+            | FPPoint ->
+                if currCaretTarget.offset = 0
+                then (true, String.length whole)
+                else (false, 0)
+          in
+          if isWhole
+          then
+            let newWhole = mutationAt whole ~index in
+            (* This enables |.67 -> 0|.67 but prevents |1.0 -> 0|1.0 *)
+            if String.slice ~from:0 ~to_:1 newWhole = "0"
+               && String.length newWhole > 1
+            then None
+            else
+              Some
+                ( EFloat (id, newWhole, frac)
+                , {astRef = ARFloat (id, FPWhole); offset = index + caretDelta}
+                )
+          else
+            let newFrac = mutationAt frac ~index in
+            Some
+              ( EFloat (id, whole, newFrac)
+              , { astRef = ARFloat (id, FPFractional)
+                ; offset = index + caretDelta } )
+        else None
     | ARLambda (_, LBPVarName index), ELambda (id, vars, expr) ->
         vars
         |> List.getAt ~index
@@ -3919,14 +3952,14 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (ast, SamePlace)
     (* | TInteger _ *)
     | TPatternInteger _
-    | TFloatFractional _
-    | TFloatWhole _
+    (* | TFloatFractional _ *)
+    (* | TFloatWhole _ *)
     | TPatternFloatWhole _
     | TPatternFloatFractional _
       when not (Util.isNumber letter) ->
         (ast, SamePlace)
     (* TInteger _ | *)
-    | (TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
+    | (TPatternInteger _ (* | TFloatWhole _ *) | TPatternFloatWhole _)
       when "0" = letter && offset = 0 ->
         (ast, SamePlace)
     (* | TVariable _ *)
@@ -4002,7 +4035,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         let newLength = f i |> Util.coerceStringTo63BitInt |> String.length in
         let move = if newLength > offset then RightOne else SamePlace in
         (replaceStringToken ~f ti.token ast, move)
-    | TFloatWhole (id, str) ->
+    (*     | TFloatWhole (id, str) ->
         ( replaceFloatWhole (f str) id ast
         , AtTarget {astRef = ARFloat (id, FPWhole); offset = offset + 1} )
     | TFloatFractional (id, str) ->
@@ -4012,7 +4045,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         ( insertAtFrontOfFloatFraction letter id ast
         , AtTarget
             {astRef = ARFloat (id, FPFractional); offset = String.length letter}
-        )
+        ) *)
     | TPatternFloatWhole (mID, id, str, _) ->
         (replacePatternFloatWhole (f str) mID id ast, RightOne)
     | TPatternFloatFractional (mID, id, str, _) ->
