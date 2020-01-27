@@ -3709,6 +3709,25 @@ let doExplicitInsert
         Some
           ( EPartial (newID, str, oldExpr)
           , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
+    | ARInteger _, EInteger (id, intStr) ->
+        if currCaretTarget.offset = 0 && extendedGraphemeCluster = "0"
+        then
+          (* This prevents inserting leading 0s at the beginning of the int.
+           * Note that Util.coerceStringTo63BitInt currently coerces strings with
+           * leading "0"s to "0"; this prevents coerceStringTo63BitInt getting
+           * a leading 0 in the first place. If Util.coerceStringTo63BitInt could
+           * deal with leading 0s, we would still need this special case to deal with
+           * caret placement, unless Util.coerceStringTo63BitInt preserved leading 0s.
+           *)
+          None
+        else if Util.isNumber extendedGraphemeCluster
+        then
+          let str = mutation intStr in
+          let coerced = Util.coerceStringTo63BitInt str in
+          if coerced = intStr
+          then None
+          else Some (EInteger (id, coerced), currCTPlusLen)
+        else None
     | _ ->
         recover
           "doExplicitInsert - unhandled astRef"
@@ -3843,7 +3862,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* | (TString _ *)
     | TPatternString _ (* | TStringMLStart _ *) when offset < 0 ->
         (ast, SamePlace)
-    | TInteger _
+    (* | TInteger _ *)
     | TPatternInteger _
     | TFloatFractional _
     | TFloatWhole _
@@ -3851,7 +3870,8 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TPatternFloatFractional _
       when not (Util.isNumber letter) ->
         (ast, SamePlace)
-    | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
+    (* TInteger _ | *)
+    | (TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
       when "0" = letter && offset = 0 ->
         (ast, SamePlace)
     | TVariable _
@@ -3915,7 +3935,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TPatternVariable _ (* | TBinOp _ *)
                          (* | TLambdaVar _ *) ->
         (replaceStringToken ~f ti.token ast, RightOne)
-    | TInteger (id, _) ->
+    (*     | TInteger (id, _) ->
         tryReplaceStringAndMoveOrSame
           ~f
           ti.token
@@ -3924,7 +3944,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
           ; offset =
               offset + 1
               (* Note that if the caretTarget exceeds the token length due to coercion, posFromCaretTarget will clamp it *)
-          }
+          } *)
     | TPatternInteger (_, _, i, _) ->
         let newLength = f i |> Util.coerceStringTo63BitInt |> String.length in
         let move = if newLength > offset then RightOne else SamePlace in
