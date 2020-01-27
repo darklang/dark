@@ -1,13 +1,13 @@
-.user-fn {
-  margin: 10px;
-  display: flex;
-  align-items: flex-start;
-  flex-direction: column;
+.fn-header {
+  padding-bottom: $spacing-small;
   border-bottom: 1px solid $user-functions;
-  padding-bottom: 10px;
 
-  .ufn-name {
-    padding-bottom: 10px;
+  .spec-header {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    flex-direction: row;
+    border-bottom: none;
 
     .entry {
       form {
@@ -19,6 +19,17 @@
         }
       }
     }
+
+    .fn-actions .more-actions .toggle-btn {
+      color: $user-functions;
+    }
+  }
+
+  .params {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    padding-left: $spacing-medium;
   }
 
   .col {
