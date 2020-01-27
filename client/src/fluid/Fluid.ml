@@ -3741,6 +3741,17 @@ let doExplicitInsert
                        (id, vars, E.renameVariableUses ~oldName ~newName expr)
                    , currCTPlusLen )
                else None)
+    | ARPartial _, EPartial (id, oldStr, oldExpr) ->
+        let str = oldStr |> mutation |> String.trim in
+        if String.startsWith ~prefix:"\"" str
+           && String.endsWith ~suffix:"\"" str
+        then
+          let newID = gid () in
+          Some
+            ( EString (newID, String.slice ~from:1 ~to_:(-1) str)
+            , { astRef = ARString (newID, SPOpenQuote)
+              ; offset = currOffset + caretDelta } )
+        else Some (EPartial (id, str, oldExpr), currCTPlusLen)
     | ARBinOp _, (EBinOp (_, op, _, _, _) as oldExpr) ->
         let str = op |> FluidUtil.partialName |> mutation |> String.trim in
         let newID = gid () in
@@ -4009,7 +4020,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* | TFieldName _ *)
     | TFieldPartial _
     (* | TVariable _ *)
-    | TPartial _
+    (* | TPartial _ *)
     | TRightPartial _
     (* | TString _ *)
     (* | TStringMLStart _
