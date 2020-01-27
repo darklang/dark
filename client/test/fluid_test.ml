@@ -1527,9 +1527,7 @@ let run () =
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justLongEnoughToReflow])
         (bs ~wrap:false 129)
-        "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~"
-      (* TODO: This should be 120, but reflow puts the caret in the wrong
-           * place for new partials *) ;
+        "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~" ;
       t
         "ctrl+left on function in middle of version moves to beg of version"
         aFnCallWithVersion
