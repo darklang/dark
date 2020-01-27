@@ -53,28 +53,56 @@ let load ~canvas_id ~trace_id tlid : function_result list =
                "Bad DB format for stored_functions_results.load")
 
 
-(* in the previous iteration of this, we did two queries:
- * - get most recent 10
- * - delete all older than a week, but not in the first resultset
+(** trim_results removes all function_results_v2 records older than a week,
+ * leaving at minimum 10 records for each tlid on a canvas regardless of age.
  *
- * turns out, it's cheaper to delete anything that's older than a week, and not
- * in the most recent ten of that set. This means we keep more traces (we'll
- * keep the top 10 older than a week, even if there are > 10 more recent than
- * that), but this is an okay heuristic for garbage collection
- * *)
+ * Returns the number of rows deleted.
+ *
+ * CAVEAT: in order to keep our DB from bursting into flames given a large
+ * number of records to cleanup, we cap the maximum number of records deleted
+ * per call to 10_000.
+ *
+ * See also
+ * - Stored_event.trim_events
+ * - Stored_function_arguments.trim_arguments
+ * which are nearly identical queries on different tables *)
 let trim_results () : int =
   Db.delete
     ~name:"stored_function_result.trim_results"
-    "DELETE FROM function_results_v2
-    WHERE trace_id IN (
-      SELECT trace_id FROM (
-        SELECT row_number()
-        OVER (PARTITION BY canvas_id, tlid ORDER BY timestamp
-desc) as rownum, t.trace_id
-        FROM function_results_v2 t
-        WHERE timestamp < (NOW() - interval '1 week')
-        LIMIT 10000) as u
+    "WITH indexed_results AS (
+       SELECT trace_id, row_number() OVER (
+         PARTITION BY canvas_id, tlid
+         ORDER BY timestamp DESC
+       ) AS rownum
+       FROM function_results_v2
+       WHERE timestamp < (NOW() - interval '1 week')
+    )
+    DELETE FROM function_results_v2 WHERE trace_id IN (
+      SELECT trace_id FROM indexed_results
       WHERE rownum > 10
       LIMIT 10000
     )"
     ~params:[]
+
+
+(** trim_results_for_canvas is like trim_results but for a single canvas.
+ *
+ * All the comments and warnings there apply. Please read them. *)
+let trim_results_for_canvas (canvas_id : Uuidm.t) : int =
+  Db.delete
+    ~name:"stored_function_result.trim_results_for_canvas"
+    "WITH indexed_results AS (
+       SELECT trace_id, row_number() OVER (
+         PARTITION BY canvas_id, tlid
+         ORDER BY timestamp DESC
+       ) AS rownum
+       FROM function_results_v2
+       WHERE canvas_id = $1
+       AND timestamp < (NOW() - interval '1 week')
+    )
+    DELETE FROM function_results_v2 WHERE trace_id IN (
+      SELECT trace_id FROM indexed_results
+      WHERE rownum > 10
+      LIMIT 10000
+    )"
+    ~params:[Uuid canvas_id]
