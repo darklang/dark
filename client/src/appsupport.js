@@ -9,8 +9,10 @@ const mousewheel = function(callback) {
 function unsupportedBrowser() {
   var isChrome =
     /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-
-  return !isChrome;
+  var isMobile = /Android|BlackBerry|iPhone|iPad|iPod|Opera Mini|IEMobile/.test(
+    navigator.userAgent,
+  );
+  return !isChrome || isMobile;
 }
 
 window.unsupportedBrowser = unsupportedBrowser;
