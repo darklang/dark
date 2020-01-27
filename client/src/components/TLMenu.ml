@@ -11,6 +11,13 @@ type menuItem =
   ; action : mouseEvent -> msg
   ; disableMsg : string option }
 
+let isOpen (m : model) (tlid : tlid) : bool =
+  m.tlMenus
+  |> TLIDDict.get ~tlid
+  |> Option.map ~f:(fun o -> o.isOpen)
+  |> Option.withDefault ~default:false
+
+
 let update (m : model) (tlid : tlid) (msg : menuMsg) : model =
   let tlMenus =
     m.tlMenus
@@ -64,7 +71,7 @@ let viewMenu (s : menuState) (tlid : tlid) (items : menuItem list) :
     in
     Html.div
       [ Html.classList [("toggle-btn", true); ("active", showMenu)]
-      ; ViewUtils.eventPreventDefault ~key:cacheKey "mouseenter" (fun _ ->
+      ; onClick cacheKey (fun _ ->
             TLMenuMsg (tlid, if showMenu then CloseMenu else OpenMenu)) ]
       [fontAwesome "bars"]
   in
