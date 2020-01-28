@@ -4052,10 +4052,52 @@ let doExplicitInsert
           | _ ->
               recover "doExplicitInsert FPVariable" None )
         else None
-    | _ ->
+    (*
+     * Things you can't edit but probably should be able to edit
+     *)
+    | ARPattern (_, PPConstructor), _ ->
+        None
+    (*****************
+     * Exhaustiveness
+     *)
+    | ARPattern (_, PPBlank), _
+    | ARPattern (_, PPBool), _
+    | ARPattern (_, PPFloat FPFractional), _
+    | ARPattern (_, PPFloat FPPoint), _
+    | ARPattern (_, PPFloat FPWhole), _
+    | ARPattern (_, PPInteger), _
+    | ARPattern (_, PPNull), _
+    | ARPattern (_, PPString SPCloseQuote), _
+    | ARPattern (_, PPString SPOpenQuote), _
+    | ARPattern (_, PPString SPText), _
+    | ARPattern (_, PPVariable), _
+    (*
+     * non-patterns
+     *)
+    | ARBinOp _, _
+    | ARBlank _, _
+    | ARBool _, _
+    | ARConstructor _, _
+    | ARFieldAccess _, _
+    | ARFloat _, _
+    | ARFnCall _, _
+    | ARIf _, _
+    | ARInteger _, _
+    | ARLambda _, _
+    | ARLet _, _
+    | ARList _, _
+    | ARMatch _, _
+    | ARNull _, _
+    | ARPartial _, _
+    | ARPipe _, _
+    | ARRecord _, _
+    | ARRightPartial _, _
+    | ARString _, _
+    | ARVariable _, _
+    | ARInvalid, _ ->
         recover
-          "doExplicitInsert - unhandled astRef"
-          ~debug:(show_astRef currAstRef, show_fluidPattern pat)
+          "doExplicitInsert - unexpected pat"
+          ~debug:(show_astRef currAstRef)
           None
   in
   (* FIXME: This is an ugly hack so we can modify match branches when editing a pattern.
