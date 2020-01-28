@@ -3846,6 +3846,22 @@ let doExplicitInsert
           ~debug:(show_astRef currAstRef, show_fluidExpr expr)
           None
   in
+  let doPatInsert (currAstRef : astRef) (pat : fluidPattern) :
+      (fluidPatOrExpr * caretTarget) option =
+    match (currAstRef, pat) with
+    | ARPattern (_, PPNull), FPNull (mID, _) ->
+        let str = mutation "null" in
+        let newID = gid () in
+        Some
+          ( Pat (FPVariable (mID, newID, str))
+          , { astRef = ARPattern (newID, PPVariable)
+            ; offset = currOffset + caretDelta } )
+    | _ ->
+        recover
+          "doExplicitInsert - unhandled astRef"
+          ~debug:(show_astRef currAstRef, show_fluidPattern pat)
+          None
+  in
   idOfASTRef currAstRef
   |> Option.andThen ~f:(fun patOrExprID ->
          match E.findExprOrPat patOrExprID (Expr ast) with
@@ -3856,8 +3872,8 @@ let doExplicitInsert
   |> Option.andThen ~f:(fun (patOrExprID, patOrExpr) ->
          let maybeTransformedExprAndCaretTarget =
            match patOrExpr with
-           | Pat _pat ->
-               recover "doExplicitInsert - patterns not yet handled" None
+           | Pat pat ->
+               doPatInsert currAstRef pat
            | Expr expr ->
              ( match doExprInsert currAstRef expr with
              | None ->
@@ -3869,11 +3885,11 @@ let doExplicitInsert
          | Some (Expr newExpr, target) ->
              Some
                (E.replace patOrExprID ~replacement:newExpr ast, AtTarget target)
-         (*          | Some (Pat newPat, target) ->
+         | Some (Pat newPat, target) ->
              let mID = P.matchID newPat in
              let newAST = replacePattern mID patOrExprID ~newPat ast in
-             Some (newAST, AtTarget target) *)
-         | _ ->
+             Some (newAST, AtTarget target)
+         | None ->
              None)
   |> Option.withDefault ~default:(ast, SamePlace)
 
@@ -4043,7 +4059,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TPatternTrue _
     | TPatternFalse _
     (* | TNullToken _ *)
-    | TPatternNullToken _
+    (* | TPatternNullToken _ *)
     | TPatternVariable _ (* | TBinOp _ *)
                          (* | TLambdaVar _ *) ->
         (replaceStringToken ~f ti.token ast, RightOne)
