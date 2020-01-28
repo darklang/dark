@@ -4294,16 +4294,6 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
   (newAST, {s with newPos})
 
 
-let doInsert
-    ~pos (letter : string option) (ti : T.tokenInfo) (ast : ast) (s : state) :
-    E.t * state =
-  match letter with
-  | None ->
-      (ast, s)
-  | Some letter ->
-      doInsert' ~pos letter ti ast s
-
-
 let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
   let s = recordAction "wrapInLet" s in
   let id = T.tid ti.token in
