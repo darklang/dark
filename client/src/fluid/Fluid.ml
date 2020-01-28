@@ -3848,8 +3848,10 @@ let doExplicitInsert
           ~debug:(show_astRef currAstRef, show_fluidExpr expr)
           None
   in
-  let doPatInsert (currAstRef : astRef) (pat : fluidPattern) :
-      (fluidPatOrExpr * caretTarget) option =
+  let doPatInsert
+      (patContainerRef : Types.id option ref)
+      (currAstRef : astRef)
+      (pat : fluidPattern) : (fluidPatOrExpr * caretTarget) option =
     match (currAstRef, pat) with
     | ARPattern (_, PPFloat kind), FPFloat (mID, pID, whole, frac) ->
         if FluidUtil.isNumber extendedGraphemeCluster
@@ -3974,6 +3976,10 @@ let doExplicitInsert
           ~debug:(show_astRef currAstRef, show_fluidPattern pat)
           None
   in
+  (* FIXME: This is an ugly hack so we can modify match branches when editing a pattern.
+     There's probably a nice way to do this without a ref, but that's a bigger change.
+   *)
+  let patContainerRef : Types.id option ref = ref None in
   idOfASTRef currAstRef
   |> Option.andThen ~f:(fun patOrExprID ->
          match E.findExprOrPat patOrExprID (Expr ast) with
@@ -3985,7 +3991,7 @@ let doExplicitInsert
          let maybeTransformedExprAndCaretTarget =
            match patOrExpr with
            | Pat pat ->
-               doPatInsert currAstRef pat
+               doPatInsert patContainerRef currAstRef pat
            | Expr expr ->
              ( match doExprInsert currAstRef expr with
              | None ->
@@ -3995,6 +4001,13 @@ let doExplicitInsert
          in
          match maybeTransformedExprAndCaretTarget with
          | Some (Expr newExpr, target) ->
+             let patOrExprID =
+               match !patContainerRef with
+               | None ->
+                   patOrExprID
+               | Some mID ->
+                   mID
+             in
              Some
                (E.replace patOrExprID ~replacement:newExpr ast, AtTarget target)
          | Some (Pat newPat, target) ->
