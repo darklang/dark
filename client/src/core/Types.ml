@@ -1148,6 +1148,10 @@ and modification =
 and fluidInputEvent =
   | Keypress of FluidKeyboard.keyEvent (* Backwards compatibility. Not an InputEvent inputType.*)
   | InsertText of string
+  | DeleteContentBackward
+  | DeleteContentForward
+  | DeleteWordBackward
+  | DeleteWordForward
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
