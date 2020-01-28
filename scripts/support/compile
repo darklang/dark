@@ -132,7 +132,7 @@ def backend_build():
   build = "unbuffer" \
         + " scripts/dune-wrapper.sh build" \
         + " --profile " + compilation_profile \
-        + " --display short " \
+        + " --display short" \
         + " -j 8 " \
         + exes
   return run_backend(start, build)
