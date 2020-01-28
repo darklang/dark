@@ -91,7 +91,7 @@ let run () =
       {key; shiftKey = false; altKey = false; metaKey = false; ctrlKey = false}
   in
   let del ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
-    process ~debug [DeleteContentBackward] pos pat
+    process ~debug [DeleteContentForward] pos pat
   in
   let bs ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
     process ~debug [DeleteContentBackward] pos pat
