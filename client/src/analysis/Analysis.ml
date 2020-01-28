@@ -187,7 +187,7 @@ let getAvailableVarnames
 (* Which trace is selected *)
 (* ---------------------- *)
 
-let selectedTrace (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid)
+let selectedTraceID (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid)
     : traceID option =
   (* We briefly do analysis on a toplevel which does not have an *)
   (* analysis available, so be careful here. *)
@@ -206,7 +206,7 @@ let setSelectedTraceID (m : model) (tlid : tlid) (traceID : traceID) : model =
 
 let getSelectedTraceID (m : model) (tlid : tlid) : traceID option =
   let traces = getTraces m tlid in
-  selectedTrace m.tlTraceIDs traces tlid
+  selectedTraceID m.tlTraceIDs traces tlid
 
 
 (* ---------------------- *)
