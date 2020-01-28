@@ -84,11 +84,12 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let addParamBtn =
     if vs.permission = Some ReadWrite
     then
+      let strTLID = showTLID fn.ufTLID in
       Html.div
-        ~key:"add-param-col"
+        ~key:("add-param-col-" ^ strTLID)
         [ Html.class' "col new-parameter"
         ; ViewUtils.eventNoPropagation
-            ~key:("aufp-" ^ showTLID fn.ufTLID)
+            ~key:("aufp-" ^ strTLID)
             "click"
             (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
         [ Html.div
@@ -103,7 +104,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
         if not (List.isEmpty vs.usedInRefs)
         then
           Some
-            "Cannot delete because is function is used in your code base. Use references on the right to depreciate usages of this function."
+            "Cannot delete this function as it is used in your code base. Use the references on the right to find and change this function's callers, after which you'll be able to delete it."
         else None
       in
       { title = "Delete Function "
