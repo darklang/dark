@@ -506,9 +506,14 @@ let pToStructure (p : fluidPattern) : string =
   |> String.join ~sep:""
 
 
-(* This constructs a testcase that we can enter in our test suite. This is
- * similar to show_fluidExpr except that instead of the full code, it uses
- * the shortcuts from Fluid_test_data. *)
+(* ----------------- *)
+(* Test cases *)
+(* ----------------- *)
+(* eToTestcase and pToTestcase construct testcases that we can enter in our
+ * test suite. They are similar to `show` except that instead of the full code,
+ * they use the shortcuts from Fluid_test_data. *)
+(* ----------------- *)
+
 let pToTestcase (p : FluidPattern.t) : string =
   match p with _ -> "todo" ^ pToString p
 
