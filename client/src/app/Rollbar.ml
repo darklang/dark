@@ -1,8 +1,8 @@
 open Prelude
 
-let send = Native.Rollbar.send
+let send = Unshared.Rollbar.send
 
-let init = Native.Rollbar.init
+let init = Unshared.Rollbar.init
 
 let customContext (e : apiError) (state : cursorState) : Js.Json.t =
   let parameters = Option.withDefault ~default:Js.Json.null e.requestParams in
