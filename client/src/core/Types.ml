@@ -1166,6 +1166,7 @@ and fluidInputEvent =
   | DeleteWordForward
   | DeleteSoftLineBackward
   | DeleteSoftLineForward
+  | ReplaceText of string
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
