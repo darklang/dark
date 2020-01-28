@@ -24,14 +24,6 @@ let text = ViewBlankOr.text
 
 let enterable = ViewBlankOr.Enterable
 
-let handlerIsExecuting (vs : viewState) : bool =
-  match vs.handlerProp with
-  | Some hp ->
-      hp.execution = Executing
-  | None ->
-      false
-
-
 let handlerIsExeComplete (vs : viewState) : bool =
   match vs.handlerProp with Some hp -> hp.execution = Complete | None -> false
 
@@ -80,7 +72,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
         let classes =
           Html.classList
             [ ("handler-trigger", true)
-            ; ("is-executing", handlerIsExecuting vs)
+            ; ("is-executing", vs.isExecuting)
             ; ("inactive", not hasData)
             ; ("complete", handlerIsExeComplete vs)
             ; ("failed", handlerIsExeFail vs) ]
