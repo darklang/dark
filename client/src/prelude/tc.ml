@@ -19,8 +19,8 @@ include (
       with module Int := Tablecloth.Int
       with module String := Tablecloth.String
       with module Array := Tablecloth.Array
-       and module Result := Tablecloth.Result
-       and module List := Tablecloth.List )
+      with module Result := Tablecloth.Result
+      with module List := Tablecloth.List )
 
 module Array = struct
   include Tablecloth.Array

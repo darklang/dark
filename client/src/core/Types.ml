@@ -1,5 +1,5 @@
 open Tc
-include Shared.UnsharedTypes
+include UnsharedTypes
 
 let show_list ~(f : 'a -> string) (x : 'a list) : string =
   "[" ^ String.join ~sep:"," (List.map ~f x) ^ "]"
