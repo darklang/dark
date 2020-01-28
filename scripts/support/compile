@@ -132,7 +132,7 @@ def backend_build():
   build = "unbuffer" \
         + " scripts/dune-wrapper.sh build" \
         + " --profile " + compilation_profile \
-        + " --display short" \
+        + " --display short " \
         + " -j 8 " \
         + exes
   return run_backend(start, build)
@@ -324,9 +324,9 @@ def mark(should, f):
   elif ("backend/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f) \
-                  or ("dune" in f) \
                   or ("_tags" in f) \
-                  or ("libtarget.js" in f)):
+                  or ("libtarget.js" in f)) \
+          or ("dune" in f):
     should.backend_build = True
 
 
@@ -404,7 +404,7 @@ def ignore(filename):
             , "backend/node_modules"
             , "/home/dark/.esy"
             , "client/node_modules"
-            , "client/lib"
+            , "client/lib/"
             , "build.ninja"
             , "stroller/target"
             , "queue-scheduler/target"
