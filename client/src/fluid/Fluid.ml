@@ -3802,6 +3802,11 @@ let doExplicitInsert
             ( EPartial (newID, newName, oldExpr)
             , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
         else None
+    | ARFieldAccess (_, FAPFieldOp), old ->
+        recover
+          "doExplicitInsert - ARFieldAccess-FAPFieldOp is unhandled and doesn't seem to happen in practice"
+          ~debug:old
+          None
     | ARVariable _, (EVariable (_, varName) as oldExpr) ->
         let newName = mutation varName in
         (* TODO(JULIAN): Is it really necessary or desirable to
