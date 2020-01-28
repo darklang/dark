@@ -4228,8 +4228,8 @@ let rec updateKey
         if maintainSelection == K.KeepSelection
         then (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
         else (ast, moveToEndOfLine ast ti s)
-    | Keypress {key = K.DeleteToStartOfLine; _}, _, R (_, ti)
-    | Keypress {key = K.DeleteToStartOfLine; _}, L (_, ti), _ ->
+    | DeleteSoftLineBackward, _, R (_, ti)
+    | DeleteSoftLineBackward, L (_, ti), _ ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
            The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
            For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
@@ -4242,8 +4242,8 @@ let rec updateKey
             ~state:s
             ~ast
             (s.newPos, getStartOfLineCaretPos ast ti) )
-    | Keypress {key = K.DeleteToEndOfLine; _}, _, R (_, ti)
-    | Keypress {key = K.DeleteToEndOfLine; _}, L (_, ti), _ ->
+    | DeleteSoftLineForward, _, R (_, ti) | DeleteSoftLineForward, L (_, ti), _
+      ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
            The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
            For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
@@ -4703,8 +4703,6 @@ let shouldDoDefaultAction (key : K.key) : bool =
   | K.GoToStartOfLine _
   | K.GoToEndOfLine _
   | K.SelectAll
-  | K.DeleteToEndOfLine
-  | K.DeleteToStartOfLine
   | K.GoToStartOfWord _
   | K.GoToEndOfWord _ ->
       false
@@ -5374,7 +5372,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           | DeleteContentBackward
           | DeleteContentForward
           | DeleteWordBackward
-          | DeleteWordForward ) as ievt ) ->
+          | DeleteWordForward
+          | DeleteSoftLineBackward
+          | DeleteSoftLineForward ) as ievt ) ->
         let s = {s with lastInput = ievt} in
         updateKey ievt ast s
     | FluidAutocompleteClick entry ->

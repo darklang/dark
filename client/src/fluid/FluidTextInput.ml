@@ -43,6 +43,13 @@ let fromInputEvent (evt : Web.Node.event) : msg option =
          | {inputType = "deleteWordForward"; _} ->
              evt##preventDefault () ;
              Some (FluidMsg (FluidInputEvent DeleteWordForward))
+         (* NB: Safari (incorrectly) fires deleteHardLine(Backward|Forward) for command-delete keystrokes *)
+         | {inputType = "deleteSoftLineBackward"; _} ->
+             evt##preventDefault () ;
+             Some (FluidMsg (FluidInputEvent DeleteSoftLineBackward))
+         | {inputType = "deleteSoftLineForward"; _} ->
+             evt##preventDefault () ;
+             Some (FluidMsg (FluidInputEvent DeleteSoftLineForward))
          | _ ->
              None)
 
