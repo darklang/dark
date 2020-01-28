@@ -3427,7 +3427,7 @@ let run () =
       ()) ;
   describe "Line-based Deletion" (fun () ->
       t
-        "K.DeleteToStartOfLine with selection deletes just the selection"
+        "DeleteSoftLineBackward with selection deletes just the selection"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3437,10 +3437,10 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (selectionPress K.DeleteToStartOfLine 114 66)
+        (selectionInputs [DeleteSoftLineBackward] 114 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
-        "K.DeleteToEndOfLine with selection deletes just the selection"
+        "DeleteSoftLineForward with selection deletes just the selection"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3450,10 +3450,10 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (selectionPress K.DeleteToEndOfLine 114 66)
+        (selectionInputs [DeleteSoftLineForward] 114 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
-        "K.DeleteToStartOfLine with no selection deletes to visual start of line"
+        "DeleteSoftLineBackward with no selection deletes to visual start of line"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3463,10 +3463,10 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (key K.DeleteToStartOfLine 66)
+        (inputs [DeleteSoftLineBackward] 66)
         "HttpClient::postv4\n  \"\"\n  {\n    ~*** : \"1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234\n          567890abcdefghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
-        "K.DeleteToEndOfLine with no selection deletes to visual end of line"
+        "DeleteSoftLineForward with no selection deletes to visual end of line"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3476,10 +3476,10 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (key K.DeleteToEndOfLine 66)
+        (inputs [DeleteSoftLineForward] 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~EFGHIJKLMNOPQR\n           STUVWXYZ1234567890abcdefghijklmnopqrstuv\n           wxyz\"\n  }\n  {}\n  {}" ;
       t
-        "K.DeleteToStartOfLine deletes up to line start at the end of a wrapping string"
+        "DeleteSoftLineBackward deletes up to line start at the end of a wrapping string"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3489,7 +3489,7 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (key K.DeleteToStartOfLine 163)
+        (inputs [DeleteSoftLineBackward] 163)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n           EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}" ;
       ()) ;
   describe "Selection Movement" (fun () ->

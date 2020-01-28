@@ -1152,6 +1152,8 @@ and fluidInputEvent =
   | DeleteContentForward
   | DeleteWordBackward
   | DeleteWordForward
+  | DeleteSoftLineBackward
+  | DeleteSoftLineForward
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem

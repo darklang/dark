@@ -490,9 +490,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
       , Html.onCB
           "beforeinput"
           ("beforeinput" ^ show_tlid tlid)
-          (fun evt ->
-            Js.log evt ;
-            FluidTextInput.fromInputEvent evt)
+          FluidTextInput.fromInputEvent
       , Html.onCB
           "compositionend"
           ("compositionend" ^ show_tlid tlid)
