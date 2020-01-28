@@ -1859,6 +1859,8 @@ let route_host req =
       Some (Canvas "andymoe-talkpay")
   | ["www"; "kiksht"; "com"] | ["kiksht"; "com"] ->
       Some (Canvas "alex")
+  | ["login"; "darklang"; "com"] ->
+      Some (Canvas "ops-login")
   | ["rest"; "sankhe"; "com"] ->
       Some (Canvas "vinayski")
   | ["food"; "placeofthin"; "gs"] ->
