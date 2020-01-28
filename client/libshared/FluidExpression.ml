@@ -315,12 +315,12 @@ let update ?(failIfMissing = true) ~(f : t -> t) (target : id) (ast : t) : t =
   if failIfMissing
   then
     if not !found
-       (* prevents the significant performance cost of show_fluidExpr *)
-    then () ;
-  (* asserT *)
-  (*   ~debug:(show_id target, show ast) *)
-  (*   "didn't find the id in the expression to update" *)
-  (*   !found ; *)
+    then
+      (* prevents the significant performance cost of show *)
+      Recover.asserT
+        ~debug:(show_id target, show ast)
+        "didn't find the id in the expression to update"
+        !found ;
   finished
 
 
