@@ -17,6 +17,10 @@ let wc = ViewBlankOr.wc
 
 let enterable = ViewBlankOr.Enterable
 
+type exeFunction =
+  | ExecuteWith of traceID * dval list
+  | CannotExecute
+
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
   viewText FnName vs ((enterable :: idConfigs) @ c) v
@@ -67,68 +71,46 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
   | _ ->
       buttonContent true
 
-let viewExecuteBtn (_vs : viewState) (fn : userFunction) : msg Html.html =
-  (*
-  let readyClass = match vs.analysisStore with
-    | LoadableSuccess _ -> "ready"
-    | LoadableNotInitialized -> "no-data"
-    | LoadableLoading _ -> "wait"
-    | LoadableError _ -> "error"
+
+let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
+  let exeStatus =
+    match Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid with
+    | Some (traceID, Ok td) ->
+        let args = UserFunctions.inputToArgs fn td.input in
+        if List.any
+             ~f:(fun dv -> match dv with DIncomplete _ -> true | _ -> false)
+             args
+        then CannotExecute
+        else ExecuteWith (traceID, args)
+    | _ ->
+        CannotExecute
   in
-  *)
   let events =
-    ViewUtils.eventNoPropagation
-      ~key:("run-fun" ^ "-" ^ showTLID fn.ufTLID)
-      "click"
-      (fun _ -> ExecuteFunctionWithin (fn.ufTLID, fn.ufMetadata.ufmName |> B.valueWithDefault "")
-        (* match Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid with
-        | Some traceID ->
-          Debug.loG "traceID" traceID;
-          match vs.traces |> List.find ~f:(fun (id, _) -> id = traceID ) with
-          | Ok trace ->
-          | Error err -> Debug.loG "fail to find trace" err;
-        | None -> Debug.loG "no traceID" ""; 
-        ;
-      IgnoreMsg *) )
+    match (fn.ufMetadata.ufmName, exeStatus) with
+    | F (_, fnName), ExecuteWith (traceID, args) ->
+        ViewUtils.eventNoPropagation
+          ~key:("run-fun" ^ "-" ^ showTLID fn.ufTLID)
+          "click"
+          (fun _ ->
+            let params =
+              { efpTLID = fn.ufTLID
+              ; efpCallerID = FluidExpression.id fn.ufAST
+              ; efpTraceID = traceID
+              ; efpFnName = fnName
+              ; efpArgs = args }
+            in
+            ExecuteFunctionFromWithin params)
+    | _ ->
+        Vdom.noProp
   in
-  Html.div [Html.class' ("execution-button"); events] [fontAwesome "redo"]
-  (*
-  if vs.permission = Some ReadWrite
-  then
-    let hasData =
-      Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
-      |> Option.andThen ~f:(fun trace_id ->
-              List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-              |> Option.andThen ~f:(fun (_, data) -> data |> Result.toOption))
-      |> Option.is_some
-    in
-    let classes =
-      Html.classList
-        [ ("handler-trigger", true)
-        ; ("is-executing", handlerIsExecuting vs)
-        ; ("inactive", not hasData)
-        ; ("complete", handlerIsExeComplete vs)
-        ; ("failed", handlerIsExeFail vs) ]
-    in
-    let attrs =
-      if hasData
-      then
-        [ Html.title "Replay this execution"
-        ; ViewUtils.eventNoPropagation
-            ~key:("lh" ^ "-" ^ showTLID vs.tlid)
-            "click"
-            (fun _ -> TriggerHandler vs.tlid)
-        ; ViewUtils.onAnimationEnd
-            ~key:("exe" ^ "-" ^ showTLID vs.tlid)
-            ~listener:(fun name ->
-              if name = "fadeIn"
-              then SetHandlerExeIdle vs.tlid
-              else IgnoreMsg) ]
-      else [Html.title "Need input data to replay execution"]
-    in
-    Html.div (classes :: attrs) [fontAwesome "redo"]
-  else Vdom.noNode
-  *)
+  Html.div
+    [ Html.classList
+        [ ("execution-button", true)
+        ; ("allow", vs.permission = Some ReadWrite && exeStatus <> CannotExecute)
+        ]
+    ; events ]
+    [fontAwesome "redo"]
+
 
 let viewParam (fn : userFunction) (vs : viewState) (p : userFunctionParameter) :
     msg Html.html =
