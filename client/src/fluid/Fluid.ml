@@ -2901,8 +2901,6 @@ let idOfASTRef (astRef : astRef) : id option =
       None
 
 
-let idOfCaretTarget ({astRef; _} : caretTarget) : id option = idOfASTRef astRef
-
 (* [doExplicitBackspace [currCaretTarget] [ast]] produces the
  * (newAST, newPosition) tuple resulting from performing
  * a backspace-style deletion at [currCaretTarget] in the
@@ -3453,26 +3451,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
          | None ->
              None)
   |> Option.withDefault ~default:(ast, SamePlace)
-
-
-(* tryReplaceStringAndMoveOrSame has the same behavior as tryReplaceStringAndMove but
-   produces `newPosition` instead of `caretTarget option`.
-
-   It is a transitional function and shouldn't be needed once newPosition has been
-   replaced with explicit caretPlacement everywhere *)
-let tryReplaceStringAndMoveOrSame
-    ~(f : string -> string)
-    (token : token)
-    (ast : ast)
-    (desiredCaretTarget : caretTarget) : E.t * newPosition =
-  let newAst, maybeTarget =
-    tryReplaceStringAndMove ~f token ast desiredCaretTarget
-  in
-  match maybeTarget with
-  | Some target ->
-      (newAst, AtTarget target)
-  | None ->
-      (newAst, SamePlace)
 
 
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
@@ -4277,10 +4255,6 @@ let getSelectionRange (s : fluidState) : int * int =
       (s.newPos, endIdx)
   | None ->
       (s.newPos, s.newPos)
-
-
-let getCollapsedSelectionStart (s : fluidState) : int =
-  getSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
 
 
 let updateSelectionRange (s : fluidState) (newPos : int) : fluidState =
