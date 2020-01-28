@@ -3352,24 +3352,26 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     (*
     * Strings
     *)
-    | ( ARPattern (_, PPString SPOpenQuote)
-      , FPString {matchID; patternID = _; str = ""} )
-      when currOffset = 1 ->
-        mkPBlank matchID
-    | ARPattern (_, PPString SPText), FPString {matchID; patternID = _; str = ""}
-      when currOffset = 0 ->
-        mkPBlank matchID
-    | ARPattern (_, PPString SPOpenQuote), FPString data ->
-        let str = Util.removeCharAt data.str (currOffset - 2) in
-        Some (Pat (FPString {data with str}), currCTMinusOne)
-    | ARPattern (_, PPString SPText), FPString data ->
-        let str = mutation data.str in
-        Some (Pat (FPString {data with str}), currCTMinusOne)
-    | ARPattern (_, PPString SPCloseQuote), FPString data ->
-        let str =
-          Util.removeCharAt data.str (String.length data.str + currOffset)
+    | ARPattern (_, PPString kind), FPString ({matchID; patternID; str} as data)
+      ->
+        let len = String.length str in
+        let strRelOffset =
+          match kind with
+          | SPOpenQuote ->
+              currOffset - 1
+          | SPText ->
+              currOffset
+          | SPCloseQuote ->
+              currOffset + len
         in
-        Some (Pat (FPString {data with str}), currCTMinusOne)
+        if strRelOffset = 0 && str = ""
+        then mkPBlank matchID
+        else
+          let str = str |> mutationAt ~index:(strRelOffset - 1) in
+          Some
+            ( Pat (FPString {data with str})
+            , { astRef = ARPattern (patternID, PPString SPOpenQuote)
+              ; offset = strRelOffset } )
     (*****************
      * Exhaustiveness
      *)
