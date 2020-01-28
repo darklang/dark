@@ -412,7 +412,8 @@ $prodColor: black;
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      width: 20%;
+      // 22% ensures that all of the method "OPTIONS" is visible on HTTP handlers
+      width: 22%;
       overflow: hidden;
       .verb {
         font-size: 14px;
