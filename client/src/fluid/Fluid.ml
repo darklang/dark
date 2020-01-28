@@ -3970,6 +3970,29 @@ let doExplicitInsert
             ( Pat (FPVariable (mID, newID, extendedGraphemeCluster))
             , {astRef = ARPattern (newID, PPVariable); offset = caretDelta} )
         else None
+    | ARPattern (_, PPVariable), FPVariable (mID, pID, oldName) ->
+        let newName = mutation oldName in
+        if FluidUtil.isValidIdentifier newName
+        then (
+          patContainerRef := Some mID ;
+          let newPat, target =
+            (FPVariable (mID, pID, newName), currCTPlusLen)
+          in
+          match E.find mID ast with
+          | Some (EMatch (_, cond, cases)) ->
+              let rec run p =
+                if pID = P.id p then newPat else recursePattern ~f:run p
+              in
+              let newCases =
+                List.map cases ~f:(fun (pat, body) ->
+                    if P.findPattern pID pat <> None
+                    then (run pat, E.renameVariableUses ~oldName ~newName body)
+                    else (pat, body))
+              in
+              Some (Expr (EMatch (mID, cond, newCases)), target)
+          | _ ->
+              recover "doExplicitInsert FPVariable" None )
+        else None
     | _ ->
         recover
           "doExplicitInsert - unhandled astRef"
@@ -4023,7 +4046,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     : E.t * state =
   let s = recordAction ~ti ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
-  let offset =
+  (*   let offset =
     match ti.token with
     (* | TString _ *)
     (* | TPatternString _ (* | TStringMLStart (_, _, _, _) *) ->
@@ -4035,8 +4058,8 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         pos - ti.startPos + strOffset *)
     | _ ->
         pos - ti.startPos
-  in
-  let f str = String.insertAt ~index:offset ~insert:letter str in
+  in *)
+  (* let f str = String.insertAt ~index:offset ~insert:letter str in *)
   let newID = gid () in
   let lambdaArgs ti =
     let placeholderName =
@@ -4128,16 +4151,16 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TPatternFloatWhole _ (* ) *) when "0" = letter && offset = 0 ->
         (ast, SamePlace) *)
     (* | TVariable _ *)
-    | TPatternVariable _
+    (*     | TPatternVariable _
     (* | TLetVarName _ *)
     (* | TFieldName _ *)
     (* | TFieldPartial _ *)
     (* | TLambdaVar _ *)
     (* | TRecordFieldname _ *)
       when not (Util.isIdentifierChar letter) ->
-        (ast, SamePlace)
+        (ast, SamePlace) *)
     (* | TVariable _ *)
-    | TPatternVariable _
+    (*     | TPatternVariable _
     (* | TLetVarName _ *)
     (* | TFieldName _ *)
     (* | TFieldPartial _ *)
@@ -4145,7 +4168,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* | TRecordFieldname _ *)
       when Util.isNumber letter && (offset = 0 || FluidToken.isBlank ti.token)
       ->
-        (ast, SamePlace)
+        (ast, SamePlace) *)
     | (TFnVersion _ | TFnName _) when not (Util.isFnNameChar letter) ->
         (ast, SamePlace)
     (*
@@ -4185,9 +4208,9 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     | TPatternFalse _ *)
     (* | TNullToken _ *)
     (* | TPatternNullToken _ *)
-    | TPatternVariable _ (* | TBinOp _ *)
+    (* | TPatternVariable _ (* | TBinOp _ *)
                          (* | TLambdaVar _ *) ->
-        (replaceStringToken ~f ti.token ast, RightOne)
+        (replaceStringToken ~f ti.token ast, RightOne) *)
     (*     | TInteger (id, _) ->
         tryReplaceStringAndMoveOrSame
           ~f
