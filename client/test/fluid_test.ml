@@ -183,20 +183,18 @@ let del
     ?(wrap = true)
     ?(debug = false)
     ?(clone = true)
-    ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Delete] None pos expr
+  process ~wrap ~clone ~debug [DeleteContentForward] None pos expr
 
 
 let bs
     ?(wrap = true)
     ?(debug = false)
     ?(clone = true)
-    ?(shiftHeld = false)
     (pos : int)
     (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Backspace] None pos expr
+  process ~wrap ~clone ~debug [DeleteContentBackward] None pos expr
 
 
 let tab
@@ -306,6 +304,17 @@ let selectionPress
     (Some selectionStart)
     pos
     expr
+
+
+let selectionInputs
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    (inputs : fluidInputEvent list)
+    (selectionStart : int)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process ~wrap ~clone ~debug inputs (Some selectionStart) pos expr
 
 
 let keys
@@ -502,49 +511,49 @@ let run () =
         (ctrlRight 5)
         "\"some string~\"" ;
       t
-        "DeletePrevWord at end of last word in string should only delete last word"
+        "DeleteWordBackward at end of last word in string should only delete last word"
         aStr
-        (key K.DeletePrevWord 12)
+        (inputs [DeleteWordBackward] 12)
         "\"some ~\"" ;
       t
-        "DeletePrevWord at beg of last word in string should delete first word"
+        "DeleteWordBackward at beg of last word in string should delete first word"
         aStr
-        (key K.DeletePrevWord 6)
+        (inputs [DeleteWordBackward] 6)
         "\"~string\"" ;
       t
-        "DeletePrevWord at beg of first word in string does nothing"
+        "DeleteWordBackward at beg of first word in string does nothing"
         aStr
-        (key K.DeletePrevWord 1)
+        (inputs [DeleteWordBackward] 1)
         "~\"some string\"" ;
       t
-        "DeletePrevWord in the middle of first word in string only deletes in front of the cursor"
+        "DeleteWordBackward in the middle of first word in string only deletes in front of the cursor"
         aStr
-        (key K.DeletePrevWord 3)
+        (inputs [DeleteWordBackward] 3)
         "\"~me string\"" ;
       t
-        "DeleteNextWord at end of last word in string moves cursor outside string"
+        "DeleteWordForward at end of last word in string moves cursor outside string"
         aStr
-        (key K.DeleteNextWord 12)
+        (inputs [DeleteWordForward] 12)
         "\"some string\"~" ;
       t
-        "DeleteNextWord at beg of last word in string should delete last word"
+        "DeleteWordForward at beg of last word in string should delete last word"
         aStr
-        (key K.DeleteNextWord 6)
+        (inputs [DeleteWordForward] 6)
         "\"some ~\"" ;
       t
-        "DeleteNextWord at beg of first word deletes first word"
+        "DeleteWordForward at beg of first word deletes first word"
         aStr
-        (key K.DeleteNextWord 1)
+        (inputs [DeleteWordForward] 1)
         "\"~ string\"" ;
       t
-        "DeleteNextWord in the middle of first word in string deletes to next whitespace"
+        "DeleteWordForward in the middle of first word in string deletes to next whitespace"
         aStr
-        (key K.DeleteNextWord 3)
+        (inputs [DeleteWordForward] 3)
         "\"so~ string\"" ;
       ts
         "When the entire string is selected, backspace will delete entire string, returning a blank"
         aStr
-        (selectionPress K.Backspace 0 13)
+        (selectionInputs [DeleteContentBackward] 0 13)
         ("___", (None, 0)) ;
       ()) ;
   describe "Multi-line Strings" (fun () ->
@@ -884,28 +893,28 @@ let run () =
         ^ " 123456789_ abcdefghi, 123456789_ abcdef~\n"
         ^ "ghi,\"" ) ;
       t
-        "DeletePrevWord at the end of line deletes word in front"
+        "DeleteWordBackward at the end of line deletes word in front"
         mlStrWSpace
-        (key K.DeletePrevWord 82)
+        (inputs [DeleteWordBackward] 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " 123456789_ abcdefghi, 123456789_ ~ghi,\"" ) ;
       t
-        "DeletePrevWord at the beg of line goes to end of line above "
+        "DeleteWordBackward at the beg of line goes to end of line above "
         mlStrWSpace
-        (key K.DeletePrevWord 42)
+        (inputs [DeleteWordBackward] 42)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
         ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
         ^ "ghi,\"" ) ;
       t
-        "DeleteNextWord at the end of line deletes up to the next whitespace"
+        "DeleteWordForward at the end of line deletes up to the next whitespace"
         mlStrWSpace
-        (key K.DeleteNextWord 82)
+        (inputs [DeleteWordForward] 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " 123456789_ abcdefghi, 123456789_ abcdef~\"" ) ;
       t
-        "DeleteNextWord at the beg of line deletes until the next whitespace"
+        "DeleteWordForward at the beg of line deletes until the next whitespace"
         mlStrWSpace
-        (key K.DeleteNextWord 42)
+        (inputs [DeleteWordForward] 42)
         (* ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ; *)
         (* The non-commented version is a bit weird for caret placement,
@@ -962,14 +971,14 @@ let run () =
         (ctrlRight 11)
         "461168601842738790~" ;
       t
-        "DeletePrevWord in the middle of an int deletes all the nums in front of cursor"
+        "DeleteWordBackward in the middle of an int deletes all the nums in front of cursor"
         oneShorterThanMax62BitInt
-        (key K.DeletePrevWord 11)
+        (inputs [DeleteWordBackward] 11)
         "~2738790" ;
       t
-        "DeletePrevWord at the end of an int deletes it all"
+        "DeleteWordBackward at the end of an int deletes it all"
         oneShorterThanMax62BitInt
-        (key K.DeletePrevWord 18)
+        (inputs [DeleteWordBackward] 18)
         "~___" ;
       ()) ;
   describe "Floats" (fun () ->
@@ -1050,44 +1059,44 @@ let run () =
         (ctrlRight 6)
         "123.456~" ;
       t
-        "DeletePrevWord in the middle of an fraction deletes all the nums in front of cursor up to the ."
+        "DeleteWordBackward in the middle of an fraction deletes all the nums in front of cursor up to the ."
         aFloat
-        (key K.DeletePrevWord 6)
+        (inputs [DeleteWordBackward] 6)
         "123.~6" ;
       t
-        "DeletePrevWord in the middle of a whole deletes all the nums in front of cursor"
+        "DeleteWordBackward in the middle of a whole deletes all the nums in front of cursor"
         aFloat
-        (key K.DeletePrevWord 2)
+        (inputs [DeleteWordBackward] 2)
         "~3.456" ;
       t
-        "DeletePrevWord in the end of a fraction deletes all the nums in up to the ."
+        "DeleteWordBackward in the end of a fraction deletes all the nums in up to the ."
         aFloat
-        (key K.DeletePrevWord 7)
+        (inputs [DeleteWordBackward] 7)
         "123.~" ;
       t
-        "DeletePrevWord in the end of a whole deletes all the nums in front of cursor"
+        "DeleteWordBackward in the end of a whole deletes all the nums in front of cursor"
         aFloat
-        (key K.DeletePrevWord 3)
+        (inputs [DeleteWordBackward] 3)
         "~.456" ;
       t
-        "DeleteNextWord in the middle of an fraction deletes all the nums after the cursor"
+        "DeleteWordForward in the middle of an fraction deletes all the nums after the cursor"
         aFloat
-        (key K.DeleteNextWord 6)
+        (inputs [DeleteWordForward] 6)
         "123.45~" ;
       t
-        "DeleteNextWord in the middle of a whole deletes all the nums in front of the ."
+        "DeleteWordForward in the middle of a whole deletes all the nums in front of the ."
         aFloat
-        (key K.DeleteNextWord 2)
+        (inputs [DeleteWordForward] 2)
         "12~.456" ;
       t
-        "DeleteNextWord in the end of a fraction does nothing"
+        "DeleteWordForward in the end of a fraction does nothing"
         aFloat
-        (key K.DeleteNextWord 7)
+        (inputs [DeleteWordForward] 7)
         "123.456~" ;
       t
-        "DeleteNextWord in the end of a whole deletes dot"
+        "DeleteWordForward in the end of a whole deletes dot"
         aFloat
-        (key K.DeleteNextWord 3)
+        (inputs [DeleteWordForward] 3)
         "123~456" ;
       ()) ;
   describe "Bools" (fun () ->
@@ -1130,44 +1139,44 @@ let run () =
         (ctrlRight 2)
         "false~" ;
       t
-        "DeletePrevWord at the end of a true deletes entire true"
+        "DeleteWordBackward at the end of a true deletes entire true"
         trueBool
-        (key K.DeletePrevWord 4)
+        (inputs [DeleteWordBackward] 4)
         "~___" ;
       t
-        "DeletePrevWord at the end of a false deletes entire false"
+        "DeleteWordBackward at the end of a false deletes entire false"
         falseBool
-        (key K.DeletePrevWord 5)
+        (inputs [DeleteWordBackward] 5)
         "~___" ;
       tp
-        "DeletePrevWord at the mid of a true deletes to beg"
+        "DeleteWordBackward at the mid of a true deletes to beg"
         trueBool
-        (key K.DeletePrevWord 2)
+        (inputs [DeleteWordBackward] 2)
         "~ue" ;
       tp
-        "DeletePrevWord at the mid of a false deletes to beg"
+        "DeleteWordBackward at the mid of a false deletes to beg"
         falseBool
-        (key K.DeletePrevWord 3)
+        (inputs [DeleteWordBackward] 3)
         "~se" ;
       t
-        "DeleteNextWord at the end of a true does nothing"
+        "DeleteWordForward at the end of a true does nothing"
         trueBool
-        (key K.DeleteNextWord 4)
+        (inputs [DeleteWordForward] 4)
         "true~" ;
       t
-        "DeleteNextWord at the end of a false does nothing"
+        "DeleteWordForward at the end of a false does nothing"
         falseBool
-        (key K.DeleteNextWord 5)
+        (inputs [DeleteWordForward] 5)
         "false~" ;
       tp
-        "DeleteNextWord at the mid of a true deletes to end"
+        "DeleteWordForward at the mid of a true deletes to end"
         trueBool
-        (key K.DeleteNextWord 2)
+        (inputs [DeleteWordForward] 2)
         "tr~" ;
       tp
-        "DeleteNextWord at the mid of a false deletes to end"
+        "DeleteWordForward at the mid of a false deletes to end"
         falseBool
-        (key K.DeleteNextWord 3)
+        (inputs [DeleteWordForward] 3)
         "fal~" ;
       ()) ;
   describe "Nulls" (fun () ->
@@ -1187,24 +1196,24 @@ let run () =
       t "ctrl+left middle of null moves to beg" aNull (ctrlLeft 2) "~null" ;
       t "ctrl+right middle of null moves to end" aNull (ctrlRight 2) "null~" ;
       t
-        "DeletePrevWord at the end of a null deletes entire null"
+        "DeleteWordBackward at the end of a null deletes entire null"
         aNull
-        (key K.DeletePrevWord 4)
+        (inputs [DeleteWordBackward] 4)
         "~___" ;
       tp
-        "DeletePrevWord at the mid of a null deletes to beg"
+        "DeleteWordBackward at the mid of a null deletes to beg"
         aNull
-        (key K.DeletePrevWord 2)
+        (inputs [DeleteWordBackward] 2)
         "~ll" ;
       t
-        "DeleteNextWord at the end of a null does nothing"
+        "DeleteWordForward at the end of a null does nothing"
         aNull
-        (key K.DeleteNextWord 4)
+        (inputs [DeleteWordForward] 4)
         "null~" ;
       tp
-        "DeleteNextWord at the mid of a null deletes to end"
+        "DeleteWordForward at the mid of a null deletes to end"
         aNull
-        (key K.DeleteNextWord 2)
+        (inputs [DeleteWordForward] 2)
         "nu~" ;
       ()) ;
   describe "Blanks" (fun () ->
@@ -1225,18 +1234,24 @@ let run () =
       t
         "backspacing your way through a partial finishes"
         trueBool
-        (keys [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        (inputs
+           [ DeleteContentBackward
+           ; DeleteContentBackward
+           ; DeleteContentBackward
+           ; DeleteContentBackward
+           ; keypress K.Left ]
+           4)
         "~___" ;
       t "insert blank->space" b (space 0) "~___" ;
       t
-        "DeletePrevWord at the end of a blank does nothing"
+        "DeleteWordBackward at the end of a blank does nothing"
         b
-        (key K.DeletePrevWord 3)
+        (inputs [DeleteWordBackward] 3)
         "~___" ;
       t
-        "DeleteNextWord at the end of a blank does nothing"
+        "DeleteWordForward at the end of a blank does nothing"
         b
-        (key K.DeleteNextWord 3)
+        (inputs [DeleteWordForward] 3)
         "___~" ;
       ()) ;
   describe "Fields" (fun () ->
@@ -1290,34 +1305,34 @@ let run () =
         (ctrlRight 5)
         "obj.field~.field2" ;
       tp
-        "DeletePrevWord in middle of fieldname deletes to beg of fieldname"
+        "DeleteWordBackward in middle of fieldname deletes to beg of fieldname"
         aNestedField
-        (key K.DeletePrevWord 6)
+        (inputs [DeleteWordBackward] 6)
         "obj.~eld@@.field2" ;
       tp
-        "DeletePrevWord at end of fieldname deletes entire fieldname"
+        "DeleteWordBackward at end of fieldname deletes entire fieldname"
         aNestedField
-        (key K.DeletePrevWord 9)
+        (inputs [DeleteWordBackward] 9)
         "obj.~***@@.field2" ;
       t
-        "DeletePrevWord at end of dot deletes fieldname"
+        "DeleteWordBackward at end of dot deletes fieldname"
         aNestedField
-        (key K.DeletePrevWord 4)
+        (inputs [DeleteWordBackward] 4)
         "obj~.field2" ;
       tp
-        "DeleteNextWord in middle of fieldname deletes to end of fieldname"
+        "DeleteWordForward in middle of fieldname deletes to end of fieldname"
         aNestedField
-        (key K.DeleteNextWord 6)
+        (inputs [DeleteWordForward] 6)
         "obj.fi~@l@.field2" ;
       t
-        "DeleteNextWord at end of fieldname deletes next fieldname"
+        "DeleteWordForward at end of fieldname deletes next fieldname"
         aNestedField
-        (key K.DeleteNextWord 9)
+        (inputs [DeleteWordForward] 9)
         "obj.field~" ;
       tp
-        "DeleteNextWord at end of dot deletes fieldname"
+        "DeleteWordForward at end of dot deletes fieldname"
         aNestedField
-        (key K.DeleteNextWord 4)
+        (inputs [DeleteWordForward] 4)
         "obj.~***@@.field2" ;
       tp
         "insert dot to complete partial field"
@@ -1423,24 +1438,24 @@ let run () =
         (bs 11)
         "Int::add 5~ 6" ;
       tp
-        "DeletePrevWord in middle of function deletes to beg of function"
+        "DeleteWordBackward in middle of function deletes to beg of function"
         aFnCallWithVersion
-        (key K.DeletePrevWord 6)
+        (inputs [DeleteWordBackward] 6)
         "~tAllv1@Allv@ ___________________" ;
       tp
-        "DeletePrevWord in end of function version deletes to function"
+        "DeleteWordBackward in end of function version deletes to function"
         aFnCallWithVersion
-        (key K.DeletePrevWord 12)
+        (inputs [DeleteWordBackward] 12)
         "DB::getAll~@@ ___________________" ;
       tp
-        "DeleteNextWord in middle of function deletes to beg of function"
+        "DeleteWordForward in middle of function deletes to beg of function"
         aFnCallWithVersion
-        (key K.DeleteNextWord 6)
+        (inputs [DeleteWordForward] 6)
         "DB::ge~v1@lv@ ___________________" ;
       t
-        "DeleteNextWord in end of function version moves cursor to end of blank "
+        "DeleteWordForward in end of function version moves cursor to end of blank "
         aFnCallWithVersion
-        (key K.DeleteNextWord 12)
+        (inputs [DeleteWordForward] 12)
         "DB::getAllv1 ___________________~" ;
       let string40 = "0123456789abcdefghij0123456789abcdefghij" in
       let string80 = string40 ^ string40 in
@@ -1520,7 +1535,7 @@ let run () =
         "backspace after selecting a versioned 0-arg fnCall deletes all"
         (fn "HttpClient::post_v4" [])
         (* wrap false because else we delete the wrapper *)
-        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
       ()) ;
   describe "Binops" (fun () ->
@@ -1610,17 +1625,17 @@ let run () =
       t
         "pressing del to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
-        (keys [K.Delete; K.Delete] 7)
+        (inputs [DeleteContentForward; DeleteContentForward] 7)
         "\"five~six\"" ;
       t
         "pressing backspace to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
-        (keys [K.Backspace; K.Backspace] 9)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 9)
         "\"five~six\"" ;
       t
         "pressing bs to remove a binop after a blank doesnt delete rhs"
         (binop "++" b (str "six"))
-        (keys [K.Backspace; K.Backspace] 15)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 15)
         "~\"six\"" ;
       t
         "pressing bs to remove a string binop combines lhs and rhs"
@@ -1628,7 +1643,7 @@ let run () =
            "++"
            (str "one")
            (binop "++" (str "two") (binop "++" (str "three") (str "four"))))
-        (keys [K.Backspace; K.Backspace] 17)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 17)
         "\"one\" ++ \"two~three\" ++ \"four\"" ;
       t
         "pressing bs to remove binop before a blank doesnt entire delete rhs"
@@ -1636,7 +1651,7 @@ let run () =
            "++"
            (str "one")
            (binop "++" (str "two") (binop "++" b (str "four"))))
-        (keys [K.Backspace; K.Backspace] 17)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 17)
         "\"one\" ++ \"two\"~ ++ \"four\"" ;
       t
         "pressing bs to remove binop after a blank doesnt entire delete rhs"
@@ -1644,7 +1659,7 @@ let run () =
            "++"
            (str "one")
            (binop "++" (str "two") (binop "++" b (str "four"))))
-        (keys [K.Backspace; K.Backspace] 33)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 33)
         "\"one\" ++ \"two\" ++ ~\"four\"" ;
       t
         "pressing letters and numbers on a partial completes it"
@@ -1703,24 +1718,24 @@ let run () =
         (ctrlRight 6)
         "12345 <~ 12345" ;
       t
-        "DeletePrevWord in end of binop deletes binop and combines rhs and lhs"
+        "DeleteWordBackward in end of binop deletes binop and combines rhs and lhs"
         (binop "<" anInt anInt)
-        (key K.DeletePrevWord 7)
+        (inputs [DeleteWordBackward] 7)
         "12345~12345" ;
       t
-        "DeletePrevWord in front of binop deletes first int"
+        "DeleteWordBackward in front of binop deletes first int"
         (binop "<" anInt anInt)
-        (key K.DeletePrevWord 5)
+        (inputs [DeleteWordBackward] 5)
         "~_________ < 12345" ;
       t
-        "DeleteNextWord in end of binop deletes second int"
+        "DeleteWordForward in end of binop deletes second int"
         (binop "<" anInt anInt)
-        (key K.DeleteNextWord 8)
+        (inputs [DeleteWordForward] 8)
         "12345 < ~_________" ;
       t
-        "DeleteNextWord in front of binop deletes binop and combines rhs and lhs"
+        "DeleteWordForward in front of binop deletes binop and combines rhs and lhs"
         (binop "<" anInt anInt)
-        (key K.DeleteNextWord 6)
+        (inputs [DeleteWordForward] 6)
         "12345~12345" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
@@ -1728,27 +1743,27 @@ let run () =
       t
         "pressing bs on || in binop deletes right side"
         (binop "||" trueBool falseBool)
-        (keys [K.Backspace; K.Backspace] 7)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 7)
         "true~" ;
       t
         "pressing bs on || in binop deletes blank on rhs"
         (binop "||" falseBool b)
-        (keys [K.Backspace; K.Backspace] 8)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 8)
         "false~" ;
       t
         "pressing bs on || in binop deletes blank on lhs"
         (binop "||" b falseBool)
-        (keys [K.Backspace; K.Backspace] 13)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 13)
         "~false" ;
       t
         "pressing bs on || in binop after blank deletes blank but rest of the lhs"
         (binop "||" falseBool (binop "||" b trueBool))
-        (keys [K.Backspace; K.Backspace] 22)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 22)
         "false || ~true" ;
       t
         "pressing bs on || in binop before blank deletes blank but rest of the lhs"
         (binop "||" falseBool (binop "||" b trueBool))
-        (keys [K.Backspace; K.Backspace] 8)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 8)
         "false~ || true" ;
       t
         "pressing bs on ++ binop before blank deletes blank but rest of the lhs"
@@ -1786,7 +1801,7 @@ let run () =
            "!="
            (int "54321")
            (binop "!=" (int "21") (binop "!=" b (int "5"))))
-        (keys [K.Backspace; K.Backspace] 14)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 14)
         "54321 != 21~ != 5" ;
       t
         "pressing bs on != binop after blank deletes blank but rest of the lhs"
@@ -1794,12 +1809,12 @@ let run () =
            "!="
            (int "54321")
            (binop "!=" (int "21") (binop "!=" b (int "5"))))
-        (keys [K.Backspace; K.Backspace] 21)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 21)
         "54321 != 21 != ~5" ;
       t
         "pressing bs on != binop combines lhs and rhs string"
         (binop "!=" (str "One") (binop "!=" (str "Two") (str "Three")))
-        (keys [K.Backspace; K.Backspace] 8)
+        (inputs [DeleteContentBackward; DeleteContentBackward] 8)
         "\"One~Two\" != \"Three\"" ;
       t
         "pressing bs on / binop deletes rhs"
@@ -1815,13 +1830,13 @@ let run () =
         "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all"
         (binop "/" (fn "HttpClient::post_v4" []) (int "5"))
         (* wrap false because else we delete the wrapper *)
-        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
       t
         "backspace after selecting all with a binop partial in a binop deletes all"
         (binop "+" (partial "D" (binop "-" (int "5") (int "5"))) (int "5"))
         (* wrap false because else we delete the wrapper *)
-        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        (inputs ~wrap:false [keypress K.SelectAll; DeleteWordBackward] 0)
         "~___" ;
       tp
         "inserting a binop in a placeholder works"
@@ -1858,30 +1873,30 @@ let run () =
         (ctrlRight 2)
         "Just~ ___" ;
       t
-        "DeletePrevWord at end of constructor deletes to beg "
+        "DeleteWordBackward at end of constructor deletes to beg "
         aConstructor
-        (key K.DeletePrevWord 4)
+        (inputs [DeleteWordBackward] 4)
         "~___" ;
       tp
-        "DeletePrevWord mid constructor deletes to beg "
+        "DeleteWordBackward mid constructor deletes to beg "
         aConstructor
-        (key K.DeletePrevWord 2)
+        (inputs [DeleteWordBackward] 2)
         "~st@@ ___" ;
       t
-        "DeleteNextWord at end of constructor moves to blank "
+        "DeleteWordForward at end of constructor moves to blank "
         aConstructor
-        (key K.DeleteNextWord 4)
+        (inputs [DeleteWordForward] 4)
         "Just ___~" ;
       tp
-        "DeleteNextWord mid constructor deletes to end "
+        "DeleteWordForward mid constructor deletes to end "
         aConstructor
-        (key K.DeleteNextWord 2)
+        (inputs [DeleteWordForward] 2)
         "Ju~@@ ___" ;
       t
         "backspace after selecting all with a `Just |___` in a match deletes all"
         (match' b [(pConstructor "Just" [pBlank], b)])
         (* wrap false because else we delete the wrapper *)
-        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
@@ -2656,7 +2671,7 @@ let run () =
         "bsing a blank pipe after a piped 1-arg function deletes all"
         (pipe aList5 [fn "List::length" [pipeTarget]; b])
         (* wrap false because else we delete the wrapper *)
-        (keys ~wrap:false [K.SelectAll; K.Backspace] 0)
+        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
@@ -3412,7 +3427,7 @@ let run () =
       ()) ;
   describe "Line-based Deletion" (fun () ->
       t
-        "K.DeleteToStartOfLine with selection deletes just the selection"
+        "DeleteSoftLineBackward with selection deletes just the selection"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3422,10 +3437,10 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (selectionPress K.DeleteToStartOfLine 114 66)
+        (selectionInputs [DeleteSoftLineBackward] 114 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
-        "K.DeleteToEndOfLine with selection deletes just the selection"
+        "DeleteSoftLineForward with selection deletes just the selection"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3435,10 +3450,10 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (selectionPress K.DeleteToEndOfLine 114 66)
+        (selectionInputs [DeleteSoftLineForward] 114 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
-        "K.DeleteToStartOfLine with no selection deletes to visual start of line"
+        "DeleteSoftLineBackward with no selection deletes to visual start of line"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3448,10 +3463,10 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (key K.DeleteToStartOfLine 66)
+        (inputs [DeleteSoftLineBackward] 66)
         "HttpClient::postv4\n  \"\"\n  {\n    ~*** : \"1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234\n          567890abcdefghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
-        "K.DeleteToEndOfLine with no selection deletes to visual end of line"
+        "DeleteSoftLineForward with no selection deletes to visual end of line"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3461,10 +3476,10 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (key K.DeleteToEndOfLine 66)
+        (inputs [DeleteSoftLineForward] 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~EFGHIJKLMNOPQR\n           STUVWXYZ1234567890abcdefghijklmnopqrstuv\n           wxyz\"\n  }\n  {}\n  {}" ;
       t
-        "K.DeleteToStartOfLine deletes up to line start at the end of a wrapping string"
+        "DeleteSoftLineBackward deletes up to line start at the end of a wrapping string"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3474,7 +3489,7 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (key K.DeleteToStartOfLine 163)
+        (inputs [DeleteSoftLineBackward] 163)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n           EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}" ;
       ()) ;
   describe "Selection Movement" (fun () ->
@@ -3706,6 +3721,6 @@ let run () =
   tp
     "typing and then deleting an unsupported char after an escape leaves us with a partial with the caret in the right place"
     aStrEscape
-    (inputs [InsertText "f"; keypress K.Backspace] 3)
+    (inputs [InsertText "f"; DeleteContentBackward] 3)
     "so\\~me string" ;
   ()

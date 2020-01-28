@@ -91,10 +91,10 @@ let run () =
       {key; shiftKey = false; altKey = false; metaKey = false; ctrlKey = false}
   in
   let del ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
-    process ~debug [keypress K.Delete] pos pat
+    process ~debug [DeleteContentForward] pos pat
   in
   let bs ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
-    process ~debug [keypress K.Backspace] pos pat
+    process ~debug [DeleteContentBackward] pos pat
   in
   let space ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
     process ~debug [keypress K.Space] pos pat
@@ -109,10 +109,12 @@ let run () =
       string * int =
     process ~debug [keypress key] pos pat
   in
-  let presses
-      ?(debug = false) (keys : K.key list) (pos : int) (pat : fluidPattern) :
-      string * int =
-    process ~debug (List.map keys ~f:keypress) pos pat
+  let inputs
+      ?(debug = false)
+      (inputs : fluidInputEvent list)
+      (pos : int)
+      (pat : fluidPattern) : string * int =
+    process ~debug inputs pos pat
   in
   let insert ?(debug = false) (s : string) (pos : int) (pat : fluidPattern) :
       string * int =
@@ -299,7 +301,13 @@ let run () =
       t
         "backspacing your way through a partial finishes"
         trueBool
-        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        (inputs
+           [ DeleteContentBackward
+           ; DeleteContentBackward
+           ; DeleteContentBackward
+           ; DeleteContentBackward
+           ; keypress K.Left ]
+           4)
         ("***", 0) ;
       t "insert blank->space" (b ()) (press K.Space 0) (blank, 0) ;
       ()) ;
