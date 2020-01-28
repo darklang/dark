@@ -125,7 +125,7 @@ let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =
-      Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid = Some traceID
+      Analysis.selectedTraceID vs.tlTraceIDs vs.traces vs.tlid = Some traceID
     in
     let isHover = vs.hovering = Some (vs.tlid, ID traceID) in
     let isUnfetchable =
