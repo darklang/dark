@@ -3887,18 +3887,24 @@ let doExplicitInsert
     | ARPattern (_, PPNull), FPNull (mID, _) ->
         let str = mutation "null" in
         let newID = gid () in
-        Some
-          ( Pat (FPVariable (mID, newID, str))
-          , { astRef = ARPattern (newID, PPVariable)
-            ; offset = currOffset + caretDelta } )
+        if FluidUtil.isValidIdentifier str
+        then
+          Some
+            ( Pat (FPVariable (mID, newID, str))
+            , { astRef = ARPattern (newID, PPVariable)
+              ; offset = currOffset + caretDelta } )
+        else None
     | ARPattern (_, PPBool), FPBool (mID, _, bool) ->
         let str = if bool then "true" else "false" in
         let newStr = mutation str in
         let newID = gid () in
-        Some
-          ( Pat (FPVariable (mID, newID, newStr))
-          , { astRef = ARPattern (newID, PPVariable)
-            ; offset = currOffset + caretDelta } )
+        if FluidUtil.isValidIdentifier str
+        then
+          Some
+            ( Pat (FPVariable (mID, newID, newStr))
+            , { astRef = ARPattern (newID, PPVariable)
+              ; offset = currOffset + caretDelta } )
+        else None
     | ARPattern (_, PPInteger), FPInteger (mID, pID, intStr) ->
         if currCaretTarget.offset = 0 && extendedGraphemeCluster = "0"
         then
