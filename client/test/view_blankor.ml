@@ -58,7 +58,8 @@ let run () =
             ; permission = Some ReadWrite
             ; workerStats = None
             ; tokens = []
-            ; menuState = {isOpen = false} }
+            ; menuState = {isOpen = false}
+            ; isExecuting = false }
           in
           expect (placeHolderFor vs ParamName) |> toBe "param name") ;
       ()) ;

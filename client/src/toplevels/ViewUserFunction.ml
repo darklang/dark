@@ -20,6 +20,7 @@ let enterable = ViewBlankOr.Enterable
 type exeFunction =
   | ExecuteWith of traceID * dval list
   | CannotExecute
+  | IsExecuting
 
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
@@ -74,22 +75,25 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
 
 let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
   let exeStatus =
-    match Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid with
-    | Some (traceID, Ok td) ->
-        let args = UserFunctions.inputToArgs fn td.input in
-        if List.any
-             ~f:(fun dv -> match dv with DIncomplete _ -> true | _ -> false)
-             args
-        then CannotExecute
-        else ExecuteWith (traceID, args)
-    | _ ->
-        CannotExecute
+    if vs.isExecuting
+    then IsExecuting
+    else
+      match Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid with
+      | Some (traceID, Ok td) ->
+          let args = UserFunctions.inputToArgs fn td.input in
+          if List.any
+               ~f:(fun dv -> match dv with DIncomplete _ -> true | _ -> false)
+               args
+          then CannotExecute
+          else ExecuteWith (traceID, args)
+      | _ ->
+          CannotExecute
   in
   let events =
     match (fn.ufMetadata.ufmName, exeStatus) with
     | F (_, fnName), ExecuteWith (traceID, args) ->
         ViewUtils.eventNoPropagation
-          ~key:("run-fun" ^ "-" ^ showTLID fn.ufTLID)
+          ~key:("run-fun" ^ "-" ^ showTLID fn.ufTLID ^ "-" ^ traceID)
           "click"
           (fun _ ->
             let params =
@@ -103,12 +107,24 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
     | _ ->
         Vdom.noProp
   in
+  let title =
+    match exeStatus with
+    | CannotExecute ->
+        "Cannot run: some parameters are incomplete"
+    | ExecuteWith _ ->
+        "Click to execute function"
+    | IsExecuting ->
+        "Function is executing"
+  in
   Html.div
     [ Html.classList
         [ ("execution-button", true)
-        ; ("allow", vs.permission = Some ReadWrite && exeStatus <> CannotExecute)
-        ]
-    ; events ]
+        ; ( "allow"
+          , vs.permission = Some ReadWrite
+            && match exeStatus with ExecuteWith _ -> true | _ -> false )
+        ; ("is-executing", exeStatus = IsExecuting) ]
+    ; events
+    ; Html.title title ]
     [fontAwesome "redo"]
 
 

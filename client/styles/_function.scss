@@ -33,6 +33,8 @@
         color: $user-functions;
         cursor: pointer;
       }
+
+      @include is-executing();
     }
   }
 

@@ -35,7 +35,8 @@ type viewState =
   ; tokens :
       (* Calculate the tokens once per render only *)
       FluidToken.tokenInfo list
-  ; menuState : menuState }
+  ; menuState : menuState
+  ; isExecuting : bool }
 
 (* ----------------------------- *)
 (* Events *)
@@ -128,7 +129,15 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
   ; tokens
   ; menuState =
       TLIDDict.get ~tlid m.tlMenus
-      |> Option.withDefault ~default:Defaults.defaultMenu }
+      |> Option.withDefault ~default:Defaults.defaultMenu
+  ; isExecuting =
+      ( match tl with
+      | TLFunc _ ->
+          List.any ~f:(fun (fTLID, _) -> fTLID = tlid) m.executingFunctions
+      | TLHandler _ ->
+        (match hp with Some p -> p.execution = Executing | _ -> false)
+      | _ ->
+          false ) }
 
 
 let fontAwesome (name : string) : msg Html.html =
