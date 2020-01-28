@@ -259,6 +259,19 @@ let matchWithBinding (bindingName : string) (expr : fluidExpr) =
   EMatch (mID, b, [(FPVariable (mID, gid (), bindingName), expr)])
 
 
+let matchWithTwoBindings
+    (bindingName1 : string)
+    (expr1 : fluidExpr)
+    (bindingName2 : string)
+    (expr2 : fluidExpr) =
+  let mID = gid () in
+  EMatch
+    ( mID
+    , b
+    , [ (FPVariable (mID, gid (), bindingName1), expr1)
+      ; (FPVariable (mID, gid (), bindingName2), expr2) ] )
+
+
 let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =
   let mID = gid () in
   EMatch
