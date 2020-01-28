@@ -5376,7 +5376,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           else None
         in
         (newAST, {newState with selectionStart})
-    | FluidInputEvent (InsertText str as ievt) when Option.is_some s.selectionStart ->
+    | FluidInputEvent (InsertText str as ievt)
+      when Option.is_some s.selectionStart ->
         let s = {s with lastInput = ievt} in
         updateKey (ReplaceText str) ast s
     | FluidInputEvent ievt ->

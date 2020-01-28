@@ -1864,6 +1864,11 @@ let run () =
         (if' (binop "++" b b) b b)
         (ins "&" 3)
         "if &~ ++ ____________\nthen\n  ___\nelse\n  ___" ;
+      ts
+        "Replacing text when selecting over binop works"
+        (binop "++" (str "five") (str "six"))
+        (inputs [InsertText "a"] 3 ~selectionStart:(Some 13))
+        ("\"fiax\"", (None, 4)) ;
       ()) ;
   describe "Constructors" (fun () ->
       tp "arguments work in constructors" aConstructor (ins "t" 5) "Just t~" ;
@@ -3078,6 +3083,16 @@ let run () =
         multiRowRecord
         (ctrlRight 6)
         "{\n  f1 : 56~\n  f2 : 78\n}" ;
+      ts
+        "Replace text when selecting over record"
+        (record [("f1", fiftySix); ("f2", seventyEight)])
+        (inputs [InsertText "5"] 21 ~selectionStart:(Some 10))
+        ("{\n  f1 : 55\n}", (None, 11)) ;
+      ts
+        "Replace text remove selected text when inserting wrong type"
+        (record [("f1", fiftySix); ("f2", seventyEight)])
+        (inputs [InsertText "a"] 21 ~selectionStart:(Some 10))
+        ("{\n  f1 : 5\n}", (None, 10)) ;
       ()) ;
   describe "Autocomplete" (fun () ->
       (* Note that many of these autocomplete tests use ~clone:false
