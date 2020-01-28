@@ -3656,6 +3656,15 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
       (newAST, s)
 
 
+(* [doExplicitInsert [extendedGraphemeCluster] [currCaretTarget] [ast]]
+ * produces the (newAST, newPosition) tuple resulting from performing
+ * a text insertion at [currCaretTarget] in the [ast]. 
+ * Note that newPosition will be either AtTarget or SamePlace --
+ * either the caret stays in the same place, or it ends up at a specific location.
+ *
+ * Note that there are some special-case inserts that aren't handled by doExplicitInsert.
+ * See doInsert and updateKey for these exceptional cases.
+ *)
 let doExplicitInsert
     (extendedGraphemeCluster : string)
     (currCaretTarget : caretTarget)
