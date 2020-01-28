@@ -4044,8 +4044,8 @@ let doExplicitInsert
   |> Option.withDefault ~default:(ast, SamePlace)
 
 
-let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
-    : E.t * state =
+let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
+    E.t * state =
   let s = recordAction ~ti ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
   (*   let offset =
@@ -4554,7 +4554,7 @@ let rec updateKey
       when onEdge && Util.isIdentifierChar txt ->
         let ast, s = acEnter ti ast s K.Tab in
         getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
-        |> Option.map ~f:(fun ti -> doInsert' ~pos:s.newPos txt ti ast s)
+        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
         |> Option.withDefault ~default:(ast, s)
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline ast s =
@@ -4685,13 +4685,13 @@ let rec updateKey
     | InsertText ",", L (TLambdaSymbol _, toTheLeft), _
     | InsertText ",", L (TLambdaVar _, toTheLeft), _
       when onEdge ->
-        doInsert' ~pos "," toTheLeft ast s
+        doInsert ~pos "," toTheLeft ast s
     | InsertText ",", _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
         (insertLambdaVar ~index id ~name:"" ast, s)
     | InsertText ",", L (t, ti), _ ->
         if onEdge
         then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
-        else doInsert' ~pos "," ti ast s
+        else doInsert ~pos "," ti ast s
     (* list-specific insertions *)
     | InsertText "}", _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
@@ -4710,7 +4710,7 @@ let rec updateKey
     | InsertText ".", L (TVariable _, toTheLeft), _
     | InsertText ".", L (TFieldName _, toTheLeft), _
       when onEdge ->
-        doInsert' ~pos "." toTheLeft ast s
+        doInsert ~pos "." toTheLeft ast s
     (***********)
     (* K.Enter *)
     (***********)
@@ -4906,17 +4906,17 @@ let rec updateKey
     | InsertText txt, L (TRightPartial _, toTheLeft), _
     | InsertText txt, L (TBinOp _, toTheLeft), _
       when keyIsInfix ->
-        doInsert' ~pos txt toTheLeft ast s
+        doInsert ~pos txt toTheLeft ast s
     | InsertText txt, _, R (TPlaceholder _, toTheRight)
     | InsertText txt, _, R (TBlank _, toTheRight)
       when keyIsInfix ->
-        doInsert' ~pos txt toTheRight ast s
+        doInsert ~pos txt toTheRight ast s
     | InsertText txt, L (_, toTheLeft), _
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
         (convertToBinOp txt (T.tid toTheLeft.token) ast, s |> moveTo (pos + 2))
     (* Rest of Insertions *)
     | InsertText txt, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
-        doInsert' ~pos txt toTheLeft ast s
+        doInsert ~pos txt toTheLeft ast s
     (*
      * Caret between empty record symbols {}
      * Adds new initial record row with the typed
@@ -4930,17 +4930,17 @@ let rec updateKey
           (ast, s)
         else (ast, s)
     | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
-        doInsert' ~pos txt toTheLeft ast s
+        doInsert ~pos txt toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
         (ast, s)
     | _, _, R (TRecordOpen _, _) ->
         (ast, s)
     | InsertText txt, _, R (_, toTheRight) ->
-        doInsert' ~pos txt toTheRight ast s
+        doInsert ~pos txt toTheRight ast s
     | ReplaceText txt, _, _ ->
         replaceText ~ast ~state:s txt
     | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
-        doInsert' ~pos " " toTheRight ast s
+        doInsert ~pos " " toTheRight ast s
     | _ ->
         (* Unknown *)
         (ast, report ("Unknown action: " ^ show_fluidInputEvent inputEvent) s)
