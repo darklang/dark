@@ -1037,7 +1037,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
       Some {astRef = ARConstructor id; offset}
-  (* 
+  (*
     These have no valid caretTarget because they are not
     strictly part of the AST.
    *)
@@ -2914,13 +2914,13 @@ let idOfCaretTarget ({astRef; _} : caretTarget) : id option = idOfASTRef astRef
  * offsets that are outside of the targetable range.
  * In such cases, we currently rely on the behavior of
  * posFromCaretTarget to clamp the offset.
- * 
+ *
  * Note also that doExplicitBackspace expects to receive
  * only "real" caret targets (via caretTargetFromTokenInfo);
  * we don't handle certain 0-offset [currCaretTarget]s because
  * we expect to receive tokens to the left of the caret instead
  * of the 0th offset of the caretTarget of the token to the right.
- * 
+ *
  * A hacky exception to this is Blanks -- there are a few circumstances
  * where we obtain a zero offset for blanks even though the blank is to the
  * right of the caret instead of the left. This is to account for
@@ -4110,26 +4110,22 @@ let rec updateKey
       when pos = ti.startPos + 2 ->
         (ast, moveToNextNonWhitespaceToken ~pos ast s)
     (* Deleting *)
-    | Keypress {key = K.Delete; _}, _, _
-    | Keypress {key = K.Backspace; _}, _, _
+    | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
       when Option.isSome s.selectionStart ->
         deleteSelection ~state:s ~ast
-    | Keypress {key = K.Backspace; _}, L (TPatternString _, ti), _
-    | Keypress {key = K.Backspace; _}, L (TString _, ti), _
+    | DeleteContentBackward, L (TPatternString _, ti), _
+    | DeleteContentBackward, L (TString _, ti), _
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
-    | ( Keypress {key = K.Backspace; _}
-      , _
-      , R (TRecordFieldname {fieldName = ""; _}, ti) ) ->
+    | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti) ->
         doBackspace ~pos ti ast s
-    | Keypress {key = K.Backspace; _}, L (TNewline _, _), R (TPatternBlank _, ti)
-      ->
+    | DeleteContentBackward, L (TNewline _, _), R (TPatternBlank _, ti) ->
         (* Special-case hack for deleting rows of a match or record *)
         doBackspace ~pos ti ast s
-    | Keypress {key = K.Backspace; _}, L (_, ti), _ ->
+    | DeleteContentBackward, L (_, ti), _ ->
         doBackspace ~pos ti ast s
-    | Keypress {key = K.Delete; _}, _, R (_, ti) ->
+    | DeleteContentForward, _, R (_, ti) ->
         doDelete ~pos ti ast s
     (* Autocomplete menu *)
     (* Note that these are spelt out explicitly on purpose, else they'll
@@ -4258,7 +4254,7 @@ let rec updateKey
       | None ->
           deleteCaretRange ~state:s ~ast (s.newPos, getEndOfLineCaretPos ast ti)
       )
-    | Keypress {key = K.DeleteNextWord; _}, _, R (_, ti) ->
+    | DeleteWordForward, _, R (_, ti) ->
       ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
@@ -4270,7 +4266,7 @@ let rec updateKey
           if newAst = ast && newState.newPos = pos
           then (newAst, movedState)
           else (newAst, newState) )
-    | Keypress {key = K.DeletePrevWord; _}, L (_, ti), _ ->
+    | DeleteWordBackward, L (_, ti), _ ->
       ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
@@ -4648,14 +4644,9 @@ and deleteCaretRange ~state ~(ast : ast) (caretRange : int * int) :
   let currAst, currState = (ref ast, ref state) in
   let nothingChanged = ref false in
   while (not !nothingChanged) && !currState.newPos > rangeStart do
-    let kevt =
-      { K.key = K.Backspace
-      ; shiftKey = false
-      ; ctrlKey = false
-      ; altKey = false
-      ; metaKey = false }
+    let newAst, newState =
+      updateKey DeleteContentBackward !currAst !currState
     in
-    let newAst, newState = updateKey (Keypress kevt) !currAst !currState in
     if newState.newPos = !currState.newPos && newAst = !currAst
     then
       (* stop if nothing changed--guarantees loop termination *)
@@ -4711,14 +4702,11 @@ let shouldDoDefaultAction (key : K.key) : bool =
   match key with
   | K.GoToStartOfLine _
   | K.GoToEndOfLine _
-  | K.Delete
   | K.SelectAll
   | K.DeleteToEndOfLine
   | K.DeleteToStartOfLine
   | K.GoToStartOfWord _
-  | K.GoToEndOfWord _
-  | K.DeletePrevWord
-  | K.DeleteNextWord ->
+  | K.GoToEndOfWord _ ->
       false
   | _ ->
       true
@@ -5381,13 +5369,23 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           else None
         in
         (newAST, {newState with selectionStart})
-    | FluidInputEvent (InsertText _ as ievt) ->
+    | FluidInputEvent
+        ( ( InsertText _
+          | DeleteContentBackward
+          | DeleteContentForward
+          | DeleteWordBackward
+          | DeleteWordForward ) as ievt ) ->
         let s = {s with lastInput = ievt} in
         updateKey ievt ast s
     | FluidAutocompleteClick entry ->
         Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
         |> Option.withDefault ~default:(ast, s)
-    | _ ->
+    | FluidClearErrorDvSrc
+    | FluidMouseDown _
+    | FluidCommandsFilter _
+    | FluidCommandsClick _
+    | FluidFocusOnToken _
+    | FluidUpdateDropdownIndex _ ->
         (ast, s)
   in
   let newState = updateAutocomplete m tlid newAST newState in
