@@ -304,6 +304,7 @@ def execute(should):
 
 
 def mark(should, f):
+  print("file: " + f, end='')
   # Ocaml
   if ("libshared/" in f) \
           and ((".mli" in f) \
