@@ -3416,7 +3416,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           ~debug:(show_astRef currAstRef)
           None
   in
-  (* FIXME: This is an ugly hack so we can replace stuff inside patterns.
+  (* FIXME: This is an ugly hack so we can modify match branches when editing a pattern.
      There's probably a nice way to do this without a ref, but that's a bigger change.
    *)
   let patContainerRef : Types.id option ref = ref None in
