@@ -5367,14 +5367,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           else None
         in
         (newAST, {newState with selectionStart})
-    | FluidInputEvent
-        ( ( InsertText _
-          | DeleteContentBackward
-          | DeleteContentForward
-          | DeleteWordBackward
-          | DeleteWordForward
-          | DeleteSoftLineBackward
-          | DeleteSoftLineForward ) as ievt ) ->
+    | FluidInputEvent ievt ->
         let s = {s with lastInput = ievt} in
         updateKey ievt ast s
     | FluidAutocompleteClick entry ->
