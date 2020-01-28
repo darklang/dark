@@ -3851,6 +3851,39 @@ let doExplicitInsert
   let doPatInsert (currAstRef : astRef) (pat : fluidPattern) :
       (fluidPatOrExpr * caretTarget) option =
     match (currAstRef, pat) with
+    | ARPattern (_, PPFloat kind), FPFloat (mID, pID, whole, frac) ->
+        if FluidUtil.isNumber extendedGraphemeCluster
+        then
+          let isWhole, index =
+            match kind with
+            | FPWhole ->
+                (true, currOffset)
+            | FPFractional ->
+                (false, currOffset)
+            | FPPoint ->
+                if currCaretTarget.offset = 0
+                then (true, String.length whole)
+                else (false, 0)
+          in
+          if isWhole
+          then
+            let newWhole = mutationAt whole ~index in
+            (* This enables |.67 -> 0|.67 but prevents |1.0 -> 0|1.0 *)
+            if String.slice ~from:0 ~to_:1 newWhole = "0"
+               && String.length newWhole > 1
+            then None
+            else
+              Some
+                ( Pat (FPFloat (mID, pID, newWhole, frac))
+                , { astRef = ARPattern (pID, PPFloat FPWhole)
+                  ; offset = index + caretDelta } )
+          else
+            let newFrac = mutationAt frac ~index in
+            Some
+              ( Pat (FPFloat (mID, pID, whole, newFrac))
+              , { astRef = ARPattern (pID, PPFloat FPFractional)
+                ; offset = index + caretDelta } )
+        else None
     | ARPattern (_, PPNull), FPNull (mID, _) ->
         let str = mutation "null" in
         let newID = gid () in
@@ -4045,14 +4078,14 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* | TPatternInteger _ *)
     (* | TFloatFractional _ *)
     (* | TFloatWhole _ *)
-    | (TPatternFloatWhole _ | TPatternFloatFractional _)
+    (* | (TPatternFloatWhole _ | TPatternFloatFractional _)
       when not (Util.isNumber letter) ->
         (ast, SamePlace)
         (* TInteger _ | *)
         (* | (TPatternInteger _ *)
         (* | TFloatWhole _ *)
     | TPatternFloatWhole _ (* ) *) when "0" = letter && offset = 0 ->
-        (ast, SamePlace)
+        (ast, SamePlace) *)
     (* | TVariable _ *)
     | TPatternVariable _
     (* | TLetVarName _ *)
@@ -4139,12 +4172,12 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         , AtTarget
             {astRef = ARFloat (id, FPFractional); offset = String.length letter}
         ) *)
-    | TPatternFloatWhole (mID, id, str, _) ->
+    (* | TPatternFloatWhole (mID, id, str, _) ->
         (replacePatternFloatWhole (f str) mID id ast, RightOne)
     | TPatternFloatFractional (mID, id, str, _) ->
         (replacePatternFloatFraction (f str) mID id ast, RightOne)
     | TPatternFloatPoint (mID, id, _) ->
-        (insertAtFrontOfPatternFloatFraction letter mID id ast, RightOne)
+        (insertAtFrontOfPatternFloatFraction letter mID id ast, RightOne) *)
     | TPatternConstructorName _ ->
         (ast, SamePlace)
     | TPatternBlank (mID, pID, _) ->
