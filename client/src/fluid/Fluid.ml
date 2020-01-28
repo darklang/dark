@@ -3002,8 +3002,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         if newName = ""
         then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
         else Some (Expr newExpr, currCTMinusOne)
-    | ARMatch (id, MPBranchArrow idx), expr ->
-        Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARLambda (_, LBPComma varAndSepIdx), ELambda (id, oldVars, oldExpr) ->
         let rec itemsAtCurrAndNextIndex (lst : 'a list) (idx : int) :
             ('a * 'a) option =
@@ -3181,6 +3179,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     (*
      * Immutable; just jump to the start
      *)
+    | ARMatch (id, MPBranchArrow idx), expr ->
+        Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARIf (_, IPThenKeyword), expr
     | ARIf (_, IPElseKeyword), expr
     | ARLambda (_, LBPArrow), expr
@@ -3842,10 +3842,67 @@ let doExplicitInsert
                 (id, newName, value, E.renameVariableUses ~oldName ~newName body)
             , currCTPlusLen )
         else None
-    | _ ->
+    | ARBlank _, _ ->
         recover
-          "doExplicitInsert - unhandled astRef"
+          "doExplicitInsert - ARBlank handled elsewhere"
           ~debug:(show_astRef currAstRef, show_fluidExpr expr)
+          None
+    (*
+     * Things you can't edit but probably should be able to edit
+     *)
+    | ARFnCall _, EFnCall _ | ARConstructor _, EConstructor _ ->
+        None
+    (*
+     * Immutable keywords and symbols
+     *)
+    | ARLambda (_, LBPComma _), _
+    | ARLambda (_, LBPSymbol), _
+    | ARLambda (_, LBPArrow), _
+    | ARRecord (_, RPOpen), _
+    | ARRecord (_, RPFieldSep _), _
+    | ARRecord (_, RPClose), _
+    | ARList (_, LPOpen), _
+    | ARList (_, LPComma _), _
+    | ARList (_, LPClose), _
+    | ARLet (_, LPKeyword), _
+    | ARLet (_, LPAssignment), _
+    | ARIf (_, IPIfKeyword), _
+    | ARIf (_, IPThenKeyword), _
+    | ARIf (_, IPElseKeyword), _
+    | ARPipe (_, _), _
+    | ARMatch (_, MPKeyword), _
+    | ARMatch (_, MPBranchArrow _), _ ->
+        None
+    (*****************
+     * Exhaustiveness
+     *)
+    | ARBinOp _, _
+    | ARBool _, _
+    | ARConstructor _, _
+    | ARFieldAccess (_, FAPFieldname), _
+    | ARFloat (_, FPFractional), _
+    | ARFloat (_, FPPoint), _
+    | ARFloat (_, FPWhole), _
+    | ARFnCall _, _
+    | ARInteger _, _
+    | ARLambda (_, LBPVarName _), _
+    | ARLet (_, LPVarName), _
+    | ARNull _, _
+    | ARPartial _, _
+    | ARRecord (_, RPFieldname _), _
+    | ARRightPartial _, _
+    | ARString (_, SPCloseQuote), _
+    | ARString (_, SPOpenQuote), _
+    | ARString (_, SPText), _
+    | ARVariable _, _
+    (*
+     * Non-exprs
+     *)
+    | ARPattern _, _
+    | ARInvalid, _ ->
+        recover
+          "doExplicitBackspace - unexpected expr"
+          ~debug:(show_astRef currAstRef)
           None
   in
   let doPatInsert
@@ -4171,8 +4228,8 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
       when Util.isNumber letter && (offset = 0 || FluidToken.isBlank ti.token)
       ->
         (ast, SamePlace) *)
-    | (TFnVersion _ | TFnName _) when not (Util.isFnNameChar letter) ->
-        (ast, SamePlace)
+    (* | (TFnVersion _ | TFnName _) when not (Util.isFnNameChar letter) ->
+        (ast, SamePlace) *)
     (*
      * Do the insert
      *)
@@ -4244,8 +4301,8 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (replacePatternFloatFraction (f str) mID id ast, RightOne)
     | TPatternFloatPoint (mID, id, _) ->
         (insertAtFrontOfPatternFloatFraction letter mID id ast, RightOne) *)
-    | TPatternConstructorName _ ->
-        (ast, SamePlace)
+    (* | TPatternConstructorName _ ->
+        (ast, SamePlace) *)
     (*     | TPatternBlank (mID, pID, _) ->
         let newPat =
           if letter = "\""
@@ -4256,7 +4313,7 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
         in
         (replacePattern mID pID ~newPat ast, RightOne) *)
     (* do nothing *)
-    | TNewline _
+    (*     | TNewline _
     | TIfKeyword _
     | TIfThenKeyword _
     | TIfElseKeyword _
@@ -4282,7 +4339,7 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
     | TPartialGhost _
     | TParenOpen _
     | TParenClose _ ->
-        (ast, SamePlace)
+        (ast, SamePlace) *)
     | _ ->
       ( match caretTargetFromTokenInfo pos ti with
       | Some ct ->
