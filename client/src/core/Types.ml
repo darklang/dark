@@ -1151,6 +1151,7 @@ and modification =
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
   | TLMenuUpdate of tlid * menuMsg
+  | ExecuteFunction of executeFunctionAPIParams
 
 (* ------------------- *)
 (* Msgs *)
@@ -1232,6 +1233,7 @@ and msg =
   | SaveTestButton
   | ToggleEditorSetting of (editorSettings -> editorSettings)
   | ExecuteFunctionButton of tlid * id * string
+  | ExecuteFunctionWithin of tlid * string
   | CreateHandlerFrom404 of fourOhFour
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string

@@ -956,6 +956,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with fluidState}, Cmd.none)
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
+    | ExecuteFunction params ->
+      (m, API.executeFunction m params)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1192,6 +1194,27 @@ let update_ (msg : msg) (m : model) : modification =
         [ ExecutingFunctionBegan (tlid, id)
         ; ExecutingFunctionAPICall (tlid, id, name)
         ; Select (tlid, selectionTarget) ]
+  | ExecuteFunctionWithin (tlid, name) ->
+        Analysis.getSelectedTraceID m tlid
+        |> Option.andThen ~f:(Analysis.getTrace m tlid)
+        |> Option.andThen ~f:(fun (traceID, tResult) ->
+          match (tResult, UserFunctions.findByName m name) with
+          | (Ok td, Some fn) ->
+            let input = td.input in
+            Debug.loG ("got trace data for: " ^ name) input;
+            let id = gid () in
+            let args = UserFunctions.inputToArgs fn input in
+            let params =
+              { efpTLID = tlid
+              ; efpCallerID = id
+              ; efpTraceID = traceID
+              ; efpFnName = name
+              ; efpArgs = args }
+            in
+            Some (ExecuteFunction params)
+          | _ -> None
+        )
+        |> Option.withDefault ~default:NoChange
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->

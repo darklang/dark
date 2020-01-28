@@ -67,20 +67,31 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
   | _ ->
       buttonContent true
 
-let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
+let viewExecuteBtn (_vs : viewState) (fn : userFunction) : msg Html.html =
+  (*
   let readyClass = match vs.analysisStore with
     | LoadableSuccess _ -> "ready"
     | LoadableNotInitialized -> "no-data"
     | LoadableLoading _ -> "wait"
     | LoadableError _ -> "error"
   in
+  *)
   let events =
     ViewUtils.eventNoPropagation
       ~key:("run-fun" ^ "-" ^ showTLID fn.ufTLID)
       "click"
-      (fun _ -> Debug.loG "exe fun" vs.analysisStore; IgnoreMsg )
+      (fun _ -> ExecuteFunctionWithin (fn.ufTLID, fn.ufMetadata.ufmName |> B.valueWithDefault "")
+        (* match Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid with
+        | Some traceID ->
+          Debug.loG "traceID" traceID;
+          match vs.traces |> List.find ~f:(fun (id, _) -> id = traceID ) with
+          | Ok trace ->
+          | Error err -> Debug.loG "fail to find trace" err;
+        | None -> Debug.loG "no traceID" ""; 
+        ;
+      IgnoreMsg *) )
   in
-  Html.div [Html.class' ("execution-button " ^ readyClass); events] [fontAwesome "redo"]
+  Html.div [Html.class' ("execution-button"); events] [fontAwesome "redo"]
   (*
   if vs.permission = Some ReadWrite
   then
