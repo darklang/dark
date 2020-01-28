@@ -338,19 +338,20 @@ let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
           (* merge the lists, updating the trace in the same position
               * if present, and adding it to the front otherwise. *)
           Some
-            (List.foldl n ~init:o ~f:(fun ((newID, newData) as new_) acc ->
-                 let found = ref false in
-                 let updated =
-                   List.map acc ~f:(fun ((oldID, oldData) as old) ->
-                       if oldID = newID
-                       then (
-                         found := true ;
-                         onConflict old new_ )
-                       else (oldID, oldData))
-                 in
-                 if !found (* deref, not "not" *)
-                 then updated
-                 else (newID, newData) :: acc)))
+            ( List.foldl n ~init:o ~f:(fun ((newID, newData) as new_) acc ->
+                  let found = ref false in
+                  let updated =
+                    List.map acc ~f:(fun ((oldID, oldData) as old) ->
+                        if oldID = newID
+                        then (
+                          found := true ;
+                          onConflict old new_ )
+                        else (oldID, oldData))
+                  in
+                  if !found (* deref, not "not" *)
+                  then updated
+                  else (newID, newData) :: acc)
+            |> List.take ~count:10 ))
 
 
 let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
