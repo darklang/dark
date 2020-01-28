@@ -14,7 +14,8 @@ let process_cmdline_args () =
           Tester.verbose := true
       | None, "--help" ->
           Js.log
-            "Run Dark's client-side unit tests. Supported arguments:\n  --dom: run the DOM tests (slow)\n  --verbose: print test names\n  --help: Print this message\n  --pattern 'some-regex': Run any test that contains this regex"
+            "Run Dark's client-side unit tests. Supported arguments:\n  --dom: run the DOM tests (slow)\n  --verbose: print test names\n  --help: Print this message\n  --pattern 'some-regex': Run any test that contains this regex" ;
+          exit 0
       | Some "--pattern", str ->
           Tester.pattern := Some (Js.Re.fromString str) ;
           command := None
