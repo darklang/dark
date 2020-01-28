@@ -3940,6 +3940,28 @@ let doExplicitInsert
             ( Pat (FPString {data with str})
             , { astRef = ARPattern (patternID, PPString SPText)
               ; offset = strRelOffset + caretDelta } )
+    | ARPattern (_, PPBlank), FPBlank (mID, _) ->
+        let newID = gid () in
+        if extendedGraphemeCluster = "\""
+        then
+          Some
+            ( Pat (FPString {matchID = mID; patternID = newID; str = ""})
+            , {astRef = ARPattern (newID, PPString SPText); offset = 0} )
+        else if Util.isNumber extendedGraphemeCluster
+        then
+          Some
+            ( Pat
+                (FPInteger
+                   ( mID
+                   , newID
+                   , extendedGraphemeCluster |> Util.coerceStringTo63BitInt ))
+            , {astRef = ARPattern (newID, PPInteger); offset = caretDelta} )
+        else if FluidUtil.isIdentifierChar extendedGraphemeCluster
+        then
+          Some
+            ( Pat (FPVariable (mID, newID, extendedGraphemeCluster))
+            , {astRef = ARPattern (newID, PPVariable); offset = caretDelta} )
+        else None
     | _ ->
         recover
           "doExplicitInsert - unhandled astRef"
@@ -4180,7 +4202,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         (insertAtFrontOfPatternFloatFraction letter mID id ast, RightOne) *)
     | TPatternConstructorName _ ->
         (ast, SamePlace)
-    | TPatternBlank (mID, pID, _) ->
+    (*     | TPatternBlank (mID, pID, _) ->
         let newPat =
           if letter = "\""
           then FPString {matchID = mID; patternID = newID; str = ""}
@@ -4188,7 +4210,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
           then FPInteger (mID, newID, letter |> Util.coerceStringTo63BitInt)
           else FPVariable (mID, newID, letter)
         in
-        (replacePattern mID pID ~newPat ast, RightOne)
+        (replacePattern mID pID ~newPat ast, RightOne) *)
     (* do nothing *)
     | TNewline _
     | TIfKeyword _
