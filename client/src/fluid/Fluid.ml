@@ -4028,8 +4028,6 @@ let doExplicitInsert
             , {astRef = ARPattern (newID, PPVariable); offset = caretDelta} )
         else None
     | ARPattern (_, PPVariable), FPVariable (mID, pID, oldName) ->
-        (* TODO(JULIAN): Add at test for renaming a match branch variable 
-         * not affecting other match branches. *)
         let newName = mutation oldName in
         if FluidUtil.isValidIdentifier newName
         then (

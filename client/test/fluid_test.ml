@@ -2185,6 +2185,34 @@ let run () =
         (ins "c" 19)
         "match ___\n  bindingc~ -> bindingc\n" ;
       t
+        "insert only changes var in same branch"
+        (matchWithTwoBindings
+           "binding"
+           (var "binding")
+           "binding"
+           (var "binding"))
+        (ins "c" 19)
+        "match ___\n  bindingc~ -> bindingc\n  binding -> binding\n" ;
+      t
+        "bs only changes var in same branch"
+        (matchWithTwoBindings
+           "binding"
+           (var "binding")
+           "binding"
+           (var "binding"))
+        (bs 19)
+        "match ___\n  bindin~ -> bindin\n  binding -> binding\n" ;
+      (*    TODO: uncomment this once the behavior is fixed
+      t
+        "del only changes var in same branch"
+        (matchWithTwoBindings
+           "binding"
+           (var "binding")
+           "binding"
+           (var "binding"))
+        (del 12)
+        "match ___\n  binding -> inding\n  binding -> binding\n" ; *)
+      t
         "insert changes occurence of non-shadowed var in case constructor"
         (matchWithConstructorBinding "binding" (var "binding"))
         (ins "c" 22)
