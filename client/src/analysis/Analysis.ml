@@ -187,8 +187,9 @@ let getAvailableVarnames
 (* Which trace is selected *)
 (* ---------------------- *)
 
-let selectedTraceID (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid)
-    : traceID option =
+let selectedTraceID
+    (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid) :
+    traceID option =
   (* We briefly do analysis on a toplevel which does not have an *)
   (* analysis available, so be careful here. *)
   match TLIDDict.get ~tlid tlTraceIDs with
@@ -197,6 +198,13 @@ let selectedTraceID (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid
   | None ->
       (* if we don't have it, pick the first trace *)
       List.head traces |> Option.map ~f:Tuple2.first
+
+
+let selectedTrace (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid)
+    : trace option =
+  selectedTraceID tlTraceIDs traces tlid
+  |> Option.andThen ~f:(fun traceID ->
+         List.find ~f:(fun (id, _) -> id = traceID) traces)
 
 
 let setSelectedTraceID (m : model) (tlid : tlid) (traceID : traceID) : model =

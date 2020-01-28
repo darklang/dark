@@ -220,13 +220,13 @@ let idOfLastBlankor (f : userFunction) : id =
   |> Option.andThen ~f:(fun p -> Some (B.toID p.ufpTipe))
   |> Option.withDefault ~default:(B.toID f.ufMetadata.ufmName)
 
+
 let inputToArgs (f : userFunction) (input : inputValueDict) : dval list =
   let default = DIncomplete SourceNone in
   f.ufMetadata.ufmParameters
   |> List.map ~f:(fun p ->
-      match p.ufpName with
-      | F (_, name) ->
-        StrDict.get ~key:name input
-        |> Option.withDefault ~default
-      | _ -> default
-  )
+         match p.ufpName with
+         | F (_, name) ->
+             StrDict.get ~key:name input |> Option.withDefault ~default
+         | _ ->
+             default)

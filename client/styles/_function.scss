@@ -24,6 +24,16 @@
     .fn-actions .more-actions .toggle-btn {
       color: $user-functions;
     }
+
+    .execution-button {
+      color: $grey1;
+      cursor: not-allowed;
+
+      &.allow {
+        color: $user-functions;
+        cursor: pointer;
+      }
+    }
   }
 
   .params {
