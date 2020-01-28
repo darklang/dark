@@ -186,20 +186,56 @@ let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
              Exception.internal "Bad DB format for stored_events")
 
 
-(* see comment on Stored_event.trim_results for why this query *)
+(** trim_events removes all stored_events_v2 records older than a week, leaving
+ * at minimum 10 records for each unique handler on a canvas regardless of age.
+ *
+ * Returns the number of rows deleted.
+ *
+ * CAVEAT: in order to keep our DB from bursting into flames given a large
+ * number of records to cleanup, we cap the maximum number of records deleted
+ * per call to 10_000.
+ *
+ * See also
+ * - Stored_function_result.trim_results
+ * - Stored_function_arguments.trum_arguments
+ * which are nearly identical queries on different tables *)
 let trim_events () : int =
   Db.delete
     ~name:"stored_event.trim_events"
-    "DELETE FROM stored_events_v2
-    WHERE trace_id IN (
-      SELECT trace_id FROM (
-        SELECT row_number()
-        OVER (PARTITION BY canvas_id, module, path, modifier ORDER BY timestamp
-desc) as rownum, t.trace_id
-        FROM stored_events_v2 t
-        WHERE timestamp < (NOW() - interval '1 week')
-        LIMIT 10000) as u
+    "WITH indexed_events AS (
+       SELECT trace_id, row_number() OVER (
+         PARTITION BY canvas_id, module, path, modifier
+         ORDER BY timestamp DESC
+       ) as rownum
+       FROM stored_events_v2
+       WHERE timestamp < (NOW() - interval '1 week')
+    )
+    DELETE FROM stored_events_v2 WHERE trace_id IN (
+      SELECT trace_id FROM indexed_events
       WHERE rownum > 10
       LIMIT 10000
     )"
     ~params:[]
+
+
+(** trim_events_for_canvas is like trim_events but for a single canvas.
+ *
+ * All the comments and warnings there apply. Please read them. *)
+let trim_events_for_canvas (canvas_id : Uuidm.t) : int =
+  Db.delete
+    ~name:"stored_event.trim_events_for_canvas"
+    "WITH indexed_events AS (
+       SELECT trace_id, row_number() OVER (
+         PARTITION BY canvas_id, module, path, modifier
+         ORDER BY timestamp DESC
+       ) AS rownum
+       FROM stored_events_v2
+       WHERE canvas_id = $1
+       AND timestamp < (NOW() - interval '1 week')
+     )
+     DELETE FROM stored_events_v2 WHERE trace_id IN (
+       SELECT trace_id FROM indexed_events
+       WHERE rownum > 10
+       LIMIT 10000
+     )"
+    ~params:[Uuid canvas_id]
