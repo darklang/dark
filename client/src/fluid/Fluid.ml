@@ -3858,6 +3858,14 @@ let doExplicitInsert
           ( Pat (FPVariable (mID, newID, str))
           , { astRef = ARPattern (newID, PPVariable)
             ; offset = currOffset + caretDelta } )
+    | ARPattern (_, PPBool), FPBool (mID, _, bool) ->
+        let str = if bool then "true" else "false" in
+        let newStr = mutation str in
+        let newID = gid () in
+        Some
+          ( Pat (FPVariable (mID, newID, newStr))
+          , { astRef = ARPattern (newID, PPVariable)
+            ; offset = currOffset + caretDelta } )
     | ( ARPattern (_, PPString kind)
       , FPString ({matchID = _; patternID; str} as data) ) ->
         let len = String.length str in
@@ -4080,8 +4088,8 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* | TLetVarName _ *)
     (* | TTrue _
     | TFalse _ *)
-    | TPatternTrue _
-    | TPatternFalse _
+    (* | TPatternTrue _
+    | TPatternFalse _ *)
     (* | TNullToken _ *)
     (* | TPatternNullToken _ *)
     | TPatternVariable _ (* | TBinOp _ *)
