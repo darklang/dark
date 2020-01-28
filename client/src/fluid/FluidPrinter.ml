@@ -490,9 +490,34 @@ let eToStructure ?(includeIDs = false) (e : E.t) : string =
   |> String.join ~sep:""
 
 
-(* This constructs a testcase that we can enter in our test suite. This is
- * similar to show_fluidExpr except that instead of the full code, it uses
- * the shortcuts from Fluid_test_data. *)
+let pToString (p : fluidPattern) : string =
+  p
+  |> patternToToken ~idx:0
+  |> List.map ~f:(fun t -> T.toTestText t)
+  |> String.join ~sep:""
+
+
+let pToStructure (p : fluidPattern) : string =
+  p
+  |> patternToToken ~idx:0
+  |> infoize
+  |> List.map ~f:(fun ti ->
+         "<" ^ T.toTypeName ti.token ^ ":" ^ T.toText ti.token ^ ">")
+  |> String.join ~sep:""
+
+
+(* ----------------- *)
+(* Test cases *)
+(* ----------------- *)
+(* eToTestcase and pToTestcase construct testcases that we can enter in our
+ * test suite. They are similar to `show` except that instead of the full code,
+ * they use the shortcuts from Fluid_test_data. *)
+(* ----------------- *)
+
+let pToTestcase (p : FluidPattern.t) : string =
+  match p with _ -> "todo" ^ pToString p
+
+
 let rec eToTestcase (e : E.t) : string =
   let r = eToTestcase in
   let quoted str = "\"" ^ str ^ "\"" in
@@ -508,43 +533,56 @@ let rec eToTestcase (e : E.t) : string =
         "true"
     | EBool (_, false) ->
         "false"
+    | EFloat (_, whole, fractional) ->
+        spaced ["float'"; quoted whole; quoted fractional]
     | EInteger (_, int) ->
         spaced ["int"; quoted int]
     | ENull _ ->
         "null"
+    | EPipeTarget _ ->
+        "pipeTarget"
     | EPartial (_, str, e) ->
         spaced ["partial"; quoted str; r e]
+    | ERightPartial (_, str, e) ->
+        spaced ["rightPartial"; quoted str; r e]
     | EFnCall (_, name, exprs, _) ->
         spaced ["fn"; quoted name; listed (List.map ~f:r exprs)]
     | EBinOp (_, name, lhs, rhs, _) ->
         spaced ["binop"; quoted name; r lhs; r rhs]
     | EVariable (_, name) ->
         spaced ["var"; quoted name]
+    | EFieldAccess (_, expr, fieldname) ->
+        spaced ["fieldAccess"; r expr; quoted fieldname]
+    | EMatch (_, cond, matches) ->
+        spaced
+          [ "match'"
+          ; r cond
+          ; listed
+              (List.map matches ~f:(fun (p, e) ->
+                   "(" ^ pToTestcase p ^ ", " ^ r e)) ]
     | ERecord (_, pairs) ->
         spaced
           [ "record"
-          ; listed (List.map pairs ~f:(fun (k, v) -> "(" ^ k ^ ", " ^ r v)) ]
+          ; listed
+              (List.map pairs ~f:(fun (k, v) -> "(" ^ quoted k ^ ", " ^ r v)) ]
+    | EList (_, exprs) ->
+        spaced ["list"; listed (List.map ~f:r exprs)]
+    | EPipe (_, a :: rest) ->
+        spaced ["pipe"; r a; listed (List.map ~f:r rest)]
+    | EPipe (_, []) ->
+        "INVALID PIPE - NO ELEMENTS"
     | EConstructor (_, name, exprs) ->
         spaced ["constructor"; quoted name; listed (List.map exprs ~f:r)]
     | EIf (_, cond, thenExpr, elseExpr) ->
         spaced ["if'"; r cond; r thenExpr; r elseExpr]
-    | _ ->
-        "todo: " ^ E.show e
+    | ELet (_, lhs, rhs, body) ->
+        spaced ["let'"; quoted lhs; r rhs; r body]
+    | ELambda (_, names, body) ->
+        let names =
+          List.map names ~f:(fun (_, name) -> quoted name) |> listed
+        in
+        spaced ["lambda"; names; r body]
+    | EFeatureFlag _ ->
+        "todo: feature flag: " ^ eToHumanString e
   in
   "(" ^ result ^ ")"
-
-
-let pToString (p : fluidPattern) : string =
-  p
-  |> patternToToken ~idx:0
-  |> List.map ~f:(fun t -> T.toTestText t)
-  |> String.join ~sep:""
-
-
-let pToStructure (p : fluidPattern) : string =
-  p
-  |> patternToToken ~idx:0
-  |> infoize
-  |> List.map ~f:(fun ti ->
-         "<" ^ T.toTypeName ti.token ^ ":" ^ T.toText ti.token ^ ">")
-  |> String.join ~sep:""
