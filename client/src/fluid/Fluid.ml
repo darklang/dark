@@ -3856,6 +3856,28 @@ let doExplicitInsert
           ( Pat (FPVariable (mID, newID, str))
           , { astRef = ARPattern (newID, PPVariable)
             ; offset = currOffset + caretDelta } )
+    | ( ARPattern (_, PPString kind)
+      , FPString ({matchID = _; patternID; str} as data) ) ->
+        let len = String.length str in
+        let strRelOffset =
+          match kind with
+          | SPOpenQuote ->
+              currOffset - 1
+          | SPText ->
+              currOffset
+          | SPCloseQuote ->
+              currOffset + len
+        in
+        if strRelOffset < 0 || strRelOffset > len
+        then
+          (* out of string bounds means you can't insert into the string *)
+          None
+        else
+          let str = str |> mutationAt ~index:strRelOffset in
+          Some
+            ( Pat (FPString {data with str})
+            , { astRef = ARPattern (patternID, PPString SPText)
+              ; offset = strRelOffset + caretDelta } )
     | _ ->
         recover
           "doExplicitInsert - unhandled astRef"
@@ -3901,9 +3923,9 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
   let offset =
     match ti.token with
     (* | TString _ *)
-    | TPatternString _ (* | TStringMLStart (_, _, _, _) *) ->
+    (* | TPatternString _ (* | TStringMLStart (_, _, _, _) *) ->
         (* account for the quote *)
-        pos - ti.startPos - 1
+        pos - ti.startPos - 1 *)
     (* | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
       ->
         (* no quote here, unlike TStringMLStart *)
@@ -3988,8 +4010,8 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
      * Ignore invalid situations
      *)
     (* | (TString _ *)
-    | TPatternString _ (* | TStringMLStart _ *) when offset < 0 ->
-        (ast, SamePlace)
+    (* (* | TPatternString _ *) (* | TStringMLStart _ *) when offset < 0 ->
+        (ast, SamePlace) *)
     (* | TInteger _ *)
     | TPatternInteger _
     (* | TFloatFractional _ *)
@@ -4052,7 +4074,7 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
     (* | TStringMLStart _
     | TStringMLMiddle _
     | TStringMLEnd _ *)
-    | TPatternString _
+    (* | TPatternString _ *)
     (* | TLetVarName _ *)
     (* | TTrue _
     | TFalse _ *)
