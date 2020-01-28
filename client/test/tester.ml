@@ -110,12 +110,10 @@ let shouldRun name =
 
 let describe (name : string) (testFn : unit -> unit) : unit =
   let open Private in
-  if shouldRun name
-  then (
-    categories := name :: !categories ;
-    if List.length !categories <= 1 || !verbose then print_category_start name ;
-    testFn () ;
-    match !categories with [] -> () | _ :: rest -> categories := rest )
+  categories := name :: !categories ;
+  if List.length !categories <= 1 || !verbose then print_category_start name ;
+  testFn () ;
+  match !categories with [] -> () | _ :: rest -> categories := rest
 
 
 let test (name : string) (testFn : unit -> Private.t) : unit =

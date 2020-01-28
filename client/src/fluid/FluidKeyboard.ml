@@ -37,14 +37,8 @@ type key =
   | Escape
   | Enter
   | ShiftEnter
-  | Backspace
-  | Delete
   | PageUp
   | PageDown
-  | DeletePrevWord
-  | DeleteNextWord
-  | DeleteToStartOfLine
-  | DeleteToEndOfLine
   | GoToStartOfLine of maintainSelection
   | GoToEndOfLine of maintainSelection
   | GoToStartOfWord of maintainSelection
@@ -74,7 +68,6 @@ let fromKeyboardEvent
     =
   let isMac = getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then meta else ctrl in
-  let isMacCmdHeld = isMac && meta in
   let maintainSelection = if shift then KeepSelection else DropSelection in
   match key with
   (*************
@@ -84,8 +77,6 @@ let fromKeyboardEvent
       SelectAll
   | "a" when ctrl ->
       GoToStartOfLine maintainSelection
-  | "d" when ctrl ->
-      Delete
   | "e" when ctrl ->
       GoToEndOfLine maintainSelection
   | "k" when ctrl || meta ->
@@ -99,14 +90,6 @@ let fromKeyboardEvent
       Redo
   | ("Z" | "z") when (not shift) && osCmdKeyHeld ->
       Undo
-  | "Backspace" when isMacCmdHeld ->
-      DeleteToStartOfLine
-  | "Backspace" when (isMac && alt) || ((not isMac) && ctrl) ->
-      DeletePrevWord
-  | "Delete" when isMacCmdHeld ->
-      DeleteToEndOfLine
-  | "Delete" when (isMac && alt) || ((not isMac) && ctrl) ->
-      DeleteNextWord
   | "ArrowLeft" when meta ->
       GoToStartOfLine maintainSelection
   | "ArrowLeft" when (isMac && alt) || ctrl ->
@@ -156,10 +139,6 @@ let fromKeyboardEvent
   (********
    * Misc *
    ********)
-  | "Backspace" ->
-      Backspace
-  | "Delete" ->
-      Delete
   | "Tab" when shift ->
       ShiftTab
   | "Tab" ->

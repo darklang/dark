@@ -76,7 +76,7 @@ let deleteAllTest : FuzzTest.t =
   ; fn =
       (fun testcase ->
         processMsg
-          [keypress K.SelectAll; keypress K.Backspace]
+          [keypress K.SelectAll; DeleteContentBackward]
           defaultTestState
           testcase) }
 
