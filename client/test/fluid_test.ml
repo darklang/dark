@@ -2083,7 +2083,7 @@ let run () =
       tp "insert middle of variable" aVar (ins "c" 5) "variac~ble" ;
       tp "del middle of variable" aVar (del 5) "varia~le" ;
       tp "insert capital works" aVar (ins "A" 5) "variaA~ble" ;
-      t "can't insert invalid" aVar (ins "$" 5) "varia~ble" ;
+      tp "insert non-identifier symbol" aVar (ins "$" 5) "varia$~ble" ;
       t "del variable" aShortVar (del 0) "~___" ;
       tp "del long variable" aVar (del 0) "~ariable" ;
       tp "del mid variable" aVar (del 6) "variab~e" ;
