@@ -338,6 +338,18 @@ let add_log_annotations (annotations : (string * Yojson.Safe.t) list) :
   Lwt.with_value !logkey (Some (current_log_annotations () @ annotations))
 
 
+let with_duration
+    ?(level = `Info)
+    ?(jsonparams : (string * Yojson.Safe.t) list = [])
+    (name : string)
+    (fn : unit -> 'a) : 'a =
+  let t0 = Mtime_clock.counter () in
+  protect ~f:fn ~finally:(fun _ ->
+      let duration = Mtime_clock.count t0 |> Mtime.Span.to_ms in
+      let jsonparams = ("duration_ms", `Float duration) :: jsonparams in
+      pP name ~level ~jsonparams)
+
+
 (* ----------------- *)
 (* init *)
 (* ----------------- *)

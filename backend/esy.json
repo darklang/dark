@@ -27,6 +27,7 @@
     "@opam/lwt_ssl": "1.1.3",
     "@opam/magic-mime": "1.1.2",
     "@opam/multipart-form-data": "*",
+    "@opam/mtime": "1.2.0",
     "@opam/nocrypto": "*",
     "@opam/ocurl": "0.8.2",
     "@opam/postgresql": "4.5.0",

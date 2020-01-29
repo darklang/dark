@@ -105,3 +105,10 @@ val succesS :
 val current_log_annotations : unit -> (string * Yojson.Safe.t) list
 
 val add_log_annotations : (string * Yojson.Safe.t) list -> (unit -> 'a) -> 'a
+
+val with_duration :
+     ?level:level
+  -> ?jsonparams:(string * Yojson.Safe.t) list
+  -> string
+  -> (unit -> 'a)
+  -> 'a
