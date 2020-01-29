@@ -14,7 +14,6 @@ $light-grey: $grey2;
   justify-content: center;
   .modal {
     width: 50%;
-    height: 20%;
     background: $black2;
     border-radius: $radius;
     padding: 15px;
@@ -22,9 +21,44 @@ $light-grey: $grey2;
     display: flex;
     align-items: center;
     justify-content: center;
+    &.unsupported {
+      width: 50%;
+    }
+    .welcome {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      .subtext {
+        width: 85%;
+      }
+      .gif {
+        width: 60%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        img, video {
+          width: 100%;
+        }
+      }
+    }
     .title {
       font-size: $title-size;
       text-align: center;
+    }
+    .btn-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      .btn {
+        background: white;
+        color: $grey2;
+        margin: 15px;
+        p {
+          padding: 15px 19px;
+          margin: 0px;
+        }
+      }
     }
   }
 }

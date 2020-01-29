@@ -25,7 +25,7 @@ if (unsupportedBrowser) {
 
       records.forEach(record => {
         record.removedNodes.forEach(node => {
-          if (node.id === "overlay") {
+          if (node.id === "unsupportedBrowser") {
             reload = true;
           }
         });

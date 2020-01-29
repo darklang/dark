@@ -449,9 +449,14 @@ let view (m : model) : msg Html.html =
         ]
         [fontAwesome "book"; Html.text "Docs"] ]
   in
+  let modal =
+    if m.unsupportedBrowser || m.welcomeUser
+    then ViewModal.html m
+    else Vdom.noNode
+  in
   let content =
     ViewTopbar.html m
-    @ [ViewModal.html m]
+    @ [modal]
     @ [sidebar; body; activeAvatars; accountView m; viewToast m.toast; entry]
     @ fluidStatus
     @ footer
