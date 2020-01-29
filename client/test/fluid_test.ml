@@ -4,6 +4,7 @@ open Fluid
 open Fluid_test_data
 module B = BlankOr
 module K = FluidKeyboard
+open FluidExpression
 
 let toString = Printer.eToTestString
 
@@ -462,7 +463,7 @@ let ts
 
 
 let run () =
-  E.functions := Fluid_test_data.defaultTestFunctions ;
+  OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
       t "insert mid string" aStr (ins "c" 3) "\"soc~me string\"" ;
       t "del mid string" aStr (del 3) "\"so~e string\"" ;

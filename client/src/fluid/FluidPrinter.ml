@@ -99,7 +99,7 @@ end
     fluidTokens.
 
     ~idx is the zero-based index of the pattern in the enclosing match *)
-let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
+let rec patternToToken (p : FluidPattern.t) ~(idx : int) : fluidToken list =
   match p with
   | FPVariable (mid, id, name) ->
       [TPatternVariable (mid, id, name, idx)]
@@ -144,7 +144,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       match (e, placeholderFor) with
       | EBlank id, Some (fnname, pos) ->
           let name =
-            !E.functions
+            !OldExpr.functions
             |> List.find ~f:(fun f -> f.fnName = fnname)
             |> Option.andThen ~f:(fun fn ->
                    List.getAt ~index:pos fn.fnParameters)
@@ -201,7 +201,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
              |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
            else
              b
-             |> add (TSep (E.id e))
+             |> add (TSep (E.toID e))
              |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e)
   in
   match e with
@@ -220,13 +220,13 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EBlank id ->
       add (TBlank id) b
   | ELet (id, lhs, rhs, next) ->
-      let rhsID = E.id rhs in
+      let rhsID = E.toID rhs in
       b
       |> add (TLetKeyword (id, rhsID))
       |> add (TLetVarName (id, rhsID, lhs))
       |> add (TLetAssignment (id, rhsID))
       |> addNested ~f:(fromExpr rhs)
-      |> addNewlineIfNeeded (Some (E.id next, id, None))
+      |> addNewlineIfNeeded (Some (E.toID next, id, None))
       |> addNested ~f:(fromExpr next)
   | EString (id, str) ->
       let size = 40 in
@@ -258,11 +258,11 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addNested ~f:(fromExpr cond)
       |> addNewlineIfNeeded None
       |> add (TIfThenKeyword id)
-      |> addNewlineIfNeeded (Some (E.id if', id, None))
+      |> addNewlineIfNeeded (Some (E.toID if', id, None))
       |> nest ~indent:2 if'
       |> addNewlineIfNeeded None
       |> add (TIfElseKeyword id)
-      |> add (TNewline (Some (E.id else', id, None)))
+      |> add (TNewline (Some (E.toID else', id, None)))
       |> nest ~indent:2 else'
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
       let start b =
@@ -272,7 +272,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         | _ ->
             b
             |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
-            |> add (TSep (E.id lexpr))
+            |> add (TSep (E.toID lexpr))
       in
       b
       |> start
@@ -287,7 +287,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         | _ ->
             b
             |> nest ~indent:0 ~placeholderFor:(Some (oldName, 0)) lexpr
-            |> add (TSep (E.id lexpr))
+            |> add (TSep (E.toID lexpr))
       in
       b
       |> start
@@ -322,18 +322,18 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       let ghost = ghostPartial id newText oldName in
       b |> add partial |> addMany ghost |> addArgs oldName id exprs
   | EFieldAccess (id, expr, fieldname) ->
-      let lhsid = E.id expr in
+      let lhsid = E.toID expr in
       b
       |> addNested ~f:(fromExpr expr)
       |> addMany [TFieldOp (id, lhsid); TFieldName (id, lhsid, fieldname)]
   | EPartial (id, newFieldname, EFieldAccess (faID, expr, oldFieldname)) ->
-      let lhsid = E.id expr in
+      let lhsid = E.toID expr in
       let partial = TFieldPartial (id, faID, lhsid, newFieldname) in
       let newText = T.toText partial in
       let ghost = ghostPartial id newText oldFieldname in
       b
       |> addNested ~f:(fromExpr expr)
-      |> addMany [TFieldOp (id, E.id expr); partial]
+      |> addMany [TFieldOp (id, E.toID expr); partial]
       |> addMany ghost
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
@@ -365,7 +365,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         |> add (TRecordOpen id)
         |> indentBy ~indent:2 ~f:(fun b ->
                addIter fields b ~f:(fun i (fieldName, expr) b ->
-                   let exprID = E.id expr in
+                   let exprID = E.toID expr in
                    b
                    |> addNewlineIfNeeded (Some (id, id, Some i))
                    |> add
@@ -386,12 +386,12 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       | head :: tail ->
           b
           |> addNested ~f:(fromExpr head)
-          |> addNewlineIfNeeded (Some (E.id head, id, Some 0))
+          |> addNewlineIfNeeded (Some (E.toID head, id, Some 0))
           |> addIter tail ~f:(fun i e b ->
                  b
                  |> add (TPipe (id, i, length))
                  |> addNested ~f:(fromExpr e)
-                 |> addNewlineIfNeeded (Some (E.id e, id, Some (i + 1))))
+                 |> addNewlineIfNeeded (Some (E.toID e, id, Some (i + 1))))
           |> addNewlineIfNeeded (Some (id, id, Some (List.length tail))) )
   | EPipeTarget _ ->
       recover "should never be making tokens for EPipeTarget" ~debug:e b
@@ -408,7 +408,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                     |> add
                          (TMatchBranchArrow
                             { matchID = id
-                            ; patternID = Pattern.id pattern
+                            ; patternID = Pattern.toID pattern
                             ; index = i })
                     |> addNested ~f:(fromExpr expr))
              |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))))

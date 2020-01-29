@@ -1,8 +1,23 @@
-open Prelude
+open Tc
+open Shared
 
-type t = Types.fluidPattern
+type t =
+  | FPVariable of id * id * string
+  | FPConstructor of id * id * string * t list
+  (* TODO: support char *)
+  (* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
+  | FPInteger of id * id * string
+  | FPBool of id * id * bool
+  | FPString of
+      { matchID : id
+      ; patternID : id
+      ; str : string }
+  | FPFloat of id * id * string * string
+  | FPNull of id * id
+  | FPBlank of id * id
+[@@deriving show {with_path = false}, eq]
 
-let id (p : t) : id =
+let toID (p : t) : id =
   match p with
   | FPVariable (_, id, _)
   | FPConstructor (_, id, _, _)
@@ -15,7 +30,7 @@ let id (p : t) : id =
       id
 
 
-let matchID (p : t) : id =
+let toMatchID (p : t) : id =
   match p with
   | FPVariable (mid, _, _)
   | FPConstructor (mid, _, _, _)
@@ -59,11 +74,11 @@ let rec variableNames (p : t) : string list =
       []
 
 
-let hasVariableNamed (varName : string) (p : fluidPattern) : bool =
+let hasVariableNamed (varName : string) (p : t) : bool =
   List.member ~value:varName (variableNames p)
 
 
-let rec findPattern (patID : Types.id) (within : t) : t option =
+let rec findPattern (patID : id) (within : t) : t option =
   match within with
   | FPVariable (_, pid, _)
   | FPInteger (_, pid, _)

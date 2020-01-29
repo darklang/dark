@@ -1,4 +1,5 @@
 open Prelude
+open FluidExpression
 
 (* ----------------- *)
 (* Types *)
@@ -12,6 +13,8 @@ type key = string Types.blankOr
 
 type lambdaParameter = string Types.blankOr
 
+let functions = ref []
+
 type nPattern =
   | PVariable of string
   | PLiteral of string
@@ -23,7 +26,8 @@ type expr = nExpr Types.blankOr
 
 and nExpr =
   | If of expr * expr * expr
-  | FnCall of Types.fnName Types.blankOr * expr list * Types.sendToRail
+  | FnCall of
+      Types.fnName Types.blankOr * expr list * FluidExpression.sendToRail
   | Variable of string
   | Let of varBind * expr * expr
   | Lambda of lambdaParameter list * expr
@@ -42,7 +46,7 @@ and nExpr =
 (* Expressions *)
 (* ----------------- *)
 let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
-  let fns = !FluidExpression.functions in
+  let fns = !functions in
   let f = toFluidExpr' ~inPipe:false in
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   match expr with
@@ -262,7 +266,7 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
 (* ----------------- *)
 (* Patterns *)
 (* ----------------- *)
-and fromFluidPattern (p : fluidPattern) : pattern =
+and fromFluidPattern (p : FluidPattern.t) : pattern =
   match p with
   | FPVariable (_, id, var) ->
       F (id, PVariable var)
@@ -282,7 +286,7 @@ and fromFluidPattern (p : fluidPattern) : pattern =
       Blank id
 
 
-and toFluidPattern (mid : id) (p : pattern) : fluidPattern =
+and toFluidPattern (mid : id) (p : pattern) : FluidPattern.t =
   match p with
   | Blank id ->
       FPBlank (mid, id)

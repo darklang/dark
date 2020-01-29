@@ -13,7 +13,7 @@ type nPattern =
 
 and pattern = nPattern Types.blankOr
 
-val toFluidPattern : Types.id -> pattern -> Types.fluidPattern
+val toFluidPattern : Types.id -> pattern -> FluidPattern.t
 
 val fromFluidPattern : FluidPattern.t -> pattern
 
@@ -21,7 +21,8 @@ type expr = nExpr Types.blankOr
 
 and nExpr =
   | If of expr * expr * expr
-  | FnCall of Types.fnName Types.blankOr * expr list * Types.sendToRail
+  | FnCall of
+      Types.fnName Types.blankOr * expr list * FluidExpression.sendToRail
   | Variable of string
   | Let of varBind * expr * expr
   | Lambda of lambdaParameter list * expr
@@ -35,6 +36,10 @@ and nExpr =
   | Constructor of string Types.blankOr * expr list
   | FluidPartial of string * expr
   | FluidRightPartial of string * expr
+
+(** We use this to convert to the old Expr type, and also to convert to
+ * tokens. *)
+val functions : Types.function_ list ref
 
 (** [toNExpr e] recursively converts [e] to the corresponding [nExpr Types.blankOr] *)
 val fromFluidExpr : FluidExpression.t -> expr

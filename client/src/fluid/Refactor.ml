@@ -19,11 +19,12 @@ let convertTipe (tipe : tipe) : tipe =
 
 (* Call f on calls to uf across the whole AST *)
 let transformFnCalls
-    (m : model) (uf : userFunction) (f : fluidExpr -> fluidExpr) : op list =
+    (m : model) (uf : userFunction) (f : FluidExpression.t -> FluidExpression.t)
+    : op list =
   let transformCallsInAst ast =
     let rec run e =
       match e with
-      | EFnCall (_, name, _, _)
+      | E.EFnCall (_, name, _, _)
         when Some name = BlankOr.toOption uf.ufMetadata.ufmName ->
           f e
       | other ->
@@ -58,8 +59,7 @@ type wrapLoc =
   | WIfElse
 
 let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
-  let module E = FluidExpression in
-  let replacement e =
+  let replacement e : FluidExpression.t =
     match wl with
     | WLetRHS ->
         ELet (gid (), "", e, E.newB ())
@@ -133,7 +133,7 @@ let extractVarInAst
         in
         e :: ancestors
         |> List.takeWhile ~f:(fun elem ->
-               let id = E.id elem in
+               let id = E.toID elem in
                let availableVars =
                  Option.map traceID ~f:(Analysis.getAvailableVarnames m tl id)
                  |> Option.withDefault ~default:[]
@@ -154,9 +154,9 @@ let extractVarInAst
       ( match lastPlaceWithSameVarsAndValues with
       | Some last ->
           ast
-          |> E.update (E.id last) ~f:(function last ->
+          |> E.update (E.toID last) ~f:(function last ->
                  ELet (gid (), varname, E.clone e, last))
-          |> E.replace (E.id e) ~replacement:(EVariable (gid (), varname))
+          |> E.replace (E.toID e) ~replacement:(EVariable (gid (), varname))
       | None ->
           ast )
   | None ->
@@ -172,7 +172,7 @@ let extractVariable (m : model) (tl : toplevel) (id : id) : modification =
 
 
 let extractFunction (m : model) (tl : toplevel) (id : id) : modification =
-  let module E = FluidExpression in
+  let open FluidExpression in
   let tlid = TL.id tl in
   let ast = TL.getAST tl in
   match (ast, Option.andThen ast ~f:(E.find id)) with
@@ -216,13 +216,15 @@ let extractFunction (m : model) (tl : toplevel) (id : id) : modification =
         ; ufAST = FluidExpression.clone body }
       in
       Many
-        [AddOps ([SetFunction newF], FocusExact (tlid, E.id replacement)); astOp]
+        [ AddOps ([SetFunction newF], FocusExact (tlid, E.toID replacement))
+        ; astOp ]
   | _ ->
       NoChange
 
 
 let renameFunction (m : model) (uf : userFunction) (newName : string) : op list
     =
+  let open FluidExpression in
   let fn e =
     match e with
     | EFnCall (id, _, params, r) ->
@@ -288,6 +290,7 @@ let dbUseCount (m : model) (name : string) : int =
 
 
 let updateUsageCounts (m : model) : model =
+  let open FluidExpression in
   let countFromList names =
     List.foldl names ~init:StrDict.empty ~f:(fun name dict ->
         StrDict.update dict ~key:name ~f:(function
@@ -336,6 +339,7 @@ let updateUsageCounts (m : model) : model =
 
 let removeFunctionParameter
     (m : model) (uf : userFunction) (ufp : userFunctionParameter) : op list =
+  let open FluidExpression in
   let indexInList =
     List.findIndex ~f:(fun p -> p = ufp) uf.ufMetadata.ufmParameters
     |> recoverOpt "removing invalid fnparam" ~default:(-1)
@@ -352,6 +356,7 @@ let removeFunctionParameter
 
 let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : id) :
     modification =
+  let open FluidExpression in
   let transformOp old =
     let fn e =
       match e with
