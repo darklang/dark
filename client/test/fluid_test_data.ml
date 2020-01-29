@@ -159,6 +159,8 @@ let seventyEight = EInteger (gid (), "78")
 (* ---------------- *)
 let aFloat = EFloat (gid (), "123", "456")
 
+let aFloatWithoutWhole = EFloat (gid (), "", "1")
+
 let aHugeFloat = EFloat (gid (), "123456789", "123456789")
 
 let aPartialFloat = EFloat (gid (), "1", "")
@@ -255,6 +257,19 @@ let matchWithConstructorPattern =
 let matchWithBinding (bindingName : string) (expr : fluidExpr) =
   let mID = gid () in
   EMatch (mID, b, [(FPVariable (mID, gid (), bindingName), expr)])
+
+
+let matchWithTwoBindings
+    (bindingName1 : string)
+    (expr1 : fluidExpr)
+    (bindingName2 : string)
+    (expr2 : fluidExpr) =
+  let mID = gid () in
+  EMatch
+    ( mID
+    , b
+    , [ (FPVariable (mID, gid (), bindingName1), expr1)
+      ; (FPVariable (mID, gid (), bindingName2), expr2) ] )
 
 
 let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =

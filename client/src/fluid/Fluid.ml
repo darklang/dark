@@ -787,7 +787,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       | TStringMLMiddle (id', str, startOffsetIntoString, _) when id = id' ->
           let len = String.length str in
           let offsetInStr =
-            ct.offset + 1
+            ct.offset - 1
             (* to account for open quote in the start *)
           in
           let endOffset = startOffsetIntoString + len in
@@ -800,7 +800,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       | TStringMLEnd (id', _, startOffsetIntoString, _) when id = id' ->
           (* Must be in this token because it's the last token in the string *)
           let offsetInStr =
-            ct.offset + 1
+            ct.offset - 1
             (* to account for open quote in the start *)
           in
           clampedPosForTi ti (offsetInStr - startOffsetIntoString)
@@ -2901,8 +2901,6 @@ let idOfASTRef (astRef : astRef) : id option =
       None
 
 
-let idOfCaretTarget ({astRef; _} : caretTarget) : id option = idOfASTRef astRef
-
 (* [doExplicitBackspace [currCaretTarget] [ast]] produces the
  * (newAST, newPosition) tuple resulting from performing
  * a backspace-style deletion at [currCaretTarget] in the
@@ -2934,6 +2932,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
   let mutation : string -> string =
    fun str -> Util.removeCharAt str (currOffset - 1)
   in
+  let mutationAt (str : string) ~(index : int) : string =
+    Util.removeCharAt str index
+  in
   let doExprBackspace (currAstRef : astRef) (expr : fluidExpr) :
       (fluidPatOrExpr * caretTarget) option =
     let mkEBlank : unit -> (fluidPatOrExpr * caretTarget) option =
@@ -2961,22 +2962,24 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           if coerced = intStr
           then None
           else Some (Expr (EInteger (id, coerced)), currCTMinusOne)
-    | ARString (_, SPOpenQuote), EString (_, "") when currOffset = 1 ->
-        mkEBlank ()
-    | ARString (_, SPText), EString (_, "") when currOffset = 0 ->
-        mkEBlank ()
-    | ARString (_, SPOpenQuote), EString (id, str)
-    (* The minus 2 here (one more than the default `mutation`) accounts for the open quote,
-            which isn't part of the `str` but is part of the SPOpenQuote *)
-      ->
-        Some
-          ( Expr (EString (id, Util.removeCharAt str (currOffset - 2)))
-          , currCTMinusOne )
-    | ARString (_, SPText), EString (id, str) ->
-        Some (Expr (EString (id, mutation str)), currCTMinusOne)
-    | ARString (_, SPCloseQuote), EString (id, str) ->
-        let str = Util.removeCharAt str (String.length str + currOffset) in
-        Some (Expr (EString (id, str)), currCTMinusOne)
+    | ARString (_, kind), EString (id, str) ->
+        let len = String.length str in
+        let strRelOffset =
+          match kind with
+          | SPOpenQuote ->
+              currOffset - 1
+          | SPText ->
+              currOffset
+          | SPCloseQuote ->
+              currOffset + len
+        in
+        if strRelOffset = 0 && str = ""
+        then mkEBlank ()
+        else
+          let newStr = str |> mutationAt ~index:(strRelOffset - 1) in
+          Some
+            ( Expr (EString (id, newStr))
+            , {astRef = ARString (id, SPOpenQuote); offset = strRelOffset} )
     | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
         Some (Expr (EFloat (id, mutation whole, frac)), currCTMinusOne)
     | ARFloat (_, FPPoint), EFloat (_, whole, frac) ->
@@ -2997,8 +3000,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         if newName = ""
         then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
         else Some (Expr newExpr, currCTMinusOne)
-    | ARMatch (id, MPBranchArrow idx), expr ->
-        Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARLambda (_, LBPComma varAndSepIdx), ELambda (id, oldVars, oldExpr) ->
         let rec itemsAtCurrAndNextIndex (lst : 'a list) (idx : int) :
             ('a * 'a) option =
@@ -3176,6 +3177,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     (*
      * Immutable; just jump to the start
      *)
+    | ARMatch (id, MPBranchArrow idx), expr ->
+        Some (Expr expr, caretTargetForEndOfMatchPattern id idx ast)
     | ARIf (_, IPThenKeyword), expr
     | ARIf (_, IPElseKeyword), expr
     | ARLambda (_, LBPArrow), expr
@@ -3347,24 +3350,26 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     (*
     * Strings
     *)
-    | ( ARPattern (_, PPString SPOpenQuote)
-      , FPString {matchID; patternID = _; str = ""} )
-      when currOffset = 1 ->
-        mkPBlank matchID
-    | ARPattern (_, PPString SPText), FPString {matchID; patternID = _; str = ""}
-      when currOffset = 0 ->
-        mkPBlank matchID
-    | ARPattern (_, PPString SPOpenQuote), FPString data ->
-        let str = Util.removeCharAt data.str (currOffset - 2) in
-        Some (Pat (FPString {data with str}), currCTMinusOne)
-    | ARPattern (_, PPString SPText), FPString data ->
-        let str = mutation data.str in
-        Some (Pat (FPString {data with str}), currCTMinusOne)
-    | ARPattern (_, PPString SPCloseQuote), FPString data ->
-        let str =
-          Util.removeCharAt data.str (String.length data.str + currOffset)
+    | ARPattern (_, PPString kind), FPString ({matchID; patternID; str} as data)
+      ->
+        let len = String.length str in
+        let strRelOffset =
+          match kind with
+          | SPOpenQuote ->
+              currOffset - 1
+          | SPText ->
+              currOffset
+          | SPCloseQuote ->
+              currOffset + len
         in
-        Some (Pat (FPString {data with str}), currCTMinusOne)
+        if strRelOffset = 0 && str = ""
+        then mkPBlank matchID
+        else
+          let str = str |> mutationAt ~index:(strRelOffset - 1) in
+          Some
+            ( Pat (FPString {data with str})
+            , { astRef = ARPattern (patternID, PPString SPOpenQuote)
+              ; offset = strRelOffset } )
     (*****************
      * Exhaustiveness
      *)
@@ -3409,7 +3414,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           ~debug:(show_astRef currAstRef)
           None
   in
-  (* FIXME: This is an ugly hack so we can replace stuff inside patterns.
+  (* FIXME: This is an ugly hack so we can modify match branches when editing a pattern.
      There's probably a nice way to do this without a ref, but that's a bigger change.
    *)
   let patContainerRef : Types.id option ref = ref None in
@@ -3446,26 +3451,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
          | None ->
              None)
   |> Option.withDefault ~default:(ast, SamePlace)
-
-
-(* tryReplaceStringAndMoveOrSame has the same behavior as tryReplaceStringAndMove but
-   produces `newPosition` instead of `caretTarget option`.
-
-   It is a transitional function and shouldn't be needed once newPosition has been
-   replaced with explicit caretPlacement everywhere *)
-let tryReplaceStringAndMoveOrSame
-    ~(f : string -> string)
-    (token : token)
-    (ast : ast)
-    (desiredCaretTarget : caretTarget) : E.t * newPosition =
-  let newAst, maybeTarget =
-    tryReplaceStringAndMove ~f token ast desiredCaretTarget
-  in
-  match maybeTarget with
-  | Some target ->
-      (newAst, AtTarget target)
-  | None ->
-      (newAst, SamePlace)
 
 
 let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
@@ -3649,23 +3634,487 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
       (newAST, s)
 
 
-let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
-    : E.t * state =
+(* [doExplicitInsert [extendedGraphemeCluster] [currCaretTarget] [ast]]
+ * produces the (newAST, newPosition) tuple resulting from performing
+ * a text insertion at [currCaretTarget] in the [ast]. 
+ * Note that newPosition will be either AtTarget or SamePlace --
+ * either the caret stays in the same place, or it ends up at a specific location.
+ *
+ * Note that there are some special-case inserts that aren't handled by doExplicitInsert.
+ * See doInsert and updateKey for these exceptional cases.
+ *)
+let doExplicitInsert
+    (extendedGraphemeCluster : string)
+    (currCaretTarget : caretTarget)
+    (ast : ast) : ast * newPosition =
+  let {astRef = currAstRef; offset = currOffset} = currCaretTarget in
+  let caretDelta = extendedGraphemeCluster |> String.length in
+  let currCTPlusLen = {astRef = currAstRef; offset = currOffset + caretDelta} in
+  let mutation : string -> string =
+   fun str ->
+    str |> String.insertAt ~index:currOffset ~insert:extendedGraphemeCluster
+  in
+  let mutationAt (str : string) ~(index : int) : string =
+    str |> String.insertAt ~index ~insert:extendedGraphemeCluster
+  in
+  let doExprInsert (currAstRef : astRef) (expr : fluidExpr) :
+      (fluidExpr * caretTarget) option =
+    let mkPartial (str : string) (oldExpr : fluidExpr) :
+        (fluidExpr * caretTarget) option =
+      let newID = gid () in
+      Some
+        ( EPartial (newID, str, oldExpr)
+        , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
+    in
+    match (currAstRef, expr) with
+    | ARString (_, kind), EString (id, str) ->
+        let len = String.length str in
+        let strRelOffset =
+          match kind with
+          | SPOpenQuote ->
+              currOffset - 1
+          | SPText ->
+              currOffset
+          | SPCloseQuote ->
+              currOffset + len
+        in
+        if strRelOffset < 0 || strRelOffset > len
+        then
+          (* out of string bounds means you can't insert into the string *)
+          None
+        else
+          let newStr = str |> mutationAt ~index:strRelOffset in
+          Some
+            ( EString (id, newStr)
+            , { astRef = ARString (id, SPText)
+              ; offset = strRelOffset + caretDelta } )
+    | ARFloat (_, kind), EFloat (id, whole, frac) ->
+        if FluidUtil.isNumber extendedGraphemeCluster
+        then
+          let isWhole, index =
+            match kind with
+            | FPWhole ->
+                (true, currOffset)
+            | FPFractional ->
+                (false, currOffset)
+            | FPPoint ->
+                if currCaretTarget.offset = 0
+                then (true, String.length whole)
+                else (false, 0)
+          in
+          if isWhole
+          then
+            let newWhole = mutationAt whole ~index in
+            (* This enables |.67 -> 0|.67 but prevents |1.0 -> 0|1.0 *)
+            if String.slice ~from:0 ~to_:1 newWhole = "0"
+               && String.length newWhole > 1
+            then None
+            else
+              Some
+                ( EFloat (id, newWhole, frac)
+                , {astRef = ARFloat (id, FPWhole); offset = index + caretDelta}
+                )
+          else
+            let newFrac = mutationAt frac ~index in
+            Some
+              ( EFloat (id, whole, newFrac)
+              , { astRef = ARFloat (id, FPFractional)
+                ; offset = index + caretDelta } )
+        else None
+    | ARLambda (_, LBPVarName index), ELambda (id, vars, expr) ->
+        vars
+        |> List.getAt ~index
+        |> Option.andThen ~f:(fun (_, oldName) ->
+               let newName = oldName |> mutation in
+               if FluidUtil.isValidIdentifier newName
+               then
+                 let vars =
+                   List.updateAt vars ~index ~f:(fun (varId, _) ->
+                       (varId, newName))
+                 in
+                 Some
+                   ( ELambda
+                       (id, vars, E.renameVariableUses ~oldName ~newName expr)
+                   , currCTPlusLen )
+               else None)
+    | ARPartial _, EPartial (id, oldStr, oldExpr) ->
+        let str = oldStr |> mutation |> String.trim in
+        if String.startsWith ~prefix:"\"" str
+           && String.endsWith ~suffix:"\"" str
+        then
+          let newID = gid () in
+          Some
+            ( EString (newID, String.slice ~from:1 ~to_:(-1) str)
+            , { astRef = ARString (newID, SPOpenQuote)
+              ; offset = currOffset + caretDelta } )
+        else Some (EPartial (id, str, oldExpr), currCTPlusLen)
+    | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
+        let str = oldStr |> mutation |> String.trim in
+        Some (ERightPartial (id, str, oldValue), currCTPlusLen)
+    | ARBinOp _, (EBinOp (_, op, _, _, _) as oldExpr) ->
+        let str = op |> FluidUtil.partialName |> mutation |> String.trim in
+        mkPartial str oldExpr
+    | ARInteger _, EInteger (id, intStr) ->
+        if currCaretTarget.offset = 0 && extendedGraphemeCluster = "0"
+        then
+          (* This prevents inserting leading 0s at the beginning of the int.
+           * Note that Util.coerceStringTo63BitInt currently coerces strings with
+           * leading "0"s to "0"; this prevents coerceStringTo63BitInt getting
+           * a leading 0 in the first place. If Util.coerceStringTo63BitInt could
+           * deal with leading 0s, we would still need this special case to deal with
+           * caret placement, unless Util.coerceStringTo63BitInt preserved leading 0s.
+           *)
+          None
+        else if Util.isNumber extendedGraphemeCluster
+        then
+          let str = mutation intStr in
+          let coerced = Util.coerceStringTo63BitInt str in
+          if coerced = intStr
+          then None
+          else Some (EInteger (id, coerced), currCTPlusLen)
+        else None
+    | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
+        List.getAt ~index nameValPairs
+        |> Option.andThen ~f:(fun (name, _) ->
+               let newName = mutation name in
+               if FluidUtil.isValidIdentifier newName
+               then
+                 let nameValPairs =
+                   List.updateAt nameValPairs ~index ~f:(fun (_, expr) ->
+                       (newName, expr))
+                 in
+                 Some (ERecord (id, nameValPairs), currCTPlusLen)
+               else None)
+    | ( ARFieldAccess (_, FAPFieldname)
+      , (EFieldAccess (_, _, fieldName) as oldExpr) ) ->
+        let newName = mutation fieldName in
+        if FluidUtil.isValidIdentifier newName
+        then mkPartial newName oldExpr
+        else None
+    | ARFieldAccess (_, FAPFieldOp), old ->
+        recover
+          "doExplicitInsert - ARFieldAccess-FAPFieldOp is unhandled and doesn't seem to happen in practice"
+          ~debug:old
+          None
+    | ARVariable _, (EVariable (_, varName) as oldExpr) ->
+        mkPartial (mutation varName) oldExpr
+    | ARNull _, (ENull _ as oldExpr) ->
+        mkPartial (mutation "null") oldExpr
+    | ARBool _, (EBool (_, bool) as oldExpr) ->
+        let str = if bool then "true" else "false" in
+        mkPartial (mutation str) oldExpr
+    | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
+        let newName = mutation oldName in
+        if FluidUtil.isValidIdentifier newName
+        then
+          Some
+            ( ELet
+                (id, newName, value, E.renameVariableUses ~oldName ~newName body)
+            , currCTPlusLen )
+        else None
+    | ARBlank _, _ ->
+        recover
+          "doExplicitInsert - ARBlank handled elsewhere"
+          ~debug:(show_astRef currAstRef, show_fluidExpr expr)
+          None
+    (*
+     * Things you can't edit but probably should be able to edit
+     *)
+    | ARFnCall _, EFnCall _ | ARConstructor _, EConstructor _ ->
+        None
+    (*
+     * Immutable keywords and symbols
+     *)
+    | ARLambda (_, LBPComma _), _
+    | ARLambda (_, LBPSymbol), _
+    | ARLambda (_, LBPArrow), _
+    | ARRecord (_, RPOpen), _
+    | ARRecord (_, RPFieldSep _), _
+    | ARRecord (_, RPClose), _
+    | ARList (_, LPOpen), _
+    | ARList (_, LPComma _), _
+    | ARList (_, LPClose), _
+    | ARLet (_, LPKeyword), _
+    | ARLet (_, LPAssignment), _
+    | ARIf (_, IPIfKeyword), _
+    | ARIf (_, IPThenKeyword), _
+    | ARIf (_, IPElseKeyword), _
+    | ARPipe (_, _), _
+    | ARMatch (_, MPKeyword), _
+    | ARMatch (_, MPBranchArrow _), _ ->
+        None
+    (*****************
+     * Exhaustiveness
+     *)
+    | ARBinOp _, _
+    | ARBool _, _
+    | ARConstructor _, _
+    | ARFieldAccess (_, FAPFieldname), _
+    | ARFloat (_, FPFractional), _
+    | ARFloat (_, FPPoint), _
+    | ARFloat (_, FPWhole), _
+    | ARFnCall _, _
+    | ARInteger _, _
+    | ARLambda (_, LBPVarName _), _
+    | ARLet (_, LPVarName), _
+    | ARNull _, _
+    | ARPartial _, _
+    | ARRecord (_, RPFieldname _), _
+    | ARRightPartial _, _
+    | ARString (_, SPCloseQuote), _
+    | ARString (_, SPOpenQuote), _
+    | ARString (_, SPText), _
+    | ARVariable _, _
+    (*
+     * Non-exprs
+     *)
+    | ARPattern _, _
+    | ARInvalid, _ ->
+        recover
+          "doExplicitBackspace - unexpected expr"
+          ~debug:(show_astRef currAstRef)
+          None
+  in
+  let doPatInsert
+      (patContainerRef : Types.id option ref)
+      (currAstRef : astRef)
+      (pat : fluidPattern) : (fluidPatOrExpr * caretTarget) option =
+    match (currAstRef, pat) with
+    | ARPattern (_, PPFloat kind), FPFloat (mID, pID, whole, frac) ->
+        if FluidUtil.isNumber extendedGraphemeCluster
+        then
+          let isWhole, index =
+            match kind with
+            | FPWhole ->
+                (true, currOffset)
+            | FPFractional ->
+                (false, currOffset)
+            | FPPoint ->
+                if currCaretTarget.offset = 0
+                then (true, String.length whole)
+                else (false, 0)
+          in
+          if isWhole
+          then
+            let newWhole = mutationAt whole ~index in
+            (* This enables |.67 -> 0|.67 but prevents |1.0 -> 0|1.0 *)
+            if String.slice ~from:0 ~to_:1 newWhole = "0"
+               && String.length newWhole > 1
+            then None
+            else
+              Some
+                ( Pat (FPFloat (mID, pID, newWhole, frac))
+                , { astRef = ARPattern (pID, PPFloat FPWhole)
+                  ; offset = index + caretDelta } )
+          else
+            let newFrac = mutationAt frac ~index in
+            Some
+              ( Pat (FPFloat (mID, pID, whole, newFrac))
+              , { astRef = ARPattern (pID, PPFloat FPFractional)
+                ; offset = index + caretDelta } )
+        else None
+    | ARPattern (_, PPNull), FPNull (mID, _) ->
+        let str = mutation "null" in
+        let newID = gid () in
+        if FluidUtil.isValidIdentifier str
+        then
+          Some
+            ( Pat (FPVariable (mID, newID, str))
+            , { astRef = ARPattern (newID, PPVariable)
+              ; offset = currOffset + caretDelta } )
+        else None
+    | ARPattern (_, PPBool), FPBool (mID, _, bool) ->
+        let str = if bool then "true" else "false" in
+        let newStr = mutation str in
+        let newID = gid () in
+        if FluidUtil.isValidIdentifier str
+        then
+          Some
+            ( Pat (FPVariable (mID, newID, newStr))
+            , { astRef = ARPattern (newID, PPVariable)
+              ; offset = currOffset + caretDelta } )
+        else None
+    | ARPattern (_, PPInteger), FPInteger (mID, pID, intStr) ->
+        if currCaretTarget.offset = 0 && extendedGraphemeCluster = "0"
+        then
+          (* This prevents inserting leading 0s at the beginning of the int.
+           * Note that Util.coerceStringTo63BitInt currently coerces strings with
+           * leading "0"s to "0"; this prevents coerceStringTo63BitInt getting
+           * a leading 0 in the first place. If Util.coerceStringTo63BitInt could
+           * deal with leading 0s, we would still need this special case to deal with
+           * caret placement, unless Util.coerceStringTo63BitInt preserved leading 0s.
+           *)
+          None
+        else if Util.isNumber extendedGraphemeCluster
+        then
+          let str = mutation intStr in
+          let coerced = Util.coerceStringTo63BitInt str in
+          if coerced = intStr
+          then None
+          else Some (Pat (FPInteger (mID, pID, coerced)), currCTPlusLen)
+        else None
+    | ( ARPattern (_, PPString kind)
+      , FPString ({matchID = _; patternID; str} as data) ) ->
+        let len = String.length str in
+        let strRelOffset =
+          match kind with
+          | SPOpenQuote ->
+              currOffset - 1
+          | SPText ->
+              currOffset
+          | SPCloseQuote ->
+              currOffset + len
+        in
+        if strRelOffset < 0 || strRelOffset > len
+        then
+          (* out of string bounds means you can't insert into the string *)
+          None
+        else
+          let str = str |> mutationAt ~index:strRelOffset in
+          Some
+            ( Pat (FPString {data with str})
+            , { astRef = ARPattern (patternID, PPString SPText)
+              ; offset = strRelOffset + caretDelta } )
+    | ARPattern (_, PPBlank), FPBlank (mID, _) ->
+        let newID = gid () in
+        if extendedGraphemeCluster = "\""
+        then
+          Some
+            ( Pat (FPString {matchID = mID; patternID = newID; str = ""})
+            , {astRef = ARPattern (newID, PPString SPText); offset = 0} )
+        else if Util.isNumber extendedGraphemeCluster
+        then
+          Some
+            ( Pat
+                (FPInteger
+                   ( mID
+                   , newID
+                   , extendedGraphemeCluster |> Util.coerceStringTo63BitInt ))
+            , {astRef = ARPattern (newID, PPInteger); offset = caretDelta} )
+        else if FluidUtil.isIdentifierChar extendedGraphemeCluster
+        then
+          Some
+            ( Pat (FPVariable (mID, newID, extendedGraphemeCluster))
+            , {astRef = ARPattern (newID, PPVariable); offset = caretDelta} )
+        else None
+    | ARPattern (_, PPVariable), FPVariable (mID, pID, oldName) ->
+        let newName = mutation oldName in
+        if FluidUtil.isValidIdentifier newName
+        then (
+          patContainerRef := Some mID ;
+          let newPat, target =
+            (FPVariable (mID, pID, newName), currCTPlusLen)
+          in
+          match E.find mID ast with
+          | Some (EMatch (_, cond, cases)) ->
+              let rec run p =
+                if pID = P.id p then newPat else recursePattern ~f:run p
+              in
+              let newCases =
+                List.map cases ~f:(fun (pat, body) ->
+                    if P.findPattern pID pat <> None
+                    then (run pat, E.renameVariableUses ~oldName ~newName body)
+                    else (pat, body))
+              in
+              Some (Expr (EMatch (mID, cond, newCases)), target)
+          | _ ->
+              recover "doExplicitInsert FPVariable" None )
+        else None
+    (*
+     * Things you can't edit but probably should be able to edit
+     *)
+    | ARPattern (_, PPConstructor), _ ->
+        None
+    (*****************
+     * Exhaustiveness
+     *)
+    | ARPattern (_, PPBlank), _
+    | ARPattern (_, PPBool), _
+    | ARPattern (_, PPFloat FPFractional), _
+    | ARPattern (_, PPFloat FPPoint), _
+    | ARPattern (_, PPFloat FPWhole), _
+    | ARPattern (_, PPInteger), _
+    | ARPattern (_, PPNull), _
+    | ARPattern (_, PPString SPCloseQuote), _
+    | ARPattern (_, PPString SPOpenQuote), _
+    | ARPattern (_, PPString SPText), _
+    | ARPattern (_, PPVariable), _
+    (*
+     * non-patterns
+     *)
+    | ARBinOp _, _
+    | ARBlank _, _
+    | ARBool _, _
+    | ARConstructor _, _
+    | ARFieldAccess _, _
+    | ARFloat _, _
+    | ARFnCall _, _
+    | ARIf _, _
+    | ARInteger _, _
+    | ARLambda _, _
+    | ARLet _, _
+    | ARList _, _
+    | ARMatch _, _
+    | ARNull _, _
+    | ARPartial _, _
+    | ARPipe _, _
+    | ARRecord _, _
+    | ARRightPartial _, _
+    | ARString _, _
+    | ARVariable _, _
+    | ARInvalid, _ ->
+        recover
+          "doExplicitInsert - unexpected pat"
+          ~debug:(show_astRef currAstRef)
+          None
+  in
+  (* FIXME: This is an ugly hack so we can modify match branches when editing a pattern.
+     There's probably a nice way to do this without a ref, but that's a bigger change.
+   *)
+  let patContainerRef : Types.id option ref = ref None in
+  idOfASTRef currAstRef
+  |> Option.andThen ~f:(fun patOrExprID ->
+         match E.findExprOrPat patOrExprID (Expr ast) with
+         | Some patOrExpr ->
+             Some (patOrExprID, patOrExpr)
+         | None ->
+             None)
+  |> Option.andThen ~f:(fun (patOrExprID, patOrExpr) ->
+         let maybeTransformedExprAndCaretTarget =
+           match patOrExpr with
+           | Pat pat ->
+               doPatInsert patContainerRef currAstRef pat
+           | Expr expr ->
+             ( match doExprInsert currAstRef expr with
+             | None ->
+                 None
+             | Some (expr, ct) ->
+                 Some (Expr expr, ct) )
+         in
+         match maybeTransformedExprAndCaretTarget with
+         | Some (Expr newExpr, target) ->
+             let patOrExprID =
+               match !patContainerRef with
+               | None ->
+                   patOrExprID
+               | Some mID ->
+                   mID
+             in
+             Some
+               (E.replace patOrExprID ~replacement:newExpr ast, AtTarget target)
+         | Some (Pat newPat, target) ->
+             let mID = P.matchID newPat in
+             let newAST = replacePattern mID patOrExprID ~newPat ast in
+             Some (newAST, AtTarget target)
+         | None ->
+             None)
+  |> Option.withDefault ~default:(ast, SamePlace)
+
+
+let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
+    E.t * state =
   let s = recordAction ~ti ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
-  let offset =
-    match ti.token with
-    | TString _ | TPatternString _ | TStringMLStart (_, _, _, _) ->
-        (* account for the quote *)
-        pos - ti.startPos - 1
-    | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
-      ->
-        (* no quote here, unlike TStringMLStart *)
-        pos - ti.startPos + strOffset
-    | _ ->
-        pos - ti.startPos
-  in
-  let f str = String.insertAt ~index:offset ~insert:letter str in
   let newID = gid () in
   let lambdaArgs ti =
     let placeholderName =
@@ -3738,163 +4187,15 @@ let doInsert' ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state)
         ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
         , AtTarget {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
         )
-    (* Ignore invalid situations *)
-    | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
-        (ast, SamePlace)
-    | TInteger _
-    | TPatternInteger _
-    | TFloatFractional _
-    | TFloatWhole _
-    | TPatternFloatWhole _
-    | TPatternFloatFractional _
-      when not (Util.isNumber letter) ->
-        (ast, SamePlace)
-    | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
-      when "0" = letter && offset = 0 ->
-        (ast, SamePlace)
-    | TVariable _
-    | TPatternVariable _
-    | TLetVarName _
-    | TFieldName _
-    | TFieldPartial _
-    | TLambdaVar _
-    | TRecordFieldname _
-      when not (Util.isIdentifierChar letter) ->
-        (ast, SamePlace)
-    | TVariable _
-    | TPatternVariable _
-    | TLetVarName _
-    | TFieldName _
-    | TFieldPartial _
-    | TLambdaVar _
-    | TRecordFieldname _
-      when Util.isNumber letter && (offset = 0 || FluidToken.isBlank ti.token)
-      ->
-        (ast, SamePlace)
-    | (TFnVersion _ | TFnName _) when not (Util.isFnNameChar letter) ->
-        (ast, SamePlace)
-    (* Do the insert *)
-    | (TString (_, str) | TStringMLEnd (_, str, _, _))
-      when pos = ti.endPos - 1 && String.length str = 40 ->
-        (* Strings with end quotes *)
-        let s = recordAction ~pos ~ti "string to mlstring" s in
-        (* Inserting at the end of an multi-line segment goes to next segment *)
-        let newAST = replaceStringToken ~f ti.token ast in
-        let newState = moveToNextNonWhitespaceToken ~pos newAST s in
-        (newAST, Exactly (newState.newPos + 1))
-    | (TStringMLStart (_, str, _, _) | TStringMLMiddle (_, str, _, _))
-      when pos = ti.endPos && String.length str = 40 ->
-        (* Strings without end quotes *)
-        let s = recordAction ~pos ~ti "extend multiline string" s in
-        (* Inserting at the end of an multi-line segment goes to next segment *)
-        let newAST = replaceStringToken ~f ti.token ast in
-        let newState = moveToNextNonWhitespaceToken ~pos newAST s in
-        (newAST, Exactly (newState.newPos + 1))
-    | TRecordFieldname _
-    | TFieldName _
-    | TFieldPartial _
-    | TVariable _
-    | TPartial _
-    | TRightPartial _
-    | TString _
-    | TStringMLStart _
-    | TStringMLMiddle _
-    | TStringMLEnd _
-    | TPatternString _
-    | TLetVarName _
-    | TTrue _
-    | TFalse _
-    | TPatternTrue _
-    | TPatternFalse _
-    | TNullToken _
-    | TPatternNullToken _
-    | TPatternVariable _
-    | TBinOp _
-    | TLambdaVar _ ->
-        (replaceStringToken ~f ti.token ast, RightOne)
-    | TInteger (id, _) ->
-        tryReplaceStringAndMoveOrSame
-          ~f
-          ti.token
-          ast
-          { astRef = ARInteger id
-          ; offset =
-              offset + 1
-              (* Note that if the caretTarget exceeds the token length due to coercion, posFromCaretTarget will clamp it *)
-          }
-    | TPatternInteger (_, _, i, _) ->
-        let newLength = f i |> Util.coerceStringTo63BitInt |> String.length in
-        let move = if newLength > offset then RightOne else SamePlace in
-        (replaceStringToken ~f ti.token ast, move)
-    | TFloatWhole (id, str) ->
-        ( replaceFloatWhole (f str) id ast
-        , AtTarget {astRef = ARFloat (id, FPWhole); offset = offset + 1} )
-    | TFloatFractional (id, str) ->
-        ( replaceFloatFraction (f str) id ast
-        , AtTarget {astRef = ARFloat (id, FPFractional); offset = offset + 1} )
-    | TFloatPoint id ->
-        ( insertAtFrontOfFloatFraction letter id ast
-        , AtTarget
-            {astRef = ARFloat (id, FPFractional); offset = String.length letter}
-        )
-    | TPatternFloatWhole (mID, id, str, _) ->
-        (replacePatternFloatWhole (f str) mID id ast, RightOne)
-    | TPatternFloatFractional (mID, id, str, _) ->
-        (replacePatternFloatFraction (f str) mID id ast, RightOne)
-    | TPatternFloatPoint (mID, id, _) ->
-        (insertAtFrontOfPatternFloatFraction letter mID id ast, RightOne)
-    | TPatternConstructorName _ ->
-        (ast, SamePlace)
-    | TPatternBlank (mID, pID, _) ->
-        let newPat =
-          if letter = "\""
-          then FPString {matchID = mID; patternID = newID; str = ""}
-          else if Util.isNumber letter
-          then FPInteger (mID, newID, letter |> Util.coerceStringTo63BitInt)
-          else FPVariable (mID, newID, letter)
-        in
-        (replacePattern mID pID ~newPat ast, RightOne)
-    (* do nothing *)
-    | TNewline _
-    | TIfKeyword _
-    | TIfThenKeyword _
-    | TIfElseKeyword _
-    | TFieldOp _
-    | TFnName _
-    | TFnVersion _
-    | TLetKeyword _
-    | TLetAssignment _
-    | TSep _
-    | TListClose _
-    | TListComma _
-    | TIndent _
-    | TRecordOpen _
-    | TRecordClose _
-    | TRecordSep _
-    | TPipe _
-    | TLambdaSymbol _
-    | TLambdaArrow _
-    | TConstructorName _
-    | TLambdaComma _
-    | TMatchBranchArrow _
-    | TMatchKeyword _
-    | TPartialGhost _
-    | TParenOpen _
-    | TParenClose _ ->
-        (ast, SamePlace)
+    | _ ->
+      ( match caretTargetFromTokenInfo pos ti with
+      | Some ct ->
+          doExplicitInsert letter ct ast
+      | None ->
+          (ast, SamePlace) )
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
-
-
-let doInsert
-    ~pos (letter : string option) (ti : T.tokenInfo) (ast : ast) (s : state) :
-    E.t * state =
-  match letter with
-  | None ->
-      (ast, s)
-  | Some letter ->
-      doInsert' ~pos letter ti ast s
 
 
 let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
@@ -3937,10 +4238,6 @@ let getSelectionRange (s : fluidState) : int * int =
       (s.newPos, endIdx)
   | None ->
       (s.newPos, s.newPos)
-
-
-let getCollapsedSelectionStart (s : fluidState) : int =
-  getSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
 
 
 let updateSelectionRange (s : fluidState) (newPos : int) : fluidState =
@@ -4157,7 +4454,7 @@ let rec updateKey
       when onEdge && Util.isIdentifierChar txt ->
         let ast, s = acEnter ti ast s K.Tab in
         getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
-        |> Option.map ~f:(fun ti -> doInsert' ~pos:s.newPos txt ti ast s)
+        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
         |> Option.withDefault ~default:(ast, s)
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline ast s =
@@ -4288,13 +4585,13 @@ let rec updateKey
     | InsertText ",", L (TLambdaSymbol _, toTheLeft), _
     | InsertText ",", L (TLambdaVar _, toTheLeft), _
       when onEdge ->
-        doInsert' ~pos "," toTheLeft ast s
+        doInsert ~pos "," toTheLeft ast s
     | InsertText ",", _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
         (insertLambdaVar ~index id ~name:"" ast, s)
     | InsertText ",", L (t, ti), _ ->
         if onEdge
         then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
-        else doInsert' ~pos "," ti ast s
+        else doInsert ~pos "," ti ast s
     (* list-specific insertions *)
     | InsertText "}", _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
@@ -4313,7 +4610,7 @@ let rec updateKey
     | InsertText ".", L (TVariable _, toTheLeft), _
     | InsertText ".", L (TFieldName _, toTheLeft), _
       when onEdge ->
-        doInsert' ~pos "." toTheLeft ast s
+        doInsert ~pos "." toTheLeft ast s
     (***********)
     (* K.Enter *)
     (***********)
@@ -4509,17 +4806,17 @@ let rec updateKey
     | InsertText txt, L (TRightPartial _, toTheLeft), _
     | InsertText txt, L (TBinOp _, toTheLeft), _
       when keyIsInfix ->
-        doInsert' ~pos txt toTheLeft ast s
+        doInsert ~pos txt toTheLeft ast s
     | InsertText txt, _, R (TPlaceholder _, toTheRight)
     | InsertText txt, _, R (TBlank _, toTheRight)
       when keyIsInfix ->
-        doInsert' ~pos txt toTheRight ast s
+        doInsert ~pos txt toTheRight ast s
     | InsertText txt, L (_, toTheLeft), _
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
         (convertToBinOp txt (T.tid toTheLeft.token) ast, s |> moveTo (pos + 2))
     (* Rest of Insertions *)
     | InsertText txt, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
-        doInsert' ~pos txt toTheLeft ast s
+        doInsert ~pos txt toTheLeft ast s
     (*
      * Caret between empty record symbols {}
      * Adds new initial record row with the typed
@@ -4533,17 +4830,17 @@ let rec updateKey
           (ast, s)
         else (ast, s)
     | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
-        doInsert' ~pos txt toTheLeft ast s
+        doInsert ~pos txt toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
         (ast, s)
     | _, _, R (TRecordOpen _, _) ->
         (ast, s)
     | InsertText txt, _, R (_, toTheRight) ->
-        doInsert' ~pos txt toTheRight ast s
+        doInsert ~pos txt toTheRight ast s
     | ReplaceText txt, _, _ ->
         replaceText ~ast ~state:s txt
     | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
-        doInsert' ~pos " " toTheRight ast s
+        doInsert ~pos " " toTheRight ast s
     | _ ->
         (* Unknown *)
         (ast, report ("Unknown action: " ^ show_fluidInputEvent inputEvent) s)
