@@ -13,24 +13,26 @@ module Session = struct
     of_header backend cookie_key (req |> Cohttp_lwt_unix.Request.headers)
 
 
+  let random_string (len : int) : string =
+    Cstruct.to_string
+      (let open Nocrypto in
+      Base64.encode (Rng.generate len))
+
+
+  let session_data (username : string) : string =
+    Yojson.to_string
+      (`Assoc
+        [ ("username", `String username)
+          (* Generate a random CSRF token the same way Session
+               does internally *)
+        ; ("csrf_token", `String (random_string 30)) ])
+
+
   (* We store two values alongside each other in the session.value:
      one, the username; and two, the current CSRF token. These are
      stored as a JSON map with values "username" and "csrf_token".
    *)
-  let new_for_username username =
-    generate
-      backend
-      (Yojson.to_string
-         (`Assoc
-           [ ("username", `String username)
-             (* Generate a random CSRF token the same way Session
-               does internally *)
-           ; ( "csrf_token"
-             , `String
-                 (Cstruct.to_string
-                    (let open Nocrypto in
-                    Base64.encode (Rng.generate 30))) ) ]))
-
+  let new_for_username username = generate backend (session_data username)
 
   let username_for session =
     session.value
