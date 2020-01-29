@@ -15,6 +15,8 @@ module Session : sig
 
   val new_for_username : Account.username -> t io
 
+  val new_for_username_sync : Account.username -> (string, exn) Result.t
+
   val username_for : t -> Account.username
 
   val csrf_token_for : t -> string
