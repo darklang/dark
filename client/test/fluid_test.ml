@@ -2906,7 +2906,7 @@ let run () =
         "del before last separator between a blank and item dels item after separator"
         listWithBlank
         (del 10)
-        "[56,78,___~]" ;
+        "[56,78,~___]" ;
       t
         "bs on separator between string items dels item after separator"
         multiWithStrs
