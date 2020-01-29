@@ -1339,6 +1339,10 @@ let update_ (msg : msg) (m : model) : modification =
               NoChange )
       | _ ->
           NoChange )
+  | CloseModal ->
+      (* TODO: Send info to heap *)
+      (* TODO: Only show on first load *)
+      Many [TweakModel (fun m -> {m with welcomeUser = false})]
   | DeleteUserTypeForever tlid ->
       Many
         [ AddOps ([DeleteTypeForever tlid], FocusSame)

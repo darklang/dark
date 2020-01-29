@@ -1245,6 +1245,7 @@ and msg =
   | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * tlid
+  | CloseModal
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1563,7 +1564,8 @@ and model =
   ; editorSettings : editorSettings
   ; teaDebuggerEnabled : bool
   ; unsupportedBrowser : bool
-  ; tlMenus : menuState TLIDDict.t }
+  ; tlMenus : menuState TLIDDict.t
+  ; welcomeUser : bool }
 
 and savedSettings =
   { editorSettings : editorSettings
