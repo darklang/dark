@@ -1,4 +1,5 @@
 open Tc
+include UnsharedTypes
 
 let show_list ~(f : 'a -> string) (x : 'a list) : string =
   "[" ^ String.join ~sep:"," (List.map ~f x) ^ "]"
@@ -33,10 +34,6 @@ type exception_ =
 (* Basic types *)
 (* ---------------------- *)
 and tlid = TLID of string
-
-and id = ID of string
-
-and analysisId = id
 
 and 'a blankOr =
   | Blank of id
@@ -163,9 +160,9 @@ and tipe =
 (* ---------------------- *)
 and fnName = string
 
-and sendToRail =
-  | Rail
-  | NoRail
+and fluidExpr = FluidExpression.t
+
+and fluidPattern = FluidPattern.t
 
 (* ----------------------------- *)
 (* Pointers *)
@@ -199,69 +196,6 @@ and blankOrType =
   | TypeFieldName
   | TypeFieldTipe
   | GroupName
-
-(* ---------------------- *)
-(* Fluid *)
-(* ---------------------- *)
-and fluidName = string
-
-(* match id, then the pattern id. We have a pattern id cause they can be
- * nested. *)
-and fluidPattern =
-  | FPVariable of id * id * fluidName
-  | FPConstructor of id * id * fluidName * fluidPattern list
-  (* TODO: support char *)
-  (* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
-  | FPInteger of id * id * string
-  | FPBool of id * id * bool
-  | FPString of
-      { matchID : id
-      ; patternID : id
-      ; str : string }
-  | FPFloat of id * id * string * string
-  | FPNull of id * id
-  | FPBlank of id * id
-
-and fluidExpr =
-  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
-   * support *)
-  | EInteger of id * string
-  | EBool of id * bool
-  | EString of id * string
-  | EFloat of id * string * string
-  | ENull of id
-  | EBlank of id
-  | ELet of id * fluidName * fluidExpr * fluidExpr
-  | EIf of id * fluidExpr * fluidExpr * fluidExpr
-  | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
-  (* the id in the varname list is the analysis ID, used to get a livevalue
-   * from the analysis engine *)
-  | ELambda of id * (analysisId * fluidName) list * fluidExpr
-  | EFieldAccess of id * fluidExpr * fluidName
-  | EVariable of id * string
-  | EFnCall of id * fluidName * fluidExpr list * sendToRail
-  | EPartial of id * string * fluidExpr
-  | ERightPartial of id * string * fluidExpr
-  | EList of id * fluidExpr list
-  (* The ID in the list is extra for the fieldname *)
-  | ERecord of id * (fluidName * fluidExpr) list
-  | EPipe of id * fluidExpr list
-  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
-   * expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
-   * or length 0 (for `Nothing`).
-   *)
-  | EConstructor of id * fluidName * fluidExpr list
-  | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
-  (* Placeholder that indicates the target of the Thread. May be movable at
-   * some point *)
-  | EPipeTarget of id
-  (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
-  | EFeatureFlag of id * string * fluidExpr * fluidExpr * fluidExpr
-[@@deriving show {with_path = false}]
-
-type fluidPatOrExpr =
-  | Expr of fluidExpr
-  | Pat of fluidPattern
 [@@deriving show {with_path = false}]
 
 (* ---------------------- *)
@@ -294,7 +228,7 @@ and handlerSpace =
   | HSDeprecatedOther
 
 and handler =
-  { ast : fluidExpr
+  { ast : FluidExpression.t
   ; spec : handlerSpec
   ; hTLID : tlid
   ; pos : pos }
@@ -325,8 +259,8 @@ and dbMigration =
   { startingVersion : int
   ; version : int
   ; state : dbMigrationState
-  ; rollforward : fluidExpr
-  ; rollback : fluidExpr
+  ; rollforward : FluidExpression.t
+  ; rollback : FluidExpression.t
   ; cols : dbColumn list }
 
 and db =
@@ -356,7 +290,7 @@ and userFunctionMetadata =
 and userFunction =
   { ufTLID : tlid
   ; ufMetadata : userFunctionMetadata
-  ; ufAST : fluidExpr }
+  ; ufAST : FluidExpression.t }
 
 and userRecordField =
   { urfName : string blankOr
@@ -400,7 +334,7 @@ and dval_source =
 and dblock_args =
   { symtable : dval StrDict.t
   ; params : (id * string) list
-  ; body : fluidExpr }
+  ; body : FluidExpression.t }
 
 and dval =
   | DInt of int
@@ -709,7 +643,7 @@ and op =
   | ChangeDBColType of tlid * id * dbColType
   | DeprecatedInitDbm of
       tlid * id * rollbackID * rollforwardID * dbMigrationKind
-  | SetExpr of tlid * id * fluidExpr
+  | SetExpr of tlid * id * FluidExpression.t
   | CreateDBMigration of tlid * rollbackID * rollforwardID * dbColumn list
   | AddDBColToDBMigration of tlid * id * id
   | SetDBColNameInDBMigration of tlid * id * dbColName
@@ -973,9 +907,9 @@ and clipboardEvent =
   [@opaque])
 
 and clipboardContents =
-  (* Clipboard supports both text and encoded fluidExprs. At the moment,
+  (* Clipboard supports both text and encoded FluidExpression.ts. At the moment,
    * there is always a text option - there isn't a json option if the copied
-   * string wasn't a fluidExpr *)
+   * string wasn't a FluidExpression.t *)
   (string * Js.Json.t option
   [@opaque])
 
@@ -1397,10 +1331,10 @@ and fluidToken =
    * the relative line number (index) of this newline. *)
   | TNewline of (id * id * int option) option
   | TIndent of int
-  | TLetKeyword of id * analysisId
+  | TLetKeyword of id * analysisID
   (* Let-expr id * rhs id * varname *)
-  | TLetVarName of id * analysisId * string
-  | TLetAssignment of id * analysisId
+  | TLetVarName of id * analysisID * string
+  | TLetAssignment of id * analysisID
   | TIfKeyword of id
   | TIfThenKeyword of id
   | TIfElseKeyword of id
@@ -1414,13 +1348,13 @@ and fluidToken =
       * string
   | TVariable of id * string
   (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
-  | TFnName of id * string * string * string * sendToRail
+  | TFnName of id * string * string * string * FluidExpression.sendToRail
   (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
   | TFnVersion of id * string * string * string
   | TLambdaComma of id * int
   | TLambdaArrow of id
   | TLambdaSymbol of id
-  | TLambdaVar of id * analysisId * int * string
+  | TLambdaVar of id * analysisID * int * string
   | TListOpen of id
   | TListClose of id
   | TListComma of id * int
@@ -1432,7 +1366,7 @@ and fluidToken =
       ; exprID : id
       ; index : int
       ; fieldName : string }
-  | TRecordSep of id * int * analysisId
+  | TRecordSep of id * int * analysisID
   | TRecordClose of id
   | TMatchKeyword of id
   | TMatchBranchArrow of
@@ -1471,8 +1405,8 @@ and fluidTokenInfo =
   ; token : fluidToken }
 
 and fluidPatternAutocomplete =
-  | FPAVariable of id * id * fluidName
-  | FPAConstructor of id * id * fluidName * fluidPattern list
+  | FPAVariable of id * id * string
+  | FPAConstructor of id * id * string * FluidPattern.t list
   | FPANull of id * id
   | FPABool of id * id * bool
 

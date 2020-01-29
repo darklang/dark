@@ -45,7 +45,7 @@ let handlerIsExeFail (vs : viewState) : bool =
     let outermostId =
       match vs.tl with
       | TLHandler handler ->
-          Some (FluidExpression.id handler.ast)
+          Some (FluidExpression.toID handler.ast)
       | _ ->
           None
     in

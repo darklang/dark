@@ -357,7 +357,7 @@ In scripts/builder:
 ## Debugging ppx stuff
 
 PPX is an ocaml preprocessor we use. The ppx libraries are all pretty
-opaque. To read the preprocessed output, run jbuilder with the --verbose
+opaque. To read the preprocessed output, run dune with the --verbose
 flag to see the commands run. You'll see something that looks like this:
 
 ```

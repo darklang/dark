@@ -5,6 +5,8 @@ open Json.Decode
 module TL = Toplevel
 module RT = Runtime
 
+type id = Shared.id
+
 external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
 
 (* This and tuple5 are adapted from Bucklescript - see tuple4 for the original *)
@@ -130,7 +132,7 @@ let bytes_from_base64url (b64 : string) : Bytes.t =
  * to bs-json we'll just json stringify it and use that *)
 let wireIdentifier j = try string j with _ -> int j |> string_of_int
 
-let id j = ID (wireIdentifier j)
+let id j : id = Types.ID (wireIdentifier j)
 
 let tlid j = TLID (wireIdentifier j)
 
@@ -246,37 +248,42 @@ and nExpr j : OldExpr.nExpr =
 
 let sendToRail j =
   let dv0 = variant0 in
-  variants [("Rail", dv0 Rail); ("NoRail", dv0 NoRail)] j
+  variants
+    [("Rail", dv0 FluidExpression.Rail); ("NoRail", dv0 FluidExpression.NoRail)]
+    j
 
 
-let rec fluidPattern j : fluidPattern =
+let rec fluidPattern j : FluidPattern.t =
+  let module P = FluidPattern in
   let dp = fluidPattern in
   let dv4 = variant4 in
   let dv3 = variant3 in
   let dv2 = variant2 in
   variants
-    [ ("FPVariable", dv3 (fun a b c -> FPVariable (a, b, c)) id id string)
+    [ ("FPVariable", dv3 (fun a b c -> P.FPVariable (a, b, c)) id id string)
     ; ( "FPConstructor"
-      , dv4 (fun a b c d -> FPConstructor (a, b, c, d)) id id string (list dp)
+      , dv4 (fun a b c d -> P.FPConstructor (a, b, c, d)) id id string (list dp)
       )
-    ; ("FPInteger", dv3 (fun a b c -> FPInteger (a, b, c)) id id string)
-    ; ("FPBool", dv3 (fun a b c -> FPBool (a, b, c)) id id bool)
+    ; ("FPInteger", dv3 (fun a b c -> P.FPInteger (a, b, c)) id id string)
+    ; ("FPBool", dv3 (fun a b c -> P.FPBool (a, b, c)) id id bool)
       (* Warning: this is a bit dangerous due to ordering; we'll need to find a saner way to do this.
       * Unfortunately, this is the first time that we have needed to decode an inline record,
       * and implementing that decoding is a bit tricky.
       *)
     ; ( "FPString"
       , dv3
-          (fun a b c -> FPString {matchID = a; patternID = b; str = c})
+          (fun a b c -> P.FPString {matchID = a; patternID = b; str = c})
           id
           id
           string )
-    ; ("FPFloat", dv4 (fun a b c d -> FPFloat (a, b, c, d)) id id string string)
-    ; ("FPNull", dv2 (fun a b -> FPNull (a, b)) id id) ]
+    ; ( "FPFloat"
+      , dv4 (fun a b c d -> P.FPFloat (a, b, c, d)) id id string string )
+    ; ("FPNull", dv2 (fun a b -> P.FPNull (a, b)) id id) ]
     j
 
 
-let rec fluidExpr (j : Js.Json.t) : fluidExpr =
+let rec fluidExpr (j : Js.Json.t) : FluidExpression.t =
+  let module E = FluidExpression in
   let de = fluidExpr in
   let dv5 = variant5 in
   let dv4 = variant4 in
@@ -284,40 +291,50 @@ let rec fluidExpr (j : Js.Json.t) : fluidExpr =
   let dv2 = variant2 in
   let dv1 = variant1 in
   variants
-    [ ("EInteger", dv2 (fun x y -> EInteger (x, y)) id string)
-    ; ("EBool", dv2 (fun x y -> EBool (x, y)) id bool)
-    ; ("EString", dv2 (fun x y -> EString (x, y)) id string)
-    ; ("EFloat", dv3 (fun x y z -> EFloat (x, y, z)) id string string)
-    ; ("ENull", dv1 (fun x -> ENull x) id)
-    ; ("EBlank", dv1 (fun x -> EBlank x) id)
-    ; ("ELet", dv4 (fun a b c d -> ELet (a, b, c, d)) id string de de)
-    ; ("EIf", dv4 (fun a b c d -> EIf (a, b, c, d)) id de de de)
+    [ ("EInteger", dv2 (fun x y -> E.EInteger (x, y)) id string)
+    ; ("EBool", dv2 (fun x y -> E.EBool (x, y)) id bool)
+    ; ("EString", dv2 (fun x y -> E.EString (x, y)) id string)
+    ; ("EFloat", dv3 (fun x y z -> E.EFloat (x, y, z)) id string string)
+    ; ("ENull", dv1 (fun x -> E.ENull x) id)
+    ; ("EBlank", dv1 (fun x -> E.EBlank x) id)
+    ; ("ELet", dv4 (fun a b c d -> E.ELet (a, b, c, d)) id string de de)
+    ; ("EIf", dv4 (fun a b c d -> E.EIf (a, b, c, d)) id de de de)
     ; ( "EBinOp"
-      , dv5 (fun a b c d e -> EBinOp (a, b, c, d, e)) id string de de sendToRail
-      )
+      , dv5
+          (fun a b c d e -> E.EBinOp (a, b, c, d, e))
+          id
+          string
+          de
+          de
+          sendToRail )
     ; ( "ELambda"
-      , dv3 (fun a b c -> ELambda (a, b, c)) id (list (pair id string)) de )
-    ; ("EFieldAccess", dv3 (fun a b c -> EFieldAccess (a, b, c)) id de string)
-    ; ("EVariable", dv2 (fun x y -> EVariable (x, y)) id string)
+      , dv3 (fun a b c -> E.ELambda (a, b, c)) id (list (pair id string)) de )
+    ; ("EFieldAccess", dv3 (fun a b c -> E.EFieldAccess (a, b, c)) id de string)
+    ; ("EVariable", dv2 (fun x y -> E.EVariable (x, y)) id string)
     ; ( "EFnCall"
-      , dv4 (fun a b c d -> EFnCall (a, b, c, d)) id string (list de) sendToRail
-      )
-    ; ("EPartial", dv3 (fun a b c -> EPartial (a, b, c)) id string de)
-    ; ("ERightPartial", dv3 (fun a b c -> ERightPartial (a, b, c)) id string de)
-    ; ("EList", dv2 (fun x y -> EList (x, y)) id (list de))
-    ; ("ERecord", dv2 (fun x y -> ERecord (x, y)) id (list (pair string de)))
-    ; ("EPipe", dv2 (fun x y -> EPipe (x, y)) id (list de))
+      , dv4
+          (fun a b c d -> E.EFnCall (a, b, c, d))
+          id
+          string
+          (list de)
+          sendToRail )
+    ; ("EPartial", dv3 (fun a b c -> E.EPartial (a, b, c)) id string de)
+    ; ( "ERightPartial"
+      , dv3 (fun a b c -> E.ERightPartial (a, b, c)) id string de )
+    ; ("EList", dv2 (fun x y -> E.EList (x, y)) id (list de))
+    ; ("ERecord", dv2 (fun x y -> E.ERecord (x, y)) id (list (pair string de)))
+    ; ("EPipe", dv2 (fun x y -> E.EPipe (x, y)) id (list de))
     ; ( "EConstructor"
-      , dv3 (fun a b c -> EConstructor (a, b, c)) id string (list de) )
+      , dv3 (fun a b c -> E.EConstructor (a, b, c)) id string (list de) )
     ; ( "EMatch"
       , dv3
-          (fun a b c -> EMatch (a, b, c))
+          (fun a b c -> E.EMatch (a, b, c))
           id
           de
           (list (tuple2 fluidPattern de)) )
-    ; ("EPipeTarget", dv1 (fun a -> EPipeTarget a) id)
+    ; ("EPipeTarget", dv1 (fun a -> E.EPipeTarget a) id)
     ; ( "EFeatureFlag"
-      , dv5 (fun a b c d e -> EFeatureFlag (a, b, c, d, e)) id string de de de
+      , dv5 (fun a b c d e -> E.EFeatureFlag (a, b, c, d, e)) id string de de de
       ) ]
     j
 

@@ -4,6 +4,7 @@ open Prelude
 module TL = Toplevel
 module P = Pointer
 module TD = TLIDDict
+module E = FluidExpression
 
 let fontAwesome = ViewUtils.fontAwesome
 
@@ -121,7 +122,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             TL.getAST tl
             |> Option.andThen ~f:(fun ast -> FluidExpression.find id ast)
             |> Option.andThen ~f:(function
-                   | EFnCall (_, name, _, _) | EBinOp (_, name, _, _, _) ->
+                   | E.EFnCall (_, name, _, _) | EBinOp (_, name, _, _, _) ->
                        Some name
                    | _ ->
                        None)
@@ -419,7 +420,9 @@ let view (m : model) : msg Html.html =
   let body = viewCanvas m in
   let entry = ViewEntry.viewEntry m in
   let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
-  let ast = TL.selectedAST m |> Option.withDefault ~default:(EBlank (gid ())) in
+  let ast =
+    TL.selectedAST m |> Option.withDefault ~default:(E.EBlank (gid ()))
+  in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
     then [FluidView.viewStatus m ast m.fluidState]

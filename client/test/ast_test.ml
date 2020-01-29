@@ -3,6 +3,8 @@ open Prelude
 open AST
 open Fluid_test_data
 module B = BlankOr
+open FluidExpression
+open FluidPattern
 
 type ('a, 'b) transformation_test_result =
   | Pass

@@ -4,7 +4,7 @@ open Fluid
 module AC = FluidAutocomplete
 module B = BlankOr
 module K = FluidKeyboard
-module E = FluidExpression
+open FluidExpression
 open Fluid_test_data
 
 let sampleFunctions : function_ list =
@@ -53,7 +53,7 @@ let defaultID = gid ()
 
 let defaultID2 = gid ()
 
-let defaultExpr = EBlank defaultID
+let defaultExpr = E.EBlank defaultID
 
 let defaultToplevel =
   TLHandler
@@ -550,7 +550,7 @@ let run () =
               let tlid = TLID "789" in
               let mID = ID "1234" in
               let patID = ID "456" in
-              let pattern = FPVariable (mID, patID, "o") in
+              let pattern = P.FPVariable (mID, patID, "o") in
               let expr = match' b [(pattern, b)] in
               let m =
                 defaultModel

@@ -19,6 +19,7 @@ let putFunctionOnRail =
 
 
 let commands : command list =
+  let open FluidExpression in
   [ { commandName = "extract-function"
     ; action = Refactor.extractFunction
     ; doc = "Extract expression into a function" }

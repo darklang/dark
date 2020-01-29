@@ -304,9 +304,18 @@ def execute(should):
 
 
 def mark(should, f):
+  print("file: " + f, end='')
   # Ocaml
-  if "backend/esy.json" in f:
+  if ("libshared/" in f) \
+          and ((".mli" in f) \
+            or (".ml" in f)):
+    should.backend_build = True
+    should.client_build = True
+
+
+  elif "backend/esy.json" in f:
     should.esy_install = True
+
   elif ("backend/test/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
@@ -315,10 +324,11 @@ def mark(should, f):
   elif ("backend/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f) \
-                  or ("dune" in f) \
                   or ("_tags" in f) \
-                  or ("libtarget.js" in f)):
+                  or ("libtarget.js" in f)) \
+          or ("dune" in f):
     should.backend_build = True
+
 
   elif ("templates/" in f) and (".html" in f):
     should.backend_build = True
@@ -394,7 +404,7 @@ def ignore(filename):
             , "backend/node_modules"
             , "/home/dark/.esy"
             , "client/node_modules"
-            , "client/lib"
+            , "client/lib/"
             , "build.ninja"
             , "stroller/target"
             , "queue-scheduler/target"

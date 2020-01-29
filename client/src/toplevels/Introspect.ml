@@ -108,7 +108,7 @@ let findUsagesInAST
     (datastores : tlid StrDict.t)
     (handlers : tlid StrDict.t)
     (functions : tlid StrDict.t)
-    (ast : fluidExpr) : usage list =
+    (ast : FluidExpression.t) : usage list =
   FluidExpression.filterMap ast ~f:(fun e ->
       match e with
       | EVariable (id, name) ->

@@ -61,7 +61,7 @@ let defaultHandler =
 
 
 let run () =
-  FluidExpression.functions := sampleFunctions ;
+  OldExpr.functions := sampleFunctions ;
   describe "takeOffRail & putOnRail" (fun () ->
       let f1 =
         { fnName = "Result::resulty"
@@ -88,7 +88,7 @@ let run () =
       in
       let handlerWithPointer fnName fnRail =
         let id = ID "ast1" in
-        let ast = EFnCall (id, fnName, [], fnRail) in
+        let ast = E.EFnCall (id, fnName, [], fnRail) in
         ({defaultHandler with ast}, id)
       in
       let init fnName fnRail =
@@ -116,7 +116,7 @@ let run () =
           let ast = pipe emptyList [fn] in
           let h = {defaultHandler with ast} in
           let m = model [h] in
-          let id = E.id fn in
+          let id = E.toID fn in
           (* this used to crash or just lose all its arguments *)
           let mod' = Refactor.takeOffRail m (TLHandler h) id in
           let res =
@@ -319,7 +319,7 @@ let run () =
           let ast = int "4" in
           let m, tl = modelAndTl ast in
           expect
-            ( R.extractVarInAst m tl (E.id ast) "var" ast
+            ( R.extractVarInAst m tl (E.toID ast) "var" ast
             |> FluidPrinter.eToTestString )
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
@@ -327,7 +327,7 @@ let run () =
           let ast = let' "b" (int "5") expr in
           let m, tl = modelAndTl ast in
           expect
-            ( R.extractVarInAst m tl (E.id expr) "var" ast
+            ( R.extractVarInAst m tl (E.toID expr) "var" ast
             |> FluidPrinter.eToTestString )
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
@@ -341,7 +341,7 @@ let run () =
           let ast = let' "id" (fn "Uuid::generate" []) exprInThread in
           let m, tl = modelAndTl ast in
           expect
-            ( R.extractVarInAst m tl (E.id expr) "var" ast
+            ( R.extractVarInAst m tl (E.toID expr) "var" ast
             |> FluidPrinter.eToTestString )
           |> toEqual
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"))

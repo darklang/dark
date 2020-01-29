@@ -233,6 +233,20 @@ module RuntimeT = struct
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
 
+  module HandlerF = struct
+    type spec =
+      { module_ : string or_blank [@key "module"]
+      ; name : string or_blank
+      ; modifier : string or_blank }
+    [@@deriving eq, show, yojson]
+
+    type handler =
+      { tlid : tlid
+      ; ast : Libshared.FluidExpression.t
+      ; spec : spec }
+    [@@deriving eq, show]
+  end
+
   (* ------------------------ *)
   (* Dvals*)
   (* ------------------------ *)

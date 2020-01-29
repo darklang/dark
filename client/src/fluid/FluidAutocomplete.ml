@@ -1,12 +1,11 @@
 open Prelude
 
 (* Dark *)
-module P = Pointer
 module RT = Runtime
 module TL = Toplevel
-module B = BlankOr
 module Regex = Util.Regex
 module TD = TLIDDict
+module E = FluidExpression
 
 type autocomplete = fluidAutocompleteState [@@deriving show]
 
@@ -223,7 +222,7 @@ let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
-  |> Option.map ~f:(fun e -> match e with EPipe _ -> true | _ -> false)
+  |> Option.map ~f:(fun e -> match e with E.EPipe _ -> true | _ -> false)
   |> Option.withDefault ~default:false
 
 

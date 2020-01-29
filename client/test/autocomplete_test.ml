@@ -28,7 +28,7 @@ let defaultID2 = gid ()
 
 let defaultBlankOr = Blank defaultID
 
-let defaultExpr = EBlank defaultID
+let defaultExpr = FluidExpression.EBlank defaultID
 
 let fillingCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
   Entering (Filling (tlid, id))
@@ -177,7 +177,7 @@ let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
 
 
 let run () =
-  FluidExpression.functions := sampleFunctions ;
+  OldExpr.functions := sampleFunctions ;
   describe "autocomplete" (fun () ->
       describe "generation" (fun () ->
           test

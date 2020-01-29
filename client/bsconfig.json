@@ -7,6 +7,10 @@
       "subdirs" : true 
     },
     {
+      "dir": "libshared",
+      "subdirs" : true 
+    },
+    {
       "dir": "test",
       "type": "dev"
     },
