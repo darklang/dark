@@ -1284,57 +1284,39 @@ that's already taken, returns an error."
             | exec_state, [DStr username] ->
                 let username = Unicode_string.to_string username in
                 ( match Account.id_of_username username with
-                | Some _ ->
-                    (* We can't use Auth.Session.new_for_username here because
-                     * it requires either lwt or async *)
-                    let session_key = Auth.Session.random_string 30 in
-                    let session_data = Auth.Session.session_data username in
-                    let session_key =
-                      try
-                        Db.fetch_one
-                          ~name:"insert session from dark"
-                          ~subject:username
-                          "INSERT INTO session
-                      (session_key, expire_date, session_data)
-                      VALUES ($1, NOW() + '1 week'::interval, $2)
-                      RETURNING session_key"
-                          ~params:[String session_key; String session_data]
-                        |> List.hd_exn
-                        |> Result.Ok
-                      with e -> Result.fail e
-                    in
-                    ( match session_key with
-                    | Ok session_key ->
-                        DResult (ResOk (Dval.dstr_of_string_exn session_key))
-                    | Error e ->
-                        (* If DB insert fails, log and rollbar *)
-                        let err = Libexecution.Exception.exn_to_string e in
-                        Log.erroR
-                          "DarkInternal::newSessionForUsername"
-                          ~params:[("username", username); ("exception", err)] ;
-                        let bt = Libexecution.Exception.get_backtrace () in
-                        ( match
-                            Rollbar.report
-                              e
-                              bt
-                              (Other "Darklang")
-                              (exec_state.execution_id |> Types.string_of_id)
-                          with
-                        | `Success | `Disabled ->
-                            ()
-                        | `Failure ->
-                            Log.erroR
-                              "rollbar.report at DarkInternal::newSessionForUsername"
-                        ) ;
-                        DResult
-                          (ResError
-                             (Dval.dstr_of_string_exn
-                                "Failed to create session")) )
                 | None ->
                     DResult
                       (ResError
                          (Dval.dstr_of_string_exn
-                            ("No user '" ^ username ^ "'"))) )
+                            ("No user '" ^ username ^ "'")))
+                | Some _user_id ->
+                  ( match Auth.Session.new_for_username_sync username with
+                  | Ok session_key ->
+                      DResult (ResOk (Dval.dstr_of_string_exn session_key))
+                  | Error e ->
+                      (* If session creation fails, log and rollbar *)
+                      let err = Libexecution.Exception.exn_to_string e in
+                      Log.erroR
+                        "DarkInternal::newSessionForUsername"
+                        ~params:[("username", username); ("exception", err)] ;
+                      let bt = Libexecution.Exception.get_backtrace () in
+                      ( match
+                          Rollbar.report
+                            e
+                            bt
+                            (Other "Darklang")
+                            (exec_state.execution_id |> Types.string_of_id)
+                        with
+                      | `Success | `Disabled ->
+                          ()
+                      | `Failure ->
+                          Log.erroR
+                            "rollbar.report at DarkInternal::newSessionForUsername"
+                      ) ;
+                      DResult
+                        (ResError
+                           (Dval.dstr_of_string_exn "Failed to create session"))
+                  ) )
             | args ->
                 fail args)
     ; ps = false

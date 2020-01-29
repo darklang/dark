@@ -34,6 +34,28 @@ module Session = struct
    *)
   let new_for_username username = generate backend (session_data username)
 
+  (* Like new_for_username above, but without the lwt context, since we don't
+   * have lwt in the dark interpreter. *)
+  let new_for_username_sync (username : string) : (string, exn) Result.t =
+    let session_key = random_string 30 in
+    let session_data = session_data username in
+    let session_key =
+      try
+        Db.fetch_one
+          ~name:"insert session from dark"
+          ~subject:username
+          "INSERT INTO session
+                      (session_key, expire_date, session_data)
+                      VALUES ($1, NOW() + '1 week'::interval, $2)
+                      RETURNING session_key"
+          ~params:[String session_key; String session_data]
+        |> List.hd_exn
+        |> Result.Ok
+      with e -> Result.fail e
+    in
+    session_key
+
+
   let username_for session =
     session.value
     |> Yojson.Basic.from_string
