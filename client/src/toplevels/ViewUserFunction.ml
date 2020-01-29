@@ -78,11 +78,14 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
     if vs.isExecuting
     then IsExecuting
     else
+      (* Attempts to get trace inputValues for this function *)
       match Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid with
       | Some (traceID, Ok td) ->
           let args = UserFunctions.inputToArgs fn td.input in
+          (* If any of the args is Incomplete/Error then we don't want to bother allowing this function to be executed *)
           if List.any
-               ~f:(fun dv -> match dv with DIncomplete _ -> true | _ -> false)
+               ~f:(fun dv ->
+                 match dv with DIncomplete _ | DError _ -> true | _ -> false)
                args
           then CannotExecute
           else ExecuteWith (traceID, args)
@@ -90,27 +93,26 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
           CannotExecute
   in
   let events =
+    (* If function is ready for re-execution, attach onClick listener *)
     match (fn.ufMetadata.ufmName, exeStatus) with
     | F (_, fnName), ExecuteWith (traceID, args) ->
         ViewUtils.eventNoPropagation
           ~key:("run-fun" ^ "-" ^ showTLID fn.ufTLID ^ "-" ^ traceID)
           "click"
           (fun _ ->
-            let params =
+            ExecuteFunctionFromWithin
               { efpTLID = fn.ufTLID
               ; efpCallerID = FluidExpression.id fn.ufAST
               ; efpTraceID = traceID
               ; efpFnName = fnName
-              ; efpArgs = args }
-            in
-            ExecuteFunctionFromWithin params)
+              ; efpArgs = args })
     | _ ->
         Vdom.noProp
   in
   let title =
     match exeStatus with
     | CannotExecute ->
-        "Cannot run: some parameters are incomplete"
+        "Cannot run function with invalid parameters"
     | ExecuteWith _ ->
         "Click to execute function"
     | IsExecuting ->
@@ -119,7 +121,7 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
   Html.div
     [ Html.classList
         [ ("execution-button", true)
-        ; ( "allow"
+        ; ( "is-ready"
           , vs.permission = Some ReadWrite
             && match exeStatus with ExecuteWith _ -> true | _ -> false )
         ; ("is-executing", exeStatus = IsExecuting) ]

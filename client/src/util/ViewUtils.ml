@@ -131,12 +131,14 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
       TLIDDict.get ~tlid m.tlMenus
       |> Option.withDefault ~default:Defaults.defaultMenu
   ; isExecuting =
+      (* Converge can execute for functions & handlers *)
       ( match tl with
       | TLFunc _ ->
           List.any ~f:(fun (fTLID, _) -> fTLID = tlid) m.executingFunctions
       | TLHandler _ ->
+        (* Doing explicit match here just to be safe, even though we can probably assume you can't have handlerProp without it being a handler from code above. *)
         (match hp with Some p -> p.execution = Executing | _ -> false)
-      | _ ->
+      | TLDB _ | TLTipe _ | TLGroup _ ->
           false ) }
 
 
