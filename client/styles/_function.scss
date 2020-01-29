@@ -29,7 +29,7 @@
       color: $grey1;
       cursor: not-allowed;
 
-      &.allow {
+      &.is-ready {
         color: $user-functions;
         cursor: pointer;
       }
