@@ -468,7 +468,7 @@ let run () =
       t "del mid string" aStr (del 3) "\"so~e string\"" ;
       t "bs mid string" aStr (bs 4) "\"so~e string\"" ;
       t "insert empty string" emptyStr (ins "c" 1) "\"c~\"" ;
-      t "del empty string" emptyStr (del 1) "~___" ;
+      t "del empty string" emptyStr (del 1) "\"~\"" ;
       t "del empty string from outside" emptyStr (del 0) "~___" ;
       t "bs empty string" emptyStr (bs 1) "~___" ;
       t "bs outside empty string" emptyStr (bs 2) "\"~\"" ;
