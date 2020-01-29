@@ -1,6 +1,6 @@
 open Core
 
-module Session : sig
+module SessionLwt : sig
   module Backend = Session_postgresql_lwt
 
   include module type of Session
@@ -15,9 +15,21 @@ module Session : sig
 
   val new_for_username : Account.username -> t io
 
+  val username_of_key : string -> string option
+
+  val random_string : int -> string
+
+  val session_data : string -> string
+
   val username_for : t -> Account.username
 
   val csrf_token_for : t -> string
+end
+
+module SessionSync : sig
+  module Backend = Session_postgresql
+
+  val new_for_username : Account.username -> string
 
   val username_of_key : string -> string option
 end

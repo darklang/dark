@@ -254,8 +254,8 @@ let t_authenticate_then_handle_code_and_cookie () =
 let t_check_csrf_then_handle () =
   (* csrf header *)
   let csrf token = Header.of_list [("X-CSRF-Token", token)] in
-  let test_session = Lwt_main.run (Auth.Session.new_for_username "test") in
-  let correct_token = Auth.Session.csrf_token_for test_session in
+  let test_session = Lwt_main.run (Auth.SessionLwt.new_for_username "test") in
+  let correct_token = Auth.SessionLwt.csrf_token_for test_session in
   (* sample execution id, makes grepping test logs easier *)
   let test_id = Types.id_of_int 1234 in
   (* Fake URL; this should be url-agnostic *)
@@ -291,7 +291,7 @@ let admin_handler_code
     ?(meth = `GET) ?(body = "") ?(csrf = true) (username, endpoint) =
   (* sample execution id, makes grepping test logs easier *)
   let test_id = Types.id_of_int 1234 in
-  let session = Lwt_main.run (Auth.Session.new_for_username username) in
+  let session = Lwt_main.run (Auth.SessionLwt.new_for_username username) in
   Lwt_main.run
     (let uri =
        Uri.of_string ("http://builtwithdark.localhost:8000" ^ endpoint)
@@ -299,7 +299,7 @@ let admin_handler_code
      let headers =
        Header.of_list
          ( if csrf
-         then [("X-CSRF-Token", Auth.Session.csrf_token_for session)]
+         then [("X-CSRF-Token", Auth.SessionLwt.csrf_token_for session)]
          else [] )
      in
      let%lwt () = Nocrypto_entropy_lwt.initialize () in
@@ -309,7 +309,7 @@ let admin_handler_code
          ~uri
          ~body
          ~session
-         ~csrf_token:(Auth.Session.csrf_token_for session)
+         ~csrf_token:(Auth.SessionLwt.csrf_token_for session)
          (Req.make ~meth ~headers uri)
      in
      resp |> Resp.status |> Code.code_of_status |> return)

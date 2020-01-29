@@ -31,7 +31,9 @@
               ppx_deriving_yojson.runtime
               session
               session-postgresql-lwt
+              session-postgresql
               session-cohttp-lwt
+              session-cohttp
               sodium
               uutf
               yojson

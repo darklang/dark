@@ -830,7 +830,7 @@ that's already taken, returns an error."
         internal_fn (function
             | _, [DStr sessionKey] ->
                 let sessionKey = sessionKey |> Unicode_string.to_string in
-                ( match Auth.Session.username_of_key sessionKey with
+                ( match Auth.SessionSync.username_of_key sessionKey with
                 | None ->
                     DResult
                       (ResError
@@ -1271,5 +1271,78 @@ that's already taken, returns an error."
     ; d =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
     ; f = modify_schedule Event_queue.unblock_worker
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::newSessionForUsername"]
+    ; ins = []
+    ; p = [par "username" TStr]
+    ; r = TResult
+    ; d =
+        "If username is an existing user, puts a new session in the DB and returns the new sessionKey."
+    ; f =
+        internal_fn (function
+            | exec_state, [DStr username] ->
+                let username = Unicode_string.to_string username in
+                ( match Account.id_of_username username with
+                | None ->
+                    DResult
+                      (ResError
+                         (Dval.dstr_of_string_exn
+                            ("No user '" ^ username ^ "'")))
+                | Some _user_id ->
+                    let session_key =
+                      try
+                        Auth.SessionSync.new_for_username username
+                        |> Result.return
+                      with e -> Result.fail e
+                    in
+                    ( match session_key with
+                    | Ok session_key ->
+                        DResult (ResOk (Dval.dstr_of_string_exn session_key))
+                    | Error e ->
+                        (* If session creation fails, log and rollbar *)
+                        let err = Libexecution.Exception.exn_to_string e in
+                        Log.erroR
+                          "DarkInternal::newSessionForUsername"
+                          ~params:[("username", username); ("exception", err)] ;
+                        let bt = Libexecution.Exception.get_backtrace () in
+                        ( match
+                            Rollbar.report
+                              e
+                              bt
+                              (Other "Darklang")
+                              (exec_state.execution_id |> Types.string_of_id)
+                          with
+                        | `Success | `Disabled ->
+                            ()
+                        | `Failure ->
+                            Log.erroR
+                              "rollbar.report at DarkInternal::newSessionForUsername"
+                        ) ;
+                        DResult
+                          (ResError
+                             (Dval.dstr_of_string_exn
+                                "Failed to create session")) ) )
+            | args ->
+                fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::deleteSession"]
+    ; ins = []
+    ; p = [par "session_key" TStr]
+    ; r = TInt
+    ; d = "Delete session by session_key; return number of sessions deleted."
+    ; f =
+        internal_fn (function
+            | exec_state, [DStr session_key] ->
+                let session_key = Unicode_string.to_string session_key in
+                Db.delete
+                  ~subject:session_key
+                  ~name:"delete session by session_key"
+                  "DELETE FROM session WHERE session_key = $1"
+                  ~params:[String session_key]
+                |> Dval.dint
+            | args ->
+                fail args)
     ; ps = false
     ; dep = false } ]

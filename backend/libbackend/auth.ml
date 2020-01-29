@@ -1,49 +1,26 @@
 open Core_kernel
 
-module Session = struct
-  module Backend = Session_postgresql_lwt
-  include Session
-  include Session_cohttp_lwt.Make (Backend)
-
+module SessionShared = struct
   let backend = Libservice.Dbconnection.conn
 
   let cookie_key = "__session"
 
-  let of_request req =
-    of_header backend cookie_key (req |> Cohttp_lwt_unix.Request.headers)
+  let random_string (len : int) : string =
+    Cstruct.to_string
+      (let open Nocrypto in
+      Base64.encode (Rng.generate len))
 
 
-  (* We store two values alongside each other in the session.value:
-     one, the username; and two, the current CSRF token. These are
-     stored as a JSON map with values "username" and "csrf_token".
-   *)
-  let new_for_username username =
-    generate
-      backend
-      (Yojson.to_string
-         (`Assoc
-           [ ("username", `String username)
-             (* Generate a random CSRF token the same way Session
+  (* We store two values alongside each other in the session.value: one, the
+   * username; and two, the current CSRF token. These are stored as a JSON map
+   * with values "username" and "csrf_token". *)
+  let session_data (username : string) : string =
+    Yojson.to_string
+      (`Assoc
+        [ ("username", `String username)
+          (* Generate a random CSRF token the same way Session
                does internally *)
-           ; ( "csrf_token"
-             , `String
-                 (Cstruct.to_string
-                    (let open Nocrypto in
-                    Base64.encode (Rng.generate 30))) ) ]))
-
-
-  let username_for session =
-    session.value
-    |> Yojson.Basic.from_string
-    |> Yojson.Basic.Util.member "username"
-    |> Yojson.Basic.Util.to_string
-
-
-  let csrf_token_for session =
-    session.value
-    |> Yojson.Basic.from_string
-    |> Yojson.Basic.Util.member "csrf_token"
-    |> Yojson.Basic.Util.to_string
+        ; ("csrf_token", `String (random_string 30)) ])
 
 
   let username_of_key (key : string) : string option =
@@ -59,4 +36,42 @@ module Session = struct
            |> Yojson.Basic.from_string
            |> Yojson.Basic.Util.member "username"
            |> Yojson.Basic.Util.to_string)
+end
+
+(* Sync, as opposed to lwt *)
+module SessionSync = struct
+  module Backend = Session_postgresql
+  include Session
+  include SessionShared
+
+  let new_for_username username =
+    Backend.generate backend ~value:(session_data username)
+end
+
+module SessionLwt = struct
+  module Backend = Session_postgresql_lwt
+  include Session
+  include SessionShared
+  include Session_cohttp_lwt.Make (Backend)
+
+  let of_request req =
+    of_header backend cookie_key (req |> Cohttp_lwt_unix.Request.headers)
+
+
+  let new_for_username username = generate backend (session_data username)
+
+  (* These can't be shared because session is type t, and so varies by backend
+   * *)
+  let username_for session =
+    session.value
+    |> Yojson.Basic.from_string
+    |> Yojson.Basic.Util.member "username"
+    |> Yojson.Basic.Util.to_string
+
+
+  let csrf_token_for session =
+    session.value
+    |> Yojson.Basic.from_string
+    |> Yojson.Basic.Util.member "csrf_token"
+    |> Yojson.Basic.Util.to_string
 end
