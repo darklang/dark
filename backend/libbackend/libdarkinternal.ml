@@ -1285,8 +1285,8 @@ that's already taken, returns an error."
                 let username = Unicode_string.to_string username in
                 ( match Account.id_of_username username with
                 | Some _ ->
-                    (* We can't use Auth.Session here because it requires either lwt
-                     * or async *)
+                    (* We can't use Auth.Session.new_for_username here because
+                     * it requires either lwt or async *)
                     let session_key = Auth.Session.random_string 30 in
                     let session_data = Auth.Session.session_data username in
                     let session_key =
@@ -1306,8 +1306,8 @@ that's already taken, returns an error."
                     ( match session_key with
                     | Ok session_key ->
                         DResult (ResOk (Dval.dstr_of_string_exn session_key))
-                        (* If DB insert fails, log and rollbar *)
                     | Error e ->
+                        (* If DB insert fails, log and rollbar *)
                         let err = Libexecution.Exception.exn_to_string e in
                         Log.erroR
                           "DarkInternal::newSessionForUsername"
