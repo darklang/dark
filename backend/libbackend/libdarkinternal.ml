@@ -1338,4 +1338,23 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::deleteSession"]
+    ; ins = []
+    ; p = [par "session_key" TStr]
+    ; r = TInt
+    ; d = "Delete session by session_key; return number of sessions deleted."
+    ; f =
+        internal_fn (function
+            | exec_state, [DStr session_key] ->
+                let session_key = Unicode_string.to_string session_key in
+                Db.delete
+                  ~subject:session_key
+                  ~name:"delete session by session_key"
+                  "DELETE FROM session WHERE session_key = $1"
+                  ~params:[String session_key]
+                |> Dval.dint
+            | args ->
+                fail args)
+    ; ps = false
     ; dep = false } ]
