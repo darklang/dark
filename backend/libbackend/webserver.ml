@@ -1333,7 +1333,7 @@ let check_csrf_then_handle ~execution_id ~session handler req =
     let request_token =
       req |> CRequest.headers |> fun h -> Header.get h "X-CSRF-Token"
     in
-    if Some (Auth.Session.csrf_token_for session) = request_token
+    if Some (Auth.SessionLwt.csrf_token_for session) = request_token
     then handler req
     else respond ~execution_id `Unauthorized "Bad CSRF"
   else handler req
@@ -1437,16 +1437,16 @@ let handle_login_page ~execution_id req body =
         Log.add_log_annotations
           [("username", `String username)]
           (fun _ ->
-            let%lwt session = Auth.Session.new_for_username username in
+            let%lwt session = Auth.SessionLwt.new_for_username username in
             let https_only_cookie = req |> CRequest.uri |> should_use_https in
             let headers =
               username_header username
-              :: Auth.Session.to_cookie_hdrs
+              :: Auth.SessionLwt.to_cookie_hdrs
                    ~http_only:true
                    ~secure:https_only_cookie
                    ~domain:(domain req)
                    ~path:"/"
-                   Auth.Session.cookie_key
+                   Auth.SessionLwt.cookie_key
                    session
             in
             let redirect_to =
@@ -1499,20 +1499,20 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
   let path = Uri.path req_uri in
   let login_uri = Uri.of_string "/login" in
   let verb = req |> CRequest.meth in
-  match%lwt Auth.Session.of_request req with
+  match%lwt Auth.SessionLwt.of_request req with
   | Ok (Some session) when path <> "/login" ->
-      let username = Auth.Session.username_for session in
-      let csrf_token = Auth.Session.csrf_token_for session in
+      let username = Auth.SessionLwt.username_for session in
+      let csrf_token = Auth.SessionLwt.csrf_token_for session in
       Log.add_log_annotations
         [("username", `String username)]
         (fun _ ->
           if path = "/logout" && verb = `POST
           then (
-            Auth.Session.clear Auth.Session.backend session ;%lwt
+            Auth.SessionLwt.clear Auth.SessionLwt.backend session ;%lwt
             let headers =
               Header.of_list
                 ( username_header username
-                :: Auth.Session.clear_hdrs Auth.Session.cookie_key )
+                :: Auth.SessionLwt.clear_hdrs Auth.SessionLwt.cookie_key )
             in
             S.respond_redirect ~headers ~uri:login_uri () )
           else
@@ -1549,7 +1549,7 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
                 (* This is dupe of the "real" (/login) session code; since we're gonna
                  * rip this basic auth codepath out post-Strangeloop, I don't feel
                  * like DRYing it up *)
-                let%lwt session = Auth.Session.new_for_username username in
+                let%lwt session = Auth.SessionLwt.new_for_username username in
                 let https_only_cookie =
                   req |> CRequest.uri |> should_use_https
                 in
@@ -1558,19 +1558,19 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
                   |> Option.value ~default:"darklang.com"
                   |> String.substr_replace_all ~pattern:":8000" ~with_:""
                 in
-                let csrf_token = Auth.Session.csrf_token_for session in
+                let csrf_token = Auth.SessionLwt.csrf_token_for session in
                 (* this is silly, but dark-cli regexes the csrf_token from the body
                  * for historical reasons
                  *)
                 let body = "const csrfToken = \"" ^ csrf_token ^ "\";" in
                 let resp_headers =
                   username_header username
-                  :: Auth.Session.to_cookie_hdrs
+                  :: Auth.SessionLwt.to_cookie_hdrs
                        ~http_only:true
                        ~secure:https_only_cookie
                        ~domain
                        ~path:"/"
-                       Auth.Session.cookie_key
+                       Auth.SessionLwt.cookie_key
                        session
                   |> Cohttp.Header.of_list
                 in
@@ -1751,7 +1751,7 @@ let admin_handler
     ~session
     ~(csrf_token : string)
     (req : CRequest.t) =
-  let username = Auth.Session.username_for session in
+  let username = Auth.SessionLwt.username_for session in
   let admin = Account.is_admin username |> string_of_bool in
   let path =
     uri
