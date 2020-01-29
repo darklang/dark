@@ -3469,169 +3469,31 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
 
 let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
+  (* Delete is approximately the same as backspace 1 place ahead,
+   * as long as we process the token after the caret.
+   * The only real difference is with multi-syllable extended grapheme clusters
+   * like गा, which we currently fail to support, much as we currently fail to support
+   * multi-codepoint emoji (the expected behavior of multi-syllable clusters differs from emoji).
+   *
+   * Note that we do not handle caret affinity properly, but caret affinity should behave the
+   * same for backspace and delete. 
+   *
+   * See https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad.
+   *)
   let s = recordAction ~pos ~ti "doDelete" s in
-  let left s = moveOneLeft pos s in
-  let offset =
-    match ti.token with
-    | TFnVersion (_, partialName, _, _) ->
-        (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
-        let startPos = ti.endPos - String.length partialName in
-        pos - startPos
-    | _ ->
-        pos - ti.startPos
+  let newAST, newPosition =
+    match caretTargetFromTokenInfo pos ti with
+    | Some ct ->
+        doExplicitBackspace {ct with offset = ct.offset + 1} ast
+    | None ->
+        (ast, SamePlace)
   in
-  let newID = gid () in
-  let f str = Util.removeCharAt str offset in
-  match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchBranchArrow _
-    ->
-      (ast, s)
-  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
-      (removeEmptyExpr (T.tid ti.token) ast, s)
-  | (TListOpen id | TRecordOpen id) when E.hasEmptyWithId id ast ->
-      (E.replace id ~replacement:(E.newB ()) ast, s)
-  | TLambdaComma (id, idx) ->
-      (removeLambdaSepToken id ast idx, s)
-  | TListComma (id, idx) ->
-      (removeListSepToken id ast idx, s)
-  | TBlank _
-  | TPlaceholder _
-  | TIndent _
-  | TLetAssignment _
-  | TListClose _
-  | TListOpen _
-  | TNewline _
-  | TRecordClose _
-  | TRecordOpen _
-  | TRecordSep _
-  | TSep _
-  | TParenOpen _
-  | TParenClose _
-  | TPartialGhost _ ->
-      (ast, s)
-  | TConstructorName (id, str)
-  (* str is the partialName: *)
-  | TFnName (id, str, _, _, _)
-  | TFnVersion (id, str, _, _) ->
-      let f str = Util.removeCharAt str offset in
-      (replaceWithPartial (f str) id ast, s)
-  | TFieldOp (id, _) ->
-      (removeField id ast, s)
-  | TString (id, str) ->
-      let target s =
-        (* if we're in front of the quotes vs within it *)
-        if offset == 0 then s else left s
-      in
-      if str = ""
-      then (ast |> E.replace id ~replacement:(EBlank newID), target s)
-      else
-        let str = Util.removeCharAt str (offset - 1) in
-        (E.replace id ~replacement:(EString (newID, str)) ast, s)
-  | TStringMLStart (id, _, _, str) ->
-      let str = Util.removeCharAt str (offset - 1) in
-      (E.replace id ~replacement:(EString (newID, str)) ast, s)
-  | TStringMLMiddle (id, _, strOffset, str) ->
-      let offset = offset + strOffset in
-      let str = Util.removeCharAt str offset in
-      (E.replace id ~replacement:(EString (newID, str)) ast, s)
-  | TStringMLEnd (id, endStr, strOffset, _) ->
-      let f str = Util.removeCharAt str (offset + strOffset) in
-      let newAST = replaceStringToken ~f ti.token ast in
-      let newState =
-        if String.length endStr = 1 && offset = 0
-        then
-          let moved = moveToEndOfTarget id newAST s in
-          {moved with newPos = moved.newPos - 1 (* quote *)}
-        else s
-      in
-      (newAST, newState)
-  | TPatternString {matchID = mID; patternID = id; str; _} ->
-      let target s =
-        (* if we're in front of the quotes vs within it *)
-        if offset == 0 then s else left s
-      in
-      if str = ""
-      then
-        (ast |> replacePattern mID id ~newPat:(FPBlank (mID, newID)), target s)
-      else
-        let str = Util.removeCharAt str (offset - 1) in
-        ( replacePattern
-            mID
-            id
-            ~newPat:(FPString {matchID = mID; patternID = newID; str})
-            ast
-        , s )
-  | TRightPartial (_, str) when String.length str = 1 ->
-      let ast, targetID = deleteRightPartial ti ast in
-      (ast, moveToEndOfTarget targetID ast s)
-  | TPartial (_, str) when String.length str = 1 ->
-      deletePartial ti ast s
-  | TBinOp (_, str) when String.length str = 1 ->
-      let ast, newState = deleteBinOp ti ast s in
-      (ast, newState)
-  | TInteger (id, _) ->
-      let ast, maybeTarget =
-        tryReplaceStringAndMove ~f ti.token ast {astRef = ARInteger id; offset}
-      in
-      ( match maybeTarget with
-      | Some target ->
-          (ast, moveToCaretTarget s ast target)
-      | None ->
-          (ast, s) )
-  | TRecordFieldname _
-  | TPatternInteger _
-  | TTrue _
-  | TFalse _
-  | TNullToken _
-  | TVariable _
-  | TPartial _
-  | TRightPartial _
-  | TFieldName _
-  | TFieldPartial _
-  | TLetVarName _
-  | TPatternNullToken _
-  | TPatternTrue _
-  | TPatternFalse _
-  | TPatternVariable _
-  | TBinOp _
-  | TLambdaVar _ ->
-      (replaceStringToken ~f ti.token ast, s)
-  | TFloatPoint id ->
-      (removePointFromFloat id ast, s)
-  | TFloatWhole (id, str) ->
-      (replaceFloatWhole (f str) id ast, s)
-  | TFloatFractional (id, str) ->
-      (replaceFloatFraction (f str) id ast, s)
-  | TPatternFloatPoint (mID, id, _) ->
-      (removePatternPointFromFloat mID id ast, s)
-  | TPatternFloatFractional (mID, id, str, _) ->
-      (replacePatternFloatFraction (f str) mID id ast, s)
-  | TPatternFloatWhole (mID, id, str, _) ->
-      (replacePatternFloatWhole (f str) mID id ast, s)
-  | TPatternConstructorName (mID, id, str, _) ->
-      let f str = Util.removeCharAt str offset in
-      (replacePatternWithPartial (f str) mID id ast, s)
-  | TPatternBlank _ ->
-      (ast, s)
-  | TPipe (id, i, length) ->
-      let newAST = removePipe id ast i in
-      let s =
-        (* index goes from zero and doesn't include first element, while length
-         * does. So + 2 correct for both those *)
-        if i + 2 = length
-        then
-          (* when deleting the last element, go to the end of the previous element *)
-          match getTokensAtPosition ~pos:ti.startPos (toTokens ast) with
-          | Some leftTI, _, _ ->
-              doLeft ~pos:ti.startPos leftTI s
-          | _ ->
-              recover
-                "TPipe should never occur on first line of AST"
-                ~debug:ti
-                s
-        else s
-      in
-      (newAST, s)
+  (* Delete should only move the caret if the AST changed; that is a difference from backspace *)
+  let newAST, newPosition =
+    if newAST = ast then (ast, SamePlace) else (newAST, newPosition)
+  in
+  let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
+  (newAST, {s with newPos})
 
 
 (* [doExplicitInsert [extendedGraphemeCluster] [currCaretTarget] [ast]]
