@@ -1004,6 +1004,7 @@ let run () =
       t "insert . converts to float - short" aShortInt (ins "." 1) "1.~" ;
       t "continue after adding dot" aPartialFloat (ins "2" 2) "1.2~" ;
       t "insert zero in whole - start" aFloat (ins "0" 0) "~123.456" ;
+      t "insert zero in whole - no whole" aFloatWithoutWhole (ins "0" 0) "0~.1" ;
       t "insert int in whole - start" aFloat (ins "9" 0) "9~123.456" ;
       t "insert int in whole - middle" aFloat (ins "0" 1) "10~23.456" ;
       t "insert int in whole - end" aFloat (ins "0" 3) "1230~.456" ;
@@ -1517,9 +1518,7 @@ let run () =
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
         (ins ~wrap:false "x" 120)
-        "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
-      (* TODO: This should be 129, but reflow puts the caret in the wrong
-           * place for new partials *) ;
+        "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01x~" ;
       tp
         "reflows put the caret in the right place on bs"
         (let justLongEnoughToReflow =
@@ -1529,9 +1528,7 @@ let run () =
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justLongEnoughToReflow])
         (bs ~wrap:false 129)
-        "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~"
-      (* TODO: This should be 120, but reflow puts the caret in the wrong
-           * place for new partials *) ;
+        "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~" ;
       t
         "ctrl+left on function in middle of version moves to beg of version"
         aFnCallWithVersion
@@ -2086,7 +2083,7 @@ let run () =
       tp "insert middle of variable" aVar (ins "c" 5) "variac~ble" ;
       tp "del middle of variable" aVar (del 5) "varia~le" ;
       tp "insert capital works" aVar (ins "A" 5) "variaA~ble" ;
-      t "can't insert invalid" aVar (ins "$" 5) "varia~ble" ;
+      tp "insert non-identifier symbol" aVar (ins "$" 5) "varia$~ble" ;
       t "del variable" aShortVar (del 0) "~___" ;
       tp "del long variable" aVar (del 0) "~ariable" ;
       tp "del mid variable" aVar (del 6) "variab~e" ;
@@ -2187,6 +2184,34 @@ let run () =
         (matchWithBinding "binding" (var "binding"))
         (ins "c" 19)
         "match ___\n  bindingc~ -> bindingc\n" ;
+      t
+        "insert only changes var in same branch"
+        (matchWithTwoBindings
+           "binding"
+           (var "binding")
+           "binding"
+           (var "binding"))
+        (ins "c" 19)
+        "match ___\n  bindingc~ -> bindingc\n  binding -> binding\n" ;
+      t
+        "bs only changes var in same branch"
+        (matchWithTwoBindings
+           "binding"
+           (var "binding")
+           "binding"
+           (var "binding"))
+        (bs 19)
+        "match ___\n  bindin~ -> bindin\n  binding -> binding\n" ;
+      (*    TODO: uncomment this once the behavior is fixed
+      t
+        "del only changes var in same branch"
+        (matchWithTwoBindings
+           "binding"
+           (var "binding")
+           "binding"
+           (var "binding"))
+        (del 12)
+        "match ___\n  binding -> inding\n  binding -> binding\n" ; *)
       t
         "insert changes occurence of non-shadowed var in case constructor"
         (matchWithConstructorBinding "binding" (var "binding"))
