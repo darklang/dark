@@ -1,7 +1,7 @@
 (library
   (name libcommon)
   (flags (-warn-error +A -w +9))
-  (libraries core_extended libtarget yojson mtime mtime.clock.os lwt)
+  (libraries core_kernel libtarget yojson mtime mtime.clock.os lwt)
 )
 
 
