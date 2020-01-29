@@ -1272,4 +1272,70 @@ that's already taken, returns an error."
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
     ; f = modify_schedule Event_queue.unblock_worker
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::newSessionForUsername"]
+    ; ins = []
+    ; p = [par "username" TStr]
+    ; r = TResult
+    ; d =
+        "If username is an existing user, puts a new session in the DB and returns the new sessionKey."
+    ; f =
+        internal_fn (function
+            | exec_state, [DStr username] ->
+                let username = Unicode_string.to_string username in
+                ( match Account.id_of_username username with
+                | Some _ ->
+                    (* We can't use Auth.Session here because it requires either lwt
+                     * or async *)
+                    let session_key = Auth.Session.random_string 30 in
+                    let session_data = Auth.Session.session_data username in
+                    let session_key =
+                      try
+                        Db.fetch_one
+                          ~name:"insert session from dark"
+                          ~subject:username
+                          "INSERT INTO session
+                      (session_key, expire_date, session_data)
+                      VALUES ($1, NOW() + '1 week'::interval, $2)
+                      RETURNING session_key"
+                          ~params:[String session_key; String session_data]
+                        |> List.hd_exn
+                        |> Result.Ok
+                      with e -> Result.fail e
+                    in
+                    ( match session_key with
+                    | Ok session_key ->
+                        DResult (ResOk (Dval.dstr_of_string_exn session_key))
+                        (* If DB insert fails, log and rollbar *)
+                    | Error e ->
+                        let err = Libexecution.Exception.exn_to_string e in
+                        Log.erroR
+                          "DarkInternal::newSessionForUsername"
+                          ~params:[("username", username); ("exception", err)] ;
+                        let bt = Libexecution.Exception.get_backtrace () in
+                        ( match
+                            Rollbar.report
+                              e
+                              bt
+                              (Other "Darklang")
+                              (exec_state.execution_id |> Types.string_of_id)
+                          with
+                        | `Success | `Disabled ->
+                            ()
+                        | `Failure ->
+                            Log.erroR
+                              "rollbar.report at DarkInternal::newSessionForUsername"
+                        ) ;
+                        DResult
+                          (ResError
+                             (Dval.dstr_of_string_exn
+                                "Failed to create session")) )
+                | None ->
+                    DResult
+                      (ResError
+                         (Dval.dstr_of_string_exn
+                            ("No user '" ^ username ^ "'"))) )
+            | args ->
+                fail args)
+    ; ps = false
     ; dep = false } ]

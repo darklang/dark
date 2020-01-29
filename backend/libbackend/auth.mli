@@ -20,4 +20,8 @@ module Session : sig
   val csrf_token_for : t -> string
 
   val username_of_key : string -> string option
+
+  val random_string : int -> string
+
+  val session_data : string -> string
 end
