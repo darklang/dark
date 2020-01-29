@@ -82,28 +82,51 @@ let viewParam (fn : userFunction) (vs : viewState) (p : userFunctionParameter) :
 
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let addParamBtn =
-    Html.div
-      ~key:"add-param-col"
-      [ Html.class' "col new-parameter"
-      ; ViewUtils.eventNoPropagation
-          ~key:("aufp-" ^ showTLID fn.ufTLID)
-          "click"
-          (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
-      [ Html.div
-          [Html.class' "parameter-btn allowed add"]
-          [fontAwesome "plus-circle"]
-      ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"] ]
+    if vs.permission = Some ReadWrite
+    then
+      let strTLID = showTLID fn.ufTLID in
+      Html.div
+        ~key:("add-param-col-" ^ strTLID)
+        [ Html.class' "col new-parameter"
+        ; ViewUtils.eventNoPropagation
+            ~key:("aufp-" ^ strTLID)
+            "click"
+            (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
+        [ Html.div
+            [Html.class' "parameter-btn allowed add"]
+            [fontAwesome "plus-circle"]
+        ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"] ]
+    else Vdom.noNode
   in
-  let namediv =
-    Html.div
-      [Html.class' "ufn-name"]
-      [viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName]
+  let menuView =
+    let delAct : TLMenu.menuItem =
+      let disableMsg =
+        if not (List.isEmpty vs.usedInRefs)
+        then
+          Some
+            "Cannot delete this function as it is used in your code base. Use the references on the right to find and change this function's callers, after which you'll be able to delete it."
+        else None
+      in
+      { title = "Delete Function "
+      ; key = "del-ufn-"
+      ; icon = Some "times"
+      ; action = (fun _ -> DeleteUserFunction fn.ufTLID)
+      ; disableMsg }
+    in
+    Html.div [Html.class' "menu"] [TLMenu.viewMenu vs.menuState vs.tlid [delAct]]
   in
-  let coldivs = fn.ufMetadata.ufmParameters |> List.map ~f:(viewParam fn vs) in
-  Html.div
-    [Html.class' "user-fn"]
-    ( (namediv :: coldivs)
-    @ [(if vs.permission = Some ReadWrite then addParamBtn else Vdom.noNode)] )
+  let titleRow =
+    Html.div
+      [Html.class' "spec-header"]
+      [ ViewUtils.svgIconFn "#7dcac0"
+      ; viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName
+      ; Html.div [Html.class' "fn-actions"] [menuView] ]
+  in
+  let paramRows =
+    let params = fn.ufMetadata.ufmParameters |> List.map ~f:(viewParam fn vs) in
+    Html.div [Html.class' "params"] (params @ [addParamBtn])
+  in
+  Html.div [Html.class' "fn-header"] [titleRow; paramRows]
 
 
 let view (vs : viewState) (fn : userFunction) : msg Html.html =
