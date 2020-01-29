@@ -3798,17 +3798,10 @@ let doExplicitInsert
           None
     | ARVariable _, (EVariable (_, varName) as oldExpr) ->
         let newName = mutation varName in
-        (* TODO(JULIAN): Is it really necessary or desirable to
-         * check if the result would be a valid identifier
-         * before creating a partial here? Consider the usecase of
-         * changing a var into a string by inserting quotes. *)
-        if FluidUtil.isValidIdentifier newName
-        then
-          let parID = gid () in
-          Some
-            ( EPartial (parID, newName, oldExpr)
-            , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
-        else None
+        let parID = gid () in
+        Some
+          ( EPartial (parID, newName, oldExpr)
+          , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
     | ARNull _, (ENull _ as oldExpr) ->
         let parID = gid () in
         Some
