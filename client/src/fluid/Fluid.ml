@@ -3659,6 +3659,13 @@ let doExplicitInsert
   in
   let doExprInsert (currAstRef : astRef) (expr : fluidExpr) :
       (fluidExpr * caretTarget) option =
+    let mkPartial (str : string) (oldExpr : fluidExpr) :
+        (fluidExpr * caretTarget) option =
+      let newID = gid () in
+      Some
+        ( EPartial (newID, str, oldExpr)
+        , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
+    in
     match (currAstRef, expr) with
     | ARString (_, kind), EString (id, str) ->
         let len = String.length str in
@@ -3746,10 +3753,7 @@ let doExplicitInsert
         Some (ERightPartial (id, str, oldValue), currCTPlusLen)
     | ARBinOp _, (EBinOp (_, op, _, _, _) as oldExpr) ->
         let str = op |> FluidUtil.partialName |> mutation |> String.trim in
-        let newID = gid () in
-        Some
-          ( EPartial (newID, str, oldExpr)
-          , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
+        mkPartial str oldExpr
     | ARInteger _, EInteger (id, intStr) ->
         if currCaretTarget.offset = 0 && extendedGraphemeCluster = "0"
         then
@@ -3785,11 +3789,7 @@ let doExplicitInsert
       , (EFieldAccess (_, _, fieldName) as oldExpr) ) ->
         let newName = mutation fieldName in
         if FluidUtil.isValidIdentifier newName
-        then
-          let newID = gid () in
-          Some
-            ( EPartial (newID, newName, oldExpr)
-            , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
+        then mkPartial newName oldExpr
         else None
     | ARFieldAccess (_, FAPFieldOp), old ->
         recover
@@ -3797,22 +3797,12 @@ let doExplicitInsert
           ~debug:old
           None
     | ARVariable _, (EVariable (_, varName) as oldExpr) ->
-        let newName = mutation varName in
-        let parID = gid () in
-        Some
-          ( EPartial (parID, newName, oldExpr)
-          , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
+        mkPartial (mutation varName) oldExpr
     | ARNull _, (ENull _ as oldExpr) ->
-        let parID = gid () in
-        Some
-          ( EPartial (parID, mutation "null", oldExpr)
-          , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
+        mkPartial (mutation "null") oldExpr
     | ARBool _, (EBool (_, bool) as oldExpr) ->
         let str = if bool then "true" else "false" in
-        let parID = gid () in
-        Some
-          ( EPartial (parID, mutation str, oldExpr)
-          , {astRef = ARPartial parID; offset = currOffset + caretDelta} )
+        mkPartial (mutation str) oldExpr
     | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
         let newName = mutation oldName in
         if FluidUtil.isValidIdentifier newName
