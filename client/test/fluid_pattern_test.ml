@@ -139,7 +139,7 @@ let run () =
       t "del mid string" aStr (del 3) ("\"soe string\"", 3) ;
       t "bs mid string" aStr (bs 4) ("\"soe string\"", 3) ;
       t "insert empty string" emptyStr (insert "c" 1) ("\"c\"", 2) ;
-      t "del empty string" emptyStr (del 1) (blank, 0) ;
+      t "del empty string" emptyStr (del 1) ("\"\"", 1) ;
       t "del empty string from outside" emptyStr (del 0) (blank, 0) ;
       t "bs empty string" emptyStr (bs 1) (blank, 0) ;
       t "bs outside empty string" emptyStr (bs 2) ("\"\"", 1) ;
