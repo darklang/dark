@@ -3860,6 +3860,13 @@ let doExplicitInsert
           if coerced = intStr
           then None
           else Some (Pat (FPInteger (mID, pID, coerced)), currCTPlusLen)
+        else if extendedGraphemeCluster = "."
+        then
+          let newID = gid () in
+          let whole, frac = String.splitAt ~index:currOffset intStr in
+          Some
+            ( Pat (FPFloat (mID, newID, whole, frac))
+            , {astRef = ARPattern (newID, PPFloat FPPoint); offset = 1} )
         else None
     | ( ARPattern (_, PPString kind)
       , FPString ({matchID = _; patternID; str} as data) ) ->
@@ -4746,9 +4753,9 @@ let rec updateKey
     (*     | InsertText ".", L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertIntToFloat offset id ast, moveOneRight pos s) *)
-    | InsertText ".", L (TPatternInteger (mID, id, _, _), ti), _ ->
+    (* | InsertText ".", L (TPatternInteger (mID, id, _, _), ti), _ ->
         let offset = pos - ti.startPos in
-        (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
+        (convertPatternIntToFloat offset mID id ast, moveOneRight pos s) *)
     (* Skipping over specific characters, this must come before the
      * more general binop cases or we lose the jumping behaviour *)
     | InsertText "=", _, R (TLetAssignment _, toTheRight) ->
