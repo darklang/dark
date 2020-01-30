@@ -98,7 +98,7 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
   cp -Rf scripts "$CDIR/"
 
   mkdir -p "$CDIR/bin"
-  cp -f _build/default/bin/backend/cron_checker.exe "$CDIR/bin/"
+  cp -f _build/default/backend/bin/cron_checker.exe "$CDIR/bin/"
 
   mkdir -p "$CDIR/webroot"
   cp -Rf backend/static "$CDIR/webroot/"
