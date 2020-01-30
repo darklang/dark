@@ -4380,6 +4380,11 @@ let rec updateKey
     | InsertText ">", L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
       when pos = ti.startPos + 2 ->
         (ast, moveToNextNonWhitespaceToken ~pos ast s)
+    (* Skipping over specific characters *)
+    | InsertText "=", _, R (TLetAssignment _, toTheRight) ->
+        (ast, moveTo toTheRight.endPos s)
+    | InsertText ":", _, R (TRecordSep _, toTheRight) ->
+        (ast, moveTo toTheRight.endPos s)
     (* Deleting *)
     | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
       when Option.isSome s.selectionStart ->
@@ -4766,12 +4771,6 @@ let rec updateKey
     (* | InsertText ".", L (TPatternInteger (mID, id, _, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s) *)
-    (* Skipping over specific characters, this must come before the
-     * more general binop cases or we lose the jumping behaviour *)
-    | InsertText "=", _, R (TLetAssignment _, toTheRight) ->
-        (ast, moveTo toTheRight.endPos s)
-    | InsertText ":", _, R (TRecordSep _, toTheRight) ->
-        (ast, moveTo toTheRight.endPos s)
     (* Binop specific, all of the specific cases must come before the
      * big general `key, L (_, toTheLeft), _` case. *)
     | InsertText txt, L (TPartial _, toTheLeft), _
