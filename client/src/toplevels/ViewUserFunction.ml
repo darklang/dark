@@ -106,7 +106,7 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
           (fun _ ->
             ExecuteFunctionFromWithin
               { efpTLID = fn.ufTLID
-              ; efpCallerID = FluidExpression.id fn.ufAST
+              ; efpCallerID = FluidExpression.toID fn.ufAST
               ; efpTraceID = traceID
               ; efpFnName = fnName
               ; efpArgs = args })
