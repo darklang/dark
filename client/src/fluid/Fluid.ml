@@ -3673,6 +3673,13 @@ let doExplicitInsert
           if coerced = intStr
           then None
           else Some (EInteger (id, coerced), currCTPlusLen)
+        else if extendedGraphemeCluster = "."
+        then
+          let newID = gid () in
+          let whole, frac = String.splitAt ~index:currOffset intStr in
+          Some
+            ( EFloat (newID, whole, frac)
+            , {astRef = ARFloat (newID, FPPoint); offset = 1} )
         else None
     | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
         List.getAt ~index nameValPairs
@@ -4736,9 +4743,9 @@ let rec updateKey
     (****************)
     (* Int to float *)
     (****************)
-    | InsertText ".", L (TInteger (id, _), ti), _ ->
+    (*     | InsertText ".", L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
-        (convertIntToFloat offset id ast, moveOneRight pos s)
+        (convertIntToFloat offset id ast, moveOneRight pos s) *)
     | InsertText ".", L (TPatternInteger (mID, id, _, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)

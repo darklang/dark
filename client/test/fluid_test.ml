@@ -999,7 +999,7 @@ let run () =
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (ins "." 5) "12345.~" ;
       t "insert . converts to float - middle" anInt (ins "." 3) "123.~45" ;
-      t "insert . converts to float - start" anInt (ins "." 0) "~12345" ;
+      t "insert . converts to float - start" anInt (ins "." 0) ".~12345" ;
       t "insert . converts to float - short" aShortInt (ins "." 1) "1.~" ;
       t "continue after adding dot" aPartialFloat (ins "2" 2) "1.2~" ;
       t "insert zero in whole - start" aFloat (ins "0" 0) "~123.456" ;
