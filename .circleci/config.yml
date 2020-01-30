@@ -196,9 +196,9 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v1d-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
-            - v1d-client-{{ checksum "yarn.lock" }}
-            - v1d-client
+            - v2-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
+            - v2-client-{{ checksum "yarn.lock" }}
+            - v2-client
       - run: scripts/support/compile --test package.json client/src/styles/app.scss
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
@@ -206,7 +206,7 @@ jobs:
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "node_modules" ]
-          key: v1d-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
+          key: v2-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -227,8 +227,8 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v4d-backend-{{ checksum "esy.json" }}
-            - v4d-backend
+            - v5-backend-{{ checksum "esy.json" }}
+            - v5-backend
       # appsupport is needed for a unit test, but it is not needed as part
       # of the backend otherwise. It is compiled as part of the frontend
       # tests.
@@ -267,7 +267,7 @@ jobs:
             - _build
             - node_modules
             - /home/dark/.esy
-          key: v4d-backend-{{ checksum "esy.json" }}
+          key: v5-backend-{{ checksum "esy.json" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 

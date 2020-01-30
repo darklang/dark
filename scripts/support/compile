@@ -74,7 +74,7 @@ def client_build():
     start = time.time()
 
   start = time.time()
-  build = "cd client && unbuffer yarn run build"
+  build = "unbuffer yarn run build"
   result = run_frontend(start, build)
   return result
 
@@ -83,7 +83,7 @@ def npm_install():
   flags = ""
   if os.environ.get("CI"):
     flags += " --frozen-lockfiles"
-  build = "cd client && unbuffer ../scripts/support/retrying-yarn-install" + flags
+  build = "unbuffer ../scripts/support/retrying-yarn-install" + flags
   return run_frontend(start, build)
 
 def esy_install():
