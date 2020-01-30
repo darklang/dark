@@ -1820,7 +1820,7 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : E.t =
 let rec mergeExprs (e1 : fluidExpr) (e2 : fluidExpr) : fluidExpr * caretTarget =
   match (e1, e2) with
   | EPipeTarget _, e2 ->
-      (e2, caretTargetForEndOfExpr' e2)
+      (e2, caretTargetForStartOfExpr' e2)
   | _, EBinOp (id, op, lhs, rhs, rail) ->
       (* Example: 1 , (2+3) -> (1|2+3) *)
       let merged, target = mergeExprs e1 lhs in
