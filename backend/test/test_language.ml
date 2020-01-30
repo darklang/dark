@@ -38,7 +38,7 @@ let t_lambda_scopes_correctly () =
 
 
 let t_shadowing_all_the_way_down () =
-  let open Fluid in
+  let open Libshared.FluidShortcuts in
   check_dval
     "simple let shadowing"
     (Dval.dint 6)

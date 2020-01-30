@@ -542,7 +542,7 @@ let t_old_functions_deprecated () =
 
 
 let t_url_encode () =
-  let open Fluid in
+  let open Libshared.FluidShortcuts in
   check_dval
     "percent escaping works"
     (Dval.dstr_of_string_exn
