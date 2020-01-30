@@ -387,17 +387,22 @@ let accountView (m : model) : msg Html.html =
       [Html.text "Logout"]
   in
   let canvases =
+    let shouldScroll = List.length m.canvas_list > 20 in
     List.map m.canvas_list ~f:(fun c ->
         Html.li
           ~unique:c
           []
           [Html.a [Html.href ("/a/" ^ c)] [Html.text ("/a/" ^ c)]])
-    |> Html.ul []
+    |> Html.ul [Html.classList [("canvas-list", true); ("scroll", shouldScroll)]]
+  in
+  let canvasView =
+    [ Html.p [Html.class' "canvas-list-title"] [Html.text "Other canvases:"]
+    ; canvases ]
   in
   Html.div
     [Html.class' "my-account"]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] [logout; canvases] ]
+    ; Html.div [Html.class' "account-actions"] ([logout] @ canvasView) ]
 
 
 let view (m : model) : msg Html.html =

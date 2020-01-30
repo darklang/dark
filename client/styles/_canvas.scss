@@ -306,6 +306,22 @@ body #app * {
   &:hover > .account-actions {
     height: auto;
   }
+  .canvas-list-title {
+    margin: 0;
+    padding: 5px 8px;
+  }
+  ul.canvas-list {
+    margin-bottom: 10px;
+    margin-left: 10px;
+    &.scroll {
+      max-height: 400px;
+      overflow-y: scroll; /*Also...*/
+      overflow-x: hidden; /*And the end of the important part*/
+      &::-webkit-scrollbar-corner {
+        background: rgba(0, 0, 0, 0);
+      }
+    }
+  }
 
   a {
     color: $white1;
