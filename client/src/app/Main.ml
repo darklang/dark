@@ -1192,6 +1192,10 @@ let update_ (msg : msg) (m : model) : modification =
         [ ExecutingFunctionBegan (tlid, id)
         ; ExecutingFunctionAPICall (tlid, id, name)
         ; Select (tlid, selectionTarget) ]
+  | ExecuteFunctionFromWithin p ->
+      Many
+        [ ExecutingFunctionBegan (p.efpTLID, p.efpCallerID)
+        ; MakeCmd (API.executeFunction m p) ]
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->

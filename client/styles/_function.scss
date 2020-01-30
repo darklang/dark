@@ -24,6 +24,18 @@
     .fn-actions .more-actions .toggle-btn {
       color: $user-functions;
     }
+
+    .execution-button {
+      color: $grey1;
+      cursor: not-allowed;
+
+      &.is-ready {
+        color: $user-functions;
+        cursor: pointer;
+      }
+
+      @include is-executing();
+    }
   }
 
   .params {
