@@ -46,11 +46,11 @@ def compile(files):
 def initial_backend_compile():
   files = [ "backend/bin/server.ml"
           , "backend/test/test.ml"
-          , "backend/esy.json" ]
+          , "esy.json" ]
   return compile(files)
 
 def initial_client_compile():
-  files = [ "client/package.json"
+  files = [ "package.json"
           , "client/src/Types.ml"
           , "client/styles/app.scss"
           , "client/test/ast_test.ml" ]

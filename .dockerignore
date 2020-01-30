@@ -1,6 +1,6 @@
 .git
-client/node_modules
+node_modules/
 */target
-server/_build
-rundir
+_build/
+rundir/
 sqldump*.gz

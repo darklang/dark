@@ -2,6 +2,6 @@
 . ./scripts/support/assert-in-container "$0" "$@"
 
 set -euo pipefail
-cd backend && "_build/default/test/test.exe" "${@}"
+"_build/default/backend/test/test.exe" "${@}"
 
 

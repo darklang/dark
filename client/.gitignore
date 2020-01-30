@@ -24,7 +24,5 @@ lib/bs
 .vscode
 .merlin
 .bsb.lock
-yarn.lock
 src/*.bs.js
-lib/*
 release/*

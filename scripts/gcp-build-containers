@@ -44,7 +44,7 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
   cp -Rf scripts "$DIR/"
 
   mkdir -p "$DIR/bin"
-  cp -f backend/_build/default/bin/server.exe "$DIR/bin/"
+  cp -f _build/default/backend/bin/server.exe "$DIR/bin/"
 
   mkdir -p "$DIR/webroot"
   cp -Rf backend/static "$DIR/webroot/"
@@ -71,7 +71,7 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
   cp -Rf scripts "$NDIR/"
 
   mkdir -p "$NDIR/bin"
-  cp -f backend/_build/default/bin/queue_worker.exe "$NDIR/bin/"
+  cp -f _build/default/backend/bin/queue_worker.exe "$NDIR/bin/"
 
   mkdir -p "$NDIR/webroot"
   cp -Rf backend/static "$NDIR/webroot/"
@@ -98,7 +98,7 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
   cp -Rf scripts "$CDIR/"
 
   mkdir -p "$CDIR/bin"
-  cp -f backend/_build/default/bin/cron_checker.exe "$CDIR/bin/"
+  cp -f _build/default/backend/bin/cron_checker.exe "$CDIR/bin/"
 
   mkdir -p "$CDIR/webroot"
   cp -Rf backend/static "$CDIR/webroot/"
