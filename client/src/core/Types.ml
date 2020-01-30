@@ -1173,6 +1173,7 @@ and msg =
   | SaveTestButton
   | ToggleEditorSetting of (editorSettings -> editorSettings)
   | ExecuteFunctionButton of tlid * id * string
+  | ExecuteFunctionFromWithin of executeFunctionAPIParams
   | CreateHandlerFrom404 of fourOhFour
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string

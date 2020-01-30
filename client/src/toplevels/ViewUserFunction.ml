@@ -17,6 +17,11 @@ let wc = ViewBlankOr.wc
 
 let enterable = ViewBlankOr.Enterable
 
+type exeFunction =
+  | CanExecute of traceID * dval list
+  | CannotExecute of string
+  | IsExecuting
+
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
   viewText FnName vs ((enterable :: idConfigs) @ c) v
@@ -66,6 +71,67 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
       buttonContent (canDeleteParameter pname)
   | _ ->
       buttonContent true
+
+
+let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
+  let exeStatus =
+    if vs.isExecuting
+    then IsExecuting
+    else
+      (* Attempts to get trace inputValues for this function *)
+      match Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid with
+      | Some (traceID, Ok td) ->
+          let args = UserFunctions.inputToArgs fn td.input in
+          (* If any of the args is Incomplete/Error then we don't want to bother allowing this function to be executed *)
+          if List.any
+               ~f:(fun dv -> match dv with DIncomplete _ -> true | _ -> false)
+               args
+          then CannotExecute "Cannot run function with incomplete arguments"
+          else if List.any
+                    ~f:(fun dv -> match dv with DError _ -> true | _ -> false)
+                    args
+          then
+            CannotExecute "Cannot run function with arguments that has an error"
+          else CanExecute (traceID, args)
+      | _ ->
+          CannotExecute "Cannot run function with no trace data"
+  in
+  let events =
+    (* If function is ready for re-execution, attach onClick listener *)
+    match (fn.ufMetadata.ufmName, exeStatus) with
+    | F (_, fnName), CanExecute (traceID, args) ->
+        ViewUtils.eventNoPropagation
+          ~key:("run-fun" ^ "-" ^ showTLID fn.ufTLID ^ "-" ^ traceID)
+          "click"
+          (fun _ ->
+            ExecuteFunctionFromWithin
+              { efpTLID = fn.ufTLID
+              ; efpCallerID = FluidExpression.id fn.ufAST
+              ; efpTraceID = traceID
+              ; efpFnName = fnName
+              ; efpArgs = args })
+    | _ ->
+        Vdom.noProp
+  in
+  let title =
+    match exeStatus with
+    | CannotExecute msg ->
+        msg
+    | CanExecute _ ->
+        "Click to execute function"
+    | IsExecuting ->
+        "Function is executing"
+  in
+  Html.div
+    [ Html.classList
+        [ ("execution-button", true)
+        ; ( "is-ready"
+          , vs.permission = Some ReadWrite
+            && match exeStatus with CanExecute _ -> true | _ -> false )
+        ; ("is-executing", exeStatus = IsExecuting) ]
+    ; events
+    ; Html.title title ]
+    [fontAwesome "redo"]
 
 
 let viewParam (fn : userFunction) (vs : viewState) (p : userFunctionParameter) :
@@ -120,7 +186,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       [Html.class' "spec-header"]
       [ ViewUtils.svgIconFn "#7dcac0"
       ; viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName
-      ; Html.div [Html.class' "fn-actions"] [menuView] ]
+      ; Html.div [Html.class' "fn-actions"] [viewExecuteBtn vs fn; menuView] ]
   in
   let paramRows =
     let params = fn.ufMetadata.ufmParameters |> List.map ~f:(viewParam fn vs) in

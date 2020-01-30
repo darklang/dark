@@ -166,7 +166,7 @@ let curlFromHttpClientCall (m : model) (tlid : tlid) (id : id) (name : string) :
   let traceId =
     traces
     |> Option.andThen ~f:(fun traces ->
-           Analysis.selectedTrace m.tlTraceIDs traces tlid)
+           Analysis.selectedTraceID m.tlTraceIDs traces tlid)
     (* We don't recover here b/c it's very possible we don't have an analysis
      * yet *)
     |> fun tid ->
