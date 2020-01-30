@@ -3,11 +3,16 @@ open Libexecution
 open Types.RuntimeT
 open Prelude
 open Utils
+open Libshared.FluidShortcuts
 
 let t_stdlib_works () =
   check_dval
     "uniqueBy1"
-    (exec_ast "(List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "List::uniqueBy"
+          [ list [int "1"; int "2"; int "3"; int "4"]
+          ; lambda ["x"] (fn "Int::divide" [var "x"; int "2"]) ]))
     (DList [Dval.dint 1; Dval.dint 3; Dval.dint 4]) ;
   check_dval
     "uniqueBy2"
