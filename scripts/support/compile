@@ -61,7 +61,7 @@ def is_script(f):
 
 def sass_compile():
   start = time.time()
-  return run_frontend(start, "./client/node_modules/node-sass/bin/node-sass client/styles/app.scss > backend/static/app.css")
+  return run_frontend(start, "npx node-sass client/styles/app.scss > backend/static/app.css")
 
 def client_build():
   if os.environ.get("CI"):
@@ -74,7 +74,7 @@ def client_build():
     start = time.time()
 
   start = time.time()
-  build = "cd client && unbuffer yarn run build"
+  build = "unbuffer yarn run build"
   result = run_frontend(start, build)
   return result
 
@@ -83,12 +83,12 @@ def npm_install():
   flags = ""
   if os.environ.get("CI"):
     flags += " --frozen-lockfiles"
-  build = "cd client && unbuffer ../scripts/support/retrying-yarn-install" + flags
+  build = "unbuffer ./scripts/support/retrying-yarn-install" + flags
   return run_frontend(start, build)
 
 def esy_install():
   start = time.time()
-  build = "cd backend && unbuffer esy install && esy build --release"
+  build = "unbuffer esy install && esy build --release"
   return run_backend(start, build)
 
 def client_test():
@@ -118,7 +118,7 @@ def backend_build():
   # Get all the ml files in backend/bin, and build executables This is less
   # technically correct than "parse the sexp in backend/bin/dune", but it
   # is also much simpler.
-  exes = ["bin/" + x.replace(".ml", ".exe")
+  exes = ["backend/bin/" + x.replace(".ml", ".exe")
           for x
           in os.listdir("backend/bin")
           if x.endswith(".ml")]
@@ -148,7 +148,7 @@ def backend_test():
   ci = "--verbose" if os.environ.get("CI") else "--quick"
   rundir = os.environ.get("DARK_CONFIG_RUNDIR")
   return run_test(start,
-          f"unbuffer scripts/dune-wrapper.sh build test/test.exe" \
+          f"unbuffer scripts/dune-wrapper.sh build backend/test/test.exe" \
           f" && dropdb --if-exists testdb" \
           f" && createdb testdb" \
           f" && {test_db_env()} unbuffer scripts/run-backend-tests --show-errors {ci}" \
@@ -313,7 +313,7 @@ def mark(should, f):
     should.client_build = True
 
 
-  elif "backend/esy.json" in f:
+  elif "esy.json" in f:
     should.esy_install = True
 
   elif ("backend/test/" in f) \
@@ -356,7 +356,7 @@ def mark(should, f):
     should.scheduler_build = True
 
   # JS
-  elif "client/package.json" in f:
+  elif "package.json" in f:
     should.npm_install = True
   elif ("client/" in f) \
           and ((".mli" in f) \
@@ -366,7 +366,7 @@ def mark(should, f):
     # as part of this step.
     should.client_build = True
 
-  elif "client/bsconfig.json" in f:
+  elif "bsconfig.json" in f:
     should.client_build = True
 
   elif ".scss" in f:
@@ -394,17 +394,16 @@ def ignore(filename):
             , ".merlin"
             , "integration-tests/tests.js"
             , "rundir/"
-            , "backend/_build/"
-            , "backend/dark.install"
-            , "backend/gmon.out"
+            , "_build/"
+            , "dark.install"
+            , "gmon.out"
             , "backend/serialization/"
             , "backend/static/"
-            , "backend/_esy/"
-            , "backend/esy.lock"
-            , "backend/node_modules"
+            , "_esy/"
+            , "esy.lock"
             , "/home/dark/.esy"
-            , "client/node_modules"
-            , "client/lib/"
+            , "node_modules"
+            , "lib/"
             , "build.ninja"
             , "stroller/target"
             , "queue-scheduler/target"

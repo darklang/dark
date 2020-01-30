@@ -59,7 +59,7 @@ fi
 # functions
 #######################
 is_dir() {
-  [[ -d "$1" ]] 
+  [[ -d "$1" ]]
 }
 
 is_ocaml() {
@@ -77,19 +77,17 @@ all_prettier_files() {
     -o -name "*.js" \
     -o -name "*.html" \) -print0 \
     -o -path ".git" -prune \
-    -o -path "backend/_build" -prune \
-    -o -path "./backend/_build" -prune \
-    -o -path "client/node_modules" -prune \
-    -o -path "./client/node_modules" -prune \
+    -o -path "_build" -prune \
+    -o -path "./_build" -prune \
+    -o -path "node_modules" -prune \
+    -o -path "./node_modules" -prune \
     -o -path "backend/static" -prune \
     -o -path "./backend/static" -prune \
-    -o -path "backend/node_modules" -prune \
-    -o -path "./backend/node_modules" -prune \
-    -o -path "backend/_esy" -prune \
-    -o -path "./backend/_esy" -prune \
+    -o -path "_esy" -prune \
+    -o -path "./_esy" -prune \
     -o -path "/home/dark/.esy" -prune \
-    -o -path "client/lib" -prune \
-    -o -path "./client/lib" -prune 
+    -o -path "lib" -prune \
+    -o -path "./lib" -prune
 }
 
 all_ocaml_files() {
@@ -97,17 +95,15 @@ all_ocaml_files() {
     \( -name "*.ml" \
     -o -name "*.mli" \) -print0 \
     -o -path ".git" -prune \
-    -o -path "backend/_build" -prune \
-    -o -path "./backend/_build" -prune \
-    -o -path "client/node_modules" -prune \
-    -o -path "./client/node_modules" -prune \
-    -o -path "backend/node_modules" -prune \
-    -o -path "./backend/node_modules" -prune \
-    -o -path "backend/_esy" -prune \
-    -o -path "./backend/_esy" -prune \
+    -o -path "_build" -prune \
+    -o -path "./_build" -prune \
+    -o -path "node_modules" -prune \
+    -o -path "./node_modules" -prune \
+    -o -path "_esy" -prune \
+    -o -path "./_esy" -prune \
     -o -path "/home/dark/.esy" -prune \
-    -o -path "backend/esy.lock" -prune \
-    -o -path "./backend/esy.lock" -prune 
+    -o -path "esy.lock" -prune \
+    -o -path "./esy.lock" -prune
 }
 
 check_ocamlformat() {
@@ -115,7 +111,7 @@ check_ocamlformat() {
 }
 
 check_prettier () {
-  xargs -0 client/node_modules/.bin/prettier --list-different
+  xargs -0 npx prettier --list-different
 }
 
 format_ocamlformat() {
@@ -123,22 +119,22 @@ format_ocamlformat() {
 }
 
 format_prettier() {
-  xargs -0 client/node_modules/.bin/prettier --write
+  xargs -0 npx prettier --write
 }
 
 do_ocamlformat() {
   if [[ 0 -eq "$CHECK" ]]; then
-    check_ocamlformat 
+    check_ocamlformat
   else
-    format_ocamlformat 
+    format_ocamlformat
   fi
 }
 
 do_prettier() {
   if [[ 0 -eq "$CHECK" ]]; then
-    check_prettier 
+    check_prettier
   else
-    format_prettier 
+    format_prettier
   fi
 }
 
