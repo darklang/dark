@@ -4,7 +4,9 @@ open Shared
 
 let str (str : string) : t = EString (gid (), str)
 
-let int (int : string) : t = EInteger (gid (), int)
+let int (int : int) : t = EInteger (gid (), string_of_int int)
+
+let intStr (int : string) : t = EInteger (gid (), int)
 
 let bool (b : bool) : t = EBool (gid (), b)
 
@@ -60,7 +62,11 @@ let match' (cond : t) (matches : (FluidPattern.t * t) list) : t =
   EMatch (gid (), cond, matches)
 
 
-let pInt (int : string) : FluidPattern.t = FPInteger (gid (), gid (), int)
+let pInt (int : int) : FluidPattern.t =
+  FPInteger (gid (), gid (), string_of_int int)
+
+
+let pIntStr (int : string) : FluidPattern.t = FPInteger (gid (), gid (), int)
 
 let pVar (name : string) : FluidPattern.t = FPVariable (gid (), gid (), name)
 
