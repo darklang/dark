@@ -789,7 +789,8 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
     ; ("sidebarOpen", bool se.sidebarOpen)
-    ; ("showTopbar1", bool se.showTopbar) ]
+    ; ("showTopbar1", bool se.showTopbar)
+    ; ("welcomeUser", bool se.welcomeUser) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

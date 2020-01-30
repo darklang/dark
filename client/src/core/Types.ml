@@ -1577,7 +1577,8 @@ and savedSettings =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarOpen : bool
-  ; showTopbar : bool }
+  ; showTopbar : bool
+  ; welcomeUser : bool }
 [@@deriving show {with_path = false}]
 
 and permission =
