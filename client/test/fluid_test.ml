@@ -2640,6 +2640,11 @@ let run () =
         (bs 8)
         "___\n|>+~@ \"asd\"\n" ;
       t
+        "bs to remove binop in pipe places caret correctly"
+        (aBinopPlusPipe)
+        (bs 7)
+        "___\n|>~10\n" ;
+      t
         "adding infix functions adds the right number of blanks"
         emptyPipe
         (inputs [InsertText "+"; keypress K.Enter] 6)

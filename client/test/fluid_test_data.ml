@@ -471,6 +471,8 @@ let aLongPipe =
 
 let aBinopPipe = pipe b [binop "++" pipeTarget (str "asd")]
 
+let aBinopPlusPipe = pipe b [binop "+" pipeTarget (int "10")]
+
 let aPipeInsideIf = if' b aLongPipe b
 
 let aNestedPipe = pipe (list []) [listFn [pipe aList5 [listFn [aList6]]]]
