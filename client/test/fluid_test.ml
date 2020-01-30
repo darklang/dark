@@ -2641,7 +2641,7 @@ let run () =
         "___\n|>+~@ \"asd\"\n" ;
       t
         "bs to remove binop in pipe places caret correctly"
-        (aBinopPlusPipe)
+        aBinopPlusPipe
         (bs 7)
         "___\n|>~10\n" ;
       t

@@ -1858,17 +1858,11 @@ let rec deleteBinOp'
   | EString (id, lhsVal), EString (_, rhsVal) ->
       (EString (id, lhsVal ^ rhsVal), moveTo (ti.startPos - 2) s)
   | EBlank _, EBlank _ ->
-      ( lhs
-      , moveToCaretTarget s ast (caretTargetForStartOfExpr (E.toID lhs) ast)
-      )
+      (lhs, moveToCaretTarget s ast (caretTargetForStartOfExpr (E.toID lhs) ast))
   | _, EBlank _ ->
-      ( lhs
-      , moveToCaretTarget s ast (caretTargetForEndOfExpr (E.toID lhs) ast)
-      )
+      (lhs, moveToCaretTarget s ast (caretTargetForEndOfExpr (E.toID lhs) ast))
   | EBlank _, _ ->
-      ( rhs
-      , moveToCaretTarget s ast (caretTargetForStartOfExpr (E.toID lhs) ast)
-      )
+      (rhs, moveToCaretTarget s ast (caretTargetForStartOfExpr (E.toID lhs) ast))
   | _ ->
       (lhs, moveToEndOfTarget (E.toID lhs) ast s)
 
@@ -4652,9 +4646,7 @@ let rec updateKey
     | Keypress {key = K.Enter; _}, L (TNewline _, _), R (t, _) ->
         let id = FluidToken.tid t in
         let ast, s, _ = makeIntoLetBody id ast s in
-        let s =
-          moveToCaretTarget s ast (caretTargetForStartOfExpr id ast)
-        in
+        let s = moveToCaretTarget s ast (caretTargetForStartOfExpr id ast) in
         (ast, s)
     (*
      * Caret at very end of tokens where last line is non-let expression. *)
