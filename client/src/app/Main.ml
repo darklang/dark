@@ -1425,7 +1425,12 @@ let update_ (msg : msg) (m : model) : modification =
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in
       Many
-        [ TweakModel (fun m -> {m with opCtrs = r.opCtrs; account = r.account})
+        [ TweakModel
+            (fun m ->
+              { m with
+                opCtrs = r.opCtrs
+              ; account = r.account
+              ; canvas_list = r.canvas_list })
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)

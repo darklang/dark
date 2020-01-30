@@ -386,10 +386,15 @@ let accountView (m : model) : msg Html.html =
       ; Html.class' "action-link" ]
       [Html.text "Logout"]
   in
+  let canvases =
+    List.map m.canvas_list ~f:(fun c ->
+        Html.li ~unique:c [] [Html.a [Html.href ("/a/" ^ c)] [Html.text c]])
+    |> Html.ul []
+  in
   Html.div
     [Html.class' "my-account"]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] [logout] ]
+    ; Html.div [Html.class' "account-actions"] [logout; canvases] ]
 
 
 let view (m : model) : msg Html.html =

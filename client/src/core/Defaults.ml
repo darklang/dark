@@ -149,6 +149,7 @@ let defaultModel : model =
   ; showTopbar = true
   ; toast = defaultToast
   ; account = defaultAccount
+  ; canvas_list = []
   ; worker_schedules = StrDict.empty
   ; searchCache = TLIDDict.empty
   ; editorSettings = {showFluidDebugger = false; runTimers = true}
