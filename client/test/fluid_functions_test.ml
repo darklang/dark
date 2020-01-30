@@ -7,6 +7,7 @@ module B = BlankOr
 module K = FluidKeyboard
 module E = FluidExpression
 open Fluid_test_data
+open FluidShortcuts
 
 let run () =
   describe "getSelectedExprID" (fun () ->
@@ -24,7 +25,7 @@ let run () =
           in
           expect (getSelectedExprID s ast) |> toEqual (Some (ID "letVal"))) ;
       test "select larger expressions" (fun () ->
-          let ast = E.EFnCall (ID "fn", "+", [int "1"; int "2"], NoRail) in
+          let ast = E.EFnCall (ID "fn", "+", [int 1; int 2], NoRail) in
           let s =
             { defaultTestState with
               oldPos = 0
@@ -34,7 +35,7 @@ let run () =
           expect (getSelectedExprID s ast) |> toEqual (Some (ID "fn"))) ;
       test "selects part of AST" (fun () ->
           let ast =
-            let' "a" (EFnCall (ID "fn", "+", [int "1"; int "2"], NoRail)) b
+            let' "a" (EFnCall (ID "fn", "+", [int 1; int 2], NoRail)) b
           in
           let s =
             { defaultTestState with

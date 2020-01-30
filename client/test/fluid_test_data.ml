@@ -55,9 +55,9 @@ let anInt = EInteger (gid (), "12345")
 
 let aHugeInt = EInteger (gid (), "2000000000000000000")
 
-let max62BitInt = int "4611686018427387903"
+let max62BitInt = intStr "4611686018427387903"
 
-let oneShorterThanMax62BitInt = int "461168601842738790"
+let oneShorterThanMax62BitInt = intStr "461168601842738790"
 
 let five = EInteger (gid (), "5")
 
@@ -299,7 +299,7 @@ let aFnCallWithBlockArg = EFnCall (gid (), "Dict::map", [b; b], NoRail)
 
 let aBinOp = EBinOp (gid (), "==", b, b, NoRail)
 
-let aFullBinOp = binop "||" (var "myvar") (int "5")
+let aFullBinOp = binop "||" (var "myvar") five
 
 (* ---------------- *)
 (* Constructors *)
@@ -384,15 +384,15 @@ let emptyPipe = pipe b [b]
 let aLongPipe =
   pipe
     (list [])
-    [ listFn [aListNum "2"]
-    ; listFn [aListNum "3"]
-    ; listFn [aListNum "4"]
-    ; listFn [aListNum "5"] ]
+    [ listFn [aListNum 2]
+    ; listFn [aListNum 3]
+    ; listFn [aListNum 4]
+    ; listFn [aListNum 5] ]
 
 
 let aBinopPipe = pipe b [binop "++" pipeTarget (str "asd")]
 
-let aBinopPlusPipe = pipe b [binop "+" pipeTarget (int "10")]
+let aBinopPlusPipe = pipe b [binop "+" pipeTarget (int 10)]
 
 let aPipeInsideIf = if' b aLongPipe b
 
@@ -414,7 +414,7 @@ let complexExpr =
           "=="
           (fieldAccess (fieldAccess (var "request") "headers") "origin")
           (str "https://localhost:3000")))
-    (let' "" b (fn "Http::Forbidden" [int "403"]))
+    (let' "" b (fn "Http::Forbidden" [int 403]))
     (fn "Http::Forbidden" [])
 
 

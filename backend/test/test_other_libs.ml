@@ -11,8 +11,8 @@ let t_stdlib_works () =
     (exec_ast'
        (fn
           "List::uniqueBy"
-          [ list [int "1"; int "2"; int "3"; int "4"]
-          ; lambda ["x"] (fn "Int::divide" [var "x"; int "2"]) ]))
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["x"] (fn "Int::divide" [var "x"; int 2]) ]))
     (DList [Dval.dint 1; Dval.dint 3; Dval.dint 4]) ;
   check_dval
     "uniqueBy2"

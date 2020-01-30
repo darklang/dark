@@ -1,10 +1,10 @@
 open Tester
 open Prelude
 open AST
-open Fluid_test_data
 module B = BlankOr
 open FluidExpression
 open FluidPattern
+open FluidShortcuts
 
 type ('a, 'b) transformation_test_result =
   | Pass
@@ -38,7 +38,7 @@ let run () =
         (fun () ->
           let testId = ID "testme" in
           let inner = ELet (gid (), "", EBlank testId, E.newB ()) in
-          let outer = ELet (gid (), "variable", int "4", inner) in
+          let outer = ELet (gid (), "variable", int 4, inner) in
           let vars = variablesIn outer |> StrDict.get ~key:"testme" in
           let varsFor = vars |> Option.map ~f:(fun d -> StrDict.keys d) in
           expect varsFor |> toEqual (Some ["variable"])) ;
@@ -47,7 +47,7 @@ let run () =
           let a1id = ID "a1id" in
           let lastBlank = EBlank (ID "lastBlankid") in
           let ast =
-            ELet (a0id, "a", int "4", ELet (a1id, "a", int "9", lastBlank))
+            ELet (a0id, "a", int 4, ELet (a1id, "a", int 9, lastBlank))
           in
           expect
             ( variablesIn ast

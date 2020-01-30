@@ -6,6 +6,7 @@ open Fluid_test_data
 module B = BlankOr
 module K = FluidKeyboard
 open FluidExpression
+open FluidShortcuts
 
 type testResult =
   (* ast, clipboard, newPos *)
@@ -325,85 +326,85 @@ let run () =
   describe "Integers" (fun () ->
       testCopy
         "copying an int adds an int to clipboard"
-        (int "1000")
+        (int 1000)
         (0, 4)
         "1000" ;
       testCopy
         "copying an int adds an int to clipboard 2"
-        (fn "Int::sqrt" [int "1000"])
+        (fn "Int::sqrt" [int 1000])
         (10, 14)
         "1000" ;
       testCopy
         "copying part of an int adds part of the int to clipboard"
-        (int "1234")
+        (int 1234)
         (0, 2)
         "12" ;
       testCut
         "cutting an int adds an int to clipboard and leaves a blank"
-        (int "1000")
+        (int 1000)
         (0, 4)
         ("~___", "1000") ;
       testCut
         "cutting an int adds an int to clipboard and leaves a blank 2"
-        (fn "Int::sqrt" [int "1000"])
+        (fn "Int::sqrt" [int 1000])
         (10, 14)
         ("Int::sqrt ~_________", "1000") ;
       testCut
         "cutting part of an int adds part of the int to clipboard and leaves the remaining int"
-        (int "1234")
+        (int 1234)
         (0, 2)
         ("~34", "12") ;
       testPaste
         "pasting an int from clipboard on a blank should paste it"
         b
         (0, 0)
-        (int "1234")
+        (int 1234)
         "1234~" ;
       testPaste
         "pasting an int into another integer should join the integers"
-        (int "5678")
+        (int 5678)
         (1, 3)
-        (int "1234")
+        (int 1234)
         "51234~8" ;
       testPaste
         "pasting a float into an integer should convert to float"
-        (int "5678")
+        (int 5678)
         (1, 3)
         (float' "12" "34")
         "512.34~8" ;
       testPaste
         "pasting a float into an integer should convert to float 2"
-        (int "5678")
+        (int 5678)
         (0, 0)
         (float' "12" "34")
         "12.34~5678" ;
       testPaste
         "pasting a float into an integer should convert to float 3"
-        (int "5678")
+        (int 5678)
         (4, 4)
         (float' "12" "34")
         "567812.34~" ;
       testPaste
         "pasting an int-only string into an integer should extend integer"
-        (int "5678")
+        (int 5678)
         (0, 0)
         (str "1234")
         "1234~5678" ;
       testPaste
         "pasting an int-only string into an integer should extend integer 2"
-        (int "5678")
+        (int 5678)
         (4, 4)
         (str "1234")
         "56781234~" ;
       testPaste
         "pasting an int-only string into an integer should extend integer 2"
-        (int "5678")
+        (int 5678)
         (2, 2)
         (str "1234")
         "561234~78" ;
       testPaste
         "pasting an int-only string over part of an integer should extend integer"
-        (int "5678")
+        (int 5678)
         (1, 3)
         (str "1234")
         "51234~8" ;
@@ -488,13 +489,13 @@ let run () =
         "pasting an int in a string should paste it"
         (str "abcd EFGH ijkl 1234")
         (11, 15)
-        (int "5678")
+        (int 5678)
         "\"abcd EFGH 5678~ 1234\"" ;
       testPasteExpr
         "pasting a regular record with a single key in a string should paste stringified expr"
         (str "abcd EFGH ijkl 1234")
         (11, 15)
-        (record [("key1", int "9876")])
+        (record [("key1", int 9876)])
         "\"abcd EFGH {\n  key1 : 9876\n}~ 1234\"" ;
       ()) ;
   describe "Floats" (fun () ->
@@ -578,43 +579,43 @@ let run () =
         "pasting an int in a float whole part should paste it"
         (float' "1234" "5678")
         (0, 0)
-        (int "9000")
+        (int 9000)
         "9000~1234.5678" ;
       testPaste
         "pasting an int in a float whole part should paste it 2"
         (float' "1234" "5678")
         (1, 3)
-        (int "9000")
+        (int 9000)
         "19000~4.5678" ;
       testPaste
         "pasting an int in a float fraction part should paste it"
         (float' "1234" "5678")
         (8, 8)
-        (int "9000")
+        (int 9000)
         "1234.5679000~8" ;
       testPaste
         "pasting an int over a float fraction part should paste it and remove selection"
         (float' "1234" "5678")
         (6, 8)
-        (int "9000")
+        (int 9000)
         "1234.59000~8" ;
       testPaste
         "pasting an int before a float point should paste it"
         (float' "1234" "5678")
         (4, 4)
-        (int "9000")
+        (int 9000)
         "12349000~.5678" ;
       testPaste
         "pasting an int after a float point should paste it"
         (float' "1234" "5678")
         (5, 5)
-        (int "9000")
+        (int 9000)
         "1234.9000~5678" ;
       testPaste
         "pasting an int over a float point should paste it"
         (float' "1234" "5678")
         (3, 6)
-        (int "9000")
+        (int 9000)
         "1239000~678" ;
       ()) ;
   describe "Variables" (fun () ->
@@ -803,24 +804,24 @@ let run () =
   describe "Bin-ops" (fun () ->
       testCopy
         "copying a single-char operator works"
-        (binop "<" (int "123") (int "456"))
+        (binop "<" (int 123) (int 456))
         (4, 5)
         "_________ < _________" ;
       testCopy
         "copying a multi-char operator works"
-        (binop "==" (int "123") (int "456"))
+        (binop "==" (int 123) (int 456))
         (4, 6)
         "_________ == _________" ;
       testCopy
         "copying part of a multi-char operator works"
-        (binop "==" (int "123") (int "456"))
+        (binop "==" (int 123) (int 456))
         (4, 5)
         "_________ =@ _________" ;
       ()) ;
   describe "Functions" (fun () ->
       testCopy
         "copying a function name adds a fn w blank arguments to clipboard"
-        (fn "Int::sqrt" [int "122"])
+        (fn "Int::sqrt" [int 122])
         (0, 9)
         "Int::sqrt _________" ;
       testCopy
@@ -830,27 +831,27 @@ let run () =
         "HttpClient::postv4 ______________" ;
       testCopy
         "copying part of a function name adds a partial fn w blank arguments to clipboard"
-        (fn "Int::sqrt" [int "122"])
+        (fn "Int::sqrt" [int 122])
         (0, 4)
         "Int:@sqr@ _________" ;
       testCopy
         "copying a function's argument adds the argument's expression to clipboard"
-        (fn "Int::sqrt" [int "122"])
+        (fn "Int::sqrt" [int 122])
         (10, 13)
         "122" ;
       testCut
         "cutting a function name adds a fn w blank arguments to clipboard and leaves a blank"
-        (fn "Int::sqrt" [int "122"])
+        (fn "Int::sqrt" [int 122])
         (0, 9)
         ("~___", "Int::sqrt _________") ;
       testCut
         "cutting part of a fn name adds a partial fn w blank arguments to clipboard and leaves a partial"
-        (fn "Int::sqrt" [int "122"])
+        (fn "Int::sqrt" [int 122])
         (0, 4)
         ("~:sqrt@qr@ 122", "Int:@sqr@ _________") ;
       testCut
         "cutting a function's argument adds the argument's expression to clipboard and leaves a blank there"
-        (fn "Int::sqrt" [int "122"])
+        (fn "Int::sqrt" [int 122])
         (10, 13)
         ("Int::sqrt ~_________", "122") ;
       ()) ;
@@ -875,12 +876,12 @@ let run () =
         ("[123]",  "[]") ; *)
       testCopy
         "copying subset of elements adds subset list expr to clipboard"
-        (list [int "123"; int "456"; int "789"])
+        (list [int 123; int 456; int 789])
         (5, 12)
         "[456,789]" ;
       testCut
         "cutting subset of elements adds subset list expr to clipboard and leaves remainder"
-        (list [int "123"; int "456"; int "789"])
+        (list [int 123; int 456; int 789])
         (5, 12)
         ("[123,~___]", "[456,789]") ;
       (* NOT WORKING b/c placing the cursor on either side of a separator
@@ -897,30 +898,30 @@ let run () =
        *)
       testPasteExpr
         "pasting an expression over subset of list expr works"
-        (list [int "123"; int "456"; int "789"])
+        (list [int 123; int 456; int 789])
         (5, 12)
-        (int "9000")
+        (int 9000)
         "[123,9000~]" ;
       ()) ;
   describe "Records" (fun () ->
       testCopy
         "copying opening bracket adds empty record expr to clipboard"
-        (record [("key1", int "1234")])
+        (record [("key1", int 1234)])
         (0, 1)
         "{}" ;
       testCopy
         "copying a single key adds record w single key to clipboard"
-        (record [("key1", int "1234")])
+        (record [("key1", int 1234)])
         (4, 8)
         "{\n  key1 : ___\n}" ;
       testCut
         "cutting a single key adds record w single key to clipboard and leaves blank in it's place"
-        (record [("key1", int "1234")])
+        (record [("key1", int 1234)])
         (4, 8)
         ("{\n  ~*** : 1234\n}", "{\n  key1 : ___\n}") ;
       testCopy
         "copying a single k-v pair adds record w single k-v pair to clipboard"
-        (record [("key1", int "1234")])
+        (record [("key1", int 1234)])
         (2, 15)
         "{\n  key1 : 1234\n}" ;
       testPasteText
@@ -939,22 +940,22 @@ let run () =
   describe "Constructors" (fun () ->
       testCopy
         "copying adds constructor to clipboard"
-        (constructor "Just" [int "100"])
+        (constructor "Just" [int 100])
         (0, 8)
         "Just 100" ;
       testCopy
         "copying part adds partial constructor to clipboard"
-        (constructor "Just" [int "100"])
+        (constructor "Just" [int 100])
         (0, 3)
         "Jus@ ___" ;
       testCut
         "cutting adds constructor to clipboard and leaves blank"
-        (constructor "Just" [int "100"])
+        (constructor "Just" [int 100])
         (0, 8)
         ("~___", "Just 100") ;
       testCut
         "cutting part adds partial constructor to clipboard and leaves partial"
-        (constructor "Just" [int "100"])
+        (constructor "Just" [int 100])
         (0, 3)
         ("~t@s@ 100", "Jus@ ___") ;
       ()) ;
@@ -991,13 +992,13 @@ let run () =
           "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
       in
       roundtrip b ;
-      roundtrip (int "6") ;
+      roundtrip (int 6) ;
       roundtrip (str "[1 , 5]") ;
       roundtrip (str "12345678987654321.12345678987654321") ;
       roundtrip (pipe (str "a") [binop "++" pipeTarget (str "b")]) ;
       roundtrip (pipe (str "a") [fn "String::append" [pipeTarget; str "b"]]) ;
       roundtrip aPipe ;
-      roundtrip (binop "+" (if' (int "5") (int "5") (int "5")) (int "5")) ;
+      roundtrip (binop "+" (if' (int 5) (int 5) (int 5)) (int 5)) ;
       roundtrip (partial "D" (constructor "d" [fn "k" []])) ;
       roundtrip (partial "D" (fn "X" [str "F"])) ;
       roundtrip (fn "HttpClient::post_v4" [str ""]) ;
