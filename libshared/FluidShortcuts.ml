@@ -1,7 +1,6 @@
 open Tc
 open FluidExpression
-
-let gid = Shared.gid
+open Shared
 
 let str (str : string) : t = EString (gid (), str)
 
