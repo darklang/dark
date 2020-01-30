@@ -780,6 +780,7 @@ and initialLoadAPIResult =
   ; groups : group list
   ; deletedGroups : group list
   ; account : account
+  ; canvas_list : string list
   ; worker_schedules : string StrDict.t }
 
 and saveTestAPIResult = string
@@ -1554,6 +1555,7 @@ and model =
   ; toast : toast
   ; username : string
   ; account : account
+  ; canvas_list : string list
   ; worker_schedules : string StrDict.t
   ; searchCache : string TLIDDict.t
   ; editorSettings : editorSettings
