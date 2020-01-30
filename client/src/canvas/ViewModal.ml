@@ -18,7 +18,7 @@ let viewBrowserMessage : msg Html.html =
 let viewWelcomeToDark (username : string) : msg Html.html =
   let btnEvent =
     ViewUtils.eventNoPropagation ~key:"close-welcome-modal" "click" (fun _ ->
-        CloseModal)
+        CloseWelcomeModal)
   in
   let vidSrc = "//" ^ Native.Ext.staticHost () ^ "/gif/helloWorld.mp4" in
   let gif =
@@ -58,7 +58,7 @@ let html (m : model) : msg Html.html =
         ; ViewUtils.eventNoPropagation
             ~key:"close-welcome-modal"
             "click"
-            (fun _ -> CloseModal) ]
+            (fun _ -> CloseWelcomeModal) ]
       , "welcomeToDark" )
   in
   Html.div
