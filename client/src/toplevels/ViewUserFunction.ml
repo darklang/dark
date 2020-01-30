@@ -18,8 +18,8 @@ let wc = ViewBlankOr.wc
 let enterable = ViewBlankOr.Enterable
 
 type exeFunction =
-  | ExecuteWith of traceID * dval list
-  | CannotExecute
+  | CanExecute of traceID * dval list
+  | CannotExecute of string
   | IsExecuting
 
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
@@ -84,18 +84,22 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
           let args = UserFunctions.inputToArgs fn td.input in
           (* If any of the args is Incomplete/Error then we don't want to bother allowing this function to be executed *)
           if List.any
-               ~f:(fun dv ->
-                 match dv with DIncomplete _ | DError _ -> true | _ -> false)
+               ~f:(fun dv -> match dv with DIncomplete _ -> true | _ -> false)
                args
-          then CannotExecute
-          else ExecuteWith (traceID, args)
+          then CannotExecute "Cannot run function with incomplete arguments"
+          else if List.any
+                    ~f:(fun dv -> match dv with DError _ -> true | _ -> false)
+                    args
+          then
+            CannotExecute "Cannot run function with arguments that has an error"
+          else CanExecute (traceID, args)
       | _ ->
-          CannotExecute
+          CannotExecute "Cannot run function with no trace data"
   in
   let events =
     (* If function is ready for re-execution, attach onClick listener *)
     match (fn.ufMetadata.ufmName, exeStatus) with
-    | F (_, fnName), ExecuteWith (traceID, args) ->
+    | F (_, fnName), CanExecute (traceID, args) ->
         ViewUtils.eventNoPropagation
           ~key:("run-fun" ^ "-" ^ showTLID fn.ufTLID ^ "-" ^ traceID)
           "click"
@@ -111,9 +115,9 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
   in
   let title =
     match exeStatus with
-    | CannotExecute ->
-        "Cannot run function with invalid parameters"
-    | ExecuteWith _ ->
+    | CannotExecute msg ->
+        msg
+    | CanExecute _ ->
         "Click to execute function"
     | IsExecuting ->
         "Function is executing"
@@ -123,7 +127,7 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
         [ ("execution-button", true)
         ; ( "is-ready"
           , vs.permission = Some ReadWrite
-            && match exeStatus with ExecuteWith _ -> true | _ -> false )
+            && match exeStatus with CanExecute _ -> true | _ -> false )
         ; ("is-executing", exeStatus = IsExecuting) ]
     ; events
     ; Html.title title ]
