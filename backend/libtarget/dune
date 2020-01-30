@@ -1,5 +1,4 @@
 (library
   (name libtarget)
-  (public_name libtarget)
   (libraries core_kernel)
   (virtual_modules libtarget))

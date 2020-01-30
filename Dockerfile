@@ -246,7 +246,7 @@ RUN pip3 install yq && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 USER dark
 
 
-ENV ESY__PROJECT=/home/dark/app/backend
+ENV ESY__PROJECT=/home/dark/app
 
 
 ############################

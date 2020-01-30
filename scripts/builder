@@ -63,12 +63,11 @@ else
   MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
 
   # Avoid docker syncing everything to the host, slowing compiles down by 5x
-  MOUNTS+=" --mount type=volume,src=dark_backend_build,dst=/home/dark/app/backend/_build"
-  MOUNTS+=" --mount type=volume,src=dark_backend_node_modules,dst=/home/dark/app/backend/node_modules"
-  MOUNTS+=" --mount type=volume,src=dark_backend_esy,dst=/home/dark/app/backend/_esy"
-  MOUNTS+=" --mount type=volume,src=dark_backend_dotesy,dst=/home/dark/.esy"
-  MOUNTS+=" --mount type=volume,src=dark_client_node_modules,dst=/home/dark/app/client/node_modules"
-  MOUNTS+=" --mount type=volume,src=dark_client_lib,dst=/home/dark/app/client/lib"
+  MOUNTS+=" --mount type=volume,src=dark_build,dst=/home/dark/app/_build"
+  MOUNTS+=" --mount type=volume,src=dark_esy,dst=/home/dark/app/_esy"
+  MOUNTS+=" --mount type=volume,src=dark_dotesy,dst=/home/dark/.esy"
+  MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
+  MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
   MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
   MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/queue-scheduler/target"
   MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo"

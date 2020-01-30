@@ -1,6 +1,5 @@
 (library
   (name libtarget_js)
-  (public_name libtarget.js)
   (implements libtarget)
   (libraries core_kernel js_of_ocaml)
   (flags (-warn-error +A -w +9))

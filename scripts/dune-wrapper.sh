@@ -26,7 +26,7 @@ set -e
 if [[ "$error" == 1 ]]; then
   echo "Running dune caused an error: $errorline"
   echo "Cleaning"
-  rm -Rf backend/_build/*
+  rm -Rf _build/*
   echo "Running again"
   unbuffer esy build dune "$@"
 else

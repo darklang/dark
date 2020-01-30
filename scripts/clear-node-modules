@@ -3,5 +3,5 @@
 
 set -euo pipefail
 
-rm -Rf client/node_modules/*
-rm -Rf client/node_modules/.*
+rm -Rf node_modules/*
+rm -Rf node_modules/.*

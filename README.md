@@ -82,7 +82,7 @@ Ask a team member to use https://darklang.com/a/ops-adduser to call DarkInternal
 
 To add your account to local dev for yourself, run:
 ```
-scripts/run-in-docker backend/_build/default/bin/add_admin.exe --prompt-for-password
+scripts/run-in-docker _build/default/backend/bin/add_admin.exe --prompt-for-password
 ```
 which will prompt you for your password (this can be the same as the one in prod),
 username, email, and name.

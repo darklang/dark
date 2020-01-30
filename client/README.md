@@ -39,9 +39,6 @@ editing, such as refactoring.
 ### client/workers
 Background workers for performance/latency.
 
-### client/lib
-For compiler intermediate files. You can safely ignore it.
-
 ### client/test
 Tests, along with a fuzzer and testframework. See docs/unittests.md and
 docs/fuzzer.md.

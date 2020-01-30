@@ -3,4 +3,4 @@
 
 set -euo pipefail
 
-rm -Rf client/lib/*
+rm -Rf lib/*

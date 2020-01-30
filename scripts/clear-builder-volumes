@@ -3,12 +3,11 @@
 set -euo pipefail
 
 docker volume rm \
-  dark_backend_build \
-  dark_backend_esy \
-  dark_backend_node_modules \
-  dark_backend_dotesy \
-  dark_client_node_modules \
+  dark_build \
+  dark_esy \
+  dark_dotesy \
+  dark_node_modules \
   dark_client_lib \
   dark_stroller_target \
-  dark_rust_cargo \
   dark_queue_scheduler_target
+  dark_rust_cargo \
