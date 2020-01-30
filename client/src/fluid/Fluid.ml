@@ -4233,7 +4233,7 @@ let rec updateKey
   (* This expresses whether or not the expression to the left of
    * the insert should be wrapped in a binary operator, and determines
    * that fact based on the _next_ token *)
-  let wrappableInBinop rightNeighbour =
+    let wrappableInBinop rightNeighbour =
     match rightNeighbour with
     | L _ ->
         (* This function is only defined in terms of right + no lookahead, so say false if we were accidentally passed an `L` *)
@@ -4259,6 +4259,54 @@ let rec updateKey
       | _ ->
           true )
   in
+  (*   let wrappableInBinop (ct:caretTarget option) : bool =
+    ct
+    |> Option.map ~f:(fun ct ->
+    match ct.astRef with
+      | ARInteger _
+      | ARBool _
+      | ARString _
+      | ARFloat _
+      | ARNull _
+      | ARBlank _
+      | ARBinOp _
+      | ARVariable _ -> true
+      | ARPipe _
+      | ARConstructor _
+      | ARLet _
+      | ARIf _
+      | ARFieldAccess _
+      | ARFnCall _
+      | ARPartial _
+      | ARRightPartial _
+      | ARList _
+      | ARRecord _
+      | ARMatch _
+      | ARLambda _
+      | ARPattern _
+      | ARInvalid -> false
+    )
+    |> Option.withDefault ~default:false
+  in
+  let caretTargetBehind = 
+    (match toTheLeft with
+    | L (_, lti) -> (caretTargetFromTokenInfo pos)
+    | ((R _)|No) -> None)
+  in
+  let caretTargetAhead =
+    (match toTheRight with
+    | R (_, rti) -> (caretTargetFromTokenInfo rti pos)
+    | ((L _)|No) -> None)
+  in *)
+  let exprBehind =
+    (match toTheLeft with L (tok, _) -> Some (T.tid tok) | R _ | No -> None)
+    |> Option.andThen ~f:(fun id -> E.find id ast)
+  in
+  let exprAhead =
+    (match toTheRight with R (tok, _) -> Some (T.tid tok) | L _ | No -> None)
+    |> Option.andThen ~f:(fun id -> E.find id ast)
+  in
+  let _isTwixtDiffExprs = exprBehind <> exprAhead in
   let keyIsInfix =
     match inputEvent with
     | InsertText txt when FluidTextInput.isInfixSymbol txt ->
@@ -4706,14 +4754,52 @@ let rec updateKey
     | InsertText txt, L (TRightPartial _, toTheLeft), _
     | InsertText txt, L (TBinOp _, toTheLeft), _
       when keyIsInfix ->
+        Debug.loG "keyIsInfix 1" () ;
         doInsert ~pos txt toTheLeft ast s
     | InsertText txt, _, R (TPlaceholder _, toTheRight)
     | InsertText txt, _, R (TBlank _, toTheRight)
       when keyIsInfix ->
+        Debug.loG "keyIsInfix 2" () ;
         doInsert ~pos txt toTheRight ast s
-    | InsertText txt, L (_, toTheLeft), _
-      when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
-        (convertToBinOp txt (T.tid toTheLeft.token) ast, s |> moveTo (pos + 2))
+    (* | InsertText txt, L (_, toTheLeft), _
+      when onEdge && keyIsInfix && _wrappableInBinop toTheRight ->
+      ((Debug.loG "keyIsInfix 3" ());
+        (convertToBinOp txt (T.tid toTheLeft.token) ast, s |> moveTo (pos + 2))) *)
+    | InsertText txt, L _, _ when onEdge && wrappableInBinop toTheRight && (* isTwixtDiffExprs && *) keyIsInfix
+      ->
+      ( match (exprBehind, exprAhead) with
+      | None, None ->
+          Debug.loG "Key is infix!" () ;
+          (ast, s)
+      | Some behind, None ->
+          Debug.loG "Key is infix! Behind" (txt, show_fluidExpr behind) ;
+          let newID = gid () in
+          let newAST =
+            E.update (E.toID behind) ast ~f:(fun expr ->
+                ERightPartial (newID, txt, expr))
+          in
+          ( newAST
+          , moveToCaretTarget
+              s
+              newAST
+              {astRef = ARRightPartial newID; offset = String.length txt} )
+      | None, Some ahead ->
+          Debug.loG "Key is infix! Ahead" (txt, show_fluidExpr ahead) ;
+          (ast, s)
+      | Some behind, Some ahead ->
+          Debug.loG
+            "Key is infix!"
+            (txt, show_fluidExpr behind, show_fluidExpr ahead) ;
+          let newID = gid () in
+          let newAST =
+            E.update (E.toID behind) ast ~f:(fun expr ->
+                ERightPartial (newID, txt, expr))
+          in
+          ( newAST
+          , moveToCaretTarget
+              s
+              newAST
+              {astRef = ARRightPartial newID; offset = String.length txt} ) )
     (* Rest of Insertions *)
     | InsertText txt, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos txt toTheLeft ast s
