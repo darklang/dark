@@ -49,7 +49,8 @@ let html (m : model) : msg Html.html =
     then
       ( viewBrowserMessage
       , [ ViewUtils.nothingMouseEvent "mousedown"
-        ; ViewUtils.nothingMouseEvent "mouseup" ], "unsupportedBrowser" )
+        ; ViewUtils.nothingMouseEvent "mouseup" ]
+      , "unsupportedBrowser" )
     else
       ( viewWelcomeToDark m.username
       , [ ViewUtils.nothingMouseEvent "mousedown"
@@ -57,7 +58,8 @@ let html (m : model) : msg Html.html =
         ; ViewUtils.eventNoPropagation
             ~key:"close-welcome-modal"
             "click"
-            (fun _ -> CloseModal) ], "" )
+            (fun _ -> CloseModal) ]
+      , "welcomeToDark" )
   in
   Html.div
     ([Html.class' "modal-overlay"; Html.id id] @ events)

@@ -28,7 +28,8 @@ let defaultSavedSettings : savedSettings =
   ; canvasPos = origin
   ; lastReload = None
   ; sidebarOpen = true
-  ; showTopbar = false }
+  ; showTopbar = false
+  ; welcomeUser = true }
 
 
 let defaultFluidState : fluidState =

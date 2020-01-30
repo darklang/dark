@@ -479,6 +479,11 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
+        j
+  ; welcomeUser =
+      withDefault
+        Defaults.defaultSavedSettings.welcomeUser
+        (field "welcomeUser" bool)
         j }
 
 
