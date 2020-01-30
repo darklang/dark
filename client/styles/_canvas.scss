@@ -298,16 +298,17 @@ body #app * {
     overflow: hidden;
 
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     justify-content: space-around;
-    align-items: center;
+    text-align: left;
   }
 
   &:hover > .account-actions {
-    height: 50px;
+    height: auto;
   }
 
-  a.action-link {
+  a {
+    color: $white1;
     padding: 5px 8px;
 
     &:hover {

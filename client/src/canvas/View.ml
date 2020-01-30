@@ -388,7 +388,10 @@ let accountView (m : model) : msg Html.html =
   in
   let canvases =
     List.map m.canvas_list ~f:(fun c ->
-        Html.li ~unique:c [] [Html.a [Html.href ("/a/" ^ c)] [Html.text c]])
+        Html.li
+          ~unique:c
+          []
+          [Html.a [Html.href ("/a/" ^ c)] [Html.text ("/a/" ^ c)]])
     |> Html.ul []
   in
   Html.div
