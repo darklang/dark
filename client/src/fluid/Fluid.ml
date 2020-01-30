@@ -3681,6 +3681,16 @@ let doExplicitInsert
             ( EFloat (newID, whole, frac)
             , {astRef = ARFloat (newID, FPPoint); offset = 1} )
         else None
+    | ARRecord (_, RPOpen), ERecord (id, nameValPairs) ->
+        if currOffset = 1 && FluidUtil.isValidIdentifier extendedGraphemeCluster
+        then
+          let nameValPairs =
+            (extendedGraphemeCluster, E.EBlank (gid ())) :: nameValPairs
+          in
+          Some
+            ( E.ERecord (id, nameValPairs)
+            , {astRef = ARRecord (id, RPFieldname 0); offset = caretDelta} )
+        else None
     | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
         List.getAt ~index nameValPairs
         |> Option.andThen ~f:(fun (name, _) ->
@@ -4822,13 +4832,15 @@ let rec updateKey
      * Adds new initial record row with the typed
      * value as the key (if value entered is valid),
      * then move caret to end of key *)
-    | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+    | InsertText txt, L (TRecordOpen _, toTheLeft), R (TRecordClose _, _) ->
+        doInsert ~pos txt toTheLeft ast s
+    (*     | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
         if Util.isIdentifierChar txt
         then
           let ast = addRecordRowAt ~letter:txt 0 id ast in
           let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1 in
           (ast, s)
-        else (ast, s)
+        else (ast, s) *)
     | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
         doInsert ~pos txt toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
