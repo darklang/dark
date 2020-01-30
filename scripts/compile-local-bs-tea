@@ -6,8 +6,7 @@ set -euo pipefail
 # of it. I'm not sure if this is true for all bs libraries, but if so this
 # could probably be extended to handling them.
 
-cd client \
-  && rm -Rf node_modules/* node_modules/.* node_modules/.bin/ \
-  && rm -Rf node_modules/bucklescript-tea/lib/ lib/* \
-  && yarn install \
-  && yarn run-s build:bsb build:js build:fetcher build:analysiswrapper
+rm -Rf node_modules/* node_modules/.* node_modules/.bin/ \
+rm -Rf node_modules/bucklescript-tea/lib/ lib/* \
+yarn install \
+yarn run-s build:bsb build:js build:fetcher build:analysiswrapper
