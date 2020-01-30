@@ -3,19 +3,19 @@
   "version": "0.1.0",
   "sources": [
     {
-      "dir" : "src",
-      "subdirs" : true 
+      "dir" : "client/src",
+      "subdirs" : true
     },
     {
       "dir": "libshared",
-      "subdirs" : true 
+      "subdirs" : true
     },
     {
-      "dir": "test",
+      "dir": "client/test",
       "type": "dev"
     },
     {
-      "dir": "workers",
+      "dir": "client/workers",
       "subdirs": false
     }
   ],

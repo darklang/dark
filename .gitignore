@@ -1,14 +1,20 @@
 .DS_Store
-/.browser-trigger
-/gzipped_assets
-/rundir
-/backend/*/.merlin
-/backend/_build
+.merlin
+tags
+.browser-trigger
+
+rundir/
+lib/
+_build/
+node_modules/
+_esy/
+
+*.pyc
+
 /backend/profile.json
 /backend/static/
-/tags
-*.pyc
-/client/yarn-error.log
+/yarn-error.log
+/yarn.lock
 
 # Templates for these are in scripts/support/kubernetes/*/*.yaml.template
 /scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
@@ -28,8 +34,6 @@ tunnel.yaml
 /*/target
 
 # Files that get created on CI. We check that status is clean so need to list these.
-/client/node_modules
-/backend/_esy
-/backend/node_modules
+gzipped_assets
 
 deploy-lock-manual-deploy

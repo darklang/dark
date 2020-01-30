@@ -196,17 +196,17 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v1d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
-            - v1d-client-{{ checksum "client/yarn.lock" }}
+            - v1d-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
+            - v1d-client-{{ checksum "yarn.lock" }}
             - v1d-client
-      - run: scripts/support/compile --test client/package.json client/src/styles/app.scss 
+      - run: scripts/support/compile --test package.json client/src/styles/app.scss
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
-          paths: [ "client/node_modules" ]
-          key: v1d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
+          paths: [ "node_modules" ]
+          key: v1d-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -227,14 +227,14 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v4d-backend-{{ checksum "backend/esy.json" }}
+            - v4d-backend-{{ checksum "esy.json" }}
             - v4d-backend
       # appsupport is needed for a unit test, but it is not needed as part
       # of the backend otherwise. It is compiled as part of the frontend
       # tests.
       - run: touch backend/static/appsupport.js
       - show-large-files-and-directories
-      - run: scripts/support/compile --test backend/esy.json
+      - run: scripts/support/compile --test esy.json
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
       - run: scripts/ocaml-find-unused backend/test
@@ -243,9 +243,9 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - backend/_build/default/bin/server.exe
-            - backend/_build/default/bin/queue_worker.exe
-            - backend/_build/default/bin/cron_checker.exe
+            - _build/default/backend/bin/server.exe
+            - _build/default/backend/bin/queue_worker.exe
+            - _build/default/backend/bin/cron_checker.exe
             - backend/static/analysis.js
       - run:
           name: Reduce size of esy cache
@@ -260,14 +260,14 @@ jobs:
             rm -f /home/dark/.esy/3/i/**/*.byte
             rm -f /home/dark/.esy/3/i/**/*.cmxs
             # These can be very cheaply rebuilt, and are about 400MB
-            rm -f /home/dark/app/backend/_build/default/*/*.exe
+            rm -f /home/dark/app/_build/default/backend/*/*.exe
       - show-large-files-and-directories
       - save_cache:
           paths:
-            - backend/_build
-            - backend/node_modules
+            - _build
+            - node_modules
             - /home/dark/.esy
-          key: v4d-backend-{{ checksum "backend/esy.json" }}
+          key: v4d-backend-{{ checksum "esy.json" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 
@@ -315,8 +315,8 @@ jobs:
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
           keys:
-            - v1d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
-            - v1d-client-{{ checksum "client/yarn.lock" }}
+            - v1d-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
+            - v1d-client-{{ checksum "yarn.lock" }}
             - v1d-client
       - show-large-files-and-directories
       - run:

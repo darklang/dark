@@ -1,6 +1,5 @@
 (library
   (name libtarget_ocaml)
-  (public_name libtarget.ocaml)
   (implements libtarget)
   (modes native)
   (flags (-warn-error +A -w +9))
