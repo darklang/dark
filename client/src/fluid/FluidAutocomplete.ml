@@ -529,7 +529,6 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
 (* Autocomplete state *)
 (* ---------------------------- *)
 let updateFunctions m : model =
-  FluidExpression.functions := allFunctions m ;
   { m with
     fluidState =
       {m.fluidState with ac = {m.fluidState.ac with functions = allFunctions m}}
