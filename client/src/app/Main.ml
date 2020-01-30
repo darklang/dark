@@ -1339,7 +1339,7 @@ let update_ (msg : msg) (m : model) : modification =
               NoChange )
       | _ ->
           NoChange )
-  | CloseModal ->
+  | CloseWelcomeModal ->
       (* TODO: Send info to heap *)
       Many [TweakModel (fun m -> {m with welcomeUser = false})]
   | DeleteUserTypeForever tlid ->
