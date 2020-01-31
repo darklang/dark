@@ -291,6 +291,7 @@ body #app * {
 
   .account-actions {
     height: 0;
+    padding: 0;
     transition: height 0.4s;
 
     box-sizing: border-box;
@@ -298,20 +299,38 @@ body #app * {
     overflow: hidden;
 
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     justify-content: space-around;
-    align-items: center;
+    text-align: left;
   }
 
   &:hover > .account-actions {
-    height: 50px;
+    height: auto;
+    padding: $spacing-small;
   }
 
-  a.action-link {
-    padding: 5px 8px;
+  .canvas-list-title {
+    margin: 0;
+  }
 
-    &:hover {
-      color: $purple;
+  .canvas-list {
+    padding-bottom: 10px;
+    padding-left: 10px;
+    max-height: 600px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+
+    &::-webkit-scrollbar-corner {
+      background: rgba(0, 0, 0, 0);
+    }
+
+    li a {
+      color: $white1;
+      padding: 5px 8px;
+
+      &:hover {
+        color: $purple;
+      }
     }
   }
 }
