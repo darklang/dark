@@ -6,86 +6,7 @@ open FluidExpression
 (* ---------------- *)
 let b = newB ()
 
-let str (str : string) : t = EString (gid (), str)
-
-let int (int : string) : t = EInteger (gid (), int)
-
-let bool (b : bool) : t = EBool (gid (), b)
-
-let float' (whole : string) (fraction : string) : t =
-  EFloat (gid (), whole, fraction)
-
-
-let null : t = ENull (gid ())
-
-let record (rows : (string * t) list) : t =
-  ERecord (gid (), List.map rows ~f:(fun (k, v) -> (k, v)))
-
-
-let list (elems : t list) : t = EList (gid (), elems)
-
-let pipeTarget = EPipeTarget (gid ())
-
-let fn ?(ster = NoRail) (name : string) (args : t list) =
-  EFnCall (gid (), name, args, ster)
-
-
-let binop ?(ster = NoRail) (name : string) (arg0 : t) (arg1 : t) =
-  EBinOp (gid (), name, arg0, arg1, ster)
-
-
-let partial (str : string) (e : t) : t = EPartial (gid (), str, e)
-
-let rightPartial (str : string) (e : t) : t = ERightPartial (gid (), str, e)
-
-let var (name : string) : t = EVariable (gid (), name)
-
-let fieldAccess (expr : t) (fieldName : string) : t =
-  EFieldAccess (gid (), expr, fieldName)
-
-
-let if' (cond : t) (then' : t) (else' : t) : t = EIf (gid (), cond, then', else')
-
-let let' (varName : string) (rhs : t) (body : t) : t =
-  ELet (gid (), varName, rhs, body)
-
-
-let lambda (varNames : string list) (body : t) : t =
-  ELambda (gid (), List.map varNames ~f:(fun name -> (gid (), name)), body)
-
-
-let pipe (first : t) (rest : t list) : t = EPipe (gid (), first :: rest)
-
-let constructor (name : string) (args : t list) : t =
-  EConstructor (gid (), name, args)
-
-
-let match' (cond : t) (matches : (FluidPattern.t * t) list) : t =
-  EMatch (gid (), cond, matches)
-
-
-let pInt (int : string) : FluidPattern.t = FPInteger (gid (), gid (), int)
-
-let pVar (name : string) : FluidPattern.t = FPVariable (gid (), gid (), name)
-
-let pConstructor (name : string) (patterns : FluidPattern.t list) :
-    FluidPattern.t =
-  FPConstructor (gid (), gid (), name, patterns)
-
-
-let pBool (b : bool) : FluidPattern.t = FPBool (gid (), gid (), b)
-
-let pString (str : string) : FluidPattern.t =
-  FPString {matchID = gid (); patternID = gid (); str}
-
-
-let pFloat (whole : string) (fraction : string) : FluidPattern.t =
-  FPFloat (gid (), gid (), whole, fraction)
-
-
-let pNull : FluidPattern.t = FPNull (gid (), gid ())
-
-let pBlank : FluidPattern.t = FPBlank (gid (), gid ())
+open FluidShortcuts
 
 (* ---------------- *)
 (* test data *)
@@ -134,9 +55,9 @@ let anInt = EInteger (gid (), "12345")
 
 let aHugeInt = EInteger (gid (), "2000000000000000000")
 
-let max62BitInt = int "4611686018427387903"
+let max62BitInt = intStr "4611686018427387903"
 
-let oneShorterThanMax62BitInt = int "461168601842738790"
+let oneShorterThanMax62BitInt = intStr "461168601842738790"
 
 let five = EInteger (gid (), "5")
 
@@ -378,7 +299,7 @@ let aFnCallWithBlockArg = EFnCall (gid (), "Dict::map", [b; b], NoRail)
 
 let aBinOp = EBinOp (gid (), "==", b, b, NoRail)
 
-let aFullBinOp = binop "||" (var "myvar") (int "5")
+let aFullBinOp = binop "||" (var "myvar") five
 
 (* ---------------- *)
 (* Constructors *)
@@ -463,15 +384,15 @@ let emptyPipe = pipe b [b]
 let aLongPipe =
   pipe
     (list [])
-    [ listFn [aListNum "2"]
-    ; listFn [aListNum "3"]
-    ; listFn [aListNum "4"]
-    ; listFn [aListNum "5"] ]
+    [ listFn [aListNum 2]
+    ; listFn [aListNum 3]
+    ; listFn [aListNum 4]
+    ; listFn [aListNum 5] ]
 
 
 let aBinopPipe = pipe b [binop "++" pipeTarget (str "asd")]
 
-let aBinopPlusPipe = pipe b [binop "+" pipeTarget (int "10")]
+let aBinopPlusPipe = pipe b [binop "+" pipeTarget (int 10)]
 
 let aPipeInsideIf = if' b aLongPipe b
 
@@ -493,7 +414,7 @@ let complexExpr =
           "=="
           (fieldAccess (fieldAccess (var "request") "headers") "origin")
           (str "https://localhost:3000")))
-    (let' "" b (fn "Http::Forbidden" [int "403"]))
+    (let' "" b (fn "Http::Forbidden" [int 403]))
     (fn "Http::Forbidden" [])
 
 

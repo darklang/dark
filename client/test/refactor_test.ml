@@ -6,6 +6,7 @@ module D = Defaults
 module R = Refactor
 module TL = Toplevel
 module E = FluidExpression
+open FluidShortcuts
 
 let sampleFunctions =
   let par
@@ -112,7 +113,7 @@ let run () =
           in
           expect res |> toEqual true) ;
       test "toggles any fncall off rail in a thread" (fun () ->
-          let fn = fn ~ster:Rail "List::getAt_v2" [pipeTarget; int "5"] in
+          let fn = fn ~ster:Rail "List::getAt_v2" [pipeTarget; int 5] in
           let ast = pipe emptyList [fn] in
           let h = {defaultHandler with ast} in
           let m = model [h] in
@@ -316,15 +317,15 @@ let run () =
         (m, TLHandler tl)
       in
       test "with sole expression" (fun () ->
-          let ast = int "4" in
+          let ast = int 4 in
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.toID ast) "var" ast
             |> FluidPrinter.eToTestString )
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
-          let expr = fn "Int::add" [var "b"; int "4"] in
-          let ast = let' "b" (int "5") expr in
+          let expr = fn "Int::add" [var "b"; int 4] in
+          let ast = let' "b" (int 5) expr in
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.toID expr) "var" ast

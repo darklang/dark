@@ -2,6 +2,7 @@ open Core_kernel
 open Libexecution
 open Types.RuntimeT
 open Utils
+open Libshared.FluidShortcuts
 
 let t_string_length_v1_works_on_emoji () =
   check_dval
@@ -91,7 +92,7 @@ let t_string_trim_both_not_inner_unicode () =
 let t_string_trim_all () =
   check_dval
     "stringTrimAll"
-    (exec_ast "(String::trim '      ')")
+    (exec_ast' (fn "String::trim" [str "      "]))
     (Dval.dstr_of_string_exn "")
 
 

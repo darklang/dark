@@ -420,7 +420,8 @@ let exec_ast ?(ops = []) ?(canvas_name = "test") (prog : string) : dval =
   result
 
 
-let exec_ast' ?(ops = []) ?(canvas_name = "test") (prog : Fluid.fluidExpr) :
+let exec_ast'
+    ?(ops = []) ?(canvas_name = "test") (prog : Libshared.FluidExpression.t) :
     dval =
   let c, state, input_vars = test_execution_data ~canvas_name ops in
   let result = Ast.execute_ast ~input_vars ~state (Fluid.fromFluidExpr prog) in

@@ -6,6 +6,7 @@ module B = BlankOr
 module K = FluidKeyboard
 open FluidExpression
 open Fluid_test_data
+open FluidShortcuts
 
 let sampleFunctions : function_ list =
   [ ("Twit::somefunc", TObj)
