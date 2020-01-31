@@ -293,14 +293,11 @@ let push
     ~(event : string)
     (payload : string) : unit =
   let canvas_id_str = Uuidm.to_string canvas_id in
-  let log_params =
-    [("canvas_id", canvas_id_str); ("event", event); ("payload", payload)]
-  in
+  let log_params = [("canvas_id", canvas_id_str); ("event", event)] in
   match Config.stroller_port with
   | None ->
       Log.infO "stroller not configured, skipping push" ~params:log_params
   | Some port ->
-      Log.infO "pushing via stroller" ~params:log_params ;
       let uri =
         Uri.make
           ()
