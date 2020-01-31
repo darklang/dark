@@ -1,16 +1,5 @@
 open Prelude
 
-let postEmptyString decoder (csrfToken : string) (url : string) =
-  Tea.Http.request
-    { method' = "POST"
-    ; headers = [Header ("X-CSRF-Token", csrfToken)]
-    ; url
-    ; body = Web.XMLHttpRequest.EmptyBody
-    ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
-    ; timeout = None
-    ; withCredentials = false }
-
-
 let apiCallNoParams
     (m : model)
     ~(decoder : Js.Json.t -> 'resulttype)
