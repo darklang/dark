@@ -1,5 +1,37 @@
 open Prelude
 
+let postEmptyString decoder (csrfToken : string) (url : string) =
+  Tea.Http.request
+    { method' = "POST"
+    ; headers = [Header ("X-CSRF-Token", csrfToken)]
+    ; url
+    ; body = Web.XMLHttpRequest.EmptyBody
+    ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
+    ; timeout = None
+    ; withCredentials = false }
+
+
+let apiCallNoParams
+    (m : model)
+    ~(decoder : Js.Json.t -> 'resulttype)
+    ~(callback : ('resulttype, string Tea.Http.error) Tea.Result.t -> msg)
+    (endpoint : string) : msg Tea.Cmd.t =
+  let url = "/api/" ^ Tea.Http.encodeUri m.canvasName ^ endpoint in
+  let request =
+    Tea.Http.request
+      { method' = "POST"
+      ; headers =
+          [ Header ("Content-type", "application/json")
+          ; Header ("X-CSRF-Token", m.csrfToken) ]
+      ; url
+      ; body = Web.XMLHttpRequest.EmptyBody
+      ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
+      ; timeout = None
+      ; withCredentials = false }
+  in
+  Tea.Http.send callback request
+
+
 let postJson
     decoder
     ?(withCredentials = false)
@@ -18,49 +50,6 @@ let postJson
     ; withCredentials }
 
 
-let postEmptyJson decoder (csrfToken : string) (url : string) =
-  Tea.Http.request
-    { method' = "POST"
-    ; headers =
-        [ Header ("Content-type", "application/json")
-        ; Header ("X-CSRF-Token", csrfToken) ]
-    ; url
-    ; body = Web.XMLHttpRequest.EmptyBody
-    ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
-    ; timeout = None
-    ; withCredentials = false }
-
-
-let postEmptyString decoder (csrfToken : string) (url : string) =
-  Tea.Http.request
-    { method' = "POST"
-    ; headers = [Header ("X-CSRF-Token", csrfToken)]
-    ; url
-    ; body = Web.XMLHttpRequest.EmptyBody
-    ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
-    ; timeout = None
-    ; withCredentials = false }
-
-
-let opsParams (ops : op list) (opCtr : int) (clientOpCtrId : string) :
-    addOpAPIParams =
-  {ops; opCtr; clientOpCtrId}
-
-
-let apiCallNoParams
-    (m : model)
-    ~(decoder : Js.Json.t -> 'resulttype)
-    ~(callback : ('resulttype, string Tea.Http.error) Tea.Result.t -> msg)
-    (endpoint : string) : msg Tea.Cmd.t =
-  let request =
-    postEmptyJson
-      decoder
-      m.csrfToken
-      ("/api/" ^ Tea.Http.encodeUri m.canvasName ^ endpoint)
-  in
-  Tea.Http.send callback request
-
-
 let apiCall
     (m : model)
     ~(encoder : 'paramtype -> Js.Json.t)
@@ -77,6 +66,15 @@ let apiCall
   in
   Tea.Http.send callback request
 
+
+let opsParams (ops : op list) (opCtr : int) (clientOpCtrId : string) :
+    addOpAPIParams =
+  {ops; opCtr; clientOpCtrId}
+
+
+(* ------------- *)
+(* API calls *)
+(* ------------- *)
 
 let addOp (m : model) (focus : focus) (params : addOpAPIParams) : msg Tea.Cmd.t
     =
@@ -157,9 +155,11 @@ let fetchAllTraces (m : model) : msg Tea.Cmd.t =
 
 
 let logout (m : model) : msg Tea.Cmd.t =
-  let url = "/logout" in
-  let request = postEmptyString Decoders.saveTestAPIResult m.csrfToken url in
-  Tea.Http.send (fun _ -> LogoutAPICallback) request
+  apiCallNoParams
+    m
+    "/logout"
+    ~decoder:(fun _ -> ())
+    ~callback:(fun _ -> LogoutAPICallback)
 
 
 let saveTest (m : model) : msg Tea.Cmd.t =
