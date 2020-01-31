@@ -3,27 +3,35 @@ open Libexecution
 open Types.RuntimeT
 open Prelude
 open Utils
+open Libshared.FluidShortcuts
 
 let t_stdlib_works () =
   check_dval
     "uniqueBy1"
-    (exec_ast "(List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "List::uniqueBy"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["x"] (fn "Int::divide" [var "x"; int 2]) ]))
     (DList [Dval.dint 1; Dval.dint 3; Dval.dint 4]) ;
   check_dval
     "uniqueBy2"
-    (exec_ast "(List::uniqueBy (1 2 3 4) (\\x -> x))")
+    (exec_ast'
+       (fn
+          "List::uniqueBy"
+          [list [int 1; int 2; int 3; int 4]; lambda ["x"] (var "x")]))
     (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3; Dval.dint 4]) ;
   check_error_contains
     "base64decode"
-    (exec_ast "(String::base64Decode 'random string')")
+    (exec_ast' (fn "String::base64Decode" [str "random string"]))
     "Not a valid base64 string" ;
   check_dval
     "getAt1"
-    (exec_ast "(List::getAt (1 2 3 4) 0)")
+    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 0]))
     (DOption (OptJust (Dval.dint 1))) ;
   check_dval
     "getAt2"
-    (exec_ast "(List::getAt (1 2 3 4) 4)")
+    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 4]))
     (DOption OptNothing) ;
   ()
 
@@ -542,7 +550,7 @@ let t_old_functions_deprecated () =
 
 
 let t_url_encode () =
-  let open Fluid in
+  let open Libshared.FluidShortcuts in
   check_dval
     "percent escaping works"
     (Dval.dstr_of_string_exn

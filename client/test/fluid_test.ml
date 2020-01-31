@@ -5,6 +5,7 @@ open Fluid_test_data
 module B = BlankOr
 module K = FluidKeyboard
 open FluidExpression
+open FluidShortcuts
 
 let toString = Printer.eToTestString
 
@@ -104,7 +105,7 @@ let process
            FluidToken.isNewline ti.token && ti.startPos < pos)
     |> List.length
   in
-  let ast = if wrap then if' (bool true) ast (int "5") else ast in
+  let ast = if wrap then if' (bool true) ast (int 5) else ast in
   (* See the "Wrap" block comment at the top of the file for an explanation of this *)
   let wrapperOffset = 15 in
   let addWrapper pos =
@@ -1788,48 +1789,42 @@ let run () =
         "false~ || true" ;
       t
         "pressing bs on ++ binop before blank deletes blank but rest of the lhs"
-        (binop "+" (int "10") (binop "*" (int "5") (binop "+" b (int "10"))))
+        (binop "+" (int 10) (binop "*" (int 5) (binop "+" b (int 10))))
         (bs 8)
         "10 + 5~ + 10" ;
       t
         "pressing bs on ++ binop after blank deletes blank but rest of the lhs"
-        (binop "+" (int "20") (binop "*" (int "1") (binop "+" b (int "5"))))
+        (binop "+" (int 20) (binop "*" (int 1) (binop "+" b (int 5))))
         (bs 20)
         "20 + 1 * ~5" ;
       t
         "pressing bs on < binop before blank deletes blank but rest of the lhs"
-        (binop "<" (int "20") (binop "<" b (int "50")))
+        (binop "<" (int 20) (binop "<" b (int 50)))
         (bs 4)
         "20~ < 50" ;
       t
         "pressing bs on < binop after blank deletes blank but rest of the lhs"
-        (binop "<" (int "25") (binop "<" b (int "50")))
+        (binop "<" (int 25) (binop "<" b (int 50)))
         (bs 16)
         "25 < ~50" ;
       t
         "pressing bs on - binop before blank deletes blank but rest of the lhs"
-        (binop "-" (int "200") (binop "-" (int "5") (binop "*" b (int "24"))))
+        (binop "-" (int 200) (binop "-" (int 5) (binop "*" b (int 24))))
         (bs 9)
         "200 - 5~ * 24" ;
       t
         "pressing bs on - binop after blank deletes blank but rest of the lhs"
-        (binop "-" (int "200") (binop "-" (int "5") (binop "*" b (int "24"))))
+        (binop "-" (int 200) (binop "-" (int 5) (binop "*" b (int 24))))
         (bs 15)
         "200 - 5 - ~24" ;
       t
         "pressing bs on != binop before blank deletes blank but rest of the lhs"
-        (binop
-           "!="
-           (int "54321")
-           (binop "!=" (int "21") (binop "!=" b (int "5"))))
+        (binop "!=" (int 54321) (binop "!=" (int 21) (binop "!=" b (int 5))))
         (inputs [DeleteContentBackward; DeleteContentBackward] 14)
         "54321 != 21~ != 5" ;
       t
         "pressing bs on != binop after blank deletes blank but rest of the lhs"
-        (binop
-           "!="
-           (int "54321")
-           (binop "!=" (int "21") (binop "!=" b (int "5"))))
+        (binop "!=" (int 54321) (binop "!=" (int 21) (binop "!=" b (int 5))))
         (inputs [DeleteContentBackward; DeleteContentBackward] 21)
         "54321 != 21 != ~5" ;
       t
@@ -1849,13 +1844,13 @@ let run () =
         "~123.456" ;
       t
         "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all"
-        (binop "/" (fn "HttpClient::post_v4" []) (int "5"))
+        (binop "/" (fn "HttpClient::post_v4" []) (int 5))
         (* wrap false because else we delete the wrapper *)
         (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
       t
         "backspace after selecting all with a binop partial in a binop deletes all"
-        (binop "+" (partial "D" (binop "-" (int "5") (int "5"))) (int "5"))
+        (binop "+" (partial "D" (binop "-" (int 5) (int 5))) (int 5))
         (* wrap false because else we delete the wrapper *)
         (inputs ~wrap:false [keypress K.SelectAll; DeleteWordBackward] 0)
         "~___" ;
@@ -2262,9 +2257,7 @@ let run () =
         "match ___\n  *** -> ___\n  ~3 -> ___\n" ;
       t
         "enter at the start of row, with match in row above, creates a new row"
-        (match'
-           (int "1")
-           [(pInt "5", match' (int "2") [(pInt "6", b)]); (pInt "7", b)])
+        (match' (int 1) [(pInt 5, match' (int 2) [(pInt 6, b)]); (pInt 7, b)])
         (enter 43)
         "match 1\n  5 -> match 2\n         6 -> ___\n  *** -> ___\n  ~7 -> ___\n" ;
       t
@@ -2347,10 +2340,10 @@ let run () =
       t "del empty let - underscore" (let' "_" b b) (del 0) "~___" ;
       t "bs over non-empty let" nonEmptyLet (bs 3) "let~ *** = 6\n5" ;
       t "del non-empty let" nonEmptyLet (del 0) "~let *** = 6\n5" ;
-      t "bs with let empty body" (let' "" (int "5") b) (bs 3) "~5" ;
-      t "del with let empty body" (let' "" (int "5") b) (del 0) "~5" ;
-      t "bs with let empty body" (let' "_" (int "5") b) (bs 3) "~5" ;
-      t "del with let empty body" (let' "_" (int "5") b) (del 0) "~5" ;
+      t "bs with let empty body" (let' "" (int 5) b) (bs 3) "~5" ;
+      t "del with let empty body" (let' "" (int 5) b) (del 0) "~5" ;
+      t "bs with let empty body" (let' "_" (int 5) b) (bs 3) "~5" ;
+      t "del with let empty body" (let' "_" (int 5) b) (del 0) "~5" ;
       t "insert space on blank let" emptyLet (key K.Space 4) "let ~*** = ___\n5" ;
       t "lhs on empty" emptyLet (ins "c" 4) "let c~ = ___\n5" ;
       t "middle of blank" emptyLet (ins "c" 5) "let c~ = ___\n5" ;
@@ -2390,9 +2383,7 @@ let run () =
         "insert changes occurence of binding in match nested expr"
         (letWithBinding
            "binding"
-           (match'
-              b
-              [(pVar "binding", var "binding"); (pInt "5", var "binding")]))
+           (match' b [(pVar "binding", var "binding"); (pInt 5, var "binding")]))
         (ins "c" 11)
         "let bindingc~ = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n" ;
       t
@@ -2487,12 +2478,12 @@ let run () =
         "let _ = Int::add 5 5\n~___" ;
       t
         "enter at the end of non-final arg, should just go to next line: #1"
-        (let' "x" (fn "Int::add" [record [("", int "5")]; int "6"]) b)
+        (let' "x" (fn "Int::add" [record [("", int 5)]; int 6]) b)
         (enter 60)
         "let x = Int::add\n          {\n            *** : 5\n          }\n          ~6\n___" ;
       t
         "enter at the end of a non-final arg should just go to next line: #2"
-        (fn "Int::add" [record [("", int "5")]; int "6"])
+        (fn "Int::add" [record [("", int 5)]; int 6])
         (enter 28)
         "Int::add\n  {\n    *** : 5\n  }\n  ~6" ;
       t
@@ -3068,7 +3059,7 @@ let run () =
         "{\n  f1 : 56\n  *** : ___\n  ~f2 : 78\n}" ;
       t
         "pressing enter at the start of a field adds a row to the correct expression"
-        (record [("", match' b [(pInt "5", int "6")]); ("asd", b)])
+        (record [("", match' b [(pInt 5, int 6)]); ("asd", b)])
         (enter 39)
         "{\n  *** : match ___\n          5 -> 6\n  *** : ___\n  ~asd : ___\n}" ;
       t
@@ -3252,12 +3243,12 @@ let run () =
         "request.body~" ;
       t
         "autocomplete shows first alphabetical item for fields"
-        (let' "request" (int "5") (EVariable (ID "fake-acdata2", "request")))
+        (let' "request" (int 5) (EVariable (ID "fake-acdata2", "request")))
         (inputs [InsertText "."; keypress K.Enter] ~clone:false 23)
         "let request = 5\nrequest.author~" ;
       t
         "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
-        (let' "request" (int "5") (EVariable (ID "fake-acdata2", "request")))
+        (let' "request" (int 5) (EVariable (ID "fake-acdata2", "request")))
         (inputs
            [InsertText "."; InsertText "t"; keypress K.Enter]
            ~clone:false
@@ -3632,12 +3623,12 @@ let run () =
         "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet ~secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "selecting an expression pipes from it 1"
-        (binop "+" (int "4") (int "5"))
+        (binop "+" (int 4) (int 5))
         (selectionPress ~shiftHeld:true K.ShiftEnter 4 5)
         "4 + 5\n    |>~___\n" ;
       t
         "selecting an expression pipes from it 2"
-        (binop "+" (int "4") (int "5"))
+        (binop "+" (int 4) (int 5))
         (selectionPress ~shiftHeld:true K.ShiftEnter 5 4)
         "4 + 5\n    |>~___\n" ;
       ts

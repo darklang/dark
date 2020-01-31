@@ -3,6 +3,7 @@ open Fluid
 open Fluid_test_data
 open Tester
 open FluidExpression
+open FluidShortcuts
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
 
@@ -192,7 +193,7 @@ let rec generateFieldAccessExpr () =
 let rec generatePattern () =
   match range 7 with
   | 0 ->
-      pInt (Int.toString (range 500))
+      pInt (range 500)
   | 1 ->
       pBool (random () < 0.5)
   | 2 ->
@@ -234,7 +235,7 @@ and generateExpr () =
   | 1 ->
       str (generateString ())
   | 2 ->
-      int (Int.toString (range 500))
+      int (range 500)
   | 3 ->
       bool (random () < 0.5)
   | 4 ->
@@ -500,7 +501,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
         Js.log "\n") ;
     !latestAST
   in
-  let sentinel = Fluid_test_data.int "56756756" in
+  let sentinel = int 56756756 in
   let oldAST = ref sentinel in
   let newAST = ref ast in
   while oldAST <> newAST do

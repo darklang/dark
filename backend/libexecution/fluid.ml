@@ -1,159 +1,9 @@
 open Core_kernel
 
-type fluidName = string
-
-type fnName = string
-
-type sendToRail =
-  | Rail
-  | NoRail
-
-type id = Types.id
+let gid = Libshared.Shared.gid
 
 (* match id, then the pattern id. We have a pattern id cause they can be
  * nested. *)
-type fluidPattern =
-  | FPVariable of id * id * fluidName
-  | FPConstructor of id * id * fluidName * fluidPattern list
-  (* TODO: support char *)
-  (* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
-  | FPInteger of id * id * string
-  | FPBool of id * id * bool
-  | FPString of id * id * string
-  | FPFloat of id * id * string * string
-  | FPNull of id * id
-  | FPBlank of id * id
-
-type fluidExpr =
-  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
-   * support *)
-  | EInteger of id * string
-  | EBool of id * bool
-  | EString of id * string
-  | EFloat of id * string * string
-  | ENull of id
-  | EBlank of id
-  | ELet of id * fluidName * fluidExpr * fluidExpr
-  | EIf of id * fluidExpr * fluidExpr * fluidExpr
-  | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
-  (* the id in the varname list is the analysis ID, used to get a livevalue
-   * from the analysis engine *)
-  | ELambda of id * (id * fluidName) list * fluidExpr
-  | EFieldAccess of id * fluidExpr * fluidName
-  | EVariable of id * string
-  | EFnCall of id * fluidName * fluidExpr list * sendToRail
-  | EPartial of id * string * fluidExpr
-  | ERightPartial of id * string * fluidExpr
-  | EList of id * fluidExpr list
-  (* The ID in the list is extra for the fieldname *)
-  | ERecord of id * (fluidName * fluidExpr) list
-  | EPipe of id * fluidExpr list
-  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
-   * expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
-   * or length 0 (for `Nothing`).
-   *)
-  | EConstructor of id * fluidName * fluidExpr list
-  | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
-  (* Placeholder that indicates the target of the Thread. May be movable at
-   * some point *)
-  | EPipeTarget of id
-  (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
-  | EFeatureFlag of id * string * fluidExpr * fluidExpr * fluidExpr
-
-let gid () = Util.create_id ()
-
-let newB () = Types.Blank (gid ())
-
-let b = newB ()
-
-let str (str : string) : fluidExpr = EString (gid (), str)
-
-let int (int : string) : fluidExpr = EInteger (gid (), int)
-
-let bool (b : bool) : fluidExpr = EBool (gid (), b)
-
-let float' (whole : string) (fraction : string) : fluidExpr =
-  EFloat (gid (), whole, fraction)
-
-
-let null : fluidExpr = ENull (gid ())
-
-let record (rows : (string * fluidExpr) list) : fluidExpr =
-  ERecord (gid (), List.map rows ~f:(fun (k, v) -> (k, v)))
-
-
-let list (elems : fluidExpr list) : fluidExpr = EList (gid (), elems)
-
-let pipeTarget = EPipeTarget (gid ())
-
-let fn ?(ster = NoRail) (name : string) (args : fluidExpr list) =
-  EFnCall (gid (), name, args, ster)
-
-
-let binop ?(ster = NoRail) (name : string) (arg0 : fluidExpr) (arg1 : fluidExpr)
-    =
-  EBinOp (gid (), name, arg0, arg1, ster)
-
-
-let partial (str : string) (e : fluidExpr) : fluidExpr =
-  EPartial (gid (), str, e)
-
-
-let rightPartial (str : string) (e : fluidExpr) : fluidExpr =
-  ERightPartial (gid (), str, e)
-
-
-let var (name : string) : fluidExpr = EVariable (gid (), name)
-
-let fieldAccess (expr : fluidExpr) (fieldName : string) : fluidExpr =
-  EFieldAccess (gid (), expr, fieldName)
-
-
-let if' (cond : fluidExpr) (then' : fluidExpr) (else' : fluidExpr) : fluidExpr =
-  EIf (gid (), cond, then', else')
-
-
-let let' (varName : string) (rhs : fluidExpr) (body : fluidExpr) : fluidExpr =
-  ELet (gid (), varName, rhs, body)
-
-
-let lambda (varNames : string list) (body : fluidExpr) : fluidExpr =
-  ELambda (gid (), List.map varNames ~f:(fun name -> (gid (), name)), body)
-
-
-let pipe (first : fluidExpr) (rest : fluidExpr list) : fluidExpr =
-  EPipe (gid (), first :: rest)
-
-
-let constructor (name : string) (args : fluidExpr list) : fluidExpr =
-  EConstructor (gid (), name, args)
-
-
-let match' (cond : fluidExpr) (matches : (fluidPattern * fluidExpr) list) :
-    fluidExpr =
-  EMatch (gid (), cond, matches)
-
-
-let pInt (int : string) : fluidPattern = FPInteger (gid (), gid (), int)
-
-let pVar (name : string) : fluidPattern = FPVariable (gid (), gid (), name)
-
-let pConstructor (name : string) (patterns : fluidPattern list) : fluidPattern =
-  FPConstructor (gid (), gid (), name, patterns)
-
-
-let pBool (b : bool) : fluidPattern = FPBool (gid (), gid (), b)
-
-let pString (str : string) : fluidPattern = FPString (gid (), gid (), str)
-
-let pFloat (whole : string) (fraction : string) : fluidPattern =
-  FPFloat (gid (), gid (), whole, fraction)
-
-
-let pNull : fluidPattern = FPNull (gid (), gid ())
-
-let pBlank : fluidPattern = FPBlank (gid (), gid ())
-
 let literalToString
     (v : [> `Bool of bool | `Int of string | `Null | `Float of string * string])
     : string =
@@ -170,7 +20,8 @@ let literalToString
       whole ^ "." ^ fraction
 
 
-let rec fromFluidPattern (p : fluidPattern) : Types.RuntimeT.pattern =
+let rec fromFluidPattern (p : Libshared.FluidPattern.t) : Types.RuntimeT.pattern
+    =
   match p with
   | FPVariable (_, id, var) ->
       Filled (id, PVariable var)
@@ -180,7 +31,7 @@ let rec fromFluidPattern (p : fluidPattern) : Types.RuntimeT.pattern =
       Filled (id, PLiteral (literalToString (`Int i)))
   | FPBool (_, id, b) ->
       Filled (id, PLiteral (literalToString (`Bool b)))
-  | FPString (_, id, str) ->
+  | FPString {patternID = id; str; matchID = _} ->
       Filled (id, PLiteral (literalToString (`String str)))
   | FPFloat (_, id, whole, fraction) ->
       Filled (id, PLiteral (literalToString (`Float (whole, fraction))))
@@ -190,9 +41,11 @@ let rec fromFluidPattern (p : fluidPattern) : Types.RuntimeT.pattern =
       Blank id
 
 
-and fromFluidExpr (expr : fluidExpr) : Types.RuntimeT.expr =
+and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
   let open Types in
   let open Types.RuntimeT in
+  let open Libshared.FluidExpression in
+  let newB () = Types.Blank (gid ()) in
   let rec fromFluidExpr ?(inPipe = false) expr =
     (* inPipe is whether it's the immediate child of a pipe. *)
     let r = fromFluidExpr ~inPipe:false in

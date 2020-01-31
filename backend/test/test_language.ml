@@ -38,28 +38,28 @@ let t_lambda_scopes_correctly () =
 
 
 let t_shadowing_all_the_way_down () =
-  let open Fluid in
+  let open Libshared.FluidShortcuts in
   check_dval
     "simple let shadowing"
     (Dval.dint 6)
-    (exec_ast' (let' "x" (int "5") (let' "x" (int "6") (var "x")))) ;
+    (exec_ast' (let' "x" (int 5) (let' "x" (int 6) (var "x")))) ;
   check_dval
     "match within let"
     (Dval.dint 6)
-    (exec_ast' (let' "x" (int "35") (match' (int "6") [(pVar "x", var "x")]))) ;
+    (exec_ast' (let' "x" (int 35) (match' (int 6) [(pVar "x", var "x")]))) ;
   check_dval
     "var pattern within let"
     (Dval.dint 6)
-    (exec_ast' (let' "x" (int "35") (match' (int "6") [(pVar "x", var "x")]))) ;
+    (exec_ast' (let' "x" (int 35) (match' (int 6) [(pVar "x", var "x")]))) ;
   check_dval
     "var pattern within var constructor within let"
     (Dval.dint 6)
     (exec_ast'
        (let'
           "x"
-          (int "35")
+          (int 35)
           (match'
-             (constructor "Ok" [int "6"])
+             (constructor "Ok" [int 6])
              [(pConstructor "Ok" [pVar "x"], var "x")]))) ;
   check_dval
     "lambda within let"
@@ -67,40 +67,40 @@ let t_shadowing_all_the_way_down () =
     (exec_ast'
        (let'
           "x"
-          (int "35")
+          (int 35)
           (fn
              "List::map"
-             [ list [int "1"; int "2"; int "3"; int "4"]
-             ; lambda ["x"] (fn "+" [var "x"; int "2"]) ]))) ;
+             [ list [int 1; int 2; int 3; int 4]
+             ; lambda ["x"] (fn "+" [var "x"; int 2]) ]))) ;
   check_dval
     "lambda within match within let"
     (DList [Dval.dint 3; Dval.dint 4; Dval.dint 5; Dval.dint 6])
     (exec_ast'
        (let'
           "x"
-          (int "35")
+          (int 35)
           (match'
-             (constructor "Ok" [int "6"])
+             (constructor "Ok" [int 6])
              [ ( pConstructor "Ok" [pVar "x"]
                , fn
                    "List::map"
-                   [ list [int "1"; int "2"; int "3"; int "4"]
-                   ; lambda ["x"] (fn "+" [var "x"; int "2"]) ] ) ]))) ;
+                   [ list [int 1; int 2; int 3; int 4]
+                   ; lambda ["x"] (fn "+" [var "x"; int 2]) ] ) ]))) ;
   check_dval
     "match within let within lambda"
     (DList [Dval.dint 8; Dval.dint 8; Dval.dint 8; Dval.dint 8])
     (exec_ast'
        (fn
           "List::map"
-          [ list [int "1"; int "2"; int "3"; int "4"]
+          [ list [int 1; int 2; int 3; int 4]
           ; lambda
               ["x"]
               (let'
                  "x"
-                 (int "35")
+                 (int 35)
                  (match'
-                    (constructor "Ok" [int "6"])
-                    [(pConstructor "Ok" [pVar "x"], fn "+" [var "x"; int "2"])]))
+                    (constructor "Ok" [int 6])
+                    [(pConstructor "Ok" [pVar "x"], fn "+" [var "x"; int 2])]))
           ])) ;
   check_dval
     "let within match within lambda"
@@ -108,13 +108,13 @@ let t_shadowing_all_the_way_down () =
     (exec_ast'
        (fn
           "List::map"
-          [ list [int "1"; int "2"; int "3"; int "4"]
+          [ list [int 1; int 2; int 3; int 4]
           ; lambda
               ["x"]
               (match'
-                 (constructor "Ok" [int "6"])
+                 (constructor "Ok" [int 6])
                  [ ( pConstructor "Ok" [pVar "x"]
-                   , let' "x" (int "9") (fn "+" [var "x"; int "2"]) ) ]) ])) ;
+                   , let' "x" (int 9) (fn "+" [var "x"; int 2]) ) ]) ])) ;
   ()
 
 
