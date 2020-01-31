@@ -4385,6 +4385,18 @@ let rec updateKey
         (ast, moveTo toTheRight.endPos s)
     | InsertText ":", _, R (TRecordSep _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)
+    | InsertText "}", _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
+        (* Allow pressing close curly to go over the last curly *)
+        (ast, moveOneRight pos s)
+    | InsertText "]", _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
+        (* Allow pressing close square to go over the last square *)
+        (ast, moveOneRight pos s)
+    | InsertText "\"", _, R (TPatternString _, ti)
+    | InsertText "\"", _, R (TString _, ti)
+    | InsertText "\"", _, R (TStringMLEnd _, ti)
+      when pos = ti.endPos - 1 ->
+        (* Allow pressing quote to go over the last quote *)
+        (ast, moveOneRight pos s)
     (* Deleting *)
     | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
       when Option.isSome s.selectionStart ->
@@ -4571,20 +4583,6 @@ let rec updateKey
         if onEdge
         then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
         else doInsert ~pos "," ti ast s
-    (* list-specific insertions *)
-    | InsertText "}", _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
-        (* Allow pressing close curly to go over the last curly *)
-        (ast, moveOneRight pos s)
-    | InsertText "]", _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
-        (* Allow pressing close square to go over the last square *)
-        (ast, moveOneRight pos s)
-    (* String-specific insertions *)
-    | InsertText "\"", _, R (TPatternString _, ti)
-    | InsertText "\"", _, R (TString _, ti)
-    | InsertText "\"", _, R (TStringMLEnd _, ti)
-      when pos = ti.endPos - 1 ->
-        (* Allow pressing quote to go over the last quote *)
-        (ast, moveOneRight pos s)
     (* Field access *)
     | InsertText ".", L (TVariable _, toTheLeft), _
     | InsertText ".", L (TFieldName _, toTheLeft), _
