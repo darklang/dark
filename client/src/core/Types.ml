@@ -740,6 +740,8 @@ and addOpAPIResult =
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list }
 
+and addOpAPIResponse = {result : addOpAPIResult}
+
 and addOpStrollerMsg =
   { result : addOpAPIResult
   ; params : addOpAPIParams }
@@ -1138,7 +1140,7 @@ and msg =
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of int
   | AddOpsAPICallback of
-      focus * addOpAPIParams * (addOpStrollerMsg, httpError) Tea.Result.t
+      focus * addOpAPIParams * (addOpAPIResponse, httpError) Tea.Result.t
       [@printer opaque "AddOpsAPICallback"]
   | AddOpsStrollerMsg of addOpStrollerMsg
   | SaveTestAPICallback of (saveTestAPIResult, httpError) Tea.Result.t

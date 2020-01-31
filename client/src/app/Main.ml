@@ -1349,7 +1349,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
         ]
-  | AddOpsAPICallback (focus, params, Ok r) ->
+  | AddOpsAPICallback (focus, params, Ok (r : addOpAPIResponse)) ->
       let m, newOps, _ = API.filterOpsAndResult m params None in
       let params = {params with ops = newOps} in
       let initialMods =

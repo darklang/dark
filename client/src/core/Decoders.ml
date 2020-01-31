@@ -795,6 +795,10 @@ let addOpAPIResult j : addOpAPIResult =
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
+let addOpAPI (j : Js.Json.t) : addOpAPIResponse =
+  {result = field "result" addOpAPIResult j}
+
+
 let addOpAPIParams j : addOpAPIParams =
   { ops = field "ops" (list op) j
   ; opCtr = field "opCtr" int j
