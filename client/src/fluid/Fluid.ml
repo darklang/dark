@@ -1384,34 +1384,6 @@ let replacePattern
   updatePattern matchID patID ast ~f:(fun _ -> newPat)
 
 
-let replaceVarInPattern
-    (mID : id) (oldName : string) (newName : string) (ast : ast) : E.t =
-  (* WARNING: This function does not do what it should; it renames in all branches! *)
-  E.update mID ast ~f:(fun e ->
-      match e with
-      | EMatch (mID, cond, cases) ->
-          let rec replaceNameInPattern pat =
-            match pat with
-            | P.FPVariable (_, id, varName) when varName = oldName ->
-                if newName = ""
-                then P.FPBlank (mID, id)
-                else P.FPVariable (mID, id, newName)
-            | FPConstructor (mID, id, name, patterns) ->
-                P.FPConstructor
-                  (mID, id, name, List.map patterns ~f:replaceNameInPattern)
-            | pattern ->
-                pattern
-          in
-          let newCases =
-            List.map cases ~f:(fun (pat, expr) ->
-                ( replaceNameInPattern pat
-                , E.renameVariableUses ~oldName ~newName expr ))
-          in
-          EMatch (mID, cond, newCases)
-      | _ ->
-          recover "not a match in replaceVarInPattern" ~debug:e e)
-
-
 let removePatternRow (mID : id) (id : id) (ast : ast) : E.t =
   E.update mID ast ~f:(fun e ->
       match e with
@@ -2126,83 +2098,6 @@ let addPipeExprAt (pipeId : id) (idx : int) (ast : ast) (s : fluidState) :
             recover "expected to find EPipe to update" ~debug:e e)
   in
   (ast, s, bid)
-
-
-(* Supports the various different tokens replacing their string contents.
- * Doesn't do movement. *)
-let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) : E.t
-    =
-  let open FluidExpression in
-  let open FluidPattern in
-  match token with
-  | TStringMLStart (id, _, _, str)
-  | TStringMLMiddle (id, _, _, str)
-  | TStringMLEnd (id, _, _, str)
-  | TString (id, str) ->
-      E.replace id ~replacement:(EString (id, f str)) ast
-  | TPatternString {matchID = mID; patternID = id; str; _} ->
-      replacePattern
-        mID
-        id
-        ~newPat:(FPString {matchID = mID; patternID = id; str = f str})
-        ast
-  | TInteger (id, str) ->
-      let str = f str in
-      let replacement =
-        if str = ""
-        then EBlank id
-        else EInteger (id, Util.coerceStringTo63BitInt str)
-      in
-      E.replace id ~replacement ast
-  | TPatternInteger (mID, id, str, _) ->
-      let str = f str in
-      let newPat =
-        if str = ""
-        then FPBlank (mID, id)
-        else FPInteger (mID, id, Util.coerceStringTo63BitInt str)
-      in
-      replacePattern mID id ~newPat ast
-  | TPatternNullToken (mID, id, _) ->
-      let str = f "null" in
-      let newExpr = FPVariable (mID, gid (), str) in
-      replacePattern mID id ~newPat:newExpr ast
-  | TPatternTrue (mID, id, _) ->
-      let str = f "true" in
-      let newExpr = FPVariable (mID, gid (), str) in
-      replacePattern mID id ~newPat:newExpr ast
-  | TPatternFalse (mID, id, _) ->
-      let str = f "false" in
-      let newExpr = FPVariable (mID, gid (), str) in
-      replacePattern mID id ~newPat:newExpr ast
-  | TPatternVariable (mID, _, str, _) ->
-      replaceVarInPattern mID str (f str) ast
-  | TRecordFieldname {recordID; index; fieldName; _} ->
-      replaceRecordField ~index (f fieldName) recordID ast
-  | TLetVarName (id, _, str) ->
-      replaceLetLHS (f str) id ast
-  | TLambdaVar (id, _, index, str) ->
-      replaceLamdaVar ~index str (f str) id ast
-  | TVariable (id, str) ->
-      replaceWithPartial (f str) id ast
-  | TPartial (id, str) ->
-      replaceWithPartial (f str) id ast
-  | TRightPartial (id, str) ->
-      replaceWithRightPartial (f str) id ast
-  | TFieldName (id, _, str) ->
-      replaceFieldName (f str) id ast
-  | TFieldPartial (id, _, _, str) ->
-      (* replace the partial's name, not the field's *)
-      replaceWithPartial (f str) id ast
-  | TTrue id ->
-      replaceWithPartial (f "true") id ast
-  | TFalse id ->
-      replaceWithPartial (f "false") id ast
-  | TNullToken id ->
-      replaceWithPartial (f "null") id ast
-  | TBinOp (id, name) ->
-      replaceWithPartial (f name) id ast
-  | _ ->
-      recover "not supported by replaceToken" ~debug:token ast
 
 
 (* ---------------- *)
