@@ -1530,7 +1530,7 @@ let run () =
         "renaming a function maintains unaligned params in let scope"
         (partial "Int::" (fn "Int::add" [five; six]))
         (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
-        "let b = 6\n~Int::sqrt 5" ;
+        "let b = 6\nInt::sqrt ~5" ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
         (partial "Int::" (fn "Int::add" [var "a"; var "b"]))
@@ -2829,8 +2829,7 @@ let run () =
         "creating a pipe from an fn via a partial works"
         (partial "|>" aFnCall)
         (enter 2)
-        (* TODO: This really should end in 18, but too much work for now *)
-        "Int::add 5 ~_________\n|>___\n" ;
+        "Int::add 5 _________\n|>~___\n" ;
       t
         "enter at the end of a pipe expr creates a new entry"
         aPipe
