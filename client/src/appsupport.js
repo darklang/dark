@@ -266,8 +266,16 @@ function setFluidSelectionRange([beginIdx, endIdx]) {
   }
 }
 
+function dismissWelcomeModal() {
+  analytics.track("Welcome Modal", {
+    welcomeDismissed: true,
+  });
+  return;
+}
+
 window.getFluidSelectionRange = getFluidSelectionRange;
 window.setFluidSelectionRange = setFluidSelectionRange;
+window.dismissWelcomeModal = dismissWelcomeModal;
 
 // ---------------------------
 // Analysis
