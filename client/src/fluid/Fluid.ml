@@ -1054,6 +1054,23 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       None
 
 
+let caretTargetForNextNonWhitespaceToken ~pos (ast : ast) : caretTarget option =
+  let rec getNextWS tokens =
+    match tokens with
+    | [] ->
+        None
+    | ti :: rest ->
+      ( match ti.token with
+      | TSep _ | TNewline _ | TIndent _ ->
+          getNextWS rest
+      | _ ->
+          if pos > ti.startPos
+          then getNextWS rest
+          else caretTargetFromTokenInfo ti.startPos ti )
+  in
+  getNextWS (toTokens ast)
+
+
 (** moveToAstRef returns a modified fluidState with newPos set to reflect
     the targeted astRef.
 
@@ -1884,7 +1901,7 @@ let deletePartial (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
 
 
 let replacePartialWithArguments
-    ~(newExpr : E.t) (id : id) (s : state) (ast : ast) : E.t =
+    ~(newExpr : E.t) (id : id) (s : state) (ast : ast) : E.t * caretTarget =
   let open FluidExpression in
   let fns =
     assertFn
@@ -1958,68 +1975,101 @@ let replacePartialWithArguments
     | _, _ ->
         false
   in
-  E.update id ast ~f:(fun expr ->
-      match expr with
-      (* preserve partials with arguments *)
-      | EPartial (_, _, (EFnCall (_, oldName, _, _) as oldExpr))
-      | EPartial (_, _, (EBinOp (_, oldName, _, _, _) as oldExpr))
-      | EPartial (_, _, (EConstructor (_, oldName, _) as oldExpr)) ->
-          let existingExprs = getArgs oldExpr in
-          let fetchParams newName placeholderExprs =
-            let count =
-              max (List.length existingExprs) (List.length placeholderExprs)
-            in
-            let newParams = getFunctionParams newName count placeholderExprs in
-            let oldParams = getFunctionParams oldName count existingExprs in
-            let matchedParams, mismatchedParams =
-              List.partition oldParams ~f:(fun p ->
-                  List.any newParams ~f:(isAligned p))
-              |> Tuple2.mapAll ~f:Option.values
-            in
-            let newParams =
-              List.foldl
-                matchedParams
-                ~init:placeholderExprs
-                ~f:(fun (_, _, expr, index) exprs ->
-                  List.updateAt ~index ~f:(fun _ -> expr) exprs)
-            in
-            (newParams, mismatchedParams)
-          in
-          ( match newExpr with
-          | EBinOp (id, newName, lhs, rhs, newSter) ->
-              let ster = chooseSter ~oldName ~oldExpr newSter in
-              let newParams, mismatchedParams =
-                fetchParams newName [lhs; rhs]
-              in
-              let newExpr =
-                match newParams with
-                | [newLHS; newRHS] ->
-                    EBinOp (id, newName, newLHS, newRHS, ster)
-                | _ ->
-                    recover
-                      "wrong number of arguments"
-                      ~debug:newParams
-                      (EBinOp (id, newName, E.newB (), E.newB (), ster))
-              in
-              wrapWithLets ~expr:newExpr mismatchedParams
-          | EFnCall (id, newName, newExprs, newSter) ->
+  let mkTarget (expr : fluidExpr) : caretTarget =
+    match expr with
+    | EBinOp (_id, _opName, lhs, _, _) ->
+        caretTargetForStartOfExpr' lhs
+    | EFnCall (id, fnName, argExprs, _ster) ->
+        argExprs
+        |> List.find ~f:(function EPipeTarget _ -> false | _ -> true)
+        |> Option.map ~f:(fun arg -> caretTargetForStartOfExpr' arg)
+        |> Option.withDefault
+             ~default:
+               { astRef = ARFnCall id
+               ; offset = fnName |> FluidUtil.partialName |> String.length }
+    | EConstructor (id, cName, argExprs) ->
+        argExprs
+        |> List.find ~f:(function EPipeTarget _ -> false | _ -> true)
+        |> Option.map ~f:(fun arg -> caretTargetForStartOfExpr' arg)
+        |> Option.withDefault
+             ~default:{astRef = ARConstructor id; offset = String.length cName}
+    | ELet (id, _, _, _) ->
+        {astRef = ARLet (id, LPVarName); offset = 0}
+    | EIf (_, condExpr, _, _) ->
+        caretTargetForStartOfExpr' condExpr
+    | expr ->
+        caretTargetForEndOfExpr' expr
+  in
+  let mkExprAndTarget (expr : fluidExpr) : fluidExpr * caretTarget =
+    (expr, mkTarget expr)
+  in
+  E.find id ast
+  |> Option.map ~f:(function
+         (* preserve partials with arguments *)
+         | EPartial (_, _, (EFnCall (_, oldName, _, _) as oldExpr))
+         | EPartial (_, _, (EBinOp (_, oldName, _, _, _) as oldExpr))
+         | EPartial (_, _, (EConstructor (_, oldName, _) as oldExpr)) ->
+             let existingExprs = getArgs oldExpr in
+             let fetchParams newName placeholderExprs =
+               let count =
+                 max (List.length existingExprs) (List.length placeholderExprs)
+               in
+               let newParams = getFunctionParams newName count placeholderExprs in
+               let oldParams = getFunctionParams oldName count existingExprs in
+               let matchedParams, mismatchedParams =
+                 List.partition oldParams ~f:(fun p ->
+                     List.any newParams ~f:(isAligned p))
+                 |> Tuple2.mapAll ~f:Option.values
+               in
+               let newParams =
+                 List.foldl
+                   matchedParams
+                   ~init:placeholderExprs
+                   ~f:(fun (_, _, expr, index) exprs ->
+                     List.updateAt ~index ~f:(fun _ -> expr) exprs)
+               in
+               (newParams, mismatchedParams)
+             in
+             ( match newExpr with
+             | EBinOp (id, newName, lhs, rhs, newSter) ->
+                 let ster = chooseSter ~oldName ~oldExpr newSter in
+                 let newParams, mismatchedParams =
+                   fetchParams newName [lhs; rhs]
+                 in
+                 let newExpr =
+                   match newParams with
+                   | [newLHS; newRHS] ->
+                       EBinOp (id, newName, newLHS, newRHS, ster)
+                   | _ ->
+                       recover
+                         "wrong number of arguments"
+                         ~debug:newParams
+                         (EBinOp (id, newName, E.newB (), E.newB (), ster))
+                 in
+                 (wrapWithLets ~expr:newExpr mismatchedParams, mkTarget newExpr)
+             | EFnCall (id, newName, newExprs, newSter) ->
               let ster = chooseSter ~oldName ~oldExpr newSter in
               let newParams, mismatchedParams = fetchParams newName newExprs in
               let newExpr = EFnCall (id, newName, newParams, ster) in
-              wrapWithLets ~expr:newExpr mismatchedParams
-          | EConstructor _ ->
-              let oldParams =
-                existingExprs
-                |> List.indexedMap ~f:(fun i p ->
-                       (* create ugly automatic variable name *)
-                       let name = "var_" ^ string_of_int (DUtil.random ()) in
-                       (name, Runtime.tipe2str TAny, p, i))
-              in
-              wrapWithLets ~expr:newExpr oldParams
-          | _ ->
-              newExpr )
-      | _ ->
-          newExpr)
+                 (wrapWithLets ~expr:newExpr mismatchedParams, mkTarget newExpr)
+             | EConstructor _ ->
+                 let oldParams =
+                   existingExprs
+                   |> List.indexedMap ~f:(fun i p ->
+                          (* create ugly automatic variable name *)
+                          let name = "var_" ^ string_of_int (DUtil.random ()) in
+                          (name, Runtime.tipe2str TAny, p, i))
+                 in
+                 (wrapWithLets ~expr:newExpr oldParams, mkTarget newExpr)
+             | newExpr ->
+                 mkExprAndTarget newExpr )
+         | _ ->
+             mkExprAndTarget newExpr)
+  |> Option.map ~f:(fun (newExpr, target) ->
+         (E.replace id ~replacement:newExpr ast, target))
+  |> recoverOpt
+       "replacePartialWithArguments"
+       ~default:(ast, {astRef = ARInvalid; offset = 0})
 
 
 (* ---------------- *)
@@ -2312,23 +2362,27 @@ let rec extractSubexprFromPartial (expr : E.t) : E.t =
       expr
 
 
-let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
-  match entry with
-  | FACPattern p ->
-    ( match p with
-    | FPAConstructor (mID, patID, var, pats) ->
-        (FPConstructor (mID, patID, var, pats), String.length var + 1)
-    | FPAVariable (mID, patID, var) ->
-        (FPVariable (mID, patID, var), String.length var + 1)
-    | FPABool (mID, patID, var) ->
-        (FPBool (mID, patID, var), String.length (string_of_bool var) + 1)
-    | FPANull (mID, patID) ->
-        (FPNull (mID, patID), 4) )
-  | _ ->
-      recover
-        "got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
-        ~debug:entry
-        (P.FPBlank (gid (), gid ()), 0)
+let acToPattern (entry : Types.fluidAutocompleteItem) :
+    fluidPattern * caretTarget =
+  let selectedPat : P.t =
+    match entry with
+    | FACPattern p ->
+      ( match p with
+      | FPAConstructor (mID, patID, var, pats) ->
+          FPConstructor (mID, patID, var, pats)
+      | FPAVariable (mID, patID, var) ->
+          FPVariable (mID, patID, var)
+      | FPABool (mID, patID, var) ->
+          FPBool (mID, patID, var)
+      | FPANull (mID, patID) ->
+          FPNull (mID, patID) )
+    | _ ->
+        recover
+          "acToPattern - got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
+          ~debug:entry
+          (P.FPBlank (gid (), gid ()))
+  in
+  (selectedPat, caretTargetForEndOfPattern selectedPat)
 
 
 let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
@@ -2390,42 +2444,37 @@ let acMoveDown (s : state) : state =
    - the ast after the completion has been added *)
 let acMoveBasedOnKey
     (key : K.key)
-    (posAtStartOfACedToken : int)
-    (offset : int)
+    (currCaretTarget : caretTarget)
     (s : state)
     (ast : ast) : state =
   let tokens = toTokens ast in
-  let posAtEndOfACedToken = posAtStartOfACedToken + offset in
-  let newPos =
+  let caretTarget : caretTarget =
     match key with
     | K.Tab ->
-      ( match getNextBlank s.newPos tokens with
-      | Some nextBlankTi ->
-          nextBlankTi.startPos
-      | None ->
-          posAtEndOfACedToken )
+        getNextBlank s.newPos tokens
+        |> Option.andThen ~f:(fun nextBlankTi ->
+               caretTargetFromTokenInfo nextBlankTi.startPos nextBlankTi)
+        |> Option.withDefault ~default:currCaretTarget
     | K.ShiftTab ->
-      ( match getPrevBlank s.newPos tokens with
-      | Some prevBlankTi ->
-          prevBlankTi.startPos
-      | None ->
-          posAtStartOfACedToken )
+        getPrevBlank s.newPos tokens
+        |> Option.andThen ~f:(fun prevBlankTi ->
+               caretTargetFromTokenInfo prevBlankTi.startPos prevBlankTi)
+        |> Option.withDefault ~default:currCaretTarget
     | K.Enter ->
-        posAtEndOfACedToken
+        currCaretTarget
     | K.Space ->
-        let newS =
-          (* TODO: consider skipping over non-whitespace separators
-             as well, such as the commas in a list:
-              we currently do [aced|,___]
-              but could do    [aced,|___]
-           *)
-          moveToNextNonWhitespaceToken ~pos:posAtEndOfACedToken ast s
-        in
-        newS.newPos
+        (* TODO: consider skipping over non-whitespace separators
+          as well, such as the commas in a list:
+          we currently do [aced|,___]
+          but could do    [aced,|___]
+        *)
+        let startPos = posFromCaretTarget s ast currCaretTarget in
+        caretTargetForNextNonWhitespaceToken ~pos:startPos ast
+        |> Option.withDefault ~default:currCaretTarget
     | _ ->
-        posAtEndOfACedToken
+        currCaretTarget
   in
-  let newState = moveTo newPos (acClear s) in
+  let newState = moveToCaretTarget (acClear s) ast caretTarget in
   newState
 
 
@@ -2512,19 +2561,21 @@ let updateFromACItem
     (key : K.key) : E.t * state =
   let open FluidExpression in
   let id = T.tid ti.token in
-  let newExpr, offset = acToExpr entry in
+  (* FIXME: This throws an error when given a pattern! *)
+  let newExpr, _offset = acToExpr entry in
   let oldExpr = E.find id ast in
   let parent = E.findParent id ast in
-  let newAST, offset =
+  let newAST, target =
     match (ti.token, oldExpr, parent, newExpr) with
     (* since patterns have no partial but commit as variables
      * automatically, allow intermediate variables to
      * be autocompletable to other expressions *)
     | (TPatternBlank (mID, pID, _) | TPatternVariable (mID, pID, _, _)), _, _, _
       ->
-        let newPat, acOffset = acToPattern entry in
+        (Debug.loG "RENAME10" ());
+        let newPat, target = acToPattern entry in
         let newAST = replacePattern ~newPat mID pID ast in
-        (newAST, acOffset)
+        (newAST, target)
     | ( (TPartial _ | TRightPartial _)
       , Some
           ((ERightPartial (_, _, subExpr) | EPartial (_, _, subExpr)) as oldExpr)
@@ -2535,68 +2586,75 @@ let updateFromACItem
          * means tht instead of tying this to the smallest expression (which is
          * within the partial) we go back and figure out the "line", which is
          * to say the largest expression that doesn't break a line. *)
-        let newAST =
-          let exprToReplace =
-            findAppropriateParentToWrap oldExpr ast
-            |> Option.map ~f:extractSubexprFromPartial
-          in
-          match exprToReplace with
-          | None ->
-              let replacement = EPipe (gid (), [subExpr; E.newB ()]) in
-              E.replace (E.toID oldExpr) ast ~replacement
-          | Some expr when expr = subExpr ->
-              let replacement = EPipe (gid (), [subExpr; E.newB ()]) in
-              E.replace (E.toID oldExpr) ast ~replacement
-          | Some expr ->
-              let expr = E.replace (E.toID oldExpr) expr ~replacement:subExpr in
-              let replacement = EPipe (gid (), [expr; E.newB ()]) in
-              E.replace (E.toID expr) ast ~replacement
+        let exprToReplace =
+          findAppropriateParentToWrap oldExpr ast
+          |> Option.map ~f:extractSubexprFromPartial
         in
-        let tokens = toTokens newAST in
-        let nextBlank = getNextBlankPos s.newPos tokens in
-        (newAST, nextBlank - ti.startPos)
+        ( match exprToReplace with
+        | None ->
+            (Debug.loG "RENAME7" ());
+            let blank = E.newB () in
+            let replacement = EPipe (gid (), [subExpr; blank]) in
+            ( E.replace (E.toID oldExpr) ast ~replacement
+            , caretTargetForEndOfExpr' blank )
+        | Some expr when expr = subExpr ->
+            (Debug.loG "RENAME8" ());
+            let blank = E.newB () in
+            let replacement = EPipe (gid (), [subExpr; blank]) in
+            ( E.replace (E.toID oldExpr) ast ~replacement
+            , caretTargetForEndOfExpr' blank )
+        | Some expr ->
+            (Debug.loG "RENAME9" ());
+            let blank = E.newB () in
+            let expr = E.replace (E.toID oldExpr) expr ~replacement:subExpr in
+            let replacement = EPipe (gid (), [expr; blank]) in
+            ( E.replace (E.toID expr) ast ~replacement
+            , caretTargetForEndOfExpr' blank ) )
     | TPartial _, _, Some (EPipe _), EBinOp (bID, name, _, rhs, str) ->
+        (Debug.loG "RENAME6" ());
         let replacement = EBinOp (bID, name, EPipeTarget (gid ()), rhs, str) in
-        let offset = String.length name + 1 in
         let newAST = E.replace ~replacement id ast in
-        (newAST, offset)
+        (newAST, caretTargetForEndOfExpr' replacement)
     | TPartial _, Some _, Some (EPipe _), EFnCall (fnID, name, _ :: args, str)
       ->
+        (Debug.loG "RENAME3" ());
         let newExpr = EFnCall (fnID, name, EPipeTarget (gid ()) :: args, str) in
-        let offset = String.length name + 1 in
-        let newAST = replacePartialWithArguments ~newExpr id s ast in
-        (newAST, offset)
+        replacePartialWithArguments ~newExpr id s ast
     | ( TPartial _
       , Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
       , _
       , EBinOp (bID, name, _, _, str) ) ->
+        (Debug.loG "RENAME" ());
         let replacement = EBinOp (bID, name, lhs, rhs, str) in
         let newAST = E.replace ~replacement id ast in
-        (newAST, String.length name)
+        (newAST, caretTargetForStartOfExpr' rhs)
     | TPartial _, _, _, _ ->
-        let newAST = replacePartialWithArguments ~newExpr id s ast in
-        (newAST, offset)
+        (Debug.loG "RENAME2" ());
+        replacePartialWithArguments ~newExpr id s ast
     | ( TRightPartial _
       , Some (ERightPartial (_, _, oldExpr))
       , _
       , EBinOp (bID, name, _, rhs, str) ) ->
+        (Debug.loG "RENAME11" ());
         let replacement = EBinOp (bID, name, oldExpr, rhs, str) in
         let newAST = E.replace ~replacement id ast in
-        (newAST, String.length name)
+        (newAST, caretTargetForStartOfExpr' rhs)
     | ( (TFieldName _ | TFieldPartial _ | TBlank _)
       , Some
           ( EFieldAccess (faID, expr, _)
           | EPartial (_, _, EFieldAccess (faID, expr, _)) )
       , _
       , EFieldAccess (_, _, newname) ) ->
+        (Debug.loG "RENAME4" ());
         let replacement = EFieldAccess (faID, expr, newname) in
         let newAST = E.replace ~replacement id ast in
-        (newAST, offset)
+        (newAST, caretTargetForEndOfExpr' replacement)
     | _, _, _, _ ->
+        (Debug.loG "RENAME5" ());
         let newAST = E.replace ~replacement:newExpr id ast in
-        (newAST, offset)
+        (newAST, caretTargetForEndOfExpr' newExpr)
   in
-  (newAST, acMoveBasedOnKey key ti.startPos offset s newAST)
+  (newAST, acMoveBasedOnKey key target s newAST)
 
 
 let acEnter (ti : T.tokenInfo) (ast : ast) (s : state) (key : K.key) :
