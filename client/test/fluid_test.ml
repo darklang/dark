@@ -1706,7 +1706,7 @@ let run () =
         "pressing enter completes partial"
         trueBool
         (inputs [InsertText "|"; keypress K.Down; keypress K.Enter] 4)
-        "true ||~ __________" ;
+        "true || ~__________" ;
       t
         "pressing space completes partial"
         trueBool
@@ -1854,7 +1854,7 @@ let run () =
         "changing binop to fn should work"
         (partial "Int::add" (binop "+" anInt anInt))
         (keys [K.Enter] 14)
-        "Int::add 12345 ~12345" ;
+        "Int::add ~12345 12345" ;
       t
         "changing fn to binops should work"
         (partial "+" (fn "Int::add" [anInt; anInt]))
@@ -1864,7 +1864,7 @@ let run () =
         "changing binop should work"
         (binop "<" anInt anInt)
         (inputs [InsertText "="; keypress K.Enter] 7)
-        "12345 <=~ 12345" ;
+        "12345 <= ~12345" ;
       t
         ~expectsPartial:true
         "adding binop in `if` works"
