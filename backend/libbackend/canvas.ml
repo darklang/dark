@@ -921,10 +921,7 @@ let migrate_host (host : string) : (string, unit) Tc.Result.t =
              ~canvas_id
              ~tlid
              ~host
-             ~f:
-               (List.map ~f:(fun op ->
-                    print_endline (Op.show_op op) ;
-                    migrate_op op))
+             ~f:(List.map ~f:(fun op -> migrate_op op))
              ())
     |> Tc.Result.combine
     |> Tc.Result.map (fun _ -> ())
