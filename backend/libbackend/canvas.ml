@@ -857,6 +857,7 @@ let migrate_host (host : string) : (string, unit) Tc.Result.t =
          Serialize.transactionally_migrate_oplist
            ~canvas_id
            ~tlid
+           ~host
            ~f:(List.map ~f:migrate_op)
            ())
   |> Tc.Result.combine
