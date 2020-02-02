@@ -338,6 +338,52 @@ let fetch_tlids_for_all_dbs ~(canvas_id : Uuidm.t) () : Types.tlid list =
              Exception.internal "Shape of per_tlid oplists")
 
 
+let fetch_all_tlids ~(canvas_id : Uuidm.t) () : Types.tlid list =
+  Db.fetch
+    ~name:"fetch_tlids_for_all_dbs"
+    "SELECT tlid FROM toplevel_oplists
+     WHERE canvas_id = $1"
+    ~params:[Db.Uuid canvas_id]
+  |> List.map ~f:(fun l ->
+         match l with
+         | [data] ->
+             Types.id_of_string data
+         | _ ->
+             Exception.internal "Shape of per_tlid oplists")
+
+
+let transactionally_migrate_oplist
+    ~(canvas_id : Uuidm.t) ~tlid ~(f : Op.oplist -> Op.oplist) () :
+    (string, unit) Tc.Result.t =
+  Db.run ~name:"start oplist migration" "BEGIN;" ~params:[] ;
+  try
+    let oplist =
+      Db.fetch
+        ~name:"load_all_from_db"
+        "SELECT data FROM toplevel_oplists
+         WHERE canvas_id = $1
+         AND tlid = $2"
+        ~params:[Uuid canvas_id; ID tlid]
+        ~result:BinaryResult
+      |> strs2tlid_oplists
+      |> List.hd_exn
+      |> Tc.Tuple2.second
+      |> f
+    in
+    Db.run
+      ~name:"save per tlid oplist"
+      "UPDATE toplevel_oplists
+       SET data = $1
+       WHERE canvas_id = $2
+         AND tlid = $3"
+      ~params:[Binary (Op.oplist_to_string oplist); Uuid canvas_id; ID tlid] ;
+    Db.run ~name:"commit oplist migration" "COMMIT" ~params:[] ;
+    Ok ()
+  with e ->
+    Db.run ~name:"rollback oplist migration" "ROLLBACK" ~params:[] ;
+    Error (Exception.to_string e)
+
+
 let save_toplevel_oplist
     ~(binary_repr : string option)
     ~(tlid : Types.tlid)

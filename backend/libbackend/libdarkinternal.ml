@@ -97,13 +97,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; ins = []
     ; p = []
     ; r = TNull
-    ; d = "TODO"
-    ; f =
-        internal_fn (fun _ ->
-            Canvas.migrate_all_hosts () ;
-            DNull)
+    ; d = "REMOVED"
+    ; f = internal_fn (fun _ -> DNull)
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["DarkInternal::cleanupOldTraces"]
     ; ins = []
     ; p = []
@@ -147,10 +144,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; f =
         internal_fn (function
             | state, [DStr host] ->
-              ( try
-                  Canvas.validate_host (Unicode_string.to_string host) ;
-                  DBool true
-                with _ -> DBool false )
+                DBool (Canvas.validate_host (Unicode_string.to_string host))
             | args ->
                 fail args)
     ; ps = false
