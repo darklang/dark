@@ -353,8 +353,9 @@ let fetch_all_tlids ~(canvas_id : Uuidm.t) () : Types.tlid list =
 
 
 let transactionally_migrate_oplist
-    ~(canvas_id : Uuidm.t) ~tlid ~(f : Op.oplist -> Op.oplist) () :
+    ~(canvas_id : Uuidm.t) ~host ~tlid ~(f : Op.oplist -> Op.oplist) () :
     (string, unit) Tc.Result.t =
+  Log.inspecT "migrating oplists for" (host, tlid) ;
   Db.run ~name:"start oplist migration" "BEGIN;" ~params:[] ;
   try
     let oplist =
@@ -370,14 +371,20 @@ let transactionally_migrate_oplist
       |> Tc.Tuple2.second
       |> f
     in
+    (* TODO: also set the renderedcache *)
     Db.run
       ~name:"save per tlid oplist"
       "UPDATE toplevel_oplists
-       SET data = $1
-       WHERE canvas_id = $2
-         AND tlid = $3"
-      ~params:[Binary (Op.oplist_to_string oplist); Uuid canvas_id; ID tlid] ;
-    Db.run ~name:"commit oplist migration" "COMMIT" ~params:[] ;
+       SET data = $1,
+           digest = $2
+       WHERE canvas_id = $3
+         AND tlid = $4"
+      ~params:
+        [ Binary (Op.oplist_to_string oplist)
+        ; String digest
+        ; Uuid canvas_id
+        ; ID tlid ] ;
+    Db.run ~name:"commit oplist migration" "COMMIT;" ~params:[] ;
     Ok ()
   with e ->
     Db.run ~name:"rollback oplist migration" "ROLLBACK" ~params:[] ;
