@@ -755,21 +755,138 @@ let save_test (c : canvas) : string =
   file
 
 
-let validate_op host op =
-  if Op.is_deprecated op
-  then
-    Exception.internal "bad op" ~info:[("host", host)] ~actual:(Op.show_op op)
+(* --------------- *)
+(* Migrate canvases *)
+(* --------------- *)
+let migrate_bo (bo : 'a or_blank) : 'a or_blank =
+  match bo with Blank _ -> bo | Partial (id, _) -> Blank id | _ -> bo
 
 
-let validate_host host =
+let migrate_op (op : Op.op) : Op.op =
+  let rec migrate_expr (expr : RuntimeT.expr) =
+    let f e = migrate_expr e in
+    match expr with
+    | Partial (id, _) ->
+        Blank id
+    | Blank _ ->
+        expr
+    | Filled (id, nexpr) ->
+        Filled
+          ( id
+          , match nexpr with
+            | Value _ | Variable _ ->
+                nexpr
+            | Let (lhs, rhs, body) ->
+                Let (migrate_bo lhs, f rhs, f body)
+            | If (cond, ifbody, elsebody) ->
+                If (f cond, f ifbody, f elsebody)
+            | FnCall (name, exprs) ->
+                FnCall (name, List.map ~f exprs)
+            | FnCallSendToRail (name, exprs) ->
+                FnCallSendToRail (name, List.map ~f exprs)
+            | Lambda (vars, lexpr) ->
+                Lambda (List.map ~f:migrate_bo vars, f lexpr)
+            | Thread exprs ->
+                Thread (List.map ~f exprs)
+            | FieldAccess (obj, field) ->
+                FieldAccess (f obj, migrate_bo field)
+            | ListLiteral exprs ->
+                ListLiteral (List.map ~f exprs)
+            | ObjectLiteral pairs ->
+                ObjectLiteral
+                  (List.map ~f:(fun (k, v) -> (migrate_bo k, f v)) pairs)
+            | FeatureFlag (msg, cond, a, b) ->
+                FeatureFlag (migrate_bo msg, f cond, f a, f b)
+            | Match (matchExpr, cases) ->
+                Match
+                  ( f matchExpr
+                  , List.map ~f:(fun (k, v) -> (migrate_bo k, f v)) cases )
+            | Constructor (name, args) ->
+                Constructor (name, List.map ~f args)
+            | FluidPartial (name, old_val) ->
+                FluidPartial (name, f old_val)
+            | FluidRightPartial (name, old_val) ->
+                FluidRightPartial (name, f old_val) )
+  in
+  match op with
+  | SetHandler (tlid, pos, handler) ->
+      SetHandler (tlid, pos, {handler with ast = migrate_expr handler.ast})
+  | SetFunction fn ->
+      let migrate_bo_ufn_param (p : RuntimeT.ufn_param) : RuntimeT.ufn_param =
+        {p with name = migrate_bo p.name; tipe = migrate_bo p.tipe}
+      in
+      let migrate_bo_metadata (m : RuntimeT.ufn_metadata) :
+          RuntimeT.ufn_metadata =
+        { m with
+          name = migrate_bo m.name
+        ; parameters = List.map m.parameters ~f:migrate_bo_ufn_param
+        ; return_type = migrate_bo m.return_type }
+      in
+      SetFunction
+        { fn with
+          ast = migrate_expr fn.ast
+        ; metadata = migrate_bo_metadata fn.metadata }
+  | SetExpr (tlid, id, expr) ->
+      SetExpr (tlid, id, migrate_expr expr)
+  | CreateDBMigration (tlid, id1, id2, list) ->
+      CreateDBMigration
+        ( tlid
+        , id1
+        , id2
+        , List.map list ~f:(fun (k, v) -> (migrate_bo k, migrate_bo v)) )
+  | SetType tipe ->
+      let open RuntimeT in
+      (* TODO remove from tipe *)
+      let migrate_bo_definition (UTRecord fields) =
+        UTRecord
+          (List.map fields ~f:(fun {name; tipe} ->
+               {name = migrate_bo name; tipe = migrate_bo tipe}))
+      in
+      SetType
+        { tipe with
+          name = migrate_bo tipe.name
+        ; definition = migrate_bo_definition tipe.definition }
+  | _ ->
+      op
+
+
+let migrate_host (host : string) : (string, unit) Tc.Result.t =
+  let canvas_id = id_for_name host in
+  Serialize.fetch_all_tlids ~canvas_id ()
+  |> List.map ~f:(fun tlid ->
+         Serialize.transactionally_migrate_oplist
+           ~canvas_id
+           ~tlid
+           ~f:(List.map ~f:migrate_op)
+           ())
+  |> Tc.Result.combine
+  |> Tc.Result.map (fun _ -> ())
+
+
+let migrate_all_hosts () =
+  let hosts = Serialize.current_hosts () in
+  List.iter hosts ~f:(fun host -> migrate_host host |> Result.ok_or_failwith)
+
+
+(* --------------- *)
+(* Validate canvases *)
+(* --------------- *)
+
+let is_valid_op op : bool = Op.is_deprecated op
+
+let validate_host host : bool =
   match load_all host [] with
   | Ok c ->
-      (* check ops *)
-      List.iter (Op.tlid_oplists2oplist !c.ops) ~f:(validate_op host)
+      Op.tlid_oplists2oplist !c.ops |> Tc.List.all ~f:is_valid_op
   | Error errs ->
-      Exception.internal
-        "Bad canvas state"
-        ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
+      false
+
+
+let validate_all_hosts () =
+  let hosts = Serialize.current_hosts () in
+  List.iter hosts ~f:(fun host ->
+      if not (validate_host host)
+      then Exception.internal ~info:[("host", host)] "Invalid host")
 
 
 (* just load, don't save -- also don't validate the ops don't
@@ -789,25 +906,6 @@ let check_tier_one_hosts () : unit =
             "Bad canvas state")
 
 
-let migrate_all_hosts () : unit =
-  (* let hosts = Serialize.current_hosts () in *)
-  (*  *)
-  (* List.iter hosts *)
-  (*   ~f:(fun host -> *)
-  (*     let c = load_all host [] in *)
-  (*  *)
-  (*     (* check ops *) *)
-  (*     List.iter (Op.tlid_oplists2oplist !c.ops) *)
-  (*       ~f:(validate_op host); *)
-  (*  *)
-  (*     let new_ops = *)
-  (*     in *)
-  (*     c := { !c with ops = new_ops}; *)
-  (*     save_all !c); *)
-  (*  *)
-  ()
-
-
 let time (fn : unit -> 'a) : float * 'a =
   let start = Unix.gettimeofday () in
   let a = fn () in
@@ -815,6 +913,9 @@ let time (fn : unit -> 'a) : float * 'a =
   (elapsed, a)
 
 
+(* --------------- *)
+(* Cleanup canvases *)
+(* --------------- *)
 let cleanup_old_traces () : float =
   let logdata = ref [] in
   let total_time, _ =
