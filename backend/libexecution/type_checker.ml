@@ -70,7 +70,7 @@ let user_tipe_list_to_type_env (tipes : user_tipe list) : type_env =
       match t.name with
       | Filled (_, name) ->
           TypeEnv.add_exn map ~key:(name, t.version) ~data:t
-      | Partial _ | Blank _ ->
+      | Blank _ ->
           map)
 
 

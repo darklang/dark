@@ -187,8 +187,6 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
                 match t with
                 | Filled (id, ts) ->
                     (n, Filled (id, Dval.tipe_of_string ts))
-                | Partial _ as b ->
-                    (n, b)
                 | Blank _ as b ->
                     (n, b))
           in
@@ -809,17 +807,11 @@ let check_tier_one_hosts () : unit =
 (* Migrate canvases *)
 (* --------------- *)
 
-let migrate_or_blank (ob : 'a or_blank) : 'a or_blank =
-  (* Remove Partial: this implementation of partials didn't solve the problem
-   * and so didn't get use. *)
-  match ob with Blank _ -> ob | Partial (id, _) -> Blank id | Filled _ -> ob
-
+let migrate_or_blank (ob : 'a or_blank) : 'a or_blank = ob
 
 let rec migrate_expr (expr : RuntimeT.expr) =
   let f e = migrate_expr e in
   match expr with
-  | Partial (id, _) ->
-      Blank id
   | Blank _ ->
       expr
   | Filled (id, nexpr) ->

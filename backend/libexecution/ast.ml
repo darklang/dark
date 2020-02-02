@@ -9,29 +9,23 @@ module RT = Runtime
 (* Convert blanks *)
 (* -------------------- *)
 let blank_to_id (bo : 'a or_blank) : id =
-  match bo with Filled (id, _) -> id | Partial (id, _) | Blank id -> id
+  match bo with Filled (id, _) -> id | Blank id -> id
 
 
 let rec blank_to_option (bo : 'a or_blank) : 'a option =
-  match bo with Partial _ | Blank _ -> None | Filled (_, a) -> Some a
+  match bo with Blank _ -> None | Filled (_, a) -> Some a
 
 
 let is_blank (bo : 'a or_blank) : bool =
-  match bo with Filled _ -> false | Partial _ | Blank _ -> true
+  match bo with Filled _ -> false | Blank _ -> true
 
 
 let blank_map ~(f : 'a -> 'b) (bo : 'a or_blank) : 'b or_blank =
-  match bo with
-  | Filled (id, a) ->
-      Filled (id, f a)
-  | Partial (id, v) ->
-      Partial (id, v)
-  | Blank id ->
-      Blank id
+  match bo with Filled (id, a) -> Filled (id, f a) | Blank id -> Blank id
 
 
 let blank_to_string (bo : string or_blank) : string =
-  match bo with Filled (_, a) -> a | Partial _ | Blank _ -> "___"
+  match bo with Filled (_, a) -> a | Blank _ -> "___"
 
 
 (* -------------------- *)
@@ -39,8 +33,6 @@ let blank_to_string (bo : string or_blank) : string =
 (* -------------------- *)
 let rec pattern2expr p : expr =
   match p with
-  | Partial (id, v) ->
-      Partial (id, v)
   | Blank id ->
       Blank id
   | Filled (id, PLiteral p) ->
@@ -58,7 +50,7 @@ let rec pattern2expr p : expr =
 (* Co-recursive. See example below. *)
 let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
   match expr with
-  | Partial _ | Blank _ ->
+  | Blank _ ->
       expr
   | Filled (id, nexpr) ->
       Filled
@@ -101,7 +93,7 @@ let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
 (* Example usage of traverse. See also AST.ml *)
 let rec example_traversal expr =
   match expr with
-  | Partial _ | Blank _ ->
+  | Blank _ ->
       Filled (Util.create_id (), Value "\"example\"")
   | expr ->
       traverse ~f:example_traversal expr
@@ -129,7 +121,7 @@ let find_db (dbs : DbT.db list) (name : string) : DbT.db =
   dbs
   |> List.filter ~f:(fun db ->
          match db.name with
-         | Partial _ | Blank _ ->
+         | Blank _ ->
              false
          | Filled (_, dbname) ->
              dbname = name)
@@ -217,7 +209,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           call name id (arg :: List.map ~f:(exe st) exprs) send_to_rail
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
-      | Partial _ | Blank _ ->
+      | Blank _ ->
           arg
       | _ ->
           (* calculate the results inside this regardless *)
@@ -230,8 +222,6 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
   let value _ =
     match expr with
     | Blank id ->
-        DIncomplete (SourceId id)
-    | Partial (id, _) ->
         DIncomplete (SourceId id)
     | Filled (_, FluidPartial (_, expr))
     | Filled (_, FluidRightPartial (_, expr)) ->
@@ -246,7 +236,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               match lhs with
               | Filled (_, name) ->
                   DvalMap.insert ~key:name ~value:data st
-              | Partial _ | Blank _ ->
+              | Blank _ ->
                   st
             in
             exe bound body )
@@ -410,8 +400,6 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           List.filter_map params ~f:(function
               | Blank _ ->
                   None
-              | Partial _ ->
-                  None
               | Filled (id, name) ->
                   Some (id, name))
         in
@@ -479,7 +467,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           match obj with
           | DObj o ->
             ( match field with
-            | Partial (id, _) | Blank id ->
+            | Blank id ->
                 DIncomplete (SourceId id)
             | Filled (_, f) ->
               (match Map.find o f with Some v -> v | None -> DNull) )
@@ -678,7 +666,7 @@ and exec_fn
                      match db.name with
                      | Filled (_, name) ->
                          Some (name, DDB name)
-                     | Partial _ | Blank _ ->
+                     | Blank _ ->
                          None)
               |> DvalMap.from_list
             in

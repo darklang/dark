@@ -191,11 +191,7 @@ let t_db_rename () =
   match List.hd state.dbs with
   | Some db ->
       let newname =
-        match db.name with
-        | Filled (_, name) ->
-            name
-        | Partial _ | Blank _ ->
-            ""
+        match db.name with Filled (_, name) -> name | Blank _ -> ""
       in
       AT.check AT.string "datastore rename success" "BsCode" newname
   | None ->

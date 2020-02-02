@@ -74,7 +74,6 @@ module TLIDTable = IDTable
 type 'a or_blank =
   | Blank of id
   | Filled of id * 'a
-  | Partial of id * string
 [@@deriving eq, compare, show {with_path = false}, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)

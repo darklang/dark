@@ -14,7 +14,7 @@ let flatmap ~(f : 'a -> 'b list) : 'a list -> 'b list =
 
 let rec fnnames_of_expr (expr : RTT.expr) : RTT.fnname list =
   match expr with
-  | Partial _ | Blank _ ->
+  | Blank _ ->
       []
   | Filled (_, nexpr) ->
     ( match nexpr with
@@ -88,8 +88,7 @@ let process_canvas (canvas : Canvas.canvas ref) : fn list =
     let spec = handler.spec in
     String.concat
       ( [spec.module_; spec.name; spec.modifier]
-      |> List.map ~f:(function Filled (_, s) -> s | Partial _ | Blank _ -> "")
-      )
+      |> List.map ~f:(function Filled (_, s) -> s | Blank _ -> "") )
       ~sep:"-"
   in
   let handlers =
