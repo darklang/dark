@@ -144,7 +144,12 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; f =
         internal_fn (function
             | state, [DStr host] ->
-                DBool (Canvas.validate_host (Unicode_string.to_string host))
+                let open Prelude.Result in
+                ( match Canvas.validate_host (Unicode_string.to_string host) with
+                | Ok _ ->
+                    DBool true
+                | Error _ ->
+                    DBool false )
             | args ->
                 fail args)
     ; ps = false

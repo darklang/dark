@@ -756,8 +756,70 @@ let save_test (c : canvas) : string =
 
 
 (* --------------- *)
+(* Validate canvases *)
+(* --------------- *)
+
+(* This is a little broad, since we could limit it to tlids, but good enough
+ * for now *)
+let known_invalid_hosts =
+  Tc.StrSet.from_list
+    [ "danbowles"
+    ; "danwetherald"
+    ; "ellen-dbproblem18"
+    ; "ellen-preview"
+    ; "ellen-stltrialrun"
+    ; "ellen-trinity" ]
+
+
+let all_hosts () : string list =
+  List.filter (Serialize.current_hosts ()) ~f:(fun host ->
+      not (Tc.StrSet.member known_invalid_hosts ~value:host))
+
+
+let is_valid_op op : bool = not (Op.is_deprecated op)
+
+let validate_host host : (unit, string) Result.t =
+  try
+    match load_all host [] with
+    | Ok c ->
+        let is_valid =
+          !c.ops |> Op.tlid_oplists2oplist |> Tc.List.all ~f:is_valid_op
+        in
+        if is_valid then Ok () else Error ("Invalid ops in " ^ host)
+    | Error errs ->
+        Error ("can't load " ^ host ^ ":\n" ^ Tc.String.join ~sep:", " errs)
+  with e -> Error ("Invalid canvas " ^ host ^ ":\n" ^ Exception.to_string e)
+
+
+let validate_all_hosts () : unit =
+  all_hosts ()
+  |> List.map ~f:validate_host
+  |> Tc.Result.combine
+  |> Tc.Result.map (fun _ -> ())
+  |> Result.ok_or_failwith
+
+
+(* just load, don't save -- also don't validate the ops don't
+ * have deprecate ops (via validate_op or validate_host). this
+ * function is used by the readiness check to gate deploys, so
+ * we don't want to prevent deploys because someone forgot a deprecatedop
+ * in a tier 1 canvas somewhere *)
+let check_tier_one_hosts () : unit =
+  let hosts = Serialize.tier_one_hosts () in
+  List.iter hosts ~f:(fun host ->
+      match load_all host [] with
+      | Ok _ ->
+          ()
+      | Error errs ->
+          Exception.internal
+            ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
+            "Bad canvas state")
+
+
+(* --------------- *)
 (* Migrate canvases *)
 (* --------------- *)
+
 let migrate_bo (bo : 'a or_blank) : 'a or_blank =
   match bo with Blank _ -> bo | Partial (id, _) -> Blank id | _ -> bo
 
@@ -851,60 +913,27 @@ let migrate_op (op : Op.op) : Op.op =
 
 
 let migrate_host (host : string) : (string, unit) Tc.Result.t =
-  let canvas_id = id_for_name host in
-  Serialize.fetch_all_tlids ~canvas_id ()
-  |> List.map ~f:(fun tlid ->
-         Serialize.transactionally_migrate_oplist
-           ~canvas_id
-           ~tlid
-           ~host
-           ~f:(List.map ~f:migrate_op)
-           ())
-  |> Tc.Result.combine
-  |> Tc.Result.map (fun _ -> ())
+  try
+    let canvas_id = id_for_name host in
+    Serialize.fetch_all_tlids ~canvas_id ()
+    |> List.map ~f:(fun tlid ->
+           Serialize.transactionally_migrate_oplist
+             ~canvas_id
+             ~tlid
+             ~host
+             ~f:
+               (List.map ~f:(fun op ->
+                    print_endline (Op.show_op op) ;
+                    migrate_op op))
+             ())
+    |> Tc.Result.combine
+    |> Tc.Result.map (fun _ -> ())
+  with e -> Error (Exception.to_string e)
 
 
 let migrate_all_hosts () =
-  let hosts = Serialize.current_hosts () in
-  List.iter hosts ~f:(fun host -> migrate_host host |> Result.ok_or_failwith)
-
-
-(* --------------- *)
-(* Validate canvases *)
-(* --------------- *)
-
-let is_valid_op op : bool = Op.is_deprecated op
-
-let validate_host host : bool =
-  match load_all host [] with
-  | Ok c ->
-      Op.tlid_oplists2oplist !c.ops |> Tc.List.all ~f:is_valid_op
-  | Error errs ->
-      false
-
-
-let validate_all_hosts () =
-  let hosts = Serialize.current_hosts () in
-  List.iter hosts ~f:(fun host ->
-      if not (validate_host host)
-      then Exception.internal ~info:[("host", host)] "Invalid host")
-
-
-(* just load, don't save -- also don't validate the ops don't
- * have deprecate ops (via validate_op or validate_host). this
- * function is used by the readiness check to gate deploys, so
- * we don't want to prevent deploys because someone forgot a deprecatedop
- * in a tier 1 canvas somewhere *)
-let check_tier_one_hosts () : unit =
-  let hosts = Serialize.tier_one_hosts () in
-  List.iter hosts ~f:(fun host ->
-      match load_all host [] with
-      | Ok _ ->
-          ()
-      | Error errs ->
-          Exception.internal
-            ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
-            "Bad canvas state")
+  List.iter (all_hosts ()) ~f:(fun host ->
+      migrate_host host |> Result.ok_or_failwith)
 
 
 let time (fn : unit -> 'a) : float * 'a =
