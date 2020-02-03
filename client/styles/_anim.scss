@@ -79,11 +79,11 @@ i.fa-spinner {
   }
 }
 
-@keyframes blinkForeground {
+@keyframes blinkGlow {
   from {
-    color: $cyan;
+    box-shadow: $cyan 0 0 4px 1px;
   }
   to {
-    color: saturate($cyan, 10%);
+    box-shadow: $cyan 0 0 0 0;
   }
 }

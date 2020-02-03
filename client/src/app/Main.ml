@@ -1983,6 +1983,8 @@ let update_ (msg : msg) (m : model) : modification =
              let oldPos = dragging in
              UserFunctions.moveParams fn oldPos newPos)
       |> Option.withDefault ~default:NoChange
+  | ResetFnSpace ->
+      TweakModel (fun m -> {m with currentUserFn = Defaults.defaultFnSpace})
 
 
 let rec filter_read_only (m : model) (modification : modification) =

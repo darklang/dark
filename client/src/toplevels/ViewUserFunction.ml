@@ -188,6 +188,7 @@ let viewParam
     ParamDragStart index
   in
   let dragEnd _ = ParamDragDone in
+  let flashFade str = if str = "blinkGlow" then ResetFnSpace else IgnoreMsg in
   let conditionalClasses =
     [ ( "dragging"
       , vs.fnSpace.draggingParamIndex |> Option.isSomeEqualTo ~value:index )
@@ -204,7 +205,9 @@ let viewParam
           ~key:("fpds-" ^ strId)
           ~preventDefault:false
           dragStart
-      ; onEvent ~event:"dragend" ~key:("fpde-" ^ strId) dragEnd ]
+      ; onEvent ~event:"dragend" ~key:("fpde-" ^ strId) dragEnd
+      ; ViewUtils.onAnimationEnd ~key:("fpdfaded-" ^ strId) ~listener:flashFade
+      ]
       [ ( if vs.permission = Some ReadWrite
         then viewKillParameterBtn fn p
         else Vdom.noNode )

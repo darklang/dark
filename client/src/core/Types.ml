@@ -1254,6 +1254,7 @@ and msg =
   | SpaceDragLeave
   | DropIntoSpace of int
   | ParamDragDone
+  | ResetFnSpace
 
 (* ----------------------------- *)
 (* AB tests *)
