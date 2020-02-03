@@ -1511,14 +1511,26 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
         [("username", `String username)]
         (fun _ ->
           if path = "/logout" && verb = `POST
-          then (
-            Auth.SessionLwt.clear Auth.SessionLwt.backend session ;%lwt
-            let headers =
-              Header.of_list
-                ( username_header username
-                :: Auth.SessionLwt.clear_hdrs Auth.SessionLwt.cookie_key )
-            in
-            S.respond_redirect ~headers ~uri:login_uri () )
+          then
+            if Config.env_display_name = "production"
+            then
+              (* This is the auth0-supporting logout, but it is backwards
+               * compatible - it'll skip the auth0 logout if no access_token is
+               * found, and handle clearing the session regardless *)
+              S.respond_redirect
+                ~uri:("https://login.darklang.com/logout" |> Uri.of_string)
+                ()
+              (* Fallback for local env, where we don't have
+               * login.darklang.com/logout, we just need to clear the session
+               * *)
+            else (
+              Auth.SessionLwt.clear Auth.SessionLwt.backend session ;%lwt
+              let headers =
+                Header.of_list
+                  ( username_header username
+                  :: Auth.SessionLwt.clear_hdrs Auth.SessionLwt.cookie_key )
+              in
+              S.respond_redirect ~headers ~uri:login_uri () )
           else
             let headers = [username_header username] in
             over_headers_promise
