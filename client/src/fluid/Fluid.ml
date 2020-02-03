@@ -2302,7 +2302,8 @@ let addBlankToList (id : id) (ast : ast) : E.t =
 (* Autocomplete *)
 (* -------------------- *)
 
-let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * caretTarget =
+let acToExpr (entry : Types.fluidAutocompleteItem) : (E.t * caretTarget) option
+    =
   let open FluidExpression in
   let mkBlank () : E.t * caretTarget =
     let bID = gid () in
@@ -2321,13 +2322,11 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * caretTarget =
       then
         match args with
         | [lhs; rhs] ->
-            ( EBinOp (gid (), fn.fnName, lhs, rhs, r)
-            , caretTargetForStartOfExpr' rhs )
+            Some
+              ( EBinOp (gid (), fn.fnName, lhs, rhs, r)
+              , caretTargetForStartOfExpr' rhs )
         | _ ->
-            recover
-              "BinOp doesn't have 2 args"
-              ~debug:args
-              (E.newB (), {astRef = ARInvalid; offset = 0})
+            recover "BinOp doesn't have 2 args" ~debug:args None
       else
         (* functions with arguments should place the caret into the first argument
          * while functions without should place it just after the function name
@@ -2343,56 +2342,58 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * caretTarget =
                  ; offset = fn.fnName |> FluidUtil.partialName |> String.length
                  }
         in
-        (EFnCall (fID, fn.fnName, args, r), target)
+        Some (EFnCall (fID, fn.fnName, args, r), target)
   | FACKeyword KLet ->
       let b, target = mkBlank () in
-      (ELet (gid (), "", b, E.newB ()), target)
+      Some (ELet (gid (), "", b, E.newB ()), target)
   | FACKeyword KIf ->
       let b, target = mkBlank () in
-      (EIf (gid (), b, E.newB (), E.newB ()), target)
+      Some (EIf (gid (), b, E.newB (), E.newB ()), target)
   | FACKeyword KLambda ->
       let lID = gid () in
-      ( ELambda (lID, [(gid (), "")], E.newB ())
-      , {astRef = ARLambda (lID, LBPVarName 0); offset = 0} )
+      Some
+        ( ELambda (lID, [(gid (), "")], E.newB ())
+        , {astRef = ARLambda (lID, LBPVarName 0); offset = 0} )
   | FACKeyword KMatch ->
       let matchID = gid () in
       let b, target = mkBlank () in
-      (EMatch (matchID, b, [(FPBlank (matchID, gid ()), E.newB ())]), target)
+      Some
+        (EMatch (matchID, b, [(FPBlank (matchID, gid ()), E.newB ())]), target)
   | FACKeyword KPipe ->
       let b, target = mkBlank () in
-      (EPipe (gid (), [b; E.newB ()]), target)
+      Some (EPipe (gid (), [b; E.newB ()]), target)
   | FACVariable (name, _) ->
       let vID = gid () in
-      ( EVariable (vID, name)
-      , {astRef = ARVariable vID; offset = String.length name} )
+      Some
+        ( EVariable (vID, name)
+        , {astRef = ARVariable vID; offset = String.length name} )
   | FACLiteral "true" ->
       let bID = gid () in
-      (EBool (bID, true), {astRef = ARBool bID; offset = String.length "true"})
+      Some
+        (EBool (bID, true), {astRef = ARBool bID; offset = String.length "true"})
   | FACLiteral "false" ->
       let bID = gid () in
-      (EBool (bID, false), {astRef = ARBool bID; offset = String.length "false"})
+      Some
+        ( EBool (bID, false)
+        , {astRef = ARBool bID; offset = String.length "false"} )
   | FACLiteral "null" ->
       let nID = gid () in
-      (ENull nID, {astRef = ARNull nID; offset = String.length "null"})
+      Some (ENull nID, {astRef = ARNull nID; offset = String.length "null"})
   | FACConstructorName (name, argCount) ->
       let args = List.initialize argCount (fun _ -> EBlank (gid ())) in
       let expr = EConstructor (gid (), name, args) in
-      (expr, caretTargetForEndOfExpr' expr)
-  | FACPattern _ ->
-      recover
-        "patterns are not supported here"
-        ~debug:entry
-        (E.newB (), {astRef = ARInvalid; offset = 0})
+      Some (expr, caretTargetForEndOfExpr' expr)
   | FACField fieldname ->
       let fID = gid () in
-      ( EFieldAccess (fID, E.newB (), fieldname)
-      , { astRef = ARFieldAccess (fID, FAPFieldname)
-        ; offset = String.length fieldname } )
+      Some
+        ( EFieldAccess (fID, E.newB (), fieldname)
+        , { astRef = ARFieldAccess (fID, FAPFieldname)
+          ; offset = String.length fieldname } )
   | FACLiteral _ ->
-      recover
-        "invalid literal in autocomplete"
-        ~debug:entry
-        (E.newB (), {astRef = ARInvalid; offset = 0})
+      recover "invalid literal in autocomplete" ~debug:entry None
+  | FACPattern _ ->
+      (* This only works for exprs *)
+      None
 
 
 let rec extractSubexprFromPartial (expr : E.t) : E.t =
@@ -2404,26 +2405,37 @@ let rec extractSubexprFromPartial (expr : E.t) : E.t =
 
 
 let acToPattern (entry : Types.fluidAutocompleteItem) :
-    fluidPattern * caretTarget =
-  let selectedPat : P.t =
+    (fluidPattern * caretTarget) option =
+  let selectedPat : P.t option =
     match entry with
     | FACPattern p ->
       ( match p with
       | FPAConstructor (mID, patID, var, pats) ->
-          FPConstructor (mID, patID, var, pats)
+          Some (FPConstructor (mID, patID, var, pats))
       | FPAVariable (mID, patID, var) ->
-          FPVariable (mID, patID, var)
+          Some (FPVariable (mID, patID, var))
       | FPABool (mID, patID, var) ->
-          FPBool (mID, patID, var)
+          Some (FPBool (mID, patID, var))
       | FPANull (mID, patID) ->
-          FPNull (mID, patID) )
+          Some (FPNull (mID, patID)) )
     | _ ->
-        recover
-          "acToPattern - got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
-          ~debug:entry
-          (P.FPBlank (gid (), gid ()))
+        (* This only works for patterns *)
+        None
   in
-  (selectedPat, caretTargetForEndOfPattern selectedPat)
+  selectedPat |> Option.map ~f:(fun p -> (p, caretTargetForEndOfPattern p))
+
+
+let acToPatternOrExpr (entry : Types.fluidAutocompleteItem) :
+    E.fluidPatOrExpr * caretTarget =
+  acToPattern entry
+  |> Option.map ~f:(fun (pat, target) -> (E.Pat pat, target))
+  |> Option.orElseLazy (fun () ->
+         acToExpr entry
+         |> Option.map ~f:(fun (expr, target) -> (E.Expr expr, target)))
+  |> recoverOpt
+       "acToPatternOrExpr"
+       ~debug:entry
+       ~default:(E.Expr (E.newB ()), {astRef = ARInvalid; offset = 0})
 
 
 let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
@@ -2484,10 +2496,8 @@ let acMoveDown (s : state) : state =
    - the state after the completion has been added to the ast
    - the ast after the completion has been added *)
 let acMoveBasedOnKey
-    (key : K.key)
-    (currCaretTarget : caretTarget)
-    (s : state)
-    (ast : ast) : state =
+    (key : K.key) (currCaretTarget : caretTarget) (s : state) (ast : ast) :
+    state =
   let tokens = toTokens ast in
   let caretTarget : caretTarget =
     match key with
@@ -2602,21 +2612,21 @@ let updateFromACItem
     (key : K.key) : E.t * state =
   let open FluidExpression in
   let id = T.tid ti.token in
-  (* FIXME: This throws an error when given a pattern! *)
-  let newExpr, newExprTarget = acToExpr entry in
+  let newPatOrExpr, newTarget = acToPatternOrExpr entry in
   let oldExpr = E.find id ast in
   let parent = E.findParent id ast in
   let newAST, target =
-    match (ti.token, oldExpr, parent, newExpr) with
+    match (ti.token, oldExpr, parent, newPatOrExpr) with
     (* since patterns have no partial but commit as variables
      * automatically, allow intermediate variables to
      * be autocompletable to other expressions *)
-    | (TPatternBlank (mID, pID, _) | TPatternVariable (mID, pID, _, _)), _, _, _
-      ->
-        (Debug.loG "RENAME10" ());
-        let newPat, target = acToPattern entry in
+    | ( (TPatternBlank (mID, pID, _) | TPatternVariable (mID, pID, _, _))
+      , _
+      , _
+      , Pat newPat ) ->
+        Debug.loG "RENAME10" () ;
         let newAST = replacePattern ~newPat mID pID ast in
-        (newAST, target)
+        (newAST, newTarget)
     | ( (TPartial _ | TRightPartial _)
       , Some
           ((ERightPartial (_, _, subExpr) | EPartial (_, _, subExpr)) as oldExpr)
@@ -2633,54 +2643,56 @@ let updateFromACItem
         in
         ( match exprToReplace with
         | None ->
-            (Debug.loG "RENAME7" ());
+            Debug.loG "RENAME7" () ;
             let blank = E.newB () in
             let replacement = EPipe (gid (), [subExpr; blank]) in
             ( E.replace (E.toID oldExpr) ast ~replacement
             , caretTargetForEndOfExpr' blank )
         | Some expr when expr = subExpr ->
-            (Debug.loG "RENAME8" ());
+            Debug.loG "RENAME8" () ;
             let blank = E.newB () in
             let replacement = EPipe (gid (), [subExpr; blank]) in
             ( E.replace (E.toID oldExpr) ast ~replacement
             , caretTargetForEndOfExpr' blank )
         | Some expr ->
-            (Debug.loG "RENAME9" ());
+            Debug.loG "RENAME9" () ;
             let blank = E.newB () in
             let expr = E.replace (E.toID oldExpr) expr ~replacement:subExpr in
             let replacement = EPipe (gid (), [expr; blank]) in
             ( E.replace (E.toID expr) ast ~replacement
             , caretTargetForEndOfExpr' blank ) )
-    | TPartial _, _, Some (EPipe _), EBinOp (bID, name, _, rhs, str) ->
-        (Debug.loG "RENAME6" ());
+    | TPartial _, _, Some (EPipe _), Expr (EBinOp (bID, name, _, rhs, str)) ->
+        Debug.loG "RENAME6" () ;
         let replacement = EBinOp (bID, name, EPipeTarget (gid ()), rhs, str) in
         let newAST = E.replace ~replacement id ast in
         (newAST, caretTargetForEndOfExpr' replacement)
-    | TPartial _, Some _, Some (EPipe _), EFnCall (fnID, name, _ :: args, str)
-      ->
-        (Debug.loG "RENAME3" ());
+    | ( TPartial _
+      , Some _
+      , Some (EPipe _)
+      , Expr (EFnCall (fnID, name, _ :: args, str)) ) ->
+        Debug.loG "RENAME3" () ;
         let newExpr = EFnCall (fnID, name, EPipeTarget (gid ()) :: args, str) in
-        (* We can't use the newExprTarget because they might point to eg a blank
+        (* We can't use the newTarget because it might point to eg a blank
          * replaced with an argument *)
         replacePartialWithArguments ~newExpr id s ast
     | ( TPartial _
       , Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
       , _
-      , EBinOp (bID, name, _, _, str) ) ->
-        (Debug.loG "RENAME" ());
+      , Expr (EBinOp (bID, name, _, _, str)) ) ->
+        Debug.loG "RENAME" () ;
         let replacement = EBinOp (bID, name, lhs, rhs, str) in
         let newAST = E.replace ~replacement id ast in
         (newAST, caretTargetForStartOfExpr' rhs)
-    | TPartial _, _, _, _ ->
-        (Debug.loG "RENAME2" ());
-        (* We can't use the newExprTarget because they might point to eg a blank
+    | TPartial _, _, _, Expr newExpr ->
+        Debug.loG "RENAME2" () ;
+        (* We can't use the newTarget because it might point to eg a blank
          * replaced with an argument *)
         replacePartialWithArguments ~newExpr id s ast
     | ( TRightPartial _
       , Some (ERightPartial (_, _, oldExpr))
       , _
-      , EBinOp (bID, name, _, rhs, str) ) ->
-        (Debug.loG "RENAME11" ());
+      , Expr (EBinOp (bID, name, _, rhs, str)) ) ->
+        Debug.loG "RENAME11" () ;
         let replacement = EBinOp (bID, name, oldExpr, rhs, str) in
         let newAST = E.replace ~replacement id ast in
         (newAST, caretTargetForStartOfExpr' rhs)
@@ -2689,15 +2701,20 @@ let updateFromACItem
           ( EFieldAccess (faID, expr, _)
           | EPartial (_, _, EFieldAccess (faID, expr, _)) )
       , _
-      , EFieldAccess (_, _, newname) ) ->
-        (Debug.loG "RENAME4" ());
+      , Expr (EFieldAccess (_, _, newname)) ) ->
+        Debug.loG "RENAME4" () ;
         let replacement = EFieldAccess (faID, expr, newname) in
         let newAST = E.replace ~replacement id ast in
         (newAST, caretTargetForEndOfExpr' replacement)
-    | _, _, _, _ ->
-        (Debug.loG "RENAME5" ());
+    | _, _, _, Expr newExpr ->
+        Debug.loG "RENAME5" () ;
         let newAST = E.replace ~replacement:newExpr id ast in
-        (newAST, newExprTarget)
+        (newAST, newTarget)
+    | _, _, _, Pat _ ->
+        recover
+          "updateFromACItem - unhandled pattern"
+          ~debug:entry
+          (ast, {astRef = ARInvalid; offset = 0})
   in
   (newAST, acMoveBasedOnKey key target s newAST)
 
@@ -2764,9 +2781,12 @@ let acStartField (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
       let newState = moveToCaretTarget s newAST target |> acClear in
       (newAST, newState)
   | Some entry, _ ->
-      let newExpr, _ignoredTarget = acToExpr entry in
       let replacement =
-        E.EPartial (gid (), "", EFieldAccess (gid (), newExpr, ""))
+        match acToPatternOrExpr entry with
+        | Expr newExpr, _ignoredTarget ->
+            E.EPartial (gid (), "", EFieldAccess (gid (), newExpr, ""))
+        | Pat _, _ ->
+            recover "acStartField" (E.newB ())
       in
       let target = caretTargetForEndOfExpr' replacement in
       let newAST = E.replace ~replacement (T.tid ti.token) ast in
