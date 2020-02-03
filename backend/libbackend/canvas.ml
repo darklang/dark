@@ -612,31 +612,6 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
       , Ast.blank_to_option h.spec.module_
       , Ast.blank_to_option h.spec.modifier )
     in
-    let tipes_list =
-      ( c.handlers
-      |> IDMap.keys
-      |> List.map ~f:(fun tlid -> (tlid, TL.TLHandler)) )
-      @ (c.dbs |> IDMap.keys |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)))
-      @ ( c.user_functions
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
-      @ ( c.user_tipes
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
-      @ ( c.deleted_handlers
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLHandler)) )
-      @ ( c.deleted_dbs
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)) )
-      @ ( c.deleted_user_functions
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
-      @ ( c.deleted_user_tipes
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
-    in
-    let tipes = IDMap.of_alist_exn tipes_list in
     (* Use ops rather than just set of toplevels, because toplevels may
    * have been deleted or undone, and therefore not appear, but it's
    * important to record them. *)
@@ -650,45 +625,65 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             |> Option.map ~f:handler_metadata
             |> Option.value ~default:(None, None, None)
           in
-          let tipe_opt = IDMap.find tipes tlid in
-          (* Pull out denormalized attributes like the binary_repr and the deleted state *)
-          let binary_repr, deleted =
-            match tipe_opt with
-            | Some TL.TLHandler ->
-                IDMap.find c.handlers tlid
-                |> Option.value_map
-                     ~f:(fun h -> (Some h, Some false))
-                     ~default:(IDMap.find c.deleted_handlers tlid, Some true)
-                |> Tuple.T2.map_fst ~f:(Option.bind ~f:TL.as_handler)
-                |> Tuple.T2.map_fst ~f:(Option.map ~f:handler_to_binary_string)
-            | Some TL.TLDB ->
-                IDMap.find c.dbs tlid
-                |> Option.value_map
-                     ~f:(fun db -> (Some db, Some false))
-                     ~default:(IDMap.find c.deleted_dbs tlid, Some true)
-                |> Tuple.T2.map_fst ~f:(Option.bind ~f:TL.as_db)
-                |> Tuple.T2.map_fst ~f:(Option.map ~f:db_to_binary_string)
-            | Some TL.TLUserFunction ->
-                IDMap.find c.user_functions tlid
-                |> Option.value_map
-                     ~f:(fun fn -> (Some fn, Some false))
-                     ~default:
-                       (IDMap.find c.deleted_user_functions tlid, Some true)
-                |> Tuple.T2.map_fst ~f:(Option.map ~f:user_fn_to_binary_string)
-            | Some TL.TLUserTipe ->
-                IDMap.find c.user_tipes tlid
-                |> Option.value_map
-                     ~f:(fun t -> (Some t, Some false))
-                     ~default:(IDMap.find c.deleted_user_tipes tlid, Some true)
-                |> Tuple.T2.map_fst
-                     ~f:(Option.map ~f:user_tipe_to_binary_string)
-            | None ->
-                (None, None)
+          let handler () =
+            IDMap.find c.handlers tlid
+            |> Option.bind ~f:TL.as_handler
+            |> Option.map ~f:(fun h ->
+                   (handler_to_binary_string h, false, TL.TLHandler))
           in
-          (* If the user calls Undo enough, we might not know
-            * the tipe here. In that case, set to handler cause
-            * it won't be used anyway *)
-          let tipe = Option.value ~default:TL.TLHandler tipe_opt in
+          let deleted_handler () =
+            IDMap.find c.deleted_handlers tlid
+            |> Option.bind ~f:TL.as_handler
+            |> Option.map ~f:(fun h ->
+                   (handler_to_binary_string h, true, TL.TLHandler))
+          in
+          let db () =
+            IDMap.find c.dbs tlid
+            |> Option.bind ~f:TL.as_db
+            |> Option.map ~f:(fun db ->
+                   (db_to_binary_string db, false, TL.TLDB))
+          in
+          let deleted_db () =
+            IDMap.find c.deleted_dbs tlid
+            |> Option.bind ~f:TL.as_db
+            |> Option.map ~f:(fun db -> (db_to_binary_string db, true, TL.TLDB))
+          in
+          let user_function () =
+            IDMap.find c.user_functions tlid
+            |> Option.map ~f:(fun fn ->
+                   (user_fn_to_binary_string fn, false, TL.TLUserFunction))
+          in
+          let deleted_user_function () =
+            IDMap.find c.deleted_user_functions tlid
+            |> Option.map ~f:(fun fn ->
+                   (user_fn_to_binary_string fn, true, TL.TLUserFunction))
+          in
+          let user_tipe () =
+            IDMap.find c.user_tipes tlid
+            |> Option.map ~f:(fun t ->
+                   (user_tipe_to_binary_string t, false, TL.TLUserTipe))
+          in
+          let deleted_user_tipe () =
+            IDMap.find c.deleted_user_tipes tlid
+            |> Option.map ~f:(fun t ->
+                   (user_tipe_to_binary_string t, true, TL.TLUserTipe))
+          in
+          let binary_repr, deleted, tipe =
+            handler ()
+            |> Tc.Option.orElseLazy deleted_handler
+            |> Tc.Option.orElseLazy db
+            |> Tc.Option.orElseLazy deleted_handler
+            |> Tc.Option.orElseLazy deleted_db
+            |> Tc.Option.orElseLazy user_function
+            |> Tc.Option.orElseLazy deleted_user_function
+            |> Tc.Option.orElseLazy user_tipe
+            |> Tc.Option.orElseLazy deleted_user_tipe
+            |> Option.map ~f:(fun (str, d, t) -> (Some str, Some d, t))
+            (* If the user calls Undo enough, we might not know
+             * the tipe here. In that case, set to handler cause
+             * it won't be used anyway *)
+            |> Option.value ~default:(None, None, TL.TLHandler)
+          in
           Serialize.save_toplevel_oplist
             oplist
             ~binary_repr
