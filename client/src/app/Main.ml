@@ -906,7 +906,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         , Tea_html_cmds.focus FluidCommands.filterInputID )
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
-        ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
+        ( {m with fluidState = {m.fluidState with cp; selectionStart = None}}
+        , Cmd.none )
     | AddGroup group ->
         (* This code is temp while we work on FE *)
         let nameAlreadyUsed = Groups.isGroupNameUnique group m.groups in
