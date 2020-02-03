@@ -1624,13 +1624,16 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : E.t =
           recover "not a field in replaceFieldName" ~debug:e e)
 
 
-(* exprToFieldAccess wraps the expression with `id` in the `ast` with a
-   partial-wrapped field access where the partial has partialID and the
-   field access has fieldID *)
+(* [exprToFieldAccess id ~partialID ~fieldID] wraps the expression with `id` in the `ast` with a
+   partial-wrapped field access where the partial has partialID and the field access has fieldID.
+   It produces a (newASt, caretTarget) where the caretTarget represents the end of the partial. *)
 let exprToFieldAccess (id : id) ~(partialID : id) ~(fieldID : id) (ast : ast) :
-    E.t =
-  E.update id ast ~f:(fun e ->
-      EPartial (partialID, "", EFieldAccess (fieldID, e, "")))
+    ast * caretTarget =
+  let newAST =
+    E.update id ast ~f:(fun e ->
+        EPartial (partialID, "", EFieldAccess (fieldID, e, "")))
+  in
+  (newAST, {astRef = ARPartial partialID; offset = 0})
 
 
 let removeField (id : id) (ast : ast) : E.t =
@@ -2710,23 +2713,22 @@ let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : E.t =
 let acStartField (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
   let s = recordAction ~ti "acStartField" s in
   match (AC.highlighted s.ac, ti.token) with
-  | Some (FACField fieldname as entry), TFieldName (faID, _, _)
-  | Some (FACField fieldname as entry), TFieldPartial (_, faID, _, _) ->
+  | Some (FACField _ as entry), TFieldName (faID, _, _)
+  | Some (FACField _ as entry), TFieldPartial (_, faID, _, _) ->
       let ast, s = updateFromACItem entry ti ast s K.Enter in
-      let newAST =
+      let newAST, target =
         exprToFieldAccess faID ~partialID:(gid ()) ~fieldID:(gid ()) ast
       in
-      let length = String.length fieldname + 1 in
-      let newState = s |> moveTo (ti.startPos + length) |> acClear in
+      let newState = moveToCaretTarget s newAST target |> acClear in
       (newAST, newState)
   | Some entry, _ ->
-      let newExpr, length = acToExpr entry in
+      let newExpr, _length = acToExpr entry in
       let replacement =
         E.EPartial (gid (), "", EFieldAccess (gid (), newExpr, ""))
       in
-      let length = length + 1 in
-      let newState = s |> moveTo (ti.startPos + length) |> acClear in
+      let target = caretTargetForEndOfExpr' replacement in
       let newAST = E.replace ~replacement (T.tid ti.token) ast in
+      let newState = moveToCaretTarget s newAST target |> acClear in
       (newAST, newState)
   | _ ->
       (ast, s)
@@ -4046,9 +4048,10 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     | (TFieldName (id, _, _) | TVariable (id, _))
       when pos = ti.endPos && letter = "." ->
-        let partialID = gid () in
-        ( exprToFieldAccess id ~partialID ~fieldID:(gid ()) ast
-        , AtTarget {astRef = ARPartial partialID; offset = 0} )
+        let newAST, target =
+          exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) ast
+        in
+        (newAST, AtTarget target)
     (* Dont add space to blanks *)
     | ti when FluidToken.isBlank ti && letter == " " ->
         (ast, SamePlace)
