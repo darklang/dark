@@ -2000,6 +2000,8 @@ let replacePartialWithArguments
         {astRef = ARLet (id, LPVarName); offset = 0}
     | EIf (_, condExpr, _, _) ->
         caretTargetForStartOfExpr' condExpr
+    | EMatch (_, mExpr, _) ->
+        caretTargetForStartOfExpr' mExpr
     | expr ->
         caretTargetForEndOfExpr' expr
   in
@@ -2300,12 +2302,15 @@ let addBlankToList (id : id) (ast : ast) : E.t =
 (* Autocomplete *)
 (* -------------------- *)
 
-let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
+let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * caretTarget =
   let open FluidExpression in
+  let mkBlank () : E.t * caretTarget =
+    let bID = gid () in
+    (EBlank bID, {astRef = ARBlank bID; offset = 0})
+  in
   match entry with
   | FACFunction fn ->
       let count = List.length fn.fnParameters in
-      let partialName = FluidUtil.partialName fn.fnName in
       let r =
         if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
         then Rail
@@ -2316,45 +2321,78 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
       then
         match args with
         | [lhs; rhs] ->
-            (EBinOp (gid (), fn.fnName, lhs, rhs, r), 0)
+            ( EBinOp (gid (), fn.fnName, lhs, rhs, r)
+            , caretTargetForStartOfExpr' rhs )
         | _ ->
-            recover "BinOp doesn't have 2 args" ~debug:args (E.newB (), 0)
+            recover
+              "BinOp doesn't have 2 args"
+              ~debug:args
+              (E.newB (), {astRef = ARInvalid; offset = 0})
       else
         (* functions with arguments should place the caret into the first argument
          * while functions without should place it just after the function name
          * List::head |_list_ [vs] List::empty| *)
-        let fnNameLen = String.length partialName in
-        let offset = if List.isEmpty args then fnNameLen else fnNameLen + 1 in
-        (EFnCall (gid (), fn.fnName, args, r), offset)
+        let fID = gid () in
+        let target =
+          args
+          |> List.find ~f:(function EPipeTarget _ -> false | _ -> true)
+          |> Option.map ~f:(fun arg -> caretTargetForStartOfExpr' arg)
+          |> Option.withDefault
+               ~default:
+                 { astRef = ARFnCall fID
+                 ; offset = fn.fnName |> FluidUtil.partialName |> String.length
+                 }
+        in
+        (EFnCall (fID, fn.fnName, args, r), target)
   | FACKeyword KLet ->
-      (ELet (gid (), "", E.newB (), E.newB ()), 4)
+      let b, target = mkBlank () in
+      (ELet (gid (), "", b, E.newB ()), target)
   | FACKeyword KIf ->
-      (EIf (gid (), E.newB (), E.newB (), E.newB ()), 3)
+      let b, target = mkBlank () in
+      (EIf (gid (), b, E.newB (), E.newB ()), target)
   | FACKeyword KLambda ->
-      (ELambda (gid (), [(gid (), "")], E.newB ()), 1)
+      let lID = gid () in
+      ( ELambda (lID, [(gid (), "")], E.newB ())
+      , {astRef = ARLambda (lID, LBPVarName 0); offset = 0} )
   | FACKeyword KMatch ->
       let matchID = gid () in
-      (EMatch (matchID, E.newB (), [(FPBlank (matchID, gid ()), E.newB ())]), 6)
+      let b, target = mkBlank () in
+      (EMatch (matchID, b, [(FPBlank (matchID, gid ()), E.newB ())]), target)
   | FACKeyword KPipe ->
-      (EPipe (gid (), [E.newB (); E.newB ()]), 6)
+      let b, target = mkBlank () in
+      (EPipe (gid (), [b; E.newB ()]), target)
   | FACVariable (name, _) ->
-      (EVariable (gid (), name), String.length name)
+      let vID = gid () in
+      ( EVariable (vID, name)
+      , {astRef = ARVariable vID; offset = String.length name} )
   | FACLiteral "true" ->
-      (EBool (gid (), true), 4)
+      let bID = gid () in
+      (EBool (bID, true), {astRef = ARBool bID; offset = String.length "true"})
   | FACLiteral "false" ->
-      (EBool (gid (), false), 5)
+      let bID = gid () in
+      (EBool (bID, false), {astRef = ARBool bID; offset = String.length "false"})
   | FACLiteral "null" ->
-      (ENull (gid ()), 4)
+      let nID = gid () in
+      (ENull nID, {astRef = ARNull nID; offset = String.length "null"})
   | FACConstructorName (name, argCount) ->
       let args = List.initialize argCount (fun _ -> EBlank (gid ())) in
-      let starting = if argCount = 0 then 0 else 1 in
-      (EConstructor (gid (), name, args), starting + String.length name)
+      let expr = EConstructor (gid (), name, args) in
+      (expr, caretTargetForEndOfExpr' expr)
   | FACPattern _ ->
-      recover "patterns are not supported here" ~debug:entry (E.newB (), 0)
+      recover
+        "patterns are not supported here"
+        ~debug:entry
+        (E.newB (), {astRef = ARInvalid; offset = 0})
   | FACField fieldname ->
-      (EFieldAccess (gid (), E.newB (), fieldname), String.length fieldname)
+      let fID = gid () in
+      ( EFieldAccess (fID, E.newB (), fieldname)
+      , { astRef = ARFieldAccess (fID, FAPFieldname)
+        ; offset = String.length fieldname } )
   | FACLiteral _ ->
-      recover "invalid literal in autocomplete" ~debug:entry (E.newB (), 0)
+      recover
+        "invalid literal in autocomplete"
+        ~debug:entry
+        (E.newB (), {astRef = ARInvalid; offset = 0})
 
 
 let rec extractSubexprFromPartial (expr : E.t) : E.t =
@@ -2565,7 +2603,7 @@ let updateFromACItem
   let open FluidExpression in
   let id = T.tid ti.token in
   (* FIXME: This throws an error when given a pattern! *)
-  let newExpr, _offset = acToExpr entry in
+  let newExpr, newExprTarget = acToExpr entry in
   let oldExpr = E.find id ast in
   let parent = E.findParent id ast in
   let newAST, target =
@@ -2622,6 +2660,8 @@ let updateFromACItem
       ->
         (Debug.loG "RENAME3" ());
         let newExpr = EFnCall (fnID, name, EPipeTarget (gid ()) :: args, str) in
+        (* We can't use the newExprTarget because they might point to eg a blank
+         * replaced with an argument *)
         replacePartialWithArguments ~newExpr id s ast
     | ( TPartial _
       , Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
@@ -2633,6 +2673,8 @@ let updateFromACItem
         (newAST, caretTargetForStartOfExpr' rhs)
     | TPartial _, _, _, _ ->
         (Debug.loG "RENAME2" ());
+        (* We can't use the newExprTarget because they might point to eg a blank
+         * replaced with an argument *)
         replacePartialWithArguments ~newExpr id s ast
     | ( TRightPartial _
       , Some (ERightPartial (_, _, oldExpr))
@@ -2655,7 +2697,7 @@ let updateFromACItem
     | _, _, _, _ ->
         (Debug.loG "RENAME5" ());
         let newAST = E.replace ~replacement:newExpr id ast in
-        (newAST, caretTargetForEndOfExpr' newExpr)
+        (newAST, newExprTarget)
   in
   (newAST, acMoveBasedOnKey key target s newAST)
 
@@ -2722,7 +2764,7 @@ let acStartField (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
       let newState = moveToCaretTarget s newAST target |> acClear in
       (newAST, newState)
   | Some entry, _ ->
-      let newExpr, _length = acToExpr entry in
+      let newExpr, _ignoredTarget = acToExpr entry in
       let replacement =
         E.EPartial (gid (), "", EFieldAccess (gid (), newExpr, ""))
       in
