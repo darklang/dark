@@ -427,6 +427,42 @@ let reorderFnCallArgs
     match expr with
     | EFnCall (id, name, args, sendToRail) when name = fnName ->
         EFnCall (id, name, List.reorder ~oldPos ~newPos args, sendToRail)
+    | EPipe (id, args) as e ->
+        let default = E.walk ~f:replaceArgs e in
+        ( match args with
+        | [firstArg; (EFnCall (fnId, name, pipeArgs, sendToRail) as fn)]
+          when name = fnName ->
+            (* if fncall is buried inside a pipe, then EPipe's expressions list follow the pattern of:
+        [piped expr; fn call to take in piped expr as first arg] *)
+            if oldPos == 0 || newPos == 0
+               (* Looks like we will have to modify the pipe ordering *)
+            then
+              (* the first item is pipeArgs is EPipeTarget, so we drop that to construct our fncall args list *)
+              let remainingArgs = List.drop ~count:1 pipeArgs in
+              (* join the piped expression with the remainingArgs to construct an args list as if they belong to an unpiped fncall *)
+              let allArgs = firstArg :: remainingArgs in
+              let newOrder = List.reorder ~oldPos ~newPos allArgs in
+              Option.pair (List.head newOrder) (List.tail newOrder)
+              |> Option.map ~f:(fun (first, others) ->
+                     let newRemaining = EPipeTarget (E.toID first) :: others in
+                     let newFn =
+                       EFnCall (fnId, name, newRemaining, sendToRail)
+                     in
+                     let newArgs = [first; newFn] in
+                     EPipe (id, newArgs))
+              |> Option.withDefault ~default
+            else
+              (* Pipe ordering unchanged, just swap other args of the fncall *)
+              let fnId = E.toID fn in
+              let newFn = replaceArgs fn in
+              let newArgs =
+                args
+                |> List.map ~f:(fun ae ->
+                       if E.toID ae = fnId then newFn else ae)
+              in
+              EPipe (id, newArgs)
+        | _ ->
+            default )
     | e ->
         E.walk ~f:replaceArgs e
   in
