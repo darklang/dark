@@ -81,6 +81,9 @@ let defaultWorkerStats : workerStats = {count = 0; schedule = None}
 
 let defaultMenu : menuState = {isOpen = false}
 
+let defaultFnSpace : fnSpace = {draggingParamIndex = None
+; dragOverSpaceIndex = None ; justMovedParam = None}
+
 let defaultModel : model =
   { error = None
   ; lastMsg = IgnoreMsg
@@ -157,4 +160,5 @@ let defaultModel : model =
   ; teaDebuggerEnabled = false
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty
-  ; showUserWelcomeModal = true }
+  ; showUserWelcomeModal = true
+  ; currentUserFn = defaultFnSpace }

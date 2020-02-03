@@ -42,15 +42,12 @@
     display: flex;
     align-items: flex-start;
     flex-direction: column;
-    padding-left: $spacing-medium;
   }
 
   .col {
     display: flex;
     flex-direction: row;
-    margin-bottom: 4px;
-    margin-top: 4px;
-    text-align: center;
+    justify-content: space-between;
 
     .param-divider {
       font-size: 10px;
@@ -93,9 +90,45 @@
     }
   }
 
+  .col.param {
+    width: 100%;
+    padding: 0 $spacing-medium;
+    box-sizing: border-box;
+
+    &.dragging {
+      opacity: 0.3;
+    }
+
+    &.just-moved {
+        animation-duration: 1.5s;
+        animation-name: blinkBackground;
+        animation-iteration-count: 5;
+        animation-direction: alternate;
+    }
+
+    i.fa-grip-lines {
+      color: $grey1;
+      font-size: 12px;
+      cursor: ns-resize;
+    }
+  }
+
+  .col.space {
+    height:1.0em;
+    width: 100%;
+
+    &.over {
+      border: dashed 1px $grey2;
+      background-color: $black1;
+    }
+  }
+
   .col.new-parameter {
+    width: 100%;
     justify-content: flex-start;
     align-items: center;
+    margin-bottom: 0.5em;
+    padding: 0 $spacing-medium;
 
     .parameter-btn.add i {
       margin-right: 8px;
@@ -105,6 +138,7 @@
       color: $grey3;
       font-style: italic;
       font-size: 0.7 * $code-font-size;
+      width: calc(90% - 16px);
     }
 
     &:hover {

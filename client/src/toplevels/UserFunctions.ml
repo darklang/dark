@@ -231,3 +231,16 @@ let inputToArgs (f : userFunction) (input : inputValueDict) : dval list =
              StrDict.get ~key:name input |> Option.withDefault ~default
          | _ ->
              default)
+
+let moveParams (fn : userFunction) (oldPos: int) (newPos :int) : modification =
+  let updateFnWithParams params =
+    let newFn = {fn with ufMetadata = {fn.ufMetadata with ufmParameters = params}} in
+      let updateArgs =
+        match fn.ufMetadata.ufmName with
+        | F (_, name) -> [UpdateFnCallArgs (fn.ufTLID, name, oldPos, newPos)]
+        | Blank _ -> []
+      in
+      Many (SetUserFunctions ([newFn], [], true) :: FnParamMoved newPos :: updateArgs)
+  in
+  let params = fn.ufMetadata.ufmParameters in
+  updateFnWithParams (List.reorder ~oldPos ~newPos params)

@@ -959,6 +959,22 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with fluidState}, Cmd.none)
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
+    | UpdateFnCallArgs (tlid, fnName, oldPos, newPos) ->
+      let astMods = 
+        Introspect.allUsedIn tlid m
+        |> List.filterMap ~f:(fun tl ->
+          match TL.getAST tl with
+          | Some ast -> Some (tl, ast)
+          | None -> None
+        )
+        |> List.map ~f:(fun (tl, ast) ->
+        TL.setASTMod tl (AST.reorderFnCallArgs fnName oldPos newPos ast)
+        )
+      in
+      updateMod (Many astMods) (m, cmd)
+    | FnParamMoved index ->
+      ({m with currentUserFn = {draggingParamIndex = None
+      ; dragOverSpaceIndex = None ; justMovedParam = Some index} }, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1931,6 +1947,21 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
+  | ParamDragStart index ->
+    TweakModel (fun m -> {m with currentUserFn = {m.currentUserFn with draggingParamIndex = Some index} })
+  | SpaceDragEnter index ->
+    TweakModel (fun m -> {m with currentUserFn = {m.currentUserFn with dragOverSpaceIndex = Some index} }) 
+  | SpaceDragLeave ->
+    TweakModel (fun m -> {m with currentUserFn = {m.currentUserFn with dragOverSpaceIndex = None} })
+  | DropIntoSpace newPos ->
+    Page.tlidOf m.currentPage
+    |> Option.andThen ~f:(fun tlid -> TLIDDict.get ~tlid m.userFunctions)
+    |> Option.pair (m.currentUserFn.draggingParamIndex)
+    |> Option.map ~f:(fun (dragging, fn) ->
+      let oldPos = dragging in
+      UserFunctions.moveParams fn oldPos newPos
+    )
+    |> Option.withDefault ~default:NoChange
 
 
 let rec filter_read_only (m : model) (modification : modification) =
