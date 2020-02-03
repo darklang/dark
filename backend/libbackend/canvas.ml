@@ -607,16 +607,11 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
       else n
     in
     let handler_metadata (h : RTT.HandlerT.handler) =
-      ( h.tlid
-      , ( Ast.blank_to_option h.spec.name
-          |> Option.map ~f:(munge_name h.spec.module_)
-        , Ast.blank_to_option h.spec.module_
-        , Ast.blank_to_option h.spec.modifier ) )
+      ( Ast.blank_to_option h.spec.name
+        |> Option.map ~f:(munge_name h.spec.module_)
+      , Ast.blank_to_option h.spec.module_
+      , Ast.blank_to_option h.spec.modifier )
     in
-    let hmeta =
-      c.handlers |> Toplevel.handlers |> List.map ~f:handler_metadata
-    in
-    let routes = IDMap.of_alist_exn hmeta in
     let tipes_list =
       ( c.handlers
       |> IDMap.keys
@@ -650,7 +645,10 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
         if List.mem ~equal:( = ) tlids tlid
         then
           let name, module_, modifier =
-            IDMap.find routes tlid |> Option.value ~default:(None, None, None)
+            IDMap.find c.handlers tlid
+            |> Option.bind ~f:TL.as_handler
+            |> Option.map ~f:handler_metadata
+            |> Option.value ~default:(None, None, None)
           in
           let tipe_opt = IDMap.find tipes tlid in
           (* Pull out denormalized attributes like the binary_repr and the deleted state *)
