@@ -4596,7 +4596,10 @@ let rec updateKey
       when onEdge ->
         doInsert ~pos "," toTheLeft ast s
     | InsertText ",", _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
-        (insertLambdaVar ~index id ~name:"" ast, s)
+        let target = {astRef = ARLambda (id, LBPVarName index); offset = 0} in
+        let newAST = insertLambdaVar ~index id ~name:"" ast in
+        let newState = moveToCaretTarget s newAST target in
+        (newAST, newState)
     | InsertText ",", L (t, ti), _ ->
         if onEdge
         then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
