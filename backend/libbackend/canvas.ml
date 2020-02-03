@@ -898,7 +898,6 @@ let migrate_op (op : Op.op) : Op.op =
         , List.map list ~f:(fun (k, v) -> (migrate_bo k, migrate_bo v)) )
   | SetType tipe ->
       let open RuntimeT in
-      (* TODO remove from tipe *)
       let migrate_bo_definition (UTRecord fields) =
         UTRecord
           (List.map fields ~f:(fun {name; tipe} ->
