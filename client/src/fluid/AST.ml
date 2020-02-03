@@ -420,11 +420,14 @@ let removePartials (ast : E.t) : E.t =
   in
   remove ast
 
-let reorderFnCallArgs (fnName : string) (oldPos: int) (newPos: int) (ast : E.t) : E.t =
-    let rec replaceArgs expr =
-        match expr with
-        | EFnCall (id, name, args, sendToRail) when name = fnName ->
-            EFnCall (id, name, List.reorder ~oldPos ~newPos args, sendToRail)
-        | e -> E.walk ~f:replaceArgs e
-    in
-    replaceArgs ast
+
+let reorderFnCallArgs
+    (fnName : string) (oldPos : int) (newPos : int) (ast : E.t) : E.t =
+  let rec replaceArgs expr =
+    match expr with
+    | EFnCall (id, name, args, sendToRail) when name = fnName ->
+        EFnCall (id, name, List.reorder ~oldPos ~newPos args, sendToRail)
+    | e ->
+        E.walk ~f:replaceArgs e
+  in
+  replaceArgs ast

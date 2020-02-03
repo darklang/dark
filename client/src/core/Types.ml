@@ -1253,6 +1253,7 @@ and msg =
   | SpaceDragEnter of int
   | SpaceDragLeave
   | DropIntoSpace of int
+  | ParamDragDone
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1300,10 +1301,9 @@ and handlerProp =
   ; execution : exeState }
 
 and fnSpace =
-  { draggingParamIndex: int option
-  ; dragOverSpaceIndex: int option
-  ; justMovedParam : int option
-  }
+  { draggingParamIndex : int option
+  ; dragOverSpaceIndex : int option
+  ; justMovedParam : int option }
 
 and tlTraceIDs = traceID TLIDDict.t
 

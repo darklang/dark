@@ -126,26 +126,30 @@ module List = struct
     let length = end_ - start in
     if length < 0 then [] else Belt.List.makeBy length (fun i -> i + start)
 
+
   (* Takes everything before and after, but not including nexted element *)
   let splitOn ~(index : int) (l : 'a list) : 'a list * 'a list =
-    (take ~count:index l, drop ~count:(index+1) l)
+    (take ~count:index l, drop ~count:(index + 1) l)
+
 
   let reorder ~(oldPos : int) ~(newPos : int) (l : 'a list) : 'a list =
     if newPos < oldPos (* move to a place above *)
     then
       match getAt ~index:oldPos l with
       | Some value ->
-        let top, bottom = splitOn ~index:oldPos l in
-        (insertAt ~index:newPos ~value top) @ bottom
-      | None -> l
-    else if (oldPos + 1) < newPos (* move to a place below *)
+          let top, bottom = splitOn ~index:oldPos l in
+          insertAt ~index:newPos ~value top @ bottom
+      | None ->
+          l
+    else if oldPos + 1 < newPos (* move to a place below *)
     then
       match getAt ~index:oldPos l with
       | Some value ->
-        let top, bottom = splitOn ~index:oldPos l in
-        let index = newPos - (oldPos+1) in
-        top @ (insertAt ~index ~value bottom)
-      | None -> l
+          let top, bottom = splitOn ~index:oldPos l in
+          let index = newPos - (oldPos + 1) in
+          top @ insertAt ~index ~value bottom
+      | None ->
+          l
     else l
 end
 

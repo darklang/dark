@@ -100,10 +100,10 @@
     }
 
     &.just-moved {
-        animation-duration: 1.5s;
-        animation-name: blinkBackground;
-        animation-iteration-count: 5;
-        animation-direction: alternate;
+      animation-duration: 0.5s;
+      animation-name: blinkForeground;
+      animation-iteration-count: 3;
+      animation-direction: alternate;
     }
 
     i.fa-grip-lines {
@@ -114,7 +114,7 @@
   }
 
   .col.space {
-    height:1.0em;
+    height: 1em;
     width: 100%;
 
     &.over {

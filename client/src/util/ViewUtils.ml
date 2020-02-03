@@ -168,15 +168,17 @@ let decodeAnimEvent (fn : string -> 'a) j : 'a =
   let open Json.Decode in
   fn (field "animationName" string j)
 
+
 (* Generic event, the the listener handle and do what it wants with the event object *)
-let onEvent ~(event : string) ~(key : string) ?(preventDefault = true) (listener: Web.Node.event -> msg) : msg Vdom.property =
-  Tea.Html.onCB
-    event
-    key
-    (fun evt ->
+let onEvent
+    ~(event : string)
+    ~(key : string)
+    ?(preventDefault = true)
+    (listener : Web.Node.event -> msg) : msg Vdom.property =
+  Tea.Html.onCB event key (fun evt ->
       if preventDefault then evt##preventDefault () ;
-      Some (listener evt)
-    )
+      Some (listener evt))
+
 
 let eventBoth ~(key : string) (event : string) (constructor : mouseEvent -> msg)
     : msg Vdom.property =

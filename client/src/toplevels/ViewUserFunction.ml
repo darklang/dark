@@ -136,64 +136,81 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
     [fontAwesome "redo"]
 
 
-let jsDragStart: (Web.Node.event -> unit) = 
-  [%raw "function(e){ e.dataTransfer.setData('text/plain', e.target.innerHTML); console.log('we are doing this right'); e.dataTransfer.effectAllowed = 'move'; }"]
+let jsDragStart : Web.Node.event -> unit =
+  [%raw
+    "function(e){ e.dataTransfer.setData('text/plain', e.target.innerHTML); e.dataTransfer.effectAllowed = 'move'; }"]
 
-let jsDragOver : (Web.Node.event -> unit) = 
+
+let jsDragOver : Web.Node.event -> unit =
   [%raw "function(e){e.dataTransfer.dropEffect = 'move';}"]
 
 
-let viewParamSpace (index : int) (fs: fnSpace) : msg Html.html =
-  let dragOver = (fun e -> jsDragOver e; IgnoreMsg) in
-  let dragEnter = (fun _ -> SpaceDragEnter index) in
-  let dragLeave = (fun _ -> SpaceDragLeave) in
-  let drop = (fun e -> e##stopPropagation (); DropIntoSpace index) in
+let viewParamSpace (index : int) (fs : fnSpace) : msg Html.html =
+  let dragOver e =
+    jsDragOver e ;
+    IgnoreMsg
+  in
+  let dragEnter _ = SpaceDragEnter index in
+  let dragLeave _ = SpaceDragLeave in
+  let drop e =
+    e##stopPropagation () ;
+    DropIntoSpace index
+  in
   let keyId = string_of_int index in
   let overClass =
     match (fs.draggingParamIndex, fs.dragOverSpaceIndex) with
     | Some draggingIndex, Some spaceIndex when spaceIndex = index ->
-      if draggingIndex != spaceIndex && (draggingIndex+1) != spaceIndex
-      then " over"
-      else ""
-    | _ -> ""
+        if draggingIndex != spaceIndex && draggingIndex + 1 != spaceIndex
+        then " over"
+        else ""
+    | _ ->
+        ""
   in
   Html.div
-    [Html.class' ("col space"^overClass)
+    [ Html.class' ("col space" ^ overClass)
     ; Vdom.attribute "" "data-pos" (string_of_int index)
     ; onEvent ~event:"dragover" ~key:("fpsdo-" ^ keyId) dragOver
-    ; onEvent ~event:"dragenter" ~key:("fpsde-"^ keyId) dragEnter
-    ; onEvent ~event:"dragleave" ~key:("fpsdl-"^keyId) dragLeave
-    ; onEvent ~event:"drop" ~key:("fpsdrop-"^keyId) drop
-    ] []
+    ; onEvent ~event:"dragenter" ~key:("fpsde-" ^ keyId) dragEnter
+    ; onEvent ~event:"dragleave" ~key:("fpsdl-" ^ keyId) dragLeave
+    ; onEvent ~event:"drop" ~key:("fpsdrop-" ^ keyId) drop ]
+    []
 
-let viewParam (fn : userFunction) (vs : viewState) (index : int) (p : userFunctionParameter) :
-    msg Html.html list =
-  let nameId =  p.ufpName |> B.toID in
+
+let viewParam
+    (fn : userFunction)
+    (vs : viewState)
+    (index : int)
+    (p : userFunctionParameter) : msg Html.html list =
+  let nameId = p.ufpName |> B.toID in
   let strId = showID nameId in
-  let dragStart = (fun evt ->
+  let dragStart evt =
     jsDragStart evt ;
     ParamDragStart index
-  ) in
-  let dragEnd = (fun evt -> Debug.loG "BS: drag end" evt; (* TODO(alice_ maybe clear drag model *) IgnoreMsg) in
-  let draggingClass =
-    match vs.fnSpace.draggingParamIndex with
-    | Some pos when pos = index -> " dragging"
-    | _ -> ""
+  in
+  let dragEnd _ = ParamDragDone in
+  let conditionalClasses =
+    [ ( "dragging"
+      , vs.fnSpace.draggingParamIndex |> Option.isSomeEqualTo ~value:index )
+    ; ( "just-moved"
+      , vs.fnSpace.justMovedParam |> Option.isSomeEqualTo ~value:index ) ]
   in
   let param =
     Html.div
-      [ Html.class' ("col param"^draggingClass)
+      [ Html.classList (("col param", true) :: conditionalClasses)
       ; Tea.Html2.Attributes.draggable "true"
       ; Vdom.attribute "" "data-pos" (string_of_int index)
-      ; onEvent ~event:"dragstart" ~key:("fpds-"^strId) ~preventDefault:false dragStart
-      ; onEvent ~event:"dragend" ~key:("fpde-"^strId) dragEnd
-      ]
+      ; onEvent
+          ~event:"dragstart"
+          ~key:("fpds-" ^ strId)
+          ~preventDefault:false
+          dragStart
+      ; onEvent ~event:"dragend" ~key:("fpde-" ^ strId) dragEnd ]
       [ ( if vs.permission = Some ReadWrite
         then viewKillParameterBtn fn p
         else Vdom.noNode )
       ; viewParamName vs [wc "name"] p.ufpName
-      ; viewParamTipe vs [wc "type"] p.ufpTipe 
-      ; fontAwesome "grip-lines"]
+      ; viewParamTipe vs [wc "type"] p.ufpTipe
+      ; fontAwesome "grip-lines" ]
   in
   let space = viewParamSpace index vs.fnSpace in
   [space; param]
@@ -243,11 +260,15 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   in
   let paramRows =
     let params =
-      fn.ufMetadata.ufmParameters |> List.indexedMap ~f:(viewParam fn vs) |> List.flatten
+      fn.ufMetadata.ufmParameters
+      |> List.indexedMap ~f:(viewParam fn vs)
+      |> List.flatten
     in
-    let lastSpace = viewParamSpace (List.length fn.ufMetadata.ufmParameters) vs.fnSpace in
+    let lastSpace =
+      viewParamSpace (List.length fn.ufMetadata.ufmParameters) vs.fnSpace
+    in
     Html.div
-      [Html.id "fnparams" ; Html.class' "params"]
+      [Html.id "fnparams"; Html.class' "params"]
       (params @ [lastSpace; addParamBtn])
   in
   Html.div [Html.class' "fn-header"] [titleRow; paramRows]

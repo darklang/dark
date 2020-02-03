@@ -78,3 +78,12 @@ i.fa-spinner {
     background-color: lighten($grey2, 10%);
   }
 }
+
+@keyframes blinkForeground {
+  from {
+    color: $cyan;
+  }
+  to {
+    color: saturate($cyan, 10%);
+  }
+}
