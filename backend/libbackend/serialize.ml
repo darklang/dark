@@ -361,9 +361,11 @@ let transactionally_migrate_oplist
     let oplist =
       Db.fetch
         ~name:"load_all_from_db"
+        (* SELECT FOR UPDATE locks row! *)
         "SELECT data FROM toplevel_oplists
          WHERE canvas_id = $1
-         AND tlid = $2"
+         AND tlid = $2
+         FOR UPDATE"
         ~params:[Uuid canvas_id; ID tlid]
         ~result:BinaryResult
       |> strs2tlid_oplists
