@@ -15,7 +15,7 @@ type t =
   | FPFloat of id * id * string * string
   | FPNull of id * id
   | FPBlank of id * id
-[@@deriving show {with_path = false}, eq]
+[@@deriving show {with_path = false}, eq, yojson {optional = true}]
 
 let toID (p : t) : id =
   match p with
