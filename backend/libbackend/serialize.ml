@@ -8,16 +8,59 @@ let handler_of_binary_string (str : string) : RTT.HandlerT.handler =
   Core_extended.Bin_io_utils.of_line str RTT.HandlerT.bin_handler
 
 
+let handler_to_binary_string (h : RTT.HandlerT.handler) : string =
+  h
+  |> Core_extended.Bin_io_utils.to_line RTT.HandlerT.bin_handler
+  |> Bigstring.to_string
+
+
 let db_of_binary_string (str : string) : RTT.DbT.db =
   Core_extended.Bin_io_utils.of_line str RTT.DbT.bin_db
+
+
+let db_to_binary_string (db : RTT.DbT.db) : string =
+  db |> Core_extended.Bin_io_utils.to_line RTT.DbT.bin_db |> Bigstring.to_string
 
 
 let user_fn_of_binary_string (str : string) : RTT.user_fn =
   Core_extended.Bin_io_utils.of_line str RTT.bin_user_fn
 
 
+let user_fn_to_binary_string (ufn : RTT.user_fn) : string =
+  ufn
+  |> Core_extended.Bin_io_utils.to_line RTT.bin_user_fn
+  |> Bigstring.to_string
+
+
 let user_tipe_of_binary_string (str : string) : RTT.user_tipe =
   Core_extended.Bin_io_utils.of_line str RTT.bin_user_tipe
+
+
+let user_tipe_to_binary_string (ut : RTT.user_tipe) : string =
+  ut
+  |> Core_extended.Bin_io_utils.to_line RTT.bin_user_tipe
+  |> Bigstring.to_string
+
+
+let translate_handler_as_binary_string
+    (str : string) ~(f : RTT.HandlerT.handler -> RTT.HandlerT.handler) : string
+    =
+  str |> handler_of_binary_string |> f |> handler_to_binary_string
+
+
+let translate_db_as_binary_string (str : string) ~(f : RTT.DbT.db -> RTT.DbT.db)
+    : string =
+  str |> db_of_binary_string |> f |> db_to_binary_string
+
+
+let translate_user_function_as_binary_string
+    (str : string) ~(f : RTT.user_fn -> RTT.user_fn) : string =
+  str |> user_fn_of_binary_string |> f |> user_fn_to_binary_string
+
+
+let translate_user_tipe_as_binary_string
+    (str : string) ~(f : RTT.user_tipe -> RTT.user_tipe) : string =
+  str |> user_tipe_of_binary_string |> f |> user_tipe_to_binary_string
 
 
 (* We serialize oplists for each toplevel in the DB. This affects making
@@ -353,37 +396,59 @@ let fetch_all_tlids ~(canvas_id : Uuidm.t) () : Types.tlid list =
 
 
 let transactionally_migrate_oplist
-    ~(canvas_id : Uuidm.t) ~host ~tlid ~(f : Op.oplist -> Op.oplist) () :
-    (string, unit) Tc.Result.t =
+    ~(canvas_id : Uuidm.t)
+    ~host
+    ~tlid
+    ~(oplist_f : Op.oplist -> Op.oplist)
+    ~(handler_f : RTT.HandlerT.handler -> RTT.HandlerT.handler)
+    ~(db_f : RTT.DbT.db -> RTT.DbT.db)
+    ~(user_fn_f : RTT.user_fn -> RTT.user_fn)
+    ~(user_tipe_f : RTT.user_tipe -> RTT.user_tipe)
+    () : (string, unit) Tc.Result.t =
   Log.inspecT "migrating oplists for" (host, tlid) ;
   Db.run ~name:"start oplist migration" "BEGIN;" ~params:[] ;
   try
-    let oplist =
+    let oplist, rendered =
       Db.fetch
         ~name:"load_all_from_db"
         (* SELECT FOR UPDATE locks row! *)
-        "SELECT data FROM toplevel_oplists
+        "SELECT data, rendered_oplist_cache FROM toplevel_oplists
          WHERE canvas_id = $1
          AND tlid = $2
          FOR UPDATE"
         ~params:[Uuid canvas_id; ID tlid]
         ~result:BinaryResult
-      |> strs2tlid_oplists
       |> List.hd_exn
-      |> Tc.Tuple2.second
-      |> f
+      |> function
+      | [data; rendered_oplist_cache] ->
+          (Op.oplist_of_string data, rendered_oplist_cache)
+      | _ ->
+          Exception.internal "invalid oplists"
     in
-    (* TODO: also set the renderedcache *)
+    let try_convert f () = try Some (f rendered) with _ -> None in
+    let rendered =
+      try_convert (translate_handler_as_binary_string ~f:handler_f) ()
+      |> Tc.Option.orElseLazy
+           (try_convert (translate_db_as_binary_string ~f:db_f))
+      |> Tc.Option.orElseLazy
+           (try_convert (translate_user_function_as_binary_string ~f:user_fn_f))
+      |> Tc.Option.orElseLazy
+           (try_convert (translate_user_tipe_as_binary_string ~f:user_tipe_f))
+      |> Tc.Option.map ~f:(fun str -> Db.Binary str)
+      |> Tc.Option.withDefault ~default:Db.Null
+    in
     Db.run
       ~name:"save per tlid oplist"
       "UPDATE toplevel_oplists
        SET data = $1,
            digest = $2
-       WHERE canvas_id = $3
-         AND tlid = $4"
+           rendered_oplist_cache = $3
+       WHERE canvas_id = $4
+         AND tlid = $5"
       ~params:
-        [ Binary (Op.oplist_to_string oplist)
+        [ Binary (Op.oplist_to_string (oplist_f oplist))
         ; String digest
+        ; rendered
         ; Uuid canvas_id
         ; ID tlid ] ;
     Db.run ~name:"commit oplist migration" "COMMIT;" ~params:[] ;

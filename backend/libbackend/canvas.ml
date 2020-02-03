@@ -27,28 +27,6 @@ type canvas =
   ; deleted_user_tipes : RTT.user_tipe IDMap.t }
 [@@deriving eq, show]
 
-let handler_to_binary_string (h : RTT.HandlerT.handler) : string =
-  h
-  |> Core_extended.Bin_io_utils.to_line RTT.HandlerT.bin_handler
-  |> Bigstring.to_string
-
-
-let db_to_binary_string (db : RTT.DbT.db) : string =
-  db |> Core_extended.Bin_io_utils.to_line RTT.DbT.bin_db |> Bigstring.to_string
-
-
-let user_fn_to_binary_string (ufn : RTT.user_fn) : string =
-  ufn
-  |> Core_extended.Bin_io_utils.to_line RTT.bin_user_fn
-  |> Bigstring.to_string
-
-
-let user_tipe_to_binary_string (ut : RTT.user_tipe) : string =
-  ut
-  |> Core_extended.Bin_io_utils.to_line RTT.bin_user_tipe
-  |> Bigstring.to_string
-
-
 (* ------------------------- *)
 (* Toplevel *)
 (* ------------------------- *)
@@ -629,44 +607,49 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             IDMap.find c.handlers tlid
             |> Option.bind ~f:TL.as_handler
             |> Option.map ~f:(fun h ->
-                   (handler_to_binary_string h, false, TL.TLHandler))
+                   (Serialize.handler_to_binary_string h, false, TL.TLHandler))
           in
           let deleted_handler () =
             IDMap.find c.deleted_handlers tlid
             |> Option.bind ~f:TL.as_handler
             |> Option.map ~f:(fun h ->
-                   (handler_to_binary_string h, true, TL.TLHandler))
+                   (Serialize.handler_to_binary_string h, true, TL.TLHandler))
           in
           let db () =
             IDMap.find c.dbs tlid
             |> Option.bind ~f:TL.as_db
             |> Option.map ~f:(fun db ->
-                   (db_to_binary_string db, false, TL.TLDB))
+                   (Serialize.db_to_binary_string db, false, TL.TLDB))
           in
           let deleted_db () =
             IDMap.find c.deleted_dbs tlid
             |> Option.bind ~f:TL.as_db
-            |> Option.map ~f:(fun db -> (db_to_binary_string db, true, TL.TLDB))
+            |> Option.map ~f:(fun db ->
+                   (Serialize.db_to_binary_string db, true, TL.TLDB))
           in
           let user_function () =
             IDMap.find c.user_functions tlid
             |> Option.map ~f:(fun fn ->
-                   (user_fn_to_binary_string fn, false, TL.TLUserFunction))
+                   ( Serialize.user_fn_to_binary_string fn
+                   , false
+                   , TL.TLUserFunction ))
           in
           let deleted_user_function () =
             IDMap.find c.deleted_user_functions tlid
             |> Option.map ~f:(fun fn ->
-                   (user_fn_to_binary_string fn, true, TL.TLUserFunction))
+                   ( Serialize.user_fn_to_binary_string fn
+                   , true
+                   , TL.TLUserFunction ))
           in
           let user_tipe () =
             IDMap.find c.user_tipes tlid
             |> Option.map ~f:(fun t ->
-                   (user_tipe_to_binary_string t, false, TL.TLUserTipe))
+                   (Serialize.user_tipe_to_binary_string t, false, TL.TLUserTipe))
           in
           let deleted_user_tipe () =
             IDMap.find c.deleted_user_tipes tlid
             |> Option.map ~f:(fun t ->
-                   (user_tipe_to_binary_string t, true, TL.TLUserTipe))
+                   (Serialize.user_tipe_to_binary_string t, true, TL.TLUserTipe))
           in
           let binary_repr, deleted, tipe =
             handler ()
@@ -819,89 +802,100 @@ let migrate_bo (bo : 'a or_blank) : 'a or_blank =
   match bo with Blank _ -> bo | Partial (id, _) -> Blank id | _ -> bo
 
 
-let migrate_op (op : Op.op) : Op.op =
-  let rec migrate_expr (expr : RuntimeT.expr) =
-    let f e = migrate_expr e in
-    match expr with
-    | Partial (id, _) ->
-        Blank id
-    | Blank _ ->
-        expr
-    | Filled (id, nexpr) ->
-        Filled
-          ( id
-          , match nexpr with
-            | Value _ | Variable _ ->
-                nexpr
-            | Let (lhs, rhs, body) ->
-                Let (migrate_bo lhs, f rhs, f body)
-            | If (cond, ifbody, elsebody) ->
-                If (f cond, f ifbody, f elsebody)
-            | FnCall (name, exprs) ->
-                FnCall (name, List.map ~f exprs)
-            | FnCallSendToRail (name, exprs) ->
-                FnCallSendToRail (name, List.map ~f exprs)
-            | Lambda (vars, lexpr) ->
-                Lambda (List.map ~f:migrate_bo vars, f lexpr)
-            | Thread exprs ->
-                Thread (List.map ~f exprs)
-            | FieldAccess (obj, field) ->
-                FieldAccess (f obj, migrate_bo field)
-            | ListLiteral exprs ->
-                ListLiteral (List.map ~f exprs)
-            | ObjectLiteral pairs ->
-                ObjectLiteral
-                  (List.map ~f:(fun (k, v) -> (migrate_bo k, f v)) pairs)
-            | FeatureFlag (msg, cond, a, b) ->
-                FeatureFlag (migrate_bo msg, f cond, f a, f b)
-            | Match (matchExpr, cases) ->
-                Match
-                  ( f matchExpr
-                  , List.map ~f:(fun (k, v) -> (migrate_bo k, f v)) cases )
-            | Constructor (name, args) ->
-                Constructor (name, List.map ~f args)
-            | FluidPartial (name, old_val) ->
-                FluidPartial (name, f old_val)
-            | FluidRightPartial (name, old_val) ->
-                FluidRightPartial (name, f old_val) )
+let rec migrate_expr (expr : RuntimeT.expr) =
+  let f e = migrate_expr e in
+  match expr with
+  | Partial (id, _) ->
+      Blank id
+  | Blank _ ->
+      expr
+  | Filled (id, nexpr) ->
+      Filled
+        ( id
+        , match nexpr with
+          | Value _ | Variable _ ->
+              nexpr
+          | Let (lhs, rhs, body) ->
+              Let (migrate_bo lhs, f rhs, f body)
+          | If (cond, ifbody, elsebody) ->
+              If (f cond, f ifbody, f elsebody)
+          | FnCall (name, exprs) ->
+              FnCall (name, List.map ~f exprs)
+          | FnCallSendToRail (name, exprs) ->
+              FnCallSendToRail (name, List.map ~f exprs)
+          | Lambda (vars, lexpr) ->
+              Lambda (List.map ~f:migrate_bo vars, f lexpr)
+          | Thread exprs ->
+              Thread (List.map ~f exprs)
+          | FieldAccess (obj, field) ->
+              FieldAccess (f obj, migrate_bo field)
+          | ListLiteral exprs ->
+              ListLiteral (List.map ~f exprs)
+          | ObjectLiteral pairs ->
+              ObjectLiteral
+                (List.map ~f:(fun (k, v) -> (migrate_bo k, f v)) pairs)
+          | FeatureFlag (msg, cond, a, b) ->
+              FeatureFlag (migrate_bo msg, f cond, f a, f b)
+          | Match (matchExpr, cases) ->
+              Match
+                ( f matchExpr
+                , List.map ~f:(fun (k, v) -> (migrate_bo k, f v)) cases )
+          | Constructor (name, args) ->
+              Constructor (name, List.map ~f args)
+          | FluidPartial (name, old_val) ->
+              FluidPartial (name, f old_val)
+          | FluidRightPartial (name, old_val) ->
+              FluidRightPartial (name, f old_val) )
+
+
+let migrate_handler (h : RuntimeT.HandlerT.handler) : RuntimeT.HandlerT.handler
+    =
+  {h with ast = migrate_expr h.ast}
+
+
+let migrate_user_function (fn : RuntimeT.user_fn) =
+  let migrate_bo_ufn_param (p : RuntimeT.ufn_param) : RuntimeT.ufn_param =
+    {p with name = migrate_bo p.name; tipe = migrate_bo p.tipe}
   in
+  let migrate_bo_metadata (m : RuntimeT.ufn_metadata) : RuntimeT.ufn_metadata =
+    { m with
+      name = migrate_bo m.name
+    ; parameters = List.map m.parameters ~f:migrate_bo_ufn_param
+    ; return_type = migrate_bo m.return_type }
+  in
+  {fn with ast = migrate_expr fn.ast; metadata = migrate_bo_metadata fn.metadata}
+
+
+let migrate_user_tipe (tipe : RuntimeT.user_tipe) : RuntimeT.user_tipe =
+  let open RuntimeT in
+  let migrate_bo_definition (UTRecord fields) =
+    UTRecord
+      (List.map fields ~f:(fun {name; tipe} ->
+           {name = migrate_bo name; tipe = migrate_bo tipe}))
+  in
+  { tipe with
+    name = migrate_bo tipe.name
+  ; definition = migrate_bo_definition tipe.definition }
+
+
+let migrate_col (k, v) = (migrate_bo k, migrate_bo v)
+
+let migrate_db (db : RuntimeT.DbT.db) : RuntimeT.DbT.db =
+  {db with cols = List.map ~f:migrate_col db.cols; name = migrate_bo db.name}
+
+
+let migrate_op (op : Op.op) : Op.op =
   match op with
   | SetHandler (tlid, pos, handler) ->
-      SetHandler (tlid, pos, {handler with ast = migrate_expr handler.ast})
+      SetHandler (tlid, pos, migrate_handler handler)
   | SetFunction fn ->
-      let migrate_bo_ufn_param (p : RuntimeT.ufn_param) : RuntimeT.ufn_param =
-        {p with name = migrate_bo p.name; tipe = migrate_bo p.tipe}
-      in
-      let migrate_bo_metadata (m : RuntimeT.ufn_metadata) :
-          RuntimeT.ufn_metadata =
-        { m with
-          name = migrate_bo m.name
-        ; parameters = List.map m.parameters ~f:migrate_bo_ufn_param
-        ; return_type = migrate_bo m.return_type }
-      in
-      SetFunction
-        { fn with
-          ast = migrate_expr fn.ast
-        ; metadata = migrate_bo_metadata fn.metadata }
+      SetFunction (migrate_user_function fn)
   | SetExpr (tlid, id, expr) ->
       SetExpr (tlid, id, migrate_expr expr)
   | CreateDBMigration (tlid, id1, id2, list) ->
-      CreateDBMigration
-        ( tlid
-        , id1
-        , id2
-        , List.map list ~f:(fun (k, v) -> (migrate_bo k, migrate_bo v)) )
+      CreateDBMigration (tlid, id1, id2, List.map list ~f:migrate_col)
   | SetType tipe ->
-      let open RuntimeT in
-      let migrate_bo_definition (UTRecord fields) =
-        UTRecord
-          (List.map fields ~f:(fun {name; tipe} ->
-               {name = migrate_bo name; tipe = migrate_bo tipe}))
-      in
-      SetType
-        { tipe with
-          name = migrate_bo tipe.name
-        ; definition = migrate_bo_definition tipe.definition }
+      SetType (migrate_user_tipe tipe)
   | _ ->
       op
 
@@ -915,7 +909,11 @@ let migrate_host (host : string) : (string, unit) Tc.Result.t =
              ~canvas_id
              ~tlid
              ~host
-             ~f:(List.map ~f:(fun op -> migrate_op op))
+             ~handler_f:migrate_handler
+             ~db_f:migrate_db
+             ~user_fn_f:migrate_user_function
+             ~user_tipe_f:migrate_user_tipe
+             ~oplist_f:(List.map ~f:migrate_op)
              ())
     |> Tc.Result.combine
     |> Tc.Result.map (fun _ -> ())
