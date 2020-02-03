@@ -760,7 +760,7 @@ let save_test (c : canvas) : string =
 (* --------------- *)
 
 (* This is a little broad, since we could limit it to tlids, but good enough
- * for now *)
+ * for now. At time of writing, these all have the duplicate DB problem. *)
 let known_invalid_hosts =
   Tc.StrSet.from_list
     [ "danbowles"
