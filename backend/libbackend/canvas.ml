@@ -821,6 +821,8 @@ let check_tier_one_hosts () : unit =
 (* --------------- *)
 
 let migrate_bo (bo : 'a or_blank) : 'a or_blank =
+  (* Remove Partial: this implementation of partials didn't solve the problem
+   * and so didn't get use. *)
   match bo with Blank _ -> bo | Partial (id, _) -> Blank id | _ -> bo
 
 
