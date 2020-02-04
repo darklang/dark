@@ -1512,7 +1512,7 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
         (fun _ ->
           if path = "/logout" && verb = `POST
           then
-            if Config.use_darklang_login_com_for_login
+            if Config.use_login_darklang_com_for_login
             then
               (* This redirects because login.darklang.com/logout implements a
                * logout that clears both the session in postgres and the session
