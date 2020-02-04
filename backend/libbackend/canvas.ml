@@ -796,10 +796,10 @@ let check_tier_one_hosts () : unit =
 (* Migrate canvases *)
 (* --------------- *)
 
-let migrate_bo (bo : 'a or_blank) : 'a or_blank =
+let migrate_or_blank (ob : 'a or_blank) : 'a or_blank =
   (* Remove Partial: this implementation of partials didn't solve the problem
    * and so didn't get use. *)
-  match bo with Blank _ -> bo | Partial (id, _) -> Blank id | _ -> bo
+  match ob with Blank _ -> ob | Partial (id, _) -> Blank id | Filled _ -> ob
 
 
 let rec migrate_expr (expr : RuntimeT.expr) =
@@ -816,7 +816,7 @@ let rec migrate_expr (expr : RuntimeT.expr) =
           | Value _ | Variable _ ->
               nexpr
           | Let (lhs, rhs, body) ->
-              Let (migrate_bo lhs, f rhs, f body)
+              Let (migrate_or_blank lhs, f rhs, f body)
           | If (cond, ifbody, elsebody) ->
               If (f cond, f ifbody, f elsebody)
           | FnCall (name, exprs) ->
@@ -824,22 +824,22 @@ let rec migrate_expr (expr : RuntimeT.expr) =
           | FnCallSendToRail (name, exprs) ->
               FnCallSendToRail (name, List.map ~f exprs)
           | Lambda (vars, lexpr) ->
-              Lambda (List.map ~f:migrate_bo vars, f lexpr)
+              Lambda (List.map ~f:migrate_or_blank vars, f lexpr)
           | Thread exprs ->
               Thread (List.map ~f exprs)
           | FieldAccess (obj, field) ->
-              FieldAccess (f obj, migrate_bo field)
+              FieldAccess (f obj, migrate_or_blank field)
           | ListLiteral exprs ->
               ListLiteral (List.map ~f exprs)
           | ObjectLiteral pairs ->
               ObjectLiteral
-                (List.map ~f:(fun (k, v) -> (migrate_bo k, f v)) pairs)
+                (List.map ~f:(fun (k, v) -> (migrate_or_blank k, f v)) pairs)
           | FeatureFlag (msg, cond, a, b) ->
-              FeatureFlag (migrate_bo msg, f cond, f a, f b)
+              FeatureFlag (migrate_or_blank msg, f cond, f a, f b)
           | Match (matchExpr, cases) ->
               Match
                 ( f matchExpr
-                , List.map ~f:(fun (k, v) -> (migrate_bo k, f v)) cases )
+                , List.map ~f:(fun (k, v) -> (migrate_or_blank k, f v)) cases )
           | Constructor (name, args) ->
               Constructor (name, List.map ~f args)
           | FluidPartial (name, old_val) ->
@@ -855,13 +855,13 @@ let migrate_handler (h : RuntimeT.HandlerT.handler) : RuntimeT.HandlerT.handler
 
 let migrate_user_function (fn : RuntimeT.user_fn) =
   let migrate_bo_ufn_param (p : RuntimeT.ufn_param) : RuntimeT.ufn_param =
-    {p with name = migrate_bo p.name; tipe = migrate_bo p.tipe}
+    {p with name = migrate_or_blank p.name; tipe = migrate_or_blank p.tipe}
   in
   let migrate_bo_metadata (m : RuntimeT.ufn_metadata) : RuntimeT.ufn_metadata =
     { m with
-      name = migrate_bo m.name
+      name = migrate_or_blank m.name
     ; parameters = List.map m.parameters ~f:migrate_bo_ufn_param
-    ; return_type = migrate_bo m.return_type }
+    ; return_type = migrate_or_blank m.return_type }
   in
   {fn with ast = migrate_expr fn.ast; metadata = migrate_bo_metadata fn.metadata}
 
@@ -871,17 +871,19 @@ let migrate_user_tipe (tipe : RuntimeT.user_tipe) : RuntimeT.user_tipe =
   let migrate_bo_definition (UTRecord fields) =
     UTRecord
       (List.map fields ~f:(fun {name; tipe} ->
-           {name = migrate_bo name; tipe = migrate_bo tipe}))
+           {name = migrate_or_blank name; tipe = migrate_or_blank tipe}))
   in
   { tipe with
-    name = migrate_bo tipe.name
+    name = migrate_or_blank tipe.name
   ; definition = migrate_bo_definition tipe.definition }
 
 
-let migrate_col (k, v) = (migrate_bo k, migrate_bo v)
+let migrate_col (k, v) = (migrate_or_blank k, migrate_or_blank v)
 
 let migrate_db (db : RuntimeT.DbT.db) : RuntimeT.DbT.db =
-  {db with cols = List.map ~f:migrate_col db.cols; name = migrate_bo db.name}
+  { db with
+    cols = List.map ~f:migrate_col db.cols
+  ; name = migrate_or_blank db.name }
 
 
 let migrate_op (op : Op.op) : Op.op =
