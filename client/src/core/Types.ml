@@ -1565,7 +1565,7 @@ and model =
   ; teaDebuggerEnabled : bool
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
-  ; welcomeUser : bool }
+  ; showUserWelcomeModal : bool }
 
 and savedSettings =
   { editorSettings : editorSettings
@@ -1578,7 +1578,7 @@ and savedSettings =
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarOpen : bool
   ; showTopbar : bool
-  ; welcomeUser : bool }
+  ; showUserWelcomeModal : bool }
 [@@deriving show {with_path = false}]
 
 and permission =

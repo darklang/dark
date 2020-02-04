@@ -29,7 +29,7 @@ let defaultSavedSettings : savedSettings =
   ; lastReload = None
   ; sidebarOpen = true
   ; showTopbar = false
-  ; welcomeUser = true }
+  ; showUserWelcomeModal = true }
 
 
 let defaultFluidState : fluidState =
@@ -157,4 +157,4 @@ let defaultModel : model =
   ; teaDebuggerEnabled = false
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty
-  ; welcomeUser = true }
+  ; showUserWelcomeModal = true }
