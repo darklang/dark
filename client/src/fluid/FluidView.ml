@@ -213,11 +213,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         else Vdom.noNode
   in
   let isSelected tokenStart tokenEnd =
-    match state.selectionStart with
-    | Some startPos ->
-        startPos <= tokenStart && tokenEnd <= state.newPos
-    | None ->
-        false
+    let selStart, selEnd = Fluid.getSelectionRange state in
+    selStart <= tokenStart && tokenEnd <= selEnd
   in
   List.map vs.tokens ~f:(fun ti ->
       let element nested =
