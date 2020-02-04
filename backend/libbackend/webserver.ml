@@ -1514,9 +1514,16 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
           then
             if Config.env_display_name = "production"
             then
-              (* This is the auth0-supporting logout, but it is backwards
-               * compatible - it'll skip the auth0 logout if no access_token is
-               * found, and handle clearing the session regardless *)
+              (* This redirects because login.darklang.com/logout implements a
+               * logout that clears both the session in postgres and the session
+               * in auth0. (The former is present in both the new auth0-using
+               * auth flow, and the pre-auth0 ocaml auth setup.) It is backwards
+               * compatible - if the session cookie it is presented does not
+               * have a record in login.darklang.com's AccessToken datastore
+               * (used to hold auth0 access tokens), then it just clears the
+               * postgres session. That won't be relevant for long, but it
+               * allows us to deploy this codepath in advance of the auth0
+               * cutover. *)
               S.respond_redirect
                 ~uri:("https://login.darklang.com/logout" |> Uri.of_string)
                 ()
