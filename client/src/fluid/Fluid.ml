@@ -5483,7 +5483,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
-    | FluidUpdateAutocomplete ->
+    | FluidCloseCmdPalette | FluidUpdateAutocomplete ->
         (* updateAutocomplete has already been run, so nothing more to do *)
         (ast, s)
     | FluidMouseUp (_, selection) ->
@@ -5619,6 +5619,8 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              then FluidSetState fluidState
              else Many [moveMod; FluidSetState fluidState])
       |> Option.withDefault ~default:NoChange
+  | FluidCloseCmdPalette ->
+      FluidCommandsClose
   | FluidMouseDown _
   | FluidInputEvent _
   | FluidPaste _
