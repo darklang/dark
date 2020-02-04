@@ -64,4 +64,6 @@ val static_assets_bucket : string option
 
 val build_hash : string
 
+(* Do we use the new login service - login.darklang.com - or depend on local
+ * sessions in postgres only *)
 val use_login_darklang_com_for_login : bool
