@@ -4870,7 +4870,9 @@ let rec updateKey
                let newAST = E.replace replaceID ~replacement:newExpr ast in
                (newAST, moveToCaretTarget s newAST newCaretTarget))
         |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti ast s))
-        |> recoverOpt "updateKey - can't return None due to lazy Some" ~default:(ast, s)
+        |> recoverOpt
+             "updateKey - can't return None due to lazy Some"
+             ~default:(ast, s)
     (* Rest of Insertions *)
     | InsertText txt, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos txt toTheLeft ast s
