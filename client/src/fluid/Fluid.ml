@@ -176,7 +176,7 @@ let getToken' (s : fluidState) (tokens : T.tokenInfo list) : T.tokenInfo option
 
 
 let getToken (s : fluidState) (ast : ast) : T.tokenInfo option =
-  getToken' s (toTokens ast)
+  getToken' s (toTokens s.collapsedExprIds ast)
 
 
 (* -------------------- *)
@@ -320,7 +320,7 @@ let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
       | _ ->
           if pos < ti.startPos then getNextWS rest else ti.startPos )
   in
-  let newPos = getNextWS (List.reverse (toTokens ast)) in
+  let newPos = getNextWS (List.reverse (toTokens s.collapsedExprIds ast)) in
   setPosition ~resetUD:true s newPos
 
 
@@ -337,15 +337,15 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
   in
-  let newPos = getNextWS (toTokens ast) in
+  let newPos = getNextWS (toTokens s.collapsedExprIds ast) in
   setPosition ~resetUD:true s newPos
 
 
 (* getStartOfLineCaretPos returns the first desirable (excluding indents, pipes, and newline tokens)
  caret pos at the start of the line containing the given T.tokenInfo *)
-let getStartOfLineCaretPos (ast : ast) (ti : T.tokenInfo) : int =
+let getStartOfLineCaretPos (ast : ast) (ti : T.tokenInfo) (s : state) : int =
   let token =
-    toTokens ast
+    toTokens s.collapsedExprIds ast
     |> List.find ~f:(fun info ->
            if info.startRow == ti.startRow
            then
@@ -402,9 +402,9 @@ let getEndOfWordInStrCaretPos ~(pos : int) (ti : T.tokenInfo) : int =
 
 (* getEndOfLineCaretPos returns the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
-let getEndOfLineCaretPos (ast : ast) (ti : T.tokenInfo) : int =
+let getEndOfLineCaretPos (ast : ast) (ti : T.tokenInfo) (s : state) : int =
   let token =
-    toTokens ast
+    toTokens s.collapsedExprIds ast
     |> List.reverse
     |> List.find ~f:(fun info -> info.startRow == ti.startRow)
     |> Option.withDefault ~default:ti
@@ -424,21 +424,22 @@ let getEndOfLineCaretPos (ast : ast) (ti : T.tokenInfo) : int =
  caret pos at the start of the line containing the given tokenInfo *)
 let moveToStartOfLine (ast : ast) (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "moveToStartOfLine" s in
-  setPosition s (getStartOfLineCaretPos ast ti)
+  setPosition s (getStartOfLineCaretPos ast ti s)
 
 
 (* moveToEndOfLine moves the caret to the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
 let moveToEndOfLine (ast : ast) (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "moveToEndOfLine" s in
-  setPosition s (getEndOfLineCaretPos ast ti)
+  setPosition s (getEndOfLineCaretPos ast ti s)
 
 
 (* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
-let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
+let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
+    int =
   let previousToken =
-    toTokens ast
+    toTokens s.collapsedExprIds ast
     |> List.reverse
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos > t.startPos)
   in
@@ -451,14 +452,15 @@ let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
     state =
   let s = recordAction "goToStartOfWord" s in
-  setPosition s (getStartOfWordPos ~pos ast ti)
+  setPosition s (getStartOfWordPos ~pos ast ti s)
 
 
 (* We want to find the closest editable token that is after the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
-let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
+let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
+    int =
   let tokenInfo =
-    toTokens ast
+    toTokens s.collapsedExprIds ast
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
     |> Option.withDefault ~default:ti
   in
@@ -470,7 +472,7 @@ let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
     state =
   let s = recordAction "goToEndOfWord" s in
-  setPosition s (getEndOfWordPos ~pos ast ti)
+  setPosition s (getEndOfWordPos ~pos ast ti s)
 
 
 let moveToEnd (ti : T.tokenInfo) (s : state) : state =
@@ -507,7 +509,7 @@ let moveTo (newPos : int) (s : state) : state =
  * with its location. If blank, will go to the start of the blank *)
 let moveToEndOfTarget (target : id) (ast : ast) (s : state) : state =
   let s = recordAction "moveToEndOfTarget" s in
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   match
     List.find (List.reverse tokens) ~f:(fun ti ->
         FluidToken.tid ti.token = target)
@@ -540,7 +542,7 @@ let getNextBlankPos (pos : int) (tokens : T.tokenInfo list) : int =
 
 let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextBlank" s in
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   let newPos = getNextBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
 
@@ -568,7 +570,7 @@ let getPrevBlankPos (pos : int) (tokens : T.tokenInfo list) : int =
 
 let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToPrevBlank" s in
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   let newPos = getPrevBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
 
@@ -581,7 +583,7 @@ let doLeft ~(pos : int) (ti : T.tokenInfo) (s : state) : state =
 
 
 let selectAll ~(pos : int) (ast : ast) (s : state) : state =
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   let last = List.last tokens in
   let lastPos = match last with Some l -> l.endPos | None -> 0 in
   {s with newPos = lastPos; oldPos = pos; selectionStart = Some 0}
@@ -613,7 +615,7 @@ let doRight
 
 let doUp ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "doUp" s in
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   if row = 0
@@ -625,7 +627,7 @@ let doUp ~(pos : int) (ast : ast) (s : state) : state =
 
 let doDown ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "doDown" s in
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
@@ -644,7 +646,7 @@ let doDown ~(pos : int) (ast : ast) (s : state) : state =
    This is useful for determining the precise position to which the caret should
    jump after a transformation. *)
 let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
-  let infos = toTokens ast in
+  let infos = toTokens s.collapsedExprIds ast in
   (* Essentially we're using List.findMap to map a function that
    * matches across astref,token combinations (exhaustively matching astref but not token)
    * to determine the corresponding caretPos.
@@ -1046,7 +1048,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TSep _
   | TIndent _
   | TParenOpen _
-  | TParenClose _ ->
+  | TParenClose _
+  | TCollapsed _ ->
       None
 
 
@@ -2466,7 +2469,7 @@ let acMoveBasedOnKey
     (offset : int)
     (s : state)
     (ast : ast) : state =
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   let posAtEndOfACedToken = posAtStartOfACedToken + offset in
   let newPos =
     match key with
@@ -2624,7 +2627,7 @@ let updateFromACItem
               let replacement = EPipe (gid (), [expr; E.newB ()]) in
               E.replace (E.toID expr) ast ~replacement
         in
-        let tokens = toTokens newAST in
+        let tokens = toTokens s.collapsedExprIds newAST in
         let nextBlank = getNextBlankPos s.newPos tokens in
         (newAST, nextBlank - ti.startPos)
     | TPartial _, _, Some (EPipe _), EBinOp (bID, name, _, rhs, str) ->
@@ -2779,7 +2782,7 @@ let adjustPosForReflow
    * the old token in the new token stream, and then doing the appropriate
    * adjustment. There are definitely places this won't work, but I haven't
    * found them yet. *)
-  let newTokens = toTokens newAST in
+  let newTokens = toTokens state.collapsedExprIds newAST in
   let newTI = List.find newTokens ~f:(fun x -> T.matches oldTI.token x.token) in
   let diff =
     match newTI with Some newTI -> newTI.startPos - oldTI.startPos | None -> 0
@@ -3482,7 +3485,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
    * multi-codepoint emoji (the expected behavior of multi-syllable clusters differs from emoji).
    *
    * Note that we do not handle caret affinity properly, but caret affinity should behave the
-   * same for backspace and delete. 
+   * same for backspace and delete.
    *
    * See https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad.
    *)
@@ -3504,7 +3507,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
 
 (* [doExplicitInsert [extendedGraphemeCluster] [currCaretTarget] [ast]]
  * produces the (newAST, newPosition) tuple resulting from performing
- * a text insertion at [currCaretTarget] in the [ast]. 
+ * a text insertion at [currCaretTarget] in the [ast].
  * Note that newPosition will be either AtTarget or SamePlace --
  * either the caret stays in the same place, or it ends up at a specific location.
  *
@@ -4125,8 +4128,8 @@ let getOptionalSelectionRange (s : fluidState) : (int * int) option =
       None
 
 
-let tokensInRange selStartPos selEndPos ast : fluidTokenInfo list =
-  toTokens ast
+let tokensInRange selStartPos selEndPos ast state : fluidTokenInfo list =
+  toTokens state.collapsedExprIds ast
   (* this condition is a little flaky, sometimes selects wrong tokens *)
   |> List.filter ~f:(fun t ->
          (* selectionStart within token *)
@@ -4139,9 +4142,9 @@ let tokensInRange selStartPos selEndPos ast : fluidTokenInfo list =
          || (selStartPos < t.endPos && t.endPos <= selEndPos))
 
 
-let getTopmostSelectionID startPos endPos ast : id option =
+let getTopmostSelectionID startPos endPos ast state : id option =
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
-  tokensInRange startPos endPos ast
+  tokensInRange startPos endPos ast state
   |> List.filter ~f:(fun ti -> not (T.isNewline ti.token))
   |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
          let curID = T.parentExprID ti.token in
@@ -4160,18 +4163,19 @@ let getTopmostSelectionID startPos endPos ast : id option =
 let getSelectedExprID (s : state) (ast : ast) : id option =
   getOptionalSelectionRange s
   |> Option.andThen ~f:(fun (startPos, endPos) ->
-         getTopmostSelectionID startPos endPos ast)
+         getTopmostSelectionID startPos endPos ast s)
+
+
+let getExprIDOnCaret state tl ast =
+  match getToken state ast with
+  | Some ti ->
+      let id = T.tid ti.token in
+      if T.validID id then Some (TL.id tl, id) else None
+  | None ->
+      None
 
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
-  let getExprIDOnCaret state tl ast =
-    match getToken state ast with
-    | Some ti ->
-        let id = T.tid ti.token in
-        if T.validID id then Some (TL.id tl, id) else None
-    | None ->
-        None
-  in
   TL.selected m
   |> Option.thenAlso ~f:TL.getAST
   |> Option.andThen ~f:(fun (tl, ast) ->
@@ -4183,11 +4187,31 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   |> Option.withDefault ~default:NoChange
 
 
+let maybeToggleFold (m : Types.model) : Types.modification =
+  TL.selected m
+  |> Option.thenAlso ~f:TL.getAST
+  |> Option.andThen ~f:(fun (tl, ast) ->
+         getSelectedExprID m.fluidState ast
+         |> Option.map ~f:(fun id -> (TL.id tl, id))
+         |> Option.orElse (getExprIDOnCaret m.fluidState tl ast))
+  |> Option.map ~f:(fun (_, id) ->
+         let curCollapsed = m.fluidState.collapsedExprIds in
+         let newCollapsed =
+           match List.elemIndex curCollapsed ~value:id with
+           | Some index ->
+               List.removeAt curCollapsed ~index
+           | None ->
+               id :: curCollapsed
+         in
+         FluidSetState {m.fluidState with collapsedExprIds = newCollapsed})
+  |> Option.withDefault ~default:NoChange
+
+
 let rec updateKey
     ?(recursing = false) (inputEvent : fluidInputEvent) (ast : ast) (s : state)
     : E.t * state =
   let pos = s.newPos in
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   (* These might be the same token *)
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos tokens in
   let onEdge =
@@ -4322,14 +4346,14 @@ let rec updateKey
     | InsertText txt, L (TRightPartial (_, _), ti), _
       when onEdge && Util.isIdentifierChar txt ->
         let ast, s = acEnter ti ast s K.Tab in
-        getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
+        getLeftTokenAt s.newPos (toTokens s.collapsedExprIds ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
         |> Option.withDefault ~default:(ast, s)
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline ast s =
           let startPos, endPos = getSelectionRange s in
           let findParent = startPos = endPos in
-          let topmostID = getTopmostSelectionID startPos endPos ast in
+          let topmostID = getTopmostSelectionID startPos endPos ast s in
           Option.map topmostID ~f:(fun id ->
               let ast, s, blankId = createPipe ~findParent id ast s in
               match blankId with
@@ -4374,12 +4398,12 @@ let rec updateKey
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ ->
         if maintainSelection == K.KeepSelection
-        then (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti))
+        then (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti s))
         else (ast, goToEndOfWord ~pos ast ti s)
     | Keypress {key = K.GoToStartOfWord maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToStartOfWord maintainSelection; _}, L (_, ti), _ ->
         if maintainSelection == K.KeepSelection
-        then (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
+        then (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti s))
         else (ast, goToStartOfWord ~pos ast ti s)
     | Keypress {key = K.Left; _}, L (_, ti), _ ->
         (ast, doLeft ~pos ti s |> acMaybeShow ti)
@@ -4388,11 +4412,11 @@ let rec updateKey
     | Keypress {key = K.GoToStartOfLine maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToStartOfLine maintainSelection; _}, L (_, ti), _ ->
         if maintainSelection == K.KeepSelection
-        then (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti))
+        then (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti s))
         else (ast, moveToStartOfLine ast ti s)
     | Keypress {key = K.GoToEndOfLine maintainSelection; _}, _, R (_, ti) ->
         if maintainSelection == K.KeepSelection
-        then (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
+        then (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti s))
         else (ast, moveToEndOfLine ast ti s)
     | DeleteSoftLineBackward, _, R (_, ti)
     | DeleteSoftLineBackward, L (_, ti), _ ->
@@ -4407,7 +4431,7 @@ let rec updateKey
           deleteCaretRange
             ~state:s
             ~ast
-            (s.newPos, getStartOfLineCaretPos ast ti) )
+            (s.newPos, getStartOfLineCaretPos ast ti s) )
     | DeleteSoftLineForward, _, R (_, ti) | DeleteSoftLineForward, L (_, ti), _
       ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
@@ -4418,8 +4442,10 @@ let rec updateKey
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
-          deleteCaretRange ~state:s ~ast (s.newPos, getEndOfLineCaretPos ast ti)
-      )
+          deleteCaretRange
+            ~state:s
+            ~ast
+            (s.newPos, getEndOfLineCaretPos ast ti s) )
     | DeleteWordForward, _, R (_, ti) ->
       ( match getOptionalSelectionRange s with
       | Some selRange ->
@@ -4733,7 +4759,7 @@ let rec updateKey
      *
      * TODO: there may be ways of getting the cursor to the end without going
      * through this code, if so we need to move it. *)
-    let tokens = toTokens newAST in
+    let tokens = toTokens s.collapsedExprIds newAST in
     let text = Printer.tokensToString tokens in
     let last = List.last tokens in
     match last with
@@ -4849,7 +4875,7 @@ let updateAutocomplete m tlid (ast : ast) s : fluidState =
 
 let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
     E.t * fluidState =
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   let lastPos =
     tokens
     |> List.last
@@ -4895,7 +4921,7 @@ let shouldSelect (key : K.key) : bool =
       false
 
 
-let exprRangeInAst ~ast (exprID : id) : (int * int) option =
+let exprRangeInAst ~ast ~state (exprID : id) : (int * int) option =
   (* get the beginning and end of the range from
     * the expression's first and last token
     * by cross-referencing the tokens it evaluates to via toTokens
@@ -4906,10 +4932,10 @@ let exprRangeInAst ~ast (exprID : id) : (int * int) option =
     * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
     * different ID, (in the above case the last token TInt(2) belongs to the
     * second sub-expr of the FnCall) *)
-  let astTokens = toTokens ast in
+  let astTokens = toTokens state.collapsedExprIds ast in
   let exprTokens =
     E.find exprID ast
-    |> Option.map ~f:toTokens
+    |> Option.map ~f:(toTokens state.collapsedExprIds)
     |> Option.withDefault ~default:[]
   in
   let exprStartToken, exprEndToken =
@@ -4941,11 +4967,11 @@ let getExpressionRangeAtCaret (state : fluidState) (ast : ast) :
   |> Option.andThen ~f:(fun t ->
          (* get expression that the token belongs to *)
          let exprID = T.tid t.token in
-         exprRangeInAst ~ast exprID)
+         exprRangeInAst ~ast ~state exprID)
   |> Option.map ~f:(fun (eStartPos, eEndPos) -> (eStartPos, eEndPos))
 
 
-let reconstructExprFromRange ~ast (range : int * int) : E.t option =
+let reconstructExprFromRange ~ast ~state (range : int * int) : E.t option =
   (* prevent duplicates *)
   let open FluidExpression in
   let ast = E.clone ast in
@@ -4980,7 +5006,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
     in
     let tokens =
       (* simplify tokens to make them homogenous, easier to parse *)
-      tokensInRange startPos endPos ast
+      tokensInRange startPos endPos ast state
       |> List.map ~f:(fun ti ->
              let t = ti.token in
              let text =
@@ -5009,7 +5035,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
       | _ ->
           let exprID = E.toID expr in
           exprID
-          |> exprRangeInAst ~ast
+          |> exprRangeInAst ~ast ~state
           |> Option.andThen ~f:(fun (exprStartPos, exprEndPos) ->
                  (* ensure expression range is not totally outside selection range *)
                  if exprStartPos > endPos || exprEndPos < startPos
@@ -5265,7 +5291,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
-          tokensInRange startPos endPos ast
+          tokensInRange startPos endPos ast state
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
                  | TRecordFieldname
@@ -5374,7 +5400,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
     | EPipeTarget _ ->
         Some (EPipeTarget (gid ()))
   in
-  let topmostID = getTopmostSelectionID startPos endPos ast in
+  let topmostID = getTopmostSelectionID startPos endPos ast state in
   reconstruct ~topmostID (startPos, endPos)
 
 
@@ -5440,7 +5466,7 @@ let getCopySelection (m : model) : clipboardContents =
       let range = getSelectionRange state in
       let expr =
         range
-        |> reconstructExprFromRange ~ast
+        |> reconstructExprFromRange ~ast ~state:m.fluidState
         |> Option.map ~f:Clipboard.exprToClipboardContents
       in
       let text =
@@ -5583,6 +5609,8 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       maybeOpenCmd m
   | FluidInputEvent (Keypress {key = K.Omnibox; _}) ->
       KeyPress.openOmnibox m
+  | FluidInputEvent (Keypress {key = K.ToggleFold; _}) ->
+      maybeToggleFold m
   | FluidInputEvent (Keypress ke) when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
   | FluidClearErrorDvSrc ->

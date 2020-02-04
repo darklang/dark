@@ -84,7 +84,7 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
     match tl with
     | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
         ast
-        |> toTokens
+        |> toTokens m.fluidState.collapsedExprIds
         |> List.head
         |> Option.withDefault ~default:defaultTokenInfo
     | _ ->

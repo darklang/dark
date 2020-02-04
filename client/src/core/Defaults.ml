@@ -54,7 +54,8 @@ let defaultFluidState : fluidState =
   ; cp = {index = 0; commands = []; location = None; filter = None}
   ; selectionStart = None
   ; errorDvSrc = SourceNone
-  ; midClick = false }
+  ; midClick = false
+  ; collapsedExprIds = [] }
 
 
 let defaultCanvasProps : canvasProps =

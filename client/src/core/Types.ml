@@ -1397,6 +1397,7 @@ and fluidToken =
   | TConstructorName of id * string
   | TParenOpen of id
   | TParenClose of id
+  | TCollapsed of id
 
 and fluidTokenInfo =
   { startRow : int
@@ -1461,7 +1462,7 @@ and fluidState =
       bool
   ; errorDvSrc : dval_source
         (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
-  }
+  ; collapsedExprIds : id list }
 
 (* Avatars *)
 and avatar =

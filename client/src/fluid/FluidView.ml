@@ -508,7 +508,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
 
 
 let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
-  let tokens = toTokens ast in
+  let tokens = toTokens s.collapsedExprIds ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =

@@ -103,9 +103,10 @@ let encodingRoundtrip : FuzzTest.t =
 let longLines : FuzzTest.t =
   { name = "no lines above 120 chars"
   ; check =
-      (fun ~testcase:_ ~newAST _ ->
-        List.all (FluidPrinter.toTokens newAST) ~f:(fun ti ->
-            ti.startCol + ti.length <= 120))
+      (fun ~testcase:_ ~newAST state ->
+        List.all
+          (FluidPrinter.toTokens state.collapsedExprIds newAST)
+          ~f:(fun ti -> ti.startCol + ti.length <= 120))
   ; ignore = (fun _ -> false)
   ; fn = (fun testcase -> (testcase, defaultTestState)) }
 

@@ -66,7 +66,8 @@ let tid (t : t) : id =
   | TSep id
   | TParenOpen id
   | TParenClose id
-  | TNewline (Some (id, _, _)) ->
+  | TNewline (Some (id, _, _))
+  | TCollapsed id ->
       id
   | TNewline None | TIndent _ ->
       fakeid
@@ -157,7 +158,8 @@ let isTextToken t : bool =
   | TPipe _
   | TLambdaArrow _
   | TParenOpen _
-  | TParenClose _ ->
+  | TParenClose _
+  | TCollapsed _ ->
       false
 
 
@@ -384,6 +386,8 @@ let toText (t : t) : string =
       "("
   | TParenClose _ ->
       ")"
+  | TCollapsed _ ->
+      "..."
 
 
 let toTestText (t : t) : string =
@@ -584,6 +588,8 @@ let toTypeName (t : t) : string =
       "paren-open"
   | TParenClose _ ->
       "paren-close"
+  | TCollapsed _ ->
+      "collapsed"
 
 
 let toCategoryName (t : t) : string =
@@ -638,6 +644,8 @@ let toCategoryName (t : t) : string =
       "pattern"
   | TParenOpen _ | TParenClose _ ->
       "paren"
+  | TCollapsed _ ->
+      "collapsed"
 
 
 let toDebugInfo (t : t) : string =

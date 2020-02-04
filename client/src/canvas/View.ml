@@ -12,7 +12,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
   let tokens =
     TL.getAST tl
-    |> Option.map ~f:FluidPrinter.toTokens
+    |> Option.map ~f:(FluidPrinter.toTokens m.fluidState.collapsedExprIds)
     |> Option.withDefault ~default:[]
   in
   let vs = ViewUtils.createVS m tl tokens in

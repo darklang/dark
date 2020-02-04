@@ -100,7 +100,7 @@ let process
        * as opposed to the iterative approach we do later, because we're using
        * the old ast that has no newlines. *)
     ast
-    |> toTokens
+    |> toTokens s.collapsedExprIds
     |> List.filter ~f:(fun ti ->
            FluidToken.isNewline ti.token && ti.startPos < pos)
     |> List.length
@@ -134,7 +134,7 @@ let process
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
     result
-    |> toTokens
+    |> toTokens s.collapsedExprIds
     |> List.iter ~f:(fun ti ->
            match ti.token with
            | TNewline _ when !endPos > ti.endPos ->
@@ -142,7 +142,10 @@ let process
            | _ ->
                ()) ;
     let last =
-      toTokens result |> List.last |> deOption "last" |> fun x -> x.endPos
+      toTokens s.collapsedExprIds result
+      |> List.last
+      |> deOption "last"
+      |> fun x -> x.endPos
     in
     (* even though the wrapper allows tests to go past the start and end, it's
           * weird to test for *)
@@ -157,7 +160,7 @@ let process
     else newState.selectionStart
   in
   let partialsFound =
-    List.any (toTokens result) ~f:(fun ti ->
+    List.any (toTokens s.collapsedExprIds result) ~f:(fun ti ->
         match ti.token with
         | TRightPartial _ | TPartial _ | TFieldPartial _ ->
             true
@@ -3341,7 +3344,7 @@ let run () =
       ()) ;
   describe "Movement" (fun () ->
       let s = defaultTestState in
-      let tokens = toTokens complexExpr in
+      let tokens = toTokens s.collapsedExprIds complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr in
       test "gridFor - 1" (fun () ->
@@ -3690,7 +3693,8 @@ let run () =
           let id = ID "543" in
           expect
             (let ast = EString (id, "test") in
-             let tokens = toTokens ast in
+             let collapsedExprIds = [] in
+             let tokens = toTokens collapsedExprIds ast in
              Fluid.getNeighbours ~pos:3 tokens)
           |> toEqual
                (let token = TString (id, "test") in

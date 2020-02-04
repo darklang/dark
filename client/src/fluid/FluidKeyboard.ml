@@ -48,6 +48,7 @@ type key =
   | SelectAll
   | CommandPalette
   | Omnibox
+  | ToggleFold
   | Unhandled of string
 [@@deriving show]
 
@@ -81,6 +82,8 @@ let fromKeyboardEvent
       GoToEndOfLine maintainSelection
   | "k" when ctrl || meta ->
       Omnibox
+  | "\\" when ctrl ->
+      ToggleFold
   | "y" when (not isMac) && ctrl && not shift ->
       (* CTRL+Y is Windows redo
       but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
