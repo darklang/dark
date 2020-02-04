@@ -181,6 +181,10 @@ let onKeydown (evt : Web.Node.event) : Types.msg option =
              None)
 
 
+let onLoseFocus (_evt : Web.Node.event) : Types.msg option =
+  Some (FluidMsg FluidCloseCmdPalette)
+
+
 let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
   let viewCommands i item =
     let highlighted = cp.index = i in
@@ -205,7 +209,8 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
       ; Vdom.attribute "" "spellcheck" "false"
       ; Attrs.autocomplete false
       ; Events.onInput (fun query -> FluidMsg (FluidCommandsFilter query))
-      ; Html.onCB "keydown" "command-keydown" onKeydown ]
+      ; Html.onCB "keydown" "command-keydown" onKeydown
+      ; Html.onCB "blur" "lose focus" onLoseFocus ]
       []
   in
   let cmdsView =
