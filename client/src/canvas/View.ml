@@ -456,8 +456,13 @@ let view (m : model) : msg Html.html =
   in
   let content =
     ViewTopbar.html m
-    @ [modal]
-    @ [sidebar; body; activeAvatars; accountView m; viewToast m.toast; entry]
+    @ [ sidebar
+      ; body
+      ; activeAvatars
+      ; accountView m
+      ; viewToast m.toast
+      ; entry
+      ; modal ]
     @ fluidStatus
     @ footer
     @ viewDocs
