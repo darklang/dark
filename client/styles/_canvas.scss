@@ -101,6 +101,10 @@ html {
   background-color: $grey2;
 }
 
+::selection {
+  background-color: $highlight-color; /* WebKit/Blink Browsers */
+}
+
 body {
   @extend .default;
   height: 100%;

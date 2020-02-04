@@ -212,6 +212,10 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         then viewAutocomplete state.ac
         else Vdom.noNode
   in
+  let isSelected tokenStart tokenEnd =
+    let selStart, selEnd = Fluid.getSelectionRange state in
+    selStart <= tokenStart && tokenEnd <= selEnd
+  in
   List.map vs.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = T.tid ti.token in
@@ -270,7 +274,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
               | SourceNone ->
                   false
               | SourceId id ->
-                  id = tokenId ) ]
+                  id = tokenId )
+          ; ("selected", isSelected ti.startPos ti.endPos) ]
         in
         let innerNode =
           match innerNestingClass with

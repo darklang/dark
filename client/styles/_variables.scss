@@ -51,6 +51,8 @@ $lock-color: lighten($red, 10%);
 $link-color: $white1;
 $link-hover-color: $yellow;
 
+$highlight-color: saturate(darken($blue, 20%), 10%);
+
 /* Typograhy */
 $code-font-size: 13.3333px;
 $string-color: lighten($purple, 10%);

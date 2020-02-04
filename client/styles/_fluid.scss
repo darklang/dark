@@ -234,6 +234,10 @@ https://github.com/chriskempson/tomorrow-theme */
     &.fluid-newline {
       white-space: nowrap;
     }
+
+    &.selected {
+      background-color: $highlight-color;
+    }
   }
 
   .fluid-newline {
