@@ -4927,8 +4927,8 @@ let rec updateKey
                    let newID = gid () in
                    Some
                      ( id
-                     , E.ERightPartial (newID, infixTxt, expr)
-                     , { astRef = ARRightPartial newID
+                     , E.EPartial (newID, infixTxt, expr)
+                     , { astRef = ARPartial newID
                        ; offset = String.length infixTxt } )
                | ARPipe (_, index), E.EPipe (id, pipeExprs) ->
                  ( match pipeExprs |> List.getAt ~index:(index + 1) with
