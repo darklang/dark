@@ -53,11 +53,7 @@ let addOp (m : model) (focus : focus) (params : addOpAPIParams) : msg Tea.Cmd.t
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/add_op"]
   in
   let request =
-    postJson
-      Decoders.addOpAPIStrollerMsg
-      m.csrfToken
-      url
-      (Encoders.addOpAPIParams params)
+    postJson Decoders.addOpAPI m.csrfToken url (Encoders.addOpAPIParams params)
   in
   Tea.Http.send (fun x -> AddOpsAPICallback (focus, params, x)) request
 
