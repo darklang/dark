@@ -4188,22 +4188,29 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
 
 
 let maybeToggleFold (m : Types.model) : Types.modification =
-  TL.selected m
-  |> Option.thenAlso ~f:TL.getAST
-  |> Option.andThen ~f:(fun (tl, ast) ->
-         getSelectedExprID m.fluidState ast
-         |> Option.map ~f:(fun id -> (TL.id tl, id))
-         |> Option.orElse (getExprIDOnCaret m.fluidState tl ast))
-  |> Option.map ~f:(fun (_, id) ->
-         let curCollapsed = m.fluidState.collapsedExprIds in
-         let newCollapsed =
-           match List.elemIndex curCollapsed ~value:id with
-           | Some index ->
-               List.removeAt curCollapsed ~index
-           | None ->
-               id :: curCollapsed
-         in
-         FluidSetState {m.fluidState with collapsedExprIds = newCollapsed})
+  let maybeTL = TL.selected m in
+  let maybeAST = Option.andThen maybeTL ~f:TL.getAST in
+  let maybeID =
+    Option.andThen2 maybeTL maybeAST ~f:(fun tl ast ->
+        getSelectedExprID m.fluidState ast
+        |> Option.orElseLazy (fun _ ->
+               getExprIDOnCaret m.fluidState tl ast
+               |> Option.map ~f:Tuple2.second))
+  in
+  Option.andThen2 maybeID maybeAST ~f:E.find
+  |> Option.map2 maybeID ~f:(fun id expr ->
+         if E.canBeCollapsed expr
+         then
+           let curCollapsed = m.fluidState.collapsedExprIds in
+           let newCollapsed =
+             match List.elemIndex curCollapsed ~value:id with
+             | Some index ->
+                 List.removeAt curCollapsed ~index
+             | None ->
+                 id :: curCollapsed
+           in
+           FluidSetState {m.fluidState with collapsedExprIds = newCollapsed}
+         else NoChange)
   |> Option.withDefault ~default:NoChange
 
 

@@ -437,3 +437,12 @@ let rec clone (expr : t) : t =
       ERightPartial (gid (), str, c oldExpr)
   | EPipeTarget _ ->
       EPipeTarget (gid ())
+
+
+(** canBeCollapsed [e] returns true if [e] is a collapsable expression.
+  *
+  * See rendering of collapsed expressions as TCollapsed in [FluidPrinter
+  * toTokens]. If you add something here, you will want to update how it's
+  * tokenized there. *)
+let canBeCollapsed e : bool =
+  match e with EFnCall _ | ERecord _ | EIf _ -> true | _ -> false

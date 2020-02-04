@@ -108,3 +108,5 @@ val renameVariableUses : oldName:string -> newName:string -> t -> t
 val updateVariableUses : string -> f:(t -> t) -> t -> t
 
 val clone : t -> t
+
+val canBeCollapsed : t -> bool

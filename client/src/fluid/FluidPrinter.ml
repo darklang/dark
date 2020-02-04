@@ -136,6 +136,7 @@ let rec toTokens' (collapsedExprIds : id list) (e : E.t) (b : Builder.t) :
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
+  let isCollapsed id = List.member collapsedExprIds ~value:id in
   let nest
       ?(placeholderFor : (string * int) option = None)
       ~indent
@@ -205,76 +206,68 @@ let rec toTokens' (collapsedExprIds : id list) (e : E.t) (b : Builder.t) :
              |> add (TSep (E.toID e))
              |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e)
   in
-  if List.member collapsedExprIds ~value:(E.toID e)
-  then
-    match e with
-    | EFnCall (id, fnName, _, ster) ->
-        let displayName = FluidUtil.fnDisplayName fnName in
-        let versionDisplayName = FluidUtil.versionDisplayName fnName in
-        let partialName = FluidUtil.partialName fnName in
-        let versionToken =
-          if versionDisplayName = ""
-          then []
-          else [TFnVersion (id, partialName, versionDisplayName, fnName)]
-        in
-        b
-        |> add (TFnName (id, partialName, displayName, fnName, ster))
-        |> addMany versionToken
-        |> add (TSep id)
-        |> add (TCollapsed id)
-    | _ ->
-        b |> add (TCollapsed (E.toID e))
-  else
-    match e with
-    | EInteger (id, i) ->
-        add (TInteger (id, i)) b
-    | EBool (id, bool') ->
-        add (if bool' then TTrue id else TFalse id) b
-    | ENull id ->
-        add (TNullToken id) b
-    | EFloat (id, whole, fraction) ->
-        let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
-        let fraction =
-          if fraction = "" then [] else [TFloatFractional (id, fraction)]
-        in
-        addMany (whole @ [TFloatPoint id] @ fraction) b
-    | EBlank id ->
-        add (TBlank id) b
-    | ELet (id, lhs, rhs, next) ->
-        let rhsID = E.toID rhs in
-        b
-        |> add (TLetKeyword (id, rhsID))
-        |> add (TLetVarName (id, rhsID, lhs))
-        |> add (TLetAssignment (id, rhsID))
-        |> addNested ~f:(fromExpr rhs)
-        |> addNewlineIfNeeded (Some (E.toID next, id, None))
-        |> addNested ~f:(fromExpr next)
-    | EString (id, str) ->
-        let size = 40 in
-        let strings =
-          if String.length str > size then String.segment ~size str else [str]
-        in
-        ( match strings with
+  match e with
+  | EInteger (id, i) ->
+      add (TInteger (id, i)) b
+  | EBool (id, bool') ->
+      add (if bool' then TTrue id else TFalse id) b
+  | ENull id ->
+      add (TNullToken id) b
+  | EFloat (id, whole, fraction) ->
+      let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
+      let fraction =
+        if fraction = "" then [] else [TFloatFractional (id, fraction)]
+      in
+      addMany (whole @ [TFloatPoint id] @ fraction) b
+  | EBlank id ->
+      add (TBlank id) b
+  | ELet (id, lhs, rhs, next) ->
+      let rhsID = E.toID rhs in
+      b
+      |> add (TLetKeyword (id, rhsID))
+      |> add (TLetVarName (id, rhsID, lhs))
+      |> add (TLetAssignment (id, rhsID))
+      |> addNested ~f:(fromExpr rhs)
+      |> addNewlineIfNeeded (Some (E.toID next, id, None))
+      |> addNested ~f:(fromExpr next)
+  | EString (id, str) ->
+      let size = 40 in
+      let strings =
+        if String.length str > size then String.segment ~size str else [str]
+      in
+      ( match strings with
+      | [] ->
+          add (TString (id, "")) b
+      | starting :: rest ->
+        ( match List.reverse rest with
         | [] ->
-            add (TString (id, "")) b
-        | starting :: rest ->
-          ( match List.reverse rest with
-          | [] ->
-              add (TString (id, str)) b
-          | ending :: revrest ->
-              b
-              |> addNested ~f:(fun b ->
-                     let endingOffset = size * (List.length revrest + 1) in
-                     b
-                     |> add (TStringMLStart (id, starting, 0, str))
-                     |> add (TNewline None)
-                     |> addIter (List.reverse revrest) ~f:(fun i s b ->
-                            b
-                            |> add
-                                 (TStringMLMiddle (id, s, size * (i + 1), str))
-                            |> add (TNewline None))
-                     |> add (TStringMLEnd (id, ending, endingOffset, str))) ) )
-    | EIf (id, cond, if', else') ->
+            add (TString (id, str)) b
+        | ending :: revrest ->
+            b
+            |> addNested ~f:(fun b ->
+                   let endingOffset = size * (List.length revrest + 1) in
+                   b
+                   |> add (TStringMLStart (id, starting, 0, str))
+                   |> add (TNewline None)
+                   |> addIter (List.reverse revrest) ~f:(fun i s b ->
+                          b
+                          |> add (TStringMLMiddle (id, s, size * (i + 1), str))
+                          |> add (TNewline None))
+                   |> add (TStringMLEnd (id, ending, endingOffset, str))) ) )
+  | EIf (id, cond, if', else') ->
+      if isCollapsed id
+      then
+        b
+        |> add (TIfKeyword id)
+        |> add (TCollapsed (E.toID cond))
+        |> add (TSep id)
+        |> add (TIfThenKeyword id)
+        |> add (TSep id)
+        |> add (TCollapsed (E.toID if'))
+        |> add (TSep id)
+        |> add (TIfElseKeyword id)
+        |> add (TCollapsed (E.toID else'))
+      else
         b
         |> add (TIfKeyword id)
         |> addNested ~f:(fromExpr cond)
@@ -286,162 +279,174 @@ let rec toTokens' (collapsedExprIds : id list) (e : E.t) (b : Builder.t) :
         |> add (TIfElseKeyword id)
         |> add (TNewline (Some (E.toID else', id, None)))
         |> nest ~indent:2 else'
-    | EBinOp (id, op, lexpr, rexpr, _ster) ->
-        let start b =
-          match lexpr with
-          | EPipeTarget _ ->
-              b
-          | _ ->
-              b
-              |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
-              |> add (TSep (E.toID lexpr))
-        in
-        b
-        |> start
-        |> addMany [TBinOp (id, op); TSep id]
-        |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
-    | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
-        let ghost = ghostPartial id newName (FluidUtil.partialName oldName) in
-        let start b =
-          match lexpr with
-          | EPipeTarget _ ->
-              b
-          | _ ->
-              b
-              |> nest ~indent:0 ~placeholderFor:(Some (oldName, 0)) lexpr
-              |> add (TSep (E.toID lexpr))
-        in
-        b
-        |> start
-        |> add (TPartial (id, newName))
-        |> addMany ghost
-        |> add (TSep id)
-        |> nest ~indent:2 ~placeholderFor:(Some (oldName, 1)) rexpr
-    | EFnCall (id, fnName, args, ster) ->
-        let displayName = FluidUtil.fnDisplayName fnName in
-        let versionDisplayName = FluidUtil.versionDisplayName fnName in
-        let partialName = FluidUtil.partialName fnName in
-        let versionToken =
-          if versionDisplayName = ""
-          then []
-          else [TFnVersion (id, partialName, versionDisplayName, fnName)]
-        in
+  | EBinOp (id, op, lexpr, rexpr, _ster) ->
+      let start b =
+        match lexpr with
+        | EPipeTarget _ ->
+            b
+        | _ ->
+            b
+            |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
+            |> add (TSep (E.toID lexpr))
+      in
+      b
+      |> start
+      |> addMany [TBinOp (id, op); TSep id]
+      |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
+  | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
+      let ghost = ghostPartial id newName (FluidUtil.partialName oldName) in
+      let start b =
+        match lexpr with
+        | EPipeTarget _ ->
+            b
+        | _ ->
+            b
+            |> nest ~indent:0 ~placeholderFor:(Some (oldName, 0)) lexpr
+            |> add (TSep (E.toID lexpr))
+      in
+      b
+      |> start
+      |> add (TPartial (id, newName))
+      |> addMany ghost
+      |> add (TSep id)
+      |> nest ~indent:2 ~placeholderFor:(Some (oldName, 1)) rexpr
+  | EFnCall (id, fnName, args, ster) ->
+      let displayName = FluidUtil.fnDisplayName fnName in
+      let versionDisplayName = FluidUtil.versionDisplayName fnName in
+      let partialName = FluidUtil.partialName fnName in
+      let versionToken =
+        if versionDisplayName = ""
+        then []
+        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
+      in
+      let b =
         b
         |> add (TFnName (id, partialName, displayName, fnName, ster))
         |> addMany versionToken
-        |> addArgs fnName id args
-    | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
-        let partial = TPartial (id, newName) in
-        let newText = T.toText partial in
-        let oldText = FluidUtil.partialName oldName in
-        let ghost = ghostPartial id newText oldText in
-        b |> add partial |> addMany ghost |> addArgs oldName id args
-    | EConstructor (id, name, exprs) ->
-        b |> add (TConstructorName (id, name)) |> addArgs name id exprs
-    | EPartial (id, newName, EConstructor (_, oldName, exprs)) ->
-        let partial = TPartial (id, newName) in
-        let newText = T.toText partial in
-        let ghost = ghostPartial id newText oldName in
-        b |> add partial |> addMany ghost |> addArgs oldName id exprs
-    | EFieldAccess (id, expr, fieldname) ->
-        let lhsid = E.toID expr in
+      in
+      if isCollapsed id
+      then b |> add (TSep id) |> add (TCollapsed id)
+      else b |> addArgs fnName id args
+  | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
+      let partial = TPartial (id, newName) in
+      let newText = T.toText partial in
+      let oldText = FluidUtil.partialName oldName in
+      let ghost = ghostPartial id newText oldText in
+      b |> add partial |> addMany ghost |> addArgs oldName id args
+  | EConstructor (id, name, exprs) ->
+      b |> add (TConstructorName (id, name)) |> addArgs name id exprs
+  | EPartial (id, newName, EConstructor (_, oldName, exprs)) ->
+      let partial = TPartial (id, newName) in
+      let newText = T.toText partial in
+      let ghost = ghostPartial id newText oldName in
+      b |> add partial |> addMany ghost |> addArgs oldName id exprs
+  | EFieldAccess (id, expr, fieldname) ->
+      let lhsid = E.toID expr in
+      b
+      |> addNested ~f:(fromExpr expr)
+      |> addMany [TFieldOp (id, lhsid); TFieldName (id, lhsid, fieldname)]
+  | EPartial (id, newFieldname, EFieldAccess (faID, expr, oldFieldname)) ->
+      let lhsid = E.toID expr in
+      let partial = TFieldPartial (id, faID, lhsid, newFieldname) in
+      let newText = T.toText partial in
+      let ghost = ghostPartial id newText oldFieldname in
+      b
+      |> addNested ~f:(fromExpr expr)
+      |> addMany [TFieldOp (id, E.toID expr); partial]
+      |> addMany ghost
+  | EVariable (id, name) ->
+      b |> add (TVariable (id, name))
+  | ELambda (id, names, body) ->
+      let isLast i = i = List.length names - 1 in
+      b
+      |> add (TLambdaSymbol id)
+      |> addIter names ~f:(fun i (aid, name) b ->
+             b
+             |> add (TLambdaVar (id, aid, i, name))
+             |> addIf (not (isLast i)) (TLambdaComma (id, i))
+             |> addIf (not (isLast i)) (TSep aid))
+      |> add (TLambdaArrow id)
+      |> nest ~indent:2 body
+  | EList (id, exprs) ->
+      let lastIndex = List.length exprs - 1 in
+      b
+      |> add (TListOpen id)
+      |> addIter exprs ~f:(fun i e b ->
+             b
+             |> addNested ~f:(fromExpr e)
+             |> addIf (i <> lastIndex) (TListComma (id, i)))
+      |> add (TListClose id)
+  | ERecord (id, fields) ->
+      if fields = []
+      then b |> addMany [TRecordOpen id; TRecordClose id]
+      else if isCollapsed id
+      then
         b
-        |> addNested ~f:(fromExpr expr)
-        |> addMany [TFieldOp (id, lhsid); TFieldName (id, lhsid, fieldname)]
-    | EPartial (id, newFieldname, EFieldAccess (faID, expr, oldFieldname)) ->
-        let lhsid = E.toID expr in
-        let partial = TFieldPartial (id, faID, lhsid, newFieldname) in
-        let newText = T.toText partial in
-        let ghost = ghostPartial id newText oldFieldname in
+        |> add (TRecordOpen id)
+        |> add (TSep id)
+        |> add (TCollapsed id)
+        |> add (TSep id)
+        |> add (TRecordClose id)
+      else
         b
-        |> addNested ~f:(fromExpr expr)
-        |> addMany [TFieldOp (id, E.toID expr); partial]
-        |> addMany ghost
-    | EVariable (id, name) ->
-        b |> add (TVariable (id, name))
-    | ELambda (id, names, body) ->
-        let isLast i = i = List.length names - 1 in
-        b
-        |> add (TLambdaSymbol id)
-        |> addIter names ~f:(fun i (aid, name) b ->
-               b
-               |> add (TLambdaVar (id, aid, i, name))
-               |> addIf (not (isLast i)) (TLambdaComma (id, i))
-               |> addIf (not (isLast i)) (TSep aid))
-        |> add (TLambdaArrow id)
-        |> nest ~indent:2 body
-    | EList (id, exprs) ->
-        let lastIndex = List.length exprs - 1 in
-        b
-        |> add (TListOpen id)
-        |> addIter exprs ~f:(fun i e b ->
-               b
-               |> addNested ~f:(fromExpr e)
-               |> addIf (i <> lastIndex) (TListComma (id, i)))
-        |> add (TListClose id)
-    | ERecord (id, fields) ->
-        if fields = []
-        then b |> addMany [TRecordOpen id; TRecordClose id]
-        else
-          b
-          |> add (TRecordOpen id)
-          |> indentBy ~indent:2 ~f:(fun b ->
-                 addIter fields b ~f:(fun i (fieldName, expr) b ->
-                     let exprID = E.toID expr in
-                     b
-                     |> addNewlineIfNeeded (Some (id, id, Some i))
-                     |> add
-                          (TRecordFieldname
-                             {recordID = id; exprID; index = i; fieldName})
-                     |> add (TRecordSep (id, i, exprID))
-                     |> addNested ~f:(fromExpr expr)))
-          |> addMany
-               [ TNewline (Some (id, id, Some (List.length fields)))
-               ; TRecordClose id ]
-    | EPipe (id, exprs) ->
-        let length = List.length exprs in
-        ( match exprs with
-        | [] ->
-            recover "Empty pipe found" ~debug:e b
-        | [single] ->
-            recover "pipe with single entry found" ~debug:e (fromExpr single b)
-        | head :: tail ->
-            b
-            |> addNested ~f:(fromExpr head)
-            |> addNewlineIfNeeded (Some (E.toID head, id, Some 0))
-            |> addIter tail ~f:(fun i e b ->
-                   b
-                   |> add (TPipe (id, i, length))
-                   |> addNested ~f:(fromExpr e)
-                   |> addNewlineIfNeeded (Some (E.toID e, id, Some (i + 1))))
-            |> addNewlineIfNeeded (Some (id, id, Some (List.length tail))) )
-    | EPipeTarget _ ->
-        recover "should never be making tokens for EPipeTarget" ~debug:e b
-    | EMatch (id, mexpr, pairs) ->
-        b
-        |> add (TMatchKeyword id)
-        |> addNested ~f:(fromExpr mexpr)
+        |> add (TRecordOpen id)
         |> indentBy ~indent:2 ~f:(fun b ->
-               b
-               |> addIter pairs ~f:(fun i (pattern, expr) b ->
-                      b
-                      |> addNewlineIfNeeded (Some (id, id, Some i))
-                      |> addMany (patternToToken pattern ~idx:i)
-                      |> add
-                           (TMatchBranchArrow
-                              { matchID = id
-                              ; patternID = Pattern.toID pattern
-                              ; index = i })
-                      |> addNested ~f:(fromExpr expr))
-               |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))))
-    | EPartial (id, str, _) ->
-        b |> add (TPartial (id, str))
-    | ERightPartial (id, newOp, expr) ->
-        b
-        |> addNested ~f:(fromExpr expr)
-        |> addMany [TSep id; TRightPartial (id, newOp)]
-    | EFeatureFlag (_id, _msg, _cond, casea, _caseb) ->
-        b |> addNested ~f:(fromExpr casea)
+               addIter fields b ~f:(fun i (fieldName, expr) b ->
+                   let exprID = E.toID expr in
+                   b
+                   |> addNewlineIfNeeded (Some (id, id, Some i))
+                   |> add
+                        (TRecordFieldname
+                           {recordID = id; exprID; index = i; fieldName})
+                   |> add (TRecordSep (id, i, exprID))
+                   |> addNested ~f:(fromExpr expr)))
+        |> addMany
+             [ TNewline (Some (id, id, Some (List.length fields)))
+             ; TRecordClose id ]
+  | EPipe (id, exprs) ->
+      let length = List.length exprs in
+      ( match exprs with
+      | [] ->
+          recover "Empty pipe found" ~debug:e b
+      | [single] ->
+          recover "pipe with single entry found" ~debug:e (fromExpr single b)
+      | head :: tail ->
+          b
+          |> addNested ~f:(fromExpr head)
+          |> addNewlineIfNeeded (Some (E.toID head, id, Some 0))
+          |> addIter tail ~f:(fun i e b ->
+                 b
+                 |> add (TPipe (id, i, length))
+                 |> addNested ~f:(fromExpr e)
+                 |> addNewlineIfNeeded (Some (E.toID e, id, Some (i + 1))))
+          |> addNewlineIfNeeded (Some (id, id, Some (List.length tail))) )
+  | EPipeTarget _ ->
+      recover "should never be making tokens for EPipeTarget" ~debug:e b
+  | EMatch (id, mexpr, pairs) ->
+      b
+      |> add (TMatchKeyword id)
+      |> addNested ~f:(fromExpr mexpr)
+      |> indentBy ~indent:2 ~f:(fun b ->
+             b
+             |> addIter pairs ~f:(fun i (pattern, expr) b ->
+                    b
+                    |> addNewlineIfNeeded (Some (id, id, Some i))
+                    |> addMany (patternToToken pattern ~idx:i)
+                    |> add
+                         (TMatchBranchArrow
+                            { matchID = id
+                            ; patternID = Pattern.toID pattern
+                            ; index = i })
+                    |> addNested ~f:(fromExpr expr))
+             |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))))
+  | EPartial (id, str, _) ->
+      b |> add (TPartial (id, str))
+  | ERightPartial (id, newOp, expr) ->
+      b
+      |> addNested ~f:(fromExpr expr)
+      |> addMany [TSep id; TRightPartial (id, newOp)]
+  | EFeatureFlag (_id, _msg, _cond, casea, _caseb) ->
+      b |> addNested ~f:(fromExpr casea)
 
 
 let infoize tokens : tokenInfo list =
