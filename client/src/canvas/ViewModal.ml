@@ -63,10 +63,4 @@ let html (m : model) : msg Html.html =
   in
   Html.div
     ([Html.class' "modal-overlay"; Html.id id] @ events)
-    [ Html.div
-        [ ViewUtils.nothingMouseEvent "mousedown"
-        ; ViewUtils.nothingMouseEvent "mouseup"
-        ; ViewUtils.nothingMouseEvent "click"
-        ; Html.classList [("modal", true); ("unsupported", m.unsupportedBrowser)]
-        ]
-        [view] ]
+    [Html.div [Html.classList [("modal", true)]] [view]]
