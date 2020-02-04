@@ -57,9 +57,12 @@ type wrapLoc =
   | WIfCond
   | WIfThen
   | WIfElse
+  | WMatchExpr
+  | WMatchArm
 
 let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
   let replacement e : FluidExpression.t =
+    let newBlankPattern mid = OldExpr.toFluidPattern mid (Blank (gid ())) in
     match wl with
     | WLetRHS ->
         ELet (gid (), "", e, E.newB ())
@@ -71,6 +74,26 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
         EIf (gid (), E.newB (), e, E.newB ())
     | WIfElse ->
         EIf (gid (), E.newB (), E.newB (), e)
+    | WMatchExpr ->
+        (* e becomes
+         * match e
+         * _ -> _ *)
+        let mid = gid () in
+        EMatch (mid, e, [(newBlankPattern mid, E.newB ())])
+    | WMatchArm ->
+        (* e becomes
+         * match _
+         * _ ->  e
+         * _ -> _ 
+         *
+         * (the empty line is b/c it's not always possible to add a new pattern
+         * at the end of a match, but it's always possible to delete a pattern)
+         * *)
+        let mid = gid () in
+        EMatch
+          ( mid
+          , E.newB ()
+          , [(newBlankPattern mid, e); (newBlankPattern mid, E.newB ())] )
   in
   TL.getAST tl
   |> Option.map ~f:(E.update ~f:replacement id)
