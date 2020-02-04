@@ -235,3 +235,7 @@ let static_assets_bucket = string_option "DARK_CONFIG_STATIC_ASSETS_BUCKET"
  * *)
 let build_hash =
   match Sys.getenv "GIT_COMMIT" with Some s -> s | None -> env_display_name
+
+
+let use_login_darklang_com_for_login =
+  bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"
