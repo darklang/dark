@@ -266,7 +266,7 @@ function setFluidSelectionRange([beginIdx, endIdx]) {
   }
 }
 
-function dismissWelcomeModal() {
+function trackWelcomeModalDismissal() {
   analytics.track("Welcome Modal", {
     welcomeDismissed: true,
   });
@@ -275,7 +275,7 @@ function dismissWelcomeModal() {
 
 window.getFluidSelectionRange = getFluidSelectionRange;
 window.setFluidSelectionRange = setFluidSelectionRange;
-window.dismissWelcomeModal = dismissWelcomeModal;
+window.trackWelcomeModalDismissal = trackWelcomeModalDismissal;
 
 // ---------------------------
 // Analysis

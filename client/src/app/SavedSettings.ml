@@ -34,7 +34,7 @@ let toModel (e : savedSettings) : model =
   ; lastReload = e.lastReload
   ; sidebarOpen = e.sidebarOpen
   ; showTopbar = e.showTopbar
-  ; welcomeUser = e.welcomeUser }
+  ; showUserWelcomeModal = e.showUserWelcomeModal }
 
 
 let model2editor (m : model) : savedSettings =
@@ -52,7 +52,7 @@ let model2editor (m : model) : savedSettings =
   ; lastReload = m.lastReload
   ; sidebarOpen = m.sidebarOpen
   ; showTopbar = m.showTopbar
-  ; welcomeUser = m.welcomeUser }
+  ; showUserWelcomeModal = m.showUserWelcomeModal }
 
 
 let fromString (json : string option) : savedSettings =

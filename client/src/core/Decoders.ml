@@ -480,10 +480,10 @@ and savedSettings (j : Js.Json.t) : savedSettings =
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
         j
-  ; welcomeUser =
+  ; showUserWelcomeModal =
       withDefault
-        Defaults.defaultSavedSettings.welcomeUser
-        (field "welcomeUser" bool)
+        Defaults.defaultSavedSettings.showUserWelcomeModal
+        (field "showUserWelcomeModal" bool)
         j }
 
 

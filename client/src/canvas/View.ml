@@ -450,7 +450,7 @@ let view (m : model) : msg Html.html =
         [fontAwesome "book"; Html.text "Docs"] ]
   in
   let modal =
-    if m.unsupportedBrowser || m.welcomeUser
+    if m.unsupportedBrowser || m.showUserWelcomeModal
     then ViewModal.html m
     else Vdom.noNode
   in
