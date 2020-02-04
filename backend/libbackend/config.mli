@@ -63,3 +63,5 @@ val check_tier_one_hosts : bool
 val static_assets_bucket : string option
 
 val build_hash : string
+
+val use_login_darklang_com_for_login : bool
