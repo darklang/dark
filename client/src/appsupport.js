@@ -266,23 +266,23 @@ function setFluidSelectionRange([beginIdx, endIdx]) {
   }
 }
 
-var Analytics = require('analytics-node');
-var analytics = new Analytics('fVtoR1kNIsfZ484ovfavEybnNubNNVi8');
+var Analytics = require("analytics-node");
+var analytics = new Analytics("fVtoR1kNIsfZ484ovfavEybnNubNNVi8");
 analytics.page({
   userId: `user-${username}`,
-  name: 'Canvas',
+  name: "Canvas",
   properties: {
     url: document.URL,
     path: location.pathname,
     title: document.title,
-    referrer: document.referrer
-  }
+    referrer: document.referrer,
+  },
 });
 
 function trackWelcomeModalDismissal() {
   analytics.track({
     userId: `user-${username}`,
-    event: 'Welcome Modal',
+    event: "Welcome Modal",
   });
   return;
 }
