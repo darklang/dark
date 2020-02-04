@@ -4891,12 +4891,14 @@ let rec updateKey
                 {astRef = ARRightPartial newID; offset = String.length txt} )
           | _ -> (ast, s))) *)
     (* TODO(JULIAN): Figure out how to deal with pipes! *)
-    | InsertText infixTxt, _, R ((TPlaceholder _), ti)
-    | InsertText infixTxt, _, R ((TBlank _), ti)
-    | InsertText infixTxt, L (_, ti), _ when keyIsInfix ->
+    | InsertText infixTxt, L (TPipe _, ti), _
+    | InsertText infixTxt, _, R (TPlaceholder _, ti)
+    | InsertText infixTxt, _, R (TBlank _, ti)
+    | InsertText infixTxt, L (_, ti), _
+      when keyIsInfix ->
         caretTargetFromTokenInfo pos ti
         |> Option.andThen ~f:(fun ct ->
-        (Debug.loG "Key is infix!" (infixTxt, show_caretTarget ct)) ;
+               Debug.loG "Key is infix!" (infixTxt, show_caretTarget ct) ;
                idOfASTRef ct.astRef
                |> Option.andThen ~f:(fun id ->
                       match E.find id ast with
@@ -4913,18 +4915,47 @@ let rec updateKey
                | ARFloat _, expr
                | ARNull _, expr
                | ARVariable _, expr ->
-                   if caretTargetForEndOfExpr' expr = ct then
-                   let newID = gid () in
-                   Some (id, (E.ERightPartial (newID, infixTxt, expr)), {astRef = ARRightPartial newID; offset = String.length infixTxt})
-                    else None
+                   if caretTargetForEndOfExpr' expr = ct
+                   then
+                     let newID = gid () in
+                     Some
+                       ( id
+                       , E.ERightPartial (newID, infixTxt, expr)
+                       , { astRef = ARRightPartial newID
+                         ; offset = String.length infixTxt } )
+                   else None
                | ARBlank _, expr ->
                    let newID = gid () in
-                   Some (id, (E.ERightPartial (newID, infixTxt, expr)), {astRef = ARRightPartial newID; offset = String.length infixTxt})
+                   Some
+                     ( id
+                     , E.ERightPartial (newID, infixTxt, expr)
+                     , { astRef = ARRightPartial newID
+                       ; offset = String.length infixTxt } )
+               | ARPipe (_, index), E.EPipe (id, pipeExprs) ->
+                 ( match pipeExprs |> List.getAt ~index:(index + 1) with
+                 | Some pipedInto ->
+                     (* Note that this essentially destroys the pipedInto
+                      * expression, because it becomes overwritten by the
+                      * partial. Handling this properly would involve
+                      * introducing a new construct -- perhaps a left partial. *)
+                     let parID = gid () in
+                     let newExpr = E.EPartial (parID, infixTxt, pipedInto) in
+                     let newPipeExprs =
+                       pipeExprs
+                       |> List.updateAt ~index:(index + 1) ~f:(fun _ -> newExpr)
+                     in
+                     Some
+                       ( id
+                       , E.EPipe (id, newPipeExprs)
+                       , { astRef = ARPartial parID
+                         ; offset = String.length infixTxt } )
+                 | None ->
+                     None )
                | _ ->
                    None)
         |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
-          let newAST = E.replace replaceID ~replacement:newExpr ast
-          in (newAST, moveToCaretTarget s newAST newCaretTarget))
+               let newAST = E.replace replaceID ~replacement:newExpr ast in
+               (newAST, moveToCaretTarget s newAST newCaretTarget))
         |> Option.withDefault ~default:(ast, s)
     (* Rest of Insertions *)
     | InsertText txt, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
