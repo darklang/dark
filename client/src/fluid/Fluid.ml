@@ -4890,7 +4890,6 @@ let rec updateKey
                 newAST
                 {astRef = ARRightPartial newID; offset = String.length txt} )
           | _ -> (ast, s))) *)
-    (* TODO(JULIAN): Figure out how to deal with pipes! *)
     | InsertText infixTxt, L (TPipe _, ti), _
     | InsertText infixTxt, _, R (TPlaceholder _, ti)
     | InsertText infixTxt, _, R (TBlank _, ti)
@@ -4956,7 +4955,8 @@ let rec updateKey
         |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
                let newAST = E.replace replaceID ~replacement:newExpr ast in
                (newAST, moveToCaretTarget s newAST newCaretTarget))
-        |> Option.withDefault ~default:(ast, s)
+        |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti ast s))
+        |> recoverOpt "updateKey - can't return None due to lazy Some" ~default:(ast, s)
     (* Rest of Insertions *)
     | InsertText txt, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos txt toTheLeft ast s
