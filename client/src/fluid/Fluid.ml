@@ -140,6 +140,18 @@ let getNeighbours ~(pos : int) (tokens : T.tokenInfo list) :
   (toTheLeft, toTheRight, mNext)
 
 
+let getNeighbouringExprs ~(pos : int) (tokens : T.tokenInfo list) ast :
+    fluidExpr option * fluidExpr option =
+  let mPrev, _, mNext = getTokensAtPosition ~pos tokens in
+  let exprBehind =
+    mPrev |> Option.andThen ~f:(fun ti -> E.find (T.tid ti.token) ast)
+  in
+  let exprAhead =
+    mNext |> Option.andThen ~f:(fun ti -> E.find (T.tid ti.token) ast)
+  in
+  (exprBehind, exprAhead)
+
+
 let getToken' (s : fluidState) (tokens : T.tokenInfo list) : T.tokenInfo option
     =
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
@@ -4275,7 +4287,7 @@ let rec updateKey
   (* This expresses whether or not the expression to the left of
    * the insert should be wrapped in a binary operator, and determines
    * that fact based on the _next_ token *)
-    let wrappableInBinop rightNeighbour =
+  (*   let _wrappableInBinop rightNeighbour =
     match rightNeighbour with
     | L _ ->
         (* This function is only defined in terms of right + no lookahead, so say false if we were accidentally passed an `L` *)
@@ -4300,7 +4312,7 @@ let rec updateKey
           false
       | _ ->
           true )
-  in
+  in *)
   (*   let wrappableInBinop (ct:caretTarget option) : bool =
     ct
     |> Option.map ~f:(fun ct ->
@@ -4326,10 +4338,10 @@ let rec updateKey
       | ARMatch _
       | ARLambda _
       | ARPattern _
-      | ARInvalid -> false
-    )
+      | ARInvalid -> false)
     |> Option.withDefault ~default:false
-  in
+  in *)
+  (*   
   let caretTargetBehind = 
     (match toTheLeft with
     | L (_, lti) -> (caretTargetFromTokenInfo pos)
@@ -4340,13 +4352,20 @@ let rec updateKey
     | R (_, rti) -> (caretTargetFromTokenInfo rti pos)
     | ((L _)|No) -> None)
   in *)
-  let exprBehind =
-    (match toTheLeft with L (tok, _) -> Some (T.tid tok) | R _ | No -> None)
-    |> Option.andThen ~f:(fun id -> E.find id ast)
-  in
-  let exprAhead =
-    (match toTheRight with R (tok, _) -> Some (T.tid tok) | L _ | No -> None)
-    |> Option.andThen ~f:(fun id -> E.find id ast)
+  let exprBehind, exprAhead = getNeighbouringExprs ~pos tokens ast in
+  let _wrappableInBinop (expr : fluidExpr) : bool =
+    match expr with
+    | EInteger _
+    | EBool _
+    | EString _
+    | EFloat _
+    | ENull _
+    | EBlank _
+    | EBinOp _
+    | EVariable _ ->
+        true
+    | _ ->
+        false
   in
   let _isTwixtDiffExprs = exprBehind <> exprAhead in
   let keyIsInfix =
@@ -4452,15 +4471,18 @@ let rec updateKey
     | Keypress {key; _}, L (_, ti), _
       when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
+        Debug.loG "isAutocompleting 1" () ;
         acEnter ti ast s key
     | Keypress {key; _}, _, R (_, ti)
       when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
+        Debug.loG "isAutocompleting 2" () ;
         acEnter ti ast s key
     (* When we type a letter/number after an infix operator, complete and
      * then enter the number/letter. *)
     | InsertText txt, L (TRightPartial (_, _), ti), _
       when onEdge && Util.isIdentifierChar txt ->
+        Debug.loG "isAutocompleting 3" () ;
         let ast, s = acEnter ti ast s K.Tab in
         getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
@@ -4483,6 +4505,7 @@ let rec updateKey
         ( match left with
         | (L (TPartial _, ti) | L (TFieldPartial _, ti))
           when Option.is_some (AC.highlighted s.ac) ->
+            Debug.loG "isAutocompleting 4" () ;
             let ast, s = acEnter ti ast s K.Enter in
             doPipeline ast s
         | _ ->
@@ -4601,7 +4624,7 @@ let rec updateKey
         let newState = moveToCaretTarget s newAST target in
         (newAST, newState)
     | InsertText ",", L (t, ti), _ ->
-        if onEdge
+        if onEdge (* TODO: make this explicit *)
         then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
         else doInsert ~pos "," ti ast s
     (* Field access *)
@@ -4792,7 +4815,7 @@ let rec updateKey
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s) *)
     (* Binop specific, all of the specific cases must come before the
      * big general `key, L (_, toTheLeft), _` case. *)
-    | InsertText txt, L (TPartial _, toTheLeft), _
+    (*    | InsertText txt, L (TPartial _, toTheLeft), _
     | InsertText txt, L (TRightPartial _, toTheLeft), _
     | InsertText txt, L (TBinOp _, toTheLeft), _
       when keyIsInfix ->
@@ -4802,13 +4825,15 @@ let rec updateKey
     | InsertText txt, _, R (TBlank _, toTheRight)
       when keyIsInfix ->
         Debug.loG "keyIsInfix 2" () ;
-        doInsert ~pos txt toTheRight ast s
+        doInsert ~pos txt toTheRight ast s *)
     (* | InsertText txt, L (_, toTheLeft), _
       when onEdge && keyIsInfix && _wrappableInBinop toTheRight ->
       ((Debug.loG "keyIsInfix 3" ());
         (convertToBinOp txt (T.tid toTheLeft.token) ast, s |> moveTo (pos + 2))) *)
-    | InsertText txt, L _, _ when onEdge && wrappableInBinop toTheRight && (* isTwixtDiffExprs && *) keyIsInfix
-      ->
+    (* | InsertText txt, L _, _
+      when onEdge
+           && wrappableInBinop toTheRight
+           && (* isTwixtDiffExprs && *) keyIsInfix ->
       ( match (exprBehind, exprAhead) with
       | None, None ->
           Debug.loG "Key is infix!" () ;
@@ -4824,24 +4849,83 @@ let rec updateKey
           , moveToCaretTarget
               s
               newAST
-              {astRef = ARRightPartial newID; offset = String.length txt} )
+              {astRef = ARRightPartial newID; offset = String.length txt} ) *)
+    (*     | InsertText txt, _, _
+      when _isTwixtDiffExprs && keyIsInfix ->
+      ( match (exprBehind, exprAhead) with
+      | None, None ->
+          Debug.loG "Key is infix! None" () ;
+          (ast, s)
+      | Some behind, None ->
+          Debug.loG "Key is infix! Behind" (txt, show_fluidExpr behind) ;
+          (if wrappableInBinop behind then
+            let newID = gid () in
+            let newAST =
+              E.update (E.toID behind) ast ~f:(fun expr ->
+                  ERightPartial (newID, txt, expr))
+            in
+            ( newAST
+            , moveToCaretTarget
+                s
+                newAST
+                {astRef = ARRightPartial newID; offset = String.length txt} )
+          else (ast, s))
       | None, Some ahead ->
           Debug.loG "Key is infix! Ahead" (txt, show_fluidExpr ahead) ;
           (ast, s)
       | Some behind, Some ahead ->
           Debug.loG
-            "Key is infix!"
+            "Key is infix! Ahead and Behind"
             (txt, show_fluidExpr behind, show_fluidExpr ahead) ;
-          let newID = gid () in
-          let newAST =
-            E.update (E.toID behind) ast ~f:(fun expr ->
-                ERightPartial (newID, txt, expr))
-          in
-          ( newAST
-          , moveToCaretTarget
-              s
-              newAST
-              {astRef = ARRightPartial newID; offset = String.length txt} ) )
+          (match ((wrappableInBinop behind), (wrappableInBinop ahead)) with
+          | (true, _) ->
+            let newID = gid () in
+            let newAST =
+              E.update (E.toID behind) ast ~f:(fun expr ->
+                  ERightPartial (newID, txt, expr))
+            in
+            ( newAST
+            , moveToCaretTarget
+                s
+                newAST
+                {astRef = ARRightPartial newID; offset = String.length txt} )
+          | _ -> (ast, s))) *)
+    (* TODO(JULIAN): Figure out how to deal with pipes! *)
+    | InsertText infixTxt, _, R ((TPlaceholder _), ti)
+    | InsertText infixTxt, _, R ((TBlank _), ti)
+    | InsertText infixTxt, L (_, ti), _ when keyIsInfix ->
+        caretTargetFromTokenInfo pos ti
+        |> Option.andThen ~f:(fun ct ->
+        (Debug.loG "Key is infix!" (infixTxt, show_caretTarget ct)) ;
+               idOfASTRef ct.astRef
+               |> Option.andThen ~f:(fun id ->
+                      match E.find id ast with
+                      | Some expr ->
+                          Some (id, ct, expr)
+                      | None ->
+                          None))
+        |> Option.andThen ~f:(fun (id, ct, expr) ->
+               match (ct.astRef, expr) with
+               | ARInteger _, expr
+               | ARBool _, expr
+               | ARFieldAccess (_, FAPFieldname), expr
+               | ARString (_, SPCloseQuote), expr
+               | ARFloat _, expr
+               | ARNull _, expr
+               | ARVariable _, expr ->
+                   if caretTargetForEndOfExpr' expr = ct then
+                   let newID = gid () in
+                   Some (id, (E.ERightPartial (newID, infixTxt, expr)), {astRef = ARRightPartial newID; offset = String.length infixTxt})
+                    else None
+               | ARBlank _, expr ->
+                   let newID = gid () in
+                   Some (id, (E.ERightPartial (newID, infixTxt, expr)), {astRef = ARRightPartial newID; offset = String.length infixTxt})
+               | _ ->
+                   None)
+        |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
+          let newAST = E.replace replaceID ~replacement:newExpr ast
+          in (newAST, moveToCaretTarget s newAST newCaretTarget))
+        |> Option.withDefault ~default:(ast, s)
     (* Rest of Insertions *)
     | InsertText txt, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos txt toTheLeft ast s
