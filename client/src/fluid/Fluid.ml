@@ -234,57 +234,6 @@ let report (e : string) (s : state) =
   {s with error = Some e}
 
 
-(* --------------------- *)
-(* CaretTarget shortcuts *)
-(* --------------------- *)
-
-(* (** [CT.forARStringOpenQuote id offset] produces an ARString caretTarget
- * pointing to an [offset] into the open " of the string with [id].
- * [offset] may NOT be negative as it cannot represent something out of string bounds. *)
-let CT.forARStringOpenQuote (id : id) (offset : int) : caretTarget =
-  {astRef = ARString (id, SPOpenQuote); offset}
-
-
-(** [CT.forARStringText id offset] produces an ARString caretTarget
- * pointing to an [offset] into the text of the string with [id].
- * [offset] may be negative but cannot represent something out of string bounds. *)
-let CT.forARStringText (id : id) (offset : int) : caretTarget =
-  {astRef = ARString (id, SPOpenQuote); offset = 1 + offset}
-
-
-(** [CT.forARStringCloseQuote id offset] produces an ARString caretTarget
- * pointing to an [offset] into the close " of the string with [id]. It uses the
- * [fullStr] of the string (excluding visual quotes) to compute the target.
- * [offset] may be negative but cannot represent something out of string bounds. *)
-let CT.forARStringCloseQuote (id : id) (offset : int) (fullStr : string)
-    : caretTarget =
-  let lenPlusOpenQuote = 1 + String.length fullStr in
-  {astRef = ARString (id, SPOpenQuote); offset = lenPlusOpenQuote + offset}
-
-
-(** [CT.forPPStringOpenQuote id offset] produces an ARPattern PPString caretTarget
- * pointing to an [offset] into the open " of the pattern string with [id].
- * [offset] may NOT be negative as it cannot represent something out of string bounds. *)
-let CT.forPPStringOpenQuote (id : id) (offset : int) : caretTarget =
-  {astRef = ARPattern (id, PPString SPOpenQuote); offset}
-
-(** [CT.forPPStringText id offset] produces an ARPattern PPString caretTarget
- * pointing to an [offset] into the text of the pattern string with [id].
- * [offset] may be negative but cannot represent something out of string bounds. *)
-let CT.forPPStringText (id : id) (offset : int) : caretTarget =
-  {astRef = ARPattern (id, PPString SPOpenQuote); offset = 1 + offset}
-
-(** [CT.forARStringCloseQuote id offset] produces an ARPattern PPString caretTarget
- * pointing to an [offset] into the close " of the pattern string with [id]. It uses the
- * [fullStr] of the string (excluding visual quotes) to compute the target.
- * [offset] may be negative but cannot represent something out of string bounds. *)
-let CT.forPPStringCloseQuote (id : id) (offset : int) (fullStr : string)
-    : caretTarget =
-  let lenPlusOpenQuote = 1 + String.length fullStr in
-  { astRef = ARPattern (id, PPString SPOpenQuote)
-  ; offset = lenPlusOpenQuote + offset } *)
-
-
 (* -------------------- *)
 (* Update *)
 (* -------------------- *)
@@ -954,9 +903,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
     =
   let offset = pos - ti.startPos in
   match ti.token with
-  | TString (id, _)
-  | TStringMLStart (id, _, _, _) ->
-      (Some (CT.forARStringOpenQuote id offset))
+  | TString (id, _) | TStringMLStart (id, _, _, _) ->
+      Some (CT.forARStringOpenQuote id offset)
   | TStringMLMiddle (id, _, startOffset, _)
   | TStringMLEnd (id, _, startOffset, _) ->
       Some (CT.forARStringText id (startOffset + pos - ti.startPos))
@@ -3889,8 +3837,7 @@ let doExplicitInsert
           let str = str |> mutationAt ~index:strRelOffset in
           Some
             ( Pat (FPString {data with str})
-            , CT.forPPStringText patternID (strRelOffset + caretDelta)
-            )
+            , CT.forPPStringText patternID (strRelOffset + caretDelta) )
     | ARPattern (_, PPBlank), FPBlank (mID, _) ->
         let newID = gid () in
         if extendedGraphemeCluster = "\""
@@ -5567,9 +5514,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
           E.EString (id, String.insertAt ~insert:text ~index str)
         in
         let newAST = E.replace ~replacement id ast in
-        let caretTarget =
-          CT.forARStringText id (index + String.length text)
-        in
+        let caretTarget = CT.forARStringText id (index + String.length text) in
         (newAST, moveToCaretTarget state newAST caretTarget)
     | _ ->
         text
