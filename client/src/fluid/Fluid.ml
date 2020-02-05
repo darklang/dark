@@ -1948,14 +1948,29 @@ let replacePartialWithArguments
     | _ ->
         recover "impossible" ~debug:expr []
   in
-  let getSter expr =
-    match expr with
-    | EFnCall (_, _, _, ster) | EBinOp (_, _, _, _, ster) ->
-        Some ster
-    | EConstructor _ ->
-        None
-    | _ ->
-        recover "impossible" ~debug:expr None
+  let getSter oldName oldExpr newAllowed =
+    let oldSter =
+      match oldExpr with
+      | EFnCall (_, _, _, ster) | EBinOp (_, _, _, _, ster) ->
+          ster
+      | _ ->
+          NoRail
+    in
+    let oldAllowed =
+      s.ac.functions
+      |> List.find ~f:(fun fn -> fn.fnName = oldName)
+      |> Option.map ~f:(fun fn ->
+             if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
+             then Rail
+             else NoRail)
+      |> Option.withDefault ~default:NoRail
+    in
+    (* The new function should be on the error rail if it was on the error rail
+     * and the new function allows it, or if it wasn't on the error rail, but
+     * the old function didn't allow it and the new one does *)
+    if newAllowed = Rail && (oldSter = Rail || oldAllowed = NoRail)
+    then Rail
+    else NoRail
   in
   let isAligned p1 p2 =
     match (p1, p2) with
@@ -1967,17 +1982,16 @@ let replacePartialWithArguments
   E.update id ast ~f:(fun expr ->
       match expr with
       (* preserve partials with arguments *)
-      | EPartial (_, _, (EFnCall (_, name, _, _) as inner))
-      | EPartial (_, _, (EBinOp (_, name, _, _, _) as inner))
-      | EPartial (_, _, (EConstructor (_, name, _) as inner)) ->
-          let oldSter = getSter inner in
+      | EPartial (_, _, (EFnCall (_, oldName, _, _) as inner))
+      | EPartial (_, _, (EBinOp (_, oldName, _, _, _) as inner))
+      | EPartial (_, _, (EConstructor (_, oldName, _) as inner)) ->
           let existingExprs = getExprs inner in
           let fetchParams newName placeholderExprs =
             let count =
               max (List.length existingExprs) (List.length placeholderExprs)
             in
             let newParams = getFunctionParams newName count placeholderExprs in
-            let oldParams = getFunctionParams name count existingExprs in
+            let oldParams = getFunctionParams oldName count existingExprs in
             let matchedParams, mismatchedParams =
               List.partition oldParams ~f:(fun p ->
                   List.any newParams ~f:(isAligned p))
@@ -1994,7 +2008,7 @@ let replacePartialWithArguments
           in
           ( match newExpr with
           | EBinOp (id, newName, lhs, rhs, newSter) ->
-              let ster = Option.withDefault oldSter ~default:newSter in
+              let ster = getSter oldName inner newSter in
               let newParams, mismatchedParams =
                 fetchParams newName [lhs; rhs]
               in
@@ -2010,7 +2024,7 @@ let replacePartialWithArguments
               in
               wrapWithLets ~expr:newExpr mismatchedParams
           | EFnCall (id, newName, newExprs, newSter) ->
-              let ster = Option.withDefault oldSter ~default:newSter in
+              let ster = getSter oldName inner newSter in
               let newParams, mismatchedParams = fetchParams newName newExprs in
               let newExpr = EFnCall (id, newName, newParams, ster) in
               wrapWithLets ~expr:newExpr mismatchedParams
