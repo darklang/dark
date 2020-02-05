@@ -1548,69 +1548,16 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
       then handle_login_page ~execution_id req body
       else if path = "/logout"
       then S.respond_redirect ~uri:login_uri ()
+      else if (* If it's an api, don't try to redirect *)
+              Re2.matches (Re2.create_exn "^/api/") path
+      then respond ~execution_id `Unauthorized "Bad credentials"
       else
-        let headers = CRequest.headers req in
-        let useragent_is_darkcli =
-          Header.get headers "user-agent"
-          |> Option.map ~f:(fun s ->
-                 Re2.matches (Re2.create_exn "reqwest") s
-                 || Re2.matches (Re2.create_exn "dark-cli") s)
+        let uri =
+          Uri.add_query_param'
+            login_uri
+            ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
         in
-        ( match (Header.get_authorization headers, useragent_is_darkcli) with
-        (* If we don't have a session, but we do have basic auth and the user
-         * agent includes "reqwests", this is the dark-cli, so respond with the
-         * old cookie-and-csrf token body.
-         *
-         * (If you logged in with basic auth, and then went to /logout, and then
-         * to /a/<canvas>, your browser will still present basic auth, but we
-         * want to redirect you to the /login page, hence checking the
-         * user-agent. *)
-        | Some (`Basic (username_or_email, password)), Some true ->
-            let username = Account.authenticate ~username_or_email ~password in
-            ( match username with
-            | Some username ->
-                (* This is dupe of the "real" (/login) session code; since we're gonna
-                 * rip this basic auth codepath out post-Strangeloop, I don't feel
-                 * like DRYing it up *)
-                let%lwt session = Auth.SessionLwt.new_for_username username in
-                let https_only_cookie =
-                  req |> CRequest.uri |> should_use_https
-                in
-                let domain =
-                  Header.get headers "host"
-                  |> Option.value ~default:"darklang.com"
-                  |> String.substr_replace_all ~pattern:":8000" ~with_:""
-                in
-                let csrf_token = Auth.SessionLwt.csrf_token_for session in
-                (* this is silly, but dark-cli regexes the csrf_token from the body
-                 * for historical reasons
-                 *)
-                let body = "const csrfToken = \"" ^ csrf_token ^ "\";" in
-                let resp_headers =
-                  username_header username
-                  :: Auth.SessionLwt.to_cookie_hdrs
-                       ~http_only:true
-                       ~secure:https_only_cookie
-                       ~domain
-                       ~path:"/"
-                       Auth.SessionLwt.cookie_key
-                       session
-                  |> Cohttp.Header.of_list
-                in
-                respond ~execution_id ~resp_headers `OK body
-            | None ->
-                respond ~execution_id `Unauthorized "Bad credentials" )
-        | _ ->
-            (* If it's an api, don't try to redirect *)
-            if Re2.matches (Re2.create_exn "^/api/") path
-            then respond ~execution_id `Unauthorized "Bad credentials"
-            else
-              let uri =
-                Uri.add_query_param'
-                  login_uri
-                  ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
-              in
-              S.respond_redirect ~uri () )
+        S.respond_redirect ~uri ()
 
 
 let admin_ui_handler
