@@ -653,14 +653,14 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
           in
           let binary_repr, deleted, tipe =
             handler ()
-            |> Tc.Option.orElseLazy deleted_handler
-            |> Tc.Option.orElseLazy db
-            |> Tc.Option.orElseLazy deleted_handler
-            |> Tc.Option.orElseLazy deleted_db
-            |> Tc.Option.orElseLazy user_function
-            |> Tc.Option.orElseLazy deleted_user_function
-            |> Tc.Option.orElseLazy user_tipe
-            |> Tc.Option.orElseLazy deleted_user_tipe
+            |> Tc.Option.or_else_lazy deleted_handler
+            |> Tc.Option.or_else_lazy db
+            |> Tc.Option.or_else_lazy deleted_handler
+            |> Tc.Option.or_else_lazy deleted_db
+            |> Tc.Option.or_else_lazy user_function
+            |> Tc.Option.or_else_lazy deleted_user_function
+            |> Tc.Option.or_else_lazy user_tipe
+            |> Tc.Option.or_else_lazy deleted_user_tipe
             |> Option.map ~f:(fun (str, d, t) -> (Some str, Some d, t))
             (* If the user calls Undo enough, we might not know
              * the tipe here. In that case, set to handler cause

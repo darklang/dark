@@ -428,11 +428,11 @@ let transactionally_migrate_oplist
     let try_convert f () = try Some (f rendered) with _ -> None in
     let rendered =
       try_convert (translate_handler_as_binary_string ~f:handler_f) ()
-      |> Tc.Option.orElseLazy
+      |> Tc.Option.or_else_lazy
            (try_convert (translate_db_as_binary_string ~f:db_f))
-      |> Tc.Option.orElseLazy
+      |> Tc.Option.or_else_lazy
            (try_convert (translate_user_function_as_binary_string ~f:user_fn_f))
-      |> Tc.Option.orElseLazy
+      |> Tc.Option.or_else_lazy
            (try_convert (translate_user_tipe_as_binary_string ~f:user_tipe_f))
       |> Tc.Option.map ~f:(fun str -> Db.Binary str)
       |> Tc.Option.withDefault ~default:Db.Null
