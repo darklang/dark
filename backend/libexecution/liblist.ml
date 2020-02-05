@@ -365,6 +365,41 @@ let fns =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["List::sortByComparator"]
+    ; ins = []
+    ; p = [par "list" TList; func ["val"]]
+    ; r = TResult
+    ; d =
+        "Returns `list`, sorted using a `f`, a lambda taking two args and returning -1, 0, and 1"
+    ; f =
+        InProcess
+          (function
+          | state, [DList list; DBlock b] ->
+              let fn dv1 dv2 = Ast.execute_dblock ~state b [dv1; dv2] in
+              ( try
+                  list
+                  |> List.sort ~compare:(fun a b ->
+                         match fn a b with
+                         | DInt i ->
+                             let i = Dint.to_int_exn i in
+                             ( match i with
+                             | 0 | 1 | -1 ->
+                                 i
+                             | _ ->
+                                 Exception.code
+                                   ( "`f` must return one of -1, 0, 1, but returned "
+                                   ^ string_of_int i ) )
+                         | _ ->
+                             Exception.code "`f` must return one of -1, 0, 1")
+                  |> DList
+                  |> ResOk
+                  |> DResult
+                with Exception.DarkException e ->
+                  DResult (ResError (Dval.dstr_of_string_exn e.short)) )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["List::append"]
     ; ins = []
     ; p = [par "l1" TList; par "l2" TList]
