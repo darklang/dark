@@ -1,5 +1,10 @@
 open Tc
 
+type shortcutHeritage =
+  | LegacyShortcut
+  | CurrentShortcut
+[@@deriving show]
+
 type browserPlatform =
   | Mac
   | Linux
@@ -46,7 +51,7 @@ type key =
   | Undo
   | Redo
   | SelectAll
-  | CommandPalette
+  | CommandPalette of shortcutHeritage
   | Omnibox
   | Unhandled of string
 [@@deriving show]
@@ -102,6 +107,8 @@ let fromKeyboardEvent
       (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
        * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
       GoToEndOfWord maintainSelection
+  | " " when ctrl ->
+      CommandPalette CurrentShortcut
   (************
    * Movement *
    ************)
@@ -175,9 +182,9 @@ let fromKeyboardEvent
    * points to the fact that it may be easier to do shortcuts with Cmd/Ctrl
    * instead of Alt. *)
   | "x" when alt ->
-      CommandPalette
+      CommandPalette LegacyShortcut
   | _ when alt && String.length key = 1 ->
-      if key = {js|≈|js} then CommandPalette else Unhandled key
+      if key = {js|≈|js} then CommandPalette LegacyShortcut else Unhandled key
   | _ ->
       Unhandled key
 
