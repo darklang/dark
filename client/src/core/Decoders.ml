@@ -448,6 +448,14 @@ and handlerProp j : handlerProp =
   ; execution = field "executing" exeState j }
 
 
+and savedUserSettings (j : Js.Json.t) : savedUserSettings =
+  { showUserWelcomeModal =
+      withDefault
+        Defaults.defaultUserSettings.showUserWelcomeModal
+        (field "showUserWelcomeModal" bool)
+        j }
+
+
 and savedSettings (j : Js.Json.t) : savedSettings =
   (* always use withDefault or optional because the field might be missing due
    * to old editors or new fields. *)
@@ -479,11 +487,6 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
-        j
-  ; showUserWelcomeModal =
-      withDefault
-        Defaults.defaultSavedSettings.showUserWelcomeModal
-        (field "showUserWelcomeModal" bool)
         j }
 
 

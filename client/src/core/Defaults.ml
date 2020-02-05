@@ -18,6 +18,8 @@ let pageWidth : int = 500
 
 let unsetCSRF : string = "UNSET_CSRF"
 
+let defaultUserSettings : savedUserSettings = {showUserWelcomeModal = true}
+
 let defaultSavedSettings : savedSettings =
   { editorSettings = {runTimers = true; showFluidDebugger = false}
   ; cursorState = Deselected
@@ -28,8 +30,7 @@ let defaultSavedSettings : savedSettings =
   ; canvasPos = origin
   ; lastReload = None
   ; sidebarOpen = true
-  ; showTopbar = false
-  ; showUserWelcomeModal = true }
+  ; showTopbar = false }
 
 
 let defaultFluidState : fluidState =

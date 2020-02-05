@@ -1568,6 +1568,8 @@ and model =
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool }
 
+and savedUserSettings = {showUserWelcomeModal : bool}
+
 and savedSettings =
   { editorSettings : editorSettings
   ; cursorState : cursorState
@@ -1578,8 +1580,7 @@ and savedSettings =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarOpen : bool
-  ; showTopbar : bool
-  ; showUserWelcomeModal : bool }
+  ; showTopbar : bool }
 [@@deriving show {with_path = false}]
 
 and permission =
