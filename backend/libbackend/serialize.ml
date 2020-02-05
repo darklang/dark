@@ -435,6 +435,8 @@ let transactionally_migrate_oplist
       |> Tc.Option.or_else_lazy
            (try_convert (translate_user_tipe_as_binary_string ~f:user_tipe_f))
       |> Tc.Option.map ~f:(fun str -> Db.Binary str)
+      |> Tc.Option.or_else_lazy (fun () ->
+             Exception.internal "none of the decoders worked on the cache")
       |> Tc.Option.withDefault ~default:Db.Null
     in
     Db.run
