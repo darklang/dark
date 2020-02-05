@@ -927,6 +927,20 @@ and menuMsg =
   | OpenMenu
   | CloseMenu
 
+(* FnParams *)
+and fnSpace =
+  { draggingParamIndex : int option
+  ; dragOverSpaceIndex : int option
+  ; justMovedParam : int option }
+
+and fnpMsg =
+  | ParamDragStart of int
+  | ParamDragDone
+  | ParamEntersSpace of int
+  | ParamLeavesSpace
+  | ParamDropIntoSpace of int
+  | Reset
+
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
@@ -1088,8 +1102,6 @@ and modification =
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
   | TLMenuUpdate of tlid * menuMsg
-  | UpdateFnCallArgs of tlid * fnName * int * int
-  | FnParamMoved of int
 
 (* ------------------- *)
 (* Msgs *)
@@ -1249,12 +1261,7 @@ and msg =
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * tlid
   | CloseWelcomeModal
-  | ParamDragStart of int
-  | SpaceDragEnter of int
-  | SpaceDragLeave
-  | DropIntoSpace of int
-  | ParamDragDone
-  | ResetFnSpace
+  | FnParamMsg of fnpMsg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1300,11 +1307,6 @@ and handlerProp =
        * the reference *)
       id list
   ; execution : exeState }
-
-and fnSpace =
-  { draggingParamIndex : int option
-  ; dragOverSpaceIndex : int option
-  ; justMovedParam : int option }
 
 and tlTraceIDs = traceID TLIDDict.t
 
@@ -1580,8 +1582,7 @@ and model =
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
-  ; currentUserFn: fnSpace
-  }
+  ; currentUserFn : fnSpace }
 
 and savedSettings =
   { editorSettings : editorSettings

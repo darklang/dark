@@ -29,52 +29,6 @@ let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
   viewText FnName vs ((enterable :: idConfigs) @ c) v
 
 
-let viewParamName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  viewText ParamName vs ((enterable :: idConfigs) @ c) v
-
-
-let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
-    msg Html.html =
-  ViewBlankOr.viewTipe ParamTipe vs ((enterable :: idConfigs) @ c) v
-
-
-let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
-    msg Html.html =
-  let freeVariables =
-    uf.ufAST |> AST.freeVariables |> List.map ~f:Tuple2.second
-  in
-  let canDeleteParameter pname =
-    List.member ~value:pname freeVariables |> not
-  in
-  let buttonContent allowed =
-    if allowed
-    then
-      Html.div
-        [ Html.class' "parameter-btn allowed"
-        ; ViewUtils.eventNoPropagation
-            ~key:
-              ( "dufp-"
-              ^ showTLID uf.ufTLID
-              ^ "-"
-              ^ (p.ufpName |> B.toID |> showID) )
-            "click"
-            (fun _ -> DeleteUserFunctionParameter (uf.ufTLID, p)) ]
-        [fontAwesome "times-circle"]
-    else
-      Html.div
-        [ Html.class' "parameter-btn disallowed"
-        ; Html.title
-            "Can't delete parameter because it is used in the function body" ]
-        [fontAwesome "times-circle"]
-  in
-  match p.ufpName with
-  | F (_, pname) ->
-      buttonContent (canDeleteParameter pname)
-  | _ ->
-      buttonContent true
-
-
 let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
   let exeStatus =
     if vs.isExecuting
@@ -136,89 +90,6 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
     [fontAwesome "redo"]
 
 
-let jsDragStart : Web.Node.event -> unit =
-  [%raw
-    "function(e){ e.dataTransfer.setData('text/plain', e.target.innerHTML); e.dataTransfer.effectAllowed = 'move'; }"]
-
-
-let jsDragOver : Web.Node.event -> unit =
-  [%raw "function(e){e.dataTransfer.dropEffect = 'move';}"]
-
-
-let viewParamSpace (index : int) (fs : fnSpace) : msg Html.html =
-  let dragOver e =
-    jsDragOver e ;
-    IgnoreMsg
-  in
-  let dragEnter _ = SpaceDragEnter index in
-  let dragLeave _ = SpaceDragLeave in
-  let drop e =
-    e##stopPropagation () ;
-    DropIntoSpace index
-  in
-  let keyId = string_of_int index in
-  let overClass =
-    match (fs.draggingParamIndex, fs.dragOverSpaceIndex) with
-    | Some draggingIndex, Some spaceIndex when spaceIndex = index ->
-        if draggingIndex != spaceIndex && draggingIndex + 1 != spaceIndex
-        then " over"
-        else ""
-    | _ ->
-        ""
-  in
-  Html.div
-    [ Html.class' ("col space" ^ overClass)
-    ; Vdom.attribute "" "data-pos" (string_of_int index)
-    ; onEvent ~event:"dragover" ~key:("fpsdo-" ^ keyId) dragOver
-    ; onEvent ~event:"dragenter" ~key:("fpsde-" ^ keyId) dragEnter
-    ; onEvent ~event:"dragleave" ~key:("fpsdl-" ^ keyId) dragLeave
-    ; onEvent ~event:"drop" ~key:("fpsdrop-" ^ keyId) drop ]
-    []
-
-
-let viewParam
-    (fn : userFunction)
-    (vs : viewState)
-    (index : int)
-    (p : userFunctionParameter) : msg Html.html list =
-  let nameId = p.ufpName |> B.toID in
-  let strId = showID nameId in
-  let dragStart evt =
-    jsDragStart evt ;
-    ParamDragStart index
-  in
-  let dragEnd _ = ParamDragDone in
-  let flashFade str = if str = "blinkGlow" then ResetFnSpace else IgnoreMsg in
-  let conditionalClasses =
-    [ ( "dragging"
-      , vs.fnSpace.draggingParamIndex |> Option.isSomeEqualTo ~value:index )
-    ; ( "just-moved"
-      , vs.fnSpace.justMovedParam |> Option.isSomeEqualTo ~value:index ) ]
-  in
-  let param =
-    Html.div
-      [ Html.classList (("col param", true) :: conditionalClasses)
-      ; Tea.Html2.Attributes.draggable "true"
-      ; Vdom.attribute "" "data-pos" (string_of_int index)
-      ; onEvent
-          ~event:"dragstart"
-          ~key:("fpds-" ^ strId)
-          ~preventDefault:false
-          dragStart
-      ; onEvent ~event:"dragend" ~key:("fpde-" ^ strId) dragEnd
-      ; ViewUtils.onAnimationEnd ~key:("fpdfaded-" ^ strId) ~listener:flashFade
-      ]
-      [ ( if vs.permission = Some ReadWrite
-        then viewKillParameterBtn fn p
-        else Vdom.noNode )
-      ; viewParamName vs [wc "name"] p.ufpName
-      ; viewParamTipe vs [wc "type"] p.ufpTipe
-      ; fontAwesome "grip-lines" ]
-  in
-  let space = viewParamSpace index vs.fnSpace in
-  [space; param]
-
-
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let addParamBtn =
     if vs.permission = Some ReadWrite
@@ -262,17 +133,9 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       ; Html.div [Html.class' "fn-actions"] [viewExecuteBtn vs fn; menuView] ]
   in
   let paramRows =
-    let params =
-      fn.ufMetadata.ufmParameters
-      |> List.indexedMap ~f:(viewParam fn vs)
-      |> List.flatten
-    in
-    let lastSpace =
-      viewParamSpace (List.length fn.ufMetadata.ufmParameters) vs.fnSpace
-    in
     Html.div
       [Html.id "fnparams"; Html.class' "params"]
-      (params @ [lastSpace; addParamBtn])
+      (FnParams.view fn vs @ [addParamBtn])
   in
   Html.div [Html.class' "fn-header"] [titleRow; paramRows]
 

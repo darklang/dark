@@ -233,18 +233,9 @@ let inputToArgs (f : userFunction) (input : inputValueDict) : dval list =
              default)
 
 
-let moveParams (fn : userFunction) (oldPos : int) (newPos : int) : modification
+let moveParams (fn : userFunction) (oldPos : int) (newPos : int) : userFunction
     =
   let ufmParameters =
     fn.ufMetadata.ufmParameters |> List.reorder ~oldPos ~newPos
   in
-  let newFn = {fn with ufMetadata = {fn.ufMetadata with ufmParameters}} in
-  let updateArgs =
-    match fn.ufMetadata.ufmName with
-    | F (_, name) ->
-        [UpdateFnCallArgs (fn.ufTLID, name, oldPos, newPos)]
-    | Blank _ ->
-        []
-  in
-  let opMod = AddOps ([SetFunction newFn], FocusNoChange) in
-  Many (opMod :: FnParamMoved newPos :: updateArgs)
+  {fn with ufMetadata = {fn.ufMetadata with ufmParameters}}
