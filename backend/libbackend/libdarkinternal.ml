@@ -1326,6 +1326,69 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["DarkInternal::newSessionUsername_v1"]
+    ; ins = []
+    ; p = [par "username" TStr]
+    ; r = TResult
+    ; d =
+        (* We need the csrf token for dark-cli to use *)
+        "If username is an existing user, puts a new session in the DB and returns the new sessionKey and csrfToken."
+    ; f =
+        internal_fn (function
+            | exec_state, [DStr username] ->
+                let username = Unicode_string.to_string username in
+                ( match Account.id_of_username username with
+                | None ->
+                    DResult
+                      (ResError
+                         (Dval.dstr_of_string_exn
+                            ("No user '" ^ username ^ "'")))
+                | Some _user_id ->
+                    let session_key_and_csrf_token =
+                      try
+                        Auth.SessionSync.new_for_username_with_csrf_token
+                          username
+                        |> Result.return
+                      with e -> Result.fail e
+                    in
+                    ( match session_key_and_csrf_token with
+                    | Ok {sessionKey; csrfToken} ->
+                        DResult
+                          (ResOk
+                             (DObj
+                                (DvalMap.from_list
+                                   [ ( "sessionKey"
+                                     , Dval.dstr_of_string_exn sessionKey )
+                                   ; ( "csrfToken"
+                                     , Dval.dstr_of_string_exn csrfToken ) ])))
+                    | Error e ->
+                        (* If session creation fails, log and rollbar *)
+                        let err = Libexecution.Exception.exn_to_string e in
+                        Log.erroR
+                          "DarkInternal::newSessionForUsername_v1"
+                          ~params:[("username", username); ("exception", err)] ;
+                        let bt = Libexecution.Exception.get_backtrace () in
+                        ( match
+                            Rollbar.report
+                              e
+                              bt
+                              (Other "Darklang")
+                              (exec_state.execution_id |> Types.string_of_id)
+                          with
+                        | `Success | `Disabled ->
+                            ()
+                        | `Failure ->
+                            Log.erroR
+                              "rollbar.report at DarkInternal::newSessionForUsername"
+                        ) ;
+                        DResult
+                          (ResError
+                             (Dval.dstr_of_string_exn
+                                "Failed to create session")) ) )
+            | args ->
+                fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::deleteSession"]
     ; ins = []
