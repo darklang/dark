@@ -1939,7 +1939,7 @@ let replacePartialWithArguments
     | (name, _, rhs, _) :: rest ->
         ELet (gid (), name, rhs, wrapWithLets ~expr rest)
   in
-  let getExprs expr =
+  let getArgs expr =
     match expr with
     | EFnCall (_, _, exprs, _) | EConstructor (_, _, exprs) ->
         exprs
@@ -1948,7 +1948,10 @@ let replacePartialWithArguments
     | _ ->
         recover "impossible" ~debug:expr []
   in
-  let getSter oldName oldExpr newAllowed =
+  let chooseSter ~(oldName : string) ~(oldExpr : E.t) (newAllowed : sendToRail)
+      =
+    (* decides whether the new function is on the rails. Note that are checking
+     * if we should prefer the old setting. *)
     let oldSter =
       match oldExpr with
       | EFnCall (_, _, _, ster) | EBinOp (_, _, _, _, ster) ->
@@ -1982,10 +1985,10 @@ let replacePartialWithArguments
   E.update id ast ~f:(fun expr ->
       match expr with
       (* preserve partials with arguments *)
-      | EPartial (_, _, (EFnCall (_, oldName, _, _) as inner))
-      | EPartial (_, _, (EBinOp (_, oldName, _, _, _) as inner))
-      | EPartial (_, _, (EConstructor (_, oldName, _) as inner)) ->
-          let existingExprs = getExprs inner in
+      | EPartial (_, _, (EFnCall (_, oldName, _, _) as oldExpr))
+      | EPartial (_, _, (EBinOp (_, oldName, _, _, _) as oldExpr))
+      | EPartial (_, _, (EConstructor (_, oldName, _) as oldExpr)) ->
+          let existingExprs = getArgs oldExpr in
           let fetchParams newName placeholderExprs =
             let count =
               max (List.length existingExprs) (List.length placeholderExprs)
@@ -2008,7 +2011,7 @@ let replacePartialWithArguments
           in
           ( match newExpr with
           | EBinOp (id, newName, lhs, rhs, newSter) ->
-              let ster = getSter oldName inner newSter in
+              let ster = chooseSter ~oldName ~oldExpr newSter in
               let newParams, mismatchedParams =
                 fetchParams newName [lhs; rhs]
               in
@@ -2024,7 +2027,7 @@ let replacePartialWithArguments
               in
               wrapWithLets ~expr:newExpr mismatchedParams
           | EFnCall (id, newName, newExprs, newSter) ->
-              let ster = getSter oldName inner newSter in
+              let ster = chooseSter ~oldName ~oldExpr newSter in
               let newParams, mismatchedParams = fetchParams newName newExprs in
               let newExpr = EFnCall (id, newName, newParams, ster) in
               wrapWithLets ~expr:newExpr mismatchedParams
