@@ -221,7 +221,7 @@ class Should:
     self.client_build = False
     self.client_test = False
     self.sass_compile = False
-    self.copy_modules = True
+    self.copy_modules = False
     self.reload_browser = False
     self.reload_server = False
     self.reload_stroller = False
@@ -326,6 +326,9 @@ def mark(should, f):
   elif "esy.json" in f:
     should.esy_install = True
 
+  elif "node_modules" in f:
+    should.copy_modules = True
+
   elif ("backend/test/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
@@ -368,6 +371,7 @@ def mark(should, f):
   # JS
   elif "package.json" in f:
     should.npm_install = True
+    should.copy_modules = True
   elif ("client/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)
@@ -412,7 +416,6 @@ def ignore(filename):
             , "_esy/"
             , "esy.lock"
             , "/home/dark/.esy"
-            , "node_modules"
             , "lib/"
             , "build.ninja"
             , "stroller/target"
@@ -421,6 +424,7 @@ def ignore(filename):
             , ".bsdeps"
             , ".bsbuild"
             , ".sourcedirs.json"
+            , "scripts/support/compile"
             , ".md"
             , ".sw"
   ]
