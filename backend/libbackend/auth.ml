@@ -46,6 +46,21 @@ module SessionSync = struct
 
   let new_for_username username =
     Backend.generate backend ~value:(session_data username)
+
+
+  type session_key_and_csrf_token =
+    { sessionKey : string
+    ; csrfToken : string }
+
+  let new_for_username_with_csrf_token username =
+    let session_data = session_data username in
+    let csrfToken =
+      session_data
+      |> Yojson.Basic.from_string
+      |> Yojson.Basic.Util.member "csrf_token"
+      |> Yojson.Basic.Util.to_string
+    in
+    {sessionKey = Backend.generate backend ~value:session_data; csrfToken}
 end
 
 module SessionLwt = struct

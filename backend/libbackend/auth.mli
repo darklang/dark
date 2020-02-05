@@ -31,5 +31,12 @@ module SessionSync : sig
 
   val new_for_username : Account.username -> string
 
+  type session_key_and_csrf_token =
+    { sessionKey : string
+    ; csrfToken : string }
+
+  val new_for_username_with_csrf_token :
+    Account.username -> session_key_and_csrf_token
+
   val username_of_key : string -> string option
 end
