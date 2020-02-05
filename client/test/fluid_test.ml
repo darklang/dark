@@ -63,11 +63,11 @@ let eToStructure = Printer.eToStructure
 
 let deOption msg v = match v with Some v -> v | None -> failwith msg
 
-type hasPartial =
-  | NoPartial
-  | ContainsPartial
+type expectedAttrs =
+  { containsPartials : bool
+  ; containsFnsOnRail : bool }
 
-type testResult = (string * (int option * int)) * hasPartial
+type testResult = (string * (int option * int)) * expectedAttrs
 
 type modifierKeys =
   { shiftKey : bool
@@ -156,7 +156,7 @@ let process
     then Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
     else newState.selectionStart
   in
-  let partialsFound =
+  let containsPartials =
     List.any (toTokens result) ~f:(fun ti ->
         match ti.token with
         | TRightPartial _ | TPartial _ | TFieldPartial _ ->
@@ -164,12 +164,20 @@ let process
         | _ ->
             false)
   in
+  let containsFnsOnRail =
+    result
+    |> FluidExpression.filter ~f:(function
+           | EBinOp (_, _, _, _, Rail) | EFnCall (_, _, _, Rail) ->
+               true
+           | _ ->
+               false)
+    |> ( <> ) []
+  in
   if debug
   then (
     Js.log2 "state after" (Fluid_utils.debugState newState) ;
     Js.log2 "expr after" (eToStructure ~includeIDs:true result) ) ;
-  ( (toString result, (selPos, finalPos))
-  , if partialsFound then ContainsPartial else NoPartial )
+  ((toString result, (selPos, finalPos)), {containsPartials; containsFnsOnRail})
 
 
 let render (expr : fluidExpr) : testResult =
@@ -403,13 +411,15 @@ let inputs
 (* Test expecting no partials found and an expected caret position but no selection *)
 let t
     ?(expectsPartial = false)
+    ?(expectsFnOnRail = false)
     (name : string)
     (initial : fluidExpr)
     (fn : fluidExpr -> testResult)
     (expectedStr : string) =
   let insertCaret
       (((str, (_selection, caret)), res) :
-        (string * (int option * int)) * hasPartial) : string * hasPartial =
+        (string * (int option * int)) * expectedAttrs) : string * expectedAttrs
+      =
     let caretString = "~" in
     match str |> String.splitAt ~index:caret with
     | a, b ->
@@ -423,7 +433,9 @@ let t
     (fun () ->
       expect (fn initial |> insertCaret)
       |> toEqual
-           (expectedStr, if expectsPartial then ContainsPartial else NoPartial))
+           ( expectedStr
+           , { containsPartials = expectsPartial
+             ; containsFnsOnRail = expectsFnOnRail } ))
 
 
 (* Test expecting no partials found and an expected resulting selection *)
@@ -439,7 +451,10 @@ let ts
     ^ " - `"
     ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
-    (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
+    (fun () ->
+      expect (fn initial)
+      |> toEqual
+           (expected, {containsPartials = false; containsFnsOnRail = false}))
 
 
 let run () =
