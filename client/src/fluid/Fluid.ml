@@ -778,16 +778,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARString (id, SPOpenQuote), TString (id', _)
     | ARPattern (id, PPString SPOpenQuote), TPatternString {patternID = id'; _}
       when id = id' ->
-        posForTi ti
-    | ARString (id, SPText), TString (id', _)
-    | ARPattern (id, PPString SPText), TPatternString {patternID = id'; _}
-      when id = id' ->
-        clampedPosForTi ti (ct.offset + 1)
-    | ARString (id, SPCloseQuote), TString (id', str)
-    | ( ARPattern (id, PPString SPCloseQuote)
-      , TPatternString {patternID = id'; str; _} )
-      when id = id' ->
-        clampedPosForTi ti (ct.offset + String.length str + 1)
+        clampedPosForTi ti ct.offset
     (*
     * Multi-line Strings
     *)
@@ -820,40 +811,6 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
             (* to account for open quote in the start *)
           in
           clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-      | _ ->
-          None )
-    | ARString (id, SPText), tok ->
-      ( match tok with
-      | TStringMLStart (id', str, _, _) when id = id' ->
-          let len = String.length str in
-          if ct.offset > len
-          then (* Must be in a later token *)
-            None
-          else (* Within current token *)
-            clampedPosForTi ti (ct.offset + 1)
-      | TStringMLMiddle (id', str, startOffsetIntoString, _) when id = id' ->
-          let len = String.length str in
-          let offsetInStr = ct.offset in
-          let endOffset = startOffsetIntoString + len in
-          if offsetInStr > endOffset
-          then (* Must be in later token *)
-            None
-          else
-            (* Within current token *)
-            clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-      | TStringMLEnd (id', _, startOffsetIntoString, _) when id = id' ->
-          (* Must be in this token because it's the last token in the string *)
-          let offsetInStr = ct.offset in
-          clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-      | _ ->
-          None )
-    | ARString (id, SPCloseQuote), tok ->
-      ( match tok with
-      | (TStringMLStart (id', _, _, _) | TStringMLMiddle (id', _, _, _))
-        when id = id' ->
-          None
-      | TStringMLEnd (id', str, _, _) when id = id' ->
-          clampedPosForTi ti (ct.offset + String.length str)
       | _ ->
           None )
     (*
@@ -903,9 +860,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (_, PPFloat FPFractional), _
     | ARPattern (_, PPBlank), _
     | ARPattern (_, PPNull), _
-    | ARPattern (_, PPString SPOpenQuote), _
-    | ARPattern (_, PPString SPText), _
-    | ARPattern (_, PPString SPCloseQuote), _ ->
+    | ARPattern (_, PPString SPOpenQuote), _ ->
         None
     (* Invalid *)
     | ARInvalid, _ ->
@@ -934,25 +889,71 @@ let moveToCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) =
   {s with newPos = posFromCaretTarget s ast ct}
 
 
+(* [caretTargetForARStringOpenQuote id offset] produces an ARString caretTarget
+ * pointing to an [offset] into the open " of the string with [id].
+ * [offset] may NOT be negative as it cannot represent something out of string bounds. *)
+let caretTargetForARStringOpenQuote (id : id) (offset : int) : caretTarget =
+  {astRef = ARString (id, SPOpenQuote); offset}
+
+
+(* [caretTargetForARStringText id offset] produces an ARString caretTarget
+ * pointing to an [offset] into the text of the string with [id].
+ * [offset] may be negative but cannot represent something out of string bounds. *)
+let caretTargetForARStringText (id : id) (offset : int) : caretTarget =
+  {astRef = ARString (id, SPOpenQuote); offset = 1 + offset}
+
+
+(* [caretTargetForARStringCloseQuote id offset] produces an ARString caretTarget
+ * pointing to an [offset] into the close " of the string with [id]. It uses the
+ * [fullStr] of the string (excluding visual quotes) to compute the target.
+ * [offset] may be negative but cannot represent something out of string bounds. *)
+let caretTargetForARStringCloseQuote (id : id) (offset : int) (fullStr : string)
+    : caretTarget =
+  let lenPlusOpenQuote = 1 + String.length fullStr in
+  {astRef = ARString (id, SPOpenQuote); offset = lenPlusOpenQuote + offset}
+
+
+(* [caretTargetForPPStringOpenQuote id offset] produces an ARPattern PPString caretTarget
+ * pointing to an [offset] into the open " of the pattern string with [id].
+ * [offset] may NOT be negative as it cannot represent something out of string bounds. *)
+let caretTargetForPPStringOpenQuote (id : id) (offset : int) : caretTarget =
+  {astRef = ARPattern (id, PPString SPOpenQuote); offset}
+
+(* [caretTargetForPPStringText id offset] produces an ARPattern PPString caretTarget
+ * pointing to an [offset] into the text of the pattern string with [id].
+ * [offset] may be negative but cannot represent something out of string bounds. *)
+let caretTargetForPPStringText (id : id) (offset : int) : caretTarget =
+  {astRef = ARPattern (id, PPString SPOpenQuote); offset = 1 + offset}
+
+(* [caretTargetForARStringCloseQuote id offset] produces an ARPattern PPString caretTarget
+ * pointing to an [offset] into the close " of the pattern string with [id]. It uses the
+ * [fullStr] of the string (excluding visual quotes) to compute the target.
+ * [offset] may be negative but cannot represent something out of string bounds. *)
+let caretTargetForPPStringCloseQuote (id : id) (offset : int) (fullStr : string)
+    : caretTarget =
+  let lenPlusOpenQuote = 1 + String.length fullStr in
+  { astRef = ARPattern (id, PPString SPOpenQuote)
+  ; offset = lenPlusOpenQuote + offset }
+
+
 (* caretTargetFromTokenInfo returns Some caretTarget corresponding to
    the given top-level-global caret `pos`, with the precondition that
    the pos is within the passed tokenInfo `ti`.
    There are a few tokens that have no corresponding caretTarget.
    In such cases, we return None instead.
 
-   (note that there are some cases, like strings,
-    where multiple caretTargets could refer to the same pos) *)
+   We attempt to ensure that a single caret target uniquely
+   identifies each pos.
+ *)
 let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
     =
   let offset = pos - ti.startPos in
   match ti.token with
   | TString (id, _) | TStringMLStart (id, _, _, _) ->
-      Some {astRef = ARString (id, SPOpenQuote); offset}
+      Some (caretTargetForARStringOpenQuote id offset)
   | TStringMLMiddle (id, _, startOffset, _)
   | TStringMLEnd (id, _, startOffset, _) ->
-      Some
-        { astRef = ARString (id, SPText)
-        ; offset = startOffset + pos - ti.startPos }
+      Some (caretTargetForARStringText id (startOffset + pos - ti.startPos))
   | TInteger (id, _) ->
       Some {astRef = ARInteger id; offset}
   | TBlank id | TPlaceholder (_, id) ->
@@ -1038,7 +1039,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
   | TPatternInteger (_, id, _, _) ->
       Some {astRef = ARPattern (id, PPInteger); offset}
   | TPatternString {patternID = id; _} ->
-      Some {astRef = ARPattern (id, PPString SPOpenQuote); offset}
+      Some (caretTargetForPPStringOpenQuote id offset)
   | TPatternTrue (_, id, _) | TPatternFalse (_, id, _) ->
       Some {astRef = ARPattern (id, PPBool); offset}
   | TPatternNullToken (_, id, _) ->
@@ -1109,8 +1110,8 @@ let rec caretTargetForEndOfExpr' : fluidExpr -> caretTarget = function
       {astRef = ARBool id; offset = String.length "true"}
   | EBool (id, false) ->
       {astRef = ARBool id; offset = String.length "false"}
-  | EString (id, _) ->
-      {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
+  | EString (id, str) ->
+      caretTargetForARStringCloseQuote id 1 str
   | EFloat (id, _, decimalStr) ->
       {astRef = ARFloat (id, FPFractional); offset = String.length decimalStr}
   | ENull id ->
@@ -1206,7 +1207,7 @@ let rec caretTargetForStartOfExpr' : fluidExpr -> caretTarget = function
   | EBool (id, _) ->
       {astRef = ARBool id; offset = 0}
   | EString (id, _) ->
-      {astRef = ARString (id, SPOpenQuote); offset = 0}
+      caretTargetForARStringOpenQuote id 0
   | EFloat (id, _, _) ->
       {astRef = ARFloat (id, FPWhole); offset = 0}
   | ENull id ->
@@ -1276,7 +1277,7 @@ let caretTargetForStartOfPattern (pattern : fluidPattern) : caretTarget =
   | FPBool (_, id, _) ->
       {astRef = ARPattern (id, PPBool); offset = 0}
   | FPString {patternID = id; _} ->
-      {astRef = ARPattern (id, PPString SPOpenQuote); offset = 0}
+      caretTargetForPPStringOpenQuote id 0
   | FPFloat (_, id, _, _) ->
       {astRef = ARPattern (id, PPFloat FPWhole); offset = 0}
   | FPNull (_, id) ->
@@ -1307,9 +1308,8 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
       {astRef = ARPattern (id, PPBool); offset = String.length "true"}
   | FPBool (_, id, false) ->
       {astRef = ARPattern (id, PPBool); offset = String.length "false"}
-  | FPString {patternID = id; _} ->
-      { astRef = ARPattern (id, PPString SPCloseQuote)
-      ; offset = 1 (* end of close quote *) }
+  | FPString {patternID = id; str; _} ->
+      caretTargetForPPStringCloseQuote id 1 str (* end of close quote *)
   | FPFloat (_, id, _, frac) ->
       { astRef = ARPattern (id, PPFloat FPFractional)
       ; offset = String.length frac }
@@ -1841,8 +1841,7 @@ let rec mergeExprs (e1 : fluidExpr) (e2 : fluidExpr) : fluidExpr * caretTarget =
       ( EInteger (id, Util.coerceStringTo63BitInt (i1 ^ i2))
       , {astRef = ARInteger id; offset = String.length i1} )
   | EString (id, s1), EString (_, s2) ->
-      ( EString (id, s1 ^ s2)
-      , {astRef = ARString (id, SPText); offset = String.length s1} )
+      (EString (id, s1 ^ s2), caretTargetForARStringText id (String.length s1))
   | e1, _e2 ->
       (* TODO(JULIAN): consider preserving e2 as well, by (for example) creating a partial. *)
       (* recover "mergeExprs can't handle this" ~debug:(show_fluidExpr e1, show_fluidExpr e2) (e1, caretTargetForEndOfExpr' e1) *)
@@ -3030,23 +3029,14 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           then None
           else Some (Expr (EInteger (id, coerced)), currCTMinusOne)
     | ARString (_, kind), EString (id, str) ->
-        let len = String.length str in
-        let strRelOffset =
-          match kind with
-          | SPOpenQuote ->
-              currOffset - 1
-          | SPText ->
-              currOffset
-          | SPCloseQuote ->
-              currOffset + len
-        in
+        let strRelOffset = match kind with SPOpenQuote -> currOffset - 1 in
         if strRelOffset = 0 && str = ""
         then mkEBlank ()
         else
           let newStr = str |> mutationAt ~index:(strRelOffset - 1) in
           Some
             ( Expr (EString (id, newStr))
-            , {astRef = ARString (id, SPOpenQuote); offset = strRelOffset} )
+            , caretTargetForARStringOpenQuote id strRelOffset )
     | ARFloat (_, FPWhole), EFloat (id, whole, frac) ->
         Some (Expr (EFloat (id, mutation whole, frac)), currCTMinusOne)
     | ARFloat (_, FPPoint), EFloat (_, whole, frac) ->
@@ -3184,7 +3174,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
           let newID = gid () in
           Some
             ( Expr (EString (newID, String.slice ~from:1 ~to_:(-1) str))
-            , {astRef = ARString (newID, SPText); offset = currOffset - 1} )
+            , caretTargetForARStringText newID (currOffset - 1) )
         else Some (Expr (EPartial (id, str, oldExpr)), currCTMinusOne)
     | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
         let str = oldStr |> mutation |> String.trim in
@@ -3288,9 +3278,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARPipe (_, _), _
     | ARRecord (_, RPFieldname _), _
     | ARRightPartial _, _
-    | ARString (_, SPCloseQuote), _
     | ARString (_, SPOpenQuote), _
-    | ARString (_, SPText), _
     | ARVariable _, _
     (*
      * Non-exprs
@@ -3420,24 +3408,14 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     *)
     | ARPattern (_, PPString kind), FPString ({matchID; patternID; str} as data)
       ->
-        let len = String.length str in
-        let strRelOffset =
-          match kind with
-          | SPOpenQuote ->
-              currOffset - 1
-          | SPText ->
-              currOffset
-          | SPCloseQuote ->
-              currOffset + len
-        in
+        let strRelOffset = match kind with SPOpenQuote -> currOffset - 1 in
         if strRelOffset = 0 && str = ""
         then mkPBlank matchID
         else
           let str = str |> mutationAt ~index:(strRelOffset - 1) in
           Some
             ( Pat (FPString {data with str})
-            , { astRef = ARPattern (patternID, PPString SPOpenQuote)
-              ; offset = strRelOffset } )
+            , caretTargetForPPStringOpenQuote patternID strRelOffset )
     (*****************
      * Exhaustiveness
      *)
@@ -3449,9 +3427,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARPattern (_, PPFloat FPWhole), _
     | ARPattern (_, PPInteger), _
     | ARPattern (_, PPNull), _
-    | ARPattern (_, PPString SPCloseQuote), _
     | ARPattern (_, PPString SPOpenQuote), _
-    | ARPattern (_, PPString SPText), _
     | ARPattern (_, PPVariable), _
     (*
      * non-patterns
@@ -3599,15 +3575,7 @@ let doExplicitInsert
     match (currAstRef, expr) with
     | ARString (_, kind), EString (id, str) ->
         let len = String.length str in
-        let strRelOffset =
-          match kind with
-          | SPOpenQuote ->
-              currOffset - 1
-          | SPText ->
-              currOffset
-          | SPCloseQuote ->
-              currOffset + len
-        in
+        let strRelOffset = match kind with SPOpenQuote -> currOffset - 1 in
         if strRelOffset < 0 || strRelOffset > len
         then
           (* out of string bounds means you can't insert into the string *)
@@ -3616,8 +3584,7 @@ let doExplicitInsert
           let newStr = str |> mutationAt ~index:strRelOffset in
           Some
             ( EString (id, newStr)
-            , { astRef = ARString (id, SPText)
-              ; offset = strRelOffset + caretDelta } )
+            , caretTargetForARStringText id (strRelOffset + caretDelta) )
     | ARFloat (_, kind), EFloat (id, whole, frac) ->
         if FluidUtil.isNumber extendedGraphemeCluster
         then
@@ -3675,8 +3642,7 @@ let doExplicitInsert
           let newID = gid () in
           Some
             ( EString (newID, String.slice ~from:1 ~to_:(-1) str)
-            , { astRef = ARString (newID, SPOpenQuote)
-              ; offset = currOffset + caretDelta } )
+            , caretTargetForARStringOpenQuote newID (currOffset + caretDelta) )
         else Some (EPartial (id, str, oldExpr), currCTPlusLen)
     | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
         let str = oldStr |> mutation |> String.trim in
@@ -3808,9 +3774,7 @@ let doExplicitInsert
     | ARPartial _, _
     | ARRecord (_, RPFieldname _), _
     | ARRightPartial _, _
-    | ARString (_, SPCloseQuote), _
     | ARString (_, SPOpenQuote), _
-    | ARString (_, SPText), _
     | ARVariable _, _
     (*
      * Non-exprs
@@ -3910,15 +3874,7 @@ let doExplicitInsert
     | ( ARPattern (_, PPString kind)
       , FPString ({matchID = _; patternID; str} as data) ) ->
         let len = String.length str in
-        let strRelOffset =
-          match kind with
-          | SPOpenQuote ->
-              currOffset - 1
-          | SPText ->
-              currOffset
-          | SPCloseQuote ->
-              currOffset + len
-        in
+        let strRelOffset = match kind with SPOpenQuote -> currOffset - 1 in
         if strRelOffset < 0 || strRelOffset > len
         then
           (* out of string bounds means you can't insert into the string *)
@@ -3927,15 +3883,15 @@ let doExplicitInsert
           let str = str |> mutationAt ~index:strRelOffset in
           Some
             ( Pat (FPString {data with str})
-            , { astRef = ARPattern (patternID, PPString SPText)
-              ; offset = strRelOffset + caretDelta } )
+            , caretTargetForPPStringText patternID (strRelOffset + caretDelta)
+            )
     | ARPattern (_, PPBlank), FPBlank (mID, _) ->
         let newID = gid () in
         if extendedGraphemeCluster = "\""
         then
           Some
             ( Pat (FPString {matchID = mID; patternID = newID; str = ""})
-            , {astRef = ARPattern (newID, PPString SPText); offset = 0} )
+            , caretTargetForPPStringText newID 0 )
         else if Util.isNumber extendedGraphemeCluster
         then
           Some
@@ -3989,9 +3945,7 @@ let doExplicitInsert
     | ARPattern (_, PPFloat FPWhole), _
     | ARPattern (_, PPInteger), _
     | ARPattern (_, PPNull), _
-    | ARPattern (_, PPString SPCloseQuote), _
     | ARPattern (_, PPString SPOpenQuote), _
-    | ARPattern (_, PPString SPText), _
     | ARPattern (_, PPVariable), _
     (*
      * non-patterns
@@ -4094,9 +4048,7 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
   in
   let newExpr, newTarget =
     if letter = "\""
-    then
-      ( E.EString (newID, "")
-      , {astRef = ARString (newID, SPOpenQuote); offset = 1} )
+    then (E.EString (newID, ""), caretTargetForARStringOpenQuote newID 1)
     else if letter = "["
     then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
     else if letter = "{"
@@ -4824,7 +4776,7 @@ let rec updateKey
                | ARInteger _, expr
                | ARBool _, expr
                | ARFieldAccess (_, FAPFieldname), expr
-               | ARString (_, SPCloseQuote), expr
+               | ARString (_, SPOpenQuote), expr
                | ARFloat _, expr
                | ARNull _, expr
                | ARVariable _, expr ->
@@ -5610,7 +5562,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
         in
         let newAST = E.replace ~replacement id ast in
         let caretTarget =
-          {astRef = ARString (id, SPText); offset = index + String.length text}
+          caretTargetForARStringText id (index + String.length text)
         in
         (newAST, moveToCaretTarget state newAST caretTarget)
     | _ ->

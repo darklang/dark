@@ -373,11 +373,7 @@ type astFloatPart =
   | FPFractional
 [@@deriving show {with_path = false}]
 
-type astStringPart =
-  | SPOpenQuote
-  | SPText
-  | SPCloseQuote
-[@@deriving show {with_path = false}]
+type astStringPart = SPOpenQuote [@@deriving show {with_path = false}]
 
 type astLetPart =
   | LPKeyword
