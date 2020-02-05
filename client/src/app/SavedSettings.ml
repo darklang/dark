@@ -33,7 +33,8 @@ let toModel (e : savedSettings) : model =
   ; canvasProps = {m.canvasProps with offset = e.canvasPos}
   ; lastReload = e.lastReload
   ; sidebarOpen = e.sidebarOpen
-  ; showTopbar = e.showTopbar }
+  ; showTopbar = e.showTopbar
+  ; showUserWelcomeModal = e.showUserWelcomeModal }
 
 
 let model2editor (m : model) : savedSettings =
@@ -50,7 +51,8 @@ let model2editor (m : model) : savedSettings =
   ; canvasPos = m.canvasProps.offset
   ; lastReload = m.lastReload
   ; sidebarOpen = m.sidebarOpen
-  ; showTopbar = m.showTopbar }
+  ; showTopbar = m.showTopbar
+  ; showUserWelcomeModal = m.showUserWelcomeModal }
 
 
 let fromString (json : string option) : savedSettings =

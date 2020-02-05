@@ -28,7 +28,8 @@ let defaultSavedSettings : savedSettings =
   ; canvasPos = origin
   ; lastReload = None
   ; sidebarOpen = true
-  ; showTopbar = false }
+  ; showTopbar = false
+  ; showUserWelcomeModal = true }
 
 
 let defaultFluidState : fluidState =
@@ -155,4 +156,5 @@ let defaultModel : model =
   ; editorSettings = {showFluidDebugger = false; runTimers = true}
   ; teaDebuggerEnabled = false
   ; unsupportedBrowser = false
-  ; tlMenus = TLIDDict.empty }
+  ; tlMenus = TLIDDict.empty
+  ; showUserWelcomeModal = true }

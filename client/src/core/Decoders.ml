@@ -479,6 +479,11 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
+        j
+  ; showUserWelcomeModal =
+      withDefault
+        Defaults.defaultSavedSettings.showUserWelcomeModal
+        (field "showUserWelcomeModal" bool)
         j }
 
 

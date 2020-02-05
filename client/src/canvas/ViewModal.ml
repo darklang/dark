@@ -5,7 +5,7 @@ module TL = Toplevel
 module P = Pointer
 module TD = TLIDDict
 
-let viewMessage : msg Html.html =
+let viewBrowserMessage : msg Html.html =
   Html.div
     [Html.class' "warning"]
     [ Html.p
@@ -15,18 +15,52 @@ let viewMessage : msg Html.html =
         ] ]
 
 
+let viewWelcomeToDark (username : string) : msg Html.html =
+  let btnEvent =
+    ViewUtils.eventNoPropagation ~key:"close-welcome-modal" "click" (fun _ ->
+        CloseWelcomeModal)
+  in
+  let vidSrc = "//" ^ Native.Ext.staticHost () ^ "/gif/helloWorld.mp4" in
+  let gif =
+    [ Html.video
+        [ Vdom.attribute "" "autoplay" "autoplay"
+        ; Vdom.attribute "" "loop" "loop" ]
+        [Html.source [Html.src vidSrc] []] ]
+  in
+  Html.div
+    [Html.class' "welcome"]
+    [ Html.h1 [Html.class' "title"] [Html.text ("Hello, " ^ username ^ "!")]
+    ; Html.p
+        [Html.class' "subtext"]
+        [ Html.text
+            "Dark was created to reduce accidental complexity - look how easy it is to build Hello World!"
+        ]
+    ; Html.div [Html.class' "gif"] gif
+    ; Html.div
+        [Html.class' "btn-wrap"]
+        [ Html.div
+            [Html.class' "btn"; btnEvent]
+            [Html.p [Html.class' "txt"] [Html.text "Get Started"]] ] ]
+
+
 let html (m : model) : msg Html.html =
-  if m.unsupportedBrowser
-  then
-    Html.div
-      [ ViewUtils.nothingMouseEvent "mousedown"
-      ; ViewUtils.nothingMouseEvent "mouseup"
-      ; Html.class' "modal-overlay"
-      ; Html.id "overlay" ]
-      [ Html.div
-          [ ViewUtils.nothingMouseEvent "mousedown"
-          ; ViewUtils.nothingMouseEvent "mouseup"
-          ; ViewUtils.nothingMouseEvent "click"
-          ; Html.class' "modal" ]
-          [viewMessage] ]
-  else Vdom.noNode
+  let view, events, id =
+    if m.unsupportedBrowser
+    then
+      ( viewBrowserMessage
+      , [ ViewUtils.nothingMouseEvent "mousedown"
+        ; ViewUtils.nothingMouseEvent "mouseup" ]
+      , "unsupportedBrowser" )
+    else
+      ( viewWelcomeToDark m.username
+      , [ ViewUtils.nothingMouseEvent "mousedown"
+        ; ViewUtils.nothingMouseEvent "mouseup"
+        ; ViewUtils.eventNoPropagation
+            ~key:"close-welcome-modal"
+            "click"
+            (fun _ -> CloseWelcomeModal) ]
+      , "welcomeToDark" )
+  in
+  Html.div
+    ([Html.class' "modal-overlay"; Html.id id] @ events)
+    [Html.div [Html.classList [("modal", true)]] [view]]
