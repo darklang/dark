@@ -1511,14 +1511,33 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
         [("username", `String username)]
         (fun _ ->
           if path = "/logout" && verb = `POST
-          then (
-            Auth.SessionLwt.clear Auth.SessionLwt.backend session ;%lwt
-            let headers =
-              Header.of_list
-                ( username_header username
-                :: Auth.SessionLwt.clear_hdrs Auth.SessionLwt.cookie_key )
-            in
-            S.respond_redirect ~headers ~uri:login_uri () )
+          then
+            if Config.use_login_darklang_com_for_login
+            then
+              (* This redirects because login.darklang.com/logout implements a
+               * logout that clears both the session in postgres and the session
+               * in auth0. (The former is present in both the new auth0-using
+               * auth flow, and the pre-auth0 ocaml auth setup.) It is backwards
+               * compatible - if the session cookie it is presented does not
+               * have a record in login.darklang.com's AccessToken datastore
+               * (used to hold auth0 access tokens), then it just clears the
+               * postgres session. That won't be relevant for long, but it
+               * allows us to deploy this codepath in advance of the auth0
+               * cutover. *)
+              S.respond_redirect
+                ~uri:("https://login.darklang.com/logout" |> Uri.of_string)
+                ()
+              (* Fallback for local env, where we don't have
+               * login.darklang.com/logout, we just need to clear the session
+               * *)
+            else (
+              Auth.SessionLwt.clear Auth.SessionLwt.backend session ;%lwt
+              let headers =
+                Header.of_list
+                  ( username_header username
+                  :: Auth.SessionLwt.clear_hdrs Auth.SessionLwt.cookie_key )
+              in
+              S.respond_redirect ~headers ~uri:login_uri () )
           else
             let headers = [username_header username] in
             over_headers_promise
