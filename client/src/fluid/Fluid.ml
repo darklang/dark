@@ -4257,22 +4257,7 @@ let rec updateKey
     | R (_, rti) -> (caretTargetFromTokenInfo rti pos)
     | ((L _)|No) -> None)
   in *)
-  let exprBehind, exprAhead = getNeighbouringExprs ~pos tokens ast in
-  let _wrappableInBinop (expr : fluidExpr) : bool =
-    match expr with
-    | EInteger _
-    | EBool _
-    | EString _
-    | EFloat _
-    | ENull _
-    | EBlank _
-    | EBinOp _
-    | EVariable _ ->
-        true
-    | _ ->
-        false
-  in
-  let _isTwixtDiffExprs = exprBehind <> exprAhead in
+  (* let exprBehind, exprAhead = getNeighbouringExprs ~pos tokens ast in *)
   let keyIsInfix =
     match inputEvent with
     | InsertText txt when FluidTextInput.isInfixSymbol txt ->
@@ -4313,14 +4298,20 @@ let rec updateKey
     | InsertText "\\", L (TString _, _), R (TString _, ti)
       when false (* disable for now *) && pos - ti.startPos != 0 ->
         startEscapingString pos ti s ast
-    (* Moving through a lambda arrow with '->' *)
+    (*
+     * SKIPPING OVER SYMBOLS BY TYPING THEM
+     *)
+    (* Skipping over a lambda arrow with '->' *)
     | InsertText "-", L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
+        (* ___| -> ___ to ___ |-> ___ *)
         (ast, moveOneRight (ti.startPos + 1) s)
     | InsertText "-", L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
       when pos = ti.startPos + 1 ->
+        (* ___ |-> ___ to ___ -|> ___ *)
         (ast, moveOneRight (ti.startPos + 1) s)
     | InsertText ">", L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
       when pos = ti.startPos + 2 ->
+        (* ___ -|> ___ to ___ -> |___ *)
         (ast, moveToNextNonWhitespaceToken ~pos ast s)
     (* Skipping over specific characters *)
     | InsertText "=", _, R (TLetAssignment _, toTheRight) ->
@@ -4339,25 +4330,26 @@ let rec updateKey
       when pos = ti.endPos - 1 ->
         (* Allow pressing quote to go over the last quote *)
         (ast, moveOneRight pos s)
-    (* Deleting *)
+    (*
+     * DELETE SELECTION
+     *)
     | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
       when Option.isSome s.selectionStart ->
         deleteSelection ~state:s ~ast
-    (*     | DeleteContentBackward, L (TPatternString _, ti), _
-    | DeleteContentBackward, L (TString _, ti), _
-      when pos = ti.endPos ->
-        (* Backspace should move into a string, not delete it *)
-        (ast, moveOneLeft pos s) *)
-    | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti) ->
-        doBackspace ~pos ti ast s
+    (*
+     * BACKSPACE
+     *)
+    (* Special-case hack for deleting rows of a match or record *)
+    | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti)
     | DeleteContentBackward, L (TNewline _, _), R (TPatternBlank _, ti) ->
-        (* Special-case hack for deleting rows of a match or record *)
         doBackspace ~pos ti ast s
     | DeleteContentBackward, L (_, ti), _ ->
         doBackspace ~pos ti ast s
     | DeleteContentForward, _, R (_, ti) ->
         doDelete ~pos ti ast s
-    (* Autocomplete menu *)
+    (*
+     * AUTOCOMPLETE
+     *)
     (* Note that these are spelt out explicitly on purpose, else they'll
      * trigger on the wrong element sometimes. *)
     | Keypress {key = K.Escape; _}, L (_, ti), _ when isAutocompleting ti s ->
