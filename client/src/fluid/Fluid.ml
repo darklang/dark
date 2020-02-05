@@ -1948,6 +1948,15 @@ let replacePartialWithArguments
     | _ ->
         recover "impossible" ~debug:expr []
   in
+  let getSter expr =
+    match expr with
+    | EFnCall (_, _, _, ster) | EBinOp (_, _, _, _, ster) ->
+        Some ster
+    | EConstructor _ ->
+        None
+    | _ ->
+        recover "impossible" ~debug:expr None
+  in
   let isAligned p1 p2 =
     match (p1, p2) with
     | Some (name, tipe, _, _), Some (name', tipe', _, _) ->
@@ -1961,6 +1970,7 @@ let replacePartialWithArguments
       | EPartial (_, _, (EFnCall (_, name, _, _) as inner))
       | EPartial (_, _, (EBinOp (_, name, _, _, _) as inner))
       | EPartial (_, _, (EConstructor (_, name, _) as inner)) ->
+          let oldSter = getSter inner in
           let existingExprs = getExprs inner in
           let fetchParams newName placeholderExprs =
             let count =
@@ -1983,7 +1993,8 @@ let replacePartialWithArguments
             (newParams, mismatchedParams)
           in
           ( match newExpr with
-          | EBinOp (id, newName, lhs, rhs, ster) ->
+          | EBinOp (id, newName, lhs, rhs, newSter) ->
+              let ster = Option.withDefault oldSter ~default:newSter in
               let newParams, mismatchedParams =
                 fetchParams newName [lhs; rhs]
               in
@@ -1998,7 +2009,8 @@ let replacePartialWithArguments
                       (EBinOp (id, newName, E.newB (), E.newB (), ster))
               in
               wrapWithLets ~expr:newExpr mismatchedParams
-          | EFnCall (id, newName, newExprs, ster) ->
+          | EFnCall (id, newName, newExprs, newSter) ->
+              let ster = Option.withDefault oldSter ~default:newSter in
               let newParams, mismatchedParams = fetchParams newName newExprs in
               let newExpr = EFnCall (id, newName, newParams, ster) in
               wrapWithLets ~expr:newExpr mismatchedParams
