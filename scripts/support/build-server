@@ -54,7 +54,7 @@ def initial_client_compile():
           , "client/src/Types.ml"
           , "client/styles/app.scss"
           , "client/test/ast_test.ml"
-          , "node_modules/@fortawesome/fontawesome-free/fontawesome.css"]
+          , "node_modules/@fortawesome/fontawesome-free/css/fontawesome.css"]
   return compile(files)
 
 def initial_stroller_compile():
