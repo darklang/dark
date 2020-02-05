@@ -443,7 +443,7 @@ let transactionally_migrate_oplist
       ~name:"save per tlid oplist"
       "UPDATE toplevel_oplists
        SET data = $1,
-           digest = $2
+           digest = $2,
            rendered_oplist_cache = $3
        WHERE canvas_id = $4
          AND tlid = $5"
