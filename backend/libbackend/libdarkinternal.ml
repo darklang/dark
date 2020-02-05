@@ -1327,7 +1327,7 @@ that's already taken, returns an error."
                 fail args)
     ; ps = false
     ; dep = true }
-  ; { pns = ["DarkInternal::newSessionUsername_v1"]
+  ; { pns = ["DarkInternal::newSessionForUsername_v1"]
     ; ins = []
     ; p = [par "username" TStr]
     ; r = TResult
