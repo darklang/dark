@@ -1246,6 +1246,7 @@ and msg =
   | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * tlid
+  | CloseWelcomeModal
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1564,7 +1565,8 @@ and model =
   ; editorSettings : editorSettings
   ; teaDebuggerEnabled : bool
   ; unsupportedBrowser : bool
-  ; tlMenus : menuState TLIDDict.t }
+  ; tlMenus : menuState TLIDDict.t
+  ; showUserWelcomeModal : bool }
 
 and savedSettings =
   { editorSettings : editorSettings
@@ -1576,7 +1578,8 @@ and savedSettings =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarOpen : bool
-  ; showTopbar : bool }
+  ; showTopbar : bool
+  ; showUserWelcomeModal : bool }
 [@@deriving show {with_path = false}]
 
 and permission =

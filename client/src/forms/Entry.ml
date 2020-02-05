@@ -110,6 +110,14 @@ let getBrowserPlatform () : browserPlatform =
   |> Option.withDefault ~default:UnknownPlatform
 
 
+external jsTrackWelcomeModalDismissal : unit -> unit
+  = "trackWelcomeModalDismissal"
+  [@@bs.val] [@@bs.scope "window"]
+
+let trackWelcomeModalDismissal () : unit =
+  jsTrackWelcomeModalDismissal () |> ignore
+
+
 external jsUnsupportedBrowser : unit -> bool Js.Nullable.t
   = "unsupportedBrowser"
   [@@bs.val] [@@bs.scope "window"]

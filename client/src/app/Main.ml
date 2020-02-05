@@ -1340,6 +1340,9 @@ let update_ (msg : msg) (m : model) : modification =
               NoChange )
       | _ ->
           NoChange )
+  | CloseWelcomeModal ->
+      Entry.trackWelcomeModalDismissal () ;
+      Many [TweakModel (fun m -> {m with showUserWelcomeModal = false})]
   | DeleteUserTypeForever tlid ->
       Many
         [ AddOps ([DeleteTypeForever tlid], FocusSame)
