@@ -1734,9 +1734,9 @@ let run () =
         ~expectsPartial:true
         "pressing plus key starts partial after float"
         aFloat (ins "+" 7) "123.456 +~" ;
-      t ~expectsPartial:true "pressing plus key starts partial after null" aNull (ins "+" 4) "null +~" ;
-      t ~expectsPartial:true "pressing plus key starts partial after variable" aVar (ins "+" 8) "variable +~" ;
-      t ~expectsPartial:true "pressing plus key starts partial after fieldname" aField (ins "+" 9) "obj.field +~" ;
+      t ~expectsPartial:true "ins + starts partial after null" aNull (ins "+" 4) "null +~" ;
+      t ~expectsPartial:true "ins + starts partial after variable" aVar (ins "+" 8) "variable +~" ;
+      t ~expectsPartial:true "ins + starts partial after fieldname" aField (ins "+" 9) "obj.field +~" ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
