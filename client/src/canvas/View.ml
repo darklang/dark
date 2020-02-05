@@ -450,8 +450,9 @@ let view (m : model) : msg Html.html =
         [fontAwesome "book"; Html.text "Docs"] ]
   in
   let modal =
+    (* Temporarily disabling modal || m.showUserWelcomeModal *)
     if (not (m.integrationTestState <> NoIntegrationTest))
-       && (m.unsupportedBrowser || m.showUserWelcomeModal)
+       && m.unsupportedBrowser
     then ViewModal.html m
     else Vdom.noNode
   in
