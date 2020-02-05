@@ -1725,6 +1725,12 @@ let run () =
         (ins "^" 5)
         "12345 ^~" ;
       t
+        ~expectsPartial:true
+        "pressing plus key starts partial after string"
+        aStr
+        (ins "+" 13)
+        "\"some string\" +~" ;
+      t
         "pressing pipe twice then space completes partial"
         trueBool
         (inputs [InsertText "|"; InsertText "|"; keypress K.Space] 4)
