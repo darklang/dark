@@ -4396,11 +4396,11 @@ let rec updateKey
     | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
       when Option.isSome s.selectionStart ->
         deleteSelection ~state:s ~ast
-    | DeleteContentBackward, L (TPatternString _, ti), _
+    (*     | DeleteContentBackward, L (TPatternString _, ti), _
     | DeleteContentBackward, L (TString _, ti), _
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
-        (ast, moveOneLeft pos s)
+        (ast, moveOneLeft pos s) *)
     | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti) ->
         doBackspace ~pos ti ast s
     | DeleteContentBackward, L (TNewline _, _), R (TPatternBlank _, ti) ->
