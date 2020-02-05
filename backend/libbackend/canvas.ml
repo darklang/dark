@@ -27,28 +27,6 @@ type canvas =
   ; deleted_user_tipes : RTT.user_tipe IDMap.t }
 [@@deriving eq, show]
 
-let handler_to_binary_string (h : RTT.HandlerT.handler) : string =
-  h
-  |> Core_extended.Bin_io_utils.to_line RTT.HandlerT.bin_handler
-  |> Bigstring.to_string
-
-
-let db_to_binary_string (db : RTT.DbT.db) : string =
-  db |> Core_extended.Bin_io_utils.to_line RTT.DbT.bin_db |> Bigstring.to_string
-
-
-let user_fn_to_binary_string (ufn : RTT.user_fn) : string =
-  ufn
-  |> Core_extended.Bin_io_utils.to_line RTT.bin_user_fn
-  |> Bigstring.to_string
-
-
-let user_tipe_to_binary_string (ut : RTT.user_tipe) : string =
-  ut
-  |> Core_extended.Bin_io_utils.to_line RTT.bin_user_tipe
-  |> Bigstring.to_string
-
-
 (* ------------------------- *)
 (* Toplevel *)
 (* ------------------------- *)
@@ -607,41 +585,11 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
       else n
     in
     let handler_metadata (h : RTT.HandlerT.handler) =
-      ( h.tlid
-      , ( Ast.blank_to_option h.spec.name
-          |> Option.map ~f:(munge_name h.spec.module_)
-        , Ast.blank_to_option h.spec.module_
-        , Ast.blank_to_option h.spec.modifier ) )
+      ( Ast.blank_to_option h.spec.name
+        |> Option.map ~f:(munge_name h.spec.module_)
+      , Ast.blank_to_option h.spec.module_
+      , Ast.blank_to_option h.spec.modifier )
     in
-    let hmeta =
-      c.handlers |> Toplevel.handlers |> List.map ~f:handler_metadata
-    in
-    let routes = IDMap.of_alist_exn hmeta in
-    let tipes_list =
-      ( c.handlers
-      |> IDMap.keys
-      |> List.map ~f:(fun tlid -> (tlid, TL.TLHandler)) )
-      @ (c.dbs |> IDMap.keys |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)))
-      @ ( c.user_functions
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
-      @ ( c.user_tipes
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
-      @ ( c.deleted_handlers
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLHandler)) )
-      @ ( c.deleted_dbs
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLDB)) )
-      @ ( c.deleted_user_functions
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserFunction)) )
-      @ ( c.deleted_user_tipes
-        |> IDMap.keys
-        |> List.map ~f:(fun tlid -> (tlid, TL.TLUserTipe)) )
-    in
-    let tipes = IDMap.of_alist_exn tipes_list in
     (* Use ops rather than just set of toplevels, because toplevels may
    * have been deleted or undone, and therefore not appear, but it's
    * important to record them. *)
@@ -650,47 +598,75 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
         if List.mem ~equal:( = ) tlids tlid
         then
           let name, module_, modifier =
-            IDMap.find routes tlid |> Option.value ~default:(None, None, None)
+            IDMap.find c.handlers tlid
+            |> Option.bind ~f:TL.as_handler
+            |> Option.map ~f:handler_metadata
+            |> Option.value ~default:(None, None, None)
           in
-          let tipe_opt = IDMap.find tipes tlid in
-          (* Pull out denormalized attributes like the binary_repr and the deleted state *)
-          let binary_repr, deleted =
-            match tipe_opt with
-            | Some TL.TLHandler ->
-                IDMap.find c.handlers tlid
-                |> Option.value_map
-                     ~f:(fun h -> (Some h, Some false))
-                     ~default:(IDMap.find c.deleted_handlers tlid, Some true)
-                |> Tuple.T2.map_fst ~f:(Option.bind ~f:TL.as_handler)
-                |> Tuple.T2.map_fst ~f:(Option.map ~f:handler_to_binary_string)
-            | Some TL.TLDB ->
-                IDMap.find c.dbs tlid
-                |> Option.value_map
-                     ~f:(fun db -> (Some db, Some false))
-                     ~default:(IDMap.find c.deleted_dbs tlid, Some true)
-                |> Tuple.T2.map_fst ~f:(Option.bind ~f:TL.as_db)
-                |> Tuple.T2.map_fst ~f:(Option.map ~f:db_to_binary_string)
-            | Some TL.TLUserFunction ->
-                IDMap.find c.user_functions tlid
-                |> Option.value_map
-                     ~f:(fun fn -> (Some fn, Some false))
-                     ~default:
-                       (IDMap.find c.deleted_user_functions tlid, Some true)
-                |> Tuple.T2.map_fst ~f:(Option.map ~f:user_fn_to_binary_string)
-            | Some TL.TLUserTipe ->
-                IDMap.find c.user_tipes tlid
-                |> Option.value_map
-                     ~f:(fun t -> (Some t, Some false))
-                     ~default:(IDMap.find c.deleted_user_tipes tlid, Some true)
-                |> Tuple.T2.map_fst
-                     ~f:(Option.map ~f:user_tipe_to_binary_string)
-            | None ->
-                (None, None)
+          let handler () =
+            IDMap.find c.handlers tlid
+            |> Option.bind ~f:TL.as_handler
+            |> Option.map ~f:(fun h ->
+                   (Serialize.handler_to_binary_string h, false, TL.TLHandler))
           in
-          (* If the user calls Undo enough, we might not know
-            * the tipe here. In that case, set to handler cause
-            * it won't be used anyway *)
-          let tipe = Option.value ~default:TL.TLHandler tipe_opt in
+          let deleted_handler () =
+            IDMap.find c.deleted_handlers tlid
+            |> Option.bind ~f:TL.as_handler
+            |> Option.map ~f:(fun h ->
+                   (Serialize.handler_to_binary_string h, true, TL.TLHandler))
+          in
+          let db () =
+            IDMap.find c.dbs tlid
+            |> Option.bind ~f:TL.as_db
+            |> Option.map ~f:(fun db ->
+                   (Serialize.db_to_binary_string db, false, TL.TLDB))
+          in
+          let deleted_db () =
+            IDMap.find c.deleted_dbs tlid
+            |> Option.bind ~f:TL.as_db
+            |> Option.map ~f:(fun db ->
+                   (Serialize.db_to_binary_string db, true, TL.TLDB))
+          in
+          let user_function () =
+            IDMap.find c.user_functions tlid
+            |> Option.map ~f:(fun fn ->
+                   ( Serialize.user_fn_to_binary_string fn
+                   , false
+                   , TL.TLUserFunction ))
+          in
+          let deleted_user_function () =
+            IDMap.find c.deleted_user_functions tlid
+            |> Option.map ~f:(fun fn ->
+                   ( Serialize.user_fn_to_binary_string fn
+                   , true
+                   , TL.TLUserFunction ))
+          in
+          let user_tipe () =
+            IDMap.find c.user_tipes tlid
+            |> Option.map ~f:(fun t ->
+                   (Serialize.user_tipe_to_binary_string t, false, TL.TLUserTipe))
+          in
+          let deleted_user_tipe () =
+            IDMap.find c.deleted_user_tipes tlid
+            |> Option.map ~f:(fun t ->
+                   (Serialize.user_tipe_to_binary_string t, true, TL.TLUserTipe))
+          in
+          let binary_repr, deleted, tipe =
+            handler ()
+            |> Tc.Option.or_else_lazy deleted_handler
+            |> Tc.Option.or_else_lazy db
+            |> Tc.Option.or_else_lazy deleted_handler
+            |> Tc.Option.or_else_lazy deleted_db
+            |> Tc.Option.or_else_lazy user_function
+            |> Tc.Option.or_else_lazy deleted_user_function
+            |> Tc.Option.or_else_lazy user_tipe
+            |> Tc.Option.or_else_lazy deleted_user_tipe
+            |> Option.map ~f:(fun (str, d, t) -> (Some str, Some d, t))
+            (* If the user calls Undo enough, we might not know
+             * the tipe here. In that case, set to handler cause
+             * it won't be used anyway *)
+            |> Option.value ~default:(None, None, TL.TLHandler)
+          in
           Serialize.save_toplevel_oplist
             oplist
             ~binary_repr
@@ -755,21 +731,61 @@ let save_test (c : canvas) : string =
   file
 
 
-let validate_op host op =
-  if Op.is_deprecated op
-  then
-    Exception.internal "bad op" ~info:[("host", host)] ~actual:(Op.show_op op)
+(* --------------- *)
+(* Validate canvases *)
+(* --------------- *)
+
+(* This is a little broad, since we could limit it to tlids, but good enough
+ * for now. At time of writing, these all have the duplicate DB problem. *)
+let known_invalid_hosts =
+  Tc.StrSet.from_list
+    [ "danbowles"
+    ; "danwetherald"
+    ; "ellen-dbproblem18"
+    ; "ellen-preview"
+    ; "ellen-stltrialrun"
+    ; "ellen-trinity" ]
 
 
-let validate_host host =
-  match load_all host [] with
-  | Ok c ->
-      (* check ops *)
-      List.iter (Op.tlid_oplists2oplist !c.ops) ~f:(validate_op host)
-  | Error errs ->
-      Exception.internal
-        "Bad canvas state"
-        ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
+let all_hosts () : string list =
+  List.filter (Serialize.current_hosts ()) ~f:(fun host ->
+      not (Tc.StrSet.member known_invalid_hosts ~value:host))
+
+
+let is_valid_op op : bool = not (Op.is_deprecated op)
+
+let validate_host host : (unit, string) Result.t =
+  try
+    match load_all host [] with
+    | Ok c ->
+        let all_ops = !c.ops |> Op.tlid_oplists2oplist in
+        let ops_valid = Tc.List.all all_ops ~f:is_valid_op in
+        let cache_valid =
+          try
+            let tlids =
+              all_ops
+              |> List.map ~f:Op.tlidOf
+              |> List.dedup_and_sort ~compare:compare_tlid
+            in
+            host |> load_tlids_from_cache ~tlids |> Result.is_ok
+          with _ -> false
+        in
+        if ops_valid && cache_valid
+        then Ok ()
+        else if not ops_valid
+        then Error ("Invalid ops in " ^ host)
+        else Error ("Invalid cache in " ^ host)
+    | Error errs ->
+        Error ("can't load " ^ host ^ ":\n" ^ Tc.String.join ~sep:", " errs)
+  with e -> Error ("Invalid canvas " ^ host ^ ":\n" ^ Exception.to_string e)
+
+
+let validate_all_hosts () : unit =
+  all_hosts ()
+  |> List.map ~f:validate_host
+  |> Tc.Result.combine
+  |> Tc.Result.map (fun _ -> ())
+  |> Result.ok_or_failwith
 
 
 (* just load, don't save -- also don't validate the ops don't
@@ -789,23 +805,139 @@ let check_tier_one_hosts () : unit =
             "Bad canvas state")
 
 
-let migrate_all_hosts () : unit =
-  (* let hosts = Serialize.current_hosts () in *)
-  (*  *)
-  (* List.iter hosts *)
-  (*   ~f:(fun host -> *)
-  (*     let c = load_all host [] in *)
-  (*  *)
-  (*     (* check ops *) *)
-  (*     List.iter (Op.tlid_oplists2oplist !c.ops) *)
-  (*       ~f:(validate_op host); *)
-  (*  *)
-  (*     let new_ops = *)
-  (*     in *)
-  (*     c := { !c with ops = new_ops}; *)
-  (*     save_all !c); *)
-  (*  *)
-  ()
+(* --------------- *)
+(* Migrate canvases *)
+(* --------------- *)
+
+let migrate_or_blank (ob : 'a or_blank) : 'a or_blank =
+  (* Remove Partial: this implementation of partials didn't solve the problem
+   * and so didn't get use. *)
+  match ob with Blank _ -> ob | Partial (id, _) -> Blank id | Filled _ -> ob
+
+
+let rec migrate_expr (expr : RuntimeT.expr) =
+  let f e = migrate_expr e in
+  match expr with
+  | Partial (id, _) ->
+      Blank id
+  | Blank _ ->
+      expr
+  | Filled (id, nexpr) ->
+      Filled
+        ( id
+        , match nexpr with
+          | Value _ | Variable _ ->
+              nexpr
+          | Let (lhs, rhs, body) ->
+              Let (migrate_or_blank lhs, f rhs, f body)
+          | If (cond, ifbody, elsebody) ->
+              If (f cond, f ifbody, f elsebody)
+          | FnCall (name, exprs) ->
+              FnCall (name, List.map ~f exprs)
+          | FnCallSendToRail (name, exprs) ->
+              FnCallSendToRail (name, List.map ~f exprs)
+          | Lambda (vars, lexpr) ->
+              Lambda (List.map ~f:migrate_or_blank vars, f lexpr)
+          | Thread exprs ->
+              Thread (List.map ~f exprs)
+          | FieldAccess (obj, field) ->
+              FieldAccess (f obj, migrate_or_blank field)
+          | ListLiteral exprs ->
+              ListLiteral (List.map ~f exprs)
+          | ObjectLiteral pairs ->
+              ObjectLiteral
+                (List.map ~f:(fun (k, v) -> (migrate_or_blank k, f v)) pairs)
+          | FeatureFlag (msg, cond, a, b) ->
+              FeatureFlag (migrate_or_blank msg, f cond, f a, f b)
+          | Match (matchExpr, cases) ->
+              Match
+                ( f matchExpr
+                , List.map ~f:(fun (k, v) -> (migrate_or_blank k, f v)) cases )
+          | Constructor (name, args) ->
+              Constructor (name, List.map ~f args)
+          | FluidPartial (name, old_val) ->
+              FluidPartial (name, f old_val)
+          | FluidRightPartial (name, old_val) ->
+              FluidRightPartial (name, f old_val) )
+
+
+let migrate_handler (h : RuntimeT.HandlerT.handler) : RuntimeT.HandlerT.handler
+    =
+  {h with ast = migrate_expr h.ast}
+
+
+let migrate_user_function (fn : RuntimeT.user_fn) =
+  let migrate_bo_ufn_param (p : RuntimeT.ufn_param) : RuntimeT.ufn_param =
+    {p with name = migrate_or_blank p.name; tipe = migrate_or_blank p.tipe}
+  in
+  let migrate_bo_metadata (m : RuntimeT.ufn_metadata) : RuntimeT.ufn_metadata =
+    { m with
+      name = migrate_or_blank m.name
+    ; parameters = List.map m.parameters ~f:migrate_bo_ufn_param
+    ; return_type = migrate_or_blank m.return_type }
+  in
+  {fn with ast = migrate_expr fn.ast; metadata = migrate_bo_metadata fn.metadata}
+
+
+let migrate_user_tipe (tipe : RuntimeT.user_tipe) : RuntimeT.user_tipe =
+  let open RuntimeT in
+  let migrate_bo_definition (UTRecord fields) =
+    UTRecord
+      (List.map fields ~f:(fun {name; tipe} ->
+           {name = migrate_or_blank name; tipe = migrate_or_blank tipe}))
+  in
+  { tipe with
+    name = migrate_or_blank tipe.name
+  ; definition = migrate_bo_definition tipe.definition }
+
+
+let migrate_col (k, v) = (migrate_or_blank k, migrate_or_blank v)
+
+let migrate_db (db : RuntimeT.DbT.db) : RuntimeT.DbT.db =
+  { db with
+    cols = List.map ~f:migrate_col db.cols
+  ; name = migrate_or_blank db.name }
+
+
+let migrate_op (op : Op.op) : Op.op =
+  match op with
+  | SetHandler (tlid, pos, handler) ->
+      SetHandler (tlid, pos, migrate_handler handler)
+  | SetFunction fn ->
+      SetFunction (migrate_user_function fn)
+  | SetExpr (tlid, id, expr) ->
+      SetExpr (tlid, id, migrate_expr expr)
+  | CreateDBMigration (tlid, id1, id2, list) ->
+      CreateDBMigration (tlid, id1, id2, List.map list ~f:migrate_col)
+  | SetType tipe ->
+      SetType (migrate_user_tipe tipe)
+  | _ ->
+      op
+
+
+let migrate_host (host : string) : (string, unit) Tc.Result.t =
+  try
+    let canvas_id = id_for_name host in
+    Serialize.fetch_all_tlids ~canvas_id ()
+    |> List.map ~f:(fun tlid ->
+           Serialize.transactionally_migrate_oplist
+             ~canvas_id
+             ~tlid
+             ~host
+             ~handler_f:migrate_handler
+             ~db_f:migrate_db
+             ~user_fn_f:migrate_user_function
+             ~user_tipe_f:migrate_user_tipe
+             ~oplist_f:(List.map ~f:migrate_op)
+             ())
+    |> Tc.Result.combine
+    |> Tc.Result.map (fun _ -> ())
+  with e -> Error (Exception.to_string e)
+
+
+let migrate_all_hosts () =
+  List.iter (all_hosts ()) ~f:(fun host ->
+      migrate_host host |> Result.ok_or_failwith)
 
 
 let time (fn : unit -> 'a) : float * 'a =
@@ -815,6 +947,9 @@ let time (fn : unit -> 'a) : float * 'a =
   (elapsed, a)
 
 
+(* --------------- *)
+(* Cleanup canvases *)
+(* --------------- *)
 let cleanup_old_traces () : float =
   let logdata = ref [] in
   let total_time, _ =
