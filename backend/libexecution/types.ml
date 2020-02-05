@@ -186,23 +186,31 @@ module RuntimeT = struct
       | DBMigrationInitialized
     [@@deriving eq, compare, show, yojson, bin_io]
 
-    type db_migration =
+    type 'expr db_migration' =
       { starting_version : int
       ; version : int
       ; state : db_migration_state
-      ; rollforward : expr
-      ; rollback : expr
+      ; rollforward : 'expr
+      ; rollback : 'expr
       ; cols : col list }
     [@@deriving eq, compare, show, yojson, bin_io]
 
-    type db =
+    type db_migration = expr db_migration'
+    [@@deriving eq, compare, show, yojson, bin_io]
+
+    type 'expr db' =
       { tlid : tlid
       ; name : string or_blank
       ; cols : col list
       ; version : int
-      ; old_migrations : db_migration list
-      ; active_migration : db_migration option }
+      ; old_migrations : 'expr db_migration' list
+      ; active_migration : 'expr db_migration' option }
     [@@deriving eq, compare, show, yojson, bin_io]
+
+    type db = expr db' [@@deriving eq, show, yojson, bin_io]
+
+    type fluid_db = Libshared.FluidExpression.t db'
+    [@@deriving eq, show, yojson]
 
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
@@ -224,27 +232,18 @@ module RuntimeT = struct
       ; types : spec_types }
     [@@deriving eq, show, yojson, bin_io]
 
-    type handler =
+    type 'expr handler' =
       { tlid : tlid
-      ; ast : expr
+      ; ast : 'expr
       ; spec : spec }
     [@@deriving eq, show, yojson, bin_io]
 
-    (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
-  end
+    type handler = expr handler' [@@deriving eq, show, yojson, bin_io]
 
-  module HandlerF = struct
-    type spec =
-      { module_ : string or_blank [@key "module"]
-      ; name : string or_blank
-      ; modifier : string or_blank }
+    type fluid_handler = Libshared.FluidExpression.t handler'
     [@@deriving eq, show, yojson]
 
-    type handler =
-      { tlid : tlid
-      ; ast : Libshared.FluidExpression.t
-      ; spec : spec }
-    [@@deriving eq, show]
+    (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
 
   (* ------------------------ *)
@@ -488,11 +487,16 @@ module RuntimeT = struct
     ; infix : bool }
   [@@deriving eq, show, yojson, bin_io]
 
-  type user_fn =
+  type 'expr user_fn' =
     { tlid : tlid
     ; metadata : ufn_metadata
-    ; ast : expr }
+    ; ast : 'expr }
   [@@deriving eq, show, yojson, bin_io]
+
+  type user_fn = expr user_fn' [@@deriving eq, show, yojson, bin_io]
+
+  type fluid_user_fn = Libshared.FluidExpression.t user_fn'
+  [@@deriving eq, show, yojson]
 
   type user_record_field =
     { name : string or_blank
