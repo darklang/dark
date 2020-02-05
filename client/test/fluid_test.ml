@@ -1493,7 +1493,13 @@ let run () =
         (del 7)
         "Int::ad~@ 5 _________" ;
       t
+        ~expectsFnOnRail:true
         "renaming a function maintains unaligned params in let scope"
+        (partial "Int::" (fn ~ster:Rail "Int::add" [five; six]))
+        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
+        "let b = 6\n~Int::sqrt 5" ;
+      t
+        "renaming a function keeps the errorrail status"
         (partial "Int::" (fn "Int::add" [five; six]))
         (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
         "let b = 6\n~Int::sqrt 5" ;
