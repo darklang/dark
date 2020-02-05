@@ -47,6 +47,8 @@ module List = struct
   include Tablecloth.List
 
   let findMap t ~f = Base.List.find_map t ~f
+
+  let find_map = findMap
 end
 
 module Option = struct
@@ -61,13 +63,19 @@ module Option = struct
     match value with Some v -> v | None -> raise Not_found
 
 
+  let value_exn = valueExn
+
   let orLazy (v : 'a option) (v2 : unit -> 'a option) : 'a option =
     match v with Some v -> Some v | None -> v2 ()
 
 
+  let or_else = orElse
+
   let orElseLazy (v : unit -> 'a option) (v2 : 'a option) : 'a option =
     match v2 with Some v2 -> Some v2 | None -> v ()
 
+
+  let or_else_lazy = orElseLazy
 
   let pair (a : 'a option) (b : 'b option) : ('a * 'b) option =
     match (a, b) with Some a, Some b -> Some (a, b) | _ -> None
@@ -82,7 +90,11 @@ module Option = struct
     match (a, b) with Some a, Some b -> f a b | _ -> None
 
 
+  let and_then2 = andThen2
+
   let isSomeEqualTo ~(value : 'a) (o : 'a option) : bool = Some value = o
+
+  let is_some_equal_to = isSomeEqualTo
 
   (* If a is some, then apply fn to a, return both a and the result.
     if either a or b is none, then return none
@@ -90,6 +102,9 @@ module Option = struct
   let thenAlso (a : 'a option) ~(f : 'a -> 'b option) : ('a * 'b) option =
     let b = andThen ~f a in
     pair a b
+
+
+  let then_also = thenAlso
 end
 
 module StrDict = struct
