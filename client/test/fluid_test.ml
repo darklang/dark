@@ -1494,12 +1494,40 @@ let run () =
         "Int::ad~@ 5 _________" ;
       t
         ~expectsFnOnRail:true
-        "renaming a function maintains unaligned params in let scope"
-        (partial "Int::" (fn ~ster:Rail "Int::add" [five; six]))
-        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
-        "let b = 6\n~Int::sqrt 5" ;
+        "change a function keeps it on the error rail"
+        (partial
+           "HttpClient::post_v4"
+           (fn ~ster:Rail "HttpClient::get_v3" [b; b; b; b]))
+        (enter 18)
+        "HttpClient::postv4 ~______________ ____________ ______________ ________________" ;
       t
-        "renaming a function keeps the errorrail status"
+        ~expectsFnOnRail:false
+        "change a function keeps it off the error rail"
+        (partial
+           "HttpClient::post_v4"
+           (fn ~ster:NoRail "HttpClient::get_v3" [b; b; b; b]))
+        (enter 18)
+        "HttpClient::postv4 ~______________ ____________ ______________ ________________" ;
+      t
+        ~expectsFnOnRail:false
+        "change a function to one not allowed does not stay on error rail"
+        (partial "Int::add" (fn ~ster:Rail "HttpClient::get_v3" [b; b; b; b]))
+        (enter 8)
+        "Int::add ~_________ _________" ;
+      t
+        ~expectsFnOnRail:true
+        "changing a default-off to a default-on goes onto the rail"
+        (partial "HttpClient::post_v4" (fn ~ster:NoRail "Int::add" [b; b]))
+        (enter 18)
+        "HttpClient::postv4 ~______________ ____________ ______________ ________________" ;
+      t
+        ~expectsFnOnRail:false
+        "changing a default-on to a default-off does not stay onto the rail"
+        (partial "Int::add" (fn ~ster:Rail "HttpClient::get_v3" [b; b; b; b]))
+        (enter 8)
+        "Int::add ~_________ _________" ;
+      t
+        "renaming a function maintains unaligned params in let scope"
         (partial "Int::" (fn "Int::add" [five; six]))
         (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
         "let b = 6\n~Int::sqrt 5" ;
