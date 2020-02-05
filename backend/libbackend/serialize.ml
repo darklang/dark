@@ -427,17 +427,21 @@ let transactionally_migrate_oplist
     in
     let try_convert f () = try Some (f rendered) with _ -> None in
     let rendered =
-      try_convert (translate_handler_as_binary_string ~f:handler_f) ()
-      |> Tc.Option.or_else_lazy
-           (try_convert (translate_db_as_binary_string ~f:db_f))
-      |> Tc.Option.or_else_lazy
-           (try_convert (translate_user_function_as_binary_string ~f:user_fn_f))
-      |> Tc.Option.or_else_lazy
-           (try_convert (translate_user_tipe_as_binary_string ~f:user_tipe_f))
-      |> Tc.Option.map ~f:(fun str -> Db.Binary str)
-      |> Tc.Option.or_else_lazy (fun () ->
-             Exception.internal "none of the decoders worked on the cache")
-      |> Tc.Option.withDefault ~default:Db.Null
+      if rendered = ""
+      then Db.Null
+      else
+        try_convert (translate_handler_as_binary_string ~f:handler_f) ()
+        |> Tc.Option.or_else_lazy
+             (try_convert (translate_db_as_binary_string ~f:db_f))
+        |> Tc.Option.or_else_lazy
+             (try_convert
+                (translate_user_function_as_binary_string ~f:user_fn_f))
+        |> Tc.Option.or_else_lazy
+             (try_convert (translate_user_tipe_as_binary_string ~f:user_tipe_f))
+        |> Tc.Option.map ~f:(fun str -> Db.Binary str)
+        |> Tc.Option.or_else_lazy (fun () ->
+               Exception.internal "none of the decoders worked on the cache")
+        |> Tc.Option.withDefault ~default:Db.Null
     in
     Db.run
       ~name:"save per tlid oplist"
