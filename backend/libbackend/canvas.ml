@@ -758,10 +758,23 @@ let validate_host host : (unit, string) Result.t =
   try
     match load_all host [] with
     | Ok c ->
-        let is_valid =
-          !c.ops |> Op.tlid_oplists2oplist |> Tc.List.all ~f:is_valid_op
+        let all_ops = !c.ops |> Op.tlid_oplists2oplist in
+        let ops_valid = Tc.List.all all_ops ~f:is_valid_op in
+        let cache_valid =
+          try
+            let tlids =
+              all_ops
+              |> List.map ~f:Op.tlidOf
+              |> List.dedup_and_sort ~compare:compare_tlid
+            in
+            host |> load_tlids_from_cache ~tlids |> Result.is_ok
+          with _ -> false
         in
-        if is_valid then Ok () else Error ("Invalid ops in " ^ host)
+        if ops_valid && cache_valid
+        then Ok ()
+        else if not ops_valid
+        then Error ("Invalid ops in " ^ host)
+        else Error ("Invalid cache in " ^ host)
     | Error errs ->
         Error ("can't load " ^ host ^ ":\n" ^ Tc.String.join ~sep:", " errs)
   with e -> Error ("Invalid canvas " ^ host ^ ":\n" ^ Exception.to_string e)
