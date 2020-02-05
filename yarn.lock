@@ -1373,10 +1373,10 @@ bs-deriving@44.1.1:
   dependencies:
     "@elliottcable/bs-result" "^12.0.0-pre.2"
 
-bs-fetch@0.5.0:
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/bs-fetch/-/bs-fetch-0.5.0.tgz#6913b1d1ddfa0b0a4b832357854e9763d61d4b28"
-  integrity sha512-cGjwRpyNcIaX+p2ssy/38zs7BM/miKNgmOR3NEhxKFete5mR05JcvjuV4raG89oGCG281SU1b56TTAKmf9VCug==
+bs-fetch@0.5.1:
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/bs-fetch/-/bs-fetch-0.5.1.tgz#5dc63c2d92a30a702c5d9fc7ac875199dc42b01e"
+  integrity sha512-Pqmj4fwm9vyWHF1XjkrAYz0O0DJ1vlOpVVJLhW49FSBqbnUCFZq27l/1DToSb+VMaTv0F7gAlrIKTeuIC01yWg==
 
 bs-platform@7.0.1:
   version "7.0.1"
