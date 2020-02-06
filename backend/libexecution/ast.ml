@@ -439,39 +439,43 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           let result =
             match pat with
             | Filled (_, PLiteral l) ->
-                if Dval.parse_literal l = Some dv then Some (e, []) else None
+                (Dval.parse_literal l = Some dv, e, [])
             | Filled (_, PVariable v) ->
-                Some (e, [(v, dv)])
+                (true, e, [(v, dv)])
             | Filled (_, PConstructor ("Just", [p])) ->
               ( match dv with
               | DOption (OptJust v) ->
                   matches v (p, e)
               | _ ->
-                  None )
+                  (false, e, []) )
             | Filled (_, PConstructor ("Ok", [p])) ->
-              (match dv with DResult (ResOk v) -> matches v (p, e) | _ -> None)
+              ( match dv with
+              | DResult (ResOk v) ->
+                  matches v (p, e)
+              | _ ->
+                  (false, e, []) )
             | Filled (_, PConstructor ("Error", [p])) ->
               ( match dv with
               | DResult (ResError v) ->
                   matches v (p, e)
               | _ ->
-                  None )
+                  (false, e, []) )
             | Filled (_, PConstructor ("Nothing", [])) ->
-                if dv = DOption OptNothing then Some (e, []) else None
+                if dv = DOption OptNothing then (true, e, []) else (false, e, [])
             | Filled (_, PConstructor (invalid_name, args)) ->
-                None
+                (false, e, [])
             | Blank _ | Partial _ ->
-                None
+                (false, e, [])
           in
-          if Option.is_some result then trace (blank_to_id pat) dv ;
+          if Tc.Tuple3.first result then trace (blank_to_id pat) dv ;
           result
         in
         let matchVal = exe st matchExpr in
-        let matched = List.filter_map ~f:(matches matchVal) cases in
-        ( match matched with
+        let matchResults = List.map ~f:(matches matchVal) cases in
+        ( match List.filter ~f:Tc.Tuple3.first matchResults with
         | [] ->
             DIncomplete (SourceId id)
-        | (e, vars) :: _ ->
+        | (_, e, vars) :: _ ->
             let newVars = DvalMap.from_list vars in
             let newSt = Util.merge_left newVars st in
             exe newSt e )
