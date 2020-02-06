@@ -1468,6 +1468,7 @@ let insertInPlaceholderExpr
   in
   (newExpr, newTarget)
 
+
 (* -------------------- *)
 (* Strings *)
 (* -------------------- *)
@@ -1653,7 +1654,6 @@ let makeIntoLetBody (id : id) (ast : ast) (s : fluidState) :
 (* ---------------- *)
 (* Records *)
 (* ---------------- *)
-
 
 (* Add a row to the record *)
 let addRecordRowAt ?(letter = "") (index : int) (id : id) (ast : ast) : E.t =
@@ -1897,6 +1897,7 @@ let replacePartialWithArguments
        "replacePartialWithArguments"
        ~default:(ast, {astRef = ARInvalid; offset = 0})
 
+
 (* ---------------- *)
 (* Partials *)
 (* ---------------- *)
@@ -1907,6 +1908,7 @@ let rec extractSubexprFromPartial (expr : E.t) : E.t =
       extractSubexprFromPartial subExpr
   | _ ->
       expr
+
 
 (* ---------------- *)
 (* Pipes *)
@@ -1954,6 +1956,7 @@ let rec findAppropriateParentToWrap (oldExpr : E.t) (ast : ast) : E.t option =
       (* If we get to the root *)
       Some child
 
+
 (** createPipe makes the expression with `id` the target of a new EPipe.
 
     If the ~findParent flag is passed, an "appropriate" parent of the
@@ -1984,6 +1987,7 @@ let createPipe ~(findParent : bool) (id : id) (ast : ast) (s : state) :
       let replacement = E.EPipe (gid (), [expr; EBlank blankId]) in
       let ast = E.replace (E.toID expr) ast ~replacement in
       (ast, s, Some blankId)
+
 
 (** addPipeExprAt adds a new EBlank into the EPipe with `pipeId` at `idx`.
 
