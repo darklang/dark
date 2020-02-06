@@ -4447,7 +4447,9 @@ let rec updateKey
     (****************************************)
     (* SKIPPING OVER SYMBOLS BY TYPING THEM *)
     (****************************************)
-    (* Skipping over a lambda arrow with '->' *)
+    (*
+     * Skipping over a lambda arrow with '->'
+     *)
     | InsertText "-", L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
         (* ___| -> ___ to ___ |-> ___ *)
         (ast, moveOneRight (ti.startPos + 1) s)
@@ -4459,24 +4461,26 @@ let rec updateKey
       when pos = ti.startPos + 2 ->
         (* ___ -|> ___ to ___ -> |___ *)
         (ast, moveToNextNonWhitespaceToken ~pos ast s)
-    (* Skipping over specific characters *)
+    (*
+     * Skipping over specific characters
+     *)
     | InsertText "=", _, R (TLetAssignment _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)
     | InsertText ":", _, R (TRecordSep _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)
+    | Keypress {key = K.Space; _}, _, R (TSep _, _) ->
+        (ast, moveOneRight pos s)
+    (* Pressing } to go over the last } *)
     | InsertText "}", _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
-        (* Allow pressing close curly to go over the last curly *)
         (ast, moveOneRight pos s)
+    (* Pressing ] to go over the last ] *)
     | InsertText "]", _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
-        (* Allow pressing close square to go over the last square *)
         (ast, moveOneRight pos s)
+    (* Pressing quote to go over the last quote *)
     | InsertText "\"", _, R (TPatternString _, ti)
     | InsertText "\"", _, R (TString _, ti)
     | InsertText "\"", _, R (TStringMLEnd _, ti)
       when pos = ti.endPos - 1 ->
-        (* Allow pressing quote to go over the last quote *)
-        (ast, moveOneRight pos s)
-    | Keypress {key = K.Space; _}, _, R (TSep _, _) ->
         (ast, moveOneRight pos s)
     (***************************)
     (* CREATING NEW CONSTRUCTS *)
