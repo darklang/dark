@@ -436,54 +436,62 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           DIncomplete (SourceId id) )
     | Filled (id, Match (matchExpr, cases)) ->
         let rec matches dv (pat, e) =
-          let result =
-            match pat with
-            | Filled (_, PLiteral l) ->
-                (Dval.parse_literal l = Some dv, e, [])
-            | Filled (_, PVariable v) ->
-                (true, e, [(v, dv)])
-            | Filled (_, PConstructor ("Just", [p])) ->
-              ( match dv with
-              | DOption (OptJust v) ->
-                  matches v (p, e)
-              | _ ->
-                  (false, e, []) )
-            | Filled (_, PConstructor ("Ok", [p])) ->
-              ( match dv with
-              | DResult (ResOk v) ->
-                  matches v (p, e)
-              | _ ->
-                  (false, e, []) )
-            | Filled (_, PConstructor ("Error", [p])) ->
-              ( match dv with
-              | DResult (ResError v) ->
-                  matches v (p, e)
-              | _ ->
-                  (false, e, []) )
-            | Filled (_, PConstructor ("Nothing", [])) ->
-                if dv = DOption OptNothing then (true, e, []) else (false, e, [])
-            | Filled (_, PConstructor (invalid_name, args)) ->
-                (false, e, [])
-            | Blank _ | Partial _ ->
-                (false, e, [])
-          in
-          if Tc.Tuple3.first result then trace (blank_to_id pat) dv ;
-          result
+          match pat with
+          | Filled (pid, PLiteral l) ->
+            ( match Dval.parse_literal l with
+            | Some v ->
+                trace pid v ;
+                (v = dv, e, [])
+            | None ->
+                (false, e, []) )
+          | Filled (pid, PVariable v) ->
+              trace pid dv ;
+              (true, e, [(v, dv)])
+          | Filled (_, PConstructor ("Just", [p])) ->
+            ( match dv with
+            | DOption (OptJust v) ->
+                matches v (p, e)
+            | _ ->
+                (false, e, []) )
+          | Filled (pid, PConstructor ("Ok", [p])) ->
+            ( match dv with
+            | DResult (ResOk v) ->
+                matches v (p, e)
+            | _ ->
+                (false, e, []) )
+          | Filled (pid, PConstructor ("Error", [p])) ->
+            ( match dv with
+            | DResult (ResError v) ->
+                matches v (p, e)
+            | _ ->
+                (false, e, []) )
+          | Filled (pid, PConstructor ("Nothing", [])) ->
+              trace pid (DOption OptNothing) ;
+              if dv = DOption OptNothing then (true, e, []) else (false, e, [])
+          | Filled (pid, PConstructor (invalid_name, args)) ->
+              trace pid (DError (SourceId pid, "Invalid constructor name")) ;
+              (false, e, [])
+          | Blank pid | Partial (pid, _) ->
+              trace pid (DIncomplete (SourceId pid)) ;
+              (false, e, [])
+        in
+        let exe_with_vars e vars =
+          let newVars = DvalMap.from_list vars in
+          let newSt = Util.merge_left newVars st in
+          exe newSt e
         in
         let matchVal = exe st matchExpr in
         let matchResults = List.map ~f:(matches matchVal) cases in
-        ( match List.filter ~f:Tc.Tuple3.first matchResults with
-        | [] ->
-            DIncomplete (SourceId id)
-        | (_, e, vars) :: _ ->
-            let newVars = DvalMap.from_list vars in
-            let newSt = Util.merge_left newVars st in
-            exe newSt e )
         if ctx = Preview
         then
           List.iter matchResults ~f:(fun (matched, e, vars) ->
               exe_with_vars e vars |> ignore ;
               ()) ;
+        ( match List.filter ~f:Tc.Tuple3.first matchResults with
+        | [] ->
+            DIncomplete (SourceId id)
+        | (_, e, vars) :: _ ->
+            exe_with_vars e vars )
     | Filled (id, FieldAccess (e, field)) ->
         let obj = exe st e in
         let result =
