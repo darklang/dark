@@ -57,7 +57,7 @@ let run () =
             ; tokens = []
             ; menuState = {isOpen = false}
             ; isExecuting = false
-            ; fnSpace =
+            ; fnProps =
                 { draggingParamIndex = None
                 ; dragOverSpaceIndex = None
                 ; justMovedParam = None } }
