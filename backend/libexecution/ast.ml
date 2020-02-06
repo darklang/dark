@@ -447,30 +447,17 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           | Filled (pid, PVariable v) ->
               trace pid dv ;
               (true, e, [(v, dv)])
-          | Filled (_, PConstructor ("Just", [p])) ->
-            ( match dv with
-            | DOption (OptJust v) ->
+          | Filled (pid, PConstructor (name, args)) ->
+            ( match (name, args, dv) with
+            | "Just", [p], DOption (OptJust v)
+            | "Ok", [p], DResult (ResOk v)
+            | "Error", [p], DResult (ResError v) ->
                 matches v (p, e)
-            | _ ->
+            | "Nothing", [], DOption OptNothing ->
+                (true, e, [])
+            | _, _, _ ->
+                trace pid (DError (SourceId pid, "Invalid constructor")) ;
                 (false, e, []) )
-          | Filled (pid, PConstructor ("Ok", [p])) ->
-            ( match dv with
-            | DResult (ResOk v) ->
-                matches v (p, e)
-            | _ ->
-                (false, e, []) )
-          | Filled (pid, PConstructor ("Error", [p])) ->
-            ( match dv with
-            | DResult (ResError v) ->
-                matches v (p, e)
-            | _ ->
-                (false, e, []) )
-          | Filled (pid, PConstructor ("Nothing", [])) ->
-              trace pid (DOption OptNothing) ;
-              if dv = DOption OptNothing then (true, e, []) else (false, e, [])
-          | Filled (pid, PConstructor (invalid_name, args)) ->
-              trace pid (DError (SourceId pid, "Invalid constructor name")) ;
-              (false, e, [])
           | Blank pid | Partial (pid, _) ->
               trace pid (DIncomplete (SourceId pid)) ;
               (false, e, [])
