@@ -53,7 +53,8 @@ def initial_client_compile():
   files = [ "package.json"
           , "client/src/Types.ml"
           , "client/styles/app.scss"
-          , "client/test/ast_test.ml" ]
+          , "client/test/ast_test.ml"
+          , "node_modules/@fortawesome/fontawesome-free/css/fontawesome.css"]
   return compile(files)
 
 def initial_stroller_compile():

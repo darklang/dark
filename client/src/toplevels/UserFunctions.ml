@@ -231,3 +231,11 @@ let inputToArgs (f : userFunction) (input : inputValueDict) : dval list =
              StrDict.get ~key:name input |> Option.withDefault ~default
          | _ ->
              default)
+
+
+let moveParams (fn : userFunction) (oldPos : int) (newPos : int) : userFunction
+    =
+  let ufmParameters =
+    fn.ufMetadata.ufmParameters |> List.reorder ~oldPos ~newPos
+  in
+  {fn with ufMetadata = {fn.ufMetadata with ufmParameters}}
