@@ -3066,7 +3066,13 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (ast, Exactly ti.startPos)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
-  (newAST, {s with newPos})
+  let newS =
+    let s' = {s with newPos; upDownCol = None} |> acClear in
+    getToken s' newAST
+    |> Option.map ~f:(fun ti -> acMaybeShow ti s')
+    |> Option.withDefault ~default:s'
+  in
+  (newAST, newS)
 
 
 let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
