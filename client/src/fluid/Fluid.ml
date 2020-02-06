@@ -4109,10 +4109,8 @@ let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
       let eid = E.toID exprToWrap in
       let replacement = E.ELet (gid (), "_", exprToWrap, EBlank bodyId) in
       let newAST = E.replace ~replacement eid ast in
-      let newPos =
-        posFromCaretTarget s newAST {astRef = ARBlank bodyId; offset = 0}
-      in
-      (newAST, {s with newPos})
+      let newTarget = {astRef = ARBlank bodyId; offset = 0} in
+      (newAST, moveToCaretTarget s newAST newTarget)
   | None ->
       (ast, s)
 
