@@ -306,6 +306,14 @@ body #app * {
     flex-direction: column;
     justify-content: space-around;
     text-align: left;
+
+    a {
+      color: $white1;
+
+      &:hover {
+        color: $purple;
+      }
+    }
   }
 
   &:hover > .account-actions {
@@ -329,12 +337,7 @@ body #app * {
     }
 
     li a {
-      color: $white1;
       padding: 5px 8px;
-
-      &:hover {
-        color: $purple;
-      }
     }
   }
 }
