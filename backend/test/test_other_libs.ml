@@ -605,6 +605,47 @@ let t_float_stdlibs () =
   ()
 
 
+(* Test does not demonstrate how it'd be used with complex inputs/lambdas (say,
+ * comparing two semvers); the goal is simply to demonstrate:
+ * - a basic happy-path works
+ * - guards for returning non-int or invalid int (not in {-1,0,1}) error *)
+let t_liblist_sort_by_comparator_works () =
+  let dlist_of_intlist (is : int list) : dval =
+    is
+    |> List.map ~f:(fun i -> Dint.of_int i |> DInt)
+    |> DList
+    |> ResOk
+    |> DResult
+  in
+  let listSortByComparator (lambdaBody : Libshared.FluidExpression.t) :
+      Libshared.FluidExpression.t =
+    fn
+      "List::sortByComparator"
+      [list [int 3; int 1; int 2]; lambda ["a"; "b"] lambdaBody]
+  in
+  check_dval
+    "List::sortByComparator works, a valid case"
+    (exec_ast'
+       (listSortByComparator
+          (if' (fn "Int::lessThan" [var "a"; var "b"]) (int (-1)) (int 1))))
+    (dlist_of_intlist [1; 2; 3]) ;
+  check_dval
+    "List::sortByComparator returns a ResError if lambda returns non-ints"
+    (exec_ast' (listSortByComparator (float' "0" "1")))
+    (DResult
+       (ResError
+          (Dval.dstr_of_string_exn
+             "`f` must return one of -1, 0, 1, but returned non-int: 0.1"))) ;
+  check_dval
+    "List::sortByComparator returns a ResError if lambda returns invalid ints"
+    (exec_ast' (listSortByComparator (int 3)))
+    (DResult
+       (ResError
+          (Dval.dstr_of_string_exn
+             "`f` must return one of -1, 0, 1, but returned another int: 3"))) ;
+  ()
+
+
 let suite =
   [ ("Stdlib fns work", `Quick, t_stdlib_works)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
@@ -620,4 +661,6 @@ let suite =
   ; ("Crypto::sha digest functions work", `Quick, t_crypto_sha)
   ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws)
   ; ("URL percent encoding", `Quick, t_url_encode)
-  ; ("Float stdlibs work", `Quick, t_float_stdlibs) ]
+  ; ("Float stdlibs work", `Quick, t_float_stdlibs)
+  ; ("List::sortByComparator works", `Quick, t_liblist_sort_by_comparator_works)
+  ]
