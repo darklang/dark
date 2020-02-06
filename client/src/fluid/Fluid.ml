@@ -3494,6 +3494,41 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   (newAST, {s with newPos})
 
 
+let maybeInsertInBlankExpr (text : string) : (E.t * caretTarget) option =
+  if text = " " || text = ","
+  then None
+  else
+    Some
+      (let newID = gid () in
+       if text = "\""
+       then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
+       else if text = "["
+       then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
+       else if text = "{"
+       then
+         (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
+       else if text = "\\"
+       then
+         ( E.ELambda (newID, [(gid (), "")], EBlank (gid ()))
+         , {astRef = ARLambda (newID, LBPVarName 0); offset = 0} )
+       else if Util.isNumber text
+       then
+         let intStr = text |> Util.coerceStringTo63BitInt in
+         ( E.EInteger (newID, intStr)
+         , {astRef = ARInteger newID; offset = String.length intStr} )
+       else
+         ( E.EPartial (newID, text, EBlank (gid ()))
+         , {astRef = ARPartial newID; offset = String.length text} ))
+
+
+let insertInBlankExpr (text : string) : E.t * caretTarget =
+  maybeInsertInBlankExpr text
+  |> Option.withDefault
+       ~default:
+         (let newID = gid () in
+          (E.EBlank newID, {astRef = ARBlank newID; offset = 0}))
+
+
 (* [doExplicitInsert [extendedGraphemeCluster] [currCaretTarget] [ast]]
  * produces the (newAST, newPosition) tuple resulting from performing
  * a text insertion at [currCaretTarget] in the [ast]. 
@@ -3670,10 +3705,7 @@ let doExplicitInsert
             , currCTPlusLen )
         else None
     | ARBlank _, _ ->
-        recover
-          "doExplicitInsert - ARBlank handled elsewhere"
-          ~debug:(show_astRef currAstRef, show_fluidExpr expr)
-          None
+        maybeInsertInBlankExpr extendedGraphemeCluster
     (*
      * Things you can't edit but probably should be able to edit
      *)
@@ -3962,7 +3994,7 @@ let doExplicitInsert
   |> Option.withDefault ~default:(ast, SamePlace)
 
 
-let insertInBlankExpr (text : string) : E.t * caretTarget =
+let insertInPlaceholderExpr (text : string) : E.t * caretTarget =
   let newID = gid () in
   let newExpr, newTarget =
     if text = "\""
@@ -3970,12 +4002,15 @@ let insertInBlankExpr (text : string) : E.t * caretTarget =
     else if text = "["
     then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
     else if text = "{"
-    then (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
-    else if text = "\\"
     then
-      ( E.ELambda (newID, [(gid (), "")], EBlank (gid ()))
-      , {astRef = ARLambda (newID, LBPVarName 0); offset = 0} )
-    else if text = ","
+      (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
+      (* TODO: Insertion of lambdas in placeholders *)
+      (*     else if text = "\\"
+    then
+      ( E.ELambda (newID, lambdaArgs ti, EBlank (gid ()))
+      , (* TODO: if lambdaArgs is a populated list, place caret at the end *)
+        {astRef = ARLambda (newID, LBPSymbol); offset = 1} ) *)
+    else if text = "," || text = " "
     then
       (* Just replace with a new blank -- we were creating eg a new list item *)
       (E.EBlank newID, {astRef = ARBlank newID; offset = 0})
@@ -4030,7 +4065,7 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
       ( E.ELambda (newID, lambdaArgs ti, EBlank (gid ()))
       , (* TODO(JULIAN): if lambdaArgs is a populated list, place caret at the end *)
         {astRef = ARLambda (newID, LBPSymbol); offset = 1} )
-    else if letter = ","
+    else if letter = "," || letter = " "
     then
       (E.EBlank newID (* new separators *), {astRef = ARBlank newID; offset = 0})
     else if Util.isNumber letter
@@ -4044,17 +4079,8 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
   in
   let newAST, newPosition =
     match ti.token with
-    | (TFieldName (id, _, _) | TVariable (id, _))
-      when pos = ti.endPos && letter = "." ->
-        let newAST, target =
-          exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) ast
-        in
-        (newAST, AtTarget target)
-    (* Dont add space to blanks *)
-    | ti when FluidToken.isBlank ti && letter == " " ->
-        (ast, SamePlace)
     (* replace blank *)
-    | TBlank id | TPlaceholder (_, id) ->
+    | TPlaceholder (_, id) ->
         (E.replace id ~replacement:newExpr ast, AtTarget newTarget)
     | _ ->
       ( match caretTargetFromTokenInfo pos ti with
@@ -4548,10 +4574,13 @@ let rec updateKey
         then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
         else doInsert ~pos "," ti ast s
     (* Field access *)
-    | InsertText ".", L (TVariable _, toTheLeft), _
-    | InsertText ".", L (TFieldName _, toTheLeft), _
-      when onEdge ->
-        doInsert ~pos "." toTheLeft ast s
+    | InsertText ".", L (TVariable (id, _), toTheLeft), _
+    | InsertText ".", L (TFieldName (id, _, _), toTheLeft), _
+      when onEdge && pos = toTheLeft.endPos ->
+        let newAST, target =
+          exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) ast
+        in
+        (newAST, moveToCaretTarget s newAST target)
     (***********)
     (* K.Enter *)
     (***********)
