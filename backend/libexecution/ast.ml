@@ -435,18 +435,20 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
       | [] ->
           DIncomplete (SourceId id) )
     | Filled (id, Match (matchExpr, cases)) ->
-        let rec matches dv pat =
+        let rec matches dv pat :
+            bool (* is a match *)
+            * (string * dval) (* symtable vars *) list
+            * (id * dval) (* traces *) list
+            * bool (* allow previewing the rhs *) =
           match pat with
           | Filled (pid, PLiteral l) ->
             ( match Dval.parse_literal l with
             | Some v ->
-                trace pid v ;
-                (v = dv, [])
+                (v = dv, [], [(pid, v)], true)
             | None ->
-                (false, []) )
+                (false, [], [(pid, DIncomplete (SourceId pid))], true) )
           | Filled (pid, PVariable v) ->
-              trace pid dv ;
-              (true, [(v, dv)])
+              (true, [(v, dv)], [(pid, dv)], true)
           | Filled (pid, PConstructor (name, args)) ->
             (* We don't trace constructors, as if they don't match we would add
              * incompletes to things that are not incomplete (just not
@@ -461,15 +463,16 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
                 matches v p
             | "Nothing", [], DOption OptNothing ->
                 trace pid (DOption OptNothing) ;
-                (true, [])
+                (true, [], [], false)
             | "Just", _, _ | "Ok", _, _ | "Error", _, _ | "Nothing", _, _ ->
-                (false, [])
+                (false, [], [], false)
             | _, _, _ ->
-                trace pid (DError (SourceId pid, "Invalid constructor")) ;
-                (false, []) )
+                ( false
+                , []
+                , [(pid, DError (SourceId pid, "Invalid constructor"))]
+                , false ) )
           | Blank pid | Partial (pid, _) ->
-              trace pid (DIncomplete (SourceId pid)) ;
-              (false, [])
+              (false, [], [(pid, DIncomplete (SourceId pid))], true)
         in
         let exe_with_vars e vars =
           let newVars = DvalMap.from_list vars in
@@ -480,15 +483,24 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         let matchResult = ref (DIncomplete (SourceId id)) in
         let continue = ref true in
         List.iter cases ~f:(fun (pattern, expr) ->
-            if !continue || ctx = Preview
-            then (
-              let matches, vars = matches matchVal pattern in
-              if ctx = Preview then exe_with_vars expr vars |> ignore ;
-              if matches && !continue
+            ( if !continue || ctx = Preview
+            then
+              let matches, vars, tracevars, preview_rhs =
+                matches matchVal pattern
+              in
+              if ctx = Preview
               then (
+                (* Preview execution *)
+                List.iter tracevars ~f:(fun (id, dv) -> trace id dv) ;
+                (* Don't preview constructor rhs, as they have misleading incompletes *)
+                if preview_rhs then exe_with_vars expr vars |> ignore )
+              else if matches && !continue
+              then (
+                (* Actual execution *)
                 continue := false ;
-                matchResult := exe_with_vars expr vars ) ;
-              () )) ;
+                matchResult := exe_with_vars expr vars )
+              else () ) ;
+            ()) ;
         !matchResult
     | Filled (id, FieldAccess (e, field)) ->
         let obj = exe st e in
