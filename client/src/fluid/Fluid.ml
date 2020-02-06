@@ -4221,75 +4221,6 @@ let rec updateKey
     | _ ->
         true
   in
-  (* This expresses whether or not the expression to the left of
-   * the insert should be wrapped in a binary operator, and determines
-   * that fact based on the _next_ token *)
-  (*   let _wrappableInBinop rightNeighbour =
-    match rightNeighbour with
-    | L _ ->
-        (* This function is only defined in terms of right + no lookahead, so say false if we were accidentally passed an `L` *)
-        false
-    | No ->
-        (* Assume that if we're in a blank and there's nothing to our
-         * right then we must be in an expression blank that can
-         * be safely wrapped *)
-        true
-    | R (token, _) ->
-      (* This almost certainly doesn't catch all cases,
-         * if you find a bug please add a case + test *)
-      ( match token with
-      | TLetVarName _
-      | TLetAssignment _
-      | TFieldName _
-      | TRecordFieldname _
-      | TRecordSep _
-      | TLambdaComma _
-      | TLambdaArrow _
-      | TLambdaVar _ ->
-          false
-      | _ ->
-          true )
-  in *)
-  (*   let wrappableInBinop (ct:caretTarget option) : bool =
-    ct
-    |> Option.map ~f:(fun ct ->
-    match ct.astRef with
-      | ARInteger _
-      | ARBool _
-      | ARString _
-      | ARFloat _
-      | ARNull _
-      | ARBlank _
-      | ARBinOp _
-      | ARVariable _ -> true
-      | ARPipe _
-      | ARConstructor _
-      | ARLet _
-      | ARIf _
-      | ARFieldAccess _
-      | ARFnCall _
-      | ARPartial _
-      | ARRightPartial _
-      | ARList _
-      | ARRecord _
-      | ARMatch _
-      | ARLambda _
-      | ARPattern _
-      | ARInvalid -> false)
-    |> Option.withDefault ~default:false
-  in *)
-  (*   
-  let caretTargetBehind = 
-    (match toTheLeft with
-    | L (_, lti) -> (caretTargetFromTokenInfo pos)
-    | ((R _)|No) -> None)
-  in
-  let caretTargetAhead =
-    (match toTheRight with
-    | R (_, rti) -> (caretTargetFromTokenInfo rti pos)
-    | ((L _)|No) -> None)
-  in *)
-  (* let exprBehind, exprAhead = getNeighbouringExprs ~pos tokens ast in *)
   let keyIsInfix =
     match inputEvent with
     | InsertText txt when FluidTextInput.isInfixSymbol txt ->
@@ -4298,7 +4229,7 @@ let rec updateKey
         false
   in
   (* TODO: When changing TVariable and TFieldName and probably TFnName we
-     * should convert them to a partial which retains the old object *)
+   * should convert them to a partial which retains the old object *)
   (* Checks to see if the token is within an if-condition statement *)
   let isInIfCondition token =
     let rec recurseUp maybeExpr prevId =
@@ -4326,19 +4257,19 @@ let rec updateKey
      * ordering ADD A TEST, even if it's otherwise redundant from a product
      * POV. *)
     match (inputEvent, toTheLeft, toTheRight) with
-    (* Entering a string escape *)
-    | InsertText "\\", L (TString _, _), R (TString _, ti)
-      when false (* disable for now *) && pos - ti.startPos != 0 ->
-        startEscapingString pos ti s ast
-    (*
-     * DELETE SELECTION
-     *)
+    (*************)
+    (* SELECTION *)
+    (*************)
+    | Keypress {key = K.SelectAll; _}, _, R (_, _)
+    | Keypress {key = K.SelectAll; _}, L (_, _), _ ->
+        (ast, selectAll ~pos ast s)
+    (* Delete selection *)
     | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
       when Option.isSome s.selectionStart ->
         deleteSelection ~state:s ~ast
-    (*
-     * BACKSPACE
-     *)
+    (*************)
+    (* BACKSPACE *)
+    (*************)
     (* Special-case hack for deleting rows of a match or record *)
     | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti)
     | DeleteContentBackward, L (TNewline _, _), R (TPatternBlank _, ti) ->
@@ -4347,9 +4278,9 @@ let rec updateKey
         doBackspace ~pos ti ast s
     | DeleteContentForward, _, R (_, ti) ->
         doDelete ~pos ti ast s
-    (*
-     * AUTOCOMPLETE
-     *)
+    (****************)
+    (* AUTOCOMPLETE *)
+    (****************)
     (* Note that these are spelt out explicitly on purpose, else they'll
      * trigger on the wrong element sometimes. *)
     | Keypress {key = K.Escape; _}, L (_, ti), _ when isAutocompleting ti s ->
@@ -4364,7 +4295,9 @@ let rec updateKey
         (ast, acMoveDown s)
     | Keypress {key = K.Down; _}, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveDown s)
-    (* Autocomplete finish *)
+    (* 
+     * Autocomplete finish
+     *)
     | Keypress {key; _}, L (_, ti), _
       when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
@@ -4384,6 +4317,10 @@ let rec updateKey
         getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
         |> Option.withDefault ~default:(ast, s)
+    (*
+     * Special autocomplete entries
+     *)
+    (* Piping, with and without autocomplete menu open *)
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline ast s =
           let startPos, endPos = getSelectionRange s in
@@ -4407,7 +4344,6 @@ let rec updateKey
             doPipeline ast s
         | _ ->
             doPipeline ast s )
-    (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | InsertText ".", L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
@@ -4423,9 +4359,6 @@ let rec updateKey
     | Keypress {key = K.ShiftTab; _}, _, R (_, _)
     | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
         (ast, moveToPrevBlank ~pos ast s)
-    | Keypress {key = K.SelectAll; _}, _, R (_, _)
-    | Keypress {key = K.SelectAll; _}, L (_, _), _ ->
-        (ast, selectAll ~pos ast s)
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
     (* TODO: press equals when in a let *)
@@ -4507,9 +4440,9 @@ let rec updateKey
         (ast, doUp ~pos ast s)
     | Keypress {key = K.Down; _}, _, _ ->
         (ast, doDown ~pos ast s)
-    (*
-     * SKIPPING OVER SYMBOLS BY TYPING THEM
-     *)
+    (****************************************)
+    (* SKIPPING OVER SYMBOLS BY TYPING THEM *)
+    (****************************************)
     (* Skipping over a lambda arrow with '->' *)
     | InsertText "-", L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
         (* ___| -> ___ to ___ |-> ___ *)
@@ -4541,9 +4474,14 @@ let rec updateKey
         (ast, moveOneRight pos s)
     | Keypress {key = K.Space; _}, _, R (TSep _, _) ->
         (ast, moveOneRight pos s)
-    (*
-     * CREATING NEW CONSTRUCTS
-     *)
+    (***************************)
+    (* CREATING NEW CONSTRUCTS *)
+    (***************************)
+    (* Entering a string escape *)
+    (* TODO: Move this to doInsert *)
+    | InsertText "\\", L (TString _, _), R (TString _, ti)
+      when false (* disable for now *) && pos - ti.startPos != 0 ->
+        startEscapingString pos ti s ast
     (* comma - add another of the thing *)
     | InsertText ",", L (TListOpen id, _), _ when onEdge ->
         let bID = gid () in
@@ -4610,6 +4548,104 @@ let rec updateKey
           exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) ast
         in
         (newAST, moveToCaretTarget s newAST target)
+    (* Infix symbol insertion to create partials *)
+    | InsertText infixTxt, L (TPipe _, ti), _
+    | InsertText infixTxt, _, R (TPlaceholder _, ti)
+    | InsertText infixTxt, _, R (TBlank _, ti)
+    | InsertText infixTxt, L (_, ti), _
+      when keyIsInfix ->
+        caretTargetFromTokenInfo pos ti
+        |> Option.andThen ~f:(fun ct ->
+               Debug.loG "Key is infix!" (infixTxt, show_caretTarget ct) ;
+               idOfASTRef ct.astRef
+               |> Option.andThen ~f:(fun id ->
+                      match E.find id ast with
+                      | Some expr ->
+                          Some (id, ct, expr)
+                      | None ->
+                          None))
+        |> Option.andThen ~f:(fun (id, ct, expr) ->
+               match (ct.astRef, expr) with
+               | ARInteger _, expr
+               | ARBool _, expr
+               | ARFieldAccess (_, FAPFieldname), expr
+               | ARString (_, SPOpenQuote), expr
+               | ARFloat _, expr
+               | ARNull _, expr
+               | ARVariable _, expr
+               | ARList _, expr ->
+                   if caretTargetForEndOfExpr' expr = ct
+                   then
+                     let newID = gid () in
+                     Some
+                       ( id
+                       , E.ERightPartial (newID, infixTxt, expr)
+                       , { astRef = ARRightPartial newID
+                         ; offset = String.length infixTxt } )
+                   else None
+               | ARBlank _, expr ->
+                   let newID = gid () in
+                   Some
+                     ( id
+                     , E.EPartial (newID, infixTxt, expr)
+                     , { astRef = ARPartial newID
+                       ; offset = String.length infixTxt } )
+               | ARPipe (_, index), E.EPipe (id, pipeExprs) ->
+                 ( match pipeExprs |> List.getAt ~index:(index + 1) with
+                 | Some pipedInto ->
+                     (* Note that this essentially destroys the pipedInto
+                      * expression, because it becomes overwritten by the
+                      * partial. Handling this properly would involve
+                      * introducing a new construct -- perhaps a left partial. *)
+                     let parID = gid () in
+                     let newExpr = E.EPartial (parID, infixTxt, pipedInto) in
+                     let newPipeExprs =
+                       pipeExprs
+                       |> List.updateAt ~index:(index + 1) ~f:(fun _ -> newExpr)
+                     in
+                     Some
+                       ( id
+                       , E.EPipe (id, newPipeExprs)
+                       , { astRef = ARPartial parID
+                         ; offset = String.length infixTxt } )
+                 | None ->
+                     None )
+               | _ ->
+                   None)
+        |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
+               let newAST = E.replace replaceID ~replacement:newExpr ast in
+               (newAST, moveToCaretTarget s newAST newCaretTarget))
+        |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti ast s))
+        |> recoverOpt
+             "updateKey - can't return None due to lazy Some"
+             ~default:(ast, s)
+    (* Typing between empty list symbols [] *)
+    | InsertText txt, L (TListOpen id, _), R (TListClose _, _) ->
+        let newExpr, target = insertInBlankExpr txt in
+        let newAST = insertInList ~index:0 id ~newExpr ast in
+        (newAST, moveToCaretTarget s newAST target)
+    (* Typing between empty record symbols {} *)
+    | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+        (* Adds new initial record row with the typed
+         * value as the fieldname (if value entered is valid),
+         * then move caret to end of fieldname *)
+        if Util.isIdentifierChar txt
+        then
+          let ast = addRecordRowAt ~letter:txt 0 id ast in
+          let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1 in
+          (ast, s)
+        else (ast, s)
+    (***********************************)
+    (* INSERT INTO EXISTING CONSTRUCTS *)
+    (***********************************)
+    | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
+        doInsert ~pos " " toTheRight ast s
+    | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
+        doInsert ~pos txt toTheLeft ast s
+    | InsertText txt, _, R (_, toTheRight) ->
+        doInsert ~pos txt toTheRight ast s
+    | ReplaceText txt, _, _ ->
+        replaceText ~ast ~state:s txt
     (***********)
     (* K.Enter *)
     (***********)
@@ -4782,105 +4818,6 @@ let rec updateKey
      * Caret at very end of tokens where last line is non-let expression. *)
     | Keypress {key = K.Enter; _}, L (token, ti), No when not (T.isLet token) ->
         wrapInLet ti ast s
-    | InsertText infixTxt, L (TPipe _, ti), _
-    | InsertText infixTxt, _, R (TPlaceholder _, ti)
-    | InsertText infixTxt, _, R (TBlank _, ti)
-    | InsertText infixTxt, L (_, ti), _
-      when keyIsInfix ->
-        caretTargetFromTokenInfo pos ti
-        |> Option.andThen ~f:(fun ct ->
-               Debug.loG "Key is infix!" (infixTxt, show_caretTarget ct) ;
-               idOfASTRef ct.astRef
-               |> Option.andThen ~f:(fun id ->
-                      match E.find id ast with
-                      | Some expr ->
-                          Some (id, ct, expr)
-                      | None ->
-                          None))
-        |> Option.andThen ~f:(fun (id, ct, expr) ->
-               match (ct.astRef, expr) with
-               | ARInteger _, expr
-               | ARBool _, expr
-               | ARFieldAccess (_, FAPFieldname), expr
-               | ARString (_, SPOpenQuote), expr
-               | ARFloat _, expr
-               | ARNull _, expr
-               | ARVariable _, expr
-               | ARList _, expr ->
-                   if caretTargetForEndOfExpr' expr = ct
-                   then
-                     let newID = gid () in
-                     Some
-                       ( id
-                       , E.ERightPartial (newID, infixTxt, expr)
-                       , { astRef = ARRightPartial newID
-                         ; offset = String.length infixTxt } )
-                   else None
-               | ARBlank _, expr ->
-                   let newID = gid () in
-                   Some
-                     ( id
-                     , E.EPartial (newID, infixTxt, expr)
-                     , { astRef = ARPartial newID
-                       ; offset = String.length infixTxt } )
-               | ARPipe (_, index), E.EPipe (id, pipeExprs) ->
-                 ( match pipeExprs |> List.getAt ~index:(index + 1) with
-                 | Some pipedInto ->
-                     (* Note that this essentially destroys the pipedInto
-                      * expression, because it becomes overwritten by the
-                      * partial. Handling this properly would involve
-                      * introducing a new construct -- perhaps a left partial. *)
-                     let parID = gid () in
-                     let newExpr = E.EPartial (parID, infixTxt, pipedInto) in
-                     let newPipeExprs =
-                       pipeExprs
-                       |> List.updateAt ~index:(index + 1) ~f:(fun _ -> newExpr)
-                     in
-                     Some
-                       ( id
-                       , E.EPipe (id, newPipeExprs)
-                       , { astRef = ARPartial parID
-                         ; offset = String.length infixTxt } )
-                 | None ->
-                     None )
-               | _ ->
-                   None)
-        |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
-               let newAST = E.replace replaceID ~replacement:newExpr ast in
-               (newAST, moveToCaretTarget s newAST newCaretTarget))
-        |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti ast s))
-        |> recoverOpt
-             "updateKey - can't return None due to lazy Some"
-             ~default:(ast, s)
-    (* Rest of Insertions *)
-    (* Caret between empty list symbols [] *)
-    | InsertText txt, L (TListOpen id, _), R (TListClose _, _) ->
-        let newExpr, target = insertInBlankExpr txt in
-        let newAST = insertInList ~index:0 id ~newExpr ast in
-        (newAST, moveToCaretTarget s newAST target)
-    (* Caret between empty record symbols {} *)
-    | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
-        (* Adds new initial record row with the typed
-         * value as the fieldname (if value entered is valid),
-         * then move caret to end of fieldname *)
-        if Util.isIdentifierChar txt
-        then
-          let ast = addRecordRowAt ~letter:txt 0 id ast in
-          let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1 in
-          (ast, s)
-        else (ast, s)
-    | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
-        doInsert ~pos txt toTheLeft ast s
-    | _, _, R (TListOpen _, _) ->
-        (ast, s)
-    | _, _, R (TRecordOpen _, _) ->
-        (ast, s)
-    | InsertText txt, _, R (_, toTheRight) ->
-        doInsert ~pos txt toTheRight ast s
-    | ReplaceText txt, _, _ ->
-        replaceText ~ast ~state:s txt
-    | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
-        doInsert ~pos " " toTheRight ast s
     | _ ->
         (* Unknown *)
         (ast, report ("Unknown action: " ^ show_fluidInputEvent inputEvent) s)
