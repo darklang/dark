@@ -381,6 +381,26 @@ let fns =
                   |> List.sort ~compare:(fun a b ->
                          match fn a b with
                          | DInt i ->
+                             (* to_int_exn is just
+                              * Int63.to_int_exn; from docs
+                              * (https://ocaml.janestreet.com/ocaml-core/latest/doc/base/Base/Int63/index.html),
+                              * "The size of Int63 is always 63 bits. On a 64-bit
+                              * platform it is just an int (63-bits), and on a
+                              * 32-bit platform it is an int64 wrapped to respect
+                              * the semantics of 63-bit integers."
+                              *
+                              * We run these fns in two environments: native
+                              * ocaml, in our containers, which are a 64-bit
+                              * platform, and jsoo, which is a 32-bit platform.
+                              * But you'll only get an _exn there if you manage to
+                              * get a DInt constructed that is more than 32 bits.
+                              *
+                              * Not worrying about that because:
+                              * - you'd have to really try to get here with such a
+                              *   value, I think (constructing a DInt with a
+                              *   >32bit int ...)
+                              * - if you do, it'll only affect the editor
+                              *   runtime, not bwd execution *)
                              let i = Dint.to_int_exn i in
                              ( match i with
                              | 0 | 1 | -1 ->
