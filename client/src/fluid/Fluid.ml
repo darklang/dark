@@ -3529,6 +3529,59 @@ let insertInBlankExpr (text : string) : E.t * caretTarget =
           (E.EBlank newID, {astRef = ARBlank newID; offset = 0}))
 
 
+let insertInPlaceholderExpr
+    (id : id)
+    ~(placeholderName : string)
+    ~(ins : string)
+    (ast : ast)
+    (s : state) : E.t * caretTarget =
+  let newID = gid () in
+  let lambdaArgs () =
+    let fnname =
+      match E.findParent id ast with
+      | Some (E.EFnCall (_, name, _, _)) ->
+          Some name
+      | _ ->
+          None
+    in
+    s.ac.functions
+    |> List.find ~f:(fun f -> Some f.fnName = fnname)
+    |> Option.andThen ~f:(fun fn ->
+           List.find
+             ~f:(fun {paramName; _} -> paramName = placeholderName)
+             fn.fnParameters)
+    |> Option.map ~f:(fun p -> p.paramBlock_args)
+    |> Option.withDefault ~default:[""]
+    |> List.map ~f:(fun str -> (gid (), str))
+  in
+  let newExpr, newTarget =
+    if ins = "\""
+    then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
+    else if ins = "["
+    then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
+    else if ins = "{"
+    then (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
+    else if ins = "\\"
+    then
+      ( E.ELambda (newID, lambdaArgs (), EBlank (gid ()))
+      , (* TODO: if lambdaArgs is a populated list, place caret at the end *)
+        {astRef = ARLambda (newID, LBPSymbol); offset = 1} )
+    else if ins = "," || ins = " "
+    then
+      (* Just replace with a new blank -- we were creating eg a new list item *)
+      (E.EBlank newID, {astRef = ARBlank newID; offset = 0})
+    else if Util.isNumber ins
+    then
+      let intStr = ins |> Util.coerceStringTo63BitInt in
+      ( E.EInteger (newID, intStr)
+      , {astRef = ARInteger newID; offset = String.length intStr} )
+    else
+      ( E.EPartial (newID, ins, EBlank (gid ()))
+      , {astRef = ARPartial newID; offset = String.length ins} )
+  in
+  (newExpr, newTarget)
+
+
 (* [doExplicitInsert [extendedGraphemeCluster] [currCaretTarget] [ast]]
  * produces the (newAST, newPosition) tuple resulting from performing
  * a text insertion at [currCaretTarget] in the [ast]. 
@@ -3992,38 +4045,6 @@ let doExplicitInsert
          | None ->
              None)
   |> Option.withDefault ~default:(ast, SamePlace)
-
-
-let insertInPlaceholderExpr (text : string) : E.t * caretTarget =
-  let newID = gid () in
-  let newExpr, newTarget =
-    if text = "\""
-    then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
-    else if text = "["
-    then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
-    else if text = "{"
-    then
-      (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
-      (* TODO: Insertion of lambdas in placeholders *)
-      (*     else if text = "\\"
-    then
-      ( E.ELambda (newID, lambdaArgs ti, EBlank (gid ()))
-      , (* TODO: if lambdaArgs is a populated list, place caret at the end *)
-        {astRef = ARLambda (newID, LBPSymbol); offset = 1} ) *)
-    else if text = "," || text = " "
-    then
-      (* Just replace with a new blank -- we were creating eg a new list item *)
-      (E.EBlank newID, {astRef = ARBlank newID; offset = 0})
-    else if Util.isNumber text
-    then
-      let intStr = text |> Util.coerceStringTo63BitInt in
-      ( E.EInteger (newID, intStr)
-      , {astRef = ARInteger newID; offset = String.length intStr} )
-    else
-      ( E.EPartial (newID, text, EBlank (gid ()))
-      , {astRef = ARPartial newID; offset = String.length text} )
-  in
-  (newExpr, newTarget)
 
 
 let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
@@ -4598,62 +4619,13 @@ let rec updateKey
     (***********************************)
     (* INSERT INTO EXISTING CONSTRUCTS *)
     (***********************************)
-    | InsertText txt, L (TPlaceholder (_, id), ti), _
-    | InsertText txt, _, R (TPlaceholder (_, id), ti) ->
-        let newID = gid () in
-        let lambdaArgs ti =
-          let placeholderName =
-            match ti.token with
-            | TPlaceholder ((name, _), _) ->
-                Some name
-            | _ ->
-                None
-          in
-          let fnname =
-            let id = FluidToken.tid ti.token in
-            match E.findParent id ast with
-            | Some (E.EFnCall (_, name, _, _)) ->
-                Some name
-            | _ ->
-                None
-          in
-          s.ac.functions
-          |> List.find ~f:(fun f -> Some f.fnName = fnname)
-          |> Option.andThen ~f:(fun fn ->
-                 List.find
-                   ~f:(fun {paramName; _} -> Some paramName = placeholderName)
-                   fn.fnParameters)
-          |> Option.map ~f:(fun p -> p.paramBlock_args)
-          |> Option.withDefault ~default:[""]
-          |> List.map ~f:(fun str -> (gid (), str))
-        in
+    | InsertText ins, L (TPlaceholder ((placeholderName, _), id), _), _
+    | InsertText ins, _, R (TPlaceholder ((placeholderName, _), id), _) ->
+        (* We need this special case because by the time we get to the general 
+         * doInsert handling, reconstructing the difference between placeholders
+         * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
         let newExpr, newTarget =
-          if txt = "\""
-          then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
-          else if txt = "["
-          then
-            (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
-          else if txt = "{"
-          then
-            ( E.ERecord (newID, [])
-            , {astRef = ARRecord (newID, RPOpen); offset = 1} )
-          else if txt = "\\"
-          then
-            ( E.ELambda (newID, lambdaArgs ti, EBlank (gid ()))
-            , (* TODO(JULIAN): if lambdaArgs is a populated list, place caret at the end *)
-              {astRef = ARLambda (newID, LBPSymbol); offset = 1} )
-          else if txt = "," || txt = " "
-          then
-            ( E.EBlank newID (* new separators *)
-            , {astRef = ARBlank newID; offset = 0} )
-          else if Util.isNumber txt
-          then
-            let intStr = txt |> Util.coerceStringTo63BitInt in
-            ( E.EInteger (newID, intStr)
-            , {astRef = ARInteger newID; offset = String.length intStr} )
-          else
-            ( E.EPartial (newID, txt, EBlank (gid ()))
-            , {astRef = ARPartial newID; offset = String.length txt} )
+          insertInPlaceholderExpr id ~placeholderName ~ins ast s
         in
         let newAST = E.replace id ~replacement:newExpr ast in
         (newAST, moveToCaretTarget s newAST newTarget)
