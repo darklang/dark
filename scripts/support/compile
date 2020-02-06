@@ -78,6 +78,10 @@ def client_build():
   result = run_frontend(start, build)
   return result
 
+def copy_modules():
+  start = time.time()
+  return run_frontend(start, "npm run copy:modules")
+
 def npm_install():
   start = time.time()
   flags = ""
