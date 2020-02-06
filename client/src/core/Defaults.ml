@@ -82,7 +82,7 @@ let defaultWorkerStats : workerStats = {count = 0; schedule = None}
 
 let defaultMenu : menuState = {isOpen = false}
 
-let defaultFnSpace : fnSpace =
+let defaultFnSpace : fnProps =
   {draggingParamIndex = None; dragOverSpaceIndex = None; justMovedParam = None}
 
 

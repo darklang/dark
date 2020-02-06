@@ -37,7 +37,7 @@ type viewState =
       FluidToken.tokenInfo list
   ; menuState : menuState
   ; isExecuting : bool
-  ; fnSpace : fnSpace }
+  ; fnProps : fnProps }
 
 (* ----------------------------- *)
 (* Events *)
@@ -141,7 +141,7 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
         (match hp with Some p -> p.execution = Executing | _ -> false)
       | TLDB _ | TLTipe _ | TLGroup _ ->
           false )
-  ; fnSpace = m.currentUserFn }
+  ; fnProps = m.currentUserFn }
 
 
 let fontAwesome (name : string) : msg Html.html =

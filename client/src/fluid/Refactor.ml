@@ -474,7 +474,7 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
              None)
 
 
-let updateFncallArgs
+let reorderFnCallArgs
     (m : model) (tlid : tlid) (fnName : string) (oldPos : int) (newPos : int) :
     modification list =
   let astMods =

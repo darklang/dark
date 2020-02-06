@@ -17,6 +17,14 @@ let idConfigs = ViewBlankOr.idConfigs
 
 let wc = ViewBlankOr.wc
 
+let moveParams (fn : userFunction) (oldPos : int) (newPos : int) : userFunction
+    =
+  let ufmParameters =
+    fn.ufMetadata.ufmParameters |> List.reorder ~oldPos ~newPos
+  in
+  {fn with ufMetadata = {fn.ufMetadata with ufmParameters}}
+
+
 let update (m : model) (msg : fnpMsg) : modification =
   let currentUserFn, mods =
     match msg with
@@ -35,11 +43,11 @@ let update (m : model) (msg : fnpMsg) : modification =
         |> Option.andThen ~f:(fun tlid -> TLIDDict.get ~tlid m.userFunctions)
         |> Option.pair m.currentUserFn.draggingParamIndex
         |> Option.map ~f:(fun (oldPos, fn) ->
-               let newFn = UserFunctions.moveParams fn oldPos newPos in
+               let newFn = moveParams fn oldPos newPos in
                let updateArgs =
                  match fn.ufMetadata.ufmName with
                  | F (_, name) ->
-                     Refactor.updateFncallArgs m fn.ufTLID name oldPos newPos
+                     Refactor.reorderFnCallArgs m fn.ufTLID name oldPos newPos
                  | Blank _ ->
                      []
                in
@@ -111,7 +119,7 @@ let jsDragOver : Web.Node.event -> unit =
   [%raw "function(e){e.dataTransfer.dropEffect = 'move';}"]
 
 
-let viewParamSpace (index : int) (fs : fnSpace) : msg Html.html =
+let viewParamSpace (index : int) (fs : fnProps) : msg Html.html =
   let dragOver e =
     jsDragOver e ;
     IgnoreMsg
@@ -159,9 +167,9 @@ let viewParam
   in
   let conditionalClasses =
     [ ( "dragging"
-      , vs.fnSpace.draggingParamIndex |> Option.isSomeEqualTo ~value:index )
+      , vs.fnProps.draggingParamIndex |> Option.isSomeEqualTo ~value:index )
     ; ( "just-moved"
-      , vs.fnSpace.justMovedParam |> Option.isSomeEqualTo ~value:index ) ]
+      , vs.fnProps.justMovedParam |> Option.isSomeEqualTo ~value:index ) ]
   in
   let param =
     Html.div
@@ -183,7 +191,7 @@ let viewParam
       ; viewParamTipe vs [wc "type"] p.ufpTipe
       ; fontAwesome "grip-lines" ]
   in
-  let space = viewParamSpace index vs.fnSpace in
+  let space = viewParamSpace index vs.fnProps in
   [space; param]
 
 
@@ -194,6 +202,6 @@ let view (fn : userFunction) (vs : viewState) : msg Html.html list =
     |> List.flatten
   in
   let lastSpace =
-    viewParamSpace (List.length fn.ufMetadata.ufmParameters) vs.fnSpace
+    viewParamSpace (List.length fn.ufMetadata.ufmParameters) vs.fnProps
   in
   params @ [lastSpace]

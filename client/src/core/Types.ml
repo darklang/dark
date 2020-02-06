@@ -928,7 +928,7 @@ and menuMsg =
   | CloseMenu
 
 (* FnParams *)
-and fnSpace =
+and fnProps =
   { draggingParamIndex : int option
   ; dragOverSpaceIndex : int option
   ; justMovedParam : int option }
@@ -1582,7 +1582,7 @@ and model =
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
-  ; currentUserFn : fnSpace }
+  ; currentUserFn : fnProps }
 
 and savedUserSettings = {showUserWelcomeModal : bool}
 
