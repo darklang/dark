@@ -4030,64 +4030,12 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   let s = recordAction ~ti ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
-  let newID = gid () in
-  let lambdaArgs ti =
-    let placeholderName =
-      match ti.token with TPlaceholder ((name, _), _) -> Some name | _ -> None
-    in
-    let fnname =
-      let id = FluidToken.tid ti.token in
-      match E.findParent id ast with
-      | Some (E.EFnCall (_, name, _, _)) ->
-          Some name
-      | _ ->
-          None
-    in
-    s.ac.functions
-    |> List.find ~f:(fun f -> Some f.fnName = fnname)
-    |> Option.andThen ~f:(fun fn ->
-           List.find
-             ~f:(fun {paramName; _} -> Some paramName = placeholderName)
-             fn.fnParameters)
-    |> Option.map ~f:(fun p -> p.paramBlock_args)
-    |> Option.withDefault ~default:[""]
-    |> List.map ~f:(fun str -> (gid (), str))
-  in
-  let newExpr, newTarget =
-    if letter = "\""
-    then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
-    else if letter = "["
-    then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
-    else if letter = "{"
-    then (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
-    else if letter = "\\"
-    then
-      ( E.ELambda (newID, lambdaArgs ti, EBlank (gid ()))
-      , (* TODO(JULIAN): if lambdaArgs is a populated list, place caret at the end *)
-        {astRef = ARLambda (newID, LBPSymbol); offset = 1} )
-    else if letter = "," || letter = " "
-    then
-      (E.EBlank newID (* new separators *), {astRef = ARBlank newID; offset = 0})
-    else if Util.isNumber letter
-    then
-      let intStr = letter |> Util.coerceStringTo63BitInt in
-      ( E.EInteger (newID, intStr)
-      , {astRef = ARInteger newID; offset = String.length intStr} )
-    else
-      ( E.EPartial (newID, letter, EBlank (gid ()))
-      , {astRef = ARPartial newID; offset = String.length letter} )
-  in
   let newAST, newPosition =
-    match ti.token with
-    (* replace blank *)
-    | TPlaceholder (_, id) ->
-        (E.replace id ~replacement:newExpr ast, AtTarget newTarget)
-    | _ ->
-      ( match caretTargetFromTokenInfo pos ti with
-      | Some ct ->
-          doExplicitInsert letter ct ast
-      | None ->
-          (ast, SamePlace) )
+    match caretTargetFromTokenInfo pos ti with
+    | Some ct ->
+        doExplicitInsert letter ct ast
+    | None ->
+        (ast, SamePlace)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
@@ -4650,6 +4598,65 @@ let rec updateKey
     (***********************************)
     (* INSERT INTO EXISTING CONSTRUCTS *)
     (***********************************)
+    | InsertText txt, L (TPlaceholder (_, id), ti), _
+    | InsertText txt, _, R (TPlaceholder (_, id), ti) ->
+        let newID = gid () in
+        let lambdaArgs ti =
+          let placeholderName =
+            match ti.token with
+            | TPlaceholder ((name, _), _) ->
+                Some name
+            | _ ->
+                None
+          in
+          let fnname =
+            let id = FluidToken.tid ti.token in
+            match E.findParent id ast with
+            | Some (E.EFnCall (_, name, _, _)) ->
+                Some name
+            | _ ->
+                None
+          in
+          s.ac.functions
+          |> List.find ~f:(fun f -> Some f.fnName = fnname)
+          |> Option.andThen ~f:(fun fn ->
+                 List.find
+                   ~f:(fun {paramName; _} -> Some paramName = placeholderName)
+                   fn.fnParameters)
+          |> Option.map ~f:(fun p -> p.paramBlock_args)
+          |> Option.withDefault ~default:[""]
+          |> List.map ~f:(fun str -> (gid (), str))
+        in
+        let newExpr, newTarget =
+          if txt = "\""
+          then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
+          else if txt = "["
+          then
+            (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
+          else if txt = "{"
+          then
+            ( E.ERecord (newID, [])
+            , {astRef = ARRecord (newID, RPOpen); offset = 1} )
+          else if txt = "\\"
+          then
+            ( E.ELambda (newID, lambdaArgs ti, EBlank (gid ()))
+            , (* TODO(JULIAN): if lambdaArgs is a populated list, place caret at the end *)
+              {astRef = ARLambda (newID, LBPSymbol); offset = 1} )
+          else if txt = "," || txt = " "
+          then
+            ( E.EBlank newID (* new separators *)
+            , {astRef = ARBlank newID; offset = 0} )
+          else if Util.isNumber txt
+          then
+            let intStr = txt |> Util.coerceStringTo63BitInt in
+            ( E.EInteger (newID, intStr)
+            , {astRef = ARInteger newID; offset = String.length intStr} )
+          else
+            ( E.EPartial (newID, txt, EBlank (gid ()))
+            , {astRef = ARPartial newID; offset = String.length txt} )
+        in
+        let newAST = E.replace id ~replacement:newExpr ast in
+        (newAST, moveToCaretTarget s newAST newTarget)
     | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
         doInsert ~pos " " toTheRight ast s
     | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
