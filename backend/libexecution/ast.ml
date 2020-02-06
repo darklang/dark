@@ -448,12 +448,19 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               trace pid dv ;
               (true, e, [(v, dv)])
           | Filled (pid, PConstructor (name, args)) ->
+            (* We don't trace constructors, as if they don't match we would add
+             * incompletes to things that are not incomplete (just not
+             * matched), and users are already confused enough about
+             * incompletes. We probably need a way to indicate the live value
+             * is "uninteresting" instead.
+             *)
             ( match (name, args, dv) with
             | "Just", [p], DOption (OptJust v)
             | "Ok", [p], DResult (ResOk v)
             | "Error", [p], DResult (ResError v) ->
                 matches v (p, e)
             | "Nothing", [], DOption OptNothing ->
+                trace pid (DOption OptNothing) ;
                 (true, e, [])
             | "Just", _, _ | "Ok", _, _ | "Error", _, _ | "Nothing", _, _ ->
                 (false, e, [])
