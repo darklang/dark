@@ -4376,6 +4376,11 @@ let rec updateKey
     | Keypress {key = K.SelectAll; _}, L (_, _), _ ->
         (ast, selectAll ~pos ast s)
     (*************)
+    (* OVERWRITE *)
+    (*************)
+    | ReplaceText txt, _, _ ->
+        replaceText ~ast ~state:s txt
+    (*************)
     (* DELETION  *)
     (*************)
     (* Delete selection *)
@@ -4647,8 +4652,6 @@ let rec updateKey
         doInsert ~pos txt toTheLeft ast s
     | InsertText txt, _, R (_, toTheRight) ->
         doInsert ~pos txt toTheRight ast s
-    | ReplaceText txt, _, _ ->
-        replaceText ~ast ~state:s txt
     (***********)
     (* K.Enter *)
     (***********)
