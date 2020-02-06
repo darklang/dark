@@ -478,7 +478,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         in
         let matchVal = exe st matchExpr in
         let matchResult = ref (DIncomplete (SourceId id)) in
-        let continue = ref false in
+        let continue = ref true in
         List.iter cases ~f:(fun (pattern, expr) ->
             if !continue || ctx = Preview
             then (
