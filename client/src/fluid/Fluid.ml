@@ -2755,14 +2755,7 @@ let acStartField (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * state =
 (* -------------------- *)
 
 type newPosition =
-  | RightOne
-  | RightTwo
-  | LeftOne
-  | LeftThree
-  | MoveToStart
-  | MoveToTokenEnd of id * (* offset *) int
   | SamePlace
-  | TwoAfterEnd
   | Exactly of int
   (* The hope is that we can migrate everything to
      AtTarget and then remove this entirely *)
@@ -2792,49 +2785,8 @@ let adjustPosForReflow
   match (adjustment, newTI) with
   | SamePlace, _ ->
       newPos
-  | RightOne, _ ->
-      if FluidToken.isBlank oldTI.token
-      then oldTI.startPos + diff + 1
-      else newPos + 1
-  | RightTwo, _ ->
-      if FluidToken.isBlank oldTI.token
-      then oldTI.startPos + diff + 2
-      else newPos + 2
-  | LeftOne, Some newTI ->
-      if T.isAtom newTI.token
-      then newTI.startPos
-      else if newTI.endPos < newPos
-      then newTI.endPos
-      else newPos - 1
-  | LeftOne, None ->
-      let newPos = newPos - 1 in
-      max 0 newPos
-  | LeftThree, Some newTI ->
-      let newPos = min newPos newTI.endPos in
-      let newPos = newPos - 3 in
-      max 0 newPos
-  | LeftThree, None ->
-      let newPos = newPos - 3 in
-      max 0 newPos
   | Exactly pos, _ ->
       pos
-  | MoveToTokenEnd (id, offset), _ ->
-      newTokens
-      |> List.reverse
-      |> List.find ~f:(fun x -> T.tid x.token = id)
-      |> Option.map ~f:(fun ti ->
-             if FluidToken.isBlank ti.token
-             then ti.startPos
-             else ti.endPos + offset)
-      |> recoverOpt "didn't find expected token in MoveToToken" ~default:newPos
-  | MoveToStart, Some newTI ->
-      newTI.startPos
-  | MoveToStart, None ->
-      oldTI.startPos
-  | TwoAfterEnd, None ->
-      oldTI.endPos + 2
-  | TwoAfterEnd, Some newTI ->
-      newTI.endPos + 2
   | AtTarget target, _ ->
       posFromCaretTarget state newAST target
 
@@ -4824,6 +4776,7 @@ let rec updateKey
         in
         if shouldCommit
         then
+          (* TODO(JULIAN): Is this explicit or not? Figure it out, ask Paul *)
           let committedAST = commitIfValid newState.newPos ti (newAST, s) in
           updateKey
             ~recursing:true
