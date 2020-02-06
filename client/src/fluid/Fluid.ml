@@ -2839,48 +2839,6 @@ let adjustPosForReflow
       posFromCaretTarget state newAST target
 
 
-(* Deprecated: Don't use this for new code; try to mirror doExplicitBackspace.
-   tryReplaceStringAndMove attempts to transform the string identified by the given `token` using `f` within the `ast` and
-   validates/coerces the result.
-   If a successful transformation occured while preserving the expr, we return (newAst, Some desiredCaretTarget) indicating where the caret should end up.
-   If the transformation resulted in replacing the token's corresponding expr with an EBlank, we return (newAst, Some {astRef = ARBlank id; offset = 0}).
-   If the transformation had no effect or couldn't be validated/coerced, we return (ast, None).
-
-   TODO(JULIAN): The caretTarget behavior for EBlank is pretty confusing and it may make sense to delegate responsibility for handling that to callers,
-   although that might get messier. For now, this matches the behavior of replaceStringToken.
-    *)
-let tryReplaceStringAndMove
-    ~(f : string -> string)
-    (token : token)
-    (ast : ast)
-    (desiredCaretTarget : caretTarget) : E.t * caretTarget option =
-  let open FluidExpression in
-  let tokId = T.tid token in
-  let tokExpr = E.find tokId ast in
-  let maybeTransformedExpr, desiredCaretTarget =
-    match token with
-    | TInteger (id, intStr) ->
-        let str = f intStr in
-        if str = ""
-        then (Some (EBlank id), {astRef = ARBlank id; offset = 0})
-        else
-          ( Some (EInteger (id, Util.coerceStringTo63BitInt str))
-          , desiredCaretTarget )
-    | TString (id, fullStr)
-    | TStringMLStart (id, _, _, fullStr)
-    | TStringMLMiddle (id, _, _, fullStr)
-    | TStringMLEnd (id, _, _, fullStr) ->
-        (Some (EString (id, f fullStr)), desiredCaretTarget)
-    | _ ->
-        todo "still need to handle all cases" (None, desiredCaretTarget)
-  in
-  match maybeTransformedExpr with
-  | Some transformedExpr when maybeTransformedExpr <> tokExpr ->
-      (E.replace tokId ~replacement:transformedExpr ast, Some desiredCaretTarget)
-  | _ ->
-      (ast, None)
-
-
 let idOfASTRef (astRef : astRef) : id option =
   match astRef with
   | ARInteger id
