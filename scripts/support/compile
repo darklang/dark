@@ -403,7 +403,7 @@ def ignore(filename):
             , "esy.lock"
             , "/home/dark/.esy"
             , "node_modules"
-            , "lib/"
+            , "/lib"
             , "build.ninja"
             , "stroller/target"
             , "queue-scheduler/target"

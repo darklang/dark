@@ -24,10 +24,10 @@ let eToStructure = Printer.eToStructure
  *
  *
  * There are a few different ways of running a test:
- *  - t vs tp:
+ *  - t vs t ~expectsPartial:true:
  *    - a test case is created by calling t. This also asserts that the result
  *      does not include a partial.
- *    - you can also call tp, which asserts that the result _does_ include a
+ *    - you can also call t ~expectsPartial:true, which asserts that the result _does_ include a
  *      partial.
  *  - debug:
  *      When you need more information about a single test, set the ~debug:true
@@ -38,7 +38,7 @@ let eToStructure = Printer.eToStructure
  *  for example if the original is " a : Int " then we show
  *    `_________`
  *  - TPartials are displayed as text - to detect their presence,
- *    see "t vs tp" above.
+ *    see "t vs t ~expectsPartial:true" above.
  *  - TGhostPartials are displayed as multiple @ signs
  *  - Other blanks (see FluidToken.isBlank) are displayed as `***` This is
  *    controlled by FluidToken.toTestText
@@ -63,11 +63,11 @@ let eToStructure = Printer.eToStructure
 
 let deOption msg v = match v with Some v -> v | None -> failwith msg
 
-type hasPartial =
-  | NoPartial
-  | ContainsPartial
+type expectedAttrs =
+  { containsPartials : bool
+  ; containsFnsOnRail : bool }
 
-type testResult = (string * (int option * int)) * hasPartial
+type testResult = (string * (int option * int)) * expectedAttrs
 
 type modifierKeys =
   { shiftKey : bool
@@ -156,7 +156,7 @@ let process
     then Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
     else newState.selectionStart
   in
-  let partialsFound =
+  let containsPartials =
     List.any (toTokens result) ~f:(fun ti ->
         match ti.token with
         | TRightPartial _ | TPartial _ | TFieldPartial _ ->
@@ -164,12 +164,20 @@ let process
         | _ ->
             false)
   in
+  let containsFnsOnRail =
+    result
+    |> FluidExpression.filter ~f:(function
+           | EBinOp (_, _, _, _, Rail) | EFnCall (_, _, _, Rail) ->
+               true
+           | _ ->
+               false)
+    |> ( <> ) []
+  in
   if debug
   then (
     Js.log2 "state after" (Fluid_utils.debugState newState) ;
     Js.log2 "expr after" (eToStructure ~includeIDs:true result) ) ;
-  ( (toString result, (selPos, finalPos))
-  , if partialsFound then ContainsPartial else NoPartial )
+  ((toString result, (selPos, finalPos)), {containsPartials; containsFnsOnRail})
 
 
 let render (expr : fluidExpr) : testResult =
@@ -402,36 +410,16 @@ let inputs
 
 (* Test expecting no partials found and an expected caret position but no selection *)
 let t
+    ?(expectsPartial = false)
+    ?(expectsFnOnRail = false)
     (name : string)
     (initial : fluidExpr)
     (fn : fluidExpr -> testResult)
     (expectedStr : string) =
   let insertCaret
       (((str, (_selection, caret)), res) :
-        (string * (int option * int)) * hasPartial) : string * hasPartial =
-    let caretString = "~" in
-    match str |> String.splitAt ~index:caret with
-    | a, b ->
-        ([a; b] |> String.join ~sep:caretString, res)
-  in
-  test
-    ( name
-    ^ " - `"
-    ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
-    ^ "`" )
-    (fun () ->
-      expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial))
-
-
-(* Test expecting partials found and an expected caret position but no selection *)
-let tp
-    (name : string)
-    (initial : fluidExpr)
-    (fn : fluidExpr -> testResult)
-    (expectedStr : string) =
-  let insertCaret
-      (((str, (_selection, caret)), res) :
-        (string * (int option * int)) * hasPartial) : string * hasPartial =
+        (string * (int option * int)) * expectedAttrs) : string * expectedAttrs
+      =
     let caretString = "~" in
     match str |> String.splitAt ~index:caret with
     | a, b ->
@@ -444,7 +432,10 @@ let tp
     ^ "`" )
     (fun () ->
       expect (fn initial |> insertCaret)
-      |> toEqual (expectedStr, ContainsPartial))
+      |> toEqual
+           ( expectedStr
+           , { containsPartials = expectsPartial
+             ; containsFnsOnRail = expectsFnOnRail } ))
 
 
 (* Test expecting no partials found and an expected resulting selection *)
@@ -460,7 +451,10 @@ let ts
     ^ " - `"
     ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
-    (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
+    (fun () ->
+      expect (fn initial)
+      |> toEqual
+           (expected, {containsPartials = false; containsFnsOnRail = false}))
 
 
 let run () =
@@ -941,7 +935,8 @@ let run () =
         (partial "\"abcdefgh" b)
         (ins "\"" 9)
         "\"abcdefgh\"~" ;
-      tp
+      t
+        ~expectsPartial:true
         "just one quote doesn't turn a partial into a string"
         (partial "abcdefgh" b)
         (ins "\"" 0)
@@ -1126,24 +1121,49 @@ let run () =
         ("146", (None, 2)) ;
       ()) ;
   describe "Bools" (fun () ->
-      tp "insert start of true" trueBool (ins "c" 0) "c~true" ;
-      tp "del start of true" trueBool (del 0) "~rue" ;
+      t
+        ~expectsPartial:true
+        "insert start of true"
+        trueBool
+        (ins "c" 0)
+        "c~true" ;
+      t ~expectsPartial:true "del start of true" trueBool (del 0) "~rue" ;
       t "bs start of true" trueBool (bs 0) "~true" ;
-      tp "insert end of true" trueBool (ins "0" 4) "true0~" ;
+      t ~expectsPartial:true "insert end of true" trueBool (ins "0" 4) "true0~" ;
       t "del end of true" trueBool (del 4) "true~" ;
-      tp "bs end of true" trueBool (bs 4) "tru~" ;
-      tp "insert middle of true" trueBool (ins "0" 2) "tr0~ue" ;
-      tp "del middle of true" trueBool (del 2) "tr~e" ;
-      tp "bs middle of true" trueBool (bs 2) "t~ue" ;
-      tp "insert start of false" falseBool (ins "c" 0) "c~false" ;
-      tp "del start of false" falseBool (del 0) "~alse" ;
+      t ~expectsPartial:true "bs end of true" trueBool (bs 4) "tru~" ;
+      t
+        ~expectsPartial:true
+        "insert middle of true"
+        trueBool
+        (ins "0" 2)
+        "tr0~ue" ;
+      t ~expectsPartial:true "del middle of true" trueBool (del 2) "tr~e" ;
+      t ~expectsPartial:true "bs middle of true" trueBool (bs 2) "t~ue" ;
+      t
+        ~expectsPartial:true
+        "insert start of false"
+        falseBool
+        (ins "c" 0)
+        "c~false" ;
+      t ~expectsPartial:true "del start of false" falseBool (del 0) "~alse" ;
       t "bs start of false" falseBool (bs 0) "~false" ;
-      tp "insert end of false" falseBool (ins "0" 5) "false0~" ;
+      t
+        ~expectsPartial:true
+        "insert end of false"
+        falseBool
+        (ins "0" 5)
+        "false0~" ;
       t "del end of false" falseBool (del 5) "false~" ;
-      tp "bs end of false" falseBool (bs 5) "fals~" ;
-      tp "insert middle of false" falseBool (ins "0" 2) "fa0~lse" ;
-      tp "del middle of false" falseBool (del 2) "fa~se" ;
-      tp "bs middle of false" falseBool (bs 2) "f~lse" ;
+      t ~expectsPartial:true "bs end of false" falseBool (bs 5) "fals~" ;
+      t
+        ~expectsPartial:true
+        "insert middle of false"
+        falseBool
+        (ins "0" 2)
+        "fa0~lse" ;
+      t ~expectsPartial:true "del middle of false" falseBool (del 2) "fa~se" ;
+      t ~expectsPartial:true "bs middle of false" falseBool (bs 2) "f~lse" ;
       t "ctrl+left start of true doesnt move" trueBool (ctrlLeft 0) "~true" ;
       t "ctrl+right start of true moves to beg" trueBool (ctrlRight 0) "true~" ;
       t "ctrl+left middle of true moves to beg" trueBool (ctrlLeft 2) "~true" ;
@@ -1174,12 +1194,14 @@ let run () =
         falseBool
         (inputs [DeleteWordBackward] 5)
         "~___" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordBackward at the mid of a true deletes to beg"
         trueBool
         (inputs [DeleteWordBackward] 2)
         "~ue" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordBackward at the mid of a false deletes to beg"
         falseBool
         (inputs [DeleteWordBackward] 3)
@@ -1194,31 +1216,33 @@ let run () =
         falseBool
         (inputs [DeleteWordForward] 5)
         "false~" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordForward at the mid of a true deletes to end"
         trueBool
         (inputs [DeleteWordForward] 2)
         "tr~" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordForward at the mid of a false deletes to end"
         falseBool
         (inputs [DeleteWordForward] 3)
         "fal~" ;
       ()) ;
   describe "Nulls" (fun () ->
-      tp "insert start of null" aNull (ins "c" 0) "c~null" ;
-      tp "del start of null" aNull (del 0) "~ull" ;
+      t ~expectsPartial:true "insert start of null" aNull (ins "c" 0) "c~null" ;
+      t ~expectsPartial:true "del start of null" aNull (del 0) "~ull" ;
       t "bs start of null" aNull (bs 0) "~null" ;
       t "ctrl+left start of null doesnt move" aNull (ctrlLeft 0) "~null" ;
       t "ctrl+right start of null moves to end" aNull (ctrlRight 0) "null~" ;
-      tp "insert end of null" aNull (ins "0" 4) "null0~" ;
+      t ~expectsPartial:true "insert end of null" aNull (ins "0" 4) "null0~" ;
       t "del end of null" aNull (del 4) "null~" ;
-      tp "bs end of null" aNull (bs 4) "nul~" ;
+      t ~expectsPartial:true "bs end of null" aNull (bs 4) "nul~" ;
       t "ctrl+left end of null doesnt move" aNull (ctrlLeft 4) "~null" ;
       t "ctrl+right end of null moves to beg" aNull (ctrlRight 4) "null~" ;
-      tp "insert middle of null" aNull (ins "0" 2) "nu0~ll" ;
-      tp "del middle of null" aNull (del 2) "nu~l" ;
-      tp "bs middle of null" aNull (bs 2) "n~ll" ;
+      t ~expectsPartial:true "insert middle of null" aNull (ins "0" 2) "nu0~ll" ;
+      t ~expectsPartial:true "del middle of null" aNull (del 2) "nu~l" ;
+      t ~expectsPartial:true "bs middle of null" aNull (bs 2) "n~ll" ;
       t "ctrl+left middle of null moves to beg" aNull (ctrlLeft 2) "~null" ;
       t "ctrl+right middle of null moves to end" aNull (ctrlRight 2) "null~" ;
       t
@@ -1226,7 +1250,8 @@ let run () =
         aNull
         (inputs [DeleteWordBackward] 4)
         "~___" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordBackward at the mid of a null deletes to beg"
         aNull
         (inputs [DeleteWordBackward] 2)
@@ -1236,7 +1261,8 @@ let run () =
         aNull
         (inputs [DeleteWordForward] 4)
         "null~" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordForward at the mid of a null deletes to end"
         aNull
         (inputs [DeleteWordForward] 2)
@@ -1256,7 +1282,7 @@ let run () =
       t "del int->blank " five (del 0) "~___" ;
       t "bs int->blank " five (bs 1) "~___" ;
       t "insert end of blank->int" b (ins "5" 1) "5~" ;
-      tp "insert partial" b (ins "t" 0) "t~" ;
+      t ~expectsPartial:true "insert partial" b (ins "t" 0) "t~" ;
       t
         "backspacing your way through a partial finishes"
         trueBool
@@ -1281,24 +1307,69 @@ let run () =
         "___~" ;
       ()) ;
   describe "Fields" (fun () ->
-      tp "insert middle of fieldname" aField (ins "c" 5) "obj.fc~ield" ;
+      t
+        ~expectsPartial:true
+        "insert middle of fieldname"
+        aField
+        (ins "c" 5)
+        "obj.fc~ield" ;
       t "cant insert invalid chars fieldname" aField (ins "$" 5) "obj.f~ield" ;
-      tp "del middle of fieldname" aField (del 5) "obj.f~eld@" ;
-      tp "del fieldname" aShortField (del 4) "obj.~***" ;
-      tp "bs fieldname" aShortField (bs 5) "obj.~***" ;
-      tp "insert end of fieldname" aField (ins "c" 9) "obj.fieldc~" ;
-      tp "insert end of varname" aField (ins "c" 3) "objc~.field" ;
-      tp "insert start of fieldname" aField (ins "c" 4) "obj.c~field" ;
-      tp "insert blank fieldname" aBlankField (ins "c" 4) "obj.c~" ;
+      t
+        ~expectsPartial:true
+        "del middle of fieldname"
+        aField
+        (del 5)
+        "obj.f~eld@" ;
+      t ~expectsPartial:true "del fieldname" aShortField (del 4) "obj.~***" ;
+      t ~expectsPartial:true "bs fieldname" aShortField (bs 5) "obj.~***" ;
+      t
+        ~expectsPartial:true
+        "insert end of fieldname"
+        aField
+        (ins "c" 9)
+        "obj.fieldc~" ;
+      t
+        ~expectsPartial:true
+        "insert end of varname"
+        aField
+        (ins "c" 3)
+        "objc~.field" ;
+      t
+        ~expectsPartial:true
+        "insert start of fieldname"
+        aField
+        (ins "c" 4)
+        "obj.c~field" ;
+      t
+        ~expectsPartial:true
+        "insert blank fieldname"
+        aBlankField
+        (ins "c" 4)
+        "obj.c~" ;
       t "del fieldop with name" aShortField (del 3) "obj~" ;
       t "bs fieldop with name" aShortField (bs 4) "obj~" ;
       t "del fieldop with blank" aBlankField (del 3) "obj~" ;
       t "bs fieldop with blank" aBlankField (bs 4) "obj~" ;
       t "del fieldop in nested" aNestedField (del 3) "obj~.field2" ;
       t "bs fieldop in nested" aNestedField (bs 4) "obj~.field2" ;
-      tp "add dot after variable" aVar (ins "." 8) "variable.~***" ;
-      tp "add dot after partial " aPartialVar (ins "." 3) "request.~***" ;
-      tp "add dot after field" aField (ins "." 9) "obj.field.~***" ;
+      t
+        ~expectsPartial:true
+        "add dot after variable"
+        aVar
+        (ins "." 8)
+        "variable.~***" ;
+      t
+        ~expectsPartial:true
+        "add dot after partial "
+        aPartialVar
+        (ins "." 3)
+        "request.~***" ;
+      t
+        ~expectsPartial:true
+        "add dot after field"
+        aField
+        (ins "." 9)
+        "obj.field.~***" ;
       t "insert space in blank " aBlankField (space 4) "obj.~***" ;
       t
         "ctrl+left in name moves to beg of name"
@@ -1330,12 +1401,14 @@ let run () =
         aNestedField
         (ctrlRight 5)
         "obj.field~.field2" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordBackward in middle of fieldname deletes to beg of fieldname"
         aNestedField
         (inputs [DeleteWordBackward] 6)
         "obj.~eld@@.field2" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordBackward at end of fieldname deletes entire fieldname"
         aNestedField
         (inputs [DeleteWordBackward] 9)
@@ -1345,7 +1418,8 @@ let run () =
         aNestedField
         (inputs [DeleteWordBackward] 4)
         "obj~.field2" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordForward in middle of fieldname deletes to end of fieldname"
         aNestedField
         (inputs [DeleteWordForward] 6)
@@ -1355,12 +1429,14 @@ let run () =
         aNestedField
         (inputs [DeleteWordForward] 9)
         "obj.field~" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordForward at end of dot deletes fieldname"
         aNestedField
         (inputs [DeleteWordForward] 4)
         "obj.~***@@.field2" ;
-      tp
+      t
+        ~expectsPartial:true
         "insert dot to complete partial field"
         (EPartial
            ( gid ()
@@ -1369,17 +1445,20 @@ let run () =
            ))
         (ins ~clone:false "." 11)
         "request.body.~***" ;
-      tp
+      t
+        ~expectsPartial:true
         "insert dot even when no content in the field"
         (EVariable (ID "fake-acdata1", "request"))
         (insMany ~clone:false ["."; "."] 7)
         "request.body.~***" ;
-      tp
+      t
+        ~expectsPartial:true
         "bs fieldpartial character"
         (partial "a" (fieldAccess b ""))
         (bs 5)
         "___.~***" ;
-      tp
+      t
+        ~expectsPartial:true
         "del fieldpartial character"
         (partial "a" (fieldAccess b ""))
         (del 4)
@@ -1401,8 +1480,52 @@ let run () =
         aFnCall
         (space 10)
         "Int::add 5 ~_________" ;
-      tp "bs function renames" aFnCall (bs 8) "Int::ad~@ 5 _________" ;
-      tp "deleting a function renames" aFnCall (del 7) "Int::ad~@ 5 _________" ;
+      t
+        ~expectsPartial:true
+        "bs function renames"
+        aFnCall
+        (bs 8)
+        "Int::ad~@ 5 _________" ;
+      t
+        ~expectsPartial:true
+        "deleting a function renames"
+        aFnCall
+        (del 7)
+        "Int::ad~@ 5 _________" ;
+      t
+        ~expectsFnOnRail:true
+        "change a function keeps it on the error rail"
+        (partial
+           "HttpClient::post_v4"
+           (fn ~ster:Rail "HttpClient::get_v3" [b; b; b; b]))
+        (enter 18)
+        "HttpClient::postv4 ~______________ ____________ ______________ ________________" ;
+      t
+        ~expectsFnOnRail:false
+        "change a function keeps it off the error rail"
+        (partial
+           "HttpClient::post_v4"
+           (fn ~ster:NoRail "HttpClient::get_v3" [b; b; b; b]))
+        (enter 18)
+        "HttpClient::postv4 ~______________ ____________ ______________ ________________" ;
+      t
+        ~expectsFnOnRail:false
+        "change a function to one not allowed does not stay on error rail"
+        (partial "Int::add" (fn ~ster:Rail "HttpClient::get_v3" [b; b; b; b]))
+        (enter 8)
+        "Int::add ~_________ _________" ;
+      t
+        ~expectsFnOnRail:true
+        "changing a default-off to a default-on goes onto the rail"
+        (partial "HttpClient::post_v4" (fn ~ster:NoRail "Int::add" [b; b]))
+        (enter 18)
+        "HttpClient::postv4 ~______________ ____________ ______________ ________________" ;
+      t
+        ~expectsFnOnRail:false
+        "changing a default-on to a default-off does not stay onto the rail"
+        (partial "Int::add" (fn ~ster:Rail "HttpClient::get_v3" [b; b; b; b]))
+        (enter 8)
+        "Int::add ~_________ _________" ;
       t
         "renaming a function maintains unaligned params in let scope"
         (partial "Int::" (fn "Int::add" [five; six]))
@@ -1423,32 +1546,38 @@ let run () =
        * implemented. Some tests we need:
          * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
          * same with del *)
-      tp
+      t
+        ~expectsPartial:true
         "del on function with version"
         aFnCallWithVersion
         (del 11)
         "DB::getAllv~@ ___________________" ;
-      tp
+      t
+        ~expectsPartial:true
         "bs on function with version"
         aFnCallWithVersion
         (bs 12)
         "DB::getAllv~@ ___________________" ;
-      tp
+      t
+        ~expectsPartial:true
         "del on function with version in between the version and function name"
         aFnCallWithVersion
         (del 10)
         "DB::getAll~1@ ___________________" ;
-      tp
+      t
+        ~expectsPartial:true
         "bs on function with version in between the version and function name"
         aFnCallWithVersion
         (bs 10)
         "DB::getAl~v1@ ___________________" ;
-      tp
+      t
+        ~expectsPartial:true
         "del on function with version in function name"
         aFnCallWithVersion
         (del 7)
         "DB::get~llv1@ ___________________" ;
-      tp
+      t
+        ~expectsPartial:true
         "bs on function with version in function name"
         aFnCallWithVersion
         (bs 8)
@@ -1463,17 +1592,20 @@ let run () =
         (fn "Int::add" [five; six])
         (bs 11)
         "Int::add 5~ 6" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordBackward in middle of function deletes to beg of function"
         aFnCallWithVersion
         (inputs [DeleteWordBackward] 6)
         "~tAllv1@Allv@ ___________________" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordBackward in end of function version deletes to function"
         aFnCallWithVersion
         (inputs [DeleteWordBackward] 12)
         "DB::getAll~@@ ___________________" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordForward in middle of function deletes to beg of function"
         aFnCallWithVersion
         (inputs [DeleteWordForward] 6)
@@ -1498,7 +1630,8 @@ let run () =
         (fn "HttpClient::post_v4" [str string160; b; b; b])
         render
         "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
-      tp
+      t
+        ~expectsPartial:true
         "reflows work for partials too "
         (partial "TEST" (fn "HttpClient::post_v4" [str string160; b; b; b]))
         render
@@ -1513,7 +1646,8 @@ let run () =
         (fn "HttpClient::post_v4" [emptyStr; b; b; emptyRowRecord])
         render
         "~HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }" ;
-      tp
+      t
+        ~expectsPartial:true
         "reflows put the caret in the right place on insert"
         (let justShortEnoughNotToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
@@ -1523,7 +1657,8 @@ let run () =
            [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
         (ins ~wrap:false "x" 120)
         "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01x~" ;
-      tp
+      t
+        ~expectsPartial:true
         "reflows put the caret in the right place on bs"
         (let justLongEnoughToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij012"
@@ -1561,7 +1696,12 @@ let run () =
         "~___" ;
       ()) ;
   describe "Binops" (fun () ->
-      tp "pipe key starts partial" trueBool (ins "|" 4) "true |~" ;
+      t
+        ~expectsPartial:true
+        "pipe key starts partial"
+        trueBool
+        (ins "|" 4)
+        "true |~" ;
       t
         "pressing enter completes partial"
         trueBool
@@ -1572,8 +1712,18 @@ let run () =
         trueBool
         (inputs [InsertText "|"; keypress K.Down; keypress K.Space] 4)
         "true || ~__________" ;
-      tp "pressing plus key starts partial" trueBool (ins "+" 4) "true +~" ;
-      tp "pressing caret key starts partial" anInt (ins "^" 5) "12345 ^~" ;
+      t
+        ~expectsPartial:true
+        "pressing plus key starts partial"
+        trueBool
+        (ins "+" 4)
+        "true +~" ;
+      t
+        ~expectsPartial:true
+        "pressing caret key starts partial"
+        anInt
+        (ins "^" 5)
+        "12345 ^~" ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
@@ -1688,12 +1838,14 @@ let run () =
         b
         (insMany ["5"; "+"; "5"] 0)
         "5 + 5~" ;
-      tp
+      t
+        ~expectsPartial:true
         "pressing pipe while editing a partial works properly"
         (partial "|" (binop "||" anInt anInt))
         (ins "|" 7)
         "12345 ||~ 12345" ;
-      tp
+      t
+        ~expectsPartial:true
         "pressing = after < should go to partial"
         (binop "<" anInt anInt)
         (ins "=" 7)
@@ -1713,12 +1865,18 @@ let run () =
         (binop "<" anInt anInt)
         (inputs [InsertText "="; keypress K.Enter] 7)
         "12345 <=~ 12345" ;
-      tp
+      t
+        ~expectsPartial:true
         "adding binop in `if` works"
         (if' b b b)
         (ins "%" 3)
         "if %~\nthen\n  ___\nelse\n  ___" ;
-      tp "show ghost partial" aFullBinOp (bs 8) "myvar |~@ 5" ;
+      t
+        ~expectsPartial:true
+        "show ghost partial"
+        aFullBinOp
+        (bs 8)
+        "myvar |~@ 5" ;
       t
         "ctrl+left from end of < moves to front of <"
         (binop "<" anInt anInt)
@@ -1854,7 +2012,8 @@ let run () =
         (* wrap false because else we delete the wrapper *)
         (inputs ~wrap:false [keypress K.SelectAll; DeleteWordBackward] 0)
         "~___" ;
-      tp
+      t
+        ~expectsPartial:true
         "inserting a binop in a placeholder works"
         (if' (binop "++" b b) b b)
         (ins "&" 3)
@@ -1866,14 +2025,21 @@ let run () =
         ("\"fiax\"", (None, 4)) ;
       ()) ;
   describe "Constructors" (fun () ->
-      tp "arguments work in constructors" aConstructor (ins "t" 5) "Just t~" ;
+      t
+        ~expectsPartial:true
+        "arguments work in constructors"
+        aConstructor
+        (ins "t" 5)
+        "Just t~" ;
       t "int arguments work in constructors" aConstructor (ins "5" 5) "Just 5~" ;
-      tp
+      t
+        ~expectsPartial:true
         "bs on a constructor converts it to a partial with ghost"
         aConstructor
         (bs 4)
         "Jus~@ ___" ;
-      tp
+      t
+        ~expectsPartial:true
         "del on a constructor converts it to a partial with ghost"
         aConstructor
         (del 0)
@@ -1898,7 +2064,8 @@ let run () =
         aConstructor
         (inputs [DeleteWordBackward] 4)
         "~___" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordBackward mid constructor deletes to beg "
         aConstructor
         (inputs [DeleteWordBackward] 2)
@@ -1908,7 +2075,8 @@ let run () =
         aConstructor
         (inputs [DeleteWordForward] 4)
         "Just ___~" ;
-      tp
+      t
+        ~expectsPartial:true
         "DeleteWordForward mid constructor deletes to end "
         aConstructor
         (inputs [DeleteWordForward] 2)
@@ -2078,16 +2246,31 @@ let run () =
         "\\aVar, bVar~ -> aVar + ___ * bVar" ;
       ()) ;
   describe "Variables" (fun () ->
-      tp "insert middle of variable" aVar (ins "c" 5) "variac~ble" ;
-      tp "del middle of variable" aVar (del 5) "varia~le" ;
-      tp "insert capital works" aVar (ins "A" 5) "variaA~ble" ;
-      tp "insert non-identifier symbol" aVar (ins "$" 5) "varia$~ble" ;
+      t
+        ~expectsPartial:true
+        "insert middle of variable"
+        aVar
+        (ins "c" 5)
+        "variac~ble" ;
+      t ~expectsPartial:true "del middle of variable" aVar (del 5) "varia~le" ;
+      t
+        ~expectsPartial:true
+        "insert capital works"
+        aVar
+        (ins "A" 5)
+        "variaA~ble" ;
+      t
+        ~expectsPartial:true
+        "insert non-identifier symbol"
+        aVar
+        (ins "$" 5)
+        "varia$~ble" ;
       t "del variable" aShortVar (del 0) "~___" ;
-      tp "del long variable" aVar (del 0) "~ariable" ;
-      tp "del mid variable" aVar (del 6) "variab~e" ;
+      t ~expectsPartial:true "del long variable" aVar (del 0) "~ariable" ;
+      t ~expectsPartial:true "del mid variable" aVar (del 6) "variab~e" ;
       t "bs variable" aShortVar (bs 1) "~___" ;
-      tp "bs mid variable" aVar (bs 8) "variabl~" ;
-      tp "bs mid variable" aVar (bs 6) "varia~le" ;
+      t ~expectsPartial:true "bs mid variable" aVar (bs 8) "variabl~" ;
+      t ~expectsPartial:true "bs mid variable" aVar (bs 6) "varia~le" ;
       t
         "variable doesn't override if"
         (let' "i" b (partial "i" b))
@@ -2620,12 +2803,14 @@ let run () =
         aPipeInsideIf
         (del 82)
         "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]~\nelse\n  ___" ;
-      tp
+      t
+        ~expectsPartial:true
         "backspacing a pipe's first fn works"
         aLongPipe
         (bs 17)
         "[]\n|>List::appen~@ [2]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
-      tp
+      t
+        ~expectsPartial:true
         "backspacing a pipe's first binop works"
         aBinopPipe
         (bs 8)
@@ -3279,7 +3464,8 @@ let run () =
            b)
         (keys ~clone:false [K.Down; K.Enter] 16)
         "let x = request.formBody~\n___" ;
-      tp
+      t
+        ~expectsPartial:true
         "autocomplete for field is committed by dot"
         (EPartial
            ( gid ()
@@ -3459,12 +3645,14 @@ let run () =
         (let' "x" (partial "Int::add" b) b)
         (key K.Right 16)
         "let x = Int::add ~_________ _________\n___" ;
-      tp
+      t
+        ~expectsPartial:true
         "pressing an infix which could be valid doesn't commit"
         b
         (insMany ["|"; "|"] 0)
         "||~" ;
-      tp
+      t
+        ~expectsPartial:true
         "pressing an infix after true commits it "
         (partial "true" b)
         (ins "+" 4)
@@ -3744,7 +3932,7 @@ let run () =
       ()) ;
   (* Disable string escaping for now *)
   (* describe "String escaping" (fun () -> ()) ; *)
-  (* tp *)
+  (* t ~expectsPartial:true *)
   (*   "typing \\ in a string makes it a partial" *)
   (*   aStr *)
   (*   (key K.Backslash 3) *)
@@ -3763,7 +3951,7 @@ let run () =
   (*   "\"so\\~me string\"" ; *)
   (* TODO this doesn't work yet, filed as
    * https://trello.com/c/kBsS9Qb2/2156-string-escaping-should-work-for-repeated-backslashes
-  tp
+  t ~expectsPartial:true
     "typing \\ after an escaped backslash in a partial creates a visible backslash and back to a partial"
     aStrEscape
     (keys [K.Backslash; K.Backslash] 3)
@@ -3771,7 +3959,7 @@ let run () =
    *)
   (* TODO this doesn't work yet, filed as
    * https://trello.com/c/kBsS9Qb2/2156-string-escaping-should-work-for-repeated-backslashes
-  tp
+  t ~expectsPartial:true
     "typing \\\\ results two visible backslashes"
     aStr
     (keys [K.Backslash; K.Backslash; K.Backslash; K.Backslash] 3)
@@ -3783,14 +3971,16 @@ let run () =
   (*   aStrEscape *)
   (*   (del 2) *)
   (*   "\"so~me string\"" ; *)
-  tp
+  t
+    ~expectsPartial:true
     "typing an unsupported char after an escape leaves us with a partial"
     aStrEscape
     (ins "f" 3)
     "so\\f~me string" ;
   (* Not quite a regression, in that I noticed it pre-review, but still a thing
    * to check *)
-  tp
+  t
+    ~expectsPartial:true
     "typing and then deleting an unsupported char after an escape leaves us with a partial with the caret in the right place"
     aStrEscape
     (inputs [InsertText "f"; DeleteContentBackward] 3)
