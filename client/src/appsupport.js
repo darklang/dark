@@ -147,8 +147,8 @@ function isChildOfEditor(node) {
 // .fluid-entry node (such as that used for parens).
 function getFluidSelectionRange() {
   function _parentCrawlToFluidEntryParentOrUndefined(node) {
-    while (node !== null) {
-      if (node.classList.contains("fluid-entry")) {
+    while (node.parentNode !== null) {
+      if (node.classList && node.classList.contains("fluid-entry")) {
         return node;
       }
       node = node.parentNode;
