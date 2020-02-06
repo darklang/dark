@@ -435,18 +435,18 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
       | [] ->
           DIncomplete (SourceId id) )
     | Filled (id, Match (matchExpr, cases)) ->
-        let rec matches dv (pat, e) =
+        let rec matches dv pat =
           match pat with
           | Filled (pid, PLiteral l) ->
             ( match Dval.parse_literal l with
             | Some v ->
                 trace pid v ;
-                (v = dv, e, [])
+                (v = dv, [])
             | None ->
-                (false, e, []) )
+                (false, []) )
           | Filled (pid, PVariable v) ->
               trace pid dv ;
-              (true, e, [(v, dv)])
+              (true, [(v, dv)])
           | Filled (pid, PConstructor (name, args)) ->
             (* We don't trace constructors, as if they don't match we would add
              * incompletes to things that are not incomplete (just not
@@ -458,18 +458,18 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
             | "Just", [p], DOption (OptJust v)
             | "Ok", [p], DResult (ResOk v)
             | "Error", [p], DResult (ResError v) ->
-                matches v (p, e)
+                matches v p
             | "Nothing", [], DOption OptNothing ->
                 trace pid (DOption OptNothing) ;
-                (true, e, [])
+                (true, [])
             | "Just", _, _ | "Ok", _, _ | "Error", _, _ | "Nothing", _, _ ->
-                (false, e, [])
+                (false, [])
             | _, _, _ ->
                 trace pid (DError (SourceId pid, "Invalid constructor")) ;
-                (false, e, []) )
+                (false, []) )
           | Blank pid | Partial (pid, _) ->
               trace pid (DIncomplete (SourceId pid)) ;
-              (false, e, [])
+              (false, [])
         in
         let exe_with_vars e vars =
           let newVars = DvalMap.from_list vars in
@@ -482,7 +482,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         List.iter cases ~f:(fun (pattern, expr) ->
             if !continue || ctx = Preview
             then (
-              let matches, expr, vars = matches matchVal (pattern, expr) in
+              let matches, vars = matches matchVal pattern in
               if ctx = Preview then exe_with_vars expr vars |> ignore ;
               if matches && !continue
               then (
