@@ -4257,27 +4257,6 @@ let rec updateKey
      * ordering ADD A TEST, even if it's otherwise redundant from a product
      * POV. *)
     match (inputEvent, toTheLeft, toTheRight) with
-    (*************)
-    (* SELECTION *)
-    (*************)
-    | Keypress {key = K.SelectAll; _}, _, R (_, _)
-    | Keypress {key = K.SelectAll; _}, L (_, _), _ ->
-        (ast, selectAll ~pos ast s)
-    (* Delete selection *)
-    | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
-      when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
-    (*************)
-    (* BACKSPACE *)
-    (*************)
-    (* Special-case hack for deleting rows of a match or record *)
-    | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti)
-    | DeleteContentBackward, L (TNewline _, _), R (TPatternBlank _, ti) ->
-        doBackspace ~pos ti ast s
-    | DeleteContentBackward, L (_, ti), _ ->
-        doBackspace ~pos ti ast s
-    | DeleteContentForward, _, R (_, ti) ->
-        doDelete ~pos ti ast s
     (****************)
     (* AUTOCOMPLETE *)
     (****************)
@@ -4352,6 +4331,9 @@ let rec updateKey
     | InsertText ".", _, R (TFieldPartial _, ti)
       when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
         acStartField ti ast s
+    (********************)
+    (* CARET NAVIGATION *)
+    (********************)
     (* Tab to next blank *)
     | Keypress {key = K.Tab; _}, _, R (_, _)
     | Keypress {key = K.Tab; _}, L (_, _), _ ->
@@ -4359,10 +4341,6 @@ let rec updateKey
     | Keypress {key = K.ShiftTab; _}, _, R (_, _)
     | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
         (ast, moveToPrevBlank ~pos ast s)
-    (* TODO: press comma while in an expr in a list *)
-    (* TODO: press comma while in an expr in a record *)
-    (* TODO: press equals when in a let *)
-    (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ ->
@@ -4387,6 +4365,31 @@ let rec updateKey
         if maintainSelection == K.KeepSelection
         then (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
         else (ast, moveToEndOfLine ast ti s)
+    | Keypress {key = K.Up; _}, _, _ ->
+        (ast, doUp ~pos ast s)
+    | Keypress {key = K.Down; _}, _, _ ->
+        (ast, doDown ~pos ast s)
+    (*************)
+    (* SELECTION *)
+    (*************)
+    | Keypress {key = K.SelectAll; _}, _, R (_, _)
+    | Keypress {key = K.SelectAll; _}, L (_, _), _ ->
+        (ast, selectAll ~pos ast s)
+    (*************)
+    (* DELETION  *)
+    (*************)
+    (* Delete selection *)
+    | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
+      when Option.isSome s.selectionStart ->
+        deleteSelection ~state:s ~ast
+    (* Special-case hack for deleting rows of a match or record *)
+    | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti)
+    | DeleteContentBackward, L (TNewline _, _), R (TPatternBlank _, ti) ->
+        doBackspace ~pos ti ast s
+    | DeleteContentBackward, L (_, ti), _ ->
+        doBackspace ~pos ti ast s
+    | DeleteContentForward, _, R (_, ti) ->
+        doDelete ~pos ti ast s
     | DeleteSoftLineBackward, _, R (_, ti)
     | DeleteSoftLineBackward, L (_, ti), _ ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
@@ -4436,10 +4439,6 @@ let rec updateKey
             else ti.startPos
           in
           deleteCaretRange ~state:s ~ast (rangeStart, pos) )
-    | Keypress {key = K.Up; _}, _, _ ->
-        (ast, doUp ~pos ast s)
-    | Keypress {key = K.Down; _}, _, _ ->
-        (ast, doDown ~pos ast s)
     (****************************************)
     (* SKIPPING OVER SYMBOLS BY TYPING THEM *)
     (****************************************)
@@ -4477,8 +4476,12 @@ let rec updateKey
     (***************************)
     (* CREATING NEW CONSTRUCTS *)
     (***************************)
-    (* Entering a string escape *)
-    (* TODO: Move this to doInsert *)
+    (* TODO: press comma while in an expr in a list *)
+    (* TODO: press comma while in an expr in a record *)
+    (* TODO: press equals when in a let *)
+    (* TODO: press colon when in a record field *)
+    (* Entering a string escape 
+     * TODO: Move this to doInsert *)
     | InsertText "\\", L (TString _, _), R (TString _, ti)
       when false (* disable for now *) && pos - ti.startPos != 0 ->
         startEscapingString pos ti s ast
