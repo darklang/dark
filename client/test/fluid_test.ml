@@ -1738,28 +1738,34 @@ let run () =
         "123.456 +~" ;
       t
         ~expectsPartial:true
-        "ins + starts partial after null"
+        "ins | starts partial after null"
         aNull
-        (ins "+" 4)
-        "null +~" ;
+        (ins "|" 4)
+        "null |~" ;
       t
         ~expectsPartial:true
-        "ins + starts partial after variable"
+        "ins | starts partial after variable"
         aVar
-        (ins "+" 8)
-        "variable +~" ;
+        (ins "|" 8)
+        "variable |~" ;
       t
         ~expectsPartial:true
-        "ins + starts partial after list"
+        "ins | starts partial after list"
         aList5
-        (ins "+" 3)
-        "[5] +~" ;
+        (ins "|" 3)
+        "[5] |~" ;
       t
         ~expectsPartial:true
         "ins + starts partial after fieldname"
         aField
         (ins "+" 9)
         "obj.field +~" ;
+      t
+        ~expectsPartial:true
+        "ins | starts partial after multiRowRecord"
+        multiRowRecord
+        (ins "|" 23)
+        "{\n  f1 : 56\n  f2 : 78\n} |~" ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
