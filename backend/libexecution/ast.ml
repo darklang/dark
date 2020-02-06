@@ -460,10 +460,11 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
             | "Just", [p], DOption (OptJust v)
             | "Ok", [p], DResult (ResOk v)
             | "Error", [p], DResult (ResError v) ->
-                matches v p
+                let is_match, symbols, traces, preview = matches v p in
+                let new_traces = if is_match then [(pid, v)] else [] in
+                (is_match, symbols, traces @ new_traces, preview && is_match)
             | "Nothing", [], DOption OptNothing ->
-                trace pid (DOption OptNothing) ;
-                (true, [], [], false)
+                (true, [], [(pid, DOption OptNothing)], true)
             | "Just", _, _ | "Ok", _, _ | "Error", _, _ | "Nothing", _, _ ->
                 (false, [], [], false)
             | _, _, _ ->
