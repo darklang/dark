@@ -1736,6 +1736,7 @@ let run () =
         aFloat (ins "+" 7) "123.456 +~" ;
       t ~expectsPartial:true "ins + starts partial after null" aNull (ins "+" 4) "null +~" ;
       t ~expectsPartial:true "ins + starts partial after variable" aVar (ins "+" 8) "variable +~" ;
+      t ~expectsPartial:true "ins + starts partial after list" aList5 (ins "+" 3) "[5] +~" ;
       t ~expectsPartial:true "ins + starts partial after fieldname" aField (ins "+" 9) "obj.field +~" ;
       t
         "pressing pipe twice then space completes partial"

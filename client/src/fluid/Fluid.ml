@@ -4747,7 +4747,8 @@ let rec updateKey
                | ARString (_, SPOpenQuote), expr
                | ARFloat _, expr
                | ARNull _, expr
-               | ARVariable _, expr ->
+               | ARVariable _, expr
+               | ARList _, expr ->
                    if caretTargetForEndOfExpr' expr = ct
                    then
                      let newID = gid () in
