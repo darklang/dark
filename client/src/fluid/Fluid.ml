@@ -1840,7 +1840,9 @@ let replacePartialWithArguments
                let count =
                  max (List.length existingExprs) (List.length placeholderExprs)
                in
-               let newParams = getFunctionParams newName count placeholderExprs in
+               let newParams =
+                 getFunctionParams newName count placeholderExprs
+               in
                let oldParams = getFunctionParams oldName count existingExprs in
                let matchedParams, mismatchedParams =
                  List.partition oldParams ~f:(fun p ->
@@ -1874,9 +1876,11 @@ let replacePartialWithArguments
                  in
                  (wrapWithLets ~expr:newExpr mismatchedParams, mkTarget newExpr)
              | EFnCall (id, newName, newExprs, newSter) ->
-              let ster = chooseSter ~oldName ~oldExpr newSter in
-              let newParams, mismatchedParams = fetchParams newName newExprs in
-              let newExpr = EFnCall (id, newName, newParams, ster) in
+                 let ster = chooseSter ~oldName ~oldExpr newSter in
+                 let newParams, mismatchedParams =
+                   fetchParams newName newExprs
+                 in
+                 let newExpr = EFnCall (id, newName, newParams, ster) in
                  (wrapWithLets ~expr:newExpr mismatchedParams, mkTarget newExpr)
              | EConstructor _ ->
                  let oldParams =
