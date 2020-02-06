@@ -14,7 +14,7 @@ shopt -s lastpipe
 
 unbuffer bsb "$@" 2>&1 | while read -r line; do
   # this error consistently breaks our compile, esp on CI
-  if [[ "$line" == *"Fatal error: exception Unix.Unix_error(Unix.ENOENT, \"execv\", \"/home/dark/app/client/node_modules/bs-platform/lib/ninja.exe\")"* ]]; then
+  if [[ "$line" == *"Fatal error: exception Unix.Unix_error(Unix.ENOENT, \"execv\", \"/home/dark/app/node_modules/bs-platform/lib/ninja.exe\")"* ]]; then
     error=1;
     errorline="$line";
   fi
@@ -26,8 +26,8 @@ set -e
 if [[ "$error" == 1 ]]; then
   echo "Ran into a weird bsb bug: $errorline"
   echo "Cleaning"
-  cd .. && ./scripts/clear-bs-cache && cd client
-  cd .. && ./scripts/clear-node-modules && cd client
+  ./scripts/clear-bs-cache
+  ./scripts/clear-node-modules
   echo "Running again"
   ./scripts/retrying-yarn-install
   unbuffer bsb "$@"

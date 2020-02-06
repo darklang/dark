@@ -470,6 +470,16 @@ let defaultTestFunctions =
     ; fnPreviewExecutionSafe = false
     ; fnDeprecated = false
     ; fnInfix = false }
+  ; { fnName = "HttpClient::get_v3"
+    ; fnParameters =
+        [ fnParam "url" TStr false
+        ; fnParam "query" TObj false
+        ; fnParam "headers" TObj false ]
+    ; fnReturnTipe = TResult
+    ; fnDescription = "Make blocking HTTP GET call to `uri`."
+    ; fnPreviewExecutionSafe = false
+    ; fnDeprecated = false
+    ; fnInfix = false }
   ; { fnName = "DB::getAll_v1"
     ; fnParameters = [fnParam "table" TDB false]
     ; fnReturnTipe = TList
