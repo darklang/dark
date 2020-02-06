@@ -3630,16 +3630,6 @@ let doExplicitInsert
             ( EFloat (newID, whole, frac)
             , {astRef = ARFloat (newID, FPPoint); offset = 1} )
         else None
-    | ARRecord (_, RPOpen), ERecord (id, nameValPairs) ->
-        if currOffset = 1 && FluidUtil.isValidIdentifier extendedGraphemeCluster
-        then
-          let nameValPairs =
-            (extendedGraphemeCluster, E.EBlank (gid ())) :: nameValPairs
-          in
-          Some
-            ( E.ERecord (id, nameValPairs)
-            , {astRef = ARRecord (id, RPFieldname 0); offset = caretDelta} )
-        else None
     | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
         List.getAt ~index nameValPairs
         |> Option.andThen ~f:(fun (name, _) ->
@@ -3972,6 +3962,35 @@ let doExplicitInsert
   |> Option.withDefault ~default:(ast, SamePlace)
 
 
+let insertInBlankExpr (text : string) : E.t * caretTarget =
+  let newID = gid () in
+  let newExpr, newTarget =
+    if text = "\""
+    then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
+    else if text = "["
+    then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
+    else if text = "{"
+    then (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
+    else if text = "\\"
+    then
+      ( E.ELambda (newID, [(gid (), "")], EBlank (gid ()))
+      , {astRef = ARLambda (newID, LBPVarName 0); offset = 0} )
+    else if text = ","
+    then
+      (* Just replace with a new blank -- we were creating eg a new list item *)
+      (E.EBlank newID, {astRef = ARBlank newID; offset = 0})
+    else if Util.isNumber text
+    then
+      let intStr = text |> Util.coerceStringTo63BitInt in
+      ( E.EInteger (newID, intStr)
+      , {astRef = ARInteger newID; offset = String.length intStr} )
+    else
+      ( E.EPartial (newID, text, EBlank (gid ()))
+      , {astRef = ARPartial newID; offset = String.length text} )
+  in
+  (newExpr, newTarget)
+
+
 let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
     E.t * state =
   let s = recordAction ~ti ~pos "doInsert" s in
@@ -4037,17 +4056,6 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
     (* replace blank *)
     | TBlank id | TPlaceholder (_, id) ->
         (E.replace id ~replacement:newExpr ast, AtTarget newTarget)
-    (* lists *)
-    | TListOpen id ->
-        (insertInList ~index:0 id ~newExpr ast, AtTarget newTarget)
-    (* lambda *)
-    | TLambdaSymbol id when letter = "," ->
-        ( insertLambdaVar ~index:0 id ~name:"" ast
-        , AtTarget {astRef = ARLambda (id, LBPVarName 0); offset = 0} )
-    | TLambdaVar (id, _, index, _) when letter = "," ->
-        ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
-        , AtTarget {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
-        )
     | _ ->
       ( match caretTargetFromTokenInfo pos ti with
       | Some ct ->
@@ -4509,12 +4517,27 @@ let rec updateKey
         (ast, doDown ~pos ast s)
     | Keypress {key = K.Space; _}, _, R (TSep _, _) ->
         (ast, moveOneRight pos s)
+    (*
+     * CREATING NEW CONSTRUCTS
+     *)
     (* comma - add another of the thing *)
-    | InsertText ",", L (TListOpen _, toTheLeft), _
-    | InsertText ",", L (TLambdaSymbol _, toTheLeft), _
-    | InsertText ",", L (TLambdaVar _, toTheLeft), _
-      when onEdge ->
-        doInsert ~pos "," toTheLeft ast s
+    | InsertText ",", L (TListOpen id, _), _ when onEdge ->
+        let bID = gid () in
+        let newExpr, target =
+          (E.EBlank bID (* new separators *), {astRef = ARBlank bID; offset = 0})
+        in
+        let newAST = insertInList ~index:0 id ~newExpr ast in
+        (newAST, moveToCaretTarget s newAST target)
+    | InsertText ",", L (TLambdaSymbol id, _), _ when onEdge ->
+        let newAST = insertLambdaVar ~index:0 id ~name:"" ast in
+        let target = {astRef = ARLambda (id, LBPVarName 0); offset = 0} in
+        (newAST, moveToCaretTarget s newAST target)
+    | InsertText ",", L (TLambdaVar (id, _, index, _), _), _ when onEdge ->
+        let newAST = insertLambdaVar ~index:(index + 1) id ~name:"" ast in
+        let target =
+          {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
+        in
+        (newAST, moveToCaretTarget s newAST target)
     | InsertText ",", _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
         let target = {astRef = ARLambda (id, LBPVarName index); offset = 0} in
         let newAST = insertLambdaVar ~index id ~name:"" ast in
@@ -4771,22 +4794,22 @@ let rec updateKey
              "updateKey - can't return None due to lazy Some"
              ~default:(ast, s)
     (* Rest of Insertions *)
-    | InsertText txt, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
-        doInsert ~pos txt toTheLeft ast s
-    (*
-     * Caret between empty record symbols {}
-     * Adds new initial record row with the typed
-     * value as the key (if value entered is valid),
-     * then move caret to end of key *)
-    | InsertText txt, L (TRecordOpen _, toTheLeft), R (TRecordClose _, _) ->
-        doInsert ~pos txt toTheLeft ast s
-    (*     | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+    (* Caret between empty list symbols [] *)
+    | InsertText txt, L (TListOpen id, _), R (TListClose _, _) ->
+        let newExpr, target = insertInBlankExpr txt in
+        let newAST = insertInList ~index:0 id ~newExpr ast in
+        (newAST, moveToCaretTarget s newAST target)
+    (* Caret between empty record symbols {} *)
+    | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+        (* Adds new initial record row with the typed
+         * value as the fieldname (if value entered is valid),
+         * then move caret to end of fieldname *)
         if Util.isIdentifierChar txt
         then
           let ast = addRecordRowAt ~letter:txt 0 id ast in
           let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1 in
           (ast, s)
-        else (ast, s) *)
+        else (ast, s)
     | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
         doInsert ~pos txt toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
