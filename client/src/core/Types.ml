@@ -1364,7 +1364,10 @@ and integrationTestState =
   | IntegrationTestFinished of testResult
   | NoIntegrationTest
 
-(* Fluid *)
+(*
+ * Fluid
+ *)
+(* (placeholder name, type), eg ("value","Int") *)
 and placeholder = string * string
 
 and fluidToken =
