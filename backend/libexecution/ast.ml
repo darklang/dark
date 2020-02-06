@@ -438,8 +438,8 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         let rec matches dv (pat, e) =
           let result =
             match pat with
-            | Filled (_, PLiteral l) when Dval.parse_literal l = Some dv ->
-                Some (e, [])
+            | Filled (_, PLiteral l) ->
+                if Dval.parse_literal l = Some dv then Some (e, []) else None
             | Filled (_, PVariable v) ->
                 Some (e, [(v, dv)])
             | Filled (_, PConstructor ("Just", [p])) ->
@@ -458,7 +458,9 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
                   None )
             | Filled (_, PConstructor ("Nothing", [])) ->
                 if dv = DOption OptNothing then Some (e, []) else None
-            | _ ->
+            | Filled (_, PConstructor (invalid_name, args)) ->
+                None
+            | Blank _ | Partial _ ->
                 None
           in
           if Option.is_some result then trace (blank_to_id pat) dv ;
