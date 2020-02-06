@@ -480,13 +480,15 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         let matchResult = ref (DIncomplete (SourceId id)) in
         let continue = ref false in
         List.iter cases ~f:(fun (pattern, expr) ->
-            let matches, expr, vars = matches matchVal (pattern, expr) in
-            if ctx = Preview then exe_with_vars expr vars |> ignore ;
-            if matches && !continue
+            if !continue || ctx = Preview
             then (
-              continue := false ;
-              matchResult := exe_with_vars expr vars ) ;
-            ()) ;
+              let matches, expr, vars = matches matchVal (pattern, expr) in
+              if ctx = Preview then exe_with_vars expr vars |> ignore ;
+              if matches && !continue
+              then (
+                continue := false ;
+                matchResult := exe_with_vars expr vars ) ;
+              () )) ;
         !matchResult
     | Filled (id, FieldAccess (e, field)) ->
         let obj = exe st e in
