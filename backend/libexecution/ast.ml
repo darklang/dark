@@ -455,6 +455,8 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
                 matches v (p, e)
             | "Nothing", [], DOption OptNothing ->
                 (true, e, [])
+            | "Just", _, _ | "Ok", _, _ | "Error", _, _ | "Nothing", _, _ ->
+                (false, e, [])
             | _, _, _ ->
                 trace pid (DError (SourceId pid, "Invalid constructor")) ;
                 (false, e, []) )
