@@ -4570,8 +4570,39 @@ let rec updateKey
         let newState = moveToCaretTarget s newAST target in
         (newAST, newState)
     | InsertText ",", L (t, ti), _ ->
-        if onEdge (* TODO: make this explicit *)
-        then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
+        if onEdge
+        then
+          (* Inlined version of addBlankToList;
+           * If we are at the end of an expression,
+           * we check if we are in a list.
+           * If so, we add a blank after the current
+           * index in the list and place the caret
+           * in that blank.
+           *)
+          let id = T.tid t in
+          let parent = E.findParent id ast in
+          let maybeASTAndTarget =
+            match parent with
+            | Some (EList (pID, exprs)) ->
+              ( match List.findIndex ~f:(fun e -> E.toID e = id) exprs with
+              | Some index ->
+                  let bID = gid () in
+                  Some
+                    ( insertInList
+                        ~index:(index + 1)
+                        ~newExpr:(EBlank bID)
+                        pID
+                        ast
+                    , {astRef = ARBlank bID; offset = 0} )
+              | _ ->
+                  None )
+            | _ ->
+                None
+          in
+          maybeASTAndTarget
+          |> Option.map ~f:(fun (newAST, newTarget) ->
+                 (newAST, moveToCaretTarget s newAST newTarget))
+          |> Option.withDefault ~default:(ast, s)
         else doInsert ~pos "," ti ast s
     (* Field access *)
     | InsertText ".", L (TVariable (id, _), toTheLeft), _
