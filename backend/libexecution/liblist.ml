@@ -387,10 +387,18 @@ let fns =
                                  i
                              | _ ->
                                  Exception.code
-                                   ( "`f` must return one of -1, 0, 1, but returned "
-                                   ^ string_of_int i ) )
-                         | _ ->
-                             Exception.code "`f` must return one of -1, 0, 1")
+                                   ( "`f` must return one of -1, 0, 1, but returned another int: "
+                                     ^ string_of_int i
+                                   |> String.substr_replace_all
+                                        ~pattern:"\n"
+                                        ~with_:"" ) )
+                         | nonInt ->
+                             Exception.code
+                               ( "`f` must return one of -1, 0, 1, but returned non-int: "
+                                 ^ Dval.to_developer_repr_v0 nonInt
+                               |> String.substr_replace_all
+                                    ~pattern:"\n"
+                                    ~with_:"" ))
                   |> DList
                   |> ResOk
                   |> DResult
