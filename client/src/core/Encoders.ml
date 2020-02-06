@@ -777,6 +777,10 @@ let editorSettings (es : Types.editorSettings) : Js.Json.t =
     ; ("showFluidDebugger", bool es.showFluidDebugger) ]
 
 
+let savedUserSettings (se : Types.savedUserSettings) : Js.Json.t =
+  object_ [("showUserWelcomeModal", bool se.showUserWelcomeModal)]
+
+
 let savedSettings (se : Types.savedSettings) : Js.Json.t =
   object_
     [ ("editorSettings", editorSettings se.editorSettings)
@@ -789,8 +793,7 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
     ; ("sidebarOpen", bool se.sidebarOpen)
-    ; ("showTopbar1", bool se.showTopbar)
-    ; ("showUserWelcomeModal", bool se.showUserWelcomeModal) ]
+    ; ("showTopbar1", bool se.showTopbar) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

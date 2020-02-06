@@ -24,8 +24,11 @@ let viewWelcomeToDark (username : string) : msg Html.html =
   let gif =
     [ Html.video
         [ Vdom.attribute "" "autoplay" "autoplay"
-        ; Vdom.attribute "" "loop" "loop" ]
-        [Html.source [Html.src vidSrc] []] ]
+        ; Vdom.attribute "" "loop" "loop"
+        ; Vdom.attribute "" "muted" "muted"
+        ; Vdom.attribute "" "playsinline" "playsinline" ]
+        [ Html.source [Html.src vidSrc; Vdom.attribute "" "type" "video/mp4"] []
+        ; Html.text "Sorry, your browser doesn't support embedded videos." ] ]
   in
   Html.div
     [Html.class' "welcome"]

@@ -72,6 +72,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   in
   let variants = VariantTesting.enabledVariantTests () in
   let m = SavedSettings.load canvasName |> SavedSettings.toModel in
+  let m = SavedUserSettings.load username |> SavedUserSettings.toModel m in
   let page =
     Url.parseLocation location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
@@ -350,6 +351,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
              * only the first got called, unclear why. *)
             Cmd.call (fun _ ->
                 SavedSettings.save m ;
+                SavedUserSettings.save m ;
                 Native.Location.reload true)
           else if (not ignore) && APIError.shouldRollbar apiError
           then Cmd.call (fun _ -> Rollbar.sendAPIError m apiError)
@@ -1950,6 +1952,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m |> filter_read_only m in
   let newm, newc = updateMod mods (m, Cmd.none) in
   SavedSettings.save m ;
+  SavedUserSettings.save m ;
   ({newm with lastMsg = msg; lastMod = mods}, newc)
 
 
