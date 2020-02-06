@@ -2589,7 +2589,6 @@ let updateFromACItem
       , _
       , _
       , Pat newPat ) ->
-        Debug.loG "RENAME10" () ;
         let newAST = replacePattern ~newPat mID pID ast in
         (newAST, newTarget)
     | ( (TPartial _ | TRightPartial _)
@@ -2608,26 +2607,22 @@ let updateFromACItem
         in
         ( match exprToReplace with
         | None ->
-            Debug.loG "RENAME7" () ;
             let blank = E.newB () in
             let replacement = EPipe (gid (), [subExpr; blank]) in
             ( E.replace (E.toID oldExpr) ast ~replacement
             , caretTargetForEndOfExpr' blank )
         | Some expr when expr = subExpr ->
-            Debug.loG "RENAME8" () ;
             let blank = E.newB () in
             let replacement = EPipe (gid (), [subExpr; blank]) in
             ( E.replace (E.toID oldExpr) ast ~replacement
             , caretTargetForEndOfExpr' blank )
         | Some expr ->
-            Debug.loG "RENAME9" () ;
             let blank = E.newB () in
             let expr = E.replace (E.toID oldExpr) expr ~replacement:subExpr in
             let replacement = EPipe (gid (), [expr; blank]) in
             ( E.replace (E.toID expr) ast ~replacement
             , caretTargetForEndOfExpr' blank ) )
     | TPartial _, _, Some (EPipe _), Expr (EBinOp (bID, name, _, rhs, str)) ->
-        Debug.loG "RENAME6" () ;
         let replacement = EBinOp (bID, name, EPipeTarget (gid ()), rhs, str) in
         let newAST = E.replace ~replacement id ast in
         (newAST, caretTargetForEndOfExpr' replacement)
@@ -2635,7 +2630,6 @@ let updateFromACItem
       , Some _
       , Some (EPipe _)
       , Expr (EFnCall (fnID, name, _ :: args, str)) ) ->
-        Debug.loG "RENAME3" () ;
         let newExpr = EFnCall (fnID, name, EPipeTarget (gid ()) :: args, str) in
         (* We can't use the newTarget because it might point to eg a blank
          * replaced with an argument *)
@@ -2644,12 +2638,10 @@ let updateFromACItem
       , Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
       , _
       , Expr (EBinOp (bID, name, _, _, str)) ) ->
-        Debug.loG "RENAME" () ;
         let replacement = EBinOp (bID, name, lhs, rhs, str) in
         let newAST = E.replace ~replacement id ast in
         (newAST, caretTargetForStartOfExpr' rhs)
     | TPartial _, _, _, Expr newExpr ->
-        Debug.loG "RENAME2" () ;
         (* We can't use the newTarget because it might point to eg a blank
          * replaced with an argument *)
         replacePartialWithArguments ~newExpr id s ast
@@ -2657,7 +2649,6 @@ let updateFromACItem
       , Some (ERightPartial (_, _, oldExpr))
       , _
       , Expr (EBinOp (bID, name, _, rhs, str)) ) ->
-        Debug.loG "RENAME11" () ;
         let replacement = EBinOp (bID, name, oldExpr, rhs, str) in
         let newAST = E.replace ~replacement id ast in
         (newAST, caretTargetForStartOfExpr' rhs)
@@ -2667,12 +2658,10 @@ let updateFromACItem
           | EPartial (_, _, EFieldAccess (faID, expr, _)) )
       , _
       , Expr (EFieldAccess (_, _, newname)) ) ->
-        Debug.loG "RENAME4" () ;
         let replacement = EFieldAccess (faID, expr, newname) in
         let newAST = E.replace ~replacement id ast in
         (newAST, caretTargetForEndOfExpr' replacement)
     | _, _, _, Expr newExpr ->
-        Debug.loG "RENAME5" () ;
         let newAST = E.replace ~replacement:newExpr id ast in
         (newAST, newTarget)
     | _, _, _, Pat _ ->
@@ -4249,18 +4238,15 @@ let rec updateKey
     | Keypress {key; _}, L (_, ti), _
       when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
-        Debug.loG "isAutocompleting 1" () ;
         acEnter ti ast s key
     | Keypress {key; _}, _, R (_, ti)
       when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
-        Debug.loG "isAutocompleting 2" () ;
         acEnter ti ast s key
     (* When we type a letter/number after an infix operator, complete and
      * then enter the number/letter. *)
     | InsertText txt, L (TRightPartial (_, _), ti), _
       when onEdge && Util.isIdentifierChar txt ->
-        Debug.loG "isAutocompleting 3" () ;
         let ast, s = acEnter ti ast s K.Tab in
         getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
@@ -4287,7 +4273,6 @@ let rec updateKey
         ( match left with
         | (L (TPartial _, ti) | L (TFieldPartial _, ti))
           when Option.is_some (AC.highlighted s.ac) ->
-            Debug.loG "isAutocompleting 4" () ;
             let ast, s = acEnter ti ast s K.Enter in
             doPipeline ast s
         | _ ->
@@ -4537,7 +4522,6 @@ let rec updateKey
       when keyIsInfix ->
         caretTargetFromTokenInfo pos ti
         |> Option.andThen ~f:(fun ct ->
-               Debug.loG "Key is infix!" (infixTxt, show_caretTarget ct) ;
                idOfASTRef ct.astRef
                |> Option.andThen ~f:(fun id ->
                       match E.find id ast with
