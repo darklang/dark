@@ -479,6 +479,11 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
             let newVars = DvalMap.from_list vars in
             let newSt = Util.merge_left newVars st in
             exe newSt e )
+        if ctx = Preview
+        then
+          List.iter matchResults ~f:(fun (matched, e, vars) ->
+              exe_with_vars e vars |> ignore ;
+              ()) ;
     | Filled (id, FieldAccess (e, field)) ->
         let obj = exe st e in
         let result =
