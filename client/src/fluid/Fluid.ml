@@ -4079,7 +4079,20 @@ let rec updateKey
                          ; offset = String.length infixTxt } )
                  | None ->
                      None )
-               | _ ->
+               | ARPipe _, _
+               | ARFieldAccess (_, FAPFieldOp), _
+               | ARLet _, _
+               | ARIf _, _
+               | ARBinOp _, _
+               | ARFnCall _, _
+               | ARPartial _, _
+               | ARRightPartial _, _
+               | ARConstructor _, _
+               | ARMatch _, _
+               | ARLambda _, _
+               | ARPattern _, _ ->
+                   None
+               | ARInvalid, _ ->
                    None)
         |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
                let newAST = E.replace replaceID ~replacement:newExpr ast in
