@@ -381,9 +381,7 @@ let viewToast (t : toast) : msg Html.html =
 let accountView (m : model) : msg Html.html =
   let logout =
     Html.a
-      [ ViewUtils.eventNoPropagation ~key:"logout" "mouseup" (fun _ ->
-            LogoutOfDark)
-      ; Html.class' "action-link" ]
+      [Html.href "https://login.darklang.com/logout"; Html.class' "action-link"]
       [Html.text "Logout"]
   in
   let canvases =
