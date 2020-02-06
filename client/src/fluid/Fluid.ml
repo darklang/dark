@@ -4497,7 +4497,15 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
         newPos
   in
   let newAST = acMaybeCommit newPos ast s in
-  (newAST, setPosition s newPos)
+  let s' = setPosition s newPos in
+  let newS =
+    match getToken' s' tokens with
+    | Some ti ->
+        acMaybeShow ti s'
+    | None ->
+        s' |> acClear
+  in
+  (newAST, newS)
 
 
 let shouldDoDefaultAction (key : K.key) : bool =
@@ -5090,24 +5098,23 @@ let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =
   let selection =
     Option.orElseLazy (fun () -> Entry.getFluidSelectionRange ()) selection
   in
-  let ast, s =
-    match selection with
-    (* if range width is 0, just change pos *)
-    | Some (selBegin, selEnd) when selBegin = selEnd ->
-        updateMouseClick selBegin ast s
-    | Some (selBegin, selEnd) ->
-        ( ast
-        , { s with
-            selectionStart = Some selBegin
-          ; oldPos = s.newPos
-          ; newPos = selEnd } )
-    | None ->
-        (ast, {s with selectionStart = None})
-  in
-  (* We reset the fluidState to prevent the selection and/or cursor
-         * position from persisting when a user switched handlers *)
-  (ast, acClear s)
+  match selection with
+  (* if range width is 0, just change pos *)
+  | Some (selBegin, selEnd) when selBegin = selEnd ->
+      updateMouseClick selBegin ast s
+  | Some (selBegin, selEnd) ->
+      ( ast
+      , { s with
+          selectionStart = Some selBegin
+        ; oldPos = s.newPos
+        ; newPos = selEnd }
+        |> acClear )
+  | None ->
+      (ast, {s with selectionStart = None} |> acClear)
 
+
+(* We reset the fluidState to prevent the selection and/or cursor
+         * position from persisting when a user switched handlers *)
 
 let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     E.t * fluidState =

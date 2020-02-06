@@ -3554,6 +3554,22 @@ let run () =
                , EVariable (gid (), "foo") ) ))
         (tab ~clone:false 77)
         "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;
+      test "click into partial opens autocomplete" (fun () ->
+          let ast = let' "request" aShortInt aPartialVar in
+          let h = Fluid_utils.h ast in
+          let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+          let tlid = h.hTLID in
+          expect
+            (let _, newState =
+               updateMsg
+                 m
+                 tlid
+                 ast
+                 (FluidMouseUp (tlid, Some (18, 18)))
+                 m.fluidState
+             in
+             newState.ac.index)
+          |> toEqual (Some 0)) ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
