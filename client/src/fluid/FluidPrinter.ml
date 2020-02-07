@@ -14,6 +14,7 @@ module Builder = struct
        * front of the list is an order of magnitude faster. We were having
        * large slowdowns on large handlers before this. *)
       tokens : fluidToken list
+    ; splits : t list
     ; indent : (* tracks the indent after a newline *) int
     ; xPos :
         (* tracks the indent for nesting, none indicates it's ready to go after a newline *)
@@ -30,7 +31,7 @@ module Builder = struct
         false
 
 
-  let empty = {tokens = []; xPos = Some 0; indent = 0}
+  let empty = {tokens = []; splits = []; xPos = Some 0; indent = 0}
 
   let add (token : fluidToken) (b : t) : t =
     let tokenLength = token |> T.toText |> String.length in
@@ -67,23 +68,23 @@ module Builder = struct
     |> Tuple2.first
 
 
+  let split ~(f : t -> t) (b : t) : t = {b with splits = f empty :: b.splits}
+
   let addMany (tokens : fluidToken list) (b : t) : t =
     List.foldl tokens ~init:b ~f:add
 
 
   let indentBy ~(indent : int) ~(f : t -> t) (b : t) : t =
     let oldIndent = b.indent in
-    let b = {b with indent = b.indent + indent} in
-    let newB = f b in
-    {newB with indent = oldIndent}
+    {b with indent = b.indent + indent}
+    |> f
+    |> fun b -> {b with indent = oldIndent}
 
 
   let addNested ~(f : t -> t) (b : t) : t =
     let oldIndent = b.indent in
     let newIndent = Option.withDefault ~default:b.indent b.xPos in
-    let b = {b with indent = newIndent} in
-    let newB = f b in
-    {newB with indent = oldIndent}
+    {b with indent = newIndent} |> f |> fun b -> {b with indent = oldIndent}
 
 
   let addNewlineIfNeeded (nlInfo : (id * id * int option) option) (b : t) : t =
@@ -129,13 +130,12 @@ let rec patternToToken (p : FluidPattern.t) ~(idx : int) : fluidToken list =
 
 
 let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
-  let fromExpr e b = toTokens' e b in
   let open Builder in
   let ghostPartial id newName oldName =
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
-  (* placeholderFor = (id * string * int) 
+  (* placeholderFor = (id * string * int)
    * id: id of the placeholder-containing expr
    * string: name of the placeholder-containing expr
    * int: index of the placeholder within the expr's parameters
@@ -158,11 +158,11 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
           in
           ( match name with
           | None ->
-              fromExpr e b
+              toTokens' e b
           | Some placeholder ->
               add (TPlaceholder {blankID = id; placeholder; fnID}) b )
       | _ ->
-          fromExpr e b
+          toTokens' e b
     in
     b |> indentBy ~indent ~f:(addNested ~f:tokensFn)
   in
@@ -174,7 +174,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
     let reflow =
       let tokens =
         args
-        |> List.map ~f:(fun a -> fromExpr a Builder.empty)
+        |> List.map ~f:(fun a -> toTokens' a Builder.empty)
         |> List.map ~f:Builder.asTokens
         |> List.concat
       in
@@ -191,7 +191,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         args
         |> List.init
         |> Option.withDefault ~default:[]
-        |> List.map ~f:(fun a -> fromExpr a Builder.empty)
+        |> List.map ~f:(fun a -> toTokens' a Builder.empty)
         |> List.map ~f:Builder.asTokens
         |> List.concat
         |> List.any ~f:(function TNewline _ -> true | _ -> false)
@@ -212,28 +212,28 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   in
   match e with
   | EInteger (id, i) ->
-      add (TInteger (id, i)) b
+      b |> add (TInteger (id, i))
   | EBool (id, bool') ->
-      add (if bool' then TTrue id else TFalse id) b
+      b |> add (if bool' then TTrue id else TFalse id)
   | ENull id ->
-      add (TNullToken id) b
+      b |> add (TNullToken id)
   | EFloat (id, whole, fraction) ->
       let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
       let fraction =
         if fraction = "" then [] else [TFloatFractional (id, fraction)]
       in
-      addMany (whole @ [TFloatPoint id] @ fraction) b
+      b |> addMany (whole @ [TFloatPoint id] @ fraction)
   | EBlank id ->
-      add (TBlank id) b
+      b |> add (TBlank id)
   | ELet (id, lhs, rhs, next) ->
       let rhsID = E.toID rhs in
       b
       |> add (TLetKeyword (id, rhsID))
       |> add (TLetVarName (id, rhsID, lhs))
       |> add (TLetAssignment (id, rhsID))
-      |> addNested ~f:(fromExpr rhs)
+      |> addNested ~f:(toTokens' rhs)
       |> addNewlineIfNeeded (Some (E.toID next, id, None))
-      |> addNested ~f:(fromExpr next)
+      |> addNested ~f:(toTokens' next)
   | EString (id, str) ->
       let size = 40 in
       let strings =
@@ -247,21 +247,20 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         | [] ->
             add (TString (id, str)) b
         | ending :: revrest ->
-            b
-            |> addNested ~f:(fun b ->
-                   let endingOffset = size * (List.length revrest + 1) in
-                   b
-                   |> add (TStringMLStart (id, starting, 0, str))
-                   |> add (TNewline None)
-                   |> addIter (List.reverse revrest) ~f:(fun i s b ->
-                          b
-                          |> add (TStringMLMiddle (id, s, size * (i + 1), str))
-                          |> add (TNewline None))
-                   |> add (TStringMLEnd (id, ending, endingOffset, str))) ) )
+            addNested b ~f:(fun b ->
+                let endingOffset = size * (List.length revrest + 1) in
+                b
+                |> add (TStringMLStart (id, starting, 0, str))
+                |> add (TNewline None)
+                |> addIter (List.reverse revrest) ~f:(fun i s b ->
+                       b
+                       |> add (TStringMLMiddle (id, s, size * (i + 1), str))
+                       |> add (TNewline None))
+                |> add (TStringMLEnd (id, ending, endingOffset, str))) ) )
   | EIf (id, cond, if', else') ->
       b
       |> add (TIfKeyword id)
-      |> addNested ~f:(fromExpr cond)
+      |> addNested ~f:(toTokens' cond)
       |> addNewlineIfNeeded None
       |> add (TIfThenKeyword id)
       |> addNewlineIfNeeded (Some (E.toID if', id, None))
@@ -330,7 +329,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EFieldAccess (id, expr, fieldname) ->
       let lhsid = E.toID expr in
       b
-      |> addNested ~f:(fromExpr expr)
+      |> addNested ~f:(toTokens' expr)
       |> addMany [TFieldOp (id, lhsid); TFieldName (id, lhsid, fieldname)]
   | EPartial (id, newFieldname, EFieldAccess (faID, expr, oldFieldname)) ->
       let lhsid = E.toID expr in
@@ -338,7 +337,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       let newText = T.toText partial in
       let ghost = ghostPartial id newText oldFieldname in
       b
-      |> addNested ~f:(fromExpr expr)
+      |> addNested ~f:(toTokens' expr)
       |> addMany [TFieldOp (id, E.toID expr); partial]
       |> addMany ghost
   | EVariable (id, name) ->
@@ -360,7 +359,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> add (TListOpen id)
       |> addIter exprs ~f:(fun i e b ->
              b
-             |> addNested ~f:(fromExpr e)
+             |> addNested ~f:(toTokens' e)
              |> addIf (i <> lastIndex) (TListComma (id, i)))
       |> add (TListClose id)
   | ERecord (id, fields) ->
@@ -378,7 +377,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                         (TRecordFieldname
                            {recordID = id; exprID; index = i; fieldName})
                    |> add (TRecordSep (id, i, exprID))
-                   |> addNested ~f:(fromExpr expr)))
+                   |> addNested ~f:(toTokens' expr)))
         |> addMany
              [ TNewline (Some (id, id, Some (List.length fields)))
              ; TRecordClose id ]
@@ -388,15 +387,15 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       | [] ->
           recover "Empty pipe found" ~debug:e b
       | [single] ->
-          recover "pipe with single entry found" ~debug:e (fromExpr single b)
+          recover "pipe with single entry found" ~debug:e (toTokens' single b)
       | head :: tail ->
           b
-          |> addNested ~f:(fromExpr head)
+          |> addNested ~f:(toTokens' head)
           |> addNewlineIfNeeded (Some (E.toID head, id, Some 0))
           |> addIter tail ~f:(fun i e b ->
                  b
                  |> add (TPipe (id, i, length))
-                 |> addNested ~f:(fromExpr e)
+                 |> addNested ~f:(toTokens' e)
                  |> addNewlineIfNeeded (Some (E.toID e, id, Some (i + 1))))
           |> addNewlineIfNeeded (Some (id, id, Some (List.length tail))) )
   | EPipeTarget _ ->
@@ -404,7 +403,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EMatch (id, mexpr, pairs) ->
       b
       |> add (TMatchKeyword id)
-      |> addNested ~f:(fromExpr mexpr)
+      |> addNested ~f:(toTokens' mexpr)
       |> indentBy ~indent:2 ~f:(fun b ->
              b
              |> addIter pairs ~f:(fun i (pattern, expr) b ->
@@ -416,16 +415,25 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                             { matchID = id
                             ; patternID = Pattern.toID pattern
                             ; index = i })
-                    |> addNested ~f:(fromExpr expr))
+                    |> addNested ~f:(toTokens' expr))
              |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))))
   | EPartial (id, str, _) ->
       b |> add (TPartial (id, str))
   | ERightPartial (id, newOp, expr) ->
       b
-      |> addNested ~f:(fromExpr expr)
+      |> addNested ~f:(toTokens' expr)
       |> addMany [TSep id; TRightPartial (id, newOp)]
-  | EFeatureFlag (_id, _msg, _cond, casea, _caseb) ->
-      b |> addNested ~f:(fromExpr casea)
+  | EFeatureFlag (id, _name, cond, enabled, default) ->
+      b
+      |> nest ~indent:2 default
+      |> split ~f:(fun b ->
+             b
+             |> add (TFlagCond id)
+             |> addNested ~f:(toTokens' cond)
+             |> addNewlineIfNeeded None
+             |> add (TFlagEnabled id)
+             |> addNewlineIfNeeded (Some (E.toID enabled, id, None))
+             |> nest ~indent:2 enabled)
 
 
 let infoize tokens : tokenInfo list =
@@ -463,11 +471,18 @@ let tidy (tokens : fluidToken list) : fluidToken list =
 
 
 let toTokens (e : E.t) : tokenInfo list =
-  toTokens' e Builder.empty
+  Builder.empty
+  |> toTokens' e
   |> Builder.asTokens
   |> tidy
   |> validateTokens
   |> infoize
+
+
+let toTokensWithSplits (e : E.t) : tokenInfo list list =
+  let b = toTokens' e Builder.empty in
+  List.map (b :: b.splits) ~f:(fun b ->
+      b |> Builder.asTokens |> tidy |> validateTokens |> infoize)
 
 
 let tokensToString (tis : tokenInfo list) : string =
@@ -475,17 +490,15 @@ let tokensToString (tis : tokenInfo list) : string =
 
 
 let eToTestString (e : E.t) : string =
-  e
-  |> toTokens
+  toTokens e
   |> List.map ~f:(fun ti -> T.toTestText ti.token)
   |> String.join ~sep:""
 
 
-let eToHumanString (e : E.t) : string = e |> toTokens |> tokensToString
+let eToHumanString (e : E.t) : string = toTokens e |> tokensToString
 
 let eToStructure ?(includeIDs = false) (e : E.t) : string =
-  e
-  |> toTokens
+  toTokens e
   |> List.map ~f:(fun ti ->
          "<"
          ^ T.toTypeName ti.token

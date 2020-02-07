@@ -32,9 +32,8 @@ type viewState =
   ; avatarsList : avatar list
   ; permission : permission option
   ; workerStats : workerStats option
-  ; tokens :
-      (* Calculate the tokens once per render only *)
-      FluidToken.tokenInfo list
+  ; primaryTokens : FluidToken.tokenInfo list
+  ; secondaryTokens : FluidToken.tokenInfo list list
   ; menuState : menuState
   ; isExecuting : bool
   ; fnProps : fnProps }
@@ -46,13 +45,18 @@ type domEvent = msg Vdom.property
 
 type domEventList = domEvent list
 
-let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
-    viewState =
+let createVS (m : model) (tl : toplevel) : viewState =
   let tlid = TL.id tl in
   let hp =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
   let traceID = Analysis.getSelectedTraceID m tlid in
+  let primaryTokens, secondaryTokens =
+    TL.getAST tl
+    |> Option.map ~f:FluidPrinter.toTokensWithSplits
+    |> Option.map ~f:(function [] -> ([], []) | head :: tail -> (head, tail))
+    |> Option.withDefault ~default:([], [])
+  in
   { tl
   ; cursorState = unwrapCursorState m.cursorState
   ; tlid
@@ -127,7 +131,8 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
            Some {Defaults.defaultWorkerStats with schedule}
        | Some c, Some _ ->
            Some {c with schedule})
-  ; tokens
+  ; primaryTokens
+  ; secondaryTokens
   ; menuState =
       TLIDDict.get ~tlid m.tlMenus
       |> Option.withDefault ~default:Defaults.defaultMenu

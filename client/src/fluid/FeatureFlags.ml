@@ -22,9 +22,28 @@ let fromFlagged (pick : pick) (expr : E.t) : E.t =
       recover "cant convert flagged to flagged" ~debug:expr expr
 
 
-let wrap (_m : model) (_tl : toplevel) (_id : id) : modification =
-  (* TODO: needs to be reimplmented in fluid *)
-  NoChange
+let wrap (_ : model) (tl : toplevel) (id : id) : modification =
+  let replacement e : E.t =
+    EFeatureFlag (gid (), "flag-name", E.EBool (gid (), false), E.newB (), e)
+  in
+  TL.getAST tl
+  |> Option.map ~f:(E.update ~f:replacement id)
+  |> Option.map ~f:(TL.setASTMod tl)
+  |> Option.withDefault ~default:NoChange
+
+
+let unwrap (_ : model) (tl : toplevel) (id : id) : modification =
+  let replacement e : E.t =
+    match e with
+    | E.EFeatureFlag (_id, _name, _cond, _enabled, default) ->
+        default
+    | expr ->
+        recover "tried to remove non-feature flag" expr
+  in
+  TL.getAST tl
+  |> Option.map ~f:(E.update ~f:replacement id)
+  |> Option.map ~f:(TL.setASTMod tl)
+  |> Option.withDefault ~default:NoChange
 
 
 let start (_m : model) : modification =
