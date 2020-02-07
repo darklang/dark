@@ -703,10 +703,6 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
     | ( ARPattern (id, PPBool)
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
-    | ARPattern (id, PPFloat FPPoint), TPatternFloatPoint (_, id', _)
-    | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
-    | ( ARPattern (id, PPFloat FPFractional)
-      , TPatternFloatFractional (_, id', _, _) )
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
       when id = id' ->
@@ -725,22 +721,30 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     (*
      * Floats
      *)
+    | ARPattern (id, PPFloat FPPoint), TPatternFloatPoint (_, id', _)
+    | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
     | ARFloat (id, FPPoint), TFloatPoint id'
     | ARFloat (id, FPWhole), TFloatWhole (id', _)
       when id = id' ->
         posForTi ti
-    | ARFloat (id, FPWhole), TFloatPoint id' when id = id' ->
+    | ARPattern (id, PPFloat FPWhole), TPatternFloatPoint (_, id', _)
+    | ARFloat (id, FPWhole), TFloatPoint id'
+      when id = id' ->
         (* This accounts for situations like `|.45`, where the float doesn't have a whole part but
            we're still targeting it (perhaps due to deletion).
            Because the 'findMap' below scans from left to right and we try to match the whole first,
            we can still find positions like `1|2.54` *)
         Some ti.startPos
-    | ARFloat (id, FPFractional), TFloatPoint id' when id = id' && ct.offset = 0
-      ->
+    | ARPattern (id, PPFloat FPFractional), TPatternFloatPoint (_, id', _)
+    | ARFloat (id, FPFractional), TFloatPoint id'
+      when id = id' && ct.offset = 0 ->
         (* This accounts for situations like `12.|`, where the float doesn't have a decimal part but
            we're still targeting it (perhaps due to deletion). *)
         Some ti.endPos
-    | ARFloat (id, FPFractional), TFloatFractional (id', _) when id = id' ->
+    | ( ARPattern (id, PPFloat FPFractional)
+      , TPatternFloatFractional (_, id', _, _) )
+    | ARFloat (id, FPFractional), TFloatFractional (id', _)
+      when id = id' ->
         posForTi ti
     (*
      * Function calls
