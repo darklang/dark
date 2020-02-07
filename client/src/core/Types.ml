@@ -931,7 +931,7 @@ and menuMsg =
 and fnProps =
   { draggingParamIndex : int option
   ; dragOverSpaceIndex : int option
-  ; justMovedParam : int option }
+  ; justMovedParam : id option }
 
 and fnpMsg =
   | ParamDragStart of int
