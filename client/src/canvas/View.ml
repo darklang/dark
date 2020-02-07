@@ -396,7 +396,7 @@ let accountView (m : model) : msg Html.html =
     [ Html.p [Html.class' "canvas-list-title"] [Html.text "Other canvases:"]
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p
-        [Html.class' "canvas-creation-text"]
+        []
         [ Html.text "Create a new canvas by"
         ; Html.br []
         ; Html.text "navigating to the URL" ] ]
