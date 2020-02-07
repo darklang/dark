@@ -278,7 +278,8 @@ let rec fluidPattern j : FluidPattern.t =
           string )
     ; ( "FPFloat"
       , dv4 (fun a b c d -> P.FPFloat (a, b, c, d)) id id string string )
-    ; ("FPNull", dv2 (fun a b -> P.FPNull (a, b)) id id) ]
+    ; ("FPNull", dv2 (fun a b -> P.FPNull (a, b)) id id)
+    ; ("FPBlank", dv2 (fun a b -> P.FPBlank (a, b)) id id) ]
     j
 
 
