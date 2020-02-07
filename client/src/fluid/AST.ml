@@ -426,7 +426,10 @@ let reorderFnCallArgs
   let rec replaceArgs expr =
     match expr with
     | EFnCall (id, name, args, sendToRail) when name = fnName ->
-        EFnCall (id, name, List.reorder ~oldPos ~newPos args, sendToRail)
+        let newArgs =
+          List.reorder ~oldPos ~newPos args |> List.map ~f:replaceArgs
+        in
+        EFnCall (id, name, newArgs, sendToRail)
     | EPipe (id, args) as e ->
         let default = E.walk ~f:replaceArgs e in
         ( match args with
@@ -441,7 +444,9 @@ let reorderFnCallArgs
               let remainingArgs = List.drop ~count:1 pipeArgs in
               (* join the piped expression with the remainingArgs to construct an args list as if they belong to an unpiped fncall *)
               let allArgs = firstArg :: remainingArgs in
-              let newOrder = List.reorder ~oldPos ~newPos allArgs in
+              let newOrder =
+                List.reorder ~oldPos ~newPos allArgs |> List.map ~f:replaceArgs
+              in
               Option.pair (List.head newOrder) (List.tail newOrder)
               |> Option.map ~f:(fun (first, others) ->
                      let newRemaining = EPipeTarget (E.toID first) :: others in
