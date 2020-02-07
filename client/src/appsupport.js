@@ -147,13 +147,22 @@ function isChildOfEditor(node) {
 // .fluid-entry node (such as that used for parens).
 function getFluidSelectionRange() {
   function _parentCrawlToFluidEntryParentOrUndefined(node) {
-    while (node.parentNode !== null) {
-      if (node.classList && node.classList.contains("fluid-entry")) {
+    while (node !== null) {
+      if (node.classList.contains("fluid-entry")) {
         return node;
       }
       node = node.parentNode;
     }
     return undefined;
+  }
+
+  function _findFirstNodeWithClassList(selectedNode) {
+    // Sometimes the selected node is #text which does not have a classlist"
+    if (selectedNode.classList) {
+      return selectedNode;
+    } else {
+      return selectedNode.parentNode;
+    }
   }
 
   // OPT(JULIAN): There's likely a more performant way of getting selection
@@ -170,7 +179,8 @@ function getFluidSelectionRange() {
   // within the text of that node.
   let selBeginIdx = sel.anchorOffset;
   {
-    let node = _parentCrawlToFluidEntryParentOrUndefined(sel.anchorNode.parentNode);
+    let nodeWithClasses = _findFirstNodeWithClassList(sel.anchorNode);
+    let node = _parentCrawlToFluidEntryParentOrUndefined(nodeWithClasses);
     if (!node) {
       // If this happens, it means that the selection wasn't inside a .fluid-entry node
       return undefined;
@@ -186,7 +196,8 @@ function getFluidSelectionRange() {
   // (and where the cursor is now located) within the text of that node.
   let selEndIdx = sel.focusOffset;
   {
-    let node = _parentCrawlToFluidEntryParentOrUndefined(sel.focusNode.parentNode);
+    let nodeWithClasses = _findFirstNodeWithClassList(sel.focusNode);
+    let node = _parentCrawlToFluidEntryParentOrUndefined(nodeWithClasses);
     if (!node) {
       // If this happens, it means that the selection wasn't inside a .fluid-entry node
       return undefined;
