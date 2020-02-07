@@ -133,24 +133,15 @@ module List = struct
 
 
   let reorder ~(oldPos : int) ~(newPos : int) (l : 'a list) : 'a list =
-    if newPos < oldPos (* move to a place above *)
-    then
-      match getAt ~index:oldPos l with
-      | Some value ->
-          let top, bottom = splitOn ~index:oldPos l in
-          insertAt ~index:newPos ~value top @ bottom
-      | None ->
-          l
-    else if oldPos + 1 < newPos (* move to a place below *)
-    then
-      match getAt ~index:oldPos l with
-      | Some value ->
-          let top, bottom = splitOn ~index:oldPos l in
-          let index = newPos - (oldPos + 1) in
-          top @ insertAt ~index ~value bottom
-      | None ->
-          l
-    else l
+    let old = getAt ~index:oldPos l in
+    let new_ = getAt ~index:newPos l in
+    match (old, new_) with
+    | Some old, Some new_ ->
+        l
+        |> updateAt ~index:oldPos ~f:(fun _ -> new_)
+        |> updateAt ~index:newPos ~f:(fun _ -> old)
+    | _ ->
+        l
 end
 
 module Float = struct

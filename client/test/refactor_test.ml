@@ -345,4 +345,12 @@ let run () =
             ( R.extractVarInAst m tl (E.toID expr) "var" ast
             |> FluidPrinter.eToTestString )
           |> toEqual
-               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"))
+               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n") ;
+      ()) ;
+  describe "reorderFnCallArgs" (fun () ->
+      test "simple example" (fun () ->
+          let ast = fn "myFn" [int 1; int 2; int 3] in
+          expect
+            (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidPrinter.eToHumanString)
+          |> toEqual "myFn 2 1 3") ;
+      ())
