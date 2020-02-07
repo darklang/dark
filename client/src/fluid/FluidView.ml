@@ -21,10 +21,6 @@ type ast = E.t
 
 type token = T.t
 
-type state = Types.fluidState
-
-let toTokens = Printer.toTokens
-
 let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
   let toList acis class' index =
     List.indexedMap
@@ -192,7 +188,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     | _ ->
         None
   in
-  let currentTokenInfo = Fluid.getToken' state vs.tokens in
+  let currentTokenInfo = Fluid.getToken' state vs.primaryTokens in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -207,7 +203,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     match state.cp.location with
     | Some (ltlid, id) when tlid = ltlid ->
         (* Reversing list will get us the last token visually rendered with matching expression ID, so we don't have to keep track of max pos *)
-        vs.tokens
+        vs.primaryTokens
         |> List.reverse
         |> List.getBy ~f:(fun ti -> FluidToken.tid ti.token = id)
     | _ ->
@@ -226,7 +222,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     let selStart, selEnd = Fluid.getSelectionRange state in
     selStart <= tokenStart && tokenEnd <= selEnd
   in
-  List.map vs.tokens ~f:(fun ti ->
+  List.map vs.primaryTokens ~f:(fun ti ->
       let element nested =
         let tokenId = T.tid ti.token in
         let idStr = deID tokenId in
@@ -392,7 +388,7 @@ let viewLiveValue
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  Fluid.getToken' state vs.tokens
+  Fluid.getToken' state vs.primaryTokens
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
@@ -446,10 +442,9 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
   let ({analysisStore; tlid; _} : ViewUtils.viewState) = vs in
   let state = vs.fluidState in
-  let tokenInfos = vs.tokens in
   let errorRail =
     let indicators =
-      tokenInfos
+      vs.primaryTokens
       |> List.map ~f:(fun ti -> viewErrorIndicator ~analysisStore ~state ti)
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
@@ -544,8 +539,9 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
   ; errorRail ]
 
 
-let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
-  let tokens = toTokens ast in
+let viewStatus (m : model) (ast : ast) : Types.msg Html.html =
+  let s = m.fluidState in
+  let tokens = Printer.toTokens ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =

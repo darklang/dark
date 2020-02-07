@@ -10,12 +10,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
-  let tokens =
-    TL.getAST tl
-    |> Option.map ~f:FluidPrinter.toTokens
-    |> Option.withDefault ~default:[]
-  in
-  let vs = ViewUtils.createVS m tl tokens in
+  let vs = ViewUtils.createVS m tl in
   let dragEvents =
     [ ViewUtils.eventNoPropagation
         ~key:("tlmd-" ^ showTLID tlid)
@@ -93,7 +88,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     |> String.join ~sep:" "
   in
   let id =
-    Fluid.getToken' m.fluidState tokens
+    Fluid.getToken' m.fluidState vs.primaryTokens
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
   in
@@ -440,7 +435,7 @@ let view (m : model) : msg Html.html =
   in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [FluidView.viewStatus m ast m.fluidState]
+    then [FluidView.viewStatus m ast]
     else [Vdom.noNode]
   in
   let viewDocs =

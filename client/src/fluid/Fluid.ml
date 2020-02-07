@@ -700,6 +700,9 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
+    | ARFlag (id, FPCond), TFlagCond id'
+    | ARFlag (id, FPEnabled), TFlagEnabled id'
+    | ARFlag (id, FPDisabled), TFlagDefault id'
       when id = id' ->
         posForTi ti
     | ARList (id, LPComma idx), TListComma (id', idx')
@@ -843,7 +846,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (_, PPFloat FPFractional), _
     | ARPattern (_, PPBlank), _
     | ARPattern (_, PPNull), _
-    | ARPattern (_, PPString SPOpenQuote), _ ->
+    | ARPattern (_, PPString SPOpenQuote), _
+    | ARFlag _, _ ->
         None
     (* Invalid *)
     | ARInvalid, _ ->
@@ -990,6 +994,12 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
       Some {astRef = ARConstructor id; offset}
+  | TFlagCond id ->
+      Some {astRef = ARFlag (id, FPCond); offset}
+  | TFlagEnabled id ->
+      Some {astRef = ARFlag (id, FPEnabled); offset}
+  | TFlagDefault id ->
+      Some {astRef = ARFlag (id, FPDisabled); offset}
   (*
     These have no valid caretTarget because they are not
     strictly part of the AST.
@@ -1378,7 +1388,7 @@ let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
 (* [insBlankOrPlaceholderHelper' ins]
  * shouldn't be called directly, only via
  * maybeInsertInBlankExpr or insertInPlaceholderExpr.
- * 
+ *
  * It encodes the shared behavior of inserting text to
  * blanks or placeholders, which are identical
  * except for when creating lambdas.
@@ -2521,7 +2531,8 @@ let idOfASTRef (astRef : astRef) : id option =
   | ARConstructor id
   | ARMatch (id, _)
   | ARLambda (id, _)
-  | ARPattern (id, _) ->
+  | ARPattern (id, _)
+  | ARFlag (id, _) ->
       Some id
   | ARInvalid ->
       None
@@ -2806,7 +2817,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARRecord (_, RPClose), expr
     | ARRecord (_, RPFieldSep _), expr
     | ARList (_, LPOpen), expr
-    | ARList (_, LPClose), expr ->
+    | ARList (_, LPClose), expr
+    | ARFlag _, expr ->
         (* We could alternatively move by a single character instead,
            which is what the old version did with minor exceptions;
            that isn't particularly useful as typing within these
@@ -3013,6 +3025,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARRightPartial _, _
     | ARString _, _
     | ARVariable _, _
+    | ARFlag _, _
     | ARInvalid, _ ->
         recover
           "doExplicitBackspace - unexpected pat"
@@ -3303,7 +3316,8 @@ let doExplicitInsert
     | ARIf (_, IPElseKeyword), _
     | ARPipe (_, _), _
     | ARMatch (_, MPKeyword), _
-    | ARMatch (_, MPBranchArrow _), _ ->
+    | ARMatch (_, MPBranchArrow _), _
+    | ARFlag _, _ ->
         None
     (*****************
      * Exhaustiveness
@@ -3518,6 +3532,7 @@ let doExplicitInsert
     | ARRightPartial _, _
     | ARString _, _
     | ARVariable _, _
+    | ARFlag _, _
     | ARInvalid, _ ->
         recover
           "doExplicitInsert - unexpected pat"
@@ -3663,7 +3678,8 @@ let doInfixInsert
          | ARConstructor _, _
          | ARMatch _, _
          | ARLambda _, _
-         | ARPattern _, _ ->
+         | ARPattern _, _
+         | ARFlag _, _ ->
              None
          | ARInvalid, _ ->
              None)
@@ -3857,7 +3873,7 @@ let rec updateKey
         (ast, acMoveDown s)
     | Keypress {key = K.Down; _}, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveDown s)
-    (* 
+    (*
      * Autocomplete finish
      *)
     | Keypress {key; _}, L (_, ti), _
@@ -4064,7 +4080,7 @@ let rec updateKey
     (***************************)
     (* CREATING NEW CONSTRUCTS *)
     (***************************)
-    (* Entering a string escape 
+    (* Entering a string escape
      * TODO: Move this to doInsert *)
     | InsertText "\\", L (TString _, _), R (TString _, ti)
       when false (* disable for now *) && pos - ti.startPos != 0 ->
@@ -4154,7 +4170,7 @@ let rec updateKey
     (***********************************)
     | InsertText ins, L (TPlaceholder {placeholder; blankID; fnID}, _), _
     | InsertText ins, _, R (TPlaceholder {placeholder; blankID; fnID}, _) ->
-        (* We need this special case because by the time we get to the general 
+        (* We need this special case because by the time we get to the general
          * doInsert handling, reconstructing the difference between placeholders
          * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
         let newExpr, newTarget =
