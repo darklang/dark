@@ -332,7 +332,7 @@ let rec fluidExpr (j : Js.Json.t) : FluidExpression.t =
           (fun a b c -> E.EMatch (a, b, c))
           id
           de
-          (list (tuple2 fluidPattern de)) )
+          (list (pair fluidPattern de)) )
     ; ("EPipeTarget", dv1 (fun a -> E.EPipeTarget a) id)
     ; ( "EFeatureFlag"
       , dv5 (fun a b c d e -> E.EFeatureFlag (a, b, c, d, e)) id string de de de
