@@ -461,7 +461,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
             | "Ok", [p], DResult (ResOk v)
             | "Error", [p], DResult (ResError v) ->
                 let is_match, symbols, traces, preview = matches v p in
-                let new_traces = if is_match then [(pid, v)] else [] in
+                let new_traces = if is_match then [(pid, dv)] else [] in
                 (is_match, symbols, traces @ new_traces, preview && is_match)
             | "Nothing", [], DOption OptNothing ->
                 (true, [], [(pid, DOption OptNothing)], true)
