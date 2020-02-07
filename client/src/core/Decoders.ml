@@ -272,7 +272,7 @@ let rec fluidPattern j : FluidPattern.t =
       *)
     ; ( "FPString"
       , dv3
-          (fun a b c -> P.FPString {matchID = a; patternID = b; str = c})
+          (fun a b c -> P.FPString {patternID = a; matchID = b; str = c})
           id
           id
           string )

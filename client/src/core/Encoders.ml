@@ -645,8 +645,8 @@ and fluidPattern (pattern : FluidPattern.t) : Js.Json.t =
       ev "FPBool" [id id'; id mid; bool v]
   | FPFloat (id', mid, whole, fraction) ->
       ev "FPFloat" [id id'; id mid; string whole; string fraction]
-  | FPString {matchID = id'; patternID = mid; str = v} ->
-      ev "FPString" [id id'; id mid; string v]
+  | FPString {matchID; patternID; str = v} ->
+      ev "FPString" [id patternID; id matchID; string v]
   | FPNull (id', mid) ->
       ev "FPNull" [id id'; id mid]
   | FPBlank (id', mid) ->
