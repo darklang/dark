@@ -54,7 +54,8 @@ let run () =
             ; avatarsList = []
             ; permission = Some ReadWrite
             ; workerStats = None
-            ; tokens = []
+            ; primaryTokens = []
+            ; secondaryTokens = []
             ; menuState = {isOpen = false}
             ; isExecuting = false }
           in

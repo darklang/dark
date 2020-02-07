@@ -709,6 +709,9 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       , TPatternFloatFractional (_, id', _, _) )
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
+    | ARFlag (id, FPCond), TFlagCond id'
+    | ARFlag (id, FPEnabled), TFlagEnabled id'
+    | ARFlag (id, FPDisabled), TFlagDefault id'
       when id = id' ->
         posForTi ti
     | ARList (id, LPComma idx), TListComma (id', idx')
@@ -889,7 +892,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (_, PPNull), _
     | ARPattern (_, PPString SPOpenQuote), _
     | ARPattern (_, PPString SPText), _
-    | ARPattern (_, PPString SPCloseQuote), _ ->
+    | ARPattern (_, PPString SPCloseQuote), _
+    | ARFlag _, _ ->
         None
     (* Invalid *)
     | ARInvalid, _ ->
@@ -1037,6 +1041,12 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
       Some {astRef = ARConstructor id; offset}
+  | TFlagCond id ->
+      Some {astRef = ARFlag (id, FPCond); offset}
+  | TFlagEnabled id ->
+      Some {astRef = ARFlag (id, FPEnabled); offset}
+  | TFlagDefault id ->
+      Some {astRef = ARFlag (id, FPDisabled); offset}
   (*
     These have no valid caretTarget because they are not
     strictly part of the AST.
@@ -2899,7 +2909,8 @@ let idOfASTRef (astRef : astRef) : id option =
   | ARConstructor id
   | ARMatch (id, _)
   | ARLambda (id, _)
-  | ARPattern (id, _) ->
+  | ARPattern (id, _)
+  | ARFlag (id, _) ->
       Some id
   | ARInvalid ->
       None
@@ -3193,7 +3204,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARRecord (_, RPClose), expr
     | ARRecord (_, RPFieldSep _), expr
     | ARList (_, LPOpen), expr
-    | ARList (_, LPClose), expr ->
+    | ARList (_, LPClose), expr
+    | ARFlag _, expr ->
         (* We could alternatively move by a single character instead,
            which is what the old version did with minor exceptions;
            that isn't particularly useful as typing within these
@@ -3414,6 +3426,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARRightPartial _, _
     | ARString _, _
     | ARVariable _, _
+    | ARFlag _, _
     | ARInvalid, _ ->
         recover
           "doExplicitBackspace - unexpected pat"
@@ -3482,7 +3495,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
    * multi-codepoint emoji (the expected behavior of multi-syllable clusters differs from emoji).
    *
    * Note that we do not handle caret affinity properly, but caret affinity should behave the
-   * same for backspace and delete. 
+   * same for backspace and delete.
    *
    * See https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad.
    *)
@@ -3504,7 +3517,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
 
 (* [doExplicitInsert [extendedGraphemeCluster] [currCaretTarget] [ast]]
  * produces the (newAST, newPosition) tuple resulting from performing
- * a text insertion at [currCaretTarget] in the [ast]. 
+ * a text insertion at [currCaretTarget] in the [ast].
  * Note that newPosition will be either AtTarget or SamePlace --
  * either the caret stays in the same place, or it ends up at a specific location.
  *
@@ -3709,7 +3722,8 @@ let doExplicitInsert
     | ARIf (_, IPElseKeyword), _
     | ARPipe (_, _), _
     | ARMatch (_, MPKeyword), _
-    | ARMatch (_, MPBranchArrow _), _ ->
+    | ARMatch (_, MPBranchArrow _), _
+    | ARFlag _, _ ->
         None
     (*****************
      * Exhaustiveness
@@ -3930,6 +3944,7 @@ let doExplicitInsert
     | ARRightPartial _, _
     | ARString _, _
     | ARVariable _, _
+    | ARFlag _, _
     | ARInvalid, _ ->
         recover
           "doExplicitInsert - unexpected pat"

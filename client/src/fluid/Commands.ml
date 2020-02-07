@@ -54,7 +54,10 @@ let commands : command list =
     ; doc = "Put expr in the arm of a match" }
   ; { commandName = "add-feature-flag"
     ; action = FeatureFlags.wrap
-    ; doc = "Clone expression as Case A in a feature flag" }
+    ; doc = "Add a feature flag with the expression as the default case" }
+  ; { commandName = "remove-feature-flag"
+    ; action = FeatureFlags.unwrap
+    ; doc = "Replace the feature flag with the default case" }
   ; putFunctionOnRail
   ; takeFunctionOffRail
   ; { commandName = "create-type"

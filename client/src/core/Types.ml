@@ -432,6 +432,12 @@ type astPatternPart =
   | PPBlank
 [@@deriving show {with_path = false}]
 
+type astFlagPart =
+  | FPCond
+  | FPEnabled
+  | FPDisabled
+[@@deriving show {with_path = false}]
+
 (* An astRef represents a reference to a specific part of an AST node,
    such as a specific Record Fieldname rather than just the record.
    Why not use a fluidToken for this purpose?
@@ -471,6 +477,7 @@ type astRef =
   | ARMatch of id * astMatchPart
   | ARLambda of id * astLambdaPart
   | ARPattern of id * astPatternPart
+  | ARFlag of id * astFlagPart
   (* for use if something that should never happen happened *)
   | ARInvalid
 [@@deriving show {with_path = false}]
@@ -1401,6 +1408,9 @@ and fluidToken =
   | TConstructorName of id * string
   | TParenOpen of id
   | TParenClose of id
+  | TFlagCond of id
+  | TFlagEnabled of id
+  | TFlagDefault of id
 
 and fluidTokenInfo =
   { startRow : int
