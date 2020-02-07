@@ -421,7 +421,10 @@ let removePartials (ast : E.t) : E.t =
   remove ast
 
 
-let reorderFnCallArgs
+(* Reorder function calls which call fnName, swapping the arguments that
+ * correspond to the parameters at [oldPos] and [newPos]. Handles situations
+ * where the args may be in a different position due to pipes. *)
+let rec reorderFnCallArgs
     (fnName : string) (oldPos : int) (newPos : int) (ast : E.t) : E.t =
   let rec replaceArgs expr =
     match expr with
@@ -458,14 +461,10 @@ let reorderFnCallArgs
               |> Option.withDefault ~default
             else
               (* Pipe ordering unchanged, just swap other args of the fncall *)
-              let fnId = E.toID fn in
-              let newFn = replaceArgs fn in
-              let newArgs =
-                args
-                |> List.map ~f:(fun ae ->
-                       if E.toID ae = fnId then newFn else ae)
+              let newFn =
+                reorderFnCallArgs fnName (oldPos - 1) (newPos - 1) fn
               in
-              EPipe (id, newArgs)
+              EPipe (id, [firstArg; newFn])
         | _ ->
             default )
     | e ->
