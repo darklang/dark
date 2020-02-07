@@ -481,27 +481,25 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           exe newSt e
         in
         let matchVal = exe st matchExpr in
-        let matchResult = ref (DIncomplete (SourceId id)) in
+        if ctx = Preview
+        then
+          List.iter cases ~f:(fun (pattern, expr) ->
+              let _, vars, tracevars, preview_rhs = matches matchVal pattern in
+              List.iter tracevars ~f:(fun (id, dv) -> trace id dv) ;
+              (* Don't preview constructor rhs, as they have misleading incompletes *)
+              if preview_rhs then exe_with_vars expr vars |> ignore) ;
+        (* Always do the real execution *)
         let continue = ref true in
+        let matchResult = ref (DIncomplete (SourceId id)) in
         List.iter cases ~f:(fun (pattern, expr) ->
-            ( if !continue || ctx = Preview
+            if !continue
             then
-              let matches, vars, tracevars, preview_rhs =
-                matches matchVal pattern
-              in
-              if ctx = Preview
+              let matches, vars, _, _ = matches matchVal pattern in
+              if matches
               then (
-                (* Preview execution *)
-                List.iter tracevars ~f:(fun (id, dv) -> trace id dv) ;
-                (* Don't preview constructor rhs, as they have misleading incompletes *)
-                if preview_rhs then exe_with_vars expr vars |> ignore )
-              else if matches && !continue
-              then (
-                (* Actual execution *)
                 continue := false ;
                 matchResult := exe_with_vars expr vars )
-              else () ) ;
-            ()) ;
+              else ()) ;
         !matchResult
     | Filled (id, FieldAccess (e, field)) ->
         let obj = exe st e in
