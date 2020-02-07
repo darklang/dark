@@ -51,10 +51,14 @@ let update (m : model) (msg : fnpMsg) : modification =
                  | Blank _ ->
                      []
                in
+               let justMovedParam =
+                 List.getAt ~index:newPos newFn.ufMetadata.ufmParameters
+                 |> Option.map ~f:(fun p -> B.toID p.ufpName)
+               in
                let fnM =
-                 { draggingParamIndex = None
-                 ; dragOverSpaceIndex = None
-                 ; justMovedParam = Some newPos }
+                 { justMovedParam
+                 ; draggingParamIndex = None
+                 ; dragOverSpaceIndex = None }
                in
                (fnM, AddOps ([SetFunction newFn], FocusNoChange) :: updateArgs))
         |> Option.withDefault ~default:(m.currentUserFn, [])
@@ -169,7 +173,7 @@ let viewParam
     [ ( "dragging"
       , vs.fnProps.draggingParamIndex |> Option.isSomeEqualTo ~value:index )
     ; ( "just-moved"
-      , vs.fnProps.justMovedParam |> Option.isSomeEqualTo ~value:index ) ]
+      , vs.fnProps.justMovedParam |> Option.isSomeEqualTo ~value:nameId ) ]
   in
   let param =
     Html.div
