@@ -481,6 +481,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           exe newSt e
         in
         let matchVal = exe st matchExpr in
+        (* In Preview, show traces for patterns and execute each expression *)
         if ctx = Preview
         then
           List.iter cases ~f:(fun (pattern, expr) ->
