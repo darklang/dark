@@ -463,8 +463,8 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
                 let is_match, symbols, traces, preview = matches v p in
                 let new_traces = if is_match then [(pid, dv)] else [] in
                 (is_match, symbols, traces @ new_traces, preview && is_match)
-            | "Nothing", [], DOption OptNothing ->
-                (true, [], [(pid, DOption OptNothing)], true)
+            | "Nothing", [], v ->
+                (v = DOption OptNothing, [], [(pid, DOption OptNothing)], true)
             | "Just", _, _ | "Ok", _, _ | "Error", _, _ | "Nothing", _, _ ->
                 (false, [], [], false)
             | _, _, _ ->
