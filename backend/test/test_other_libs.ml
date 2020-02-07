@@ -521,6 +521,14 @@ let t_crypto_sha () =
   ()
 
 
+let t_libbytes () =
+  check_dval
+    "Length is right"
+    (Dval.dint 6)
+    (exec_ast' (fn "Bytes::length" [fn "String::toBytes" [str "abcdef"]])) ;
+  ()
+
+
 let t_internal_functions () =
   Libbackend.Account.set_admin "test" true ;
   check_dval
@@ -662,5 +670,6 @@ let suite =
   ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws)
   ; ("URL percent encoding", `Quick, t_url_encode)
   ; ("Float stdlibs work", `Quick, t_float_stdlibs)
+  ; ("Bytes stdlibs work", `Quick, t_libbytes)
   ; ("List::sortByComparator works", `Quick, t_liblist_sort_by_comparator_works)
   ]
