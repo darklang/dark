@@ -353,4 +353,9 @@ let run () =
           expect
             (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidPrinter.eToHumanString)
           |> toEqual "myFn 2 1 3") ;
+      test "simple pipe" (fun () ->
+          let ast = pipe (int 1) [fn "myFn" [int 2; int 3]] in
+          expect
+            (AST.reorderFnCallArgs "myFn" 1 2 ast |> FluidPrinter.eToHumanString)
+          |> toEqual "1\n|>myFn 3 2\n") ;
       ())
