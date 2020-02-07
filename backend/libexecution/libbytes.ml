@@ -45,4 +45,18 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["Bytes::length"]
+    ; ins = []
+    ; p = [par "bytes" TBytes]
+    ; r = TInt
+    ; d = "Length of encoded byte string"
+    ; f =
+        InProcess
+          (function
+          | _, [DBytes bytes] ->
+              Dval.dint (Bytes.length bytes)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
