@@ -191,7 +191,7 @@ let rec generateFieldAccessExpr () =
 
 
 let rec generatePattern () =
-  match range 7 with
+  match range 8 with
   | 0 ->
       pInt (range 500)
   | 1 ->
@@ -208,6 +208,8 @@ let rec generatePattern () =
       pString (generateString ())
   | 6 ->
       pFloat (Int.toString (range 5000000)) (Int.toString (range 500000))
+  | 7 ->
+      pBlank
   | _ ->
       pBlank
 
@@ -229,7 +231,7 @@ let rec generatePipeArgumentExpr () =
 
 
 and generateExpr () =
-  match range 19 with
+  match range 20 with
   | 0 ->
       b
   | 1 ->

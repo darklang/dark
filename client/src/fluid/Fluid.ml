@@ -5367,8 +5367,11 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                             ps
                         | _ ->
                             [] )
-                | [(id, "pattern-string", value)] ->
-                    FPString {matchID = mID; patternID = id; str = value}
+                | [(id, value, "pattern-string")] ->
+                    FPString
+                      { matchID = mID
+                      ; patternID = id
+                      ; str = Util.trimQuotes value }
                 | [(id, value, "pattern-true")] | [(id, value, "pattern-false")]
                   ->
                     FPBool (mID, id, toBool_ value)
