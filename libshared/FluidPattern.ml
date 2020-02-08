@@ -2,6 +2,7 @@ open Tc
 open Shared
 
 type t =
+  (* match id, then pattern id *)
   | FPVariable of id * id * string
   | FPConstructor of id * id * string * t list
   (* TODO: support char *)
