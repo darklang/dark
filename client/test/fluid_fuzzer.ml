@@ -64,6 +64,10 @@ let random () : float =
 
 let range (max : int) : int = Js_math.floor (float_of_int max *. random ())
 
+let oneOf (l : 'a list) : 'a =
+  List.getAt ~index:(range (List.length l)) l |> Option.valueExn
+
+
 (* ------------------ *)
 (* AST generators *)
 (* ------------------ *)
@@ -81,206 +85,92 @@ let generateList ~(minSize : int) ~(f : unit -> 'a) () : 'a list =
 
 let generateName () =
   let generateChar () : char =
-    match range 11 with
-    | 0 ->
-        'a'
-    | 1 ->
-        'b'
-    | 2 ->
-        'c'
-    | 3 ->
-        'd'
-    | 4 ->
-        'e'
-    | 5 ->
-        'f'
-    | 6 ->
-        'g'
-    | 7 ->
-        'h'
-    | 8 ->
-        'i'
-    | 9 ->
-        'j'
-    | 10 ->
-        'k'
-    | _ ->
-        'z'
+    oneOf ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'; 'k']
   in
   generateList ~minSize:1 ~f:generateChar () |> String.fromList
 
 
 let generateString () =
   let generateChar () : char =
-    match range 11 with
-    | 0 ->
-        'A'
-    | 1 ->
-        'B'
-    | 2 ->
-        'C'
-    | 3 ->
-        'D'
-    | 4 ->
-        'E'
-    | 5 ->
-        'F'
-    | 6 ->
-        'G'
-    | 7 ->
-        'H'
-    | 8 ->
-        'I'
-    | 9 ->
-        'J'
-    | 10 ->
-        'K'
-    | _ ->
-        ' '
+    oneOf ['A'; 'B'; 'C'; 'D'; 'E'; 'F'; 'G'; 'H'; 'I'; 'J'; 'K']
   in
   generateList ~minSize:0 ~f:generateChar () |> String.fromList
 
 
-let generateInfixName () =
-  match range 6 with
-  | 0 ->
-      "+"
-  | 1 ->
-      "++"
-  | 2 ->
-      "-"
-  | 3 ->
-      "*"
-  | 4 ->
-      "/"
-  | 5 ->
-      "||"
-  | _ ->
-      "&&"
-
+let generateInfixName () = oneOf ["+"; "++"; "-"; "*"; "/"; "||"; "&&"]
 
 let generateFnName () =
-  match range 7 with
-  | 0 ->
-      "Int::add"
-  | 1 ->
-      "DB::set_v2"
-  | 2 ->
-      "HttpClient::post_v4"
-  | 3 ->
-      generateName ()
-  | 4 ->
-      "DB::getAll_v2"
-  | 5 ->
-      "DB::generateKey_v1"
-  | 6 ->
-      "Date::now_v0"
-  | _ ->
-      "Date::now"
+  oneOf
+    [ "Int::add"
+    ; "DB::set_v2"
+    ; "HttpClient::post_v4"
+    ; generateName ()
+    ; "DB::getAll_v2"
+    ; "DB::generateKey_v1"
+    ; "Date::now_v0"
+    ; "Date::now" ]
 
 
 (* Fields can only have a subset of expressions in the fieldAccess *)
 let rec generateFieldAccessExpr () =
-  match range 2 with
-  | 1 ->
-      var (generateName ())
-  | 0 ->
-      fieldAccess (generateFieldAccessExpr ()) (generateName ())
-  | _ ->
-      var (generateName ())
+  oneOf
+    [ var (generateName ())
+    ; fieldAccess (generateFieldAccessExpr ()) (generateName ()) ]
 
 
 let rec generatePattern () =
-  match range 8 with
-  | 0 ->
-      pInt (range 500)
-  | 1 ->
-      pBool (random () < 0.5)
-  | 2 ->
-      pNull
-  | 3 ->
-      pConstructor
+  oneOf
+    [ pInt (range 500)
+    ; pBool (random () < 0.5)
+    ; pNull
+    ; pConstructor
         (generateName ())
         (generateList ~minSize:0 ~f:generatePattern ())
-  | 4 ->
-      pVar (generateName ())
-  | 5 ->
-      pString (generateString ())
-  | 6 ->
-      pFloat (Int.toString (range 5000000)) (Int.toString (range 500000))
-  | 7 ->
-      pBlank
-  | _ ->
-      pBlank
+    ; pVar (generateName ())
+    ; pString (generateString ())
+    ; pFloat (Int.toString (range 5000000)) (Int.toString (range 500000))
+    ; pBlank ]
 
 
-let rec generatePipeArgumentExpr () =
-  match range 4 with
-  | 0 ->
-      lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
-  | 1 ->
-      b
-  | 2 ->
-      fn
+let rec generatePipeArgumentExpr () : FluidExpression.t =
+  oneOf
+    [ lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
+    ; b
+    ; fn
         (generateName ())
         (pipeTarget :: generateList ~minSize:0 ~f:generateExpr ())
-  | 3 ->
-      binop (generateName ()) pipeTarget (generateExpr ())
-  | _ ->
-      b
+    ; binop (generateName ()) pipeTarget (generateExpr ()) ]
 
 
 and generateExpr () =
-  match range 20 with
-  | 0 ->
-      b
-  | 1 ->
-      str (generateString ())
-  | 2 ->
-      int (range 500)
-  | 3 ->
-      bool (random () < 0.5)
-  | 4 ->
-      float' (Int.toString (range 5000000)) (Int.toString (range 500000))
-  | 5 ->
-      null
-  | 6 ->
-      var (generateName ())
-  | 7 ->
-      partial (generateFnName ()) (generateExpr ())
-  | 8 ->
-      list (generateList () ~minSize:0 ~f:generateExpr)
-  | 9 ->
-      fn (generateFnName ()) (generateList ~minSize:0 ~f:generateExpr ())
-  | 10 ->
-      rightPartial (generateInfixName ()) (generateExpr ())
-  | 11 ->
-      fieldAccess (generateFieldAccessExpr ()) (generateName ())
-  | 12 ->
-      lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
-  | 13 ->
-      let' (generateName ()) (generateExpr ()) (generateExpr ())
-  | 14 ->
-      binop (generateInfixName ()) (generateExpr ()) (generateExpr ())
-  | 15 ->
-      if' (generateExpr ()) (generateExpr ()) (generateExpr ())
-  | 16 ->
-      constructor (generateName ()) (generateList ~minSize:0 ~f:generateExpr ())
-  | 17 ->
-      pipe
+  oneOf
+    [ b
+    ; str (generateString ())
+    ; int (range 500)
+    ; bool (random () < 0.5)
+    ; float' (Int.toString (range 5000000)) (Int.toString (range 500000))
+    ; null
+    ; var (generateName ())
+    ; partial (generateFnName ()) (generateExpr ())
+    ; list (generateList () ~minSize:0 ~f:generateExpr)
+    ; fn (generateFnName ()) (generateList ~minSize:0 ~f:generateExpr ())
+    ; rightPartial (generateInfixName ()) (generateExpr ())
+    ; fieldAccess (generateFieldAccessExpr ()) (generateName ())
+    ; lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
+    ; let' (generateName ()) (generateExpr ()) (generateExpr ())
+    ; binop (generateInfixName ()) (generateExpr ()) (generateExpr ())
+    ; if' (generateExpr ()) (generateExpr ()) (generateExpr ())
+    ; constructor (generateName ()) (generateList ~minSize:0 ~f:generateExpr ())
+    ; pipe
         (generateExpr ())
         (generateList ~minSize:2 ~f:generatePipeArgumentExpr ())
-  | 18 ->
-      record
+    ; record
         (generateList ~minSize:1 () ~f:(fun () ->
              (generateName (), generateExpr ())))
-  | 19 ->
-      match'
+    ; match'
         (generateExpr ())
         (generateList ~minSize:1 () ~f:(fun () ->
-             (generatePattern (), generateExpr ())))
-  | _ ->
-      b
+             (generatePattern (), generateExpr ()))) ]
 
 
 (* ------------------ *)
