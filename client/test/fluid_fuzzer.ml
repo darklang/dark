@@ -83,23 +83,23 @@ let generateList ~(minSize : int) ~(f : unit -> 'a) () : 'a list =
   result
 
 
-let generateName () =
+let generateName () : string =
   let generateChar () : char =
     oneOf ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'; 'k']
   in
   generateList ~minSize:1 ~f:generateChar () |> String.fromList
 
 
-let generateString () =
+let generateString () : string =
   let generateChar () : char =
     oneOf ['A'; 'B'; 'C'; 'D'; 'E'; 'F'; 'G'; 'H'; 'I'; 'J'; 'K']
   in
   generateList ~minSize:0 ~f:generateChar () |> String.fromList
 
 
-let generateInfixName () = oneOf ["+"; "++"; "-"; "*"; "/"; "||"; "&&"]
+let generateInfixName () : string = oneOf ["+"; "++"; "-"; "*"; "/"; "||"; "&&"]
 
-let generateFnName () =
+let generateFnName () : string =
   oneOf
     [ "Int::add"
     ; "DB::set_v2"
@@ -112,65 +112,79 @@ let generateFnName () =
 
 
 (* Fields can only have a subset of expressions in the fieldAccess *)
-let rec generateFieldAccessExpr () =
+let rec generateFieldAccessExpr () : FluidExpression.t =
   oneOf
-    [ var (generateName ())
-    ; fieldAccess (generateFieldAccessExpr ()) (generateName ()) ]
+    [ lazy (var (generateName ()))
+    ; lazy (fieldAccess (generateFieldAccessExpr ()) (generateName ())) ]
+  |> Lazy.force
 
 
-let rec generatePattern () =
+let rec generatePattern () : FluidPattern.t =
   oneOf
-    [ pInt (range 500)
-    ; pBool (random () < 0.5)
-    ; pNull
-    ; pConstructor
-        (generateName ())
-        (generateList ~minSize:0 ~f:generatePattern ())
-    ; pVar (generateName ())
-    ; pString (generateString ())
-    ; pFloat (Int.toString (range 5000000)) (Int.toString (range 500000))
-    ; pBlank ]
+    [ lazy (pInt (range 500))
+    ; lazy (pBool (random () < 0.5))
+    ; lazy pNull
+    ; lazy
+        (pConstructor
+           (generateName ())
+           (generateList ~minSize:0 ~f:generatePattern ()))
+    ; lazy (pVar (generateName ()))
+    ; lazy (pString (generateString ()))
+    ; lazy (pFloat (Int.toString (range 5000000)) (Int.toString (range 500000)))
+    ; lazy pBlank ]
+  |> Lazy.force
 
 
 let rec generatePipeArgumentExpr () : FluidExpression.t =
   oneOf
-    [ lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
-    ; b
-    ; fn
-        (generateName ())
-        (pipeTarget :: generateList ~minSize:0 ~f:generateExpr ())
-    ; binop (generateName ()) pipeTarget (generateExpr ()) ]
+    [ lazy
+        (lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ()))
+    ; lazy b
+    ; lazy
+        (fn
+           (generateName ())
+           (pipeTarget :: generateList ~minSize:0 ~f:generateExpr ()))
+    ; lazy (binop (generateName ()) pipeTarget (generateExpr ())) ]
+  |> Lazy.force
 
 
 and generateExpr () =
   oneOf
-    [ b
-    ; str (generateString ())
-    ; int (range 500)
-    ; bool (random () < 0.5)
-    ; float' (Int.toString (range 5000000)) (Int.toString (range 500000))
-    ; null
-    ; var (generateName ())
-    ; partial (generateFnName ()) (generateExpr ())
-    ; list (generateList () ~minSize:0 ~f:generateExpr)
-    ; fn (generateFnName ()) (generateList ~minSize:0 ~f:generateExpr ())
-    ; rightPartial (generateInfixName ()) (generateExpr ())
-    ; fieldAccess (generateFieldAccessExpr ()) (generateName ())
-    ; lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
-    ; let' (generateName ()) (generateExpr ()) (generateExpr ())
-    ; binop (generateInfixName ()) (generateExpr ()) (generateExpr ())
-    ; if' (generateExpr ()) (generateExpr ()) (generateExpr ())
-    ; constructor (generateName ()) (generateList ~minSize:0 ~f:generateExpr ())
-    ; pipe
-        (generateExpr ())
-        (generateList ~minSize:2 ~f:generatePipeArgumentExpr ())
-    ; record
-        (generateList ~minSize:1 () ~f:(fun () ->
-             (generateName (), generateExpr ())))
-    ; match'
-        (generateExpr ())
-        (generateList ~minSize:1 () ~f:(fun () ->
-             (generatePattern (), generateExpr ()))) ]
+    [ lazy b
+    ; lazy (str (generateString ()))
+    ; lazy (int (range 500))
+    ; lazy (bool (random () < 0.5))
+    ; lazy (float' (Int.toString (range 5000000)) (Int.toString (range 500000)))
+    ; lazy null
+    ; lazy (var (generateName ()))
+    ; lazy (partial (generateFnName ()) (generateExpr ()))
+    ; lazy (list (generateList () ~minSize:0 ~f:generateExpr))
+    ; lazy (fn (generateFnName ()) (generateList ~minSize:0 ~f:generateExpr ()))
+    ; lazy (rightPartial (generateInfixName ()) (generateExpr ()))
+    ; lazy (fieldAccess (generateFieldAccessExpr ()) (generateName ()))
+    ; lazy
+        (lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ()))
+    ; lazy (let' (generateName ()) (generateExpr ()) (generateExpr ()))
+    ; lazy (binop (generateInfixName ()) (generateExpr ()) (generateExpr ()))
+    ; lazy (if' (generateExpr ()) (generateExpr ()) (generateExpr ()))
+    ; lazy
+        (constructor
+           (generateName ())
+           (generateList ~minSize:0 ~f:generateExpr ()))
+    ; lazy
+        (pipe
+           (generateExpr ())
+           (generateList ~minSize:2 ~f:generatePipeArgumentExpr ()))
+    ; lazy
+        (record
+           (generateList ~minSize:1 () ~f:(fun () ->
+                (generateName (), generateExpr ()))))
+    ; lazy
+        (match'
+           (generateExpr ())
+           (generateList ~minSize:1 () ~f:(fun () ->
+                (generatePattern (), generateExpr ())))) ]
+  |> Lazy.force
 
 
 (* ------------------ *)
