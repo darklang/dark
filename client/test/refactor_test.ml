@@ -358,4 +358,28 @@ let run () =
           expect
             (AST.reorderFnCallArgs "myFn" 1 2 ast |> FluidPrinter.eToHumanString)
           |> toEqual "1\n|>myFn 3 2\n") ;
+      test "pipe but the fn is later" (fun () ->
+          let ast =
+            pipe
+              (int 1)
+              [ fn "other1" []
+              ; fn "other2" []
+              ; fn "myFn" [int 2; int 3]
+              ; fn "other3" [] ]
+          in
+          expect
+            (AST.reorderFnCallArgs "myFn" 1 2 ast |> FluidPrinter.eToTestString)
+          |> toEqual "1\n|>other1\n|>other2\n|>myFn 3 2\n|>other3\n") ;
+      test "pipe and arg 0" (fun () ->
+          let ast =
+            pipe
+              (int 1)
+              [ fn "other1" []
+              ; fn "other2" []
+              ; fn "myFn" [int 2; int 3]
+              ; fn "other3" [] ]
+          in
+          expect
+            (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidPrinter.eToTestString)
+          |> toEqual "1\n|>other1\n|>other2\n|>\\x -> myFn 2 x 3\n|>other3\n") ;
       ())
