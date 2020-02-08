@@ -78,3 +78,12 @@ i.fa-spinner {
     background-color: lighten($grey2, 10%);
   }
 }
+
+@keyframes blinkGlow {
+  from {
+    box-shadow: $cyan 0 0 4px 1px;
+  }
+  to {
+    box-shadow: $cyan 0 0 0 0;
+  }
+}

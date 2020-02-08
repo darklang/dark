@@ -1933,6 +1933,8 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
+  | FnParamMsg msg ->
+      FnParams.update m msg
 
 
 let rec filter_read_only (m : model) (modification : modification) =
