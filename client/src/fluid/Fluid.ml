@@ -1381,41 +1381,77 @@ let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
 (* Blanks *)
 (* ---------------- *)
 
-let maybeInsertInBlankExpr (text : string) : (E.t * caretTarget) option =
-  if text = " " || text = ","
+(* [insBlankOrPlaceholderHelper' ins]
+ * shouldn't be called directly, only via
+ * maybeInsertInBlankExpr or insertInPlaceholderExpr.
+ * 
+ * It encodes the shared behavior of inserting text to
+ * blanks or placeholders, which are identical
+ * except for when creating lambdas.
+ *)
+let insBlankOrPlaceholderHelper' (ins : string) : (E.t * caretTarget) option =
+  if ins = " " || ins = ","
   then None
+  else if ins = "\\"
+  then
+    recover
+      "insBlankOrPlaceholderHelper' - call insertInBlankExpr or insertInPlaceholderExpr instead"
+      None
   else
     Some
       (let newID = gid () in
-       if text = "\""
+       if ins = "\""
        then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
-       else if text = "["
+       else if ins = "["
        then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
-       else if text = "{"
+       else if ins = "{"
        then
          (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
-       else if text = "\\"
+       else if Util.isNumber ins
        then
-         ( E.ELambda (newID, [(gid (), "")], EBlank (gid ()))
-         , {astRef = ARLambda (newID, LBPVarName 0); offset = 0} )
-       else if Util.isNumber text
-       then
-         let intStr = text |> Util.coerceStringTo63BitInt in
+         let intStr = ins |> Util.coerceStringTo63BitInt in
          ( E.EInteger (newID, intStr)
          , {astRef = ARInteger newID; offset = String.length intStr} )
        else
-         ( E.EPartial (newID, text, EBlank (gid ()))
-         , {astRef = ARPartial newID; offset = String.length text} ))
+         ( E.EPartial (newID, ins, EBlank (gid ()))
+         , {astRef = ARPartial newID; offset = String.length ins} ))
 
 
-let insertInBlankExpr (text : string) : E.t * caretTarget =
-  maybeInsertInBlankExpr text
+(* [maybeInsertInBlankExpr ins]
+ * produces Some (newExpr, newCaretTarget) tuple that should be
+ * used to replace a blank when inserting the text [ins], or
+ * None if the text shouldn't replace the blank.
+ *)
+let maybeInsertInBlankExpr (ins : string) : (E.t * caretTarget) option =
+  if ins = "\\"
+  then
+    let newID = gid () in
+    Some
+      ( E.ELambda (newID, [(gid (), "")], EBlank (gid ()))
+      , {astRef = ARLambda (newID, LBPVarName 0); offset = 0} )
+  else insBlankOrPlaceholderHelper' ins
+
+
+(* [insertInBlankExpr ins]
+ * produces the (newExpr, newCaretTarget) tuple that should be
+ * used to replace a blank when inserting the text [ins].
+ *)
+let insertInBlankExpr (ins : string) : E.t * caretTarget =
+  maybeInsertInBlankExpr ins
   |> Option.withDefault
        ~default:
          (let newID = gid () in
           (E.EBlank newID, {astRef = ARBlank newID; offset = 0}))
 
 
+(* [insertInPlaceholderExpr id ~placeholderName ~ins ast s]
+ * produces the (newExpr, newCaretTarget) tuple that should be
+ * used to replace the placeholder with [id] when inserting the text [ins].
+ * Given an [ast] and current state [s].
+ *
+ * Placeholders are almost the same as blanks but have special behavior
+ * in conjunction with lambdas.
+ *)
 let insertInPlaceholderExpr
     (id : id)
     ~(placeholderName : string)
@@ -1442,29 +1478,16 @@ let insertInPlaceholderExpr
     |> List.map ~f:(fun str -> (gid (), str))
   in
   let newExpr, newTarget =
-    if ins = "\""
-    then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
-    else if ins = "["
-    then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
-    else if ins = "{"
-    then (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
-    else if ins = "\\"
+    if ins = "\\"
     then
       ( E.ELambda (newID, lambdaArgs (), EBlank (gid ()))
       , (* TODO: if lambdaArgs is a populated list, place caret at the end *)
         {astRef = ARLambda (newID, LBPSymbol); offset = 1} )
-    else if ins = "," || ins = " "
-    then
-      (* Just replace with a new blank -- we were creating eg a new list item *)
-      (E.EBlank newID, {astRef = ARBlank newID; offset = 0})
-    else if Util.isNumber ins
-    then
-      let intStr = ins |> Util.coerceStringTo63BitInt in
-      ( E.EInteger (newID, intStr)
-      , {astRef = ARInteger newID; offset = String.length intStr} )
     else
-      ( E.EPartial (newID, ins, EBlank (gid ()))
-      , {astRef = ARPartial newID; offset = String.length ins} )
+      insBlankOrPlaceholderHelper' ins
+      (* Just replace with a new blank -- we were creating eg a new list item *)
+      |> Option.withDefault
+           ~default:(E.EBlank newID, {astRef = ARBlank newID; offset = 0})
   in
   (newExpr, newTarget)
 
