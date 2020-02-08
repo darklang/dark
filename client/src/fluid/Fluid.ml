@@ -3540,7 +3540,7 @@ let doExplicitInsert
 
 
 let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
-    E.t * state =
+    ast * state =
   let s = recordAction ~ti ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
   let newAST, newPosition =
@@ -3552,6 +3552,100 @@ let doInsert ~pos (letter : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
+
+
+(** [doInfixInsert ~pos infixTxt ti ast s] produces the
+ * (newAST, newState) tuple resulting from performing
+ * the insertion of the string [infixTxt], which we know
+ * conforms to FluidTextInput.isInfixSymbol, within the
+ * token with token info [ti], knowing that the [ast]-relative
+ * caret position is [pos] and that the current state is [s].
+ *
+ * In most cases, we wrap the expr indicated by the [ti]
+ * in a partial, particularly if we are at the end of an expr.
+ * Otherwise (especially if we are in the middle of an expr), we
+ * defer to the behavior of doInsert.
+ *)
+let doInfixInsert
+    ~pos (infixTxt : string) (ti : T.tokenInfo) (ast : ast) (s : state) :
+    ast * state =
+  caretTargetFromTokenInfo pos ti
+  |> Option.andThen ~f:(fun ct ->
+         idOfASTRef ct.astRef
+         |> Option.andThen ~f:(fun id ->
+                match E.find id ast with
+                | Some expr ->
+                    Some (id, ct, expr)
+                | None ->
+                    None))
+  |> Option.andThen ~f:(fun (id, ct, expr) ->
+         match (ct.astRef, expr) with
+         | ARInteger _, expr
+         | ARBool _, expr
+         | ARFieldAccess (_, FAPFieldname), expr
+         | ARString (_, SPOpenQuote), expr
+         | ARFloat _, expr
+         | ARNull _, expr
+         | ARVariable _, expr
+         | ARList _, expr
+         | ARRecord _, expr ->
+             if caretTargetForEndOfExpr' expr = ct
+             then
+               let newID = gid () in
+               Some
+                 ( id
+                 , E.ERightPartial (newID, infixTxt, expr)
+                 , { astRef = ARRightPartial newID
+                   ; offset = String.length infixTxt } )
+             else None
+         | ARBlank _, expr ->
+             let newID = gid () in
+             Some
+               ( id
+               , E.EPartial (newID, infixTxt, expr)
+               , {astRef = ARPartial newID; offset = String.length infixTxt} )
+         | ARPipe (_, index), E.EPipe (id, pipeExprs) ->
+           ( match pipeExprs |> List.getAt ~index:(index + 1) with
+           | Some pipedInto ->
+               (* Note that this essentially destroys the pipedInto
+                * expression, because it becomes overwritten by the
+                * partial. Handling this properly would involve
+                * introducing a new construct -- perhaps a left partial. *)
+               let parID = gid () in
+               let newExpr = E.EPartial (parID, infixTxt, pipedInto) in
+               let newPipeExprs =
+                 pipeExprs
+                 |> List.updateAt ~index:(index + 1) ~f:(fun _ -> newExpr)
+               in
+               Some
+                 ( id
+                 , E.EPipe (id, newPipeExprs)
+                 , {astRef = ARPartial parID; offset = String.length infixTxt}
+                 )
+           | None ->
+               None )
+         | ARPipe _, _
+         | ARFieldAccess (_, FAPFieldOp), _
+         | ARLet _, _
+         | ARIf _, _
+         | ARBinOp _, _
+         | ARFnCall _, _
+         | ARPartial _, _
+         | ARRightPartial _, _
+         | ARConstructor _, _
+         | ARMatch _, _
+         | ARLambda _, _
+         | ARPattern _, _ ->
+             None
+         | ARInvalid, _ ->
+             None)
+  |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
+         let newAST = E.replace replaceID ~replacement:newExpr ast in
+         (newAST, moveToCaretTarget s newAST newCaretTarget))
+  |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti ast s))
+  |> recoverOpt
+       "updateKey - can't return None due to lazy Some"
+       ~default:(ast, s)
 
 
 let wrapInLet (ti : T.tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
@@ -4010,84 +4104,7 @@ let rec updateKey
     | InsertText infixTxt, _, R (TBlank _, ti)
     | InsertText infixTxt, L (_, ti), _
       when keyIsInfix ->
-        caretTargetFromTokenInfo pos ti
-        |> Option.andThen ~f:(fun ct ->
-               idOfASTRef ct.astRef
-               |> Option.andThen ~f:(fun id ->
-                      match E.find id ast with
-                      | Some expr ->
-                          Some (id, ct, expr)
-                      | None ->
-                          None))
-        |> Option.andThen ~f:(fun (id, ct, expr) ->
-               match (ct.astRef, expr) with
-               | ARInteger _, expr
-               | ARBool _, expr
-               | ARFieldAccess (_, FAPFieldname), expr
-               | ARString (_, SPOpenQuote), expr
-               | ARFloat _, expr
-               | ARNull _, expr
-               | ARVariable _, expr
-               | ARList _, expr
-               | ARRecord _, expr ->
-                   if caretTargetForEndOfExpr' expr = ct
-                   then
-                     let newID = gid () in
-                     Some
-                       ( id
-                       , E.ERightPartial (newID, infixTxt, expr)
-                       , { astRef = ARRightPartial newID
-                         ; offset = String.length infixTxt } )
-                   else None
-               | ARBlank _, expr ->
-                   let newID = gid () in
-                   Some
-                     ( id
-                     , E.EPartial (newID, infixTxt, expr)
-                     , { astRef = ARPartial newID
-                       ; offset = String.length infixTxt } )
-               | ARPipe (_, index), E.EPipe (id, pipeExprs) ->
-                 ( match pipeExprs |> List.getAt ~index:(index + 1) with
-                 | Some pipedInto ->
-                     (* Note that this essentially destroys the pipedInto
-                      * expression, because it becomes overwritten by the
-                      * partial. Handling this properly would involve
-                      * introducing a new construct -- perhaps a left partial. *)
-                     let parID = gid () in
-                     let newExpr = E.EPartial (parID, infixTxt, pipedInto) in
-                     let newPipeExprs =
-                       pipeExprs
-                       |> List.updateAt ~index:(index + 1) ~f:(fun _ -> newExpr)
-                     in
-                     Some
-                       ( id
-                       , E.EPipe (id, newPipeExprs)
-                       , { astRef = ARPartial parID
-                         ; offset = String.length infixTxt } )
-                 | None ->
-                     None )
-               | ARPipe _, _
-               | ARFieldAccess (_, FAPFieldOp), _
-               | ARLet _, _
-               | ARIf _, _
-               | ARBinOp _, _
-               | ARFnCall _, _
-               | ARPartial _, _
-               | ARRightPartial _, _
-               | ARConstructor _, _
-               | ARMatch _, _
-               | ARLambda _, _
-               | ARPattern _, _ ->
-                   None
-               | ARInvalid, _ ->
-                   None)
-        |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
-               let newAST = E.replace replaceID ~replacement:newExpr ast in
-               (newAST, moveToCaretTarget s newAST newCaretTarget))
-        |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti ast s))
-        |> recoverOpt
-             "updateKey - can't return None due to lazy Some"
-             ~default:(ast, s)
+        doInfixInsert ~pos infixTxt ti ast s
     (* Typing between empty list symbols [] *)
     | InsertText txt, L (TListOpen id, _), R (TListClose _, _) ->
         let newExpr, target = insertInBlankExpr txt in
