@@ -433,40 +433,36 @@ let rec reorderFnCallArgs
           List.reorder ~oldPos ~newPos args |> List.map ~f:replaceArgs
         in
         EFnCall (id, name, newArgs, sendToRail)
-    | EPipe (id, args) as e ->
-        let default = E.walk ~f:replaceArgs e in
-        ( match args with
-        | [firstArg; (EFnCall (fnId, name, pipeArgs, sendToRail) as fn)]
-          when name = fnName ->
-            (* if fncall is buried inside a pipe, then EPipe's expressions list follow the pattern of:
+    | EPipe (id, first :: rest) ->
+        let newFirst = reorderFnCallArgs fnName oldPos newPos first in
+        (* if fncall is buried inside a pipe, then EPipe's expressions list
+         * follow the pattern of:
         [piped expr; fn call to take in piped expr as first arg] *)
-            if oldPos == 0 || newPos == 0
-               (* Looks like we will have to modify the pipe ordering *)
-            then
-              (* the first item is pipeArgs is EPipeTarget, so we drop that to construct our fncall args list *)
-              let remainingArgs = List.drop ~count:1 pipeArgs in
-              (* join the piped expression with the remainingArgs to construct an args list as if they belong to an unpiped fncall *)
-              let allArgs = firstArg :: remainingArgs in
-              let newOrder =
-                List.reorder ~oldPos ~newPos allArgs |> List.map ~f:replaceArgs
-              in
-              Option.pair (List.head newOrder) (List.tail newOrder)
-              |> Option.map ~f:(fun (first, others) ->
-                     let newRemaining = EPipeTarget (E.toID first) :: others in
-                     let newFn =
-                       EFnCall (fnId, name, newRemaining, sendToRail)
-                     in
-                     let newArgs = [first; newFn] in
-                     EPipe (id, newArgs))
-              |> Option.withDefault ~default
-            else
-              (* Pipe ordering unchanged, just swap other args of the fncall *)
-              let newFn =
-                reorderFnCallArgs fnName (oldPos - 1) (newPos - 1) fn
-              in
-              EPipe (id, [firstArg; newFn])
-        | _ ->
-            default )
+        let newRest =
+          (* the first item is pipeArgs is EPipeTarget, so we drop that to
+           * construct our fncall args list *)
+          List.map rest ~f:(fun pipeArg ->
+              if oldPos == 0 || newPos == 0
+                 (* Looks like we will have to modify the pipe ordering *)
+              then
+                match pipeArg with
+                | EFnCall (fnID, name, args, sendToRail) when name = fnName ->
+                    let newArg = EVariable (gid (), "x") in
+                    let newArgs =
+                      List.reorder ~oldPos ~newPos (newArg :: args)
+                      |> List.map ~f:replaceArgs
+                    in
+                    ELambda
+                      ( gid ()
+                      , [(gid (), "x")]
+                      , EFnCall (fnID, name, newArgs, sendToRail) )
+                | _ ->
+                    pipeArg
+              else
+                (* Pipe ordering unchanged, just swap other args of the fncall *)
+                reorderFnCallArgs fnName (oldPos - 1) (newPos - 1) pipeArg)
+        in
+        EPipe (id, newFirst :: newRest)
     | e ->
         E.walk ~f:replaceArgs e
   in
