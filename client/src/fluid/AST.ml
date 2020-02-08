@@ -435,15 +435,13 @@ let rec reorderFnCallArgs
         EFnCall (id, name, newArgs, sendToRail)
     | EPipe (id, first :: rest) ->
         let newFirst = reorderFnCallArgs fnName oldPos newPos first in
-        (* if fncall is buried inside a pipe, then EPipe's expressions list
-         * follow the pattern of:
-        [piped expr; fn call to take in piped expr as first arg] *)
         let newRest =
-          (* the first item is pipeArgs is EPipeTarget, so we drop that to
-           * construct our fncall args list *)
+          (* If the pipetarget is involved, we're really going to have to wrap
+           * it in a lambda instead of shifting things around (we could move
+           * the argument up if it's the first thing being piped into, but that
+           * might be ugly. *)
           List.map rest ~f:(fun pipeArg ->
               if oldPos == 0 || newPos == 0
-                 (* Looks like we will have to modify the pipe ordering *)
               then
                 match pipeArg with
                 | EFnCall (fnID, name, args, sendToRail) when name = fnName ->
@@ -459,7 +457,7 @@ let rec reorderFnCallArgs
                 | _ ->
                     pipeArg
               else
-                (* Pipe ordering unchanged, just swap other args of the fncall *)
+                (* The pipetarget isn't involved, so just do it normally. *)
                 reorderFnCallArgs fnName (oldPos - 1) (newPos - 1) pipeArg)
         in
         EPipe (id, newFirst :: newRest)
