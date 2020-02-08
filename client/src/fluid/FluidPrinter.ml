@@ -517,17 +517,17 @@ let pToStructure (p : fluidPattern) : string =
 let rec pToTestcase (p : FluidPattern.t) : string =
   let r = pToTestcase in
   let quoted str = "\"" ^ str ^ "\"" in
-  let listed elems = "[" ^ String.join ~sep:"," elems ^ "]" in
+  let listed elems = "[" ^ String.join ~sep:";" elems ^ "]" in
   let spaced elems = String.join ~sep:" " elems in
   match p with
   | FPBlank _ ->
       "pBlank"
   | FPString {str; _} ->
-      spaced ["pStr"; quoted str]
+      spaced ["pString"; quoted str]
   | FPBool (_, _, true) ->
-      "pTrue"
+      spaced ["pBool true"]
   | FPBool (_, _, false) ->
-      "pFalse"
+      spaced ["pBool false"]
   | FPFloat (_, _, whole, fractional) ->
       spaced ["pFloat'"; whole; fractional]
   | FPInteger (_, _, int) ->
@@ -543,7 +543,7 @@ let rec pToTestcase (p : FluidPattern.t) : string =
 let rec eToTestcase (e : E.t) : string =
   let r = eToTestcase in
   let quoted str = "\"" ^ str ^ "\"" in
-  let listed elems = "[" ^ String.join ~sep:"," elems ^ "]" in
+  let listed elems = "[" ^ String.join ~sep:";" elems ^ "]" in
   let spaced elems = String.join ~sep:" " elems in
   let result =
     match e with
@@ -552,9 +552,9 @@ let rec eToTestcase (e : E.t) : string =
     | EString (_, str) ->
         spaced ["str"; quoted str]
     | EBool (_, true) ->
-        "true"
+        spaced ["bool true"]
     | EBool (_, false) ->
-        "false"
+        spaced ["bool false"]
     | EFloat (_, whole, fractional) ->
         spaced ["float'"; quoted whole; quoted fractional]
     | EInteger (_, int) ->
@@ -581,12 +581,13 @@ let rec eToTestcase (e : E.t) : string =
           ; r cond
           ; listed
               (List.map matches ~f:(fun (p, e) ->
-                   "(" ^ pToTestcase p ^ ", " ^ r e)) ]
+                   "(" ^ pToTestcase p ^ ", " ^ r e ^ ")")) ]
     | ERecord (_, pairs) ->
         spaced
           [ "record"
           ; listed
-              (List.map pairs ~f:(fun (k, v) -> "(" ^ quoted k ^ ", " ^ r v)) ]
+              (List.map pairs ~f:(fun (k, v) ->
+                   "(" ^ quoted k ^ ", " ^ r v ^ ")")) ]
     | EList (_, exprs) ->
         spaced ["list"; listed (List.map ~f:r exprs)]
     | EPipe (_, a :: rest) ->
