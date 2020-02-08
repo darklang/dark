@@ -514,8 +514,30 @@ let pToStructure (p : fluidPattern) : string =
  * they use the shortcuts from Fluid_test_data. *)
 (* ----------------- *)
 
-let pToTestcase (p : FluidPattern.t) : string =
-  match p with _ -> "todo" ^ pToString p
+let rec pToTestcase (p : FluidPattern.t) : string =
+  let r = pToTestcase in
+  let quoted str = "\"" ^ str ^ "\"" in
+  let listed elems = "[" ^ String.join ~sep:"," elems ^ "]" in
+  let spaced elems = String.join ~sep:" " elems in
+  match p with
+  | FPBlank _ ->
+      "pBlank"
+  | FPString {str; _} ->
+      spaced ["pStr"; quoted str]
+  | FPBool (_, _, true) ->
+      "pTrue"
+  | FPBool (_, _, false) ->
+      "pFalse"
+  | FPFloat (_, _, whole, fractional) ->
+      spaced ["pFloat'"; whole; fractional]
+  | FPInteger (_, _, int) ->
+      spaced ["pInt"; int]
+  | FPNull _ ->
+      "pNull"
+  | FPVariable (_, _, name) ->
+      spaced ["pVar"; quoted name]
+  | FPConstructor (_, _, name, args) ->
+      spaced ["pConstructor"; quoted name; listed (List.map args ~f:r)]
 
 
 let rec eToTestcase (e : E.t) : string =
