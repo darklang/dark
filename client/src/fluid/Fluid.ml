@@ -3942,10 +3942,6 @@ let rec updateKey
     (***************************)
     (* CREATING NEW CONSTRUCTS *)
     (***************************)
-    (* TODO: press comma while in an expr in a list *)
-    (* TODO: press comma while in an expr in a record *)
-    (* TODO: press equals when in a let *)
-    (* TODO: press colon when in a record field *)
     (* Entering a string escape 
      * TODO: Move this to doInsert *)
     | InsertText "\\", L (TString _, _), R (TString _, ti)
