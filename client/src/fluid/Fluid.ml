@@ -1799,7 +1799,7 @@ let replacePartialWithArguments
     | _, _ ->
         false
   in
-  let mkTarget (expr : fluidExpr) : caretTarget =
+  let ctForExpr (expr : fluidExpr) : caretTarget =
     match expr with
     | EBinOp (_id, _opName, lhs, _, _) ->
         caretTargetForStartOfExpr' lhs
@@ -1827,7 +1827,7 @@ let replacePartialWithArguments
         caretTargetForEndOfExpr' expr
   in
   let mkExprAndTarget (expr : fluidExpr) : fluidExpr * caretTarget =
-    (expr, mkTarget expr)
+    (expr, ctForExpr expr)
   in
   E.find id ast
   |> Option.map ~f:(function
@@ -1874,14 +1874,14 @@ let replacePartialWithArguments
                          ~debug:newParams
                          (EBinOp (id, newName, E.newB (), E.newB (), ster))
                  in
-                 (wrapWithLets ~expr:newExpr mismatchedParams, mkTarget newExpr)
+                 (wrapWithLets ~expr:newExpr mismatchedParams, ctForExpr newExpr)
              | EFnCall (id, newName, newExprs, newSter) ->
                  let ster = chooseSter ~oldName ~oldExpr newSter in
                  let newParams, mismatchedParams =
                    fetchParams newName newExprs
                  in
                  let newExpr = EFnCall (id, newName, newParams, ster) in
-                 (wrapWithLets ~expr:newExpr mismatchedParams, mkTarget newExpr)
+                 (wrapWithLets ~expr:newExpr mismatchedParams, ctForExpr newExpr)
              | EConstructor _ ->
                  let oldParams =
                    existingExprs
@@ -1890,7 +1890,7 @@ let replacePartialWithArguments
                           let name = "var_" ^ string_of_int (DUtil.random ()) in
                           (name, Runtime.tipe2str TAny, p, i))
                  in
-                 (wrapWithLets ~expr:newExpr oldParams, mkTarget newExpr)
+                 (wrapWithLets ~expr:newExpr oldParams, ctForExpr newExpr)
              | newExpr ->
                  mkExprAndTarget newExpr )
          | _ ->
