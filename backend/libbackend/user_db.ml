@@ -322,15 +322,17 @@ let get_db_fields (db : db) : (string * tipe_) list =
 
 
 let query ~state (db : db) (b : dblock_args) : (string * dval) list =
-  let dbFields = Tablecloth.StrDict.from_list (get_db_fields db) in
-  let paramName =
+  let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
+  let param_name =
     match b.params with
     | [(_, name)] ->
         name
     | _ ->
         Exception.internal "wrong number of args"
   in
-  let sql = Sql_compiler.compile_lambda b.symtable paramName dbFields b.body in
+  let sql =
+    Sql_compiler.compile_lambda b.symtable param_name db_fields b.body
+  in
   let result =
     try
       Db.fetch
