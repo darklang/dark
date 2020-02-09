@@ -685,204 +685,137 @@ let t_db_query_works () =
                    ; var "Person" ])
                 (EBlank (Libshared.Shared.gid ()))))))
   |> ignore ;
-  let query lambda = fn "DB::query_v4" [var "Person"; lambda] in
+  let query expr = fn "DB::query_v4" [var "Person"; expr] in
+  let queryv body = fn "DB::query_v4" [var "Person"; lambda ["v"] body] in
+  let field name field = fieldAccess (var name) field in
   let sort expr =
     pipe
       expr
-      [ fn
-          "List::map"
-          [pipeTarget; lambda ["v"] (fieldAccess (var "v") "height")]
+      [ fn "List::map" [pipeTarget; lambda ["v"] (field "v" "height")]
       ; fn "List::sort" [pipeTarget] ]
   in
   let exec expr = exec_handler' ~ops expr in
+  let execs expr = exec (expr |> sort) in
   let withvar (name : string) value ast = let' name value ast in
   check_dval
     "Find all"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73; DNull])
-    ( query (lambda ["value"] (bool true))
-    |> sort
-    |> Libcommon.Log.inspect ~f:Libshared.FluidExpression.show "expr"
-    |> exec ) ;
+    (queryv (bool true) |> execs) ;
   check_dval
     "Find all with condition"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    ( query
-        (lambda
-           ["value"]
-           (binop ">" (fieldAccess (var "value") "height") (int 3)))
-    |> sort
-    |> exec ) ;
+    (queryv (binop ">" (field "v" "height") (int 3)) |> execs) ;
   check_dval
     "boolean"
     (DList [Dval.dint 65; Dval.dint 73])
-    ( query (lambda ["value"] (fieldAccess (var "value") "human"))
-    |> sort
-    |> exec ) ;
+    (queryv (field "v" "human") |> execs) ;
   check_dval
     "different param name"
     (DList [Dval.dint 65; Dval.dint 73])
-    (query (lambda ["v"] (fieldAccess (var "v") "human")) |> sort |> exec) ;
+    (query (lambda ["value"] (field "value" "human")) |> execs) ;
   check_dval
     "&&"
     (DList [Dval.dint 73])
-    ( query
-        (lambda
-           ["v"]
-           (binop
-              "&&"
-              (fieldAccess (var "v") "human")
-              (binop ">" (fieldAccess (var "v") "height") (int 66))))
-    |> sort
-    |> exec ) ;
+    ( queryv
+        (binop
+           "&&"
+           (field "v" "human")
+           (binop ">" (field "v" "height") (int 66)))
+    |> execs ) ;
   check_dval
     "inlining"
     (DList [Dval.dint 65; Dval.dint 73])
-    ( query
-        (lambda
-           ["v"]
-           (let'
-              "x"
-              (int 32)
-              (binop
-                 "&&"
-                 (bool true)
-                 (binop ">" (fieldAccess (var "v") "height") (var "x")))))
-    |> sort
-    |> exec ) ;
+    ( queryv
+        (let'
+           "x"
+           (int 32)
+           (binop "&&" (bool true) (binop ">" (field "v" "height") (var "x"))))
+    |> execs ) ;
   check_dval
     "pipes"
     (DList [Dval.dint 10])
-    ( query
-        (lambda
-           ["v"]
-           (pipe
-              (fieldAccess (var "v") "height")
-              [binop "*" pipeTarget (int 2); binop "<" pipeTarget (int 40)]))
-    |> sort
-    |> exec ) ;
+    ( queryv
+        (pipe
+           (field "v" "height")
+           [binop "*" pipeTarget (int 2); binop "<" pipeTarget (int 40)])
+    |> execs ) ;
   check_dval
     "external variable works"
     (DList [Dval.dint 10])
-    ( query
-        (lambda
-           ["v"]
-           (pipe
-              (fieldAccess (var "v") "height")
-              [binop "<" pipeTarget (var "x")]))
-    |> sort
+    ( queryv (pipe (field "v" "height") [binop "<" pipeTarget (var "x")])
     |> withvar "x" (int 20)
-    |> exec ) ;
+    |> execs ) ;
   check_dval
     "float"
     (DList [Dval.dint 73])
-    ( query
-        (lambda
-           ["v"]
-           (binop
-              "Float::greaterThan"
-              (fieldAccess (var "v") "income")
-              (float' "90" "0")))
-    |> sort
-    |> exec ) ;
+    ( queryv (binop "Float::greaterThan" (field "v" "income") (float' "90" "0"))
+    |> execs ) ;
   check_dval
     "fieldAccess"
     (DList [Dval.dint 65; Dval.dint 73])
     ( let'
         "myObj"
         (record [("x", int 42)])
-        (query
-           (lambda
-              ["v"]
-              (binop
-                 ">"
-                 (fieldAccess (var "v") "height")
-                 (fieldAccess (var "myObj") "x"))))
-    |> sort
-    |> exec ) ;
+        (queryv (binop ">" (field "v" "height") (field "myObj" "x")))
+    |> execs ) ;
   check_dval
     "nested fieldAccess"
     (DList [Dval.dint 65; Dval.dint 73])
     ( let'
         "myObj"
         (record [("field1", record [("field2", int 42)])])
-        (query
-           (lambda
-              ["v"]
-              (binop
-                 ">"
-                 (fieldAccess (var "v") "height")
-                 (fieldAccess (fieldAccess (var "myObj") "field1") "field2"))))
-    |> sort
-    |> exec ) ;
+        (queryv
+           (binop
+              ">"
+              (field "v" "height")
+              (fieldAccess (field "myObj" "field1") "field2")))
+    |> execs ) ;
   check_error
     "not a bool"
-    (query (lambda ["v"] (str "x")) |> exec)
+    (queryv (str "x") |> exec)
     (Db.dbQueryExceptionToString
        (Db.DBQueryException
           "Incorrect type in `\"x\"`, expected Bool but got a str")) ;
   check_error
     "bad variable name"
-    ( query
-        (lambda
-           ["v"]
-           (let'
-              "x"
-              (int 32)
-              (binop
-                 "&&"
-                 (bool true)
-                 (binop ">" (fieldAccess (var "v") "height") (var "y")))))
+    ( queryv
+        (let'
+           "x"
+           (int 32)
+           (binop "&&" (bool true) (binop ">" (field "v" "height") (var "y"))))
     |> exec )
     (Db.dbQueryExceptionToString
        (Db.DBQueryException "This variable is not defined: y")) ;
   check_dval
     "sql injection"
     (DList [])
-    ( query
-        (lambda
-           ["v"]
-           (binop
-              "=="
-              (str "; select * from users ;")
-              (fieldAccess (var "v") "name")))
+    ( queryv (binop "==" (str "; select * from users ;") (field "v" "name"))
     |> exec ) ;
   check_dval
     "null equality works"
     (DList [DNull])
-    ( query (lambda ["v"] (binop "==" (fieldAccess (var "v") "name") null))
-    |> sort
-    |> exec ) ;
+    (queryv (binop "==" (field "v" "name") null) |> execs) ;
   check_dval
     "null inequality works"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    ( query (lambda ["v"] (binop "!=" (fieldAccess (var "v") "name") null))
-    |> sort
-    |> exec ) ;
+    (queryv (binop "!=" (field "v" "name") null) |> execs) ;
   check_dval
     "null is not 'null'"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    ( query
-        (lambda ["v"] (binop "!=" (fieldAccess (var "v") "name") (str "null")))
-    |> sort
-    |> exec ) ;
+    (queryv (binop "!=" (field "v" "name") (str "null")) |> execs) ;
   (* Just check enough of the other functions to verify the signature -
    * they all use they same function behind the scenes. *)
-  let _queryWithKeys code = "(DB::queryWithKeys_v3 Person (" ^ code ^ "))" in
   check_dval
     "queryOne - multiple"
     (DOption OptNothing)
-    ( fn
-        "DB::queryOne_v3"
-        [var "Person"; lambda ["v"] (fieldAccess (var "v") "human")]
+    ( fn "DB::queryOne_v3" [var "Person"; lambda ["v"] (field "v" "human")]
     |> exec ) ;
   check_dval
     "queryOne - none"
     (DOption OptNothing)
     ( fn
         "DB::queryOne_v3"
-        [ var "Person"
-        ; lambda ["v"] (binop "==" (str "bob") (fieldAccess (var "v") "name"))
-        ]
+        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
     |> exec ) ;
   check_dval
     "queryOne - one"
@@ -891,28 +824,22 @@ let t_db_query_works () =
         (fn
            "DB::queryOne_v3"
            [ var "Person"
-           ; lambda
-               ["v"]
-               (binop "==" (str "Rachel") (fieldAccess (var "v") "name")) ])
-        [ fn
-            "Option::map_v1"
-            [pipeTarget; lambda ["r"] (fieldAccess (var "r") "height")] ]
+           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
+        [fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "height")]]
     |> exec ) ;
   check_dval
     "queryOneWithKey - multiple"
     (DOption OptNothing)
     ( fn
         "DB::queryOneWithKey_v3"
-        [var "Person"; lambda ["v"] (fieldAccess (var "v") "human")]
+        [var "Person"; lambda ["v"] (field "v" "human")]
     |> exec ) ;
   check_dval
     "queryOneWithKey - none"
     (DOption OptNothing)
     ( fn
         "DB::queryOneWithKey_v3"
-        [ var "Person"
-        ; lambda ["v"] (binop "==" (str "bob") (fieldAccess (var "v") "name"))
-        ]
+        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
     |> exec ) ;
   check_dval
     "queryOneWithKey - one"
@@ -921,24 +848,16 @@ let t_db_query_works () =
         (fn
            "DB::queryOneWithKey_v3"
            [ var "Person"
-           ; lambda
-               ["v"]
-               (binop "==" (str "Rachel") (fieldAccess (var "v") "name")) ])
-        [ fn
-            "Option::map_v1"
-            [pipeTarget; lambda ["r"] (fieldAccess (var "r") "rachel")]
-        ; fn
-            "Option::map_v1"
-            [pipeTarget; lambda ["r"] (fieldAccess (var "r") "height")] ]
+           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
+        [ fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "rachel")]
+        ; fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "height")] ]
     |> exec ) ;
   check_dval
     "queryOneWithKey - empty"
     (DObj DvalMap.empty)
     ( fn
         "DB::queryWithKey_v3"
-        [ var "Person"
-        ; lambda ["v"] (binop "==" (str "bob") (fieldAccess (var "v") "name"))
-        ]
+        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
     |> exec ) ;
   check_dval
     "queryWithKey - more than one"
@@ -947,11 +866,8 @@ let t_db_query_works () =
         (fn
            "DB::queryWithKey_v3"
            [ var "Person"
-           ; lambda
-               ["v"]
-               (binop "==" (str "Rachel") (fieldAccess (var "v") "name")) ])
-        [ lambda ["r"] (fieldAccess (var "r") "rachel")
-        ; lambda ["r"] (fieldAccess (var "r") "height") ]
+           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
+        [lambda ["r"] (field "r" "rachel"); lambda ["r"] (field "r" "height")]
     |> exec ) ;
   ()
 
