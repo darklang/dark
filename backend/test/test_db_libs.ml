@@ -921,19 +921,18 @@ let t_db_query_works () =
               (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a")
               (fn "String::length" [field "v" "name"])))
     |> execs ) ;
-  (* check_dval *)
-  (*   "partial evaluation - fieldAccesses" *)
-  (*   (DList [Dval.dint 10; Dval.dint 65]) *)
-  (*   ( queryv *)
-  (*       (let' *)
-  (*          "x" *)
-  (*          (record [("y", record [("z", record [("a", int 5)])])]) *)
-  (*          (binop *)
-  (*             "<" *)
-  (*             (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a") *)
-  (*             (fn "String::length" [field "v" "name"]))) *)
-  (*   |> execs ) ; *)
-
+  check_dval
+    "partial evaluation - fieldAccesses"
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( queryv
+        (let'
+           "x"
+           (record [("y", record [("z", record [("a", int 5)])])])
+           (binop
+              "<"
+              (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a")
+              (fn "String::length" [field "v" "name"])))
+    |> execs ) ;
   (* check_dval *)
   (*   "partial execution - List::length" *)
   (*   (DList [Dval.dint 10; Dval.dint 65]) *)

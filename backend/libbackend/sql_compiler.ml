@@ -272,6 +272,9 @@ let rec lambda_to_sql
       error2 "We do not yet support compiling this code" (show_expr expr)
 
 
+(* Trying to get rid of complex expressions, including values which can be
+ * evaluated at compile-time, expressions that rely on external values. We do
+ * this by evaluating them and moving their results into the symbol table. *)
 let partially_evaluate
     (state : exec_state)
     (param_name : string)
@@ -279,15 +282,22 @@ let partially_evaluate
     (body : expr) : dval_map * expr =
   let symtable = ref symtable in
   Libcommon.Log.inspecT "body before" ~f:show_expr body ;
+  let exec expr =
+    let gid = Libshared.Shared.gid in
+    let new_name = "dark_generated_" ^ Util.random_string 8 in
+    let value = state.exec ~state !symtable expr in
+    symtable := DvalMap.insert ~key:new_name ~value !symtable ;
+    Filled (gid (), Variable new_name)
+  in
   let f expr =
     match expr with
     | Filled (_, FieldAccess (Filled (_, Variable name), Filled (_, field)))
       when name <> param_name ->
-        let gid = Libshared.Shared.gid in
-        let new_name = "dark_generated_" ^ Util.random_string 5 in
-        let value = state.exec ~state !symtable expr in
-        symtable := DvalMap.insert ~key:new_name ~value !symtable ;
-        Filled (gid (), Variable new_name)
+        exec expr
+    | Filled
+        (_, FieldAccess (Filled (_, ObjectLiteral fields), Filled (_, field)))
+      ->
+        exec expr
     | _ ->
         expr
   in
