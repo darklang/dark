@@ -417,25 +417,30 @@ let runTest (test : FuzzTest.t) : unit =
           Tester.test name (fun () ->
               setSeed !seed ;
               let testcase = generateExpr () |> FluidExpression.clone in
-              Js.log2 "testing: " name ;
-              (* Js.log2 "testcase: " (E.show testcase) ; *)
-              let passed =
-                match try Some (test.fn testcase) with _ -> None with
-                | Some (newAST, newState) ->
-                    Js.log2 "checking: " name ;
-                    test.check ~testcase ~newAST newState
-                | None ->
-                    false
-              in
-              if passed = false
+              if test.ignore testcase
               then (
-                Js.log2 "failed: " name ;
-                let reduced = reduce test testcase in
-                Js.log2 "finished program:\n  " (toText reduced) ;
-                Js.log2 "as expr:\n  " (E.show reduced) ;
-                Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
-                fail () )
-              else pass ()) ;
+                Js.log2 "ignoring: " name ;
+                skip () )
+              else (
+                Js.log2 "testing: " name ;
+                (* Js.log2 "testcase: " (E.show testcase) ; *)
+                let passed =
+                  match try Some (test.fn testcase) with _ -> None with
+                  | Some (newAST, newState) ->
+                      Js.log2 "checking: " name ;
+                      test.check ~testcase ~newAST newState
+                  | None ->
+                      false
+                in
+                if passed = false
+                then (
+                  Js.log2 "failed: " name ;
+                  let reduced = reduce test testcase in
+                  Js.log2 "finished program:\n  " (toText reduced) ;
+                  Js.log2 "as expr:\n  " (E.show reduced) ;
+                  Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
+                  fail () )
+                else pass () )) ;
           seed := !seed + 1 ;
           continue_loop := !continue ;
           if !stopOnFail && Tester.fails () <> [] then exit (-1) ;
