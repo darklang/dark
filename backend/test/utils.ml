@@ -414,6 +414,16 @@ let exec_handler ?(ops = []) (prog : string) : dval =
   |> fun h -> execute_ops (ops @ [h])
 
 
+let exec_handler' ?(ops = []) (ast : Libshared.FluidExpression.t) : dval =
+  ast
+  |> Fluid.fromFluidExpr
+  |> Libcommon.Log.inspect "exec_handler'" ~f:show_expr
+  (* |> Log.pp ~f:show_expr *)
+  |> handler
+  |> hop
+  |> fun h -> execute_ops (ops @ [h])
+
+
 let exec_ast ?(ops = []) ?(canvas_name = "test") (prog : string) : dval =
   let c, state, input_vars = test_execution_data ~canvas_name ops in
   let result = Ast.execute_ast ~input_vars ~state (ast_for prog) in
@@ -421,10 +431,10 @@ let exec_ast ?(ops = []) ?(canvas_name = "test") (prog : string) : dval =
 
 
 let exec_ast'
-    ?(ops = []) ?(canvas_name = "test") (prog : Libshared.FluidExpression.t) :
+    ?(ops = []) ?(canvas_name = "test") (ast : Libshared.FluidExpression.t) :
     dval =
   let c, state, input_vars = test_execution_data ~canvas_name ops in
-  let result = Ast.execute_ast ~input_vars ~state (Fluid.fromFluidExpr prog) in
+  let result = Ast.execute_ast ~input_vars ~state (Fluid.fromFluidExpr ast) in
   result
 
 
