@@ -799,6 +799,21 @@ let t_db_query_works () =
                  (fieldAccess (var "myObj") "x"))))
     |> sort
     |> exec ) ;
+  check_dval
+    "nested fieldAccess"
+    (DList [Dval.dint 65; Dval.dint 73])
+    ( let'
+        "myObj"
+        (record [("field1", record [("field2", int 42)])])
+        (query
+           (lambda
+              ["v"]
+              (binop
+                 ">"
+                 (fieldAccess (var "v") "height")
+                 (fieldAccess (fieldAccess (var "myObj") "field1") "field2"))))
+    |> sort
+    |> exec ) ;
   check_error
     "not a bool"
     (query (lambda ["v"] (str "x")) |> exec)

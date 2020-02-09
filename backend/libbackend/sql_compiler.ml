@@ -263,6 +263,28 @@ let rec lambda_to_sql
           error2 "Accessing a field of a non-object" fieldname )
     | _ ->
         error2 "Accessing a field of a non-object" varname )
+  | Filled
+      ( _
+      , FieldAccess
+          ( Filled
+              (_, FieldAccess (Filled (_, Variable varname), Filled (_, field1)))
+          , Filled (_, field2) ) ) ->
+    (* TODO: this is a hack to support nested fields, but only support nested
+     * fields two levels deep. There must be something better than this. *)
+    ( match DvalMap.get ~key:varname symtable with
+    | Some (DObj fields) ->
+      ( match DvalMap.get ~key:field1 fields with
+      | Some (DObj fields) ->
+        ( match DvalMap.get ~key:field2 fields with
+        | Some dval ->
+            typecheckDval varname dval expected_tipe ;
+            "(" ^ dval_to_sql dval ^ ")"
+        | None ->
+            error2 "Accessing a field of a non-object" field2 )
+      | _ ->
+          error2 "Accessing a field of a non-object" field1 )
+    | _ ->
+        error2 "Accessing a field of a non-object" varname )
   | _ ->
       error2 "We do not yet support compiling this code" (show_expr expr)
 
