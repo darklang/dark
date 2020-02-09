@@ -784,6 +784,21 @@ let t_db_query_works () =
               (float' "90" "0")))
     |> sort
     |> exec ) ;
+  check_dval
+    "fieldAccess"
+    (DList [Dval.dint 65; Dval.dint 73])
+    ( let'
+        "myObj"
+        (record [("x", int 42)])
+        (query
+           (lambda
+              ["v"]
+              (binop
+                 ">"
+                 (fieldAccess (var "v") "height")
+                 (fieldAccess (var "myObj") "x"))))
+    |> sort
+    |> exec ) ;
   check_error
     "not a bool"
     (query (lambda ["v"] (str "x")) |> exec)
