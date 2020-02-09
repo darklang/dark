@@ -550,6 +550,9 @@ let t_sql_compiler_works () =
   let open Types in
   let open Prelude in
   let f nexpr = Filled (Util.create_id (), nexpr) in
+  let _, state, _ = Utils.test_execution_data [] in
+  (* TODO: the state provided won't be enough to exec the sql compiler partial
+   * evaluation *)
   let check
       (msg : string)
       ?(paramName = "value")
@@ -559,7 +562,9 @@ let t_sql_compiler_works () =
       (generated : string) : unit =
     let dbFields = StrDict.from_list dbFields in
     let symtable = StrDict.from_list symtable in
-    let result = Sql_compiler.compile_lambda symtable paramName dbFields body in
+    let result =
+      Sql_compiler.compile_lambda ~state symtable paramName dbFields body
+    in
     AT.check AT.string msg result generated
   in
   let checkError
@@ -770,7 +775,7 @@ let t_db_query_works () =
     (queryv (str "x") |> exec)
     (Db.dbQueryExceptionToString
        (Db.DBQueryException
-          "Incorrect type in `\"x\"`, expected Bool but got a str")) ;
+          "Incorrect type in `\"x\"`, expected Bool but got a str in \"x\"")) ;
   check_error
     "bad variable name"
     ( queryv
@@ -892,6 +897,48 @@ let t_db_query_works () =
     (DList [Dval.dint 10; Dval.dint 65])
     ( queryv (binop ">" (fn "String::length" [field "v" "name"]) (int 5))
     |> execs ) ;
+  (* -------------- *)
+  (* Test partial evaluation *)
+  (* -------------- *)
+  check_dval
+    "partial evaluation - fieldAccesses outside query"
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( let'
+        "x"
+        (record [("y", record [("z", record [("a", int 5)])])])
+        (queryv
+           (binop
+              "<"
+              (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a")
+              (fn "String::length" [field "v" "name"])))
+    |> execs ) ;
+  (* check_dval *)
+  (*   "partial evaluation - fieldAccesses" *)
+  (*   (DList [Dval.dint 10; Dval.dint 65]) *)
+  (*   ( queryv *)
+  (*       (let' *)
+  (*          "x" *)
+  (*          (record [("y", record [("z", record [("a", int 5)])])]) *)
+  (*          (binop *)
+  (*             "<" *)
+  (*             (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a") *)
+  (*             (fn "String::length" [field "v" "name"]))) *)
+  (*   |> execs ) ; *)
+
+  (* check_dval *)
+  (*   "partial execution - List::length" *)
+  (*   (DList [Dval.dint 10; Dval.dint 65]) *)
+  (*   ( queryv *)
+  (*       (let' *)
+  (*          "x" *)
+  (*          (record [("y", record [("z", record [("a", list [int 5; int 6])])])]) *)
+  (*          (binop *)
+  (*             "<" *)
+  (*             (pipe *)
+  (*                (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a") *)
+  (*                [fn "List::length" [pipeTarget]]) *)
+  (*             (fn "String::length" [field "v" "name"]))) *)
+  (*   |> execs ) ; *)
   ()
 
 

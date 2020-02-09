@@ -353,6 +353,7 @@ let test_execution_data
     ; execution_id
     ; trace = (fun _ _ -> ())
     ; trace_tlid = (fun _ -> ())
+    ; exec = (fun ~state _ _ -> Exception.internal "invalid call to exec")
     ; context = Real
     ; load_fn_result = load_test_fn_results
     ; store_fn_result =
@@ -378,6 +379,7 @@ let execute_ops
         ; dbs
         ; trace
         ; trace_tlid
+        ; exec
         ; context
         ; user_fns
         ; user_tipes

@@ -331,7 +331,7 @@ let query ~state (db : db) (b : dblock_args) : (string * dval) list =
         Exception.internal "wrong number of args"
   in
   let sql =
-    Sql_compiler.compile_lambda b.symtable param_name db_fields b.body
+    Sql_compiler.compile_lambda ~state b.symtable param_name db_fields b.body
   in
   let result =
     try

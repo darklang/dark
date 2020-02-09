@@ -542,6 +542,7 @@ module RuntimeT = struct
     ; trace_tlid : tlid -> unit
     ; context : context
     ; execution_id : id
+    ; exec : state:exec_state -> dval_map -> expr -> dval
     ; load_fn_result : load_fn_result_type
     ; store_fn_result : store_fn_result_type
     ; load_fn_arguments : load_fn_arguments_type
