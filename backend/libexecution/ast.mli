@@ -34,6 +34,12 @@ val execute_dblock :
   -> Types.RuntimeT.dval list
   -> Types.RuntimeT.dval
 
+val exec :
+     state:Types.RuntimeT.exec_state
+  -> Types.RuntimeT.dval_map
+  -> Types.RuntimeT.expr
+  -> Types.RuntimeT.dval
+
 val execute_ast :
      state:Types.RuntimeT.exec_state
   -> input_vars:Types.RuntimeT.input_vars
