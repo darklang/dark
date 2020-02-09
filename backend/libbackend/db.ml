@@ -30,6 +30,7 @@ type param =
   | ID of Types.id
   | String of string
   | Uuid of Uuidm.t
+  | Float of float
   | Binary of string
   (* only works for passed params *)
   | Secret of string
@@ -61,6 +62,8 @@ let rec escape (param : param) : string =
       Types.string_of_id id
   | String str ->
       str |> escape_string |> single_quote
+  | Float f ->
+      string_of_float f
   | Uuid uuid ->
       uuid
       |> Uuidm.to_string
@@ -112,6 +115,8 @@ let rec to_sql param : string =
       str
   | Uuid uuid ->
       Uuidm.to_string uuid
+  | Float f ->
+      string_of_float f
   | Binary str ->
       str (* the to_binary_bool handled this *)
   | Secret str ->
@@ -152,6 +157,8 @@ let rec to_log param : string =
       abbrev str
   | Uuid uuid ->
       Uuidm.to_string uuid
+  | Float f ->
+      string_of_float f
   | Binary str ->
       "<binary>"
   | Secret str ->

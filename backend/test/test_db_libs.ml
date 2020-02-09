@@ -631,7 +631,10 @@ let t_db_query_works () =
     ; Op.SetDBColType (dbid, coltypeid2, "Bool")
     ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
     ; Op.SetDBColName (dbid, colnameid3, "height")
-    ; Op.SetDBColType (dbid, coltypeid3, "Int") ]
+    ; Op.SetDBColType (dbid, coltypeid3, "Int")
+    ; Op.AddDBCol (dbid, colnameid4, coltypeid4)
+    ; Op.SetDBColName (dbid, colnameid4, "income")
+    ; Op.SetDBColType (dbid, coltypeid4, "Float") ]
   in
   (* Prepopulate the DB for tests *)
   exec_handler'
@@ -641,7 +644,10 @@ let t_db_query_works () =
        (fn
           "DB::set_v1"
           [ record
-              [("height", int 73); ("name", str "Ross"); ("human", bool true)]
+              [ ("height", int 73)
+              ; ("name", str "Ross")
+              ; ("human", bool true)
+              ; ("income", float' "100" "00") ]
           ; str "ross"
           ; var "Person" ])
        (let'
@@ -651,7 +657,8 @@ let t_db_query_works () =
              [ record
                  [ ("height", int 65)
                  ; ("name", str "Rachel")
-                 ; ("human", bool true) ]
+                 ; ("human", bool true)
+                 ; ("income", float' "82" "00") ]
              ; str "rachel"
              ; var "Person" ])
           (let'
@@ -661,14 +668,19 @@ let t_db_query_works () =
                 [ record
                     [ ("height", int 10)
                     ; ("name", str "GrumpyCat")
-                    ; ("human", bool false) ]
+                    ; ("human", bool false)
+                    ; ("income", float' "0" "00") ]
                 ; str "cat"
                 ; var "Person" ])
              (let'
                 "_"
                 (fn
                    "DB::set_v1"
-                   [ record [("height", null); ("name", null); ("human", null)]
+                   [ record
+                       [ ("height", null)
+                       ; ("name", null)
+                       ; ("human", null)
+                       ; ("income", null) ]
                    ; str "null"
                    ; var "Person" ])
                 (EBlank (Libshared.Shared.gid ()))))))
@@ -759,6 +771,18 @@ let t_db_query_works () =
               [binop "<" pipeTarget (var "x")]))
     |> sort
     |> withvar "x" (int 20)
+    |> exec ) ;
+  check_dval
+    "float"
+    (DList [Dval.dint 73])
+    ( query
+        (lambda
+           ["v"]
+           (binop
+              "Float::greaterThan"
+              (fieldAccess (var "v") "income")
+              (float' "90" "0")))
+    |> sort
     |> exec ) ;
   check_error
     "not a bool"
