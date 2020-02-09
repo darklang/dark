@@ -241,6 +241,95 @@ let hasEmptyWithId (id : id) (expr : t) : bool =
   match find id expr with Some e -> isEmpty e | _ -> false
 
 
+let rec preTraversal ~(f : t -> t) (expr : t) : t =
+  let r = preTraversal ~f in
+  match f expr with
+  | EInteger _
+  | EBlank _
+  | EString _
+  | EVariable _
+  | EBool _
+  | ENull _
+  | EPipeTarget _
+  | EFloat _ ->
+      expr
+  | ELet (id, name, rhs, next) ->
+      ELet (id, name, r rhs, r next)
+  | EIf (id, cond, ifexpr, elseexpr) ->
+      EIf (id, r cond, r ifexpr, r elseexpr)
+  | EBinOp (id, op, lexpr, rexpr, ster) ->
+      EBinOp (id, op, r lexpr, r rexpr, ster)
+  | EFieldAccess (id, expr, fieldname) ->
+      EFieldAccess (id, r expr, fieldname)
+  | EFnCall (id, name, exprs, ster) ->
+      EFnCall (id, name, List.map ~f:r exprs, ster)
+  | ELambda (id, names, expr) ->
+      ELambda (id, names, r expr)
+  | EList (id, exprs) ->
+      EList (id, List.map ~f:r exprs)
+  | EMatch (id, mexpr, pairs) ->
+      EMatch
+        (id, r mexpr, List.map ~f:(fun (name, expr) -> (name, r expr)) pairs)
+  | ERecord (id, fields) ->
+      ERecord (id, List.map ~f:(fun (name, expr) -> (name, r expr)) fields)
+  | EPipe (id, exprs) ->
+      EPipe (id, List.map ~f:r exprs)
+  | EConstructor (id, name, exprs) ->
+      EConstructor (id, name, List.map ~f:r exprs)
+  | EPartial (id, str, oldExpr) ->
+      EPartial (id, str, r oldExpr)
+  | ERightPartial (id, str, oldExpr) ->
+      ERightPartial (id, str, r oldExpr)
+  | EFeatureFlag (id, msg, cond, casea, caseb) ->
+      EFeatureFlag (id, msg, r cond, r casea, r caseb)
+
+
+let rec postTraversal ~(f : t -> t) (expr : t) : t =
+  let r = postTraversal ~f in
+  let result =
+    match expr with
+    | EInteger _
+    | EBlank _
+    | EString _
+    | EVariable _
+    | EBool _
+    | ENull _
+    | EPipeTarget _
+    | EFloat _ ->
+        expr
+    | ELet (id, name, rhs, next) ->
+        ELet (id, name, r rhs, r next)
+    | EIf (id, cond, ifexpr, elseexpr) ->
+        EIf (id, r cond, r ifexpr, r elseexpr)
+    | EBinOp (id, op, lexpr, rexpr, ster) ->
+        EBinOp (id, op, r lexpr, r rexpr, ster)
+    | EFieldAccess (id, expr, fieldname) ->
+        EFieldAccess (id, r expr, fieldname)
+    | EFnCall (id, name, exprs, ster) ->
+        EFnCall (id, name, List.map ~f:r exprs, ster)
+    | ELambda (id, names, expr) ->
+        ELambda (id, names, r expr)
+    | EList (id, exprs) ->
+        EList (id, List.map ~f:r exprs)
+    | EMatch (id, mexpr, pairs) ->
+        EMatch
+          (id, r mexpr, List.map ~f:(fun (name, expr) -> (name, r expr)) pairs)
+    | ERecord (id, fields) ->
+        ERecord (id, List.map ~f:(fun (name, expr) -> (name, r expr)) fields)
+    | EPipe (id, exprs) ->
+        EPipe (id, List.map ~f:r exprs)
+    | EConstructor (id, name, exprs) ->
+        EConstructor (id, name, List.map ~f:r exprs)
+    | EPartial (id, str, oldExpr) ->
+        EPartial (id, str, r oldExpr)
+    | ERightPartial (id, str, oldExpr) ->
+        ERightPartial (id, str, r oldExpr)
+    | EFeatureFlag (id, msg, cond, casea, caseb) ->
+        EFeatureFlag (id, msg, r cond, r casea, r caseb)
+  in
+  f result
+
+
 let walk ~(f : t -> t) (expr : t) : t =
   match expr with
   | EInteger _

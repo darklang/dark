@@ -203,88 +203,83 @@ end
 (* Test case reduction *)
 (* ------------------ *)
 
-let rec unwrap (id : id) (expr : E.t) : E.t =
-  let f = unwrap id in
+let unwrap (id : id) (ast : E.t) : E.t =
   let childOr (exprs : E.t list) =
     List.find exprs ~f:(fun e -> E.toID e = id)
   in
-  let newExpr =
-    match expr with
-    | ELet (_, _, rhs, next) ->
-        childOr [rhs; next]
-    | EIf (_, cond, ifexpr, elseexpr) ->
-        childOr [cond; ifexpr; elseexpr]
-    | EBinOp (_, _, lexpr, rexpr, _) ->
-        childOr [lexpr; rexpr]
-    | EFieldAccess (_, expr, _) ->
-        childOr [expr]
-    | EFnCall (_, _, exprs, _) ->
-        childOr exprs
-    | ELambda (_, _, body) ->
-        childOr [body]
-    | EList (_, exprs) ->
-        childOr exprs
-    | EMatch (_, mexpr, pairs) ->
-        childOr (mexpr :: List.map ~f:Tuple2.second pairs)
-    | ERecord (_, fields) ->
-        childOr (List.map ~f:Tuple2.second fields)
-    | EPipe (_, exprs) ->
-        childOr exprs
-    | EConstructor (_, _, exprs) ->
-        childOr exprs
-    | EPartial (_, _, oldExpr) ->
-        childOr [oldExpr]
-    | ERightPartial (_, _, oldExpr) ->
-        childOr [oldExpr]
-    | EFeatureFlag (_, _, cond, casea, caseb) ->
-        childOr [cond; casea; caseb]
-    | _ ->
-        None
-  in
-  let newExpr = Option.withDefault ~default:expr newExpr in
-  E.walk ~f newExpr
+  E.postTraversal ast ~f:(fun e ->
+      let newExpr =
+        match e with
+        | ELet (_, _, rhs, next) ->
+            childOr [rhs; next]
+        | EIf (_, cond, ifexpr, elseexpr) ->
+            childOr [cond; ifexpr; elseexpr]
+        | EBinOp (_, _, lexpr, rexpr, _) ->
+            childOr [lexpr; rexpr]
+        | EFieldAccess (_, expr, _) ->
+            childOr [expr]
+        | EFnCall (_, _, exprs, _) ->
+            childOr exprs
+        | ELambda (_, _, body) ->
+            childOr [body]
+        | EList (_, exprs) ->
+            childOr exprs
+        | EMatch (_, mexpr, pairs) ->
+            childOr (mexpr :: List.map ~f:Tuple2.second pairs)
+        | ERecord (_, fields) ->
+            childOr (List.map ~f:Tuple2.second fields)
+        | EPipe (_, exprs) ->
+            childOr exprs
+        | EConstructor (_, _, exprs) ->
+            childOr exprs
+        | EPartial (_, _, oldExpr) ->
+            childOr [oldExpr]
+        | ERightPartial (_, _, oldExpr) ->
+            childOr [oldExpr]
+        | EFeatureFlag (_, _, cond, casea, caseb) ->
+            childOr [cond; casea; caseb]
+        | _ ->
+            None
+      in
+      Option.withDefault ~default:e newExpr)
 
 
-let rec changeStrings (id : id) ~(f : string -> string) (expr : E.t) : E.t =
-  let open FluidExpression in
+let changeStrings (id : id) ~(f : string -> string) (ast : E.t) : E.t =
   let fStr strid str = if strid = id then f str else str in
-  let newExpr =
-    match expr with
-    | ELet (id, name, rhs, next) ->
-        ELet (id, fStr id name, rhs, next)
-    | EFieldAccess (id, expr, fieldname) ->
-        EFieldAccess (id, expr, fStr id fieldname)
-    | EPartial (id, name, expr) ->
-        let newName = f name in
-        if newName = "" then expr else EPartial (id, newName, expr)
-    | ERightPartial (id, name, expr) ->
-        let newName = f name in
-        if newName = "" then expr else ERightPartial (id, newName, expr)
-    | EFnCall (id, name, exprs, ster) ->
-        let newName = f name in
-        if newName = "" then expr else EFnCall (id, newName, exprs, ster)
-    | EBinOp (id, name, lhs, rhs, ster) ->
-        let newName = f name in
-        if newName = "" then expr else EBinOp (id, newName, lhs, rhs, ster)
-    | ELambda (id, names, expr) ->
-        let names =
-          List.map names ~f:(fun (nid, name) ->
-              if nid = id then (nid, f name) else (nid, name))
-        in
-        ELambda (id, names, expr)
-    | ERecord (rid, fields) ->
-        ERecord
-          ( rid
-          , List.map
-              ~f:(fun (name, expr) ->
-                if id = E.toID expr then (f name, expr) else (name, expr))
-              fields )
-    | EString (id, str) ->
-        EString (id, f str)
-    | _ ->
-        expr
-  in
-  E.walk ~f:(changeStrings id ~f) newExpr
+  E.postTraversal ast ~f:(function
+      | ELet (id, name, rhs, next) ->
+          ELet (id, fStr id name, rhs, next)
+      | EFieldAccess (id, expr, fieldname) ->
+          EFieldAccess (id, expr, fStr id fieldname)
+      | EPartial (id, name, expr) ->
+          let newName = fStr id name in
+          if newName = "" then expr else EPartial (id, newName, expr)
+      | ERightPartial (id, name, expr) ->
+          let newName = fStr id name in
+          if newName = "" then expr else ERightPartial (id, newName, expr)
+      | EFnCall (id, name, exprs, ster) as e ->
+          let newName = fStr id name in
+          if newName = "" then e else EFnCall (id, newName, exprs, ster)
+      | EBinOp (id, name, lhs, rhs, ster) as e ->
+          let newName = fStr id name in
+          if newName = "" then e else EBinOp (id, newName, lhs, rhs, ster)
+      | ELambda (id, names, expr) ->
+          let names =
+            List.map names ~f:(fun (nid, name) ->
+                if nid = id then (nid, fStr id name) else (nid, name))
+          in
+          ELambda (id, names, expr)
+      | ERecord (rid, fields) ->
+          ERecord
+            ( rid
+            , List.map
+                ~f:(fun (name, expr) ->
+                  if id = E.toID expr then (fStr id name, expr) else (name, expr))
+                fields )
+      | EString (id, str) ->
+          EString (id, fStr id str)
+      | expr ->
+          expr)
 
 
 let blankVarNames (id : id) (expr : E.t) : E.t =
@@ -295,26 +290,17 @@ let shortenNames (id : id) (expr : E.t) : E.t =
   changeStrings ~f:(String.dropRight ~count:1) id expr
 
 
-let rec remove (id : id) (expr : E.t) : E.t =
-  let r e = remove id e in
-  let removeFromList exprs =
-    List.filterMap exprs ~f:(fun e ->
-        if E.toID e = id then None else Some (r e))
-  in
-  if E.toID expr = id
-  then EBlank id
-  else
-    let f expr =
-      match expr with
-      | EFieldAccess (faID, expr, fieldname) ->
-          if id = faID then expr else EFieldAccess (faID, r expr, fieldname)
+let remove (id : id) (ast : E.t) : E.t =
+  let removeFromList exprs = List.filter exprs ~f:(fun e -> E.toID e <> id) in
+  E.postTraversal ast ~f:(function
+      | e when E.toID e = id ->
+          EBlank id
       | EFnCall (id, name, exprs, ster) ->
           EFnCall (id, name, removeFromList exprs, ster)
       | ELambda (id, names, expr) ->
           let names =
             names
-            |> List.filterMap ~f:(fun (nid, name) ->
-                   if nid = id then None else Some (nid, name))
+            |> List.filter ~f:(fun (nid, _) -> nid <> id)
             |> fun x -> if x = [] then List.take ~count:1 names else x
           in
           ELambda (id, names, expr)
@@ -324,12 +310,8 @@ let rec remove (id : id) (expr : E.t) : E.t =
           EMatch
             ( mid
             , mexpr
-            , List.filterMap
-                ~f:(fun (pattern, expr) ->
-                  if E.toID expr = id || FluidPattern.toID pattern = id
-                  then None
-                  else Some (pattern, expr))
-                pairs )
+            , List.filter pairs ~f:(fun (pattern, expr) ->
+                  E.toID expr <> id && FluidPattern.toID pattern <> id) )
       | ERecord (rid, fields) ->
           ERecord
             ( rid
@@ -353,16 +335,12 @@ let rec remove (id : id) (expr : E.t) : E.t =
             EPipe (id, newExprs) )
       | EConstructor (id, name, exprs) ->
           EConstructor (id, name, removeFromList exprs)
-      | _ ->
-          expr
-    in
-    E.walk ~f expr
+      | expr ->
+          expr)
 
 
-let rec simplify (id : id) (expr : E.t) : E.t =
-  if E.toID expr = id && not (E.isBlank expr)
-  then EInteger (id, "5")
-  else E.walk ~f:(simplify id) expr
+let simplify (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(function EBlank e -> EBlank e | _ -> EInteger (id, "5"))
 
 
 let reduce (test : FuzzTest.t) (ast : E.t) =
