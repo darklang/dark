@@ -209,11 +209,15 @@ let colnameid3 = Int63.of_int 15
 
 let coltypeid3 = Int63.of_int 16
 
-let nameid = Int63.of_int 17
+let colnameid4 = Int63.of_int 17
 
-let nameid2 = Int63.of_int 217
+let coltypeid4 = Int63.of_int 18
 
-let nameid3 = Int63.of_int 317
+let nameid = Int63.of_int 27
+
+let nameid2 = Int63.of_int 227
+
+let nameid3 = Int63.of_int 327
 
 let pos = {x = 0; y = 0}
 

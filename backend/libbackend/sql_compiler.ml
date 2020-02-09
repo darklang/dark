@@ -12,6 +12,7 @@ let error2 msg str = error (msg ^ ": " ^ str)
 
 let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
   let allInts str = (TInt, TInt, TInt, str) in
+  let allFloats str = (TFloat, TFloat, TFloat, str) in
   let boolOp tipe str = (tipe, tipe, TBool, str) in
   match op with
   | ">" | "<" | "<=" | ">=" ->
@@ -22,7 +23,7 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       allInts "%"
   | "Int::add" ->
       allInts "+"
-  | "Int::substract" ->
+  | "Int::subtract" ->
       allInts "-"
   | "Int::multiply" ->
       allInts "*"
@@ -38,6 +39,26 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       boolOp TInt "<"
   | "Int::lessThanOrEqualTo" ->
       boolOp TInt "%"
+  | "Float::mod" ->
+      allFloats "%"
+  | "Float::add" ->
+      allFloats "+"
+  | "Float::subtract" ->
+      allFloats "-"
+  | "Float::multiply" ->
+      allFloats "*"
+  | "Float::power" ->
+      allFloats "^"
+  | "Float::divide" ->
+      allFloats "/"
+  | "Float::greaterThan" ->
+      boolOp TFloat ">"
+  | "Float::greaterThanOrEqualTo" ->
+      boolOp TFloat ">="
+  | "Float::lessThan" ->
+      boolOp TFloat "<"
+  | "Float::lessThanOrEqualTo" ->
+      boolOp TFloat "%"
   | "==" | "equals" ->
       boolOp TAny "="
   | "!=" | "notEquals" ->
@@ -132,12 +153,13 @@ let dval_to_sql (dval : dval) : string =
   | DOption _
   | DErrorRail _
   | DResult _
-  | DFloat _
   | DBytes _ ->
       error2 "This value is not yet supported" (Dval.to_developer_repr_v0 dval)
   | DInt i ->
       (* types don't line up to use Db.Int *)
       Db.escape_string (Dint.to_string i)
+  | DFloat v ->
+      Db.escape (Float v)
   | DBool b ->
       Db.escape (Bool b)
   | DNull ->
