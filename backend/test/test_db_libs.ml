@@ -737,6 +737,15 @@ let t_db_query_works () =
            (binop "&&" (bool true) (binop ">" (field "v" "height") (var "x"))))
     |> execs ) ;
   check_dval
+    "inlining - fieldAccesses"
+    (DList [Dval.dint 65; Dval.dint 73])
+    ( queryv
+        (let'
+           "x"
+           (field "v" "height")
+           (binop "&&" (bool true) (binop ">" (var "x") (int 32))))
+    |> execs ) ;
+  check_dval
     "pipes"
     (DList [Dval.dint 10])
     ( queryv

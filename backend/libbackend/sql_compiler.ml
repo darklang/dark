@@ -189,6 +189,33 @@ let typecheck (name : string) (actual_tipe : tipe_) (expected_tipe : tipe_) :
       ^ Dval.tipe_to_string actual_tipe )
 
 
+(* Inline `let` statements directly into where they are used. Since the code in
+* the lambda is supposed to be pure, inlining it should work. It may be that
+* using SQL variables for this is possible, but I couldn't find a way to do
+* that. This is important because value.field can only be evaluated at query
+* run-time, so we need to make sure they're propagated. *)
+
+let rec inline
+    (paramName : string) (symtable : expr Prelude.StrDict.t) (expr : expr) :
+    expr =
+  match expr with
+  | Filled (_, Let (Filled (_, name), expr, body)) ->
+      inline
+        paramName
+        (Prelude.StrDict.insert ~key:name ~value:expr symtable)
+        body
+  | Filled (_, Variable name) when name <> paramName ->
+    ( match Prelude.StrDict.get ~key:name symtable with
+    | Some found ->
+        found
+    | None ->
+        (* the variable might be in the symtable, so put it back to fill in
+         * later *)
+        expr )
+  | _ ->
+      Ast.traverse ~f:(inline paramName symtable) expr
+
+
 let rec lambda_to_sql
     (symtable : dval_map)
     (paramName : string)
@@ -276,7 +303,13 @@ let compile_lambda
     (db_fields : tipe_ Prelude.StrDict.t)
     (body : expr) : string =
   let symtable, body =
-    body |> canonicalize |> partially_evaluate state param_name symtable
+    body
+    (* remove threads *)
+    |> canonicalize
+    (* remove lets within the body *)
+    |> inline param_name Prelude.StrDict.empty
+    (* remove external or complex expressions *)
+    |> partially_evaluate state param_name symtable
   in
   body
   |> lambda_to_sql symtable param_name db_fields TBool
