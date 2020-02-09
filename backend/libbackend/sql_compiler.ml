@@ -251,6 +251,18 @@ let rec lambda_to_sql
       ^ "' as "
       ^ Db.escape_string (tipe_to_sql_tipe tipe)
       ^ "))"
+  | Filled (_, FieldAccess (Filled (_, Variable varname), Filled (_, fieldname)))
+    ->
+    ( match DvalMap.get ~key:varname symtable with
+    | Some (DObj fields) ->
+      ( match DvalMap.get ~key:fieldname fields with
+      | Some dval ->
+          typecheckDval varname dval expected_tipe ;
+          "(" ^ dval_to_sql dval ^ ")"
+      | None ->
+          error2 "Accessing a field of a non-object" fieldname )
+    | _ ->
+        error2 "Accessing a field of a non-object" varname )
   | _ ->
       error2 "We do not yet support compiling this code" (show_expr expr)
 
