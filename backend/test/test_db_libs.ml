@@ -551,8 +551,6 @@ let t_sql_compiler_works () =
   let open Prelude in
   let f nexpr = Filled (Util.create_id (), nexpr) in
   let _, state, _ = Utils.test_execution_data [] in
-  (* TODO: the state provided won't be enough to exec the sql compiler partial
-   * evaluation *)
   let check
       (msg : string)
       ?(paramName = "value")
@@ -602,24 +600,32 @@ let t_sql_compiler_works () =
     ~dbFields:[(injection, TStr)]
     fieldAccess
     "((CAST(data::jsonb->>'''; select * from user_data ;''field' as text)) = ('x'))" ;
-  let var = f (FnCall ("==", [f (Variable "var"); f (Value "\"x\"")])) in
+  let var =
+    f
+      (FnCall
+         ( "=="
+         , [f (Variable "var"); f (FieldAccess (f (Variable "value"), f "name"))]
+         ))
+  in
   check
     "symtable escapes correctly"
+    ~dbFields:[("name", TStr)]
     ~symtable:[("var", Dval.dstr_of_string_exn "';select * from user_data;'")]
     var
-    "((''';select * from user_data;''') = ('x'))" ;
+    "((''';select * from user_data;''') = (CAST(data::jsonb->>'name' as text)))" ;
   let thread =
     f
       (Thread
-         [ f (Value "5")
+         [ f (FieldAccess (f (Variable "value"), f "age"))
          ; f (FnCall ("-", [f (Value "2")]))
-         ; f (FnCall ("+", [f (Value "3")]))
+         ; f (FnCall ("+", [f (FieldAccess (f (Variable "value"), f "age"))]))
          ; f (FnCall ("<", [f (Value "3")])) ])
   in
   check
+    ~dbFields:[("age", TInt)]
     "pipes expand correctly into nested functions"
     thread
-    "((((5) - (2)) + (3)) < (3))" ;
+    "((((CAST(data::jsonb->>'age' as integer)) - (2)) + (CAST(data::jsonb->>'age' as integer))) < (3))" ;
   ()
 
 
@@ -933,20 +939,25 @@ let t_db_query_works () =
               (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a")
               (fn "String::length" [field "v" "name"])))
     |> execs ) ;
-  (* check_dval *)
-  (*   "partial execution - List::length" *)
-  (*   (DList [Dval.dint 10; Dval.dint 65]) *)
-  (*   ( queryv *)
-  (*       (let' *)
-  (*          "x" *)
-  (*          (record [("y", record [("z", record [("a", list [int 5; int 6])])])]) *)
-  (*          (binop *)
-  (*             "<" *)
-  (*             (pipe *)
-  (*                (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a") *)
-  (*                [fn "List::length" [pipeTarget]]) *)
-  (*             (fn "String::length" [field "v" "name"]))) *)
-  (*   |> execs ) ; *)
+  check_dval
+    "partial execution - List::length"
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( queryv
+        (let'
+           "x"
+           (record
+              [ ( "y"
+                , record
+                    [ ( "z"
+                      , record [("a", list [int 1; int 2; int 3; int 4; int 5])]
+                      ) ] ) ])
+           (binop
+              "<"
+              (pipe
+                 (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a")
+                 [fn "List::length" [pipeTarget]])
+              (fn "String::length" [field "v" "name"])))
+    |> execs ) ;
   ()
 
 

@@ -280,6 +280,8 @@ let partially_evaluate
     (param_name : string)
     (symtable : dval_map)
     (body : expr) : dval_map * expr =
+  (* This isn't really a good implementation, but right now we only do
+   * straight-line code here, so it should work *)
   let symtable = ref symtable in
   Libcommon.Log.inspecT "body before" ~f:show_expr body ;
   let exec expr =
@@ -290,13 +292,22 @@ let partially_evaluate
     Filled (gid (), Variable new_name)
   in
   let f expr =
+    (* We list any construction that we think is safe to evaluate *)
     match expr with
     | Filled (_, FieldAccess (Filled (_, Variable name), Filled (_, field)))
       when name <> param_name ->
         exec expr
-    | Filled
-        (_, FieldAccess (Filled (_, ObjectLiteral fields), Filled (_, field)))
-      ->
+    | Filled (_, FieldAccess (Filled (_, ObjectLiteral _), Filled (_, _))) ->
+        (* inlining can create these situations *)
+        exec expr
+    | Filled (_, FnCall (_, args))
+      when Tc.List.all args ~f:(function
+               | Filled (_, (Value _ | Variable _)) ->
+                   true
+               | _ ->
+                   false) ->
+        (* functions that are fully specified *)
+        (* TODO: should limit this further to pure functions. *)
         exec expr
     | _ ->
         expr
