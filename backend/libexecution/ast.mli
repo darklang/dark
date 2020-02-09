@@ -19,6 +19,11 @@ val traverse :
   -> Types.RuntimeT.expr
   -> Types.RuntimeT.expr
 
+val postTraverse :
+     f:(Types.RuntimeT.expr -> Types.RuntimeT.expr)
+  -> Types.RuntimeT.expr
+  -> Types.RuntimeT.expr
+
 val iter : f:(Types.RuntimeT.expr -> unit) -> Types.RuntimeT.expr -> unit
 
 val find_db : Types.RuntimeT.DbT.db list -> string -> Types.RuntimeT.DbT.db

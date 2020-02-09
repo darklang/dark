@@ -195,7 +195,9 @@ let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe_) : unit =
       ^ "`, expected "
       ^ Dval.tipe_to_string expected_tipe
       ^ " but got a "
-      ^ Dval.tipename dval )
+      ^ Dval.tipename dval
+      ^ " in "
+      ^ Dval.to_developer_repr_v0 dval )
 
 
 let typecheck (name : string) (actual_tipe : tipe_) (expected_tipe : tipe_) :
@@ -264,50 +266,44 @@ let rec lambda_to_sql
       ^ "' as "
       ^ Db.escape_string (tipe_to_sql_tipe tipe)
       ^ "))"
-  | Filled (_, FieldAccess (Filled (_, Variable varname), Filled (_, fieldname)))
-    ->
-    ( match DvalMap.get ~key:varname symtable with
-    | Some (DObj fields) ->
-      ( match DvalMap.get ~key:fieldname fields with
-      | Some dval ->
-          typecheckDval varname dval expected_tipe ;
-          "(" ^ dval_to_sql dval ^ ")"
-      | None ->
-          error2 "Accessing a field of a non-object" fieldname )
-    | _ ->
-        error2 "Accessing a field of a non-object" varname )
-  | Filled
-      ( _
-      , FieldAccess
-          ( Filled
-              (_, FieldAccess (Filled (_, Variable varname), Filled (_, field1)))
-          , Filled (_, field2) ) ) ->
-    (* TODO: this is a hack to support nested fields, but only support nested
-     * fields two levels deep. There must be something better than this. *)
-    ( match DvalMap.get ~key:varname symtable with
-    | Some (DObj fields) ->
-      ( match DvalMap.get ~key:field1 fields with
-      | Some (DObj fields) ->
-        ( match DvalMap.get ~key:field2 fields with
-        | Some dval ->
-            typecheckDval varname dval expected_tipe ;
-            "(" ^ dval_to_sql dval ^ ")"
-        | None ->
-            error2 "Accessing a field of a non-object" field2 )
-      | _ ->
-          error2 "Accessing a field of a non-object" field1 )
-    | _ ->
-        error2 "Accessing a field of a non-object" varname )
   | _ ->
       error2 "We do not yet support compiling this code" (show_expr expr)
 
 
-let compile_lambda
+let partially_evaluate
+    (state : exec_state)
+    (param_name : string)
     (symtable : dval_map)
-    (paramName : string)
-    (dbFields : tipe_ Prelude.StrDict.t)
+    (body : expr) : dval_map * expr =
+  let symtable = ref symtable in
+  Libcommon.Log.inspecT "body before" ~f:show_expr body ;
+  let f expr =
+    match expr with
+    | Filled (_, FieldAccess (Filled (_, Variable name), Filled (_, field)))
+      when name <> param_name ->
+        let gid = Libshared.Shared.gid in
+        let new_name = "dark_generated_" ^ Util.random_string 5 in
+        let value = state.exec ~state !symtable expr in
+        symtable := DvalMap.insert ~key:new_name ~value !symtable ;
+        Filled (gid (), Variable new_name)
+    | _ ->
+        expr
+  in
+  let result = Ast.postTraverse ~f body in
+  Libcommon.Log.inspecT "body after" ~f:show_expr result ;
+  (!symtable, result)
+
+
+let compile_lambda
+    ~(state : exec_state)
+    (symtable : dval_map)
+    (param_name : string)
+    (db_fields : tipe_ Prelude.StrDict.t)
     (body : expr) : string =
+  let symtable, body =
+    body |> canonicalize |> partially_evaluate state param_name symtable
+  in
   body
-  |> canonicalize
-  |> inline paramName Prelude.StrDict.empty
-  |> lambda_to_sql symtable paramName dbFields TBool
+  |> inline param_name Prelude.StrDict.empty
+  |> lambda_to_sql symtable param_name db_fields TBool
+  |> Libcommon.Log.inspect "final_sql"

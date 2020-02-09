@@ -98,6 +98,52 @@ let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
               FluidRightPartial (name, f old_val) )
 
 
+let rec postTraverse ~(f : expr -> expr) (expr : expr) : expr =
+  let r = postTraverse ~f in
+  let result =
+    match expr with
+    | Partial _ | Blank _ ->
+        expr
+    | Filled (id, nexpr) ->
+        Filled
+          ( id
+          , match nexpr with
+            | Value _ ->
+                nexpr
+            | Variable _ ->
+                nexpr
+            | Let (lhs, rhs, body) ->
+                Let (lhs, r rhs, r body)
+            | If (cond, ifbody, elsebody) ->
+                If (r cond, r ifbody, r elsebody)
+            | FnCall (name, exprs) ->
+                FnCall (name, List.map ~f:r exprs)
+            | FnCallSendToRail (name, exprs) ->
+                FnCallSendToRail (name, List.map ~f:r exprs)
+            | Lambda (vars, lexpr) ->
+                Lambda (vars, r lexpr)
+            | Thread exprs ->
+                Thread (List.map ~f:r exprs)
+            | FieldAccess (obj, field) ->
+                FieldAccess (r obj, field)
+            | ListLiteral exprs ->
+                ListLiteral (List.map ~f:r exprs)
+            | ObjectLiteral pairs ->
+                ObjectLiteral (List.map ~f:(fun (k, v) -> (k, r v)) pairs)
+            | FeatureFlag (msg, cond, a, b) ->
+                FeatureFlag (msg, r cond, r a, r b)
+            | Match (matchExpr, cases) ->
+                Match (r matchExpr, List.map ~f:(fun (k, v) -> (k, r v)) cases)
+            | Constructor (name, args) ->
+                Constructor (name, List.map ~f:r args)
+            | FluidPartial (name, old_val) ->
+                FluidPartial (name, r old_val)
+            | FluidRightPartial (name, old_val) ->
+                FluidRightPartial (name, r old_val) )
+  in
+  f result
+
+
 (* Example usage of traverse. See also AST.ml *)
 let rec example_traversal expr =
   match expr with
@@ -715,9 +761,11 @@ and exec_fn
 (* -------------------- *)
 
 let execute_ast ~(state : exec_state) ~input_vars expr : dval =
+  let state = {state with exec} in
   exec ~state (input_vars2symtable input_vars) expr
 
 
 let execute_fn
     ~(state : exec_state) (name : string) (id : id) (args : dval list) : dval =
+  let state = {state with exec} in
   call_fn name id args false ~state
