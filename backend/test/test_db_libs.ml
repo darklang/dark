@@ -746,11 +746,6 @@ let t_db_query_works () =
     |> withvar "x" (int 20)
     |> execs ) ;
   check_dval
-    "float"
-    (DList [Dval.dint 73])
-    ( queryv (binop "Float::greaterThan" (field "v" "income") (float' "90" "0"))
-    |> execs ) ;
-  check_dval
     "fieldAccess"
     (DList [Dval.dint 65; Dval.dint 73])
     ( let'
@@ -803,8 +798,8 @@ let t_db_query_works () =
     "null is not 'null'"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
     (queryv (binop "!=" (field "v" "name") (str "null")) |> execs) ;
-  (* Just check enough of the other functions to verify the signature -
-   * they all use they same function behind the scenes. *)
+  (* Just check enough of the other functions to verify the signature - *)
+  (* they all use they same function behind the scenes. *)
   check_dval
     "queryOne - multiple"
     (DOption OptNothing)
@@ -869,6 +864,34 @@ let t_db_query_works () =
            ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
         [lambda ["r"] (field "r" "rachel"); lambda ["r"] (field "r" "height")]
     |> exec ) ;
+  (* -------------- *)
+  (* Test functions *)
+  (* -------------- *)
+  check_dval
+    "float"
+    (DList [Dval.dint 73])
+    ( queryv (binop "Float::greaterThan" (field "v" "income") (float' "90" "0"))
+    |> execs ) ;
+  check_dval
+    "string::tolower"
+    (DList [Dval.dint 65])
+    ( queryv
+        (binop
+           "=="
+           (fn "String::toLowercase_v1" [field "v" "name"])
+           (str "rachel"))
+    |> execs ) ;
+  check_dval
+    "string::reverse"
+    (DList [Dval.dint 65])
+    ( queryv
+        (binop "==" (fn "String::reverse" [field "v" "name"]) (str "lehcaR"))
+    |> execs ) ;
+  check_dval
+    "string::length"
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( queryv (binop ">" (fn "String::length" [field "v" "name"]) (int 5))
+    |> execs ) ;
   ()
 
 

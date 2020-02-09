@@ -71,10 +71,22 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       error2 "This function is not yet implemented" op
 
 
-let unary_op_to_sql op : tipe_ * tipe_ * string =
+let unary_op_to_sql op : tipe_ * tipe_ * string * string list =
+  (* Returns a postgres function name, and arguments to the function. The
+   * argument the user provides will be inserted as the first argument. *)
   match op with
   | "Bool::not" ->
-      (TBool, TBool, "not")
+      (TBool, TBool, "not", [])
+  (* Not sure if any of the string functions are strictly correct for unicode *)
+  | "String::toLowercase" | "String::toLowercase_v1" ->
+      (TStr, TStr, "lower", [])
+  | "String::toUppercase" | "String::toUppercase_v1" ->
+      (TStr, TStr, "upper", [])
+  | "String::length" ->
+      (* There is a unicode version of length but it only works on bytea data *)
+      (TStr, TInt, "length", [])
+  | "String::reverse" ->
+      (TStr, TStr, "reverse", [])
   | _ ->
       error2 "This function is not yet implemented" op
 
@@ -221,9 +233,10 @@ let rec lambda_to_sql
       typecheck op result_tipe expected_tipe ;
       "(" ^ lts ltipe l ^ " " ^ opname ^ " " ^ lts rtipe r ^ ")"
   | Filled (_, FnCall (op, [e])) ->
-      let arg_tipe, result_tipe, opname = unary_op_to_sql op in
+      let arg_tipe, result_tipe, opname, args = unary_op_to_sql op in
       typecheck op result_tipe expected_tipe ;
-      "(" ^ opname ^ " " ^ lts arg_tipe e ^ ")"
+      let args = Tc.String.join ~sep:", " (lts arg_tipe e :: args) in
+      "(" ^ opname ^ " (" ^ args ^ "))"
   | Filled (_, Variable name) ->
     ( match DvalMap.get ~key:name symtable with
     | Some dval ->
