@@ -352,7 +352,7 @@ let query ~state (db : db) (b : dblock_args) : (string * dval) list =
           ; Int db.version
           ; Int current_dark_version ]
     with e ->
-      (* TODO: log *)
+      Libcommon.Log.erroR "error compiling sql" ~data:(Exception.to_string e) ;
       raise (DBQueryException "A type error occurred at run-time")
   in
   result
