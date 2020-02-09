@@ -421,7 +421,6 @@ let exec_handler ?(ops = []) (prog : string) : dval =
 let exec_handler' ?(ops = []) (ast : Libshared.FluidExpression.t) : dval =
   ast
   |> Fluid.fromFluidExpr
-  |> Libcommon.Log.inspect "exec_handler'" ~f:show_expr
   (* |> Log.pp ~f:show_expr *)
   |> handler
   |> hop
