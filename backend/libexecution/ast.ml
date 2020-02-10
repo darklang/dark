@@ -98,6 +98,19 @@ let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
               FluidRightPartial (name, f old_val) )
 
 
+(* Example usage of traverse. See also AST.ml *)
+let rec example_traversal expr =
+  match expr with
+  | Partial _ | Blank _ ->
+      Filled (Util.create_id (), Value "\"example\"")
+  | expr ->
+      traverse ~f:example_traversal expr
+
+
+(** [post_travere f ast] walks the entire AST from bottom to top, calling f on
+ * each function. It returns a new AST with every subexpression e replaced by
+ * [f e]. Unlike traverse, it does not require you to call traverse again (this
+ * is not corecursive).  After calling [f], the result is NOT recursed into. *)
 let rec post_traverse ~(f : expr -> expr) (expr : expr) : expr =
   let r = post_traverse ~f in
   let result =
@@ -142,15 +155,6 @@ let rec post_traverse ~(f : expr -> expr) (expr : expr) : expr =
                 FluidRightPartial (name, r old_val) )
   in
   f result
-
-
-(* Example usage of traverse. See also AST.ml *)
-let rec example_traversal expr =
-  match expr with
-  | Partial _ | Blank _ ->
-      Filled (Util.create_id (), Value "\"example\"")
-  | expr ->
-      traverse ~f:example_traversal expr
 
 
 let rec set_expr ~(search : id) ~(replacement : expr) (expr : expr) : expr =
