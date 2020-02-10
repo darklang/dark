@@ -953,18 +953,20 @@ let run () =
         b
         (4, 4)
         "{\n  SomeKey: [ \"hi\", \"paul\" ]\n}"
-        "{\n  SomeKey : [\"val1\",\"val2\"]~\n}" ;
+        "{\n  SomeKey : [\"hi\",\"paul\"]~\n}" ;
       testPasteText
         "pasting 2 row record text into empty blank"
         b
         (4, 4)
         "{\n  Key: [\"a\", \"b\"]\n  Key2: [\"c\", \"d\"]\n}"
-        "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n}~" ;
+        (* not ideal outcome, but consistent. Could be improved *)
+        "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n  ~*** : ___\n}" ;
       testPasteText
         "pasting 2 row record text into empty blank (js style)"
         b
         (4, 4)
         "{\n  Key: [\"a\", \"b\"],\n  Key2: [\"c\", \"d\"]\n}"
+        (* not ideal outcome, but consistent. Could be improved *)
         "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n}~" ;
       ()) ;
   describe "Constructors" (fun () ->
