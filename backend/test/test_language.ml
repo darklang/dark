@@ -22,6 +22,34 @@ let t_lambda_with_foreach () =
 (String::toUppercase (String::fromChar_v1 var)))) '')")
 
 
+let t_match_works () =
+  let open Libshared.FluidShortcuts in
+  let check_match arg expected =
+    check_dval
+      ("match " ^ Libshared.FluidExpression.show arg)
+      (Dval.dstr_of_string_exn expected)
+      (exec_ast'
+         (match'
+            arg
+            [ (pInt 5, str "int")
+            ; (pFloat "5" "6", str "float")
+            ; (pBool false, str "bool")
+            ; (pNull, str "null")
+            ; (pBlank, str "blank")
+            ; (pConstructor "Ok" [pVar "x"], fn "++" [str "ok: "; var "x"])
+            ; (pConstructor "Nothing" [], str "constructor nothing")
+            ; (pVar "name", fn "++" [var "name"; str "var"]) ]))
+  in
+  check_match (int 5) "int" ;
+  check_match (float' "5" "6") "float" ;
+  check_match (bool false) "bool" ;
+  check_match null "null" ;
+  check_match (constructor "Ok" [str "x"]) "ok: x" ;
+  check_match (constructor "Nothing" []) "constructor nothing" ;
+  check_match (str "not matched: ") "not matched: var" ;
+  ()
+
+
 let t_lambda_scopes_correctly () =
   let open Fluid in
   check_dval
@@ -506,6 +534,7 @@ let t_dval_hash_differs_for_version_0_and_1 () =
 let suite =
   [ ("int_add_works", `Quick, t_int_add_works)
   ; ("lambda_with_foreach", `Quick, t_lambda_with_foreach)
+  ; ("match_works", `Quick, t_match_works)
   ; ( "Multiple copies of same name don't crash"
     , `Quick
     , t_multiple_copies_of_same_name )
