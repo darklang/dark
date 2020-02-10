@@ -60,7 +60,6 @@ val walk : f:(t -> t) -> t -> t
  * [f e].  Unlike walk, it does not require you to call preorder again. After
  * calling [f], the result is then recursed into; if this isn't what you want
  * call postTraversal. *)
-
 val preTraversal : f:(t -> t) -> t -> t
 
 (** [postTraversal f ast] walks the entire AST from bottom to top, calling f on
@@ -68,7 +67,6 @@ val preTraversal : f:(t -> t) -> t -> t
  * [f e].  Unlike walk, it does not require you to call preorder again. After
  * calling [f], the result is NOT recursed into; if this isn't what you want
  * call preTraversal. *)
-
 val postTraversal : f:(t -> t) -> t -> t
 
 (** [filterMap f ast] calls f on every expression, keeping any Some results
