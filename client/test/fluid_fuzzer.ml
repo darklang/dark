@@ -107,7 +107,7 @@ let generateFnName () : string =
     ; generateName ()
     ; "DB::getAll_v2"
     ; "DB::generateKey_v1"
-    ; "Date::now_v0"
+    ; "Date::now_v1"
     ; "Date::now" ]
 
 
