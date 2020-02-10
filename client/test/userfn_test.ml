@@ -1,7 +1,7 @@
 open Tester
 open! Tc
 open Prelude
-open ViewUserFunction
+open UserFunctions
 module B = BlankOr
 module D = Defaults
 

@@ -29,14 +29,6 @@ let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
   viewText FnName vs ((enterable :: idConfigs) @ c) v
 
 
-let canDelete (usedInRefs : toplevel list) (tlid : tlid) : bool =
-  if List.isEmpty usedInRefs
-  then true
-  else
-    (* Allow deletion if the only callers are itself *)
-    List.all ~f:(fun tl -> Toplevel.id tl = tlid) usedInRefs
-
-
 let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
   let exeStatus =
     if vs.isExecuting
@@ -119,7 +111,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let menuView =
     let delAct : TLMenu.menuItem =
       let disableMsg =
-        if not (canDelete vs.usedInRefs fn.ufTLID)
+        if not (UserFunctions.canDelete vs.usedInRefs fn.ufTLID)
         then
           Some
             "Cannot delete this function as it is used in your code base. Use the references on the right to find and change this function's callers, after which you'll be able to delete it."
