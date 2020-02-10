@@ -98,8 +98,8 @@ let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
               FluidRightPartial (name, f old_val) )
 
 
-let rec postTraverse ~(f : expr -> expr) (expr : expr) : expr =
-  let r = postTraverse ~f in
+let rec post_traverse ~(f : expr -> expr) (expr : expr) : expr =
+  let r = post_traverse ~f in
   let result =
     match expr with
     | Partial _ | Blank _ ->

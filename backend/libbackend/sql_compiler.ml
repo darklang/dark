@@ -312,7 +312,7 @@ let partially_evaluate
     | _ ->
         expr
   in
-  let result = Ast.postTraverse ~f body in
+  let result = Ast.post_traverse ~f body in
   Libcommon.Log.inspecT "body after" ~f:show_expr result ;
   (!symtable, result)
 
