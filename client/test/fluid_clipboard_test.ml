@@ -953,7 +953,7 @@ let run () =
         b
         (4, 4)
         "{\n  SomeKey: [ \"hi\", \"paul\" ]\n}"
-        "{\n  SomeKey : [\"hi\",\"paul\"]~\n}" ;
+        "{\n  SomeKey : [\"hi\",\"paul\"]\n  ~*** : ___\n}" ;
       testPasteText
         "pasting 2 row record text into empty blank"
         b
