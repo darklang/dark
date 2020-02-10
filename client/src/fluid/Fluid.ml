@@ -5456,7 +5456,22 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
         text
         |> String.split ~on:""
         |> List.foldl ~init:(ast, state) ~f:(fun str (newAST, s) ->
-               updateKey (InsertText str) newAST s) )
+               let space : FluidKeyboard.keyEvent =
+                 { key = K.Space
+                 ; shiftKey = false
+                 ; altKey = false
+                 ; metaKey = false
+                 ; ctrlKey = false }
+               in
+               let enter = {space with key = K.Enter} in
+               let action =
+                 if str = " "
+                 then Keypress space
+                 else if str = "\n"
+                 then Keypress enter
+                 else InsertText str
+               in
+               updateKey action newAST s) )
   | _ ->
       recover "pasting over non-existant handler" (ast, state)
 

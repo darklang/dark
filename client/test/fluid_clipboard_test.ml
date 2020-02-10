@@ -936,6 +936,40 @@ let run () =
         (7, 7)
         "myKey"
         "{\n  eximyKey~sting : ___\n}" ;
+      testPasteText
+        "pasting text into empty row works"
+        (record [("", b)])
+        (4, 4)
+        "SomeKey: [\"val1\", \"val2\" ]"
+        "{\n  SomeKey : [\"val1\",\"val2\"]~\n}" ;
+      testPasteText
+        "pasting text into empty row works (alternate spacing)"
+        (record [("", b)])
+        (4, 4)
+        "SomeKey: [ \"val1\", \"val2\" ]"
+        "{\n  SomeKey : [\"val1\",\"val2\"]~\n}" ;
+      testPasteText
+        "pasting record text into empty blank"
+        b
+        (4, 4)
+        "{\n  SomeKey: [ \"hi\", \"paul\" ]\n}"
+        "{\n  SomeKey : [\"hi\",\"paul\"]\n  ~*** : ___\n}" ;
+      testPasteText
+        "pasting 2 row record text into empty blank"
+        b
+        (4, 4)
+        "{\n  Key: [\"a\", \"b\"]\n  Key2: [\"c\", \"d\"]\n}"
+        (* not ideal outcome, but consistent. Could be improved *)
+        "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n  ~*** : ___\n}" ;
+      (* TODO: not working, waiting for more caretTarget stuff to land before
+       * fixing *)
+      (* testPasteText *)
+      (*   "pasting 2 row record text into empty blank (js style)" *)
+      (*   b *)
+      (*   (4, 4) *)
+      (*   "{\n  Key: [\"a\", \"b\"],\n  Key2: [\"c\", \"d\"]\n}" *)
+      (*   (* not ideal outcome, but consistent. Could be improved *) *)
+      (*   "{\n  Key : [\"a\",\"b\"]\n  Key2 : [\"c\",\"d\"]\n}~" ; *)
       ()) ;
   describe "Constructors" (fun () ->
       testCopy
