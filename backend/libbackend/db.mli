@@ -8,6 +8,7 @@ type param =
   | ID of Types.id
   | String of string
   | Uuid of Uuidm.t
+  | Float of float
   | Binary of string
   (* only works for passed params *)
   | Secret of string

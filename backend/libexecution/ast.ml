@@ -107,6 +107,56 @@ let rec example_traversal expr =
       traverse ~f:example_traversal expr
 
 
+(** [post_travere f ast] walks the entire AST from bottom to top, calling f on
+ * each function. It returns a new AST with every subexpression e replaced by
+ * [f e]. Unlike traverse, it does not require you to call traverse again (this
+ * is not corecursive).  After calling [f], the result is NOT recursed into. *)
+let rec post_traverse ~(f : expr -> expr) (expr : expr) : expr =
+  let r = post_traverse ~f in
+  let result =
+    match expr with
+    | Partial _ | Blank _ ->
+        expr
+    | Filled (id, nexpr) ->
+        Filled
+          ( id
+          , match nexpr with
+            | Value _ ->
+                nexpr
+            | Variable _ ->
+                nexpr
+            | Let (lhs, rhs, body) ->
+                Let (lhs, r rhs, r body)
+            | If (cond, ifbody, elsebody) ->
+                If (r cond, r ifbody, r elsebody)
+            | FnCall (name, exprs) ->
+                FnCall (name, List.map ~f:r exprs)
+            | FnCallSendToRail (name, exprs) ->
+                FnCallSendToRail (name, List.map ~f:r exprs)
+            | Lambda (vars, lexpr) ->
+                Lambda (vars, r lexpr)
+            | Thread exprs ->
+                Thread (List.map ~f:r exprs)
+            | FieldAccess (obj, field) ->
+                FieldAccess (r obj, field)
+            | ListLiteral exprs ->
+                ListLiteral (List.map ~f:r exprs)
+            | ObjectLiteral pairs ->
+                ObjectLiteral (List.map ~f:(fun (k, v) -> (k, r v)) pairs)
+            | FeatureFlag (msg, cond, a, b) ->
+                FeatureFlag (msg, r cond, r a, r b)
+            | Match (matchExpr, cases) ->
+                Match (r matchExpr, List.map ~f:(fun (k, v) -> (k, r v)) cases)
+            | Constructor (name, args) ->
+                Constructor (name, List.map ~f:r args)
+            | FluidPartial (name, old_val) ->
+                FluidPartial (name, r old_val)
+            | FluidRightPartial (name, old_val) ->
+                FluidRightPartial (name, r old_val) )
+  in
+  f result
+
+
 let rec set_expr ~(search : id) ~(replacement : expr) (expr : expr) : expr =
   let replace = set_expr ~search ~replacement in
   if search = blank_to_id expr then replacement else traverse ~f:replace expr
@@ -744,9 +794,11 @@ and exec_fn
 (* -------------------- *)
 
 let execute_ast ~(state : exec_state) ~input_vars expr : dval =
+  let state = {state with exec} in
   exec ~state (input_vars2symtable input_vars) expr
 
 
 let execute_fn
     ~(state : exec_state) (name : string) (id : id) (args : dval list) : dval =
+  let state = {state with exec} in
   call_fn name id args false ~state

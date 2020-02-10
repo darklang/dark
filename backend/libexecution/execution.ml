@@ -112,6 +112,8 @@ let execute_handler
     ; dbs
     ; trace = (fun _ _ -> ())
     ; trace_tlid
+    ; exec =
+        (fun ~state _ _ -> Exception.internal "invalid state.exec function")
     ; context = Real
     ; execution_id
     ; fail_fn = None
@@ -159,6 +161,8 @@ let execute_function
     ; dbs
     ; trace = (fun _ _ -> ())
     ; trace_tlid
+    ; exec =
+        (fun ~state _ _ -> Exception.internal "invalid state.exec function")
     ; context = Real
     ; execution_id
     ; fail_fn = None
@@ -197,6 +201,8 @@ let analyse_ast
     ; dbs
     ; trace
     ; trace_tlid = (fun _ -> ())
+    ; exec =
+        (fun ~state _ _ -> Exception.internal "invalid state.exec function")
     ; context = Preview
     ; execution_id
     ; fail_fn = None
