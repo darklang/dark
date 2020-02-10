@@ -543,6 +543,10 @@ module RuntimeT = struct
     ; context : context
     ; execution_id : id
     ; exec : state:exec_state -> dval_map -> expr -> dval
+          (* Some parts of the execution need to call AST.exec, but cannot call
+           * AST.exec without a cyclic dependency. This function enables that, and it
+           * is safe to do so because all of the state is in the exec_state
+           * structure. *)
     ; load_fn_result : load_fn_result_type
     ; store_fn_result : store_fn_result_type
     ; load_fn_arguments : load_fn_arguments_type
