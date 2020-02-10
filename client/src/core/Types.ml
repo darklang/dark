@@ -1317,8 +1317,10 @@ and integrationTestState =
 (*
  * Fluid
  *)
-(* (placeholder name, type), eg ("value","Int") *)
-and placeholder = string * string
+(* eg ("value","Int") *)
+and placeholder =
+  { name : string
+  ; tipe : string }
 
 and fluidToken =
   | TInteger of id * string
@@ -1328,7 +1330,10 @@ and fluidToken =
   | TStringMLMiddle of id * string * int * string
   | TStringMLEnd of id * string * int * string
   | TBlank of id
-  | TPlaceholder of placeholder * id
+  | TPlaceholder of
+      { blankID : id
+      ; fnID : id
+      ; placeholder : placeholder }
   | TTrue of id
   | TFalse of id
   | TNullToken of id

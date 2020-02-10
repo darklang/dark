@@ -16,7 +16,7 @@ let tid (t : t) : id =
   | TFalse id
   | TNullToken id
   | TBlank id
-  | TPlaceholder (_, id)
+  | TPlaceholder {blankID = id; _}
   | TPartial (id, _)
   | TRightPartial (id, _)
   | TPartialGhost (id, _)
@@ -286,7 +286,7 @@ let toText (t : t) : string =
       "null"
   | TBlank _ ->
       "   "
-  | TPlaceholder ((name, tipe), _) ->
+  | TPlaceholder {placeholder = {name; tipe}; _} ->
       " " ^ name ^ " : " ^ tipe ^ " "
   | TPartial (_, str) ->
       shouldntBeEmpty str
@@ -389,7 +389,7 @@ let toText (t : t) : string =
 let toTestText (t : t) : string =
   let result =
     match t with
-    | TPlaceholder ((name, tipe), _) ->
+    | TPlaceholder {placeholder = {name; tipe}; _} ->
         let count = 1 + String.length name + 3 + String.length tipe + 1 in
         Caml.String.make count '_'
     | TBlank _ ->
