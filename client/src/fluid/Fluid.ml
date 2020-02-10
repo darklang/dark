@@ -1444,34 +1444,35 @@ let insertInBlankExpr (ins : string) : E.t * caretTarget =
           (E.EBlank newID, {astRef = ARBlank newID; offset = 0}))
 
 
-(* [insertInPlaceholderExpr id ~placeholderName ~ins ast s]
+(* [insertInPlaceholderExpr ~fnID ~placeholder ~ins ast functions]
  * produces the (newExpr, newCaretTarget) tuple that should be
- * used to replace the placeholder with [id] when inserting the text [ins].
- * Given an [ast] and current state [s].
+ * used to replace a placeholder when inserting the text [ins],
+ * given a list of [functions] that might contain data about the
+ * containing function with [fnID] in [ast].
  *
  * Placeholders are almost the same as blanks but have special behavior
  * in conjunction with lambdas.
  *)
 let insertInPlaceholderExpr
-    (id : id)
-    ~(placeholderName : string)
+    ~(fnID : id)
+    ~(placeholder : placeholder)
     ~(ins : string)
     (ast : ast)
-    (s : state) : E.t * caretTarget =
+    (functions : function_ list) : E.t * caretTarget =
   let newID = gid () in
   let lambdaArgs () =
     let fnname =
-      match E.findParent id ast with
+      match E.find fnID ast with
       | Some (E.EFnCall (_, name, _, _)) ->
           Some name
       | _ ->
           None
     in
-    s.ac.functions
+    functions
     |> List.find ~f:(fun f -> Some f.fnName = fnname)
     |> Option.andThen ~f:(fun fn ->
            List.find
-             ~f:(fun {paramName; _} -> paramName = placeholderName)
+             ~f:(fun {paramName; _} -> paramName = placeholder.name)
              fn.fnParameters)
     |> Option.map ~f:(fun p -> p.paramBlock_args)
     |> Option.withDefault ~default:[""]
@@ -4147,25 +4148,15 @@ let rec updateKey
     (***********************************)
     (* INSERT INTO EXISTING CONSTRUCTS *)
     (***********************************)
-    | ( InsertText ins
-      , L
-          ( TPlaceholder
-              {placeholder = {name = placeholderName; _}; blankID = id; _}
-          , _ )
-      , _ )
-    | ( InsertText ins
-      , _
-      , R
-          ( TPlaceholder
-              {placeholder = {name = placeholderName; _}; blankID = id; _}
-          , _ ) ) ->
+    | InsertText ins, L (TPlaceholder {placeholder; blankID; fnID}, _), _
+    | InsertText ins, _, R (TPlaceholder {placeholder; blankID; fnID}, _) ->
         (* We need this special case because by the time we get to the general 
          * doInsert handling, reconstructing the difference between placeholders
          * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
         let newExpr, newTarget =
-          insertInPlaceholderExpr id ~placeholderName ~ins ast s
+          insertInPlaceholderExpr ~fnID ~placeholder ~ins ast s.ac.functions
         in
-        let newAST = E.replace id ~replacement:newExpr ast in
+        let newAST = E.replace blankID ~replacement:newExpr ast in
         (newAST, moveToCaretTarget s newAST newTarget)
     | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
         doInsert ~pos " " toTheRight ast s
