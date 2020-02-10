@@ -509,36 +509,10 @@ let pToStructure (p : fluidPattern) : string =
 (* ----------------- *)
 (* Test cases *)
 (* ----------------- *)
-(* eToTestcase and pToTestcase construct testcases that we can enter in our
+(* eToTestcase constructs testcases that we can enter in our
  * test suite. They are similar to `show` except that instead of the full code,
  * they use the shortcuts from Fluid_test_data. *)
 (* ----------------- *)
-
-let rec pToTestcase (p : FluidPattern.t) : string =
-  let r = pToTestcase in
-  let quoted str = "\"" ^ str ^ "\"" in
-  let listed elems = "[" ^ String.join ~sep:";" elems ^ "]" in
-  let spaced elems = String.join ~sep:" " elems in
-  match p with
-  | FPBlank _ ->
-      "pBlank"
-  | FPString {str; _} ->
-      spaced ["pString"; quoted str]
-  | FPBool (_, _, true) ->
-      spaced ["pBool true"]
-  | FPBool (_, _, false) ->
-      spaced ["pBool false"]
-  | FPFloat (_, _, whole, fractional) ->
-      spaced ["pFloat'"; whole; fractional]
-  | FPInteger (_, _, int) ->
-      spaced ["pInt"; int]
-  | FPNull _ ->
-      "pNull"
-  | FPVariable (_, _, name) ->
-      spaced ["pVar"; quoted name]
-  | FPConstructor (_, _, name, args) ->
-      spaced ["pConstructor"; quoted name; listed (List.map args ~f:r)]
-
 
 let rec eToTestcase (e : E.t) : string =
   let r = eToTestcase in
@@ -576,6 +550,33 @@ let rec eToTestcase (e : E.t) : string =
     | EFieldAccess (_, expr, fieldname) ->
         spaced ["fieldAccess"; r expr; quoted fieldname]
     | EMatch (_, cond, matches) ->
+        let rec pToTestcase (p : FluidPattern.t) : string =
+          let quoted str = "\"" ^ str ^ "\"" in
+          let listed elems = "[" ^ String.join ~sep:";" elems ^ "]" in
+          let spaced elems = String.join ~sep:" " elems in
+          match p with
+          | FPBlank _ ->
+              "pBlank"
+          | FPString {str; _} ->
+              spaced ["pString"; quoted str]
+          | FPBool (_, _, true) ->
+              spaced ["pBool true"]
+          | FPBool (_, _, false) ->
+              spaced ["pBool false"]
+          | FPFloat (_, _, whole, fractional) ->
+              spaced ["pFloat'"; whole; fractional]
+          | FPInteger (_, _, int) ->
+              spaced ["pInt"; int]
+          | FPNull _ ->
+              "pNull"
+          | FPVariable (_, _, name) ->
+              spaced ["pVar"; quoted name]
+          | FPConstructor (_, _, name, args) ->
+              spaced
+                [ "pConstructor"
+                ; quoted name
+                ; listed (List.map args ~f:pToTestcase) ]
+        in
         spaced
           [ "match'"
           ; r cond
