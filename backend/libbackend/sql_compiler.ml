@@ -107,7 +107,19 @@ let tipe_to_sql_tipe (t : tipe_) : string =
 
 (* This canonicalizes an expression, meaning it removes multiple ways of
  * representing the same thing. For now, it removes threads and replaces
- * them with nested function calls. *)
+ * them with nested function calls.
+ *
+ * Replaces
+ *
+ *  a
+ *  |> function1 b
+ *  |> function2 c d
+ *
+ * with
+ *
+ *  (function2 c d (function1 b a))
+ *
+ * *)
 let rec canonicalize expr =
   match expr with
   | Filled (id, Thread []) ->
@@ -189,12 +201,42 @@ let typecheck (name : string) (actual_tipe : tipe_) (expected_tipe : tipe_) :
       ^ Dval.tipe_to_string actual_tipe )
 
 
-(* Inline `let` statements directly into where they are used. Since the code in
-* the lambda is supposed to be pure, inlining it should work. It may be that
-* using SQL variables for this is possible, but I couldn't find a way to do
-* that. This is important because value.field can only be evaluated at query
-* run-time, so we need to make sure they're propagated. *)
-
+(* Inline `let` statements directly into where they are used. Replaces
+ *
+ *   let y = 10
+ *   DB::query Person \value ->
+ *     let x = 5
+ *     value.age < x
+ *
+ *  with
+ *   let y = 10
+ *   DB::query Person \value ->
+ *     value.age < 5
+ *
+ * The main purpose of inlining is to get `value.fieldname` inlined. Other
+ * expressions are handled by a later partial_evaluation pass (which relies on
+ * this pass having run first).
+ *
+ * We need to inline value.fieldname because it can't be computed at
+ * compile-time, (value here is the variable whose name symbolizes the DB rows
+ * eg value.name, value.age, etc).
+ *
+ * It's possible that we over-inline here, and introduce duplicate code that
+ * has slightly different behaviour. For example, converting
+ *
+ *  DB::query Person \value ->
+ *    let x = launch_the_missiles ()
+ *    value.person < x + x
+ *
+ * into
+ *
+ *  DB::query Person \value ->
+ *    value.person < launch_the_missiles () + launch_the_missiles ()
+ *
+ * As a first attempt, this is fine, as it's hard to avoid without making a
+ * more sophisticated algorithm, or iterating between inlining and partial
+ * evaluation. We expect users to write pure code in here, and if they don't
+ * we can solve that in the next version. *)
 let rec inline
     (paramName : string) (symtable : expr Prelude.StrDict.t) (expr : expr) :
     expr =
@@ -216,6 +258,8 @@ let rec inline
       Ast.traverse ~f:(inline paramName symtable) expr
 
 
+(* Generate SQL from an Expr. This expects that all the hard stuff has been
+ * removed by previous passes, and should only be called as the final pass. *)
 let rec lambda_to_sql
     (symtable : dval_map)
     (paramName : string)
@@ -274,7 +318,30 @@ let rec lambda_to_sql
 
 (* Trying to get rid of complex expressions, including values which can be
  * evaluated at compile-time, expressions that rely on external values. We do
- * this by evaluating them and moving their results into the symbol table. *)
+ * this by evaluating them and moving their results into the symbol table.
+ *
+ * The purpose of this step is as a convenience to the user. We could force
+ * them to rewrite:
+ *
+ *  Db::query Person \value ->
+ *    value.age < Int::sqrt (String::length (String::append a b))
+ *
+ * into
+ *
+ *  let myAge = Int::sqrt (String::length (String::append a b))
+ *  Db::query Person \value ->
+ *    value.age < myAge
+ *
+ * This is simply a convenience function to do that. Since users don't have a
+ * good understanding of where execution is happening, they expect to be able
+ * to do this, and really they're not wrong.
+ *
+ * This should work on all expressions which operate on known values at
+ * run-time (since this compiler operates at run-time, we have all the values
+ * except the ones in the DB).
+ *
+ * Expects inlining to have finished first, so that it has all the values it
+ * needs in the right place. *)
 let partially_evaluate
     (state : exec_state)
     (param_name : string)
@@ -323,11 +390,13 @@ let compile_lambda
     (body : expr) : string =
   let symtable, body =
     body
-    (* replace threads with nested function calls - simplifies all later passes *)
+    (* Replace threads with nested function calls - simplifies all later passes *)
     |> canonicalize
-    (* inline the rhs of any let within the lambda body *)
+    (* Inline the rhs of any let within the lambda body. See comment for more
+     * details. *)
     |> inline param_name Prelude.StrDict.empty
-    (* replace expressions which can be calculated now with their result *)
+    (* Replace expressions which can be calculated now with their result. See
+     * comment for more details. *)
     |> partially_evaluate state param_name symtable
   in
   body |> lambda_to_sql symtable param_name db_fields TBool
