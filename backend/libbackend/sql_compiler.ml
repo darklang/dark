@@ -283,7 +283,6 @@ let partially_evaluate
   (* This isn't really a good implementation, but right now we only do
    * straight-line code here, so it should work *)
   let symtable = ref symtable in
-  Libcommon.Log.inspecT "body before" ~f:show_expr body ;
   let exec expr =
     let gid = Libshared.Shared.gid in
     let new_name = "dark_generated_" ^ Util.random_string 8 in
@@ -313,7 +312,6 @@ let partially_evaluate
         expr
   in
   let result = Ast.post_traverse ~f body in
-  Libcommon.Log.inspecT "body after" ~f:show_expr result ;
   (!symtable, result)
 
 
@@ -332,6 +330,4 @@ let compile_lambda
     (* replace expressions which can be calculated now with their result *)
     |> partially_evaluate state param_name symtable
   in
-  body
-  |> lambda_to_sql symtable param_name db_fields TBool
-  |> Libcommon.Log.inspect "final_sql"
+  body |> lambda_to_sql symtable param_name db_fields TBool
