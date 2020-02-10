@@ -325,11 +325,11 @@ let compile_lambda
     (body : expr) : string =
   let symtable, body =
     body
-    (* remove threads *)
+    (* replace threads with nested function calls - simplifies all later passes *)
     |> canonicalize
-    (* remove lets within the body *)
+    (* inline the rhs of any let within the lambda body *)
     |> inline param_name Prelude.StrDict.empty
-    (* remove external or complex expressions *)
+    (* replace expressions which can be calculated now with their result *)
     |> partially_evaluate state param_name symtable
   in
   body
