@@ -209,11 +209,15 @@ let colnameid3 = Int63.of_int 15
 
 let coltypeid3 = Int63.of_int 16
 
-let nameid = Int63.of_int 17
+let colnameid4 = Int63.of_int 17
 
-let nameid2 = Int63.of_int 217
+let coltypeid4 = Int63.of_int 18
 
-let nameid3 = Int63.of_int 317
+let nameid = Int63.of_int 27
+
+let nameid2 = Int63.of_int 227
+
+let nameid3 = Int63.of_int 327
 
 let pos = {x = 0; y = 0}
 
@@ -349,6 +353,7 @@ let test_execution_data
     ; execution_id
     ; trace = (fun _ _ -> ())
     ; trace_tlid = (fun _ -> ())
+    ; exec = Ast.exec
     ; context = Real
     ; load_fn_result = load_test_fn_results
     ; store_fn_result =
@@ -374,6 +379,7 @@ let execute_ops
         ; dbs
         ; trace
         ; trace_tlid
+        ; exec
         ; context
         ; user_fns
         ; user_tipes
@@ -414,6 +420,15 @@ let exec_handler ?(ops = []) (prog : string) : dval =
   |> fun h -> execute_ops (ops @ [h])
 
 
+let exec_handler' ?(ops = []) (ast : Libshared.FluidExpression.t) : dval =
+  ast
+  |> Fluid.fromFluidExpr
+  (* |> Log.pp ~f:show_expr *)
+  |> handler
+  |> hop
+  |> fun h -> execute_ops (ops @ [h])
+
+
 let exec_ast ?(ops = []) ?(canvas_name = "test") (prog : string) : dval =
   let c, state, input_vars = test_execution_data ~canvas_name ops in
   let result = Ast.execute_ast ~input_vars ~state (ast_for prog) in
@@ -421,10 +436,10 @@ let exec_ast ?(ops = []) ?(canvas_name = "test") (prog : string) : dval =
 
 
 let exec_ast'
-    ?(ops = []) ?(canvas_name = "test") (prog : Libshared.FluidExpression.t) :
+    ?(ops = []) ?(canvas_name = "test") (ast : Libshared.FluidExpression.t) :
     dval =
   let c, state, input_vars = test_execution_data ~canvas_name ops in
-  let result = Ast.execute_ast ~input_vars ~state (Fluid.fromFluidExpr prog) in
+  let result = Ast.execute_ast ~input_vars ~state (Fluid.fromFluidExpr ast) in
   result
 
 

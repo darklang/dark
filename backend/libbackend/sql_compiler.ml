@@ -12,6 +12,7 @@ let error2 msg str = error (msg ^ ": " ^ str)
 
 let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
   let allInts str = (TInt, TInt, TInt, str) in
+  let allFloats str = (TFloat, TFloat, TFloat, str) in
   let boolOp tipe str = (tipe, tipe, TBool, str) in
   match op with
   | ">" | "<" | "<=" | ">=" ->
@@ -22,7 +23,7 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       allInts "%"
   | "Int::add" ->
       allInts "+"
-  | "Int::substract" ->
+  | "Int::subtract" ->
       allInts "-"
   | "Int::multiply" ->
       allInts "*"
@@ -38,6 +39,26 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       boolOp TInt "<"
   | "Int::lessThanOrEqualTo" ->
       boolOp TInt "%"
+  | "Float::mod" ->
+      allFloats "%"
+  | "Float::add" ->
+      allFloats "+"
+  | "Float::subtract" ->
+      allFloats "-"
+  | "Float::multiply" ->
+      allFloats "*"
+  | "Float::power" ->
+      allFloats "^"
+  | "Float::divide" ->
+      allFloats "/"
+  | "Float::greaterThan" ->
+      boolOp TFloat ">"
+  | "Float::greaterThanOrEqualTo" ->
+      boolOp TFloat ">="
+  | "Float::lessThan" ->
+      boolOp TFloat "<"
+  | "Float::lessThanOrEqualTo" ->
+      boolOp TFloat "%"
   | "==" | "equals" ->
       boolOp TAny "="
   | "!=" | "notEquals" ->
@@ -50,10 +71,22 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       error2 "This function is not yet implemented" op
 
 
-let unary_op_to_sql op : tipe_ * tipe_ * string =
+let unary_op_to_sql op : tipe_ * tipe_ * string * string list =
+  (* Returns a postgres function name, and arguments to the function. The
+   * argument the user provides will be inserted as the first argument. *)
   match op with
   | "Bool::not" ->
-      (TBool, TBool, "not")
+      (TBool, TBool, "not", [])
+  (* Not sure if any of the string functions are strictly correct for unicode *)
+  | "String::toLowercase" | "String::toLowercase_v1" ->
+      (TStr, TStr, "lower", [])
+  | "String::toUppercase" | "String::toUppercase_v1" ->
+      (TStr, TStr, "upper", [])
+  | "String::length" ->
+      (* There is a unicode version of length but it only works on bytea data *)
+      (TStr, TInt, "length", [])
+  | "String::reverse" ->
+      (TStr, TStr, "reverse", [])
   | _ ->
       error2 "This function is not yet implemented" op
 
@@ -72,34 +105,21 @@ let tipe_to_sql_tipe (t : tipe_) : string =
       error2 "We do not support this type of DB field yet" (show_tipe_ t)
 
 
-(* Inline `let` statements directly into where they are used. Since the code
- * in the lambda is supposed to be pure, inlining it should work. It may be
- * that using SQL variables for this is possible, but I couldn't find a way
- * to do that. *)
-let rec inline
-    (paramName : string) (symtable : expr Prelude.StrDict.t) (expr : expr) :
-    expr =
-  match expr with
-  | Filled (_, Let (Filled (_, name), expr, body)) ->
-      inline
-        paramName
-        (Prelude.StrDict.insert ~key:name ~value:expr symtable)
-        body
-  | Filled (_, Variable name) when name <> paramName ->
-    ( match Prelude.StrDict.get ~key:name symtable with
-    | Some found ->
-        found
-    | None ->
-        (* the variable might be in the symtable, so put it back to fill in
-         * later *)
-        expr )
-  | _ ->
-      Ast.traverse ~f:(inline paramName symtable) expr
-
-
 (* This canonicalizes an expression, meaning it removes multiple ways of
  * representing the same thing. For now, it removes threads and replaces
- * them with nested function calls. *)
+ * them with nested function calls.
+ *
+ * Replaces
+ *
+ *  a
+ *  |> function1 b
+ *  |> function2 c d
+ *
+ * with
+ *
+ *  (function2 c d (function1 b a))
+ *
+ * *)
 let rec canonicalize expr =
   match expr with
   | Filled (id, Thread []) ->
@@ -132,12 +152,13 @@ let dval_to_sql (dval : dval) : string =
   | DOption _
   | DErrorRail _
   | DResult _
-  | DFloat _
   | DBytes _ ->
       error2 "This value is not yet supported" (Dval.to_developer_repr_v0 dval)
   | DInt i ->
       (* types don't line up to use Db.Int *)
       Db.escape_string (Dint.to_string i)
+  | DFloat v ->
+      Db.escape (Float v)
   | DBool b ->
       Db.escape (Bool b)
   | DNull ->
@@ -161,7 +182,9 @@ let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe_) : unit =
       ^ "`, expected "
       ^ Dval.tipe_to_string expected_tipe
       ^ " but got a "
-      ^ Dval.tipename dval )
+      ^ Dval.tipename dval
+      ^ " in "
+      ^ Dval.to_developer_repr_v0 dval )
 
 
 let typecheck (name : string) (actual_tipe : tipe_) (expected_tipe : tipe_) :
@@ -178,6 +201,65 @@ let typecheck (name : string) (actual_tipe : tipe_) (expected_tipe : tipe_) :
       ^ Dval.tipe_to_string actual_tipe )
 
 
+(* Inline `let` statements directly into where they are used. Replaces
+ *
+ *   let y = 10
+ *   DB::query Person \value ->
+ *     let x = 5
+ *     value.age < x
+ *
+ *  with
+ *   let y = 10
+ *   DB::query Person \value ->
+ *     value.age < 5
+ *
+ * The main purpose of inlining is to get `value.fieldname` inlined. Other
+ * expressions are handled by a later partial_evaluation pass (which relies on
+ * this pass having run first).
+ *
+ * We need to inline value.fieldname because it can't be computed at
+ * compile-time, (value here is the variable whose name symbolizes the DB rows
+ * eg value.name, value.age, etc).
+ *
+ * It's possible that we over-inline here, and introduce duplicate code that
+ * has slightly different behaviour. For example, converting
+ *
+ *  DB::query Person \value ->
+ *    let x = launch_the_missiles ()
+ *    value.person < x + x
+ *
+ * into
+ *
+ *  DB::query Person \value ->
+ *    value.person < launch_the_missiles () + launch_the_missiles ()
+ *
+ * As a first attempt, this is fine, as it's hard to avoid without making a
+ * more sophisticated algorithm, or iterating between inlining and partial
+ * evaluation. We expect users to write pure code in here, and if they don't
+ * we can solve that in the next version. *)
+let rec inline
+    (paramName : string) (symtable : expr Prelude.StrDict.t) (expr : expr) :
+    expr =
+  match expr with
+  | Filled (_, Let (Filled (_, name), expr, body)) ->
+      inline
+        paramName
+        (Prelude.StrDict.insert ~key:name ~value:expr symtable)
+        body
+  | Filled (_, Variable name) when name <> paramName ->
+    ( match Prelude.StrDict.get ~key:name symtable with
+    | Some found ->
+        found
+    | None ->
+        (* the variable might be in the symtable, so put it back to fill in
+         * later *)
+        expr )
+  | _ ->
+      Ast.traverse ~f:(inline paramName symtable) expr
+
+
+(* Generate SQL from an Expr. This expects that all the hard stuff has been
+ * removed by previous passes, and should only be called as the final pass. *)
 let rec lambda_to_sql
     (symtable : dval_map)
     (paramName : string)
@@ -199,9 +281,10 @@ let rec lambda_to_sql
       typecheck op result_tipe expected_tipe ;
       "(" ^ lts ltipe l ^ " " ^ opname ^ " " ^ lts rtipe r ^ ")"
   | Filled (_, FnCall (op, [e])) ->
-      let arg_tipe, result_tipe, opname = unary_op_to_sql op in
+      let arg_tipe, result_tipe, opname, args = unary_op_to_sql op in
       typecheck op result_tipe expected_tipe ;
-      "(" ^ opname ^ " " ^ lts arg_tipe e ^ ")"
+      let args = Tc.String.join ~sep:", " (lts arg_tipe e :: args) in
+      "(" ^ opname ^ " (" ^ args ^ "))"
   | Filled (_, Variable name) ->
     ( match DvalMap.get ~key:name symtable with
     | Some dval ->
@@ -233,12 +316,87 @@ let rec lambda_to_sql
       error2 "We do not yet support compiling this code" (show_expr expr)
 
 
-let compile_lambda
+(* Trying to get rid of complex expressions, including values which can be
+ * evaluated at compile-time, expressions that rely on external values. We do
+ * this by evaluating them and moving their results into the symbol table.
+ *
+ * The purpose of this step is as a convenience to the user. We could force
+ * them to rewrite:
+ *
+ *  Db::query Person \value ->
+ *    value.age < Int::sqrt (String::length (String::append a b))
+ *
+ * into
+ *
+ *  let myAge = Int::sqrt (String::length (String::append a b))
+ *  Db::query Person \value ->
+ *    value.age < myAge
+ *
+ * This is simply a convenience function to do that. Since users don't have a
+ * good understanding of where execution is happening, they expect to be able
+ * to do this, and really they're not wrong.
+ *
+ * This should work on all expressions which operate on known values at
+ * run-time (since this compiler operates at run-time, we have all the values
+ * except the ones in the DB).
+ *
+ * Expects inlining to have finished first, so that it has all the values it
+ * needs in the right place. *)
+let partially_evaluate
+    (state : exec_state)
+    (param_name : string)
     (symtable : dval_map)
-    (paramName : string)
-    (dbFields : tipe_ Prelude.StrDict.t)
+    (body : expr) : dval_map * expr =
+  (* This isn't really a good implementation, but right now we only do
+   * straight-line code here, so it should work *)
+  let symtable = ref symtable in
+  let exec expr =
+    let gid = Libshared.Shared.gid in
+    let new_name = "dark_generated_" ^ Util.random_string 8 in
+    let value = state.exec ~state !symtable expr in
+    symtable := DvalMap.insert ~key:new_name ~value !symtable ;
+    Filled (gid (), Variable new_name)
+  in
+  let f expr =
+    (* We list any construction that we think is safe to evaluate *)
+    match expr with
+    | Filled (_, FieldAccess (Filled (_, Variable name), Filled (_, field)))
+      when name <> param_name ->
+        exec expr
+    | Filled (_, FieldAccess (Filled (_, ObjectLiteral _), Filled (_, _))) ->
+        (* inlining can create these situations *)
+        exec expr
+    | Filled (_, FnCall (_, args))
+      when Tc.List.all args ~f:(function
+               | Filled (_, (Value _ | Variable _)) ->
+                   true
+               | _ ->
+                   false) ->
+        (* functions that are fully specified *)
+        (* TODO: should limit this further to pure functions. *)
+        exec expr
+    | _ ->
+        expr
+  in
+  let result = Ast.post_traverse ~f body in
+  (!symtable, result)
+
+
+let compile_lambda
+    ~(state : exec_state)
+    (symtable : dval_map)
+    (param_name : string)
+    (db_fields : tipe_ Prelude.StrDict.t)
     (body : expr) : string =
-  body
-  |> canonicalize
-  |> inline paramName Prelude.StrDict.empty
-  |> lambda_to_sql symtable paramName dbFields TBool
+  let symtable, body =
+    body
+    (* Replace threads with nested function calls - simplifies all later passes *)
+    |> canonicalize
+    (* Inline the rhs of any let within the lambda body. See comment for more
+     * details. *)
+    |> inline param_name Prelude.StrDict.empty
+    (* Replace expressions which can be calculated now with their result. See
+     * comment for more details. *)
+    |> partially_evaluate state param_name symtable
+  in
+  body |> lambda_to_sql symtable param_name db_fields TBool
