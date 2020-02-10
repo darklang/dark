@@ -19,7 +19,7 @@ val traverse :
   -> Types.RuntimeT.expr
   -> Types.RuntimeT.expr
 
-val postTraverse :
+val post_traverse :
      f:(Types.RuntimeT.expr -> Types.RuntimeT.expr)
   -> Types.RuntimeT.expr
   -> Types.RuntimeT.expr
