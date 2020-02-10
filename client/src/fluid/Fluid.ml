@@ -675,7 +675,7 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       int option =
     match (ct.astRef, ti.token) with
     | ARBinOp id, TBinOp (id', _)
-    | ARBlank id, (TBlank id' | TPlaceholder (_, id'))
+    | ARBlank id, (TBlank id' | TPlaceholder {blankID = id'; _})
     | ARBool id, (TTrue id' | TFalse id')
     | ARConstructor id, TConstructorName (id', _)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
@@ -898,7 +898,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some (CT.forARStringText id (startOffset + pos - ti.startPos))
   | TInteger (id, _) ->
       Some {astRef = ARInteger id; offset}
-  | TBlank id | TPlaceholder (_, id) ->
+  | TBlank id | TPlaceholder {blankID = id; _} ->
       Some {astRef = ARBlank id; offset}
   | TTrue id | TFalse id ->
       Some {astRef = ARBool id; offset}
@@ -4147,8 +4147,18 @@ let rec updateKey
     (***********************************)
     (* INSERT INTO EXISTING CONSTRUCTS *)
     (***********************************)
-    | InsertText ins, L (TPlaceholder ((placeholderName, _), id), _), _
-    | InsertText ins, _, R (TPlaceholder ((placeholderName, _), id), _) ->
+    | ( InsertText ins
+      , L
+          ( TPlaceholder
+              {placeholder = {name = placeholderName; _}; blankID = id; _}
+          , _ )
+      , _ )
+    | ( InsertText ins
+      , _
+      , R
+          ( TPlaceholder
+              {placeholder = {name = placeholderName; _}; blankID = id; _}
+          , _ ) ) ->
         (* We need this special case because by the time we get to the general 
          * doInsert handling, reconstructing the difference between placeholders
          * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
