@@ -1373,49 +1373,11 @@ type login_page =
 
 let login_template = File.readfile ~root:Templates "login.html"
 
-(* The login flow:
- *
- * If you are not logged in (via a lack of a session or an expired one), then
- * you are redirected to /login with a redirect parameter indicating where
- * you will be redirected after login.  The /login GET page shows a form to
- * login from, using templates/login.html, which posts to /login.
- *
- * The /login POST page verifies the user, sets the cookies, and redirects to
- * the redirect page provided or else the users "username" canvas.
- *
- * On failure, the user is redirected back to the form with an error message.
- *
- * The login page isn't involved in CSRFs - that's taken care of when they
- * arrive at their destination.
- *)
-let handle_login_page ~execution_id req body =
+(* handle_local_login is used to handle GET/POST to /login for local
+ * development, bypassing Auth0. *)
+let handle_local_login ~execution_id req body =
   if CRequest.meth req = `GET || CRequest.meth req = `HEAD
-  then
-    (* To make local proxy to the ops-corpsite login page for testing purposes
-     * *)
-    let qp_prod_login =
-      let uri = req |> CRequest.uri in
-      match Uri.get_query_param uri "prodlogin" with
-      | None ->
-          false
-      | Some _ ->
-          true
-    in
-    if Config.env_display_name = "production" || qp_prod_login
-    then
-      (* This tells nginx to proxy-pass to the corpsite's /login via nginx'
-       * /user-login location - see
-       * scripts/support/nginx.conf. Note that it _only_ proxies /login
-       * exactly *)
-      let resp_headers =
-        Header.of_list
-          (* This tells nginx to serve up the uri in question. Doing if
-         * conditionals in nginx.conf is discouraged, which is why we're not
-         * doing it there *)
-          [("X-Accel-Redirect", "/user-login")]
-      in
-      respond ~resp_headers ~execution_id `OK ""
-    else respond ~execution_id `OK login_template
+  then respond ~execution_id `OK login_template
   else
     (* Responds to a form submitted from login.html *)
     let params = Uri.query_of_encoded body in
@@ -1501,63 +1463,56 @@ let handle_login_page ~execution_id req body =
 let authenticate_then_handle ~(execution_id : Types.id) handler req body =
   let req_uri = CRequest.uri req in
   let path = Uri.path req_uri in
-  let login_uri = Uri.of_string "/login" in
-  let verb = req |> CRequest.meth in
-  match%lwt Auth.SessionLwt.of_request req with
-  | Ok (Some session) when path <> "/login" ->
+  let live_login, login_uri, logout_uri =
+    if Config.use_login_darklang_com_for_login
+    then
+      ( `Live
+      , Uri.of_string "https://login.darklang.com"
+      , Uri.of_string "https://login.darklang.com/logout" )
+    else (`Local, Uri.of_string "/login", Uri.of_string "/logout")
+  in
+  let%lwt session = Auth.SessionLwt.of_request req in
+  match (live_login, path, session) with
+  | `Live, "/login", _ ->
+      (* old, pre-Auth0 login route. support it for a while, just in case *)
+      S.respond_redirect ~uri:login_uri ()
+  | `Live, "/logout", _ ->
+      (* login.darklang.com will clear the cookie and the postgres session *)
+      S.respond_redirect ~uri:logout_uri ()
+  | `Local, "/login", _ ->
+      (* locally, support a login form to bypass Auth0 *)
+      handle_local_login ~execution_id req body
+  | `Local, "/logout", Ok (Some session) ->
+      (* Fallback for local env, where we don't have
+       * login.darklang.com/logout, we just need to clear the session *)
+      Auth.SessionLwt.clear Auth.SessionLwt.backend session ;%lwt
+      let headers =
+        Header.of_list (Auth.SessionLwt.clear_hdrs Auth.SessionLwt.cookie_key)
+      in
+      let uri = Uri.of_string "https://darklang.com" in
+      S.respond_redirect ~headers ~uri ()
+  | _, _, Ok (Some session) ->
+      (* all other authenticated requsets should run the handler *)
       let username = Auth.SessionLwt.username_for session in
       let csrf_token = Auth.SessionLwt.csrf_token_for session in
       Log.add_log_annotations
         [("username", `String username)]
         (fun _ ->
-          if path = "/logout" && verb = `POST
-          then
-            if Config.use_login_darklang_com_for_login
-            then
-              (* This redirects because login.darklang.com/logout implements a
-               * logout that clears both the session in postgres and the session
-               * in auth0. (The former is present in both the new auth0-using
-               * auth flow, and the pre-auth0 ocaml auth setup.) It is backwards
-               * compatible - if the session cookie it is presented does not
-               * have a record in login.darklang.com's AccessToken datastore
-               * (used to hold auth0 access tokens), then it just clears the
-               * postgres session. That won't be relevant for long, but it
-               * allows us to deploy this codepath in advance of the auth0
-               * cutover. *)
-              S.respond_redirect
-                ~uri:("https://login.darklang.com/logout" |> Uri.of_string)
-                ()
-              (* Fallback for local env, where we don't have
-               * login.darklang.com/logout, we just need to clear the session
-               * *)
-            else (
-              Auth.SessionLwt.clear Auth.SessionLwt.backend session ;%lwt
-              let headers =
-                Header.of_list
-                  ( username_header username
-                  :: Auth.SessionLwt.clear_hdrs Auth.SessionLwt.cookie_key )
-              in
-              S.respond_redirect ~headers ~uri:login_uri () )
-          else
-            let headers = [username_header username] in
-            over_headers_promise
-              ~f:(fun h -> Header.add_list h headers)
-              (handler ~session ~csrf_token req))
+          let headers = [username_header username] in
+          over_headers_promise
+            ~f:(fun h -> Header.add_list h headers)
+            (handler ~session ~csrf_token req))
+  | _ when Re2.matches (Re2.create_exn "^/api/") path ->
+      (* If it's an api, don't try to redirect *)
+      respond ~execution_id `Unauthorized "Bad credentials"
   | _ ->
-      if path = "/login"
-      then handle_login_page ~execution_id req body
-      else if path = "/logout"
-      then S.respond_redirect ~uri:login_uri ()
-      else if (* If it's an api, don't try to redirect *)
-              Re2.matches (Re2.create_exn "^/api/") path
-      then respond ~execution_id `Unauthorized "Bad credentials"
-      else
-        let uri =
-          Uri.add_query_param'
-            login_uri
-            ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
-        in
-        S.respond_redirect ~uri ()
+      (* anything else requires authentication first *)
+      let uri =
+        Uri.add_query_param'
+          login_uri
+          ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
+      in
+      S.respond_redirect ~uri ()
 
 
 let admin_ui_handler
