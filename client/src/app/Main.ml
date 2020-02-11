@@ -1342,6 +1342,9 @@ let update_ (msg : msg) (m : model) : modification =
               NoChange )
       | _ ->
           NoChange )
+  | UpdateSegment msg ->
+      Entry.sendSegmentMessage msg ;
+      NoChange
   | CloseWelcomeModal ->
       Entry.sendSegmentMessage "Welcome Modal" ;
       Many [TweakModel (fun m -> {m with showUserWelcomeModal = false})]
