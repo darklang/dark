@@ -135,6 +135,11 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
+  (* placeholderFor = (id * string * int) 
+   * id: id of the placeholder-containing expr
+   * string: name of the placeholder-containing expr
+   * int: index of the placeholder within the expr's parameters
+   *)
   let nest
       ?(placeholderFor : (id * string * int) option = None)
       ~indent
