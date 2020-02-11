@@ -2206,7 +2206,7 @@ let acClear (s : state) : state =
 let acMaybeShow (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
   if T.isAutocompletable ti.token && s.ac.index = None
-  then {s with ac = {s.ac with index = Some 0}; upDownCol = None}
+  then {s with ac = {s.ac with index = Some 0}}
   else s
 
 
@@ -2228,6 +2228,15 @@ let acMoveDown (s : state) : state =
         min (current + 1) (List.length (AC.allCompletions s.ac) - 1)
   in
   acSetIndex index s
+
+
+(* Check to see if we should open autocomplete at new position *)
+let acMaybeAtPos (ast : ast) (newPos : int) (s : state) : state =
+  (* Update newPos and reset upDownCol and reset AC *)
+  let s' = setPosition ~resetUD:true s newPos |> acClear in
+  getToken s' ast
+  |> Option.map ~f:(fun ti -> acMaybeShow ti s')
+  |> Option.withDefault ~default:s'
 
 
 (* acMoveBasedOnKey produces a new state with the caret placed in a position that
@@ -3066,13 +3075,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (ast, Exactly ti.startPos)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
-  let newS =
-    (* Reset autocomplete, check to see if we should open it at the new position *)
-    let s' = {s with newPos} |> acClear in
-    getToken s' newAST
-    |> Option.map ~f:(fun ti -> acMaybeShow ti s')
-    |> Option.withDefault ~default:s'
-  in
+  let newS = acMaybeAtPos newAST newPos s in
   (newAST, newS)
 
 
@@ -4504,15 +4507,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
         newPos
   in
   let newAST = acMaybeCommit newPos ast s in
-  let s' = setPosition s newPos in
-  let newS =
-    (* Check to see if we should open autocomplete at new position *)
-    match getToken' s' tokens with
-    | Some ti ->
-        acMaybeShow ti s'
-    | None ->
-        s' |> acClear
-  in
+  let newS = acMaybeAtPos newAST newPos s in
   (newAST, newS)
 
 
