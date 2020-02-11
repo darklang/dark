@@ -20,15 +20,12 @@ let viewWelcomeToDark (username : string) : msg Html.html =
     ViewUtils.eventNoPropagation ~key:"close-welcome-modal" "click" (fun _ ->
         CloseWelcomeModal)
   in
-  let vidSrc = "//" ^ Native.Ext.staticHost () ^ "/gif/helloWorld.mp4" in
+  let vidSrc = "//" ^ Native.Ext.staticHost () ^ "/gif/helloWorld.gif" in
   let gif =
-    [ Html.video
-        [ Vdom.attribute "" "autoplay" "autoplay"
-        ; Vdom.attribute "" "loop" "loop"
-        ; Vdom.attribute "" "muted" "muted"
-        ; Vdom.attribute "" "playsinline" "playsinline" ]
-        [ Html.source [Html.src vidSrc; Vdom.attribute "" "type" "video/mp4"] []
-        ; Html.text "Sorry, your browser doesn't support embedded videos." ] ]
+    [ Html.img
+        [ Html.src vidSrc
+        ; Vdom.prop "alt" "Gif showing how to create a hello world handler" ]
+        [] ]
   in
   Html.div
     [Html.class' "welcome"]
