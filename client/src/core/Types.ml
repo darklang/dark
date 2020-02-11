@@ -1258,6 +1258,7 @@ and msg =
   | NewTabFromTLMenu of string * tlid
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
+  | UpdateSegment of string
 
 (* ----------------------------- *)
 (* AB tests *)
