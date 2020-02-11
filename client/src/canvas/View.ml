@@ -88,7 +88,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     |> String.join ~sep:" "
   in
   let id =
-    Fluid.getToken' m.fluidState vs.primaryTokens
+    Fluid.getToken' m.fluidState (ViewUtils.getMainTokens vs)
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
   in

@@ -10,10 +10,11 @@ type tokenInfo = Types.fluidTokenInfo
 
 module Builder = struct
   type t =
-    { (* list is kept reversed while being built up, as adding things to the
-       * front of the list is an order of magnitude faster. We were having
-       * large slowdowns on large handlers before this. *)
-      tokens : fluidToken list
+    { tokens :
+        (* list is kept reversed while being built up, as adding things to the
+         * front of the list is an order of magnitude faster. We were having
+         * large slowdowns on large handlers before this. *)
+        fluidToken list
     ; splits : t list
     ; indent : (* tracks the indent after a newline *) int
     ; xPos :
@@ -32,6 +33,11 @@ module Builder = struct
 
 
   let empty = {tokens = []; splits = []; xPos = Some 0; indent = 0}
+
+  (** id is the id of the first token in the builder or None if the builder is empty. *)
+  let id (b : t) : string option =
+    List.last b.tokens |> Option.map ~f:(T.tid >> ID.toString)
+
 
   let add (token : fluidToken) (b : t) : t =
     let tokenLength = token |> T.toText |> String.length in
@@ -479,10 +485,15 @@ let toTokens (e : E.t) : tokenInfo list =
   |> infoize
 
 
-let toTokensWithSplits (e : E.t) : tokenInfo list list =
+type partition =
+  { id : string
+  ; tokens : tokenInfo list }
+
+let toPartitions (e : E.t) : partition list =
   let b = toTokens' e Builder.empty in
-  List.map (b :: b.splits) ~f:(fun b ->
-      b |> Builder.asTokens |> tidy |> validateTokens |> infoize)
+  List.filterMap (b :: b.splits) ~f:(fun b ->
+      let tokens = b |> Builder.asTokens |> tidy |> validateTokens |> infoize in
+      Builder.id b |> Option.map ~f:(fun id -> {id; tokens}))
 
 
 let tokensToString (tis : tokenInfo list) : string =
