@@ -190,7 +190,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   }
 }
 
-.fluid-ast {
+#fluid-editor {
   /* Colors from tomorrow night:
 https://github.com/chriskempson/tomorrow-theme */
   $black: #1d1f21;
@@ -476,6 +476,19 @@ since they are essentially both commands just acting upon different things. */
   @include precedence(2);
   @include precedence(3);
   @include precedence(4);
+}
+
+.fluid-secondary-editor {
+  background-color: #2d2d2d;
+  position: relative;
+  left: 20px;
+  height: fit-content;
+  width: 0;
+
+  #fluid-editor {
+    position: absolute;
+    background-color: #2d2d2d;
+  }
 }
 
 .fluid-error-rail {

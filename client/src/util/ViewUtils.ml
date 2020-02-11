@@ -3,6 +3,11 @@ module Svg = Tea.Svg
 module Regex = Util.Regex
 module TL = Toplevel
 module TD = TLIDDict
+module E = FluidExpression
+
+type editorViewState =
+  { id : string
+  ; tokens : FluidToken.tokenInfo list }
 
 type viewState =
   { tl : toplevel
@@ -28,14 +33,13 @@ type viewState =
   ; refersToRefs : (toplevel * id list) list
   ; usedInRefs : toplevel list
   ; hoveringRefs : id list
-  ; fluidState : Types.fluidState
+  ; fluidState : fluidState
   ; avatarsList : avatar list
   ; permission : permission option
   ; workerStats : workerStats option
-  ; primaryTokens : FluidToken.tokenInfo list
-  ; secondaryTokens : FluidToken.tokenInfo list list
   ; menuState : menuState
-  ; isExecuting : bool }
+  ; isExecuting : bool
+  ; tokenPartitions : FluidPrinter.partition list }
 
 (* ----------------------------- *)
 (* Events *)
@@ -50,15 +54,14 @@ let createVS (m : model) (tl : toplevel) : viewState =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
   let traceID = Analysis.getSelectedTraceID m tlid in
-  let primaryTokens, secondaryTokens =
+  let tokenPartitions =
     TL.getAST tl
-    |> Option.map ~f:FluidPrinter.toTokensWithSplits
-    |> Option.map ~f:(function [] -> ([], []) | head :: tail -> (head, tail))
-    |> Option.withDefault ~default:([], [])
+    |> Option.map ~f:FluidPrinter.toPartitions
+    |> Option.withDefault ~default:[]
   in
   { tl
-  ; cursorState = unwrapCursorState m.cursorState
   ; tlid
+  ; cursorState = unwrapCursorState m.cursorState
   ; hovering =
       m.hovering
       |> List.filter ~f:(fun (tlid, _) -> tlid = tlid)
@@ -113,6 +116,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
           m.avatarsList
       | _ ->
           [] )
+  ; tokenPartitions
   ; permission = m.permission
   ; workerStats =
       (* Right now we patch because worker execution link depends on name instead of TLID. When we fix our worker association to depend on TLID instead of name, then we will get rid of this patchy hack. *)
@@ -130,8 +134,6 @@ let createVS (m : model) (tl : toplevel) : viewState =
            Some {Defaults.defaultWorkerStats with schedule}
        | Some c, Some _ ->
            Some {c with schedule})
-  ; primaryTokens
-  ; secondaryTokens
   ; menuState =
       TLIDDict.get ~tlid m.tlMenus
       |> Option.withDefault ~default:Defaults.defaultMenu
@@ -290,6 +292,12 @@ let isHoverOverTL (vs : viewState) : bool =
       true
   | _ ->
       false
+
+
+let getMainTokens (vs : viewState) : FluidPrinter.tokenInfo list =
+  List.head vs.tokenPartitions
+  |> Option.map ~f:(fun (p : FluidPrinter.partition) -> p.tokens)
+  |> Option.withDefault ~default:[]
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u

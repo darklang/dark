@@ -1262,6 +1262,7 @@ and msg =
 and variantTest =
   | StubVariant
   | GroupVariant
+  | FeatureFlagVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1554,6 +1555,7 @@ and model =
    * which you can read as "myfunc is used in repl2".  *)
   ; tlUsedIn : TLIDSet.t TLIDDict.t
   ; fluidState : fluidState
+  ; activePartition : string option
   ; dbStats : dbStatsStore
   ; workerStats : workerStats TLIDDict.t
   ; avatarsList : avatar list
