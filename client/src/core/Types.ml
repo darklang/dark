@@ -373,11 +373,7 @@ type astFloatPart =
   | FPFractional
 [@@deriving show {with_path = false}]
 
-type astStringPart =
-  | SPOpenQuote
-  | SPText
-  | SPCloseQuote
-[@@deriving show {with_path = false}]
+type astStringPart = SPOpenQuote [@@deriving show {with_path = false}]
 
 type astLetPart =
   | LPKeyword
@@ -490,7 +486,7 @@ type caretTarget =
 (* ----------------------------- *)
 (* Mouse *)
 (* ----------------------------- *)
-and mouseEvent =
+type mouseEvent =
   { mePos : vPos
   ; button : int
   ; altKey : bool
@@ -1318,8 +1314,13 @@ and integrationTestState =
   | IntegrationTestFinished of testResult
   | NoIntegrationTest
 
-(* Fluid *)
-and placeholder = string * string
+(*
+ * Fluid
+ *)
+(* eg ("value","Int") *)
+and placeholder =
+  { name : string
+  ; tipe : string }
 
 and fluidToken =
   | TInteger of id * string
@@ -1329,7 +1330,10 @@ and fluidToken =
   | TStringMLMiddle of id * string * int * string
   | TStringMLEnd of id * string * int * string
   | TBlank of id
-  | TPlaceholder of placeholder * id
+  | TPlaceholder of
+      { blankID : id
+      ; fnID : id
+      ; placeholder : placeholder }
   | TTrue of id
   | TFalse of id
   | TNullToken of id

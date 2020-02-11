@@ -84,7 +84,7 @@ let removeCharAt str offset : string =
     ^ String.slice ~from:(offset + 1) ~to_:(String.length str) str
 
 
-let isNumber (str : string) = Js.Re.test_ [%re "/[0-9]+/"] str
+let isNumber (str : string) = Js.Re.test_ [%re "/^[0-9]+$/"] str
 
 let isIdentifierChar (str : string) = Js.Re.test_ [%re "/[_a-zA-Z0-9]+/"] str
 

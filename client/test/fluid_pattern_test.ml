@@ -206,7 +206,7 @@ let run () =
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (insert "." 5) ("12345.", 6) ;
       t "insert . converts to float - middle" anInt (insert "." 3) ("123.45", 4) ;
-      t "insert . converts to float - start" anInt (insert "." 0) ("12345", 0) ;
+      t "insert . converts to float - start" anInt (insert "." 0) (".12345", 1) ;
       t "insert . converts to float - short" aShortInt (insert "." 1) ("1.", 2) ;
       t "continue after adding dot" aPartialFloat (insert "2" 2) ("1.2", 3) ;
       t "insert zero in whole - start" aFloat (insert "0" 0) ("123.456", 0) ;

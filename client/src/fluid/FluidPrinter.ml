@@ -135,26 +135,32 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
+  (* placeholderFor = (id * string * int) 
+   * id: id of the placeholder-containing expr
+   * string: name of the placeholder-containing expr
+   * int: index of the placeholder within the expr's parameters
+   *)
   let nest
-      ?(placeholderFor : (string * int) option = None)
+      ?(placeholderFor : (id * string * int) option = None)
       ~indent
       (e : E.t)
       (b : Builder.t) : Builder.t =
     let tokensFn b =
       match (e, placeholderFor) with
-      | EBlank id, Some (fnname, pos) ->
+      | EBlank id, Some (fnID, fnname, pos) ->
           let name =
             !OldExpr.functions
             |> List.find ~f:(fun f -> f.fnName = fnname)
             |> Option.andThen ~f:(fun fn ->
                    List.getAt ~index:pos fn.fnParameters)
-            |> Option.map ~f:(fun p -> (p.paramName, tipe2str p.paramTipe))
+            |> Option.map ~f:(fun p ->
+                   {name = p.paramName; tipe = tipe2str p.paramTipe})
           in
           ( match name with
           | None ->
               fromExpr e b
           | Some placeholder ->
-              add (TPlaceholder (placeholder, id)) b )
+              add (TPlaceholder {blankID = id; placeholder; fnID}) b )
       | _ ->
           fromExpr e b
     in
@@ -198,11 +204,11 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
            then
              b
              |> addNewlineIfNeeded (Some (id, id, Some (offset + i)))
-             |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
+             |> nest ~indent:2 ~placeholderFor:(Some (id, name, offset + i)) e
            else
              b
              |> add (TSep (E.toID e))
-             |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e)
+             |> nest ~indent:0 ~placeholderFor:(Some (id, name, offset + i)) e)
   in
   match e with
   | EInteger (id, i) ->
@@ -271,13 +277,13 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
             b
         | _ ->
             b
-            |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
+            |> nest ~indent:0 ~placeholderFor:(Some (id, op, 0)) lexpr
             |> add (TSep (E.toID lexpr))
       in
       b
       |> start
       |> addMany [TBinOp (id, op); TSep id]
-      |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
+      |> nest ~indent:0 ~placeholderFor:(Some (id, op, 1)) rexpr
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
       let ghost = ghostPartial id newName (FluidUtil.partialName oldName) in
       let start b =
@@ -286,7 +292,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
             b
         | _ ->
             b
-            |> nest ~indent:0 ~placeholderFor:(Some (oldName, 0)) lexpr
+            |> nest ~indent:0 ~placeholderFor:(Some (id, oldName, 0)) lexpr
             |> add (TSep (E.toID lexpr))
       in
       b
@@ -294,7 +300,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> add (TPartial (id, newName))
       |> addMany ghost
       |> add (TSep id)
-      |> nest ~indent:2 ~placeholderFor:(Some (oldName, 1)) rexpr
+      |> nest ~indent:2 ~placeholderFor:(Some (id, oldName, 1)) rexpr
   | EFnCall (id, fnName, args, ster) ->
       let displayName = FluidUtil.fnDisplayName fnName in
       let versionDisplayName = FluidUtil.versionDisplayName fnName in
