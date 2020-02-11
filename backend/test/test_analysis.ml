@@ -86,7 +86,7 @@ let t_other_db_query_functions_have_analysis () =
       "Find the age field"
       (IDTable.find_exn dvalStore varID)
       ~f:(function
-        | DObj v ->
+        | ExecutedResult (DObj v) ->
             Option.is_some (DvalMap.get ~key:"age" v)
         | dobj ->
             false)
@@ -102,7 +102,7 @@ let t_list_literals () =
     "Blank in a list evaluates to Incomplete"
     (IDTable.find_exn dvalStore blankId)
     ~f:(function
-      | DIncomplete _ ->
+      | ExecutedResult (DIncomplete _) ->
           true
       | _ ->
           false)

@@ -217,7 +217,8 @@ let rec execute_dblock
             ^ string_of_int (List.length args) )
       else
         let bindings = List.zip_exn params args in
-        List.iter bindings ~f:(fun ((id, paramName), dv) -> state.trace id dv) ;
+        List.iter bindings ~f:(fun ((id, paramName), dv) ->
+            state.trace id (ExecutedResult dv)) ;
         let new_st =
           bindings
           |> List.map ~f:(Prelude.Tuple2.mapFirst ~f:Prelude.Tuple2.second)
@@ -274,7 +275,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           DIncomplete SourceNone
       (* partial w/ exception, full with dincomplete, or option dval? *)
     in
-    trace (blank_to_id exp) result ;
+    trace (blank_to_id exp) (ExecutedResult result) ;
     result
   in
   let value _ =
@@ -536,7 +537,8 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         then
           List.iter cases ~f:(fun (pattern, expr) ->
               let _, vars, tracevars, preview_rhs = matches matchVal pattern in
-              List.iter tracevars ~f:(fun (id, dv) -> trace id dv) ;
+              List.iter tracevars ~f:(fun (id, dv) ->
+                  trace id (ExecutedResult dv)) ;
               (* Don't preview constructor rhs, as they have misleading incompletes *)
               if preview_rhs then exe_with_vars expr vars |> ignore) ;
         (* Always do the real execution *)
@@ -588,7 +590,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           DError (SourceId id, "Invalid construction option") )
   in
   let execed_value = value () in
-  trace (blank_to_id expr) execed_value ;
+  trace (blank_to_id expr) (ExecutedResult execed_value) ;
   execed_value
 
 
