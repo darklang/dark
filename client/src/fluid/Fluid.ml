@@ -2230,6 +2230,15 @@ let acMoveDown (s : state) : state =
   acSetIndex index s
 
 
+(* Check to see if we should open autocomplete at new position *)
+let updatePosAndAC (ast : ast) (newPos : int) (s : state) : state =
+  (* Update newPos and reset upDownCol and reset AC *)
+  let s' = setPosition ~resetUD:true s newPos |> acClear in
+  getToken s' ast
+  |> Option.map ~f:(fun ti -> acMaybeShow ti s')
+  |> Option.withDefault ~default:s'
+
+
 (* acMoveBasedOnKey produces a new state with the caret placed in a position that
    makes sense for the specific key that was pressed to confirm the autocomplete.
 
@@ -3066,7 +3075,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (ast, Exactly ti.startPos)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
-  (newAST, {s with newPos})
+  let newS = updatePosAndAC newAST newPos s in
+  (newAST, newS)
 
 
 let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
@@ -4497,7 +4507,8 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
         newPos
   in
   let newAST = acMaybeCommit newPos ast s in
-  (newAST, setPosition s newPos)
+  let newS = updatePosAndAC newAST newPos s in
+  (newAST, newS)
 
 
 let shouldDoDefaultAction (key : K.key) : bool =
@@ -5090,23 +5101,21 @@ let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =
   let selection =
     Option.orElseLazy (fun () -> Entry.getFluidSelectionRange ()) selection
   in
-  let ast, s =
-    match selection with
-    (* if range width is 0, just change pos *)
-    | Some (selBegin, selEnd) when selBegin = selEnd ->
-        updateMouseClick selBegin ast s
-    | Some (selBegin, selEnd) ->
-        ( ast
-        , { s with
-            selectionStart = Some selBegin
-          ; oldPos = s.newPos
-          ; newPos = selEnd } )
-    | None ->
-        (ast, {s with selectionStart = None})
-  in
-  (* We reset the fluidState to prevent the selection and/or cursor
-         * position from persisting when a user switched handlers *)
-  (ast, acClear s)
+  match selection with
+  (* if range width is 0, just change pos *)
+  | Some (selBegin, selEnd) when selBegin = selEnd ->
+      updateMouseClick selBegin ast s
+  | Some (selBegin, selEnd) ->
+      ( ast
+      , { s with
+          selectionStart = Some selBegin
+        ; oldPos = s.newPos
+        ; newPos = selEnd }
+        |> acClear )
+  | None ->
+      (* We reset the fluidState to prevent the selection and/or cursor
+   position from persisting when a user switched handlers *)
+      (ast, {s with selectionStart = None} |> acClear)
 
 
 let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
