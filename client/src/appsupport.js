@@ -156,12 +156,17 @@ function getFluidSelectionRange() {
     return undefined;
   }
 
-  function _findFirstNodeWithClassList(selectedNode) {
-    // Sometimes the selected node is #text which does not have a classlist"
-    if (selectedNode.classList) {
+  function _findFirstNodeWithClassListOrNull(selectedNode) {
+    if (selectedNode && selectedNode.classList) {
       return selectedNode;
-    } else {
+    } else if (
+      selectedNode &&
+      selectedNode.parentNode &&
+      selectedNode.parentNode.classList
+    ) {
       return selectedNode.parentNode;
+    } else {
+      return null;
     }
   }
 
