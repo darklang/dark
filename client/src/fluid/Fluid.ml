@@ -2231,7 +2231,7 @@ let acMoveDown (s : state) : state =
 
 
 (* Check to see if we should open autocomplete at new position *)
-let acMaybeAtPos (ast : ast) (newPos : int) (s : state) : state =
+let updatePosAndAC (ast : ast) (newPos : int) (s : state) : state =
   (* Update newPos and reset upDownCol and reset AC *)
   let s' = setPosition ~resetUD:true s newPos |> acClear in
   getToken s' ast
@@ -3075,7 +3075,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
         (ast, Exactly ti.startPos)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
-  let newS = acMaybeAtPos newAST newPos s in
+  let newS = updatePosAndAC newAST newPos s in
   (newAST, newS)
 
 
@@ -4507,7 +4507,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
         newPos
   in
   let newAST = acMaybeCommit newPos ast s in
-  let newS = acMaybeAtPos newAST newPos s in
+  let newS = updatePosAndAC newAST newPos s in
   (newAST, newS)
 
 
