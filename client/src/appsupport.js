@@ -306,17 +306,17 @@ analytics.page({
   },
 });
 
-function trackWelcomeModalDismissal() {
+function sendSegmentMessage(event) {
   analytics.track({
     userId: `user-${username}`,
-    event: "Welcome Modal",
+    event: event,
   });
   return;
 }
 
 window.getFluidSelectionRange = getFluidSelectionRange;
 window.setFluidSelectionRange = setFluidSelectionRange;
-window.trackWelcomeModalDismissal = trackWelcomeModalDismissal;
+window.sendSegmentMessage = sendSegmentMessage;
 
 // ---------------------------
 // Analysis
