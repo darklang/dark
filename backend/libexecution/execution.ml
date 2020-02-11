@@ -110,8 +110,9 @@ let execute_handler
     ; user_fns
     ; user_tipes
     ; dbs
-    ; trace = (fun _ _ -> ())
+    ; trace = (fun ~on_execution_path _ _ -> ())
     ; trace_tlid
+    ; on_execution_path = true
     ; exec =
         (fun ~state _ _ -> Exception.internal "invalid state.exec function")
     ; context = Real
@@ -159,8 +160,9 @@ let execute_function
     ; user_fns
     ; user_tipes
     ; dbs
-    ; trace = (fun _ _ -> ())
+    ; trace = (fun ~on_execution_path _ _ -> ())
     ; trace_tlid
+    ; on_execution_path = true
     ; exec =
         (fun ~state _ _ -> Exception.internal "invalid state.exec function")
     ; context = Real
@@ -190,7 +192,15 @@ let analyse_ast
     ?(load_fn_arguments = load_no_arguments)
     (ast : expr) : analysis =
   let value_store = IDTable.create () in
-  let trace id dval = Hashtbl.set value_store ~key:id ~data:dval in
+  let trace ~on_execution_path id dval =
+    Hashtbl.set
+      value_store
+      ~key:id
+      ~data:
+        ( if on_execution_path
+        then ExecutedResult dval
+        else NonExecutedResult dval )
+  in
   let input_vars = dbs_as_input_vars dbs @ input_vars in
   let state : exec_state =
     { tlid
@@ -201,6 +211,7 @@ let analyse_ast
     ; dbs
     ; trace
     ; trace_tlid = (fun _ -> ())
+    ; on_execution_path = true
     ; exec =
         (fun ~state _ _ -> Exception.internal "invalid state.exec function")
     ; context = Preview

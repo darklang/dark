@@ -218,7 +218,7 @@ let rec execute_dblock
       else
         let bindings = List.zip_exn params args in
         List.iter bindings ~f:(fun ((id, paramName), dv) ->
-            state.trace id (ExecutedResult dv)) ;
+            state.trace ~on_execution_path:state.on_execution_path id dv) ;
         let new_st =
           bindings
           |> List.map ~f:(Prelude.Tuple2.mapFirst ~f:Prelude.Tuple2.second)
@@ -229,7 +229,11 @@ let rec execute_dblock
 
 
 and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
-  let exe = exec ~state in
+  let on_execution_path = state.on_execution_path in
+  let exe ?(on_execution_path = on_execution_path) =
+    let state = {state with on_execution_path = true} in
+    exec ~state
+  in
   let call = call_fn ~state in
   let ctx = state.context in
   let trace = state.trace in
@@ -275,7 +279,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           DIncomplete SourceNone
       (* partial w/ exception, full with dincomplete, or option dval? *)
     in
-    trace (blank_to_id exp) (ExecutedResult result) ;
+    trace ~on_execution_path (blank_to_id exp) result ;
     result
   in
   let value _ =
@@ -538,7 +542,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           List.iter cases ~f:(fun (pattern, expr) ->
               let _, vars, tracevars, preview_rhs = matches matchVal pattern in
               List.iter tracevars ~f:(fun (id, dv) ->
-                  trace id (ExecutedResult dv)) ;
+                  trace ~on_execution_path id dv) ;
               (* Don't preview constructor rhs, as they have misleading incompletes *)
               if preview_rhs then exe_with_vars expr vars |> ignore) ;
         (* Always do the real execution *)
@@ -590,7 +594,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           DError (SourceId id, "Invalid construction option") )
   in
   let execed_value = value () in
-  trace (blank_to_id expr) (ExecutedResult execed_value) ;
+  trace ~on_execution_path (blank_to_id expr) execed_value ;
   execed_value
 
 

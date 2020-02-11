@@ -543,10 +543,14 @@ module RuntimeT = struct
     ; user_fns : user_fn list
     ; user_tipes : user_tipe list
     ; dbs : DbT.db list
-    ; trace : id -> execution_result -> unit
+    ; trace : on_execution_path:bool -> id -> dval -> unit
     ; trace_tlid : tlid -> unit
     ; context : context
     ; execution_id : id
+    ; on_execution_path :
+        (* Whether the currently executing code is really being executed (as
+         * opposed to being executed for traces) *)
+        bool
     ; exec : state:exec_state -> dval_map -> expr -> dval
           (* Some parts of the execution need to call AST.exec, but cannot call
            * AST.exec without a cyclic dependency. This function enables that, and it
