@@ -51,6 +51,7 @@ let () =
   describe "View_blankor" View_blankor.run ;
   describe "Encoder test" Encoder_test.run ;
   describe "Fluid_selection_test" Fluid_selection_test.run ;
+  describe "User_functions_test" Userfn_test.run ;
   if !domTests
   then (
     DOMSupport.init () ;

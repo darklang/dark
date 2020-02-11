@@ -231,3 +231,11 @@ let inputToArgs (f : userFunction) (input : inputValueDict) : dval list =
              StrDict.get ~key:name input |> Option.withDefault ~default
          | _ ->
              default)
+
+
+let canDelete (usedInRefs : toplevel list) (tlid : tlid) : bool =
+  (* Allow deletion if the only callers are itself or there are no references at all.
+    List.all returns true if the list is empty.
+  *)
+  usedInRefs
+  |> List.all ~f:(function TLFunc f when f.ufTLID = tlid -> true | _ -> false)

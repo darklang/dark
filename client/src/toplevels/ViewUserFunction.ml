@@ -111,7 +111,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let menuView =
     let delAct : TLMenu.menuItem =
       let disableMsg =
-        if not (List.isEmpty vs.usedInRefs)
+        if not (UserFunctions.canDelete vs.usedInRefs fn.ufTLID)
         then
           Some
             "Cannot delete this function as it is used in your code base. Use the references on the right to find and change this function's callers, after which you'll be able to delete it."
