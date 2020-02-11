@@ -531,6 +531,11 @@ module RuntimeT = struct
     | Real
   [@@deriving eq, show, yojson]
 
+  type execution_result =
+    | ExecutedResult of dval
+    | NonExecutedResult of dval
+  [@@deriving yojson]
+
   type exec_state =
     { tlid : tlid
     ; canvas_id : Uuidm.t
@@ -538,7 +543,7 @@ module RuntimeT = struct
     ; user_fns : user_fn list
     ; user_tipes : user_tipe list
     ; dbs : DbT.db list
-    ; trace : id -> dval -> unit
+    ; trace : id -> execution_result -> unit
     ; trace_tlid : tlid -> unit
     ; context : context
     ; execution_id : id
