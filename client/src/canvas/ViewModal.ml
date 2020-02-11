@@ -20,7 +20,7 @@ let viewWelcomeToDark (username : string) : msg Html.html =
     ViewUtils.eventNoPropagation ~key:"close-welcome-modal" "click" (fun _ ->
         CloseWelcomeModal)
   in
-  let vidSrc = "//" ^ Native.Ext.staticHost () ^ "/gif/helloWorld.gif" in
+  let vidSrc = "//" ^ Native.Ext.staticHost () ^ "/gif/helloworld.gif" in
   let gif =
     [ Html.img
         [ Html.src vidSrc
