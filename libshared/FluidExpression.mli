@@ -55,6 +55,20 @@ val newB : unit -> t
     effectively, [f] must call [walk]. *)
 val walk : f:(t -> t) -> t -> t
 
+(** [preTraversal f ast] walks the entire AST from top to bottom, calling f on
+ * each function. It returns a new AST with every subexpression e replaced by
+ * [f e].  Unlike walk, it does not require you to call preorder again. After
+ * calling [f], the result is then recursed into; if this isn't what you want
+ * call postTraversal. *)
+val preTraversal : f:(t -> t) -> t -> t
+
+(** [postTraversal f ast] walks the entire AST from bottom to top, calling f on
+ * each function. It returns a new AST with every subexpression e replaced by
+ * [f e].  Unlike walk, it does not require you to call preorder again. After
+ * calling [f], the result is NOT recursed into; if this isn't what you want
+ * call preTraversal. *)
+val postTraversal : f:(t -> t) -> t -> t
+
 (** [filterMap f ast] calls f on every expression, keeping any Some results
  * of f, returning them in a list. Recurses into expressions: if a child and
  * its parent (or grandparent, etc) both match, then both will be in the

@@ -52,17 +52,35 @@ let debugAST (length : int) (msg : string) (e : E.t) : unit =
 (* Deterministic random number generator *)
 (* ------------------ *)
 
-(* aim is to be deterministic *)
-let state = ref 1.0
+(* Deterministic random number generator, where the random numbers are evenly
+ * distributed across the range. *)
+let state = ref 1
 
-let setSeed (seed : int) : unit = state := float_of_int seed
+let setSeed (seed : int) = state := seed
 
 let random () : float =
-  state := Js_math.sin !state *. 10000.0 ;
-  !state -. float_of_int (Js_math.floor !state)
+  let xOrShiftRand () : int =
+    (* Adapted from the C version at https://en.wikipedia.org/wiki/Xorshift *)
+    (* Javascript treats numbers as 32 bit in the presence of bitwise ops and
+     * our OCaml compiler defers to Javascript for handling numbers.
+     *)
+    state := !state lxor (!state lsl 13) ;
+    (* Using lsr instead of asr because these shifts assume unsigned ints,
+    * which JS doesn't have *)
+    state := !state lxor (!state lsr 17) ;
+    state := !state lxor (!state lsl 5) ;
+    !state
+  in
+  let twoToNeg32 = 2.0 ** -32.0 in
+  (* Conversion from https://www.doornik.com/research/randomdouble.pdf *)
+  (float_of_int (xOrShiftRand ()) *. twoToNeg32) +. 0.5
 
 
-let range (max : int) : int = Js_math.floor (float_of_int max *. random ())
+let range (max : int) : int = truncate (float_of_int max *. random ())
+
+let oneOf (l : 'a list) : 'a =
+  List.getAt ~index:(range (List.length l)) l |> Option.valueExn
+
 
 (* ------------------ *)
 (* AST generators *)
@@ -79,208 +97,108 @@ let generateList ~(minSize : int) ~(f : unit -> 'a) () : 'a list =
   result
 
 
-let generateName () =
+let generateName () : string =
   let generateChar () : char =
-    match range 11 with
-    | 0 ->
-        'a'
-    | 1 ->
-        'b'
-    | 2 ->
-        'c'
-    | 3 ->
-        'd'
-    | 4 ->
-        'e'
-    | 5 ->
-        'f'
-    | 6 ->
-        'g'
-    | 7 ->
-        'h'
-    | 8 ->
-        'i'
-    | 9 ->
-        'j'
-    | 10 ->
-        'k'
-    | _ ->
-        'z'
+    oneOf ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'; 'k']
   in
   generateList ~minSize:1 ~f:generateChar () |> String.fromList
 
 
-let generateString () =
+let generateString () : string =
   let generateChar () : char =
-    match range 11 with
-    | 0 ->
-        'A'
-    | 1 ->
-        'B'
-    | 2 ->
-        'C'
-    | 3 ->
-        'D'
-    | 4 ->
-        'E'
-    | 5 ->
-        'F'
-    | 6 ->
-        'G'
-    | 7 ->
-        'H'
-    | 8 ->
-        'I'
-    | 9 ->
-        'J'
-    | 10 ->
-        'K'
-    | _ ->
-        ' '
+    oneOf ['A'; 'B'; 'C'; 'D'; 'E'; 'F'; 'G'; 'H'; 'I'; 'J'; 'K']
   in
   generateList ~minSize:0 ~f:generateChar () |> String.fromList
 
 
-let generateInfixName () =
-  match range 6 with
-  | 0 ->
-      "+"
-  | 1 ->
-      "++"
-  | 2 ->
-      "-"
-  | 3 ->
-      "*"
-  | 4 ->
-      "/"
-  | 5 ->
-      "||"
-  | _ ->
-      "&&"
+let generateInfixName () : string = oneOf ["+"; "++"; "-"; "*"; "/"; "||"; "&&"]
 
-
-let generateFnName () =
-  match range 7 with
-  | 0 ->
-      "Int::add"
-  | 1 ->
-      "DB::set_v2"
-  | 2 ->
-      "HttpClient::post_v4"
-  | 3 ->
-      generateName ()
-  | 4 ->
-      "DB::getAll_v2"
-  | 5 ->
-      "DB::generateKey_v1"
-  | 6 ->
-      "Date::now_v0"
-  | _ ->
-      "Date::now"
+let generateFnName () : string =
+  oneOf
+    [ "Int::add"
+    ; "DB::set_v2"
+    ; "HttpClient::post_v4"
+    ; generateName ()
+    ; "DB::getAll_v2"
+    ; "DB::generateKey_v1"
+    ; "Date::now_v1"
+    ; "Date::now" ]
 
 
 (* Fields can only have a subset of expressions in the fieldAccess *)
-let rec generateFieldAccessExpr () =
-  match range 2 with
-  | 1 ->
-      var (generateName ())
-  | 0 ->
-      fieldAccess (generateFieldAccessExpr ()) (generateName ())
-  | _ ->
-      var (generateName ())
+let rec generateFieldAccessExpr () : FluidExpression.t =
+  oneOf
+    [ lazy (var (generateName ()))
+    ; lazy (fieldAccess (generateFieldAccessExpr ()) (generateName ())) ]
+  |> Lazy.force
 
 
-let rec generatePattern () =
-  match range 8 with
-  | 0 ->
-      pInt (range 500)
-  | 1 ->
-      pBool (random () < 0.5)
-  | 2 ->
-      pNull
-  | 3 ->
-      pConstructor
-        (generateName ())
-        (generateList ~minSize:0 ~f:generatePattern ())
-  | 4 ->
-      pVar (generateName ())
-  | 5 ->
-      pString (generateString ())
-  | 6 ->
-      pFloat (Int.toString (range 5000000)) (Int.toString (range 500000))
-  | 7 ->
-      pBlank
-  | _ ->
-      pBlank
+let rec generatePattern () : FluidPattern.t =
+  oneOf
+    [ lazy (pInt (range 500))
+    ; lazy (pBool (random () < 0.5))
+    ; lazy pNull
+    ; lazy
+        (pConstructor
+           (generateName ())
+           (generateList ~minSize:0 ~f:generatePattern ()))
+    ; lazy (pVar (generateName ()))
+    ; lazy (pString (generateString ()))
+    ; lazy (pFloat (Int.toString (range 5000000)) (Int.toString (range 500000)))
+    ; lazy pBlank ]
+  |> Lazy.force
 
 
-let rec generatePipeArgumentExpr () =
-  match range 4 with
-  | 0 ->
-      lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
-  | 1 ->
-      b
-  | 2 ->
-      fn
-        (generateName ())
-        (pipeTarget :: generateList ~minSize:0 ~f:generateExpr ())
-  | 3 ->
-      binop (generateName ()) pipeTarget (generateExpr ())
-  | _ ->
-      b
+let rec generatePipeArgumentExpr () : FluidExpression.t =
+  oneOf
+    [ lazy
+        (lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ()))
+    ; lazy b
+    ; lazy
+        (fn
+           (generateName ())
+           (pipeTarget :: generateList ~minSize:0 ~f:generateExpr ()))
+    ; lazy (binop (generateName ()) pipeTarget (generateExpr ())) ]
+  |> Lazy.force
 
 
 and generateExpr () =
-  match range 20 with
-  | 0 ->
-      b
-  | 1 ->
-      str (generateString ())
-  | 2 ->
-      int (range 500)
-  | 3 ->
-      bool (random () < 0.5)
-  | 4 ->
-      float' (Int.toString (range 5000000)) (Int.toString (range 500000))
-  | 5 ->
-      null
-  | 6 ->
-      var (generateName ())
-  | 7 ->
-      partial (generateFnName ()) (generateExpr ())
-  | 8 ->
-      list (generateList () ~minSize:0 ~f:generateExpr)
-  | 9 ->
-      fn (generateFnName ()) (generateList ~minSize:0 ~f:generateExpr ())
-  | 10 ->
-      rightPartial (generateInfixName ()) (generateExpr ())
-  | 11 ->
-      fieldAccess (generateFieldAccessExpr ()) (generateName ())
-  | 12 ->
-      lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ())
-  | 13 ->
-      let' (generateName ()) (generateExpr ()) (generateExpr ())
-  | 14 ->
-      binop (generateInfixName ()) (generateExpr ()) (generateExpr ())
-  | 15 ->
-      if' (generateExpr ()) (generateExpr ()) (generateExpr ())
-  | 16 ->
-      constructor (generateName ()) (generateList ~minSize:0 ~f:generateExpr ())
-  | 17 ->
-      pipe
-        (generateExpr ())
-        (generateList ~minSize:2 ~f:generatePipeArgumentExpr ())
-  | 18 ->
-      record
-        (generateList ~minSize:1 () ~f:(fun () ->
-             (generateName (), generateExpr ())))
-  | 19 ->
-      match'
-        (generateExpr ())
-        (generateList ~minSize:1 () ~f:(fun () ->
-             (generatePattern (), generateExpr ())))
-  | _ ->
-      b
+  oneOf
+    [ lazy b
+    ; lazy (str (generateString ()))
+    ; lazy (int (range 500))
+    ; lazy (bool (random () < 0.5))
+    ; lazy (float' (Int.toString (range 5000000)) (Int.toString (range 500000)))
+    ; lazy null
+    ; lazy (var (generateName ()))
+    ; lazy (partial (generateFnName ()) (generateExpr ()))
+    ; lazy (list (generateList () ~minSize:0 ~f:generateExpr))
+    ; lazy (fn (generateFnName ()) (generateList ~minSize:0 ~f:generateExpr ()))
+    ; lazy (rightPartial (generateInfixName ()) (generateExpr ()))
+    ; lazy (fieldAccess (generateFieldAccessExpr ()) (generateName ()))
+    ; lazy
+        (lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ()))
+    ; lazy (let' (generateName ()) (generateExpr ()) (generateExpr ()))
+    ; lazy (binop (generateInfixName ()) (generateExpr ()) (generateExpr ()))
+    ; lazy (if' (generateExpr ()) (generateExpr ()) (generateExpr ()))
+    ; lazy
+        (constructor
+           (generateName ())
+           (generateList ~minSize:0 ~f:generateExpr ()))
+    ; lazy
+        (pipe
+           (generateExpr ())
+           (generateList ~minSize:2 ~f:generatePipeArgumentExpr ()))
+    ; lazy
+        (record
+           (generateList ~minSize:1 () ~f:(fun () ->
+                (generateName (), generateExpr ()))))
+    ; lazy
+        (match'
+           (generateExpr ())
+           (generateList ~minSize:1 () ~f:(fun () ->
+                (generatePattern (), generateExpr ())))) ]
+  |> Lazy.force
 
 
 (* ------------------ *)
@@ -299,88 +217,83 @@ end
 (* Test case reduction *)
 (* ------------------ *)
 
-let rec unwrap (id : id) (expr : E.t) : E.t =
-  let f = unwrap id in
+let unwrap (id : id) (ast : E.t) : E.t =
   let childOr (exprs : E.t list) =
     List.find exprs ~f:(fun e -> E.toID e = id)
   in
-  let newExpr =
-    match expr with
-    | ELet (_, _, rhs, next) ->
-        childOr [rhs; next]
-    | EIf (_, cond, ifexpr, elseexpr) ->
-        childOr [cond; ifexpr; elseexpr]
-    | EBinOp (_, _, lexpr, rexpr, _) ->
-        childOr [lexpr; rexpr]
-    | EFieldAccess (_, expr, _) ->
-        childOr [expr]
-    | EFnCall (_, _, exprs, _) ->
-        childOr exprs
-    | ELambda (_, _, body) ->
-        childOr [body]
-    | EList (_, exprs) ->
-        childOr exprs
-    | EMatch (_, mexpr, pairs) ->
-        childOr (mexpr :: List.map ~f:Tuple2.second pairs)
-    | ERecord (_, fields) ->
-        childOr (List.map ~f:Tuple2.second fields)
-    | EPipe (_, exprs) ->
-        childOr exprs
-    | EConstructor (_, _, exprs) ->
-        childOr exprs
-    | EPartial (_, _, oldExpr) ->
-        childOr [oldExpr]
-    | ERightPartial (_, _, oldExpr) ->
-        childOr [oldExpr]
-    | EFeatureFlag (_, _, cond, casea, caseb) ->
-        childOr [cond; casea; caseb]
-    | _ ->
-        None
-  in
-  let newExpr = Option.withDefault ~default:expr newExpr in
-  E.walk ~f newExpr
+  E.postTraversal ast ~f:(fun e ->
+      let newExpr =
+        match e with
+        | ELet (_, _, rhs, next) ->
+            childOr [rhs; next]
+        | EIf (_, cond, ifexpr, elseexpr) ->
+            childOr [cond; ifexpr; elseexpr]
+        | EBinOp (_, _, lexpr, rexpr, _) ->
+            childOr [lexpr; rexpr]
+        | EFieldAccess (_, expr, _) ->
+            childOr [expr]
+        | EFnCall (_, _, exprs, _) ->
+            childOr exprs
+        | ELambda (_, _, body) ->
+            childOr [body]
+        | EList (_, exprs) ->
+            childOr exprs
+        | EMatch (_, mexpr, pairs) ->
+            childOr (mexpr :: List.map ~f:Tuple2.second pairs)
+        | ERecord (_, fields) ->
+            childOr (List.map ~f:Tuple2.second fields)
+        | EPipe (_, exprs) ->
+            childOr exprs
+        | EConstructor (_, _, exprs) ->
+            childOr exprs
+        | EPartial (_, _, oldExpr) ->
+            childOr [oldExpr]
+        | ERightPartial (_, _, oldExpr) ->
+            childOr [oldExpr]
+        | EFeatureFlag (_, _, cond, casea, caseb) ->
+            childOr [cond; casea; caseb]
+        | _ ->
+            None
+      in
+      Option.withDefault ~default:e newExpr)
 
 
-let rec changeStrings (id : id) ~(f : string -> string) (expr : E.t) : E.t =
-  let open FluidExpression in
+let changeStrings (id : id) ~(f : string -> string) (ast : E.t) : E.t =
   let fStr strid str = if strid = id then f str else str in
-  let newExpr =
-    match expr with
-    | ELet (id, name, rhs, next) ->
-        ELet (id, fStr id name, rhs, next)
-    | EFieldAccess (id, expr, fieldname) ->
-        EFieldAccess (id, expr, fStr id fieldname)
-    | EPartial (id, name, expr) ->
-        let newName = f name in
-        if newName = "" then expr else EPartial (id, newName, expr)
-    | ERightPartial (id, name, expr) ->
-        let newName = f name in
-        if newName = "" then expr else ERightPartial (id, newName, expr)
-    | EFnCall (id, name, exprs, ster) ->
-        let newName = f name in
-        if newName = "" then expr else EFnCall (id, newName, exprs, ster)
-    | EBinOp (id, name, lhs, rhs, ster) ->
-        let newName = f name in
-        if newName = "" then expr else EBinOp (id, newName, lhs, rhs, ster)
-    | ELambda (id, names, expr) ->
-        let names =
-          List.map names ~f:(fun (nid, name) ->
-              if nid = id then (nid, f name) else (nid, name))
-        in
-        ELambda (id, names, expr)
-    | ERecord (rid, fields) ->
-        ERecord
-          ( rid
-          , List.map
-              ~f:(fun (name, expr) ->
-                if id = E.toID expr then (f name, expr) else (name, expr))
-              fields )
-    | EString (id, str) ->
-        EString (id, f str)
-    | _ ->
-        expr
-  in
-  E.walk ~f:(changeStrings id ~f) newExpr
+  E.postTraversal ast ~f:(function
+      | ELet (id, name, rhs, next) ->
+          ELet (id, fStr id name, rhs, next)
+      | EFieldAccess (id, expr, fieldname) ->
+          EFieldAccess (id, expr, fStr id fieldname)
+      | EPartial (id, name, expr) ->
+          let newName = fStr id name in
+          if newName = "" then expr else EPartial (id, newName, expr)
+      | ERightPartial (id, name, expr) ->
+          let newName = fStr id name in
+          if newName = "" then expr else ERightPartial (id, newName, expr)
+      | EFnCall (id, name, exprs, ster) as e ->
+          let newName = fStr id name in
+          if newName = "" then e else EFnCall (id, newName, exprs, ster)
+      | EBinOp (id, name, lhs, rhs, ster) as e ->
+          let newName = fStr id name in
+          if newName = "" then e else EBinOp (id, newName, lhs, rhs, ster)
+      | ELambda (id, names, expr) ->
+          let names =
+            List.map names ~f:(fun (nid, name) ->
+                if nid = id then (nid, fStr id name) else (nid, name))
+          in
+          ELambda (id, names, expr)
+      | ERecord (rid, fields) ->
+          ERecord
+            ( rid
+            , List.map
+                ~f:(fun (name, expr) ->
+                  if id = E.toID expr then (fStr id name, expr) else (name, expr))
+                fields )
+      | EString (id, str) ->
+          EString (id, fStr id str)
+      | expr ->
+          expr)
 
 
 let blankVarNames (id : id) (expr : E.t) : E.t =
@@ -391,26 +304,17 @@ let shortenNames (id : id) (expr : E.t) : E.t =
   changeStrings ~f:(String.dropRight ~count:1) id expr
 
 
-let rec remove (id : id) (expr : E.t) : E.t =
-  let r e = remove id e in
-  let removeFromList exprs =
-    List.filterMap exprs ~f:(fun e ->
-        if E.toID e = id then None else Some (r e))
-  in
-  if E.toID expr = id
-  then EBlank id
-  else
-    let f expr =
-      match expr with
-      | EFieldAccess (faID, expr, fieldname) ->
-          if id = faID then expr else EFieldAccess (faID, r expr, fieldname)
+let remove (id : id) (ast : E.t) : E.t =
+  let removeFromList exprs = List.filter exprs ~f:(fun e -> E.toID e <> id) in
+  E.postTraversal ast ~f:(function
+      | e when E.toID e = id ->
+          EBlank id
       | EFnCall (id, name, exprs, ster) ->
           EFnCall (id, name, removeFromList exprs, ster)
       | ELambda (id, names, expr) ->
           let names =
             names
-            |> List.filterMap ~f:(fun (nid, name) ->
-                   if nid = id then None else Some (nid, name))
+            |> List.filter ~f:(fun (nid, _) -> nid <> id)
             |> fun x -> if x = [] then List.take ~count:1 names else x
           in
           ELambda (id, names, expr)
@@ -420,12 +324,8 @@ let rec remove (id : id) (expr : E.t) : E.t =
           EMatch
             ( mid
             , mexpr
-            , List.filterMap
-                ~f:(fun (pattern, expr) ->
-                  if E.toID expr = id || FluidPattern.toID pattern = id
-                  then None
-                  else Some (pattern, expr))
-                pairs )
+            , List.filter pairs ~f:(fun (pattern, expr) ->
+                  E.toID expr <> id && FluidPattern.toID pattern <> id) )
       | ERecord (rid, fields) ->
           ERecord
             ( rid
@@ -449,16 +349,12 @@ let rec remove (id : id) (expr : E.t) : E.t =
             EPipe (id, newExprs) )
       | EConstructor (id, name, exprs) ->
           EConstructor (id, name, removeFromList exprs)
-      | _ ->
-          expr
-    in
-    E.walk ~f expr
+      | expr ->
+          expr)
 
 
-let rec simplify (id : id) (expr : E.t) : E.t =
-  if E.toID expr = id && not (E.isBlank expr)
-  then EInteger (id, "5")
-  else E.walk ~f:(simplify id) expr
+let simplify (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(function EBlank e -> EBlank e | _ -> EInteger (id, "5"))
 
 
 let reduce (test : FuzzTest.t) (ast : E.t) =
@@ -535,25 +431,30 @@ let runTest (test : FuzzTest.t) : unit =
           Tester.test name (fun () ->
               setSeed !seed ;
               let testcase = generateExpr () |> FluidExpression.clone in
-              Js.log2 "testing: " name ;
-              (* Js.log2 "testcase: " (E.show testcase) ; *)
-              let passed =
-                match try Some (test.fn testcase) with _ -> None with
-                | Some (newAST, newState) ->
-                    Js.log2 "checking: " name ;
-                    test.check ~testcase ~newAST newState
-                | None ->
-                    false
-              in
-              if passed = false
+              if test.ignore testcase
               then (
-                Js.log2 "failed: " name ;
-                let reduced = reduce test testcase in
-                Js.log2 "finished program:\n  " (toText reduced) ;
-                Js.log2 "as expr:\n  " (E.show reduced) ;
-                Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
-                fail () )
-              else pass ()) ;
+                Js.log2 "ignoring: " name ;
+                skip () )
+              else (
+                Js.log2 "testing: " name ;
+                (* Js.log2 "testcase: " (E.show testcase) ; *)
+                let passed =
+                  match try Some (test.fn testcase) with _ -> None with
+                  | Some (newAST, newState) ->
+                      Js.log2 "checking: " name ;
+                      test.check ~testcase ~newAST newState
+                  | None ->
+                      false
+                in
+                if passed = false
+                then (
+                  Js.log2 "failed: " name ;
+                  let reduced = reduce test testcase in
+                  Js.log2 "finished program:\n  " (toText reduced) ;
+                  Js.log2 "as expr:\n  " (E.show reduced) ;
+                  Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
+                  fail () )
+                else pass () )) ;
           seed := !seed + 1 ;
           continue_loop := !continue ;
           if !stopOnFail && Tester.fails () <> [] then exit (-1) ;
