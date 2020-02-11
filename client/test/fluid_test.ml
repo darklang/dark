@@ -999,7 +999,7 @@ let run () =
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (ins "." 5) "12345.~" ;
       t "insert . converts to float - middle" anInt (ins "." 3) "123.~45" ;
-      t "insert . converts to float - start" anInt (ins "." 0) "~12345" ;
+      t "insert . converts to float - start" anInt (ins "." 0) ".~12345" ;
       t "insert . converts to float - short" aShortInt (ins "." 1) "1.~" ;
       t "continue after adding dot" aPartialFloat (ins "2" 2) "1.2~" ;
       t "insert zero in whole - start" aFloat (ins "0" 0) "~123.456" ;
@@ -1530,7 +1530,7 @@ let run () =
         "renaming a function maintains unaligned params in let scope"
         (partial "Int::" (fn "Int::add" [five; six]))
         (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
-        "let b = 6\n~Int::sqrt 5" ;
+        "let b = 6\nInt::sqrt ~5" ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
         (partial "Int::" (fn "Int::add" [var "a"; var "b"]))
@@ -1706,7 +1706,7 @@ let run () =
         "pressing enter completes partial"
         trueBool
         (inputs [InsertText "|"; keypress K.Down; keypress K.Enter] 4)
-        "true ||~ __________" ;
+        "true || ~__________" ;
       t
         "pressing space completes partial"
         trueBool
@@ -1724,6 +1724,48 @@ let run () =
         anInt
         (ins "^" 5)
         "12345 ^~" ;
+      t
+        ~expectsPartial:true
+        "pressing plus key starts partial after string"
+        aStr
+        (ins "+" 13)
+        "\"some string\" +~" ;
+      t
+        ~expectsPartial:true
+        "pressing plus key starts partial after float"
+        aFloat
+        (ins "+" 7)
+        "123.456 +~" ;
+      t
+        ~expectsPartial:true
+        "ins | starts partial after null"
+        aNull
+        (ins "|" 4)
+        "null |~" ;
+      t
+        ~expectsPartial:true
+        "ins | starts partial after variable"
+        aVar
+        (ins "|" 8)
+        "variable |~" ;
+      t
+        ~expectsPartial:true
+        "ins | starts partial after list"
+        aList5
+        (ins "|" 3)
+        "[5] |~" ;
+      t
+        ~expectsPartial:true
+        "ins + starts partial after fieldname"
+        aField
+        (ins "+" 9)
+        "obj.field +~" ;
+      t
+        ~expectsPartial:true
+        "ins | starts partial after multiRowRecord"
+        multiRowRecord
+        (ins "|" 23)
+        "{\n  f1 : 56\n  f2 : 78\n} |~" ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
@@ -1854,7 +1896,7 @@ let run () =
         "changing binop to fn should work"
         (partial "Int::add" (binop "+" anInt anInt))
         (keys [K.Enter] 14)
-        "Int::add 12345 ~12345" ;
+        "Int::add ~12345 12345" ;
       t
         "changing fn to binops should work"
         (partial "+" (fn "Int::add" [anInt; anInt]))
@@ -1864,7 +1906,7 @@ let run () =
         "changing binop should work"
         (binop "<" anInt anInt)
         (inputs [InsertText "="; keypress K.Enter] 7)
-        "12345 <=~ 12345" ;
+        "12345 <= ~12345" ;
       t
         ~expectsPartial:true
         "adding binop in `if` works"
@@ -2829,8 +2871,7 @@ let run () =
         "creating a pipe from an fn via a partial works"
         (partial "|>" aFnCall)
         (enter 2)
-        (* TODO: This really should end in 18, but too much work for now *)
-        "Int::add 5 ~_________\n|>___\n" ;
+        "Int::add 5 _________\n|>~___\n" ;
       t
         "enter at the end of a pipe expr creates a new entry"
         aPipe
