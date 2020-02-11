@@ -2206,7 +2206,7 @@ let acClear (s : state) : state =
 let acMaybeShow (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
   if T.isAutocompletable ti.token && s.ac.index = None
-  then {s with ac = {s.ac with index = Some 0}}
+  then {s with ac = {s.ac with index = Some 0}; upDownCol = None}
   else s
 
 
@@ -3067,7 +3067,8 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   let newS =
-    let s' = {s with newPos; upDownCol = None} |> acClear in
+    (* Reset autocomplete, check to see if we should open it at the new position *)
+    let s' = {s with newPos} |> acClear in
     getToken s' newAST
     |> Option.map ~f:(fun ti -> acMaybeShow ti s')
     |> Option.withDefault ~default:s'
@@ -4505,6 +4506,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
   let newAST = acMaybeCommit newPos ast s in
   let s' = setPosition s newPos in
   let newS =
+    (* Check to see if we should open autocomplete at new position *)
     match getToken' s' tokens with
     | Some ti ->
         acMaybeShow ti s'
@@ -5116,11 +5118,10 @@ let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =
         ; newPos = selEnd }
         |> acClear )
   | None ->
+      (* We reset the fluidState to prevent the selection and/or cursor
+   position from persisting when a user switched handlers *)
       (ast, {s with selectionStart = None} |> acClear)
 
-
-(* We reset the fluidState to prevent the selection and/or cursor
-         * position from persisting when a user switched handlers *)
 
 let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     E.t * fluidState =
