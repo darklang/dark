@@ -85,7 +85,7 @@ let replaceFunctionResult
 
 
 let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
-    dval loadable =
+    executionResult loadable =
   match analysisStore with
   | LoadableSuccess dvals ->
       StrDict.get dvals ~key:id
@@ -105,7 +105,11 @@ let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
 let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
   match analysisStore with
   | LoadableSuccess dvals ->
-      StrDict.get dvals ~key:id
+    ( match StrDict.get dvals ~key:id with
+    | Some (ExecutedResult dval) ->
+        Some dval
+    | _ ->
+        None )
   | _ ->
       None
 

@@ -530,12 +530,21 @@ and loadable (decoder : Js.Json.t -> 'a) (j : Js.Json.t) : 'a loadable =
     j
 
 
+let executionResult (j : Js.Json.t) : executionResult =
+  variants
+    [ ("ExecutedResult", variant1 (fun a -> ExecutedResult a) dval)
+    ; ("NonExecutedResult", variant1 (fun a -> NonExecutedResult a) dval) ]
+    j
+
+
+let intermediateResultStore (j : Js.Json.t) : intermediateResultStore =
+  strDict executionResult j
+
+
 let dvalDict (j : Js.Json.t) : dvalDict = strDict dval j
 
-let lvDict (j : Js.Json.t) : lvDict = strDict dval j
-
-let analysisEnvelope (j : Js.Json.t) : traceID * dvalDict =
-  (tuple2 string dvalDict) j
+let analysisEnvelope (j : Js.Json.t) : traceID * intermediateResultStore =
+  (tuple2 string intermediateResultStore) j
 
 
 let handlerSpec j : handlerSpec =

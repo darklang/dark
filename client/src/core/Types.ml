@@ -526,15 +526,19 @@ and 'result loadable =
   | LoadableLoading of 'result option
   | LoadableError of string
 
-and lvDict = dval StrDict.t
-
 and dvalDict = dval StrDict.t
+
+and executionResult =
+  | ExecutedResult of dval
+  | NonExecutedResult of dval
+
+and intermediateResultStore = executionResult StrDict.t
 
 and avDict = id StrDict.t StrDict.t
 
 and inputValueDict = dvalDict
 
-and analysisStore = lvDict loadable
+and analysisStore = intermediateResultStore loadable
 
 and analyses = analysisStore (* indexed by traceID *) StrDict.t
 
@@ -710,7 +714,7 @@ and performAnalysisParams =
   | AnalyzeHandler of performHandlerAnalysisParams
   | AnalyzeFunction of performFunctionAnalysisParams
 
-and analysisEnvelope = traceID * dvalDict
+and analysisEnvelope = traceID * intermediateResultStore
 
 and analysisError =
   | AnalysisExecutionError of performAnalysisParams * string
@@ -1035,7 +1039,7 @@ and modification =
   | UpdateToplevels of handler list * db list * bool
   | SetDeletedToplevels of handler list * db list
   | UpdateDeletedToplevels of handler list * db list
-  | UpdateAnalysis of traceID * dvalDict
+  | UpdateAnalysis of analysisEnvelope
   | SetUserFunctions of userFunction list * userFunction list * bool
   | SetUnlockedDBs of unlockedDBs
   | AppendUnlockedDBs of unlockedDBs

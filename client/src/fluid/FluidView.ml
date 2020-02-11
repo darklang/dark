@@ -174,9 +174,9 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     if FluidToken.validID id
     then
       match Analysis.getLiveValueLoadable vs.analysisStore id with
-      | LoadableSuccess (DIncomplete (SourceId id)) ->
+      | LoadableSuccess (ExecutedResult (DIncomplete (SourceId id))) ->
           (Some id, "dark-incomplete")
-      | LoadableSuccess (DError (SourceId id, _)) ->
+      | LoadableSuccess (ExecutedResult (DError (SourceId id, _))) ->
           (Some id, "dark-error")
       | _ ->
           (None, "")
@@ -340,10 +340,11 @@ let viewLiveValue
             |> Option.some)
     in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
-    | LoadableSuccess (DIncomplete _) when Option.isSome fnLoading ->
+    | LoadableSuccess (ExecutedResult (DIncomplete _))
+      when Option.isSome fnLoading ->
         [Html.text (Option.withDefault ~default:"" fnLoading)]
-    | LoadableSuccess (DIncomplete (SourceId srcId) as dv)
-    | LoadableSuccess (DError (SourceId srcId, _) as dv)
+    | LoadableSuccess (ExecutedResult (DIncomplete (SourceId srcId) as dv))
+    | LoadableSuccess (ExecutedResult (DError (SourceId srcId, _) as dv))
       when srcId <> id ->
         let errType = dv |> Runtime.typeOf |> Runtime.tipe2str in
         let msg = "<" ^ errType ^ ">" in
@@ -356,13 +357,15 @@ let viewLiveValue
             ; Html.class' "jump-src"
             ; Html.title ("Click here to go to the source of " ^ errType) ]
             [Html.text msg; ViewUtils.fontAwesome "arrow-alt-circle-up"] ]
-    | LoadableSuccess (DError _ as dv) | LoadableSuccess (DIncomplete _ as dv)
-      ->
+    | LoadableSuccess (ExecutedResult (DError _ as dv))
+    | LoadableSuccess (ExecutedResult (DIncomplete _ as dv)) ->
         renderDval dv ~canCopy:false
-    | LoadableSuccess dval ->
+    | LoadableSuccess (ExecutedResult dval) ->
         renderDval dval ~canCopy:true
     | LoadableNotInitialized | LoadableLoading _ ->
         [ViewUtils.fontAwesome "spinner"]
+    | LoadableSuccess (NonExecutedResult _dval) ->
+        [Html.text "TODO: not executed"]
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
@@ -401,7 +404,7 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
   then
     let id = E.toID ast in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
-    | LoadableSuccess dval ->
+    | LoadableSuccess (ExecutedResult dval) ->
         Html.div
           [ Html.classList
               [ ("return-value", true)
