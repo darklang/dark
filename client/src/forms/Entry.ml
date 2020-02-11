@@ -113,8 +113,12 @@ let getBrowserPlatform () : browserPlatform =
 external jsSendSegmentMessage : string -> unit = "sendSegmentMessage"
   [@@bs.val] [@@bs.scope "window"]
 
-let sendSegmentMessage (event : string) : unit =
-  jsSendSegmentMessage event |> ignore
+let string_of_segment_track (e : segmentTrack) : string =
+  match e with WelcomeModal -> "Welcome Modal" | OpenDocs -> "Open docs"
+
+
+let sendSegmentMessage (event : segmentTrack) : unit =
+  string_of_segment_track event |> jsSendSegmentMessage |> ignore
 
 
 external jsUnsupportedBrowser : unit -> bool Js.Nullable.t
