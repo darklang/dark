@@ -227,72 +227,6 @@ function getFluidSelectionRange() {
   return [selBeginIdx, selEndIdx];
 }
 
-// setFluidSelectionRange([beginIdx, endIdx]) attempts to select the passed
-// region in the currently selected fluid editor, if there is one.
-// If beginIdx == endIdx, it sets the caret position (0-width selection).
-// This function assumes we never want to place the selection within a
-// nested DOM node (it crawls siblings).
-// See getFluidSelectionRange for the counterpart. Note that it is not
-// strictly symmetrical with it, so there might be future edge-cases.
-function setFluidSelectionRange([beginIdx, endIdx]) {
-  let clamp = function(num, min, max) {
-    if (num < min) {
-      return min;
-    }
-    if (num > max) {
-      return max;
-    }
-    return num;
-  };
-
-  let editorOrNull = document.querySelector(".selected #fluid-editor");
-  if (!editorOrNull) {
-    return;
-  }
-  let editor = editorOrNull;
-  let maxChars = editor.textContent.length;
-  let anchorNodeOffset = clamp(beginIdx, 0, maxChars);
-  let focusNodeOffset = clamp(endIdx, 0, maxChars);
-  let anchorNode, focusNode; // The beginIdx is in the anchorNode and the endIdx is in the focusNode
-  let childNodes = editor.childNodes;
-  // This only works because nesting is so limited
-  // TODO(JULIAN): We need to revisit the assumptions here if we need multi-char nesting.
-  for (let i = 0; i < childNodes.length; i++) {
-    let nodeLen = childNodes[i].textContent.length;
-    if (anchorNodeOffset <= nodeLen /* the beginIdx must be inside this node */) {
-      // We need to get the text node rather than the span,
-      // which is why we do 'firstChild'
-      anchorNode = childNodes[i].firstChild;
-      break;
-    } else {
-      anchorNodeOffset -= nodeLen;
-    }
-  }
-  // This only works because nesting is so limited
-  // TODO(JULIAN): We need to revisit the assumptions here if we need multi-char nesting.
-  for (let i = 0; i < childNodes.length; i++) {
-    let nodeLen = childNodes[i].textContent.length;
-    if (focusNodeOffset <= nodeLen /* the endIdx must be inside this node */) {
-      // We need to get the text node rather than the span,
-      // which is why we do 'firstChild'
-      focusNode = childNodes[i].firstChild;
-      break;
-    } else {
-      focusNodeOffset -= nodeLen;
-    }
-  }
-  if (
-    anchorNode &&
-    focusNode &&
-    isChildOfEditor(anchorNode) &&
-    isChildOfEditor(focusNode)
-  ) {
-    window
-      .getSelection()
-      .setBaseAndExtent(anchorNode, anchorNodeOffset, focusNode, focusNodeOffset);
-  }
-}
-
 var Analytics = require("analytics-node");
 var analytics = new Analytics("fVtoR1kNIsfZ484ovfavEybnNubNNVi8");
 analytics.page({
@@ -315,7 +249,6 @@ function sendSegmentMessage(event) {
 }
 
 window.getFluidSelectionRange = getFluidSelectionRange;
-window.setFluidSelectionRange = setFluidSelectionRange;
 window.sendSegmentMessage = sendSegmentMessage;
 
 // ---------------------------

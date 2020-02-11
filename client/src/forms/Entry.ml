@@ -61,9 +61,6 @@ external jsGetFluidSelectionRange : unit -> int array Js.Nullable.t
   = "getFluidSelectionRange"
   [@@bs.val] [@@bs.scope "window"]
 
-external jsSetFluidSelectionRange : int array -> unit = "setFluidSelectionRange"
-  [@@bs.val] [@@bs.scope "window"]
-
 let getFluidSelectionRange () : (int * int) option =
   match Js.Nullable.toOption (jsGetFluidSelectionRange ()) with
   | Some [|beginIdx; endIdx|] ->
@@ -85,14 +82,61 @@ let getFluidCaretPos () : int option =
       None
 
 
-let setFluidSelectionRange ((beginIdx, endIdx) : int * int) : unit =
-  jsSetFluidSelectionRange [|beginIdx; endIdx|]
-
-
-let setFluidCaret (idx : int) : unit = jsSetFluidSelectionRange [|idx; idx|]
-
 external querySelector : string -> Web_node.t Js.Nullable.t = "querySelector"
   [@@bs.val] [@@bs.scope "document"]
+
+(** setFluidSelectionRange([beginIdx, endIdx]) attempts to select the passed
+  * region in the currently selected fluid editor, if there is one.
+  * If beginIdx == endIdx, it sets the caret position (0-width selection).
+  *
+  * This function assumes we never want to place the selection within a
+  * nested DOM node (it crawls siblings).
+  *
+  * See getFluidSelectionRange for the counterpart. Note that it is not
+  * strictly symmetrical with it, so there might be future edge-cases. *)
+let setFluidSelectionRange ((beginIdx, endIdx) : int * int) : unit =
+  let module Dom = Webapi.Dom in
+  let clamp ((min : int), (max : int)) (n : int) =
+    if n < min then min else if n > max then max else n
+  in
+  Dom.document
+  |> Dom.Document.querySelector ".selected #fluid-editor"
+  |> Option.andThen ~f:(fun editor ->
+         let maxChars = Dom.Element.textContent editor |> String.length in
+         let anchorBound = clamp (0, maxChars) beginIdx in
+         let focusBound = clamp (0, maxChars) endIdx in
+         let findNodeAndOffset (bound : int) : Dom.Node.t option * int =
+           Dom.Element.childNodes editor
+           |> Dom.NodeList.toArray
+           |> Array.foldLeft
+                ~initial:(None, bound)
+                ~f:(fun (child : Dom.Node.t) (maybeNode, offset) ->
+                  (* if we already have our node, return it *)
+                  if Option.is_some maybeNode
+                  then (maybeNode, offset)
+                  else
+                    let nodeLen = Dom.Node.textContent child |> String.length in
+                    if offset <= nodeLen
+                    then
+                      (* We need to get the text node rather than the span,
+                       * which is why we do 'firstChild' *)
+                      let firstChild = Dom.Node.firstChild child in
+                      (firstChild, offset)
+                    else (None, offset - nodeLen))
+         in
+         let anchorNode, anchorNodeOffset = findNodeAndOffset anchorBound in
+         let focusNode, focusNodeOffset = findNodeAndOffset focusBound in
+         Option.map2 anchorNode focusNode ~f:(fun a f ->
+             Dom.Window.getSelection Dom.window
+             |> Dom.Selection.setBaseAndExtent
+                  a
+                  anchorNodeOffset
+                  f
+                  focusNodeOffset))
+  |> ignore
+
+
+let setFluidCaret (idx : int) : unit = setFluidSelectionRange (idx, idx)
 
 type browserPlatform =
   | Mac
