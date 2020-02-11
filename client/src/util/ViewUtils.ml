@@ -39,7 +39,8 @@ type viewState =
   ; workerStats : workerStats option
   ; menuState : menuState
   ; isExecuting : bool
-  ; tokenPartitions : FluidPrinter.partition list }
+  ; tokenPartitions : FluidPrinter.partition list
+  ; fnProps : fnProps }
 
 (* ----------------------------- *)
 (* Events *)
@@ -146,7 +147,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
         (* Doing explicit match here just to be safe, even though we can probably assume you can't have handlerProp without it being a handler from code above. *)
         (match hp with Some p -> p.execution = Executing | _ -> false)
       | TLDB _ | TLTipe _ | TLGroup _ ->
-          false ) }
+          false )
+  ; fnProps = m.currentUserFn }
 
 
 let fontAwesome (name : string) : msg Html.html =
@@ -172,6 +174,17 @@ let decodeTransEvent (fn : string -> 'a) j : 'a =
 let decodeAnimEvent (fn : string -> 'a) j : 'a =
   let open Json.Decode in
   fn (field "animationName" string j)
+
+
+(* Generic event, the the listener handle and do what it wants with the event object *)
+let onEvent
+    ~(event : string)
+    ~(key : string)
+    ?(preventDefault = true)
+    (listener : Web.Node.event -> msg) : msg Vdom.property =
+  Tea.Html.onCB event key (fun evt ->
+      if preventDefault then evt##preventDefault () ;
+      Some (listener evt))
 
 
 let eventBoth ~(key : string) (event : string) (constructor : mouseEvent -> msg)

@@ -934,6 +934,20 @@ and menuMsg =
   | OpenMenu
   | CloseMenu
 
+(* FnParams *)
+and fnProps =
+  { draggingParamIndex : int option
+  ; dragOverSpaceIndex : int option
+  ; justMovedParam : id option }
+
+and fnpMsg =
+  | ParamDragStart of int
+  | ParamDragDone
+  | ParamEntersSpace of int
+  | ParamLeavesSpace
+  | ParamDropIntoSpace of int
+  | Reset
+
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
@@ -1254,6 +1268,7 @@ and msg =
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * tlid
   | CloseWelcomeModal
+  | FnParamMsg of fnpMsg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1578,7 +1593,10 @@ and model =
   ; teaDebuggerEnabled : bool
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
-  ; showUserWelcomeModal : bool }
+  ; showUserWelcomeModal : bool
+  ; currentUserFn : fnProps }
+
+and savedUserSettings = {showUserWelcomeModal : bool}
 
 and savedSettings =
   { editorSettings : editorSettings
@@ -1590,8 +1608,7 @@ and savedSettings =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarOpen : bool
-  ; showTopbar : bool
-  ; showUserWelcomeModal : bool }
+  ; showTopbar : bool }
 [@@deriving show {with_path = false}]
 
 and permission =

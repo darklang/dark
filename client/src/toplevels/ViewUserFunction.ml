@@ -17,6 +17,8 @@ let wc = ViewBlankOr.wc
 
 let enterable = ViewBlankOr.Enterable
 
+let onEvent = ViewUtils.onEvent
+
 type exeFunction =
   | CanExecute of traceID * dval list
   | CannotExecute of string
@@ -25,52 +27,6 @@ type exeFunction =
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
   viewText FnName vs ((enterable :: idConfigs) @ c) v
-
-
-let viewParamName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  viewText ParamName vs ((enterable :: idConfigs) @ c) v
-
-
-let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
-    msg Html.html =
-  ViewBlankOr.viewTipe ParamTipe vs ((enterable :: idConfigs) @ c) v
-
-
-let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
-    msg Html.html =
-  let freeVariables =
-    uf.ufAST |> AST.freeVariables |> List.map ~f:Tuple2.second
-  in
-  let canDeleteParameter pname =
-    List.member ~value:pname freeVariables |> not
-  in
-  let buttonContent allowed =
-    if allowed
-    then
-      Html.div
-        [ Html.class' "parameter-btn allowed"
-        ; ViewUtils.eventNoPropagation
-            ~key:
-              ( "dufp-"
-              ^ showTLID uf.ufTLID
-              ^ "-"
-              ^ (p.ufpName |> B.toID |> showID) )
-            "click"
-            (fun _ -> DeleteUserFunctionParameter (uf.ufTLID, p)) ]
-        [fontAwesome "times-circle"]
-    else
-      Html.div
-        [ Html.class' "parameter-btn disallowed"
-        ; Html.title
-            "Can't delete parameter because it is used in the function body" ]
-        [fontAwesome "times-circle"]
-  in
-  match p.ufpName with
-  | F (_, pname) ->
-      buttonContent (canDeleteParameter pname)
-  | _ ->
-      buttonContent true
 
 
 let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
@@ -134,18 +90,6 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
     [fontAwesome "redo"]
 
 
-let viewParam (fn : userFunction) (vs : viewState) (p : userFunctionParameter) :
-    msg Html.html =
-  Html.div
-    [Html.class' "col"]
-    [ ( if vs.permission = Some ReadWrite
-      then viewKillParameterBtn fn p
-      else Vdom.noNode )
-    ; viewParamName vs [wc "name"] p.ufpName
-    ; Html.div [Html.class' "param-divider"] [Html.text ":"]
-    ; viewParamTipe vs [wc "type"] p.ufpTipe ]
-
-
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let addParamBtn =
     if vs.permission = Some ReadWrite
@@ -189,8 +133,9 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       ; Html.div [Html.class' "fn-actions"] [viewExecuteBtn vs fn; menuView] ]
   in
   let paramRows =
-    let params = fn.ufMetadata.ufmParameters |> List.map ~f:(viewParam fn vs) in
-    Html.div [Html.class' "params"] (params @ [addParamBtn])
+    Html.div
+      [Html.id "fnparams"; Html.class' "params"]
+      (FnParams.view fn vs @ [addParamBtn])
   in
   Html.div [Html.class' "fn-header"] [titleRow; paramRows]
 

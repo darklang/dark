@@ -37,6 +37,7 @@ let run () =
   let aHugeInt = FPInteger (mID, gid (), "2000000000000000000") in
   let aFloat = FPFloat (mID, gid (), "123", "456") in
   let aHugeFloat = FPFloat (mID, gid (), "123456789", "123456789") in
+  let aShortFloat = FPFloat (mID, gid (), "1", "2") in
   let aPartialFloat = FPFloat (mID, gid (), "1", "") in
   let trueBool = FPBool (mID, gid (), true) in
   let falseBool = FPBool (mID, gid (), false) in
@@ -238,6 +239,8 @@ let run () =
       t "del dot converts to int" aFloat (del 3) ("123456", 3) ;
       t "del dot converts to int, no fraction" aPartialFloat (del 1) ("1", 1) ;
       t "bs dot" aFloat (bs 4) ("123456", 3) ;
+      t "bs frac of float" aShortFloat (bs 3) ("1.", 2) ;
+      t "bs whole of float" aShortFloat (bs 1) (".2", 0) ;
       t "bs dot at scale" aHugeFloat (bs 10) ("123456789123456789", 9) ;
       t "bs dot at limit" maxPosIntWithDot (bs 17) ("4611686018427387903", 16) ;
       t

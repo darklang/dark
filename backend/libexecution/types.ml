@@ -186,31 +186,23 @@ module RuntimeT = struct
       | DBMigrationInitialized
     [@@deriving eq, compare, show, yojson, bin_io]
 
-    type 'expr db_migration' =
+    type db_migration =
       { starting_version : int
       ; version : int
       ; state : db_migration_state
-      ; rollforward : 'expr
-      ; rollback : 'expr
+      ; rollforward : expr
+      ; rollback : expr
       ; cols : col list }
     [@@deriving eq, compare, show, yojson, bin_io]
 
-    type db_migration = expr db_migration'
-    [@@deriving eq, compare, show, yojson, bin_io]
-
-    type 'expr db' =
+    type db =
       { tlid : tlid
       ; name : string or_blank
       ; cols : col list
       ; version : int
-      ; old_migrations : 'expr db_migration' list
-      ; active_migration : 'expr db_migration' option }
+      ; old_migrations : db_migration list
+      ; active_migration : db_migration option }
     [@@deriving eq, compare, show, yojson, bin_io]
-
-    type db = expr db' [@@deriving eq, show, yojson, bin_io]
-
-    type fluid_db = Libshared.FluidExpression.t db'
-    [@@deriving eq, show, yojson]
 
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
@@ -232,18 +224,27 @@ module RuntimeT = struct
       ; types : spec_types }
     [@@deriving eq, show, yojson, bin_io]
 
-    type 'expr handler' =
+    type handler =
       { tlid : tlid
-      ; ast : 'expr
+      ; ast : expr
       ; spec : spec }
     [@@deriving eq, show, yojson, bin_io]
 
-    type handler = expr handler' [@@deriving eq, show, yojson, bin_io]
+    (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
+  end
 
-    type fluid_handler = Libshared.FluidExpression.t handler'
+  module HandlerF = struct
+    type spec =
+      { module_ : string or_blank [@key "module"]
+      ; name : string or_blank
+      ; modifier : string or_blank }
     [@@deriving eq, show, yojson]
 
-    (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
+    type handler =
+      { tlid : tlid
+      ; ast : Libshared.FluidExpression.t
+      ; spec : spec }
+    [@@deriving eq, show]
   end
 
   (* ------------------------ *)
@@ -487,16 +488,11 @@ module RuntimeT = struct
     ; infix : bool }
   [@@deriving eq, show, yojson, bin_io]
 
-  type 'expr user_fn' =
+  type user_fn =
     { tlid : tlid
     ; metadata : ufn_metadata
-    ; ast : 'expr }
+    ; ast : expr }
   [@@deriving eq, show, yojson, bin_io]
-
-  type user_fn = expr user_fn' [@@deriving eq, show, yojson, bin_io]
-
-  type fluid_user_fn = Libshared.FluidExpression.t user_fn'
-  [@@deriving eq, show, yojson]
 
   type user_record_field =
     { name : string or_blank
@@ -546,6 +542,11 @@ module RuntimeT = struct
     ; trace_tlid : tlid -> unit
     ; context : context
     ; execution_id : id
+    ; exec : state:exec_state -> dval_map -> expr -> dval
+          (* Some parts of the execution need to call AST.exec, but cannot call
+           * AST.exec without a cyclic dependency. This function enables that, and it
+           * is safe to do so because all of the state is in the exec_state
+           * structure. *)
     ; load_fn_result : load_fn_result_type
     ; store_fn_result : store_fn_result_type
     ; load_fn_arguments : load_fn_arguments_type

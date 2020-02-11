@@ -376,9 +376,7 @@ let viewToast (t : toast) : msg Html.html =
 let accountView (m : model) : msg Html.html =
   let logout =
     Html.a
-      [ ViewUtils.eventNoPropagation ~key:"logout" "mouseup" (fun _ ->
-            LogoutOfDark)
-      ; Html.class' "action-link" ]
+      [Html.href "https://login.darklang.com/logout"; Html.class' "action-link"]
       [Html.text "Logout"]
   in
   let canvases =
@@ -391,7 +389,12 @@ let accountView (m : model) : msg Html.html =
   in
   let canvasView =
     [ Html.p [Html.class' "canvas-list-title"] [Html.text "Other canvases:"]
-    ; Html.div [Html.class' "canvas-list"] [canvases] ]
+    ; Html.div [Html.class' "canvas-list"] [canvases]
+    ; Html.p
+        []
+        [ Html.text "Create a new canvas by"
+        ; Html.br []
+        ; Html.text "navigating to the URL" ] ]
   in
   Html.div
     [Html.class' "my-account"]
@@ -447,7 +450,7 @@ let view (m : model) : msg Html.html =
   let modal =
     (* Temporarily disabling modal || m.showUserWelcomeModal *)
     if (not (m.integrationTestState <> NoIntegrationTest))
-       && m.unsupportedBrowser
+       && (m.unsupportedBrowser || (m.showUserWelcomeModal && m.isAdmin))
     then ViewModal.html m
     else Vdom.noNode
   in

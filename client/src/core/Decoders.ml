@@ -272,13 +272,14 @@ let rec fluidPattern j : FluidPattern.t =
       *)
     ; ( "FPString"
       , dv3
-          (fun a b c -> P.FPString {matchID = a; patternID = b; str = c})
+          (fun matchID patternID c -> P.FPString {patternID; matchID; str = c})
           id
           id
           string )
     ; ( "FPFloat"
       , dv4 (fun a b c d -> P.FPFloat (a, b, c, d)) id id string string )
-    ; ("FPNull", dv2 (fun a b -> P.FPNull (a, b)) id id) ]
+    ; ("FPNull", dv2 (fun a b -> P.FPNull (a, b)) id id)
+    ; ("FPBlank", dv2 (fun a b -> P.FPBlank (a, b)) id id) ]
     j
 
 
@@ -331,7 +332,7 @@ let rec fluidExpr (j : Js.Json.t) : FluidExpression.t =
           (fun a b c -> E.EMatch (a, b, c))
           id
           de
-          (list (tuple2 fluidPattern de)) )
+          (list (pair fluidPattern de)) )
     ; ("EPipeTarget", dv1 (fun a -> E.EPipeTarget a) id)
     ; ( "EFeatureFlag"
       , dv5 (fun a b c d e -> E.EFeatureFlag (a, b, c, d, e)) id string de de de
@@ -448,6 +449,14 @@ and handlerProp j : handlerProp =
   ; execution = field "executing" exeState j }
 
 
+and savedUserSettings (j : Js.Json.t) : savedUserSettings =
+  { showUserWelcomeModal =
+      withDefault
+        Defaults.defaultUserSettings.showUserWelcomeModal
+        (field "showUserWelcomeModal" bool)
+        j }
+
+
 and savedSettings (j : Js.Json.t) : savedSettings =
   (* always use withDefault or optional because the field might be missing due
    * to old editors or new fields. *)
@@ -479,11 +488,6 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
-        j
-  ; showUserWelcomeModal =
-      withDefault
-        Defaults.defaultSavedSettings.showUserWelcomeModal
-        (field "showUserWelcomeModal" bool)
         j }
 
 

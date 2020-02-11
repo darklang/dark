@@ -18,6 +18,8 @@ let pageWidth : int = 500
 
 let unsetCSRF : string = "UNSET_CSRF"
 
+let defaultUserSettings : savedUserSettings = {showUserWelcomeModal = true}
+
 let defaultSavedSettings : savedSettings =
   { editorSettings = {runTimers = true; showFluidDebugger = false}
   ; cursorState = Deselected
@@ -28,8 +30,7 @@ let defaultSavedSettings : savedSettings =
   ; canvasPos = origin
   ; lastReload = None
   ; sidebarOpen = true
-  ; showTopbar = false
-  ; showUserWelcomeModal = true }
+  ; showTopbar = false }
 
 
 let defaultFluidState : fluidState =
@@ -80,6 +81,10 @@ let defaultAccount : account = {name = ""; email = ""; username = ""}
 let defaultWorkerStats : workerStats = {count = 0; schedule = None}
 
 let defaultMenu : menuState = {isOpen = false}
+
+let defaultFnSpace : fnProps =
+  {draggingParamIndex = None; dragOverSpaceIndex = None; justMovedParam = None}
+
 
 let defaultModel : model =
   { error = None
@@ -158,4 +163,5 @@ let defaultModel : model =
   ; teaDebuggerEnabled = false
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty
-  ; showUserWelcomeModal = true }
+  ; showUserWelcomeModal = true
+  ; currentUserFn = defaultFnSpace }

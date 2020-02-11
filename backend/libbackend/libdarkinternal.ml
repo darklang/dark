@@ -97,13 +97,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; ins = []
     ; p = []
     ; r = TNull
-    ; d = "TODO"
-    ; f =
-        internal_fn (fun _ ->
-            Canvas.migrate_all_hosts () ;
-            DNull)
+    ; d = "REMOVED"
+    ; f = internal_fn (fun _ -> DNull)
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["DarkInternal::cleanupOldTraces"]
     ; ins = []
     ; p = []
@@ -143,14 +140,34 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; ins = []
     ; p = [par "host" TStr]
     ; r = TBool
-    ; d = "TODO"
+    ; d = "Validate the canvas' opcodes"
     ; f =
         internal_fn (function
             | state, [DStr host] ->
-              ( try
-                  Canvas.validate_host (Unicode_string.to_string host) ;
-                  DBool true
-                with _ -> DBool false )
+                let open Prelude.Result in
+                ( match Canvas.validate_host (Unicode_string.to_string host) with
+                | Ok _ ->
+                    DBool true
+                | Error _ ->
+                    DBool false )
+            | args ->
+                fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::migrateCanvas"]
+    ; ins = []
+    ; p = [par "host" TStr]
+    ; r = TResult
+    ; d = "Migrate a canvas' opcodes"
+    ; f =
+        internal_fn (function
+            | state, [DStr host] ->
+                let open Prelude.Result in
+                ( match Canvas.migrate_host (Unicode_string.to_string host) with
+                | Ok () ->
+                    DResult (ResOk DNull)
+                | Error msg ->
+                    DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args)
     ; ps = false

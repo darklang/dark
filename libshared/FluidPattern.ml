@@ -2,6 +2,7 @@ open Tc
 open Shared
 
 type t =
+  (* match id, then pattern id *)
   | FPVariable of id * id * string
   | FPConstructor of id * id * string * t list
   (* TODO: support char *)
@@ -15,7 +16,7 @@ type t =
   | FPFloat of id * id * string * string
   | FPNull of id * id
   | FPBlank of id * id
-[@@deriving show {with_path = false}, eq, yojson {optional = true}]
+[@@deriving show {with_path = false}, eq]
 
 let toID (p : t) : id =
   match p with

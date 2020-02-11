@@ -703,10 +703,6 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
     | ( ARPattern (id, PPBool)
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
-    | ARPattern (id, PPFloat FPPoint), TPatternFloatPoint (_, id', _)
-    | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
-    | ( ARPattern (id, PPFloat FPFractional)
-      , TPatternFloatFractional (_, id', _, _) )
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
     | ARFlag (id, FPCond), TFlagCond id'
@@ -728,22 +724,30 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     (*
      * Floats
      *)
+    | ARPattern (id, PPFloat FPPoint), TPatternFloatPoint (_, id', _)
+    | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
     | ARFloat (id, FPPoint), TFloatPoint id'
     | ARFloat (id, FPWhole), TFloatWhole (id', _)
       when id = id' ->
         posForTi ti
-    | ARFloat (id, FPWhole), TFloatPoint id' when id = id' ->
+    | ARPattern (id, PPFloat FPWhole), TPatternFloatPoint (_, id', _)
+    | ARFloat (id, FPWhole), TFloatPoint id'
+      when id = id' ->
         (* This accounts for situations like `|.45`, where the float doesn't have a whole part but
            we're still targeting it (perhaps due to deletion).
            Because the 'findMap' below scans from left to right and we try to match the whole first,
            we can still find positions like `1|2.54` *)
         Some ti.startPos
-    | ARFloat (id, FPFractional), TFloatPoint id' when id = id' && ct.offset = 0
-      ->
+    | ARPattern (id, PPFloat FPFractional), TPatternFloatPoint (_, id', _)
+    | ARFloat (id, FPFractional), TFloatPoint id'
+      when id = id' && ct.offset = 0 ->
         (* This accounts for situations like `12.|`, where the float doesn't have a decimal part but
            we're still targeting it (perhaps due to deletion). *)
         Some ti.endPos
-    | ARFloat (id, FPFractional), TFloatFractional (id', _) when id = id' ->
+    | ( ARPattern (id, PPFloat FPFractional)
+      , TPatternFloatFractional (_, id', _, _) )
+    | ARFloat (id, FPFractional), TFloatFractional (id', _)
+      when id = id' ->
         posForTi ti
     (*
      * Function calls
@@ -1949,7 +1953,7 @@ let replacePartialWithArguments
     | (name, _, rhs, _) :: rest ->
         ELet (gid (), name, rhs, wrapWithLets ~expr rest)
   in
-  let getExprs expr =
+  let getArgs expr =
     match expr with
     | EFnCall (_, _, exprs, _) | EConstructor (_, _, exprs) ->
         exprs
@@ -1957,6 +1961,33 @@ let replacePartialWithArguments
         [lhs; rhs]
     | _ ->
         recover "impossible" ~debug:expr []
+  in
+  let chooseSter ~(oldName : string) ~(oldExpr : E.t) (newAllowed : sendToRail)
+      =
+    (* decides whether the new function is on the rails. Note that are checking
+     * if we should prefer the old setting. *)
+    let oldSter =
+      match oldExpr with
+      | EFnCall (_, _, _, ster) | EBinOp (_, _, _, _, ster) ->
+          ster
+      | _ ->
+          NoRail
+    in
+    let oldAllowed =
+      s.ac.functions
+      |> List.find ~f:(fun fn -> fn.fnName = oldName)
+      |> Option.map ~f:(fun fn ->
+             if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
+             then Rail
+             else NoRail)
+      |> Option.withDefault ~default:NoRail
+    in
+    (* The new function should be on the error rail if it was on the error rail
+     * and the new function allows it, or if it wasn't on the error rail, but
+     * the old function didn't allow it and the new one does *)
+    if newAllowed = Rail && (oldSter = Rail || oldAllowed = NoRail)
+    then Rail
+    else NoRail
   in
   let isAligned p1 p2 =
     match (p1, p2) with
@@ -1968,16 +1999,16 @@ let replacePartialWithArguments
   E.update id ast ~f:(fun expr ->
       match expr with
       (* preserve partials with arguments *)
-      | EPartial (_, _, (EFnCall (_, name, _, _) as inner))
-      | EPartial (_, _, (EBinOp (_, name, _, _, _) as inner))
-      | EPartial (_, _, (EConstructor (_, name, _) as inner)) ->
-          let existingExprs = getExprs inner in
+      | EPartial (_, _, (EFnCall (_, oldName, _, _) as oldExpr))
+      | EPartial (_, _, (EBinOp (_, oldName, _, _, _) as oldExpr))
+      | EPartial (_, _, (EConstructor (_, oldName, _) as oldExpr)) ->
+          let existingExprs = getArgs oldExpr in
           let fetchParams newName placeholderExprs =
             let count =
               max (List.length existingExprs) (List.length placeholderExprs)
             in
             let newParams = getFunctionParams newName count placeholderExprs in
-            let oldParams = getFunctionParams name count existingExprs in
+            let oldParams = getFunctionParams oldName count existingExprs in
             let matchedParams, mismatchedParams =
               List.partition oldParams ~f:(fun p ->
                   List.any newParams ~f:(isAligned p))
@@ -1993,7 +2024,8 @@ let replacePartialWithArguments
             (newParams, mismatchedParams)
           in
           ( match newExpr with
-          | EBinOp (id, newName, lhs, rhs, ster) ->
+          | EBinOp (id, newName, lhs, rhs, newSter) ->
+              let ster = chooseSter ~oldName ~oldExpr newSter in
               let newParams, mismatchedParams =
                 fetchParams newName [lhs; rhs]
               in
@@ -2008,7 +2040,8 @@ let replacePartialWithArguments
                       (EBinOp (id, newName, E.newB (), E.newB (), ster))
               in
               wrapWithLets ~expr:newExpr mismatchedParams
-          | EFnCall (id, newName, newExprs, ster) ->
+          | EFnCall (id, newName, newExprs, newSter) ->
+              let ster = chooseSter ~oldName ~oldExpr newSter in
               let newParams, mismatchedParams = fetchParams newName newExprs in
               let newExpr = EFnCall (id, newName, newParams, ster) in
               wrapWithLets ~expr:newExpr mismatchedParams
@@ -5349,8 +5382,11 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
                             ps
                         | _ ->
                             [] )
-                | [(id, "pattern-string", value)] ->
-                    FPString {matchID = mID; patternID = id; str = value}
+                | [(id, value, "pattern-string")] ->
+                    FPString
+                      { matchID = mID
+                      ; patternID = id
+                      ; str = Util.trimQuotes value }
                 | [(id, value, "pattern-true")] | [(id, value, "pattern-false")]
                   ->
                     FPBool (mID, id, toBool_ value)
@@ -5435,7 +5471,22 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * state =
         text
         |> String.split ~on:""
         |> List.foldl ~init:(ast, state) ~f:(fun str (newAST, s) ->
-               updateKey (InsertText str) newAST s) )
+               let space : FluidKeyboard.keyEvent =
+                 { key = K.Space
+                 ; shiftKey = false
+                 ; altKey = false
+                 ; metaKey = false
+                 ; ctrlKey = false }
+               in
+               let enter = {space with key = K.Enter} in
+               let action =
+                 if str = " "
+                 then Keypress space
+                 else if str = "\n"
+                 then Keypress enter
+                 else InsertText str
+               in
+               updateKey action newAST s) )
   | _ ->
       recover "pasting over non-existant handler" (ast, state)
 

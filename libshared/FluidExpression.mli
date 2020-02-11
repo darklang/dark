@@ -1,7 +1,7 @@
 type sendToRail =
   | Rail
   | NoRail
-[@@deriving show {with_path = false}, eq, yojson {optional = true}]
+[@@deriving show {with_path = false}, eq]
 
 type t =
   (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
@@ -15,7 +15,7 @@ type t =
   | ELet of Shared.id * string * t * t
   | EIf of Shared.id * t * t * t
   | EBinOp of Shared.id * string * t * t * sendToRail
-  (* the id in the varname list is the analysis id, used to get a livevalue
+  (* the Shared.id in the varname list is the analysis Shared.id, used to get a livevalue
    * from the analysis engine *)
   | ELambda of Shared.id * (Shared.analysisID * string) list * t
   | EFieldAccess of Shared.id * t * string
@@ -36,9 +36,9 @@ type t =
   (* Placeholder that indicates the target of the Thread. May be movable at
    * some point *)
   | EPipeTarget of Shared.id
-  (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
+  (* EFeatureFlag: Shared.id, flagName, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of Shared.id * string * t * t * t
-[@@deriving show {with_path = false}, eq, yojson {optional = true}]
+[@@deriving show {with_path = false}, eq]
 
 type fluidPatOrExpr =
   | Expr of t
@@ -55,6 +55,20 @@ val newB : unit -> t
     effectively, [f] must call [walk]. *)
 val walk : f:(t -> t) -> t -> t
 
+(** [preTraversal f ast] walks the entire AST from top to bottom, calling f on
+ * each function. It returns a new AST with every subexpression e replaced by
+ * [f e].  Unlike walk, it does not require you to call preorder again. After
+ * calling [f], the result is then recursed into; if this isn't what you want
+ * call postTraversal. *)
+val preTraversal : f:(t -> t) -> t -> t
+
+(** [postTraversal f ast] walks the entire AST from bottom to top, calling f on
+ * each function. It returns a new AST with every subexpression e replaced by
+ * [f e].  Unlike walk, it does not require you to call preorder again. After
+ * calling [f], the result is NOT recursed into; if this isn't what you want
+ * call preTraversal. *)
+val postTraversal : f:(t -> t) -> t -> t
+
 (** [filterMap f ast] calls f on every expression, keeping any Some results
  * of f, returning them in a list. Recurses into expressions: if a child and
  * its parent (or grandparent, etc) both match, then both will be in the
@@ -68,15 +82,15 @@ val filterMap : f:(t -> 'a option) -> t -> 'a list
 val filter : f:(t -> bool) -> t -> t list
 
 (** [findExprOrPat target within] recursively finds the subtree
-    with the id = [target] inside the [within] tree, returning the subtree
-    wrapped in fluidPatOrExpr, or None if there is no subtree with the id [target] *)
+    with the Shared.id = [target] inside the [within] tree, returning the subtree
+    wrapped in fluidPatOrExpr, or None if there is no subtree with the Shared.id [target] *)
 val findExprOrPat : Shared.id -> fluidPatOrExpr -> fluidPatOrExpr option
 
-(** [find target ast] recursively finds the expression having an id of [target]
+(** [find target ast] recursively finds the expression having an Shared.id of [target]
    and returns it if found. *)
 val find : Shared.id -> t -> t option
 
-(** [findParent target ast] recursively finds the expression having an id of
+(** [findParent target ast] recursively finds the expression having an Shared.id of
     [target] and then returns the parent of that expression. *)
 val findParent : Shared.id -> t -> t option
 
@@ -84,7 +98,7 @@ val findParent : Shared.id -> t -> t option
     EList) with only EBlanks inside. *)
 val isEmpty : t -> bool
 
-(** [hasEmptyWithId target ast] recursively finds the expression having an id
+(** [hasEmptyWithId target ast] recursively finds the expression having an Shared.id
     of [target] and returns true if that expression exists and [isEmpty]. *)
 val hasEmptyWithId : Shared.id -> t -> bool
 
@@ -92,13 +106,13 @@ val hasEmptyWithId : Shared.id -> t -> bool
 val isBlank : t -> bool
 
 (** [update f target ast] recursively searches [ast] for an expression e
-    having an id of [target].
+    having an Shared.id of [target].
 
     If found, replaces the expression with the result of [f e] and returns the new ast.
     If not found, will assertT before returning the unmodified [ast]. *)
 val update : ?failIfMissing:bool -> f:(t -> t) -> Shared.id -> t -> t
 
-(** [replace replacement target ast] finds the expression with id of [target] in the [ast] and replaces it with [replacement]. *)
+(** [replace replacement target ast] finds the expression with Shared.id of [target] in the [ast] and replaces it with [replacement]. *)
 val replace : replacement:t -> Shared.id -> t -> t
 
 val removeVariableUse : string -> t -> t

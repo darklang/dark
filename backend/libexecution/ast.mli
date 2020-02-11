@@ -19,6 +19,11 @@ val traverse :
   -> Types.RuntimeT.expr
   -> Types.RuntimeT.expr
 
+val post_traverse :
+     f:(Types.RuntimeT.expr -> Types.RuntimeT.expr)
+  -> Types.RuntimeT.expr
+  -> Types.RuntimeT.expr
+
 val iter : f:(Types.RuntimeT.expr -> unit) -> Types.RuntimeT.expr -> unit
 
 val find_db : Types.RuntimeT.DbT.db list -> string -> Types.RuntimeT.DbT.db
@@ -27,6 +32,12 @@ val execute_dblock :
      state:Types.RuntimeT.exec_state
   -> Types.RuntimeT.dblock_args
   -> Types.RuntimeT.dval list
+  -> Types.RuntimeT.dval
+
+val exec :
+     state:Types.RuntimeT.exec_state
+  -> Types.RuntimeT.dval_map
+  -> Types.RuntimeT.expr
   -> Types.RuntimeT.dval
 
 val execute_ast :

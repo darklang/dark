@@ -419,3 +419,49 @@ let removePartials (ast : E.t) : E.t =
         E.walk ~f:remove e
   in
   remove ast
+
+
+(* Reorder function calls which call fnName, swapping the arguments that
+ * correspond to the parameters at [oldPos] and [newPos]. Handles situations
+ * where the args may be in a different position due to pipes. *)
+let rec reorderFnCallArgs
+    (fnName : string) (oldPos : int) (newPos : int) (ast : E.t) : E.t =
+  let rec replaceArgs expr =
+    match expr with
+    | EFnCall (id, name, args, sendToRail) when name = fnName ->
+        let newArgs =
+          List.reorder ~oldPos ~newPos args |> List.map ~f:replaceArgs
+        in
+        EFnCall (id, name, newArgs, sendToRail)
+    | EPipe (id, first :: rest) ->
+        let newFirst = reorderFnCallArgs fnName oldPos newPos first in
+        let newRest =
+          (* If the pipetarget is involved, we're really going to have to wrap
+           * it in a lambda instead of shifting things around (we could move
+           * the argument up if it's the first thing being piped into, but that
+           * might be ugly. *)
+          List.map rest ~f:(fun pipeArg ->
+              if oldPos == 0 || newPos == 0
+              then
+                match pipeArg with
+                | EFnCall (fnID, name, args, sendToRail) when name = fnName ->
+                    let newArg = EVariable (gid (), "x") in
+                    let newArgs =
+                      List.reorder ~oldPos ~newPos (newArg :: args)
+                      |> List.map ~f:replaceArgs
+                    in
+                    ELambda
+                      ( gid ()
+                      , [(gid (), "x")]
+                      , EFnCall (fnID, name, newArgs, sendToRail) )
+                | _ ->
+                    pipeArg
+              else
+                (* The pipetarget isn't involved, so just do it normally. *)
+                reorderFnCallArgs fnName (oldPos - 1) (newPos - 1) pipeArg)
+        in
+        EPipe (id, newFirst :: newRest)
+    | e ->
+        E.walk ~f:replaceArgs e
+  in
+  replaceArgs ast

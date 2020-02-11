@@ -365,6 +365,69 @@ let fns =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["List::sortByComparator"]
+    ; ins = []
+    ; p = [par "list" TList; func ["val"]]
+    ; r = TResult
+    ; d =
+        "Returns `list`, sorted using a `f`, a lambda taking two args and returning -1, 0, and 1"
+    ; f =
+        InProcess
+          (function
+          | state, [DList list; DBlock b] ->
+              let fn dv1 dv2 = Ast.execute_dblock ~state b [dv1; dv2] in
+              ( try
+                  list
+                  |> List.sort ~compare:(fun a b ->
+                         match fn a b with
+                         | DInt i ->
+                             (* to_int_exn is just
+                              * Int63.to_int_exn; from docs
+                              * (https://ocaml.janestreet.com/ocaml-core/latest/doc/base/Base/Int63/index.html),
+                              * "The size of Int63 is always 63 bits. On a 64-bit
+                              * platform it is just an int (63-bits), and on a
+                              * 32-bit platform it is an int64 wrapped to respect
+                              * the semantics of 63-bit integers."
+                              *
+                              * We run these fns in two environments: native
+                              * ocaml, in our containers, which are a 64-bit
+                              * platform, and jsoo, which is a 32-bit platform.
+                              * But you'll only get an _exn there if you manage to
+                              * get a DInt constructed that is more than 32 bits.
+                              *
+                              * Not worrying about that because:
+                              * - you'd have to really try to get here with such a
+                              *   value, I think (constructing a DInt with a
+                              *   >32bit int ...)
+                              * - if you do, it'll only affect the editor
+                              *   runtime, not bwd execution *)
+                             let i = Dint.to_int_exn i in
+                             ( match i with
+                             | 0 | 1 | -1 ->
+                                 i
+                             | _ ->
+                                 Exception.code
+                                   ( "`f` must return one of -1, 0, 1, but returned another int: "
+                                     ^ string_of_int i
+                                   |> String.substr_replace_all
+                                        ~pattern:"\n"
+                                        ~with_:"" ) )
+                         | nonInt ->
+                             Exception.code
+                               ( "`f` must return one of -1, 0, 1, but returned non-int: "
+                                 ^ Dval.to_developer_repr_v0 nonInt
+                               |> String.substr_replace_all
+                                    ~pattern:"\n"
+                                    ~with_:"" ))
+                  |> DList
+                  |> ResOk
+                  |> DResult
+                with Exception.DarkException e ->
+                  DResult (ResError (Dval.dstr_of_string_exn e.short)) )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["List::append"]
     ; ins = []
     ; p = [par "l1" TList; par "l2" TList]

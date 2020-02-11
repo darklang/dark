@@ -550,6 +550,7 @@ let t_sql_compiler_works () =
   let open Types in
   let open Prelude in
   let f nexpr = Filled (Util.create_id (), nexpr) in
+  let _, state, _ = Utils.test_execution_data [] in
   let check
       (msg : string)
       ?(paramName = "value")
@@ -559,7 +560,9 @@ let t_sql_compiler_works () =
       (generated : string) : unit =
     let dbFields = StrDict.from_list dbFields in
     let symtable = StrDict.from_list symtable in
-    let result = Sql_compiler.compile_lambda symtable paramName dbFields body in
+    let result =
+      Sql_compiler.compile_lambda ~state symtable paramName dbFields body
+    in
     AT.check AT.string msg result generated
   in
   let checkError
@@ -597,28 +600,37 @@ let t_sql_compiler_works () =
     ~dbFields:[(injection, TStr)]
     fieldAccess
     "((CAST(data::jsonb->>'''; select * from user_data ;''field' as text)) = ('x'))" ;
-  let var = f (FnCall ("==", [f (Variable "var"); f (Value "\"x\"")])) in
+  let var =
+    f
+      (FnCall
+         ( "=="
+         , [f (Variable "var"); f (FieldAccess (f (Variable "value"), f "name"))]
+         ))
+  in
   check
     "symtable escapes correctly"
+    ~dbFields:[("name", TStr)]
     ~symtable:[("var", Dval.dstr_of_string_exn "';select * from user_data;'")]
     var
-    "((''';select * from user_data;''') = ('x'))" ;
+    "((''';select * from user_data;''') = (CAST(data::jsonb->>'name' as text)))" ;
   let thread =
     f
       (Thread
-         [ f (Value "5")
+         [ f (FieldAccess (f (Variable "value"), f "age"))
          ; f (FnCall ("-", [f (Value "2")]))
-         ; f (FnCall ("+", [f (Value "3")]))
+         ; f (FnCall ("+", [f (FieldAccess (f (Variable "value"), f "age"))]))
          ; f (FnCall ("<", [f (Value "3")])) ])
   in
   check
+    ~dbFields:[("age", TInt)]
     "pipes expand correctly into nested functions"
     thread
-    "((((5) - (2)) + (3)) < (3))" ;
+    "((((CAST(data::jsonb->>'age' as integer)) - (2)) + (CAST(data::jsonb->>'age' as integer))) < (3))" ;
   ()
 
 
 let t_db_query_works () =
+  let open Libshared.FluidShortcuts in
   clear_test_data () ;
   let ops =
     [ Op.CreateDB (dbid, pos, "Person")
@@ -630,139 +642,322 @@ let t_db_query_works () =
     ; Op.SetDBColType (dbid, coltypeid2, "Bool")
     ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
     ; Op.SetDBColName (dbid, colnameid3, "height")
-    ; Op.SetDBColType (dbid, coltypeid3, "Int") ]
+    ; Op.SetDBColType (dbid, coltypeid3, "Int")
+    ; Op.AddDBCol (dbid, colnameid4, coltypeid4)
+    ; Op.SetDBColName (dbid, colnameid4, "income")
+    ; Op.SetDBColType (dbid, coltypeid4, "Float") ]
   in
   (* Prepopulate the DB for tests *)
-  exec_handler
+  exec_handler'
     ~ops
-    "(let _ (DB::set_v1
-              (obj (height 73) (name 'Ross') (human true))
-              'ross'
-              Person)
-     (let _ (DB::set_v1
-              (obj (height 65) (name 'Rachel') (human true))
-              'rachel'
-              Person)
-     (let _ (DB::set_v1
-              (obj (height 10) (name 'GrumpyCat') (human false))
-              'cat'
-              Person)
-     (let _ (DB::set_v1
-              (obj (height null) (name null) (human null))
-              'null'
-              Person)
-              ))))"
+    (let'
+       "_"
+       (fn
+          "DB::set_v1"
+          [ record
+              [ ("height", int 73)
+              ; ("name", str "Ross")
+              ; ("human", bool true)
+              ; ("income", float' "100" "00") ]
+          ; str "ross"
+          ; var "Person" ])
+       (let'
+          "_"
+          (fn
+             "DB::set_v1"
+             [ record
+                 [ ("height", int 65)
+                 ; ("name", str "Rachel")
+                 ; ("human", bool true)
+                 ; ("income", float' "82" "00") ]
+             ; str "rachel"
+             ; var "Person" ])
+          (let'
+             "_"
+             (fn
+                "DB::set_v1"
+                [ record
+                    [ ("height", int 10)
+                    ; ("name", str "GrumpyCat")
+                    ; ("human", bool false)
+                    ; ("income", float' "0" "00") ]
+                ; str "cat"
+                ; var "Person" ])
+             (let'
+                "_"
+                (fn
+                   "DB::set_v1"
+                   [ record
+                       [ ("height", null)
+                       ; ("name", null)
+                       ; ("human", null)
+                       ; ("income", null) ]
+                   ; str "null"
+                   ; var "Person" ])
+                (EBlank (Libshared.Shared.gid ()))))))
   |> ignore ;
-  let exec (code : string) = exec_handler ~ops code in
-  let query code = "(DB::query_v4 Person (" ^ code ^ "))" in
-  let sort code =
-    "(| "
-    ^ code
-    ^ "  (List::map (\\v -> (. v height)))
-           (List::sort))"
+  let query expr = fn "DB::query_v4" [var "Person"; expr] in
+  let queryv body = fn "DB::query_v4" [var "Person"; lambda ["v"] body] in
+  let field name field = fieldAccess (var name) field in
+  let sort expr =
+    pipe
+      expr
+      [ fn "List::map" [pipeTarget; lambda ["v"] (field "v" "height")]
+      ; fn "List::sort" [pipeTarget] ]
   in
-  let withvar (name : string) (value : string) code =
-    "(let " ^ name ^ " " ^ value ^ " " ^ code ^ ")"
-  in
+  let exec expr = exec_handler' ~ops expr in
+  let execs expr = exec (expr |> sort) in
+  let withvar (name : string) value ast = let' name value ast in
   check_dval
     "Find all"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73; DNull])
-    (query "\\value -> true" |> sort |> exec) ;
+    (queryv (bool true) |> execs) ;
   check_dval
     "Find all with condition"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (query "\\value -> (> (. value height) 3)" |> sort |> exec) ;
+    (queryv (binop ">" (field "v" "height") (int 3)) |> execs) ;
   check_dval
     "boolean"
     (DList [Dval.dint 65; Dval.dint 73])
-    (query "\\value -> (. value human)" |> sort |> exec) ;
+    (queryv (field "v" "human") |> execs) ;
   check_dval
     "different param name"
     (DList [Dval.dint 65; Dval.dint 73])
-    (query "\\v -> (. v human)" |> sort |> exec) ;
+    (query (lambda ["value"] (field "value" "human")) |> execs) ;
   check_dval
     "&&"
     (DList [Dval.dint 73])
-    (query "\\v -> (&& (. v human) (> (. v height) 66) )" |> sort |> exec) ;
+    ( queryv
+        (binop
+           "&&"
+           (field "v" "human")
+           (binop ">" (field "v" "height") (int 66)))
+    |> execs ) ;
   check_dval
     "inlining"
     (DList [Dval.dint 65; Dval.dint 73])
-    (query "\\v -> (let x 32 (&& true (> (. v height) x) ))" |> sort |> exec) ;
+    ( queryv
+        (let'
+           "x"
+           (int 32)
+           (binop "&&" (bool true) (binop ">" (field "v" "height") (var "x"))))
+    |> execs ) ;
+  check_dval
+    "inlining - fieldAccesses"
+    (DList [Dval.dint 65; Dval.dint 73])
+    ( queryv
+        (let'
+           "x"
+           (field "v" "height")
+           (binop "&&" (bool true) (binop ">" (var "x") (int 32))))
+    |> execs ) ;
   check_dval
     "pipes"
     (DList [Dval.dint 10])
-    (query "\\v -> (| (. v height) (* 2) (+ 6) (< 40))" |> sort |> exec) ;
+    ( queryv
+        (pipe
+           (field "v" "height")
+           [binop "*" pipeTarget (int 2); binop "<" pipeTarget (int 40)])
+    |> execs ) ;
   check_dval
     "external variable works"
     (DList [Dval.dint 10])
-    (query "\\v -> (| (. v height) (< x))" |> sort |> withvar "x" "20" |> exec) ;
+    ( queryv (pipe (field "v" "height") [binop "<" pipeTarget (var "x")])
+    |> withvar "x" (int 20)
+    |> execs ) ;
+  check_dval
+    "fieldAccess"
+    (DList [Dval.dint 65; Dval.dint 73])
+    ( let'
+        "myObj"
+        (record [("x", int 42)])
+        (queryv (binop ">" (field "v" "height") (field "myObj" "x")))
+    |> execs ) ;
+  check_dval
+    "nested fieldAccess"
+    (DList [Dval.dint 65; Dval.dint 73])
+    ( let'
+        "myObj"
+        (record [("field1", record [("field2", int 42)])])
+        (queryv
+           (binop
+              ">"
+              (field "v" "height")
+              (fieldAccess (field "myObj" "field1") "field2")))
+    |> execs ) ;
   check_error
     "not a bool"
-    (query "\\v -> 'x'" |> exec)
+    (queryv (str "x") |> exec)
     (Db.dbQueryExceptionToString
        (Db.DBQueryException
-          "Incorrect type in `\"x\"`, expected Bool but got a str")) ;
+          "Incorrect type in `\"x\"`, expected Bool but got a str in \"x\"")) ;
   check_error
     "bad variable name"
-    (query "\\v -> (let x 32 (&& true (> (. v height) y) ))" |> exec)
+    ( queryv
+        (let'
+           "x"
+           (int 32)
+           (binop "&&" (bool true) (binop ">" (field "v" "height") (var "y"))))
+    |> exec )
     (Db.dbQueryExceptionToString
        (Db.DBQueryException "This variable is not defined: y")) ;
   check_dval
     "sql injection"
     (DList [])
-    (query "\\v -> (== '; select * from users ;' (. v name) )" |> exec) ;
+    ( queryv (binop "==" (str "; select * from users ;") (field "v" "name"))
+    |> exec ) ;
   check_dval
     "null equality works"
     (DList [DNull])
-    (query "\\v -> (== (. v name) null)" |> sort |> exec) ;
+    (queryv (binop "==" (field "v" "name") null) |> execs) ;
   check_dval
     "null inequality works"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (query "\\v -> (!= (. v name) null)" |> sort |> exec) ;
+    (queryv (binop "!=" (field "v" "name") null) |> execs) ;
   check_dval
     "null is not 'null'"
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
-    (query "\\v -> (!= (. v name) 'null')" |> sort |> exec) ;
-  (* Just check enough of the other functions to verify the signature -
-   * they all use they same function behind the scenes. *)
-  let _queryWithKeys code = "(DB::queryWithKeys_v3 Person (" ^ code ^ "))" in
+    (queryv (binop "!=" (field "v" "name") (str "null")) |> execs) ;
+  (* Just check enough of the other functions to verify the signature - *)
+  (* they all use they same function behind the scenes. *)
   check_dval
     "queryOne - multiple"
     (DOption OptNothing)
-    ("(DB::queryOne_v3 Person (\\value -> (. value human)))" |> exec) ;
+    ( fn "DB::queryOne_v3" [var "Person"; lambda ["v"] (field "v" "human")]
+    |> exec ) ;
   check_dval
     "queryOne - none"
     (DOption OptNothing)
-    ("(DB::queryOne_v3 Person (\\value -> (== 'bob' (. value name))))" |> exec) ;
+    ( fn
+        "DB::queryOne_v3"
+        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
+    |> exec ) ;
   check_dval
     "queryOne - one"
     (DOption (OptJust (Dval.dint 65)))
-    ( "(| (DB::queryOne_v3 Person (\\value -> (== 'Rachel' (. value name)))) (Option::map_v1 (\\r -> (. r height))))"
+    ( pipe
+        (fn
+           "DB::queryOne_v3"
+           [ var "Person"
+           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
+        [fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "height")]]
     |> exec ) ;
   check_dval
     "queryOneWithKey - multiple"
     (DOption OptNothing)
-    ("(DB::queryOneWithKey_v3 Person (\\value -> (. value human)))" |> exec) ;
+    ( fn
+        "DB::queryOneWithKey_v3"
+        [var "Person"; lambda ["v"] (field "v" "human")]
+    |> exec ) ;
   check_dval
     "queryOneWithKey - none"
     (DOption OptNothing)
-    ( "(DB::queryOneWithKey_v3 Person (\\value -> (== 'bob' (. value name))))"
+    ( fn
+        "DB::queryOneWithKey_v3"
+        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
     |> exec ) ;
   check_dval
     "queryOneWithKey - one"
     (DOption (OptJust (Dval.dint 65)))
-    ( "(| (DB::queryOneWithKey_v3 Person (\\value -> (== 'Rachel' (. value name)))) (Option::map_v1 (\\r -> (. r rachel))) (Option::map_v1 (\\r -> (. r height))))"
+    ( pipe
+        (fn
+           "DB::queryOneWithKey_v3"
+           [ var "Person"
+           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
+        [ fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "rachel")]
+        ; fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "height")] ]
     |> exec ) ;
   check_dval
     "queryOneWithKey - empty"
     (DObj DvalMap.empty)
-    ( "(DB::queryWithKey_v3 Person (\\value -> (== 'bob' (. value name))))"
+    ( fn
+        "DB::queryWithKey_v3"
+        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
     |> exec ) ;
   check_dval
-    "queryOneWithKey - more than one"
+    "queryWithKey - more than one"
     (Dval.dint 65)
-    ( "(| (DB::queryWithKey_v3 Person (\\value -> (== 'Rachel' (. value name)))) (\\r -> (. r rachel)) (\\r -> (. r height)))"
+    ( pipe
+        (fn
+           "DB::queryWithKey_v3"
+           [ var "Person"
+           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
+        [lambda ["r"] (field "r" "rachel"); lambda ["r"] (field "r" "height")]
     |> exec ) ;
+  (* -------------- *)
+  (* Test functions *)
+  (* -------------- *)
+  check_dval
+    "float"
+    (DList [Dval.dint 73])
+    ( queryv (binop "Float::greaterThan" (field "v" "income") (float' "90" "0"))
+    |> execs ) ;
+  check_dval
+    "string::tolower"
+    (DList [Dval.dint 65])
+    ( queryv
+        (binop
+           "=="
+           (fn "String::toLowercase_v1" [field "v" "name"])
+           (str "rachel"))
+    |> execs ) ;
+  check_dval
+    "string::reverse"
+    (DList [Dval.dint 65])
+    ( queryv
+        (binop "==" (fn "String::reverse" [field "v" "name"]) (str "lehcaR"))
+    |> execs ) ;
+  check_dval
+    "string::length"
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( queryv (binop ">" (fn "String::length" [field "v" "name"]) (int 5))
+    |> execs ) ;
+  (* -------------- *)
+  (* Test partial evaluation *)
+  (* -------------- *)
+  check_dval
+    "partial evaluation - fieldAccesses outside query"
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( let'
+        "x"
+        (record [("y", record [("z", record [("a", int 5)])])])
+        (queryv
+           (binop
+              "<"
+              (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a")
+              (fn "String::length" [field "v" "name"])))
+    |> execs ) ;
+  check_dval
+    "partial evaluation - fieldAccesses"
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( queryv
+        (let'
+           "x"
+           (record [("y", record [("z", record [("a", int 5)])])])
+           (binop
+              "<"
+              (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a")
+              (fn "String::length" [field "v" "name"])))
+    |> execs ) ;
+  check_dval
+    "partial execution - List::length"
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( queryv
+        (let'
+           "x"
+           (record
+              [ ( "y"
+                , record
+                    [ ( "z"
+                      , record [("a", list [int 1; int 2; int 3; int 4; int 5])]
+                      ) ] ) ])
+           (binop
+              "<"
+              (pipe
+                 (fieldAccess (fieldAccess (fieldAccess (var "x") "y") "z") "a")
+                 [fn "List::length" [pipeTarget]])
+              (fn "String::length" [field "v" "name"])))
+    |> execs ) ;
   ()
 
 
