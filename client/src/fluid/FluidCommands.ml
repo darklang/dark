@@ -196,8 +196,7 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
           ; ("valid", true) ]
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; ViewEntry.defaultPasteHandler
-      ; ViewUtils.nothingMouseEvent "mousedown"
-      ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "click" (fun _ ->
+      ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "mousedown" (fun _ ->
             FluidMsg (FluidCommandsClick item))
       ; ViewUtils.eventBoth ~key:("-mousemove" ^ name) "mousemove" (fun _ ->
             FluidMsg (FluidUpdateDropdownIndex i)) ]
