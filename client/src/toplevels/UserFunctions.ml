@@ -234,10 +234,8 @@ let inputToArgs (f : userFunction) (input : inputValueDict) : dval list =
 
 
 let canDelete (usedInRefs : toplevel list) (tlid : tlid) : bool =
-  if List.isEmpty usedInRefs
-  then true
-  else
-    (* Allow deletion if the only callers are itself *)
-    List.all
-      ~f:(function TLFunc f when f.ufTLID = tlid -> true | _ -> false)
-      usedInRefs
+  (* Allow deletion if the only callers are itself or there are no references at all.
+    List.all returns true if the list is empty.
+  *)
+  usedInRefs
+  |> List.all ~f:(function TLFunc f when f.ufTLID = tlid -> true | _ -> false)
