@@ -52,17 +52,31 @@ let debugAST (length : int) (msg : string) (e : E.t) : unit =
 (* Deterministic random number generator *)
 (* ------------------ *)
 
-(* aim is to be deterministic *)
-let state = ref 1.0
+(* Deterministic random number generator, where the random numbers are evenly
+ * distributed across the range. *)
+let state = ref 1
 
-let setSeed (seed : int) : unit = state := float_of_int seed
+let setSeed (seed : int) = state := seed
 
 let random () : float =
-  state := Js_math.sin !state *. 10000.0 ;
-  !state -. float_of_int (Js_math.floor !state)
+  let xOrShiftRand () : int =
+    (* Adapted from the C version at https://en.wikipedia.org/wiki/Xorshift *)
+    (* Javascript treats numbers as 32 bit in the presence of bitwise ops and
+     * our OCaml compiler defers to Javascript for handling numbers.
+     *)
+    state := !state lxor (!state lsl 13) ;
+    (* Using lsr instead of asr because these shifts assume unsigned ints,
+    * which JS doesn't have *)
+    state := !state lxor (!state lsr 17) ;
+    state := !state lxor (!state lsl 5) ;
+    !state
+  in
+  let twoToNeg32 = 2.0 ** -32.0 in
+  (* Conversion from https://www.doornik.com/research/randomdouble.pdf *)
+  (float_of_int (xOrShiftRand ()) *. twoToNeg32) +. 0.5
 
 
-let range (max : int) : int = Js_math.floor (float_of_int max *. random ())
+let range (max : int) : int = truncate (float_of_int max *. random ())
 
 let oneOf (l : 'a list) : 'a =
   List.getAt ~index:(range (List.length l)) l |> Option.valueExn
