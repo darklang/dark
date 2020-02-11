@@ -485,6 +485,19 @@ since they are essentially both commands just acting upon different things. */
   @include precedence(4);
 }
 
+.fluid-secondary-editor {
+  background-color: #2d2d2d;
+  position: relative;
+  left: 20px;
+  height: fit-content;
+  width: 0;
+
+  #fluid-editor {
+    position: absolute;
+    background-color: #2d2d2d;
+  }
+}
+
 .fluid-error-rail {
   display: none;
   position: relative;

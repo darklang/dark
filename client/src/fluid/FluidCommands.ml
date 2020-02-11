@@ -7,21 +7,24 @@ module Regex = Util.Regex
 
 let filterInputID : string = "cmd-filter"
 
-let fluidCommands =
-  Commands.commands
-  |> List.filter ~f:(function
-         | {commandName = "add-feature-flag"; _}
-         | {commandName = "remove-feature-flag"; _} ->
-             false
-         | _ ->
-             true)
+let fluidCommands (m : model) =
+  if VariantTesting.variantIsActive m FeatureFlagVariant
+  then Commands.commands
+  else
+    Commands.commands
+    |> List.filter ~f:(function
+           | {commandName = "add-feature-flag"; _}
+           | {commandName = "remove-feature-flag"; _} ->
+               false
+           | _ ->
+               true)
 
 
-let reset : fluidCommandState =
-  {index = 0; commands = fluidCommands; location = None; filter = None}
+let reset (m : model) : fluidCommandState =
+  {index = 0; commands = fluidCommands m; location = None; filter = None}
 
 
-let commandsFor (expr : fluidExpr) : command list =
+let commandsFor (m : model) (expr : fluidExpr) : command list =
   (* NB: do not structurally compare entire Command.command records here, as
    * they contain functions, which BS cannot compare.*)
   let noPutOn c = c.commandName <> Commands.putFunctionOnRail.commandName in
@@ -46,7 +49,7 @@ let commandsFor (expr : fluidExpr) : command list =
     | _ ->
         fun c -> c.commandName <> "copy-request-as-curl"
   in
-  fluidCommands
+  fluidCommands m
   |> List.filter ~f:railFilters
   |> List.filter ~f:httpClientRequestFilter
 
@@ -58,7 +61,7 @@ let show (m : model) (tlid : tlid) (id : id) : model =
   |> Option.map ~f:(fun expr ->
          let cp =
            { index = 0
-           ; commands = commandsFor expr
+           ; commands = commandsFor m expr
            ; location = Some (tlid, id)
            ; filter = None }
          in
@@ -145,19 +148,19 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
         |> Option.map ~f:(fun ast ->
                match FluidExpression.find id ast with
                | Some expr ->
-                   commandsFor expr
+                   commandsFor m expr
                | None ->
                    [])
         |> recoverOpt "no tl for location" ~default:[]
     | _ ->
-        fluidCommands
+        fluidCommands m
   in
   let filter, commands =
     if String.length query > 0
     then
       let isMatched c = String.contains ~substring:query c.commandName in
       (Some query, List.filter ~f:isMatched allCmds)
-    else (None, fluidCommands)
+    else (None, fluidCommands m)
   in
   {cp with filter; commands; index = 0}
 
@@ -275,6 +278,6 @@ let updateCommandPaletteVisibility (m : model) : model =
   let newTlid = tlidOf m.cursorState in
   if isOpened m.fluidState.cp && oldTlid <> newTlid
   then
-    let newCp = reset in
+    let newCp = reset m in
     {m with fluidState = {m.fluidState with cp = newCp}}
   else m
