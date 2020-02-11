@@ -156,6 +156,21 @@ function getFluidSelectionRange() {
     return undefined;
   }
 
+  // We expect the selected node to be either #text or an element with a classList, if not, return null
+  function _findFirstNodeWithClassListOrNull(selectedNode) {
+    if (selectedNode && selectedNode.classList) {
+      return selectedNode;
+    } else if (
+      selectedNode &&
+      selectedNode.parentNode &&
+      selectedNode.parentNode.classList
+    ) {
+      return selectedNode.parentNode;
+    } else {
+      return null;
+    }
+  }
+
   // OPT(JULIAN): There's likely a more performant way of getting selection
   // start and end than to walk all prior nodes twice.
   let sel = window.getSelection();
@@ -170,15 +185,21 @@ function getFluidSelectionRange() {
   // within the text of that node.
   let selBeginIdx = sel.anchorOffset;
   {
-    let node = _parentCrawlToFluidEntryParentOrUndefined(sel.anchorNode.parentNode);
-    if (!node) {
-      // If this happens, it means that the selection wasn't inside a .fluid-entry node
+    try {
+      let nodeWithClasses = _findFirstNodeWithClassListOrNull(sel.anchorNode);
+      let node = _parentCrawlToFluidEntryParentOrUndefined(nodeWithClasses);
+      if (!node) {
+        // If this happens, it means that the selection wasn't inside a .fluid-entry node
+        throw "Unexpected node selected";
+      }
+      // This only works because we expect .fluid-entry nodes to be siblings with no nesting
+      while (node.previousSibling) {
+        node = node.previousSibling;
+        selBeginIdx += node.textContent.length;
+      }
+    } catch (err) {
+      console.log(`Unexpected error occured: ${err}`);
       return undefined;
-    }
-    // This only works because we expect .fluid-entry nodes to be siblings with no nesting
-    while (node.previousSibling) {
-      node = node.previousSibling;
-      selBeginIdx += node.textContent.length;
     }
   }
   // The 'focusNode' is the node where the selection ended
@@ -186,15 +207,21 @@ function getFluidSelectionRange() {
   // (and where the cursor is now located) within the text of that node.
   let selEndIdx = sel.focusOffset;
   {
-    let node = _parentCrawlToFluidEntryParentOrUndefined(sel.focusNode.parentNode);
-    if (!node) {
-      // If this happens, it means that the selection wasn't inside a .fluid-entry node
+    try {
+      let nodeWithClasses = _findFirstNodeWithClassListOrNull(sel.focusNode);
+      let node = _parentCrawlToFluidEntryParentOrUndefined(nodeWithClasses);
+      if (!node) {
+        // If this happens, it means that the selection wasn't inside a .fluid-entry node
+        throw "Unexpected node selected";
+      }
+      // This only works because we expect .fluid-entry nodes to be siblings with no nesting
+      while (node.previousSibling) {
+        node = node.previousSibling;
+        selEndIdx += node.textContent.length;
+      }
+    } catch (err) {
+      console.log(`Unexpected error occured: ${err}`);
       return undefined;
-    }
-    // This only works because we expect .fluid-entry nodes to be siblings with no nesting
-    while (node.previousSibling) {
-      node = node.previousSibling;
-      selEndIdx += node.textContent.length;
     }
   }
   return [selBeginIdx, selEndIdx];
