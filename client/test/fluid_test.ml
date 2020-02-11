@@ -3554,6 +3554,36 @@ let run () =
                , EVariable (gid (), "foo") ) ))
         (tab ~clone:false 77)
         "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;
+      test "click into partial opens autocomplete" (fun () ->
+          let ast = let' "request" aShortInt aPartialVar in
+          let h = Fluid_utils.h ast in
+          let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+          let tlid = h.hTLID in
+          expect
+            (let _, newState =
+               updateMsg
+                 m
+                 tlid
+                 ast
+                 (FluidMouseUp (tlid, Some (18, 18)))
+                 m.fluidState
+             in
+             newState.ac.index)
+          |> toEqual (Some 0)) ;
+      test "backspace on partial will open AC if query matches" (fun () ->
+          let ast = let' "request" aShortInt aPartialVar in
+          let s = defaultTestState in
+          expect
+            ( moveTo 19 s
+            |> (fun s -> updateKey (keypress K.Down) ast s)
+            |> (fun (ast, s) -> processMsg [DeleteContentBackward] s ast)
+            |> fun (ast, s) ->
+            match (toString ast, s.ac.index) with
+            | "let request = 1\nre", Some 0 ->
+                true
+            | _ ->
+                false )
+          |> toEqual true) ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
