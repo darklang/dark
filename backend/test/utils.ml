@@ -452,7 +452,7 @@ let exec_userfn (prog : string) : dval =
 
 
 let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
-    Analysis_types.dval_store =
+    Analysis_types.intermediate_result_store =
   let c, state, input_vars = test_execution_data ~canvas_name ops in
   let { tlid
       ; execution_id
