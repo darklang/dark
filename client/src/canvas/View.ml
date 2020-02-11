@@ -449,7 +449,7 @@ let view (m : model) : msg Html.html =
         ; Html.href "https://ops-documentation.builtwithdark.com/user-manual"
         ; Html.target "_blank"
         ; ViewUtils.eventNoPropagation ~key:"doc" "mouseup" (fun _ ->
-              UpdateSegment "Open docs") ]
+              UpdateSegment OpenDocs) ]
         [fontAwesome "book"; Html.text "Docs"] ]
   in
   let modal =

@@ -1135,6 +1135,10 @@ and fluidMsg =
   | FluidUpdateDropdownIndex of int
   | FluidCloseCmdPalette
 
+and segmentTrack =
+  | WelcomeModal
+  | OpenDocs
+
 and msg =
   | GlobalClick of mouseEvent
   | IgnoreMsg
@@ -1258,7 +1262,7 @@ and msg =
   | NewTabFromTLMenu of string * tlid
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
-  | UpdateSegment of string
+  | UpdateSegment of segmentTrack
 
 (* ----------------------------- *)
 (* AB tests *)
