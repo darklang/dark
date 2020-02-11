@@ -82,9 +82,18 @@ let deleteAllTest : FuzzTest.t =
 
 
 let copyPasteTest : FuzzTest.t =
+  let module E = FluidExpression in
   { name = "copy paste roundtrips successfully"
   ; check = (fun ~testcase ~newAST _ -> toText testcase = toText newAST)
-  ; ignore = (function EString _ -> true | _ -> false)
+  ; ignore =
+      (fun ast ->
+        (* the copy/paste algorithm doesn't work properly for partials *)
+        E.filter ast ~f:(function
+            | EPartial _ | ERightPartial _ ->
+                true
+            | _ ->
+                false)
+        |> ( <> ) [])
   ; fn =
       (fun testcase ->
         (Fluid_clipboard_test.execute_roundtrip testcase, defaultTestState)) }
