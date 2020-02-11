@@ -214,18 +214,20 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   let entries =
     List.filterMap fns ~f:(fun fn ->
         Option.map (B.toOption fn.ufMetadata.ufmName) ~f:(fun name ->
+            let tlid = fn.ufTLID in
+            let usedIn = Introspect.allUsedIn tlid m in
             let minusButton =
-              if Refactor.usedFn m name
-              then None
-              else Some (DeleteUserFunction fn.ufTLID)
+              if UserFunctions.canDelete usedIn tlid
+              then Some (DeleteUserFunction tlid)
+              else None
             in
             Entry
               { name
-              ; identifier = Tlid fn.ufTLID
-              ; uses = Some (Refactor.fnUseCount m name)
+              ; identifier = Tlid tlid
+              ; uses = Some (List.length usedIn)
               ; minusButton
-              ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
-              ; destination = Some (FocusedFn fn.ufTLID)
+              ; killAction = Some (DeleteUserFunctionForever tlid)
+              ; destination = Some (FocusedFn tlid)
               ; plusButton = None
               ; verb = None }))
   in
