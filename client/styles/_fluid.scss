@@ -213,6 +213,12 @@ https://github.com/chriskempson/tomorrow-theme */
   }
 
   color: $foreground;
+
+  .fluid-not-executed {
+    color: darken($foreground, 15%);
+    background-color: lighten($black, 2%);
+  }
+
   caret-color: $foreground;
   font-size: 13.33px;
 
