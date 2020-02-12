@@ -370,31 +370,24 @@ let viewToast (t : toast) : msg Html.html =
 
 let accountView (m : model) : msg Html.html =
   let logout =
-    Html.a
-      [Html.href "https://login.darklang.com/logout"; Html.class' "action-link"]
-      [Html.text "Logout"]
+    Html.div
+      []
+      [ Html.a
+          [ Html.href "https://login.darklang.com/logout"
+          ; Html.class' "action-link" ]
+          [Html.text "Logout"] ]
   in
-  let canvases =
-    List.map m.canvas_list ~f:(fun c ->
-        Html.li
-          ~unique:c
-          []
-          [Html.a [Html.href ("/a/" ^ c)] [Html.text ("/a/" ^ c)]])
-    |> Html.ul []
-  in
-  let canvasView =
-    [ Html.p [Html.class' "canvas-list-title"] [Html.text "Other canvases:"]
-    ; Html.div [Html.class' "canvas-list"] [canvases]
-    ; Html.p
-        []
-        [ Html.text "Create a new canvas by"
-        ; Html.br []
-        ; Html.text "navigating to the URL" ] ]
+  let settings =
+    Html.p
+      [ Html.class' "setting-btn"
+      ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
+            ToggleSettings) ]
+      [Html.text "Settings"]
   in
   Html.div
     [Html.class' "my-account"]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] ([logout] @ canvasView) ]
+    ; Html.div [Html.class' "account-actions"] [settings; logout] ]
 
 
 let view (m : model) : msg Html.html =

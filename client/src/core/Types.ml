@@ -1267,6 +1267,7 @@ and msg =
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
+  | ToggleSettings
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1495,6 +1496,12 @@ and fluidState =
         (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
   }
 
+and settingTab = UserSettings
+
+and settingViewState =
+  { opened : bool
+  ; tab : settingTab }
+
 (* Avatars *)
 and avatar =
   { canvasId : string
@@ -1595,7 +1602,8 @@ and model =
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
-  ; currentUserFn : fnProps }
+  ; currentUserFn : fnProps
+  ; settings : settingViewState }
 
 and savedUserSettings = {showUserWelcomeModal : bool}
 
