@@ -364,8 +364,19 @@ let viewLiveValue
         renderDval dval ~canCopy:true
     | LoadableNotInitialized | LoadableLoading _ ->
         [ViewUtils.fontAwesome "spinner"]
-    | LoadableSuccess (NonExecutedResult _dval) ->
-        [Html.text "TODO: not executed"]
+    | LoadableSuccess (NonExecutedResult (DError _ as dval))
+    | LoadableSuccess (NonExecutedResult (DIncomplete _ as dval)) ->
+        [ Html.div
+            []
+            ( Html.text
+                "This code was not executed in this trace. When attempting to execute it for preview, an error occurred. FYI: here's the value:\n\n"
+            :: renderDval dval ~canCopy:false ) ]
+    | LoadableSuccess (NonExecutedResult dval) ->
+        [ Html.div
+            []
+            ( Html.text
+                "This code was not executed in this trace, however, here is a preview of what the value would have been\n\n"
+            :: renderDval dval ~canCopy:true ) ]
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
