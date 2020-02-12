@@ -163,4 +163,5 @@ let defaultModel : model =
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty
   ; showUserWelcomeModal = true
-  ; currentUserFn = defaultFnSpace }
+  ; currentUserFn = defaultFnSpace
+  ; settings = {opened = false; tab = UserSettings} }

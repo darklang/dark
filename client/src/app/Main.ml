@@ -1942,6 +1942,10 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
+  | ToggleSettings ->
+      TweakModel
+        (fun m ->
+          {m with settings = {m.settings with opened = not m.settings.opened}})
   | FnParamMsg msg ->
       FnParams.update m msg
 

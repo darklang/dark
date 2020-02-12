@@ -297,7 +297,8 @@ body #app * {
     height: 0;
     padding: 0;
     transition: height 0.4s;
-
+    min-width: 100px;
+    padding-left: 15px;
     box-sizing: border-box;
     background: $black3;
     overflow: hidden;
@@ -306,7 +307,14 @@ body #app * {
     flex-direction: column;
     justify-content: space-around;
     text-align: left;
-
+    .setting-btn {
+      margin: 0;
+      padding: 10px 0px;
+      cursor: pointer;
+      &:hover {
+        color: $purple;
+      }
+    }
     a {
       color: $white1;
 
