@@ -173,6 +173,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   let sourceOfExprValue id =
     if FluidToken.validID id
     then
+      (* Only highlight incompletes and errors on executed paths *)
       match Analysis.getLiveValueLoadable vs.analysisStore id with
       | LoadableSuccess (ExecutedResult (DIncomplete (SourceId id))) ->
           (Some id, "dark-incomplete")
@@ -181,6 +182,15 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
       | _ ->
           (None, "")
     else (None, "")
+  in
+  let wasExecuted id : bool option =
+    match Analysis.getLiveValueLoadable vs.analysisStore id with
+    | LoadableSuccess (ExecutedResult _) ->
+        Some true
+    | LoadableSuccess (NonExecutedResult _) ->
+        Some false
+    | _ ->
+        None
   in
   let currentTokenInfo = Fluid.getToken' state vs.tokens in
   let sourceOfCurrentToken onTi =
@@ -265,6 +275,10 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
           ; ("fluid-error", isError)
+          ; ( "fluid-executed"
+            , wasExecuted tokenId |> Option.withDefault ~default:false )
+          ; ( "fluid-not-executed"
+            , not (wasExecuted tokenId |> Option.withDefault ~default:true) )
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
              * into another, where the cursor is currently on *)
