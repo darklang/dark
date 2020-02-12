@@ -357,9 +357,9 @@ let viewLiveValue
             ; Html.class' "jump-src"
             ; Html.title ("Click here to go to the source of " ^ errType) ]
             [Html.text msg; ViewUtils.fontAwesome "arrow-alt-circle-up"] ]
-    | LoadableSuccess (ExecutedResult (DError _ as dv))
-    | LoadableSuccess (ExecutedResult (DIncomplete _ as dv)) ->
-        renderDval dv ~canCopy:false
+    | LoadableSuccess (ExecutedResult (DError _ as dval))
+    | LoadableSuccess (ExecutedResult (DIncomplete _ as dval)) ->
+        renderDval dval ~canCopy:false
     | LoadableSuccess (ExecutedResult dval) ->
         renderDval dval ~canCopy:true
     | LoadableNotInitialized | LoadableLoading _ ->
