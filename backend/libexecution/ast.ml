@@ -428,7 +428,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               (Symtable.singleton "var" (DIncomplete SourceNone))
               st
           in
-          ignore (exe fake_st body) ) ;
+          preview fake_st body ) ;
         let params =
           List.filter_map params ~f:(function
               | Blank _ ->
