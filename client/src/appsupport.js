@@ -122,110 +122,8 @@ if (pusherConfig.enabled) {
 }
 
 // ---------------------------
-// Fluid
+// Analytics
 // ---------------------------
-// https://stackoverflow.com/a/41034697/104021
-function isChildOfEditor(node) {
-  while (node !== null) {
-    if (node.id === "fluid-editor") {
-      return true;
-    }
-    node = node.parentNode;
-  }
-
-  return false;
-}
-
-// getFluidSelectionRange() returns the [begin, end] indices of the last
-// selection/caret placement within a fluid editor, or undefined if
-// there has been no selection/caret placement, or if the selected nodes are not
-// part of a fluid editor. Begin may be > or < end,
-// depending on the selection direction. If there is no true selection
-// but rather a placement, begin == end.
-// This function assumes there is a flat list of .fluid-entry tokens
-// in the editor, and that any nesting is limited to stylistic nesting within a
-// .fluid-entry node (such as that used for parens).
-function getFluidSelectionRange() {
-  function _parentCrawlToFluidEntryParentOrUndefined(node) {
-    while (node !== null) {
-      if (node.classList.contains("fluid-entry")) {
-        return node;
-      }
-      node = node.parentNode;
-    }
-    return undefined;
-  }
-
-  // We expect the selected node to be either #text or an element with a classList, if not, return null
-  function _findFirstNodeWithClassListOrNull(selectedNode) {
-    if (selectedNode && selectedNode.classList) {
-      return selectedNode;
-    } else if (
-      selectedNode &&
-      selectedNode.parentNode &&
-      selectedNode.parentNode.classList
-    ) {
-      return selectedNode.parentNode;
-    } else {
-      return null;
-    }
-  }
-
-  // OPT(JULIAN): There's likely a more performant way of getting selection
-  // start and end than to walk all prior nodes twice.
-  let sel = window.getSelection();
-  if (
-    sel.focusNode == null ||
-    !isChildOfEditor(sel.focusNode) ||
-    !isChildOfEditor(sel.anchorNode)
-  )
-    return undefined;
-  // The 'anchorNode' is the node where the selection began
-  // and the offset is the relative position where the selection began
-  // within the text of that node.
-  let selBeginIdx = sel.anchorOffset;
-  {
-    try {
-      let nodeWithClasses = _findFirstNodeWithClassListOrNull(sel.anchorNode);
-      let node = _parentCrawlToFluidEntryParentOrUndefined(nodeWithClasses);
-      if (!node) {
-        // If this happens, it means that the selection wasn't inside a .fluid-entry node
-        throw "Unexpected node selected";
-      }
-      // This only works because we expect .fluid-entry nodes to be siblings with no nesting
-      while (node.previousSibling) {
-        node = node.previousSibling;
-        selBeginIdx += node.textContent.length;
-      }
-    } catch (err) {
-      console.log(`Unexpected error occured: ${err}`);
-      return undefined;
-    }
-  }
-  // The 'focusNode' is the node where the selection ended
-  // and the offset is the relative position where the selection ended
-  // (and where the cursor is now located) within the text of that node.
-  let selEndIdx = sel.focusOffset;
-  {
-    try {
-      let nodeWithClasses = _findFirstNodeWithClassListOrNull(sel.focusNode);
-      let node = _parentCrawlToFluidEntryParentOrUndefined(nodeWithClasses);
-      if (!node) {
-        // If this happens, it means that the selection wasn't inside a .fluid-entry node
-        throw "Unexpected node selected";
-      }
-      // This only works because we expect .fluid-entry nodes to be siblings with no nesting
-      while (node.previousSibling) {
-        node = node.previousSibling;
-        selEndIdx += node.textContent.length;
-      }
-    } catch (err) {
-      console.log(`Unexpected error occured: ${err}`);
-      return undefined;
-    }
-  }
-  return [selBeginIdx, selEndIdx];
-}
 
 var Analytics = require("analytics-node");
 var analytics = new Analytics("fVtoR1kNIsfZ484ovfavEybnNubNNVi8");
@@ -248,7 +146,6 @@ function sendSegmentMessage(event) {
   return;
 }
 
-window.getFluidSelectionRange = getFluidSelectionRange;
 window.sendSegmentMessage = sendSegmentMessage;
 
 // ---------------------------

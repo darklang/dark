@@ -134,7 +134,7 @@ async function createRepl(t) {
 }
 
 async function gotoAST(t) {
-  await t.click("#fluid-editor");
+  await t.click("#active-editor");
 }
 
 function user_content_url(t, endpoint) {
@@ -244,10 +244,10 @@ test("field_access_closes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
   await t
-    .typeText("#fluid-editor", "req")
+    .typeText("#active-editor", "req")
     .expect(fluidAcHighlightedText("requestdict"))
     .ok()
-    .typeText("#fluid-editor", ".bo")
+    .typeText("#active-editor", ".bo")
     .expect(fluidAcHighlightedText("bodyfield"))
     .ok()
     .pressKey("enter");
@@ -257,10 +257,10 @@ test("field_access_pipes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
   await t
-    .typeText("#fluid-editor", "req")
+    .typeText("#active-editor", "req")
     .expect(fluidAcHighlightedText())
     .contains("request")
-    .typeText("#fluid-editor", ".bo")
+    .typeText("#active-editor", ".bo")
     .expect(fluidAcHighlightedText())
     .eql("bodyfield")
     .pressKey("shift+enter");
@@ -270,16 +270,16 @@ test("tabbing_works", async t => {
   await createRepl(t);
   // Fill in "then" box in if stmt
   await t
-    .typeText("#fluid-editor", "if")
+    .typeText("#active-editor", "if")
     .pressKey("space tab")
-    .typeText("#fluid-editor", "5");
+    .typeText("#active-editor", "5");
 });
 
 test("autocomplete_highlights_on_partial_match", async t => {
   await createRepl(t);
   await gotoAST(t);
   await t
-    .typeText("#fluid-editor", "nt::add")
+    .typeText("#active-editor", "nt::add")
     .expect(fluidAcHighlightedText("Int::add"))
     .ok()
     .pressKey("enter");
@@ -289,7 +289,7 @@ test("no_request_global_in_non_http_space", async t => {
   await createWorkerHandler(t);
   await gotoAST(t);
   await t
-    .typeText("#fluid-editor", "request")
+    .typeText("#active-editor", "request")
     .expect(fluidAcHighlightedText("Http::badRequest"))
     .ok()
     .pressKey("enter");
@@ -307,7 +307,7 @@ test("ellen_hello_world_demo", async t => {
     .pressKey("enter")
 
     // string
-    .typeText("#fluid-editor", '"Hello world!"');
+    .typeText("#active-editor", '"Hello world!"');
 });
 
 test("editing_headers", async t => {
@@ -364,19 +364,19 @@ test("tabbing_through_let", async t => {
   await createRepl(t);
   await gotoAST(t);
   await t
-    .typeText("#fluid-editor", "let")
+    .typeText("#active-editor", "let")
     .pressKey("enter")
     // round trip through the let blanks once
     .pressKey("tab tab tab")
     // go to the body and fill it in
     .pressKey("tab tab")
-    .typeText("#fluid-editor", "5")
+    .typeText("#active-editor", "5")
     // go to the rhs and fill it in
     .pressKey("tab tab")
-    .typeText("#fluid-editor", "5")
+    .typeText("#active-editor", "5")
     // fill in the var
     .pressKey("tab")
-    .typeText("#fluid-editor", "myvar");
+    .typeText("#active-editor", "myvar");
 });
 
 test("rename_db_fields", async t => {
@@ -543,7 +543,7 @@ test("rename_function", async t => {
 test("execute_function_works", async t => {
   await createRepl(t);
   await t
-    .typeText("#fluid-editor", "Uuid::gen")
+    .typeText("#active-editor", "Uuid::gen")
     .pressKey("enter")
     .click(Selector(".execution-button-needed"));
 
@@ -561,7 +561,7 @@ test("execute_function_works", async t => {
 
 test("correct_field_livevalue", async t => {
   await t
-    .click(Selector("#fluid-editor"))
+    .click(Selector(".fluid-editor")) // this click required to activate the editor
     .click(Selector(".fluid-field-name").withExactText("gth"));
 
   let v1 = await Selector(".selected .live-value").innerText;
@@ -572,7 +572,7 @@ test("correct_field_livevalue", async t => {
 test("function_version_renders", async t => {
   await createRepl(t);
   await t
-    .typeText("#fluid-editor", "DB::del")
+    .typeText("#active-editor", "DB::del")
     .expect(Selector(".autocomplete-item.fluid-selected .version").withText("v1"))
     .ok();
 });
@@ -637,7 +637,7 @@ test("function_analysis_works", async t => {
     .navigateTo("#fn=1039370895")
     .expect(available(".user-fn-toplevel"))
     .ok({ timeout: 1000 })
-    .click(Selector(".user-fn-toplevel #fluid-editor .fluid-binop"))
+    .click(Selector(".user-fn-toplevel #active-editor .fluid-binop"))
     .expect(Selector(".selected .live-value").textContent)
     .eql("10", { timeout: 5000 });
 });
@@ -689,7 +689,7 @@ test("load_with_unnamed_function", async t => {
 });
 
 test("extract_from_function", async t => {
-  const exprElem = Selector(".user-fn-toplevel #fluid-editor > span");
+  const exprElem = Selector(".user-fn-toplevel #active-editor > span");
 
   await t
     .navigateTo("#fn=123")
@@ -753,7 +753,7 @@ test("fluid_double_click_selects_token", async t => {
     .navigateTo("#handler=123")
     .expect(available(".tl-123"))
     .ok()
-    .expect(available(".selected #fluid-editor"))
+    .expect(available(".selected #active-editor"))
     .ok()
     .doubleClick(Selector(".fluid-match-keyword"), { caretPos: 3 });
 });
@@ -763,7 +763,7 @@ test("fluid_double_click_with_alt_selects_expression", async t => {
     .navigateTo("#handler=123")
     .expect(available(".tl-123"))
     .ok()
-    .expect(available(".selected #fluid-editor"))
+    .expect(available(".selected #active-editor"))
     .ok()
     .doubleClick(Selector(".fluid-match-keyword"), {
       caretPos: 3,
@@ -776,7 +776,7 @@ test("fluid_shift_right_selects_chars_in_front", async t => {
     .navigateTo("#handler=123")
     .expect(available(".tl-123"))
     .ok()
-    .expect(available(".selected #fluid-editor"))
+    .expect(available(".selected #active-editor"))
     .ok()
     .click(Selector(".fluid-category-string"), { caretPos: 2 })
     .pressKey("shift+right shift+down shift+right");
@@ -787,7 +787,7 @@ test("fluid_shift_left_selects_chars_at_back", async t => {
     .navigateTo("#handler=123")
     .expect(available(".tl-123"))
     .ok()
-    .expect(available(".selected #fluid-editor"))
+    .expect(available(".selected #active-editor"))
     .ok()
     .click(Selector(".fluid-category-string"), { caretPos: 2 })
     .pressKey("down shift+left shift+up");
@@ -798,7 +798,7 @@ test("fluid_undo_redo_happen_exactly_once", async t => {
     .expect(available(".tl-608699171"))
     .ok()
     .click(Selector(".id-68470584.fluid-category-string"))
-    .expect(available(".selected #fluid-editor"))
+    .expect(available(".selected #active-editor"))
     .ok()
     .expect(Selector(".fluid-category-string").textContent)
     .eql('"12345"')
@@ -815,7 +815,7 @@ test("fluid_ctrl_left_on_string", async t => {
     .navigateTo("#handler=428972234")
     .expect(available(".tl-428972234"))
     .ok()
-    .expect(available(".selected #fluid-editor"))
+    .expect(available(".selected #active-editor"))
     .ok()
     .click(Selector(".fluid-string"), { caretPos: 10 })
     .pressKey("ctrl+left");
@@ -826,7 +826,7 @@ test("fluid_ctrl_right_on_string", async t => {
     .navigateTo("#handler=428972234")
     .expect(available(".tl-428972234"))
     .ok()
-    .expect(available(".selected #fluid-editor"))
+    .expect(available(".selected #active-editor"))
     .ok()
     .click(Selector(".fluid-string"), { caretPos: 10 })
     .pressKey("ctrl+right");
@@ -837,7 +837,7 @@ test("fluid_ctrl_left_on_empty_match", async t => {
     .navigateTo("#handler=281413634")
     .expect(available(".tl-281413634"))
     .ok()
-    .expect(available(".selected #fluid-editor"))
+    .expect(available(".selected #active-editor"))
     .ok()
     .click(Selector(".fluid-category-pattern.id-63381027"), { caretPos: 0 })
     .pressKey("ctrl+left");
