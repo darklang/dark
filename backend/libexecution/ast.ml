@@ -378,67 +378,45 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           preview st elsebody ;
           exe st ifbody )
     | Filled (id, FeatureFlag (_, cond, oldcode, newcode)) ->
-      (* True gives newexpr, unlike in If statements
-       *
-       * In If statements, we use a false/null as false, and anything else is
-       * true. But this won't work for feature flags. If statements are built
-       * as you build you code, with no existing users. But feature flags are
-       * created when you have users and don't want to break your code. As a
-       * result, anything that isn't an explicitly signalling to use the new
-       * code, should use the old code:
-       * - errors should be ignored: use old code
-       * - incompletes should be ignored: use old code
-       * - errorrail should not be propaged: use old code
-       * - values which are "truthy" in if statements are not truthy here:
-       * imagine you are writing the FF cond and you get a list or object,
-       * and you're about to do some other work on it. Should we immediately
-       * start serving the new code to all your traffic? No. So only `true`
-       * gets new code. *)
-      ( match ctx with
-      | Preview ->
-          (* In the case of a preview trace execution, we want the expression
-           * as a whole to evaluate to its correct value -- but we also want
-           * preview values for both sides *)
-          let newresult = exe st newcode in
-          let oldresult = exe st oldcode in
-          let condresult =
-            try
-              (* under no circumstances should this cause code to fail *)
-              exe st cond
-            with e -> Dval.exception_to_dval e (SourceId id)
-          in
-          ( match condresult with
-          | DBool true ->
-              newresult
-          | DIncomplete _ ->
-              oldresult
-          | DError _ ->
-              oldresult
-          | DErrorRail _ ->
-              oldresult
-          | _ ->
-              oldresult )
-      | Real ->
-          (* In the case of a 'real' evaluation, we shouldn't do unneccessary
-           * work and as such should follow the proper evaluation semantics *)
-          let condresult =
-            try
-              (* under no circumstances should this cause code to fail *)
-              exe st cond
-            with e -> DBool false
-          in
-          ( match condresult with
-          (* only false and 'null' are falsey *)
-          | DBool true ->
-              exe st newcode
-          | DErrorRail _ ->
-              exe st oldcode
-          | DIncomplete _ ->
-              exe st oldcode
-          | DError _ ->
-              exe st oldcode
-          | _ ->
-              exe st oldcode ) )
+        (* True gives newexpr, unlike in If statements
+         *
+         * In If statements, we use a false/null as false, and anything else is
+         * true. But this won't work for feature flags. If statements are built
+         * as you build you code, with no existing users. But feature flags are
+         * created when you have users and don't want to break your code. As a
+         * result, anything that isn't an explicitly signalling to use the new
+         * code, should use the old code:
+         * - errors should be ignored: use old code
+         * - incompletes should be ignored: use old code
+         * - errorrail should not be propaged: use old code
+         * - values which are "truthy" in if statements are not truthy here:
+         * imagine you are writing the FF cond and you get a list or object,
+         * and you're about to do some other work on it. Should we immediately
+         * start serving the new code to all your traffic? No. So only `true`
+         * gets new code. *)
+        let condresult =
+          try
+            (* under no circumstances should this cause code to fail *)
+            exe st cond
+          with e -> DBool false
+        in
+        ( match condresult with
+        (* only false and 'null' are falsey *)
+        | DBool true ->
+            preview st oldcode ;
+            exe st newcode
+        | DErrorRail _ ->
+            preview st newcode ;
+            exe st oldcode
+        | DIncomplete _ ->
+            preview st newcode ;
+            exe st oldcode
+        | DError _ ->
+            preview st newcode ;
+            exe st oldcode
+        | _ ->
+            preview st newcode ;
+            exe st oldcode )
     | Filled (id, Lambda (params, body)) ->
         ( if ctx = Preview
         then
