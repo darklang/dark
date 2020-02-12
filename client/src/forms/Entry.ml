@@ -7,6 +7,7 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 module Regex = Util.Regex
+module Dom = Webapi.Dom
 
 let openOmnibox () : modification = Enter (Creating None)
 
@@ -54,20 +55,97 @@ type selection =
   ; getRangeAt : int -> range [@bs.meth] >
   Js.t
 
-external getSelection : unit -> selection = "getSelection"
-  [@@bs.val] [@@bs.scope "window"]
+(** [findFirstAncestorWithClass className node] returns the first ancestor of
+  * [node] (including self) that has a class of [className] *)
+let rec findFirstAncestorWithClass (className : string) (node : Dom.Node.t) :
+    Dom.Node.t option =
+  Dom.Element.ofNode node
+  |> Option.andThen ~f:(fun el ->
+         if el |> Dom.Element.classList |> Dom.DomTokenList.contains className
+         then Some node
+         else None)
+  |> Option.orElseLazy (fun _ ->
+         node
+         |> Dom.Node.parentNode
+         |> Option.andThen ~f:(findFirstAncestorWithClass className))
 
-external jsGetFluidSelectionRange : unit -> int array Js.Nullable.t
-  = "getFluidSelectionRange"
-  [@@bs.val] [@@bs.scope "window"]
 
+(** [preorderWalkUntil f node] recurses through all children of [node], calling
+  * [f] with each Node before recursing. If [f] returns false, the walk stops. *)
+let preorderWalkUntil ~(f : Dom.Node.t -> bool) (node : Dom.Node.t) : unit =
+  let module Node = Dom.Node in
+  let rec walk ~(f : Node.t -> bool) (n : Node.t) : bool =
+    if f n
+    then
+      let continue =
+        Node.firstChild n
+        |> Option.map ~f:(walk ~f)
+        |> Option.withDefault ~default:true
+      in
+      if continue
+      then
+        Node.nextSibling n
+        |> Option.map ~f:(walk ~f)
+        |> Option.withDefault ~default:true
+      else false
+    else false
+  in
+  Node.firstChild node
+  |> Option.map ~f:(walk ~f)
+  |> recoverOption "could not find child element"
+  |> ignore
+
+
+(** getFluidSelectionRange returns the [begin, end] indices of the last
+  * selection/caret placement within a fluid editor.
+  *
+  * If there has been no selection/caret placement or if the selected nodes are
+  * not part of a fluid editor, returns None.
+  *
+  * [begin] may be greater than, less than, or equal to [end], depending on the
+  * selection direction. If there is no selection but rather a caret positior,
+  * then [begin] == [end].
+  *
+  * This function works by first finding the fluid-editor div that the
+  * selection starts in, then iterating through all it's children nodes until
+  * it finds both the selection start and finish nodes (anchor and focus,
+  * respectively). Each non-matching node that is passed by increments a
+  * cursor, which is used to calculate the absolute 0-based index from the
+  * beginning of the editor. *)
 let getFluidSelectionRange () : (int * int) option =
-  match Js.Nullable.toOption (jsGetFluidSelectionRange ()) with
-  | Some [|beginIdx; endIdx|] ->
-      Some (beginIdx, endIdx)
-  | _ ->
-      (* We know the array either has 2 values or is undefined *)
-      None
+  let module Node = Dom.Node in
+  let module Window = Dom.Window in
+  let module Selection = Dom.Selection in
+  let sel = Dom.window |> Window.getSelection in
+  Option.andThen2
+    (Selection.anchorNode sel)
+    (Selection.focusNode sel)
+    ~f:(fun anchorNode focusNode ->
+      findFirstAncestorWithClass "fluid-editor" anchorNode
+      |> recoverOption "could not find fluid-editor"
+      |> Option.andThen ~f:(fun editor ->
+             let cursor = ref 0 in
+             let anchorIdx, focusIdx = (ref None, ref None) in
+             preorderWalkUntil editor ~f:(fun node ->
+                 if Node.isSameNode anchorNode node
+                 then anchorIdx := Some !cursor ;
+                 if Node.isSameNode focusNode node then focusIdx := Some !cursor ;
+                 (* If node is not a leaf, then advance cursor. This is
+                  * probably a span or other container element. We'll see the
+                  * actual text node later, and we don't want to double-count
+                  * the textContent. *)
+                 if not (Node.firstChild node |> Option.is_some)
+                 then
+                   cursor :=
+                     !cursor + (node |> Node.textContent |> String.length) ;
+                 let have_both =
+                   Option.pair !anchorIdx !focusIdx |> Option.is_some
+                 in
+                 not have_both) ;
+             let anchorOffset = sel |> Selection.anchorOffset in
+             let focusOffset = sel |> Selection.focusOffset in
+             Option.map2 !anchorIdx !focusIdx ~f:(fun anchor focus ->
+                 (anchor + anchorOffset, focus + focusOffset))))
 
 
 let getFluidCaretPos () : int option =
@@ -94,49 +172,55 @@ external querySelector : string -> Web_node.t Js.Nullable.t = "querySelector"
   *
   * See getFluidSelectionRange for the counterpart. Note that it is not
   * strictly symmetrical with it, so there might be future edge-cases. *)
-let setFluidSelectionRange ((beginIdx, endIdx) : int * int) : unit =
-  let module Dom = Webapi.Dom in
-  let clamp ((min : int), (max : int)) (n : int) =
+let setFluidSelectionRange (beginIdx : int) (endIdx : int) : unit =
+  let module Node = Dom.Node in
+  let module Element = Dom.Element in
+  let module Window = Dom.Window in
+  let module Document = Dom.Document in
+  let module Selection = Dom.Selection in
+  let module NodeList = Dom.NodeList in
+  let clamp (min : int) (max : int) (n : int) =
     if n < min then min else if n > max then max else n
   in
   Dom.document
-  |> Dom.Document.querySelector ".selected #fluid-editor"
+  |> Document.querySelector ".selected #active-editor"
+  |> recoverOption
+       "setFluidSelectionRange querySelector failed to find #active-editor"
   |> Option.andThen ~f:(fun editor ->
-         let maxChars = Dom.Element.textContent editor |> String.length in
-         let anchorBound = clamp (0, maxChars) beginIdx in
-         let focusBound = clamp (0, maxChars) endIdx in
-         let findNodeAndOffset (bound : int) : Dom.Node.t option * int =
-           Dom.Element.childNodes editor
-           |> Dom.NodeList.toArray
-           |> Array.foldLeft
-                ~initial:(None, bound)
-                ~f:(fun (child : Dom.Node.t) (maybeNode, offset) ->
-                  (* if we already have our node, return it *)
-                  if Option.is_some maybeNode
-                  then (maybeNode, offset)
-                  else
-                    let nodeLen = Dom.Node.textContent child |> String.length in
-                    if offset <= nodeLen
-                    then
-                      (* We need to get the text node rather than the span,
-                       * which is why we do 'firstChild' *)
-                      let firstChild = Dom.Node.firstChild child in
-                      (firstChild, offset)
-                    else (None, offset - nodeLen))
+         let maxChars = editor |> Element.textContent |> String.length in
+         let anchorBound = beginIdx |> clamp 0 maxChars in
+         let focusBound = endIdx |> clamp 0 maxChars in
+         let findNodeAndOffset (bound : int) : Node.t option * int =
+           let offset = ref bound in
+           Element.childNodes editor
+           |> NodeList.toArray
+           |> Array.find ~f:(fun child ->
+                  let nodeLen = child |> Node.textContent |> String.length in
+                  if !offset <= nodeLen
+                  then true
+                  else (
+                    offset := !offset - nodeLen ;
+                    false ))
+           |> Option.andThen ~f:Node.firstChild
+           |> fun n -> (n, !offset)
          in
-         let anchorNode, anchorNodeOffset = findNodeAndOffset anchorBound in
-         let focusNode, focusNodeOffset = findNodeAndOffset focusBound in
-         Option.map2 anchorNode focusNode ~f:(fun a f ->
-             Dom.Window.getSelection Dom.window
-             |> Dom.Selection.setBaseAndExtent
-                  a
-                  anchorNodeOffset
-                  f
-                  focusNodeOffset))
+         let maybeAnchor, anchorOffset = findNodeAndOffset anchorBound in
+         let maybeFocus, focusOffset = findNodeAndOffset focusBound in
+         Option.map2 maybeAnchor maybeFocus ~f:(fun anchorNode focusNode ->
+             Dom.window
+             |> Window.getSelection
+             |> Selection.setBaseAndExtent
+                  anchorNode
+                  anchorOffset
+                  focusNode
+                  focusOffset)
+         |> recoverOption
+              ~debug:(maybeAnchor, maybeFocus)
+              "setFluidSelectionRange failed to find selection nodes")
   |> ignore
 
 
-let setFluidCaret (idx : int) : unit = setFluidSelectionRange (idx, idx)
+let setFluidCaret (idx : int) : unit = setFluidSelectionRange idx idx
 
 type browserPlatform =
   | Mac
