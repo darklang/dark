@@ -62,7 +62,13 @@ let run_system_migration (name : string) (sql : string) : unit =
            done_sql)
 
 
-let names () = File.lsdir ~root:Migrations "" |> List.sort ~compare
+let names () =
+  File.lsdir ~root:Migrations ""
+  (* endsWith sql filters out, say, the .swp files vim sometimes leaves behind
+   * *)
+  |> List.filter ~f:(Tc.String.endsWith ~suffix:".sql")
+  |> List.sort ~compare
+
 
 let run () : unit =
   if not (is_initialized ()) then initialize_migrations_table () ;
