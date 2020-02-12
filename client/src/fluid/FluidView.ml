@@ -382,14 +382,12 @@ let viewLiveValue
     | LoadableSuccess (NonExecutedResult (DIncomplete _ as dval)) ->
         [ Html.div
             []
-            ( Html.text
-                "This code was not executed in this trace. When attempting to execute it for preview, an error occurred. FYI: here's the value:\n\n"
+            ( Html.text "This code was not executed in this trace\n\n"
             :: renderDval dval ~canCopy:false ) ]
     | LoadableSuccess (NonExecutedResult dval) ->
         [ Html.div
             []
-            ( Html.text
-                "This code was not executed in this trace, however, here is a preview of what the value would have been\n\n"
+            ( Html.text "This code was not executed in this trace.\n\n"
             :: renderDval dval ~canCopy:true ) ]
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
