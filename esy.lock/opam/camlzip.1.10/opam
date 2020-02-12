@@ -1,0 +1,22 @@
+opam-version: "2.0"
+maintainer: "Cryptosense <opensource@cryptosense.com>"
+authors: ["Xavier Leroy"]
+homepage: "https://github.com/xavierleroy/camlzip"
+bug-reports: "https://github.com/xavierleroy/camlzip/issues"
+license: "LGPL-2.1-or-later with OCaml-LGPL-linking-exception"
+build: [
+  [make "all"]
+  [make "allopt"]
+]
+install: [make "install-findlib"]
+depends: [
+  "ocaml" {>= "4.02.0"}
+  "ocamlfind" {build}
+  "conf-zlib"
+]
+synopsis:
+  "Provides easy access to compressed files in ZIP, GZIP and JAR format"
+url {
+  src: "https://github.com/xavierleroy/camlzip/archive/rel110.zip"
+  checksum: "sha256=a5541cbc38c14467a8abcbdcb54c1d2ed12515c1c4c6da0eb3bdafb44aff7996"
+}
