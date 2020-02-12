@@ -1342,8 +1342,11 @@ let update_ (msg : msg) (m : model) : modification =
               NoChange )
       | _ ->
           NoChange )
+  | UpdateSegment msg ->
+      Entry.sendSegmentMessage msg ;
+      NoChange
   | CloseWelcomeModal ->
-      Entry.trackWelcomeModalDismissal () ;
+      Entry.sendSegmentMessage WelcomeModal ;
       Many [TweakModel (fun m -> {m with showUserWelcomeModal = false})]
   | DeleteUserTypeForever tlid ->
       Many

@@ -110,12 +110,15 @@ let getBrowserPlatform () : browserPlatform =
   |> Option.withDefault ~default:UnknownPlatform
 
 
-external jsTrackWelcomeModalDismissal : unit -> unit
-  = "trackWelcomeModalDismissal"
+external jsSendSegmentMessage : string -> unit = "sendSegmentMessage"
   [@@bs.val] [@@bs.scope "window"]
 
-let trackWelcomeModalDismissal () : unit =
-  jsTrackWelcomeModalDismissal () |> ignore
+let string_of_segment_track (e : segmentTrack) : string =
+  match e with WelcomeModal -> "Welcome Modal" | OpenDocs -> "Open docs"
+
+
+let sendSegmentMessage (event : segmentTrack) : unit =
+  string_of_segment_track event |> jsSendSegmentMessage |> ignore
 
 
 external jsUnsupportedBrowser : unit -> bool Js.Nullable.t
