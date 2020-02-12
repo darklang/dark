@@ -106,7 +106,7 @@ let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
   match analysisStore with
   | LoadableSuccess dvals ->
     ( match StrDict.get dvals ~key:id with
-    | Some (ExecutedResult dval) ->
+    | Some (ExecutedResult dval) | Some (NonExecutedResult dval) ->
         Some dval
     | _ ->
         None )
