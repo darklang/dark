@@ -534,7 +534,7 @@ module RuntimeT = struct
   type execution_result =
     | ExecutedResult of dval
     | NonExecutedResult of dval
-  [@@deriving yojson]
+  [@@deriving eq, show, yojson]
 
   type exec_state =
     { tlid : tlid

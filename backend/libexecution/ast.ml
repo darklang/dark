@@ -230,12 +230,15 @@ let rec execute_dblock
 
 and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
   let on_execution_path = state.on_execution_path in
-  let exe ?(on_execution_path = on_execution_path) =
-    let state = {state with on_execution_path = true} in
-    exec ~state
+  let ctx = state.context in
+  let exe ?(on_execution_path = on_execution_path) st expr =
+    let state = {state with on_execution_path} in
+    exec ~state st expr
+  in
+  let preview st expr : unit =
+    if ctx = Preview then exe ~on_execution_path:false st expr |> ignore
   in
   let call = call_fn ~state in
-  let ctx = state.context in
   let trace = state.trace in
   (* This is a super hacky way to inject params as the result of
    * pipelining using the `Thread` construct
@@ -354,39 +357,26 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         let argvals = List.map ~f:(exe st) exprs in
         call name id argvals false
     | Filled (id, If (cond, ifbody, elsebody)) ->
-      ( match ctx with
-      | Preview ->
-          (* In the case of a preview trace execution, we want the 'if'
-           * expression as a whole to evaluate to its correct value -- but we
-           * also want preview values for _all_ sides of the if *)
-          let ifresult = exe st ifbody in
-          let elseresult = exe st elsebody in
-          ( match exe st cond with
-          | DBool false | DNull ->
-              elseresult
-          | DIncomplete _ as i ->
-              i
-          | DError (src, _) ->
-              DError (src, "Expected boolean, got error")
-          | DErrorRail _ as er ->
-              er
-          | _ ->
-              ifresult )
-      | Real ->
-        (* In the case of a 'real' evaluation, we shouldn't do unneccessary
-           * work and as such should follow the proper evaluation semantics *)
-        ( match exe st cond with
-        (* only false and 'null' are falsey *)
-        | DBool false | DNull ->
-            exe st elsebody
-        | DIncomplete _ as i ->
-            i
-        | DError (src, _) ->
-            DError (src, "Expected boolean, got error")
-        | DErrorRail _ as er ->
-            er
-        | _ ->
-            exe st ifbody ) )
+      ( match exe st cond with
+      (* only false and 'null' are falsey *)
+      | DBool false | DNull ->
+          preview st ifbody ;
+          exe st elsebody
+      | DIncomplete _ as i ->
+          preview st ifbody ;
+          preview st elsebody ;
+          i
+      | DError (src, _) ->
+          preview st ifbody ;
+          preview st elsebody ;
+          DError (src, "Expected boolean, got error")
+      | DErrorRail _ as er ->
+          preview st ifbody ;
+          preview st elsebody ;
+          er
+      | _ ->
+          preview st elsebody ;
+          exe st ifbody )
     | Filled (id, FeatureFlag (_, cond, oldcode, newcode)) ->
       (* True gives newexpr, unlike in If statements
        *

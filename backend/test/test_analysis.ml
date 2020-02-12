@@ -108,10 +108,49 @@ let t_list_literals () =
           false)
 
 
+let t_if_not_executed () =
+  let trueid = fid () in
+  let falseid = fid () in
+  let ifid = fid () in
+  let ast =
+    Filled
+      ( ifid
+      , If
+          ( f (Value "true")
+          , Filled (trueid, Value "5")
+          , Filled (falseid, Value "6") ) )
+  in
+  let dvalStore = exec_save_dvals ast in
+  check_condition "if is ok" (IDTable.find_exn dvalStore ifid) ~f:(function
+      | ExecutedResult v ->
+          Dval.dint 5 = v
+      | _ ->
+          false) ;
+  check_condition
+    "truebody is ok"
+    (IDTable.find_exn dvalStore trueid)
+    ~f:(function
+      | ExecutedResult v ->
+          Dval.dint 5 = v
+      | _ ->
+          false) ;
+  check_condition
+    "elsebody is ok"
+    (IDTable.find_exn dvalStore falseid)
+    ~f:(function
+      | NonExecutedResult v ->
+          Dval.dint 6 = v
+      | v ->
+          Libcommon.Log.inspecT ~f:show_execution_result "actual" v ;
+          false) ;
+  ()
+
+
 let suite =
   [ ("Missing functions still check the rail", `Quick, t_on_the_rail)
   ; ("Filter / from /:rest", `Quick, t_test_filter_slash)
   ; ("Analysis on List listerals", `Quick, t_list_literals)
   ; ( "Analysis supports all the DB::query functionns"
     , `Quick
-    , t_other_db_query_functions_have_analysis ) ]
+    , t_other_db_query_functions_have_analysis )
+  ; ("If branches are evaluated correctly", `Quick, t_if_not_executed) ]

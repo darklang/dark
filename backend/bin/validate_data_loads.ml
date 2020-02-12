@@ -117,8 +117,9 @@ let () =
                    ; user_tipes = []
                    ; dbs
                    ; context = Real
-                   ; trace = (fun _ _ -> ())
+                   ; trace = (fun ~on_execution_path _ _ -> ())
                    ; trace_tlid = (fun _ -> ())
+                   ; on_execution_path = true
                    ; exec = (fun ~state _ _ -> DNull)
                    ; execution_id = Types.id_of_int 0
                    ; fail_fn = None
