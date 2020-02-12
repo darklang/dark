@@ -215,8 +215,8 @@ https://github.com/chriskempson/tomorrow-theme */
   color: $foreground;
 
   .fluid-not-executed {
-    color: darken($foreground, 15%);
-    background-color: lighten($black, 2%);
+  }
+  .fluid-executed {
   }
 
   caret-color: $foreground;
