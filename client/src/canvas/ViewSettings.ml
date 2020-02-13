@@ -17,10 +17,10 @@ let userSettingsView (m : model) : msg Html.html =
             []
             [Html.a [Html.href ("/a/" ^ c)] [Html.text ("/a/" ^ c)]])
       |> Html.ul []
-    else Html.p [] [Html.text "No other canvases"]
+    else Html.p [] [Html.text "No other personal canvases"]
   in
   let canvasView =
-    [ Html.p [Html.class' "canvas-list-title"] [Html.text "Canvases:"]
+    [ Html.p [Html.class' "canvas-list-title"] [Html.text "Personal canvases:"]
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p [] [Html.text "Create a new canvas by navigating to the URL"] ]
   in
@@ -35,13 +35,13 @@ let userSettingsView (m : model) : msg Html.html =
   let orgView =
     if List.length m.org_list > 0
     then
-      [ Html.p [Html.class' "canvas-list-title"] [Html.text "Organizations:"]
+      [ Html.p [Html.class' "canvas-list-title"] [Html.text "Shared canvases:"]
       ; Html.div [Html.class' "canvas-list"] [orgs] ]
     else [Vdom.noNode]
   in
   Html.div
     [Html.class' "setting-tab-wrapper"]
-    ([Html.h2 [] [Html.text "User Settings"]] @ orgView @ canvasView)
+    ([Html.h2 [] [Html.text "Account"]] @ orgView @ canvasView)
 
 
 let settingsTabToHtml (m : model) : msg Html.html =
