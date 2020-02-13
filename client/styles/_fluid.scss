@@ -215,8 +215,10 @@ https://github.com/chriskempson/tomorrow-theme */
   color: $foreground;
 
   .fluid-not-executed {
+    // TODO: indicate the difference between code that was executed vs not
   }
   .fluid-executed {
+    // TODO: indicate the difference between code that was executed vs not
   }
 
   caret-color: $foreground;
