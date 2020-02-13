@@ -121,28 +121,146 @@ let t_if_not_executed () =
           , Filled (falseid, Value "6") ) )
   in
   let dvalStore = exec_save_dvals ast in
-  check_condition "if is ok" (IDTable.find_exn dvalStore ifid) ~f:(function
-      | ExecutedResult v ->
-          Dval.dint 5 = v
-      | _ ->
-          false) ;
-  check_condition
+  check_execution_result
+    "if is ok"
+    (IDTable.find_exn dvalStore ifid)
+    (ExecutedResult (Dval.dint 5)) ;
+  check_execution_result
     "truebody is ok"
     (IDTable.find_exn dvalStore trueid)
-    ~f:(function
-      | ExecutedResult v ->
-          Dval.dint 5 = v
-      | _ ->
-          false) ;
-  check_condition
+    (ExecutedResult (Dval.dint 5)) ;
+  check_execution_result
     "elsebody is ok"
     (IDTable.find_exn dvalStore falseid)
-    ~f:(function
-      | NonExecutedResult v ->
-          Dval.dint 6 = v
-      | v ->
-          Libcommon.Log.inspecT ~f:show_execution_result "actual" v ;
-          false) ;
+    (NonExecutedResult (Dval.dint 6)) ;
+  ()
+
+
+let t_match_evaluation () =
+  let gid = Libshared.Shared.gid in
+  let open Libshared.FluidShortcuts in
+  let mid = gid () in
+  let pIntId = gid () in
+  let pFloatId = gid () in
+  let pBoolId = gid () in
+  let pStrId = gid () in
+  let pNullId = gid () in
+  let pBlankId = gid () in
+  let pOkId = gid () in
+  let pOkId2 = gid () in
+  let pOkVarId = gid () in
+  let pOkBlankId = gid () in
+  let pNothingId = gid () in
+  let pVarId = gid () in
+  let intRhsId = gid () in
+  let floatRhsId = gid () in
+  let boolRhsId = gid () in
+  let strRhsId = gid () in
+  let nullRhsId = gid () in
+  let blankRhsId = gid () in
+  let okRhsId = gid () in
+  let okRhsId2 = gid () in
+  let nothingRhsId = gid () in
+  let okRhsVarId = gid () in
+  let varRhsId = gid () in
+  let astFor (arg : Libshared.FluidExpression.t) =
+    match'
+      ~id:mid
+      arg
+      [ (pInt ~mid ~id:pIntId 5, int ~id:intRhsId 17)
+      ; (pFloat ~mid ~id:pFloatId "5" "6", str ~id:floatRhsId "float")
+      ; (pBool ~mid ~id:pBoolId false, str ~id:boolRhsId "bool")
+      ; (pString ~mid ~id:pStrId "myStr", str ~id:strRhsId "str")
+      ; (pNull ~mid ~id:pNullId (), str ~id:nullRhsId "null")
+      ; (pBlank ~mid ~id:pBlankId (), str ~id:blankRhsId "blank")
+      ; ( pConstructor ~mid ~id:pOkId2 "Ok" [pBlank ~mid ~id:pOkBlankId ()]
+        , str ~id:okRhsId2 "ok blank" )
+      ; ( pConstructor ~mid ~id:pOkId "Ok" [pVar ~mid ~id:pOkVarId "x"]
+        , fn ~id:okRhsId "++" [str "ok: "; var ~id:okRhsVarId "x"] )
+      ; ( pConstructor ~mid ~id:pNothingId "Nothing" []
+        , str ~id:nothingRhsId "constructor nothing" )
+      ; (pVar ~mid ~id:pVarId "name", var ~id:varRhsId "name") ]
+  in
+  let check_match
+      (msg : string)
+      (arg : Libshared.FluidExpression.t)
+      (expected : (id * string * execution_result) list) =
+    let ast = astFor arg in
+    let dvalStore = exec_save_dvals' ast in
+    List.iter expected ~f:(fun (id, name, value) ->
+        check_execution_result
+          (msg ^ ": " ^ Libshared.FluidExpression.show arg ^ " " ^ name)
+          value
+          (IDTable.find_exn dvalStore id))
+  in
+  let er x = ExecutedResult x in
+  let ner x = NonExecutedResult x in
+  let dstr x = Dval.dstr_of_string_exn x in
+  check_match
+    "int match"
+    (int 5)
+    [ (pIntId, "matching pat", er (Dval.dint 5))
+    ; (intRhsId, "matching rhs", er (Dval.dint 17))
+    ; (pVarId, "2nd matching pat", ner (Dval.dint 5))
+    ; (varRhsId, "2nd matching rhs", ner (Dval.dint 5)) ] ;
+  check_match
+    "non match"
+    (int 6)
+    [ (pIntId, "non matching pat", ner (Dval.dint 5))
+    ; (intRhsId, "non matching rhs", ner (Dval.dint 17))
+    ; (pFloatId, "float", ner (DFloat 5.6))
+    ; (floatRhsId, "float rhs", ner (dstr "float"))
+    ; (pBoolId, "bool", ner (DBool false))
+    ; (boolRhsId, "bool rhs", ner (dstr "bool"))
+    ; (pNullId, "null", ner DNull)
+    ; (nullRhsId, "null rhs", ner (dstr "null"))
+    ; (pOkId, "ok pat", ner (DIncomplete (SourceId pOkId)))
+      (* TODO: come back to this *)
+      (* ; (pOkVarId, "var pat", ner (DIncomplete (SourceId pOkVarId))) *)
+    ; (okRhsId, "ok rhs", ner (DIncomplete (SourceId okRhsVarId)))
+    ; (okRhsVarId, "ok rhs var", ner (DIncomplete (SourceId okRhsVarId)))
+    ; (pNothingId, "ok pat", ner (DOption OptNothing))
+    ; (nothingRhsId, "rhs", ner (dstr "constructor nothing"))
+    ; (pOkId2, "ok pat", ner (DIncomplete (SourceId pOkId2)))
+      (* TODO  *)
+      (* ; (pOkBlankId, "blank pat", ner (DIncomplete (SourceId pOkBlankId))) *)
+    ; (okRhsId2, "rhs", ner (dstr "ok blank"))
+    ; (pVarId, "catch all pat", er (Dval.dint 6))
+    ; (varRhsId, "catch all rhs", er (Dval.dint 6)) ] ;
+  check_match
+    "float"
+    (float' 5 6)
+    [(pFloatId, "pat", er (DFloat 5.6)); (floatRhsId, "rhs", er (dstr "float"))] ;
+  check_match
+    "bool"
+    (bool false)
+    [(pBoolId, "pat", er (DBool false)); (boolRhsId, "rhs", er (dstr "bool"))] ;
+  check_match
+    "null"
+    null
+    [(pNullId, "pat", er DNull); (nullRhsId, "rhs", er (dstr "null"))] ;
+  check_match
+    "ok: x"
+    (constructor "Ok" [str "y"])
+    [ (pOkId, "ok pat", er (DResult (ResOk (dstr "y"))))
+    ; (pOkVarId, "var pat", er (dstr "y"))
+    ; (okRhsId, "rhs", er (dstr "ok: y"))
+    ; (okRhsVarId, "rhs", er (dstr "y")) ] ;
+  check_match
+    "nothing"
+    (constructor "Nothing" [])
+    [ (pNothingId, "ok pat", er (DOption OptNothing))
+    ; (nothingRhsId, "rhs", er (dstr "constructor nothing")) ] ;
+  check_match
+    "ok: blank"
+    (constructor "Ok" [str "y"])
+    [ (pOkId2, "ok pat", ner (DIncomplete (SourceId pOkId2)))
+    ; (pOkBlankId, "blank pat", ner (DIncomplete (SourceId pOkBlankId)))
+    ; (okRhsId2, "rhs", ner (dstr "ok blank")) ] ;
+  (* constructor around a blank, still pat/expr still has a traxe *)
+  (* constructor around a literal, still pat/expr still has a traxe *)
+  (* constructor around a variable, still pat/expr still has a traxe *)
+  (* constructor around a value, nested twice, pat/expr still has a trace *)
   ()
 
 
@@ -153,4 +271,5 @@ let suite =
   ; ( "Analysis supports all the DB::query functionns"
     , `Quick
     , t_other_db_query_functions_have_analysis )
-  ; ("If branches are evaluated correctly", `Quick, t_if_not_executed) ]
+  ; ("If branches are evaluated correctly", `Quick, t_if_not_executed)
+  ; ("Matches are evaluated correctly", `Quick, t_match_evaluation) ]

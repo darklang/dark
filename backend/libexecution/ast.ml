@@ -459,73 +459,88 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
       | [] ->
           DIncomplete (SourceId id) )
     | Filled (id, Match (matchExpr, cases)) ->
-        let rec matches dv pat :
-            bool (* is a match *)
-            * (string * dval) (* symtable vars *) list
-            * (id * dval) (* traces *) list
-            * bool (* allow previewing the rhs *) =
-          match pat with
+        let hasMatched = ref false in
+        let matchResult = ref (DIncomplete (SourceId id)) in
+        let maybeExe
+            (new_defs : (string * dval) list)
+            (traces : (id * dval) list)
+            (st : dval_map)
+            (e : expr) : unit =
+          let newVars = DvalMap.from_list new_defs in
+          let newSt = Util.merge_left newVars st in
+          if !hasMatched
+          then (
+            (* We matched, but we've already matched a pattern previously *)
+            List.iter traces ~f:(fun (id, dval) ->
+                trace ~on_execution_path:false id dval) ;
+            Libcommon.Log.inspecT "preview" e ~f:show_expr ;
+            preview newSt e )
+          else (
+            List.iter traces ~f:(fun (id, dval) ->
+                trace ~on_execution_path id dval) ;
+            Libcommon.Log.inspecT "for real" e ~f:show_expr ;
+            hasMatched := true ;
+            matchResult := exe newSt e )
+        in
+        let rec matchAndExe dv builtUpTraces (pattern, expr) =
+          Libcommon.Log.inspecT "pattern" pattern ~f:show_pattern ;
+          Libcommon.Log.inspecT "value" dv ~f:Dval.to_developer_repr_v0 ;
+          let incomplete id = DIncomplete (SourceId id) in
+          let traceIncompletes traces =
+            List.iter traces ~f:(fun (id, _) ->
+                trace ~on_execution_path:false id (incomplete id))
+          in
+          match pattern with
           | Filled (pid, PLiteral l) ->
             ( match Dval.parse_literal l with
-            | Some v ->
-                (v = dv, [], [(pid, v)], true)
-            | None ->
-                (false, [], [(pid, DIncomplete (SourceId pid))], true) )
+            | Some v when v = dv ->
+                maybeExe [] ((pid, v) :: builtUpTraces) st expr
+            | v ->
+                preview st expr ;
+                traceIncompletes builtUpTraces ;
+                let value = Option.value v ~default:(incomplete pid) in
+                trace ~on_execution_path:false pid value )
           | Filled (pid, PVariable v) ->
-              (true, [(v, dv)], [(pid, dv)], true)
+              (* always matches *)
+              maybeExe [(v, dv)] ((pid, dv) :: builtUpTraces) st expr
+          | Blank pid | Partial (pid, _) ->
+              (* never matches *)
+              trace ~on_execution_path:false pid (incomplete pid) ;
+              traceIncompletes builtUpTraces ;
+              preview st expr
           | Filled (pid, PConstructor (name, args)) ->
-            (* We don't trace constructors, as if they don't match we would add
-             * incompletes to things that are not incomplete (just not
-             * matched), and users are already confused enough about
-             * incompletes. We probably need a way to indicate the live value
-             * is "uninteresting" instead.
-             *)
             ( match (name, args, dv) with
             | "Just", [p], DOption (OptJust v)
             | "Ok", [p], DResult (ResOk v)
             | "Error", [p], DResult (ResError v) ->
-                let is_match, symbols, traces, preview = matches v p in
-                let new_traces = if is_match then [(pid, dv)] else [] in
-                (is_match, symbols, traces @ new_traces, preview && is_match)
-            | "Nothing", [], v ->
-                (v = DOption OptNothing, [], [(pid, DOption OptNothing)], true)
-            | "Just", _, _ | "Ok", _, _ | "Error", _, _ | "Nothing", _, _ ->
-                (false, [], [], false)
-            | _, _, _ ->
-                ( false
-                , []
-                , [(pid, DError (SourceId pid, "Invalid constructor"))]
-                , false ) )
-          | Blank pid | Partial (pid, _) ->
-              (false, [], [(pid, DIncomplete (SourceId pid))], true)
-        in
-        let exe_with_vars e vars =
-          let newVars = DvalMap.from_list vars in
-          let newSt = Util.merge_left newVars st in
-          exe newSt e
+                matchAndExe v ((pid, dv) :: builtUpTraces) (p, expr)
+            | "Nothing", [], DOption OptNothing ->
+                maybeExe [] ((pid, dv) :: builtUpTraces) st expr
+            | "Nothing", [], _ ->
+                preview st expr ;
+                traceIncompletes builtUpTraces ;
+                trace ~on_execution_path:false pid (DOption OptNothing)
+            | _ ->
+                let error =
+                  if Tc.List.member
+                       ~value:name
+                       ["Just"; "Ok"; "Error"; "Nothing"]
+                  then incomplete pid
+                  else DError (SourceId pid, "Invalid constructor")
+                in
+                trace ~on_execution_path:false pid error ;
+                traceIncompletes builtUpTraces ;
+                preview st expr ;
+                () )
+          (* Trace each argument too, recursively *)
+          (* List.iter args ~f:(fun pat -> *)
+          (*     let id = blank_to_id pat in *)
+          (*     matchAndExe (incomplete id) [] (pat, Blank id)) ; *)
+          (* () ) *)
         in
         let matchVal = exe st matchExpr in
-        (* In Preview, show traces for patterns and execute each expression *)
-        if ctx = Preview
-        then
-          List.iter cases ~f:(fun (pattern, expr) ->
-              let _, vars, tracevars, preview_rhs = matches matchVal pattern in
-              List.iter tracevars ~f:(fun (id, dv) ->
-                  trace ~on_execution_path id dv) ;
-              (* Don't preview constructor rhs, as they have misleading incompletes *)
-              if preview_rhs then exe_with_vars expr vars |> ignore) ;
-        (* Always do the real execution *)
-        let continue = ref true in
-        let matchResult = ref (DIncomplete (SourceId id)) in
         List.iter cases ~f:(fun (pattern, expr) ->
-            if !continue
-            then
-              let matches, vars, _, _ = matches matchVal pattern in
-              if matches
-              then (
-                continue := false ;
-                matchResult := exe_with_vars expr vars )
-              else ()) ;
+            matchAndExe matchVal [] (pattern, expr)) ;
         !matchResult
     | Filled (id, FieldAccess (e, field)) ->
         let obj = exe st e in
