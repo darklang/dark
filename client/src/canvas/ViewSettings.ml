@@ -8,15 +8,13 @@ module TD = TLIDDict
 let fontAwesome = ViewUtils.fontAwesome
 
 let userSettingsView (m : model) : msg Html.html =
+  let canvasLink c =
+    let url = "/a/" ^ c in
+    Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
+  in
   let canvases =
     if List.length m.canvas_list > 0
-    then
-      List.map m.canvas_list ~f:(fun c ->
-          Html.li
-            ~unique:c
-            []
-            [Html.a [Html.href ("/a/" ^ c)] [Html.text ("/a/" ^ c)]])
-      |> Html.ul []
+    then List.map m.canvas_list ~f:canvasLink |> Html.ul []
     else Html.p [] [Html.text "No other personal canvases"]
   in
   let canvasView =
@@ -24,14 +22,7 @@ let userSettingsView (m : model) : msg Html.html =
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p [] [Html.text "Create a new canvas by navigating to the URL"] ]
   in
-  let orgs =
-    List.map m.org_list ~f:(fun c ->
-        Html.li
-          ~unique:c
-          []
-          [Html.a [Html.href ("/a/" ^ c)] [Html.text ("/a/" ^ c)]])
-    |> Html.ul []
-  in
+  let orgs = List.map m.org_list ~f:canvasLink |> Html.ul [] in
   let orgView =
     if List.length m.org_list > 0
     then
@@ -66,9 +57,7 @@ let html (m : model) : msg Html.html =
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
           ToggleSettings false) ]
     [ Html.div
-        [ Html.classList [("modal", true)]
-        ; ViewUtils.nothingMouseEvent "mousedown"
-        ; ViewUtils.nothingMouseEvent "mouseup"
+        [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"
         ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
               EnablePanning false)
