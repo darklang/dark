@@ -1175,7 +1175,12 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelClick (targetExnID, _) ->
       let defaultBehaviour =
         [ Select (targetExnID, STTopLevelRoot)
-        ; Apply (fun m -> Fluid.update m (FluidMouseUp (targetExnID, None))) ]
+        ; Apply
+            (fun m ->
+              Fluid.update
+                m
+                (FluidMouseUp
+                   {tlid = targetExnID; selection = None; editorIdx = 0})) ]
       in
       ( match m.cursorState with
       (* If we click away from an entry box, commit it before doing the default behaviour *)
@@ -1891,7 +1896,7 @@ let update_ (msg : msg) (m : model) : modification =
             (Entry.commit m cursor :: defaultBehaviour)
       | _ ->
           Many defaultBehaviour )
-  | FluidMsg (FluidMouseUp (targetExnID, _) as msg) ->
+  | FluidMsg (FluidMouseUp {tlid = targetExnID; _} as msg) ->
       Many
         [ Select (targetExnID, STTopLevelRoot)
         ; Apply (fun m -> Fluid.update m msg) ]

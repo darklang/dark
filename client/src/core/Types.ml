@@ -1126,6 +1126,11 @@ and fluidInputEvent =
   | DeleteSoftLineForward
   | ReplaceText of string
 
+and fluidMouseUp =
+  { tlid : tlid
+  ; selection : (int * int) option
+  ; editorIdx : int }
+
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
   | FluidInputEvent of fluidInputEvent
@@ -1136,7 +1141,7 @@ and fluidMsg =
    * This bi-directionality is not ideal and could use some rethinking.
    *)
   | FluidMouseDown of tlid
-  | FluidMouseUp of tlid * (int * int) option
+  | FluidMouseUp of fluidMouseUp
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
   | FluidFocusOnToken of id
@@ -1491,9 +1496,10 @@ and fluidState =
   ; actions : string list
   ; oldPos : int
   ; newPos : int
-  ; upDownCol : int option
-        (* When moving up or down, and going through whitespace, track
-         * the column so we can go back to it *)
+  ; upDownCol :
+      (* When moving up or down and going through whitespace,
+       * track the column so we can go back to it *)
+      int option
   ; lastInput : fluidInputEvent
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
@@ -1502,9 +1508,11 @@ and fluidState =
       (* If we get a renderCallback between a mousedown and a mouseUp, we
        * lose the information we're trying to get from the click. *)
       bool
-  ; errorDvSrc : dval_source
-        (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
-  }
+  ; errorDvSrc :
+      (* The source id of an error-dval of where the cursor is on and we might
+       * have recently jumped to *)
+      dval_source
+  ; activeEditorIdx : int }
 
 (* Avatars *)
 and avatar =

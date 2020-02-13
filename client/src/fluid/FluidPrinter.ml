@@ -489,11 +489,20 @@ type partition =
   { id : string
   ; tokens : tokenInfo list }
 
-let toPartitions (e : E.t) : partition list =
+let toPartitions (e : FluidExpression.t) : partition list =
   let b = toTokens' e Builder.empty in
   List.filterMap (b :: b.splits) ~f:(fun b ->
       let tokens = b |> Builder.asTokens |> tidy |> validateTokens |> infoize in
       Builder.id b |> Option.map ~f:(fun id -> {id; tokens}))
+
+
+let tokensForPartition (e : FluidExpression.t) ~(index : int) : tokenInfo list =
+  toPartitions e
+  |> List.getAt ~index
+  |> Option.map ~f:(fun p -> p.tokens)
+  |> recoverOpt
+       ~default:[]
+       ("could not find tokens for partition index=" ^ Int.toString index)
 
 
 let tokensToString (tis : tokenInfo list) : string =

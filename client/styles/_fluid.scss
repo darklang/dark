@@ -487,15 +487,12 @@ since they are essentially both commands just acting upon different things. */
 
 .fluid-secondary-editor {
   background-color: #2d2d2d;
-  position: relative;
-  left: 20px;
-  height: fit-content;
-  width: 0;
+  position: absolute;
+  left: calc(100% + 20px);
 
-  #fluid-editor {
-    position: absolute;
-    background-color: #2d2d2d;
-  }
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
 
 .fluid-error-rail {

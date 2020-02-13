@@ -440,6 +440,7 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
 
 
 let fluidEditorView
+    ~(idx : int)
     (vs : ViewUtils.viewState)
     (tokenInfos : FluidPrinter.tokenInfo list)
     (ast : ast) : Types.msg Html.html =
@@ -477,20 +478,28 @@ let fluidEditorView
               | {detail = 2; altKey = true; _} ->
                   FluidMsg
                     (FluidMouseUp
-                       (tlid, Fluid.getExpressionRangeAtCaret state ast))
+                       { tlid
+                       ; selection = Fluid.getExpressionRangeAtCaret state ast
+                       ; editorIdx = idx })
               | {detail = 2; altKey = false; _} ->
                   FluidMsg
-                    (FluidMouseUp (tlid, Fluid.getTokenRangeAtCaret state ast))
+                    (FluidMouseUp
+                       { tlid
+                       ; selection = Fluid.getTokenRangeAtCaret state ast
+                       ; editorIdx = idx })
               | _ ->
                   recover
                     "detail was not 2 in the doubleclick event"
                     ~debug:ev
-                    (FluidMsg (FluidMouseUp (tlid, None))) )
+                    (FluidMsg
+                       (FluidMouseUp {tlid; selection = None; editorIdx = idx}))
+              )
           | None ->
               recover
                 "found no caret pos in the doubleclick handler"
                 ~debug:ev
-                (FluidMsg (FluidMouseUp (tlid, None))))
+                (FluidMsg
+                   (FluidMouseUp {tlid; selection = None; editorIdx = idx})))
     ; ViewUtils.eventNoPropagation
         ~key:("fluid-selection-mousedown" ^ idStr)
         "mousedown"
@@ -498,20 +507,21 @@ let fluidEditorView
     ; ViewUtils.eventNoPropagation
         ~key:("fluid-selection-mouseup" ^ idStr)
         "mouseup"
-        (fun _ -> FluidMsg (FluidMouseUp (tlid, None)))
+        (fun _ ->
+          FluidMsg (FluidMouseUp {tlid; selection = None; editorIdx = idx}))
     ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ idStr) ~listener:(fun msg ->
           if msg = "flashError" || msg = "flashIncomplete"
           then FluidMsg FluidClearErrorDvSrc
           else IgnoreMsg) ]
   in
   let idAttr =
-    if tlidOf vs.cursorState = Some vs.tlid
+    if vs.fluidState.activeEditorIdx = idx
     then Attrs.id "active-editor"
     else Attrs.noProp
   in
   Html.div
-    ( [ Attrs.class' "fluid-editor"
-      ; idAttr
+    ( [ idAttr
+      ; Html.class' "fluid-editor"
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
@@ -541,7 +551,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     then viewLiveValue ~tlid ~ast ~vs ~state
     else Vdom.noNode
   in
-  let mainEditor = fluidEditorView vs mainTokenInfos ast in
+  let mainEditor = fluidEditorView ~idx:0 vs mainTokenInfos ast in
   let returnValue = viewReturnValue vs ast in
   let findRowOffestOfCorrespondingMainToken (ti : Printer.tokenInfo) :
       int option =
@@ -559,7 +569,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     then
       List.tail vs.tokenPartitions
       |> Option.withDefault ~default:[]
-      |> List.map ~f:(fun (p : Printer.partition) ->
+      |> List.mapi ~f:(fun (i : int) (p : Printer.partition) ->
              let errorRail =
                Html.div
                  [Html.classList [("fluid-error-rail", true); ("show", true)]]
@@ -573,7 +583,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
              Html.div
                [ Html.class' "fluid-secondary-editor"
                ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-               [fluidEditorView vs p.tokens ast; errorRail])
+               [fluidEditorView ~idx:(i + 1) vs p.tokens ast; errorRail])
     else []
   in
   [mainEditor; liveValue; returnValue; errorRail] @ secondaryEditors
@@ -581,7 +591,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
 
 let viewStatus (m : model) (ast : ast) : Types.msg Html.html =
   let s = m.fluidState in
-  let tokens = Printer.toTokens ast in
+  let tokens = Printer.tokensForPartition ~index:s.activeEditorIdx ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =
