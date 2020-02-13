@@ -370,12 +370,9 @@ let viewToast (t : toast) : msg Html.html =
 
 let accountView (m : model) : msg Html.html =
   let logout =
-    Html.div
-      []
-      [ Html.a
-          [ Html.href "https://login.darklang.com/logout"
-          ; Html.class' "action-link" ]
-          [Html.text "Logout"] ]
+    Html.a
+      [Html.href "https://login.darklang.com/logout"; Html.class' "action-link"]
+      [Html.text "Logout"]
   in
   let settings =
     Html.p

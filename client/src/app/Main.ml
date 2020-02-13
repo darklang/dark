@@ -1944,12 +1944,12 @@ let update_ (msg : msg) (m : model) : modification =
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
   | ToggleSettings opened ->
-      let pan = if opened then m.canvasProps.enablePan else true in
+      let enablePan = if opened then m.canvasProps.enablePan else true in
       TweakModel
         (fun m ->
           { m with
             settings = {m.settings with opened}
-          ; canvasProps = {m.canvasProps with enablePan = pan} })
+          ; canvasProps = {m.canvasProps with enablePan} })
   | FnParamMsg msg ->
       FnParams.update m msg
 
