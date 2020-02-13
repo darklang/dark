@@ -531,12 +531,11 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
                 trace ~on_execution_path:false pid error ;
                 traceIncompletes builtUpTraces ;
                 preview st expr ;
+                (* Trace each argument too. TODO: recurse *)
+                List.iter args ~f:(fun pat ->
+                    let id = blank_to_id pat in
+                    trace ~on_execution_path:false id (incomplete id)) ;
                 () )
-          (* Trace each argument too, recursively *)
-          (* List.iter args ~f:(fun pat -> *)
-          (*     let id = blank_to_id pat in *)
-          (*     matchAndExe (incomplete id) [] (pat, Blank id)) ; *)
-          (* () ) *)
         in
         let matchVal = exe st matchExpr in
         List.iter cases ~f:(fun (pattern, expr) ->
