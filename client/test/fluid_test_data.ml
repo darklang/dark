@@ -527,14 +527,17 @@ let defaultTestModel =
           (LoadableSuccess
              (StrDict.fromList
                 [ ( "fake-acdata1"
-                  , DObj
-                      (StrDict.fromList [("body", DNull); ("formBody", DNull)])
-                  )
+                  , ExecutedResult
+                      (DObj
+                         (StrDict.fromList
+                            [("body", DNull); ("formBody", DNull)])) )
                 ; ( "fake-acdata2"
-                  , DObj
-                      (StrDict.fromList [("title", DNull); ("author", DNull)])
-                  )
-                ; ("fake-acdata3", DObj (StrDict.fromList [("body", DInt 5)]))
-                ]))
+                  , ExecutedResult
+                      (DObj
+                         (StrDict.fromList
+                            [("title", DNull); ("author", DNull)])) )
+                ; ( "fake-acdata3"
+                  , ExecutedResult (DObj (StrDict.fromList [("body", DInt 5)]))
+                  ) ]))
   ; builtInFunctions = defaultTestFunctions
   ; fluidState = defaultTestState }

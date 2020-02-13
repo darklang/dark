@@ -126,7 +126,9 @@ let defaultModel
              (StrDict.singleton
                 ~key:"12"
                 ~value:
-                  (DObj (StrDict.fromList [("title", DNull); ("author", DNull)]))))
+                  (ExecutedResult
+                     (DObj
+                        (StrDict.fromList [("title", DNull); ("author", DNull)])))))
   }
 
 

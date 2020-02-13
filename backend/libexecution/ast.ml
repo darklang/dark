@@ -217,7 +217,8 @@ let rec execute_dblock
             ^ string_of_int (List.length args) )
       else
         let bindings = List.zip_exn params args in
-        List.iter bindings ~f:(fun ((id, paramName), dv) -> state.trace id dv) ;
+        List.iter bindings ~f:(fun ((id, paramName), dv) ->
+            state.trace ~on_execution_path:state.on_execution_path id dv) ;
         let new_st =
           bindings
           |> List.map ~f:(Prelude.Tuple2.mapFirst ~f:Prelude.Tuple2.second)
@@ -228,9 +229,17 @@ let rec execute_dblock
 
 
 and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
-  let exe = exec ~state in
-  let call = call_fn ~state in
+  (* Design doc for execution results and previews: https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e *)
+  let on_execution_path = state.on_execution_path in
   let ctx = state.context in
+  let exe st expr = exec ~state st expr in
+  let preview st expr : unit =
+    if ctx = Preview
+    then
+      let state = {state with on_execution_path = false} in
+      exec ~state st expr |> ignore
+  in
+  let call = call_fn ~state in
   let trace = state.trace in
   (* This is a super hacky way to inject params as the result of
    * pipelining using the `Thread` construct
@@ -274,7 +283,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           DIncomplete SourceNone
       (* partial w/ exception, full with dincomplete, or option dval? *)
     in
-    trace (blank_to_id exp) result ;
+    trace ~on_execution_path (blank_to_id exp) result ;
     result
   in
   let value _ =
@@ -349,101 +358,66 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         let argvals = List.map ~f:(exe st) exprs in
         call name id argvals false
     | Filled (id, If (cond, ifbody, elsebody)) ->
-      ( match ctx with
-      | Preview ->
-          (* In the case of a preview trace execution, we want the 'if'
-           * expression as a whole to evaluate to its correct value -- but we
-           * also want preview values for _all_ sides of the if *)
-          let ifresult = exe st ifbody in
-          let elseresult = exe st elsebody in
-          ( match exe st cond with
-          | DBool false | DNull ->
-              elseresult
-          | DIncomplete _ as i ->
-              i
-          | DError (src, _) ->
-              DError (src, "Expected boolean, got error")
-          | DErrorRail _ as er ->
-              er
-          | _ ->
-              ifresult )
-      | Real ->
-        (* In the case of a 'real' evaluation, we shouldn't do unneccessary
-           * work and as such should follow the proper evaluation semantics *)
-        ( match exe st cond with
-        (* only false and 'null' are falsey *)
-        | DBool false | DNull ->
-            exe st elsebody
-        | DIncomplete _ as i ->
-            i
-        | DError (src, _) ->
-            DError (src, "Expected boolean, got error")
-        | DErrorRail _ as er ->
-            er
-        | _ ->
-            exe st ifbody ) )
+      ( match exe st cond with
+      (* only false and 'null' are falsey *)
+      | DBool false | DNull ->
+          preview st ifbody ;
+          exe st elsebody
+      | DIncomplete _ as i ->
+          preview st ifbody ;
+          preview st elsebody ;
+          i
+      | DError (src, _) ->
+          preview st ifbody ;
+          preview st elsebody ;
+          DError (src, "Expected boolean, got error")
+      | DErrorRail _ as er ->
+          preview st ifbody ;
+          preview st elsebody ;
+          er
+      | _ ->
+          preview st elsebody ;
+          exe st ifbody )
     | Filled (id, FeatureFlag (_, cond, oldcode, newcode)) ->
-      (* True gives newexpr, unlike in If statements
-       *
-       * In If statements, we use a false/null as false, and anything else is
-       * true. But this won't work for feature flags. If statements are built
-       * as you build you code, with no existing users. But feature flags are
-       * created when you have users and don't want to break your code. As a
-       * result, anything that isn't an explicitly signalling to use the new
-       * code, should use the old code:
-       * - errors should be ignored: use old code
-       * - incompletes should be ignored: use old code
-       * - errorrail should not be propaged: use old code
-       * - values which are "truthy" in if statements are not truthy here:
-       * imagine you are writing the FF cond and you get a list or object,
-       * and you're about to do some other work on it. Should we immediately
-       * start serving the new code to all your traffic? No. So only `true`
-       * gets new code. *)
-      ( match ctx with
-      | Preview ->
-          (* In the case of a preview trace execution, we want the expression
-           * as a whole to evaluate to its correct value -- but we also want
-           * preview values for both sides *)
-          let newresult = exe st newcode in
-          let oldresult = exe st oldcode in
-          let condresult =
-            try
-              (* under no circumstances should this cause code to fail *)
-              exe st cond
-            with e -> Dval.exception_to_dval e (SourceId id)
-          in
-          ( match condresult with
-          | DBool true ->
-              newresult
-          | DIncomplete _ ->
-              oldresult
-          | DError _ ->
-              oldresult
-          | DErrorRail _ ->
-              oldresult
-          | _ ->
-              oldresult )
-      | Real ->
-          (* In the case of a 'real' evaluation, we shouldn't do unneccessary
-           * work and as such should follow the proper evaluation semantics *)
-          let condresult =
-            try
-              (* under no circumstances should this cause code to fail *)
-              exe st cond
-            with e -> DBool false
-          in
-          ( match condresult with
-          (* only false and 'null' are falsey *)
-          | DBool true ->
-              exe st newcode
-          | DErrorRail _ ->
-              exe st oldcode
-          | DIncomplete _ ->
-              exe st oldcode
-          | DError _ ->
-              exe st oldcode
-          | _ ->
-              exe st oldcode ) )
+        (* True gives newexpr, unlike in If statements
+         *
+         * In If statements, we use a false/null as false, and anything else is
+         * true. But this won't work for feature flags. If statements are built
+         * as you build you code, with no existing users. But feature flags are
+         * created when you have users and don't want to break your code. As a
+         * result, anything that isn't an explicitly signalling to use the new
+         * code, should use the old code:
+         * - errors should be ignored: use old code
+         * - incompletes should be ignored: use old code
+         * - errorrail should not be propaged: use old code
+         * - values which are "truthy" in if statements are not truthy here:
+         * imagine you are writing the FF cond and you get a list or object,
+         * and you're about to do some other work on it. Should we immediately
+         * start serving the new code to all your traffic? No. So only `true`
+         * gets new code. *)
+        let condresult =
+          try
+            (* under no circumstances should this cause code to fail *)
+            exe st cond
+          with e -> DBool false
+        in
+        ( match condresult with
+        (* only false and 'null' are falsey *)
+        | DBool true ->
+            preview st oldcode ;
+            exe st newcode
+        | DErrorRail _ ->
+            preview st newcode ;
+            exe st oldcode
+        | DIncomplete _ ->
+            preview st newcode ;
+            exe st oldcode
+        | DError _ ->
+            preview st newcode ;
+            exe st oldcode
+        | _ ->
+            preview st newcode ;
+            exe st oldcode )
     | Filled (id, Lambda (params, body)) ->
         ( if ctx = Preview
         then
@@ -455,7 +429,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               (Symtable.singleton "var" (DIncomplete SourceNone))
               st
           in
-          ignore (exe fake_st body) ) ;
+          preview fake_st body ) ;
         let params =
           List.filter_map params ~f:(function
               | Blank _ ->
@@ -536,7 +510,8 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         then
           List.iter cases ~f:(fun (pattern, expr) ->
               let _, vars, tracevars, preview_rhs = matches matchVal pattern in
-              List.iter tracevars ~f:(fun (id, dv) -> trace id dv) ;
+              List.iter tracevars ~f:(fun (id, dv) ->
+                  trace ~on_execution_path id dv) ;
               (* Don't preview constructor rhs, as they have misleading incompletes *)
               if preview_rhs then exe_with_vars expr vars |> ignore) ;
         (* Always do the real execution *)
@@ -588,7 +563,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           DError (SourceId id, "Invalid construction option") )
   in
   let execed_value = value () in
-  trace (blank_to_id expr) execed_value ;
+  trace ~on_execution_path (blank_to_id expr) execed_value ;
   execed_value
 
 

@@ -98,8 +98,8 @@ let check_dval_list = AT.check (AT.list at_dval)
 
 let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
 
-let check_condition msg dval ~(f : dval -> bool) =
-  AT.check AT.bool msg (f dval) true
+let check_condition msg (v : 'a) ~(f : 'a -> bool) =
+  AT.check AT.bool msg true (f v)
 
 
 let check_error msg dval expected =
@@ -351,8 +351,9 @@ let test_execution_data
     ; fail_fn = None
     ; dbs = TL.dbs !c.dbs
     ; execution_id
-    ; trace = (fun _ _ -> ())
+    ; trace = (fun ~on_execution_path _ _ -> ())
     ; trace_tlid = (fun _ -> ())
+    ; on_execution_path = true
     ; exec = Ast.exec
     ; context = Real
     ; load_fn_result = load_test_fn_results
@@ -379,6 +380,7 @@ let execute_ops
         ; dbs
         ; trace
         ; trace_tlid
+        ; on_execution_path = _
         ; exec
         ; context
         ; user_fns
@@ -452,7 +454,7 @@ let exec_userfn (prog : string) : dval =
 
 
 let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
-    Analysis_types.dval_store =
+    Analysis_types.intermediate_result_store =
   let c, state, input_vars = test_execution_data ~canvas_name ops in
   let { tlid
       ; execution_id
