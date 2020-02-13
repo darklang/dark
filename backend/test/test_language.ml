@@ -41,7 +41,7 @@ let t_match_works () =
             ; (pVar "name", fn "++" [var "name"; str "var"]) ]))
   in
   check_match (int 5) "int" ;
-  check_match (float' "5" "6") "float" ;
+  check_match (float' 5 6) "float" ;
   check_match (bool false) "bool" ;
   check_match null "null" ;
   check_match (constructor "Ok" [str "x"]) "ok: x" ;
