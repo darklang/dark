@@ -1039,6 +1039,6 @@ let run () =
       roundtrip longString ;
       roundtrip (let' "myVariable" longString b) ;
       roundtrip (record [("a", record [("b", str "c")])]) ;
-      roundtrip (match' b [(pBlank, b)]) ;
+      roundtrip (match' b [(pBlank (), b)]) ;
       roundtrip (match' b [(pString "asd", b)]) ;
       ())
