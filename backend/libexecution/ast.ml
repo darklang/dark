@@ -231,12 +231,12 @@ let rec execute_dblock
 and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
   let on_execution_path = state.on_execution_path in
   let ctx = state.context in
-  let exe ?(on_execution_path = on_execution_path) st expr =
-    let state = {state with on_execution_path} in
-    exec ~state st expr
-  in
+  let exe st expr = exec ~state st expr in
   let preview st expr : unit =
-    if ctx = Preview then exe ~on_execution_path:false st expr |> ignore
+    if ctx = Preview
+    then
+      let state = {state with on_execution_path = false} in
+      exec ~state st expr |> ignore
   in
   let call = call_fn ~state in
   let trace = state.trace in
