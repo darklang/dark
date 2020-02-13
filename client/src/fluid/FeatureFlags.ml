@@ -24,7 +24,7 @@ let fromFlagged (pick : pick) (expr : E.t) : E.t =
 
 let wrap (_ : model) (tl : toplevel) (id : id) : modification =
   let replacement e : E.t =
-    EFeatureFlag (gid (), "flag-name", E.EBool (gid (), false), E.newB (), e)
+    EFeatureFlag (gid (), "flag-name", E.newB (), E.newB (), e)
   in
   TL.getAST tl
   |> Option.map ~f:(E.update ~f:replacement id)

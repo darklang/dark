@@ -50,7 +50,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
               ToplevelClick (tlid, x)
           | Some range ->
               (* Persist fluid selection when clicking in handler *)
-              FluidMsg (FluidMouseUp (tlid, Some range))) ]
+              FluidMsg
+                (FluidMouseUp {tlid; selection = Some range; editorIdx = 0})) ]
   in
   (* This is a bit ugly - DBs have a larger 'margin' (not CSS margin) between
    * the encompassing toplevel div and the db div it contains, than  handlers.
