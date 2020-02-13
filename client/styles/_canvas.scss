@@ -328,24 +328,4 @@ body #app * {
     height: auto;
     padding: $spacing-small;
   }
-
-  .canvas-list-title {
-    margin: 0;
-  }
-
-  .canvas-list {
-    padding-bottom: 10px;
-    padding-left: 10px;
-    max-height: 600px;
-    overflow-y: scroll;
-    overflow-x: hidden;
-
-    &::-webkit-scrollbar-corner {
-      background: rgba(0, 0, 0, 0);
-    }
-
-    li a {
-      padding: 5px 8px;
-    }
-  }
 }
