@@ -442,6 +442,9 @@ let view (m : model) : msg Html.html =
     then ViewModal.html m
     else Vdom.noNode
   in
+  let settingsModal =
+    if m.settings.opened then ViewSettings.html m else Vdom.noNode
+  in
   let content =
     ViewTopbar.html m
     @ [ sidebar
@@ -450,7 +453,8 @@ let view (m : model) : msg Html.html =
       ; accountView m
       ; viewToast m.toast
       ; entry
-      ; modal ]
+      ; modal
+      ; settingsModal ]
     @ fluidStatus
     @ footer
     @ viewDocs
