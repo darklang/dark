@@ -381,7 +381,7 @@ let accountView (m : model) : msg Html.html =
     Html.p
       [ Html.class' "setting-btn"
       ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
-            ToggleSettings) ]
+            ToggleSettings true) ]
       [Html.text "Settings"]
   in
   Html.div

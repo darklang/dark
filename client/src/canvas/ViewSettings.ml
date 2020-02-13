@@ -5,6 +5,8 @@ module TL = Toplevel
 module P = Pointer
 module TD = TLIDDict
 
+let fontAwesome = ViewUtils.fontAwesome
+
 let userSettingsView (m : model) : msg Html.html =
   let canvases =
     if List.length m.canvas_list > 0
@@ -48,12 +50,21 @@ let settingsTabToHtml (m : model) : msg Html.html =
 
 
 let html (m : model) : msg Html.html =
+  let closingBtn =
+    Html.div
+      [ Html.class' "close-btn"
+      ; ViewUtils.eventNoPropagation
+          ~key:"close-setting-modal"
+          "click"
+          (fun _ -> ToggleSettings false) ]
+      [fontAwesome "times"]
+  in
   Html.div
     [ Html.class' "settings modal-overlay"
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          ToggleSettings) ]
+          ToggleSettings false) ]
     [ Html.div
         [ Html.classList [("modal", true)]
         ; ViewUtils.nothingMouseEvent "mousedown"
@@ -63,4 +74,4 @@ let html (m : model) : msg Html.html =
               EnablePanning false)
         ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
               EnablePanning true) ]
-        [settingsTabToHtml m] ]
+        [settingsTabToHtml m; closingBtn] ]

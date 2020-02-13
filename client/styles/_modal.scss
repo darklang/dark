@@ -43,6 +43,19 @@ $light-grey: $grey2;
         }
       }
     }
+    .close-btn {
+      position: relative;
+      align-self: flex-start;
+      left: 15px;
+      bottom: 5px;
+      cursor: pointer;
+      .fa {
+        color: $grey3;
+        &:hover {
+          color: $grey2;
+        }
+      }
+    }
     .title {
       font-size: $title-size;
       text-align: center;
