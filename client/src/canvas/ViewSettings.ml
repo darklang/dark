@@ -34,5 +34,18 @@ let settingsTabToHtml (m : model) : msg Html.html =
 
 let html (m : model) : msg Html.html =
   Html.div
-    [Html.class' "settings modal-overlay"]
-    [Html.div [Html.classList [("modal", true)]] [settingsTabToHtml m]]
+    [ Html.class' "settings modal-overlay"
+    ; ViewUtils.nothingMouseEvent "mousedown"
+    ; ViewUtils.nothingMouseEvent "mouseup"
+    ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
+          ToggleSettings) ]
+    [ Html.div
+        [ Html.classList [("modal", true)]
+        ; ViewUtils.nothingMouseEvent "mousedown"
+        ; ViewUtils.nothingMouseEvent "mouseup"
+        ; ViewUtils.nothingMouseEvent "click"
+        ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
+              EnablePanning false)
+        ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
+              EnablePanning true) ]
+        [settingsTabToHtml m] ]
