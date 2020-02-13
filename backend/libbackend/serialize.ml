@@ -571,10 +571,11 @@ let hosts_for (account_name : string) : string list =
 let orgs_for (account_name : string) : string list =
   Db.fetch
     ~name:"fetch_orgs"
-    "SELECT org.username, permission
+    "SELECT c.name
      FROM access
-     INNER JOIN accounts user_ on access.access_account = user_.id
-     INNER JOIN accounts org on access.organization_account = org.id
+     INNER JOIN accounts as user_ on access.access_account = user_.id
+     INNER JOIN accounts as org on access.organization_account = org.id
+     INNER JOIN canvases as c on org.id = account_id
      WHERE user_.username = $1"
     ~params:[String account_name]
   |> List.map ~f:List.hd_exn
