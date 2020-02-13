@@ -10,7 +10,11 @@ let intStr ?(id = gid ()) (int : string) : t = EInteger (id, int)
 
 let bool ?(id = gid ()) (b : bool) : t = EBool (id, b)
 
-let float' ?(id = gid ()) (whole : string) (fraction : string) : t =
+let float' ?(id = gid ()) (whole : int) (fraction : int) : t =
+  EFloat (id, string_of_int whole, string_of_int fraction)
+
+
+let floatStr ?(id = gid ()) (whole : string) (fraction : string) : t =
   EFloat (id, whole, fraction)
 
 

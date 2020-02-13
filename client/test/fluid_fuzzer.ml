@@ -168,7 +168,7 @@ and generateExpr () =
     ; lazy (str (generateString ()))
     ; lazy (int (range 500))
     ; lazy (bool (random () < 0.5))
-    ; lazy (float' (Int.toString (range 5000000)) (Int.toString (range 500000)))
+    ; lazy (float' (range 5000000) (range 500000))
     ; lazy null
     ; lazy (var (generateName ()))
     ; lazy (partial (generateFnName ()) (generateExpr ()))
