@@ -464,7 +464,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
   in
   let returnValue = viewReturnValue vs ast in
   let textInputListeners =
-    (* the command palette is inside div#fluid-editor but has it's own input
+    (* the command palette is inside div.fluid-editor but has it's own input
      * handling, so don't do normal fluid input stuff if it's open *)
     if FluidCommands.isOpened vs.fluidState.cp
     then (Html.noProp, Html.noProp, Html.noProp)
@@ -523,8 +523,14 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
           then FluidMsg FluidClearErrorDvSrc
           else IgnoreMsg) ]
   in
+  let idAttr =
+    if tlidOf vs.cursorState = Some vs.tlid
+    then Attrs.id "active-editor"
+    else Attrs.noProp
+  in
   [ Html.div
-      ( [ Attrs.id Fluid.editorID
+      ( [ Attrs.class' "fluid-editor"
+        ; idAttr
         ; Vdom.prop "contentEditable" "true"
         ; Attrs.autofocus true
         ; Vdom.attribute "" "spellcheck" "false"
