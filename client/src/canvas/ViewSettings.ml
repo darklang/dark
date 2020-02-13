@@ -22,9 +22,24 @@ let userSettingsView (m : model) : msg Html.html =
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p [] [Html.text "Create a new canvas by navigating to the URL"] ]
   in
+  let orgs =
+    List.map m.org_list ~f:(fun c ->
+        Html.li
+          ~unique:c
+          []
+          [Html.a [Html.href ("/a/" ^ c)] [Html.text ("/a/" ^ c)]])
+    |> Html.ul []
+  in
+  let orgView =
+    if List.length m.org_list > 0
+    then
+      [ Html.p [Html.class' "canvas-list-title"] [Html.text "Organizations:"]
+      ; Html.div [Html.class' "canvas-list"] [orgs] ]
+    else [Vdom.noNode]
+  in
   Html.div
     [Html.class' "setting-tab-wrapper"]
-    ([Html.h2 [] [Html.text "User Settings"]] @ canvasView)
+    ([Html.h2 [] [Html.text "User Settings"]] @ orgView @ canvasView)
 
 
 let settingsTabToHtml (m : model) : msg Html.html =

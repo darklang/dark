@@ -568,6 +568,19 @@ let hosts_for (account_name : string) : string list =
   |> List.dedup_and_sort ~compare
 
 
+let orgs_for (account_name : string) : string list =
+  Db.fetch
+    ~name:"fetch_orgs"
+    "SELECT org.username, permission
+     FROM access
+     INNER JOIN accounts user_ on access.access_account = user_.id
+     INNER JOIN accounts org on access.organization_account = org.id
+     WHERE user_.username = $1"
+    ~params:[String account_name]
+  |> List.map ~f:List.hd_exn
+  |> List.dedup_and_sort ~compare
+
+
 let tier_one_hosts () : string list =
   [ "ian-httpbin"
   ; "paul-slackermuse"
