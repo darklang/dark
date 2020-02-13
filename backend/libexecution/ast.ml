@@ -473,18 +473,14 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
             (* We matched, but we've already matched a pattern previously *)
             List.iter traces ~f:(fun (id, dval) ->
                 trace ~on_execution_path:false id dval) ;
-            Libcommon.Log.inspecT "preview" e ~f:show_expr ;
             preview newSt e )
           else (
             List.iter traces ~f:(fun (id, dval) ->
                 trace ~on_execution_path id dval) ;
-            Libcommon.Log.inspecT "for real" e ~f:show_expr ;
             hasMatched := true ;
             matchResult := exe newSt e )
         in
         let rec matchAndExe dv builtUpTraces (pattern, expr) =
-          Libcommon.Log.inspecT "pattern" pattern ~f:show_pattern ;
-          Libcommon.Log.inspecT "value" dv ~f:Dval.to_developer_repr_v0 ;
           let incomplete id = DIncomplete (SourceId id) in
           let traceIncompletes traces =
             List.iter traces ~f:(fun (id, _) ->
