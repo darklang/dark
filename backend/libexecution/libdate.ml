@@ -25,7 +25,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr]
     ; r = TResult
     ; d =
-        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
+        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
     ; f =
         InProcess
           (function
@@ -47,7 +47,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr]
     ; r = TResult
     ; d =
-        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
+        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
     ; f =
         InProcess
           (function
