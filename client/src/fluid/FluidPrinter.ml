@@ -429,7 +429,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       b
       |> addNested ~f:(toTokens' expr)
       |> addMany [TSep id; TRightPartial (id, newOp)]
-  | EFeatureFlag (id, _name, cond, enabled, default) ->
+  | EFeatureFlag (id, _name, cond, default, enabled) ->
       b
       |> nest ~indent:2 default
       |> split ~f:(fun b ->

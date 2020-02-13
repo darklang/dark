@@ -5014,7 +5014,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         in
         Some
           (EMatch (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
-    | EFeatureFlag (_, name, cond, thenBody, elseBody) ->
+    | EFeatureFlag (_, name, cond, default, enabled) ->
         (* since we don't have any tokens associated with feature flags yet *)
         Some
           (EFeatureFlag
@@ -5022,8 +5022,8 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
              , (* should probably do some stuff about if the name token isn't fully selected *)
                name
              , reconstructExpr cond |> orDefaultExpr
-             , reconstructExpr thenBody |> orDefaultExpr
-             , reconstructExpr elseBody |> orDefaultExpr ))
+             , reconstructExpr enabled |> orDefaultExpr
+             , reconstructExpr default |> orDefaultExpr ))
     | EPipeTarget _ ->
         Some (EPipeTarget (gid ()))
   in
