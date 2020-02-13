@@ -24,16 +24,17 @@ let ht_to_json_dict ds ~f =
   `Assoc (List.map ~f:(fun (id, v) -> (string_of_id id, f v)) alist)
 
 
-type dval_store = dval IDTable.t
+type intermediate_result_store = execution_result IDTable.t
 
-let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.t =
-  ht_to_json_dict ds ~f:dval_to_yojson
+let intermediate_result_store_to_yojson (ds : intermediate_result_store) :
+    Yojson.Safe.t =
+  ht_to_json_dict ds ~f:execution_result_to_yojson
 
 
 (* -------------------- *)
 (* Analysis result *)
 (* -------------------- *)
-type analysis = dval_store [@@deriving to_yojson]
+type analysis = intermediate_result_store [@@deriving to_yojson]
 
 type input_vars = (string * dval) list [@@deriving eq, show, yojson]
 
