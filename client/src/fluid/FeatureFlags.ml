@@ -24,7 +24,7 @@ let fromFlagged (pick : pick) (expr : E.t) : E.t =
 
 let wrap (_ : model) (tl : toplevel) (id : id) : modification =
   let replacement e : E.t =
-    EFeatureFlag (gid (), "flag-name", E.newB (), E.newB (), e)
+    EFeatureFlag (gid (), "flag-name", E.newB (), e, E.newB ())
   in
   TL.getAST tl
   |> Option.map ~f:(E.update ~f:replacement id)
@@ -35,7 +35,7 @@ let wrap (_ : model) (tl : toplevel) (id : id) : modification =
 let unwrap (_ : model) (tl : toplevel) (id : id) : modification =
   let replacement e : E.t =
     match e with
-    | E.EFeatureFlag (_id, _name, _cond, _enabled, default) ->
+    | E.EFeatureFlag (_id, _name, _cond, default, _enabled) ->
         default
     | expr ->
         recover "tried to remove non-feature flag" expr
