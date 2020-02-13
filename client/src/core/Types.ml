@@ -1268,7 +1268,7 @@ and msg =
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
-  | ToggleSettings
+  | ToggleSettings of bool
 
 (* ----------------------------- *)
 (* AB tests *)
