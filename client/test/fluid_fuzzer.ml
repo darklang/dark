@@ -137,7 +137,7 @@ let rec generatePattern () : FluidPattern.t =
   oneOf
     [ lazy (pInt (range 500))
     ; lazy (pBool (random () < 0.5))
-    ; lazy pNull
+    ; lazy (pNull ())
     ; lazy
         (pConstructor
            (generateName ())
@@ -145,7 +145,7 @@ let rec generatePattern () : FluidPattern.t =
     ; lazy (pVar (generateName ()))
     ; lazy (pString (generateString ()))
     ; lazy (pFloat (Int.toString (range 5000000)) (Int.toString (range 500000)))
-    ; lazy pBlank ]
+    ; lazy (pBlank ()) ]
   |> Lazy.force
 
 

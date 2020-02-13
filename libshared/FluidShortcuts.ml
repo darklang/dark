@@ -2,89 +2,107 @@ open Tc
 open FluidExpression
 open Shared
 
-let str (str : string) : t = EString (gid (), str)
+let str ?(id = gid ()) (str : string) : t = EString (id, str)
 
-let int (int : int) : t = EInteger (gid (), string_of_int int)
+let int ?(id = gid ()) (int : int) : t = EInteger (id, string_of_int int)
 
-let intStr (int : string) : t = EInteger (gid (), int)
+let intStr ?(id = gid ()) (int : string) : t = EInteger (id, int)
 
-let bool (b : bool) : t = EBool (gid (), b)
+let bool ?(id = gid ()) (b : bool) : t = EBool (id, b)
 
-let float' (whole : string) (fraction : string) : t =
-  EFloat (gid (), whole, fraction)
+let float' ?(id = gid ()) (whole : string) (fraction : string) : t =
+  EFloat (id, whole, fraction)
 
 
 let null : t = ENull (gid ())
 
-let record (rows : (string * t) list) : t =
-  ERecord (gid (), List.map rows ~f:(fun (k, v) -> (k, v)))
+let record ?(id = gid ()) (rows : (string * t) list) : t =
+  ERecord (id, List.map rows ~f:(fun (k, v) -> (k, v)))
 
 
-let list (elems : t list) : t = EList (gid (), elems)
+let list ?(id = gid ()) (elems : t list) : t = EList (id, elems)
 
 let pipeTarget = EPipeTarget (gid ())
 
-let fn ?(ster = NoRail) (name : string) (args : t list) =
-  EFnCall (gid (), name, args, ster)
+let fn ?(id = gid ()) ?(ster = NoRail) (name : string) (args : t list) =
+  EFnCall (id, name, args, ster)
 
 
-let binop ?(ster = NoRail) (name : string) (arg0 : t) (arg1 : t) =
-  EBinOp (gid (), name, arg0, arg1, ster)
+let binop ?(id = gid ()) ?(ster = NoRail) (name : string) (arg0 : t) (arg1 : t)
+    =
+  EBinOp (id, name, arg0, arg1, ster)
 
 
-let partial (str : string) (e : t) : t = EPartial (gid (), str, e)
+let partial ?(id = gid ()) (str : string) (e : t) : t = EPartial (id, str, e)
 
-let rightPartial (str : string) (e : t) : t = ERightPartial (gid (), str, e)
-
-let var (name : string) : t = EVariable (gid (), name)
-
-let fieldAccess (expr : t) (fieldName : string) : t =
-  EFieldAccess (gid (), expr, fieldName)
+let rightPartial ?(id = gid ()) (str : string) (e : t) : t =
+  ERightPartial (id, str, e)
 
 
-let if' (cond : t) (then' : t) (else' : t) : t = EIf (gid (), cond, then', else')
+let var ?(id = gid ()) (name : string) : t = EVariable (id, name)
 
-let let' (varName : string) (rhs : t) (body : t) : t =
-  ELet (gid (), varName, rhs, body)
-
-
-let lambda (varNames : string list) (body : t) : t =
-  ELambda (gid (), List.map varNames ~f:(fun name -> (gid (), name)), body)
+let fieldAccess ?(id = gid ()) (expr : t) (fieldName : string) : t =
+  EFieldAccess (id, expr, fieldName)
 
 
-let pipe (first : t) (rest : t list) : t = EPipe (gid (), first :: rest)
-
-let constructor (name : string) (args : t list) : t =
-  EConstructor (gid (), name, args)
+let if' ?(id = gid ()) (cond : t) (then' : t) (else' : t) : t =
+  EIf (id, cond, then', else')
 
 
-let match' (cond : t) (matches : (FluidPattern.t * t) list) : t =
-  EMatch (gid (), cond, matches)
+let let' ?(id = gid ()) (varName : string) (rhs : t) (body : t) : t =
+  ELet (id, varName, rhs, body)
 
 
-let pInt (int : int) : FluidPattern.t =
-  FPInteger (gid (), gid (), string_of_int int)
+let lambda ?(id = gid ()) (varNames : string list) (body : t) : t =
+  ELambda (id, List.map varNames ~f:(fun name -> (gid (), name)), body)
 
 
-let pIntStr (int : string) : FluidPattern.t = FPInteger (gid (), gid (), int)
+let pipe ?(id = gid ()) (first : t) (rest : t list) : t =
+  EPipe (id, first :: rest)
 
-let pVar (name : string) : FluidPattern.t = FPVariable (gid (), gid (), name)
 
-let pConstructor (name : string) (patterns : FluidPattern.t list) :
+let constructor ?(id = gid ()) (name : string) (args : t list) : t =
+  EConstructor (id, name, args)
+
+
+let match' ?(id = gid ()) (cond : t) (matches : (FluidPattern.t * t) list) : t =
+  EMatch (id, cond, matches)
+
+
+let pInt ?(mid = gid ()) ?(id = gid ()) (int : int) : FluidPattern.t =
+  FPInteger (mid, id, string_of_int int)
+
+
+let pIntStr ?(mid = gid ()) ?(id = gid ()) (int : string) : FluidPattern.t =
+  FPInteger (mid, id, int)
+
+
+let pVar ?(mid = gid ()) ?(id = gid ()) (name : string) : FluidPattern.t =
+  FPVariable (mid, id, name)
+
+
+let pConstructor
+    ?(mid = gid ())
+    ?(id = gid ())
+    (name : string)
+    (patterns : FluidPattern.t list) : FluidPattern.t =
+  FPConstructor (mid, id, name, patterns)
+
+
+let pBool ?(mid = gid ()) ?(id = gid ()) (b : bool) : FluidPattern.t =
+  FPBool (mid, id, b)
+
+
+let pString ?(mid = gid ()) ?(id = gid ()) (str : string) : FluidPattern.t =
+  FPString {matchID = mid; patternID = id; str}
+
+
+let pFloat ?(mid = gid ()) ?(id = gid ()) (whole : string) (fraction : string) :
     FluidPattern.t =
-  FPConstructor (gid (), gid (), name, patterns)
+  FPFloat (mid, id, whole, fraction)
 
 
-let pBool (b : bool) : FluidPattern.t = FPBool (gid (), gid (), b)
+let pNull ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t = FPNull (mid, id)
 
-let pString (str : string) : FluidPattern.t =
-  FPString {matchID = gid (); patternID = gid (); str}
-
-
-let pFloat (whole : string) (fraction : string) : FluidPattern.t =
-  FPFloat (gid (), gid (), whole, fraction)
-
-
-let pNull : FluidPattern.t = FPNull (gid (), gid ())
-
-let pBlank : FluidPattern.t = FPBlank (gid (), gid ())
+let pBlank ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t =
+  FPBlank (mid, id)
