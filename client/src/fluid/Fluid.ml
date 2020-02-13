@@ -1378,7 +1378,7 @@ let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
 (* [insBlankOrPlaceholderHelper' ins]
  * shouldn't be called directly, only via
  * maybeInsertInBlankExpr or insertInPlaceholderExpr.
- * 
+ *
  * It encodes the shared behavior of inserting text to
  * blanks or placeholders, which are identical
  * except for when creating lambdas.
@@ -3857,7 +3857,7 @@ let rec updateKey
         (ast, acMoveDown s)
     | Keypress {key = K.Down; _}, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveDown s)
-    (* 
+    (*
      * Autocomplete finish
      *)
     | Keypress {key; _}, L (_, ti), _
@@ -4064,7 +4064,7 @@ let rec updateKey
     (***************************)
     (* CREATING NEW CONSTRUCTS *)
     (***************************)
-    (* Entering a string escape 
+    (* Entering a string escape
      * TODO: Move this to doInsert *)
     | InsertText "\\", L (TString _, _), R (TString _, ti)
       when false (* disable for now *) && pos - ti.startPos != 0 ->
@@ -4154,7 +4154,7 @@ let rec updateKey
     (***********************************)
     | InsertText ins, L (TPlaceholder {placeholder; blankID; fnID}, _), _
     | InsertText ins, _, R (TPlaceholder {placeholder; blankID; fnID}, _) ->
-        (* We need this special case because by the time we get to the general 
+        (* We need this special case because by the time we get to the general
          * doInsert handling, reconstructing the difference between placeholders
          * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
         let newExpr, newTarget =

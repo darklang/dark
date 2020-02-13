@@ -42,21 +42,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let usages =
     ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
   in
-  (* JS click events are mousedown->mouseup->click so previously ToplevelClick was being called after mouseup when selecting in fluid and would reset the fluid cursor state, we changed it to mouseup to prevent this *)
-  let events =
-    [ ViewUtils.eventNoPropagation
-        ~key:("tlc-" ^ showTLID tlid)
-        "mouseup"
-        (fun x ->
-          match Entry.getFluidSelectionRange () with
-          | None ->
-              ToplevelClick (tlid, x)
-          | Some (selBegin, selEnd) when selBegin = selEnd ->
-              ToplevelClick (tlid, x)
-          | Some range ->
-              (* Persist fluid selection when clicking in handler *)
-              FluidMsg (FluidMouseUp (tlid, Some range))) ]
-  in
+  (* we capture and ignore mouseup here, otherwise clicking things inside the
+   * toplevel (but not inside another element with a mouseup handler like
+   * .fluid-editor) will bubble up into a "focus canvas" message and deselect
+   * our toplevel. *)
+  let events = [ViewUtils.nothingMouseEvent "mouseup"] in
   (* This is a bit ugly - DBs have a larger 'margin' (not CSS margin) between
    * the encompassing toplevel div and the db div it contains, than  handlers.
    * Which leads to it being easy to hit "why won't this drag" if you click in
