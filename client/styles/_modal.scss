@@ -16,7 +16,6 @@ $light-grey: $grey2;
     width: 50%;
     background: $black2;
     border-radius: $radius;
-    padding: 15px;
     color: $white3;
     display: flex;
     align-items: center;
@@ -46,9 +45,12 @@ $light-grey: $grey2;
     .close-btn {
       position: relative;
       align-self: flex-start;
-      left: 15px;
-      bottom: 5px;
+      width: 30px;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 5px;
       .fa {
         color: $grey3;
         &:hover {
@@ -77,9 +79,15 @@ $light-grey: $grey2;
   }
   &.settings {
     .setting-tab-wrapper {
-      width: 95%;
+      width: calc(100% - 30px);
       display: flex;
       flex-direction: column;
+      height: 100%;
+      overflow: auto;
+      margin: 10px 5px 10px 35px;
+      &::-webkit-scrollbar {
+        display: none;
+      }
     }
     .canvas-list {
       min-height: 35px;
@@ -130,6 +138,14 @@ $light-grey: $grey2;
 @media only screen and (max-width: 768px) {
   .modal-overlay .modal {
     width: 80%;
-    height: 50%;
+    &:not(.modal-overlay.settings) {
+      height: 50%;
+    }
+  }
+}
+
+@media only screen and (max-height: 600px) {
+  .modal {
+    height: 85%;
   }
 }
