@@ -229,6 +229,7 @@ let rec execute_dblock
 
 
 and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
+  (* Design doc for execution results and previews: https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e *)
   let on_execution_path = state.on_execution_path in
   let ctx = state.context in
   let exe st expr = exec ~state st expr in
