@@ -1447,7 +1447,8 @@ let update_ (msg : msg) (m : model) : modification =
               { m with
                 opCtrs = r.opCtrs
               ; account = r.account
-              ; canvas_list = r.canvas_list })
+              ; canvas_list = r.canvas_list
+              ; org_list = r.org_list })
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)

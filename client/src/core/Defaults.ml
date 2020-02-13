@@ -156,6 +156,7 @@ let defaultModel : model =
   ; toast = defaultToast
   ; account = defaultAccount
   ; canvas_list = []
+  ; org_list = []
   ; worker_schedules = StrDict.empty
   ; searchCache = TLIDDict.empty
   ; editorSettings = {showFluidDebugger = false; runTimers = true}
