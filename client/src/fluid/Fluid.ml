@@ -181,12 +181,6 @@ let getToken (s : fluidState) (ast : ast) : T.tokenInfo option =
 
 
 (* -------------------- *)
-(* Direct canvas interaction *)
-(* -------------------- *)
-
-let editorID = "fluid-editor"
-
-(* -------------------- *)
 (* Update fluid state *)
 (* -------------------- *)
 let tiSentinel : T.tokenInfo =
@@ -3088,7 +3082,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
    * multi-codepoint emoji (the expected behavior of multi-syllable clusters differs from emoji).
    *
    * Note that we do not handle caret affinity properly, but caret affinity should behave the
-   * same for backspace and delete. 
+   * same for backspace and delete.
    *
    * See https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad.
    *)
@@ -3110,7 +3104,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : ast) (s : state) :
 
 (* [doExplicitInsert [extendedGraphemeCluster] [currCaretTarget] [ast]]
  * produces the (newAST, newPosition) tuple resulting from performing
- * a text insertion at [currCaretTarget] in the [ast]. 
+ * a text insertion at [currCaretTarget] in the [ast].
  * Note that newPosition will be either AtTarget or SamePlace --
  * either the caret stays in the same place, or it ends up at a specific location.
  *
@@ -5385,7 +5379,7 @@ let renderCallback (m : model) : unit =
         match m.fluidState.selectionStart with
         | Some selStart ->
             (* Updates the browser selection range for 2 in the context of selections *)
-            Entry.setFluidSelectionRange (selStart, m.fluidState.newPos)
+            Entry.setFluidSelectionRange selStart m.fluidState.newPos
         | None ->
             Entry.setFluidCaret m.fluidState.newPos )
   | _ ->

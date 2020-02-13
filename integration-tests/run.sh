@@ -103,7 +103,7 @@ else
 
   # Check the version (matters when running outside the container)
   version=$(testcafe --version)
-  expected_version=$(grep testcafe client/package.json | sed 's/[[:space:]]*"testcafe": "//' | sed 's/",[[:space:]]*//')
+  expected_version=$(grep testcafe package.json | sed 's/[[:space:]]*"testcafe": "//' | sed 's/",[[:space:]]*//')
   if [[ "$version" != "$expected_version" ]]
   then
     echo "Incorrect version of testcafe: $version (expected $expected_version)"
