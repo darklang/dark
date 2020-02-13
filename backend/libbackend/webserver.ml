@@ -881,11 +881,7 @@ let initial_load
       time "6-canvas-list" (fun _ -> Serialize.hosts_for username)
     in
     let t7, org_list =
-      time "7-org-list" (fun _ ->
-          let f a b = List.append a b in
-          List.map (Serialize.orgs_for username) ~f:(fun org ->
-              Serialize.hosts_for org)
-          |> List.fold ~init:[] ~f)
+      time "7-org-list" (fun _ ->Serialize.orgs_for username)
     in
     let t8, worker_schedules =
       time "8-worker-schedules" (fun _ ->
