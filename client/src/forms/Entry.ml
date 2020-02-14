@@ -160,9 +160,6 @@ let getFluidCaretPos () : int option =
       None
 
 
-external querySelector : string -> Web_node.t Js.Nullable.t = "querySelector"
-  [@@bs.val] [@@bs.scope "document"]
-
 (** setFluidSelectionRange([beginIdx, endIdx]) attempts to select the passed
   * region in the currently selected fluid editor, if there is one.
   * If beginIdx == endIdx, it sets the caret position (0-width selection).
