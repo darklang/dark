@@ -91,7 +91,10 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
                   if name = "fadeIn"
                   then SetHandlerExeIdle vs.tlid
                   else IgnoreMsg) ]
-          else [Html.title "Need input data to replay execution"]
+          else
+            [ Html.title "Need input data to replay execution"
+            ; Html.noProp
+            ; Html.noProp ]
         in
         Html.div (classes :: attrs) [fontAwesome "redo"]
       else Vdom.noNode
