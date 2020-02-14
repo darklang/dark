@@ -1,6 +1,8 @@
 open Core_kernel
 open Libexecution
 open Libbackend
+open Libshared
+open Libcommon
 open Types
 open Types.RuntimeT
 open Utils
@@ -137,8 +139,9 @@ let t_if_not_executed () =
 
 
 let t_match_evaluation () =
-  let gid = Libshared.Shared.gid in
-  let open Libshared.FluidShortcuts in
+  let gid = Shared.gid in
+  let open FluidShortcuts in
+  let module E = FluidExpression in
   let mid = gid () in
   let pIntId = gid () in
   let pFloatId = gid () in
@@ -146,10 +149,10 @@ let t_match_evaluation () =
   let pStrId = gid () in
   let pNullId = gid () in
   let pBlankId = gid () in
-  let pOkId = gid () in
-  let pOkId2 = gid () in
-  let pOkVarId = gid () in
-  let pOkBlankId = gid () in
+  let pOkVarOkId = gid () in
+  let pOkVarVarId = gid () in
+  let pOkBlankOkId = gid () in
+  let pOkBlankBlankId = gid () in
   let pNothingId = gid () in
   let pVarId = gid () in
   let intRhsId = gid () in
@@ -158,12 +161,13 @@ let t_match_evaluation () =
   let strRhsId = gid () in
   let nullRhsId = gid () in
   let blankRhsId = gid () in
-  let okRhsId = gid () in
-  let okRhsId2 = gid () in
+  let okVarRhsId = gid () in
+  let okBlankRhsId = gid () in
   let nothingRhsId = gid () in
-  let okRhsVarId = gid () in
+  let okVarRhsVarId = gid () in
+  let okVarRhsStrId = gid () in
   let varRhsId = gid () in
-  let astFor (arg : Libshared.FluidExpression.t) =
+  let astFor (arg : E.t) =
     match'
       ~id:mid
       arg
@@ -173,25 +177,52 @@ let t_match_evaluation () =
       ; (pString ~mid ~id:pStrId "myStr", str ~id:strRhsId "str")
       ; (pNull ~mid ~id:pNullId (), str ~id:nullRhsId "null")
       ; (pBlank ~mid ~id:pBlankId (), str ~id:blankRhsId "blank")
-      ; ( pConstructor ~mid ~id:pOkId2 "Ok" [pBlank ~mid ~id:pOkBlankId ()]
-        , str ~id:okRhsId2 "ok blank" )
-      ; ( pConstructor ~mid ~id:pOkId "Ok" [pVar ~mid ~id:pOkVarId "x"]
-        , fn ~id:okRhsId "++" [str "ok: "; var ~id:okRhsVarId "x"] )
+      ; ( pConstructor
+            ~mid
+            ~id:pOkBlankOkId
+            "Ok"
+            [pBlank ~mid ~id:pOkBlankBlankId ()]
+        , str ~id:okBlankRhsId "ok blank" )
+      ; ( pConstructor ~mid ~id:pOkVarOkId "Ok" [pVar ~mid ~id:pOkVarVarId "x"]
+        , fn
+            ~id:okVarRhsId
+            "++"
+            [str ~id:okVarRhsStrId "ok: "; var ~id:okVarRhsVarId "x"] )
       ; ( pConstructor ~mid ~id:pNothingId "Nothing" []
         , str ~id:nothingRhsId "constructor nothing" )
       ; (pVar ~mid ~id:pVarId "name", var ~id:varRhsId "name") ]
   in
   let check_match
       (msg : string)
-      (arg : Libshared.FluidExpression.t)
+      (arg : E.t)
       (expected : (id * string * execution_result) list) =
     let ast = astFor arg in
+    Log.inspecT "ast" ~f:E.show ast ;
     let dvalStore = exec_save_dvals' ast in
+    (* check expected values *)
     List.iter expected ~f:(fun (id, name, value) ->
         check_execution_result
-          (msg ^ ": " ^ Libshared.FluidExpression.show arg ^ " " ^ name)
+          (msg ^ "(" ^ string_of_id id ^ "): " ^ E.show arg ^ " " ^ name)
           value
-          (IDTable.find_exn dvalStore id))
+          (IDTable.find_exn dvalStore id)) ;
+    let argIDs = E.filterMap arg ~f:(fun e -> Some (E.toID e)) in
+    let ids = (mid :: argIDs) @ List.map expected ~f:Tc.Tuple3.first in
+    (* Check all the other values are NotExecutedResults *)
+    IDTable.iteri dvalStore ~f:(fun ~key ~data ->
+        if Tc.List.member ~value:key ids
+        then ()
+        else
+          match data with
+          | ExecutedResult dval ->
+              AT.fail
+                ( msg
+                ^ ": found unexected executed result ("
+                ^ string_of_id key
+                ^ "): "
+                ^ Dval.show dval )
+          | NonExecutedResult _ ->
+              ()) ;
+    ()
   in
   let er x = ExecutedResult x in
   let ner x = NonExecutedResult x in
@@ -214,15 +245,18 @@ let t_match_evaluation () =
     ; (boolRhsId, "bool rhs", ner (dstr "bool"))
     ; (pNullId, "null", ner DNull)
     ; (nullRhsId, "null rhs", ner (dstr "null"))
-    ; (pOkId, "ok pat", ner (DIncomplete (SourceId pOkId)))
-    ; (pOkVarId, "var pat", ner (DIncomplete (SourceId pOkVarId)))
-    ; (okRhsId, "ok rhs", ner (DIncomplete (SourceId okRhsVarId)))
-    ; (okRhsVarId, "ok rhs var", ner (DIncomplete (SourceId okRhsVarId)))
+    ; (pOkVarOkId, "ok pat", ner (DIncomplete (SourceId pOkVarOkId)))
+    ; (pOkVarVarId, "var pat", ner (DIncomplete (SourceId pOkVarVarId)))
+    ; (okVarRhsId, "ok rhs", ner (DIncomplete (SourceId okVarRhsVarId)))
+    ; (okVarRhsVarId, "ok rhs var", ner (DIncomplete (SourceId okVarRhsVarId)))
+    ; (okVarRhsStrId, "ok rhs str", ner (dstr "ok: "))
     ; (pNothingId, "ok pat", ner (DOption OptNothing))
     ; (nothingRhsId, "rhs", ner (dstr "constructor nothing"))
-    ; (pOkId2, "ok pat", ner (DIncomplete (SourceId pOkId2)))
-    ; (pOkBlankId, "blank pat", ner (DIncomplete (SourceId pOkBlankId)))
-    ; (okRhsId2, "rhs", ner (dstr "ok blank"))
+    ; (pOkBlankOkId, "ok pat", ner (DIncomplete (SourceId pOkBlankOkId)))
+    ; ( pOkBlankBlankId
+      , "blank pat"
+      , ner (DIncomplete (SourceId pOkBlankBlankId)) )
+    ; (okBlankRhsId, "rhs", ner (dstr "ok blank"))
     ; (pVarId, "catch all pat", er (Dval.dint 6))
     ; (varRhsId, "catch all rhs", er (Dval.dint 6)) ] ;
   check_match
@@ -238,27 +272,39 @@ let t_match_evaluation () =
     null
     [(pNullId, "pat", er DNull); (nullRhsId, "rhs", er (dstr "null"))] ;
   check_match
-    "ok: x"
+    "ok: y"
     (constructor "Ok" [str "y"])
-    [ (pOkId, "ok pat", er (DResult (ResOk (dstr "y"))))
-    ; (pOkVarId, "var pat", er (dstr "y"))
-    ; (okRhsId, "rhs", er (dstr "ok: y"))
-    ; (okRhsVarId, "rhs", er (dstr "y")) ] ;
+    [ (pOkBlankOkId, "ok pat", ner (DIncomplete (SourceId pOkBlankOkId)))
+    ; ( pOkBlankBlankId
+      , "blank pat"
+      , ner (DIncomplete (SourceId pOkBlankBlankId)) )
+    ; (okBlankRhsId, "rhs", ner (dstr "ok blank"))
+    ; (pOkVarOkId, "ok pat", er (DResult (ResOk (dstr "y"))))
+    ; (pOkVarVarId, "var pat", er (dstr "y"))
+    ; (okVarRhsId, "rhs", er (dstr "ok: y"))
+    ; (okVarRhsVarId, "rhs", er (dstr "y"))
+    ; (okVarRhsStrId, "str", er (dstr "ok: ")) ] ;
+  check_match
+    "ok: blank"
+    (constructor "Ok" [EBlank (gid ())])
+    [ (pOkBlankOkId, "blank pat", ner (DIncomplete (SourceId pOkBlankOkId)))
+    ; ( pOkBlankBlankId
+      , "blank pat"
+      , ner (DIncomplete (SourceId pOkBlankBlankId)) )
+    ; (okBlankRhsId, "blank rhs", ner (dstr "ok blank"))
+    ; (pOkVarOkId, "ok pat", ner (DIncomplete (SourceId pOkVarOkId)))
+    ; (pOkVarVarId, "var pat", ner (DIncomplete (SourceId pOkVarVarId)))
+    ; (okVarRhsId, "rhs", ner (DIncomplete (SourceId okVarRhsVarId)))
+    ; (okVarRhsVarId, "rhs var", ner (DIncomplete (SourceId okVarRhsVarId)))
+    ; (okVarRhsStrId, "str", ner (dstr "ok: ")) ] ;
   check_match
     "nothing"
     (constructor "Nothing" [])
     [ (pNothingId, "ok pat", er (DOption OptNothing))
     ; (nothingRhsId, "rhs", er (dstr "constructor nothing")) ] ;
-  check_match
-    "ok: blank"
-    (constructor "Ok" [str "y"])
-    [ (pOkId2, "ok pat", ner (DIncomplete (SourceId pOkId2)))
-    ; (pOkBlankId, "blank pat", ner (DIncomplete (SourceId pOkBlankId)))
-    ; (okRhsId2, "rhs", ner (dstr "ok blank")) ] ;
-  (* constructor around a blank, still pat/expr still has a traxe *)
-  (* constructor around a literal, still pat/expr still has a traxe *)
-  (* constructor around a variable, still pat/expr still has a traxe *)
-  (* constructor around a value, nested twice, pat/expr still has a trace *)
+  (* TODO: test constructor around a literal *)
+  (* TODO: constructor around a variable *)
+  (* TODO: constructor around a constructor around a value *)
   ()
 
 

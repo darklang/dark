@@ -31,6 +31,20 @@ let toID (p : t) : id =
       id
 
 
+let rec ids (p : t) : id list =
+  match p with
+  | FPConstructor (_, id, _, list) ->
+      list |> List.map ~f:ids |> List.concat |> fun l -> id :: l
+  | FPVariable _
+  | FPInteger _
+  | FPBool _
+  | FPString _
+  | FPFloat _
+  | FPNull _
+  | FPBlank _ ->
+      [toID p]
+
+
 let toMatchID (p : t) : id =
   match p with
   | FPVariable (mid, _, _)
