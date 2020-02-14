@@ -18,14 +18,14 @@ let update (m : model) (msg : accountMsg) : model =
 
 let openAccountView (m : model) : model = update m (ToggleAccountView false)
 
-let userAccountView (m : model) : msg Html.html =
+let userAccountView (acc : accountViewState) : msg Html.html =
   let canvasLink c =
     let url = "/a/" ^ c in
     Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
   in
   let canvases =
-    if List.length m.canvas_list > 0
-    then List.map m.canvas_list ~f:canvasLink |> Html.ul []
+    if List.length acc.canvas_list > 0
+    then List.map acc.canvas_list ~f:canvasLink |> Html.ul []
     else Html.p [] [Html.text "No other personal canvases"]
   in
   let canvasView =
@@ -33,9 +33,9 @@ let userAccountView (m : model) : msg Html.html =
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p [] [Html.text "Create a new canvas by navigating to the URL"] ]
   in
-  let orgs = List.map m.org_list ~f:canvasLink |> Html.ul [] in
+  let orgs = List.map acc.org_list ~f:canvasLink |> Html.ul [] in
   let orgView =
-    if List.length m.org_list > 0
+    if List.length acc.org_list > 0
     then
       [ Html.p [Html.class' "canvas-list-title"] [Html.text "Shared canvases:"]
       ; Html.div [Html.class' "canvas-list"] [orgs] ]
@@ -46,9 +46,9 @@ let userAccountView (m : model) : msg Html.html =
     ([Html.h2 [] [Html.text "Account"]] @ orgView @ canvasView)
 
 
-let accountTabToHtml (m : model) : msg Html.html =
-  let tab = m.accountView.tab in
-  match tab with UserAccount -> userAccountView m
+let accountTabToHtml (acc : accountViewState) : msg Html.html =
+  let tab = acc.tab in
+  match tab with UserAccount -> userAccountView acc
 
 
 let html (m : model) : msg Html.html =
@@ -74,4 +74,4 @@ let html (m : model) : msg Html.html =
               EnablePanning false)
         ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
               EnablePanning true) ]
-        [accountTabToHtml m; closingBtn] ]
+        [accountTabToHtml m.accountView; closingBtn] ]
