@@ -432,7 +432,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             , (maybeNewFluidState : fluidState option) ) =
           match p with
           | STTopLevelRoot ->
-              (FluidEntering tlid, None)
+            ( match TL.get m tlid with
+            | Some (TLDB _) | Some (TLGroup _) | Some (TLTipe _) ->
+                (Selecting (tlid, None), None)
+            | Some (TLFunc _) | Some (TLHandler _) ->
+                (FluidEntering tlid, None)
+            | None ->
+                (Deselected, None) )
           | STID id ->
             ( match TL.getPD m tlid id with
             | Some _ ->
