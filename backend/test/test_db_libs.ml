@@ -893,6 +893,20 @@ let t_db_query_works () =
     ( queryv (binop "Float::greaterThan" (field "v" "income") (float' "90" "0"))
     |> execs ) ;
   check_dval
+    "int <="
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( queryv (binop "Int::lessThanOrEqualTo" (field "v" "height") (int 65))
+    |> execs ) ;
+  check_dval
+    "float"
+    (DList [Dval.dint 10; Dval.dint 65])
+    ( queryv
+        (binop
+           "Float::lessThanOrEqualTo"
+           (field "v" "income")
+           (float' "82" "1"))
+    |> execs ) ;
+  check_dval
     "string::tolower"
     (DList [Dval.dint 65])
     ( queryv
