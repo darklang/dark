@@ -165,4 +165,4 @@ let defaultModel : model =
   ; tlMenus = TLIDDict.empty
   ; showUserWelcomeModal = true
   ; currentUserFn = defaultFnSpace
-  ; settings = {opened = false; tab = UserSettings} }
+  ; accountView = {opened = false; tab = UserAccount} }

@@ -378,7 +378,7 @@ let accountView (m : model) : msg Html.html =
     Html.p
       [ Html.class' "setting-btn"
       ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
-            ToggleSettings true) ]
+            AccountViewMsg (ToggleAccountView true)) ]
       [Html.text "Account"]
   in
   Html.div
@@ -440,7 +440,7 @@ let view (m : model) : msg Html.html =
     else Vdom.noNode
   in
   let settingsModal =
-    if m.settings.opened then ViewSettings.html m else Vdom.noNode
+    if m.accountView.opened then AccountView.html m else Vdom.noNode
   in
   let content =
     ViewTopbar.html m

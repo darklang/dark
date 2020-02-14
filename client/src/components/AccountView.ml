@@ -7,7 +7,18 @@ module TD = TLIDDict
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let userSettingsView (m : model) : msg Html.html =
+let update (m : model) (msg : accountMsg) : model =
+  match msg with
+  | ToggleAccountView opened ->
+      let enablePan = if opened then m.canvasProps.enablePan else true in
+      { m with
+        accountView = {m.accountView with opened}
+      ; canvasProps = {m.canvasProps with enablePan} }
+
+
+let openAccountView (m : model) : model = update m (ToggleAccountView false)
+
+let userAccountView (m : model) : msg Html.html =
   let canvasLink c =
     let url = "/a/" ^ c in
     Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
@@ -31,13 +42,13 @@ let userSettingsView (m : model) : msg Html.html =
     else [Vdom.noNode]
   in
   Html.div
-    [Html.class' "setting-tab-wrapper"]
+    [Html.class' "account-tab-wrapper"]
     ([Html.h2 [] [Html.text "Account"]] @ orgView @ canvasView)
 
 
-let settingsTabToHtml (m : model) : msg Html.html =
-  let tab = m.settings.tab in
-  match tab with UserSettings -> userSettingsView m
+let accountTabToHtml (m : model) : msg Html.html =
+  let tab = m.accountView.tab in
+  match tab with UserAccount -> userAccountView m
 
 
 let html (m : model) : msg Html.html =
@@ -47,15 +58,15 @@ let html (m : model) : msg Html.html =
       ; ViewUtils.eventNoPropagation
           ~key:"close-setting-modal"
           "click"
-          (fun _ -> ToggleSettings false) ]
+          (fun _ -> AccountViewMsg (ToggleAccountView false)) ]
       [fontAwesome "times"]
   in
   Html.div
-    [ Html.class' "settings modal-overlay"
+    [ Html.class' "account modal-overlay"
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          ToggleSettings false) ]
+          AccountViewMsg (ToggleAccountView false)) ]
     [ Html.div
         [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"
@@ -63,4 +74,4 @@ let html (m : model) : msg Html.html =
               EnablePanning false)
         ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
               EnablePanning true) ]
-        [settingsTabToHtml m; closingBtn] ]
+        [accountTabToHtml m; closingBtn] ]
