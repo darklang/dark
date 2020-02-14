@@ -2378,6 +2378,7 @@ let updateFromACItem
           ~debug:entry
           (ast, {astRef = ARInvalid; offset = 0})
   in
+  let s = {s with ac = {s.ac with query = None}} in
   (newAST, acMoveBasedOnKey key target s newAST)
 
 
