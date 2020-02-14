@@ -4,24 +4,29 @@ import fs from "fs";
 const BASE_URL = "http://darklang.localhost:8000/a/test-";
 const getPageUrl = ClientFunction(() => window.location.href);
 
-async function setDebugging(t) {
+async function prepSettings(t) {
+  // Turn on fluid debugger
   let key = `editorState-test-${t.testRun.test.name}`;
   let value = '{"editorSettings":{"showFluidDebugger":true}}';
   const setLocalStorageItem = ClientFunction((key, value) => {
     localStorage.setItem(key, value);
   });
   await setLocalStorageItem(key, value);
+  // Disable the modal
+  let key2 = `userState-test`;
+  let value2 = '{"showUserWelcomeModal":false}';
+  await setLocalStorageItem(key2, value2);
 }
 
 fixture`Integration Tests`
   // To add this user, run the backend tests
   .beforeEach(async t => {
-    child_process.execFileSync("integration-tests/clear.sh");
+    child_process.execFileSync("integration-tests/clear-db.sh");
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
     var url = `${BASE_URL}${testname}?integration-test=true`;
     await t.navigateTo(url);
-    await setDebugging(t);
+    await prepSettings(t);
     await t
       .typeText("#username", "test")
       .typeText("#password", "fVm2CUePzGKCwoEQQdNJktUQ")
