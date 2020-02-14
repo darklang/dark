@@ -497,8 +497,13 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
                 let value = Option.value v ~default:(incomplete pid) in
                 trace ~on_execution_path:false pid value )
           | Filled (pid, PVariable v) ->
-              (* always matches *)
-              maybeExe [(v, dv)] ((pid, dv) :: builtUpTraces) st expr
+              (* only matches allowed values *)
+              if Dval.is_fake_marker_dval dv
+              then (
+                preview st expr ;
+                traceIncompletes builtUpTraces ;
+                trace ~on_execution_path:false pid dv )
+              else maybeExe [(v, dv)] ((pid, dv) :: builtUpTraces) st expr
           | Blank pid | Partial (pid, _) ->
               (* never matches *)
               trace ~on_execution_path:false pid (incomplete pid) ;
