@@ -5,10 +5,6 @@ module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
 
-type editorViewState =
-  { id : string
-  ; tokens : FluidToken.tokenInfo list }
-
 type viewState =
   { tl : toplevel
   ; cursorState : cursorState
@@ -39,7 +35,13 @@ type viewState =
   ; workerStats : workerStats option
   ; menuState : menuState
   ; isExecuting : bool
-  ; tokenPartitions : FluidPrinter.partition list
+  ; tokenPartitions :
+      (* tokenPartitions are the result of calling Printer.toPartitions on an
+       * AST. The head partition is always the main editor, with the optional
+       * tail being other editor panels. fluidState.activeEditorIdx allows
+       * indexing into this list to get the tokens for the currently active
+       * editor panel. *)
+      FluidPrinter.partition list
   ; fnProps : fnProps }
 
 (* ----------------------------- *)

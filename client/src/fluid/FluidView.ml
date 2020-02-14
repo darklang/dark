@@ -553,18 +553,17 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
   in
   let mainEditor = fluidEditorView ~idx:0 vs mainTokenInfos ast in
   let returnValue = viewReturnValue vs ast in
-  let findRowOffestOfCorrespondingMainToken (ti : Printer.tokenInfo) :
-      int option =
-    let needle = T.tid ti.token in
-    List.find mainTokenInfos ~f:(fun ti -> needle = T.tid ti.token)
-    |> Option.map ~f:(fun ti -> ti.startRow)
-  in
-  (* FIXME(ds) this is a giant hack to find the row offset of the corresponding
-   * token in the main view for each secondary editor. This works by getting
-   * the id of the first token in the partition and then looking through the
-   * main tokens [O(N)] to find one with a corresponding id. This is bad and
-   * brittle and will likely not always work. We should do something better. *)
   let secondaryEditors =
+    let findRowOffestOfMainTokenWithId (needle : id) : int option =
+      (* FIXME(ds) this is a giant hack to find the row offset of the corresponding
+       * token in the main view for each secondary editor. This works by getting
+       * the id of the partition (ie, the id of the first token in the partition)
+       * and then looking through the main tokens [O(N)] to find one with a
+       * corresponding id. This is brittle and will likely break at some point. We
+       * should do something better. *)
+      List.find mainTokenInfos ~f:(fun ti -> needle = T.tid ti.token)
+      |> Option.map ~f:(fun ti -> ti.startRow)
+    in
     if List.any vs.testVariants ~f:(fun v -> v = FeatureFlagVariant)
     then
       List.tail vs.tokenPartitions
@@ -576,8 +575,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
                  []
              in
              let rowOffset =
-               List.head p.tokens
-               |> Option.andThen ~f:findRowOffestOfCorrespondingMainToken
+               findRowOffestOfMainTokenWithId p.id
                |> Option.withDefault ~default:0
              in
              Html.div
@@ -586,7 +584,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
                [fluidEditorView ~idx:(i + 1) vs p.tokens ast; errorRail])
     else []
   in
-  [mainEditor; liveValue; returnValue; errorRail] @ secondaryEditors
+  mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
 
 
 let viewStatus (m : model) (ast : ast) : Types.msg Html.html =

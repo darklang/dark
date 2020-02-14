@@ -15,10 +15,15 @@ module Builder = struct
          * front of the list is an order of magnitude faster. We were having
          * large slowdowns on large handlers before this. *)
         fluidToken list
-    ; splits : t list
+    ; splits :
+        (* splits are sub-builders, where the token stream has been split in
+         * two. These are used for splitting off parts of the AST to display in
+         * a different editor panel, like displaying a feature flag panel to
+         * the side of the main editor *)
+        t list
     ; indent : (* tracks the indent after a newline *) int
     ; xPos :
-        (* tracks the indent for nesting, none indicates it's ready to go after a newline *)
+        (* tracks the indent for nesting. `None` indicates it's ready to go after a newline *)
         int option }
 
   let rec endsInNewline (b : t) : bool =
@@ -35,9 +40,7 @@ module Builder = struct
   let empty = {tokens = []; splits = []; xPos = Some 0; indent = 0}
 
   (** id is the id of the first token in the builder or None if the builder is empty. *)
-  let id (b : t) : string option =
-    List.last b.tokens |> Option.map ~f:(T.tid >> ID.toString)
-
+  let id (b : t) : id option = List.last b.tokens |> Option.map ~f:T.tid
 
   let add (token : fluidToken) (b : t) : t =
     let tokenLength = token |> T.toText |> String.length in
@@ -430,6 +433,10 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addNested ~f:(toTokens' expr)
       |> addMany [TSep id; TRightPartial (id, newOp)]
   | EFeatureFlag (id, _name, cond, default, enabled) ->
+      (* Feature flag tokens are displayed in two different editor panels, so
+       * split the token stream in two, with only the default case in the main
+       * stream. The condition expression and enabled case go to the split
+       * secondary stream. *)
       b
       |> nest ~indent:2 default
       |> split ~f:(fun b ->
@@ -486,7 +493,7 @@ let toTokens (e : E.t) : tokenInfo list =
 
 
 type partition =
-  { id : string
+  { id : id
   ; tokens : tokenInfo list }
 
 let toPartitions (e : FluidExpression.t) : partition list =
@@ -510,15 +517,17 @@ let tokensToString (tis : tokenInfo list) : string =
 
 
 let eToTestString (e : E.t) : string =
-  toTokens e
+  e
+  |> toTokens
   |> List.map ~f:(fun ti -> T.toTestText ti.token)
   |> String.join ~sep:""
 
 
-let eToHumanString (e : E.t) : string = toTokens e |> tokensToString
+let eToHumanString (e : E.t) : string = e |> toTokens |> tokensToString
 
 let eToStructure ?(includeIDs = false) (e : E.t) : string =
-  toTokens e
+  e
+  |> toTokens
   |> List.map ~f:(fun ti ->
          "<"
          ^ T.toTypeName ti.token
