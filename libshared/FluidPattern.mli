@@ -16,6 +16,10 @@ type t =
 
 val toID : t -> Shared.id
 
+(* Returns the ids of all the patterns in this pattern. Includes this pattern's
+ * ID, does not include the matchID *)
+val ids : t -> Shared.id list
+
 val toMatchID : t -> Shared.id
 
 val clone : Shared.id -> t -> t
