@@ -1,4 +1,5 @@
 import { ClientFunction, Selector } from "testcafe";
+const child_process = require("child_process");
 import fs from "fs";
 const BASE_URL = "http://darklang.localhost:8000/a/test-";
 const getPageUrl = ClientFunction(() => window.location.href);
@@ -15,6 +16,7 @@ async function setDebugging(t) {
 fixture`Integration Tests`
   // To add this user, run the backend tests
   .beforeEach(async t => {
+    child_process.execFileSync("integration-tests/clear.sh");
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
     var url = `${BASE_URL}${testname}?integration-test=true`;
