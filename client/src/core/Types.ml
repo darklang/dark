@@ -921,6 +921,15 @@ and clipboardContents =
 (* Component Types *)
 (* --------------- *)
 
+(* Account View *)
+and accountTab = UserAccount
+
+and accountViewState =
+  { opened : bool
+  ; tab : accountTab }
+
+and accountMsg = ToggleAccountView of bool
+
 (* TLMenu *)
 and menuState = {isOpen : bool}
 
@@ -1103,6 +1112,7 @@ and modification =
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
   | TLMenuUpdate of tlid * menuMsg
+  | AccountViewUpdate of accountMsg
 
 (* ------------------- *)
 (* Msgs *)
@@ -1268,7 +1278,7 @@ and msg =
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
-  | ToggleSettings of bool
+  | AccountViewMsg of accountMsg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1497,12 +1507,6 @@ and fluidState =
         (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
   }
 
-and settingTab = UserSettings
-
-and settingViewState =
-  { opened : bool
-  ; tab : settingTab }
-
 (* Avatars *)
 and avatar =
   { canvasId : string
@@ -1605,7 +1609,7 @@ and model =
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
   ; currentUserFn : fnProps
-  ; settings : settingViewState }
+  ; accountView : accountViewState }
 
 and savedUserSettings = {showUserWelcomeModal : bool}
 

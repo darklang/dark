@@ -967,6 +967,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with fluidState}, Cmd.none)
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
+    | AccountViewUpdate msg ->
+        (AccountView.update m msg, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1943,13 +1945,8 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
-  | ToggleSettings opened ->
-      let enablePan = if opened then m.canvasProps.enablePan else true in
-      TweakModel
-        (fun m ->
-          { m with
-            settings = {m.settings with opened}
-          ; canvasProps = {m.canvasProps with enablePan} })
+  | AccountViewMsg msg ->
+      AccountViewUpdate msg
   | FnParamMsg msg ->
       FnParams.update m msg
 
