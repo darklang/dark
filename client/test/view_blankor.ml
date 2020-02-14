@@ -5,8 +5,7 @@ open ViewBlankOr
 let run () =
   describe "placeholdersDisplayed" (fun () ->
       test "shows placeholders in user functions" (fun () ->
-          let id = gid () in
-          let ast = FluidExpression.EBlank id in
+          let ast = FluidExpression.EBlank (gid ()) in
           let tlFunc =
             TLFunc
               { ufAST = ast
@@ -23,7 +22,6 @@ let run () =
             { tl
             ; cursorState = Deselected
             ; fluidState = Defaults.defaultFluidState
-            ; tokenPartitions = []
             ; tlid = gtlid ()
             ; hovering = None
             ; ac =
@@ -56,6 +54,7 @@ let run () =
             ; avatarsList = []
             ; permission = Some ReadWrite
             ; workerStats = None
+            ; tokenPartitions = []
             ; menuState = {isOpen = false}
             ; isExecuting = false
             ; fnProps =

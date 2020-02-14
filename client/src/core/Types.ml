@@ -1128,18 +1128,24 @@ and fluidInputEvent =
 
 and fluidMouseUp =
   { tlid : tlid
-  ; selection : (int * int) option
-  ; editorIdx : int }
+  ; selection :
+      (* The (int * int) here represents the selection beginning + end (the
+       * selection may be left->right or right->left) If the selection is None, the
+       * selection will be read from the browser rather than the browser's
+       * selection being set. This bi-directionality is not ideal and could use
+       * some rethinking.
+       *)
+      (int * int) option
+  ; editorIdx :
+      (* editorIdx tells which fluid editor was clicked on.
+       * see fluidState.activeEditorIdx *)
+      int }
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
   | FluidInputEvent of fluidInputEvent
   | FluidCut
   | FluidPaste of clipboardContents
-  (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
-   * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
-   * This bi-directionality is not ideal and could use some rethinking.
-   *)
   | FluidMouseDown of tlid
   | FluidMouseUp of fluidMouseUp
   | FluidCommandsFilter of string
@@ -1512,7 +1518,14 @@ and fluidState =
       (* The source id of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; activeEditorIdx : int }
+  ; activeEditorIdx :
+      (* activeEditorIdx is the 0-based index of the editor that is active inside
+       * the current TL. Most TLs will only have a single editor most of the
+       * time, but when displaying, eg, a feature flag condition there will be
+       * multiple. This is used to place the caret correctly and modify the
+       * correct set of tokens. idx=0 is always the "main" editor and should
+       * always exist. *)
+      int }
 
 (* Avatars *)
 and avatar =
@@ -1591,7 +1604,6 @@ and model =
    * which you can read as "myfunc is used in repl2".  *)
   ; tlUsedIn : TLIDSet.t TLIDDict.t
   ; fluidState : fluidState
-  ; activePartition : string option
   ; dbStats : dbStatsStore
   ; workerStats : workerStats TLIDDict.t
   ; avatarsList : avatar list

@@ -143,7 +143,6 @@ let defaultModel : model =
   ; tlRefersTo = TLIDDict.empty
   ; tlUsedIn = TLIDDict.empty
   ; fluidState = defaultFluidState
-  ; activePartition = None
   ; dbStats = StrDict.empty
   ; workerStats = StrDict.empty
   ; avatarsList = []
