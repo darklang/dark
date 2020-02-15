@@ -967,8 +967,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with fluidState}, Cmd.none)
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
-    | AccountViewUpdate msg ->
-        (AccountView.update m msg, Cmd.none)
+    | SettingsViewUpdate msg ->
+        (SettingsView.update m msg, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1449,8 +1449,8 @@ let update_ (msg : msg) (m : model) : modification =
               { m with
                 opCtrs = r.opCtrs
               ; account = r.account
-              ; accountView =
-                  { m.accountView with
+              ; settingsView =
+                  { m.settingsView with
                     canvas_list = r.canvas_list
                   ; org_list = r.org_list } })
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
@@ -1947,8 +1947,8 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
-  | AccountViewMsg msg ->
-      AccountViewUpdate msg
+  | SettingsViewMsg msg ->
+      SettingsViewUpdate msg
   | FnParamMsg msg ->
       FnParams.update m msg
 

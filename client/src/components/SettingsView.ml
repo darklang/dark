@@ -7,18 +7,18 @@ module TD = TLIDDict
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let update (m : model) (msg : accountMsg) : model =
+let update (m : model) (msg : settingsMsg) : model =
   match msg with
-  | ToggleAccountView opened ->
+  | ToggleSettingsView opened ->
       let enablePan = if opened then m.canvasProps.enablePan else true in
       { m with
-        accountView = {m.accountView with opened}
+        settingsView = {m.settingsView with opened}
       ; canvasProps = {m.canvasProps with enablePan} }
 
 
-let openAccountView (m : model) : model = update m (ToggleAccountView false)
+let openSettingView (m : model) : model = update m (ToggleSettingsView false)
 
-let userAccountView (acc : accountViewState) : msg Html.html =
+let userSettingView (acc : settingsViewState) : msg Html.html =
   let canvasLink c =
     let url = "/a/" ^ c in
     Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
@@ -42,13 +42,13 @@ let userAccountView (acc : accountViewState) : msg Html.html =
     else [Vdom.noNode]
   in
   Html.div
-    [Html.class' "account-tab-wrapper"]
-    ([Html.h2 [] [Html.text "Account"]] @ orgView @ canvasView)
+    [Html.class' "setting-tab-wrapper"]
+    ([Html.h2 [] [Html.text "Settings"]] @ orgView @ canvasView)
 
 
-let accountTabToHtml (acc : accountViewState) : msg Html.html =
+let settingsTabToHtml (acc : settingsViewState) : msg Html.html =
   let tab = acc.tab in
-  match tab with UserAccount -> userAccountView acc
+  match tab with UserSettings -> userSettingView acc
 
 
 let html (m : model) : msg Html.html =
@@ -56,17 +56,17 @@ let html (m : model) : msg Html.html =
     Html.div
       [ Html.class' "close-btn"
       ; ViewUtils.eventNoPropagation
-          ~key:"close-setting-modal"
+          ~key:"close-settings-modal"
           "click"
-          (fun _ -> AccountViewMsg (ToggleAccountView false)) ]
+          (fun _ -> SettingsViewMsg (ToggleSettingsView false)) ]
       [fontAwesome "times"]
   in
   Html.div
-    [ Html.class' "account modal-overlay"
+    [ Html.class' "setting modal-overlay"
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          AccountViewMsg (ToggleAccountView false)) ]
+          SettingsViewMsg (ToggleSettingsView false)) ]
     [ Html.div
         [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"
@@ -74,4 +74,4 @@ let html (m : model) : msg Html.html =
               EnablePanning false)
         ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
               EnablePanning true) ]
-        [accountTabToHtml m.accountView; closingBtn] ]
+        [settingsTabToHtml m.settingsView; closingBtn] ]

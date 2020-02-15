@@ -921,16 +921,16 @@ and clipboardContents =
 (* Component Types *)
 (* --------------- *)
 
-(* Account View *)
-and accountTab = UserAccount
+(* Setting View *)
+and settingsTab = UserSettings
 
-and accountViewState =
+and settingsViewState =
   { opened : bool
-  ; tab : accountTab
+  ; tab : settingsTab
   ; canvas_list : string list
   ; org_list : string list }
 
-and accountMsg = ToggleAccountView of bool
+and settingsMsg = ToggleSettingsView of bool
 
 (* TLMenu *)
 and menuState = {isOpen : bool}
@@ -1114,7 +1114,7 @@ and modification =
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
   | TLMenuUpdate of tlid * menuMsg
-  | AccountViewUpdate of accountMsg
+  | SettingsViewUpdate of settingsMsg
 
 (* ------------------- *)
 (* Msgs *)
@@ -1280,7 +1280,7 @@ and msg =
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
-  | AccountViewMsg of accountMsg
+  | SettingsViewMsg of settingsMsg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1609,7 +1609,7 @@ and model =
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
   ; currentUserFn : fnProps
-  ; accountView : accountViewState }
+  ; settingsView : settingsViewState }
 
 and savedUserSettings = {showUserWelcomeModal : bool}
 
