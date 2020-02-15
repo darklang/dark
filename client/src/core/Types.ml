@@ -959,8 +959,11 @@ and clipboardContents =
 (* Component Types *)
 (* --------------- *)
 
-(* Setting View *)
-and settingsTab = UserSettings
+
+(* Account View *)
+and settingsTab =
+  | UserSettings
+  | InviteUser
 
 and settingsViewState =
   { opened : bool
