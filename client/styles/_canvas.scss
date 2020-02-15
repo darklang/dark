@@ -297,7 +297,7 @@ body #app * {
     height: 0;
     padding: 0;
     transition: height 0.4s;
-
+    padding-left: 15px;
     box-sizing: border-box;
     background: $black3;
     overflow: hidden;
@@ -305,11 +305,18 @@ body #app * {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
-    text-align: left;
-
+    text-align: right;
+    .setting-btn {
+      margin: 0;
+      padding: 10px 0px;
+      cursor: pointer;
+      &:hover {
+        color: $purple;
+      }
+    }
     a {
       color: $white1;
-
+      text-decoration: none;
       &:hover {
         color: $purple;
       }
@@ -319,25 +326,5 @@ body #app * {
   &:hover > .account-actions {
     height: auto;
     padding: $spacing-small;
-  }
-
-  .canvas-list-title {
-    margin: 0;
-  }
-
-  .canvas-list {
-    padding-bottom: 10px;
-    padding-left: 10px;
-    max-height: 600px;
-    overflow-y: scroll;
-    overflow-x: hidden;
-
-    &::-webkit-scrollbar-corner {
-      background: rgba(0, 0, 0, 0);
-    }
-
-    li a {
-      padding: 5px 8px;
-    }
   }
 }

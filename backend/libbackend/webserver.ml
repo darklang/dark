@@ -880,12 +880,15 @@ let initial_load
     let t6, canvas_list =
       time "6-canvas-list" (fun _ -> Serialize.hosts_for username)
     in
-    let t7, worker_schedules =
-      time "7-worker-schedules" (fun _ ->
+    let t7, org_list =
+      time "7-org-list" (fun _ -> Serialize.orgs_for username)
+    in
+    let t8, worker_schedules =
+      time "8-worker-schedules" (fun _ ->
           Event_queue.get_worker_schedules_for_canvas !c.id)
     in
-    let t8, result =
-      time "8-to-frontend" (fun _ ->
+    let t9, result =
+      time "9-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
@@ -895,11 +898,12 @@ let initial_load
             assets
             account
             canvas_list
+            org_list
             worker_schedules)
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8])
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9])
       `OK
       result
   with e -> Libexecution.Exception.reraise_as_pageable e

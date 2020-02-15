@@ -883,6 +883,7 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
   ; canvas_list = field "canvas_list" (list string) j
+  ; org_list = field "org_list" (list string) j
   ; worker_schedules = field "worker_schedules" (strDict string) j }
 
 

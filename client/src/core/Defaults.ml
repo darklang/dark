@@ -155,7 +155,6 @@ let defaultModel : model =
   ; showTopbar = true
   ; toast = defaultToast
   ; account = defaultAccount
-  ; canvas_list = []
   ; worker_schedules = StrDict.empty
   ; searchCache = TLIDDict.empty
   ; editorSettings = {showFluidDebugger = false; runTimers = true}
@@ -163,4 +162,6 @@ let defaultModel : model =
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty
   ; showUserWelcomeModal = true
-  ; currentUserFn = defaultFnSpace }
+  ; currentUserFn = defaultFnSpace
+  ; settingsView =
+      {opened = false; tab = UserSettings; canvas_list = []; org_list = []} }

@@ -783,6 +783,7 @@ and initialLoadAPIResult =
   ; deletedGroups : group list
   ; account : account
   ; canvas_list : string list
+  ; org_list : string list
   ; worker_schedules : string StrDict.t }
 
 and saveTestAPIResult = string
@@ -919,6 +920,17 @@ and clipboardContents =
 (* --------------- *)
 (* Component Types *)
 (* --------------- *)
+
+(* Setting View *)
+and settingsTab = UserSettings
+
+and settingsViewState =
+  { opened : bool
+  ; tab : settingsTab
+  ; canvas_list : string list
+  ; org_list : string list }
+
+and settingsMsg = ToggleSettingsView of bool
 
 (* TLMenu *)
 and menuState = {isOpen : bool}
@@ -1102,6 +1114,7 @@ and modification =
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
   | TLMenuUpdate of tlid * menuMsg
+  | SettingsViewUpdate of settingsMsg
 
 (* ------------------- *)
 (* Msgs *)
@@ -1267,6 +1280,7 @@ and msg =
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
+  | SettingsViewMsg of settingsMsg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1587,7 +1601,6 @@ and model =
   ; toast : toast
   ; username : string
   ; account : account
-  ; canvas_list : string list
   ; worker_schedules : string StrDict.t
   ; searchCache : string TLIDDict.t
   ; editorSettings : editorSettings
@@ -1595,7 +1608,8 @@ and model =
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
-  ; currentUserFn : fnProps }
+  ; currentUserFn : fnProps
+  ; settingsView : settingsViewState }
 
 and savedUserSettings = {showUserWelcomeModal : bool}
 
