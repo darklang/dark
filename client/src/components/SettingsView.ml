@@ -7,6 +7,9 @@ module TD = TLIDDict
 
 let fontAwesome = ViewUtils.fontAwesome
 
+
+let allTabs = [UserSettings; InviteUser] 
+
 let update (m : model) (msg : settingsMsg) : model =
   match msg with
   | ToggleSettingsView opened ->
@@ -18,7 +21,16 @@ let update (m : model) (msg : settingsMsg) : model =
 
 let openSettingView (m : model) : model = update m (ToggleSettingsView false)
 
-let userSettingView (acc : settingsViewState) : msg Html.html =
+
+(* View functions *)
+
+let settingsTabToText (tab : settingsTab) : string =
+  match tab with UserSettings -> "Canvases" | InviteUser -> "Invite"
+
+
+(* View code *)
+
+let viewUserCanvases (acc : settingsViewState) : msg Html.html list =
   let canvasLink c =
     let url = "/a/" ^ c in
     Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
@@ -41,14 +53,29 @@ let userSettingView (acc : settingsViewState) : msg Html.html =
       ; Html.div [Html.class' "canvas-list"] [orgs] ]
     else [Vdom.noNode]
   in
-  Html.div
-    [Html.class' "setting-tab-wrapper"]
-    ([Html.h2 [] [Html.text "Settings"]] @ orgView @ canvasView)
+  orgView @ canvasView
 
 
-let settingsTabToHtml (acc : settingsViewState) : msg Html.html =
+let settingsTabToHtml (acc : settingsViewState) : msg Html.html list =
   let tab = acc.tab in
-  match tab with UserSettings -> userSettingView acc
+  match tab with UserSettings -> viewUserCanvases acc | InviteUser -> []
+
+
+let tabTitleView (tab : settingsTab) : msg Html.html =
+  let tabTitle (t : settingsTab) = Html.h3
+  [Html.classList [("tab-title", true); ("selected", tab == t)]]
+  [Html.text (settingsTabToText t)]
+  in
+  Html.div
+    [Html.class' "settings-tab-titles"]
+    (List.map allTabs ~f:tabTitle)
+
+
+let settingViewWrapper (acc : settingsViewState) : msg Html.html =
+  let tabView = settingsTabToHtml acc in
+  Html.div
+    [Html.class' "settings-tab-wrapper"]
+    ([Html.h2 [] [Html.text "Account"]; tabTitleView acc.tab] @ tabView)
 
 
 let html (m : model) : msg Html.html =
@@ -62,7 +89,7 @@ let html (m : model) : msg Html.html =
       [fontAwesome "times"]
   in
   Html.div
-    [ Html.class' "setting modal-overlay"
+    [ Html.class' "settings modal-overlay"
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
@@ -74,4 +101,4 @@ let html (m : model) : msg Html.html =
               EnablePanning false)
         ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
               EnablePanning true) ]
-        [settingsTabToHtml m.settingsView; closingBtn] ]
+        [settingViewWrapper m.settingsView; closingBtn] ]
