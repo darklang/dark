@@ -383,6 +383,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> nest ~indent:2 body
   | EList (id, exprs) ->
       let lastIndex = List.length exprs - 1 in
+      let startsAtXPos = b.xPos |> Option.withDefault ~default:0 in
       (* keeps track on indent *)
       let ind = ref 0 in
       b
@@ -390,8 +391,8 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addIter exprs ~f:(fun i e b' ->
              let len =
                (fromExpr e b').xPos
-               (* adds +1 for the comma *)
-               |> Option.map ~f:(fun x -> x + 1)
+               (* subtracts starting position and adds +1 for the comma *)
+               |> Option.map ~f:(fun x -> x - startsAtXPos + 1)
                |> Option.withDefault ~default:0
              in
              let isOverLimit = len > literalLimit in
