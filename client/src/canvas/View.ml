@@ -374,27 +374,17 @@ let accountView (m : model) : msg Html.html =
       [Html.href "https://login.darklang.com/logout"; Html.class' "action-link"]
       [Html.text "Logout"]
   in
-  let canvases =
-    List.map m.canvas_list ~f:(fun c ->
-        Html.li
-          ~unique:c
-          []
-          [Html.a [Html.href ("/a/" ^ c)] [Html.text ("/a/" ^ c)]])
-    |> Html.ul []
-  in
-  let canvasView =
-    [ Html.p [Html.class' "canvas-list-title"] [Html.text "Other canvases:"]
-    ; Html.div [Html.class' "canvas-list"] [canvases]
-    ; Html.p
-        []
-        [ Html.text "Create a new canvas by"
-        ; Html.br []
-        ; Html.text "navigating to the URL" ] ]
+  let settings =
+    Html.p
+      [ Html.class' "setting-btn"
+      ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
+            SettingsViewMsg (ToggleSettingsView true)) ]
+      [Html.text "Account"]
   in
   Html.div
     [Html.class' "my-account"]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] ([logout] @ canvasView) ]
+    ; Html.div [Html.class' "account-actions"] [settings; logout] ]
 
 
 let view (m : model) : msg Html.html =
@@ -449,6 +439,9 @@ let view (m : model) : msg Html.html =
     then ViewModal.html m
     else Vdom.noNode
   in
+  let settingsModal =
+    if m.settingsView.opened then SettingsView.html m else Vdom.noNode
+  in
   let content =
     ViewTopbar.html m
     @ [ sidebar
@@ -457,7 +450,8 @@ let view (m : model) : msg Html.html =
       ; accountView m
       ; viewToast m.toast
       ; entry
-      ; modal ]
+      ; modal
+      ; settingsModal ]
     @ fluidStatus
     @ footer
     @ viewDocs
