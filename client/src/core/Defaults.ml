@@ -163,5 +163,5 @@ let defaultModel : model =
   ; tlMenus = TLIDDict.empty
   ; showUserWelcomeModal = true
   ; currentUserFn = defaultFnSpace
-  ; accountView =
-      {opened = false; tab = UserAccount; canvas_list = []; org_list = []} }
+  ; settingsView =
+      {opened = false; tab = UserSettings; canvas_list = []; org_list = []} }
