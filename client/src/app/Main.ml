@@ -1281,9 +1281,10 @@ let update_ (msg : msg) (m : model) : modification =
     | None ->
         NoChange )
   | ToplevelDelete tlid ->
-      let tl = TL.get m tlid in
-      Option.map tl ~f:(fun tl ->
-          Many [RemoveToplevel tl; AddOps ([DeleteTL (TL.id tl)], FocusSame)])
+      TL.get m tlid
+      |> Option.map ~f:(fun tl ->
+             Many
+               [RemoveToplevel tl; AddOps ([DeleteTL (TL.id tl)], FocusNothing)])
       |> Option.withDefault ~default:NoChange
   | ToplevelDeleteForever tlid ->
       Many
