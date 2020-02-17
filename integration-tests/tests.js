@@ -1006,3 +1006,12 @@ test("fluid_ac_validate_on_lose_focus", async t => {
     .ok();
   // validate AST in IntegrationTest.ml
 });
+
+test("fluid_show_docs_for_command_on_selected_code", async t => {
+  await createRepl(t);
+  await gotoAST(t);
+  await t.pressKey("1 9 9 9").pressKey("alt+x");
+
+  await t.expect(Selector("#cmd-filter").exists).ok();
+  await t.expect(Selector(".documentation-box").exists).ok();
+});
