@@ -668,6 +668,8 @@ let fluid_ac_validate_on_lose_focus (m : model) : testResult =
         ("Expected: `request.body`, got `" ^ FluidPrinter.eToHumanString e ^ "`")
 
 
+let upload_pkg_fn_as_admin (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -786,5 +788,7 @@ let trigger (test_name : string) : integrationTestState =
         fluid_test_copy_request_as_curl
     | "fluid_ac_validate_on_lose_focus" ->
         fluid_ac_validate_on_lose_focus
+    | "upload_pkg_fn_as_admin" ->
+        upload_pkg_fn_as_admin
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
