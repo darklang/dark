@@ -964,15 +964,27 @@ and settingsTab =
   | UserSettings
   | InviteUser
 
+and formField =
+  { value : string
+  ; error : string option }
+
+and inviteFields = {email : formField}
+
+and settingsFormInput =
+  | InviteForm of inviteFields
+
 and settingsViewState =
   { opened : bool
   ; tab : settingsTab
   ; canvas_list : string list
-  ; org_list : string list }
+  ; org_list : string list
+  ; formInput : settingsFormInput option }
 
 and settingsMsg =
   | ToggleSettingsView of bool
   | SwitchSettingsTabs of settingsTab
+  | UpdateInviteForm of string
+  | SubmitForm
 
 (* TLMenu *)
 and menuState = {isOpen : bool}
