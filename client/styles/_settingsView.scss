@@ -1,5 +1,7 @@
-
 .modal-overlay.settings {
+  .modal {
+    height: 75%;
+  }
   .settings-tab-titles {
     display: flex;
     width: 100%;
@@ -28,7 +30,7 @@
       display: none;
     }
   }
-
+  // Account view (canvas list)
   .canvas-list {
     min-height: 35px;
     max-height: 200px;
@@ -70,6 +72,34 @@
       }
       list-style-type: none;
       padding: 5px 8px;
+    }
+  }
+  // Invite to dark
+  .invite-form {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    .form-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      width: 100%;
+      max-width: 500px;
+      input {
+        background-color: $black3;
+        height: 35px;
+        width: 250px;
+        padding: 0px 10px;
+        caret-color: $grey3;
+        color: $white1;
+      }
+    }
+    .submit-btn {
+      padding: 10px 15px;
+      background: $grey2;
+      border-radius: 3px;
+      cursor: pointer;
     }
   }
 }

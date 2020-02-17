@@ -959,7 +959,6 @@ and clipboardContents =
 (* Component Types *)
 (* --------------- *)
 
-
 (* Account View *)
 and settingsTab =
   | UserSettings
@@ -971,7 +970,9 @@ and settingsViewState =
   ; canvas_list : string list
   ; org_list : string list }
 
-and settingsMsg = ToggleSettingsView of bool
+and settingsMsg =
+  | ToggleSettingsView of bool
+  | SwitchSettingsTabs of settingsTab
 
 (* TLMenu *)
 and menuState = {isOpen : bool}
