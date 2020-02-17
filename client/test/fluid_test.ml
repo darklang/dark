@@ -3161,15 +3161,27 @@ let run () =
         longList
         (ctrlRight 12)
         "[56,78,56,78,56~,78]" ;
-      t "a very long list wraps"
+      t
+        "a very long list wraps"
         veryLongList
         render
         "~[56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n 56,78,56,78,56,78,56,78,56,78]" ;
-      t "a list of long floats does not break upon wrap"
-        (list [ EFloat (gid (), "4611686018427387", "123456789012345678901234567890123456789"); EFloat (gid (), "4611686018427387", "123456789012345678901234567890123456789"); EFloat (gid (), "4611686018427387", "123456") ])
+      t
+        "a list of long floats does not break upon wrap"
+        (list
+           [ EFloat
+               ( gid ()
+               , "4611686018427387"
+               , "123456789012345678901234567890123456789" )
+           ; EFloat
+               ( gid ()
+               , "4611686018427387"
+               , "123456789012345678901234567890123456789" )
+           ; EFloat (gid (), "4611686018427387", "123456") ])
         render
         "~[4611686018427387.123456789012345678901234567890123456789,\n 4611686018427387.123456789012345678901234567890123456789,\n 4611686018427387.123456]" ;
-      t "a nested very list wraps with proper indents"
+      t
+        "a nested very list wraps with proper indents"
         (let' "a" veryLongList b)
         render
         "~let a = [56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78]\n___" ;
