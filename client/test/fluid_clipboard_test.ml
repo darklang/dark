@@ -77,7 +77,7 @@ let run () =
     let clipboardData e =
       let text, expr = DClipboard.getData e in
       FluidClipboard.clipboardContentsToExpr (text, expr)
-      |> Option.map ~f:Printer.eToTestString
+      |> Option.map ~f:(Printer.eToTestString ~index:0)
       |> fun cp -> (text, cp)
     in
     let h = Fluid_utils.h ast in
@@ -220,7 +220,7 @@ let run () =
         in
         let resultText =
           newAST
-          |> Printer.eToTestString
+          |> Printer.eToTestString ~index:0
           |> fun str -> insertCursor (str, finalPos)
         in
         expect resultText |> toEqual expectedText)
@@ -889,7 +889,7 @@ let run () =
       t
         "pasting an expression into list expr at separator works"
         (list
-           ( 
+           (
            , [ int ("123")
              ; int ("456")
              ; int ("789") ] ))

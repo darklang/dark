@@ -483,15 +483,6 @@ let tidy (tokens : fluidToken list) : fluidToken list =
   tokens |> List.filter ~f:(function TIndent 0 -> false | _ -> true)
 
 
-let toTokens (e : E.t) : tokenInfo list =
-  Builder.empty
-  |> toTokens' e
-  |> Builder.asTokens
-  |> tidy
-  |> validateTokens
-  |> infoize
-
-
 type partition =
   { id : id
   ; tokens : tokenInfo list }
@@ -516,18 +507,20 @@ let tokensToString (tis : tokenInfo list) : string =
   tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
 
 
-let eToTestString (e : E.t) : string =
+let eToTestString ?(index = 0) (e : E.t) : string =
   e
-  |> toTokens
+  |> tokensForPartition ~index
   |> List.map ~f:(fun ti -> T.toTestText ti.token)
   |> String.join ~sep:""
 
 
-let eToHumanString (e : E.t) : string = e |> toTokens |> tokensToString
+let eToHumanString ?(index = 0) (e : E.t) : string =
+  e |> tokensForPartition ~index |> tokensToString
 
-let eToStructure ?(includeIDs = false) (e : E.t) : string =
+
+let eToStructure ?(includeIDs = false) ?(index = 0) (e : E.t) : string =
   e
-  |> toTokens
+  |> tokensForPartition ~index
   |> List.map ~f:(fun ti ->
          "<"
          ^ T.toTypeName ti.token

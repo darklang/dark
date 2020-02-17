@@ -502,6 +502,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
           let m = {m with cursorState = Deselected} in
+          let m =
+            {m with fluidState = Fluid.deselectFluidEditor m.fluidState}
+          in
           let timeStamp = Js.Date.now () /. 1000.0 in
           let avMessage : avatarModelMessage =
             { canvasName = m.canvasName
