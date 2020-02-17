@@ -225,6 +225,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 
   display: inline-block;
   max-width: 200ch;
+  width: max-content;
 
   &:focus {
     outline-width: 0;
