@@ -158,6 +158,34 @@ let add_function (fn : fn) : unit =
     Account.id_of_username fn.author
     |> Option.value_exn ~message:"Invalid author"
   in
+  let existing_version =
+    Db.fetch_one
+      ~name:"add_package_management_function get_latest_version"
+      "SELECT MAX(version) FROM packages_v0
+     WHERE user_id = $1 AND package = $2 AND module = $3 AND fnname = $4"
+      ~subject:(function_name fn)
+      ~params:
+        [ Db.Uuid user
+        ; Db.String fn.package
+        ; Db.String fn.module_
+        ; Db.String fn.fnname ]
+      ~result:TextResult
+    |> List.hd
+    |> Option.map ~f:(fun v -> if v = "" then 0 else int_of_string v)
+    |> Option.value ~default:0
+  in
+  (* Here's the deal: we have 3 cases:
+   * - there's already a greater version in the DB; we try to insert that
+   *   version again (because that's max(existing_version, fn.version), get an error telling you so
+   * - there's a version in the DB, but it's less than fn.version, we try to
+   *   insert fn.version, it works, no error
+   * - there's no version of this fn in the DB, max(0, fn.version) is fn.version
+   *   for any non-negative fn.version, it works, no error *)
+  (* We do this check here, rather than by poking at existing_version above, to
+   * keep it all in transaction, avoid race conditions, and handle all failures
+   * to insert in one place *)
+  (* TODO: enforce with tests *)
+  let version = Int.max existing_version fn.version in
   Db.run ~name:"add_package_management_function begin" "BEGIN" ~params:[] ;
   (* After insert, also auto-deprecate any previous versions of fn *)
   Db.run
@@ -173,7 +201,7 @@ let add_function (fn : fn) : unit =
       ; Db.String fn.package
       ; Db.String fn.module_
       ; Db.String fn.fnname
-      ; Db.Int fn.version
+      ; Db.Int version
       ; Db.String fn.description
       ; Db.Binary (expr_to_string fn.tlid fn.body)
       ; Db.String (Dval.tipe_to_string fn.return_type)
@@ -189,7 +217,7 @@ let add_function (fn : fn) : unit =
     ~name:"add_package_management_function deprecate old versions"
     "UPDATE packages_v0
      SET deprecated = true
-     WHERE user_id = $1 AND package = $2 AND module = $3 AND fnname = $4 AND VERSION != $5 AND deprecated = false"
+     WHERE user_id = $1 AND package = $2 AND module = $3 AND fnname = $4 AND version < $5 AND deprecated = false"
     ~subject:(function_name fn)
     ~params:
       [ Db.Uuid user
@@ -204,37 +232,76 @@ let add_function (fn : fn) : unit =
 
 let save (author : string) (fn : RuntimeT.user_fn) : (unit, string) Result.t =
   (* First let's be very sure we have a correct function *)
-  try
-    let name, parameters, return_type, description = extract_metadata fn in
-    let user, package, module_, fnname, version = parse_fnname name in
-    (* Binary values can only be fetched on their own, so we create an ID and
-     * encode it within the binary-serialized value, so we know what function
-     * it belongs to when fetching back later.  Uuids would be better but
-     * don't serialize using bin_io. *)
-    let tlid = Util.create_id () in
-    add_function
-      { user
-      ; tlid
-      ; package
-      ; module_
-      ; fnname
-      ; version
-      ; body = fn.ast
-      ; return_type
-      ; parameters
-      ; description
-      ; author
-      ; deprecated = false } ;
-    Ok ()
-  with
-  | InvalidFunction msg ->
-      Error msg
-  | Exception.DarkException {tipe = DarkStorage; short; _}
-    when Tc.String.contains ~substring:"duplicate key" short ->
-      Error "Function already exists"
-  | e ->
-      (* Error "Problem saving function" *)
-      Error ("Unknown error: " ^ Exception.to_string e)
+  let metadata =
+    try extract_metadata fn |> Result.return
+    with InvalidFunction msg -> Error msg
+  in
+  let parsed_data =
+    metadata
+    |> Result.bind ~f:(fun metadata ->
+           try
+             let name, parameters, return_type, description = metadata in
+             (metadata, parse_fnname name) |> Result.return
+             (* Binary values can only be fetched on their own, so we create an ID and
+              * encode it within the binary-serialized value, so we know what function
+              * it belongs to when fetching back later.  Uuids would be better but
+              * don't serialize using bin_io. *)
+           with InvalidFunction msg -> Error msg)
+  in
+  parsed_data
+  |> Result.bind ~f:(fun parsed_data ->
+         let metadata, (user, package, module_, fnname, version) =
+           parsed_data
+         in
+         let name, parameters, return_type, description = metadata in
+         let tlid = Util.create_id () in
+         try
+           add_function
+             { user
+             ; tlid
+             ; package
+             ; module_
+             ; fnname
+             ; version
+             ; body = fn.ast
+             ; return_type
+             ; parameters
+             ; description
+             ; author
+             ; deprecated = false } ;
+           Ok ()
+         with
+         | Exception.DarkException {tipe = DarkStorage; short; _}
+           when Tc.String.contains ~substring:"duplicate key" short ->
+             let max_version =
+               Db.run
+                 ~name:"add_package_management_function abort txn if exn"
+                 "ABORT"
+                 ~params:[] ;
+               Db.fetch_one
+                 ~name:
+                   "add_package_management_function get_latest_version_for_error"
+                 "SELECT MAX(version) FROM packages_v0 JOIN accounts ON user_id = accounts.id
+                  WHERE username = $1 AND package = $2 AND module = $3 AND fnname = $4"
+                 ~subject:name
+                 ~params:
+                   [ Db.String user
+                   ; Db.String package
+                   ; Db.String module_
+                   ; Db.String fnname ]
+                 ~result:TextResult
+               |> List.hd
+               |> Option.map ~f:(fun v -> if v = "" then 0 else int_of_string v)
+               |> Option.value ~default:0
+             in
+             Error
+               (Printf.sprintf
+                  "Function already exists with this name and versions up to %i, try version %i?"
+                  max_version
+                  (max_version + 1))
+         | e ->
+             (* Error "Problem saving function" *)
+             Error ("Unknown error: " ^ Exception.to_string e))
 
 
 (* ------------------ *)
