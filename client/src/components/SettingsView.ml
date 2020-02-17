@@ -4,6 +4,7 @@ open Prelude
 module TL = Toplevel
 module P = Pointer
 module TD = TLIDDict
+module Events = Tea.Html2.Events
 
 let fontAwesome = ViewUtils.fontAwesome
 
@@ -18,6 +19,16 @@ let update (m : model) (msg : settingsMsg) : model =
       ; canvasProps = {m.canvasProps with enablePan} }
   | SwitchSettingsTabs tab ->
       {m with settingsView = {m.settingsView with tab}}
+  | UpdateInviteForm value ->
+      let formInput =
+        if String.length value == 0
+        then None
+        else Some (InviteForm {email = {value; error = None}})
+      in
+      {m with settingsView = {m.settingsView with formInput}}
+  | SubmitForm ->
+      (* TO DO -> Form validation and error *)
+      m
 
 
 let openSettingView (m : model) : model = update m (ToggleSettingsView false)
@@ -71,8 +82,18 @@ let viewInviteUserToDark : msg Html.html list =
         [ Html.div
             [Html.class' "form-field"]
             [ Html.h3 [] [Html.text "Email:"]
-            ; Html.input' [Vdom.attribute "" "spellcheck" "false"] [] ]
-        ; Html.h3 [Html.class' "submit-btn"] [Html.text "Submit"] ] ]
+            ; Html.input'
+                [ Vdom.attribute "" "spellcheck" "false"
+                ; Events.onInput (fun str ->
+                      SettingsViewMsg (UpdateInviteForm str)) ]
+                [] ]
+        ; Html.h3
+            [ Html.class' "submit-btn"
+            ; ViewUtils.eventNoPropagation
+                ~key:"close-settings-modal"
+                "click"
+                (fun _ -> SettingsViewMsg SubmitForm) ]
+            [Html.text "Submit"] ] ]
   in
   introText @ inviteform
 
