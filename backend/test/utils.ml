@@ -94,6 +94,8 @@ let at_dval =
 
 let check_dval = AT.check at_dval
 
+let check_execution_result = AT.check (AT.of_pp pp_execution_result)
+
 let check_dval_list = AT.check (AT.list at_dval)
 
 let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
@@ -480,6 +482,12 @@ let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
     ~load_fn_result
     ~load_fn_arguments
     ast
+
+
+let exec_save_dvals'
+    ?(ops = []) ?(canvas_name = "test") (ast : Libshared.FluidExpression.t) :
+    Analysis_types.intermediate_result_store =
+  exec_save_dvals ~ops ~canvas_name (Fluid.fromFluidExpr ast)
 
 
 (* Sample values *)

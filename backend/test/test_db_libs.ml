@@ -658,7 +658,7 @@ let t_db_query_works () =
               [ ("height", int 73)
               ; ("name", str "Ross")
               ; ("human", bool true)
-              ; ("income", float' "100" "00") ]
+              ; ("income", float' 100 00) ]
           ; str "ross"
           ; var "Person" ])
        (let'
@@ -669,7 +669,7 @@ let t_db_query_works () =
                  [ ("height", int 65)
                  ; ("name", str "Rachel")
                  ; ("human", bool true)
-                 ; ("income", float' "82" "00") ]
+                 ; ("income", float' 82 00) ]
              ; str "rachel"
              ; var "Person" ])
           (let'
@@ -680,7 +680,7 @@ let t_db_query_works () =
                     [ ("height", int 10)
                     ; ("name", str "GrumpyCat")
                     ; ("human", bool false)
-                    ; ("income", float' "0" "00") ]
+                    ; ("income", float' 0 00) ]
                 ; str "cat"
                 ; var "Person" ])
              (let'
@@ -890,7 +890,7 @@ let t_db_query_works () =
   check_dval
     "float"
     (DList [Dval.dint 73])
-    ( queryv (binop "Float::greaterThan" (field "v" "income") (float' "90" "0"))
+    ( queryv (binop "Float::greaterThan" (field "v" "income") (float' 90 0))
     |> execs ) ;
   check_dval
     "string::tolower"
