@@ -432,7 +432,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             , (maybeNewFluidState : fluidState option) ) =
           match p with
           | STTopLevelRoot ->
-              (FluidEntering tlid, None)
+            ( match TL.get m tlid with
+            | Some (TLDB _) | Some (TLGroup _) | Some (TLTipe _) ->
+                (Selecting (tlid, None), None)
+            | Some (TLFunc _) | Some (TLHandler _) ->
+                (FluidEntering tlid, None)
+            | None ->
+                (Deselected, None) )
           | STID id ->
             ( match TL.getPD m tlid id with
             | Some _ ->
@@ -961,6 +967,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with fluidState}, Cmd.none)
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
+    | SettingsViewUpdate msg ->
+        (SettingsView.update m msg, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1446,7 +1454,10 @@ let update_ (msg : msg) (m : model) : modification =
               { m with
                 opCtrs = r.opCtrs
               ; account = r.account
-              ; canvas_list = r.canvas_list })
+              ; settingsView =
+                  { m.settingsView with
+                    canvas_list = r.canvas_list
+                  ; org_list = r.org_list } })
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
@@ -1941,6 +1952,8 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
+  | SettingsViewMsg msg ->
+      SettingsViewUpdate msg
   | FnParamMsg msg ->
       FnParams.update m msg
 

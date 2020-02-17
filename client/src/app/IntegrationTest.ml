@@ -199,7 +199,7 @@ let rename_db_fields (m : model) : testResult =
            ; (F (_, "field2"), F (_, "String"))
            ; (Blank _, Blank _) ] ->
            ( match m.cursorState with
-           | FluidEntering _ ->
+           | Selecting _ ->
                pass
            | _ ->
                fail ~f:show_cursorState m.cursorState )
@@ -218,7 +218,7 @@ let rename_db_type (m : model) : testResult =
            ; (F (_, "field2"), F (_, "Int"))
            ; (Blank _, Blank _) ] ->
            ( match m.cursorState with
-           | FluidEntering tlid ->
+           | Selecting (tlid, None) ->
                if tlid = dbTLID
                then pass
                else

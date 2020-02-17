@@ -37,22 +37,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let usages =
     ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
   in
-  (* JS click events are mousedown->mouseup->click so previously ToplevelClick was being called after mouseup when selecting in fluid and would reset the fluid cursor state, we changed it to mouseup to prevent this *)
-  let events =
-    [ ViewUtils.eventNoPropagation
-        ~key:("tlc-" ^ showTLID tlid)
-        "mouseup"
-        (fun x ->
-          match Entry.getFluidSelectionRange () with
-          | None ->
-              ToplevelClick (tlid, x)
-          | Some (selBegin, selEnd) when selBegin = selEnd ->
-              ToplevelClick (tlid, x)
-          | Some range ->
-              (* Persist fluid selection when clicking in handler *)
-              FluidMsg
-                (FluidMouseUp {tlid; selection = Some range; editorIdx = 0})) ]
-  in
+  (* we capture and ignore mouseup here, otherwise clicking things inside the
+   * toplevel (but not inside another element with a mouseup handler like
+   * .fluid-editor) will bubble up into a "focus canvas" message and deselect
+   * our toplevel. *)
+  let events = [ViewUtils.nothingMouseEvent "mouseup"] in
   (* This is a bit ugly - DBs have a larger 'margin' (not CSS margin) between
    * the encompassing toplevel div and the db div it contains, than  handlers.
    * Which leads to it being easy to hit "why won't this drag" if you click in
@@ -380,27 +369,17 @@ let accountView (m : model) : msg Html.html =
       [Html.href "https://login.darklang.com/logout"; Html.class' "action-link"]
       [Html.text "Logout"]
   in
-  let canvases =
-    List.map m.canvas_list ~f:(fun c ->
-        Html.li
-          ~unique:c
-          []
-          [Html.a [Html.href ("/a/" ^ c)] [Html.text ("/a/" ^ c)]])
-    |> Html.ul []
-  in
-  let canvasView =
-    [ Html.p [Html.class' "canvas-list-title"] [Html.text "Other canvases:"]
-    ; Html.div [Html.class' "canvas-list"] [canvases]
-    ; Html.p
-        []
-        [ Html.text "Create a new canvas by"
-        ; Html.br []
-        ; Html.text "navigating to the URL" ] ]
+  let settings =
+    Html.p
+      [ Html.class' "setting-btn"
+      ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
+            SettingsViewMsg (ToggleSettingsView true)) ]
+      [Html.text "Account"]
   in
   Html.div
     [Html.class' "my-account"]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] ([logout] @ canvasView) ]
+    ; Html.div [Html.class' "account-actions"] [settings; logout] ]
 
 
 let view (m : model) : msg Html.html =
@@ -455,6 +434,9 @@ let view (m : model) : msg Html.html =
     then ViewModal.html m
     else Vdom.noNode
   in
+  let settingsModal =
+    if m.settingsView.opened then SettingsView.html m else Vdom.noNode
+  in
   let content =
     ViewTopbar.html m
     @ [ sidebar
@@ -463,7 +445,8 @@ let view (m : model) : msg Html.html =
       ; accountView m
       ; viewToast m.toast
       ; entry
-      ; modal ]
+      ; modal
+      ; settingsModal ]
     @ fluidStatus
     @ footer
     @ viewDocs

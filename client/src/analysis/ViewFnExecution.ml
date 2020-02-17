@@ -105,7 +105,7 @@ let executionIcon status =
 let executionEvents status tlid id name =
   match status with
   | Unsafe | Executing | IncompleteArgs | NoPermission ->
-      []
+      [Html.noProp; Html.noProp; Html.noProp; Html.noProp]
   | Ready | Replayable ->
       [ ViewUtils.eventNoPropagation
           ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
