@@ -78,9 +78,9 @@ let aHugeFloat = EFloat (gid (), "123456789", "123456789")
 
 let aPartialFloat = EFloat (gid (), "1", "")
 
-let maxPosIntWithDot = float' "4611686018427387" "903"
+let maxPosIntWithDot = floatStr "4611686018427387" "903"
 
-let maxPosIntPlus1WithDot = float' "4611686018427387" "904"
+let maxPosIntPlus1WithDot = floatStr "4611686018427387" "904"
 
 (* ---------------- *)
 (* Bools *)
