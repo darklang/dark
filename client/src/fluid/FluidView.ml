@@ -159,7 +159,9 @@ let viewPlayIcon
       ( match ti.token with
       | TFnVersion (id, _, _, _) ->
           ViewFnExecution.fnExecutionButton vs fn id argIDs
-      | TFnName (id, _, displayName, fnName, _) when displayName = fnName ->
+      | TFnName (id, _, displayName, fnName, _)
+      (* If fn is unversioned or is v0 *)
+        when displayName = fnName || displayName ^ "_v0" = fnName ->
           ViewFnExecution.fnExecutionButton vs fn id argIDs
       | _ ->
           Vdom.noNode )
