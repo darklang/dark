@@ -158,8 +158,10 @@ let add_function (fn : fn) : unit =
     Account.id_of_username fn.author
     |> Option.value_exn ~message:"Invalid author"
   in
+  Db.run ~name:"add_package_management_function begin" "BEGIN" ~params:[] ;
+  (* After insert, also auto-deprecate any previous versions of fn *)
   Db.run
-    ~name:"add_package_management_function"
+    ~name:"add_package_management_function insert"
     "INSERT INTO packages_v0 (tlid, user_id, package, module, fnname, version,
                               description, body, return_type, parameters, author_id, deprecated)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
@@ -180,8 +182,23 @@ let add_function (fn : fn) : unit =
       ; Db.Uuid author
       ; Db.Bool fn.deprecated ]
     ~result:TextResult ;
-  (* subquery of a select *)
-  (* TODO select 1 where version < version, and if false then there's nothing *)
+  (* Note: 'AND deprecated = false' is kind of a no-op, but it's slightly more
+   * elegant in that the rows-affected count is more meaningful, not that we use
+   * that currently *)
+  Db.run
+    ~name:"add_package_management_function deprecate old versions"
+    "UPDATE packages_v0
+     SET deprecated = true
+     WHERE user_id = $1 AND package = $2 AND module = $3 AND fnname = $4 AND VERSION != $5 AND deprecated = false"
+    ~subject:(function_name fn)
+    ~params:
+      [ Db.Uuid user
+      ; Db.String fn.package
+      ; Db.String fn.module_
+      ; Db.String fn.fnname
+      ; Db.Int fn.version ]
+    ~result:TextResult ;
+  Db.run ~name:"add_package_management_function commit" "COMMIT" ~params:[] ;
   ()
 
 
