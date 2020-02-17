@@ -60,10 +60,12 @@ fi
 ######################
 # Run testcafe
 ######################
+
 if [[ -v IN_DEV_CONTAINER ]]; then
   set +e # Dont fail immediately so that the sed is run
 
   echo "Starting testcafe"
+  npx testcafe --version
   # shellcheck disable=SC2016
   unbuffer npx testcafe \
     --concurrency "$CONCURRENCY" \
@@ -82,6 +84,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 else
 
   # Check the version (matters when running outside the container)
+  testcafe --version
   version=$(testcafe --version)
   expected_version=$(grep testcafe package.json | grep -Eo '[0-9].[-.0-9rc]+')
   if [[ "$version" != "$expected_version" ]]
@@ -90,15 +93,9 @@ else
     # exit 1
   fi
 
-  if [[ "$DEBUG" == "true" ]]; then
-    debugcmd="--debug-mode --inspect"
-  else
-    debugcmd=
-  fi
   # shellcheck disable=SC2016
   testcafe \
     --concurrency "$CONCURRENCY" \
-    $debugcmd \
     --test-grep "$PATTERN" \
     --video rundir/videos \
     --video-options pathPattern='${TEST}-${QUARANTINE_ATTEMPT}.mp4' \
