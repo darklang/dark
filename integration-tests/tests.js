@@ -148,6 +148,22 @@ function user_content_url(t, endpoint) {
   return "http://test-" + t.testRun.test.name + ".builtwithdark.lvh.me:8000" + endpoint;
 }
 
+// pressShortcut will use ctrl on Linux or meta on Mac, depending on which
+// platform the tests are running.
+async function pressShortcut(t, shortcutUsingCtrl) {
+  if (shortcutUsingCtrl === undefined) {
+    throw "pressShortcut expecting a shortcut string like 'ctrl-a' but got undefined. " +
+      "Did you forget to pass t?";
+  }
+  var shortcut;
+  if (t.browser.os.name == "macOS") {
+    shortcut = shortcutUsingCtrl.replace("ctrl", "meta");
+  } else {
+    shortcut = shortcutUsingCtrl;
+  }
+  await t.pressKey(shortcut);
+}
+
 //********************************
 // Avoiding test race conditions
 //********************************
@@ -808,11 +824,13 @@ test("fluid_undo_redo_happen_exactly_once", async t => {
     .expect(available(".selected #active-editor"))
     .ok()
     .expect(Selector(".fluid-category-string").textContent)
-    .eql('"12345"')
-    .pressKey("ctrl+z")
+    .eql('"12345"');
+  await pressShortcut(t, "ctrl+z");
+  await t
     .expect(Selector(".fluid-category-string").textContent)
     .eql('"1234"')
-    .pressKey("ctrl+shift+z")
+  await pressShortcut(t, "ctrl+shift+z");
+  await t
     .expect(Selector(".fluid-category-string").textContent)
     .eql('"12345"');
 });
