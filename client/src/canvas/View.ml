@@ -59,7 +59,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
    * click-drag-select behavior, not drag-handler behavior
    * - the 'margin' is smaller, so you are less likely to hit the "why won't
    * this drag" behavior mentioned above *)
-  let events = events @ match tl with TLDB _ -> dragEvents | _ -> [] in
+  let events =
+    events
+    @ match tl with TLDB _ -> dragEvents | _ -> [Vdom.noProp; Vdom.noProp]
+  in
   let avatars = Avatar.viewAvatars m.avatarsList tlid in
   let selected = Some tlid = tlidOf m.cursorState in
   let hovering = ViewUtils.isHoverOverTL vs in
@@ -73,14 +76,12 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     in
     [("selected", selected); ("dragging", dragging); ("hovering", hovering)]
   in
-  (* Need to add aditional css class to remove backgroun color *)
-  let isGroup = match tl with TLGroup _ -> "group" | _ -> "" in
-  let class_ =
-    [ "toplevel"
-    ; "tl-" ^ deTLID tlid
-    ; (if selected then "selected" else "")
-    ; isGroup ]
-    |> String.join ~sep:" "
+  (* Need to add aditional css class to remove background color *)
+  let classes =
+    [ ("toplevel", true)
+    ; ("tl-" ^ deTLID tlid, true)
+    ; ("selected", selected)
+    ; ("group", match tl with TLGroup _ -> true | _ -> false) ]
   in
   let id =
     Fluid.getToken' m.fluidState tokens
@@ -167,7 +168,14 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let hasFf = false in
   let html =
-    [ Html.div (Html.class' class_ :: events) (top @ body @ data)
+    [ Html.div
+      (* this unique key ensures that when switching between toplevels the entire
+       * vdom node is rebuilt so that we don't get yelled at about the fact that
+       * the property list or body nodes may be of differing length. Eg, DBs and
+       * Fns have different property list lengths *)
+        ~unique:(showTLID tlid)
+        (Html.classList classes :: events)
+        (top @ body @ data)
     ; avatars
     ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
     ]
