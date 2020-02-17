@@ -177,6 +177,7 @@ let viewParam
   in
   let param =
     Html.div
+      ~unique:strId
       [ Html.classList (("col param", true) :: conditionalClasses)
       ; Tea.Html2.Attributes.draggable "true"
       ; Vdom.attribute "" "data-pos" (string_of_int index)

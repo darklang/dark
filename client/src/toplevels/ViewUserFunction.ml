@@ -96,7 +96,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
     then
       let strTLID = showTLID fn.ufTLID in
       Html.div
-        ~key:("add-param-col-" ^ strTLID)
+        ~unique:("add-param-col-" ^ strTLID)
         [ Html.class' "col new-parameter"
         ; ViewUtils.eventNoPropagation
             ~key:("aufp-" ^ strTLID)
