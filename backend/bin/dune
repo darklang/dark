@@ -52,6 +52,14 @@
 )
 
 (executable
+  (name emergency_login_script)
+  (modules emergency_login_script)
+  (flags (-warn-error +A -w +9))
+  (libraries libbackend)
+  (preprocess (pps lwt_ppx))
+)
+
+(executable
   (name migration_to_deprecate_old_types)
   (modules migration_to_deprecate_old_types)
   (flags (-warn-error +A -w +9))
