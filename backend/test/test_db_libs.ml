@@ -901,10 +901,7 @@ let t_db_query_works () =
     "float"
     (DList [Dval.dint 10; Dval.dint 65])
     ( queryv
-        (binop
-           "Float::lessThanOrEqualTo"
-           (field "v" "income")
-           (float' "82" "1"))
+        (binop "Float::lessThanOrEqualTo" (field "v" "income") (float' 82 1))
     |> execs ) ;
   check_dval
     "string::tolower"
