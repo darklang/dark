@@ -262,9 +262,10 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addNewlineIfNeeded (Some (E.toID next, id, None))
       |> addNested ~f:(toTokens' next)
   | EString (id, str) ->
-      let size = literalLimit in
       let strings =
-        if String.length str > size then String.segment ~size str else [str]
+        if String.length str > literalLimit
+        then String.segment ~size:literalLimit str
+        else [str]
       in
       ( match strings with
       | [] ->
@@ -276,13 +277,17 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         | ending :: revrest ->
             b
             |> addNested ~f:(fun b ->
-                   let endingOffset = size * (List.length revrest + 1) in
+                   let endingOffset =
+                     literalLimit * (List.length revrest + 1)
+                   in
                    b
                    |> add (TStringMLStart (id, starting, 0, str))
                    |> add (TNewline None)
                    |> addIter (List.reverse revrest) ~f:(fun i s b ->
                           b
-                          |> add (TStringMLMiddle (id, s, size * (i + 1), str))
+                          |> add
+                               (TStringMLMiddle
+                                  (id, s, literalLimit * (i + 1), str))
                           |> add (TNewline None))
                    |> add (TStringMLEnd (id, ending, endingOffset, str))) ) )
   | EIf (id, cond, if', else') ->
@@ -383,22 +388,29 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> nest ~indent:2 body
   | EList (id, exprs) ->
       let lastIndex = List.length exprs - 1 in
+      (* xPos at the start of the list *)
       let startsAtXPos = b.xPos |> Option.withDefault ~default:0 in
       (* keeps track on indent *)
       let ind = ref 0 in
       b
       |> add (TListOpen id)
       |> addIter exprs ~f:(fun i e b' ->
+             (* The hieristics of this function is to see if we need to construct a multiline list literal, and construct it accordingly.
+      In a multiline list literal, we want to make sure all last items of a line will have newline at the end of it's output token stream.
+      All first items of a line, will have an indent by 1 token (relative to indent of the list).
+            *)
+             (* Calculate current line length *)
              let len =
                (fromExpr e b').xPos
                (* subtracts starting position and adds +1 for the comma *)
                |> Option.map ~f:(fun x -> x - startsAtXPos + 1)
                |> Option.withDefault ~default:0
              in
+             (* If current line is over limit for literals, then we add a new like at the end of this token stream *)
              let isOverLimit = len > literalLimit in
              b'
              |> indentBy ~indent:!ind ~f:(fun b' ->
-                    (* If the next token will be on a newline, then mark its indents *)
+                    (* If the next list-item will be the first on a newline, indent by 1 space *)
                     ind := if isOverLimit then 1 else 0 ;
                     b'
                     |> addNested ~f:(fromExpr e)
