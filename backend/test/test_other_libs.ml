@@ -639,7 +639,7 @@ let t_liblist_sort_by_comparator_works () =
     (dlist_of_intlist [1; 2; 3]) ;
   check_dval
     "List::sortByComparator returns a ResError if lambda returns non-ints"
-    (exec_ast' (listSortByComparator (float' "0" "1")))
+    (exec_ast' (listSortByComparator (float' 0 1)))
     (DResult
        (ResError
           (Dval.dstr_of_string_exn
