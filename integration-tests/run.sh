@@ -82,15 +82,14 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   exit $RESULT
 else
-
   # Check the version (matters when running outside the container)
-  testcafe --version
-  version=$(testcafe --version)
-  expected_version=$(grep testcafe package.json | grep -Eo '[0-9].[-.0-9rc]+')
+  extract_version() { grep -Eo '[0-9].[-.0-9rc]+'; }
+  version=$(testcafe --version | extract_version)
+  expected_version=$(grep testcafe package.json | extract_version)
   if [[ "$version" != "$expected_version" ]]
   then
-    echo "Incorrect version of testcafe: $version (expected $expected_version)"
-    # exit 1
+    echo "Incorrect version of testcafe: '$version' (expected '$expected_version')"
+    exit 1
   fi
 
   # shellcheck disable=SC2016
