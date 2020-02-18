@@ -478,8 +478,6 @@ type astRef =
   | ARInvalid
 [@@deriving show {with_path = false}]
 
-(* | ARFeatureFlag is not yet supported *)
-
 (* A caretTarget represents a distinct caret location within the AST.
    By combining a reference to part of the AST and a caret offset
    into that part of the AST, we can uniquely represent a place
@@ -1146,8 +1144,7 @@ and fluidMouseUp =
        * selection may be left->right or right->left) If the selection is None, the
        * selection will be read from the browser rather than the browser's
        * selection being set. This bi-directionality is not ideal and could use
-       * some rethinking.
-       *)
+       * some rethinking. *)
       (int * int) option
   ; editorIdx :
       (* editorIdx tells which fluid editor was clicked on.

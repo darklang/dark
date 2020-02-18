@@ -22,8 +22,9 @@ let fromFlagged (pick : pick) (expr : E.t) : E.t =
       recover "cant convert flagged to flagged" ~debug:expr expr
 
 
-(** [wrap m tl id]  returns a [modification] which wraps the expression in
-* toplevel [tl] having [id] into the default case of a new a feature flag. *)
+(** [wrap m tl id]  returns a [modification] which finds the expression
+  * having [id] in toplevel [tl] and makes it into the default case of a
+  * new feature flag. *)
 let wrap (_ : model) (tl : toplevel) (id : id) : modification =
   let replacement e : E.t =
     EFeatureFlag (gid (), "flag-name", E.newB (), e, E.newB ())
@@ -34,7 +35,7 @@ let wrap (_ : model) (tl : toplevel) (id : id) : modification =
   |> Option.withDefault ~default:NoChange
 
 
-(** [wrap m tl id]  returns a [modification] which unwraps the feature flag
+(** [unwrap m tl id]  returns a [modification] which unwraps the feature flag
   * expression in toplevel [tl] having [id], replacing it with its default case.
   * If the expression having [id] is not a FeatureFlag, does nothing. *)
 let unwrap (_ : model) (tl : toplevel) (id : id) : modification =
