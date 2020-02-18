@@ -570,11 +570,11 @@ test("execute_function_works", async t => {
     .pressKey("enter")
     .click(Selector(".execution-button-needed"));
 
-  let v1 = await Selector(".selected .live-value").innerText;
+  let v1 = await Selector(".selected .live-value.loaded").innerText;
 
   await t.click(Selector(".fa-redo"));
 
-  let v2 = await Selector(".selected .live-value").innerText;
+  let v2 = await Selector(".selected .live-value.loaded").innerText;
 
   let re = /<UUID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>/;
   await t.expect(v1).match(re);
@@ -587,7 +587,7 @@ test("correct_field_livevalue", async t => {
     .click(Selector(".fluid-editor")) // this click required to activate the editor
     .click(Selector(".fluid-field-name").withExactText("gth"));
 
-  let v1 = await Selector(".selected .live-value").innerText;
+  let v1 = await Selector(".selected .live-value.loaded").innerText;
 
   await t.expect(v1).eql("5");
 });
@@ -661,7 +661,7 @@ test("function_analysis_works", async t => {
     .expect(available(".user-fn-toplevel"))
     .ok({ timeout: 1000 })
     .click(Selector(".user-fn-toplevel #active-editor .fluid-binop"))
-    .expect(Selector(".selected .live-value").textContent)
+    .expect(Selector(".selected .live-value.loaded").textContent)
     .eql("10", { timeout: 5000 });
 });
 
@@ -739,9 +739,9 @@ test("fluid_execute_function_shows_live_value", async t => {
     .ok()
     .click(Selector(".id-1045574047.fluid-string"))
     .click(Selector(".id-1334251057 .execution-button"))
-    .expect(available(".selected .live-value"))
+    .expect(available(".selected .live-value.loaded"))
     .ok()
-    .expect(Selector(".selected .live-value").innerText)
+    .expect(Selector(".selected .live-value.loaded").innerText)
     .eql("<Bytes: length=32>");
 });
 
@@ -878,7 +878,7 @@ test("varnames_are_incomplete", async t => {
     .ok()
     .pressKey("tab a enter");
 
-  await t.expect(Selector(".live-value").textContent).contains("<Incomplete>");
+  await t.expect(Selector(".live-value.loaded").textContent).contains("<Incomplete>");
 });
 
 test("center_toplevel", async t => {
