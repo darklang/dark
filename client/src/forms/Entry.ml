@@ -227,6 +227,11 @@ type browserPlatform =
   | Windows
   | UnknownPlatform
 
+external jsValidateEmail : string -> bool = "validateEmail"
+  [@@bs.val] [@@bs.scope "window"]
+
+let validateEmail (email : string) : bool = jsValidateEmail email
+
 external jsGetBrowserPlatform : unit -> browserPlatform Js.Nullable.t
   = "getBrowserPlatform"
   [@@bs.val] [@@bs.scope "window"]

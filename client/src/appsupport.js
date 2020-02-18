@@ -111,6 +111,17 @@ window.onunhandledrejection = function(e) {
 };
 
 // ---------------------------
+// Validation
+// ---------------------------
+
+var validator = require("validator");
+
+function validateEmail(email) {
+  return validator.isEmail(email);
+}
+window.validateEmail = validateEmail;
+
+// ---------------------------
 // Pusher
 // ---------------------------
 

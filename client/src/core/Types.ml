@@ -962,7 +962,7 @@ and clipboardContents =
 (* Account View *)
 and settingsTab =
   | UserSettings
-  | InviteUser
+  | InviteUser of inviteFields
 
 and formField =
   { value : string
@@ -970,15 +970,11 @@ and formField =
 
 and inviteFields = {email : formField}
 
-and settingsFormInput =
-  | InviteForm of inviteFields
-
 and settingsViewState =
   { opened : bool
   ; tab : settingsTab
   ; canvas_list : string list
-  ; org_list : string list
-  ; formInput : settingsFormInput option }
+  ; org_list : string list }
 
 and settingsMsg =
   | ToggleSettingsView of bool

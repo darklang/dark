@@ -166,8 +166,4 @@ let defaultModel : model =
   ; showUserWelcomeModal = true
   ; currentUserFn = defaultFnSpace
   ; settingsView =
-      { opened = false
-      ; tab = UserSettings
-      ; canvas_list = []
-      ; org_list = []
-      ; formInput = None } }
+      {opened = false; tab = UserSettings; canvas_list = []; org_list = []} }
