@@ -91,20 +91,6 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
 
 
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
-  let uploadButton =
-    if vs.isAdmin
-    then
-      Html.div
-        [Html.class' ""]
-        [ Html.div
-            [ Html.class' "upload-btn"
-            ; ViewUtils.eventNoPropagation
-                ~key:("aufp-" ^ showTLID fn.ufTLID)
-                "click"
-                (fun _ -> UploadFn fn.ufTLID) ]
-            [fontAwesome "upload"] ]
-    else Vdom.noNode
-  in
   let addParamBtn =
     if vs.permission = Some ReadWrite
     then
@@ -123,6 +109,13 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
     else Vdom.noNode
   in
   let menuView =
+    let uploadPackageFnAction : TLMenu.menuItem =
+      { title = "Upload Function"
+      ; key = "upload-ufn-"
+      ; icon = Some "upload"
+      ; action = (fun _ -> UploadFn fn.ufTLID)
+      ; disableMsg = None }
+    in
     let delAct : TLMenu.menuItem =
       let disableMsg =
         if not (UserFunctions.canDelete vs.usedInRefs fn.ufTLID)
@@ -137,7 +130,12 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       ; action = (fun _ -> DeleteUserFunction fn.ufTLID)
       ; disableMsg }
     in
-    Html.div [Html.class' "menu"] [TLMenu.viewMenu vs.menuState vs.tlid [delAct]]
+    let menuItems =
+      if vs.isAdmin then [delAct; uploadPackageFnAction] else [delAct]
+    in
+    Html.div
+      [Html.class' "menu"]
+      [TLMenu.viewMenu vs.menuState vs.tlid menuItems]
   in
   let titleRow =
     Html.div
@@ -151,7 +149,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       [Html.id "fnparams"; Html.class' "params"]
       (FnParams.view fn vs @ [addParamBtn])
   in
-  Html.div [Html.class' "fn-header"] [titleRow; paramRows; uploadButton]
+  Html.div [Html.class' "fn-header"] [titleRow; paramRows]
 
 
 let view (vs : viewState) (fn : userFunction) : msg Html.html =
