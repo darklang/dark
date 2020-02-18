@@ -441,10 +441,10 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> nest ~indent:2 default
       |> split ~f:(fun b ->
              b
-             |> add (TFlagCond id)
+             |> add (TFlagWhenKeyword id)
              |> addNested ~f:(toTokens' cond)
              |> addNewlineIfNeeded None
-             |> add (TFlagEnabled id)
+             |> add (TFlagEnabledKeyword id)
              |> addNewlineIfNeeded (Some (E.toID enabled, id, None))
              |> nest ~indent:2 enabled)
 
