@@ -858,7 +858,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (_, PPBlank), _
     | ARPattern (_, PPNull), _
     | ARPattern (_, PPString SPOpenQuote), _
-    | ARFlag _, _ ->
+    | ARFlag (_, FPWhenKeyword), _
+    | ARFlag (_, FPEnabledKeyword), _ ->
         None
     (* Invalid *)
     | ARInvalid, _ ->
@@ -2831,7 +2832,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARRecord (_, RPFieldSep _), expr
     | ARList (_, LPOpen), expr
     | ARList (_, LPClose), expr
-    | ARFlag _, expr ->
+    | ARFlag (_, FPWhenKeyword), expr
+    | ARFlag (_, FPEnabledKeyword), expr ->
         (* We could alternatively move by a single character instead,
            which is what the old version did with minor exceptions;
            that isn't particularly useful as typing within these
@@ -3330,7 +3332,8 @@ let doExplicitInsert
     | ARPipe (_, _), _
     | ARMatch (_, MPKeyword), _
     | ARMatch (_, MPBranchArrow _), _
-    | ARFlag _, _ ->
+    | ARFlag (_, FPWhenKeyword), _
+    | ARFlag (_, FPEnabledKeyword), _ ->
         None
     (*****************
      * Exhaustiveness
@@ -5034,7 +5037,7 @@ let reconstructExprFromRange (ast : ast) (s : fluidState) (range : int * int) :
         in
         Some
           (EMatch (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
-    | EFeatureFlag (_, name, cond, default, enabled) ->
+    | EFeatureFlag (_, name, cond, disabled, enabled) ->
         (* since we don't have any tokens associated with feature flags yet *)
         Some
           (EFeatureFlag
@@ -5043,7 +5046,7 @@ let reconstructExprFromRange (ast : ast) (s : fluidState) (range : int * int) :
                name
              , reconstructExpr cond |> orDefaultExpr
              , reconstructExpr enabled |> orDefaultExpr
-             , reconstructExpr default |> orDefaultExpr ))
+             , reconstructExpr disabled |> orDefaultExpr ))
     | EPipeTarget _ ->
         Some (EPipeTarget (gid ()))
   in
@@ -5126,10 +5129,10 @@ let getCopySelection (m : model) : clipboardContents =
       ("", None)
 
 
-let updateMouseUp (s : state) (ast : ast) (detail : fluidMouseUp) =
-  let s = {s with midClick = false; activeEditorIdx = detail.editorIdx} in
+let updateMouseUp (s : state) (ast : ast) (eventData : fluidMouseUp) =
+  let s = {s with midClick = false; activeEditorIdx = eventData.editorIdx} in
   let selection =
-    detail.selection |> Option.orElseLazy Entry.getFluidSelectionRange
+    eventData.selection |> Option.orElseLazy Entry.getFluidSelectionRange
   in
   match selection with
   (* if range width is 0, just change pos *)
@@ -5158,8 +5161,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     | FluidCloseCmdPalette | FluidUpdateAutocomplete ->
         (* updateAutocomplete has already been run, so nothing more to do *)
         (ast, s)
-    | FluidMouseUp detail ->
-        updateMouseUp s ast detail
+    | FluidMouseUp eventData ->
+        updateMouseUp s ast eventData
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
