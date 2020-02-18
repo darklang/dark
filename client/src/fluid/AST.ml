@@ -336,11 +336,11 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
         ()
     | EVariable _ ->
         ()
-    | ELet (id, lhs, rhs, body) ->
+    | ELet (_id, lhs, rhs, body) ->
         sexe st rhs ;
         let bound =
           if lhs <> ""
-          then VarDict.update ~key:lhs ~f:(fun _v -> Some id) st
+          then VarDict.update ~key:lhs ~f:(fun _v -> Some (E.toID rhs)) st
           else st
         in
         sexe bound body
