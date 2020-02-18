@@ -7,7 +7,7 @@ docker volume rm \
   dark_esy \
   dark_dotesy \
   dark_node_modules \
-  dark_client_lib \
+  dark_lib \
   dark_stroller_target \
   dark_queue_scheduler_target
   dark_rust_cargo \
