@@ -21,7 +21,6 @@ async function prepSettings(t) {
 fixture`Integration Tests`
   // To add this user, run the backend tests
   .beforeEach(async t => {
-    child_process.execFileSync("integration-tests/clear-db.sh");
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
     var url = `${BASE_URL}${testname}?integration-test=true`;

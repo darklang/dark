@@ -47,14 +47,16 @@ BROWSER='unknown'
 ######################
 # Set up concurrency
 ######################
-CONCURRENCY=3
-if [[ "$DEBUG" == "true" ]]; then
-  CONCURRENCY=1
-elif [[ -v IN_DEV_CONTAINER ]]; then
-  # This was caarefully measured in CI. 1x is much slower, 3x fails a lot.
-  # Though perhaps with a larger machine 3x might work better.
-  CONCURRENCY=2
-fi
+CONCURRENCY=1
+# Temporarily disabled until we sort out concurrency-related problems
+# @dstrelau 2020-02-18
+# if [[ "$DEBUG" == "true" ]]; then
+#   CONCURRENCY=1
+# elif [[ -v IN_DEV_CONTAINER ]]; then
+#   # This was caarefully measured in CI. 1x is much slower, 3x fails a lot.
+#   # Though perhaps with a larger machine 3x might work better.
+#   CONCURRENCY=2
+# fi
 
 
 ######################
