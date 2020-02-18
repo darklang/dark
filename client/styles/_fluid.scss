@@ -109,6 +109,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 .return-value {
   position: absolute;
   top: calc(100% + 4px);
+  left: -4px;
 
   padding: 4px;
 
@@ -124,6 +125,15 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 
   &.refreshed {
     color: $cyan;
+  }
+
+  &.incomplete {
+    color: $yellow;
+    border-color: $yellow 1px solid;
+
+    &:after {
+      content: " : Your code needs to return a value in the last line";
+    }
   }
 
   .copy-value {

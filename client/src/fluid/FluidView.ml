@@ -434,15 +434,24 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
     let id = E.toID ast in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
     | LoadableSuccess (ExecutedResult dval) ->
+        let isRefreshed =
+          match vs.handlerProp with
+          | Some {execution = Complete; _} ->
+              true
+          | _ ->
+              false
+        in
+        let isIncomplete =
+          (* Since HTTP and userFunctions are the case where Incomplete return is likely to case and error, we only want to highlight those cases.  *)
+          if Toplevel.isHTTPHandler vs.tl || Toplevel.isUserFunction vs.tl
+          then match dval with DIncomplete _ -> true | _ -> false
+          else false
+        in
         Html.div
           [ Html.classList
               [ ("return-value", true)
-              ; ( "refreshed"
-                , match vs.handlerProp with
-                  | Some {execution = Complete; _} ->
-                      true
-                  | _ ->
-                      false ) ] ]
+              ; ("refreshed", isRefreshed)
+              ; ("incomplete", isIncomplete) ] ]
           (viewDval vs.tlid dval ~canCopy:true)
     | _ ->
         Vdom.noNode
