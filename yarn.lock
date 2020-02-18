@@ -5230,10 +5230,10 @@ testcafe-reporter-xunit@^2.1.0:
   resolved "https://registry.yarnpkg.com/testcafe-reporter-xunit/-/testcafe-reporter-xunit-2.1.0.tgz#e6d66c572ce15af266706af0fd610b2a841dd443"
   integrity sha1-5tZsVyzhWvJmcGrw/WELKoQd1EM=
 
-testcafe@1.8.2-rc.1:
-  version "1.8.2-rc.1"
-  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.8.2-rc.1.tgz#62ff87f40e554aa138395b33a777f93007e69b86"
-  integrity sha512-2o4vUpksCkyvyktmk2CzPBz3/UwaCFY0sm5HWK8EvDcw10AOTf2aegYEmfuQyItIBwfyM0gX70IZ4/S+CNLTkg==
+testcafe@^1.8.2:
+  version "1.8.2"
+  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.8.2.tgz#1c558c1ef014ef2df5db120f769f568ae5c59a5a"
+  integrity sha512-bMUF+O9hGVsQPonUkiSVSPs9TiyeWT3IAM/GHLfEhUP2yXgbjneuUg6YmG/+jrCbgZ9AuB4nDKcaZIVaQJyeSA==
   dependencies:
     "@types/node" "^10.12.19"
     async-exit-hook "^1.1.2"
