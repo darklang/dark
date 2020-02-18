@@ -564,7 +564,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
       List.find mainTokenInfos ~f:(fun ti -> needle = T.tid ti.token)
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
-    if List.any vs.testVariants ~f:(fun v -> v = FeatureFlagVariant)
+    if List.member vs.testVariants ~value:FeatureFlagVariant
     then
       List.tail vs.tokenPartitions
       |> Option.withDefault ~default:[]
