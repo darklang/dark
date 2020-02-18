@@ -694,6 +694,8 @@ let show_tokenInfo (ti : tokenInfo) =
     ; Html.dd [] [Html.text (toText ti.token)]
     ; Html.dt [] [Html.text "id"]
     ; Html.dd [] [Html.text (tid ti.token |> deID)]
+    ; Html.dt [] [Html.text "aid"]
+    ; Html.dd [] [Html.text (analysisID ti.token |> deID)]
     ; Html.dt [] [Html.text "type"]
     ; Html.dd [] [Html.text (toTypeName ti.token)]
     ; Html.dt [] [Html.text "debug"]
