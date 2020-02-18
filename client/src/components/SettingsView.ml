@@ -8,11 +8,38 @@ module Events = Tea.Html2.Events
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let allTabs = [UserSettings; InviteUser]
+let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
+
+let allTabs = [UserSettings; InviteUser defaultInviteFields]
+
+let validateEmail (email : formField) : formField =
+  let error =
+    let emailVal = email.value in
+    if String.length emailVal = 0
+    then Some "Field Required"
+    else if not (Entry.validateEmail emailVal)
+    then Some "Invalid Email"
+    else None
+  in
+  {email with error}
+
+
+let validateForm (tab : settingsTab) : bool * settingsTab =
+  match tab with
+  | InviteUser form ->
+      let text = validateEmail form.email in
+      let email = {email = text} in
+      let isInvalid = Option.is_some text.error in
+      (isInvalid, InviteUser email)
+  | _ ->
+      (* shouldnt get here *)
+      (false, tab)
+
 
 let update (m : model) (msg : settingsMsg) : model =
   match msg with
   | ToggleSettingsView opened ->
+      (* TODO -> Set to correct tab on open *)
       let enablePan = if opened then m.canvasProps.enablePan else true in
       { m with
         settingsView = {m.settingsView with opened}
@@ -20,15 +47,11 @@ let update (m : model) (msg : settingsMsg) : model =
   | SwitchSettingsTabs tab ->
       {m with settingsView = {m.settingsView with tab}}
   | UpdateInviteForm value ->
-      let formInput =
-        if String.length value == 0
-        then None
-        else Some (InviteForm {email = {value; error = None}})
-      in
-      {m with settingsView = {m.settingsView with formInput}}
+      let form = {email = {value; error = None}} in
+      {m with settingsView = {m.settingsView with tab = InviteUser form}}
   | SubmitForm ->
-      (* TO DO -> Form validation and error *)
-      m
+      let _, newTab = validateForm m.settingsView.tab in
+      {m with settingsView = {m.settingsView with tab = newTab}}
 
 
 let openSettingView (m : model) : model = update m (ToggleSettingsView false)
@@ -36,7 +59,7 @@ let openSettingView (m : model) : model = update m (ToggleSettingsView false)
 (* View functions *)
 
 let settingsTabToText (tab : settingsTab) : string =
-  match tab with UserSettings -> "Canvases" | InviteUser -> "Invite"
+  match tab with UserSettings -> "Canvases" | InviteUser _ -> "Invite"
 
 
 (* View code *)
@@ -67,7 +90,7 @@ let viewUserCanvases (acc : settingsViewState) : msg Html.html list =
   orgView @ canvasView
 
 
-let viewInviteUserToDark : msg Html.html list =
+let viewInviteUserToDark (tab : settingsTab) : msg Html.html list =
   let introText =
     [ Html.h2 [] [Html.text "Invite a friend to try dark!"]
     ; Html.p
@@ -77,16 +100,26 @@ let viewInviteUserToDark : msg Html.html list =
         ] ]
   in
   let inviteform =
+    let error =
+      match tab with
+      | InviteUser x ->
+          x.email.error |> Option.withDefault ~default:""
+      | _ ->
+          ""
+    in
     [ Html.div
         [Html.class' "invite-form"]
         [ Html.div
             [Html.class' "form-field"]
             [ Html.h3 [] [Html.text "Email:"]
-            ; Html.input'
-                [ Vdom.attribute "" "spellcheck" "false"
-                ; Events.onInput (fun str ->
-                      SettingsViewMsg (UpdateInviteForm str)) ]
-                [] ]
+            ; Html.div
+                []
+                [ Html.p [Html.class' "error-text"] [Html.text error]
+                ; Html.input'
+                    [ Vdom.attribute "" "spellcheck" "false"
+                    ; Events.onInput (fun str ->
+                          SettingsViewMsg (UpdateInviteForm str)) ]
+                    [] ] ]
         ; Html.h3
             [ Html.class' "submit-btn"
             ; ViewUtils.eventNoPropagation
@@ -98,19 +131,26 @@ let viewInviteUserToDark : msg Html.html list =
   introText @ inviteform
 
 
-let settingsTabToHtml (acc : settingsViewState) : msg Html.html list =
-  let tab = acc.tab in
+let settingsTabToHtml (svs : settingsViewState) : msg Html.html list =
+  let tab = svs.tab in
   match tab with
   | UserSettings ->
-      viewUserCanvases acc
-  | InviteUser ->
-      viewInviteUserToDark
+      viewUserCanvases svs
+  | InviteUser _ ->
+      viewInviteUserToDark svs.tab
 
 
 let tabTitleView (tab : settingsTab) : msg Html.html =
   let tabTitle (t : settingsTab) =
+    let isSameTab =
+      match (tab, t) with
+      | UserSettings, UserSettings | InviteUser _, InviteUser _ ->
+          true
+      | _ ->
+          false
+    in
     Html.h3
-      [ Html.classList [("tab-title", true); ("selected", tab == t)]
+      [ Html.classList [("tab-title", true); ("selected", isSameTab)]
       ; ViewUtils.eventNoPropagation
           ~key:"close-settings-modal"
           "click"
