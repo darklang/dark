@@ -361,7 +361,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
     let tokenIDs =
       ast
-      |> FluidPrinter.tokensForPartition ~index:0
+      |> FluidPrinter.tokensForSplit ~index:0
       |> List.map ~f:(fun ti -> T.tid ti.token)
     in
     let eIDs = ast |> E.filterMap ~f:(fun e -> Some (E.toID e)) in

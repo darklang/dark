@@ -54,7 +54,7 @@ let run () =
             ; avatarsList = []
             ; permission = Some ReadWrite
             ; workerStats = None
-            ; tokenPartitions = []
+            ; tokenSplits = []
             ; menuState = {isOpen = false}
             ; isExecuting = false
             ; fnProps =

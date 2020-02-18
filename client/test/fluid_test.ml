@@ -100,7 +100,7 @@ let process
        * as opposed to the iterative approach we do later, because we're using
        * the old ast that has no newlines. *)
     ast
-    |> Printer.tokensForPartition ~index:0
+    |> Printer.tokensForSplit ~index:0
     |> List.filter ~f:(fun ti ->
            FluidToken.isNewline ti.token && ti.startPos < pos)
     |> List.length
@@ -134,7 +134,7 @@ let process
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
     result
-    |> Printer.tokensForPartition ~index:0
+    |> Printer.tokensForSplit ~index:0
     |> List.iter ~f:(fun ti ->
            match ti.token with
            | TNewline _ when !endPos > ti.endPos ->
@@ -142,7 +142,7 @@ let process
            | _ ->
                ()) ;
     let last =
-      Printer.tokensForPartition ~index:0 result
+      Printer.tokensForSplit ~index:0 result
       |> List.last
       |> deOption "last"
       |> fun x -> x.endPos
@@ -160,7 +160,7 @@ let process
     else newState.selectionStart
   in
   let containsPartials =
-    List.any (Printer.tokensForPartition ~index:0 result) ~f:(fun ti ->
+    List.any (Printer.tokensForSplit ~index:0 result) ~f:(fun ti ->
         match ti.token with
         | TRightPartial _ | TPartial _ | TFieldPartial _ ->
             true
@@ -3601,7 +3601,7 @@ let run () =
       ()) ;
   describe "Movement" (fun () ->
       let s = defaultTestState in
-      let tokens = Printer.tokensForPartition ~index:0 complexExpr in
+      let tokens = Printer.tokensForSplit ~index:0 complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr in
       test "gridFor - 1" (fun () ->
@@ -3952,7 +3952,7 @@ let run () =
           let id = ID "543" in
           expect
             (let ast = EString (id, "test") in
-             let tokens = Printer.tokensForPartition ~index:0 ast in
+             let tokens = Printer.tokensForSplit ~index:0 ast in
              Fluid.getNeighbours ~pos:3 tokens)
           |> toEqual
                (let token = TString (id, "test") in

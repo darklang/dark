@@ -57,7 +57,7 @@ let defaultFluidState : fluidState =
   ; selectionStart = None
   ; errorDvSrc = SourceNone
   ; midClick = false
-  ; activeEditorIdx = 0 }
+  ; activeEditorPanelIdx = 0 }
 
 
 let defaultCanvasProps : canvasProps =

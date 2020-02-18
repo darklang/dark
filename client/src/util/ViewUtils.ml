@@ -35,13 +35,13 @@ type viewState =
   ; workerStats : workerStats option
   ; menuState : menuState
   ; isExecuting : bool
-  ; tokenPartitions :
-      (* tokenPartitions are the result of calling Printer.toPartitions on an
-       * AST. The head partition is always the main editor, with the optional
-       * tail being other editor panels. fluidState.activeEditorIdx allows
-       * indexing into this list to get the tokens for the currently active
-       * editor panel. *)
-      FluidPrinter.partition list
+  ; tokenSplits :
+      (* tokenSplits are the result of calling Printer.tokenizeWithSplits on an
+       * AST. The head split is always the main editor, with the optional tail
+       * being other editor panels. fluidState.activeEditorPanelIdx allows indexing
+       * into this list to get the tokens for the currently active editor
+       * panel. *)
+      FluidPrinter.split list
   ; fnProps : fnProps }
 
 (* ----------------------------- *)
@@ -57,9 +57,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
   let traceID = Analysis.getSelectedTraceID m tlid in
-  let tokenPartitions =
+  let tokenSplits =
     TL.getAST tl
-    |> Option.map ~f:FluidPrinter.toPartitions
+    |> Option.map ~f:FluidPrinter.tokenizeWithSplits
     |> Option.withDefault ~default:[]
   in
   { tl
@@ -119,7 +119,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
           m.avatarsList
       | _ ->
           [] )
-  ; tokenPartitions
+  ; tokenSplits
   ; permission = m.permission
   ; workerStats =
       (* Right now we patch because worker execution link depends on name instead of TLID. When we fix our worker association to depend on TLID instead of name, then we will get rid of this patchy hack. *)
@@ -310,8 +310,8 @@ let isHoverOverTL (vs : viewState) : bool =
 
 
 let getMainTokens (vs : viewState) : FluidPrinter.tokenInfo list =
-  List.head vs.tokenPartitions
-  |> Option.map ~f:(fun (p : FluidPrinter.partition) -> p.tokens)
+  List.head vs.tokenSplits
+  |> Option.map ~f:(fun (p : FluidPrinter.split) -> p.tokens)
   |> Option.withDefault ~default:[]
 
 
