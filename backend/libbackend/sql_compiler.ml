@@ -38,7 +38,7 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
   | "Int::lessThan" ->
       boolOp TInt "<"
   | "Int::lessThanOrEqualTo" ->
-      boolOp TInt "%"
+      boolOp TInt "<="
   | "Float::mod" ->
       allFloats "%"
   | "Float::add" ->
@@ -58,7 +58,7 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
   | "Float::lessThan" ->
       boolOp TFloat "<"
   | "Float::lessThanOrEqualTo" ->
-      boolOp TFloat "%"
+      boolOp TFloat "<="
   | "==" | "equals" ->
       boolOp TAny "="
   | "!=" | "notEquals" ->
