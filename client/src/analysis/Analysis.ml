@@ -149,6 +149,9 @@ let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
   if List.length dvals = List.length argIDs then Some dvals else None
 
 
+(** [getAvailableVarnames m tl id traceID] gets a list of (varname, dval option)s that are in scope
+ * at an expression with the given [id] within the ast of the [tl]. The dval for a given varname
+ * comes from the trace with [traceID]. *)
 let getAvailableVarnames
     (m : model) (tl : toplevel) (ID id : id) (traceID : traceID) :
     (string * dval option) list =
