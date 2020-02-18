@@ -42,18 +42,22 @@ let run () =
           let vars = variablesIn outer |> StrDict.get ~key:"testme" in
           let varsFor = vars |> Option.map ~f:(fun d -> StrDict.keys d) in
           expect varsFor |> toEqual (Some ["variable"])) ;
-      test "variablesIn correctly gets id of latest let definition" (fun () ->
-          let a0id = ID "a0id" in
-          let a1id = ID "a1id" in
+      test
+        "variablesIn correctly gets rhs id of latest let definition"
+        (fun () ->
+          let let1ID = ID "let1ID" in
+          let let2ID = ID "let2ID" in
+          let a1ID = ID "a1ID" in
+          let a1 = int ~id:a1ID 4 in
+          let a2ID = ID "a2ID" in
+          let a2 = int ~id:a2ID 9 in
           let lastBlank = EBlank (ID "lastBlankid") in
-          let ast =
-            ELet (a0id, "a", int 4, ELet (a1id, "a", int 9, lastBlank))
-          in
+          let ast = ELet (let1ID, "a", a1, ELet (let2ID, "a", a2, lastBlank)) in
           expect
             ( variablesIn ast
             |> StrDict.get ~key:"lastBlankid"
             |> Option.andThen ~f:(fun d -> StrDict.get ~key:"a" d) )
-          |> toEqual (Some a1id)) ;
+          |> toEqual (Some a2ID)) ;
       ()) ;
   describe "removePartials" (fun () ->
       let b () = EBlank (gid ()) in
