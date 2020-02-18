@@ -439,6 +439,14 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
   else Vdom.noNode
 
 
+(** [fluidEditorView] builds a fluid editor panel for the given [tokenInfos].
+  * [~idx] is the index of the editor panel, with 0 being the "main" editor
+  * and >0 being any sub-editors (like for a feature flag). This [~idx]
+  * corresponds to the index of the tokenInfo list return from
+  * tokenizeWithSplits, and is used to ensure caret placement/focus/editing act
+  * against the correct token stream (that is, clicking on panel idx=1 means
+  * you are now editing index 1 of the splits returned from
+  * FluidPrinter.tokenizeWithSplits). *)
 let fluidEditorView
     ~(idx : int)
     (vs : ViewUtils.viewState)
@@ -515,7 +523,7 @@ let fluidEditorView
           else IgnoreMsg) ]
   in
   let idAttr =
-    if vs.fluidState.activeEditorIdx = idx
+    if vs.fluidState.activeEditorPanelIdx = idx
     then Attrs.id "active-editor"
     else Attrs.noProp
   in
@@ -554,34 +562,34 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
   let mainEditor = fluidEditorView ~idx:0 vs mainTokenInfos ast in
   let returnValue = viewReturnValue vs ast in
   let secondaryEditors =
-    let findRowOffestOfMainTokenWithId (needle : id) : int option =
+    let findRowOffestOfMainTokenWithId (target : id) : int option =
       (* FIXME(ds) this is a giant hack to find the row offset of the corresponding
        * token in the main view for each secondary editor. This works by getting
-       * the id of the partition (ie, the id of the first token in the partition)
+       * the id of the split (ie, the id of the first token in the split)
        * and then looking through the main tokens [O(N)] to find one with a
        * corresponding id. This is brittle and will likely break at some point. We
        * should do something better. *)
-      List.find mainTokenInfos ~f:(fun ti -> needle = T.tid ti.token)
+      List.find mainTokenInfos ~f:(fun ti -> target = T.tid ti.token)
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
     if List.member vs.testVariants ~value:FeatureFlagVariant
     then
-      List.tail vs.tokenPartitions
+      List.tail vs.tokenSplits
       |> Option.withDefault ~default:[]
-      |> List.mapi ~f:(fun (i : int) (p : Printer.partition) ->
+      |> List.mapi ~f:(fun (i : int) (s : Printer.split) ->
              let errorRail =
                Html.div
                  [Html.classList [("fluid-error-rail", true); ("show", true)]]
                  []
              in
              let rowOffset =
-               findRowOffestOfMainTokenWithId p.id
+               findRowOffestOfMainTokenWithId s.id
                |> Option.withDefault ~default:0
              in
              Html.div
                [ Html.class' "fluid-secondary-editor"
                ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-               [fluidEditorView ~idx:(i + 1) vs p.tokens ast; errorRail])
+               [fluidEditorView ~idx:(i + 1) vs s.tokens ast; errorRail])
     else []
   in
   mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
@@ -589,7 +597,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
 
 let viewStatus (m : model) (ast : ast) : Types.msg Html.html =
   let s = m.fluidState in
-  let tokens = Printer.tokensForPartition ~index:s.activeEditorIdx ast in
+  let tokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =

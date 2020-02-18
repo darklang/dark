@@ -8,6 +8,8 @@ module Regex = Util.Regex
 let filterInputID : string = "cmd-filter"
 
 let fluidCommands (m : model) =
+  (* Commands.commands contains /all/ valid commands, so we filter out things
+   * if the variant is not enabled *)
   if VariantTesting.variantIsActive m FeatureFlagVariant
   then Commands.commands
   else

@@ -1147,7 +1147,7 @@ and fluidMouseUp =
       (int * int) option
   ; editorIdx :
       (* editorIdx tells which fluid editor was clicked on.
-       * see fluidState.activeEditorIdx *)
+       * see fluidState.activeEditorPanelIdx *)
       int }
 
 and fluidMsg =
@@ -1299,9 +1299,10 @@ and msg =
 (* ----------------------------- *)
 (* AB tests *)
 (* ----------------------------- *)
-(* just a stub *)
 and variantTest =
-  | StubVariant
+  | (* does nothing variant just so we can leave this in place
+     * if we're not testing anything else *)
+      StubVariant
   | GroupVariant
   | FeatureFlagVariant
 
@@ -1527,8 +1528,8 @@ and fluidState =
       (* The source id of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; activeEditorIdx :
-      (* activeEditorIdx is the 0-based index of the editor that is active inside
+  ; activeEditorPanelIdx :
+      (* activeEditorPanelIdx is the 0-based index of the editor that is active inside
        * the current TL. Most TLs will only have a single editor most of the
        * time, but when displaying, eg, a feature flag condition there will be
        * multiple. This is used to place the caret correctly and modify the
