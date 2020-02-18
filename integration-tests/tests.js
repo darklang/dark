@@ -21,7 +21,6 @@ async function prepSettings(t) {
 fixture`Integration Tests`
   // To add this user, run the backend tests
   .beforeEach(async t => {
-    child_process.execFileSync("integration-tests/clear-db.sh");
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
     var url = `${BASE_URL}${testname}?integration-test=true`;
@@ -146,6 +145,22 @@ async function gotoAST(t) {
 
 function user_content_url(t, endpoint) {
   return "http://test-" + t.testRun.test.name + ".builtwithdark.lvh.me:8000" + endpoint;
+}
+
+// pressShortcut will use ctrl on Linux or meta on Mac, depending on which
+// platform the tests are running.
+async function pressShortcut(t, shortcutUsingCtrl) {
+  if (shortcutUsingCtrl === undefined) {
+    throw "pressShortcut expecting a shortcut string like 'ctrl-a' but got undefined. " +
+      "Did you forget to pass t?";
+  }
+  var shortcut;
+  if (t.browser.os.name == "macOS") {
+    shortcut = shortcutUsingCtrl.replace("ctrl", "meta");
+  } else {
+    shortcut = shortcutUsingCtrl;
+  }
+  await t.pressKey(shortcut);
 }
 
 //********************************
@@ -554,11 +569,11 @@ test("execute_function_works", async t => {
     .pressKey("enter")
     .click(Selector(".execution-button-needed"));
 
-  let v1 = await Selector(".selected .live-value").innerText;
+  let v1 = await Selector(".selected .live-value.loaded").innerText;
 
   await t.click(Selector(".fa-redo"));
 
-  let v2 = await Selector(".selected .live-value").innerText;
+  let v2 = await Selector(".selected .live-value.loaded").innerText;
 
   let re = /<UUID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>/;
   await t.expect(v1).match(re);
@@ -571,7 +586,7 @@ test("correct_field_livevalue", async t => {
     .click(Selector(".fluid-editor")) // this click required to activate the editor
     .click(Selector(".fluid-field-name").withExactText("gth"));
 
-  let v1 = await Selector(".selected .live-value").innerText;
+  let v1 = await Selector(".selected .live-value.loaded").innerText;
 
   await t.expect(v1).eql("5");
 });
@@ -645,7 +660,7 @@ test("function_analysis_works", async t => {
     .expect(available(".user-fn-toplevel"))
     .ok({ timeout: 1000 })
     .click(Selector(".user-fn-toplevel #active-editor .fluid-binop"))
-    .expect(Selector(".selected .live-value").textContent)
+    .expect(Selector(".selected .live-value.loaded").textContent)
     .eql("10", { timeout: 5000 });
 });
 
@@ -723,9 +738,9 @@ test("fluid_execute_function_shows_live_value", async t => {
     .ok()
     .click(Selector(".id-1045574047.fluid-string"))
     .click(Selector(".id-1334251057 .execution-button"))
-    .expect(available(".selected .live-value"))
+    .expect(available(".selected .live-value.loaded"))
     .ok()
-    .expect(Selector(".selected .live-value").innerText)
+    .expect(Selector(".selected .live-value.loaded").innerText)
     .eql("<Bytes: length=32>");
 });
 
@@ -808,11 +823,13 @@ test("fluid_undo_redo_happen_exactly_once", async t => {
     .expect(available(".selected #active-editor"))
     .ok()
     .expect(Selector(".fluid-category-string").textContent)
-    .eql('"12345"')
-    .pressKey("ctrl+z")
+    .eql('"12345"');
+  await pressShortcut(t, "ctrl+z");
+  await t
     .expect(Selector(".fluid-category-string").textContent)
     .eql('"1234"')
-    .pressKey("ctrl+shift+z")
+  await pressShortcut(t, "ctrl+shift+z");
+  await t
     .expect(Selector(".fluid-category-string").textContent)
     .eql('"12345"');
 });
@@ -860,7 +877,7 @@ test("varnames_are_incomplete", async t => {
     .ok()
     .pressKey("tab a enter");
 
-  await t.expect(Selector(".live-value").textContent).contains("<Incomplete>");
+  await t.expect(Selector(".live-value.loaded").textContent).contains("<Incomplete>");
 });
 
 test("center_toplevel", async t => {
