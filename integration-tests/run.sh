@@ -47,45 +47,29 @@ BROWSER='unknown'
 ######################
 # Set up concurrency
 ######################
-CONCURRENCY=3
-if [[ "$DEBUG" == "true" ]]; then
-  CONCURRENCY=1
-elif [[ -v IN_DEV_CONTAINER ]]; then
-  # This was caarefully measured in CI. 1x is much slower, 3x fails a lot.
-  # Though perhaps with a larger machine 3x might work better.
-  CONCURRENCY=2
-fi
+CONCURRENCY=1
+# Temporarily disabled until we sort out concurrency-related problems
+# @dstrelau 2020-02-18
+# if [[ "$DEBUG" == "true" ]]; then
+#   CONCURRENCY=1
+# elif [[ -v IN_DEV_CONTAINER ]]; then
+#   # This was caarefully measured in CI. 1x is much slower, 3x fails a lot.
+#   # Though perhaps with a larger machine 3x might work better.
+#   CONCURRENCY=2
+# fi
 
-##### HACKS #####
-if [[ -v IN_DEV_CONTAINER ]]; then
-  if [[ ! -f ~/.testcafe-installed ]]; then
-    cd
-    [[ -d "testcafe" ]] || git clone https://github.com/DevExpress/testcafe.git
-    cd testcafe
-    npm install
-    ./node_modules/.bin/gulp fast-build
-    touch ~/.testcafe-installed
-    cd ~/app
-  fi
-else
-  echo "!!!!!!!!!!!!!!!!!!!!!!"
-  echo "Ensure you have testcafe installed from master or things will be broken."
-  echo "$ git clone https://github.com/DevExpress/testcafe.git && cd testcafe"
-  echo "$ npm install && ./node_modules/.bin/gulp fast-build"
-  echo "!!!!!!!!!!!!!!!!!!!!!!"
-fi
 
 ######################
 # Run testcafe
 ######################
+
 if [[ -v IN_DEV_CONTAINER ]]; then
   set +e # Dont fail immediately so that the sed is run
 
   echo "Starting testcafe"
+  npx testcafe --version
   # shellcheck disable=SC2016
-  # HACK(ds) put this back once we're back to versioned testcafe
-  # unbuffer client/node_modules/.bin/testcafe \
-  unbuffer node ~/testcafe/bin/testcafe-with-v8-flag-filter.js \
+  unbuffer npx testcafe \
     --concurrency "$CONCURRENCY" \
     --test-grep "$PATTERN" \
     --video rundir/videos \
@@ -100,25 +84,19 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   exit $RESULT
 else
-
   # Check the version (matters when running outside the container)
-  version=$(testcafe --version)
-  expected_version=$(grep testcafe package.json | sed 's/[[:space:]]*"testcafe": "//' | sed 's/",[[:space:]]*//')
+  extract_version() { grep -Eo '[0-9].[-.0-9rc]+'; }
+  version=$(testcafe --version | extract_version)
+  expected_version=$(grep testcafe package.json | extract_version)
   if [[ "$version" != "$expected_version" ]]
   then
-    echo "Incorrect version of testcafe: $version (expected $expected_version)"
+    echo "Incorrect version of testcafe: '$version' (expected '$expected_version')"
     exit 1
   fi
 
-  if [[ "$DEBUG" == "true" ]]; then
-    debugcmd="--debug-mode --inspect"
-  else
-    debugcmd=
-  fi
   # shellcheck disable=SC2016
   testcafe \
     --concurrency "$CONCURRENCY" \
-    $debugcmd \
     --test-grep "$PATTERN" \
     --video rundir/videos \
     --video-options pathPattern='${TEST}-${QUARANTINE_ATTEMPT}.mp4' \
