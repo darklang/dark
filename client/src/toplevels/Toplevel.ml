@@ -115,6 +115,10 @@ let asGroup (tl : toplevel) : group option =
   match tl with TLGroup g -> Some g | _ -> None
 
 
+let isUserFunction (tl : toplevel) : bool =
+  match tl with TLFunc _ -> true | _ -> false
+
+
 let isUserTipe (tl : toplevel) : bool =
   match tl with TLTipe _ -> true | _ -> false
 
