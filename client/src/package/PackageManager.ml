@@ -19,14 +19,16 @@ let fn_of_packageFn (pkgFn : packageFn) : function_ =
                              fns *)
     ; paramOptional = false }
   in
-  { fnName =
-      Printf.sprintf
-        "%s/%s/%s::%s_v%s"
-        pkgFn.user
-        pkgFn.package
-        pkgFn.module_
-        pkgFn.fnname
-        (string_of_int pkgFn.version)
+  let to_name (fn : packageFn) : string =
+    Printf.sprintf
+      "%s/%s/%s::%s_v%d"
+      fn.user
+      fn.package
+      fn.module_
+      fn.fnname
+      fn.version
+  in
+  { fnName = pkgFn |> to_name
   ; fnParameters = pkgFn.parameters |> List.map ~f:paramOfPkgFnParam
   ; fnDescription = pkgFn.description
   ; fnReturnTipe = pkgFn.return_type
