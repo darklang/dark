@@ -33,8 +33,10 @@ let getStoredAnalysis (m : model) (traceID : traceID) : analysisStore =
   (* only handlers have analysis results, but lots of stuff expect this *)
   (* data to exist. It may be better to not do that, but this is fine *)
   (* for now. *)
-  StrDict.get ~key:traceID m.analyses
-  |> Option.withDefault ~default:LoadableNotInitialized
+  let res = StrDict.get ~key:traceID m.analyses
+  |> Option.withDefault ~default:LoadableNotInitialized in
+  (Debug.loG "getStoredAnalysis - traceID = " traceID);
+  (Debug.loG "getStoredAnalysis" res); res
 
 
 let record (old : analyses) (id : traceID) (result : analysisStore) : analyses =
@@ -107,7 +109,10 @@ let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
   | LoadableSuccess dvals ->
     ( match StrDict.get dvals ~key:id with
     | Some (ExecutedResult dval) | Some (NonExecutedResult dval) ->
-        Some dval
+        (
+          Debug.loG "getLiveValue' id = " (id);
+          Debug.loG "getLiveValue' dval = " (dval);
+        Some dval)
     | _ ->
         None )
   | _ ->
@@ -167,7 +172,7 @@ let getAvailableVarnames
     |> StrDict.get ~key:id
     |> Option.withDefault ~default:StrDict.empty
     |> StrDict.toList
-    |> List.map ~f:(fun (varname, id) -> (varname, getLiveValue m id traceID))
+    |> List.map ~f:(fun (varname, id) -> (Debug.loG "Analysis - getAvailableVarnames" (varname, id)); (varname, getLiveValue m id traceID))
   in
   let glob =
     TL.allGloballyScopedVarnames m.dbs

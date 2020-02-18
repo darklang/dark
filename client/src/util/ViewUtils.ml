@@ -52,6 +52,7 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
   let hp =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
+  (Debug.loG "createVS - m.complete" (m.complete.index));
   let traceID = Analysis.getSelectedTraceID m tlid in
   { tl
   ; cursorState = unwrapCursorState m.cursorState

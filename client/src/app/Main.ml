@@ -988,7 +988,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
 
 
 let update_ (msg : msg) (m : model) : modification =
-  if m.integrationTestState <> NoIntegrationTest
+  if true(* m.integrationTestState <> NoIntegrationTest *)
   then Debug.loG "msg update" (show_msg msg) ;
   match msg with
   | GlobalKeyPress event ->

@@ -320,7 +320,9 @@ let generateExprs m (tl : toplevel) a ti =
     Analysis.getSelectedTraceID m (TL.id tl)
     |> Option.map ~f:(Analysis.getAvailableVarnames m tl id)
     |> Option.withDefault ~default:[]
-    |> List.map ~f:(fun (varname, dv) -> FACVariable (varname, dv))
+    |> List.map ~f:(fun (varname, dv) ->
+      (Debug.loG "FluidAutocomplete - generateExprs" (varname, dv);
+    FACVariable (varname, dv)))
   in
   let keywords =
     List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KPipe]
@@ -387,6 +389,7 @@ let generateFields dval =
 let generate
     (m : model) (a : autocomplete) ((tl, ti, dval, queryString) : fullQuery) :
     autocomplete =
+  (Debug.loG "FluidAutocomplete GENERATE" ());
   let items =
     match ti.token with
     | TPatternBlank _ | TPatternVariable _ ->
@@ -481,30 +484,42 @@ let refilter
         (* Show autocomplete - the first item - when there's no text. If we
          * just deleted the text, reset to the top. But only reset on change
          * - we want the arrow keys to work *)
-        Some 0
+        ((Debug.loG "refilterA" 0);
+        Some 0)
       else if oldQueryString = "" && old.index = Some 0
       then
         (* If we didn't actually select the old value, don't cling to it. *)
-        Some 0
+        ((Debug.loG "refilterB" 0);
+        (Some 0))
       else if Option.isSome oldHighlightNewIndex
       then
         (* Otherwise we did select something, so let's find it. *)
-        oldHighlightNewIndex
+        ((Debug.loG "refilterC oldHighlightNewIndex" oldHighlightNewIndex);
+        oldHighlightNewIndex)
       else (* Always show fields. *)
-        Some 0
+        ((Debug.loG "refilterD" 0);
+        Some 0)
     else if queryString = "" || newCount = 0
     then (* Do nothing if no queryString or autocomplete list *)
-      None
+      ((Debug.loG "refilterE" "None");
+      None)
     else if oldQueryString = queryString
     then
       (* If we didn't change anything, don't change anything *)
       match oldHighlightNewIndex with
       | Some newIndex ->
-          Some newIndex
+          ((Debug.loG "refilterF newIndex" newIndex);
+          Some newIndex)
       | None ->
-          None
+        (
+          (Debug.loG "refilterG - oldHighlight" oldHighlight);
+          (Debug.loG "refilterG - allCompletions" allCompletions);
+          (Debug.loG "refilterG - old.allCompletions" old.allCompletions);
+          (Debug.loG "refilterG" "None");
+          None)
     else (* If an entry vanishes, highlight 0 *)
-      Some 0
+      ((Debug.loG "refilterH" 0);
+      Some 0)
   in
   { old with
     index
@@ -517,8 +532,10 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
     autocomplete =
   match TL.get m tlid with
   | None ->
+      (Debug.loG "regenerate = reset m because we couldn't find tlid:" tlid);
       reset m
   | Some tl ->
+      (Debug.loG "regenerate = generate with tlid:" tlid);
       let queryString = toQueryString ti in
       let dval = dvalForToken m tl ti in
       let query = (tl, ti, dval, queryString) in
@@ -529,6 +546,7 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
 (* Autocomplete state *)
 (* ---------------------------- *)
 let updateFunctions m : model =
+  (Debug.loG "AC.updateFunctions" ());
   { m with
     fluidState =
       {m.fluidState with ac = {m.fluidState.ac with functions = allFunctions m}}
@@ -625,5 +643,6 @@ let updateAutocompleteVisibility (m : model) : model =
   if isOpened m.fluidState.ac && oldTlid <> newTlid
   then
     let newAc = reset m in
-    {m with fluidState = {m.fluidState with ac = newAc}}
+    ((Debug.loG "ac = newAC updateAutocompleteVisibility" newAc.index);
+    {m with fluidState = {m.fluidState with ac = newAc}})
   else m

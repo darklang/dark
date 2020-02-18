@@ -689,7 +689,8 @@ let generate (m : model) (a : autocomplete) : autocomplete =
         []
   in
   let items = if a.target = None then tlDestinations m else entries in
-  {a with allCompletions = items}
+  ((Debug.loG "non-fluid Autocomplete Generate" ());
+  {a with allCompletions = items})
 
 
 let filter (list : autocompleteItem list) (query : string) :

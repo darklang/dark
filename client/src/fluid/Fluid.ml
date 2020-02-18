@@ -63,6 +63,7 @@ let astAndStateFromTLID (m : model) (tlid : tlid) : (E.t * state) option =
   (* TODO(JULIAN): codify removeHandlerTransientState as an external function, make `fromExpr`
     accept only the info it needs, and differentiate between handler-specific and global fluid state. *)
   let removeHandlerTransientState m =
+    Debug.loG "AC.reset : removeHandlerTransientState in astAndStateFromTLID" ();
     {m with fluidState = {m.fluidState with ac = AC.reset m}}
   in
   let maybeFluidAstAndState =
@@ -2111,6 +2112,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : (E.t * caretTarget) option
       Some (EPipe (gid (), [b; E.newB ()]), target)
   | FACVariable (name, _) ->
       let vID = gid () in
+      Debug.loG ">>>>>>>>>>>>>>FLUID REGEN VARID" (vID);
       Some
         ( EVariable (vID, name)
         , {astRef = ARVariable vID; offset = String.length name} )
@@ -2177,7 +2179,9 @@ let acToPatternOrExpr (entry : Types.fluidAutocompleteItem) :
        ~default:(E.Expr (E.newB ()), {astRef = ARInvalid; offset = 0})
 
 
-let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
+let initAC (s : state) (m : Types.model) : state =
+  (Debug.loG "AC.init - initAC" ());
+{s with ac = AC.init m}
 
 let isAutocompleting (ti : T.tokenInfo) (s : state) : bool =
   T.isAutocompletable ti.token
@@ -2188,11 +2192,13 @@ let isAutocompleting (ti : T.tokenInfo) (s : state) : bool =
 
 
 let acSetIndex (i : int) (s : state) : state =
+  (Debug.loG "acSetIndex" i);
   let s = recordAction "acSetIndex" s in
   {s with ac = {s.ac with index = Some i}; upDownCol = None}
 
 
 let acClear (s : state) : state =
+  (Debug.loG "acClear" ());
   let s = recordAction "acClear" s in
   {s with ac = {s.ac with index = None}}
 
@@ -2200,8 +2206,8 @@ let acClear (s : state) : state =
 let acMaybeShow (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
   if T.isAutocompletable ti.token && s.ac.index = None
-  then {s with ac = {s.ac with index = Some 0}}
-  else s
+  then ((Debug.loG "acShow yes" 0); {s with ac = {s.ac with index = Some 0}})
+  else ((Debug.loG "acShow no" ()); s)
 
 
 let acMoveUp (s : state) : state =
@@ -2378,6 +2384,7 @@ let updateFromACItem
           ~debug:entry
           (ast, {astRef = ARInvalid; offset = 0})
   in
+  (Debug.loG "query=None - updateFromACItem" ());
   let s = {s with ac = {s.ac with query = None}} in
   (newAST, acMoveBasedOnKey key target s newAST)
 
@@ -4476,6 +4483,7 @@ let updateAutocomplete m tlid (ast : ast) s : fluidState =
   | Some ti when T.isAutocompletable ti.token ->
       let m = TL.withAST m tlid ast in
       let newAC = AC.regenerate m s.ac (tlid, ti) in
+      (Debug.loG "newAC - updateAutocomplete" (newAC.index));
       {s with ac = newAC}
   | _ ->
       s
