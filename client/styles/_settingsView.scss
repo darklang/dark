@@ -80,9 +80,17 @@
     align-items: center;
     justify-content: center;
     flex-direction: column;
+    h3 {
+      margin: 0px;
+    }
+    .error-text {
+      color: $red;
+      margin: 0px;
+      height: 25px;
+    }
     .form-field {
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       justify-content: space-around;
       width: 100%;
       max-width: 500px;
@@ -99,6 +107,7 @@
       padding: 10px 15px;
       background: $grey2;
       border-radius: 3px;
+      margin-top: 35px;
       cursor: pointer;
     }
   }
