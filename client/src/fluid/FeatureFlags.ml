@@ -36,8 +36,8 @@ let wrap (_ : model) (tl : toplevel) (id : id) : modification =
 
 
 (** [unwrap m tl id]  returns a [modification] which unwraps the feature flag
-  * expression in toplevel [tl] having [id], replacing it with its default case.
-  * If the expression having [id] is not a FeatureFlag, does nothing. *)
+ * expression having [id] in toplevel [tl], replacing it with its default case.
+ * If the expression having [id] is not a FeatureFlag, does nothing. *)
 let unwrap (_ : model) (tl : toplevel) (id : id) : modification =
   let replacement e : E.t =
     match e with

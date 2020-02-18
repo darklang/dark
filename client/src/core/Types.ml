@@ -429,9 +429,8 @@ type astPatternPart =
 [@@deriving show {with_path = false}]
 
 type astFlagPart =
-  | FPCond
-  | FPEnabled
-  | FPDisabled
+  | FPWhenKeyword
+  | FPEnabledKeyword
 [@@deriving show {with_path = false}]
 
 (* An astRef represents a reference to a specific part of an AST node,
@@ -1459,9 +1458,8 @@ and fluidToken =
   | TConstructorName of id * string
   | TParenOpen of id
   | TParenClose of id
-  | TFlagCond of id
-  | TFlagEnabled of id
-  | TFlagDefault of id
+  | TFlagWhenKeyword of id
+  | TFlagEnabledKeyword of id
 
 and fluidTokenInfo =
   { startRow : int

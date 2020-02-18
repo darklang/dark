@@ -712,9 +712,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
-    | ARFlag (id, FPCond), TFlagCond id'
-    | ARFlag (id, FPEnabled), TFlagEnabled id'
-    | ARFlag (id, FPDisabled), TFlagDefault id'
+    | ARFlag (id, FPWhenKeyword), TFlagWhenKeyword id'
+    | ARFlag (id, FPEnabledKeyword), TFlagEnabledKeyword id'
       when id = id' ->
         posForTi ti
     | ARList (id, LPComma idx), TListComma (id', idx')
@@ -1006,12 +1005,10 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
       Some {astRef = ARConstructor id; offset}
-  | TFlagCond id ->
-      Some {astRef = ARFlag (id, FPCond); offset}
-  | TFlagEnabled id ->
-      Some {astRef = ARFlag (id, FPEnabled); offset}
-  | TFlagDefault id ->
-      Some {astRef = ARFlag (id, FPDisabled); offset}
+  | TFlagWhenKeyword id ->
+      Some {astRef = ARFlag (id, FPWhenKeyword); offset}
+  | TFlagEnabledKeyword id ->
+      Some {astRef = ARFlag (id, FPEnabledKeyword); offset}
   (*
     These have no valid caretTarget because they are not
     strictly part of the AST.
