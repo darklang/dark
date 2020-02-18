@@ -1573,14 +1573,26 @@ let admin_ui_handler
           respond ~execution_id `Not_found "Not found"
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
+  let is_canvas_name_valid canvas =
+    match String.split ~on:'-' canvas with
+    | _ :: c ->
+        Tc.String.join ~sep:"" c |> Re2.matches (Re2.create_exn "^[a-z0-9_-]+$")
+    | _ ->
+        false
+  in
   match (verb, path) with
-  | `GET, ["a"; canvas] ->
+  | `GET, ["a"; canvas] when is_canvas_name_valid canvas ->
       when_can_view ~canvas (fun canvas_id ->
           if integration_test then Canvas.load_and_resave_from_test_file canvas ;
           let html =
             admin_ui_html ~canvas_id ~csrf_token ~local username admin
           in
           respond ~resp_headers:html_hdrs ~execution_id `OK html)
+  | `GET, ["a"; canvas] ->
+      respond
+        ~execution_id
+        `Not_found
+        "Your canvas name may only contain alpahnumeric characters, underscores, or dashes."
   | _ ->
       respond ~execution_id `Not_found "Not found"
 
