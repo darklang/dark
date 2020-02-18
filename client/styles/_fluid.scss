@@ -386,8 +386,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   .fluid-pipe-symbol {
     color: $blue;
     font-size: 10px;
-    padding-top: 3px;
-    padding-bottom: 1px;
+    padding: 3px 4px 1px 0px;
   }
 
   /* Will style more later. Cmd palette should look like a smaller version of omnibox

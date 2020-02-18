@@ -332,22 +332,27 @@ let viewDval tlid dval ~(canCopy : bool) =
 let viewLiveValue
     ~(tlid : tlid) ~(ast : ast) ~(vs : viewState) ~(state : fluidState) :
     Types.msg Html.html =
+  (* isLoaded will be set to false later if we are in the middle of loading
+   * results. All other states are considered loaded. This is used to apply
+   * a class ".loaded" purely for integration tests being able to know when
+   * the live value content is ready and can be asserted on *)
+  let isLoaded = ref true in
   (* Renders dval*)
   let renderDval = viewDval tlid in
   (* Renders live value for token *)
   let renderTokenLv token id =
     let fnLoading =
       (* If fn needs to be manually executed, check status *)
-      let fn = fnForToken state token in
-      let args = fnArgExprs token ast |> List.map ~f:E.toID in
-      Option.andThen fn ~f:(fun fn ->
-          if fn.fnPreviewExecutionSafe
-          then None
-          else
-            let id = T.tid token in
-            ViewFnExecution.fnExecutionStatus vs fn id args
-            |> ViewFnExecution.executionError
-            |> Option.some)
+      fnForToken state token
+      |> Option.andThen ~f:(fun fn ->
+             if fn.fnPreviewExecutionSafe
+             then None
+             else
+               let id = T.tid token in
+               let args = fnArgExprs token ast |> List.map ~f:E.toID in
+               ViewFnExecution.fnExecutionStatus vs fn id args
+               |> ViewFnExecution.executionError
+               |> Option.some)
     in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
     | LoadableSuccess (ExecutedResult (DIncomplete _))
@@ -373,6 +378,7 @@ let viewLiveValue
     | LoadableSuccess (ExecutedResult dval) ->
         renderDval dval ~canCopy:true
     | LoadableNotInitialized | LoadableLoading _ ->
+        isLoaded := false ;
         [ViewUtils.fontAwesome "spinner"]
     | LoadableSuccess (NonExecutedResult (DError _ as dval))
     | LoadableSuccess (NonExecutedResult (DIncomplete _ as dval)) ->
@@ -408,7 +414,7 @@ let viewLiveValue
   |> Option.map ~f:(fun (content, row) ->
          let offset = float_of_int row in
          Html.div
-           [ Html.class' "live-value"
+           [ Html.classList [("live-value", true); ("loaded", !isLoaded)]
            ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
            ; Attrs.autofocus false
            ; Vdom.attribute "" "spellcheck" "false" ]

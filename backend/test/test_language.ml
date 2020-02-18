@@ -34,15 +34,18 @@ let t_match_works () =
             [ (pInt 5, str "int")
             ; (pFloat "5" "6", str "float")
             ; (pBool false, str "bool")
-            ; (pNull, str "null")
-            ; (pBlank, str "blank")
+            ; (pString "myStr", str "string")
+            ; (pNull (), str "null")
+            ; (pBlank (), str "blank")
             ; (pConstructor "Ok" [pVar "x"], fn "++" [str "ok: "; var "x"])
             ; (pConstructor "Nothing" [], str "constructor nothing")
             ; (pVar "name", fn "++" [var "name"; str "var"]) ]))
   in
   check_match (int 5) "int" ;
-  check_match (float' "5" "6") "float" ;
+  check_match (float' 5 6) "float" ;
   check_match (bool false) "bool" ;
+  check_match (str "myStr") "string" ;
+  check_match (str "otherStr") "otherStrvar" ;
   check_match null "null" ;
   check_match (constructor "Ok" [str "x"]) "ok: x" ;
   check_match (constructor "Nothing" []) "constructor nothing" ;

@@ -2128,7 +2128,7 @@ let run () =
         "Ju~@@ ___" ;
       t
         "backspace after selecting all with a `Just |___` in a match deletes all"
-        (match' b [(pConstructor "Just" [pBlank], b)])
+        (match' b [(pConstructor "Just" [pBlank ()], b)])
         (* wrap false because else we delete the wrapper *)
         (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
