@@ -388,34 +388,35 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> nest ~indent:2 body
   | EList (id, exprs) ->
       let lastIndex = List.length exprs - 1 in
-      (* xPos at the start of the list *)
-      let startsAtXPos = b.xPos |> Option.withDefault ~default:0 in
-      (* keeps track on indent *)
-      let ind = ref 0 in
+      (*
+        Overview: As we are running each list item, through the iterator, we want to find if the addition of current list item to the list, will cause the list literal's line to exceed max literal line size. If so, we add a new line token and an indent by 1, before the tokenized item to the builder.
+
+        Implementation details:
+        - xPos from the builder provides the column number we will be starting from if a new item was to be added to the builder.
+        - First we want to keep track of the xPos we are starting off with. We will use it to subtract from, so our calculation of the line length is relative to the contents inside [ ].
+        - With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
+      *)
+      let startingXPos = b.xPos |> Option.withDefault ~default:0 in
       b
       |> add (TListOpen id)
       |> addIter exprs ~f:(fun i e b' ->
-             (* The hieristics of this function is to see if we need to construct a multiline list literal, and construct it accordingly.
-      In a multiline list literal, we want to make sure all last items of a line will have newline at the end of it's output token stream.
-      All first items of a line, will have an indent by 1 token (relative to indent of the list).
-            *)
-             (* Calculate current line length *)
-             let len =
-               (fromExpr e b').xPos
-               (* subtracts starting position and adds +1 for the comma *)
-               |> Option.map ~f:(fun x -> x - startsAtXPos + 1)
+             let exprBuilder = fromExpr e in
+             let lnLength =
+               (exprBuilder b').xPos
+               (* Additional 1 is for the comma *)
+               |> Option.map ~f:(fun x ->
+                      x - startingXPos + if i <> lastIndex then 1 else 0)
                |> Option.withDefault ~default:0
              in
-             (* If current line is over limit for literals, then we add a new like at the end of this token stream *)
-             let isOverLimit = len > literalLimit in
+             let isOverLimit = lnLength > literalLimit in
+             (* Indent after newlines to match the '[ ' *)
+             let indent = if isOverLimit then 1 else 0 in
              b'
-             |> indentBy ~indent:!ind ~f:(fun b' ->
-                    (* If the next list-item will be the first on a newline, indent by 1 space *)
-                    ind := if isOverLimit then 1 else 0 ;
+             |> addIf isOverLimit (TNewline None)
+             |> indentBy ~indent ~f:(fun b' ->
                     b'
-                    |> addNested ~f:(fromExpr e)
-                    |> addIf (i <> lastIndex) (TListComma (id, i))
-                    |> addIf isOverLimit (TNewline None)))
+                    |> addNested ~f:exprBuilder
+                    |> addIf (i <> lastIndex) (TListComma (id, i))))
       |> add (TListClose id)
   | ERecord (id, fields) ->
       if fields = []
