@@ -1908,6 +1908,11 @@ let run () =
         (inputs [InsertText "="; keypress K.Enter] 7)
         "12345 <= ~12345" ;
       t
+        "wrapping a binop in a let with enter"
+        (binop "+" (int 1) (int 2))
+        (keys [K.Enter] 0)
+        "let *** = ___\n~1 + 2" ;
+      t
         ~expectsPartial:true
         "adding binop in `if` works"
         (if' b b b)
