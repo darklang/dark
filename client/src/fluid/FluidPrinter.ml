@@ -13,25 +13,26 @@ type tokenInfo = Types.fluidTokenInfo
  * builder was split. See [split b] and [Builder.t.splits] for more. *)
 type split =
   { id : id
+        (** [id] holds the id of the first token in [tokens].
+          * This is useful for joining this split back to it's parent *)
   ; tokens : tokenInfo list }
 
 module Builder = struct
   type t =
-    { tokens :
-        (* list is kept reversed while being built up, as adding things to the
-         * front of the list is an order of magnitude faster. We were having
-         * large slowdowns on large handlers before this. *)
-        fluidToken list
-    ; splits :
-        (* [splits] are sub-builders, used for splitting off parts of the AST
-         * to display in a different editor panel, like displaying a feature
-         * flag panel to the side of the main editor.
-         * A builder can have zero or more splits, created by calling [split b]. *)
-        t list
-    ; indent : (* tracks the indent after a newline *) int
-    ; xPos :
-        (* tracks the indent for nesting. `None` indicates it's ready to go after a newline *)
-        int option }
+    { tokens : fluidToken list
+          (** [tokens] list is kept reversed while being built up, as adding
+            * things to the front of the list is an order of magnitude faster.
+            * We were having large slowdowns on large handlers before this. *)
+    ; splits : t list
+          (** [splits] are sub-builders, used for splitting off parts of the AST
+            * to display in a different editor panel, like displaying a feature
+            * flag panel to the side of the main editor.
+            * A builder can have zero or more splits, created by calling [split b]. *)
+    ; indent : int  (** [indent] tracks the indent after a newline *)
+    ; xPos : int option
+          (** [xPos] tracks the indent for nesting.
+            * `None` indicates it's ready to go after a newline *)
+    }
 
   let rec endsInNewline (b : t) : bool =
     (* The latest token is on the front *)
