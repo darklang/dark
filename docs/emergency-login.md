@@ -18,5 +18,6 @@ To use:
 - open the dev console, go to the Cookies tab, right click the table and select
   Add Cookie
 - Name = `__session`, Value and Domain are printed by the script above
+- Click Submit
 
 With said cookie set, you are now logged in.

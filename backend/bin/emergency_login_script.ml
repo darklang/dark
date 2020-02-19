@@ -40,16 +40,10 @@ let () =
     report_to_rollbar username ;
     Caml.print_endline
       (Printf.sprintf
-         "To log in, you'll need the cookie manager extension installed:
-  https://chrome.google.com/webstore/detail/cookie-inspector/jgbbilmfbammlbbhmmgaagdkbkepnijn
-
-To use it, open the browser console, go to the Cookies tab, right click the
-table and select Add Cookie.
+         "See docs/emergency-login.md for instructions. Your values are
 Name = __session ,
 Value = %s , and
-Domain = %s (note: initial dot is _important_)
-
-then click Submit and you're ready to go."
+Domain = %s (note: initial dot is _important_)"
          session_key
          Config.cookie_domain) ;
     () )
