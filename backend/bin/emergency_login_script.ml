@@ -5,14 +5,6 @@ let usage () : unit =
   exit 1
 
 
-let domain =
-  Re2.replace_exn
-    (Re2.create_exn ":8000")
-    (Re2.replace_exn (Re2.create_exn "static") Config.static_host ~f:(fun _ ->
-         ""))
-    ~f:(fun _ -> "")
-
-
 let session_key_for_username (username : string) : string =
   Auth.SessionSync.new_for_username username
 
@@ -42,7 +34,7 @@ let () =
   else (
     Nocrypto_entropy_unix.initialize () ;
     let username = Sys.argv.(1) in
-    Caml.print_endline (Printf.sprintf "Generating a cookie for %s." domain) ;
+    Caml.print_endline (Printf.sprintf "Generating a cookie for %s." Config.cookie_domain) ;
     let session_key = username |> session_key_for_username in
     report_to_rollbar username ;
     Caml.print_endline
@@ -58,5 +50,5 @@ Domain = %s (note: initial dot is _important_)
 
 then click Submit and you're ready to go."
          session_key
-         domain) ;
+         Config.cookie_domain) ;
     () )
