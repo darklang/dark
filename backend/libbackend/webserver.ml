@@ -1519,6 +1519,10 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
       S.respond_redirect ~uri ()
 
 
+let is_canvas_name_valid (canvas : string) : bool =
+  Re2.matches (Re2.create_exn "^([a-z0-9]+[_-]?)*[a-z0-9]$") canvas
+
+
 let admin_ui_handler
     ~(execution_id : Types.id)
     ~(path : string list)
@@ -1573,13 +1577,6 @@ let admin_ui_handler
           respond ~execution_id `Not_found "Not found"
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  let is_canvas_name_valid canvas =
-    match String.split ~on:'-' canvas with
-    | _ :: c ->
-        Tc.String.join ~sep:"" c |> Re2.matches (Re2.create_exn "^[a-z0-9_-]+$")
-    | _ ->
-        false
-  in
   match (verb, path) with
   | `GET, ["a"; canvas] when is_canvas_name_valid canvas ->
       when_can_view ~canvas (fun canvas_id ->
@@ -1591,8 +1588,8 @@ let admin_ui_handler
   | `GET, ["a"; canvas] ->
       respond
         ~execution_id
-        `Not_found
-        "Your canvas name may only contain alpahnumeric characters, underscores, or dashes."
+        `Bad_request
+        "Your canvas name must:\n - Start and end with an alphanumeric character\n - May contain a dash or understore only if it is between two alpahnumeric charcters"
   | _ ->
       respond ~execution_id `Not_found "Not found"
 
