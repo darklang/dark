@@ -4333,18 +4333,20 @@ let rec updateKey
      * Caret at very beginning of tokens or at beginning of non-special line. *)
     | Keypress {key = K.Enter; _}, No, R (t, _)
     | Keypress {key = K.Enter; _}, L (TNewline _, _), R (t, _) ->
-        let id = FluidToken.tid t in
         (* In some cases, like |1 + 2, we want to wrap the parent expr (in this case the binop) in a let.
-         * Otherwise, we want to wrap just the subexpression, such as with an if's then expression. *)
-        let topID =
+         * This has to be recursive to handle variations on |1*2 + 3.
+         * In other cases, we want to wrap just the subexpression, such as an if's then expression. *)
+        let rec findTopID (id : id) (ast : ast) : id =
           E.findParent id ast
           |> Option.andThen ~f:(function
                  | E.EBinOp _ as expr ->
-                     Some (E.toID expr)
+                     Some (findTopID (E.toID expr) ast)
                  | _ ->
                      None)
           |> Option.withDefault ~default:id
         in
+        let id = FluidToken.tid t in
+        let topID = findTopID id ast in
         let ast, s, _ = makeIntoLetBody topID ast s in
         let s = moveToCaretTarget s ast (caretTargetForStartOfExpr topID ast) in
         (ast, s)
