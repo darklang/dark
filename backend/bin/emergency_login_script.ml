@@ -34,7 +34,8 @@ let () =
   else (
     Nocrypto_entropy_unix.initialize () ;
     let username = Sys.argv.(1) in
-    Caml.print_endline (Printf.sprintf "Generating a cookie for %s." Config.cookie_domain) ;
+    Caml.print_endline
+      (Printf.sprintf "Generating a cookie for %s." Config.cookie_domain) ;
     let session_key = username |> session_key_for_username in
     report_to_rollbar username ;
     Caml.print_endline
