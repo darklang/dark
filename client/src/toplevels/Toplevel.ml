@@ -68,6 +68,7 @@ let pos tl =
 
 
 let remove (m : model) (tl : toplevel) : model =
+  let m = {m with cursorState = Deselected; currentPage = Architecture} in
   match tl with
   | TLHandler h ->
       Handlers.remove m h
