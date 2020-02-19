@@ -3,6 +3,7 @@ module Svg = Tea.Svg
 module Regex = Util.Regex
 module TL = Toplevel
 module TD = TLIDDict
+module E = FluidExpression
 
 type viewState =
   { tl : toplevel
@@ -28,15 +29,19 @@ type viewState =
   ; refersToRefs : (toplevel * id list) list
   ; usedInRefs : toplevel list
   ; hoveringRefs : id list
-  ; fluidState : Types.fluidState
+  ; fluidState : fluidState
   ; avatarsList : avatar list
   ; permission : permission option
   ; workerStats : workerStats option
-  ; tokens :
-      (* Calculate the tokens once per render only *)
-      FluidToken.tokenInfo list
   ; menuState : menuState
   ; isExecuting : bool
+  ; tokenSplits :
+      (* tokenSplits are the result of calling Printer.tokenizeWithSplits on an
+       * AST. The head split is always the main editor, with the optional tail
+       * being other editor panels. fluidState.activeEditorPanelIdx allows indexing
+       * into this list to get the tokens for the currently active editor
+       * panel. *)
+      FluidPrinter.split list
   ; fnProps : fnProps }
 
 (* ----------------------------- *)
@@ -46,16 +51,20 @@ type domEvent = msg Vdom.property
 
 type domEventList = domEvent list
 
-let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
-    viewState =
+let createVS (m : model) (tl : toplevel) : viewState =
   let tlid = TL.id tl in
   let hp =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
   let traceID = Analysis.getSelectedTraceID m tlid in
+  let tokenSplits =
+    TL.getAST tl
+    |> Option.map ~f:FluidPrinter.tokenizeWithSplits
+    |> Option.withDefault ~default:[]
+  in
   { tl
-  ; cursorState = unwrapCursorState m.cursorState
   ; tlid
+  ; cursorState = unwrapCursorState m.cursorState
   ; hovering =
       m.hovering
       |> List.filter ~f:(fun (tlid, _) -> tlid = tlid)
@@ -110,6 +119,7 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
           m.avatarsList
       | _ ->
           [] )
+  ; tokenSplits
   ; permission = m.permission
   ; workerStats =
       (* Right now we patch because worker execution link depends on name instead of TLID. When we fix our worker association to depend on TLID instead of name, then we will get rid of this patchy hack. *)
@@ -127,7 +137,6 @@ let createVS (m : model) (tl : toplevel) (tokens : FluidToken.tokenInfo list) :
            Some {Defaults.defaultWorkerStats with schedule}
        | Some c, Some _ ->
            Some {c with schedule})
-  ; tokens
   ; menuState =
       TLIDDict.get ~tlid m.tlMenus
       |> Option.withDefault ~default:Defaults.defaultMenu
@@ -298,6 +307,12 @@ let isHoverOverTL (vs : viewState) : bool =
       true
   | _ ->
       false
+
+
+let getMainTokens (vs : viewState) : FluidPrinter.tokenInfo list =
+  List.head vs.tokenSplits
+  |> Option.map ~f:(fun (p : FluidPrinter.split) -> p.tokens)
+  |> Option.withDefault ~default:[]
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u

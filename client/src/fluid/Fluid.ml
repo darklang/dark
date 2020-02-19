@@ -37,7 +37,9 @@ type token = T.t
 
 type state = Types.fluidState
 
-let toTokens = Printer.toTokens
+let deselectFluidEditor (s : fluidState) : fluidState =
+  {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditorPanelIdx = 0}
+
 
 let getStringIndexMaybe ti pos : int option =
   match ti.token with
@@ -177,7 +179,8 @@ let getToken' (s : fluidState) (tokens : T.tokenInfo list) : T.tokenInfo option
 
 
 let getToken (s : fluidState) (ast : ast) : T.tokenInfo option =
-  getToken' s (toTokens ast)
+  let tokens = Printer.tokensForSplit ast ~index:s.activeEditorPanelIdx in
+  getToken' s tokens
 
 
 (* -------------------- *)
@@ -315,7 +318,11 @@ let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
       | _ ->
           if pos < ti.startPos then getNextWS rest else ti.startPos )
   in
-  let newPos = getNextWS (List.reverse (toTokens ast)) in
+  let newPos =
+    Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast
+    |> List.reverse
+    |> getNextWS
+  in
   setPosition ~resetUD:true s newPos
 
 
@@ -332,15 +339,18 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
   in
-  let newPos = getNextWS (toTokens ast) in
+  let newPos =
+    Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast |> getNextWS
+  in
   setPosition ~resetUD:true s newPos
 
 
 (* getStartOfLineCaretPos returns the first desirable (excluding indents, pipes, and newline tokens)
  caret pos at the start of the line containing the given T.tokenInfo *)
-let getStartOfLineCaretPos (ast : ast) (ti : T.tokenInfo) : int =
+let getStartOfLineCaretPos (ast : ast) (s : fluidState) (ti : T.tokenInfo) : int
+    =
   let token =
-    toTokens ast
+    Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast
     |> List.find ~f:(fun info ->
            if info.startRow == ti.startRow
            then
@@ -397,9 +407,9 @@ let getEndOfWordInStrCaretPos ~(pos : int) (ti : T.tokenInfo) : int =
 
 (* getEndOfLineCaretPos returns the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
-let getEndOfLineCaretPos (ast : ast) (ti : T.tokenInfo) : int =
+let getEndOfLineCaretPos (ast : ast) (s : fluidState) (ti : T.tokenInfo) : int =
   let token =
-    toTokens ast
+    Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast
     |> List.reverse
     |> List.find ~f:(fun info -> info.startRow == ti.startRow)
     |> Option.withDefault ~default:ti
@@ -419,21 +429,22 @@ let getEndOfLineCaretPos (ast : ast) (ti : T.tokenInfo) : int =
  caret pos at the start of the line containing the given tokenInfo *)
 let moveToStartOfLine (ast : ast) (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "moveToStartOfLine" s in
-  setPosition s (getStartOfLineCaretPos ast ti)
+  setPosition s (getStartOfLineCaretPos ast s ti)
 
 
 (* moveToEndOfLine moves the caret to the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
 let moveToEndOfLine (ast : ast) (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "moveToEndOfLine" s in
-  setPosition s (getEndOfLineCaretPos ast ti)
+  setPosition s (getEndOfLineCaretPos ast s ti)
 
 
 (* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
-let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
+let getStartOfWordPos
+    ~(pos : int) (ast : ast) (s : fluidState) (ti : T.tokenInfo) : int =
   let previousToken =
-    toTokens ast
+    Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast
     |> List.reverse
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos > t.startPos)
   in
@@ -446,14 +457,15 @@ let getStartOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
     state =
   let s = recordAction "goToStartOfWord" s in
-  setPosition s (getStartOfWordPos ~pos ast ti)
+  setPosition s (getStartOfWordPos ~pos ast s ti)
 
 
 (* We want to find the closest editable token that is after the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
-let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
+let getEndOfWordPos ~(pos : int) (ast : ast) (s : fluidState) (ti : T.tokenInfo)
+    : int =
   let tokenInfo =
-    toTokens ast
+    Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
     |> Option.withDefault ~default:ti
   in
@@ -465,7 +477,7 @@ let getEndOfWordPos ~(pos : int) (ast : ast) (ti : T.tokenInfo) : int =
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : T.tokenInfo) (s : state) :
     state =
   let s = recordAction "goToEndOfWord" s in
-  setPosition s (getEndOfWordPos ~pos ast ti)
+  setPosition s (getEndOfWordPos ~pos ast s ti)
 
 
 let moveToEnd (ti : T.tokenInfo) (s : state) : state =
@@ -502,7 +514,7 @@ let moveTo (newPos : int) (s : state) : state =
  * with its location. If blank, will go to the start of the blank *)
 let moveToEndOfTarget (target : id) (ast : ast) (s : state) : state =
   let s = recordAction "moveToEndOfTarget" s in
-  let tokens = toTokens ast in
+  let tokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   match
     List.find (List.reverse tokens) ~f:(fun ti ->
         FluidToken.tid ti.token = target)
@@ -535,7 +547,7 @@ let getNextBlankPos (pos : int) (tokens : T.tokenInfo list) : int =
 
 let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextBlank" s in
-  let tokens = toTokens ast in
+  let tokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   let newPos = getNextBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
 
@@ -543,7 +555,7 @@ let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
 let rec getPrevBlank (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
   tokens
-  |> List.filter ~f:(fun ti -> T.isBlank ti.token && ti.endPos < pos)
+  |> List.filter ~f:(fun ti -> T.isBlank ti.token && ti.endPos <= pos)
   |> List.last
   |> Option.orElseLazy (fun () ->
          let lastPos =
@@ -563,7 +575,7 @@ let getPrevBlankPos (pos : int) (tokens : T.tokenInfo list) : int =
 
 let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToPrevBlank" s in
-  let tokens = toTokens ast in
+  let tokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   let newPos = getPrevBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
 
@@ -576,7 +588,7 @@ let doLeft ~(pos : int) (ti : T.tokenInfo) (s : state) : state =
 
 
 let selectAll ~(pos : int) (ast : ast) (s : state) : state =
-  let tokens = toTokens ast in
+  let tokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   let last = List.last tokens in
   let lastPos = match last with Some l -> l.endPos | None -> 0 in
   {s with newPos = lastPos; oldPos = pos; selectionStart = Some 0}
@@ -608,7 +620,7 @@ let doRight
 
 let doUp ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "doUp" s in
-  let tokens = toTokens ast in
+  let tokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   if row = 0
@@ -620,7 +632,7 @@ let doUp ~(pos : int) (ast : ast) (s : state) : state =
 
 let doDown ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "doDown" s in
-  let tokens = toTokens ast in
+  let tokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
@@ -639,7 +651,7 @@ let doDown ~(pos : int) (ast : ast) (s : state) : state =
    This is useful for determining the precise position to which the caret should
    jump after a transformation. *)
 let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
-  let infos = toTokens ast in
+  let infos = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   (* Essentially we're using List.findMap to map a function that
    * matches across astref,token combinations (exhaustively matching astref but not token)
    * to determine the corresponding caretPos.
@@ -700,6 +712,8 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
       , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
     | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
     | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
+    | ARFlag (id, FPWhenKeyword), TFlagWhenKeyword id'
+    | ARFlag (id, FPEnabledKeyword), TFlagEnabledKeyword id'
       when id = id' ->
         posForTi ti
     | ARList (id, LPComma idx), TListComma (id', idx')
@@ -843,7 +857,9 @@ let posFromCaretTarget (s : fluidState) (ast : ast) (ct : caretTarget) : int =
     | ARPattern (_, PPFloat FPFractional), _
     | ARPattern (_, PPBlank), _
     | ARPattern (_, PPNull), _
-    | ARPattern (_, PPString SPOpenQuote), _ ->
+    | ARPattern (_, PPString SPOpenQuote), _
+    | ARFlag (_, FPWhenKeyword), _
+    | ARFlag (_, FPEnabledKeyword), _ ->
         None
     (* Invalid *)
     | ARInvalid, _ ->
@@ -990,6 +1006,10 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARPattern (id, PPBlank); offset}
   | TConstructorName (id, _) ->
       Some {astRef = ARConstructor id; offset}
+  | TFlagWhenKeyword id ->
+      Some {astRef = ARFlag (id, FPWhenKeyword); offset}
+  | TFlagEnabledKeyword id ->
+      Some {astRef = ARFlag (id, FPEnabledKeyword); offset}
   (*
     These have no valid caretTarget because they are not
     strictly part of the AST.
@@ -1003,7 +1023,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       None
 
 
-let caretTargetForNextNonWhitespaceToken ~pos (ast : ast) : caretTarget option =
+let caretTargetForNextNonWhitespaceToken ~pos (ast : ast) (s : fluidState) :
+    caretTarget option =
   let rec getNextWS tokens =
     match tokens with
     | [] ->
@@ -1017,7 +1038,7 @@ let caretTargetForNextNonWhitespaceToken ~pos (ast : ast) : caretTarget option =
           then getNextWS rest
           else caretTargetFromTokenInfo ti.startPos ti )
   in
-  getNextWS (toTokens ast)
+  Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast |> getNextWS
 
 
 (** moveToAstRef returns a modified fluidState with newPos set to reflect
@@ -2246,7 +2267,7 @@ let updatePosAndAC (ast : ast) (newPos : int) (s : state) : state =
 let acMoveBasedOnKey
     (key : K.key) (currCaretTarget : caretTarget) (s : state) (ast : ast) :
     state =
-  let tokens = toTokens ast in
+  let tokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   let caretTarget : caretTarget =
     match key with
     | K.Tab ->
@@ -2268,7 +2289,7 @@ let acMoveBasedOnKey
           but could do    [aced,|___]
         *)
         let startPos = posFromCaretTarget s ast currCaretTarget in
-        caretTargetForNextNonWhitespaceToken ~pos:startPos ast
+        caretTargetForNextNonWhitespaceToken ~pos:startPos ast s
         |> Option.withDefault ~default:currCaretTarget
     | _ ->
         currCaretTarget
@@ -2485,7 +2506,9 @@ let adjustPosForReflow
    * the old token in the new token stream, and then doing the appropriate
    * adjustment. There are definitely places this won't work, but I haven't
    * found them yet. *)
-  let newTokens = toTokens newAST in
+  let newTokens =
+    Printer.tokensForSplit ~index:state.activeEditorPanelIdx newAST
+  in
   let newTI = List.find newTokens ~f:(fun x -> T.matches oldTI.token x.token) in
   let diff =
     match newTI with Some newTI -> newTI.startPos - oldTI.startPos | None -> 0
@@ -2522,7 +2545,8 @@ let idOfASTRef (astRef : astRef) : id option =
   | ARConstructor id
   | ARMatch (id, _)
   | ARLambda (id, _)
-  | ARPattern (id, _) ->
+  | ARPattern (id, _)
+  | ARFlag (id, _) ->
       Some id
   | ARInvalid ->
       None
@@ -2807,7 +2831,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARRecord (_, RPClose), expr
     | ARRecord (_, RPFieldSep _), expr
     | ARList (_, LPOpen), expr
-    | ARList (_, LPClose), expr ->
+    | ARList (_, LPClose), expr
+    | ARFlag (_, FPWhenKeyword), expr
+    | ARFlag (_, FPEnabledKeyword), expr ->
         (* We could alternatively move by a single character instead,
            which is what the old version did with minor exceptions;
            that isn't particularly useful as typing within these
@@ -3014,6 +3040,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
     | ARRightPartial _, _
     | ARString _, _
     | ARVariable _, _
+    | ARFlag _, _
     | ARInvalid, _ ->
         recover
           "doExplicitBackspace - unexpected pat"
@@ -3304,7 +3331,9 @@ let doExplicitInsert
     | ARIf (_, IPElseKeyword), _
     | ARPipe (_, _), _
     | ARMatch (_, MPKeyword), _
-    | ARMatch (_, MPBranchArrow _), _ ->
+    | ARMatch (_, MPBranchArrow _), _
+    | ARFlag (_, FPWhenKeyword), _
+    | ARFlag (_, FPEnabledKeyword), _ ->
         None
     (*****************
      * Exhaustiveness
@@ -3519,6 +3548,7 @@ let doExplicitInsert
     | ARRightPartial _, _
     | ARString _, _
     | ARVariable _, _
+    | ARFlag _, _
     | ARInvalid, _ ->
         recover
           "doExplicitInsert - unexpected pat"
@@ -3664,7 +3694,8 @@ let doInfixInsert
          | ARConstructor _, _
          | ARMatch _, _
          | ARLambda _, _
-         | ARPattern _, _ ->
+         | ARPattern _, _
+         | ARFlag _, _ ->
              None
          | ARInvalid, _ ->
              None)
@@ -3733,8 +3764,10 @@ let getOptionalSelectionRange (s : fluidState) : (int * int) option =
       None
 
 
-let tokensInRange selStartPos selEndPos ast : fluidTokenInfo list =
-  toTokens ast
+let tokensInRange
+    (selStartPos : int) (selEndPos : int) (ast : ast) (s : fluidState) :
+    fluidTokenInfo list =
+  Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast
   (* this condition is a little flaky, sometimes selects wrong tokens *)
   |> List.filter ~f:(fun t ->
          (* selectionStart within token *)
@@ -3747,9 +3780,10 @@ let tokensInRange selStartPos selEndPos ast : fluidTokenInfo list =
          || (selStartPos < t.endPos && t.endPos <= selEndPos))
 
 
-let getTopmostSelectionID startPos endPos ast : id option =
+let getTopmostSelectionID
+    (startPos : int) (endPos : int) (ast : ast) (s : fluidState) : id option =
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
-  tokensInRange startPos endPos ast
+  tokensInRange startPos endPos ast s
   |> List.filter ~f:(fun ti -> not (T.isNewline ti.token))
   |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
          let curID = T.parentExprID ti.token in
@@ -3768,7 +3802,7 @@ let getTopmostSelectionID startPos endPos ast : id option =
 let getSelectedExprID (s : state) (ast : ast) : id option =
   getOptionalSelectionRange s
   |> Option.andThen ~f:(fun (startPos, endPos) ->
-         getTopmostSelectionID startPos endPos ast)
+         getTopmostSelectionID startPos endPos ast s)
 
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
@@ -3795,7 +3829,7 @@ let rec updateKey
     ?(recursing = false) (inputEvent : fluidInputEvent) (ast : ast) (s : state)
     : E.t * state =
   let pos = s.newPos in
-  let tokens = toTokens ast in
+  let tokens = Printer.tokensForSplit ast ~index:s.activeEditorPanelIdx in
   (* These might be the same token *)
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos tokens in
   let onEdge =
@@ -3874,7 +3908,8 @@ let rec updateKey
     | InsertText txt, L (TRightPartial (_, _), ti), _
       when onEdge && Util.isIdentifierChar txt ->
         let ast, s = acEnter ti ast s K.Tab in
-        getLeftTokenAt s.newPos (toTokens ast |> List.reverse)
+        let tokens = Printer.tokensForSplit ast ~index:s.activeEditorPanelIdx in
+        getLeftTokenAt s.newPos (List.reverse tokens)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
         |> Option.withDefault ~default:(ast, s)
     (*
@@ -3885,7 +3920,7 @@ let rec updateKey
         let doPipeline ast s =
           let startPos, endPos = getSelectionRange s in
           let findParent = startPos = endPos in
-          let topmostID = getTopmostSelectionID startPos endPos ast in
+          let topmostID = getTopmostSelectionID startPos endPos ast s in
           Option.map topmostID ~f:(fun id ->
               let ast, s, blankId = createPipe ~findParent id ast s in
               match blankId with
@@ -3925,12 +3960,12 @@ let rec updateKey
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ ->
         if maintainSelection == K.KeepSelection
-        then (ast, updateSelectionRange s (getEndOfWordPos ~pos ast ti))
+        then (ast, updateSelectionRange s (getEndOfWordPos ~pos ast s ti))
         else (ast, goToEndOfWord ~pos ast ti s)
     | Keypress {key = K.GoToStartOfWord maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToStartOfWord maintainSelection; _}, L (_, ti), _ ->
         if maintainSelection == K.KeepSelection
-        then (ast, updateSelectionRange s (getStartOfWordPos ~pos ast ti))
+        then (ast, updateSelectionRange s (getStartOfWordPos ~pos ast s ti))
         else (ast, goToStartOfWord ~pos ast ti s)
     | Keypress {key = K.Left; _}, L (_, ti), _ ->
         (ast, doLeft ~pos ti s |> acMaybeShow ti)
@@ -3939,11 +3974,11 @@ let rec updateKey
     | Keypress {key = K.GoToStartOfLine maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToStartOfLine maintainSelection; _}, L (_, ti), _ ->
         if maintainSelection == K.KeepSelection
-        then (ast, updateSelectionRange s (getStartOfLineCaretPos ast ti))
+        then (ast, updateSelectionRange s (getStartOfLineCaretPos ast s ti))
         else (ast, moveToStartOfLine ast ti s)
     | Keypress {key = K.GoToEndOfLine maintainSelection; _}, _, R (_, ti) ->
         if maintainSelection == K.KeepSelection
-        then (ast, updateSelectionRange s (getEndOfLineCaretPos ast ti))
+        then (ast, updateSelectionRange s (getEndOfLineCaretPos ast s ti))
         else (ast, moveToEndOfLine ast ti s)
     | Keypress {key = K.Up; _}, _, _ ->
         (ast, doUp ~pos ast s)
@@ -3988,7 +4023,7 @@ let rec updateKey
           deleteCaretRange
             ~state:s
             ~ast
-            (s.newPos, getStartOfLineCaretPos ast ti) )
+            (s.newPos, getStartOfLineCaretPos ast s ti) )
     | DeleteSoftLineForward, _, R (_, ti) | DeleteSoftLineForward, L (_, ti), _
       ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
@@ -3999,8 +4034,10 @@ let rec updateKey
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
-          deleteCaretRange ~state:s ~ast (s.newPos, getEndOfLineCaretPos ast ti)
-      )
+          deleteCaretRange
+            ~state:s
+            ~ast
+            (s.newPos, getEndOfLineCaretPos ast s ti) )
     | DeleteWordForward, _, R (_, ti) ->
       ( match getOptionalSelectionRange s with
       | Some selRange ->
@@ -4366,7 +4403,7 @@ let rec updateKey
      *
      * TODO: there may be ways of getting the cursor to the end without going
      * through this code, if so we need to move it. *)
-    let tokens = toTokens newAST in
+    let tokens = Printer.tokensForSplit newAST ~index:s.activeEditorPanelIdx in
     let text = Printer.tokensToString tokens in
     let last = List.last tokens in
     match last with
@@ -4483,7 +4520,7 @@ let updateAutocomplete m tlid (ast : ast) s : fluidState =
 
 let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
     E.t * fluidState =
-  let tokens = toTokens ast in
+  let tokens = Printer.tokensForSplit ast ~index:s.activeEditorPanelIdx in
   let lastPos =
     tokens
     |> List.last
@@ -4530,21 +4567,21 @@ let shouldSelect (key : K.key) : bool =
       false
 
 
-let exprRangeInAst ~ast (exprID : id) : (int * int) option =
-  (* get the beginning and end of the range from
-    * the expression's first and last token
-    * by cross-referencing the tokens it evaluates to via toTokens
-    * with the tokens for the whole ast.
-    *
-    * This is preferred to just getting all the tokens with the same exprID
-    * because the last expression in a token range
-    * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
-    * different ID, (in the above case the last token TInt(2) belongs to the
-    * second sub-expr of the FnCall) *)
-  let astTokens = toTokens ast in
+let exprRangeInAst (ast : ast) (s : fluidState) (exprID : id) :
+    (int * int) option =
+  (* get the beginning and end of the range from the expression's first and
+   * last token by cross-referencing the tokens for the expression with the
+   * tokens for the whole ast.
+   *
+   * This is preferred to just getting all the tokens with the same exprID
+   * because the last expression in a token range
+   * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
+   * different ID, (in the above case the last token TInt(2) belongs to the
+   * second sub-expr of the FnCall) *)
+  let astTokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
   let exprTokens =
     E.find exprID ast
-    |> Option.map ~f:toTokens
+    |> Option.map ~f:(Printer.tokensForSplit ~index:s.activeEditorPanelIdx)
     |> Option.withDefault ~default:[]
   in
   let exprStartToken, exprEndToken =
@@ -4576,11 +4613,12 @@ let getExpressionRangeAtCaret (state : fluidState) (ast : ast) :
   |> Option.andThen ~f:(fun t ->
          (* get expression that the token belongs to *)
          let exprID = T.tid t.token in
-         exprRangeInAst ~ast exprID)
+         exprRangeInAst ast state exprID)
   |> Option.map ~f:(fun (eStartPos, eEndPos) -> (eStartPos, eEndPos))
 
 
-let reconstructExprFromRange ~ast (range : int * int) : E.t option =
+let reconstructExprFromRange (ast : ast) (s : fluidState) (range : int * int) :
+    E.t option =
   (* prevent duplicates *)
   let open FluidExpression in
   let ast = E.clone ast in
@@ -4615,7 +4653,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
     in
     let tokens =
       (* simplify tokens to make them homogenous, easier to parse *)
-      tokensInRange startPos endPos ast
+      tokensInRange startPos endPos ast s
       |> List.map ~f:(fun ti ->
              let t = ti.token in
              let text =
@@ -4644,7 +4682,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
       | _ ->
           let exprID = E.toID expr in
           exprID
-          |> exprRangeInAst ~ast
+          |> exprRangeInAst ast s
           |> Option.andThen ~f:(fun (exprStartPos, exprEndPos) ->
                  (* ensure expression range is not totally outside selection range *)
                  if exprStartPos > endPos || exprEndPos < startPos
@@ -4900,7 +4938,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
-          tokensInRange startPos endPos ast
+          tokensInRange startPos endPos ast s
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
                  | TRecordFieldname
@@ -4999,7 +5037,7 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
         in
         Some
           (EMatch (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
-    | EFeatureFlag (_, name, cond, thenBody, elseBody) ->
+    | EFeatureFlag (_, name, cond, disabled, enabled) ->
         (* since we don't have any tokens associated with feature flags yet *)
         Some
           (EFeatureFlag
@@ -5007,12 +5045,12 @@ let reconstructExprFromRange ~ast (range : int * int) : E.t option =
              , (* should probably do some stuff about if the name token isn't fully selected *)
                name
              , reconstructExpr cond |> orDefaultExpr
-             , reconstructExpr thenBody |> orDefaultExpr
-             , reconstructExpr elseBody |> orDefaultExpr ))
+             , reconstructExpr enabled |> orDefaultExpr
+             , reconstructExpr disabled |> orDefaultExpr ))
     | EPipeTarget _ ->
         Some (EPipeTarget (gid ()))
   in
-  let topmostID = getTopmostSelectionID startPos endPos ast in
+  let topmostID = getTopmostSelectionID startPos endPos ast s in
   reconstruct ~topmostID (startPos, endPos)
 
 
@@ -5079,7 +5117,7 @@ let getCopySelection (m : model) : clipboardContents =
       let range = getSelectionRange state in
       let expr =
         range
-        |> reconstructExprFromRange ~ast
+        |> reconstructExprFromRange ast state
         |> Option.map ~f:Clipboard.exprToClipboardContents
       in
       let text =
@@ -5091,10 +5129,12 @@ let getCopySelection (m : model) : clipboardContents =
       ("", None)
 
 
-let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =
-  let s = {s with midClick = false} in
+let updateMouseUp (s : state) (ast : ast) (eventData : fluidMouseUp) =
+  let s =
+    {s with midClick = false; activeEditorPanelIdx = eventData.editorIdx}
+  in
   let selection =
-    Option.orElseLazy (fun () -> Entry.getFluidSelectionRange ()) selection
+    eventData.selection |> Option.orElseLazy Entry.getFluidSelectionRange
   in
   match selection with
   (* if range width is 0, just change pos *)
@@ -5123,8 +5163,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     | FluidCloseCmdPalette | FluidUpdateAutocomplete ->
         (* updateAutocomplete has already been run, so nothing more to do *)
         (ast, s)
-    | FluidMouseUp (_, selection) ->
-        updateMouseUp s ast selection
+    | FluidMouseUp eventData ->
+        updateMouseUp s ast eventData
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
@@ -5269,7 +5309,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidMouseUp _ ->
       let tlid =
         match msg with
-        | FluidMouseUp (tlid, _) ->
+        | FluidMouseUp {tlid; _} ->
             Some tlid
         | _ ->
             tlidOf m.cursorState
