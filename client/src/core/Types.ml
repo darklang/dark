@@ -1142,8 +1142,7 @@ and fluidMouseUp =
       (* The (int * int) here represents the selection beginning + end (the
        * selection may be left->right or right->left) If the selection is None, the
        * selection will be read from the browser rather than the browser's
-       * selection being set. This bi-directionality is not ideal and could use
-       * some rethinking. *)
+       * selection being set. *)
       (int * int) option
   ; editorIdx :
       (* editorIdx tells which fluid editor was clicked on.
