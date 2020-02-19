@@ -1057,3 +1057,39 @@ test("upload_pkg_fn_as_admin", async t => {
   await t.expect(Selector(".error-panel.show").textContent).eql(failureMsg2);
   await t.click(".dismissBtn");
 });
+
+test("use_pkg_fn", async t => {
+  const attempt = t.testRun.quarantine.attempts.length + 1;
+  const url = `/${attempt}`;
+  await createHTTPHandler(t);
+  await t
+    // add headers
+    .typeText("#entry-box", "GE")
+    .expect(acHighlightedText("GET"))
+    .ok()
+    .pressKey("enter")
+    .typeText("#entry-box", url)
+    .pressKey("enter");
+
+  await gotoAST(t);
+
+  // this await confirms that we have test_admin/stdlib/Test::one_v0 is in fact
+  // in the autocomplete
+  await t.typeText("#active-editor", "test_admin")
+  .expect(Selector(".autocomplete-item.fluid-selected.valid").textContent).eql("test_admin/stdlib/Test::one_v0() ->  Any")
+    .pressKey("enter");
+
+  // this await confirms that we can get a live value in the editor
+  await t.click(".execution-button")
+  .expect(Selector(".return-value", {timeout: 3000}).textContent).eql("0");
+
+  // check if we can get a result from the bwd endpoint
+  const callBackend = ClientFunction(function(url) {
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", url, false);
+    xhttp.send(null);
+    return xhttp.responseText;
+  });
+  const resp = await callBackend(user_content_url(t,url));
+  await t.expect(resp).eql("0");
+});

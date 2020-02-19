@@ -670,6 +670,8 @@ let fluid_ac_validate_on_lose_focus (m : model) : testResult =
 
 let upload_pkg_fn_as_admin (_m : model) : testResult = pass
 
+let use_pkg_fn (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -790,5 +792,7 @@ let trigger (test_name : string) : integrationTestState =
         fluid_ac_validate_on_lose_focus
     | "upload_pkg_fn_as_admin" ->
         upload_pkg_fn_as_admin
+    | "use_pkg_fn" ->
+        use_pkg_fn
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
