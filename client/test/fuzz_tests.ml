@@ -113,8 +113,12 @@ let longLines : FuzzTest.t =
   { name = "no lines above 120 chars"
   ; check =
       (fun ~testcase:_ ~newAST _ ->
-        List.all (FluidPrinter.toTokens newAST) ~f:(fun ti ->
-            ti.startCol + ti.length <= 120))
+        let allTokens =
+          FluidPrinter.tokenizeWithSplits newAST
+          |> List.map ~f:(fun (s : FluidPrinter.split) -> s.tokens)
+          |> List.concat
+        in
+        List.all allTokens ~f:(fun ti -> ti.startCol + ti.length <= 120))
   ; ignore = (fun _ -> false)
   ; fn = (fun testcase -> (testcase, defaultTestState)) }
 

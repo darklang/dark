@@ -104,8 +104,10 @@ let aPartialVar = EPartial (gid (), "req", b)
 (* ---------------- *)
 let completelyEmptyLet = ELet (gid (), "", b, b)
 
+(* let *** = ___\n5 *)
 let emptyLet = ELet (gid (), "", b, EInteger (gid (), "5"))
 
+(* let *** = 6\n___ *)
 let nonEmptyLetWithBlankEnd = ELet (gid (), "", EInteger (gid (), "6"), b)
 
 let nonEmptyLet =

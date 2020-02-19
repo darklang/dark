@@ -502,6 +502,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
           let m = {m with cursorState = Deselected} in
+          let m =
+            {m with fluidState = Fluid.deselectFluidEditor m.fluidState}
+          in
           let timeStamp = Js.Date.now () /. 1000.0 in
           let avMessage : avatarModelMessage =
             { canvasName = m.canvasName
@@ -913,7 +916,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ( FluidCommands.show m tlid id
         , Tea_html_cmds.focus FluidCommands.filterInputID )
     | FluidCommandsClose ->
-        let cp = FluidCommands.reset in
+        let cp = FluidCommands.reset m in
         ( {m with fluidState = {m.fluidState with cp; selectionStart = None}}
         , Cmd.none )
     | AddGroup group ->
@@ -1183,7 +1186,12 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelClick (targetExnID, _) ->
       let defaultBehaviour =
         [ Select (targetExnID, STTopLevelRoot)
-        ; Apply (fun m -> Fluid.update m (FluidMouseUp (targetExnID, None))) ]
+        ; Apply
+            (fun m ->
+              Fluid.update
+                m
+                (FluidMouseUp
+                   {tlid = targetExnID; selection = None; editorIdx = 0})) ]
       in
       ( match m.cursorState with
       (* If we click away from an entry box, commit it before doing the default behaviour *)
@@ -1903,7 +1911,7 @@ let update_ (msg : msg) (m : model) : modification =
             (Entry.commit m cursor :: defaultBehaviour)
       | _ ->
           Many defaultBehaviour )
-  | FluidMsg (FluidMouseUp (targetExnID, _) as msg) ->
+  | FluidMsg (FluidMouseUp {tlid = targetExnID; _} as msg) ->
       Many
         [ Select (targetExnID, STTopLevelRoot)
         ; Apply (fun m -> Fluid.update m msg) ]

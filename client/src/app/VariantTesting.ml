@@ -14,16 +14,21 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some StubVariant
     | "groups" ->
         Some GroupVariant
+    | "ff" ->
+        Some FeatureFlagVariant
     | _ ->
         None )
 
 
 let toCSSClass (vt : variantTest) : string =
   let test =
-    match vt with StubVariant -> "stub" | GroupVariant -> "grouping"
-    (* _ -> "default" *)
-    (* Please never do this, let the compiler tell you if
-     * you missed a variant *)
+    match vt with
+    | StubVariant ->
+        "stub"
+    | GroupVariant ->
+        "grouping"
+    | FeatureFlagVariant ->
+        "ff"
   in
   test ^ "-variant"
 

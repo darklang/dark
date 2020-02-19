@@ -66,6 +66,8 @@ let tid (t : t) : id =
   | TSep id
   | TParenOpen id
   | TParenClose id
+  | TFlagWhenKeyword id
+  | TFlagEnabledKeyword id
   | TNewline (Some (id, _, _)) ->
       id
   | TNewline None | TIndent _ ->
@@ -157,7 +159,9 @@ let isTextToken t : bool =
   | TPipe _
   | TLambdaArrow _
   | TParenOpen _
-  | TParenClose _ ->
+  | TParenClose _
+  | TFlagWhenKeyword _
+  | TFlagEnabledKeyword _ ->
       false
 
 
@@ -206,7 +210,9 @@ let isKeyword (t : t) =
   | TIfKeyword _
   | TIfThenKeyword _
   | TIfElseKeyword _
-  | TMatchKeyword _ ->
+  | TMatchKeyword _
+  | TFlagWhenKeyword _
+  | TFlagEnabledKeyword _ ->
       true
   | _ ->
       false
@@ -384,6 +390,10 @@ let toText (t : t) : string =
       "("
   | TParenClose _ ->
       ")"
+  | TFlagWhenKeyword _ ->
+      "when "
+  | TFlagEnabledKeyword _ ->
+      "enabled"
 
 
 let toTestText (t : t) : string =
@@ -584,6 +594,10 @@ let toTypeName (t : t) : string =
       "paren-open"
   | TParenClose _ ->
       "paren-close"
+  | TFlagWhenKeyword _ ->
+      "ff-cond"
+  | TFlagEnabledKeyword _ ->
+      "ff-enabled"
 
 
 let toCategoryName (t : t) : string =
@@ -638,6 +652,8 @@ let toCategoryName (t : t) : string =
       "pattern"
   | TParenOpen _ | TParenClose _ ->
       "paren"
+  | TFlagWhenKeyword _ | TFlagEnabledKeyword _ ->
+      "flag"
 
 
 let toDebugInfo (t : t) : string =
