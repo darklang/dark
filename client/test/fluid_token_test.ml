@@ -1,8 +1,16 @@
 open Prelude
 open Tester
 open FluidToken
+open FluidShortcuts
+
+let toString = FluidPrinter.eToTestString
 
 let run () =
+  describe "tokenization of unexpected exprs" (fun () ->
+      test "let in a binop lhs" (fun () ->
+          let ast = binop "+" (let' "x" (int 5) (int 1)) (int 2) in
+          expect (toString ast) |> toEqual "let x = 5\n1\n+ 2") ;
+      ()) ;
   describe "analysisID of token" (fun () ->
       test "returns id of varBind if token is TLetVarName" (fun () ->
           let leftLetToken = TLetVarName (ID "1", ID "2", "a") in
