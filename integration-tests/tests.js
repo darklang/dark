@@ -825,13 +825,9 @@ test("fluid_undo_redo_happen_exactly_once", async t => {
     .expect(Selector(".fluid-category-string").textContent)
     .eql('"12345"');
   await pressShortcut(t, "ctrl+z");
-  await t
-    .expect(Selector(".fluid-category-string").textContent)
-    .eql('"1234"')
+  await t.expect(Selector(".fluid-category-string").textContent).eql('"1234"');
   await pressShortcut(t, "ctrl+shift+z");
-  await t
-    .expect(Selector(".fluid-category-string").textContent)
-    .eql('"12345"');
+  await t.expect(Selector(".fluid-category-string").textContent).eql('"12345"');
 });
 
 test("fluid_ctrl_left_on_string", async t => {

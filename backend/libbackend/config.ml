@@ -46,6 +46,8 @@ let __unused_bin_scripts_dir = absolute_dir "DARK_CONFIG_SCRIPTS_DIR"
 (* ------------------------- *)
 let static_host = string "DARK_CONFIG_STATIC_HOST"
 
+let cookie_domain = string "DARK_CONFIG_COOKIE_DOMAIN"
+
 let user_content_host = string "DARK_CONFIG_USER_CONTENT_HOST"
 
 let env_display_name = Libservice.Config.env_display_name
