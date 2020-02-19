@@ -1,10 +1,8 @@
 open Prelude
 
 (* Dark *)
-module TL = Toplevel
-module P = Pointer
-module TD = TLIDDict
 module Events = Tea.Html2.Events
+module K = FluidKeyboard
 
 let fontAwesome = ViewUtils.fontAwesome
 
@@ -160,6 +158,16 @@ let tabTitleView (tab : settingsTab) : msg Html.html =
   Html.div [Html.class' "settings-tab-titles"] (List.map allTabs ~f:tabTitle)
 
 
+let onKeydown (evt : Web.Node.event) : Types.msg option =
+  K.eventToKeyEvent evt
+  |> Option.andThen ~f:(fun e ->
+         match e with
+         | {K.key = K.Enter; _} ->
+             Some (SettingsViewMsg SubmitForm)
+         | _ ->
+             None)
+
+
 let settingViewWrapper (acc : settingsViewState) : msg Html.html =
   let tabView = settingsTabToHtml acc in
   Html.div
@@ -189,5 +197,6 @@ let html (m : model) : msg Html.html =
         ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
               EnablePanning false)
         ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
-              EnablePanning true) ]
+              EnablePanning true)
+        ; Html.onCB "keydown" "keydown" onKeydown ]
         [settingViewWrapper m.settingsView; closingBtn] ]
