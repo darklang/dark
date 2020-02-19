@@ -32,6 +32,8 @@ val env_display_name : string
 
 val static_host : string
 
+val cookie_domain : string
+
 val user_content_host : string
 
 val show_stacktrace : bool
