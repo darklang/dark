@@ -4334,8 +4334,19 @@ let rec updateKey
     | Keypress {key = K.Enter; _}, No, R (t, _)
     | Keypress {key = K.Enter; _}, L (TNewline _, _), R (t, _) ->
         let id = FluidToken.tid t in
-        let ast, s, _ = makeIntoLetBody id ast s in
-        let s = moveToCaretTarget s ast (caretTargetForStartOfExpr id ast) in
+        (* In some cases, like |1 + 2, we want to wrap the parent expr (in this case the binop) in a let.
+         * Otherwise, we want to wrap just the subexpression, such as with an if's then expression. *)
+        let topID =
+          E.findParent id ast
+          |> Option.andThen ~f:(function
+                 | E.EBinOp _ as expr ->
+                     Some (E.toID expr)
+                 | _ ->
+                     None)
+          |> Option.withDefault ~default:id
+        in
+        let ast, s, _ = makeIntoLetBody topID ast s in
+        let s = moveToCaretTarget s ast (caretTargetForStartOfExpr topID ast) in
         (ast, s)
     (*
      * Caret at very end of tokens where last line is non-let expression. *)
