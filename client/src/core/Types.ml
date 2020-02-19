@@ -534,6 +534,8 @@ and executionResult =
 
 and intermediateResultStore = executionResult StrDict.t
 
+(* map from expression ids to symbol table, which maps from varname strings to
+ * the ids of the expressions that represent their values *)
 and avDict = id StrDict.t StrDict.t
 
 and inputValueDict = dvalDict
