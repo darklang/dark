@@ -89,6 +89,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     |> Option.orElse (idOf m.cursorState)
   in
   let top =
+    let viewDoc desc =
+      Html.div
+        [Html.class' "documentation-box"]
+        (desc |> List.map ~f:(fun text -> Html.p [] [Html.text text]))
+    in
     match (tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
@@ -103,10 +108,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             |> Option.andThen ~f:FluidAutocomplete.documentationForItem
             |> Option.orElse regular
           in
-          Option.map desc ~f:(fun desc ->
-              [ Html.div
-                  [Html.class' "documentation-box"]
-                  [Html.p [] [Html.text desc]] ])
+          Option.map desc ~f:(fun desc -> viewDoc [desc])
         in
         let selectedFnDocString =
           let fn =
@@ -123,10 +125,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           in
           match fn with
           | Some fn ->
-              Some
-                [ Html.div
-                    [Html.class' "documentation-box"]
-                    [Html.p [] [Html.text fn.fnDescription]] ]
+              Some (viewDoc [fn.fnDescription])
           | None ->
               None
         in
@@ -144,20 +143,24 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           match param with
           | Some p ->
               let header = p.paramName ^ " : " ^ Runtime.tipe2str p.paramTipe in
-              Some
-                [ Html.div
-                    [Html.class' "documentation-box"]
-                    [ Html.p [] [Html.text header]
-                    ; Html.p [] [Html.text p.paramDescription] ] ]
+              Some (viewDoc [header; p.paramDescription])
           | _ ->
               None
+        in
+        let cmdDocString =
+          if FluidCommands.isOpenOnTL m.fluidState.cp tlid
+          then
+            FluidCommands.highlighted m.fluidState.cp
+            |> Option.map ~f:(fun c -> viewDoc [c.doc])
+          else None
         in
         acFnDocString
         |> Option.orElse selectedParamDocString
         |> Option.orElse selectedFnDocString
-        |> Option.withDefault ~default:[Vdom.noNode]
+        |> Option.orElse cmdDocString
+        |> Option.withDefault ~default:Vdom.noNode
     | _ ->
-        [Vdom.noNode]
+        Vdom.noNode
   in
   let pos =
     match m.currentPage with
@@ -175,7 +178,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
        * Fns have different property list lengths *)
         ~unique:(showTLID tlid)
         (Html.classList classes :: events)
-        (top @ body @ data)
+        ((top :: body) @ data)
     ; avatars
     ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
     ]
