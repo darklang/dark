@@ -1066,8 +1066,8 @@ let update_ (msg : msg) (m : model) : modification =
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
-        let xDiff = mousePos.x - startVPos.vx in
-        let yDiff = mousePos.y - startVPos.vy in
+        let xDiff = mousePos.x - truncate startVPos.vx in
+        let yDiff = mousePos.y - truncate startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
           [ SetToplevels
@@ -1077,7 +1077,7 @@ let update_ (msg : msg) (m : model) : modification =
               , true )
           ; Drag
               ( draggingTLID
-              , {vx = mousePos.x; vy = mousePos.y}
+              , {vx = float_of_int mousePos.x; vy = float_of_int mousePos.y}
               , true
               , origCursorState ) ]
     | _ ->
@@ -1153,7 +1153,11 @@ let update_ (msg : msg) (m : model) : modification =
         in
         (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
          * as double clicks to automatically enter them. *)
-        Selection.dblclick m targetExnID targetID offset
+        Selection.dblclick
+          m
+          targetExnID
+          targetID
+          (offset |> Option.map ~f:truncate)
       in
       ( match m.cursorState with
       | Deselected ->
@@ -1179,7 +1183,11 @@ let update_ (msg : msg) (m : model) : modification =
       let offset =
         Native.OffsetEstimator.estimateClickOffset (showID targetID) event
       in
-      Selection.dblclick m targetExnID targetID offset
+      Selection.dblclick
+        m
+        targetExnID
+        targetID
+        (offset |> Option.map ~f:truncate)
   | ToplevelClick (targetExnID, _) ->
       let defaultBehaviour =
         [ Select (targetExnID, STTopLevelRoot)

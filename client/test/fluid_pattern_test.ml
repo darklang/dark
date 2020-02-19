@@ -22,7 +22,7 @@ let h ast =
       { space = BlankOr.newF "HTTP"
       ; name = BlankOr.newF "/test"
       ; modifier = BlankOr.newF "GET" }
-  ; pos = {x = 0; y = 0} }
+  ; pos = {x = 0.0; y = 0.0} }
 
 
 let run () =

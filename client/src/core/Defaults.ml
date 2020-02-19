@@ -4,11 +4,11 @@ let entryID : string = "entry-box"
 
 let leftButton : int = 0
 
-let initialVPos : vPos = {vx = 475; vy = 200}
+let initialVPos : vPos = {vx = 475.0; vy = 200.0}
 
-let centerPos : pos = {x = 475; y = 200}
+let centerPos : pos = {x = 475.0; y = 200.0}
 
-let origin : pos = {x = 0; y = 0}
+let origin : pos = {x = 0.0; y = 0.0}
 
 let moveSize : int = 50
 

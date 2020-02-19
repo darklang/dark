@@ -136,9 +136,13 @@ let id j : id = Types.ID (wireIdentifier j)
 
 let tlid j = TLID (wireIdentifier j)
 
-let pos j : pos = {x = field "x" int j; y = field "y" int j}
+let pos j : pos =
+  {x = field "x" Json.Decode.float j; y = field "y" Json.Decode.float j}
 
-let vPos j : vPos = {vx = field "vx" int j; vy = field "vy" int j}
+
+let vPos j : vPos =
+  {vx = field "vx" Json.Decode.float j; vy = field "vy" Json.Decode.float j}
+
 
 let blankOr d =
   variants
@@ -724,7 +728,7 @@ let op j : op =
           (fun t p h -> SetHandler (t, p, {h with pos = p}))
           tlid
           pos
-          (handler {x = -1286; y = -467}) )
+          (handler {x = -1286.0; y = -467.0}) )
     ; ( "CreateDB"
       , variant3 (fun t p name -> CreateDB (t, p, name)) tlid pos string )
     ; ("AddDBCol", variant3 (fun t cn ct -> AddDBCol (t, cn, ct)) tlid id id)

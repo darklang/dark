@@ -114,12 +114,12 @@ module IDPairSet = Tc.Set (IDPair)
 (* viewport to display in the browser. *)
 (* TODO: Can we depreciate VPos? *)
 type pos =
-  { x : int
-  ; y : int }
+  { x : float
+  ; y : float }
 
 and vPos =
-  { vx : int
-  ; vy : int }
+  { vx : float
+  ; vy : float }
 
 and size =
   { w : int

@@ -14,7 +14,7 @@ let run () =
             ; name = B.newF "processOrder"
             ; modifier = B.new_ () }
         ; hTLID = h1tlid
-        ; pos = {x = 0; y = 0} }
+        ; pos = {x = 0.0; y = 0.0} }
       in
       let h2tlid = gtlid () in
       let dbRefID = gid () in
@@ -30,7 +30,7 @@ let run () =
             ; name = B.newF "/hello"
             ; modifier = B.newF "GET" }
         ; hTLID = h2tlid
-        ; pos = {x = 0; y = 0} }
+        ; pos = {x = 0.0; y = 0.0} }
       in
       let dbtlid = gtlid () in
       let dbdata =
@@ -40,7 +40,7 @@ let run () =
         ; version = 0
         ; oldMigrations = []
         ; activeMigration = None
-        ; pos = {x = 0; y = 0} }
+        ; pos = {x = 0.0; y = 0.0} }
       in
       let dbs = TD.fromList [(dbdata.dbTLID, dbdata)] in
       let handlers =
@@ -71,7 +71,7 @@ let run () =
       test "tlidsToUpdateUsage" (fun () ->
           let fntlid = gtlid () in
           let ops =
-            [ SetHandler (h1tlid, {x = 0; y = 0}, h1data)
+            [ SetHandler (h1tlid, {x = 0.0; y = 0.0}, h1data)
             ; SetExpr (h1tlid, gid (), EBlank (gid ()))
             ; SetFunction
                 { ufTLID = fntlid

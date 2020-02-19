@@ -69,7 +69,7 @@ let aHandler
     ; name = B.ofOption name
     ; modifier = B.ofOption modifier }
   in
-  {ast = expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
+  {ast = expr; spec; hTLID = tlid; pos = {x = 0.0; y = 0.0}}
 
 
 let aFunction
@@ -100,7 +100,7 @@ let aDB
   ; version = 0
   ; oldMigrations = []
   ; activeMigration = None
-  ; pos = {x = 0; y = 0} }
+  ; pos = {x = 0.0; y = 0.0} }
 
 
 let enteringFunction

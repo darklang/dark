@@ -139,7 +139,7 @@ let aHandler
     () : handler =
   let space = match space with None -> B.new_ () | Some name -> B.newF name in
   let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  {ast = expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
+  {ast = expr; spec; hTLID = tlid; pos = {x = 0.0; y = 0.0}}
 
 
 let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
@@ -161,7 +161,7 @@ let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) () :
   ; version = 0
   ; oldMigrations = []
   ; activeMigration = None
-  ; pos = {x = 0; y = 0} }
+  ; pos = {x = 0.0; y = 0.0} }
 
 
 let enteringFunction

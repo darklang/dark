@@ -10,7 +10,7 @@ let defaultExpr = B.new_ ()
 
 let defaultFluidExpr = FluidExpression.EBlank (gid ())
 
-let defaultPos = {x = 0; y = 0}
+let defaultPos = {x = 0.0; y = 0.0}
 
 let aHandler
     ?(tlid = defaultTLID)
@@ -26,7 +26,7 @@ let aHandler
 let run () =
   describe "calculatePanOffset" (fun () ->
       let m = D.defaultModel in
-      let tl = aHandler ~pos:{x = 500; y = 500} () in
+      let tl = aHandler ~pos:{x = 500.0; y = 500.0} () in
       test "do not update canvasProps if center=false" (fun () ->
           let page = FocusedHandler (defaultTLID, false) in
           let newM = Page.calculatePanOffset m tl page in

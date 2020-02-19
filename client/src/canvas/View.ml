@@ -291,8 +291,8 @@ let viewCanvas (m : model) : msg Html.html =
   in
   let canvasTransform =
     let offset = m.canvasProps.offset in
-    let x = string_of_int (-offset.x) in
-    let y = string_of_int (-offset.y) in
+    let x = Js.Float.toString (-.offset.x) in
+    let y = Js.Float.toString (-.offset.y) in
     ("transform", "translate(" ^ x ^ "px, " ^ y ^ "px)")
   in
   let styles =
@@ -364,8 +364,8 @@ let viewToast (t : toast) : msg Html.html =
     match t.toastPos with
     | Some {vx; vy} ->
         Html.styles
-          [ ("top", string_of_int (vy - 10) ^ "px")
-          ; ("left", string_of_int (vx + 10) ^ "px") ]
+          [ ("top", Js.Float.toString (vy -. 10.0) ^ "px")
+          ; ("left", Js.Float.toString (vx +. 10.0) ^ "px") ]
     | None ->
         Vdom.noProp
   in

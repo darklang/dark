@@ -84,10 +84,10 @@ let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
              let vertStart = groupPos.top in
              let vertEnd = groupPos.bottom in
              (* Check if mePos (x,y) is within the group box *)
-             if mePos.x > horStart
-                && mePos.x < horEnd
-                && mePos.y > vertStart
-                && mePos.y < vertEnd
+             if mePos.x > float_of_int horStart
+                && mePos.x < float_of_int horEnd
+                && mePos.y > float_of_int vertStart
+                && mePos.y < float_of_int vertEnd
              then true
              else false
          | None ->

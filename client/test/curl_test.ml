@@ -8,7 +8,7 @@ let defaultTLID = TLID "7"
 let http ~(path : string) ?(meth = "GET") () : handler =
   { ast = EBlank (gid ())
   ; hTLID = defaultTLID
-  ; pos = {x = 0; y = 0}
+  ; pos = {x = 0.0; y = 0.0}
   ; spec = {space = B.newF "HTTP"; name = B.newF path; modifier = B.newF meth}
   }
 
@@ -67,7 +67,7 @@ let run () =
           let cron =
             { ast = EBlank (gid ())
             ; hTLID = cronTLID
-            ; pos = {x = 0; y = 0}
+            ; pos = {x = 0.0; y = 0.0}
             ; spec =
                 { space = B.newF "CRON"
                 ; name = B.newF "cleanKitchen"

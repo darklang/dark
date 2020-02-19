@@ -1,9 +1,9 @@
 open Prelude
 module TL = Toplevel
 
-let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
+let addPos (a : pos) (b : pos) : pos = {x = a.x +. b.x; y = a.y +. b.y}
 
-let subPos (a : pos) (b : pos) : pos = {x = a.x - b.x; y = a.y - b.y}
+let subPos (a : pos) (b : pos) : pos = {x = a.x -. b.x; y = a.y -. b.y}
 
 let toAbsolute (m : model) (pos : vPos) : pos =
   let topleft = m.canvasProps.offset in
@@ -15,7 +15,7 @@ let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
 let moveCanvasBy (m : model) (x : int) (y : int) : modification =
-  let dx, dy = (x, y) in
+  let dx, dy = (float_of_int x, float_of_int y) in
   let offset = m.canvasProps.offset in
   let pos = addPos offset {x = dx; y = dy} in
   MoveCanvasTo (pos, DontAnimateTransition)
@@ -61,13 +61,13 @@ let centerCanvasOn (tl : toplevel) : pos =
     in
     match tle with Some e -> Native.Ext.clientWidth e | None -> 245
   in
-  let availWidth = (windowWidth - tlWidth) / 3 in
-  let offsetLeft = sidebarWidth + availWidth in
-  {x = (TL.pos tl).x - offsetLeft; y = (TL.pos tl).y - 200}
+  let availWidth = float_of_int (windowWidth - tlWidth) /. 3.0 in
+  let offsetLeft = float_of_int sidebarWidth +. availWidth in
+  {x = (TL.pos tl).x -. offsetLeft; y = (TL.pos tl).y -. 200.0}
 
 
 (* Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas *)
-let moveToToken (id : id) (tl : toplevel) : int option * int option =
+let moveToToken (id : id) (tl : toplevel) : float option * float option =
   let tokenSelector = ".id-" ^ Prelude.deID id in
   let tlSelector = ".tl-" ^ Prelude.deTLID (TL.id tl) in
   match Native.Ext.querySelector tokenSelector with
@@ -98,14 +98,14 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
         then None
         else
           let offsetLeft = tokenBox.left - tlBox.left in
-          Some (tlPos.x - (sidebarWidth + offsetLeft))
+          Some (tlPos.x -. float_of_int (sidebarWidth + offsetLeft))
       in
       let yTarget =
         if tokenBox.bottom > viewport.top && tokenBox.top < viewport.bottom
         then None
         else
           let offsetTop = tokenBox.top - tlBox.top in
-          Some (tlPos.y - (50 + offsetTop))
+          Some (tlPos.y -. float_of_int (50 + offsetTop))
       in
       (xTarget, yTarget)
   | None ->
@@ -120,14 +120,15 @@ let findNewPos (m : model) : pos =
       (* We add padding to the viewport range, to ensure we don't have new handlers too far from eachother. *)
       let padRight = 400 in
       let padBottom = 400 in
-      let minX = o.x in
+      let minX = truncate o.x in
       let maxX = minX + (Window.viewportWidth - padRight) in
-      let minY = o.y in
+      let minY = truncate o.y in
       let maxY = minY + (Window.viewportHeight - padBottom) in
-      {x = Random.range minX maxX; y = Random.range minY maxY}
+      { x = Random.range minX maxX |> float_of_int
+      ; y = Random.range minY maxY |> float_of_int }
   | FocusedFn _ | FocusedType _ ->
       (* if the sidebar is open, the users can't see the livevalues, which
       * confused new users. Given we can't get z-index to work, moving it to the
       * side a little seems the best solution for now. *)
-      let offset = {x = (if m.sidebarOpen then 320 else 0); y = 0} in
+      let offset = {x = (if m.sidebarOpen then 320.0 else 0.0); y = 0.0} in
       addPos Defaults.centerPos offset

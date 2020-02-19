@@ -68,9 +68,13 @@ let id (Types.ID id) = string id
 
 let tlid (Types.TLID tlid) = string tlid
 
-let pos (p : Types.pos) = object_ [("x", int p.x); ("y", int p.y)]
+let pos (p : Types.pos) =
+  object_ [("x", Json.Encode.float p.x); ("y", Json.Encode.float p.y)]
 
-let vPos (vp : Types.vPos) = object_ [("vx", int vp.vx); ("vy", int vp.vy)]
+
+let vPos (vp : Types.vPos) =
+  object_ [("vx", Json.Encode.float vp.vx); ("vy", Json.Encode.float vp.vy)]
+
 
 let blankOr (encoder : 'a -> Js.Json.t) (v : 'a Types.blankOr) =
   match v with

@@ -55,7 +55,7 @@ let defaultTLID = TLID "handler1"
 
 let defaultHandler =
   { hTLID = defaultTLID
-  ; pos = {x = 0; y = 0}
+  ; pos = {x = 0.0; y = 0.0}
   ; ast = EBlank (gid ())
   ; spec =
       {space = B.newF "HTTP"; name = B.newF "/src"; modifier = B.newF "POST"} }
@@ -167,7 +167,7 @@ let run () =
         ; version = 0
         ; oldMigrations = []
         ; activeMigration = None
-        ; pos = {x = 0; y = 0} }
+        ; pos = {x = 0.0; y = 0.0} }
       in
       test "datastore renamed, handler updates variable" (fun () ->
           let h =
@@ -177,7 +177,7 @@ let run () =
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
             ; hTLID = defaultTLID
-            ; pos = {x = 0; y = 0} }
+            ; pos = {x = 0.0; y = 0.0} }
           in
           let f =
             { ufTLID = TLID "tl-3"
@@ -216,7 +216,7 @@ let run () =
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
             ; hTLID = defaultTLID
-            ; pos = {x = 0; y = 0} }
+            ; pos = {x = 0.0; y = 0.0} }
           in
           let model =
             { D.defaultModel with
@@ -297,7 +297,7 @@ let run () =
         let tl =
           { hTLID
           ; ast
-          ; pos = {x = 0; y = 0}
+          ; pos = {x = 0.0; y = 0.0}
           ; spec =
               { space = B.newF "HTTP"
               ; name = B.newF "/src"

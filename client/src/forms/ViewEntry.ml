@@ -110,8 +110,8 @@ let viewEntry (m : model) : msg Html.html =
             let offset = m.canvasProps.offset in
             let loc = Viewport.subPos p offset in
             Html.styles
-              [ ("left", string_of_int loc.x ^ "px")
-              ; ("top", string_of_int loc.y ^ "px") ]
+              [ ("left", Js.Float.toString loc.x ^ "px")
+              ; ("top", Js.Float.toString loc.y ^ "px") ]
         | None ->
             Vdom.noProp
       in

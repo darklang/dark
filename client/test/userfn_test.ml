@@ -9,7 +9,7 @@ let defaultTLID = gtlid ()
 
 let defaultFluidExpr = FluidExpression.EBlank (gid ())
 
-let defaultPos = {x = 0; y = 0}
+let defaultPos = {x = 0.0; y = 0.0}
 
 let defaultFnName = "myFun"
 

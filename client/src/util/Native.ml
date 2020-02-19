@@ -107,15 +107,15 @@ module OffsetEstimator = struct
    * font size and should be replaced with a proper implementation. But it's done us
    * okay so far. *)
   let estimateClickOffset (elementID : string) (event : Types.mouseEvent) :
-      int option =
+      float option =
     match Js.Nullable.toOption (Web_document.getElementById elementID) with
     | Some elem ->
         let rect = elem##getBoundingClientRect () in
-        if event.mePos.vy >= int_of_float rect##top
-           && event.mePos.vy <= int_of_float rect##bottom
-           && event.mePos.vx >= int_of_float rect##left
-           && event.mePos.vx <= int_of_float rect##right
-        then Some ((event.mePos.vx - int_of_float rect##left) / 8)
+        if event.mePos.vy >= rect##top
+           && event.mePos.vy <= rect##bottom
+           && event.mePos.vx >= rect##left
+           && event.mePos.vx <= rect##right
+        then Some ((event.mePos.vx -. rect##left) /. 8.0)
         else None
     | None ->
         None

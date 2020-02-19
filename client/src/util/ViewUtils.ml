@@ -151,7 +151,14 @@ let fontAwesome (name : string) : msg Html.html =
 let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
   let open Json.Decode in
   fn
-    { mePos = {vx = field "pageX" int j; vy = field "pageY" int j}
+    { mePos =
+        (* vx and vy are sometimes int and sometimes float, depending on whether
+         * the browser is using the CSS OM View Module spec; as of Feb 19, 2020,
+         * this is gated on "[enabling] Experimental Web Platform features" in
+         * Chrome, and possibly platform-specific. By decoding to a float, this
+         * decoder can handle either int or float inputs. *)
+        { vx = field "pageX" Json.Decode.float j
+        ; vy = field "pageY" Json.Decode.float j }
     ; button = field "button" int j
     ; ctrlKey = field "ctrlKey" bool j
     ; shiftKey = field "shiftKey" bool j
@@ -245,7 +252,8 @@ let placeHtml (pos : pos) (classes : 'a list) (html : msg Html.html list) :
     msg Html.html =
   let styles =
     Html.styles
-      [("left", string_of_int pos.x ^ "px"); ("top", string_of_int pos.y ^ "px")]
+      [ ("left", Js.Float.toString pos.x ^ "px")
+      ; ("top", Js.Float.toString pos.y ^ "px") ]
   in
   Html.div [Html.classList (("node", true) :: classes); styles] html
 

@@ -62,9 +62,9 @@ let pos tl =
   | TLGroup g ->
       g.pos
   | TLFunc f ->
-      recover "no pos in a func" ~debug:f.ufTLID {x = 0; y = 0}
+      recover "no pos in a func" ~debug:f.ufTLID {x = 0.0; y = 0.0}
   | TLTipe t ->
-      recover "no pos in a tipe" ~debug:t.utTLID {x = 0; y = 0}
+      recover "no pos in a tipe" ~debug:t.utTLID {x = 0.0; y = 0.0}
 
 
 let remove (m : model) (tl : toplevel) : model =
@@ -87,7 +87,9 @@ let fromList (tls : toplevel list) : toplevel TLIDDict.t =
 
 
 let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
-  let newPos p = {x = p.x + xOffset; y = p.y + yOffset} in
+  let newPos p =
+    {x = p.x +. float_of_int xOffset; y = p.y +. float_of_int yOffset}
+  in
   { m with
     handlers =
       TD.updateIfPresent m.handlers ~tlid ~f:(fun (h : handler) ->
