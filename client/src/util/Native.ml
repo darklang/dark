@@ -175,7 +175,12 @@ end
 module OnWheel = struct
   let decode =
     let open Tea.Json.Decoder in
-    map2 (fun dX dY -> (dX, dY)) (field "deltaX" int) (field "deltaY" int)
+    map2
+      (* Handle inputs that might be ints or floats, see decodeClickEvent for
+       * details *)
+        (fun dX dY -> (dX |> truncate, dY |> truncate))
+      (field "deltaX" Tea.Json.Decoder.float)
+      (field "deltaY" Tea.Json.Decoder.float)
 
 
   let listen ~key tagger = registerGlobal "wheel" key tagger decode
