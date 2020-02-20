@@ -978,7 +978,7 @@ and settingsViewState =
   ; loading : bool }
 
 and settingsMsg =
-  | ToggleSettingsView of bool
+  | ToggleSettingsView of bool * settingsTab option
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string
   | SubmitForm
