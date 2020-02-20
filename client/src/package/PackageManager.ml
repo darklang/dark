@@ -1,7 +1,7 @@
 open Prelude
 
-let loadPackages (packages : packages) (loadedPackages : packageFn list) :
-    packages =
+let loadPackages (packages : packageFns) (loadedPackages : packageFn list) :
+    packageFns =
   loadedPackages
   |> List.map ~f:(fun pf -> (pf.pfTLID, pf))
   |> TLIDDict.fromList

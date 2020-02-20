@@ -164,7 +164,9 @@ let allFunctions (m : model) : function_ list =
   in
   let functions = m.builtInFunctions |> filterAndSort in
   let packageFunctions =
-    m.packages |> TLIDDict.values |> List.map ~f:PackageManager.fn_of_packageFn
+    m.packageFns
+    |> TLIDDict.values
+    |> List.map ~f:PackageManager.fn_of_packageFn
   in
   functions @ userFunctionMetadata @ packageFunctions |> filterAndSort
 
