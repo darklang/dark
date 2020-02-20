@@ -182,10 +182,10 @@ let viewData (vs : ViewUtils.viewState) (ast : FluidExpression.t) :
     else
       let height =
         Native.Ext.querySelector (".tl-" ^ showTLID vs.tlid ^ " .ast")
-        |> Option.andThen ~f:(fun e -> Some (Native.Ext.clientHeight e +. 20.0))
-        |> Option.withDefault ~default:100.0
+        |> Option.andThen ~f:(fun e -> Some (Native.Ext.clientHeight e + 20))
+        |> Option.withDefault ~default:100
       in
-      Js.Float.toString height ^ "px"
+      string_of_int height ^ "px"
   in
   let selectedValue =
     match vs.cursorState with
