@@ -165,7 +165,9 @@ let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
          * then truncate rather than moving to floats everywhere due to concerns
          * about sending data back to browsers whose DOMs don't support float
          * positions - see https://github.com/darklang/dark/pull/2016 for
-         * discussion *)
+         * discussion, and
+         * https://drafts.csswg.org/cssom-view/#extensions-to-the-window-interface
+         * for the spec *)
         { vx = field "pageX" Json.Decode.float j |> truncate
         ; vy = field "pageY" Json.Decode.float j |> truncate }
     ; button = field "button" int j

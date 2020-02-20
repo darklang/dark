@@ -177,7 +177,9 @@ module OnWheel = struct
     let open Tea.Json.Decoder in
     map2
       (* Handle inputs that might be ints or floats, see decodeClickEvent for
-       * details *)
+       * details, and
+       * https://drafts.csswg.org/cssom-view/#extensions-to-the-window-interface
+       * for the spec *)
         (fun dX dY -> (dX |> truncate, dY |> truncate))
       (field "deltaX" Tea.Json.Decoder.float)
       (field "deltaY" Tea.Json.Decoder.float)
