@@ -428,8 +428,3 @@ let to_get_packages_rpc_result packages : string =
   packages
   |> get_packages_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
-
-
-let packages : fn list ref = ref []
-
-let init () = packages := all_functions ()
