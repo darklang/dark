@@ -588,11 +588,6 @@ module RuntimeT = struct
   (* We need equal_ and show_ for Canvas.canvas to derive *)
   let equal_fn a b = a.prefix_names = b.prefix_names
 
-  (* This is NOT correct, and I am not sure it is ever actually used but the
-   * compiler wants it, probably a deriving yojson somewhere *)
-  (* let pp_fn fn = *)
-  (* pp_string "[" ^ (fn.prefix_names |> String.concat ~sep:",") ^ "]" *)
-
   let ufn_param_to_param (p : ufn_param) : param option =
     match (p.name, p.tipe) with
     | Filled (_, n), Filled (_, t) ->
