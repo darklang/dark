@@ -388,24 +388,21 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> add (TLambdaArrow id)
       |> nest ~indent:2 body
   | EList (id, exprs) ->
-      let lastIndex = List.length exprs - 1 in
       (*
-        Overview: As we are running each list item, through the iterator, we want to find if the addition of current list item to the list, will cause the list literal's line to exceed max literal line size. If so, we add a new line token and an indent by 1, before the tokenized item to the builder.
-
-        Implementation details:
-        - xPos from the builder provides the column number we will be starting from if a new item was to be added to the builder.
-        - First we want to keep track of the xPos we are starting off with. We will use it to subtract from, so our calculation of the line length is relative to the contents inside [ ].
-        - With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
+         With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
       *)
+      let lastIndex = List.length exprs - 1 in
+      (* Get the xPos we are starting off with. We will use it to subtract from, so our calculation of the line length is relative to the contents inside the list's [ ] *)
       let startingXPos = b.xPos |> Option.withDefault ~default:0 in
       b
       |> add (TListOpen id)
       |> addIter exprs ~f:(fun i e b' ->
              let exprBuilder = toTokens' e in
              let lnLength =
+               (* xPos from the builder gives the column number that the next token will be starting from. Here it gives us the length of the current line *)
                (exprBuilder b').xPos
-               (* Additional 1 is for the comma *)
                |> Option.map ~f:(fun x ->
+                      (* Additional 1 is for the comma we add after except for last element *)
                       x - startingXPos + if i <> lastIndex then 1 else 0)
                |> Option.withDefault ~default:0
              in
