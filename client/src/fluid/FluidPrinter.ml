@@ -288,17 +288,12 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         | EList _
         | ERecord _
         | EConstructor _
-        | EBinOp _ ->
+        | EBinOp _
+        | EFnCall _ ->
             b
             |> nest ~indent:0 ~placeholderFor:(Some (id, op, 0)) lexpr
             |> add (TSep (E.toID lexpr))
-        | EFnCall _
-        | EPipe _
-        | EMatch _
-        | ELambda _
-        | ELet _
-        | EIf _
-        | EFeatureFlag _ ->
+        | EPipe _ | EMatch _ | ELambda _ | ELet _ | EIf _ | EFeatureFlag _ ->
             b
             |> nest ~indent:0 ~placeholderFor:(Some (id, op, 0)) lexpr
             |> addNewlineIfNeeded (Some (E.toID lexpr, id, None))
