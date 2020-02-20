@@ -90,7 +90,7 @@ let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
         then Some "Cannot delete because your code refers to this DB"
         else None
       in
-      { title = "Delete DB"
+      { title = "Delete"
       ; key = "del-db-"
       ; icon = Some "times"
       ; action = (fun _ -> ToplevelDelete vs.tlid)
