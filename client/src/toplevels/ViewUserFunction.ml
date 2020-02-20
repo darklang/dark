@@ -117,7 +117,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
             "Cannot delete this function as it is used in your code base. Use the references on the right to find and change this function's callers, after which you'll be able to delete it."
         else None
       in
-      { title = "Delete Function "
+      { title = "Delete"
       ; key = "del-ufn-"
       ; icon = Some "times"
       ; action = (fun _ -> DeleteUserFunction fn.ufTLID)
