@@ -332,7 +332,7 @@ and toplevel =
   | TLTipe of userTipe
   | TLGroup of group
 
-and packages = packageFn TLIDDict.t
+and packageFns = packageFn TLIDDict.t
 
 (* ---------------------- *)
 (* dvals *)
@@ -1580,7 +1580,7 @@ and model =
   ; userTipes : userTipe TLIDDict.t
   ; deletedUserTipes : userTipe TLIDDict.t
   ; deletedGroups : group TLIDDict.t
-  ; packages : packages
+  ; packageFns : packageFns
   ; traces : traces
   ; analyses : analyses
   ; f404s : fourOhFour list

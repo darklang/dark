@@ -1514,7 +1514,8 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel
         (fun m ->
           { m with
-            packages = PackageManager.loadPackages m.packages loadedPackages })
+            packageFns = PackageManager.loadPackages m.packageFns loadedPackages
+          })
   | NewTracePush (traceID, tlids) ->
       let traces =
         List.map
