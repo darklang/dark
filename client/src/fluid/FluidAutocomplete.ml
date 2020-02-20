@@ -145,32 +145,28 @@ let isField (aci : autocompleteItem) : bool =
 (* ---------------------------- *)
 
 let allFunctions (m : model) : function_ list =
+  (* We hide functions that are deprecated unless they are in use *)
+  let filterAndSort (fns : Prelude.function_ list) : Prelude.function_ list =
+    let isUsedOrIsNotDeprecated (f : Prelude.function_) : bool =
+      (not f.fnDeprecated) || Refactor.usedFn m f.fnName
+    in
+    fns
+    |> List.filter ~f:isUsedOrIsNotDeprecated
+    |> List.sortBy ~f:(fun f ->
+           (* don't call List.head here - if we have DB::getAll_v1 and
+            * DB::getAll_v2, we want those to sort accordingly! *)
+           f.fnName |> String.to_lower |> String.split ~on:"_v")
+  in
   let userFunctionMetadata =
     m.userFunctions
     |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
     |> List.filterMap ~f:UserFunctions.ufmToF
   in
-  let functions =
-    m.builtInFunctions
-    |> List.filter ~f:(fun f ->
-           (not f.fnDeprecated) || Refactor.usedFn m f.fnName)
-    |> List.sortBy ~f:(fun f ->
-           (* don't call List.head here - if we have DB::getAll_v1 and
-            * DB::getAll_v2, we want those to sort accordingly! *)
-           f.fnName |> String.to_lower |> String.split ~on:"_v")
-  in
+  let functions = m.builtInFunctions |> filterAndSort in
   let packageFunctions =
-    m.packages
-    |> TLIDDict.values
-    |> List.map ~f:PackageManager.fn_of_packageFn
-    |> List.filter ~f:(fun (f : function_) ->
-           (not f.fnDeprecated) || Refactor.usedFn m f.fnName)
-    |> List.sortBy ~f:(fun f ->
-           (* don't call List.head here - if we have DB::getAll_v1 and
-            * DB::getAll_v2, we want those to sort accordingly! *)
-           f.fnName |> String.to_lower |> String.split ~on:"_v")
+    m.packages |> TLIDDict.values |> List.map ~f:PackageManager.fn_of_packageFn
   in
-  functions @ userFunctionMetadata @ packageFunctions
+  functions @ userFunctionMetadata @ packageFunctions |> filterAndSort
 
 
 let allCompletions (a : autocomplete) : autocompleteItem list =
