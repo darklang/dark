@@ -3165,7 +3165,7 @@ let run () =
         "a very long list wraps"
         veryLongList
         render
-        "~[56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n 56,78,56,78,56,78,56,78,56,78]" ;
+        "~[56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78]" ;
       t
         "a list of long floats does not break upon wrap"
         (list
@@ -3184,7 +3184,7 @@ let run () =
         "a nested very list wraps with proper indents"
         (let' "a" veryLongList b)
         render
-        "~let a = [56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78]\n___" ;
+        "~let a = [56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78]\n___" ;
       ()) ;
   describe "Record" (fun () ->
       t "create record" b (ins "{" 0) "{~}" ;
