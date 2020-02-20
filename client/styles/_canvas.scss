@@ -311,6 +311,10 @@ body #app * {
       margin: 0;
       padding: 10px 0px;
       cursor: pointer;
+      &.invite {
+        padding-top: 0px;
+        padding-bottom: 10px;
+      }
       &:hover {
         color: $purple;
       }

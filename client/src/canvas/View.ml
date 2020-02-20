@@ -391,15 +391,24 @@ let accountView (m : model) : msg Html.html =
     Html.p
       [ Html.class' "setting-btn"
       ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
-            SettingsViewMsg (ToggleSettingsView true)) ]
+            SettingsViewMsg (ToggleSettingsView (true, Some UserSettings))) ]
       [Html.text "Account"]
+  in
+  let share =
+    Html.p
+      [ Html.class' "setting-btn invite"
+      ; ViewUtils.eventNoPropagation ~key:"open-invite" "click" (fun _ ->
+            SettingsViewMsg
+              (ToggleSettingsView
+                 (true, Some (InviteUser SettingsView.defaultInviteFields)))) ]
+      [Html.text "Share Dark"]
   in
   Html.div
     [ Html.class' "my-account"
       (* Block opening the omnibox here by preventing canvas pan start *)
     ; ViewUtils.nothingMouseEvent "mousedown" ]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] [settings; logout] ]
+    ; Html.div [Html.class' "account-actions"] [settings; share; logout] ]
 
 
 let view (m : model) : msg Html.html =
