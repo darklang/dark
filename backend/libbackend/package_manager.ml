@@ -148,6 +148,28 @@ let function_name (fn : fn) : string =
   fn.module_ ^ "::" ^ fn.fnname ^ "_v" ^ string_of_int fn.version
 
 
+let max_version
+    (function_name : string)
+    (username : string)
+    (package : string)
+    (module_ : string)
+    (fnname : string) : int option =
+  Db.run
+    ~name:"add_package_management_function abort txn if exn"
+    "ABORT"
+    ~params:[] ;
+  Db.fetch_one
+    ~name:"add_package_management_function get_latest_version_for_error"
+    "SELECT MAX(version) FROM packages_v0 JOIN accounts ON user_id = accounts.id
+                  WHERE username = $1 AND package = $2 AND module = $3 AND fnname = $4"
+    ~subject:function_name
+    ~params:
+      [Db.String username; Db.String package; Db.String module_; Db.String fnname]
+    ~result:TextResult
+  |> List.hd
+  |> Option.bind ~f:(fun v -> if v = "" then None else Some (int_of_string v))
+
+
 let add_function (fn : fn) : unit =
   let user =
     fn.user
@@ -159,22 +181,7 @@ let add_function (fn : fn) : unit =
     |> Option.value_exn ~message:"Invalid author"
   in
   let existing_version =
-    Db.fetch_one
-      ~name:"add_package_management_function get_latest_version"
-      "SELECT MAX(version) FROM packages_v0
-       WHERE user_id = $1
-       AND package = $2
-       AND module = $3
-       AND fnname = $4"
-      ~subject:(function_name fn)
-      ~params:
-        [ Db.Uuid user
-        ; Db.String fn.package
-        ; Db.String fn.module_
-        ; Db.String fn.fnname ]
-      ~result:TextResult
-    |> List.hd
-    |> Option.bind ~f:(fun v -> if v = "" then None else Some (int_of_string v))
+    max_version (function_name fn) fn.user fn.package fn.module_ fn.fnname
   in
   (* Here's the deal: we have 3 cases:
    * - no existing version, we'll work with any non-negative version   you
@@ -284,24 +291,7 @@ let save (author : string) (fn : RuntimeT.user_fn) : (unit, string) Result.t =
          | Exception.DarkException {tipe = DarkStorage; short; _}
            when Tc.String.contains ~substring:"duplicate key" short ->
              let max_version =
-               Db.run
-                 ~name:"add_package_management_function abort txn if exn"
-                 "ABORT"
-                 ~params:[] ;
-               Db.fetch_one
-                 ~name:
-                   "add_package_management_function get_latest_version_for_error"
-                 "SELECT MAX(version) FROM packages_v0 JOIN accounts ON user_id = accounts.id
-                  WHERE username = $1 AND package = $2 AND module = $3 AND fnname = $4"
-                 ~subject:name
-                 ~params:
-                   [ Db.String user
-                   ; Db.String package
-                   ; Db.String module_
-                   ; Db.String fnname ]
-                 ~result:TextResult
-               |> List.hd
-               |> Option.map ~f:(fun v -> if v = "" then 0 else int_of_string v)
+               max_version name user package module_ fnname
                |> Option.value ~default:0
              in
              Error
