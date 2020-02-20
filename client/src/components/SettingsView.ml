@@ -46,11 +46,12 @@ let submitForm (m : model) (tab : settingsTab) : model =
 
 let update (m : model) (msg : settingsMsg) : model =
   match msg with
-  | ToggleSettingsView opened ->
+  | ToggleSettingsView (opened, tab) ->
       (* TODO -> Set to correct tab on open *)
       let enablePan = if opened then m.canvasProps.enablePan else true in
+      let tab = tab |> Option.withDefault ~default:UserSettings in
       { m with
-        settingsView = {m.settingsView with opened; loading = false}
+        settingsView = {m.settingsView with opened; tab; loading = false}
       ; canvasProps = {m.canvasProps with enablePan} }
   | SwitchSettingsTabs tab ->
       {m with settingsView = {m.settingsView with tab; loading = false}}
@@ -64,12 +65,10 @@ let update (m : model) (msg : settingsMsg) : model =
       else submitForm m m.settingsView.tab
 
 
-let openSettingView (m : model) : model = update m (ToggleSettingsView false)
-
 (* View functions *)
 
 let settingsTabToText (tab : settingsTab) : string =
-  match tab with UserSettings -> "Canvases" | InviteUser _ -> "Invite"
+  match tab with UserSettings -> "Canvases" | InviteUser _ -> "Share"
 
 
 (* View code *)
@@ -102,7 +101,7 @@ let viewUserCanvases (acc : settingsViewState) : msg Html.html list =
 
 let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
   let introText =
-    [ Html.h2 [] [Html.text "Invite a friend to try dark!"]
+    [ Html.h2 [] [Html.text "Share Dark with a friend"]
     ; Html.p
         []
         [ Html.text
@@ -210,7 +209,7 @@ let html (m : model) : msg Html.html =
       ; ViewUtils.eventNoPropagation
           ~key:"close-settings-modal"
           "click"
-          (fun _ -> SettingsViewMsg (ToggleSettingsView false)) ]
+          (fun _ -> SettingsViewMsg (ToggleSettingsView (false, None))) ]
       [fontAwesome "times"]
   in
   Html.div
@@ -218,7 +217,7 @@ let html (m : model) : msg Html.html =
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          SettingsViewMsg (ToggleSettingsView false)) ]
+          SettingsViewMsg (ToggleSettingsView (false, None))) ]
     [ Html.div
         [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"
