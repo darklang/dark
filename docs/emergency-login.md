@@ -15,6 +15,7 @@ That script will:
 To use:
 - you will need the cookie-inspector extension installed:
   https://chrome.google.com/webstore/detail/cookie-inspector/jgbbilmfbammlbbhmmgaagdkbkepnijn
+- You'll need to be on darklang.com (or darklang.localhost, for local env login) for the following steps
 - open the dev console, go to the Cookies tab, right click the table and select
   Add Cookie
 - Name = `__session`, Value and Domain are printed by the script above
