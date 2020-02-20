@@ -104,11 +104,15 @@
       }
     }
     .submit-btn {
+      width: 100px;
       padding: 10px 15px;
       background: $grey2;
       border-radius: 3px;
       margin-top: 35px;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 }
