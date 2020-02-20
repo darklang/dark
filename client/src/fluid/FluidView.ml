@@ -319,10 +319,10 @@ let viewArrow (curID : id) (srcID : id) : Types.msg Html.html =
   | Some curElem, Some srcElem ->
       let curRect = Native.Ext.getBoundingClient curElem curSelector in
       let srcRect = Native.Ext.getBoundingClient srcElem srcSelector in
-      let height = curRect.bottom - srcRect.top in
+      let height = curRect.bottom -. srcRect.top in
       Html.div
         [ Html.class' "src-arrow"
-        ; Html.styles [("height", string_of_int height ^ "px")] ]
+        ; Html.styles [("height", Js.Float.toString height ^ "px")] ]
         []
   | _ ->
       Vdom.noNode

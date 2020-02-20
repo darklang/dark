@@ -55,16 +55,16 @@ let centerCanvasOn (tl : toplevel) : pos =
   let sidebarWidth =
     Native.Ext.querySelector "#sidebar-left"
     |> Option.map ~f:Native.Ext.clientWidth
-    |> Option.withDefault ~default:320
+    |> Option.withDefault ~default:320.0
   in
   let tlWidth =
     let tle =
       Native.Ext.querySelector (".toplevel.tl-" ^ Prelude.showTLID (TL.id tl))
     in
-    match tle with Some e -> Native.Ext.clientWidth e | None -> 245
+    match tle with Some e -> Native.Ext.clientWidth e | None -> 245.0
   in
-  let availWidth = float_of_int (windowWidth - tlWidth) /. 3.0 in
-  let offsetLeft = float_of_int sidebarWidth +. availWidth in
+  let availWidth = (windowWidth -. tlWidth) /. 3.0 in
+  let offsetLeft = sidebarWidth +. availWidth in
   {x = (TL.pos tl).x -. offsetLeft; y = (TL.pos tl).y -. 200.0}
 
 
@@ -77,11 +77,11 @@ let moveToToken (id : id) (tl : toplevel) : float option * float option =
       let sidebarWidth =
         Native.Ext.querySelector "#sidebar-left"
         |> Option.map ~f:Native.Ext.clientWidth
-        |> recoverOpt "can't find sidebar HTML body" ~default:320
+        |> recoverOpt "can't find sidebar HTML body" ~default:320.0
       in
       let viewport : Native.rect =
         { id = "#canvas"
-        ; top = 0
+        ; top = 0.0
         ; left = sidebarWidth
         ; right = Native.Window.viewportWidth
         ; bottom = Native.Window.viewportHeight }
@@ -99,15 +99,15 @@ let moveToToken (id : id) (tl : toplevel) : float option * float option =
         if tokenBox.right > viewport.left && tokenBox.left < viewport.right
         then None
         else
-          let offsetLeft = tokenBox.left - tlBox.left in
-          Some (tlPos.x -. float_of_int (sidebarWidth + offsetLeft))
+          let offsetLeft = tokenBox.left -. tlBox.left in
+          Some (tlPos.x -. (sidebarWidth +. offsetLeft))
       in
       let yTarget =
         if tokenBox.bottom > viewport.top && tokenBox.top < viewport.bottom
         then None
         else
-          let offsetTop = tokenBox.top - tlBox.top in
-          Some (tlPos.y -. float_of_int (50 + offsetTop))
+          let offsetTop = tokenBox.top -. tlBox.top in
+          Some (tlPos.y -. (50.0 +. offsetTop))
       in
       (xTarget, yTarget)
   | None ->
@@ -120,14 +120,13 @@ let findNewPos (m : model) : pos =
   | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
       let o = m.canvasProps.offset in
       (* We add padding to the viewport range, to ensure we don't have new handlers too far from eachother. *)
-      let padRight = 400 in
-      let padBottom = 400 in
-      let minX = truncate o.x in
-      let maxX = minX + (Window.viewportWidth - padRight) in
-      let minY = truncate o.y in
-      let maxY = minY + (Window.viewportHeight - padBottom) in
-      { x = Random.range minX maxX |> float_of_int
-      ; y = Random.range minY maxY |> float_of_int }
+      let padRight = 400.0 in
+      let padBottom = 400.0 in
+      let minX = o.x in
+      let maxX = minX +. (Window.viewportWidth -. padRight) in
+      let minY = o.y in
+      let maxY = minY +. (Window.viewportHeight -. padBottom) in
+      {x = Random.float_range minX maxX; y = Random.float_range minY maxY}
   | FocusedFn _ | FocusedType _ ->
       (* if the sidebar is open, the users can't see the livevalues, which
       * confused new users. Given we can't get z-index to work, moving it to the

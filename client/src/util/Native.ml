@@ -36,10 +36,10 @@ let registerGlobalDirect name key tagger =
 
 type rect =
   { id : string
-  ; top : int
-  ; left : int
-  ; right : int
-  ; bottom : int }
+  ; top : float
+  ; left : float
+  ; right : float
+  ; bottom : float }
 
 exception NativeCodeError of string
 
@@ -58,9 +58,9 @@ module Ext = struct
 
   external scrollHeight : Dom.element -> int = "scrollHeight" [@@bs.get]
 
-  external clientWidth : Dom.element -> int = "clientWidth" [@@bs.get]
+  external clientWidth : Dom.element -> float = "clientWidth" [@@bs.get]
 
-  external clientHeight : Dom.element -> int = "clientHeight" [@@bs.get]
+  external clientHeight : Dom.element -> float = "clientHeight" [@@bs.get]
 
   external getBoundingClientRect : Dom.element -> Dom.domRect
     = "getBoundingClientRect"
@@ -85,10 +85,10 @@ module Ext = struct
   let getBoundingClient (e : Dom.element) (s : string) : rect =
     let client = getBoundingClientRect e in
     { id = s
-    ; top = rectTop client |> int_of_float
-    ; left = rectLeft client |> int_of_float
-    ; right = rectRight client |> int_of_float
-    ; bottom = rectBottom client |> int_of_float }
+    ; top = rectTop client
+    ; left = rectLeft client
+    ; right = rectRight client
+    ; bottom = rectBottom client }
 
 
   external redirect : string -> unit = "replace"
@@ -125,6 +125,13 @@ module Random = struct
   let random () : int = Js_math.random_int 0 2147483647
 
   let range (min : int) (max : int) : int = Js_math.random_int min max
+
+  let float_range (min : float) (max : float) : float =
+    (* random is [0,1.0); multiply by the range (max - min) and offset by min *)
+    (Js_math.random () *. (max -. min)) +. min
+    (* since float math is a little imprecise, make sure we're in the specified
+     * range *)
+    |> fun x -> Js_math.max_float x min |> fun x -> Js_math.min_float x max
 end
 
 module Location = struct
@@ -141,13 +148,14 @@ module Location = struct
 end
 
 module Window = struct
-  external viewportWidth : int = "innerWidth" [@@bs.val] [@@bs.scope "window"]
+  external viewportWidth : float = "innerWidth" [@@bs.val] [@@bs.scope "window"]
 
-  external viewportHeight : int = "innerHeight" [@@bs.val] [@@bs.scope "window"]
+  external viewportHeight : float = "innerHeight"
+    [@@bs.val] [@@bs.scope "window"]
 
-  external pageWidth : int = "outerWidth" [@@bs.val] [@@bs.scope "window"]
+  external pageWidth : float = "outerWidth" [@@bs.val] [@@bs.scope "window"]
 
-  external pageHeight : int = "outerHeight" [@@bs.val] [@@bs.scope "window"]
+  external pageHeight : float = "outerHeight" [@@bs.val] [@@bs.scope "window"]
 
   external openUrl : string -> string -> unit = "open"
     [@@bs.val] [@@bs.scope "window"]
