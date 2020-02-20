@@ -162,7 +162,10 @@ let add_function (fn : fn) : unit =
     Db.fetch_one
       ~name:"add_package_management_function get_latest_version"
       "SELECT MAX(version) FROM packages_v0
-     WHERE user_id = $1 AND package = $2 AND module = $3 AND fnname = $4"
+       WHERE user_id = $1
+       AND package = $2
+       AND module = $3
+       AND fnname = $4"
       ~subject:(function_name fn)
       ~params:
         [ Db.Uuid user
