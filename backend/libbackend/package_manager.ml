@@ -363,14 +363,37 @@ let all_functions () : fn list =
     Db.fetch
       ~name:"package_management_function_data"
       ~params:[]
-      "SELECT body FROM packages_v0"
+      "SELECT user_id,package,module,fnname,version,body FROM packages_v0"
       ~result:BinaryResult
     |> List.filter_map ~f:(function
-           | [body] ->
+           | [user_id; package; module_; fnname; version; body] ->
              ( try
                  let body = string_to_expr body in
                  Some (string_of_id body.tlid, body.expr)
-               with _ -> None )
+               with _ ->
+                 let fnkey =
+                   Printf.sprintf
+                     "%s/%s/%s::%s_v%s"
+                     user_id
+                     package
+                     module_
+                     fnname
+                     version
+                 in
+                 let bt = Libexecution.Exception.get_backtrace () in
+                 let e =
+                   Exception.make_exception
+                     DarkInternal
+                     ( "Can't parse body of package_v0 function with key "
+                     ^ fnkey )
+                 in
+                 ignore
+                   (Rollbar.report
+                      e
+                      bt
+                      (Libservice.Rollbar.Other "package_v0")
+                      "no execution id") ;
+                 None )
            | _ ->
                Exception.internal "Bad format for package_manager.all_functions")
     |> Tc.StrDict.from_list
