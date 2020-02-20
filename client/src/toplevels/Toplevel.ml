@@ -86,10 +86,8 @@ let fromList (tls : toplevel list) : toplevel TLIDDict.t =
   tls |> List.map ~f:(fun tl -> (id tl, tl)) |> TD.fromList
 
 
-let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
-  let newPos p =
-    {x = p.x +. float_of_int xOffset; y = p.y +. float_of_int yOffset}
-  in
+let move (tlid : tlid) (xOffset : float) (yOffset : float) (m : model) : model =
+  let newPos p = {x = p.x +. xOffset; y = p.y +. yOffset} in
   { m with
     handlers =
       TD.updateIfPresent m.handlers ~tlid ~f:(fun (h : handler) ->

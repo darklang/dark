@@ -1066,8 +1066,8 @@ let update_ (msg : msg) (m : model) : modification =
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
-        let xDiff = mousePos.x - truncate startVPos.vx in
-        let yDiff = mousePos.y - truncate startVPos.vy in
+        let xDiff = float_of_int mousePos.x -. startVPos.vx in
+        let yDiff = float_of_int mousePos.y -. startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
           [ SetToplevels
