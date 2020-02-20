@@ -416,6 +416,4 @@ let to_get_packages_rpc_result packages : string =
 
 let packages : fn list ref = ref []
 
-(* This can't happen until migrations have run, or we might not have a
- * packages_v0 table *)
 let init () = packages := all_functions ()
