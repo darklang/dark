@@ -14,36 +14,38 @@ let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 
 let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
-let moveCanvasBy (m : model) (x : int) (y : int) : modification =
-  let dx, dy = (float_of_int x, float_of_int y) in
+let moveCanvasBy (m : model) (x : float) (y : float) : modification =
+  let dx, dy = (x, y) in
   let offset = m.canvasProps.offset in
   let pos = addPos offset {x = dx; y = dy} in
   MoveCanvasTo (pos, DontAnimateTransition)
 
 
 let pageUp (m : model) : modification =
-  moveCanvasBy m 0 (-1 * Defaults.pageHeight)
+  moveCanvasBy m 0.0 (-1.0 *. Defaults.pageHeight)
 
 
-let pageDown (m : model) : modification = moveCanvasBy m 0 Defaults.pageHeight
+let pageDown (m : model) : modification = moveCanvasBy m 0.0 Defaults.pageHeight
 
 let pageLeft (m : model) : modification =
-  moveCanvasBy m (-1 * Defaults.pageWidth) 0
+  moveCanvasBy m (-1.0 *. Defaults.pageWidth) 0.0
 
 
-let pageRight (m : model) : modification = moveCanvasBy m Defaults.pageWidth 0
+let pageRight (m : model) : modification = moveCanvasBy m Defaults.pageWidth 0.0
 
-let moveUp (m : model) : modification = moveCanvasBy m 0 (-1 * Defaults.moveSize)
+let moveUp (m : model) : modification =
+  moveCanvasBy m 0.0 (-1.0 *. Defaults.moveSize)
 
-let moveDown (m : model) : modification = moveCanvasBy m 0 Defaults.moveSize
+
+let moveDown (m : model) : modification = moveCanvasBy m 0.0 Defaults.moveSize
 
 let moveLeft (m : model) : modification =
-  moveCanvasBy m (-1 * Defaults.moveSize) 0
+  moveCanvasBy m (-1.0 *. Defaults.moveSize) 0.0
 
 
-let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
+let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0.0
 
-(* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
+(* Centers the toplevel on canvas based on windowWidth and sidebarWidth
   Default values (when we can't find get elements from dom) are based on
   min-widths defined in app.less. At some point we will want to find a
   less volatile method for the constant definitions.

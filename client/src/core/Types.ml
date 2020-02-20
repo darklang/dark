@@ -1225,7 +1225,7 @@ and msg =
   | BlankOrDoubleClick of tlid * id * mouseEvent
   | BlankOrMouseEnter of tlid * id * mouseEvent
   | BlankOrMouseLeave of tlid * id * mouseEvent
-  | MouseWheel of int * int
+  | MouseWheel of float * float
   | TraceClick of tlid * traceID * mouseEvent
   | TraceMouseEnter of tlid * traceID * mouseEvent
   | TraceMouseLeave of tlid * traceID * mouseEvent

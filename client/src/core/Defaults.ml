@@ -10,11 +10,11 @@ let centerPos : pos = {x = 475.0; y = 200.0}
 
 let origin : pos = {x = 0.0; y = 0.0}
 
-let moveSize : int = 50
+let moveSize : float = 50.0
 
-let pageHeight : int = 400
+let pageHeight : float = 400.0
 
-let pageWidth : int = 500
+let pageWidth : float = 500.0
 
 let unsetCSRF : string = "UNSET_CSRF"
 
