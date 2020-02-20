@@ -187,7 +187,6 @@ let add_function (fn : fn) : unit =
   (* We do this check here, rather than by poking at existing_version above, to
    * keep it all in transaction, avoid race conditions, and handle all failures
    * to insert in one place *)
-  (* TODO: enforce with tests *)
   let version = Int.max existing_version fn.version in
   Db.run ~name:"add_package_management_function begin" "BEGIN" ~params:[] ;
   (* After insert, also auto-deprecate any previous versions of fn *)
