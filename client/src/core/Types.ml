@@ -974,7 +974,8 @@ and settingsViewState =
   { opened : bool
   ; tab : settingsTab
   ; canvas_list : string list
-  ; org_list : string list }
+  ; org_list : string list
+  ; loading : bool }
 
 and settingsMsg =
   | ToggleSettingsView of bool

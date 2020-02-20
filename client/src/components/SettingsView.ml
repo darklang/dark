@@ -34,22 +34,34 @@ let validateForm (tab : settingsTab) : bool * settingsTab =
       (false, tab)
 
 
+let submitForm (m : model) (tab : settingsTab) : model =
+  match tab with
+  | InviteUser _ ->
+      (* TODO Add API call and callback *)
+      (* In callback, show error OR stop loading and show confirm *)
+      {m with settingsView = {m.settingsView with loading = true}}
+  | _ ->
+      m
+
+
 let update (m : model) (msg : settingsMsg) : model =
   match msg with
   | ToggleSettingsView opened ->
       (* TODO -> Set to correct tab on open *)
       let enablePan = if opened then m.canvasProps.enablePan else true in
       { m with
-        settingsView = {m.settingsView with opened}
+        settingsView = {m.settingsView with opened; loading = false}
       ; canvasProps = {m.canvasProps with enablePan} }
   | SwitchSettingsTabs tab ->
-      {m with settingsView = {m.settingsView with tab}}
+      {m with settingsView = {m.settingsView with tab; loading = false}}
   | UpdateInviteForm value ->
       let form = {email = {value; error = None}} in
       {m with settingsView = {m.settingsView with tab = InviteUser form}}
   | SubmitForm ->
-      let _, newTab = validateForm m.settingsView.tab in
-      {m with settingsView = {m.settingsView with tab = newTab}}
+      let isInvalid, newTab = validateForm m.settingsView.tab in
+      if isInvalid
+      then {m with settingsView = {m.settingsView with tab = newTab}}
+      else submitForm m m.settingsView.tab
 
 
 let openSettingView (m : model) : model = update m (ToggleSettingsView false)
@@ -88,22 +100,44 @@ let viewUserCanvases (acc : settingsViewState) : msg Html.html list =
   orgView @ canvasView
 
 
-let viewInviteUserToDark (tab : settingsTab) : msg Html.html list =
+let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
   let introText =
     [ Html.h2 [] [Html.text "Invite a friend to try dark!"]
     ; Html.p
         []
         [ Html.text
-            "Friends dont let friends stay on waitlists. Help your friends skip the line by inviting them to join us. Note: This does not add the user to an org or to your canvas, it allows your friends to sign up for their own dark accounts"
+            "Friends don't let friends stay on waitlists. Help your friends skip the line by inviting them directly to Dark."
+        ]
+    ; Html.p
+        []
+        [ Html.text
+            "Note: This will not add them to any of your existing organizations or canvases."
         ] ]
   in
   let inviteform =
     let error =
-      match tab with
+      match svs.tab with
       | InviteUser x ->
           x.email.error |> Option.withDefault ~default:""
       | _ ->
           ""
+    in
+    let submitBtn =
+      let event =
+        if svs.loading
+        then []
+        else
+          [ ViewUtils.eventNoPropagation
+              ~key:"close-settings-modal"
+              "click"
+              (fun _ -> SettingsViewMsg SubmitForm) ]
+      in
+      let btn =
+        if svs.loading
+        then [ViewUtils.fontAwesome "spinner"; Html.h3 [] [Html.text "Loading"]]
+        else [Html.h3 [] [Html.text "Submit"]]
+      in
+      Html.div ([Html.class' "submit-btn"] @ event) btn
     in
     [ Html.div
         [Html.class' "invite-form"]
@@ -118,13 +152,7 @@ let viewInviteUserToDark (tab : settingsTab) : msg Html.html list =
                     ; Events.onInput (fun str ->
                           SettingsViewMsg (UpdateInviteForm str)) ]
                     [] ] ]
-        ; Html.h3
-            [ Html.class' "submit-btn"
-            ; ViewUtils.eventNoPropagation
-                ~key:"close-settings-modal"
-                "click"
-                (fun _ -> SettingsViewMsg SubmitForm) ]
-            [Html.text "Submit"] ] ]
+        ; submitBtn ] ]
   in
   introText @ inviteform
 
@@ -135,7 +163,7 @@ let settingsTabToHtml (svs : settingsViewState) : msg Html.html list =
   | UserSettings ->
       viewUserCanvases svs
   | InviteUser _ ->
-      viewInviteUserToDark svs.tab
+      viewInviteUserToDark svs
 
 
 let tabTitleView (tab : settingsTab) : msg Html.html =
