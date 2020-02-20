@@ -174,20 +174,28 @@ let add_function (fn : fn) : unit =
         ; Db.String fn.fnname ]
       ~result:TextResult
     |> List.hd
-    |> Option.map ~f:(fun v -> if v = "" then 0 else int_of_string v)
-    |> Option.value ~default:0
+    |> Option.bind ~f:(fun v -> if v = "" then None else Some (int_of_string v))
   in
   (* Here's the deal: we have 3 cases:
-   * - there's already a greater version in the DB; we try to insert that
-   *   version again (because that's max(existing_version, fn.version), get an error telling you so
-   * - there's a version in the DB, but it's less than fn.version, we try to
-   *   insert fn.version, it works, no error
-   * - there's no version of this fn in the DB, max(0, fn.version) is fn.version
-   *   for any non-negative fn.version, it works, no error *)
-  (* We do this check here, rather than by poking at existing_version above, to
-   * keep it all in transaction, avoid race conditions, and handle all failures
-   * to insert in one place *)
-  let version = Int.max existing_version fn.version in
+   * - no existing version, we'll work with any non-negative version   you
+   * provided
+   * - new version is one greater than existing version, it works
+   * - new version is _not_  one greater than existing version; we'll attemt to
+   * insert a fn with version=existing version because that violates our
+   * dupe_key constraint in the DB.
+   *
+   * We do it this way and lean on the db constraint, to keep it all in
+   * transaction, avoid race conditions, and handle all failures to insert in
+   * one place *)
+  let version =
+    match existing_version with
+    | None ->
+        fn.version
+    | Some existing_version ->
+        if fn.version = existing_version + 1
+        then fn.version
+        else existing_version
+  in
   Db.run ~name:"add_package_management_function begin" "BEGIN" ~params:[] ;
   (* After insert, also auto-deprecate any previous versions of fn *)
   Db.run
