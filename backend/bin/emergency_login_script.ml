@@ -38,6 +38,10 @@ let () =
       (Printf.sprintf "Generating a cookie for %s." Config.cookie_domain) ;
     let session_key = username |> session_key_for_username in
     report_to_rollbar username ;
+    (* Have some empty lines to separate log output (like the rollbar log!) from
+     * actionable "do this next" output *)
+    Caml.print_endline " " ;
+    Caml.print_endline " " ;
     Caml.print_endline
       (Printf.sprintf
          "See docs/emergency-login.md for instructions. Your values are

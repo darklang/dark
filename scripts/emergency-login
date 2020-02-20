@@ -15,7 +15,7 @@ EOF
 
 
 username="${1:-}"
-if [[ "${username}" -eq "" ]]; then
+if [[ "${username}" = "" ]]; then
     echo "$HELP"
     exit 1
 fi
