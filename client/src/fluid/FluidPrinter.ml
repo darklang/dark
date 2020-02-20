@@ -275,28 +275,10 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         match lexpr with
         | EPipeTarget _ ->
             b
-        | EInteger _
-        | EBool _
-        | EString _
-        | EFloat _
-        | ENull _
-        | EBlank _
-        | EFieldAccess _
-        | EVariable _
-        | EPartial _
-        | ERightPartial _
-        | EList _
-        | ERecord _
-        | EConstructor _
-        | EBinOp _
-        | EFnCall _ ->
+        | _ ->
             b
             |> nest ~indent:0 ~placeholderFor:(Some (id, op, 0)) lexpr
             |> add (TSep (E.toID lexpr))
-        | EPipe _ | EMatch _ | ELambda _ | ELet _ | EIf _ | EFeatureFlag _ ->
-            b
-            |> nest ~indent:0 ~placeholderFor:(Some (id, op, 0)) lexpr
-            |> addNewlineIfNeeded (Some (E.toID lexpr, id, None))
       in
       b
       |> start
