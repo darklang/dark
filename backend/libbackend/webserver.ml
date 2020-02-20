@@ -978,7 +978,7 @@ let upload_function
 let get_all_packages ~(execution_id : Types.id) () :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, packages =
-    time "1-get-packages" (fun _ -> Package_manager.packages)
+    time "1-get-packages" (fun _ -> Package_manager.all_functions ())
   in
   let t2, response =
     time "2-to-frontend" (fun _ ->
