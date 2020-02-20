@@ -160,7 +160,14 @@ let fontAwesome (name : string) : msg Html.html =
 let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
   let open Json.Decode in
   fn
-    { mePos = {vx = field "pageX" int j; vy = field "pageY" int j}
+    { mePos =
+        (* We decode floats b/c newer Chromes may use floats instead of ints; we
+         * then truncate rather than moving to floats everywhere due to concerns
+         * about sending data back to browsers whose DOMs don't support float
+         * positions - see https://github.com/darklang/dark/pull/2016 for
+         * discussion *)
+        { vx = field "pageX" Json.Decode.float j |> truncate
+        ; vy = field "pageY" Json.Decode.float j |> truncate }
     ; button = field "button" int j
     ; ctrlKey = field "ctrlKey" bool j
     ; shiftKey = field "shiftKey" bool j
