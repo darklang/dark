@@ -49,6 +49,7 @@ module Builder = struct
 
   (** id is the id of the first token in the builder or None if the builder is empty. *)
   let id (b : t) : id option = List.last b.tokens |> Option.map ~f:T.tid
+
   let lineLimit = 120
 
   let literalLimit = 40
@@ -400,7 +401,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       b
       |> add (TListOpen id)
       |> addIter exprs ~f:(fun i e b' ->
-             let exprBuilder = fromExpr e in
+             let exprBuilder = toTokens' e in
              let lnLength =
                (exprBuilder b').xPos
                (* Additional 1 is for the comma *)
@@ -408,7 +409,9 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                       x - startingXPos + if i <> lastIndex then 1 else 0)
                |> Option.withDefault ~default:0
              in
-             let isOverLimit = lnLength > literalLimit in
+             (* Even if first element overflows, don't put it in a new line *)
+             (* We may have define explicit rules linewrapping for other expressions later on down the line, for now it's out of scope *)
+             let isOverLimit = i > 0 && lnLength > literalLimit in
              (* Indent after newlines to match the '[ ' *)
              let indent = if isOverLimit then 1 else 0 in
              b'
