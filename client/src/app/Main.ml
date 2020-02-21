@@ -836,7 +836,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * we're in before isnt also dragging. *)
         ( { m with
             cursorState =
-              Dragging (tlid, offset, hasMoved, unwrapCursorState state) }
+              DraggingTL (tlid, offset, hasMoved, unwrapCursorState state) }
         , Cmd.none )
     | ExecutingFunctionBegan (tlid, id) ->
         let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
@@ -1069,7 +1069,7 @@ let update_ (msg : msg) (m : model) : modification =
       TriggerHandlerAPICall tlid
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
-    | Dragging (draggingTLID, startVPos, _, origCursorState) ->
+    | DraggingTL (draggingTLID, startVPos, _, origCursorState) ->
         let xDiff = mousePos.x - startVPos.vx in
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
@@ -1100,7 +1100,7 @@ let update_ (msg : msg) (m : model) : modification =
       if event.button = Defaults.leftButton
       then
         match m.cursorState with
-        | Dragging (draggingTLID, _, hasMoved, origCursorState) ->
+        | DraggingTL (draggingTLID, _, hasMoved, origCursorState) ->
           ( match TL.get m draggingTLID with
           | Some tl ->
               if hasMoved
@@ -1162,7 +1162,7 @@ let update_ (msg : msg) (m : model) : modification =
       ( match m.cursorState with
       | Deselected ->
           select targetID
-      | Dragging (_, _, _, origCursorState) ->
+      | DraggingTL (_, _, _, origCursorState) ->
           SetCursorState origCursorState
       | Entering cursor ->
           let defaultBehaviour = select targetID in
@@ -1220,7 +1220,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; MakeCmd (API.executeFunction m p) ]
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
-    | Dragging (_, _, _, origCursorState) ->
+    | DraggingTL (_, _, _, origCursorState) ->
         SetCursorState origCursorState
     | Deselected ->
         Many [Select (tlid, STTopLevelRoot); SetTLTraceID (tlid, traceID)]
@@ -1341,7 +1341,7 @@ let update_ (msg : msg) (m : model) : modification =
           let newGroup = {g with members = newMembers} in
           let newMod = Groups.upsert m newGroup in
           ( match m.cursorState with
-          | Dragging (_, _, _, origCursorState) ->
+          | DraggingTL (_, _, _, origCursorState) ->
               let mePos = Viewport.toAbsolute m event.mePos in
               let gTlid = Groups.posInGroup mePos m.groups |> List.head in
               (* Check if the new pos is in another group *)
@@ -2018,7 +2018,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     match m.cursorState with
     (* we use IDs here because the node will change *)
     (* before they're triggered *)
-    | Dragging (id, _, _, _) ->
+    | DraggingTL (id, _, _, _) ->
         let listenerKey = "mouse_moves_" ^ deTLID id in
         [Native.DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
     | _ ->
