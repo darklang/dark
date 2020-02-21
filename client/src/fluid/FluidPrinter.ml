@@ -8,16 +8,20 @@ type token = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
-type featureFlagOption =
-  (* FeatureFlagOnlyDisabled is used in the main editor panel to only show the flag's old code *)
-  | FeatureFlagOnlyDisabled
-      (** FeatureFlagConditionAndEnabled is used in the secondary editor panel
+module Options = struct
+  type featureFlag =
+    (* FeatureFlagOnlyDisabled is used in the main editor panel to only show the flag's old code *)
+    | FeatureFlagOnlyDisabled
+        (** FeatureFlagConditionAndEnabled is used in the secondary editor panel
      * for editing a flag's condition and new code *)
-  | FeatureFlagConditionAndEnabled
+    | FeatureFlagConditionAndEnabled
 
-type options = {featureFlags : featureFlagOption}
+  type t = {featureFlags : featureFlag}
 
-let defaultOptions = {featureFlags = FeatureFlagOnlyDisabled}
+  let default = {featureFlags = FeatureFlagOnlyDisabled}
+
+  let featureFlagPanel = {featureFlags = FeatureFlagConditionAndEnabled}
+end
 
 module Builder = struct
   type t =
@@ -29,7 +33,7 @@ module Builder = struct
     ; xPos : int option
           (** [xPos] tracks the indent for nesting.
             * `None` indicates it's ready to go after a newline *)
-    ; options : options }
+    ; options : Options.t }
 
   let rec endsInNewline (b : t) : bool =
     (* The latest token is on the front *)
@@ -42,7 +46,7 @@ module Builder = struct
         false
 
 
-  let empty = {tokens = []; xPos = Some 0; indent = 0; options = defaultOptions}
+  let empty = {tokens = []; xPos = Some 0; indent = 0; options = Options.default}
 
   (** id is the id of the first token in the builder or None if the builder is empty. *)
   let id (b : t) : id option = List.last b.tokens |> Option.map ~f:T.tid
@@ -490,7 +494,7 @@ let tidy (tokens : fluidToken list) : fluidToken list =
   tokens |> List.filter ~f:(function TIndent 0 -> false | _ -> true)
 
 
-let tokenizeWithOptions (options : options) (e : FluidExpression.t) :
+let tokenizeWithOptions (options : Options.t) (e : FluidExpression.t) :
     tokenInfo list =
   {Builder.empty with options}
   |> toTokens' e
@@ -500,7 +504,7 @@ let tokenizeWithOptions (options : options) (e : FluidExpression.t) :
   |> infoize
 
 
-let tokenize = tokenizeWithOptions defaultOptions
+let tokenize = tokenizeWithOptions Options.default
 
 let tokensToString (tis : tokenInfo list) : string =
   tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""

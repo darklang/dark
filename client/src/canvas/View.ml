@@ -426,7 +426,7 @@ let view (m : model) : msg Html.html =
   in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [FluidView.viewStatus m ast]
+    then [FluidDebugger.view m ast]
     else [Vdom.noNode]
   in
   let viewDocs =

@@ -17,8 +17,6 @@ module Util = FluidUtil
 
 type viewState = ViewUtils.viewState
 
-type ast = E.t
-
 type token = T.t
 
 let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
@@ -122,7 +120,7 @@ let fnForToken state token : function_ option =
       None
 
 
-let fnArgExprs (token : token) (ast : ast) : E.t list =
+let fnArgExprs (token : token) (ast : E.t) : E.t list =
   let id = T.tid token in
   let exprs =
     match E.find id ast with
@@ -144,7 +142,7 @@ let fnArgExprs (token : token) (ast : ast) : E.t list =
 
 
 let viewPlayIcon
-    ~(vs : ViewUtils.viewState) ~state (ast : ast) (ti : T.tokenInfo) :
+    ~(vs : ViewUtils.viewState) ~state (ast : E.t) (ti : T.tokenInfo) :
     Types.msg Html.html =
   match fnForToken state ti.token with
   | Some fn when not fn.fnPreviewExecutionSafe ->
@@ -163,8 +161,12 @@ let viewPlayIcon
       Vdom.noNode
 
 
-let toHtml ~(vs : ViewUtils.viewState) ~tokenInfos ~tlid ~state (ast : ast) :
-    Types.msg Html.html list =
+let toHtml
+    ~(vs : ViewUtils.viewState)
+    ~(options : Printer.Options.t)
+    ~tlid
+    ~state
+    (ast : E.t) : Types.msg Html.html list =
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
     if FluidToken.validID id
@@ -188,7 +190,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tokenInfos ~tlid ~state (ast : ast) :
     | _ ->
         None
   in
-  let currentTokenInfo = Fluid.getToken' state tokenInfos in
+  let tokens = Printer.tokenizeWithOptions options ast in
+  let currentTokenInfo = Fluid.getToken' state tokens in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -203,7 +206,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tokenInfos ~tlid ~state (ast : ast) :
     match state.cp.location with
     | Some (ltlid, id) when tlid = ltlid ->
         (* Reversing list will get us the last token visually rendered with matching expression ID, so we don't have to keep track of max pos *)
-        tokenInfos
+        tokens
         |> List.reverse
         |> List.getBy ~f:(fun ti -> FluidToken.tid ti.token = id)
     | _ ->
@@ -222,7 +225,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tokenInfos ~tlid ~state (ast : ast) :
     let selStart, selEnd = Fluid.getSelectionRange state in
     selStart <= tokenStart && tokenEnd <= selEnd
   in
-  List.map tokenInfos ~f:(fun ti ->
+  List.map tokens ~f:(fun ti ->
       let element nested =
         let tokenId = T.tid ti.token in
         let idStr = deID tokenId in
@@ -330,7 +333,7 @@ let viewDval tlid dval ~(canCopy : bool) =
 
 
 let viewLiveValue
-    ~(tlid : tlid) ~(ast : ast) ~(vs : viewState) ~(state : fluidState) :
+    ~(tlid : tlid) ~(ast : E.t) ~(vs : viewState) ~(state : fluidState) :
     Types.msg Html.html =
   (* isLoaded will be set to false later if we are in the middle of loading
    * results. All other states are considered loaded. This is used to apply
@@ -423,7 +426,7 @@ let viewLiveValue
   |> Option.withDefault ~default:Vdom.noNode
 
 
-let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
+let viewReturnValue (vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html
     =
   if tlidOf vs.cursorState = Some vs.tlid
   then
@@ -473,12 +476,12 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
   * you are now editing index 1 of the splits returned from
   * FluidPrinter.tokenizeWithSplits). *)
 let fluidEditorView
-    (vs : ViewUtils.viewState)
-    (tokenInfos : FluidPrinter.tokenInfo list)
-    (ast : ast) : Types.msg Html.html =
+    (vs : ViewUtils.viewState) ~(options : Printer.Options.t) (ast : E.t) :
+    Types.msg Html.html =
   let ({tlid; fluidState = state; _} : ViewUtils.viewState) = vs in
   let tlidStr = deTLID tlid in
   let id = E.toID ast in
+  Js.log3 "fluidEditorView for" id ast ;
   let textInputListeners =
     (* the command palette is inside div.fluid-editor but has it's own input
      * handling, so don't do normal fluid input stuff if it's open *)
@@ -559,10 +562,11 @@ let fluidEditorView
       ]
     @ clickHandlers
     @ Tuple3.toList textInputListeners )
-    (toHtml ast ~tokenInfos ~vs ~tlid ~state)
+    (toHtml ast ~options ~vs ~tlid ~state)
 
 
-let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
+let viewAST ~(vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html list =
+  Js.log3 "viewAST" vs.tlid ast ;
   let ({analysisStore; tlid; fluidState = state; _} : ViewUtils.viewState) =
     vs
   in
@@ -580,7 +584,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     then viewLiveValue ~tlid ~ast ~vs ~state
     else Vdom.noNode
   in
-  let mainEditor = fluidEditorView vs vs.tokens ast in
+  let mainEditor = fluidEditorView ~options:Printer.Options.default vs ast in
   let returnValue = viewReturnValue vs ast in
   let secondaryEditors =
     let findRowOffestOfMainTokenWithId (target : id) : int option =
@@ -598,11 +602,6 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
       vs.featureFlagSubtrees
       |> StrDict.toList
       |> List.map ~f:(fun (key, t) ->
-             let tokens =
-               E.ofSubtree t
-               |> Printer.tokenizeWithOptions
-                    {featureFlags = FeatureFlagConditionAndEnabled}
-             in
              let errorRail =
                Html.div
                  [Html.classList [("fluid-error-rail", true); ("show", true)]]
@@ -615,114 +614,15 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
              Html.div
                [ Html.class' "fluid-secondary-editor"
                ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-               [fluidEditorView vs tokens (E.ofSubtree t); errorRail])
+               [ fluidEditorView
+                   ~options:Printer.Options.featureFlagPanel
+                   vs
+                   (E.ofSubtree t)
+               ; errorRail ])
     else []
   in
   mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
 
 
-let viewStatus (m : model) (ast : ast) : Types.msg Html.html =
-  let s = m.fluidState in
-  let tokens = Printer.tokenize ast in
-  let ddText txt = Html.dd [] [Html.text txt] in
-  let dtText txt = Html.dt [] [Html.text txt] in
-  let posData =
-    let oldGrid = Fluid.gridFor ~pos:s.oldPos tokens in
-    let newGrid = Fluid.gridFor ~pos:s.newPos tokens in
-    [ dtText "pos"
-    ; Html.dd
-        []
-        [ Html.text (string_of_int s.oldPos)
-        ; Html.text " -> "
-        ; Html.text (string_of_int s.newPos) ]
-    ; dtText "grid"
-    ; Html.dd
-        []
-        [ Html.text (oldGrid.col |> string_of_int)
-        ; Html.text ","
-        ; Html.text (oldGrid.row |> string_of_int)
-        ; Html.text " -> "
-        ; Html.text (newGrid.col |> string_of_int)
-        ; Html.text ","
-        ; Html.text (newGrid.row |> string_of_int) ]
-    ; dtText "acIndex"
-    ; Html.dd
-        []
-        [ Html.text
-            ( s.ac.index
-            |> Option.map ~f:string_of_int
-            |> Option.withDefault ~default:"None" ) ]
-    ; dtText "acEntryCount"
-    ; Html.dd [] [Html.text (s.ac.completions |> List.length |> string_of_int)]
-    ; dtText "upDownCol"
-    ; Html.dd
-        []
-        [ Html.text
-            ( s.upDownCol
-            |> Option.map ~f:string_of_int
-            |> Option.withDefault ~default:"None" ) ]
-    ; dtText "lastInput"
-    ; Html.dd [] [Html.text (show_fluidInputEvent s.lastInput)]
-    ; dtText "selection"
-    ; Html.dd
-        []
-        [ Html.text
-            ( s.selectionStart
-            |> Option.map ~f:(fun selStart ->
-                   string_of_int selStart ^ "->" ^ string_of_int s.newPos)
-            |> Option.withDefault ~default:"None" ) ]
-    ; dtText "midClick"
-    ; Html.dd [] [Html.text (string_of_bool s.midClick)] ]
-  in
-  let error =
-    [dtText "error"; ddText (Option.withDefault s.error ~default:"None")]
-  in
-  let tokenData =
-    let left, right, next = Fluid.getNeighbours tokens ~pos:s.newPos in
-    let ddNoProp1 txt = Html.dd [Html.noProp] [Html.text txt] in
-    let tokenInfo tkn =
-      Html.dd [Attrs.class' "tokenInfo"] [T.show_tokenInfo tkn]
-    in
-    let ddLeft =
-      match left with
-      | L (_, left) ->
-          tokenInfo left
-      | R (_, _) ->
-          ddNoProp1 "Right"
-      | No ->
-          ddNoProp1 "None"
-    in
-    let ddRight =
-      match right with
-      | L (_, _) ->
-          ddNoProp1 "Left"
-      | R (_, right) ->
-          tokenInfo right
-      | No ->
-          ddNoProp1 "None"
-    in
-    let ddNext =
-      match next with Some next -> tokenInfo next | None -> ddNoProp1 "None"
-    in
-    [dtText "left"; ddLeft; dtText "right"; ddRight; dtText "next"; ddNext]
-  in
-  let actions =
-    [ dtText "actions"
-    ; Html.dd
-        [Attrs.class' "actions"]
-        [ Html.ul
-            []
-            (List.map s.actions ~f:(fun txt -> Html.li [] [Html.text txt])) ] ]
-  in
-  let cursorState =
-    [dtText "cursorState"; ddText (show_cursorState m.cursorState)]
-  in
-  let lastMod = [dtText "lastMod"; ddText (show_modification m.lastMod)] in
-  let status =
-    List.concat [posData; error; tokenData; actions; cursorState; lastMod]
-  in
-  Html.div [Attrs.id "fluid-status"] [Html.dl [] status]
-
-
-let view (vs : viewState) (e : E.t) =
+let view (vs : ViewUtils.viewState) (e : E.t) =
   [Html.div [Html.class' "fluid-ast"] (viewAST ~vs e)]
