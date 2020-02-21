@@ -237,7 +237,12 @@ let add_function (fn : fn) : unit =
     ~name:"add_package_management_function deprecate old versions"
     "UPDATE packages_v0
      SET deprecated = true
-     WHERE user_id = $1 AND package = $2 AND module = $3 AND fnname = $4 AND version < $5 AND deprecated = false"
+     WHERE user_id = $1
+     AND package = $2
+     AND module = $3
+     AND fnname = $4
+     AND version < $5
+     AND deprecated = false"
     ~subject:(function_name fn)
     ~params:
       [ Db.Uuid user
