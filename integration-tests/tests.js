@@ -24,10 +24,14 @@ fixture`Integration Tests`
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
     var url = `${BASE_URL}${testname}?integration-test=true`;
+    var username = "test";
+    if (testname.match(/_as_admin/)) {
+      username = "test_admin";
+    }
     await t.navigateTo(url);
     await prepSettings(t);
     await t
-      .typeText("#username", "test")
+      .typeText("#username", username)
       .typeText("#password", "fVm2CUePzGKCwoEQQdNJktUQ")
       .pressKey("enter");
 
@@ -1001,4 +1005,91 @@ test("fluid_ac_validate_on_lose_focus", async t => {
     .expect(true)
     .ok();
   // validate AST in IntegrationTest.ml
+});
+
+async function upload_pkg_for_tlid(t, tlid) {
+  await t.navigateTo(`#fn=${tlid}`);
+  await t
+    .click(Selector(".fn-actions > .menu > .more-actions > .toggle-btn"))
+    .expect(true)
+    .ok();
+  await t
+    .click(
+      Selector(".fn-actions > .menu > .more-actions > .actions > .item").withText(
+        "Upload Function",
+      ),
+    )
+    .expect(available(".error-panel.show"))
+    .ok({ timeout: 1000 });
+}
+
+// this tests:
+// - happy path upload
+// - upload fails b/c the db already has a fn with this name + version
+// - upload fails b/c the version we're trying to upload is too low (eg, if you
+// already have a v1, you can't upload a v0)
+test("upload_pkg_fn_as_admin", async t => {
+  // upload v1/2/3 depending whether this is test run 1/2/3
+  const tlid = t.testRun.quarantine.attempts.length + 1;
+
+  // it should succeed, it's a new package_fn
+  await upload_pkg_for_tlid(t, tlid);
+  await t
+    .expect(Selector(".error-panel.show").textContent)
+    .eql("Successfully uploaded functionDismiss");
+  await t.click(".dismissBtn");
+
+  // second (attempted) upload should fail, as we've already uploaded this
+  await upload_pkg_for_tlid(t, tlid);
+  const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${tlid +
+    1}? (UploadFnAPICallback)Dismiss`;
+  await t.expect(Selector(".error-panel.show").textContent).eql(failureMsg);
+  await t.click(".dismissBtn");
+
+  // attempting to upload v0 should fail, because we already have a version
+  // greater than 0 in the db
+  await upload_pkg_for_tlid(t, 0);
+  // this failureMsg2 is the same as failureMsg above, because its text dpends
+  // on the latest version (and the next valid version of the fn), not the
+  // version you tried to upload
+  const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${tlid +
+    1}? (UploadFnAPICallback)Dismiss`;
+  await t.expect(Selector(".error-panel.show").textContent).eql(failureMsg2);
+  await t.click(".dismissBtn");
+});
+
+test("use_pkg_fn", async t => {
+  const attempt = t.testRun.quarantine.attempts.length + 1;
+  const url = `/${attempt}`;
+  await createHTTPHandler(t);
+  await t
+    // add headers
+    .typeText("#entry-box", "GE")
+    .expect(acHighlightedText("GET"))
+    .ok()
+    .pressKey("enter")
+    .typeText("#entry-box", url)
+    .pressKey("enter");
+
+  await gotoAST(t);
+
+  // this await confirms that we have test_admin/stdlib/Test::one_v0 is in fact
+  // in the autocomplete
+  await t.typeText("#active-editor", "test_admin")
+  .expect(Selector(".autocomplete-item.fluid-selected.valid").textContent).eql("test_admin/stdlib/Test::one_v0() ->  Any")
+    .pressKey("enter");
+
+  // this await confirms that we can get a live value in the editor
+  await t.click(".execution-button")
+  .expect(Selector(".return-value", {timeout: 3000}).textContent).eql("0");
+
+  // check if we can get a result from the bwd endpoint
+  const callBackend = ClientFunction(function(url) {
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", url, false);
+    xhttp.send(null);
+    return xhttp.responseText;
+  });
+  const resp = await callBackend(user_content_url(t,url));
+  await t.expect(resp).eql("0");
 });
