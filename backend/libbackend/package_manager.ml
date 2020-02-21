@@ -164,7 +164,10 @@ let max_version
                   WHERE username = $1 AND package = $2 AND module = $3 AND fnname = $4"
     ~subject:function_name
     ~params:
-      [Db.String username; Db.String package; Db.String module_; Db.String fnname]
+      [ Db.String username
+      ; Db.String package
+      ; Db.String module_
+      ; Db.String fnname ]
     ~result:TextResult
   |> List.hd
   |> Option.bind ~f:(fun v -> if v = "" then None else Some (int_of_string v))
