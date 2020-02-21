@@ -409,7 +409,7 @@ let view (m : model) : msg Html.html =
         "mouseup"
         {stopPropagation = false; preventDefault = true}
         (Decoders.wrapDecoder
-           (ViewUtils.decodeClickEvent (fun x -> GlobalClick x))) ]
+           (ViewUtils.decodeClickEvent (fun x -> CanvasClick x))) ]
   in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
