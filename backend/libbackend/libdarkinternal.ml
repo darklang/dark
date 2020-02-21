@@ -267,8 +267,7 @@ that's already taken, returns an error."
     ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
     ; r = TResult
     ; d =
-        "Update a username's email or (human) name. WARNING: email must be
-kept in sync (manually, for now) with auth0!"
+        "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
     ; f =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name] ->
