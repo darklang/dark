@@ -1093,3 +1093,12 @@ test("use_pkg_fn", async t => {
   const resp = await callBackend(user_content_url(t,url));
   await t.expect(resp).eql("0");
 });
+
+test("fluid_show_docs_for_command_on_selected_code", async t => {
+  await createRepl(t);
+  await gotoAST(t);
+  await t.pressKey("1 9 9 9").pressKey("alt+x");
+
+  await t.expect(Selector("#cmd-filter").exists).ok();
+  await t.expect(Selector(".documentation-box").exists).ok();
+});

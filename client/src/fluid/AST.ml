@@ -336,11 +336,11 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
         ()
     | EVariable _ ->
         ()
-    | ELet (id, lhs, rhs, body) ->
+    | ELet (_id, lhs, rhs, body) ->
         sexe st rhs ;
         let bound =
           if lhs <> ""
-          then VarDict.update ~key:lhs ~f:(fun _v -> Some id) st
+          then VarDict.update ~key:lhs ~f:(fun _v -> Some (E.toID rhs)) st
           else st
         in
         sexe bound body
@@ -401,6 +401,8 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
   trace expr st
 
 
+(** [variablesIn ast] produces a map of every expression id in the [ast] to its corresponding symbol table.
+ * Each symbol table maps from every available variable name to the id of the corresponding value expression bound to that name. *)
 let variablesIn (ast : E.t) : avDict =
   let sym_store = IDTable.make () in
   let trace expr st = IDTable.set sym_store (deID (E.toID expr)) st in

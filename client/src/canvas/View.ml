@@ -10,12 +10,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
-  let tokens =
-    TL.getAST tl
-    |> Option.map ~f:FluidPrinter.toTokens
-    |> Option.withDefault ~default:[]
-  in
-  let vs = ViewUtils.createVS m tl tokens in
+  let vs = ViewUtils.createVS m tl in
   let dragEvents =
     [ ViewUtils.eventNoPropagation
         ~key:("tlmd-" ^ showTLID tlid)
@@ -59,7 +54,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
    * click-drag-select behavior, not drag-handler behavior
    * - the 'margin' is smaller, so you are less likely to hit the "why won't
    * this drag" behavior mentioned above *)
-  let events = events @ match tl with TLDB _ -> dragEvents | _ -> [] in
+  let events =
+    events
+    @ match tl with TLDB _ -> dragEvents | _ -> [Vdom.noProp; Vdom.noProp]
+  in
   let avatars = Avatar.viewAvatars m.avatarsList tlid in
   let selected = Some tlid = tlidOf m.cursorState in
   let hovering = ViewUtils.isHoverOverTL vs in
@@ -73,21 +71,24 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     in
     [("selected", selected); ("dragging", dragging); ("hovering", hovering)]
   in
-  (* Need to add aditional css class to remove backgroun color *)
-  let isGroup = match tl with TLGroup _ -> "group" | _ -> "" in
-  let class_ =
-    [ "toplevel"
-    ; "tl-" ^ deTLID tlid
-    ; (if selected then "selected" else "")
-    ; isGroup ]
-    |> String.join ~sep:" "
+  (* Need to add aditional css class to remove background color *)
+  let classes =
+    [ ("toplevel", true)
+    ; ("tl-" ^ deTLID tlid, true)
+    ; ("selected", selected)
+    ; ("group", match tl with TLGroup _ -> true | _ -> false) ]
   in
   let id =
-    Fluid.getToken' m.fluidState tokens
+    Fluid.getToken' m.fluidState (ViewUtils.getMainTokens vs)
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
   in
   let top =
+    let viewDoc desc =
+      Html.div
+        [Html.class' "documentation-box"]
+        (desc |> List.map ~f:(fun text -> Html.p [] [Html.text text]))
+    in
     match (tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
@@ -102,10 +103,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             |> Option.andThen ~f:FluidAutocomplete.documentationForItem
             |> Option.orElse regular
           in
-          Option.map desc ~f:(fun desc ->
-              [ Html.div
-                  [Html.class' "documentation-box"]
-                  [Html.p [] [Html.text desc]] ])
+          Option.map desc ~f:(fun desc -> viewDoc [desc])
         in
         let selectedFnDocString =
           let fn =
@@ -122,10 +120,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           in
           match fn with
           | Some fn ->
-              Some
-                [ Html.div
-                    [Html.class' "documentation-box"]
-                    [Html.p [] [Html.text fn.fnDescription]] ]
+              Some (viewDoc [fn.fnDescription])
           | None ->
               None
         in
@@ -143,20 +138,24 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           match param with
           | Some p ->
               let header = p.paramName ^ " : " ^ Runtime.tipe2str p.paramTipe in
-              Some
-                [ Html.div
-                    [Html.class' "documentation-box"]
-                    [ Html.p [] [Html.text header]
-                    ; Html.p [] [Html.text p.paramDescription] ] ]
+              Some (viewDoc [header; p.paramDescription])
           | _ ->
               None
+        in
+        let cmdDocString =
+          if FluidCommands.isOpenOnTL m.fluidState.cp tlid
+          then
+            FluidCommands.highlighted m.fluidState.cp
+            |> Option.map ~f:(fun c -> viewDoc [c.doc])
+          else None
         in
         acFnDocString
         |> Option.orElse selectedParamDocString
         |> Option.orElse selectedFnDocString
-        |> Option.withDefault ~default:[Vdom.noNode]
+        |> Option.orElse cmdDocString
+        |> Option.withDefault ~default:Vdom.noNode
     | _ ->
-        [Vdom.noNode]
+        Vdom.noNode
   in
   let pos =
     match m.currentPage with
@@ -167,7 +166,14 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let hasFf = false in
   let html =
-    [ Html.div (Html.class' class_ :: events) (top @ body @ data)
+    [ Html.div
+      (* this unique key ensures that when switching between toplevels the entire
+       * vdom node is rebuilt so that we don't get yelled at about the fact that
+       * the property list or body nodes may be of differing length. Eg, DBs and
+       * Fns have different property list lengths *)
+        ~unique:(showTLID tlid)
+        (Html.classList classes :: events)
+        ((top :: body) @ data)
     ; avatars
     ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
     ]
@@ -420,7 +426,7 @@ let view (m : model) : msg Html.html =
   in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [FluidView.viewStatus m ast m.fluidState]
+    then [FluidView.viewStatus m ast]
     else [Vdom.noNode]
   in
   let viewDocs =

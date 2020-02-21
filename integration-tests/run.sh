@@ -27,13 +27,8 @@ done
 
 BROWSER='unknown'
 {
-  PLATFORM=$(uname -s)
-  if [[ $PLATFORM == "Darwin" ]]; then
-    if [[ "$DEBUG" == "true" ]]; then
-      BROWSER='chrome --window-size="1600,1200"'
-    else
-      BROWSER='chrome:headless --window-size="1600,1200"'
-    fi
+  if [[ "$DEBUG" == "true" ]]; then
+    BROWSER='chrome --window-size="1600,1200"'
   else
     BROWSER='chrome:headless --window-size="1600,1200"'
   fi
@@ -84,13 +79,25 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   exit $RESULT
 else
-  # Check the version (matters when running outside the container)
+  # Check the testcafe version (matters when running outside the container)
   extract_version() { grep -Eo '[0-9].[-.0-9rc]+'; }
   version=$(testcafe --version | extract_version)
   expected_version=$(grep testcafe package.json | extract_version)
   if [[ "$version" != "$expected_version" ]]
   then
     echo "Incorrect version of testcafe: '$version' (expected '$expected_version')"
+    exit 1
+  fi
+
+  # Check the node version (matters when running outside the container)
+  version=$(node -v | sed 's/^v\([0-9]*\)\..*/\1/')
+  if [[ "$version" -lt 10 ]]
+  then
+    # With node v8, I get "ReferenceError: URL is not defined";
+    # We don't use lighthouse, but
+    # https://github.com/GoogleChrome/lighthouse/issues/8909 suggests this means
+    # we need node >= 10
+    echo "Incorrect version of node: '$(node -v)' (expected node >= 10)"
     exit 1
   fi
 

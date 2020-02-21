@@ -68,6 +68,7 @@ let pos tl =
 
 
 let remove (m : model) (tl : toplevel) : model =
+  let m = {m with cursorState = Deselected; currentPage = Architecture} in
   match tl with
   | TLHandler h ->
       Handlers.remove m h
@@ -113,6 +114,10 @@ let asUserTipe (tl : toplevel) : userTipe option =
 
 let asGroup (tl : toplevel) : group option =
   match tl with TLGroup g -> Some g | _ -> None
+
+
+let isUserFunction (tl : toplevel) : bool =
+  match tl with TLFunc _ -> true | _ -> false
 
 
 let isUserTipe (tl : toplevel) : bool =

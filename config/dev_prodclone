@@ -15,6 +15,7 @@ DARK_CONFIG_BIN_ROOT_DIR=/home/dark/app/_build/default/backend/bin
 DARK_CONFIG_SCRIPTS_DIR=/home/dark/app/scripts
 
 DARK_CONFIG_STATIC_HOST=static.darklang.localhost:8000
+DARK_CONFIG_COOKIE_DOMAIN=.darklang.localhost
 DARK_CONFIG_USER_CONTENT_HOST=builtwithdark.localhost:8000
 
 # Running server
