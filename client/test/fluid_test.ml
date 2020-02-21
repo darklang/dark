@@ -1907,11 +1907,12 @@ let run () =
         (binop "<" anInt anInt)
         (inputs [InsertText "="; keypress K.Enter] 7)
         "12345 <= ~12345" ;
-      t
-        "wrapping a binop in a let with enter"
-        (binop "+" (int 1) (int 2))
-        (keys [K.Enter] 0)
-        "let *** = ___\n~1 + 2" ;
+      test "wrapping a binop in a let with enter" (fun () ->
+          let pos = 0 in
+          let ast = (binop "+" (int 1) (int 2)) in
+          let s = {defaultTestState with oldPos = pos; newPos = pos; selectionStart = None} in
+          let newAST, _newState = processMsg [keypress ~shiftHeld:false K.Enter] s ast in
+          (expect (Printer.eToTestcase newAST) |> toEqual "(let' \"\" (b) (binop \"+\" (int 1) (int 2)))")) ;
       t
         ~expectsPartial:true
         "adding binop in `if` works"
