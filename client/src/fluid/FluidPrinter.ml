@@ -392,8 +392,6 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
          With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
       *)
       let lastIndex = List.length exprs - 1 in
-      (* Get the xPos we are starting off with. We will use it to subtract from, so our calculation of the line length is relative to the contents inside the list's [ ] *)
-      let startingXPos = b.xPos |> Option.withDefault ~default:0 in
       b
       |> add (TListOpen id)
       |> addIter exprs ~f:(fun i e b' ->
@@ -403,12 +401,12 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                (exprBuilder b').xPos
                |> Option.map ~f:(fun x ->
                       (* Additional 1 is for the comma we add after except for last element *)
-                      x - startingXPos + if i <> lastIndex then 1 else 0)
+                      x + if i <> lastIndex then 1 else 0)
                |> Option.withDefault ~default:0
              in
              (* Even if first element overflows, don't put it in a new line *)
              (* We may have define explicit rules linewrapping for other expressions later on down the line, for now it's out of scope *)
-             let isOverLimit = i > 0 && lnLength > literalLimit in
+             let isOverLimit = i > 0 && lnLength > lineLimit in
              (* Indent after newlines to match the '[ ' *)
              let indent = if isOverLimit then 1 else 0 in
              b'
