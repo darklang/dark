@@ -4370,9 +4370,19 @@ let rec updateKey
      * Caret at very beginning of tokens or at beginning of non-special line. *)
     | Keypress {key = K.Enter; _}, No, R (t, _)
     | Keypress {key = K.Enter; _}, L (TNewline _, _), R (t, _) ->
+        (* In some cases, like |1 + 2, we want to wrap the parent expr (in this case the binop) in a let.
+         * This has to be recursive to handle variations on |1*2 + 3.
+         * In other cases, we want to wrap just the subexpression, such as an if's then expression. *)
         let id = FluidToken.tid t in
-        let ast, s, _ = makeIntoLetBody id ast s in
-        let s = moveToCaretTarget s ast (caretTargetForStartOfExpr id ast) in
+        let topID =
+          E.find id ast
+          |> Option.andThen ~f:(fun directExpr ->
+                 findAppropriateParentToWrap directExpr ast)
+          |> Option.map ~f:(fun expr -> E.toID expr)
+          |> Option.withDefault ~default:id
+        in
+        let ast, s, _ = makeIntoLetBody topID ast s in
+        let s = moveToCaretTarget s ast (caretTargetForStartOfExpr topID ast) in
         (ast, s)
     (*
      * Caret at very end of tokens where last line is non-let expression. *)
