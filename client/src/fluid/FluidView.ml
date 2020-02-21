@@ -163,8 +163,13 @@ let viewPlayIcon
       Vdom.noNode
 
 
-let toHtml ~(vs : ViewUtils.viewState) ~tokenInfos ~tlid ~state (ast : ast) :
-    Types.msg Html.html list =
+let toHtml
+    ~(vs : ViewUtils.viewState)
+    ~(idx : int)
+    ~tokenInfos
+    ~tlid
+    ~state
+    (ast : ast) : Types.msg Html.html list =
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
     if FluidToken.validID id
@@ -220,7 +225,9 @@ let toHtml ~(vs : ViewUtils.viewState) ~tokenInfos ~tlid ~state (ast : ast) :
   in
   let isSelected tokenStart tokenEnd =
     let selStart, selEnd = Fluid.getSelectionRange state in
-    selStart <= tokenStart && tokenEnd <= selEnd
+    idx = state.activeEditorPanelIdx
+    && selStart <= tokenStart
+    && tokenEnd <= selEnd
   in
   List.map tokenInfos ~f:(fun ti ->
       let element nested =
@@ -566,7 +573,7 @@ let fluidEditorView
       ]
     @ clickHandlers
     @ Tuple3.toList textInputListeners )
-    (toHtml ast ~tokenInfos ~vs ~tlid ~state)
+    (toHtml ast ~idx ~tokenInfos ~vs ~tlid ~state)
 
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
