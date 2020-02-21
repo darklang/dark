@@ -114,7 +114,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest ()
-  then (m, Cmd.batch [API.integration m m.canvasName])
+  then (m, Cmd.batch [API.integration m m.canvasName; API.loadPackages m])
   else
     ( m
     , Cmd.batch
