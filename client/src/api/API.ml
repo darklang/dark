@@ -87,6 +87,24 @@ let executeFunction (m : model) (params : executeFunctionAPIParams) :
     ~callback:(fun x -> ExecuteFunctionAPICallback (params, x))
 
 
+let uploadFn (m : model) (params : uploadFnAPIParams) : msg Tea.Cmd.t =
+  apiCall
+    m
+    "/packages/upload_function"
+    ~decoder:Decoders.uploadFnAPIResult
+    ~encoder:Encoders.uploadFnAPIParams
+    ~params
+    ~callback:(fun x -> UploadFnAPICallback (params, x))
+
+
+let loadPackages (m : model) : msg Tea.Cmd.t =
+  apiCallNoParams
+    m
+    "/packages"
+    ~decoder:Decoders.loadPackagesAPIResult
+    ~callback:(fun x -> LoadPackagesAPICallback x)
+
+
 let triggerHandler (m : model) (params : triggerHandlerAPIParams) :
     msg Tea.Cmd.t =
   apiCall

@@ -412,7 +412,9 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
   | PEventSpace _ ->
       v AC.eventSpaceValidator "event space"
   | PFnName _ ->
-      v AC.fnNameValidator "function name"
+      if String.startsWith ~prefix:"dark/" value
+      then v AC.packageFnNameValidator "function name"
+      else v AC.fnNameValidator "function name"
   | PParamName oldParam ->
       v AC.paramNameValidator "param name"
       |> Option.orElse (AC.validateFnParamNameFree tl oldParam value)

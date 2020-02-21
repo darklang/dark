@@ -117,6 +117,7 @@ let defaultModel : model =
   ; userTipes = TLIDDict.empty
   ; deletedUserTipes = TLIDDict.empty
   ; deletedGroups = TLIDDict.empty
+  ; packageFns = TLIDDict.empty
   ; analyses = StrDict.empty
   ; traces = StrDict.empty
   ; f404s = []

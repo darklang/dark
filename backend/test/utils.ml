@@ -350,6 +350,7 @@ let test_execution_data
     ; canvas_id = !c.id
     ; user_fns = IDMap.data !c.user_functions
     ; user_tipes = IDMap.data !c.user_tipes
+    ; package_fns = !c.package_fns
     ; fail_fn = None
     ; dbs = TL.dbs !c.dbs
     ; execution_id
@@ -387,6 +388,7 @@ let execute_ops
         ; context
         ; user_fns
         ; user_tipes
+        ; package_fns
         ; account_id
         ; canvas_id
         ; fail_fn = _ }
@@ -402,6 +404,7 @@ let execute_ops
       ~dbs
       ~user_fns
       ~user_tipes
+      ~package_fns
       ~account_id
       ~load_fn_result
       ~load_fn_arguments
@@ -463,6 +466,7 @@ let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
       ; dbs
       ; user_fns
       ; user_tipes
+      ; package_fns
       ; account_id
       ; canvas_id
       ; load_fn_result
@@ -477,6 +481,7 @@ let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
     ~dbs
     ~user_fns
     ~user_tipes
+    ~package_fns
     ~account_id
     ~canvas_id
     ~load_fn_result

@@ -386,7 +386,7 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
   in
   let mainlink =
     Html.span
-      [Html.class' "name"]
+      [Html.class' "name"; Html.title name]
       ( match e.destination with
       | Some dest ->
           let cl =

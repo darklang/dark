@@ -23,6 +23,7 @@ let run () =
             ; cursorState = Deselected
             ; fluidState = Defaults.defaultFluidState
             ; tlid = gtlid ()
+            ; isAdmin = false
             ; hovering = None
             ; ac =
                 { admin = false

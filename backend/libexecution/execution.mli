@@ -44,6 +44,7 @@ val execute_handler :
   -> dbs:Types.RuntimeT.DbT.db list
   -> user_fns:Types.RuntimeT.user_fn list
   -> user_tipes:Types.RuntimeT.user_tipe list
+  -> package_fns:Types.RuntimeT.fn list
   -> account_id:Uuidm.t
   -> canvas_id:Uuidm.t
   -> ?load_fn_result:Types.RuntimeT.load_fn_result_type
@@ -60,6 +61,7 @@ val execute_function :
   -> dbs:Types.RuntimeT.DbT.db list
   -> user_fns:Types.RuntimeT.user_fn list
   -> user_tipes:Types.RuntimeT.user_tipe list
+  -> package_fns:Types.RuntimeT.fn list
   -> account_id:Uuidm.t
   -> canvas_id:Uuidm.t
   -> caller_id:Types.id
@@ -79,6 +81,7 @@ val analyse_ast :
   -> dbs:Types.RuntimeT.DbT.db list
   -> user_fns:Types.RuntimeT.user_fn list
   -> user_tipes:Types.RuntimeT.user_tipe list
+  -> package_fns:Types.RuntimeT.fn list
   -> account_id:Uuidm.t
   -> canvas_id:Uuidm.t
   -> ?load_fn_result:Types.RuntimeT.load_fn_result_type

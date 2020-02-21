@@ -109,6 +109,13 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
     else Vdom.noNode
   in
   let menuView =
+    let uploadPackageFnAction : TLMenu.menuItem =
+      { title = "Upload Function"
+      ; key = "upload-ufn-"
+      ; icon = Some "upload"
+      ; action = (fun _ -> UploadFn fn.ufTLID)
+      ; disableMsg = None }
+    in
     let delAct : TLMenu.menuItem =
       let disableMsg =
         if not (UserFunctions.canDelete vs.usedInRefs fn.ufTLID)
@@ -123,7 +130,12 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       ; action = (fun _ -> DeleteUserFunction fn.ufTLID)
       ; disableMsg }
     in
-    Html.div [Html.class' "menu"] [TLMenu.viewMenu vs.menuState vs.tlid [delAct]]
+    let menuItems =
+      if vs.isAdmin then [delAct; uploadPackageFnAction] else [delAct]
+    in
+    Html.div
+      [Html.class' "menu"]
+      [TLMenu.viewMenu vs.menuState vs.tlid menuItems]
   in
   let titleRow =
     Html.div

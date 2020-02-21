@@ -414,6 +414,33 @@ and executeFunctionAPIParams (params : Types.executeFunctionAPIParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
+and packageFnParameter (pfp : Types.packageFnParameter) : Js.Json.t =
+  object_
+    [ ("name", string pfp.name)
+    ; ("tipe", tipe pfp.tipe)
+    ; ("description", string pfp.description) ]
+
+
+and packageFn (pf : Types.packageFn) : Js.Json.t =
+  object_
+    [ ("user", string pf.user)
+    ; ("package", string pf.package)
+    ; ("module", string pf.module_)
+    ; ("fnname", string pf.fnname)
+    ; ("version", int pf.version)
+    ; ("body", fluidExpr pf.body)
+    ; ("parameters", list packageFnParameter pf.parameters)
+    ; ("return_type", tipe pf.return_type)
+    ; ("description", string pf.description)
+    ; ("author", string pf.author)
+    ; ("deprecated", bool pf.deprecated)
+    ; ("tlid", tlid pf.pfTLID) ]
+
+
+and uploadFnAPIParams (params : Types.uploadFnAPIParams) : Js.Json.t =
+  object_ [("fn", userFunction params.uplFn)]
+
+
 and triggerHandlerAPIParams (params : Types.triggerHandlerAPIParams) : Js.Json.t
     =
   object_

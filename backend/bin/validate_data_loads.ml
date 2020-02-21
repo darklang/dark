@@ -115,6 +115,7 @@ let () =
                    ; canvas_id = !c.id
                    ; user_fns = []
                    ; user_tipes = []
+                   ; package_fns = []
                    ; dbs
                    ; context = Real
                    ; trace = (fun ~on_execution_path _ _ -> ())
