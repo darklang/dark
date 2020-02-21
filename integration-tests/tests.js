@@ -1075,13 +1075,17 @@ test("use_pkg_fn", async t => {
 
   // this await confirms that we have test_admin/stdlib/Test::one_v0 is in fact
   // in the autocomplete
-  await t.typeText("#active-editor", "test_admin")
-  .expect(Selector(".autocomplete-item.fluid-selected.valid").textContent).eql("test_admin/stdlib/Test::one_v0() ->  Any")
+  await t
+    .typeText("#active-editor", "test_admin")
+    .expect(Selector(".autocomplete-item.fluid-selected.valid").textContent)
+    .eql("test_admin/stdlib/Test::one_v0() ->  Any")
     .pressKey("enter");
 
   // this await confirms that we can get a live value in the editor
-  await t.click(".execution-button")
-  .expect(Selector(".return-value", {timeout: 3000}).textContent).eql("0");
+  await t
+    .click(".execution-button")
+    .expect(Selector(".return-value", { timeout: 3000 }).textContent)
+    .eql("0");
 
   // check if we can get a result from the bwd endpoint
   const callBackend = ClientFunction(function(url) {
@@ -1090,7 +1094,7 @@ test("use_pkg_fn", async t => {
     xhttp.send(null);
     return xhttp.responseText;
   });
-  const resp = await callBackend(user_content_url(t,url));
+  const resp = await callBackend(user_content_url(t, url));
   await t.expect(resp).eql("0");
 });
 
