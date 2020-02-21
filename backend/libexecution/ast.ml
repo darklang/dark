@@ -758,46 +758,40 @@ and exec_fn
     | PackageFunction body ->
         (* This is similar to InProcess but also has elements of UserCreated *)
         (* TODO type checker *)
-        if state.context = Preview && not fn.preview_execution_safe
-        then
-          match state.load_fn_result sfr_desc arglist with
-          | Some (result, _ts) ->
-              result
-          | inc ->
+        let state =
+          {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
+        in
+        let args_with_dbs =
+          let db_dvals =
+            state.dbs
+            |> List.filter_map ~f:(fun db ->
+                    match db.name with
+                    | Filled (_, name) ->
+                        Some (name, DDB name)
+                    | Partial _ | Blank _ ->
+                        None)
+            |> DvalMap.from_list
+          in
+          Util.merge_left db_dvals args
+        in
+        let result =
+          match (state.context, state.load_fn_result sfr_desc arglist) with
+          | Preview, Some (result, _ts) ->
+              Dval.unwrap_from_errorrail result
+          | Preview, None when not fn.preview_execution_safe ->
               DIncomplete (SourceId id)
-        else
-          let state =
-            {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
-          in
-          let args_with_dbs =
-            let db_dvals =
-              state.dbs
-              |> List.filter_map ~f:(fun db ->
-                     match db.name with
-                     | Filled (_, name) ->
-                         Some (name, DDB name)
-                     | Partial _ | Blank _ ->
-                         None)
-              |> DvalMap.from_list
-            in
-            Util.merge_left db_dvals args
-          in
-          let result =
-            match (state.context, state.load_fn_result sfr_desc arglist) with
-            | Preview, Some (result, _ts) ->
-                Dval.unwrap_from_errorrail result
-            | _ ->
-                (* It's okay to execute user functions in both Preview and Real contexts,
-                 * But in Preview we might not have all the data we need *)
-                (* state.store_fn_arguments tlid args ; *)
-                let result = exec ~state args_with_dbs body in
-                state.store_fn_result sfr_desc arglist result ;
-                Dval.unwrap_from_errorrail result
-          in
-          (* there's no point storing data we'll never ask for *)
-          if not fn.preview_execution_safe
-          then state.store_fn_result sfr_desc arglist result ;
-          result
+          | _ ->
+              (* It's okay to execute user functions in both Preview and Real contexts,
+                * But in Preview we might not have all the data we need *)
+              (* state.store_fn_arguments tlid args ; *)
+              let result = exec ~state args_with_dbs body in
+              state.store_fn_result sfr_desc arglist result ;
+              Dval.unwrap_from_errorrail result
+        in
+        (* there's no point storing data we'll never ask for *)
+        if not fn.preview_execution_safe
+        then state.store_fn_result sfr_desc arglist result ;
+        result
     | UserCreated (tlid, body) ->
       ( match
           Type_checker.check_function_call ~user_tipes:state.user_tipes fn args
