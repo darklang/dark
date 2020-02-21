@@ -4,7 +4,7 @@ open Fluid
 open Fluid_test_data
 module B = BlankOr
 module K = FluidKeyboard
-open FluidExpression
+module E = FluidExpression
 open FluidShortcuts
 
 let toString = Printer.eToTestString
@@ -100,7 +100,7 @@ let process
        * as opposed to the iterative approach we do later, because we're using
        * the old ast that has no newlines. *)
     ast
-    |> Printer.tokensForSplit ~index:0
+    |> Printer.tokenize
     |> List.filter ~f:(fun ti ->
            FluidToken.isNewline ti.token && ti.startPos < pos)
     |> List.length
@@ -134,7 +134,7 @@ let process
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
     result
-    |> Printer.tokensForSplit ~index:0
+    |> Printer.tokenize
     |> List.iter ~f:(fun ti ->
            match ti.token with
            | TNewline _ when !endPos > ti.endPos ->
@@ -142,7 +142,7 @@ let process
            | _ ->
                ()) ;
     let last =
-      Printer.tokensForSplit ~index:0 result
+      Printer.tokenize result
       |> List.last
       |> deOption "last"
       |> fun x -> x.endPos
@@ -160,7 +160,7 @@ let process
     else newState.selectionStart
   in
   let containsPartials =
-    List.any (Printer.tokensForSplit ~index:0 result) ~f:(fun ti ->
+    List.any (Printer.tokenize result) ~f:(fun ti ->
         match ti.token with
         | TRightPartial _ | TPartial _ | TFieldPartial _ ->
             true
@@ -3582,7 +3582,7 @@ let run () =
                  m
                  tlid
                  ast
-                 (FluidMouseUp {tlid; selection = Some (18, 18); editorIdx = 0})
+                 (FluidMouseUp {tlid; id = E.toID ast; selection = Some (18, 18)})
                  m.fluidState
              in
              newState.ac.index)
@@ -3615,7 +3615,7 @@ let run () =
       ()) ;
   describe "Movement" (fun () ->
       let s = defaultTestState in
-      let tokens = Printer.tokensForSplit ~index:0 complexExpr in
+      let tokens = Printer.tokenize complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr in
       test "gridFor - 1" (fun () ->
@@ -3965,8 +3965,8 @@ let run () =
       test "with empty AST, have left neighbour" (fun () ->
           let id = ID "543" in
           expect
-            (let ast = EString (id, "test") in
-             let tokens = Printer.tokensForSplit ~index:0 ast in
+            (let ast = E.EString (id, "test") in
+             let tokens = Printer.tokenize ast in
              Fluid.getNeighbours ~pos:3 tokens)
           |> toEqual
                (let token = TString (id, "test") in

@@ -45,6 +45,22 @@ type fluidPatOrExpr =
   | Pat of FluidPattern.t
 [@@deriving show {with_path = false}, eq]
 
+(** tree is a way to differentiate between the entire AST of a handler or
+ * function and a subtree of it. *)
+type tree =
+  | Root of t
+  | Subtree of t
+
+(** [ofRoot s] returns the expression of [s], calling recover if [s] is a SubTree *)
+val ofRoot : tree -> t
+
+(** [ofSubTree s] returns the expression of [s], calling recover if [s] is a Root *)
+val ofSubtree : tree -> t
+
+(** [ofTree s] returns the expression from within ast [s] no matter if it is a
+ * Root or Subtree *)
+val ofTree : tree -> t
+
 val toID : t -> Shared.id
 
 (** Generate a new EBlank *)
@@ -56,8 +72,8 @@ val newB : unit -> t
 val walk : f:(t -> t) -> t -> t
 
 (** [preTraversal f ast] walks the entire AST from top to bottom, calling f on
- * each function. It returns a new AST with every subexpression e replaced by
- * [f e].  Unlike walk, it does not require you to call preorder again. After
+ * each expression. It returns a new AST with every subexpression e replaced by
+ * [f e].  Unlike walk, it does not require you to call preTraversal again. After
  * calling [f], the result is then recursed into; if this isn't what you want
  * call postTraversal. *)
 val preTraversal : f:(t -> t) -> t -> t
@@ -76,10 +92,10 @@ val postTraversal : f:(t -> t) -> t -> t
 val filterMap : f:(t -> 'a option) -> t -> 'a list
 
 (** [filter f ast] calls f on every expression, returning a list of all
- * expressions for which [f e] is true. Recurses into expressions: if a
- * child and its parent (or grandparent, etc) both match, then both will be
- * in the result list.  *)
-val filter : f:(t -> bool) -> t -> t list
+ * expressions for which [f e] is true as a Subtree. Recurses into expressions:
+ * if a child and its parent (or grandparent, etc) both match, then both will
+ * be in the result list.  *)
+val filter : f:(t -> bool) -> t -> tree list
 
 (** [findExprOrPat target within] recursively finds the subtree
     with the Shared.id = [target] inside the [within] tree, returning the subtree

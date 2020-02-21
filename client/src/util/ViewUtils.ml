@@ -7,6 +7,7 @@ module E = FluidExpression
 
 type viewState =
   { tl : toplevel
+  ; tokens : fluidTokenInfo list
   ; cursorState : cursorState
   ; tlid : tlid
   ; hovering : (tlid * id) option
@@ -23,6 +24,7 @@ type viewState =
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
+  ; featureFlagSubtrees : E.tree StrDict.t
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
@@ -35,13 +37,6 @@ type viewState =
   ; workerStats : workerStats option
   ; menuState : menuState
   ; isExecuting : bool
-  ; tokenSplits :
-      (* tokenSplits are the result of calling Printer.tokenizeWithSplits on an
-       * AST. The head split is always the main editor, with the optional tail
-       * being other editor panels. fluidState.activeEditorPanelIdx allows indexing
-       * into this list to get the tokens for the currently active editor
-       * panel. *)
-      FluidPrinter.split list
   ; fnProps : fnProps }
 
 (* ----------------------------- *)
@@ -57,13 +52,22 @@ let createVS (m : model) (tl : toplevel) : viewState =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
   let traceID = Analysis.getSelectedTraceID m tlid in
-  let tokenSplits =
+  let ast =
     TL.getAST tl
-    |> Option.map ~f:FluidPrinter.tokenizeWithSplits
-    |> Option.withDefault ~default:[]
+    |> recoverOpt
+         ("failed to getAST for TLID " ^ deTLID tlid)
+         ~default:(E.newB ())
+  in
+  (* build a dict of {id -> (Subtree expression)} for any feature flags within the ast *)
+  let featureFlagSubtrees =
+    E.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
+    |> List.map ~f:(fun t ->
+           E.ofSubtree t |> E.toID |> deID |> fun id -> (id, t))
+    |> StrDict.fromList
   in
   { tl
   ; tlid
+  ; tokens = FluidPrinter.tokenize ast
   ; cursorState = unwrapCursorState m.cursorState
   ; hovering =
       m.hovering
@@ -92,6 +96,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; tlTraceIDs = m.tlTraceIDs
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
+  ; featureFlagSubtrees
   ; handlerProp = hp
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
@@ -119,7 +124,6 @@ let createVS (m : model) (tl : toplevel) : viewState =
           m.avatarsList
       | _ ->
           [] )
-  ; tokenSplits
   ; permission = m.permission
   ; workerStats =
       (* Right now we patch because worker execution link depends on name instead of TLID. When we fix our worker association to depend on TLID instead of name, then we will get rid of this patchy hack. *)
@@ -316,12 +320,6 @@ let isHoverOverTL (vs : viewState) : bool =
       true
   | _ ->
       false
-
-
-let getMainTokens (vs : viewState) : FluidPrinter.tokenInfo list =
-  List.head vs.tokenSplits
-  |> Option.map ~f:(fun (p : FluidPrinter.split) -> p.tokens)
-  |> Option.withDefault ~default:[]
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u

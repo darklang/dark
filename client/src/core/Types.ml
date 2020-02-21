@@ -1140,16 +1140,16 @@ and fluidInputEvent =
 
 and fluidMouseUp =
   { tlid : tlid
+  ; id :
+      (* id is the id of the topmost expression in
+       * the editor panel that was clicked. *)
+      id
   ; selection :
       (* The (int * int) here represents the selection beginning + end (the
        * selection may be left->right or right->left) If the selection is None, the
        * selection will be read from the browser rather than the browser's
        * selection being set. *)
-      (int * int) option
-  ; editorIdx :
-      (* editorIdx tells which fluid editor was clicked on.
-       * see fluidState.activeEditorPanelIdx *)
-      int }
+      (int * int) option }
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
@@ -1179,7 +1179,6 @@ and msg =
   (* we have the actual node when TLDragRegionMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)
   | TLDragRegionMouseUp of tlid * mouseEvent
-  | ToplevelClick of tlid * mouseEvent
   | ToplevelDelete of tlid
   | ToplevelDeleteForever of tlid
   | DragToplevel of tlid * Tea.Mouse.position [@printer opaque "DragToplevel"]
@@ -1529,14 +1528,12 @@ and fluidState =
       (* The source id of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; activeEditorPanelIdx :
-      (* activeEditorPanelIdx is the 0-based index of the editor that is active inside
-       * the current TL. Most TLs will only have a single editor most of the
-       * time, but when displaying, eg, a feature flag condition there will be
-       * multiple. This is used to place the caret correctly and modify the
-       * correct set of tokens. idx=0 is always the "main" editor and should
-       * always exist. *)
-      int }
+  ; activeEditorId :
+      (* activeEditorId is the id of the topmost expression in editor that is
+       * active inside the current TL. Most TLs will only have a single editor
+       * most of the time, but when displaying, eg, a feature flag condition
+       * there will be multiple. *)
+      id }
 
 (* Avatars *)
 and avatar =
