@@ -536,9 +536,9 @@ let rec eToTestcase (e : E.t) : string =
     | EBool (_, false) ->
         spaced ["bool false"]
     | EFloat (_, whole, fractional) ->
-        spaced ["float'"; quoted whole; quoted fractional]
+        spaced ["float'"; whole; fractional]
     | EInteger (_, int) ->
-        spaced ["int"; quoted int]
+        spaced ["int"; int]
     | ENull _ ->
         "null"
     | EPipeTarget _ ->
