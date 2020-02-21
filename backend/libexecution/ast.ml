@@ -706,6 +706,19 @@ and exec_fn
     |> List.map ~f:(fun (p : param) -> p.name)
     |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
   in
+  let args_with_dbs =
+    let db_dvals =
+      state.dbs
+      |> List.filter_map ~f:(fun db ->
+              match db.name with
+              | Filled (_, name) ->
+                  Some (name, DDB name)
+              | Partial _ | Blank _ ->
+                  None)
+      |> DvalMap.from_list
+    in
+    Util.merge_left db_dvals args
+  in
   let sfr_desc = (state.tlid, fnname, id) in
   let badArg =
     List.find arglist ~f:(function
@@ -758,19 +771,6 @@ and exec_fn
     | PackageFunction body ->
         (* This is similar to InProcess but also has elements of UserCreated *)
         (* TODO type checker *)
-        let args_with_dbs =
-          let db_dvals =
-            state.dbs
-            |> List.filter_map ~f:(fun db ->
-                    match db.name with
-                    | Filled (_, name) ->
-                        Some (name, DDB name)
-                    | Partial _ | Blank _ ->
-                        None)
-            |> DvalMap.from_list
-          in
-          Util.merge_left db_dvals args
-        in
         let result =
           match (state.context, state.load_fn_result sfr_desc arglist) with
           | Preview, Some (result, _ts) ->
@@ -794,19 +794,6 @@ and exec_fn
           Type_checker.check_function_call ~user_tipes:state.user_tipes fn args
         with
       | Ok () ->
-          let args_with_dbs =
-            let db_dvals =
-              state.dbs
-              |> List.filter_map ~f:(fun db ->
-                     match db.name with
-                     | Filled (_, name) ->
-                         Some (name, DDB name)
-                     | Partial _ | Blank _ ->
-                         None)
-              |> DvalMap.from_list
-            in
-            Util.merge_left db_dvals args
-          in
           state.trace_tlid tlid ;
           (* Don't execute user functions if it's preview mode and we have a result *)
           ( match (state.context, state.load_fn_result sfr_desc arglist) with
