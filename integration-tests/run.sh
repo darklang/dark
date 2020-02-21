@@ -6,6 +6,7 @@ set -euo pipefail
 
 PATTERN=".*"
 DEBUG=false
+DEBUG_MODE_FLAG=""
 
 for i in "$@"
 do
@@ -18,6 +19,10 @@ do
     DEBUG=true
     shift
     ;;
+    --debug-mode)
+    DEBUG_MODE_FLAG="--debug-mode"
+    shift
+    ;;
     *)
     echo "Unexpected argument: $i"
     exit 1
@@ -27,7 +32,7 @@ done
 
 BROWSER='unknown'
 {
-  if [[ "$DEBUG" == "true" ]]; then
+  if [[ "$DEBUG" == "true" || "$DEBUG_MODE_FLAG" == "--debug-mode" ]]; then
     BROWSER='chrome --window-size="1600,1200"'
   else
     BROWSER='chrome:headless --window-size="1600,1200"'
@@ -103,6 +108,7 @@ else
 
   # shellcheck disable=SC2016
   testcafe \
+    $DEBUG_MODE_FLAG \
     --concurrency "$CONCURRENCY" \
     --test-grep "$PATTERN" \
     --video rundir/videos \
