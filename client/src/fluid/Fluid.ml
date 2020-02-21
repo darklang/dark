@@ -4379,6 +4379,7 @@ let rec updateKey
         (* Unknown *)
         (ast, report ("Unknown action: " ^ show_fluidInputEvent inputEvent) s)
   in
+  let newState = {newState with lastInput = inputEvent} in
   let newAST, newState =
     (* This is a hack to make Enter create a new entry in matches and pipes
      * at the end of an AST. Matches/Pipes generate newlines at the end of
