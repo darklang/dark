@@ -329,8 +329,7 @@ let viewDval tlid dval ~(canCopy : bool) =
   [Html.text text; (if canCopy then viewCopyButton tlid text else Vdom.noNode)]
 
 
-let viewLiveValue
-    ~(tlid : tlid) ~(ast : ast) ~(vs : viewState) ~(state : fluidState) :
+let viewLiveValue ~(tlid : tlid) ~(ast : ast) ~(vs : viewState) :
     Types.msg Html.html =
   (* isLoaded will be set to false later if we are in the middle of loading
    * results. All other states are considered loaded. This is used to apply
@@ -343,7 +342,7 @@ let viewLiveValue
   let renderTokenLv token id =
     let fnLoading =
       (* If fn needs to be manually executed, check status *)
-      fnForToken state token
+      fnForToken vs.fluidState token
       |> Option.andThen ~f:(fun fn ->
              if fn.fnPreviewExecutionSafe
              then None
@@ -394,11 +393,16 @@ let viewLiveValue
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  Fluid.getToken' state (ViewUtils.getMainTokens vs)
+  let tokens =
+    List.getAt ~index:vs.fluidState.activeEditorPanelIdx vs.tokenSplits
+    |> Option.map ~f:(fun (p : FluidPrinter.split) -> p.tokens)
+    |> Option.withDefault ~default:[]
+  in
+  Fluid.getToken' vs.fluidState tokens
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
-           match AC.highlighted state.ac with
+           match AC.highlighted vs.fluidState.ac with
            | Some (FACVariable (_, Some dv)) ->
                (* If autocomplete is open and a variable is highlighted,
                 * then show its dval *)
@@ -581,7 +585,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
   in
   let liveValue =
     if vs.cursorState = FluidEntering tlid
-    then viewLiveValue ~tlid ~ast ~vs ~state
+    then viewLiveValue ~tlid ~ast ~vs
     else Vdom.noNode
   in
   let mainEditor = fluidEditorView ~idx:0 vs mainTokenInfos ast in
