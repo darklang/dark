@@ -1020,7 +1020,7 @@ let update_ (msg : msg) (m : model) : modification =
         Fluid.update m (FluidAutocompleteClick item)
     | _ ->
         NoChange )
-  | GlobalClick event ->
+  | CanvasClick event ->
     ( match m.currentPage with
     | FocusedFn tlid | FocusedType tlid ->
         (* Clicking on the raw canvas should keep you selected to functions/types in their space *)

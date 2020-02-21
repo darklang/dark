@@ -1200,7 +1200,7 @@ and segmentTrack =
   | OpenDocs
 
 and msg =
-  | GlobalClick of mouseEvent
+  | CanvasClick of mouseEvent
   | IgnoreMsg
   | FluidMsg of fluidMsg
   | TLDragRegionMouseDown of tlid * mouseEvent
