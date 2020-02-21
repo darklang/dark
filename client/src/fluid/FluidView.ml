@@ -394,7 +394,7 @@ let viewLiveValue
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  Fluid.getToken' state (ViewUtils.getMainTokens vs)
+  Fluid.getToken' state vs.tokens
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
@@ -473,11 +473,12 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html
   * you are now editing index 1 of the splits returned from
   * FluidPrinter.tokenizeWithSplits). *)
 let fluidEditorView
-    ~(idx : int)
     (vs : ViewUtils.viewState)
     (tokenInfos : FluidPrinter.tokenInfo list)
     (ast : ast) : Types.msg Html.html =
   let ({tlid; fluidState = state; _} : ViewUtils.viewState) = vs in
+  let tlidStr = deTLID tlid in
+  let id = E.toID ast in
   let textInputListeners =
     (* the command palette is inside div.fluid-editor but has it's own input
      * handling, so don't do normal fluid input stuff if it's open *)
@@ -486,22 +487,21 @@ let fluidEditorView
     else
       ( Html.onCB
           "keydown"
-          ("keydown" ^ show_tlid tlid)
+          ("keydown" ^ tlidStr)
           (FluidKeyboard.onKeydown (fun x ->
                FluidMsg (FluidInputEvent (Keypress x))))
       , Html.onCB
           "beforeinput"
-          ("beforeinput" ^ show_tlid tlid)
+          ("beforeinput" ^ tlidStr)
           FluidTextInput.fromInputEvent
       , Html.onCB
           "compositionend"
-          ("compositionend" ^ show_tlid tlid)
+          ("compositionend" ^ tlidStr)
           FluidTextInput.fromCompositionEndEvent )
   in
   let clickHandlers =
-    let idStr = deTLID tlid in
     [ ViewUtils.eventNeither
-        ~key:("fluid-selection-dbl-click" ^ idStr)
+        ~key:("fluid-selection-dbl-click" ^ tlidStr)
         "dblclick"
         (fun ev ->
           match Entry.getFluidCaretPos () with
@@ -512,43 +512,40 @@ let fluidEditorView
                   FluidMsg
                     (FluidMouseUp
                        { tlid
+                       ; id
                        ; selection = Fluid.getExpressionRangeAtCaret state ast
-                       ; editorIdx = idx })
+                       })
               | {detail = 2; altKey = false; _} ->
                   FluidMsg
                     (FluidMouseUp
                        { tlid
-                       ; selection = Fluid.getTokenRangeAtCaret state ast
-                       ; editorIdx = idx })
+                       ; id
+                       ; selection = Fluid.getTokenRangeAtCaret state ast })
               | _ ->
                   recover
                     "detail was not 2 in the doubleclick event"
                     ~debug:ev
-                    (FluidMsg
-                       (FluidMouseUp {tlid; selection = None; editorIdx = idx}))
-              )
+                    (FluidMsg (FluidMouseUp {tlid; id; selection = None})) )
           | None ->
               recover
                 "found no caret pos in the doubleclick handler"
                 ~debug:ev
-                (FluidMsg
-                   (FluidMouseUp {tlid; selection = None; editorIdx = idx})))
+                (FluidMsg (FluidMouseUp {tlid; id; selection = None})))
     ; ViewUtils.eventNoPropagation
-        ~key:("fluid-selection-mousedown" ^ idStr)
+        ~key:("fluid-selection-mousedown" ^ tlidStr)
         "mousedown"
         (fun _ -> FluidMsg (FluidMouseDown tlid))
     ; ViewUtils.eventNoPropagation
-        ~key:("fluid-selection-mouseup" ^ idStr)
+        ~key:("fluid-selection-mouseup" ^ tlidStr)
         "mouseup"
-        (fun _ ->
-          FluidMsg (FluidMouseUp {tlid; selection = None; editorIdx = idx}))
-    ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ idStr) ~listener:(fun msg ->
+        (fun _ -> FluidMsg (FluidMouseUp {tlid; id; selection = None}))
+    ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ tlidStr) ~listener:(fun msg ->
           if msg = "flashError" || msg = "flashIncomplete"
           then FluidMsg FluidClearErrorDvSrc
           else IgnoreMsg) ]
   in
   let idAttr =
-    if vs.fluidState.activeEditorPanelIdx = idx
+    if vs.fluidState.activeEditorId = id
     then Attrs.id "active-editor"
     else Attrs.noProp
   in
@@ -569,10 +566,9 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
   let ({analysisStore; tlid; fluidState = state; _} : ViewUtils.viewState) =
     vs
   in
-  let mainTokenInfos = ViewUtils.getMainTokens vs in
   let errorRail =
     let indicators =
-      mainTokenInfos |> List.map ~f:(viewErrorIndicator ~analysisStore ~state)
+      vs.tokens |> List.map ~f:(viewErrorIndicator ~analysisStore ~state)
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
     Html.div
@@ -584,7 +580,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
     then viewLiveValue ~tlid ~ast ~vs ~state
     else Vdom.noNode
   in
-  let mainEditor = fluidEditorView ~idx:0 vs mainTokenInfos ast in
+  let mainEditor = fluidEditorView vs vs.tokens ast in
   let returnValue = viewReturnValue vs ast in
   let secondaryEditors =
     let findRowOffestOfMainTokenWithId (target : id) : int option =
@@ -594,27 +590,32 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
        * and then looking through the main tokens [O(N)] to find one with a
        * corresponding id. This is brittle and will likely break at some point. We
        * should do something better. *)
-      List.find mainTokenInfos ~f:(fun ti -> target = T.tid ti.token)
+      List.find vs.tokens ~f:(fun ti -> target = T.tid ti.token)
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
     if List.member vs.testVariants ~value:FeatureFlagVariant
     then
-      List.tail vs.tokenSplits
-      |> Option.withDefault ~default:[]
-      |> List.mapi ~f:(fun (i : int) (s : Printer.split) ->
+      vs.featureFlagSubtrees
+      |> StrDict.toList
+      |> List.map ~f:(fun (key, t) ->
+             let tokens =
+               E.ofSubtree t
+               |> Printer.tokenizeWithOptions
+                    {featureFlags = FeatureFlagConditionAndEnabled}
+             in
              let errorRail =
                Html.div
                  [Html.classList [("fluid-error-rail", true); ("show", true)]]
                  []
              in
              let rowOffset =
-               findRowOffestOfMainTokenWithId s.id
+               findRowOffestOfMainTokenWithId (ID key)
                |> Option.withDefault ~default:0
              in
              Html.div
                [ Html.class' "fluid-secondary-editor"
                ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-               [fluidEditorView ~idx:(i + 1) vs s.tokens ast; errorRail])
+               [fluidEditorView vs tokens (E.ofSubtree t); errorRail])
     else []
   in
   mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
@@ -622,7 +623,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list =
 
 let viewStatus (m : model) (ast : ast) : Types.msg Html.html =
   let s = m.fluidState in
-  let tokens = Printer.tokensForSplit ~index:s.activeEditorPanelIdx ast in
+  let tokens = Printer.tokenize ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =
@@ -723,5 +724,5 @@ let viewStatus (m : model) (ast : ast) : Types.msg Html.html =
   Html.div [Attrs.id "fluid-status"] [Html.dl [] status]
 
 
-let view (vs : viewState) (e : fluidExpr) =
+let view (vs : viewState) (e : E.t) =
   [Html.div [Html.class' "fluid-ast"] (viewAST ~vs e)]

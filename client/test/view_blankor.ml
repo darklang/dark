@@ -20,6 +20,7 @@ let run () =
           let tl = tlFunc in
           let vs : ViewUtils.viewState =
             { tl
+            ; tokens = FluidPrinter.tokenize ast
             ; cursorState = Deselected
             ; fluidState = Defaults.defaultFluidState
             ; tlid = gtlid ()
@@ -45,6 +46,7 @@ let run () =
             ; tlTraceIDs = TLIDDict.empty
             ; testVariants = []
             ; featureFlags = StrDict.empty
+            ; featureFlagSubtrees = StrDict.empty
             ; handlerProp = None
             ; canvasName = ""
             ; userContentHost = ""
@@ -54,7 +56,6 @@ let run () =
             ; avatarsList = []
             ; permission = Some ReadWrite
             ; workerStats = None
-            ; tokenSplits = []
             ; menuState = {isOpen = false}
             ; isExecuting = false
             ; fnProps =

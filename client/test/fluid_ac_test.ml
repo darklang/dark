@@ -84,7 +84,7 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
     match tl with
     | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
         ast
-        |> Printer.tokensForSplit ~index:0
+        |> Printer.tokenize
         |> List.head
         |> Option.withDefault ~default:defaultTokenInfo
     | _ ->

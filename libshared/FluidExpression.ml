@@ -43,6 +43,26 @@ type t =
   | EFeatureFlag of id * string * t * t * t
 [@@deriving show {with_path = false}, eq]
 
+type tree =
+  | Root of t
+  | Subtree of t
+
+let ofTree = function Root e | Subtree e -> e
+
+let ofRoot = function
+  | Root e ->
+      e
+  | Subtree e ->
+      Recover.recover "expected Root but found Subtree" e
+
+
+let ofSubtree = function
+  | Root e ->
+      Recover.recover "expected Subtree but found Root" e
+  | Subtree e ->
+      e
+
+
 type fluidPatOrExpr =
   | Expr of t
   | Pat of FluidPattern.t
@@ -387,8 +407,8 @@ let filterMap ~(f : t -> 'a option) (expr : t) : 'a list =
   List.reverse !results
 
 
-let filter ~(f : t -> bool) (expr : t) : 'a list =
-  filterMap ~f:(fun t -> if f t then Some t else None) expr
+let filter ~(f : t -> bool) (expr : t) : tree list =
+  filterMap ~f:(fun t -> if f t then Some (Subtree t) else None) expr
 
 
 let update ?(failIfMissing = true) ~(f : t -> t) (target : id) (ast : t) : t =

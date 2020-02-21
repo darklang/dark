@@ -1183,22 +1183,6 @@ let update_ (msg : msg) (m : model) : modification =
         Native.OffsetEstimator.estimateClickOffset (showID targetID) event
       in
       Selection.dblclick m targetExnID targetID offset
-  | ToplevelClick (targetExnID, _) ->
-      let defaultBehaviour =
-        [ Select (targetExnID, STTopLevelRoot)
-        ; Apply
-            (fun m ->
-              Fluid.update
-                m
-                (FluidMouseUp
-                   {tlid = targetExnID; selection = None; editorIdx = 0})) ]
-      in
-      ( match m.cursorState with
-      (* If we click away from an entry box, commit it before doing the default behaviour *)
-      | Entering (Filling _ as cursor) ->
-          Many (Entry.commit m cursor :: defaultBehaviour)
-      | _ ->
-          Many defaultBehaviour )
   | ExecuteFunctionButton (tlid, id, name) ->
       let selectionTarget : tlidSelectTarget =
         (* Note that the intent here is to make the live value visible, which

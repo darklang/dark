@@ -308,10 +308,12 @@ let freeVariables (ast : E.t) : (id * string) list =
   |> List.uniqueBy ~f:(fun (_, name) -> name)
 
 
-let blanks (ast : E.t) : E.t list = E.filter ast ~f:E.isBlank
+let blanks (ast : E.t) : E.t list =
+  E.filter ast ~f:E.isBlank |> List.map ~f:E.ofSubtree
+
 
 let ids (ast : E.t) : id list =
-  E.filter ast ~f:(fun _ -> true) |> List.map ~f:E.toID
+  E.filter ast ~f:(fun _ -> true) |> List.map ~f:(E.ofSubtree >> E.toID)
 
 
 module VarDict = StrDict
