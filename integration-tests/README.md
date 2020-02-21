@@ -15,8 +15,12 @@ You need testcafe installed on your machine:
 
 ### In debug mode
 
-If you want to use the testcafe debugger, run the tests in debug mode:
+If you want to watch the tests run (without the testcafe bugger), run the tests
+with --debug (this is "not in headless mode"):
  `./integration-tests/run.sh --debug`
+
+If you want to use the testcafe debugger, run the tests in debug mode:
+ `./integration-tests/run.sh --debug-mode`
 
 When Chrome loads, use the buttons at the bottom to step through execution. You can see what step you're on in your terminal. You can run the chrome debugger and inspect, watch what's happening in the console, etc.
 
