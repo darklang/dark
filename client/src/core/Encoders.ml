@@ -741,7 +741,7 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
       ev "Entering" [ev "Creating" [pos pos_]]
   | Entering (Filling (tlid_, id_)) ->
       ev "Entering" [ev "Filling" [tlid tlid_; id id_]]
-  | Dragging (tlid_, vpos_, hasMoved, cursor) ->
+  | DraggingTL (tlid_, vpos_, hasMoved, cursor) ->
       ev "Dragging" [tlid tlid_; vPos vpos_; bool hasMoved; cursorState cursor]
   | Deselected ->
       ev "Deselected" []

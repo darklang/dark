@@ -64,7 +64,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let boxClasses =
     let dragging =
       match m.cursorState with
-      | Dragging (tlid_, _, _, _) ->
+      | DraggingTL (tlid_, _, _, _) ->
           tlid_ = tlid
       | _ ->
           false

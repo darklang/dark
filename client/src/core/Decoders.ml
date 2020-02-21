@@ -499,8 +499,9 @@ and cursorState j =
   variants
     [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
     ; ("Entering", dv1 (fun a -> Entering a) entering)
-    ; ( "Dragging"
-      , dv4 (fun a b c d -> Dragging (a, b, c, d)) tlid vPos bool cursorState )
+    ; ( "DraggingTL"
+      , dv4 (fun a b c d -> DraggingTL (a, b, c, d)) tlid vPos bool cursorState
+      )
     ; ("Deselected", dv0 Deselected) (* Old value *)
     ; ("SelectingCommand", dv2 (fun a b -> Selecting (a, Some b)) tlid id)
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
