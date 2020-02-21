@@ -450,6 +450,11 @@ type astPatternPart =
   | PPBlank
 [@@deriving show {with_path = false}]
 
+type astFlagPart =
+  | FPWhenKeyword
+  | FPEnabledKeyword
+[@@deriving show {with_path = false}]
+
 (* An astRef represents a reference to a specific part of an AST node,
    such as a specific Record Fieldname rather than just the record.
    Why not use a fluidToken for this purpose?
@@ -489,11 +494,10 @@ type astRef =
   | ARMatch of id * astMatchPart
   | ARLambda of id * astLambdaPart
   | ARPattern of id * astPatternPart
+  | ARFlag of id * astFlagPart
   (* for use if something that should never happen happened *)
   | ARInvalid
 [@@deriving show {with_path = false}]
-
-(* | ARFeatureFlag is not yet supported *)
 
 (* A caretTarget represents a distinct caret location within the AST.
    By combining a reference to part of the AST and a caret offset
@@ -556,6 +560,8 @@ and executionResult =
 
 and intermediateResultStore = executionResult StrDict.t
 
+(* map from expression ids to symbol table, which maps from varname strings to
+ * the ids of the expressions that represent their values *)
 and avDict = id StrDict.t StrDict.t
 
 and inputValueDict = dvalDict
@@ -1160,17 +1166,26 @@ and fluidInputEvent =
   | DeleteSoftLineForward
   | ReplaceText of string
 
+and fluidMouseUp =
+  { tlid : tlid
+  ; selection :
+      (* The (int * int) here represents the selection beginning + end (the
+       * selection may be left->right or right->left) If the selection is None, the
+       * selection will be read from the browser rather than the browser's
+       * selection being set. *)
+      (int * int) option
+  ; editorIdx :
+      (* editorIdx tells which fluid editor was clicked on.
+       * see fluidState.activeEditorPanelIdx *)
+      int }
+
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
   | FluidInputEvent of fluidInputEvent
   | FluidCut
   | FluidPaste of clipboardContents
-  (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
-   * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
-   * This bi-directionality is not ideal and could use some rethinking.
-   *)
   | FluidMouseDown of tlid
-  | FluidMouseUp of tlid * (int * int) option
+  | FluidMouseUp of fluidMouseUp
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
   | FluidFocusOnToken of id
@@ -1319,10 +1334,12 @@ and msg =
 (* ----------------------------- *)
 (* AB tests *)
 (* ----------------------------- *)
-(* just a stub *)
 and variantTest =
-  | StubVariant
+  | (* does nothing variant just so we can leave this in place
+     * if we're not testing anything else *)
+      StubVariant
   | GroupVariant
+  | FeatureFlagVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1477,6 +1494,8 @@ and fluidToken =
   | TConstructorName of id * string
   | TParenOpen of id
   | TParenClose of id
+  | TFlagWhenKeyword of id
+  | TFlagEnabledKeyword of id
 
 and fluidTokenInfo =
   { startRow : int
@@ -1528,9 +1547,10 @@ and fluidState =
   ; actions : string list
   ; oldPos : int
   ; newPos : int
-  ; upDownCol : int option
-        (* When moving up or down, and going through whitespace, track
-         * the column so we can go back to it *)
+  ; upDownCol :
+      (* When moving up or down and going through whitespace,
+       * track the column so we can go back to it *)
+      int option
   ; lastInput : fluidInputEvent
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
@@ -1539,9 +1559,18 @@ and fluidState =
       (* If we get a renderCallback between a mousedown and a mouseUp, we
        * lose the information we're trying to get from the click. *)
       bool
-  ; errorDvSrc : dval_source
-        (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
-  }
+  ; errorDvSrc :
+      (* The source id of an error-dval of where the cursor is on and we might
+       * have recently jumped to *)
+      dval_source
+  ; activeEditorPanelIdx :
+      (* activeEditorPanelIdx is the 0-based index of the editor that is active inside
+       * the current TL. Most TLs will only have a single editor most of the
+       * time, but when displaying, eg, a feature flag condition there will be
+       * multiple. This is used to place the caret correctly and modify the
+       * correct set of tokens. idx=0 is always the "main" editor and should
+       * always exist. *)
+      int }
 
 (* Avatars *)
 and avatar =

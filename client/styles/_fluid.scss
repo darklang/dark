@@ -109,8 +109,10 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 .return-value {
   position: absolute;
   top: calc(100% + 4px);
+  left: -4px;
 
   padding: 4px;
+  width: 100%;
 
   white-space: pre-wrap;
   word-break: break-all;
@@ -126,12 +128,20 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
     color: $cyan;
   }
 
+  &.incomplete {
+    color: $yellow;
+  }
+
   .copy-value {
     @extend .copy-value;
-
-    top: 4px;
-    right: 4px;
+    top: 2px;
+    right: 1.2em;
     margin-right: -10px;
+  }
+
+  .msg {
+    word-break: break-word;
+    margin-left: 1ch;
   }
 }
 
@@ -191,8 +201,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 }
 
 #app .fluid-editor {
-  /* Colors from tomorrow night:
-https://github.com/chriskempson/tomorrow-theme */
+  /* Colors from tomorrow night: https://github.com/chriskempson/tomorrow-theme */
   $black: #1d1f21;
   $background: transparent;
   $selected-background: #2d2d2d;
@@ -226,6 +235,7 @@ https://github.com/chriskempson/tomorrow-theme */
 
   display: inline-block;
   max-width: 200ch;
+  width: max-content;
 
   &:focus {
     outline-width: 0;
@@ -483,6 +493,16 @@ since they are essentially both commands just acting upon different things. */
   @include precedence(2);
   @include precedence(3);
   @include precedence(4);
+}
+
+.fluid-secondary-editor {
+  background-color: #2d2d2d;
+  position: absolute;
+  left: calc(100% + 20px);
+
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
 
 .fluid-error-rail {

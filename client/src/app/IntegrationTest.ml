@@ -667,10 +667,13 @@ let fluid_ac_validate_on_lose_focus (m : model) : testResult =
       fail
         ("Expected: `request.body`, got `" ^ FluidPrinter.eToHumanString e ^ "`")
 
-
 let upload_pkg_fn_as_admin (_m : model) : testResult = pass
 
 let use_pkg_fn (_m : model) : testResult = pass
+
+let fluid_show_docs_for_command_on_selected_code (_m : model) : testResult =
+  pass
+
 
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
@@ -794,5 +797,7 @@ let trigger (test_name : string) : integrationTestState =
         upload_pkg_fn_as_admin
     | "use_pkg_fn" ->
         use_pkg_fn
+    | "fluid_show_docs_for_command_on_selected_code" ->
+        fluid_show_docs_for_command_on_selected_code
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
