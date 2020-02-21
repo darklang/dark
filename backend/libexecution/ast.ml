@@ -758,9 +758,6 @@ and exec_fn
     | PackageFunction body ->
         (* This is similar to InProcess but also has elements of UserCreated *)
         (* TODO type checker *)
-        let state =
-          {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
-        in
         let args_with_dbs =
           let db_dvals =
             state.dbs
