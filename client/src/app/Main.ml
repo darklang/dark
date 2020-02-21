@@ -1038,8 +1038,8 @@ let update_ (msg : msg) (m : model) : modification =
           let defaultBehaviour = Deselect in
           match unwrapCursorState m.cursorState with
           | Deselected ->
-              let openAt = Viewport.toAbsolute m event.mePos in
-              Many [AutocompleteMod ACReset; Enter (Creating (Some openAt))]
+              let openAt = Some (Viewport.toAbsolute m event.mePos) in
+              Many [AutocompleteMod ACReset; Entry.openOmnibox ~openAt ()]
           | Entering (Filling _ as cursor) ->
               (* If we click away from an entry box, commit it before doing the default behaviour *)
               Many [Entry.commit m cursor; defaultBehaviour]

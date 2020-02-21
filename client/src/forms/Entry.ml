@@ -9,7 +9,9 @@ module TL = Toplevel
 module Regex = Util.Regex
 module Dom = Webapi.Dom
 
-let openOmnibox () : modification = Enter (Creating None)
+let openOmnibox ?(openAt : pos option = None) () : modification =
+  Enter (Creating openAt)
+
 
 (* --------------------- *)
 (* Focus *)
