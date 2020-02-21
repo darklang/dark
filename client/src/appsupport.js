@@ -12,7 +12,9 @@ function unsupportedBrowser() {
   var isMobile = /Android|BlackBerry|iPhone|iPad|iPod|Opera Mini|IEMobile/.test(
     navigator.userAgent,
   );
-  return !isChrome || isMobile;
+  var isDesktopApp = /DarkLang\/Editor/.test(navigator.userAgent);
+  var isSupported = isDesktopApp || (isChrome && !isMobile);
+  return !isSupported;
 }
 
 window.unsupportedBrowser = unsupportedBrowser;
