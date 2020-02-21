@@ -780,7 +780,10 @@ and exec_fn
           | _ ->
               (* It's okay to execute user functions in both Preview and Real contexts,
                 * But in Preview we might not have all the data we need *)
-              (* state.store_fn_arguments tlid args ; *)
+              (* TODO: We don't munge `state.tlid` like we do in UserCreated, which means
+               * there might be `id` collisions between AST nodes. Munging `state.tlid` would not
+               * save us from tlid collisions either. tl;dr, executing a package function may result
+               * in trace data being associated with the wrong handler/call site. *)
               let result = exec ~state args_with_dbs body in
               state.store_fn_result sfr_desc arglist result ;
               Dval.unwrap_from_errorrail result
