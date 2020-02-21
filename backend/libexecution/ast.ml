@@ -601,7 +601,16 @@ and call_fn
     (id : id)
     (argvals : dval list)
     (send_to_rail : bool) : dval =
-  let fn = Libs.get_fn state.user_fns name in
+  let fn =
+    Libs.get_fn state.user_fns name
+    |> function
+    | Some fn ->
+        Some fn
+    | None ->
+        (* Clean up - move to Libs or use a map or something *)
+        state.package_fns
+        |> List.find ~f:(fun fn -> List.mem fn.prefix_names name ~equal:( = ))
+  in
   match find_derrorrail argvals with
   | Some er ->
       er
@@ -697,6 +706,19 @@ and exec_fn
     |> List.map ~f:(fun (p : param) -> p.name)
     |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
   in
+  let args_with_dbs =
+    let db_dvals =
+      state.dbs
+      |> List.filter_map ~f:(fun db ->
+             match db.name with
+             | Filled (_, name) ->
+                 Some (name, DDB name)
+             | Partial _ | Blank _ ->
+                 None)
+      |> DvalMap.from_list
+    in
+    Util.merge_left db_dvals args
+  in
   let sfr_desc = (state.tlid, fnname, id) in
   let badArg =
     List.find arglist ~f:(function
@@ -746,24 +768,45 @@ and exec_fn
           if not fn.preview_execution_safe
           then state.store_fn_result sfr_desc arglist result ;
           result
+    | PackageFunction body ->
+      (* This is similar to InProcess but also has elements of UserCreated. *)
+      ( match Type_checker.check_function_call ~user_tipes:[] fn args with
+      | Ok () ->
+          let result =
+            match (state.context, state.load_fn_result sfr_desc arglist) with
+            | Preview, Some (result, _ts) ->
+                Dval.unwrap_from_errorrail result
+            | Preview, None when not fn.preview_execution_safe ->
+                DIncomplete (SourceId id)
+            | _ ->
+                (* It's okay to execute user functions in both Preview and Real contexts,
+                  * But in Preview we might not have all the data we need *)
+                (* TODO: We don't munge `state.tlid` like we do in UserCreated, which means
+                * there might be `id` collisions between AST nodes. Munging `state.tlid` would not
+                * save us from tlid collisions either. tl;dr, executing a package function may result
+                * in trace data being associated with the wrong handler/call site. *)
+                let result = exec ~state args_with_dbs body in
+                state.store_fn_result sfr_desc arglist result ;
+                Dval.unwrap_from_errorrail result
+          in
+          (* there's no point storing data we'll never ask for *)
+          if not fn.preview_execution_safe
+          then state.store_fn_result sfr_desc arglist result ;
+          result
+      | Error errs ->
+          let error_msgs =
+            errs
+            |> List.map ~f:Type_checker.Error.to_string
+            |> String.concat ~sep:", "
+          in
+          DError
+            (SourceId id, "Type error(s) in function parameters: " ^ error_msgs)
+      )
     | UserCreated (tlid, body) ->
       ( match
           Type_checker.check_function_call ~user_tipes:state.user_tipes fn args
         with
       | Ok () ->
-          let args_with_dbs =
-            let db_dvals =
-              state.dbs
-              |> List.filter_map ~f:(fun db ->
-                     match db.name with
-                     | Filled (_, name) ->
-                         Some (name, DDB name)
-                     | Partial _ | Blank _ ->
-                         None)
-              |> DvalMap.from_list
-            in
-            Util.merge_left db_dvals args
-          in
           state.trace_tlid tlid ;
           (* Don't execute user functions if it's preview mode and we have a result *)
           ( match (state.context, state.load_fn_result sfr_desc arglist) with

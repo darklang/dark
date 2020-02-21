@@ -114,11 +114,12 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest ()
-  then (m, Cmd.batch [API.integration m m.canvasName])
+  then (m, Cmd.batch [API.integration m m.canvasName; API.loadPackages m])
   else
     ( m
     , Cmd.batch
-        [ API.initialLoad m (FocusPageAndCursor (page, savedCursorState))
+        [ API.loadPackages m
+        ; API.initialLoad m (FocusPageAndCursor (page, savedCursorState))
         ; API.sendPresence m avMessage ] )
 
 
@@ -1518,6 +1519,12 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
         ; SetUnlockedDBs unlockedDBs ]
+  | LoadPackagesAPICallback (Ok loadedPackages) ->
+      TweakModel
+        (fun m ->
+          { m with
+            packageFns = PackageManager.loadPackages m.packageFns loadedPackages
+          })
   | NewTracePush (traceID, tlids) ->
       let traces =
         List.map
@@ -1706,6 +1713,13 @@ let update_ (msg : msg) (m : model) : modification =
                ~importance:IgnorableError
                ~reload:false
                err) ]
+  | LoadPackagesAPICallback (Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"LoadPackages"
+           ~importance:ImportantError
+           ~reload:false
+           err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
   | LocationChange loc ->
@@ -1891,6 +1905,12 @@ let update_ (msg : msg) (m : model) : modification =
         Refactor.takeOffRail m tl id
     | _ ->
         NoChange )
+  | UploadFn tlid ->
+      TL.get m tlid
+      |> Option.andThen ~f:TL.asUserFunction
+      |> Option.map ~f:(fun uplFn -> API.uploadFn m {uplFn})
+      |> Option.map ~f:(fun cmd -> MakeCmd cmd)
+      |> Option.withDefault ~default:(DisplayError "No function to upload")
   | SetHandlerExeIdle tlid ->
       TweakModel
         (fun m ->
@@ -1960,6 +1980,15 @@ let update_ (msg : msg) (m : model) : modification =
       SettingsViewUpdate msg
   | FnParamMsg msg ->
       FnParams.update m msg
+  | UploadFnAPICallback (_, Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"UploadFnAPICallback"
+           ~importance:IgnorableError
+           ~reload:false
+           err)
+  | UploadFnAPICallback (_, Ok _) ->
+      DisplayError "Successfully uploaded function"
 
 
 let rec filter_read_only (m : model) (modification : modification) =

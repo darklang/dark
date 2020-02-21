@@ -68,6 +68,8 @@ val username_of_id : Uuidm.t -> string option
 (* Get an id from a username *)
 val id_of_username : string -> Uuidm.t option
 
+(* Checks if the user is an admin (aka a Dark employee/contractor). Note that
+ * we sometimes refer in code to the user as an "admin", this is not that. *)
 val is_admin : username:string -> bool
 
 (* get the id of the domain, for accounting/storage. Note that we need

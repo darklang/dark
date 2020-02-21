@@ -122,6 +122,7 @@ let dequeue_and_process execution_id :
                                       ~dbs:(TL.dbs !c.dbs)
                                       ~user_tipes:(!c.user_tipes |> IDMap.data)
                                       ~user_fns:(!c.user_functions |> IDMap.data)
+                                      ~package_fns:!c.package_fns
                                       ~account_id:!c.owner
                                       ~store_fn_arguments:
                                         (Stored_function_arguments.store

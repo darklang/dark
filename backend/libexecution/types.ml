@@ -494,6 +494,11 @@ module RuntimeT = struct
     ; ast : expr }
   [@@deriving eq, show, yojson, bin_io]
 
+  type package_fn =
+    { metadata : ufn_metadata
+    ; ast : expr }
+  [@@deriving eq, show, yojson, bin_io]
+
   type user_record_field =
     { name : string or_blank
     ; tipe : tipe_ or_blank }
@@ -542,6 +547,7 @@ module RuntimeT = struct
     ; account_id : Uuidm.t
     ; user_fns : user_fn list
     ; user_tipes : user_tipe list
+    ; package_fns : fn list
     ; dbs : DbT.db list
     ; trace : on_execution_path:bool -> id -> dval -> unit
     ; trace_tlid : tlid -> unit
@@ -562,13 +568,14 @@ module RuntimeT = struct
     ; store_fn_arguments : store_fn_arguments_type
     ; fail_fn : fail_fn_type }
 
-  type funcimpl =
+  and funcimpl =
     | InProcess of (exec_state * dval list -> dval)
     | API of (dval_map -> dval)
     | UserCreated of (tlid * expr)
+    | PackageFunction of expr
 
   (* TODO: merge fn and user_fn *)
-  type fn =
+  and fn =
     { prefix_names : string list
     ; infix_names : string list
     ; parameters : param list
@@ -577,6 +584,9 @@ module RuntimeT = struct
     ; func : funcimpl
     ; preview_execution_safe : bool
     ; deprecated : bool }
+
+  (* We need equal_ and show_ for Canvas.canvas to derive *)
+  let equal_fn a b = a.prefix_names = b.prefix_names
 
   let ufn_param_to_param (p : ufn_param) : param option =
     match (p.name, p.tipe) with
@@ -591,7 +601,7 @@ module RuntimeT = struct
         None
 
 
-  let user_fn_to_fn uf : fn option =
+  let user_fn_to_fn (uf : user_fn) : fn option =
     let name =
       match uf.metadata.name with Filled (_, n) -> Some n | _ -> None
     in

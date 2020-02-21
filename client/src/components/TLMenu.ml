@@ -50,12 +50,15 @@ let viewItem (keyID : string) (i : menuItem) : msg Html.html =
     | None ->
         Vdom.noNode
   in
+  let classes = ["item"; i.key] in
   let attrs =
     match i.disableMsg with
     | Some msg ->
-        [Html.class' "item disable"; Html.title msg]
+        let classes = "disable" :: classes in
+        [Html.class' (classes |> String.join ~sep:" "); Html.title msg]
     | None ->
-        [Html.class' "item"; onClick (i.key ^ keyID) i.action]
+        [ Html.class' (classes |> String.join ~sep:" ")
+        ; onClick (i.key ^ keyID) i.action ]
   in
   Html.div attrs [icon; Html.text i.title]
 
