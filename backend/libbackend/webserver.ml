@@ -1683,7 +1683,7 @@ let admin_api_handler
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers (upload_function ~execution_id username body))
   | `POST, ["api"; canvas; "packages"] ->
-      when_can_edit ~canvas (fun _ ->
+      when_can_view ~canvas (fun _ ->
           wrap_editor_api_headers (get_all_packages ~execution_id ()))
   | `POST, ["api"; canvas; "trigger_handler"] ->
       when_can_edit ~canvas (fun _ ->
