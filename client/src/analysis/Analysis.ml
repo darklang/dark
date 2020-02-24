@@ -416,7 +416,13 @@ let analyzeFocused (m : model) : model * msg Cmd.t =
       let trace =
         match getSelectedTraceID m tlid with
         | Some traceID ->
-            Some (traceID, getTrace m tlid traceID)
+            let trace = getTrace m tlid traceID in
+            (* If we failed to get a trace, we don't want to throw away knowledge of the
+             * traceID *)
+            let trace =
+              Option.withDefault ~default:(traceID, Error NoneYet) trace
+            in
+            Some trace
         | None ->
             None
       in
