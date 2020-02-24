@@ -2690,11 +2690,12 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
                ~default:(E.newB (), {astRef = ARList (id, LPOpen); offset = 1})
         in
         let newExprs =
+          (* Considering a is the item at elemAndSepIdx and b is at elemAndSepIdx + 1,
+           * we merge a and b in [...a,b...] by replacing a with ab and removing b *)
           exprs
           |> List.updateAt ~index:elemAndSepIdx ~f:(fun _ -> newExpr)
           |> List.removeAt ~index:(elemAndSepIdx + 1)
         in
-        (* remove expression in front of sep, not behind it, hence + 1 *)
         Some (Expr (EList (id, newExprs)), target)
     | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
       when E.isEmpty expr ->
