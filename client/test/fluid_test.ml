@@ -3116,55 +3116,55 @@ let run () =
       t "deleting open bracket of empty list dels list" emptyList (del 0) "~___" ;
       t "close bracket at end of list is swallowed" emptyList (ins "]" 1) "[]~" ;
       t
-        "bs on first separator between items dels item after separator"
+        "bs on first separator between ints merges ints on either side of sep"
         multi
         (bs 4)
-        "[56~]" ;
+        "[56~78]" ;
       t
-        "del before first separator between items dels item after separator"
+        "del before first separator between ints merges ints on either side of sep"
         multi
         (del 3)
-        "[56~]" ;
+        "[56~78]" ;
       t
-        "bs on middle separator between items dels item after separator"
+        "bs on middle separator between ints merges ints on either side of sep"
         longList
         (bs 10)
-        "[56,78,56~,56,78]" ;
+        "[56,78,56~78,56,78]" ;
       t
-        "del before middle separator between items dels item after separator"
+        "del before middle separator between ints merges ints on either side of sep"
         longList
         (del 9)
-        "[56,78,56~,56,78]" ;
+        "[56,78,56~78,56,78]" ;
       t
-        "bs on middle separator between items dels blank after separator"
+        "bs on separator between item and blank dels blank"
         listWithBlank
         (bs 7)
         "[56,78~,56]" ;
       t
-        "del before middle separator between items dels blank after separator"
+        "del on separator between item and blank dels blank"
         listWithBlank
         (del 6)
         "[56,78~,56]" ;
       t
-        "bs on last separator between a blank and item dels item after separator"
+        "bs on separator between blank and item dels blank"
         listWithBlank
         (bs 11)
-        "[56,78,~___]" ;
+        "[56,78,~56]" ;
       t
-        "del before last separator between a blank and item dels item after separator"
+        "del on separator between blank and item dels blank"
         listWithBlank
         (del 10)
-        "[56,78,~___]" ;
+        "[56,78,~56]" ;
       t
-        "bs on separator between string items dels item after separator"
+        "bs on separator between string items merges strings"
         multiWithStrs
         (bs 6)
-        "[\"ab\"~,\"ef\"]" ;
+        "[\"ab~cd\",\"ef\"]" ;
       t
-        "del before separator between string items dels item after separator"
+        "del before separator between string items merges strings"
         multiWithStrs
         (del 5)
-        "[\"ab\"~,\"ef\"]" ;
+        "[\"ab~cd\",\"ef\"]" ;
       t
         "ctrl+left at the beg of list item moves to beg of next list item"
         longList
