@@ -477,7 +477,6 @@ let fluidEditorView
     Types.msg Html.html =
   let ({tlid; fluidState = state; _} : ViewUtils.viewState) = vs in
   let tlidStr = deTLID tlid in
-  Js.log3 "fluidEditorView for" editor.editorId editor.tree ;
   let textInputListeners =
     (* the command palette is inside div.fluid-editor but has it's own input
      * handling, so don't do normal fluid input stuff if it's open *)
@@ -574,7 +573,6 @@ let fluidEditorView
 
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html list =
-  Js.log3 "viewAST" vs.tlid ast ;
   let ({analysisStore; tlid; fluidState = state; _} : ViewUtils.viewState) =
     vs
   in
@@ -613,8 +611,10 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html list =
                []
            in
            let rowOffset =
-             e.editorId
-             |> Option.andThen ~f:findRowOffestOfMainTokenWithId
+             e.tree
+             |> E.ofSubtree
+             |> E.toID
+             |> findRowOffestOfMainTokenWithId
              |> Option.withDefault ~default:0
            in
            Html.div

@@ -13,10 +13,11 @@ let view (m : model) (ast : Expression.t) : Types.msg Html.html =
     let expr =
       match s.activeEditor with
       | Some id ->
-          Expression.find id ast
+          List.find s.extraEditors ~f:(fun e -> e.id = id)
+          |> Option.andThen ~f:(fun e -> Expression.find e.expressionId ast)
           |> recoverOpt
-               "debugger: failed to find expression for activeEditor"
                ~default:(Expression.newB ())
+               ("debugger: could not find expression for activeEditor " ^ id)
       | None ->
           ast
     in
@@ -55,10 +56,14 @@ let view (m : model) (ast : Expression.t) : Types.msg Html.html =
     ; dtText "active editor"
     ; Html.dd
         []
-        [ Html.text
-            ( s.activeEditor
-            |> Option.map ~f:deID
-            |> Option.withDefault ~default:"None" ) ]
+        [Html.text (s.activeEditor |> Option.withDefault ~default:"None")]
+    ; dtText "editors"
+    ; Html.dd
+        []
+        [ Html.ul
+            []
+            (List.map s.extraEditors ~f:(fun e -> Html.li [] [Html.text e.id]))
+        ]
     ; dtText "acIndex"
     ; Html.dd
         []
