@@ -2670,16 +2670,32 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              ~debug:(varAndSepIdx, oldVars)
              ~default:None
     | ARList (_, LPComma elemAndSepIdx), EList (id, exprs) ->
-        let target =
-          List.getAt ~index:elemAndSepIdx exprs
-          |> Option.map ~f:(fun expr -> caretTargetForEndOfExpr' expr)
+        let rec itemsAtCurrAndNextIndex (lst : E.t list) (idx : int) :
+            (E.t * E.t) option =
+          match lst with
+          | [] | [_] ->
+              None
+          | a :: (b :: _ as rest) ->
+              if idx > 0
+              then (itemsAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
+              else if idx = 0
+              then Some (a, b)
+              else None
+        in
+        let newExpr, target =
+          itemsAtCurrAndNextIndex exprs elemAndSepIdx
+          |> Option.map ~f:(fun (beforeComma, afterComma) ->
+                 mergeExprs beforeComma afterComma)
           |> Option.withDefault
-               ~default:{astRef = ARList (id, LPOpen); offset = 1}
+               ~default:(E.newB (), {astRef = ARList (id, LPOpen); offset = 1})
+        in
+        let newExprs =
+          exprs
+          |> List.updateAt ~index:elemAndSepIdx ~f:(fun _ -> newExpr)
+          |> List.removeAt ~index:(elemAndSepIdx + 1)
         in
         (* remove expression in front of sep, not behind it, hence + 1 *)
-        Some
-          ( Expr (EList (id, List.removeAt ~index:(elemAndSepIdx + 1) exprs))
-          , target )
+        Some (Expr (EList (id, newExprs)), target)
     | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
       when E.isEmpty expr ->
         mkEBlank ()
