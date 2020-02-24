@@ -3582,7 +3582,7 @@ let run () =
                  m
                  tlid
                  ast
-                 (FluidMouseUp {tlid; id = E.toID ast; selection = Some (18, 18)})
+                 (FluidMouseUp {tlid; editorId = None; selection = Some (18, 18)})
                  m.fluidState
              in
              newState.ac.index)

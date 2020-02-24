@@ -5,6 +5,12 @@ module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
 
+type editorViewState =
+  { tlid : tlid
+  ; editorId : id option
+  ; tree : E.tree
+  ; printerOpts : FluidPrinter.Options.t }
+
 type viewState =
   { tl : toplevel
   ; tokens : fluidTokenInfo list
@@ -24,7 +30,8 @@ type viewState =
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
-  ; featureFlagSubtrees : E.tree StrDict.t
+  ; mainEditor : editorViewState
+  ; extraEditors : editorViewState list
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
@@ -52,18 +59,35 @@ let createVS (m : model) (tl : toplevel) : viewState =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
   let traceID = Analysis.getSelectedTraceID m tlid in
-  let ast =
-    TL.getAST tl
-    |> recoverOpt
-         ("failed to getAST for TLID " ^ deTLID tlid)
-         ~default:(E.newB ())
+  let ast = TL.getAST tl |> Option.withDefault ~default:(E.newB ()) in
+  let mainEditor =
+    { tlid
+    ; editorId = None
+    ; tree = E.Subtree ast
+    ; printerOpts = FluidPrinter.Options.default }
   in
-  (* build a dict of {id -> (Subtree expression)} for any feature flags within the ast *)
-  let featureFlagSubtrees =
-    E.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
-    |> List.map ~f:(fun t ->
-           E.ofSubtree t |> E.toID |> deID |> fun id -> (id, t))
-    |> StrDict.fromList
+  let ffEnabled = List.member m.tests ~value:FeatureFlagVariant in
+  let extraEditors =
+    List.filterMap m.fluidState.extraEditors ~f:(fun e ->
+        if ffEnabled
+        then
+          let printerOpts =
+            match e.kind with
+            | FeatureFlagView ->
+                FluidPrinter.Options.featureFlagPanel
+          in
+          let tree =
+            E.find e.expressionId ast
+            |> Option.map ~f:(fun t -> E.Subtree t)
+            |> recoverOpt
+                 ~default:(E.Subtree (E.newB ()))
+                 (Printf.sprintf
+                    "failed to find expr %s for editor %s"
+                    (e.expressionId |> deID)
+                    (e.id |> deID))
+          in
+          Some {tlid; editorId = Some e.id; tree; printerOpts}
+        else None)
   in
   { tl
   ; tlid
@@ -96,7 +120,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; tlTraceIDs = m.tlTraceIDs
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
-  ; featureFlagSubtrees
+  ; mainEditor
+  ; extraEditors
   ; handlerProp = hp
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost

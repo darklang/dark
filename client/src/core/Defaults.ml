@@ -57,7 +57,8 @@ let defaultFluidState : fluidState =
   ; selectionStart = None
   ; errorDvSrc = SourceNone
   ; midClick = false
-  ; activeEditorId = ID "" }
+  ; extraEditors = []
+  ; activeEditor = None }
 
 
 let defaultCanvasProps : canvasProps =

@@ -40,7 +40,12 @@ type token = T.t
 type state = Types.fluidState
 
 let deselectFluidEditor (s : fluidState) : fluidState =
-  {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditorId = ID ""}
+  { s with
+    oldPos = 0
+  ; newPos = 0
+  ; upDownCol = None
+  ; activeEditor = None
+  ; extraEditors = [] }
 
 
 let getStringIndexMaybe ti pos : int option =
@@ -64,26 +69,24 @@ let getStringIndex ti pos : int =
 
 
 let astAndStateFromTLID (m : model) (tlid : tlid) : (E.t * state) option =
-  (* TODO(JULIAN): codify removeHandlerTransientState as an external function, make `fromExpr`
-    accept only the info it needs, and differentiate between handler-specific and global fluid state. *)
+  (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
+   * make `fromExpr` accept only the info it needs, and differentiate between
+   * handler-specific and global fluid state. *)
   let removeHandlerTransientState m =
     {m with fluidState = {m.fluidState with ac = AC.reset m}}
   in
-  let maybeFluidAstAndState =
-    TL.get m tlid
-    |> Option.andThen ~f:TL.getAST
-    |> Option.map ~f:(fun genericAst ->
-           let state =
-             (* We need to discard transient state if the selected handler has changed *)
-             if Some tlid = tlidOf m.cursorState
-             then m.fluidState
-             else
-               let newM = removeHandlerTransientState m in
-               newM.fluidState
-           in
-           (genericAst, state))
-  in
-  maybeFluidAstAndState
+  TL.get m tlid
+  |> Option.andThen ~f:TL.getAST
+  |> Option.map ~f:(fun ast ->
+         let state =
+           (* We need to discard transient state if the selected handler has changed *)
+           if Some tlid = tlidOf m.cursorState
+           then m.fluidState
+           else
+             let newM = removeHandlerTransientState m in
+             newM.fluidState
+         in
+         (ast, state))
 
 
 type neighbour =
@@ -5125,26 +5128,38 @@ let getCopySelection (m : model) : clipboardContents =
       ("", None)
 
 
-let updateMouseUp (s : state) (ast : ast) (eventData : fluidMouseUp) =
-  let s = {s with midClick = false; activeEditorId = eventData.id} in
+let updateMouseUp (s : state) (ast : ast) (eventData : fluidMouseUp) :
+    FluidExpression.t * fluidState =
+  let s = {s with midClick = false; activeEditor = eventData.editorId} in
   let selection =
     eventData.selection |> Option.orElseLazy Entry.getFluidSelectionRange
   in
-  match selection with
-  (* if range width is 0, just change pos *)
-  | Some (selBegin, selEnd) when selBegin = selEnd ->
-      updateMouseClick selBegin ast s
-  | Some (selBegin, selEnd) ->
-      ( ast
-      , { s with
-          selectionStart = Some selBegin
-        ; oldPos = s.newPos
-        ; newPos = selEnd }
-        |> acClear )
-  | None ->
-      (* We reset the fluidState to prevent the selection and/or cursor
+  let ast, s =
+    match selection with
+    (* if range width is 0, just change pos *)
+    | Some (selBegin, selEnd) when selBegin = selEnd ->
+        updateMouseClick selBegin ast s
+    | Some (selBegin, selEnd) ->
+        ( ast
+        , { s with
+            selectionStart = Some selBegin
+          ; oldPos = s.newPos
+          ; newPos = selEnd }
+          |> acClear )
+    | None ->
+        (* We reset the fluidState to prevent the selection and/or cursor
    position from persisting when a user switched handlers *)
-      (ast, {s with selectionStart = None} |> acClear)
+        (ast, {s with selectionStart = None} |> acClear)
+  in
+  let extraEditors =
+    E.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
+    |> List.map ~f:(fun e ->
+           { id = gid ()
+           ; expressionId = E.ofSubtree e |> E.toID
+           ; kind = FeatureFlagView })
+  in
+  let s = {s with extraEditors} in
+  (ast, s)
 
 
 let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :

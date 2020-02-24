@@ -10,9 +10,17 @@ let view (m : model) (ast : Expression.t) : Types.msg Html.html =
    * active editor panel within the TL. It would be better if we somehow had
    * access to the editor's viewState, but we don't. *)
   let tokens =
-    Expression.find m.fluidState.activeEditorId ast
-    |> Option.map ~f:Printer.tokenize
-    |> Option.withDefault ~default:[]
+    let expr =
+      match s.activeEditor with
+      | Some id ->
+          Expression.find id ast
+          |> recoverOpt
+               "debugger: failed to find expression for activeEditor"
+               ~default:(Expression.newB ())
+      | None ->
+          ast
+    in
+    Printer.tokenize expr
   in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
@@ -44,19 +52,13 @@ let view (m : model) (ast : Expression.t) : Types.msg Html.html =
             |> Option.withDefault ~default:"None" ) ]
     ; dtText "ast root"
     ; Html.dd [] [Html.text (Expression.toID ast |> deID)]
-    ; dtText "act edit"
-    ; Html.dd [] [Html.text (s.activeEditorId |> deID)]
-    ; dtText "flags"
+    ; dtText "active editor"
     ; Html.dd
         []
         [ Html.text
-            ( Expression.filter ast ~f:(function
-                  | EFeatureFlag _ ->
-                      true
-                  | _ ->
-                      false)
-            |> List.map ~f:(Expression.ofSubtree >> Expression.toID >> deID)
-            |> String.join ~sep:"," ) ]
+            ( s.activeEditor
+            |> Option.map ~f:deID
+            |> Option.withDefault ~default:"None" ) ]
     ; dtText "acIndex"
     ; Html.dd
         []

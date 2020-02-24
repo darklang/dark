@@ -1140,10 +1140,9 @@ and fluidInputEvent =
 
 and fluidMouseUp =
   { tlid : tlid
-  ; id :
-      (* id is the id of the topmost expression in
-       * the editor panel that was clicked. *)
-      id
+  ; editorId : id option
+        (** id is the id of the editor that was clicked on, or None if it was the
+       * main editor *)
   ; selection :
       (* The (int * int) here represents the selection beginning + end (the
        * selection may be left->right or right->left) If the selection is None, the
@@ -1507,6 +1506,15 @@ and fluidCommandState =
   ; location : (tlid * id) option
   ; filter : string option }
 
+and editorViewKind = FeatureFlagView
+
+and editorView =
+  { id : id
+        (** the unique id of this editor panel, used to identify it, eg, when
+          * it is clicked and needs focus *)
+  ; expressionId : id  (** the id of the top-most expression in this panel *)
+  ; kind : editorViewKind }
+
 and fluidState =
   { error : string option
   ; actions : string list
@@ -1528,12 +1536,8 @@ and fluidState =
       (* The source id of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; activeEditorId :
-      (* activeEditorId is the id of the topmost expression in editor that is
-       * active inside the current TL. Most TLs will only have a single editor
-       * most of the time, but when displaying, eg, a feature flag condition
-       * there will be multiple. *)
-      id }
+  ; extraEditors : editorView list  (** TODO(ds) comment *)
+  ; activeEditor : id option }
 
 (* Avatars *)
 and avatar =
