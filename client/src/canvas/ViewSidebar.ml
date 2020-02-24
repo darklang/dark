@@ -189,7 +189,25 @@ let dbCategory (m : model) (dbs : db list) : category =
 
 let f404Category (m : model) : category =
   let f404s =
-    m.f404s |> List.uniqueBy ~f:(fun f -> f.space ^ f.path ^ f.modifier)
+    (* Generate set of deleted handler specs, stringified *)
+    let deletedHandlerSpecs =
+      m.deletedHandlers
+      |> TLIDDict.values
+      |> List.map ~f:(fun h ->
+             let space = B.valueWithDefault "" h.spec.space in
+             let name = B.valueWithDefault "" h.spec.name in
+             let modifier = B.valueWithDefault "" h.spec.modifier in
+             space ^ name ^ modifier)
+      |> StrSet.fromList
+    in
+    m.f404s
+    |> List.uniqueBy ~f:(fun f -> f.space ^ f.path ^ f.modifier)
+    (* Don't show 404s for deleted handlers *)
+    |> List.filter ~f:(fun f ->
+           not
+             (StrSet.has
+                ~value:(f.space ^ f.path ^ f.modifier)
+                deletedHandlerSpecs))
   in
   { count = List.length f404s
   ; name = "404s"
