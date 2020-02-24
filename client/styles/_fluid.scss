@@ -149,7 +149,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   position: absolute;
   top: 0px;
   right: 0px;
-  width: 30ch;
+  width: 35ch;
   z-index: 10000;
   font-size: 10pt;
   background: white;
@@ -176,7 +176,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   }
 
   dd {
-    flex-basis: 14ch;
+    flex-basis: 16ch;
     flex-grow: 1;
     dl {
       padding: 0;
@@ -187,7 +187,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
     }
     dd {
       margin: 0;
-      flex-basis: 18ch;
+      flex-basis: 20ch;
     }
     &.tokenInfo {
       flex-basis: 30ch;
@@ -235,7 +235,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 
   display: inline-block;
   max-width: 200ch;
-  width: max-content;
+  width: inherit;
 
   &:focus {
     outline-width: 0;
@@ -503,6 +503,7 @@ since they are essentially both commands just acting upon different things. */
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  width: max-content;
 }
 
 .fluid-error-rail {

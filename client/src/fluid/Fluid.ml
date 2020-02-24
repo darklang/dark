@@ -5154,7 +5154,7 @@ let updateMouseUp (s : state) (ast : ast) (eventData : fluidMouseUp) :
   let extraEditors =
     E.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
     |> List.map ~f:(fun e ->
-           { id = gid ()
+           { id = "flag-" ^ (e |> E.ofSubtree |> E.toID |> deID)
            ; expressionId = E.ofSubtree e |> E.toID
            ; kind = FeatureFlagView })
   in

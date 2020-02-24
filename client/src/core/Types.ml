@@ -1140,7 +1140,7 @@ and fluidInputEvent =
 
 and fluidMouseUp =
   { tlid : tlid
-  ; editorId : id option
+  ; editorId : string option
         (** id is the id of the editor that was clicked on, or None if it was the
        * main editor *)
   ; selection :
@@ -1509,7 +1509,7 @@ and fluidCommandState =
 and editorViewKind = FeatureFlagView
 
 and editorView =
-  { id : id
+  { id : string
         (** the unique id of this editor panel, used to identify it, eg, when
           * it is clicked and needs focus *)
   ; expressionId : id  (** the id of the top-most expression in this panel *)
@@ -1537,7 +1537,7 @@ and fluidState =
        * have recently jumped to *)
       dval_source
   ; extraEditors : editorView list  (** TODO(ds) comment *)
-  ; activeEditor : id option }
+  ; activeEditor : string option }
 
 (* Avatars *)
 and avatar =

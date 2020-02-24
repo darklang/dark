@@ -7,7 +7,7 @@ module E = FluidExpression
 
 type editorViewState =
   { tlid : tlid
-  ; editorId : id option
+  ; editorId : string option
   ; tree : E.tree
   ; printerOpts : FluidPrinter.Options.t }
 
@@ -84,7 +84,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
                  (Printf.sprintf
                     "failed to find expr %s for editor %s"
                     (e.expressionId |> deID)
-                    (e.id |> deID))
+                    e.id)
           in
           Some {tlid; editorId = Some e.id; tree; printerOpts}
         else None)
