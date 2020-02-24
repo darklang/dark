@@ -2552,6 +2552,22 @@ let idOfASTRef (astRef : astRef) : id option =
       None
 
 
+(** [itemsAtCurrAndNextIndex lst idx] produces Some tuple of the
+ * item at the given [idx] and at [idx + 1]. If either of the
+ * indices is not present in the list, it returns None.
+ *)
+let rec itemsAtCurrAndNextIndex (lst : 'a list) (idx : int) : ('a * 'a) option =
+  match lst with
+  | [] | [_] ->
+      None
+  | a :: (b :: _ as rest) ->
+      if idx > 0
+      then (itemsAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
+      else if idx = 0
+      then Some (a, b)
+      else None
+
+
 (* [doExplicitBackspace [currCaretTarget] [ast]] produces the
  * (newAST, newPosition) tuple resulting from performing
  * a backspace-style deletion at [currCaretTarget] in the
@@ -2644,18 +2660,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
         else Some (Expr newExpr, currCTMinusOne)
     | ARLambda (_, LBPComma varAndSepIdx), ELambda (id, oldVars, oldExpr) ->
-        let rec itemsAtCurrAndNextIndex (lst : 'a list) (idx : int) :
-            ('a * 'a) option =
-          match lst with
-          | [] | [_] ->
-              None
-          | a :: (b :: _ as rest) ->
-              if idx > 0
-              then (itemsAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
-              else if idx = 0
-              then Some (a, b)
-              else None
-        in
         itemsAtCurrAndNextIndex oldVars varAndSepIdx
         |> Option.map ~f:(fun ((_, keepVarName), (_, deleteVarName)) ->
                (* remove expression in front of sep, not behind it, hence + 1 *)
@@ -2670,18 +2674,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              ~debug:(varAndSepIdx, oldVars)
              ~default:None
     | ARList (_, LPComma elemAndSepIdx), EList (id, exprs) ->
-        let rec itemsAtCurrAndNextIndex (lst : E.t list) (idx : int) :
-            (E.t * E.t) option =
-          match lst with
-          | [] | [_] ->
-              None
-          | a :: (b :: _ as rest) ->
-              if idx > 0
-              then (itemsAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
-              else if idx = 0
-              then Some (a, b)
-              else None
-        in
         let newExpr, target =
           itemsAtCurrAndNextIndex exprs elemAndSepIdx
           |> Option.map ~f:(fun (beforeComma, afterComma) ->
