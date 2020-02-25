@@ -69,7 +69,7 @@ let aHandler
     ; name = B.ofOption name
     ; modifier = B.ofOption modifier }
   in
-  {ast = expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
+  {ast = FluidAST.ofExpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
 let aFunction
@@ -85,7 +85,7 @@ let aFunction
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
       ; ufmInfix = false }
-  ; ufAST = expr }
+  ; ufAST = FluidAST.ofExpr expr }
 
 
 let aDB
@@ -564,13 +564,16 @@ let run () =
             m.searchCache
             |> TLIDDict.insert
                  ~tlid:http.hTLID
-                 ~value:(FluidPrinter.eToHumanString http.ast)
+                 ~value:
+                   (http.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
             |> TLIDDict.insert
                  ~tlid:repl.hTLID
-                 ~value:(FluidPrinter.eToHumanString repl.ast)
+                 ~value:
+                   (repl.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
             |> TLIDDict.insert
                  ~tlid:fn.ufTLID
-                 ~value:(FluidPrinter.eToHumanString fn.ufAST)
+                 ~value:
+                   (fn.ufAST |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
           in
           let m = {m with searchCache} in
           test "find variable" (fun () ->

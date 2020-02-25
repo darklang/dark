@@ -45,22 +45,6 @@ type fluidPatOrExpr =
   | Pat of FluidPattern.t
 [@@deriving show {with_path = false}, eq]
 
-(** tree is a way to differentiate between the entire AST of a handler or
- * function and a subtree of it. *)
-type tree =
-  | Root of t
-  | Subtree of t
-
-(** [ofRoot s] returns the expression of [s], calling recover if [s] is a SubTree *)
-val ofRoot : tree -> t
-
-(** [ofSubTree s] returns the expression of [s], calling recover if [s] is a Root *)
-val ofSubtree : tree -> t
-
-(** [ofTree s] returns the expression from within ast [s] no matter if it is a
- * Root or Subtree *)
-val ofTree : tree -> t
-
 val toID : t -> Shared.id
 
 (** Generate a new EBlank *)
@@ -92,10 +76,10 @@ val postTraversal : f:(t -> t) -> t -> t
 val filterMap : f:(t -> 'a option) -> t -> 'a list
 
 (** [filter f ast] calls f on every expression, returning a list of all
- * expressions for which [f e] is true as a Subtree. Recurses into expressions:
+ * expressions for which [f e] is true. Recurses into expressions:
  * if a child and its parent (or grandparent, etc) both match, then both will
  * be in the result list.  *)
-val filter : f:(t -> bool) -> t -> tree list
+val filter : f:(t -> bool) -> t -> t list
 
 (** [findExprOrPat target within] recursively finds the subtree
     with the Shared.id = [target] inside the [within] tree, returning the subtree
@@ -121,6 +105,12 @@ val hasEmptyWithId : Shared.id -> t -> bool
 (** [isBlank e] returns true iff [e] is an EBlank. *)
 val isBlank : t -> bool
 
+(** [blanks e] returns all children [c] of [e] where [isBlank c] is true *)
+val blanks : t -> t list
+
+(** [ids e] returns the id of [e] and all its children *)
+val ids : t -> Shared.id list
+
 (** [update f target ast] recursively searches [ast] for an expression e
     having an Shared.id of [target].
 
@@ -138,3 +128,5 @@ val renameVariableUses : oldName:string -> newName:string -> t -> t
 val updateVariableUses : string -> f:(t -> t) -> t -> t
 
 val clone : t -> t
+
+val ancestors : Shared.id -> t -> t list

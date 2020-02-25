@@ -1,5 +1,7 @@
 val gid : unit -> UnsharedTypes.id
 
+val deID : UnsharedTypes.id -> string
+
 type jsonType = Js.Json.t
 
 module Rollbar : sig

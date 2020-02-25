@@ -37,7 +37,7 @@ let handlerIsExeFail (vs : viewState) : bool =
     let outermostId =
       match vs.tl with
       | TLHandler handler ->
-          Some (FluidExpression.toID handler.ast)
+          Some (FluidAST.toID handler.ast)
       | _ ->
           None
     in
@@ -256,6 +256,6 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list =
 let view (vs : viewState) (h : handler) (dragEvents : domEventList) :
     msg Html.html list =
   let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
-  let ast = Html.div attrs (FluidView.view vs h.ast) in
+  let ast = Html.div attrs (FluidView.view vs) in
   let header = viewEventSpec vs h.spec dragEvents in
   [header; ast]

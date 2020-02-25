@@ -287,7 +287,7 @@ and handler (h : Types.handler) : Js.Json.t =
   object_
     [ ("tlid", tlid h.hTLID)
     ; ("spec", spec h.spec)
-    ; ("ast", h.ast |> OldExpr.fromFluidExpr |> expr) ]
+    ; ("ast", h.ast |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
 
 
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
@@ -475,7 +475,7 @@ and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", uf.ufAST |> OldExpr.fromFluidExpr |> expr) ]
+    ; ("ast", uf.ufAST |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =

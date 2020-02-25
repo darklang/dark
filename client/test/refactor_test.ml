@@ -56,7 +56,7 @@ let defaultTLID = TLID "handler1"
 let defaultHandler =
   { hTLID = defaultTLID
   ; pos = {x = 0; y = 0}
-  ; ast = EBlank (gid ())
+  ; ast = Root (EBlank (gid ()))
   ; spec =
       {space = B.newF "HTTP"; name = B.newF "/src"; modifier = B.newF "POST"} }
 
@@ -89,7 +89,7 @@ let run () =
       in
       let handlerWithPointer fnName fnRail =
         let id = ID "ast1" in
-        let ast = E.EFnCall (id, fnName, [], fnRail) in
+        let ast = FluidAST.ofExpr (E.EFnCall (id, fnName, [], fnRail)) in
         ({defaultHandler with ast}, id)
       in
       let init fnName fnRail =
@@ -104,7 +104,7 @@ let run () =
             match mod' with
             | AddOps ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
-              | EFnCall (_, "Int::notResulty", [], NoRail) ->
+              | Root (EFnCall (_, "Int::notResulty", [], NoRail)) ->
                   true
               | _ ->
                   false )
@@ -114,7 +114,7 @@ let run () =
           expect res |> toEqual true) ;
       test "toggles any fncall off rail in a thread" (fun () ->
           let fn = fn ~ster:Rail "List::getAt_v2" [pipeTarget; int 5] in
-          let ast = pipe emptyList [fn] in
+          let ast = pipe emptyList [fn] |> FluidAST.ofExpr in
           let h = {defaultHandler with ast} in
           let m = model [h] in
           let id = E.toID fn in
@@ -124,14 +124,15 @@ let run () =
             match mod' with
             | AddOps ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
-              | EPipe
-                  ( _
-                  , [ EList (_, [])
-                    ; EFnCall
-                        ( _
-                        , "List::getAt_v2"
-                        , [EPipeTarget _; EInteger (_, "5")]
-                        , NoRail ) ] ) ->
+              | Root
+                  (EPipe
+                    ( _
+                    , [ EList (_, [])
+                      ; EFnCall
+                          ( _
+                          , "List::getAt_v2"
+                          , [EPipeTarget _; EInteger (_, "5")]
+                          , NoRail ) ] )) ->
                   true
               | _ ->
                   false )
@@ -146,7 +147,7 @@ let run () =
             match mod' with
             | AddOps ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
-              | EFnCall (_, "Result::resulty", [], Rail) ->
+              | Root (EFnCall (_, "Result::resulty", [], Rail)) ->
                   true
               | _ ->
                   false )
@@ -171,7 +172,7 @@ let run () =
       in
       test "datastore renamed, handler updates variable" (fun () ->
           let h =
-            { ast = EVariable (ID "ast1", "ElmCode")
+            { ast = Root (EVariable (ID "ast1", "ElmCode"))
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
@@ -187,7 +188,7 @@ let run () =
                 ; ufmDescription = ""
                 ; ufmReturnTipe = B.new_ ()
                 ; ufmInfix = false }
-            ; ufAST = EVariable (ID "ast3", "ElmCode") }
+            ; ufAST = Root (EVariable (ID "ast3", "ElmCode")) }
           in
           let model =
             { D.defaultModel with
@@ -200,7 +201,8 @@ let run () =
             match List.sortBy ~f:Encoders.tlidOf ops with
             | [SetHandler (_, _, h); SetFunction f] ->
               ( match (h.ast, f.ufAST) with
-              | EVariable (_, "WeirdCode"), EVariable (_, "WeirdCode") ->
+              | ( FluidAST.Root (EVariable (_, "WeirdCode"))
+                , FluidAST.Root (EVariable (_, "WeirdCode")) ) ->
                   true
               | _ ->
                   false )
@@ -210,7 +212,7 @@ let run () =
           expect res |> toEqual true) ;
       test "datastore renamed, handler does not change" (fun () ->
           let h =
-            { ast = EVariable (ID "ast1", "request")
+            { ast = Root (EVariable (ID "ast1", "request"))
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
@@ -292,11 +294,11 @@ let run () =
           in
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->
-      let modelAndTl (ast : fluidExpr) =
+      let modelAndTl (expr : fluidExpr) =
         let hTLID = defaultTLID in
         let tl =
           { hTLID
-          ; ast
+          ; ast = FluidAST.ofExpr expr
           ; pos = {x = 0; y = 0}
           ; spec =
               { space = B.newF "HTTP"

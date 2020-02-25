@@ -140,8 +140,7 @@ let viewDBCol
     (deleteButton :: row)
 
 
-let viewMigraFuncs
-    (vs : viewState) (expr : fluidExpr) (desc : string) (varName : string) :
+let viewMigraFuncs (vs : viewState) (desc : string) (varName : string) :
     msg Html.html =
   Html.div
     [Html.class' "col roll-fn"]
@@ -149,7 +148,7 @@ let viewMigraFuncs
           [Html.class' "fn-title"]
           [ Html.span [] [Html.text (desc ^ " : ")]
           ; Html.span [Html.class' "varname"] [Html.text varName] ] ]
-    @ FluidView.view vs expr )
+    @ FluidView.view vs )
 
 
 let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
@@ -157,8 +156,16 @@ let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
   let name = Html.text (dbName2String db.dbName) in
   let cols = List.map ~f:(viewDBCol vs true db.dbTLID) migra.cols in
   let funcs =
-    [ viewMigraFuncs vs migra.rollforward "Rollforward" "oldObj"
-    ; viewMigraFuncs vs migra.rollback "Rollback" "newObj" ]
+    (* this AST expr stuff is kind of a hack but until we reintroduce migration
+     * fields I don't know what else to do with it -- @dstrelau 2020-02-25 *)
+    [ viewMigraFuncs
+        {vs with ast = FluidAST.ofExpr migra.rollforward}
+        "Rollforward"
+        "oldObj"
+    ; viewMigraFuncs
+        {vs with ast = FluidAST.ofExpr migra.rollback}
+        "Rollback"
+        "newObj" ]
   in
   let lockReady = DB.isMigrationLockReady migra in
   let errorMsg =

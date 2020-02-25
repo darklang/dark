@@ -8,7 +8,7 @@ let run () =
           let ast = FluidExpression.EBlank (gid ()) in
           let tlFunc =
             TLFunc
-              { ufAST = ast
+              { ufAST = Root ast
               ; ufTLID = gtlid ()
               ; ufMetadata =
                   { ufmName = Blank (gid ())
@@ -20,6 +20,7 @@ let run () =
           let tl = tlFunc in
           let vs : ViewUtils.viewState =
             { tl
+            ; ast = FluidAST.ofExpr ast
             ; tokens = FluidPrinter.tokenize ast
             ; cursorState = Deselected
             ; fluidState = Defaults.defaultFluidState
@@ -50,7 +51,7 @@ let run () =
             ; mainEditor =
                 { tlid = gtlid ()
                 ; editorId = None
-                ; tree = FluidExpression.Subtree ast
+                ; expr = ast
                 ; printerOpts = FluidPrinter.Options.default }
             ; handlerProp = None
             ; canvasName = ""

@@ -148,9 +148,8 @@ let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
   List.map ~f:traceToHtml vs.traces
 
 
-let viewData (vs : ViewUtils.viewState) (ast : FluidExpression.t) :
-    msg Html.html list =
-  let astID = FluidExpression.toID ast in
+let viewData (vs : ViewUtils.viewState) : msg Html.html list =
+  let astID = FluidAST.toID vs.ast in
   let requestEls = viewTraces vs astID in
   let tlSelected =
     match tlidOf vs.cursorState with

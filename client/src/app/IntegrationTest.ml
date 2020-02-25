@@ -65,7 +65,9 @@ let onlyHandler (m : model) : handler =
 
 let onlyDB (m : model) : db = m |> onlyTL |> TL.asDB |> deOption "onlyDB"
 
-let onlyExpr (m : model) : E.t = m |> onlyTL |> TL.getAST |> deOption "onlyast4"
+let onlyExpr (m : model) : E.t =
+  m |> onlyTL |> TL.getAST |> deOption "onlyast4" |> FluidAST.toExpr
+
 
 let enter_changes_state (m : model) : testResult =
   match m.cursorState with
@@ -236,7 +238,7 @@ let rename_db_type (m : model) : testResult =
 
 let feature_flag_works (m : model) : testResult =
   let h = onlyHandler m in
-  let ast = h.ast in
+  let ast = h.ast |> FluidAST.toExpr in
   match ast with
   | ELet
       ( _
@@ -269,7 +271,7 @@ let feature_flag_in_function (m : model) : testResult =
   let fun_ = m.userFunctions |> TD.values |> List.head in
   match fun_ with
   | Some f ->
-    ( match f.ufAST with
+    ( match f.ufAST |> FluidAST.toExpr with
     | EFnCall
         ( _
         , "+"
@@ -287,18 +289,18 @@ let feature_flag_in_function (m : model) : testResult =
     (* case res of *)
     (*   Just val -> if val.value == "\"8\"" then pass else fail (f.ast, value) *)
     (*   _ -> fail (f.ast, res) *)
-    | _ ->
-        fail ~f:show_fluidExpr f.ufAST )
+    | expr ->
+        fail ~f:show_fluidExpr expr )
   | None ->
       fail "Cant find function"
 
 
 let rename_function (m : model) : testResult =
   match m.handlers |> TD.values |> List.head with
-  | Some {ast = EFnCall (_, "hello", _, _); _} ->
+  | Some {ast = Root (EFnCall (_, "hello", _, _)); _} ->
       pass
-  | Some {ast; _} ->
-      fail (show_fluidExpr ast)
+  | Some {ast = Root expr; _} ->
+      fail (show_fluidExpr expr)
   | None ->
       fail "no handlers"
 
