@@ -536,7 +536,10 @@ and cursorState =
   | Entering of entryCursor
   | FluidEntering of tlid
   | DraggingTL of tlid * vPos * hasMoved * cursorState
-  | PanningCanvas of {viewportStart: vPos; viewportCurr: vPos; prevCursorState: cursorState}
+  | PanningCanvas of
+      { viewportStart : vPos
+      ; viewportCurr : vPos
+      ; prevCursorState : cursorState }
   | Deselected
 
 (* ------------------- *)
@@ -1100,6 +1103,10 @@ and modification =
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
   | AutocompleteMod of autocompleteMod
   | Many of modification list
+  | PanCanvas of
+      { viewportStart : vPos
+      ; viewportCurr : vPos
+      ; prevCursorState : cursorState }
   | DragTL of tlid * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
   | EndIntegrationTest
@@ -1201,9 +1208,11 @@ and segmentTrack =
   | OpenDocs
 
 and msg =
-  | CanvasClick of mouseEvent
   | IgnoreMsg
   | FluidMsg of fluidMsg
+  | AppMouseDown of mouseEvent
+  | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]
+  | AppMouseUp of mouseEvent
   | TLDragRegionMouseDown of tlid * mouseEvent
   (* we have the actual node when TLDragRegionMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)

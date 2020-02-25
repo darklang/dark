@@ -506,10 +506,13 @@ and cursorState j =
     ; ( "DraggingTL"
       , dv4 (fun a b c d -> DraggingTL (a, b, c, d)) tlid vPos bool cursorState
       )
-    ; ( "PanningCanvas"
-      (* TODO: change this encoding to be order-independent *)
-      , dv3 (fun viewportStart viewportCurr prevCursorState -> PanningCanvas {viewportStart; viewportCurr; prevCursorState}) vPos vPos cursorState
-      )
+    ; ( "PanningCanvas" (* TODO: change this encoding to be order-independent *)
+      , dv3
+          (fun viewportStart viewportCurr prevCursorState ->
+            PanningCanvas {viewportStart; viewportCurr; prevCursorState})
+          vPos
+          vPos
+          cursorState )
     ; ("Deselected", dv0 Deselected) (* Old value *)
     ; ("SelectingCommand", dv2 (fun a b -> Selecting (a, Some b)) tlid id)
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
