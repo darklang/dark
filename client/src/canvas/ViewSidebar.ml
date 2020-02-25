@@ -197,6 +197,8 @@ let f404Category (m : model) : category =
              let space = B.valueWithDefault "" h.spec.space in
              let name = B.valueWithDefault "" h.spec.name in
              let modifier = B.valueWithDefault "" h.spec.modifier in
+             (* Note that this concatenated string gets compared to `space ^ path ^ modifier` later.
+              * h.spec.name and f404.path are the same thing, with different names. Yes this is confusing.*)
              space ^ name ^ modifier)
       |> StrSet.fromList
     in
