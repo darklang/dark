@@ -495,12 +495,20 @@ and cursorState j =
   let dv0 = variant0 in
   let dv1 = variant1 in
   let dv2 = variant2 in
+  let dv3 = variant3 in
   let dv4 = variant4 in
   variants
     [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
     ; ("Entering", dv1 (fun a -> Entering a) entering)
+    ; ( "Dragging" (* Deprecated via DraggingTL *)
+      , dv4 (fun a b c d -> DraggingTL (a, b, c, d)) tlid vPos bool cursorState
+      )
     ; ( "DraggingTL"
       , dv4 (fun a b c d -> DraggingTL (a, b, c, d)) tlid vPos bool cursorState
+      )
+    ; ( "PanningCanvas"
+      (* TODO: change this encoding to be order-independent *)
+      , dv3 (fun viewportStart viewportCurr prevCursorState -> PanningCanvas {viewportStart; viewportCurr; prevCursorState}) vPos vPos cursorState
       )
     ; ("Deselected", dv0 Deselected) (* Old value *)
     ; ("SelectingCommand", dv2 (fun a b -> Selecting (a, Some b)) tlid id)

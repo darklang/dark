@@ -743,6 +743,9 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
       ev "Entering" [ev "Filling" [tlid tlid_; id id_]]
   | DraggingTL (tlid_, vpos_, hasMoved, cursor) ->
       ev "Dragging" [tlid tlid_; vPos vpos_; bool hasMoved; cursorState cursor]
+  | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
+      (* TODO: change this encoding to be order-independent *)
+      ev "PanningCanvas" [vPos viewportStart; vPos viewportCurr; cursorState prevCursorState]
   | Deselected ->
       ev "Deselected" []
   | FluidEntering tlid_ ->
