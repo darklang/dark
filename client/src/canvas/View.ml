@@ -6,6 +6,8 @@ module P = Pointer
 module TD = TLIDDict
 module E = FluidExpression
 
+type domEventList = ViewUtils.domEventList
+
 let fontAwesome = ViewUtils.fontAwesome
 
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
@@ -394,6 +396,12 @@ let accountView (m : model) : msg Html.html =
 
 
 let view (m : model) : msg Html.html =
+  let eventListeners : domEventList =
+    [ ViewUtils.eventPreventDefault ~key:"app-md" "mousedown" (fun x ->
+          AppMouseDown x)
+    ; ViewUtils.eventPreventDefault ~key:"app-mu" "mouseup" (fun x ->
+          AppMouseUp x) ]
+  in
   let activeVariantsClass =
     match VariantTesting.activeCSSClasses m with
     | "" ->
@@ -401,16 +409,7 @@ let view (m : model) : msg Html.html =
     | str ->
         Html.class' str
   in
-  let attributes =
-    [ Html.id "app"
-    ; activeVariantsClass
-    ; Html.onWithOptions
-        ~key:"app-mu"
-        "mouseup"
-        {stopPropagation = false; preventDefault = true}
-        (Decoders.wrapDecoder
-           (ViewUtils.decodeClickEvent (fun x -> CanvasClick x))) ]
-  in
+  let attributes = [Html.id "app"; activeVariantsClass] @ eventListeners in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
     ; ViewScaffold.readOnlyMessage m

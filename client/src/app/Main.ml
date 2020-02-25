@@ -838,6 +838,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             cursorState =
               DraggingTL (tlid, offset, hasMoved, unwrapCursorState state) }
         , Cmd.none )
+    | PanCanvas {viewportStart; viewportCurr; prevCursorState} ->
+        ( { m with
+            cursorState =
+              PanningCanvas {viewportStart; viewportCurr; prevCursorState} }
+        , Cmd.none )
     | ExecutingFunctionBegan (tlid, id) ->
         let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
@@ -1020,32 +1025,65 @@ let update_ (msg : msg) (m : model) : modification =
         Fluid.update m (FluidAutocompleteClick item)
     | _ ->
         NoChange )
-  | CanvasClick event ->
-    ( match m.currentPage with
-    | FocusedFn tlid | FocusedType tlid ->
-        (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
-        let defaultBehaviour = Select (tlid, STTopLevelRoot) in
-        ( match unwrapCursorState m.cursorState with
-        | Entering (Filling _ as cursor) ->
-            (* If we click away from an entry box, commit it before doing the default behaviour *)
-            Many [Entry.commit m cursor; defaultBehaviour]
+  | AppMouseDown event ->
+      Debug.loG "AppMouseDown" event ;
+      if event.button = Defaults.leftButton
+      then (
+        match m.cursorState with
+        | PanningCanvas {prevCursorState; _} ->
+            SetCursorState prevCursorState
         | _ ->
-            defaultBehaviour )
-    | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
-        if event.button = Defaults.leftButton
-        then
-          (* Clicking on the canvas should deselect the current selection on the main canvas *)
-          let defaultBehaviour = Deselect in
-          match unwrapCursorState m.cursorState with
-          | Deselected ->
-              let openAt = Some (Viewport.toAbsolute m event.mePos) in
-              Many [AutocompleteMod ACReset; Entry.openOmnibox ~openAt ()]
-          | Entering (Filling _ as cursor) ->
-              (* If we click away from an entry box, commit it before doing the default behaviour *)
-              Many [Entry.commit m cursor; defaultBehaviour]
-          | _ ->
-              defaultBehaviour
-        else NoChange )
+            Debug.loG "PanCanvas" event.mePos ;
+            PanCanvas
+              { viewportStart = event.mePos
+              ; viewportCurr = event.mePos
+              ; prevCursorState = m.cursorState } )
+      else NoChange
+  | AppMouseDrag mousePos ->
+      Debug.loG "AppMouseDrag" mousePos ;
+      ( match m.cursorState with
+      | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
+          let viewportNext = {vx = mousePos.x; vy = mousePos.y} in
+          let dx = viewportCurr.vx - viewportNext.vx in
+          let dy = viewportCurr.vy - viewportNext.vy in
+          Many
+            [ Viewport.moveCanvasBy m dx dy
+            ; PanCanvas
+                {viewportStart; viewportCurr = viewportNext; prevCursorState} ]
+      | _ ->
+          NoChange )
+  | AppMouseUp event ->
+      Debug.loG "AppMouseUp" event ;
+      ( match m.cursorState with
+      | PanningCanvas {viewportStart = _; viewportCurr = _; prevCursorState} ->
+          Debug.loG "->SetCursorState" prevCursorState ;
+          SetCursorState prevCursorState
+      | _ ->
+        ( match m.currentPage with
+        | FocusedFn tlid | FocusedType tlid ->
+            (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
+            let defaultBehaviour = Select (tlid, STTopLevelRoot) in
+            ( match unwrapCursorState m.cursorState with
+            | Entering (Filling _ as cursor) ->
+                (* If we click away from an entry box, commit it before doing the default behaviour *)
+                Many [Entry.commit m cursor; defaultBehaviour]
+            | _ ->
+                defaultBehaviour )
+        | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
+            if event.button = Defaults.leftButton
+            then
+              (* Clicking on the canvas should deselect the current selection on the main canvas *)
+              let defaultBehaviour = Deselect in
+              match unwrapCursorState m.cursorState with
+              | Deselected ->
+                  let openAt = Some (Viewport.toAbsolute m event.mePos) in
+                  Many [AutocompleteMod ACReset; Entry.openOmnibox ~openAt ()]
+              | Entering (Filling _ as cursor) ->
+                  (* If we click away from an entry box, commit it before doing the default behaviour *)
+                  Many [Entry.commit m cursor; defaultBehaviour]
+              | _ ->
+                  defaultBehaviour
+            else NoChange ) )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
   | BlankOrMouseLeave (tlid, id, _) ->
@@ -2021,7 +2059,12 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     (* before they're triggered *)
     | DraggingTL (id, _, _, _) ->
         let listenerKey = "mouse_moves_" ^ deTLID id in
-        [Native.DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
+        [ Native.DarkMouse.moves ~key:listenerKey (fun event ->
+              DragToplevel (id, event)) ]
+    | PanningCanvas _ ->
+        let listenerKey = "mouse_drag" in
+        [ Native.DarkMouse.moves ~key:listenerKey (fun event ->
+              AppMouseDrag event) ]
     | _ ->
         []
   in
