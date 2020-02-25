@@ -977,7 +977,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
     | SettingsViewUpdate msg ->
-        (SettingsView.update m msg, Cmd.none)
+        SettingsView.update m msg
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -2048,6 +2048,15 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
+  | SettingsViewMsg (TriggerSendInviteCallback (Error err) as msg) ->
+      Many
+        [ SettingsViewUpdate msg
+        ; HandleAPIError
+            (APIError.make
+               ~context:"TriggerSendInviteCallback"
+               ~importance:IgnorableError
+               ~reload:false
+               err) ]
   | SettingsViewMsg msg ->
       SettingsViewUpdate msg
   | FnParamMsg msg ->

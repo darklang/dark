@@ -697,6 +697,8 @@ and op =
 (* params *)
 and sendPresenceParams = avatarModelMessage
 
+and sendInviteParams = inviteFormMessage
+
 and addOpAPIParams =
   { ops : op list
   ; opCtr : int
@@ -970,6 +972,11 @@ and formField =
 
 and inviteFields = {email : formField}
 
+and inviteFormMessage =
+  { email : string
+  ; inviterUsername : string
+  ; inviterName : string }
+
 and settingsViewState =
   { opened : bool
   ; tab : settingsTab
@@ -982,6 +989,8 @@ and settingsMsg =
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string
   | SubmitForm
+  | TriggerSendInviteCallback of (unit, httpError) Tea.Result.t
+      [@printer opaque "TriggerSendInviteCallback"]
 
 (* TLMenu *)
 and menuState = {isOpen : bool}

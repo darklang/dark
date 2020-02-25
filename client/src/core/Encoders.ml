@@ -457,6 +457,13 @@ and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
     ; ("timestamp", Json.Encode.float params.timestamp) ]
 
 
+and sendInviteParams (params : Types.sendInviteParams) : Js.Json.t =
+  object_
+    [ ("email", string params.email)
+    ; ("inviterUsername", string params.inviterUsername)
+    ; ("inviterName", string params.inviterName) ]
+
+
 and getTraceDataAPIParams (params : Types.getTraceDataAPIParams) : Js.Json.t =
   object_
     [("tlid", tlid params.gtdrpTlid); ("trace_id", traceID params.gtdrpTraceID)]
