@@ -1,6 +1,8 @@
 open Prelude
 
 (* Dark *)
+module Cmd = Tea.Cmd
+module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module K = FluidKeyboard
 
@@ -34,35 +36,56 @@ let validateForm (tab : settingsTab) : bool * settingsTab =
       (false, tab)
 
 
-let submitForm (m : model) (tab : settingsTab) : model =
+let submitForm (m : model) (tab : settingsTab) : model * msg Cmd.t =
   match tab with
-  | InviteUser _ ->
-      (* TODO Add API call and callback *)
-      (* In callback, show error OR stop loading and show confirm *)
-      {m with settingsView = {m.settingsView with loading = true}}
+  | InviteUser info ->
+      let sendInviteMsg =
+        { email = info.email.value
+        ; inviterUsername = m.username
+        ; inviterName = m.account.name }
+      in
+      ( {m with settingsView = {m.settingsView with loading = true}}
+      , API.sendInvite m sendInviteMsg )
   | _ ->
-      m
+      (m, Cmd.none)
 
 
-let update (m : model) (msg : settingsMsg) : model =
+let update (m : model) (msg : settingsMsg) : model * msg Cmd.t =
   match msg with
   | ToggleSettingsView (opened, tab) ->
-      (* TODO -> Set to correct tab on open *)
       let enablePan = if opened then m.canvasProps.enablePan else true in
       let tab = tab |> Option.withDefault ~default:UserSettings in
-      { m with
-        settingsView = {m.settingsView with opened; tab; loading = false}
-      ; canvasProps = {m.canvasProps with enablePan} }
+      ( { m with
+          settingsView = {m.settingsView with opened; tab; loading = false}
+        ; canvasProps = {m.canvasProps with enablePan} }
+      , Cmd.none )
   | SwitchSettingsTabs tab ->
-      {m with settingsView = {m.settingsView with tab; loading = false}}
+      ( {m with settingsView = {m.settingsView with tab; loading = false}}
+      , Cmd.none )
   | UpdateInviteForm value ->
       let form = {email = {value; error = None}} in
-      {m with settingsView = {m.settingsView with tab = InviteUser form}}
+      ( {m with settingsView = {m.settingsView with tab = InviteUser form}}
+      , Cmd.none )
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
       if isInvalid
-      then {m with settingsView = {m.settingsView with tab = newTab}}
+      then ({m with settingsView = {m.settingsView with tab = newTab}}, Cmd.none)
       else submitForm m m.settingsView.tab
+  | TriggerSendInviteCallback (Ok _) ->
+      ( { m with
+          toast = {toastMessage = Some "Sent!"; toastPos = None}
+        ; settingsView =
+            { m.settingsView with
+              tab = InviteUser defaultInviteFields
+            ; loading = false } }
+      , Cmd.none )
+  | TriggerSendInviteCallback (Error _) ->
+      ( { m with
+          settingsView =
+            { m.settingsView with
+              tab = InviteUser defaultInviteFields
+            ; loading = false } }
+      , Cmd.none )
 
 
 (* View functions *)
@@ -113,14 +136,14 @@ let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
             "Note: This will not add them to any of your existing organizations or canvases."
         ] ]
   in
+  let error, inputVal =
+    match svs.tab with
+    | InviteUser x ->
+        (x.email.error |> Option.withDefault ~default:"", x.email.value)
+    | _ ->
+        ("", "")
+  in
   let inviteform =
-    let error =
-      match svs.tab with
-      | InviteUser x ->
-          x.email.error |> Option.withDefault ~default:""
-      | _ ->
-          ""
-    in
     let submitBtn =
       let event =
         if svs.loading
@@ -149,7 +172,8 @@ let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
                 ; Html.input'
                     [ Vdom.attribute "" "spellcheck" "false"
                     ; Events.onInput (fun str ->
-                          SettingsViewMsg (UpdateInviteForm str)) ]
+                          SettingsViewMsg (UpdateInviteForm str))
+                    ; Attributes.value inputVal ]
                     [] ] ]
         ; submitBtn ] ]
   in
