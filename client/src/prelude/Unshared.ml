@@ -1,5 +1,7 @@
 let gid () = UnsharedTypes.ID (Js_math.random_int 0 2147483647 |> string_of_int)
 
+let deID (UnsharedTypes.ID id) = id
+
 type jsonType = Js.Json.t
 
 module Rollbar = struct

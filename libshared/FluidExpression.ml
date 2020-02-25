@@ -43,26 +43,6 @@ type t =
   | EFeatureFlag of id * string * t * t * t
 [@@deriving show {with_path = false}, eq]
 
-type tree =
-  | Root of t
-  | Subtree of t
-
-let ofTree = function Root e | Subtree e -> e
-
-let ofRoot = function
-  | Root e ->
-      e
-  | Subtree e ->
-      Recover.recover "expected Root but found Subtree" e
-
-
-let ofSubtree = function
-  | Root e ->
-      Recover.recover "expected Subtree but found Root" e
-  | Subtree e ->
-      e
-
-
 type fluidPatOrExpr =
   | Expr of t
   | Pat of FluidPattern.t
@@ -407,8 +387,8 @@ let filterMap ~(f : t -> 'a option) (expr : t) : 'a list =
   List.reverse !results
 
 
-let filter ~(f : t -> bool) (expr : t) : tree list =
-  filterMap ~f:(fun t -> if f t then Some (Subtree t) else None) expr
+let filter ~(f : t -> bool) (expr : t) : t list =
+  filterMap ~f:(fun t -> if f t then Some t else None) expr
 
 
 let update ?(failIfMissing = true) ~(f : t -> t) (target : id) (ast : t) : t =
@@ -546,3 +526,59 @@ let rec clone (expr : t) : t =
       ERightPartial (gid (), str, c oldExpr)
   | EPipeTarget _ ->
       EPipeTarget (gid ())
+
+
+let blanks = filter ~f:isBlank
+
+let ids (ast : t) : id list = filter ast ~f:(fun _ -> true) |> List.map ~f:toID
+
+let ancestors (id : id) (expr : t) : t list =
+  let rec rec_ancestors (tofind : id) (walk : t list) (exp : t) =
+    let rec_ id_ e_ walk_ = rec_ancestors id_ (e_ :: walk_) in
+    let reclist id_ e_ walk_ exprs =
+      exprs |> List.map ~f:(rec_ id_ e_ walk_) |> List.concat
+    in
+    if toID exp = tofind
+    then walk
+    else
+      match exp with
+      | EInteger _
+      | EString _
+      | EBool _
+      | EFloat _
+      | ENull _
+      | EBlank _
+      | EPipeTarget _ ->
+          []
+      | EVariable _ ->
+          []
+      | ELet (_, _, rhs, body) ->
+          reclist id exp walk [rhs; body]
+      | EIf (_, cond, ifbody, elsebody) ->
+          reclist id exp walk [cond; ifbody; elsebody]
+      | EFnCall (_, _, exprs, _) ->
+          reclist id exp walk exprs
+      | EBinOp (_, _, lhs, rhs, _) ->
+          reclist id exp walk [lhs; rhs]
+      | ELambda (_, _, lexpr) ->
+          rec_ id exp walk lexpr
+      | EPipe (_, exprs) ->
+          reclist id exp walk exprs
+      | EFieldAccess (_, obj, _) ->
+          rec_ id exp walk obj
+      | EList (_, exprs) ->
+          reclist id expr walk exprs
+      | ERecord (_, pairs) ->
+          pairs |> List.map ~f:Tuple2.second |> reclist id expr walk
+      | EFeatureFlag (_, _, cond, a, b) ->
+          reclist id exp walk [cond; a; b]
+      | EMatch (_, matchExpr, cases) ->
+          reclist id exp walk (matchExpr :: List.map ~f:Tuple2.second cases)
+      | EConstructor (_, _, args) ->
+          reclist id exp walk args
+      | EPartial (_, _, oldExpr) ->
+          rec_ id exp walk oldExpr
+      | ERightPartial (_, _, oldExpr) ->
+          rec_ id exp walk oldExpr
+  in
+  rec_ancestors id [] expr

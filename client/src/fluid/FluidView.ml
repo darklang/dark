@@ -120,10 +120,10 @@ let fnForToken state token : function_ option =
       None
 
 
-let fnArgExprs (token : token) (ast : E.t) : E.t list =
+let fnArgExprs (token : token) (ast : FluidAST.t) : E.t list =
   let id = T.tid token in
   let exprs =
-    match E.find id ast with
+    match FluidAST.find id ast with
     | Some (EFnCall (_, _, exprs, _)) ->
         exprs
     | Some (EBinOp (_, _, lhs, rhs, _)) ->
@@ -135,19 +135,21 @@ let fnArgExprs (token : token) (ast : E.t) : E.t list =
   | EPipeTarget _ :: rest ->
       (* It's a little slow to look this up, so only look when we know we're
        * in a thread. *)
-      let previous = ast |> AST.threadPrevious id |> Option.toList in
+      let previous =
+        ast |> FluidAST.toExpr |> AST.threadPrevious id |> Option.toList
+      in
       previous @ rest
   | exprs ->
       exprs
 
 
-let viewPlayIcon ~(vs : ViewUtils.viewState) (ast : E.t) (ti : T.tokenInfo) :
+let viewPlayIcon ~(vs : ViewUtils.viewState) (ti : T.tokenInfo) :
     Types.msg Html.html =
   match fnForToken vs.fluidState ti.token with
   | Some fn when not fn.fnPreviewExecutionSafe ->
       (* Looking these up can be slow, so the fnPreviewExecutionSafe check
        * above is very important *)
-      let allExprs = fnArgExprs ti.token ast in
+      let allExprs = fnArgExprs ti.token vs.ast in
       let argIDs = List.map ~f:E.toID allExprs in
       ( match ti.token with
       | TFnVersion (id, _, _, _) ->
@@ -185,9 +187,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
     | _ ->
         None
   in
-  let tokens =
-    Printer.tokenizeWithOptions editor.printerOpts (E.ofSubtree editor.tree)
-  in
+  let tokens = Printer.tokenizeWithOptions editor.printerOpts editor.expr in
   let currentTokenInfo = Fluid.getToken' vs.fluidState tokens in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
@@ -301,7 +301,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
           (innerNode @ nested)
       in
       if vs.permission = Some ReadWrite
-      then [element [dropdown ti; viewPlayIcon (E.ofSubtree editor.tree) ti ~vs]]
+      then [element [dropdown ti; viewPlayIcon ti ~vs]]
       else [element []])
   |> List.flatten
 
@@ -329,27 +329,25 @@ let viewDval tlid dval ~(canCopy : bool) =
   [Html.text text; (if canCopy then viewCopyButton tlid text else Vdom.noNode)]
 
 
-let viewLiveValue
-    ~(tlid : tlid) ~(ast : E.t) ~(vs : viewState) ~(state : fluidState) :
-    Types.msg Html.html =
+let viewLiveValue (vs : viewState) : Types.msg Html.html =
   (* isLoaded will be set to false later if we are in the middle of loading
    * results. All other states are considered loaded. This is used to apply
    * a class ".loaded" purely for integration tests being able to know when
    * the live value content is ready and can be asserted on *)
   let isLoaded = ref true in
   (* Renders dval*)
-  let renderDval = viewDval tlid in
+  let renderDval = viewDval vs.tlid in
   (* Renders live value for token *)
   let renderTokenLv token id =
     let fnLoading =
       (* If fn needs to be manually executed, check status *)
-      fnForToken state token
+      fnForToken vs.fluidState token
       |> Option.andThen ~f:(fun fn ->
              if fn.fnPreviewExecutionSafe
              then None
              else
                let id = T.tid token in
-               let args = fnArgExprs token ast |> List.map ~f:E.toID in
+               let args = fnArgExprs token vs.ast |> List.map ~f:E.toID in
                ViewFnExecution.fnExecutionStatus vs fn id args
                |> ViewFnExecution.executionError
                |> Option.some)
@@ -394,11 +392,11 @@ let viewLiveValue
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  Fluid.getToken' state vs.tokens
+  Fluid.getToken' vs.fluidState vs.tokens
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
-           match AC.highlighted state.ac with
+           match AC.highlighted vs.fluidState.ac with
            | Some (FACVariable (_, Some dv)) ->
                (* If autocomplete is open and a variable is highlighted,
                 * then show its dval *)
@@ -423,11 +421,10 @@ let viewLiveValue
   |> Option.withDefault ~default:Vdom.noNode
 
 
-let viewReturnValue (vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html
-    =
+let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
   if tlidOf vs.cursorState = Some vs.tlid
   then
-    let id = E.toID ast in
+    let id = FluidAST.toID vs.ast in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
     | LoadableSuccess (ExecutedResult dval) ->
         let isRefreshed =
@@ -512,18 +509,14 @@ let fluidEditorView
                        { tlid
                        ; editorId = editor.editorId
                        ; selection =
-                           Fluid.getExpressionRangeAtCaret
-                             state
-                             (E.ofSubtree editor.tree) })
+                           Fluid.getExpressionRangeAtCaret state editor.expr })
               | {detail = 2; altKey = false; _} ->
                   FluidMsg
                     (FluidMouseUp
                        { tlid
                        ; editorId = editor.editorId
                        ; selection =
-                           Fluid.getTokenRangeAtCaret
-                             state
-                             (E.ofSubtree editor.tree) })
+                           Fluid.getTokenRangeAtCaret state editor.expr })
               | _ ->
                   recover
                     "detail was not 2 in the doubleclick event"
@@ -572,7 +565,7 @@ let fluidEditorView
     (toHtml vs editor)
 
 
-let viewAST ~(vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html list =
+let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   let ({analysisStore; tlid; fluidState = state; _} : ViewUtils.viewState) =
     vs
   in
@@ -587,11 +580,11 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html list =
   in
   let liveValue =
     if vs.cursorState = FluidEntering tlid
-    then viewLiveValue ~tlid ~ast ~vs ~state
+    then viewLiveValue vs
     else Vdom.noNode
   in
   let mainEditor = fluidEditorView vs vs.mainEditor in
-  let returnValue = viewReturnValue vs ast in
+  let returnValue = viewReturnValue vs in
   let secondaryEditors =
     let findRowOffestOfMainTokenWithId (target : id) : int option =
       (* FIXME(ds) this is a giant hack to find the row offset of the corresponding
@@ -611,8 +604,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html list =
                []
            in
            let rowOffset =
-             e.tree
-             |> E.ofSubtree
+             e.expr
              |> E.toID
              |> findRowOffestOfMainTokenWithId
              |> Option.withDefault ~default:0
@@ -625,5 +617,5 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html list =
   mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
 
 
-let view (vs : ViewUtils.viewState) (e : E.t) =
-  [Html.div [Html.class' "fluid-ast"] (viewAST ~vs e)]
+let view (vs : ViewUtils.viewState) =
+  [Html.div [Html.class' "fluid-ast"] (viewAST vs)]

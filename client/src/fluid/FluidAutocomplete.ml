@@ -221,7 +221,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
 let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
-  |> Option.andThen ~f:(AST.findParentOfWithin_ id)
+  |> Option.andThen ~f:(FluidAST.toExpr >> AST.findParentOfWithin_ id)
   |> Option.map ~f:(fun e -> match e with E.EPipe _ -> true | _ -> false)
   |> Option.withDefault ~default:false
 
@@ -230,7 +230,7 @@ let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
     tipe =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
-  |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
+  |> Option.andThen ~f:(fun ast -> AST.getParamIndex (FluidAST.toExpr ast) id)
   |> Option.andThen ~f:(fun (name, index) ->
          a.functions
          |> List.find ~f:(fun f -> name = f.fnName)

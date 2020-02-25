@@ -956,13 +956,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let hcache =
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
-                 let value = FluidPrinter.eToHumanString h.ast in
+                 let value =
+                   FluidPrinter.eToHumanString (FluidAST.toExpr h.ast)
+                 in
                  cache |> TLIDDict.insert ~tlid:h.hTLID ~value)
         in
         let searchCache =
           userFunctions
           |> List.foldl ~init:hcache ~f:(fun f cache ->
-                 let value = FluidPrinter.eToHumanString f.ufAST in
+                 let value =
+                   FluidPrinter.eToHumanString (FluidAST.toExpr f.ufAST)
+                 in
                  cache |> TLIDDict.insert ~tlid:f.ufTLID ~value)
         in
         ({m with searchCache}, Cmd.none)
@@ -1725,7 +1729,7 @@ let update_ (msg : msg) (m : model) : modification =
       let pos = center in
       let ast = FluidExpression.EBlank (gid ()) in
       let aHandler =
-        { ast
+        { ast = FluidAST.ofExpr ast
         ; spec =
             { space = B.newF space
             ; name = B.newF path

@@ -554,7 +554,8 @@ let handlerSpec j : handlerSpec =
 
 
 let handler pos j : handler =
-  { ast = field "ast" (fun j -> expr j |> OldExpr.toFluidExpr) j
+  { ast =
+      field "ast" (fun j -> expr j |> OldExpr.toFluidExpr |> FluidAST.ofExpr) j
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
   ; pos }
@@ -626,7 +627,7 @@ let userFunctionMetadata j : userFunctionMetadata =
 let userFunction j : userFunction =
   { ufTLID = field "tlid" tlid j
   ; ufMetadata = field "metadata" userFunctionMetadata j
-  ; ufAST = field "ast" expr j |> OldExpr.toFluidExpr }
+  ; ufAST = field "ast" expr j |> OldExpr.toFluidExpr |> FluidAST.ofExpr }
 
 
 let fof j : fourOhFour =

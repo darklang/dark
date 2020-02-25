@@ -228,7 +228,7 @@ and handlerSpace =
   | HSDeprecatedOther
 
 and handler =
-  { ast : FluidExpression.t
+  { ast : FluidAST.t
   ; spec : handlerSpec
   ; hTLID : tlid
   ; pos : pos }
@@ -290,7 +290,7 @@ and userFunctionMetadata =
 and userFunction =
   { ufTLID : tlid
   ; ufMetadata : userFunctionMetadata
-  ; ufAST : FluidExpression.t }
+  ; ufAST : FluidAST.t }
 
 and userRecordField =
   { urfName : string blankOr

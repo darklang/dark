@@ -18,7 +18,7 @@ type viewState = ViewUtils.viewState
 
 type ast = E.t
 
-let exprToClipboardContents (expr : E.t) : Js.Json.t =
+let exprToClipboardContents (expr : FluidExpression.t) : Js.Json.t =
   (* The text here comes from the selected text *)
   Encoders.fluidExpr expr
 

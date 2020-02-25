@@ -75,11 +75,13 @@ type modifierKeys =
   ; metaKey : bool
   ; ctrlKey : bool }
 
-let processMsg (inputs : fluidInputEvent list) (s : fluidState) (ast : ast) :
-    E.t * fluidState =
-  let h = Fluid_utils.h ast in
+let processMsg
+    (inputs : fluidInputEvent list)
+    (s : fluidState)
+    (astExpr : FluidExpression.t) : FluidAST.t * fluidState =
+  let h = Fluid_utils.h astExpr in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
-  List.foldl inputs ~init:(ast, s) ~f:(fun input (ast, s) ->
+  List.foldl inputs ~init:(h.ast, s) ~f:(fun input (ast, s) ->
       updateMsg m h.hTLID ast (FluidInputEvent input) s)
 
 
@@ -120,7 +122,7 @@ let process
     Js.log2 "expr before" (eToStructure ~includeIDs:true ast) ) ;
   let newAST, newState = processMsg inputs s ast in
   let result =
-    match newAST with
+    match FluidAST.toExpr newAST with
     | EIf (_, _, expr, _) when wrap ->
         expr
     | expr when not wrap ->
@@ -1922,7 +1924,7 @@ let run () =
           let newAST, _newState =
             processMsg [keypress ~shiftHeld:false K.Enter] s ast
           in
-          expect (Printer.eToTestcase newAST)
+          expect (Printer.eToTestcase (FluidAST.toExpr newAST))
           |> toEqual "(let' \"\" (b) (binop \"+\" (int 1) (int 2)))") ;
       t
         ~expectsPartial:true
@@ -3581,7 +3583,7 @@ let run () =
                updateMsg
                  m
                  tlid
-                 ast
+                 h.ast
                  (FluidMouseUp {tlid; editorId = None; selection = Some (18, 18)})
                  m.fluidState
              in
@@ -3592,10 +3594,11 @@ let run () =
           let s = defaultTestState in
           expect
             ( moveTo 19 s
-            |> (fun s -> updateKey (keypress K.Down) ast s)
-            |> (fun (ast, s) -> processMsg [DeleteContentBackward] s ast)
+            |> (fun s -> updateKey (keypress K.Down) (FluidAST.ofExpr ast) s)
+            |> (fun (ast, s) ->
+                 ast |> FluidAST.toExpr |> processMsg [DeleteContentBackward] s)
             |> fun (ast, s) ->
-            match (toString ast, s.ac.index) with
+            match (toString (FluidAST.toExpr ast), s.ac.index) with
             | "let request = 1\nre", Some 0 ->
                 true
             | _ ->
@@ -3617,7 +3620,7 @@ let run () =
       let s = defaultTestState in
       let tokens = Printer.tokenize complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
-      let ast = complexExpr in
+      let ast = complexExpr |> FluidAST.ofExpr in
       test "gridFor - 1" (fun () ->
           expect (gridFor ~pos:116 tokens) |> toEqual {row = 2; col = 2}) ;
       test "gridFor - 2" (fun () ->
@@ -3719,14 +3722,14 @@ let run () =
                   let m =
                     {defaultTestModel with handlers = Handlers.fromList [h]}
                   in
-                  updateAutocomplete m h.hTLID ast s)
-             |> (fun s -> updateMouseClick 0 ast s)
+                  updateAutocomplete m h.hTLID h.ast s)
+             |> (fun s -> updateMouseClick 0 (FluidAST.ofExpr ast) s)
              |> fun (ast, _) ->
-             match ast with
+             match FluidAST.toExpr ast with
              | ELet (_, _, EBool (_, false), _) ->
                  "success"
-             | _ ->
-                 eToStructure ast)
+             | e ->
+                 eToStructure e)
           |> toEqual "success") ;
       t
         "moving right off a function autocompletes it anyway"
@@ -3754,7 +3757,7 @@ let run () =
           expect
             (let ast = b in
              moveTo 0 s
-             |> (fun s -> updateKey (InsertText "r") ast s)
+             |> (fun s -> updateKey (InsertText "r") (FluidAST.ofExpr ast) s)
              |> (fun (ast, s) -> updateKey (keypress K.Escape) ast s)
              |> fun (_, s) -> s.ac.index)
           |> toEqual None) ;
@@ -3762,7 +3765,7 @@ let run () =
           expect
             (let ast = b in
              moveTo 0 s
-             |> (fun s -> updateKey (InsertText "r") ast s)
+             |> (fun s -> updateKey (InsertText "r") (FluidAST.ofExpr ast) s)
              |> (fun (ast, s) -> updateKey (keypress K.Escape) ast s)
              |> fun (_, s) -> s.ac.index)
           |> toEqual None) ;

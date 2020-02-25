@@ -8,11 +8,12 @@ module E = FluidExpression
 type editorViewState =
   { tlid : tlid
   ; editorId : string option
-  ; tree : E.tree
+  ; expr : E.t
   ; printerOpts : FluidPrinter.Options.t }
 
 type viewState =
   { tl : toplevel
+  ; ast : FluidAST.t
   ; tokens : fluidTokenInfo list
   ; cursorState : cursorState
   ; tlid : tlid
@@ -59,11 +60,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
   let traceID = Analysis.getSelectedTraceID m tlid in
-  let ast = TL.getAST tl |> Option.withDefault ~default:(E.newB ()) in
+  let ast =
+    TL.getAST tl |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
+  in
   let mainEditor =
     { tlid
     ; editorId = None
-    ; tree = E.Subtree ast
+    ; expr = FluidAST.toExpr ast
     ; printerOpts = FluidPrinter.Options.default }
   in
   let ffEnabled = List.member m.tests ~value:FeatureFlagVariant in
@@ -76,22 +79,23 @@ let createVS (m : model) (tl : toplevel) : viewState =
             | FeatureFlagView ->
                 FluidPrinter.Options.featureFlagPanel
           in
-          let tree =
-            E.find e.expressionId ast
-            |> Option.map ~f:(fun t -> E.Subtree t)
+          let expr =
+            ast
+            |> FluidAST.find e.expressionId
             |> recoverOpt
-                 ~default:(E.Subtree (E.newB ()))
+                 ~default:(E.newB ())
                  (Printf.sprintf
                     "failed to find expr %s for editor %s"
                     (e.expressionId |> deID)
                     e.id)
           in
-          Some {tlid; editorId = Some e.id; tree; printerOpts}
+          Some {tlid; editorId = Some e.id; expr; printerOpts}
         else None)
   in
   { tl
+  ; ast
   ; tlid
-  ; tokens = FluidPrinter.tokenize ast
+  ; tokens = FluidPrinter.tokenize (FluidAST.toExpr ast)
   ; cursorState = unwrapCursorState m.cursorState
   ; hovering =
       m.hovering

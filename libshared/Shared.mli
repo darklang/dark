@@ -1,6 +1,8 @@
 (* Unshared are the base types that are different between frontend and backend *)
 type id = UnsharedTypes.id [@@deriving show {with_path = false}, eq]
 
+val deID : id -> string
+
 type analysisID = UnsharedTypes.analysisID
 [@@deriving show {with_path = false}, eq]
 

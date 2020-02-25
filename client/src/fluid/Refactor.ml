@@ -21,7 +21,7 @@ let convertTipe (tipe : tipe) : tipe =
 let transformFnCalls
     (m : model) (uf : userFunction) (f : FluidExpression.t -> FluidExpression.t)
     : op list =
-  let transformCallsInAst ast =
+  let transformCallsInAst (ast : FluidAST.t) =
     let rec run e =
       match e with
       | E.EFnCall (_, name, _, _)
@@ -30,12 +30,12 @@ let transformFnCalls
       | other ->
           E.walk ~f:run other
     in
-    run ast
+    FluidAST.map ast ~f:run
   in
   let newHandlers =
     m.handlers
     |> TD.filterMapValues ~f:(fun h ->
-           let newAst = transformCallsInAst h.ast in
+           let newAst = h.ast |> transformCallsInAst in
            if newAst <> h.ast
            then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
            else None)
@@ -43,7 +43,7 @@ let transformFnCalls
   let newFunctions =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun uf_ ->
-           let newAst = transformCallsInAst uf_.ufAST in
+           let newAst = uf_.ufAST |> transformCallsInAst in
            if newAst <> uf_.ufAST
            then Some (SetFunction {uf_ with ufAST = newAst})
            else None)
@@ -84,7 +84,7 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
         (* e becomes
          * match _
          * _ ->  e
-         * _ -> _ 
+         * _ -> _
          *
          * (the empty line is b/c it's not always possible to add a new pattern
          * at the end of a match, but it's always possible to delete a pattern)
@@ -96,20 +96,20 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
           , [(newBlankPattern mid, e); (newBlankPattern mid, E.newB ())] )
   in
   TL.getAST tl
-  |> Option.map ~f:(E.update ~f:replacement id)
-  |> Option.map ~f:(TL.setASTMod tl)
+  |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
   |> Option.withDefault ~default:NoChange
 
 
 let takeOffRail (_m : model) (tl : toplevel) (id : id) : modification =
   TL.getAST tl
   |> Option.map ~f:(fun ast ->
-         FluidExpression.update id ast ~f:(function
-             | EFnCall (_, name, exprs, Rail) ->
-                 EFnCall (id, name, exprs, NoRail)
-             | e ->
-                 recover "incorrect id in takeoffRail" e))
-  |> Option.map ~f:(Toplevel.setASTMod tl)
+         ast
+         |> FluidAST.update id ~f:(function
+                | EFnCall (_, name, exprs, Rail) ->
+                    EFnCall (id, name, exprs, NoRail)
+                | e ->
+                    recover "incorrect id in takeoffRail" e)
+         |> TL.setASTMod tl)
   |> Option.withDefault ~default:NoChange
 
 
@@ -131,26 +131,22 @@ let putOnRail (m : model) (tl : toplevel) (id : id) : modification =
     |> Option.map ~f:(fun t -> t = TOption || t = TResult)
     |> Option.withDefault ~default:false
   in
-  TL.getAST tl
-  |> Option.map ~f:(fun ast ->
-         FluidExpression.update id ast ~f:(function
-             | EFnCall (_, name, exprs, NoRail) when isRailable name ->
-                 EFnCall (id, name, exprs, Rail)
-             | e ->
-                 e))
-  |> Option.map ~f:(Toplevel.setASTMod tl)
-  |> Option.withDefault ~default:NoChange
+  TL.modifyASTMod tl ~f:(fun ast ->
+      E.update id ast ~f:(function
+          | EFnCall (_, name, exprs, NoRail) when isRailable name ->
+              EFnCall (id, name, exprs, Rail)
+          | e ->
+              e))
 
 
 let extractVarInAst
     (m : model) (tl : toplevel) (id : id) (varname : string) (ast : fluidExpr) :
     fluidExpr =
-  let module E = FluidExpression in
   let traceID = Analysis.getSelectedTraceID m (TL.id tl) in
   match E.find id ast with
   | Some e ->
       let lastPlaceWithSameVarsAndValues =
-        let ancestors = AST.ancestors id ast in
+        let ancestors = E.ancestors id ast in
         let freeVariables =
           AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
         in
@@ -188,17 +184,13 @@ let extractVarInAst
 
 let extractVariable (m : model) (tl : toplevel) (id : id) : modification =
   let varname = "var" ^ string_of_int (Util.random ()) in
-  TL.getAST tl
-  |> Option.map ~f:(extractVarInAst m tl id varname)
-  |> Option.map ~f:(TL.setASTMod tl)
-  |> Option.withDefault ~default:NoChange
+  TL.modifyASTMod tl ~f:(extractVarInAst m tl id varname)
 
 
 let extractFunction (m : model) (tl : toplevel) (id : id) : modification =
-  let open FluidExpression in
   let tlid = TL.id tl in
   let ast = TL.getAST tl in
-  match (ast, Option.andThen ast ~f:(E.find id)) with
+  match (ast, Option.andThen ast ~f:(FluidAST.find id)) with
   | Some ast, Some body ->
       let name = generateFnName () in
       let glob = TL.allGloballyScopedVarnames m.dbs in
@@ -207,10 +199,10 @@ let extractFunction (m : model) (tl : toplevel) (id : id) : modification =
         |> List.filter ~f:(fun (_, v) -> not (List.member ~value:v glob))
       in
       let paramExprs =
-        List.map ~f:(fun (_, name_) -> EVariable (gid (), name_)) freeVars
+        List.map ~f:(fun (_, name_) -> E.EVariable (gid (), name_)) freeVars
       in
-      let replacement = EFnCall (gid (), name, paramExprs, NoRail) in
-      let newAST = E.replace ~replacement id ast in
+      let replacement = E.EFnCall (gid (), name, paramExprs, NoRail) in
+      let newAST = FluidAST.replace ~replacement id ast in
       let astOp = TL.setASTMod tl newAST in
       let params =
         List.map freeVars ~f:(fun (id, name_) ->
@@ -236,7 +228,7 @@ let extractFunction (m : model) (tl : toplevel) (id : id) : modification =
       let newF =
         { ufTLID = gtlid ()
         ; ufMetadata = metadata
-        ; ufAST = FluidExpression.clone body }
+        ; ufAST = E.clone body |> FluidAST.ofExpr }
       in
       Many
         [ AddOps ([SetFunction newF], FocusExact (tlid, E.toID replacement))
@@ -323,7 +315,10 @@ let updateUsageCounts (m : model) : model =
                 Some 1))
   in
   let asts =
-    m |> TL.all |> TD.mapValues ~f:TL.getAST |> List.filterMap ~f:identity
+    m
+    |> TL.all
+    |> TD.mapValues ~f:TL.getAST
+    |> List.filterMap ~f:(Option.map ~f:FluidAST.toExpr)
   in
   (* Pretend it's one big AST *)
   let bigAst = EList (gid (), asts) in
@@ -407,7 +402,9 @@ let generateEmptyFunction (_ : unit) : userFunction =
     ; ufmReturnTipe = F (gid (), TAny)
     ; ufmInfix = false }
   in
-  {ufTLID = tlid; ufMetadata = metadata; ufAST = EBlank (gid ())}
+  { ufTLID = tlid
+  ; ufMetadata = metadata
+  ; ufAST = FluidAST.ofExpr (EBlank (gid ())) }
 
 
 let generateEmptyUserType () : userTipe =
@@ -454,14 +451,15 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
          match tl with
          | TLHandler h ->
              let newAST =
-               h.ast |> FluidExpression.renameVariableUses ~oldName ~newName
+               h.ast |> FluidAST.map ~f:(E.renameVariableUses ~oldName ~newName)
              in
              if newAST <> h.ast
              then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAST}))
              else None
          | TLFunc f ->
              let newAST =
-               f.ufAST |> FluidExpression.renameVariableUses ~oldName ~newName
+               f.ufAST
+               |> FluidAST.map ~f:(E.renameVariableUses ~oldName ~newName)
              in
              if newAST <> f.ufAST
              then Some (SetFunction {f with ufAST = newAST})
@@ -477,11 +475,10 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
 let reorderFnCallArgs
     (m : model) (tlid : tlid) (fnName : string) (oldPos : int) (newPos : int) :
     modification list =
-  let astMods =
-    Introspect.allUsedIn tlid m
-    |> List.filterMap ~f:(fun tl ->
-           match TL.getAST tl with Some ast -> Some (tl, ast) | None -> None)
-    |> List.map ~f:(fun (tl, ast) ->
-           TL.setASTMod tl (AST.reorderFnCallArgs fnName oldPos newPos ast))
-  in
-  astMods
+  Introspect.allUsedIn tlid m
+  |> List.filterMap ~f:(fun tl ->
+         match TL.getAST tl with Some ast -> Some (tl, ast) | None -> None)
+  |> List.map ~f:(fun (tl, ast) ->
+         ast
+         |> FluidAST.map ~f:(AST.reorderFnCallArgs fnName oldPos newPos)
+         |> TL.setASTMod tl)

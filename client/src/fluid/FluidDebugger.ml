@@ -4,25 +4,12 @@ module Printer = FluidPrinter
 module Expression = FluidExpression
 module Token = FluidToken
 
-let view (m : model) (ast : Expression.t) : Types.msg Html.html =
+let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
   let s = m.fluidState in
   (* this is a bit of a hack to find the correct sub-expression based on the
    * active editor panel within the TL. It would be better if we somehow had
    * access to the editor's viewState, but we don't. *)
-  let tokens =
-    let expr =
-      match s.activeEditor with
-      | Some id ->
-          List.find s.extraEditors ~f:(fun e -> e.id = id)
-          |> Option.andThen ~f:(fun e -> Expression.find e.expressionId ast)
-          |> recoverOpt
-               ~default:(Expression.newB ())
-               ("debugger: could not find expression for activeEditor " ^ id)
-      | None ->
-          ast
-    in
-    Printer.tokenize expr
-  in
+  let tokens = Fluid.exprOfFocusedEditor ast m.fluidState |> Printer.tokenize in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =
@@ -52,7 +39,7 @@ let view (m : model) (ast : Expression.t) : Types.msg Html.html =
             |> Option.map ~f:deTLID
             |> Option.withDefault ~default:"None" ) ]
     ; dtText "ast root"
-    ; Html.dd [] [Html.text (Expression.toID ast |> deID)]
+    ; Html.dd [] [Html.text (FluidAST.toID ast |> deID)]
     ; dtText "active editor"
     ; Html.dd
         []
