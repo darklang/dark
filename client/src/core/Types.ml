@@ -1100,7 +1100,7 @@ and modification =
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
   | AutocompleteMod of autocompleteMod
   | Many of modification list
-  | Drag of tlid * vPos * hasMoved * cursorState
+  | DragTL of tlid * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
   | EndIntegrationTest
   | SetCursorState of cursorState
