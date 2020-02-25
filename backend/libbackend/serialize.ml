@@ -267,12 +267,18 @@ let load_only_rendered_tlids
     ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
     rendered_oplist_cache_query_result =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
+  (* We specifically only load where `deleted` IS FALSE (even though the column is nullable). This
+   * means we will not load undeleted handlers from the cache if we've never written their `deleted` state. This
+   * is less efficient, but still correct, as they'll still be loaded via their oplist. It avoids loading deleted
+   * handlers that have had their cached version written but never their deleted state, which could be true for
+   * some handlers that were touched between the addition of the `rendered_oplist_cache` column and the addition
+   * of the `deleted` column. *)
   Db.fetch
     ~name:"load_only_rendered_tlids"
     "SELECT rendered_oplist_cache FROM toplevel_oplists
       WHERE canvas_id = $1
       AND tlid = ANY (string_to_array($2, $3)::bigint[])
-      AND deleted IS NOT TRUE"
+      AND deleted IS FALSE"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2rendered_oplist_cache_query_result
