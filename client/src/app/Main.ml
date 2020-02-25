@@ -830,7 +830,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m = Analysis.setSelectedTraceID m tlid traceID in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, afCmd)
-    | Drag (tlid, offset, hasMoved, state) ->
+    | DragTL (tlid, offset, hasMoved, state) ->
         (* Because mouseEvents are not perfectly reliable, we can end up in
          * weird dragging states. If we start dragging, make sure the state
          * we're in before isnt also dragging. *)
@@ -1079,7 +1079,7 @@ let update_ (msg : msg) (m : model) : modification =
               , TD.values m2.dbs
               , TD.values m2.groups
               , true )
-          ; Drag
+          ; DragTL
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
               , true
@@ -1094,7 +1094,7 @@ let update_ (msg : msg) (m : model) : modification =
         | Some (TLFunc _) | Some (TLTipe _) | None ->
             NoChange
         | Some (TLHandler _) | Some (TLDB _) | Some (TLGroup _) ->
-            Drag (targetTLID, event.mePos, false, m.cursorState)
+            DragTL (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
   | TLDragRegionMouseUp (tlid, event) ->
       if event.button = Defaults.leftButton
