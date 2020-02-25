@@ -414,17 +414,10 @@ let analyzeFocused (m : model) : model * msg Cmd.t =
   match tlidOf m.cursorState with
   | Some tlid ->
       let trace =
-        match getSelectedTraceID m tlid with
-        | Some traceID ->
-            let trace = getTrace m tlid traceID in
-            (* If we failed to get a trace, we don't want to throw away knowledge of the
-             * traceID *)
-            let trace =
-              Option.withDefault ~default:(traceID, Error NoneYet) trace
-            in
-            Some trace
-        | None ->
-            None
+        getSelectedTraceID m tlid
+        |> Option.andThen ~f:(fun traceID ->
+               getTrace m tlid traceID
+               |> Option.orElse (Some (traceID, Error NoneYet)))
       in
       ( match trace with
       | Some (traceID, Error _) ->
