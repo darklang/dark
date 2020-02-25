@@ -53,7 +53,8 @@
     "@opam/dune": "*",
     "@opam/merlin": "3.3.3",
     "@opam/ocp-indent": "1.8.1",
-    "@opam/ocamlformat": "0.12"
+    "@opam/ocamlformat": "0.12",
+    "ppx-deriving": "44.1.1"
   },
   "resolutions": {
     "@opam/conf-libev": "esy-packages/libev:package.json#0b5eb6685b688649045aceac55dc559f6f21b829",
