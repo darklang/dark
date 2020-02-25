@@ -2552,6 +2552,22 @@ let idOfASTRef (astRef : astRef) : id option =
       None
 
 
+(** [itemsAtCurrAndNextIndex lst idx] produces Some tuple of the
+ * item at the given [idx] and at [idx + 1]. If either of the
+ * indices is not present in the list, it returns None.
+ *)
+let rec itemsAtCurrAndNextIndex (lst : 'a list) (idx : int) : ('a * 'a) option =
+  match lst with
+  | [] | [_] ->
+      None
+  | a :: (b :: _ as rest) ->
+      if idx > 0
+      then (itemsAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
+      else if idx = 0
+      then Some (a, b)
+      else None
+
+
 (* [doExplicitBackspace [currCaretTarget] [ast]] produces the
  * (newAST, newPosition) tuple resulting from performing
  * a backspace-style deletion at [currCaretTarget] in the
@@ -2644,18 +2660,6 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
         then Some (Expr newExpr, {astRef = currAstRef; offset = 0})
         else Some (Expr newExpr, currCTMinusOne)
     | ARLambda (_, LBPComma varAndSepIdx), ELambda (id, oldVars, oldExpr) ->
-        let rec itemsAtCurrAndNextIndex (lst : 'a list) (idx : int) :
-            ('a * 'a) option =
-          match lst with
-          | [] | [_] ->
-              None
-          | a :: (b :: _ as rest) ->
-              if idx > 0
-              then (itemsAtCurrAndNextIndex [@tailcall]) rest (idx - 1)
-              else if idx = 0
-              then Some (a, b)
-              else None
-        in
         itemsAtCurrAndNextIndex oldVars varAndSepIdx
         |> Option.map ~f:(fun ((_, keepVarName), (_, deleteVarName)) ->
                (* remove expression in front of sep, not behind it, hence + 1 *)
@@ -2670,16 +2674,21 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : ast) :
              ~debug:(varAndSepIdx, oldVars)
              ~default:None
     | ARList (_, LPComma elemAndSepIdx), EList (id, exprs) ->
-        let target =
-          List.getAt ~index:elemAndSepIdx exprs
-          |> Option.map ~f:(fun expr -> caretTargetForEndOfExpr' expr)
+        let newExpr, target =
+          itemsAtCurrAndNextIndex exprs elemAndSepIdx
+          |> Option.map ~f:(fun (beforeComma, afterComma) ->
+                 mergeExprs beforeComma afterComma)
           |> Option.withDefault
-               ~default:{astRef = ARList (id, LPOpen); offset = 1}
+               ~default:(E.newB (), {astRef = ARList (id, LPOpen); offset = 1})
         in
-        (* remove expression in front of sep, not behind it, hence + 1 *)
-        Some
-          ( Expr (EList (id, List.removeAt ~index:(elemAndSepIdx + 1) exprs))
-          , target )
+        let newExprs =
+          (* Considering a is the item at elemAndSepIdx and b is at elemAndSepIdx + 1,
+           * we merge a and b in [...a,b...] by replacing a with ab and removing b *)
+          exprs
+          |> List.updateAt ~index:elemAndSepIdx ~f:(fun _ -> newExpr)
+          |> List.removeAt ~index:(elemAndSepIdx + 1)
+        in
+        Some (Expr (EList (id, newExprs)), target)
     | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
       when E.isEmpty expr ->
         mkEBlank ()
