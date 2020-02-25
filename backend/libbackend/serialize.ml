@@ -268,7 +268,7 @@ let load_only_rendered_tlids
     rendered_oplist_cache_query_result =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   (* We specifically only load where `deleted` IS FALSE (even though the column is nullable). This
-   * means we will not undeleted handlers from the cache if we've never written their `deleted` state. This
+   * means we will not load undeleted handlers from the cache if we've never written their `deleted` state. This
    * is less efficient, but still correct, as they'll still be loaded via their oplist. It avoids loading deleted
    * handlers that have had their cached version written but never their deleted state, which could be true for
    * some handlers that were touched between the addition of the `rendered_oplist_cache` column and the addition
