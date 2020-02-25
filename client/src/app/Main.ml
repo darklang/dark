@@ -1162,8 +1162,9 @@ let update_ (msg : msg) (m : model) : modification =
       ( match m.cursorState with
       | Deselected ->
           select targetID
-      | DraggingTL (_, _, _, origCursorState) ->
-          SetCursorState origCursorState
+      | DraggingTL (_, _, _, prevCursorState)
+      | PanningCanvas {prevCursorState; _} ->
+          SetCursorState prevCursorState
       | Entering cursor ->
           let defaultBehaviour = select targetID in
           ( match cursor with

@@ -221,6 +221,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             NoChange )
       | _ ->
           NoChange )
+    | PanningCanvas _ ->
+        NoChange
     | DraggingTL (_, _, _, _) ->
         NoChange
     | FluidEntering _ ->

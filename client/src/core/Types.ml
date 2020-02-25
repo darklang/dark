@@ -536,6 +536,7 @@ and cursorState =
   | Entering of entryCursor
   | FluidEntering of tlid
   | DraggingTL of tlid * vPos * hasMoved * cursorState
+  | PanningCanvas of {viewportStart: vPos; viewportCurr: vPos; prevCursorState: cursorState}
   | Deselected
 
 (* ------------------- *)
