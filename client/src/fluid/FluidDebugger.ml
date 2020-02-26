@@ -120,7 +120,12 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
   let cursorState =
     [dtText "cursorState"; ddText (show_cursorState m.cursorState)]
   in
-  let lastMod = [dtText "lastMod"; ddText (show_modification m.lastMod)] in
+  let lastMod =
+    [ dtText "lastMods"
+    ; Html.ul
+        []
+        (List.map m.lastMods ~f:(fun mod' -> Html.li [] [Html.text mod'])) ]
+  in
   let status =
     List.concat [posData; error; tokenData; actions; cursorState; lastMod]
   in
