@@ -42,8 +42,12 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   (* we capture and ignore mouseup here, otherwise clicking things inside the
    * toplevel (but not inside another element with a mouseup handler like
    * .fluid-editor) will bubble up into a "focus canvas" message and deselect
-   * our toplevel. *)
-  let events = [ViewUtils.nothingMouseEvent "mouseup"] in
+   * our toplevel. Since we capture mouseup, we must capture mousedown as well,
+   * otherwise mousedown will begin canvas panning, but mouseup won't stop it. *)
+  let events =
+    [ ViewUtils.nothingMouseEvent "mouseup"
+    ; ViewUtils.nothingMouseEvent "mousedown" ]
+  in
   (* This is a bit ugly - DBs have a larger 'margin' (not CSS margin) between
    * the encompassing toplevel div and the db div it contains, than  handlers.
    * Which leads to it being easy to hit "why won't this drag" if you click in
