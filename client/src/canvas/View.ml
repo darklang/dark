@@ -397,10 +397,10 @@ let accountView (m : model) : msg Html.html =
 
 let view (m : model) : msg Html.html =
   let eventListeners : domEventList =
-    [ ViewUtils.eventPreventDefault ~key:"app-md" "mousedown" (fun x ->
-          AppMouseDown x)
-    ; ViewUtils.eventPreventDefault ~key:"app-mu" "mouseup" (fun x ->
-          AppMouseUp x) ]
+    (* We don't want propagation because we don't want to double-handle these events and
+     * window has its own listeners. *)
+    [ ViewUtils.eventNeither ~key:"app-md" "mousedown" (fun x -> AppMouseDown x)
+    ; ViewUtils.eventNeither ~key:"app-mu" "mouseup" (fun x -> AppMouseUp x) ]
   in
   let activeVariantsClass =
     match VariantTesting.activeCSSClasses m with
