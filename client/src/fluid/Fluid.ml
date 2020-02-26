@@ -5195,15 +5195,14 @@ let fluidDataFromModel m : (fluidState * FluidAST.t) option =
 let getCopySelection (m : model) : clipboardContents =
   fluidDataFromModel m
   |> Option.andThen ~f:(fun (state, ast) ->
-         let range = getSelectionRange state in
+         let from, to_ = getSelectionRange state in
          let editorExpr = exprOfFocusedEditor ast state in
-         let expr = reconstructExprFromRange editorExpr range in
-         let js = Option.map expr ~f:Clipboard.exprToClipboardContents in
          let text =
-           Option.map expr ~f:(fun e ->
-               let asText = FluidPrinter.eToHumanString e in
-               match range with from, to_ -> String.slice ~from ~to_ asText)
-           |> Option.withDefault ~default:""
+           FluidPrinter.eToHumanString editorExpr |> String.slice ~from ~to_
+         in
+         let js =
+           reconstructExprFromRange editorExpr (from, to_)
+           |> Option.map ~f:Clipboard.exprToClipboardContents
          in
          Some (text, js))
   |> Option.withDefault ~default:("", None)
