@@ -1,6 +1,5 @@
 open Tc
 
-
 let clickEvent (fn : Types.mouseEvent -> 'a) j : 'a =
   fn
     { mePos =
@@ -19,6 +18,7 @@ let clickEvent (fn : Types.mouseEvent -> 'a) j : 'a =
     ; altKey = Json.Decode.field "altKey" Json.Decode.bool j
     ; detail = Json.Decode.field "detail" Json.Decode.int j }
 
+
 (* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format *)
 let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
   let open Json.Decode in
@@ -33,45 +33,48 @@ let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
         | e ->
             Tea_result.Error ("Json error: " ^ Printexc.to_string e) ))
 
-let registerGlobal name key tagger decoder =
+
+let registerGlobal eventName key tagger decoder =
   let open Vdom in
   let enableCall callbacks_base =
     let callbacks = ref callbacks_base in
-    let fn ev =
+    let fn event =
       let open Tea_json.Decoder in
-      match decodeEvent decoder ev with
+      match decodeEvent decoder event with
       | Tea_result.Error err ->
-          Some (Types.EventDecoderError (name, key, err))
-      | Tea_result.Ok pos ->
-          Some (tagger pos)
+          Some (Types.EventDecoderError (eventName, key, err))
+      | Tea_result.Ok data ->
+          Some (tagger data)
     in
     let handler = EventHandlerCallback (key, fn) in
     let elem = Web_node.document_node in
-    let cache = eventHandler_Register callbacks elem name handler in
-    fun () -> ignore (eventHandler_Unregister elem name cache)
+    let cache = eventHandler_Register callbacks elem eventName handler in
+    fun () -> ignore (eventHandler_Unregister elem eventName cache)
   in
   Tea_sub.registration key enableCall
+
 
 external window_node : Web_node.t = "window" [@@bs.val]
 
-let registerWindowGlobal name key decoder =
+let registerWindowGlobal eventName key decoder =
   let open Vdom in
   let enableCall callbacks_base =
     let callbacks = ref callbacks_base in
-    let fn ev =
+    let fn event =
       let open Tea_json.Decoder in
-      match decodeEvent decoder ev with
+      match decodeEvent decoder event with
       | Tea_result.Error err ->
-          Some (Types.EventDecoderError (name, key, err))
-      | Tea_result.Ok pos ->
-          Some (pos)
+          Some (Types.EventDecoderError (eventName, key, err))
+      | Tea_result.Ok data ->
+          Some data
     in
     let handler = EventHandlerCallback (key, fn) in
     let elem = window_node in
-    let cache = eventHandler_Register callbacks elem name handler in
-    fun () -> ignore (eventHandler_Unregister elem name cache)
+    let cache = eventHandler_Register callbacks elem eventName handler in
+    fun () -> ignore (eventHandler_Unregister elem eventName cache)
   in
   Tea_sub.registration key enableCall
+
 
 (* Same, but no JSON decoding *)
 let registerGlobalDirect name key tagger =
