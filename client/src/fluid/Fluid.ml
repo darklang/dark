@@ -2440,7 +2440,7 @@ let updateFromACItem
           (ast, {astRef = ARInvalid; offset = 0})
   in
   let s = {s with ac = {s.ac with query = None}} in
-  (newAST, acMoveBasedOnKey key target s ast)
+  (newAST, acMoveBasedOnKey key target s newAST)
 
 
 let acEnter (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) (key : K.key) :
@@ -4697,11 +4697,12 @@ let getExpressionRangeAtCaret (state : fluidState) (ast : ast) :
   |> Option.map ~f:(fun (eStartPos, eEndPos) -> (eStartPos, eEndPos))
 
 
-let reconstructExprFromRange (expr : FluidExpression.t) (range : int * int) :
+let reconstructExprFromRange
+    (editorExpr : FluidExpression.t) (range : int * int) :
     FluidExpression.t option =
   (* prevent duplicates *)
   let open FluidExpression in
-  let expr = E.clone expr in
+  let editorExpr = E.clone editorExpr in
   (* a few helpers *)
   let toBool_ s =
     if s = "true"
@@ -4728,12 +4729,12 @@ let reconstructExprFromRange (expr : FluidExpression.t) (range : int * int) :
   let rec reconstruct ~topmostID (startPos, endPos) : E.t option =
     let topmostExpr =
       topmostID
-      |> Option.andThen ~f:(fun id -> E.find id expr)
+      |> Option.andThen ~f:(fun id -> E.find id editorExpr)
       |> Option.withDefault ~default:(EBlank (gid ()))
     in
     let tokens =
       (* simplify tokens to make them homogenous, easier to parse *)
-      tokensInRange startPos endPos expr
+      tokensInRange startPos endPos editorExpr
       |> List.map ~f:(fun ti ->
              let t = ti.token in
              let text =
@@ -4762,7 +4763,7 @@ let reconstructExprFromRange (expr : FluidExpression.t) (range : int * int) :
       | _ ->
           let exprID = E.toID expr in
           exprID
-          |> expressionRange expr
+          |> expressionRange editorExpr
           |> Option.andThen ~f:(fun (exprStartPos, exprEndPos) ->
                  (* ensure expression range is not totally outside selection range *)
                  if exprStartPos > endPos || exprEndPos < startPos
@@ -5018,7 +5019,7 @@ let reconstructExprFromRange (expr : FluidExpression.t) (range : int * int) :
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
-          tokensInRange startPos endPos expr
+          tokensInRange startPos endPos editorExpr
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
                  | TRecordFieldname
@@ -5130,7 +5131,7 @@ let reconstructExprFromRange (expr : FluidExpression.t) (range : int * int) :
     | EPipeTarget _ ->
         Some (EPipeTarget (gid ()))
   in
-  let topmostID = getTopmostSelectionID expr startPos endPos in
+  let topmostID = getTopmostSelectionID editorExpr startPos endPos in
   reconstruct ~topmostID (startPos, endPos)
 
 
