@@ -1213,6 +1213,7 @@ and msg =
   | AppMouseDown of mouseEvent
   | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]
   | AppMouseUp of mouseEvent
+  | WindowMouseUp of mouseEvent
   | TLDragRegionMouseDown of tlid * mouseEvent
   (* we have the actual node when TLDragRegionMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)

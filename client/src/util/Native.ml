@@ -1,5 +1,38 @@
 open Tc
 
+
+let clickEvent (fn : Types.mouseEvent -> 'a) j : 'a =
+  fn
+    { mePos =
+        (* We decode floats b/c newer Chromes may use floats instead of ints; we
+         * then truncate rather than moving to floats everywhere due to concerns
+         * about sending data back to browsers whose DOMs don't support float
+         * positions - see https://github.com/darklang/dark/pull/2016 for
+         * discussion, and
+         * https://drafts.csswg.org/cssom-view/#extensions-to-the-window-interface
+         * for the spec *)
+        { vx = Json.Decode.field "pageX" Json.Decode.float j |> truncate
+        ; vy = Json.Decode.field "pageY" Json.Decode.float j |> truncate }
+    ; button = Json.Decode.field "button" Json.Decode.int j
+    ; ctrlKey = Json.Decode.field "ctrlKey" Json.Decode.bool j
+    ; shiftKey = Json.Decode.field "shiftKey" Json.Decode.bool j
+    ; altKey = Json.Decode.field "altKey" Json.Decode.bool j
+    ; detail = Json.Decode.field "detail" Json.Decode.int j }
+
+(* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format *)
+let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
+  let open Json.Decode in
+  Decoder
+    (fun value ->
+      try Tea_result.Ok (fn value)
+      with e ->
+        Unshared.reportError "undecodable json" value ;
+        ( match e with
+        | DecodeError e | Json.ParseError e ->
+            Tea_result.Error e
+        | e ->
+            Tea_result.Error ("Json error: " ^ Printexc.to_string e) ))
+
 let registerGlobal name key tagger decoder =
   let open Vdom in
   let enableCall callbacks_base =
@@ -19,6 +52,26 @@ let registerGlobal name key tagger decoder =
   in
   Tea_sub.registration key enableCall
 
+external window_node : Web_node.t = "window" [@@bs.val]
+
+let registerWindowGlobal name key decoder =
+  let open Vdom in
+  let enableCall callbacks_base =
+    let callbacks = ref callbacks_base in
+    let fn ev =
+      let open Tea_json.Decoder in
+      match decodeEvent decoder ev with
+      | Tea_result.Error err ->
+          Some (Types.EventDecoderError (name, key, err))
+      | Tea_result.Ok pos ->
+          Some (pos)
+    in
+    let handler = EventHandlerCallback (key, fn) in
+    let elem = window_node in
+    let cache = eventHandler_Register callbacks elem name handler in
+    fun () -> ignore (eventHandler_Unregister elem name cache)
+  in
+  Tea_sub.registration key enableCall
 
 (* Same, but no JSON decoding *)
 let registerGlobalDirect name key tagger =
@@ -160,6 +213,11 @@ module Window = struct
 
     let listen ~key tagger =
       registerGlobal "windowFocusChange" key tagger decode
+  end
+
+  module Mouse = struct
+    let ups ~key constructor =
+      registerWindowGlobal "mouseup" key (wrapDecoder (clickEvent constructor))
   end
 end
 

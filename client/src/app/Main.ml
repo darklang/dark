@@ -1052,6 +1052,38 @@ let update_ (msg : msg) (m : model) : modification =
                 {viewportStart; viewportCurr = viewportNext; prevCursorState} ]
       | _ ->
           NoChange )
+  | WindowMouseUp event ->
+      Debug.loG "WindowMouseUp" event ;
+    ( match m.cursorState with
+      | PanningCanvas {viewportStart = _; viewportCurr = _; prevCursorState} ->
+          Debug.loG "->SetCursorState" prevCursorState ;
+          SetCursorState prevCursorState
+      | _ ->
+        ( match m.currentPage with
+        | FocusedFn tlid | FocusedType tlid ->
+            (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
+            let defaultBehaviour = Select (tlid, STTopLevelRoot) in
+            ( match unwrapCursorState m.cursorState with
+            | Entering (Filling _ as cursor) ->
+                (* If we click away from an entry box, commit it before doing the default behaviour *)
+                Many [Entry.commit m cursor; defaultBehaviour]
+            | _ ->
+                defaultBehaviour )
+        | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
+            if event.button = Defaults.leftButton
+            then
+              (* Clicking on the canvas should deselect the current selection on the main canvas *)
+              let defaultBehaviour = Deselect in
+              match unwrapCursorState m.cursorState with
+              | Deselected ->
+                  let openAt = Some (Viewport.toAbsolute m event.mePos) in
+                  Many [AutocompleteMod ACReset; Entry.openOmnibox ~openAt ()]
+              | Entering (Filling _ as cursor) ->
+                  (* If we click away from an entry box, commit it before doing the default behaviour *)
+                  Many [Entry.commit m cursor; defaultBehaviour]
+              | _ ->
+                  defaultBehaviour
+            else NoChange ) )
   | AppMouseUp event ->
       Debug.loG "AppMouseUp" event ;
       ( match m.cursorState with
@@ -2068,6 +2100,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     | _ ->
         []
   in
+  let windowMouseSubs = [Native.Window.Mouse.ups ~key:"win_mouse_up" (fun event -> WindowMouseUp event)] in
   let timers =
     if m.editorSettings.runTimers
     then
@@ -2129,7 +2162,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   in
   Tea.Sub.batch
     (List.concat
-       [ keySubs
+       [ windowMouseSubs
+       ; keySubs
        ; clipboardSubs
        ; dragSubs
        ; timers
