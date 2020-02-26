@@ -1506,7 +1506,9 @@ and fluidCommandState =
   ; location : (tlid * id) option
   ; filter : string option }
 
-and editorViewKind = FeatureFlagView
+and editorViewKind =
+  | MainView
+  | FeatureFlagView
 
 and editorView =
   { id : string
@@ -1537,7 +1539,7 @@ and fluidState =
        * have recently jumped to *)
       dval_source
   ; extraEditors : editorView list  (** TODO(ds) comment *)
-  ; activeEditor : string option }
+  ; activeEditorId : string option }
 
 (* Avatars *)
 and avatar =

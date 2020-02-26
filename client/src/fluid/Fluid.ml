@@ -43,7 +43,7 @@ let deselectFluidEditor (s : fluidState) : fluidState =
     oldPos = 0
   ; newPos = 0
   ; upDownCol = None
-  ; activeEditor = None
+  ; activeEditorId = None
   ; extraEditors = [] }
 
 
@@ -117,12 +117,36 @@ let rec getTokensAtPosition
       else getTokensAtPosition ~prev:(Some current) ~pos remaining
 
 
-let exprOfFocusedEditor (ast : FluidAST.t) (s : state) : FluidExpression.t =
-  s.activeEditor
-  |> Option.andThen ~f:(fun editorId ->
-         List.find s.extraEditors ~f:(fun e -> e.id = editorId)
-         |> Option.andThen ~f:(fun e -> FluidAST.find e.expressionId ast))
-  |> Option.withDefault ~default:(FluidAST.toExpr ast)
+let focusedEditor (ast : FluidAST.t) (s : fluidState) : editorView =
+  let main = {id = "main"; expressionId = FluidAST.toID ast; kind = MainView} in
+  match s.activeEditorId with
+  | None ->
+      main
+  | Some eid ->
+      List.find s.extraEditors ~f:(fun e -> e.id = eid)
+      |> recoverOpt
+           ("could not find editor " ^ eid ^ " in editor list")
+           ~default:main
+
+
+let exprOfFocusedEditor (ast : FluidAST.t) (s : fluidState) : FluidExpression.t
+    =
+  let editor = focusedEditor ast s in
+  FluidAST.find editor.expressionId ast
+  |> recoverOpt
+       ("cannot find expression for editor " ^ editor.id)
+       ~default:(FluidAST.toExpr ast)
+
+
+let tokensOfFocusedEditor (ast : FluidAST.t) (s : fluidState) :
+    FluidToken.tokenInfo list =
+  let editor = focusedEditor ast s in
+  let expr = exprOfFocusedEditor ast s in
+  match editor.kind with
+  | MainView ->
+      Printer.tokenize expr
+  | FeatureFlagView ->
+      Printer.tokenizeWithOptions Printer.Options.featureFlagPanel expr
 
 
 (* -------------------- *)
@@ -477,8 +501,7 @@ let goToStartOfWord
 let getEndOfWordPos
     ~(pos : int) (ast : FluidAST.t) (s : fluidState) (ti : T.tokenInfo) : int =
   let tokenInfo =
-    exprOfFocusedEditor ast s
-    |> FluidPrinter.tokenize
+    tokensOfFocusedEditor ast s
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
     |> Option.withDefault ~default:ti
   in
@@ -639,8 +662,7 @@ let doRight
 
 let doUp ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   let s = recordAction ~pos "doUp" s in
-  let expr = exprOfFocusedEditor ast s in
-  let tokens = Printer.tokenize expr in
+  let tokens = tokensOfFocusedEditor ast s in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   if row = 0
@@ -652,8 +674,7 @@ let doUp ~(pos : int) (ast : FluidAST.t) (s : state) : state =
 
 let doDown ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   let s = recordAction ~pos "doDown" s in
-  let expr = exprOfFocusedEditor ast s in
-  let tokens = Printer.tokenize expr in
+  let tokens = tokensOfFocusedEditor ast s in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
@@ -673,8 +694,7 @@ let doDown ~(pos : int) (ast : FluidAST.t) (s : state) : state =
    jump after a transformation. *)
 let posFromCaretTarget (s : fluidState) (ast : FluidAST.t) (ct : caretTarget) :
     int =
-  let editorExpr = exprOfFocusedEditor ast s in
-  let infos = Printer.tokenize editorExpr in
+  let infos = tokensOfFocusedEditor ast s in
   (* Essentially we're using List.findMap to map a function that
    * matches across astref,token combinations (exhaustively matching astref but not token)
    * to determine the corresponding caretPos.
@@ -2308,7 +2328,7 @@ let acMoveBasedOnKey
     (key : K.key) (currCaretTarget : caretTarget) (s : state) (ast : FluidAST.t)
     : state =
   let expr = exprOfFocusedEditor ast s in
-  let tokens = Printer.tokenize expr in
+  let tokens = tokensOfFocusedEditor ast s in
   let caretTarget : caretTarget =
     match key with
     | K.Tab ->
@@ -2552,8 +2572,7 @@ let adjustPosForReflow
    * the old token in the new token stream, and then doing the appropriate
    * adjustment. There are definitely places this won't work, but I haven't
    * found them yet. *)
-  let expr = exprOfFocusedEditor newAST state in
-  let newTokens = Printer.tokenize expr in
+  let newTokens = tokensOfFocusedEditor newAST state in
   let newTI = List.find newTokens ~f:(fun x -> T.matches oldTI.token x.token) in
   let diff =
     match newTI with Some newTI -> newTI.startPos - oldTI.startPos | None -> 0
@@ -3885,7 +3904,7 @@ let rec updateKey
     (ast : FluidAST.t)
     (s : fluidState) : FluidAST.t * state =
   let pos = s.newPos in
-  let tokens = exprOfFocusedEditor ast s |> Printer.tokenize in
+  let tokens = tokensOfFocusedEditor ast s in
   (* These might be the same token *)
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos tokens in
   let onEdge =
@@ -3964,7 +3983,7 @@ let rec updateKey
     | InsertText txt, L (TRightPartial (_, _), ti), _
       when onEdge && Util.isIdentifierChar txt ->
         let ast, s = acEnter ti ast s K.Tab in
-        let tokens = exprOfFocusedEditor ast s |> Printer.tokenize in
+        let tokens = tokensOfFocusedEditor ast s in
         getLeftTokenAt s.newPos (List.reverse tokens)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
         |> Option.withDefault ~default:(ast, s)
@@ -4477,7 +4496,7 @@ let rec updateKey
      *
      * TODO: there may be ways of getting the cursor to the end without going
      * through this code, if so we need to move it. *)
-    let tokens = exprOfFocusedEditor newAST newState |> Printer.tokenize in
+    let tokens = tokensOfFocusedEditor newAST newState in
     let text = Printer.tokensToString tokens in
     let last = List.last tokens in
     match last with
@@ -4600,7 +4619,7 @@ let updateAutocomplete
 
 let updateMouseClick (newPos : int) (ast : FluidAST.t) (s : fluidState) :
     FluidAST.t * fluidState =
-  let tokens = exprOfFocusedEditor ast s |> Printer.tokenize in
+  let tokens = tokensOfFocusedEditor ast s in
   let lastPos =
     tokens
     |> List.last
@@ -5210,7 +5229,7 @@ let getCopySelection (m : model) : clipboardContents =
 
 let updateMouseUp (s : fluidState) (ast : FluidAST.t) (eventData : fluidMouseUp)
     : FluidAST.t * fluidState =
-  let s = {s with midClick = false; activeEditor = eventData.editorId} in
+  let s = {s with midClick = false; activeEditorId = eventData.editorId} in
   let selection =
     eventData.selection |> Option.orElseLazy Entry.getFluidSelectionRange
   in

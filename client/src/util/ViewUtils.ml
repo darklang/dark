@@ -78,6 +78,10 @@ let createVS (m : model) (tl : toplevel) : viewState =
             match e.kind with
             | FeatureFlagView ->
                 FluidPrinter.Options.featureFlagPanel
+            | MainView ->
+                recover
+                  "should not have MainView editors in extraEditors list"
+                  FluidPrinter.Options.default
           in
           let expr =
             ast
