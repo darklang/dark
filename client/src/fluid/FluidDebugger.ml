@@ -40,7 +40,7 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
     ; dtText "active editor"
     ; Html.dd
         []
-        [Html.text (s.activeEditorId |> Option.withDefault ~default:"None")]
+        [Html.text (s.activeEditorId |> Option.withDefault ~default:"main")]
     ; dtText "editors"
     ; Html.dd
         []

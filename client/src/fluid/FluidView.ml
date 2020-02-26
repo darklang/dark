@@ -509,14 +509,13 @@ let fluidEditorView
                        { tlid
                        ; editorId = editor.editorId
                        ; selection =
-                           Fluid.getExpressionRangeAtCaret state editor.expr })
+                           Fluid.getExpressionRangeAtCaret vs.ast state })
               | {detail = 2; altKey = false; _} ->
                   FluidMsg
                     (FluidMouseUp
                        { tlid
                        ; editorId = editor.editorId
-                       ; selection =
-                           Fluid.getTokenRangeAtCaret state editor.expr })
+                       ; selection = Fluid.getTokenRangeAtCaret vs.ast state })
               | _ ->
                   recover
                     "detail was not 2 in the doubleclick event"

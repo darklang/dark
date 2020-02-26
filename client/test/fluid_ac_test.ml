@@ -214,9 +214,7 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
   let ti =
     match TL.get m tlid with
     | Some (TLHandler {ast; _}) | Some (TLFunc {ufAST = ast; _}) ->
-        ast
-        |> FluidAST.toExpr
-        |> Fluid.getToken {m.fluidState with newPos = pos}
+        Fluid.getToken ast {m.fluidState with newPos = pos}
         |> Option.withDefault ~default:defaultTokenInfo
     | _ ->
         defaultTokenInfo
