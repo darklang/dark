@@ -138,17 +138,13 @@ let exprOfFocusedEditor (ast : FluidAST.t) (s : fluidState) : FluidExpression.t
 
 let tokenizeForFocusedEditor (s : fluidState) (expr : FluidExpression.t) :
     FluidToken.tokenInfo list =
-  (* cheat and don't use focusedEditor so we don't need the entire FluidAST.t *)
   match focusedEditor s with
   | None ->
-      (* main editor, default tokenization *)
+      Printer.tokenize expr (* main editor, default tokenization *)
+  | Some {kind = MainView; _} ->
       Printer.tokenize expr
-  | Some editor ->
-    ( match editor.kind with
-    | MainView ->
-        Printer.tokenize expr
-    | FeatureFlagView ->
-        Printer.tokenizeWithOptions Printer.Options.featureFlagPanel expr )
+  | Some {kind = FeatureFlagView; _} ->
+      Printer.tokenizeWithOptions Printer.Options.featureFlagPanel expr
 
 
 let tokensOfFocusedEditor (ast : FluidAST.t) (s : fluidState) :
@@ -679,7 +675,7 @@ let doDown ~(pos : int) (ast : FluidAST.t) (s : state) : state =
 
    This is useful for determining the precise position to which the caret should
    jump after a transformation. *)
-let posFromCaretTarget (s : fluidState) (ast : FluidAST.t) (ct : caretTarget) :
+let posFromCaretTarget (ast : FluidAST.t) (s : fluidState) (ct : caretTarget) :
     int =
   let infos = tokensOfFocusedEditor ast s in
   (* Essentially we're using List.findMap to map a function that
@@ -915,18 +911,17 @@ let posFromCaretTarget (s : fluidState) (ast : FluidAST.t) (ct : caretTarget) :
 (** moveToCaretTarget returns a modified fluidState with newPos set to reflect
     the caretTarget. *)
 let moveToCaretTarget (s : fluidState) (ast : FluidAST.t) (ct : caretTarget) =
-  {s with newPos = posFromCaretTarget s ast ct}
+  {s with newPos = posFromCaretTarget ast s ct}
 
 
-(* caretTargetFromTokenInfo returns Some caretTarget corresponding to
-   the given top-level-global caret `pos`, with the precondition that
-   the pos is within the passed tokenInfo `ti`.
-   There are a few tokens that have no corresponding caretTarget.
-   In such cases, we return None instead.
+(** caretTargetFromTokenInfo returns Some caretTarget corresponding to
+  * the given top-level-global caret `pos`, with the precondition that
+  * the pos is within the passed tokenInfo `ti`.
+  * There are a few tokens that have no corresponding caretTarget.
+  * In such cases, we return None instead.
 
-   We attempt to ensure that a single caret target uniquely
-   identifies each pos.
- *)
+  * We attempt to ensure that a single caret target uniquely
+  * identifies each pos.  *)
 let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
     =
   let offset = pos - ti.startPos in
@@ -2335,7 +2330,7 @@ let acMoveBasedOnKey
           we currently do [aced|,___]
           but could do    [aced,|___]
         *)
-        let startPos = posFromCaretTarget s ast currCaretTarget in
+        let startPos = posFromCaretTarget ast s currCaretTarget in
         caretTargetForNextNonWhitespaceToken ~pos:startPos expr
         |> Option.withDefault ~default:currCaretTarget
     | _ ->
@@ -2570,7 +2565,7 @@ let adjustPosForReflow
   | Exactly pos, _ ->
       pos
   | AtTarget target, _ ->
-      posFromCaretTarget state newAST target
+      posFromCaretTarget newAST state target
 
 
 let idOfASTRef (astRef : astRef) : id option =
@@ -3918,12 +3913,12 @@ let rec updateKey
           true
       | Some e ->
           let id = E.toID e in
-          recurseUp (E.findParent id (FluidAST.toExpr ast)) id
+          recurseUp (FluidAST.findParent id ast) id
       | None ->
           false
     in
     let tid = T.tid token in
-    recurseUp (E.findParent tid (FluidAST.toExpr ast)) tid
+    recurseUp (FluidAST.findParent tid ast) tid
   in
   let newAST, newState =
     (* This match drives a big chunk of the change operations, but is
@@ -4496,7 +4491,7 @@ let rec updateKey
    *
    * We "commit the partial" using the old state, and then we do the action
    * again to make sure we go to the right place for the new canvas. *)
-  if recursing (* FIXME(ds) ofExpr is WRONG *)
+  if recursing
   then (newAST, newState)
   else
     let key =
@@ -5202,8 +5197,9 @@ let getCopySelection (m : model) : clipboardContents =
   |> Option.andThen ~f:(fun (state, ast) ->
          let from, to_ = getSelectionRange state in
          let text =
-           let editorExpr = exprOfFocusedEditor ast state in
-           FluidPrinter.eToHumanString editorExpr |> String.slice ~from ~to_
+           exprOfFocusedEditor ast state
+           |> FluidPrinter.eToHumanString
+           |> String.slice ~from ~to_
          in
          let js =
            reconstructExprFromRange ast m.fluidState (from, to_)

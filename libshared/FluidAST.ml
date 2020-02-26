@@ -1,6 +1,8 @@
 module E = FluidExpression
 
-type t = Root of E.t [@@deriving show {with_path = false}, eq]
+type t = Root of E.t
+
+let pp f (Root e) = E.pp f e
 
 let toExpr (Root e) = e
 

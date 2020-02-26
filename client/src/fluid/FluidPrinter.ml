@@ -10,11 +10,12 @@ type tokenInfo = Types.fluidTokenInfo
 
 module Options = struct
   type featureFlag =
-    (* FeatureFlagOnlyDisabled is used in the main editor panel to only show the flag's old code *)
     | FeatureFlagOnlyDisabled
-        (** FeatureFlagConditionAndEnabled is used in the secondary editor panel
-     * for editing a flag's condition and new code *)
+        (** FeatureFlagOnlyDisabled is used in the main editor panel to only
+          * show the flag's old code *)
     | FeatureFlagConditionAndEnabled
+        (** FeatureFlagConditionAndEnabled is used in the secondary editor
+          * panel for editing a flag's condition and new code *)
 
   type t = {featureFlags : featureFlag}
 

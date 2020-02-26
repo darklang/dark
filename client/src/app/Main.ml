@@ -452,7 +452,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                     Some
                       (Fluid.setPosition
                          state
-                         (Fluid.posFromCaretTarget state ast caretTarget))
+                         (Fluid.posFromCaretTarget ast state caretTarget))
                 | None ->
                     None
               in

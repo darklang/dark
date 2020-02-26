@@ -296,10 +296,15 @@ let feature_flag_in_function (m : model) : testResult =
 
 
 let rename_function (m : model) : testResult =
-  match m.handlers |> TD.values |> List.head with
-  | Some {ast = Root (EFnCall (_, "hello", _, _)); _} ->
+  match
+    m.handlers
+    |> TD.values
+    |> List.head
+    |> Option.map ~f:(fun h -> h.ast |> FluidAST.toExpr)
+  with
+  | Some (EFnCall (_, "hello", _, _)) ->
       pass
-  | Some {ast = Root expr; _} ->
+  | Some expr ->
       fail (show_fluidExpr expr)
   | None ->
       fail "no handlers"

@@ -1,6 +1,8 @@
 (** FluidAST.t is a way to differentiate between the entire AST of a handler/function
   * and a subtree of it. *)
-type t = Root of FluidExpression.t [@@deriving show {with_path = false}, eq]
+type t
+
+val pp : Format.formatter -> t -> unit
 
 (** [toExpr r] returns the expression of [r] *)
 val toExpr : t -> FluidExpression.t
