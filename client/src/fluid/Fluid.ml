@@ -24,15 +24,9 @@ module Util = FluidUtil
 module Clipboard = FluidClipboard
 module CT = CaretTarget
 
-type viewState = ViewUtils.viewState
-
 (* -------------------- *)
 (* Utils *)
 (* -------------------- *)
-
-(** ast indicates "a whole program" not just an arbitrary sub-expression
-  PLEASE USE FluidAST.t INSTEAD AND REPLACE USAGES OF THIS AS YOU FIND THEM *)
-type ast = E.t
 
 type token = T.t
 
@@ -531,19 +525,15 @@ let moveTo (newPos : int) (s : state) : state =
 
 (* Find first `target` expression (starting at the back), and return a state
  * with its location. If blank, will go to the start of the blank *)
-let moveToEndOfTarget (target : id) (editorExpr : FluidExpression.t) (s : state)
-    : state =
+let moveToEndOfTarget (ast : FluidAST.t) (s : state) (target : id) : state =
   let s = recordAction "moveToEndOfTarget" s in
-  let tokens = Printer.tokenize editorExpr in
+  let tokens = tokensOfFocusedEditor ast s in
   match
     List.find (List.reverse tokens) ~f:(fun ti ->
         FluidToken.tid ti.token = target)
   with
   | None ->
-      recover
-        "cannot find token to moveToEndOfTarget"
-        ~debug:(target, editorExpr)
-        s
+      recover "cannot find token to moveToEndOfTarget" ~debug:(target, ast) s
   | Some lastToken ->
       let newPos =
         if FluidToken.isBlank lastToken.token
@@ -1048,7 +1038,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       None
 
 
-let caretTargetForNextNonWhitespaceToken ~pos (ast : ast) : caretTarget option =
+let caretTargetForNextNonWhitespaceToken
+    ~pos (ast : FluidAST.t) (s : fluidState) : caretTarget option =
   let rec getNextWS tokens =
     match tokens with
     | [] ->
@@ -1062,7 +1053,7 @@ let caretTargetForNextNonWhitespaceToken ~pos (ast : ast) : caretTarget option =
           then getNextWS rest
           else caretTargetFromTokenInfo ti.startPos ti )
   in
-  Printer.tokenize ast |> getNextWS
+  tokensOfFocusedEditor ast s |> getNextWS
 
 
 (** moveToAstRef returns a modified fluidState with newPos set to reflect
@@ -1336,10 +1327,10 @@ let caretTargetForBeginningOfMatchBranch
  *
  * "end" is based on the definition of caretTargetForEndOfPattern
  *)
-let caretTargetForEndOfMatchPattern (matchID : id) (index : int) (ast : ast) :
-    caretTarget =
+let caretTargetForEndOfMatchPattern
+    (ast : FluidAST.t) (matchID : id) (index : int) : caretTarget =
   let maybeTarget =
-    match E.find matchID ast with
+    match FluidAST.find matchID ast with
     | Some (EMatch (_, _, branches)) ->
         branches
         |> List.getAt ~index
@@ -1502,12 +1493,12 @@ let insertInPlaceholderExpr
     ~(fnID : id)
     ~(placeholder : placeholder)
     ~(ins : string)
-    (ast : ast)
+    (ast : FluidAST.t)
     (functions : function_ list) : E.t * caretTarget =
   let newID = gid () in
   let lambdaArgs () =
     let fnname =
-      match E.find fnID ast with
+      match FluidAST.find fnID ast with
       | Some (E.EFnCall (_, name, _, _)) ->
           Some name
       | _ ->
@@ -2308,7 +2299,6 @@ let updatePosAndAC (ast : FluidAST.t) (newPos : int) (s : state) : state =
 let acMoveBasedOnKey
     (key : K.key) (currCaretTarget : caretTarget) (s : state) (ast : FluidAST.t)
     : state =
-  let expr = exprOfFocusedEditor ast s in
   let tokens = tokensOfFocusedEditor ast s in
   let caretTarget : caretTarget =
     match key with
@@ -2331,7 +2321,7 @@ let acMoveBasedOnKey
           but could do    [aced,|___]
         *)
         let startPos = posFromCaretTarget ast s currCaretTarget in
-        caretTargetForNextNonWhitespaceToken ~pos:startPos expr
+        caretTargetForNextNonWhitespaceToken ~pos:startPos ast s
         |> Option.withDefault ~default:currCaretTarget
     | _ ->
         currCaretTarget
@@ -2868,9 +2858,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
      * Immutable; just jump to the start
      *)
     | ARMatch (id, MPBranchArrow idx), expr ->
-        Some
-          ( Expr expr
-          , caretTargetForEndOfMatchPattern id idx (FluidAST.toExpr ast) )
+        Some (Expr expr, caretTargetForEndOfMatchPattern ast id idx)
     | ARIf (_, IPThenKeyword), expr
     | ARIf (_, IPElseKeyword), expr
     | ARLambda (_, LBPArrow), expr
@@ -4254,12 +4242,7 @@ let rec updateKey
          * doInsert handling, reconstructing the difference between placeholders
          * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
         let newExpr, newTarget =
-          insertInPlaceholderExpr
-            ~fnID
-            ~placeholder
-            ~ins
-            (FluidAST.toExpr ast)
-            s.ac.functions
+          insertInPlaceholderExpr ~fnID ~placeholder ~ins ast s.ac.functions
         in
         let newAST = FluidAST.replace blankID ~replacement:newExpr ast in
         (newAST, moveToCaretTarget s newAST newTarget)
@@ -5373,8 +5356,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                  None)
       |> Option.map ~f:(fun (tl, ast) ->
              let fluidState =
-               let expr = exprOfFocusedEditor ast s in
-               let fs = moveToEndOfTarget id expr s in
+               let fs = moveToEndOfTarget ast s id in
                {fs with errorDvSrc = SourceId id}
              in
              let moveMod =
