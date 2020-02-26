@@ -6,10 +6,7 @@ module Token = FluidToken
 
 let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
   let s = m.fluidState in
-  (* this is a bit of a hack to find the correct sub-expression based on the
-   * active editor panel within the TL. It would be better if we somehow had
-   * access to the editor's viewState, but we don't. *)
-  let tokens = Fluid.exprOfFocusedEditor ast m.fluidState |> Printer.tokenize in
+  let tokens = Fluid.tokensOfFocusedEditor ast m.fluidState in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =
@@ -43,7 +40,7 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
     ; dtText "active editor"
     ; Html.dd
         []
-        [Html.text (s.activeEditor |> Option.withDefault ~default:"None")]
+        [Html.text (s.activeEditorId |> Option.withDefault ~default:"None")]
     ; dtText "editors"
     ; Html.dd
         []

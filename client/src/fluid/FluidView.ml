@@ -548,7 +548,7 @@ let fluidEditorView
           else IgnoreMsg) ]
   in
   let idAttr =
-    if vs.fluidState.activeEditor = editor.editorId
+    if vs.fluidState.activeEditorId = editor.editorId
     then Attrs.id "active-editor"
     else Attrs.noProp
   in
