@@ -56,7 +56,7 @@ let defaultTLID = TLID "handler1"
 let defaultHandler =
   { hTLID = defaultTLID
   ; pos = {x = 0; y = 0}
-  ; ast = Root (EBlank (gid ()))
+  ; ast = FluidAST.ofExpr (EBlank (gid ()))
   ; spec =
       {space = B.newF "HTTP"; name = B.newF "/src"; modifier = B.newF "POST"} }
 
@@ -103,8 +103,8 @@ let run () =
           let res =
             match mod' with
             | AddOps ([SetHandler (_, _, h)], _) ->
-              ( match h.ast with
-              | Root (EFnCall (_, "Int::notResulty", [], NoRail)) ->
+              ( match FluidAST.toExpr h.ast with
+              | EFnCall (_, "Int::notResulty", [], NoRail) ->
                   true
               | _ ->
                   false )
@@ -123,16 +123,15 @@ let run () =
           let res =
             match mod' with
             | AddOps ([SetHandler (_, _, h)], _) ->
-              ( match h.ast with
-              | Root
-                  (EPipe
-                    ( _
-                    , [ EList (_, [])
-                      ; EFnCall
-                          ( _
-                          , "List::getAt_v2"
-                          , [EPipeTarget _; EInteger (_, "5")]
-                          , NoRail ) ] )) ->
+              ( match FluidAST.toExpr h.ast with
+              | EPipe
+                  ( _
+                  , [ EList (_, [])
+                    ; EFnCall
+                        ( _
+                        , "List::getAt_v2"
+                        , [EPipeTarget _; EInteger (_, "5")]
+                        , NoRail ) ] ) ->
                   true
               | _ ->
                   false )
@@ -146,8 +145,8 @@ let run () =
           let res =
             match mod' with
             | AddOps ([SetHandler (_, _, h)], _) ->
-              ( match h.ast with
-              | Root (EFnCall (_, "Result::resulty", [], Rail)) ->
+              ( match FluidAST.toExpr h.ast with
+              | EFnCall (_, "Result::resulty", [], Rail) ->
                   true
               | _ ->
                   false )
@@ -172,7 +171,7 @@ let run () =
       in
       test "datastore renamed, handler updates variable" (fun () ->
           let h =
-            { ast = Root (EVariable (ID "ast1", "ElmCode"))
+            { ast = FluidAST.ofExpr (EVariable (ID "ast1", "ElmCode"))
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
@@ -188,7 +187,7 @@ let run () =
                 ; ufmDescription = ""
                 ; ufmReturnTipe = B.new_ ()
                 ; ufmInfix = false }
-            ; ufAST = Root (EVariable (ID "ast3", "ElmCode")) }
+            ; ufAST = FluidAST.ofExpr (EVariable (ID "ast3", "ElmCode")) }
           in
           let model =
             { D.defaultModel with
@@ -200,9 +199,8 @@ let run () =
           let res =
             match List.sortBy ~f:Encoders.tlidOf ops with
             | [SetHandler (_, _, h); SetFunction f] ->
-              ( match (h.ast, f.ufAST) with
-              | ( FluidAST.Root (EVariable (_, "WeirdCode"))
-                , FluidAST.Root (EVariable (_, "WeirdCode")) ) ->
+              ( match (FluidAST.toExpr h.ast, FluidAST.toExpr f.ufAST) with
+              | EVariable (_, "WeirdCode"), EVariable (_, "WeirdCode") ->
                   true
               | _ ->
                   false )
@@ -212,7 +210,7 @@ let run () =
           expect res |> toEqual true) ;
       test "datastore renamed, handler does not change" (fun () ->
           let h =
-            { ast = Root (EVariable (ID "ast1", "request"))
+            { ast = FluidAST.ofExpr (EVariable (ID "ast1", "request"))
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"

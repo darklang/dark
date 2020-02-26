@@ -21,7 +21,7 @@ let aHandler
     () : toplevel =
   let space = match space with None -> B.new_ () | Some name -> B.newF name in
   let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  TLHandler {ast = Root expr; spec; hTLID = tlid; pos}
+  TLHandler {ast = FluidAST.ofExpr expr; spec; hTLID = tlid; pos}
 
 
 let aFn
@@ -38,7 +38,7 @@ let aFn
         ; ufmDescription = ""
         ; ufmReturnTipe = F (gid (), TAny)
         ; ufmInfix = false }
-    ; ufAST = Root expr }
+    ; ufAST = FluidAST.ofExpr expr }
 
 
 let run () =

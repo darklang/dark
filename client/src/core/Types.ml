@@ -1141,14 +1141,14 @@ and fluidInputEvent =
 and fluidMouseUp =
   { tlid : tlid
   ; editorId : string option
-        (** id is the id of the editor that was clicked on, or None if it was the
-       * main editor *)
-  ; selection :
-      (* The (int * int) here represents the selection beginning + end (the
-       * selection may be left->right or right->left) If the selection is None, the
-       * selection will be read from the browser rather than the browser's
-       * selection being set. *)
-      (int * int) option }
+        (** editorId is the id of the editor that was clicked on, or None if it was
+          * the main editor *)
+  ; selection : (int * int) option
+        (** selection is the beginning + end of the browser selection on
+          * mouseup. The selection may be left->right or right->left. If the
+          * selection is None, the selection will be read from the browser
+          * rather than the browser's selection being set. *)
+  }
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
@@ -1506,6 +1506,8 @@ and fluidCommandState =
   ; location : (tlid * id) option
   ; filter : string option }
 
+(** editorViewKind represents the type of editorView. This impacts, for
+  * example, how expressions are tokenized within the view. *)
 and editorViewKind =
   | MainView
   | FeatureFlagView
@@ -1538,8 +1540,15 @@ and fluidState =
       (* The source id of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; extraEditors : editorView list  (** TODO(ds) comment *)
-  ; activeEditorId : string option }
+  ; extraEditors : editorView list
+        (** extraEditors is a list of extra (non-main) editor panels that
+          * should be rendered for the active fluid editor. For example, when a
+          * handler with a feature flag is focused, this is populated with an
+          * extra editorView for the feature flag condition. *)
+  ; activeEditorId : string option
+        (** activeEditorId is the id (editorView.id) of the active (focused)
+         * editor within the handler, or None if the main editor is active. *)
+  }
 
 (* Avatars *)
 and avatar =

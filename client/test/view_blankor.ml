@@ -8,7 +8,7 @@ let run () =
           let ast = FluidExpression.EBlank (gid ()) in
           let tlFunc =
             TLFunc
-              { ufAST = Root ast
+              { ufAST = FluidAST.ofExpr ast
               ; ufTLID = gtlid ()
               ; ufMetadata =
                   { ufmName = Blank (gid ())

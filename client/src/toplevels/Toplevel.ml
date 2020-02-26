@@ -264,9 +264,9 @@ let setASTMod (tl : toplevel) (ast : FluidAST.t) : modification =
       recover "no ast in Groups" ~debug:tl NoChange
 
 
-(** modifyASTMod is a combination of getAST and setASTMod. IT fetches the AST
- * for [tl] and passes it to [f], which should return a modified version of the
- * AST. An AddOps modification is returned, which updates the AST accordingly.
+(** modifyASTMod is a combination of getAST and setASTMod. It fetches the AST
+  * for [tl] and passes it to [f], which should return a modified version of the
+  * AST. An AddOps modification is returned, which updates the AST accordingly.
   *
   * WARNING: this function is dangerous, in that if [f] discards portions of the
   * AST (giving back a subtree instead of the actual root of the AST, it will
