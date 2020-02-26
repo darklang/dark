@@ -117,36 +117,43 @@ let rec getTokensAtPosition
       else getTokensAtPosition ~prev:(Some current) ~pos remaining
 
 
-let focusedEditor (ast : FluidAST.t) (s : fluidState) : editorView =
-  let main = {id = "main"; expressionId = FluidAST.toID ast; kind = MainView} in
-  match s.activeEditorId with
-  | None ->
-      main
-  | Some eid ->
-      List.find s.extraEditors ~f:(fun e -> e.id = eid)
-      |> recoverOpt
-           ("could not find editor " ^ eid ^ " in editor list")
-           ~default:main
+let focusedEditor (s : fluidState) : editorView option =
+  s.activeEditorId
+  |> Option.andThen ~f:(fun eid ->
+         List.find s.extraEditors ~f:(fun e -> e.id = eid))
 
 
 let exprOfFocusedEditor (ast : FluidAST.t) (s : fluidState) : FluidExpression.t
     =
-  let editor = focusedEditor ast s in
-  FluidAST.find editor.expressionId ast
-  |> recoverOpt
-       ("cannot find expression for editor " ^ editor.id)
-       ~default:(FluidAST.toExpr ast)
+  match s.activeEditorId with
+  | None ->
+      FluidAST.toExpr ast
+  | Some _ ->
+      focusedEditor s
+      |> Option.andThen ~f:(fun e -> FluidAST.find e.expressionId ast)
+      |> recoverOpt
+           "cannot find expression for editor"
+           ~default:(FluidAST.toExpr ast)
+
+
+let tokenizeForFocusedEditor (s : fluidState) (expr : FluidExpression.t) :
+    FluidToken.tokenInfo list =
+  (* cheat and don't use focusedEditor so we don't need the entire FluidAST.t *)
+  match focusedEditor s with
+  | None ->
+      (* main editor, default tokenization *)
+      Printer.tokenize expr
+  | Some editor ->
+    ( match editor.kind with
+    | MainView ->
+        Printer.tokenize expr
+    | FeatureFlagView ->
+        Printer.tokenizeWithOptions Printer.Options.featureFlagPanel expr )
 
 
 let tokensOfFocusedEditor (ast : FluidAST.t) (s : fluidState) :
     FluidToken.tokenInfo list =
-  let editor = focusedEditor ast s in
-  let expr = exprOfFocusedEditor ast s in
-  match editor.kind with
-  | MainView ->
-      Printer.tokenize expr
-  | FeatureFlagView ->
-      Printer.tokenizeWithOptions Printer.Options.featureFlagPanel expr
+  exprOfFocusedEditor ast s |> tokenizeForFocusedEditor s
 
 
 (* -------------------- *)
@@ -215,8 +222,8 @@ let getToken' (s : fluidState) (tokens : T.tokenInfo list) : T.tokenInfo option
       None
 
 
-let getToken (s : fluidState) (expr : FluidExpression.t) : T.tokenInfo option =
-  Printer.tokenize expr |> getToken' s
+let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
+  tokensOfFocusedEditor ast s |> getToken' s
 
 
 (* -------------------- *)
@@ -371,8 +378,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : FluidAST.t) (s : state) : state =
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
   in
-  let expr = exprOfFocusedEditor ast s in
-  let newPos = Printer.tokenize expr |> getNextWS in
+  let newPos = tokensOfFocusedEditor ast s |> getNextWS in
   setPosition ~resetUD:true s newPos
 
 
@@ -381,8 +387,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : FluidAST.t) (s : state) : state =
 let getStartOfLineCaretPos
     (ast : FluidAST.t) (s : fluidState) (ti : T.tokenInfo) : int =
   let token =
-    exprOfFocusedEditor ast s
-    |> Printer.tokenize
+    tokensOfFocusedEditor ast s
     |> List.find ~f:(fun info ->
            if info.startRow == ti.startRow
            then
@@ -442,8 +447,7 @@ let getEndOfWordInStrCaretPos ~(pos : int) (ti : T.tokenInfo) : int =
 let getEndOfLineCaretPos (ast : FluidAST.t) (s : fluidState) (ti : T.tokenInfo)
     : int =
   let token =
-    exprOfFocusedEditor ast s
-    |> Printer.tokenize
+    tokensOfFocusedEditor ast s
     |> List.reverse
     |> List.find ~f:(fun info -> info.startRow == ti.startRow)
     |> Option.withDefault ~default:ti
@@ -479,8 +483,7 @@ let moveToEndOfLine (ast : FluidAST.t) (s : state) (ti : T.tokenInfo) : state =
 let getStartOfWordPos
     ~(pos : int) (ast : FluidAST.t) (s : fluidState) (ti : T.tokenInfo) : int =
   let previousToken =
-    exprOfFocusedEditor ast s
-    |> Printer.tokenize
+    tokensOfFocusedEditor ast s
     |> List.reverse
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos > t.startPos)
   in
@@ -586,11 +589,10 @@ let getNextBlankPos (pos : int) (tokens : T.tokenInfo list) : int =
 
 
 let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
-  let s = recordAction ~pos "moveToNextBlank" s in
-  let expr = exprOfFocusedEditor ast s in
-  let tokens = Printer.tokenize expr in
-  let newPos = getNextBlankPos pos tokens in
-  setPosition ~resetUD:true s newPos
+  recordAction ~pos "moveToNextBlank" s
+  |> tokensOfFocusedEditor ast
+  |> getNextBlankPos pos
+  |> setPosition ~resetUD:true s
 
 
 let rec getPrevBlank (pos : int) (tokens : T.tokenInfo list) :
@@ -615,11 +617,10 @@ let getPrevBlankPos (pos : int) (tokens : T.tokenInfo list) : int =
 
 
 let moveToPrevBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
-  let s = recordAction ~pos "moveToPrevBlank" s in
-  let expr = exprOfFocusedEditor ast s in
-  let tokens = Printer.tokenize expr in
-  let newPos = getPrevBlankPos pos tokens in
-  setPosition ~resetUD:true s newPos
+  recordAction ~pos "moveToPrevBlank" s
+  |> tokensOfFocusedEditor ast
+  |> getPrevBlankPos pos
+  |> setPosition ~resetUD:true s
 
 
 let doLeft ~(pos : int) (ti : T.tokenInfo) (s : state) : state =
@@ -630,9 +631,11 @@ let doLeft ~(pos : int) (ti : T.tokenInfo) (s : state) : state =
 
 
 let selectAll ~(pos : int) (ast : FluidAST.t) (s : state) : state =
-  let tokens = exprOfFocusedEditor ast s |> Printer.tokenize in
-  let last = List.last tokens in
-  let lastPos = match last with Some l -> l.endPos | None -> 0 in
+  let lastPos =
+    tokensOfFocusedEditor ast s
+    |> List.last
+    |> function Some l -> l.endPos | None -> 0
+  in
   {s with newPos = lastPos; oldPos = pos; selectionStart = Some 0}
 
 
@@ -2308,8 +2311,7 @@ let acMoveDown (s : state) : state =
 let updatePosAndAC (ast : FluidAST.t) (newPos : int) (s : state) : state =
   (* Update newPos and reset upDownCol and reset AC *)
   let s = setPosition ~resetUD:true s newPos |> acClear in
-  let expr = exprOfFocusedEditor ast s in
-  getToken s expr
+  getToken ast s
   |> Option.map ~f:(fun ti -> acMaybeShow ti s)
   |> Option.withDefault ~default:s
 
@@ -3838,9 +3840,9 @@ let getOptionalSelectionRange (s : fluidState) : (int * int) option =
 
 
 let tokensInRange
-    (selStartPos : int) (selEndPos : int) (expr : FluidExpression.t) :
+    (ast : FluidAST.t) (s : fluidState) (selStartPos : int) (selEndPos : int) :
     fluidTokenInfo list =
-  Printer.tokenize expr
+  tokensOfFocusedEditor ast s
   (* this condition is a little flaky, sometimes selects wrong tokens *)
   |> List.filter ~f:(fun t ->
          (* selectionStart within token *)
@@ -3854,32 +3856,35 @@ let tokensInRange
 
 
 let getTopmostSelectionID
-    (expr : FluidExpression.t) (startPos : int) (endPos : int) : id option =
+    (ast : FluidAST.t) (s : fluidState) (startPos : int) (endPos : int) :
+    id option =
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
-  tokensInRange startPos endPos expr
+  tokensInRange ast s startPos endPos
   |> List.filter ~f:(fun ti -> not (T.isNewline ti.token))
   |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
          let curID = T.parentExprID ti.token in
-         let curDepth = E.ancestors curID expr |> List.length in
+         let curDepth = FluidAST.ancestors curID ast |> List.length in
          if (* check if current token is higher in the AST than the last token,
              * or if there's no topmost ID yet *)
             (curDepth < topmostDepth || topmostID = None)
             (* account for tokens that don't have ancestors (depth = 0)
              * but are not the topmost expression in the AST *)
-            && not (curDepth = 0 && E.find curID expr != Some expr)
+            && not
+                 ( curDepth = 0
+                 && FluidAST.find curID ast != Some (FluidAST.toExpr ast) )
          then (Some curID, curDepth)
          else (topmostID, topmostDepth))
   |> Tuple2.first
 
 
-let getSelectedExprID (expr : FluidExpression.t) (s : state) : id option =
+let getSelectedExprID (ast : FluidAST.t) (s : fluidState) : id option =
   getOptionalSelectionRange s
-  |> Option.andThen ~f:(getTopmostSelectionID expr |> Tuple2.uncurry)
+  |> Option.andThen ~f:(getTopmostSelectionID ast s |> Tuple2.uncurry)
 
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
-  let getExprIDOnCaret state tl expr =
-    match getToken state expr with
+  let getExprIDOnCaret (ast : FluidAST.t) (s : fluidState) (tl : toplevel) =
+    match getToken ast s with
     | Some ti ->
         let id = T.tid ti.token in
         if T.validID id then Some (TL.id tl, id) else None
@@ -3889,11 +3894,9 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   TL.selected m
   |> Option.thenAlso ~f:TL.getAST
   |> Option.andThen ~f:(fun (tl, ast) ->
-         let editorExpr = exprOfFocusedEditor ast m.fluidState in
-         getSelectedExprID editorExpr m.fluidState
+         getSelectedExprID ast m.fluidState
          |> Option.map ~f:(fun id -> (TL.id tl, id))
-         |> Option.orElseLazy (fun _ ->
-                getExprIDOnCaret m.fluidState tl editorExpr))
+         |> Option.orElseLazy (fun _ -> getExprIDOnCaret ast m.fluidState tl))
   |> Option.map ~f:(fun (tlid, id) -> FluidCommandsShow (tlid, id))
   |> Option.withDefault ~default:NoChange
 
@@ -3995,8 +3998,7 @@ let rec updateKey
         let doPipeline (ast : FluidAST.t) (s : fluidState) :
             FluidAST.t * fluidState =
           let startPos, endPos = getSelectionRange s in
-          let expr = exprOfFocusedEditor ast s in
-          let topmostID = getTopmostSelectionID expr startPos endPos in
+          let topmostID = getTopmostSelectionID ast s startPos endPos in
           let findParent = startPos = endPos in
           Option.map topmostID ~f:(fun id ->
               let ast, s, blankId = createPipe ~findParent id ast s in
@@ -4607,8 +4609,7 @@ and replaceText ~(ast : FluidAST.t) ~state (str : string) :
 
 let updateAutocomplete
     (m : model) (tlid : tlid) (ast : FluidAST.t) (s : fluidState) : fluidState =
-  let editorExpr = exprOfFocusedEditor ast s in
-  match getToken s editorExpr with
+  match getToken ast s with
   | Some ti when T.isAutocompletable ti.token ->
       let m = TL.withAST m tlid ast in
       let newAC = AC.regenerate m s.ac (tlid, ti) in
@@ -4675,12 +4676,12 @@ let shouldSelect (key : K.key) : bool =
   * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
   * different ID, (in the above case the last token TInt(2) belongs to the
   * second sub-expr of the FnCall) *)
-let expressionRange (editorExpr : FluidExpression.t) (exprID : id) :
+let expressionRange (ast : FluidAST.t) (s : fluidState) (exprID : id) :
     (int * int) option =
-  let containingTokens = Printer.tokenize editorExpr in
+  let containingTokens = tokensOfFocusedEditor ast s in
   let exprTokens =
-    E.find exprID editorExpr
-    |> Option.map ~f:Printer.tokenize
+    FluidAST.find exprID ast
+    |> Option.map ~f:(tokenizeForFocusedEditor s)
     |> Option.withDefault ~default:[]
   in
   let exprStartToken, exprEndToken =
@@ -4701,27 +4702,28 @@ let expressionRange (editorExpr : FluidExpression.t) (exprID : id) :
       None
 
 
-let getTokenRangeAtCaret (state : fluidState) (ast : ast) : (int * int) option =
-  getToken state ast |> Option.map ~f:(fun t -> (t.startPos, t.endPos))
-
-
-let getExpressionRangeAtCaret (state : fluidState) (ast : ast) :
+let getTokenRangeAtCaret (ast : FluidAST.t) (s : fluidState) :
     (int * int) option =
-  getToken state ast
+  getToken ast s |> Option.map ~f:(fun t -> (t.startPos, t.endPos))
+
+
+let getExpressionRangeAtCaret (ast : FluidAST.t) (s : fluidState) :
+    (int * int) option =
+  getToken ast s
   (* get token that the cursor is currently on *)
   |> Option.andThen ~f:(fun t ->
          (* get expression that the token belongs to *)
          let exprID = T.tid t.token in
-         expressionRange ast exprID)
+         expressionRange ast s exprID)
   |> Option.map ~f:(fun (eStartPos, eEndPos) -> (eStartPos, eEndPos))
 
 
 let reconstructExprFromRange
-    (editorExpr : FluidExpression.t) (range : int * int) :
+    (ast : FluidAST.t) (s : fluidState) (range : int * int) :
     FluidExpression.t option =
   (* prevent duplicates *)
   let open FluidExpression in
-  let editorExpr = E.clone editorExpr in
+  let ast = FluidAST.clone ast in
   (* a few helpers *)
   let toBool_ s =
     if s = "true"
@@ -4748,12 +4750,12 @@ let reconstructExprFromRange
   let rec reconstruct ~topmostID (startPos, endPos) : E.t option =
     let topmostExpr =
       topmostID
-      |> Option.andThen ~f:(fun id -> E.find id editorExpr)
+      |> Option.andThen ~f:(fun id -> FluidAST.find id ast)
       |> Option.withDefault ~default:(EBlank (gid ()))
     in
     let tokens =
       (* simplify tokens to make them homogenous, easier to parse *)
-      tokensInRange startPos endPos editorExpr
+      tokensInRange ast s startPos endPos
       |> List.map ~f:(fun ti ->
              let t = ti.token in
              let text =
@@ -4782,7 +4784,7 @@ let reconstructExprFromRange
       | _ ->
           let exprID = E.toID expr in
           exprID
-          |> expressionRange editorExpr
+          |> expressionRange ast s
           |> Option.andThen ~f:(fun (exprStartPos, exprEndPos) ->
                  (* ensure expression range is not totally outside selection range *)
                  if exprStartPos > endPos || exprEndPos < startPos
@@ -5038,7 +5040,7 @@ let reconstructExprFromRange
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
-          tokensInRange startPos endPos editorExpr
+          tokensInRange ast s startPos endPos
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
                  | TRecordFieldname
@@ -5150,13 +5152,13 @@ let reconstructExprFromRange
     | EPipeTarget _ ->
         Some (EPipeTarget (gid ()))
   in
-  let topmostID = getTopmostSelectionID editorExpr startPos endPos in
+  let topmostID = getTopmostSelectionID ast s startPos endPos in
   reconstruct ~topmostID (startPos, endPos)
 
 
 let pasteOverSelection ~state ~(ast : FluidAST.t) data : FluidAST.t * state =
   let ast, state = deleteSelection ~state ~ast in
-  let mTi = exprOfFocusedEditor ast state |> getToken state in
+  let mTi = getToken ast state in
   let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> FluidAST.find id ast) in
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
@@ -5215,12 +5217,12 @@ let getCopySelection (m : model) : clipboardContents =
   fluidDataFromModel m
   |> Option.andThen ~f:(fun (state, ast) ->
          let from, to_ = getSelectionRange state in
-         let editorExpr = exprOfFocusedEditor ast state in
          let text =
+           let editorExpr = exprOfFocusedEditor ast state in
            FluidPrinter.eToHumanString editorExpr |> String.slice ~from ~to_
          in
          let js =
-           reconstructExprFromRange editorExpr (from, to_)
+           reconstructExprFromRange ast m.fluidState (from, to_)
            |> Option.map ~f:Clipboard.exprToClipboardContents
          in
          Some (text, js))
@@ -5341,8 +5343,7 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     | FluidInputEvent ievt ->
         updateKey ievt ast s
     | FluidAutocompleteClick entry ->
-        let expr = exprOfFocusedEditor ast s in
-        Option.map (getToken s expr) ~f:(fun ti -> acClick entry ti ast s)
+        Option.map (getToken ast s) ~f:(fun ti -> acClick entry ti ast s)
         |> Option.withDefault ~default:(ast, s)
     | FluidClearErrorDvSrc
     | FluidMouseDown _
