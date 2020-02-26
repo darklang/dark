@@ -1054,7 +1054,7 @@ let update_ (msg : msg) (m : model) : modification =
           NoChange )
   | WindowMouseUp event ->
       Debug.loG "WindowMouseUp" event ;
-    ( match m.cursorState with
+      ( match m.cursorState with
       | PanningCanvas {viewportStart = _; viewportCurr = _; prevCursorState} ->
           Debug.loG "->SetCursorState" prevCursorState ;
           SetCursorState prevCursorState
@@ -2100,7 +2100,10 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     | _ ->
         []
   in
-  let windowMouseSubs = [Native.Window.Mouse.ups ~key:"win_mouse_up" (fun event -> WindowMouseUp event)] in
+  let windowMouseSubs =
+    [ Native.Window.Mouse.ups ~key:"win_mouse_up" (fun event ->
+          WindowMouseUp event) ]
+  in
   let timers =
     if m.editorSettings.runTimers
     then
