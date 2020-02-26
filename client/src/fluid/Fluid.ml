@@ -348,22 +348,6 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : T.tokenInfo list) : int =
 (* ---------------- *)
 (* Movement *)
 (* ---------------- *)
-let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "moveToPrevNonWhitespaceToken" s in
-  let rec getNextWS tokens =
-    match tokens with
-    | [] ->
-        pos
-    | ti :: rest ->
-      ( match ti.token with
-      | TSep _ | TNewline _ | TIndent _ ->
-          getNextWS rest
-      | _ ->
-          if pos < ti.startPos then getNextWS rest else ti.startPos )
-  in
-  let newPos = Printer.tokenize ast |> List.reverse |> getNextWS in
-  setPosition ~resetUD:true s newPos
-
 
 let moveToNextNonWhitespaceToken ~pos (ast : FluidAST.t) (s : state) : state =
   let s = recordAction ~pos "moveToNextNonWhitespaceToken" s in
