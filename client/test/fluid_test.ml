@@ -92,7 +92,7 @@ let process
     (inputs : fluidInputEvent list)
     (selectionStart : int option)
     (pos : int)
-    (ast : ast) : testResult =
+    (ast : FluidExpression.t) : testResult =
   let s = defaultTestState in
   let ast = if clone then E.clone ast else ast in
   let newlinesBefore (pos : int) =
