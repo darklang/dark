@@ -973,6 +973,25 @@ let parseDvalLiteral (str : string) : dval option =
     (try Some (parseBasicDval (Json.parseOrRaise str)) with _ -> None)
 
 
+let clickEvent (fn : mouseEvent -> 'a) j : 'a =
+  fn
+    { mePos =
+        (* We decode floats b/c newer Chromes may use floats instead of ints; we
+         * then truncate rather than moving to floats everywhere due to concerns
+         * about sending data back to browsers whose DOMs don't support float
+         * positions - see https://github.com/darklang/dark/pull/2016 for
+         * discussion, and
+         * https://drafts.csswg.org/cssom-view/#extensions-to-the-window-interface
+         * for the spec *)
+        { vx = field "pageX" Json.Decode.float j |> truncate
+        ; vy = field "pageY" Json.Decode.float j |> truncate }
+    ; button = field "button" int j
+    ; ctrlKey = field "ctrlKey" bool j
+    ; shiftKey = field "shiftKey" bool j
+    ; altKey = field "altKey" bool j
+    ; detail = field "detail" int j }
+
+
 let exception_ j : exception_ =
   { short = field "short" string j
   ; long = field "long" (optional string) j
