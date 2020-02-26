@@ -1561,7 +1561,7 @@ and avatarModelMessage =
 and model =
   { error : string option
   ; lastMsg : msg
-  ; lastMod : modification
+  ; lastMods : string list
   ; tests : variantTest list
   ; complete : autocomplete
   ; builtInFunctions : function_ list

@@ -1968,7 +1968,15 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
   let newm, newc = updateMod mods (m, Cmd.none) in
   SavedSettings.save m ;
   SavedUserSettings.save m ;
-  ({newm with lastMsg = msg; lastMod = mods}, newc)
+  let lastMods =
+    (* ARGH List.take returns empty if count > length *)
+    let newMods = show_modification mods :: m.lastMods in
+    let maxLen = 10 in
+    if List.length newMods > maxLen
+    then List.take newMods ~count:maxLen
+    else newMods
+  in
+  ({newm with lastMsg = msg; lastMods}, newc)
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =
