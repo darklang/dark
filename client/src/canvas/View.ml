@@ -408,8 +408,10 @@ let view (m : model) : msg Html.html =
   let eventListeners : domEventList =
     (* We don't want propagation because we don't want to double-handle these events and
      * window has its own listeners. *)
-    [ ViewUtils.eventNeither ~key:"app-md" "mousedown" (fun x -> AppMouseDown x)
-    ; ViewUtils.eventNeither ~key:"app-mu" "mouseup" (fun x -> AppMouseUp x) ]
+    [ ViewUtils.eventNeither ~key:"app-md" "mousedown" (fun mouseEvent ->
+          AppMouseDown mouseEvent)
+    ; ViewUtils.eventNeither ~key:"app-mu" "mouseup" (fun mouseEvent ->
+          AppMouseUp mouseEvent) ]
   in
   let activeVariantsClass =
     match VariantTesting.activeCSSClasses m with
