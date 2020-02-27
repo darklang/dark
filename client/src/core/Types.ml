@@ -1374,6 +1374,7 @@ and variantTest =
       StubVariant
   | GroupVariant
   | FeatureFlagVariant
+  | InviteVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)

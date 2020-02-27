@@ -395,13 +395,18 @@ let accountView (m : model) : msg Html.html =
       [Html.text "Account"]
   in
   let share =
-    Html.p
-      [ Html.class' "setting-btn invite"
-      ; ViewUtils.eventNoPropagation ~key:"open-invite" "click" (fun _ ->
-            SettingsViewMsg
-              (ToggleSettingsView
-                 (true, Some (InviteUser SettingsView.defaultInviteFields)))) ]
-      [Html.text "Share Dark"]
+    (* Remove with variant *)
+    if VariantTesting.variantIsActive m InviteVariant
+    then
+      Html.p
+        [ Html.class' "setting-btn invite"
+        ; ViewUtils.eventNoPropagation ~key:"open-invite" "click" (fun _ ->
+              SettingsViewMsg
+                (ToggleSettingsView
+                   (true, Some (InviteUser SettingsView.defaultInviteFields))))
+        ]
+        [Html.text "Share Dark"]
+    else Vdom.noNode
   in
   Html.div
     [ Html.class' "my-account"
