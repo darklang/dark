@@ -266,18 +266,11 @@ let setASTMod (tl : toplevel) (ast : FluidAST.t) : modification =
 
 (** modifyASTMod is a combination of getAST and setASTMod. It fetches the AST
   * for [tl] and passes it to [f], which should return a modified version of the
-  * AST. An AddOps modification is returned, which updates the AST accordingly.
-  *
-  * WARNING: this function is dangerous, in that if [f] discards portions of the
-  * AST (giving back a subtree instead of the actual root of the AST, it will
-  * silently lose data.
-  * This might be better as (f : FluidAST.t -> FluidAST.t)
-  * but right now we have many functions that operate on expressions so this
-  * convenience is necessary. *)
-let modifyASTMod (tl : toplevel) ~(f : FluidExpression.t -> FluidExpression.t) :
-    modification =
+  * AST. An AddOps modification is returned, which updates the AST accordingly. *)
+let modifyASTMod (tl : toplevel) ~(f : FluidAST.t -> FluidAST.t) : modification
+    =
   getAST tl
-  |> Option.map ~f:(FluidAST.map ~f >> setASTMod tl)
+  |> Option.map ~f:(f >> setASTMod tl)
   |> Option.withDefault ~default:NoChange
 
 
