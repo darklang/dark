@@ -177,7 +177,15 @@ let execute_function
     ; store_fn_result
     ; store_fn_arguments }
   in
-  (Ast.execute_fn state fnname caller_id args, TLIDTable.keys tlid_store)
+  (* Note the order of the next couple of lines. We *must* actually execute the fn
+   * before we grab the touched_tlids from the store. You might think that you could
+   * write (execute_fn ..., TLIDTable.keys ...) as a tuple. you would be incorrect,
+   * as this is undefined behaviour according to the OCaml specification
+   *
+   * http://caml.inria.fr/pub/docs/manual-ocaml/expr.html#sss:expr-products *)
+  let result = Ast.execute_fn state fnname caller_id args in
+  let touched_tlids = TLIDTable.keys tlid_store in
+  (result, touched_tlids)
 
 
 (* -------------------- *)
