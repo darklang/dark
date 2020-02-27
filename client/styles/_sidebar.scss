@@ -24,9 +24,14 @@ $prodColor: black;
   width: $sidebarFullWidth;
   box-sizing: border-box;
   padding: 5px 0px;
+  display: none;
 
   &::-webkit-scrollbar {
     width: 0px; /* Remove scrollbar space */
+  }
+
+  &.active {
+    display: block;
   }
 
   &.isClosed {
