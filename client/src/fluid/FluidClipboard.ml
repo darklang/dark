@@ -14,8 +14,6 @@ module E = FluidExpression
 module Util = FluidUtil
 module Printer = FluidPrinter
 
-type viewState = ViewUtils.viewState
-
 type ast = E.t
 
 let exprToClipboardContents (expr : FluidExpression.t) : Js.Json.t =

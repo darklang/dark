@@ -187,8 +187,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
     | _ ->
         None
   in
-  let tokens = Printer.tokenizeWithOptions editor.printerOpts editor.expr in
-  let currentTokenInfo = Fluid.getToken' vs.fluidState tokens in
+  let currentTokenInfo = Fluid.getToken' vs.fluidState editor.tokens in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -203,7 +202,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
     match vs.fluidState.cp.location with
     | Some (ltlid, id) when editor.tlid = ltlid ->
         (* Reversing list will get us the last token visually rendered with matching expression ID, so we don't have to keep track of max pos *)
-        tokens
+        editor.tokens
         |> List.reverse
         |> List.getBy ~f:(fun ti -> FluidToken.tid ti.token = id)
     | _ ->
@@ -222,7 +221,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
     let selStart, selEnd = Fluid.getSelectionRange vs.fluidState in
     selStart <= tokenStart && tokenEnd <= selEnd
   in
-  List.map tokens ~f:(fun ti ->
+  List.map editor.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = T.tid ti.token in
         let idStr = deID tokenId in
@@ -392,7 +391,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  Fluid.getToken' vs.fluidState vs.tokens
+  Fluid.getToken' vs.fluidState vs.mainEditor.tokens
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
@@ -570,7 +569,8 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   in
   let errorRail =
     let indicators =
-      vs.tokens |> List.map ~f:(viewErrorIndicator ~analysisStore ~state)
+      vs.mainEditor.tokens
+      |> List.map ~f:(viewErrorIndicator ~analysisStore ~state)
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
     Html.div
@@ -592,7 +592,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
        * and then looking through the main tokens [O(N)] to find one with a
        * corresponding id. This is brittle and will likely break at some point. We
        * should do something better. *)
-      List.find vs.tokens ~f:(fun ti -> target = T.tid ti.token)
+      List.find vs.mainEditor.tokens ~f:(fun ti -> target = T.tid ti.token)
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
     vs.extraEditors

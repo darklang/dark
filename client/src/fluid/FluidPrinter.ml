@@ -507,6 +507,15 @@ let tokenizeWithOptions (options : Options.t) (e : FluidExpression.t) :
 
 let tokenize = tokenizeWithOptions Options.default
 
+let tokenizeForViewKind (k : editorViewKind) (expr : FluidExpression.t) :
+    FluidToken.tokenInfo list =
+  match k with
+  | MainView ->
+      tokenize expr
+  | FeatureFlagView ->
+      tokenizeWithOptions Options.featureFlagPanel expr
+
+
 let tokensToString (tis : tokenInfo list) : string =
   tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
 
