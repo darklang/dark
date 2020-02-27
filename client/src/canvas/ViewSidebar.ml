@@ -659,11 +659,7 @@ let closedDeployStats2html (m : model) : msg Html.html =
     ([Html.div [Html.class' "collapsed-icon"] [icon]] @ hoverView)
 
 
-type sidebarVariant =
-  | SidebarOpen
-  | SidebarClosed
-
-let toggleSidebar (v : sidebarVariant) : msg Html.html =
+let toggleSidebar (m : model) : msg Html.html =
   let event =
     ViewUtils.eventNeither ~key:"toggle-sidebar" "click" (fun _ ->
         ToggleSideBar)
@@ -672,11 +668,9 @@ let toggleSidebar (v : sidebarVariant) : msg Html.html =
     Html.a [Html.class' "button-link"; Html.title tooltip] [icon; icon]
   in
   let toggleBtn =
-    match v with
-    | SidebarOpen ->
-        button (fontAwesome "chevron-left") "Collapse sidebar"
-    | SidebarClosed ->
-        button (fontAwesome "chevron-right") "Expand sidebar"
+    if m.sidebarOpen
+    then button (fontAwesome "chevron-left") "Collapse sidebar"
+    else button (fontAwesome "chevron-right") "Expand sidebar"
   in
   let toggleSide =
     Html.div
@@ -684,7 +678,7 @@ let toggleSidebar (v : sidebarVariant) : msg Html.html =
       [ Html.p [] [Html.text "Collapse sidebar"]
       ; Html.div
           [ Html.classList
-              [("toggle-button", true); ("closed", v = SidebarClosed)] ]
+              [("toggle-button", true); ("closed", not m.sidebarOpen)] ]
           [toggleBtn] ]
   in
   toggleSide
@@ -796,27 +790,19 @@ let adminDebuggerView (m : model) : msg Html.html =
 
 
 let viewSidebar_ (m : model) : msg Html.html =
+  let isClosed : bool = not m.sidebarOpen in
   let cats =
     standardCategories m m.handlers m.dbs m.userFunctions m.userTipes m.groups
     @ [f404Category m; deletedCategory m]
   in
-  let showAdminDebugger = function
-    | SidebarClosed when m.isAdmin ->
-        adminDebuggerView m
-    | SidebarClosed | SidebarOpen ->
-        Vdom.noNode
+  let showAdminDebugger =
+    if isClosed && m.isAdmin then adminDebuggerView m else Vdom.noNode
   in
-  let showCategories = function
-    | SidebarClosed ->
-        closedCategory2html
-    | SidebarOpen ->
-        category2html
+  let showCategories =
+    if isClosed then closedCategory2html else category2html
   in
-  let showDeployStats = function
-    | SidebarClosed ->
-        closedDeployStats2html
-    | SidebarOpen ->
-        deployStats2html
+  let showDeployStats =
+    if isClosed then closedDeployStats2html else deployStats2html
   in
   let status =
     match m.error with
@@ -834,25 +820,22 @@ let viewSidebar_ (m : model) : msg Html.html =
     | _ ->
         Html.noNode
   in
-  List.map [SidebarClosed; SidebarOpen] ~f:(fun variant ->
-      let active = if m.sidebarOpen then SidebarOpen else SidebarClosed in
-      Html.div
-        [ Html.classList
-            [ ("active", variant = active)
-            ; ("viewing-table", true)
-            ; ("isClosed", variant = SidebarClosed) ]
-        ; nothingMouseEvent "mouseup"
-        ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
-              EnablePanning false)
-        ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
-              EnablePanning true) ]
-        ( [toggleSidebar variant]
-        @ [ Html.div
-              [Html.classList [("groups", true); ("groups-closed", true)]]
-              ( List.map ~f:(showCategories variant m) cats
-              @ [showDeployStats variant m; showAdminDebugger variant] )
-          ; status ] ))
-  |> Html.div [Html.id "sidebar-left"]
+  let html =
+    Html.div
+      [ Html.classList [("viewing-table", true); ("isClosed", isClosed)]
+      ; nothingMouseEvent "mouseup"
+      ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
+            EnablePanning false)
+      ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
+            EnablePanning true) ]
+      ( [toggleSidebar m]
+      @ [ Html.div
+            [Html.classList [("groups", true); ("groups-closed", isClosed)]]
+            ( List.map ~f:(showCategories m) cats
+            @ [showDeployStats m; showAdminDebugger] )
+        ; status ] )
+  in
+  Html.div [Html.id "sidebar-left"] [html]
 
 
 let rtCacheKey m =
