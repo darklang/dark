@@ -187,7 +187,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
     | _ ->
         None
   in
-  let currentTokenInfo = Fluid.getToken' vs.fluidState editor.tokens in
+  let currentTokenInfo = Fluid.getToken vs.ast vs.fluidState in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -391,7 +391,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  Fluid.getToken' vs.fluidState vs.mainEditor.tokens
+  Fluid.getToken vs.ast vs.fluidState
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
