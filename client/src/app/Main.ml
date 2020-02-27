@@ -1040,82 +1040,55 @@ let update_ (msg : msg) (m : model) : modification =
               ; prevCursorState = m.cursorState } )
       else NoChange
   | AppMouseDrag mousePos ->
-      Debug.loG "AppMouseDrag" mousePos ;
+    ( match m.cursorState with
+    | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
+        let viewportNext = {vx = mousePos.x; vy = mousePos.y} in
+        let dx = viewportCurr.vx - viewportNext.vx in
+        let dy = viewportCurr.vy - viewportNext.vy in
+        Many
+          [ Viewport.moveCanvasBy m dx dy
+          ; PanCanvas
+              {viewportStart; viewportCurr = viewportNext; prevCursorState} ]
+    | _ ->
+        NoChange )
+  | WindowMouseUp event | AppMouseUp event ->
+      Debug.loG "AppMouseUp/WindowMouseUp" event ;
+      let clickBehavior =
+        match m.currentPage with
+        | FocusedFn tlid | FocusedType tlid ->
+            (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
+            let defaultBehaviour = Select (tlid, STTopLevelRoot) in
+            ( match unwrapCursorState m.cursorState with
+            | Entering (Filling _ as cursor) ->
+                (* If we click away from an entry box, commit it before doing the default behaviour *)
+                [Entry.commit m cursor; defaultBehaviour]
+            | _ ->
+                [defaultBehaviour] )
+        | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
+            if event.button = Defaults.leftButton
+            then
+              (* Clicking on the canvas should deselect the current selection on the main canvas *)
+              let defaultBehaviour = Deselect in
+              match unwrapCursorState m.cursorState with
+              | Deselected ->
+                  let openAt = Some (Viewport.toAbsolute m event.mePos) in
+                  [AutocompleteMod ACReset; Entry.openOmnibox ~openAt ()]
+              | Entering (Filling _ as cursor) ->
+                  (* If we click away from an entry box, commit it before doing the default behaviour *)
+                  [Entry.commit m cursor; defaultBehaviour]
+              | _ ->
+                  [defaultBehaviour]
+            else []
+      in
       ( match m.cursorState with
       | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
-          let viewportNext = {vx = mousePos.x; vy = mousePos.y} in
-          let dx = viewportCurr.vx - viewportNext.vx in
-          let dy = viewportCurr.vy - viewportNext.vy in
-          Many
-            [ Viewport.moveCanvasBy m dx dy
-            ; PanCanvas
-                {viewportStart; viewportCurr = viewportNext; prevCursorState} ]
+          Debug.loG "->SetCursorState" prevCursorState ;
+          (* TODO: use a delta instead of exact value here! *)
+          if viewportStart = viewportCurr
+          then Many (SetCursorState prevCursorState :: clickBehavior)
+          else SetCursorState prevCursorState
       | _ ->
           NoChange )
-  | WindowMouseUp event ->
-      Debug.loG "WindowMouseUp" event ;
-      ( match m.cursorState with
-      | PanningCanvas {viewportStart = _; viewportCurr = _; prevCursorState} ->
-          Debug.loG "->SetCursorState" prevCursorState ;
-          SetCursorState prevCursorState
-      | _ ->
-        ( match m.currentPage with
-        | FocusedFn tlid | FocusedType tlid ->
-            (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
-            let defaultBehaviour = Select (tlid, STTopLevelRoot) in
-            ( match unwrapCursorState m.cursorState with
-            | Entering (Filling _ as cursor) ->
-                (* If we click away from an entry box, commit it before doing the default behaviour *)
-                Many [Entry.commit m cursor; defaultBehaviour]
-            | _ ->
-                defaultBehaviour )
-        | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
-            if event.button = Defaults.leftButton
-            then
-              (* Clicking on the canvas should deselect the current selection on the main canvas *)
-              let defaultBehaviour = Deselect in
-              match unwrapCursorState m.cursorState with
-              | Deselected ->
-                  let openAt = Some (Viewport.toAbsolute m event.mePos) in
-                  Many [AutocompleteMod ACReset; Entry.openOmnibox ~openAt ()]
-              | Entering (Filling _ as cursor) ->
-                  (* If we click away from an entry box, commit it before doing the default behaviour *)
-                  Many [Entry.commit m cursor; defaultBehaviour]
-              | _ ->
-                  defaultBehaviour
-            else NoChange ) )
-  | AppMouseUp event ->
-      Debug.loG "AppMouseUp" event ;
-      ( match m.cursorState with
-      | PanningCanvas {viewportStart = _; viewportCurr = _; prevCursorState} ->
-          Debug.loG "->SetCursorState" prevCursorState ;
-          SetCursorState prevCursorState
-      | _ ->
-        ( match m.currentPage with
-        | FocusedFn tlid | FocusedType tlid ->
-            (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
-            let defaultBehaviour = Select (tlid, STTopLevelRoot) in
-            ( match unwrapCursorState m.cursorState with
-            | Entering (Filling _ as cursor) ->
-                (* If we click away from an entry box, commit it before doing the default behaviour *)
-                Many [Entry.commit m cursor; defaultBehaviour]
-            | _ ->
-                defaultBehaviour )
-        | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
-            if event.button = Defaults.leftButton
-            then
-              (* Clicking on the canvas should deselect the current selection on the main canvas *)
-              let defaultBehaviour = Deselect in
-              match unwrapCursorState m.cursorState with
-              | Deselected ->
-                  let openAt = Some (Viewport.toAbsolute m event.mePos) in
-                  Many [AutocompleteMod ACReset; Entry.openOmnibox ~openAt ()]
-              | Entering (Filling _ as cursor) ->
-                  (* If we click away from an entry box, commit it before doing the default behaviour *)
-                  Many [Entry.commit m cursor; defaultBehaviour]
-              | _ ->
-                  defaultBehaviour
-            else NoChange ) )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
   | BlankOrMouseLeave (tlid, id, _) ->
