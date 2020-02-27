@@ -1079,8 +1079,14 @@ let update_ (msg : msg) (m : model) : modification =
       in
       ( match m.cursorState with
       | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
-          (* TODO: use a delta instead of exact value here! *)
-          if viewportStart = viewportCurr
+          let distSquared (a : vPos) (b : vPos) : int =
+            let dx = b.vx - a.vx in
+            let dy = b.vy - a.vy in
+            (dx * dx) + (dy * dy)
+          in
+          let maxSquareDistToConsiderAsClick = 16 in
+          if distSquared viewportStart viewportCurr
+             <= maxSquareDistToConsiderAsClick
           then Many (SetCursorState prevCursorState :: clickBehavior)
           else SetCursorState prevCursorState
       | DraggingTL (draggingTLID, _, hasMoved, origCursorState) ->
