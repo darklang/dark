@@ -6,8 +6,6 @@ module P = Pointer
 module TD = TLIDDict
 module E = FluidExpression
 
-type domEventList = ViewUtils.domEventList
-
 let fontAwesome = ViewUtils.fontAwesome
 
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
@@ -405,7 +403,7 @@ let accountView (m : model) : msg Html.html =
 
 
 let view (m : model) : msg Html.html =
-  let eventListeners : domEventList =
+  let eventListeners =
     (* We don't want propagation because we don't want to double-handle these events and
      * window has its own listeners. *)
     [ ViewUtils.eventNeither ~key:"app-md" "mousedown" (fun mouseEvent ->
