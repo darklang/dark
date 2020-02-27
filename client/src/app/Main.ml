@@ -1087,6 +1087,30 @@ let update_ (msg : msg) (m : model) : modification =
           if viewportStart = viewportCurr
           then Many (SetCursorState prevCursorState :: clickBehavior)
           else SetCursorState prevCursorState
+      | DraggingTL (draggingTLID, _, hasMoved, origCursorState) ->
+        ( match TL.get m draggingTLID with
+        | Some tl ->
+            if hasMoved
+            then
+              (* We've been updating tl.pos as mouse moves, *)
+              (* now want to report last pos to server *)
+              if not (TL.isGroup tl)
+              then
+                Many
+                  [ SetCursorState origCursorState
+                  ; AddOps ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
+                  ]
+              else SetCursorState origCursorState
+            else
+              (* if we haven't moved, treat this as a single click and not a attempted drag *)
+              let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
+              ( match origCursorState with
+              | Entering (Filling _ as cursor) ->
+                  Many [Entry.commit m cursor; defaultBehaviour]
+              | _ ->
+                  defaultBehaviour )
+        | None ->
+            SetCursorState origCursorState )
       | _ ->
           NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
