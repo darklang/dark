@@ -1228,6 +1228,7 @@ and fluidMsg =
 and segmentTrack =
   | WelcomeModal
   | OpenDocs
+  | InviteUser
 
 and msg =
   | IgnoreMsg
