@@ -834,6 +834,10 @@ let viewSidebar_ (m : model) : msg Html.html =
     | _ ->
         Html.noNode
   in
+  (* Because the sidebar consists of a lot of nested elements with SVG icons,
+   * it's inefficient to fully reconstruct the sidebar div each time it's
+   * expanded / collapsed. Instead, we build /both/ versions of the sidebar,
+   * then toggle the visibility with CSS *)
   List.map [SidebarClosed; SidebarOpen] ~f:(fun variant ->
       let active = if m.sidebarOpen then SidebarOpen else SidebarClosed in
       Html.div
