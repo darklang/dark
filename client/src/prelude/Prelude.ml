@@ -84,11 +84,12 @@ let tlidOf (s : cursorState) : tlid option =
         Some tlid )
   | Deselected ->
       None
-  (* NOTE: Not sure why this has no id *)
-  | DraggingTL (_, _, _, _) | PanningCanvas _ ->
-      None
   | FluidEntering tlid ->
       Some tlid
+  (* NOTE: These have no id because unwrapCursorState
+   * should unwrap them *)
+  | DraggingTL (_, _, _, _) | PanningCanvas _ ->
+      None
 
 
 let idOf (s : cursorState) : id option =
@@ -97,11 +98,11 @@ let idOf (s : cursorState) : id option =
       id
   | Entering entryCursor ->
     (match entryCursor with Creating _ -> None | Filling (_, id) -> Some id)
-  | Deselected
-  (* NOTE: Not sure why this has no id *)
-  | DraggingTL (_, _, _, _)
-  | PanningCanvas _
-  | FluidEntering _ ->
+  | Deselected | FluidEntering _ ->
+      None
+  (* NOTE: These have no id because unwrapCursorState
+   * should unwrap them *)
+  | DraggingTL (_, _, _, _) | PanningCanvas _ ->
       None
 
 
