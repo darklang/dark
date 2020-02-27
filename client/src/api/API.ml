@@ -208,18 +208,11 @@ let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
   else Tea.Cmd.none
 
 
-(* SYDNEY TODO 
- - Change URL 
- - ~withCredentials:true
- - Check origin
-*)
 let sendInvite (m : model) (invite : inviteFormMessage) : msg Tea.Cmd.t =
-  let url =
-    "http://sydney-invite-a-friend.builtwithdark.localhost:8000/sendInvites"
-  in
+  let url = "https://sydney-ops-inviteuser.builtwithdark.com/sendInvite" in
   let request =
-    postJson (* ~withCredentials:true *)
-      ~withCredentials:false
+    postJson
+      ~withCredentials:true
       (fun _ -> ())
       m.csrfToken
       url
@@ -232,12 +225,13 @@ let sendInvite (m : model) (invite : inviteFormMessage) : msg Tea.Cmd.t =
     * presence.darklang.com. By putting the conditional here instead of at the
     * beginning of the function, we still exercise the message and request
     * generating code locally. *)
-  (* if m.origin = "https://darklang.com"
-  then  *)
-  Tea.Http.send (fun x -> SettingsViewMsg (TriggerSendInviteCallback x)) request
+  if m.origin = "https://darklang.com"
+  then
+    Tea.Http.send
+      (fun x -> SettingsViewMsg (TriggerSendInviteCallback x))
+      request
+  else Tea.Cmd.none
 
-
-(* else Tea.Cmd.none *)
 
 (* We do some dropping of ops based on clientOpCtrId+opCtr to preserve ordering.
  * (opCtr is per-clientOpCtrId, and inc'd client-side; thus we know, when processing
