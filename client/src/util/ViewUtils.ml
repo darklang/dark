@@ -9,12 +9,13 @@ type editorViewState =
   { tlid : tlid
   ; editorId : string option
   ; expr : E.t
-  ; printerOpts : FluidPrinter.Options.t }
+  ; tokens : FluidToken.tokenInfo list }
 
 type viewState =
   { tl : toplevel
   ; ast : FluidAST.t
-  ; tokens : fluidTokenInfo list
+  ; mainEditor : editorViewState
+  ; extraEditors : editorViewState list
   ; cursorState : cursorState
   ; tlid : tlid
   ; hovering : (tlid * id) option
@@ -31,8 +32,6 @@ type viewState =
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
-  ; mainEditor : editorViewState
-  ; extraEditors : editorViewState list
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
@@ -64,42 +63,30 @@ let createVS (m : model) (tl : toplevel) : viewState =
     TL.getAST tl |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
   in
   let mainEditor =
+    let expr = FluidAST.toExpr ast in
     { tlid
     ; editorId = None
-    ; expr = FluidAST.toExpr ast
-    ; printerOpts = FluidPrinter.Options.default }
+    ; expr
+    ; tokens = FluidPrinter.tokenizeForViewKind MainView expr }
   in
-  let ffEnabled = List.member m.tests ~value:FeatureFlagVariant in
   let extraEditors =
     List.filterMap m.fluidState.extraEditors ~f:(fun e ->
-        if ffEnabled
-        then
-          let printerOpts =
-            match e.kind with
-            | FeatureFlagView ->
-                FluidPrinter.Options.featureFlagPanel
-            | MainView ->
-                recover
-                  "should not have MainView editors in extraEditors list"
-                  FluidPrinter.Options.default
-          in
-          let expr =
-            ast
-            |> FluidAST.find e.expressionId
-            |> recoverOpt
-                 ~default:(E.newB ())
-                 (Printf.sprintf
-                    "failed to find expr %s for editor %s"
-                    (e.expressionId |> deID)
-                    e.id)
-          in
-          Some {tlid; editorId = Some e.id; expr; printerOpts}
-        else None)
+        let expr =
+          ast
+          |> FluidAST.find e.expressionId
+          |> recoverOpt
+               ~default:(E.newB ())
+               (Printf.sprintf
+                  "failed to find expr %s for editor %s"
+                  (e.expressionId |> deID)
+                  e.id)
+        in
+        let tokens = FluidPrinter.tokenizeForViewKind e.kind expr in
+        Some {tlid; editorId = Some e.id; expr; tokens})
   in
   { tl
   ; ast
   ; tlid
-  ; tokens = FluidPrinter.tokenize (FluidAST.toExpr ast)
   ; cursorState = unwrapCursorState m.cursorState
   ; hovering =
       m.hovering

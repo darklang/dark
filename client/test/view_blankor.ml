@@ -21,7 +21,6 @@ let run () =
           let vs : ViewUtils.viewState =
             { tl
             ; ast = FluidAST.ofExpr ast
-            ; tokens = FluidPrinter.tokenize ast
             ; cursorState = Deselected
             ; fluidState = Defaults.defaultFluidState
             ; tlid = gtlid ()
@@ -49,10 +48,7 @@ let run () =
             ; featureFlags = StrDict.empty
             ; extraEditors = []
             ; mainEditor =
-                { tlid = gtlid ()
-                ; editorId = None
-                ; expr = ast
-                ; printerOpts = FluidPrinter.Options.default }
+                {tlid = gtlid (); editorId = None; expr = ast; tokens = []}
             ; handlerProp = None
             ; canvasName = ""
             ; userContentHost = ""

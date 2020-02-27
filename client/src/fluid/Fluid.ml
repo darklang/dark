@@ -135,10 +135,8 @@ let tokenizeForFocusedEditor (s : fluidState) (expr : FluidExpression.t) :
   match focusedEditor s with
   | None ->
       Printer.tokenize expr (* main editor, default tokenization *)
-  | Some {kind = MainView; _} ->
-      Printer.tokenize expr
-  | Some {kind = FeatureFlagView; _} ->
-      Printer.tokenizeWithOptions Printer.Options.featureFlagPanel expr
+  | Some {kind; _} ->
+      Printer.tokenizeForViewKind kind expr
 
 
 let tokensOfFocusedEditor (ast : FluidAST.t) (s : fluidState) :
@@ -4600,9 +4598,9 @@ let updateMouseClick (newPos : int) (ast : FluidAST.t) (s : fluidState) :
     | _ ->
         newPos
   in
-  let newAST = acMaybeCommit newPos ast s in
-  let newS = updatePosAndAC newAST newPos s in
-  (newAST, newS)
+  let ast = acMaybeCommit newPos ast s in
+  let s = updatePosAndAC ast newPos s in
+  (ast, s)
 
 
 let shouldDoDefaultAction (key : K.key) : bool =
@@ -5192,9 +5190,11 @@ let getCopySelection (m : model) : clipboardContents =
   |> Option.withDefault ~default:("", None)
 
 
-let updateMouseUp (s : fluidState) (ast : FluidAST.t) (eventData : fluidMouseUp)
-    : FluidAST.t * fluidState =
-  let s = {s with midClick = false; activeEditorId = eventData.editorId} in
+let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
+    FluidAST.t * fluidState =
+  let s =
+    {m.fluidState with midClick = false; activeEditorId = eventData.editorId}
+  in
   let selection =
     eventData.selection |> Option.orElseLazy Entry.getFluidSelectionRange
   in
@@ -5216,11 +5216,14 @@ let updateMouseUp (s : fluidState) (ast : FluidAST.t) (eventData : fluidMouseUp)
         (ast, {s with selectionStart = None} |> acClear)
   in
   let extraEditors =
-    FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
-    |> List.map ~f:(fun e ->
-           { id = "flag-" ^ (e |> E.toID |> deID)
-           ; expressionId = E.toID e
-           ; kind = FeatureFlagView })
+    if List.member m.tests ~value:FeatureFlagVariant
+    then
+      FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
+      |> List.map ~f:(fun e ->
+             { id = "flag-" ^ (e |> E.toID |> deID)
+             ; expressionId = E.toID e
+             ; kind = FeatureFlagView })
+    else []
   in
   let s = {s with extraEditors} in
   (ast, s)
@@ -5237,7 +5240,7 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
         (* updateAutocomplete has already been run, so nothing more to do *)
         (ast, s)
     | FluidMouseUp eventData ->
-        updateMouseUp s ast eventData
+        updateMouseUp m ast eventData
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
