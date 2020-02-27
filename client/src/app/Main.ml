@@ -1026,18 +1026,16 @@ let update_ (msg : msg) (m : model) : modification =
     | _ ->
         NoChange )
   | AppMouseDown event ->
-      Debug.loG "AppMouseDown" event ;
       if event.button = Defaults.leftButton
-      then (
+      then
         match m.cursorState with
         | PanningCanvas {prevCursorState; _} ->
             SetCursorState prevCursorState
         | _ ->
-            Debug.loG "PanCanvas" event.mePos ;
             PanCanvas
               { viewportStart = event.mePos
               ; viewportCurr = event.mePos
-              ; prevCursorState = m.cursorState } )
+              ; prevCursorState = m.cursorState }
       else NoChange
   | AppMouseDrag mousePos ->
     ( match m.cursorState with
@@ -1052,7 +1050,6 @@ let update_ (msg : msg) (m : model) : modification =
     | _ ->
         NoChange )
   | WindowMouseUp event | AppMouseUp event ->
-      Debug.loG "AppMouseUp/WindowMouseUp" event ;
       let clickBehavior =
         match m.currentPage with
         | FocusedFn tlid | FocusedType tlid ->
@@ -1082,7 +1079,6 @@ let update_ (msg : msg) (m : model) : modification =
       in
       ( match m.cursorState with
       | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
-          Debug.loG "->SetCursorState" prevCursorState ;
           (* TODO: use a delta instead of exact value here! *)
           if viewportStart = viewportCurr
           then Many (SetCursorState prevCursorState :: clickBehavior)
