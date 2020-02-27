@@ -292,11 +292,11 @@ let run () =
           in
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->
-      let modelAndTl (expr : fluidExpr) =
+      let modelAndTl (ast : FluidAST.t) =
         let hTLID = defaultTLID in
         let tl =
           { hTLID
-          ; ast = FluidAST.ofExpr expr
+          ; ast
           ; pos = {x = 0; y = 0}
           ; spec =
               { space = B.newF "HTTP"
@@ -317,18 +317,20 @@ let run () =
         (m, TLHandler tl)
       in
       test "with sole expression" (fun () ->
-          let ast = int 4 in
+          let ast = FluidAST.ofExpr (int 4) in
           let m, tl = modelAndTl ast in
           expect
-            ( R.extractVarInAst m tl (E.toID ast) "var" ast
+            ( R.extractVarInAst m tl (FluidAST.toID ast) "var" ast
+            |> FluidAST.toExpr
             |> FluidPrinter.eToTestString )
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
           let expr = fn "Int::add" [var "b"; int 4] in
-          let ast = let' "b" (int 5) expr in
+          let ast = FluidAST.ofExpr (let' "b" (int 5) expr) in
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.toID expr) "var" ast
+            |> FluidAST.toExpr
             |> FluidPrinter.eToTestString )
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
@@ -339,10 +341,13 @@ let run () =
           in
           let threadedExpr = fn "Dict::set" [str "id"; var "id"] in
           let exprInThread = pipe expr [threadedExpr] in
-          let ast = let' "id" (fn "Uuid::generate" []) exprInThread in
+          let ast =
+            FluidAST.ofExpr (let' "id" (fn "Uuid::generate" []) exprInThread)
+          in
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.toID expr) "var" ast
+            |> FluidAST.toExpr
             |> FluidPrinter.eToTestString )
           |> toEqual
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n") ;

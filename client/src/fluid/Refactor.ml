@@ -132,7 +132,7 @@ let putOnRail (m : model) (tl : toplevel) (id : id) : modification =
     |> Option.withDefault ~default:false
   in
   TL.modifyASTMod tl ~f:(fun ast ->
-      E.update id ast ~f:(function
+      FluidAST.update id ast ~f:(function
           | EFnCall (_, name, exprs, NoRail) when isRailable name ->
               EFnCall (id, name, exprs, Rail)
           | e ->
@@ -140,13 +140,13 @@ let putOnRail (m : model) (tl : toplevel) (id : id) : modification =
 
 
 let extractVarInAst
-    (m : model) (tl : toplevel) (id : id) (varname : string) (ast : fluidExpr) :
-    fluidExpr =
+    (m : model) (tl : toplevel) (id : id) (varname : string) (ast : FluidAST.t)
+    : FluidAST.t =
   let traceID = Analysis.getSelectedTraceID m (TL.id tl) in
-  match E.find id ast with
+  match FluidAST.find id ast with
   | Some e ->
       let lastPlaceWithSameVarsAndValues =
-        let ancestors = E.ancestors id ast in
+        let ancestors = FluidAST.ancestors id ast in
         let freeVariables =
           AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
         in
@@ -173,9 +173,11 @@ let extractVarInAst
       ( match lastPlaceWithSameVarsAndValues with
       | Some last ->
           ast
-          |> E.update (E.toID last) ~f:(function last ->
+          |> FluidAST.update (E.toID last) ~f:(function last ->
                  ELet (gid (), varname, E.clone e, last))
-          |> E.replace (E.toID e) ~replacement:(EVariable (gid (), varname))
+          |> FluidAST.replace
+               (E.toID e)
+               ~replacement:(EVariable (gid (), varname))
       | None ->
           ast )
   | None ->
