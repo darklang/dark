@@ -25,7 +25,9 @@ let viewIntegrationTestButton (testState : integrationTestState) : msg Html.html
     match testState with
     | IntegrationTestExpectation _ ->
         [ Html.a
-            [ ViewUtils.eventNoPropagation ~key:"fit" "mouseup" (fun _ ->
+            [ ViewUtils.nothingMouseEvent "mousedown"
+            ; ViewUtils.nothingMouseEvent "click"
+            ; ViewUtils.eventNoPropagation ~key:"fit" "mouseup" (fun _ ->
                   FinishIntegrationTest)
             ; Html.src ""
             ; Html.id "finishIntegrationTest"
