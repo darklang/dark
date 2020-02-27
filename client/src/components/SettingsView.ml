@@ -68,6 +68,7 @@ let update (m : model) (msg : settingsMsg) : model * msg Cmd.t =
       , Cmd.none )
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
+      Entry.sendSegmentMessage InviteUser ;
       if isInvalid
       then ({m with settingsView = {m.settingsView with tab = newTab}}, Cmd.none)
       else submitForm m m.settingsView.tab
