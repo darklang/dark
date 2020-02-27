@@ -458,6 +458,37 @@ let exec_userfn (prog : string) : dval =
   Ast.execute_fn ~state name execution_id []
 
 
+let exec_userfn_trace_tlids (prog : string) : dval * tlid list =
+  let name = "test_function" in
+  let ast = ast_for prog in
+  let fn = user_fn name [] ast in
+  let c, state, _ = test_execution_data [SetFunction fn] in
+  let { tlid
+      ; execution_id
+      ; dbs
+      ; user_fns
+      ; user_tipes
+      ; package_fns
+      ; account_id
+      ; canvas_id
+      ; _ } =
+    state
+  in
+  Execution.execute_function
+    ~tlid
+    ~execution_id
+    ~trace_id:(Util.create_uuid ())
+    ~dbs
+    ~user_fns
+    ~user_tipes
+    ~package_fns
+    ~account_id
+    ~canvas_id
+    ~caller_id:execution_id
+    ~args:[]
+    "test_function"
+
+
 let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
     Analysis_types.intermediate_result_store =
   let c, state, input_vars = test_execution_data ~canvas_name ops in

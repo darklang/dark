@@ -9,6 +9,13 @@ open Utils
 module AT = Alcotest
 module SE = Stored_event
 
+let t_trace_tlids_exec_fn () =
+  clear_test_data () ;
+  let value, tlids = exec_userfn_trace_tlids "5" in
+  check_dval "sanity check we executed the body" (Dval.dint 5) value ;
+  AT.check (AT.list testable_id) "tlid of function is traced" [tlid] tlids
+
+
 let t_on_the_rail () =
   (* When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly.   *)
   clear_test_data () ;
@@ -309,7 +316,10 @@ let t_match_evaluation () =
 
 
 let suite =
-  [ ("Missing functions still check the rail", `Quick, t_on_the_rail)
+  [ ( "Executing user function traces touched tlids"
+    , `Quick
+    , t_trace_tlids_exec_fn )
+  ; ("Missing functions still check the rail", `Quick, t_on_the_rail)
   ; ("Filter / from /:rest", `Quick, t_test_filter_slash)
   ; ("Analysis on List listerals", `Quick, t_list_literals)
   ; ( "Analysis supports all the DB::query functionns"
