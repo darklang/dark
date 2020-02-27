@@ -342,7 +342,7 @@ let viewCanvas (m : model) : msg Html.html =
   in
   Html.div
     [ Html.id "canvas"
-    ; Html.class' pageClass
+    ; Html.class' ("canvas " ^ pageClass)
     ; Html.styles styles
     ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
           if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg) ]
@@ -413,14 +413,10 @@ let view (m : model) : msg Html.html =
     ; ViewUtils.eventNeither ~key:"app-mu" "mouseup" (fun mouseEvent ->
           AppMouseUp mouseEvent) ]
   in
-  let activeVariantsClass =
-    match VariantTesting.activeCSSClasses m with
-    | "" ->
-        Vdom.noProp
-    | str ->
-        Html.class' str
+  let attributes =
+    [Html.id "app"; Html.class' ("app " ^ VariantTesting.activeCSSClasses m)]
+    @ eventListeners
   in
-  let attributes = [Html.id "app"; activeVariantsClass] @ eventListeners in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
     ; ViewScaffold.readOnlyMessage m

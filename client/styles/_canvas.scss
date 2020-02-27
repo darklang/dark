@@ -154,14 +154,14 @@ body #app * {
  * The order of auto vs grab is important;
  * we need to override auto for some children.
  */
-#app > *,
-#canvas > * {
+.app > *,
+.canvas > * {
   cursor: auto;
 }
 
-#app,
-#canvas,
-#canvas .overlay {
+.app,
+.canvas,
+.canvas .overlay {
   cursor: grab;
 }
 
