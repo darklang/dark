@@ -2164,13 +2164,17 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           WorkerStatePush s) ]
   in
   let clipboardSubs =
-    [ BrowserListeners.Clipboard.copyListener ~key:"copy_event" (fun e ->
-          ClipboardCopyEvent e)
-    ; BrowserListeners.Clipboard.cutListener ~key:"cut_event" (fun e ->
-          ClipboardCutEvent e)
-    ; BrowserListeners.Clipboard.pasteListener ~key:"paste_event" (fun e ->
-          e##preventDefault () ;
-          ClipboardPasteEvent e) ]
+    (* We want the default copy/paste behaviors on the settings modal *)
+    if m.settingsView.opened
+    then []
+    else
+      [ BrowserListeners.Clipboard.copyListener ~key:"copy_event" (fun e ->
+            ClipboardCopyEvent e)
+      ; BrowserListeners.Clipboard.cutListener ~key:"cut_event" (fun e ->
+            ClipboardCutEvent e)
+      ; BrowserListeners.Clipboard.pasteListener ~key:"paste_event" (fun e ->
+            e##preventDefault () ;
+            ClipboardPasteEvent e) ]
   in
   let onCaptureView =
     [ BrowserListeners.OnCaptureView.listen ~key:"capture_view" (fun s ->
