@@ -973,6 +973,20 @@ let parseDvalLiteral (str : string) : dval option =
     (try Some (parseBasicDval (Json.parseOrRaise str)) with _ -> None)
 
 
+(** [clickEvent fn] implements a decoder converting a javascript mouse event
+ * into an OCaml record of type mouseEvent.
+ *
+ * NOTE: an exact copy of this function exists in Native.ml
+ *
+ * Example usage:
+ *
+ *  let constructor = (fun mouseEvent -> AppMouseDown mouseEvent) in
+ *  Tea.Html.onWithOptions
+ *   ~key
+ *   event
+ *   {stopPropagation = true; preventDefault = true}
+ *   (Decoders.wrapDecoder (Decoders.clickEvent constructor))
+ *)
 let clickEvent (fn : mouseEvent -> 'a) j : 'a =
   fn
     { mePos =
