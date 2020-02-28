@@ -2092,17 +2092,17 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     (* before they're triggered *)
     | DraggingTL (id, _, _, _) ->
         let listenerKey = "mouse_moves_" ^ deTLID id in
-        [ Native.DarkMouse.moves ~key:listenerKey (fun event ->
+        [ BrowserListeners.DarkMouse.moves ~key:listenerKey (fun event ->
               DragToplevel (id, event)) ]
     | PanningCanvas _ ->
         let listenerKey = "mouse_drag" in
-        [ Native.DarkMouse.moves ~key:listenerKey (fun event ->
+        [ BrowserListeners.DarkMouse.moves ~key:listenerKey (fun event ->
               AppMouseDrag event) ]
     | _ ->
         []
   in
   let windowMouseSubs =
-    [ Native.Window.Mouse.ups ~key:"win_mouse_up" (fun event ->
+    [ BrowserListeners.Window.Mouse.ups ~key:"win_mouse_up" (fun event ->
           WindowMouseUp event) ]
   in
   let timers =
@@ -2119,11 +2119,14 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     else []
   in
   let onError =
-    [ Native.DisplayClientError.listen ~key:"display_client_error" (fun s ->
-          JSError s) ]
+    [ BrowserListeners.DisplayClientError.listen
+        ~key:"display_client_error"
+        (fun s -> JSError s) ]
   in
   let visibility =
-    [ Native.Window.OnFocusChange.listen ~key:"window_on_focus_change" (fun v ->
+    [ BrowserListeners.Window.OnFocusChange.listen
+        ~key:"window_on_focus_change"
+        (fun v ->
           if v
           then PageVisibilityChange Visible
           else PageVisibilityChange Hidden) ]
@@ -2131,7 +2134,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   let mousewheelSubs =
     if m.canvasProps.enablePan && not (isACOpened m)
     then
-      [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
+      [ BrowserListeners.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
             MouseWheel (dx, dy)) ]
     else []
   in
@@ -2152,16 +2155,16 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           WorkerStatePush s) ]
   in
   let clipboardSubs =
-    [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
+    [ BrowserListeners.Clipboard.copyListener ~key:"copy_event" (fun e ->
           ClipboardCopyEvent e)
-    ; Native.Clipboard.cutListener ~key:"cut_event" (fun e ->
+    ; BrowserListeners.Clipboard.cutListener ~key:"cut_event" (fun e ->
           ClipboardCutEvent e)
-    ; Native.Clipboard.pasteListener ~key:"paste_event" (fun e ->
+    ; BrowserListeners.Clipboard.pasteListener ~key:"paste_event" (fun e ->
           e##preventDefault () ;
           ClipboardPasteEvent e) ]
   in
   let onCaptureView =
-    [ Native.OnCaptureView.listen ~key:"capture_view" (fun s ->
+    [ BrowserListeners.OnCaptureView.listen ~key:"capture_view" (fun s ->
           UpdateMinimap (Some s)) ]
   in
   Tea.Sub.batch
