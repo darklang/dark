@@ -976,8 +976,6 @@ let parseDvalLiteral (str : string) : dval option =
 (** [clickEvent fn] implements a decoder converting a javascript mouse event
  * into an OCaml record of type mouseEvent.
  *
- * NOTE: an exact copy of this function exists in Native.ml
- *
  * Example usage:
  *
  *  let constructor = (fun mouseEvent -> AppMouseDown mouseEvent) in

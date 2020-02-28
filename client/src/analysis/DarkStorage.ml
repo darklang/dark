@@ -25,7 +25,7 @@ module NewStaticDeployPush = struct
 
 
   let listen ~key tagger =
-    Native.registerGlobal "newStaticDeploy" key tagger decode
+    BrowserListeners.registerGlobal "newStaticDeploy" key tagger decode
 end
 
 let appendDeploy
