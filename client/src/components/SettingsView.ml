@@ -146,21 +146,19 @@ let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
   in
   let inviteform =
     let submitBtn =
-      let event =
-        if svs.loading
-        then []
-        else
-          [ ViewUtils.eventNoPropagation
-              ~key:"close-settings-modal"
-              "click"
-              (fun _ -> SettingsViewMsg SubmitForm) ]
-      in
       let btn =
         if svs.loading
         then [ViewUtils.fontAwesome "spinner"; Html.h3 [] [Html.text "Loading"]]
         else [Html.h3 [] [Html.text "Submit"]]
       in
-      Html.div ([Html.class' "submit-btn"] @ event) btn
+      Html.button
+        [ Html.class' "submit-btn"
+        ; Html.Attributes.disabled svs.loading
+        ; ViewUtils.eventNoPropagation
+            ~key:"close-settings-modal"
+            "click"
+            (fun _ -> SettingsViewMsg SubmitForm) ]
+        btn
     in
     [ Html.div
         [Html.class' "invite-form"]
@@ -169,13 +167,13 @@ let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
             [ Html.h3 [] [Html.text "Email:"]
             ; Html.div
                 []
-                [ Html.p [Html.class' "error-text"] [Html.text error]
-                ; Html.input'
+                [ Html.input'
                     [ Vdom.attribute "" "spellcheck" "false"
                     ; Events.onInput (fun str ->
                           SettingsViewMsg (UpdateInviteForm str))
                     ; Attributes.value inputVal ]
-                    [] ] ]
+                    []
+                ; Html.p [Html.class' "error-text"] [Html.text error] ] ]
         ; submitBtn ] ]
   in
   introText @ inviteform

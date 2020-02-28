@@ -90,21 +90,23 @@
     }
     .form-field {
       display: flex;
-      align-items: flex-end;
+      align-items: baseline;
       justify-content: space-around;
       width: 100%;
-      max-width: 500px;
+      max-width: 550px;
+      flex-wrap: wrap;
+      margin-top: 25px;
       input {
         background-color: $black3;
         height: 35px;
-        width: 250px;
+        width: 35ch;
         padding: 0px 10px;
         caret-color: $grey3;
         color: $white1;
       }
     }
     .submit-btn {
-      width: 100px;
+      width: 125px;
       padding: 10px 15px;
       background: $grey2;
       border-radius: 3px;
@@ -113,6 +115,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      color: $white1;
     }
   }
 }
