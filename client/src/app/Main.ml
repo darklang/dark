@@ -1030,6 +1030,8 @@ let update_ (msg : msg) (m : model) : modification =
       then
         match m.cursorState with
         | PanningCanvas {prevCursorState; _} ->
+            (* In case we are already panning, we got into a weird state;
+             * we should stop panning. *)
             SetCursorState prevCursorState
         | _ ->
             PanCanvas
