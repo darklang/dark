@@ -8,6 +8,10 @@ let missingEventSpaceDesc : string = "Undefined"
 
 let missingEventRouteDesc : string = "Undefined"
 
+type sidebarVariant =
+  | SidebarOpen
+  | SidebarClosed
+
 type identifier =
   | Tlid of tlid
   | Other of string
@@ -659,10 +663,6 @@ let closedDeployStats2html (m : model) : msg Html.html =
     ([Html.div [Html.class' "collapsed-icon"] [icon]] @ hoverView)
 
 
-type sidebarVariant =
-  | SidebarOpen
-  | SidebarClosed
-
 let toggleSidebar (v : sidebarVariant) : msg Html.html =
   let event =
     ViewUtils.eventNeither ~key:"toggle-sidebar" "click" (fun _ ->
@@ -844,19 +844,20 @@ let viewSidebar_ (m : model) : msg Html.html =
         [ Html.classList
             [ ("active", variant = active)
             ; ("viewing-table", true)
-            ; ("isClosed", variant = SidebarClosed) ]
-        ; nothingMouseEvent "mouseup"
-        ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
-              EnablePanning false)
-        ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
-              EnablePanning true) ]
+            ; ("isClosed", variant = SidebarClosed) ] ]
         ( [toggleSidebar variant]
         @ [ Html.div
               [Html.classList [("groups", true); ("groups-closed", true)]]
               ( List.map ~f:(showCategories variant m) cats
               @ [showDeployStats variant m; showAdminDebugger variant] )
           ; status ] ))
-  |> Html.div [Html.id "sidebar-left"]
+  |> Html.div
+       [ Html.id "sidebar-left"
+       ; nothingMouseEvent "mouseup"
+       ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
+             EnablePanning false)
+       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
+             EnablePanning true) ]
 
 
 let rtCacheKey m =
