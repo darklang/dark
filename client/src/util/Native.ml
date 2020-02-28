@@ -195,9 +195,12 @@ module Window = struct
 
   external window_node : Web_node.t = "window" [@@bs.val]
 
-  (** [registerWindowGlobal eventName key decoder]
+  (** [registerListener eventName key decoder]
    * registers an event listener for the given [eventName]
    * under the bucklescript key [key] with the [decoder].
+   * The decoder must be a Tea_json.Decoder decoder,
+   * and must therefore be wrapped if using a decoder of
+   * the form (Js.Json.t -> 'a).
    *
    * Example usage:
    * registerListener "mouseup" key (wrapDecoder (clickEvent constructor))
