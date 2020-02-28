@@ -1,5 +1,9 @@
 open Tc
 
+(* NOTE: this is an exact copy of Decoders.clickEvent,
+ * but Decoders indirectly depends on Native via Utils,
+ * so we can't easily use Decoders.clickEvent.
+ *)
 let clickEvent (fn : Types.mouseEvent -> 'a) j : 'a =
   fn
     { mePos =
@@ -19,7 +23,10 @@ let clickEvent (fn : Types.mouseEvent -> 'a) j : 'a =
     ; detail = Json.Decode.field "detail" Json.Decode.int j }
 
 
-(* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format *)
+(* NOTE: this is an exact copy of Decoders.wrapDecoder,
+ * but Decoders indirectly depends on Native via Utils,
+ * so we can't easily use Decoders.wrapDecoder.
+ *)
 let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
   let open Json.Decode in
   Decoder
@@ -48,28 +55,6 @@ let registerGlobal eventName key tagger decoder =
     in
     let handler = EventHandlerCallback (key, fn) in
     let elem = Web_node.document_node in
-    let cache = eventHandler_Register callbacks elem eventName handler in
-    fun () -> ignore (eventHandler_Unregister elem eventName cache)
-  in
-  Tea_sub.registration key enableCall
-
-
-external window_node : Web_node.t = "window" [@@bs.val]
-
-let registerWindowGlobal eventName key decoder =
-  let open Vdom in
-  let enableCall callbacks_base =
-    let callbacks = ref callbacks_base in
-    let fn event =
-      let open Tea_json.Decoder in
-      match decodeEvent decoder event with
-      | Tea_result.Error err ->
-          Some (Types.EventDecoderError (eventName, key, err))
-      | Tea_result.Ok data ->
-          Some data
-    in
-    let handler = EventHandlerCallback (key, fn) in
-    let elem = window_node in
     let cache = eventHandler_Register callbacks elem eventName handler in
     fun () -> ignore (eventHandler_Unregister elem eventName cache)
   in
@@ -208,6 +193,35 @@ module Window = struct
   external openUrl : string -> string -> unit = "open"
     [@@bs.val] [@@bs.scope "window"]
 
+  external window_node : Web_node.t = "window" [@@bs.val]
+
+  (** [registerWindowGlobal eventName key decoder]
+   * registers an event listener for the given [eventName]
+   * under the bucklescript key [key] with the [decoder].
+   *
+   * Example usage:
+   * registerListener "mouseup" key (wrapDecoder (clickEvent constructor))
+   *)
+  let registerListener eventName key decoder =
+    let open Vdom in
+    let enableCall callbacks_base =
+      let callbacks = ref callbacks_base in
+      let fn event =
+        let open Tea_json.Decoder in
+        match decodeEvent decoder event with
+        | Tea_result.Error err ->
+            Some (Types.EventDecoderError (eventName, key, err))
+        | Tea_result.Ok data ->
+            Some data
+      in
+      let handler = EventHandlerCallback (key, fn) in
+      let elem = window_node in
+      let cache = eventHandler_Register callbacks elem eventName handler in
+      fun () -> ignore (eventHandler_Unregister elem eventName cache)
+    in
+    Tea_sub.registration key enableCall
+
+
   module OnFocusChange = struct
     let decode =
       let open Tea.Json.Decoder in
@@ -220,7 +234,7 @@ module Window = struct
 
   module Mouse = struct
     let ups ~key constructor =
-      registerWindowGlobal "mouseup" key (wrapDecoder (clickEvent constructor))
+      registerListener "mouseup" key (wrapDecoder (clickEvent constructor))
   end
 end
 
