@@ -25,7 +25,11 @@ let viewIntegrationTestButton (testState : integrationTestState) : msg Html.html
     match testState with
     | IntegrationTestExpectation _ ->
         [ Html.a
-            [ ViewUtils.nothingMouseEvent "mousedown"
+            [ (* We need to block all mouse events that might change the cursorState
+               * because the integration tests click this button prior to
+               * (in the OCaml portion of many integration tests) checking to see
+               * if the cursorState matches what we expect. *)
+              ViewUtils.nothingMouseEvent "mousedown"
             ; ViewUtils.nothingMouseEvent "click"
             ; ViewUtils.eventNoPropagation ~key:"fit" "mouseup" (fun _ ->
                   FinishIntegrationTest)
