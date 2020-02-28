@@ -50,6 +50,12 @@ module Builder = struct
   (** id is the id of the first token in the builder or None if the builder is empty. *)
   let id (b : t) : id option = List.last b.tokens |> Option.map ~f:T.tid
 
+  let lineLimit = 120
+
+  let strLimit = 40
+
+  let listLimit = 60
+
   let add (token : fluidToken) (b : t) : t =
     let tokenLength = token |> T.toText |> String.length in
     let newTokens, xPos =
@@ -209,7 +215,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         |> ( + ) (* separators, including at the front *) (List.length args)
         |> ( + ) (Option.withDefault ~default:0 b.xPos)
       in
-      let tooLong = length > 120 in
+      let tooLong = length > lineLimit in
       let needsNewlineBreak =
         (* newlines aren't disruptive in the last argument *)
         args
@@ -259,9 +265,10 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addNewlineIfNeeded (Some (E.toID next, id, None))
       |> addNested ~f:(toTokens' next)
   | EString (id, str) ->
-      let size = 40 in
       let strings =
-        if String.length str > size then String.segment ~size str else [str]
+        if String.length str > strLimit
+        then String.segment ~size:strLimit str
+        else [str]
       in
       ( match strings with
       | [] ->
@@ -273,13 +280,14 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         | ending :: revrest ->
             b
             |> addNested ~f:(fun b ->
-                   let endingOffset = size * (List.length revrest + 1) in
+                   let endingOffset = strLimit * (List.length revrest + 1) in
                    b
                    |> add (TStringMLStart (id, starting, 0, str))
                    |> add (TNewline None)
                    |> addIter (List.reverse revrest) ~f:(fun i s b ->
                           b
-                          |> add (TStringMLMiddle (id, s, size * (i + 1), str))
+                          |> add
+                               (TStringMLMiddle (id, s, strLimit * (i + 1), str))
                           |> add (TNewline None))
                    |> add (TStringMLEnd (id, ending, endingOffset, str))) ) )
   | EIf (id, cond, if', else') ->
@@ -379,13 +387,30 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> add (TLambdaArrow id)
       |> nest ~indent:2 body
   | EList (id, exprs) ->
+      (*
+         With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
+      *)
       let lastIndex = List.length exprs - 1 in
+      let xOffset = b.xPos |> Option.withDefault ~default:0 in
       b
       |> add (TListOpen id)
-      |> addIter exprs ~f:(fun i e b ->
-             b
-             |> addNested ~f:(toTokens' e)
-             |> addIf (i <> lastIndex) (TListComma (id, i)))
+      |> addIter exprs ~f:(fun i e b' ->
+             let currentLineLength =
+               let commaWidth = if i <> lastIndex then 1 else 0 in
+               (toTokens' e b').xPos
+               |> Option.map ~f:(fun x -> x - xOffset + commaWidth)
+               |> Option.withDefault ~default:commaWidth
+             in
+             (* Even if first element overflows, don't put it in a new line *)
+             let isOverLimit = i > 0 && currentLineLength > listLimit in
+             (* Indent after newlines to match the '[ ' *)
+             let indent = if isOverLimit then 1 else 0 in
+             b'
+             |> addIf isOverLimit (TNewline None)
+             |> indentBy ~indent ~f:(fun b' ->
+                    b'
+                    |> addNested ~f:(toTokens' e)
+                    |> addIf (i <> lastIndex) (TListComma (id, i))))
       |> add (TListClose id)
   | ERecord (id, fields) ->
       if fields = []
