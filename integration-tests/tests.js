@@ -627,7 +627,7 @@ test("cant_delete_locked_col", async t => {
 
 test("select_route", async t => {
   const categoryHeader = "summary.headerSummary";
-  const httpVerbLink = "a.verb.verb-link";
+  const httpVerbLink = ".active a.verb.verb-link";
   const toplevelElement = ".node .toplevel";
 
   await t.click(Selector(categoryHeader));
