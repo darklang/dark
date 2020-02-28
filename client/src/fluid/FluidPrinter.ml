@@ -395,16 +395,14 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       b
       |> add (TListOpen id)
       |> addIter exprs ~f:(fun i e b' ->
-             let lnLength =
-               (* xPos from the builder gives the column number that the next token will be starting from. Here it gives us the length of the current line *)
+             let currentLineLength =
                let commaWidth = if i <> lastIndex then 1 else 0 in
                (toTokens' e b').xPos
                |> Option.map ~f:(fun x -> x - xOffset + commaWidth)
                |> Option.withDefault ~default:commaWidth
              in
              (* Even if first element overflows, don't put it in a new line *)
-             (* We may have define explicit rules linewrapping for other expressions later on down the line, for now it's out of scope *)
-             let isOverLimit = i > 0 && lnLength > listLimit in
+             let isOverLimit = i > 0 && currentLineLength > listLimit in
              (* Indent after newlines to match the '[ ' *)
              let indent = if isOverLimit then 1 else 0 in
              b'
