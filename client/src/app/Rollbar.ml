@@ -14,3 +14,14 @@ let customContext (e : apiError) (state : cursorState) : Js.Json.t =
 
 let sendAPIError (m : model) (e : apiError) : unit =
   send (APIError.msg e) (APIError.urlOf e) (customContext e m.cursorState)
+
+
+let displayAndReportError m message url custom : model * msg Tea.Cmd.t =
+  let url = match url with Some url -> " (" ^ url ^ ")" | None -> "" in
+  let custom = match custom with Some c -> ": " ^ c | None -> "" in
+  let error = message ^ url ^ custom in
+  (* Reload on bad csrf *)
+  if String.contains error ~substring:"Bad CSRF"
+  then Native.Location.reload true ;
+  ( {m with error = Some error}
+  , Tea.Cmd.call (fun _ -> send error None Js.Json.null) )

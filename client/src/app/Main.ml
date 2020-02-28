@@ -153,7 +153,7 @@ let processFocus (m : model) (focus : focus) : modification =
     | _ ->
         NoChange )
   | FocusSame ->
-    ( match unwrapCursorState m.cursorState with
+    ( match CursorState.unwrap m.cursorState with
     | Selecting (tlid, mId) ->
       ( match (TL.get m tlid, mId) with
       | Some tl, Some id ->
@@ -175,19 +175,24 @@ let processFocus (m : model) (focus : focus) : modification =
     | _ ->
         NoChange )
   | FocusPageAndCursor (page, cs) ->
-      let useCS = Page.tlidOf page = tlidOf cs in
+      let useCS = Page.tlidOf page = CursorState.tlidOf cs in
       let tlid, mID =
         (* If they don't match, the URL wins *)
-        if useCS then (tlidOf cs, idOf cs) else (Page.tlidOf page, None)
+        if useCS
+        then (CursorState.tlidOf cs, CursorState.idOf cs)
+        else (Page.tlidOf page, None)
       in
       let mTl = Option.andThen tlid ~f:(TL.get m) in
       let pd = Option.map2 mTl mID ~f:(fun tl id -> TL.find tl id) in
       ( match (mTl, pd) with
       | Some tl, Some (Some pd) when TL.isValidBlankOrID tl (P.toID pd) ->
           let query = AutocompleteMod (ACSetQuery (P.toContent pd)) in
-          Many [SetPage page; SetCursorState cs; query]
+          Many [SetPage page; JustReturn (CursorState.setCursorState cs); query]
       | Some _, Some None | Some _, None ->
-          Many [SetPage page; SetCursorState cs; AutocompleteMod (ACSetQuery "")]
+          Many
+            [ SetPage page
+            ; JustReturn (CursorState.setCursorState cs)
+            ; AutocompleteMod (ACSetQuery "") ]
       | _, _ ->
           NoChange )
   | FocusNothing ->
@@ -209,7 +214,7 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
       mods
   in
   let focus =
-    match unwrapCursorState m.cursorState with
+    match CursorState.unwrap m.cursorState with
     | Entering _ ->
         AC.focusItem complete.index
     | _ ->
@@ -247,7 +252,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     let bringBackCurrentTL (oldM : model) (newM : model) : model =
       (* used with updateCurrent - if updateCurrent is false, we want to restore
        * the current TL so we don't lose local changes made since the API call *)
-      match tlidOf oldM.cursorState with
+      match CursorState.tlidOf oldM.cursorState with
       | Some tlid ->
           let tl = TL.get oldM tlid in
           ( match tl with
@@ -306,17 +311,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (withFocus, Cmd.batch [wfCmd; API.addOp withFocus FocusNoChange params])
     in
     match mod_ with
+    | JustReturn f ->
+        f m
     | DisplayError e ->
         ({m with error = Some e}, Cmd.none)
-    | DisplayAndReportError (message, url, custom) ->
-        let url = match url with Some url -> " (" ^ url ^ ")" | None -> "" in
-        let custom = match custom with Some c -> ": " ^ c | None -> "" in
-        let error = message ^ url ^ custom in
-        (* Reload on bad csrf *)
-        if String.contains error ~substring:"Bad CSRF"
-        then Native.Location.reload true ;
-        ( {m with error = Some error}
-        , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
     | HandleAPIError apiError ->
         let now = Js.Date.now () |> Js.Date.fromFloat in
         let shouldReload =
@@ -404,9 +402,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         , Cmd.none )
     | MakeCmd cmd ->
         (m, cmd)
-    | SetCursorState cursorState ->
-        let newM = {m with cursorState} in
-        (newM, Entry.focusEntry newM)
     | SetPage page ->
         let pagePresent =
           match Page.tlidOf page with
@@ -461,7 +456,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m, hashcmd =
           match TL.get m tlid with
-          | Some tl when tlidOf m.cursorState <> Some tlid ->
+          | Some tl when CursorState.tlidOf m.cursorState <> Some tlid ->
               let page = TL.asPage tl false in
               let m = Page.setPage m m.currentPage page in
               (m, Url.updateUrl page)
@@ -531,7 +526,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
-        (m, Cmd.batch [afCmd; acCmd; Entry.focusEntry m])
+        (m, Cmd.batch [afCmd; acCmd; CursorState.focusEntry m])
     | EnterWithOffset (entry, offset) ->
         let cursorState, target =
           match entry with
@@ -547,7 +542,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
-        (m, Cmd.batch [afCmd; acCmd; Entry.focusEntryWithOffset m offset])
+        (m, Cmd.batch [afCmd; acCmd; CursorState.focusEntryWithOffset m offset])
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | RemoveGroup tl ->
@@ -619,30 +614,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           updateMod (Fluid.update m FluidUpdateAutocomplete) (m, Cmd.none)
         in
         processAutocompleteMods m [ACRegenerate]
-    | UpdateDBStats statsStore ->
-        let newStore =
-          StrDict.merge
-            ~f:(fun _k v1 v2 ->
-              match (v1, v2) with
-              | None, None ->
-                  None
-              | Some l, None ->
-                  Some l
-              | None, Some r ->
-                  Some r
-              | Some _, Some r ->
-                  Some r)
-            m.dbStats
-            statsStore
-        in
-        let m = {m with dbStats = newStore} in
-        (m, Cmd.none)
-    | UpdateWorkerStats (tlid, workerStats) ->
-        let newWorkerStats =
-          TLIDDict.insert ~tlid ~value:workerStats m.workerStats
-        in
-        let m = {m with workerStats = newWorkerStats} in
-        (m, Cmd.none)
     | UpdateWorkerSchedules schedules ->
         let m = {m with worker_schedules = schedules} in
         (m, Cmd.none)
@@ -744,7 +715,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
         let m3 =
-          match tlidOf m.cursorState with
+          match CursorState.tlidOf m.cursorState with
           | Some tlid ->
               if updateCurrent
               then m2
@@ -836,7 +807,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * we're in before isnt also dragging. *)
         ( { m with
             cursorState =
-              DraggingTL (tlid, offset, hasMoved, unwrapCursorState state) }
+              DraggingTL (tlid, offset, hasMoved, CursorState.unwrap state) }
         , Cmd.none )
     | PanCanvas {viewportStart; viewportCurr; prevCursorState} ->
         ( { m with
@@ -939,8 +910,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with fluidState = {m.fluidState with midClick = true}}, Cmd.none)
     | FluidEndClick ->
         ({m with fluidState = {m.fluidState with midClick = false}}, Cmd.none)
-    | TweakModel fn ->
-        (fn m, Cmd.none)
     | Apply fn ->
         let mod_ = fn m in
         updateMod mod_ (m, cmd)
@@ -990,7 +959,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   let newm, modi =
     let mTLID =
       match m.cursorState with
-      | FluidEntering tlid when Some tlid <> tlidOf newm.cursorState ->
+      | FluidEntering tlid when Some tlid <> CursorState.tlidOf newm.cursorState
+        ->
           Some tlid
       | _ ->
           None
@@ -1010,11 +980,11 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ AutocompleteMod (ACSetQuery query)
         ; AutocompleteMod (ACSetVisible true)
-        ; MakeCmd (Entry.focusEntry m) ]
+        ; MakeCmd (CursorState.focusEntry m) ]
   | EntrySubmitMsg ->
       NoChange
   | AutocompleteClick index ->
-    ( match unwrapCursorState m.cursorState with
+    ( match CursorState.unwrap m.cursorState with
     | Entering cursor ->
         let newcomplete = {m.complete with index} in
         let newm = {m with complete = newcomplete} in
@@ -1024,7 +994,7 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidMsg (FluidUpdateDropdownIndex index) ->
       Fluid.update m (FluidUpdateDropdownIndex index)
   | FluidMsg (FluidAutocompleteClick item) ->
-    ( match unwrapCursorState m.cursorState with
+    ( match CursorState.unwrap m.cursorState with
     | FluidEntering _ ->
         Fluid.update m (FluidAutocompleteClick item)
     | _ ->
@@ -1036,7 +1006,7 @@ let update_ (msg : msg) (m : model) : modification =
         | PanningCanvas {prevCursorState; _} ->
             (* In case we are already panning, we got into a weird state;
              * we should stop panning. *)
-            SetCursorState prevCursorState
+            JustReturn (CursorState.setCursorState prevCursorState)
         | _ ->
             PanCanvas
               { viewportStart = event.mePos
@@ -1061,7 +1031,7 @@ let update_ (msg : msg) (m : model) : modification =
         | FocusedFn tlid | FocusedType tlid ->
             (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
             let defaultBehaviour = Select (tlid, STTopLevelRoot) in
-            ( match unwrapCursorState m.cursorState with
+            ( match CursorState.unwrap m.cursorState with
             | Entering (Filling _ as cursor) ->
                 (* If we click away from an entry box, commit it before doing the default behaviour *)
                 [Entry.commit m cursor; defaultBehaviour]
@@ -1072,7 +1042,7 @@ let update_ (msg : msg) (m : model) : modification =
             then
               (* Clicking on the canvas should deselect the current selection on the main canvas *)
               let defaultBehaviour = Deselect in
-              match unwrapCursorState m.cursorState with
+              match CursorState.unwrap m.cursorState with
               | Deselected ->
                   let openAt = Some (Viewport.toAbsolute m event.mePos) in
                   [AutocompleteMod ACReset; Entry.openOmnibox ~openAt ()]
@@ -1093,8 +1063,11 @@ let update_ (msg : msg) (m : model) : modification =
           let maxSquareDistToConsiderAsClick = 16 in
           if distSquared viewportStart viewportCurr
              <= maxSquareDistToConsiderAsClick
-          then Many (SetCursorState prevCursorState :: clickBehavior)
-          else SetCursorState prevCursorState
+          then
+            Many
+              ( JustReturn (CursorState.setCursorState prevCursorState)
+              :: clickBehavior )
+          else JustReturn (CursorState.setCursorState prevCursorState)
       | DraggingTL (draggingTLID, _, hasMoved, origCursorState) ->
         ( match TL.get m draggingTLID with
         | Some tl ->
@@ -1105,10 +1078,10 @@ let update_ (msg : msg) (m : model) : modification =
               if not (TL.isGroup tl)
               then
                 Many
-                  [ SetCursorState origCursorState
+                  [ JustReturn (CursorState.setCursorState origCursorState)
                   ; AddOps ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
                   ]
-              else SetCursorState origCursorState
+              else JustReturn (CursorState.setCursorState origCursorState)
             else
               (* if we haven't moved, treat this as a single click and not a attempted drag *)
               let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
@@ -1118,7 +1091,7 @@ let update_ (msg : msg) (m : model) : modification =
               | _ ->
                   defaultBehaviour )
         | None ->
-            SetCursorState origCursorState )
+            JustReturn (CursorState.setCursorState origCursorState) )
       | _ ->
           NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
@@ -1132,8 +1105,7 @@ let update_ (msg : msg) (m : model) : modification =
         match Analysis.getTrace m tlid traceID with
         | Some (_, Error _) ->
             let m, cmd = Analysis.requestTrace m tlid traceID in
-            [ TweakModel (fun old -> {old with syncState = m.syncState})
-            ; MakeCmd cmd ]
+            [JustReturn (fun old -> ({old with syncState = m.syncState}, cmd))]
         | _ ->
             []
       in
@@ -1198,15 +1170,15 @@ let update_ (msg : msg) (m : model) : modification =
                   match gTlid with
                   | Some tlid ->
                       Many
-                        [ SetCursorState origCursorState
+                        [ JustReturn (CursorState.setCursorState origCursorState)
                         ; AddToGroup (tlid, draggingTLID) ]
                   | None ->
                       Many
-                        [ SetCursorState origCursorState
+                        [ JustReturn (CursorState.setCursorState origCursorState)
                         ; AddOps
                             ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
                         ]
-                else SetCursorState origCursorState
+                else JustReturn (CursorState.setCursorState origCursorState)
               else
                 (* if we haven't moved, treat this as a single click and not a attempted drag *)
                 let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
@@ -1216,7 +1188,7 @@ let update_ (msg : msg) (m : model) : modification =
                 | _ ->
                     defaultBehaviour )
           | None ->
-              SetCursorState origCursorState )
+              JustReturn (CursorState.setCursorState origCursorState) )
         | Entering (Filling _ as cursor) ->
             Many
               [ Entry.commit m cursor
@@ -1239,7 +1211,7 @@ let update_ (msg : msg) (m : model) : modification =
           select targetID
       | DraggingTL (_, _, _, prevCursorState)
       | PanningCanvas {prevCursorState; _} ->
-          SetCursorState prevCursorState
+          JustReturn (CursorState.setCursorState prevCursorState)
       | Entering cursor ->
           let defaultBehaviour = select targetID in
           ( match cursor with
@@ -1281,7 +1253,7 @@ let update_ (msg : msg) (m : model) : modification =
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | DraggingTL (_, _, _, origCursorState) ->
-        SetCursorState origCursorState
+        JustReturn (CursorState.setCursorState origCursorState)
     | Deselected ->
         Many [Select (tlid, STTopLevelRoot); SetTLTraceID (tlid, traceID)]
     | _ ->
@@ -1305,7 +1277,8 @@ let update_ (msg : msg) (m : model) : modification =
       | None ->
           NoChange )
   | ToggleEditorSetting fn ->
-      TweakModel (fun m -> {m with editorSettings = fn m.editorSettings})
+      JustReturn
+        (fun m -> ({m with editorSettings = fn m.editorSettings}, Cmd.none))
   | SaveTestButton ->
       MakeCmd (API.saveTest m)
   | FinishIntegrationTest ->
@@ -1358,11 +1331,12 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelDeleteForever tlid ->
       Many
         [ AddOps ([DeleteTLForever tlid], FocusSame)
-        ; TweakModel
+        ; JustReturn
             (fun m ->
-              { m with
-                deletedHandlers = TD.remove ~tlid m.deletedHandlers
-              ; deletedDBs = TD.remove ~tlid m.deletedDBs }) ]
+              ( { m with
+                  deletedHandlers = TD.remove ~tlid m.deletedHandlers
+                ; deletedDBs = TD.remove ~tlid m.deletedDBs }
+              , Cmd.none )) ]
   | DeleteUserFunction tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
       Many (AddOps ([DeleteFunction tlid], FocusSame) :: page)
@@ -1377,11 +1351,12 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserFunctionForever tlid ->
       Many
         [ AddOps ([DeleteFunctionForever tlid], FocusSame)
-        ; TweakModel
+        ; JustReturn
             (fun m ->
-              { m with
-                deletedUserFunctions = TD.remove ~tlid m.deletedUserFunctions })
-        ]
+              ( { m with
+                  deletedUserFunctions = TD.remove ~tlid m.deletedUserFunctions
+                }
+              , Cmd.none )) ]
   | DeleteUserType tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
       Many (AddOps ([DeleteType tlid], FocusSame) :: page)
@@ -1408,13 +1383,14 @@ let update_ (msg : msg) (m : model) : modification =
               ( match gTlid with
               | Some gTlid ->
                   Many
-                    [ SetCursorState origCursorState
+                    [ JustReturn (CursorState.setCursorState origCursorState)
                     ; MoveMemberToNewGroup (gTlid, tlid, newMod) ]
               | None ->
                   (* update the toplevel pos with the curent event position  *)
                   Many
-                    [ TweakModel (fun _m -> newMod)
-                    ; SetCursorState origCursorState
+                    [ JustReturn
+                        (fun _ ->
+                          CursorState.setCursorState origCursorState newMod)
                     ; AddOps ([MoveTL (tlid, mePos)], FocusNoChange) ] )
           | _ ->
               NoChange )
@@ -1425,19 +1401,19 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | CloseWelcomeModal ->
       Entry.sendSegmentMessage WelcomeModal ;
-      Many [TweakModel (fun m -> {m with showUserWelcomeModal = false})]
+      JustReturn (fun m -> ({m with showUserWelcomeModal = false}, Cmd.none))
   | DeleteUserTypeForever tlid ->
       Many
         [ AddOps ([DeleteTypeForever tlid], FocusSame)
-        ; TweakModel
+        ; JustReturn
             (fun m ->
-              {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes}) ]
+              ( {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes}
+              , Cmd.none )) ]
   | DeleteGroupForever tlid ->
       (* TODO: Add AddOps *)
-      Many
-        [ TweakModel
-            (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
-        ]
+      JustReturn
+        (fun m ->
+          ({m with deletedGroups = TD.remove ~tlid m.deletedGroups}, Cmd.none))
   | AddOpsAPICallback (focus, params, Ok (r : addOpAPIResponse)) ->
       let m, newOps, _ = API.filterOpsAndResult m params None in
       let params = {params with ops = newOps} in
@@ -1485,7 +1461,7 @@ let update_ (msg : msg) (m : model) : modification =
         let initialMods =
           applyOpsToClient false params (result |> Option.valueExn)
         in
-        Many (initialMods @ [MakeCmd (Entry.focusEntry m)])
+        Many (initialMods @ [MakeCmd (CursorState.focusEntry m)])
   | FetchAllTracesAPICallback (Ok x) ->
       let traces =
         List.foldl x.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
@@ -1514,15 +1490,15 @@ let update_ (msg : msg) (m : model) : modification =
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in
       Many
-        [ TweakModel
+        [ JustReturn
             (fun m ->
-              { m with
-                opCtrs = r.opCtrs
-              ; account = r.account
-              ; settingsView =
-                  { m.settingsView with
-                    canvas_list = r.canvas_list
-                  ; org_list = r.org_list } })
+              let settingsView =
+                { m.settingsView with
+                  canvas_list = r.canvas_list
+                ; org_list = r.org_list }
+              in
+              ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
+              , Cmd.none ))
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
@@ -1569,22 +1545,24 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many
         [ OverrideTraces traces
-        ; TweakModel
+        ; JustReturn
             (fun m ->
               let handlerProps =
                 RT.setHandlerExeState params.thTLID Complete m.handlerProps
               in
-              {m with handlerProps}) ]
+              ({m with handlerProps}, Cmd.none)) ]
   | GetUnlockedDBsAPICallback (Ok unlockedDBs) ->
       Many
-        [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
+        [ JustReturn
+            (fun m -> (Sync.markResponseInModel m ~key:"unlocked", Cmd.none))
         ; SetUnlockedDBs unlockedDBs ]
   | LoadPackagesAPICallback (Ok loadedPackages) ->
-      TweakModel
+      JustReturn
         (fun m ->
-          { m with
-            packageFns = PackageManager.loadPackages m.packageFns loadedPackages
-          })
+          ( { m with
+              packageFns =
+                PackageManager.loadPackages m.packageFns loadedPackages }
+          , Cmd.none ))
   | NewTracePush (traceID, tlids) ->
       let traces =
         List.map
@@ -1647,27 +1625,35 @@ let update_ (msg : msg) (m : model) : modification =
             , [(params.gtdrpTraceID, Error MaximumCallStackError)] ) ]
       in
       Many
-        [ TweakModel
-            (Sync.markResponseInModel
-               ~key:("tracefetch-" ^ params.gtdrpTraceID))
-        ; UpdateTraces traces
-        ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
-        ]
+        [ JustReturn
+            (fun m ->
+              let key = "tracefetch-" ^ params.gtdrpTraceID in
+              let m = Sync.markResponseInModel m ~key in
+              Rollbar.displayAndReportError
+                m
+                "Error fetching trace"
+                (Some url)
+                (Some error))
+        ; UpdateTraces traces ]
   | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
-      Many
-        [ TweakModel
-            (Sync.markResponseInModel
-               ~key:("tracefetch-" ^ params.gtdrpTraceID))
-        ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
-        ]
+      JustReturn
+        (fun m ->
+          let key = "tracefetch-" ^ params.gtdrpTraceID in
+          let m = Sync.markResponseInModel m ~key in
+          Rollbar.displayAndReportError
+            m
+            "Error fetching trace"
+            (Some url)
+            (Some error))
   | ReceiveFetch (TraceFetchSuccess (params, result)) ->
       let traces =
         StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]
       in
       Many
-        [ TweakModel
-            (Sync.markResponseInModel
-               ~key:("tracefetch-" ^ params.gtdrpTraceID))
+        [ JustReturn
+            (fun m ->
+              let key = "tracefetch-" ^ params.gtdrpTraceID in
+              (Sync.markResponseInModel m ~key, Cmd.none))
         ; UpdateTraces traces ]
   | ReceiveFetch (TraceFetchMissing params) ->
       (* We'll force it so no need to update syncState *)
@@ -1689,22 +1675,47 @@ let update_ (msg : msg) (m : model) : modification =
       let key =
         params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
       in
-      Many
-        [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
-        ; DisplayAndReportError ("Error fetching db stats", Some url, Some error)
-        ]
+      JustReturn
+        (fun m ->
+          let key = "update-db-stats-" ^ key in
+          let m = Sync.markResponseInModel m ~key in
+          Rollbar.displayAndReportError
+            m
+            "Error fetching db stats"
+            (Some url)
+            (Some error))
   | ReceiveFetch (DbStatsFetchMissing params) ->
       let key =
         params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
       in
-      TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
+      JustReturn
+        (fun m ->
+          let key = "update-db-stats-" ^ key in
+          (Sync.markResponseInModel m ~key, Cmd.none))
   | ReceiveFetch (DbStatsFetchSuccess (params, result)) ->
       let key =
         params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
       in
-      Many
-        [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
-        ; UpdateDBStats result ]
+      JustReturn
+        (fun m ->
+          let m = Sync.markResponseInModel m ~key:("update-db-stats-" ^ key) in
+          let newStore =
+            StrDict.merge
+              ~f:(fun _k v1 v2 ->
+                match (v1, v2) with
+                | None, None ->
+                    None
+                | Some l, None ->
+                    Some l
+                | None, Some r ->
+                    Some r
+                | Some _, Some r ->
+                    Some r)
+              m.dbStats
+              result
+          in
+          let m = {m with dbStats = newStore} in
+          (m, Cmd.none))
   | ReceiveFetch (WorkerStatsFetchFailure (params, _, "Bad credentials")) ->
       HandleAPIError
         (APIError.make
@@ -1716,22 +1727,28 @@ let update_ (msg : msg) (m : model) : modification =
               * corresponding actual http error *)
            Tea.Http.Aborted)
   | ReceiveFetch (WorkerStatsFetchFailure (params, url, error)) ->
-      Many
-        [ TweakModel
-            (Sync.markResponseInModel
-               ~key:("get-worker-stats-" ^ deTLID params.workerStatsTlid))
-        ; DisplayAndReportError ("Error fetching db stats", Some url, Some error)
-        ]
+      JustReturn
+        (fun m ->
+          let key = "get-worker-stats-" ^ deTLID params.workerStatsTlid in
+          let m = Sync.markResponseInModel m ~key in
+          Rollbar.displayAndReportError
+            m
+            "Error fetching db stats"
+            (Some url)
+            (Some error))
   | ReceiveFetch (WorkerStatsFetchMissing params) ->
-      TweakModel
-        (Sync.markResponseInModel
-           ~key:("get-worker-stats-" ^ deTLID params.workerStatsTlid))
+      JustReturn
+        (fun m ->
+          let key = "get-worker-stats-" ^ deTLID params.workerStatsTlid in
+          (Sync.markResponseInModel m ~key, Cmd.none))
   | ReceiveFetch (WorkerStatsFetchSuccess (params, result)) ->
-      Many
-        [ TweakModel
-            (Sync.markResponseInModel
-               ~key:("get-worker-stats-" ^ deTLID params.workerStatsTlid))
-        ; UpdateWorkerStats (params.workerStatsTlid, result) ]
+      JustReturn
+        (fun m ->
+          let key = "get-worker-stats-" ^ deTLID params.workerStatsTlid in
+          let m = Sync.markResponseInModel m ~key in
+          let tlid = params.workerStatsTlid in
+          let workerStats = TLIDDict.insert ~tlid ~value:result m.workerStats in
+          ({m with workerStats}, Cmd.none))
   | AddOpsAPICallback (_, params, Error err) ->
       HandleAPIError
         (APIError.make
@@ -1766,7 +1783,8 @@ let update_ (msg : msg) (m : model) : modification =
            ~reload:false)
   | GetUnlockedDBsAPICallback (Error err) ->
       Many
-        [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
+        [ JustReturn
+            (fun m -> (Sync.markResponseInModel m ~key:"unlocked", Cmd.none))
         ; HandleAPIError
             (APIError.make
                ~context:"GetUnlockedDBs"
@@ -1808,7 +1826,7 @@ let update_ (msg : msg) (m : model) : modification =
        * different msg each time that we have to understand. *)
       NoChange
   | PageVisibilityChange vis ->
-      TweakModel (fun m_ -> {m_ with visibility = vis})
+      JustReturn (fun m -> ({m with visibility = vis}, Cmd.none))
   | CreateHandlerFrom404 ({space; path; modifier; _} as fof) ->
       let center = Viewport.findNewPos m in
       let tlid = gtlid () in
@@ -1856,15 +1874,16 @@ let update_ (msg : msg) (m : model) : modification =
               , FocusExact (tlid, FluidExpression.toID ast) )
           ; Delete404 fof ] )
   | MarkRoutingTableOpen (shouldOpen, key) ->
-      TweakModel
+      JustReturn
         (fun m ->
-          { m with
-            routingTableOpenDetails =
-              ( if shouldOpen
-              then StrSet.add ~value:key m.routingTableOpenDetails
-              else StrSet.remove ~value:key m.routingTableOpenDetails ) })
+          ( { m with
+              routingTableOpenDetails =
+                ( if shouldOpen
+                then StrSet.add ~value:key m.routingTableOpenDetails
+                else StrSet.remove ~value:key m.routingTableOpenDetails ) }
+          , Cmd.none ))
   | ToggleSideBar ->
-      TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
+      JustReturn (fun m -> ({m with sidebarOpen = not m.sidebarOpen}, Cmd.none))
   | CreateRouteHandler action ->
       let center = Viewport.findNewPos m in
       Entry.submitOmniAction m center action
@@ -1886,15 +1905,17 @@ let update_ (msg : msg) (m : model) : modification =
         [ AddOps ([SetType tipe], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
   | LockHandler (tlid, locked) ->
-      TweakModel (Handlers.setHandlerLock tlid locked)
+      JustReturn (fun m -> (Handlers.setHandlerLock tlid locked m, Cmd.none))
   | EnablePanning pan ->
-      TweakModel
-        (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
+      JustReturn
+        (fun m ->
+          ({m with canvasProps = {m.canvasProps with enablePan = pan}}, Cmd.none))
   | ClipboardCopyEvent e ->
       let toast =
-        TweakModel
+        JustReturn
           (fun m ->
-            {m with toast = {m.toast with toastMessage = Some "Copied!"}})
+            ( {m with toast = {m.toast with toastMessage = Some "Copied!"}}
+            , Cmd.none ))
       in
       let clipboardData = Fluid.getCopySelection m in
       Many [SetClipboardContents (clipboardData, e); toast]
@@ -1903,9 +1924,10 @@ let update_ (msg : msg) (m : model) : modification =
       Fluid.update m (FluidPaste data)
   | ClipboardCutEvent e ->
       let toast =
-        TweakModel
+        JustReturn
           (fun m ->
-            {m with toast = {m.toast with toastMessage = Some "Copied!"}})
+            ( {m with toast = {m.toast with toastMessage = Some "Copied!"}}
+            , Cmd.none ))
       in
       let copyData, mod_ =
         (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
@@ -1913,9 +1935,10 @@ let update_ (msg : msg) (m : model) : modification =
       Many [SetClipboardContents (copyData, e); mod_; toast]
   | ClipboardCopyLivevalue (lv, pos) ->
       Native.Clipboard.copyToClipboard lv ;
-      TweakModel
+      JustReturn
         (fun m ->
-          {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}})
+          ( {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
+          , Cmd.none ))
   | EventDecoderError (name, key, error) ->
       (* Consider rollbar'ing here, but consider the following before doing so:
        *    - old clients after a deploy
@@ -1930,13 +1953,14 @@ let update_ (msg : msg) (m : model) : modification =
         ^ error
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
-      TweakModel (Handlers.setHandlerState tlid state)
+      JustReturn (fun m -> (Handlers.setHandlerState tlid state m, Cmd.none))
   | CanvasPanAnimationEnd ->
-      TweakModel
+      JustReturn
         (fun m ->
-          { m with
-            canvasProps =
-              {m.canvasProps with panAnimation = DontAnimateTransition} })
+          ( { m with
+              canvasProps =
+                {m.canvasProps with panAnimation = DontAnimateTransition} }
+          , Cmd.none ))
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
   | SetHoveringReferences (tlid, ids) ->
@@ -1953,10 +1977,10 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidMsg FluidCut | FluidMsg (FluidPaste _) ->
       recover "Fluid functions should not happen here" ~debug:msg NoChange
   | FluidMsg (FluidCommandsFilter query) ->
-      TweakModel
+      JustReturn
         (fun m ->
           let cp = FluidCommands.filter m query m.fluidState.cp in
-          {m with fluidState = {m.fluidState with cp}})
+          ({m with fluidState = {m.fluidState with cp}}, Cmd.none))
   | FluidMsg (FluidCommandsClick cmd) ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
@@ -1972,10 +1996,10 @@ let update_ (msg : msg) (m : model) : modification =
       |> Option.map ~f:(fun cmd -> MakeCmd cmd)
       |> Option.withDefault ~default:(DisplayError "No function to upload")
   | SetHandlerExeIdle tlid ->
-      TweakModel
+      JustReturn
         (fun m ->
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
-          {m with handlerProps})
+          ({m with handlerProps}, Cmd.none))
   | CopyCurl (tlid, pos) ->
       CurlCommand.copyCurlMod m tlid pos
   | TLMenuMsg (tlid, msg) ->
@@ -1999,28 +2023,28 @@ let update_ (msg : msg) (m : model) : modification =
       (* Handle all other messages *)
       Fluid.update m msg
   | ResetToast ->
-      TweakModel (fun m -> {m with toast = Defaults.defaultToast})
+      JustReturn (fun m -> ({m with toast = Defaults.defaultToast}, Cmd.none))
   | UpdateMinimap data ->
-      TweakModel
-        (fun m -> {m with canvasProps = {m.canvasProps with minimap = data}})
+      JustReturn
+        (fun m ->
+          ({m with canvasProps = {m.canvasProps with minimap = data}}, Cmd.none))
   | HideTopbar ->
-      TweakModel (fun m -> {m with showTopbar = false})
+      JustReturn (fun m -> ({m with showTopbar = false}, Cmd.none))
   | LogoutOfDark ->
-      Many
-        [ MakeCmd (API.logout m)
-        ; TweakModel
-            (fun m ->
-              {m with editorSettings = {m.editorSettings with runTimers = false}})
-        ]
+      JustReturn
+        (fun m ->
+          ( {m with editorSettings = {m.editorSettings with runTimers = false}}
+          , API.logout m ))
   | LogoutAPICallback ->
       (* For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work *)
       Native.Ext.redirect "/login" ;
       NoChange
   | GoToArchitecturalView ->
       Many
-        [ TweakModel
+        [ JustReturn
             (fun m ->
-              {m with canvasProps = {m.canvasProps with minimap = None}})
+              ( {m with canvasProps = {m.canvasProps with minimap = None}}
+              , Cmd.none ))
         ; Deselect
         ; MakeCmd (Url.navigateTo Architecture) ]
   | DismissErrorBar ->

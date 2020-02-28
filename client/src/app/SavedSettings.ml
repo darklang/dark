@@ -1,8 +1,6 @@
 open Prelude
 
-let canonicalizeCursorState (cs : cursorState) : cursorState =
-  Prelude.unwrapCursorState cs
-
+let canonicalizeCursorState = CursorState.unwrap
 
 let canonicalizeHandlerProps props =
   StrDict.map props ~f:(fun v ->

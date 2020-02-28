@@ -16,26 +16,6 @@ let openOmnibox ?(openAt : pos option = None) () : modification =
 (* --------------------- *)
 (* Focus *)
 (* --------------------- *)
-(* Based on Tea_html_cmds, applies offset after focus *)
-let focusWithOffset id offset =
-  Tea.Cmd.call (fun _ ->
-      let ecb _ignored =
-        match Js.Nullable.toOption (Web.Document.getElementById id) with
-        | None ->
-            (* Do not report this error, it's not a problem *)
-            Js.log ("Attempted to focus a non-existant element of: ", id)
-        | Some elem ->
-            (* We have to focus after setting range, or the cursor will vanish when the offset is 0 *)
-            elem##setSelectionRange offset offset ;
-            Web.Node.focus elem ;
-            ()
-      in
-      (* One to get out of the current render frame*)
-      let cb _ignored = ignore (Web.Window.requestAnimationFrame ecb) in
-      (* And another to properly focus *)
-      ignore (Web.Window.requestAnimationFrame cb) ;
-      ())
-
 
 (* selection *)
 type range =
@@ -258,22 +238,6 @@ let unsupportedBrowser () : bool =
   |> Option.withDefault ~default:false
 
 
-let focusEntry (m : model) : msg Tea.Cmd.t =
-  match unwrapCursorState m.cursorState with
-  | Entering _ ->
-      Tea_html_cmds.focus Defaults.entryID
-  | _ ->
-      Tea.Cmd.none
-
-
-let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
-  match unwrapCursorState m.cursorState with
-  | Entering _ ->
-      focusWithOffset Defaults.entryID offset
-  | _ ->
-      Tea.Cmd.none
-
-
 let newHandler m space name modifier pos =
   let tlid = gtlid () in
   let spaceid = gid () in
@@ -302,8 +266,10 @@ let newHandler m space name modifier pos =
       then FluidEntering tlid
       else Entering (Filling (tlid, idToEnter))
     in
-    [ TweakModel (fun m -> {m with fluidState = newS})
-    ; SetCursorState cursorState ]
+    [ JustReturn
+        (fun m ->
+          {m with fluidState = newS} |> CursorState.setCursorState cursorState)
+    ]
   in
   let pageChanges = [SetPage (FocusedHandler (tlid, true))] in
   let rpc =
@@ -657,13 +623,18 @@ let submitACItem
           | PGroupName _, ACGroupName name, _ ->
               replace (PGroupName (B.newF name))
           | pd, item, _ ->
-              DisplayAndReportError
-                ( "Invalid autocomplete option"
-                , None
-                , Some
-                    ( Types.show_blankOrData pd
+              JustReturn
+                (fun m ->
+                  let custom =
+                    Types.show_blankOrData pd
                     ^ ", "
-                    ^ Types.show_autocompleteItem item ) ) ) )
+                    ^ Types.show_autocompleteItem item
+                  in
+                  Rollbar.displayAndReportError
+                    m
+                    "Invalid autocomplete option"
+                    None
+                    (Some custom)) ) )
     | _ ->
         recover "Missing tl/pd" ~debug:cursor NoChange )
 

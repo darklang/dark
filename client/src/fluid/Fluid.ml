@@ -74,7 +74,7 @@ let astAndStateFromTLID (m : model) (tlid : tlid) : (FluidAST.t * state) option
   |> Option.map ~f:(fun ast ->
          let state =
            (* We need to discard transient state if the selected handler has changed *)
-           if Some tlid = tlidOf m.cursorState
+           if Some tlid = CursorState.tlidOf m.cursorState
            then m.fluidState
            else
              let newM = removeHandlerTransientState m in
@@ -5341,10 +5341,12 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   match msg with
   | FluidUpdateDropdownIndex index when FluidCommands.isOpened m.fluidState.cp
     ->
-      FluidCommands.cpSetIndex m index s
+      FluidCommands.cpSetIndex m index
   | FluidUpdateDropdownIndex index ->
-      let newState = acSetIndex index s in
-      Types.TweakModel (fun m -> {m with fluidState = newState})
+      JustReturn
+        (fun m ->
+          let fluidState = acSetIndex index m.fluidState in
+          ({m with fluidState}, Tea.Cmd.none))
   | FluidInputEvent (Keypress {key = K.Undo; _}) ->
       KeyPress.undo_redo m false
   | FluidInputEvent (Keypress {key = K.Redo; _}) ->
@@ -5359,7 +5361,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
   | FluidFocusOnToken id ->
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
-      tlidOf m.cursorState
+      CursorState.tlidOf m.cursorState
       |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
       |> Option.andThen ~f:(fun tl ->
              match TL.getAST tl with
@@ -5405,7 +5407,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
         | FluidMouseUp {tlid; _} ->
             Some tlid
         | _ ->
-            tlidOf m.cursorState
+            CursorState.tlidOf m.cursorState
       in
       let tl : toplevel option = Option.andThen tlid ~f:(Toplevel.get m) in
       let ast = Option.andThen tl ~f:TL.getAST in
@@ -5477,7 +5479,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                     NoChange
               in
               Many
-                [ Types.TweakModel (fun m -> TL.withAST m tlid newAST)
+                [ JustReturn (fun m -> (TL.withAST m tlid newAST, Tea.Cmd.none))
                 ; Toplevel.setSelectedAST m newAST
                 ; requestAnalysis
                 ; UpdateASTCache
@@ -5485,7 +5487,8 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
             else Types.NoChange
           in
           Types.Many
-            [ Types.TweakModel (fun m -> {m with fluidState = newState})
+            [ JustReturn
+                (fun m -> ({m with fluidState = newState}, Tea.Cmd.none))
             ; astMod
             ; eventSpecMod
             ; Types.MakeCmd cmd ]

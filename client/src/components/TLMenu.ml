@@ -35,7 +35,7 @@ let update (m : model) (tlid : tlid) (msg : menuMsg) : model =
 
 
 let closeMenu (m : model) : model =
-  match Prelude.tlidOf m.cursorState with
+  match CursorState.tlidOf m.cursorState with
   | Some tlid ->
       update m tlid CloseMenu
   | None ->

@@ -61,8 +61,9 @@ let end_ (_m : model) (_id : id) (_pick : pick) : modification =
 
 
 let toggle (id : id) (isExpanded : bool) : modification =
-  TweakModel
-    (fun m_ ->
-      { m_ with
-        featureFlags =
-          StrDict.insert ~key:(deID id) ~value:isExpanded m_.featureFlags })
+  JustReturn
+    (fun m ->
+      let featureFlags =
+        StrDict.insert ~key:(deID id) ~value:isExpanded m.featureFlags
+      in
+      ({m with featureFlags}, Tea.Cmd.none))
