@@ -188,7 +188,6 @@ let settingsTabToHtml (svs : settingsViewState) : msg Html.html list =
       viewInviteUserToDark svs
 
 
-(* Remove "showInvite" with variant *)
 let tabTitleView (tab : settingsTab) (showInvite : bool) : msg Html.html =
   let tabTitle (t : settingsTab) =
     let isSameTab =
@@ -221,7 +220,6 @@ let onKeydown (evt : Web.Node.event) : Types.msg option =
              None)
 
 
-(* Remove "showInvite" with variant *)
 let settingViewWrapper (acc : settingsViewState) (showInvite : bool) :
     msg Html.html =
   let tabView = settingsTabToHtml acc in
