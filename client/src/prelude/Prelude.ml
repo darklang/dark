@@ -88,7 +88,7 @@ let tlidOf (s : cursorState) : tlid option =
       Some tlid
   (* NOTE: These have no id because unwrapCursorState
    * should unwrap them *)
-  | DraggingTL (_, _, _, _) | PanningCanvas _ ->
+  | DraggingTL _ | PanningCanvas _ ->
       None
 
 
@@ -102,7 +102,7 @@ let idOf (s : cursorState) : id option =
       None
   (* NOTE: These have no id because unwrapCursorState
    * should unwrap them *)
-  | DraggingTL (_, _, _, _) | PanningCanvas _ ->
+  | DraggingTL _ | PanningCanvas _ ->
       None
 
 
