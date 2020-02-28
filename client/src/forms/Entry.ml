@@ -228,7 +228,7 @@ type browserPlatform =
   | UnknownPlatform
 
 external validateEmail : string -> bool = "validateEmail"
-  [@@bs.val] [@@bs.scope "window"]
+  [@@bs.val] [@@bs.scope "window"] [@@bs.scope "Dark"]
 
 external jsGetBrowserPlatform : unit -> browserPlatform Js.Nullable.t
   = "getBrowserPlatform"
