@@ -236,7 +236,7 @@ module ReceiveAnalysis = struct
 
 
   let listen ~key tagger =
-    Native.registerGlobal "receiveAnalysis" key tagger decode
+    BrowserListeners.registerGlobal "receiveAnalysis" key tagger decode
 end
 
 module ReceiveFetch = struct
@@ -248,7 +248,7 @@ module ReceiveFetch = struct
 
 
   let listen ~key tagger =
-    Native.registerGlobal "receiveFetch" key tagger decode
+    BrowserListeners.registerGlobal "receiveFetch" key tagger decode
 end
 
 module NewTracePush = struct
@@ -260,7 +260,7 @@ module NewTracePush = struct
 
 
   let listen ~key tagger =
-    Native.registerGlobal "newTracePush" key tagger decode
+    BrowserListeners.registerGlobal "newTracePush" key tagger decode
 end
 
 module New404Push = struct
@@ -269,7 +269,8 @@ module New404Push = struct
     field "detail" (Decoders.wrapDecoder Decoders.fof)
 
 
-  let listen ~key tagger = Native.registerGlobal "new404Push" key tagger decode
+  let listen ~key tagger =
+    BrowserListeners.registerGlobal "new404Push" key tagger decode
 end
 
 module NewPresencePush = struct
@@ -279,7 +280,7 @@ module NewPresencePush = struct
 
 
   let listen ~key tagger =
-    Native.registerGlobal "newPresencePush" key tagger decode
+    BrowserListeners.registerGlobal "newPresencePush" key tagger decode
 end
 
 module AddOps = struct
@@ -288,7 +289,8 @@ module AddOps = struct
     field "detail" (Decoders.wrapDecoder Decoders.addOpAPIStrollerMsg)
 
 
-  let listen ~key tagger = Native.registerGlobal "addOp" key tagger decode
+  let listen ~key tagger =
+    BrowserListeners.registerGlobal "addOp" key tagger decode
 end
 
 module WorkerStatePush = struct
@@ -298,7 +300,7 @@ module WorkerStatePush = struct
 
 
   let listen ~key tagger =
-    Native.registerGlobal "workerStatePush" key tagger decode
+    BrowserListeners.registerGlobal "workerStatePush" key tagger decode
 end
 
 (* Request analysis *)

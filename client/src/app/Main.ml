@@ -830,13 +830,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m = Analysis.setSelectedTraceID m tlid traceID in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, afCmd)
-    | Drag (tlid, offset, hasMoved, state) ->
+    | DragTL (tlid, offset, hasMoved, state) ->
         (* Because mouseEvents are not perfectly reliable, we can end up in
          * weird dragging states. If we start dragging, make sure the state
          * we're in before isnt also dragging. *)
         ( { m with
             cursorState =
-              Dragging (tlid, offset, hasMoved, unwrapCursorState state) }
+              DraggingTL (tlid, offset, hasMoved, unwrapCursorState state) }
+        , Cmd.none )
+    | PanCanvas {viewportStart; viewportCurr; prevCursorState} ->
+        ( { m with
+            cursorState =
+              PanningCanvas {viewportStart; viewportCurr; prevCursorState} }
         , Cmd.none )
     | ExecutingFunctionBegan (tlid, id) ->
         let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
@@ -1020,32 +1025,98 @@ let update_ (msg : msg) (m : model) : modification =
         Fluid.update m (FluidAutocompleteClick item)
     | _ ->
         NoChange )
-  | GlobalClick event ->
-    ( match m.currentPage with
-    | FocusedFn tlid | FocusedType tlid ->
-        (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
-        let defaultBehaviour = Select (tlid, STTopLevelRoot) in
-        ( match unwrapCursorState m.cursorState with
-        | Entering (Filling _ as cursor) ->
-            (* If we click away from an entry box, commit it before doing the default behaviour *)
-            Many [Entry.commit m cursor; defaultBehaviour]
+  | AppMouseDown event ->
+      if event.button = Defaults.leftButton
+      then
+        match m.cursorState with
+        | PanningCanvas {prevCursorState; _} ->
+            (* In case we are already panning, we got into a weird state;
+             * we should stop panning. *)
+            SetCursorState prevCursorState
         | _ ->
-            defaultBehaviour )
-    | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
-        if event.button = Defaults.leftButton
-        then
-          (* Clicking on the canvas should deselect the current selection on the main canvas *)
-          let defaultBehaviour = Deselect in
-          match unwrapCursorState m.cursorState with
-          | Deselected ->
-              let openAt = Viewport.toAbsolute m event.mePos in
-              Many [AutocompleteMod ACReset; Enter (Creating (Some openAt))]
-          | Entering (Filling _ as cursor) ->
-              (* If we click away from an entry box, commit it before doing the default behaviour *)
-              Many [Entry.commit m cursor; defaultBehaviour]
-          | _ ->
-              defaultBehaviour
-        else NoChange )
+            PanCanvas
+              { viewportStart = event.mePos
+              ; viewportCurr = event.mePos
+              ; prevCursorState = m.cursorState }
+      else NoChange
+  | AppMouseDrag mousePos ->
+    ( match m.cursorState with
+    | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
+        let viewportNext = {vx = mousePos.x; vy = mousePos.y} in
+        let dx = viewportCurr.vx - viewportNext.vx in
+        let dy = viewportCurr.vy - viewportNext.vy in
+        Many
+          [ Viewport.moveCanvasBy m dx dy
+          ; PanCanvas
+              {viewportStart; viewportCurr = viewportNext; prevCursorState} ]
+    | _ ->
+        NoChange )
+  | WindowMouseUp event | AppMouseUp event ->
+      let clickBehavior =
+        match m.currentPage with
+        | FocusedFn tlid | FocusedType tlid ->
+            (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
+            let defaultBehaviour = Select (tlid, STTopLevelRoot) in
+            ( match unwrapCursorState m.cursorState with
+            | Entering (Filling _ as cursor) ->
+                (* If we click away from an entry box, commit it before doing the default behaviour *)
+                [Entry.commit m cursor; defaultBehaviour]
+            | _ ->
+                [defaultBehaviour] )
+        | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
+            if event.button = Defaults.leftButton
+            then
+              (* Clicking on the canvas should deselect the current selection on the main canvas *)
+              let defaultBehaviour = Deselect in
+              match unwrapCursorState m.cursorState with
+              | Deselected ->
+                  let openAt = Some (Viewport.toAbsolute m event.mePos) in
+                  [AutocompleteMod ACReset; Entry.openOmnibox ~openAt ()]
+              | Entering (Filling _ as cursor) ->
+                  (* If we click away from an entry box, commit it before doing the default behaviour *)
+                  [Entry.commit m cursor; defaultBehaviour]
+              | _ ->
+                  [defaultBehaviour]
+            else []
+      in
+      ( match m.cursorState with
+      | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
+          let distSquared (a : vPos) (b : vPos) : int =
+            let dx = b.vx - a.vx in
+            let dy = b.vy - a.vy in
+            (dx * dx) + (dy * dy)
+          in
+          let maxSquareDistToConsiderAsClick = 16 in
+          if distSquared viewportStart viewportCurr
+             <= maxSquareDistToConsiderAsClick
+          then Many (SetCursorState prevCursorState :: clickBehavior)
+          else SetCursorState prevCursorState
+      | DraggingTL (draggingTLID, _, hasMoved, origCursorState) ->
+        ( match TL.get m draggingTLID with
+        | Some tl ->
+            if hasMoved
+            then
+              (* We've been updating tl.pos as mouse moves, *)
+              (* now want to report last pos to server *)
+              if not (TL.isGroup tl)
+              then
+                Many
+                  [ SetCursorState origCursorState
+                  ; AddOps ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
+                  ]
+              else SetCursorState origCursorState
+            else
+              (* if we haven't moved, treat this as a single click and not a attempted drag *)
+              let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
+              ( match origCursorState with
+              | Entering (Filling _ as cursor) ->
+                  Many [Entry.commit m cursor; defaultBehaviour]
+              | _ ->
+                  defaultBehaviour )
+        | None ->
+            SetCursorState origCursorState )
+      | _ ->
+          NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
   | BlankOrMouseLeave (tlid, id, _) ->
@@ -1069,7 +1140,7 @@ let update_ (msg : msg) (m : model) : modification =
       TriggerHandlerAPICall tlid
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
-    | Dragging (draggingTLID, startVPos, _, origCursorState) ->
+    | DraggingTL (draggingTLID, startVPos, _, origCursorState) ->
         let xDiff = mousePos.x - startVPos.vx in
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
@@ -1079,7 +1150,7 @@ let update_ (msg : msg) (m : model) : modification =
               , TD.values m2.dbs
               , TD.values m2.groups
               , true )
-          ; Drag
+          ; DragTL
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
               , true
@@ -1094,13 +1165,13 @@ let update_ (msg : msg) (m : model) : modification =
         | Some (TLFunc _) | Some (TLTipe _) | None ->
             NoChange
         | Some (TLHandler _) | Some (TLDB _) | Some (TLGroup _) ->
-            Drag (targetTLID, event.mePos, false, m.cursorState)
+            DragTL (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
   | TLDragRegionMouseUp (tlid, event) ->
       if event.button = Defaults.leftButton
       then
         match m.cursorState with
-        | Dragging (draggingTLID, _, hasMoved, origCursorState) ->
+        | DraggingTL (draggingTLID, _, hasMoved, origCursorState) ->
           ( match TL.get m draggingTLID with
           | Some tl ->
               if hasMoved
@@ -1162,8 +1233,9 @@ let update_ (msg : msg) (m : model) : modification =
       ( match m.cursorState with
       | Deselected ->
           select targetID
-      | Dragging (_, _, _, origCursorState) ->
-          SetCursorState origCursorState
+      | DraggingTL (_, _, _, prevCursorState)
+      | PanningCanvas {prevCursorState; _} ->
+          SetCursorState prevCursorState
       | Entering cursor ->
           let defaultBehaviour = select targetID in
           ( match cursor with
@@ -1220,7 +1292,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; MakeCmd (API.executeFunction m p) ]
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
-    | Dragging (_, _, _, origCursorState) ->
+    | DraggingTL (_, _, _, origCursorState) ->
         SetCursorState origCursorState
     | Deselected ->
         Many [Select (tlid, STTopLevelRoot); SetTLTraceID (tlid, traceID)]
@@ -1341,7 +1413,7 @@ let update_ (msg : msg) (m : model) : modification =
           let newGroup = {g with members = newMembers} in
           let newMod = Groups.upsert m newGroup in
           ( match m.cursorState with
-          | Dragging (_, _, _, origCursorState) ->
+          | DraggingTL (_, _, _, origCursorState) ->
               let mePos = Viewport.toAbsolute m event.mePos in
               let gTlid = Groups.posInGroup mePos m.groups |> List.head in
               (* Check if the new pos is in another group *)
@@ -2018,11 +2090,20 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     match m.cursorState with
     (* we use IDs here because the node will change *)
     (* before they're triggered *)
-    | Dragging (id, _, _, _) ->
+    | DraggingTL (id, _, _, _) ->
         let listenerKey = "mouse_moves_" ^ deTLID id in
-        [Native.DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
+        [ BrowserListeners.DarkMouse.moves ~key:listenerKey (fun event ->
+              DragToplevel (id, event)) ]
+    | PanningCanvas _ ->
+        let listenerKey = "mouse_drag" in
+        [ BrowserListeners.DarkMouse.moves ~key:listenerKey (fun event ->
+              AppMouseDrag event) ]
     | _ ->
         []
+  in
+  let windowMouseSubs =
+    [ BrowserListeners.Window.Mouse.ups ~key:"win_mouse_up" (fun event ->
+          WindowMouseUp event) ]
   in
   let timers =
     if m.editorSettings.runTimers
@@ -2038,11 +2119,14 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     else []
   in
   let onError =
-    [ Native.DisplayClientError.listen ~key:"display_client_error" (fun s ->
-          JSError s) ]
+    [ BrowserListeners.DisplayClientError.listen
+        ~key:"display_client_error"
+        (fun s -> JSError s) ]
   in
   let visibility =
-    [ Native.Window.OnFocusChange.listen ~key:"window_on_focus_change" (fun v ->
+    [ BrowserListeners.Window.OnFocusChange.listen
+        ~key:"window_on_focus_change"
+        (fun v ->
           if v
           then PageVisibilityChange Visible
           else PageVisibilityChange Hidden) ]
@@ -2050,7 +2134,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   let mousewheelSubs =
     if m.canvasProps.enablePan && not (isACOpened m)
     then
-      [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
+      [ BrowserListeners.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
             MouseWheel (dx, dy)) ]
     else []
   in
@@ -2071,21 +2155,22 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           WorkerStatePush s) ]
   in
   let clipboardSubs =
-    [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
+    [ BrowserListeners.Clipboard.copyListener ~key:"copy_event" (fun e ->
           ClipboardCopyEvent e)
-    ; Native.Clipboard.cutListener ~key:"cut_event" (fun e ->
+    ; BrowserListeners.Clipboard.cutListener ~key:"cut_event" (fun e ->
           ClipboardCutEvent e)
-    ; Native.Clipboard.pasteListener ~key:"paste_event" (fun e ->
+    ; BrowserListeners.Clipboard.pasteListener ~key:"paste_event" (fun e ->
           e##preventDefault () ;
           ClipboardPasteEvent e) ]
   in
   let onCaptureView =
-    [ Native.OnCaptureView.listen ~key:"capture_view" (fun s ->
+    [ BrowserListeners.OnCaptureView.listen ~key:"capture_view" (fun s ->
           UpdateMinimap (Some s)) ]
   in
   Tea.Sub.batch
     (List.concat
-       [ keySubs
+       [ windowMouseSubs
+       ; keySubs
        ; clipboardSubs
        ; dragSubs
        ; timers

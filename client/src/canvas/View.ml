@@ -40,8 +40,12 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   (* we capture and ignore mouseup here, otherwise clicking things inside the
    * toplevel (but not inside another element with a mouseup handler like
    * .fluid-editor) will bubble up into a "focus canvas" message and deselect
-   * our toplevel. *)
-  let events = [ViewUtils.nothingMouseEvent "mouseup"] in
+   * our toplevel. Since we capture mouseup, we must capture mousedown as well,
+   * otherwise mousedown will begin canvas panning, but mouseup won't stop it. *)
+  let events =
+    [ ViewUtils.nothingMouseEvent "mouseup"
+    ; ViewUtils.nothingMouseEvent "mousedown" ]
+  in
   (* This is a bit ugly - DBs have a larger 'margin' (not CSS margin) between
    * the encompassing toplevel div and the db div it contains, than  handlers.
    * Which leads to it being easy to hit "why won't this drag" if you click in
@@ -64,7 +68,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let boxClasses =
     let dragging =
       match m.cursorState with
-      | Dragging (tlid_, _, _, _) ->
+      | DraggingTL (tlid_, _, _, _) ->
           tlid_ = tlid
       | _ ->
           false
@@ -175,8 +179,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         (Html.classList classes :: events)
         ((top :: body) @ data)
     ; avatars
-    ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
-    ]
+    ; Html.div
+        [ Html.classList [("use-wrapper", true); ("fade", hasFf)]
+          (* Block opening the omnibox here by preventing canvas pan start *)
+        ; ViewUtils.nothingMouseEvent "mousedown" ]
+        usages ]
   in
   ViewUtils.placeHtml pos boxClasses html
 
@@ -333,7 +340,7 @@ let viewCanvas (m : model) : msg Html.html =
   in
   Html.div
     [ Html.id "canvas"
-    ; Html.class' pageClass
+    ; Html.class' ("canvas " ^ pageClass)
     ; Html.styles styles
     ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
           if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg) ]
@@ -388,28 +395,25 @@ let accountView (m : model) : msg Html.html =
       [Html.text "Account"]
   in
   Html.div
-    [Html.class' "my-account"]
+    [ Html.class' "my-account"
+      (* Block opening the omnibox here by preventing canvas pan start *)
+    ; ViewUtils.nothingMouseEvent "mousedown" ]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
     ; Html.div [Html.class' "account-actions"] [settings; logout] ]
 
 
 let view (m : model) : msg Html.html =
-  let activeVariantsClass =
-    match VariantTesting.activeCSSClasses m with
-    | "" ->
-        Vdom.noProp
-    | str ->
-        Html.class' str
+  let eventListeners =
+    (* We don't want propagation because we don't want to double-handle these events and
+     * window has its own listeners. *)
+    [ ViewUtils.eventNeither ~key:"app-md" "mousedown" (fun mouseEvent ->
+          AppMouseDown mouseEvent)
+    ; ViewUtils.eventNeither ~key:"app-mu" "mouseup" (fun mouseEvent ->
+          AppMouseUp mouseEvent) ]
   in
   let attributes =
-    [ Html.id "app"
-    ; activeVariantsClass
-    ; Html.onWithOptions
-        ~key:"app-mu"
-        "mouseup"
-        {stopPropagation = false; preventDefault = true}
-        (Decoders.wrapDecoder
-           (ViewUtils.decodeClickEvent (fun x -> GlobalClick x))) ]
+    [Html.id "app"; Html.class' ("app " ^ VariantTesting.activeCSSClasses m)]
+    @ eventListeners
   in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
@@ -434,7 +438,9 @@ let view (m : model) : msg Html.html =
         [ Html.class' "doc-container"
         ; Html.href "https://ops-documentation.builtwithdark.com/user-manual"
         ; Html.target "_blank"
-        ; ViewUtils.eventNoPropagation ~key:"doc" "mouseup" (fun _ ->
+          (* Block opening the omnibox here by preventing canvas pan start *)
+        ; ViewUtils.nothingMouseEvent "mousedown"
+        ; ViewUtils.eventNoPropagation ~key:"doc" "click" (fun _ ->
               UpdateSegment OpenDocs) ]
         [fontAwesome "book"; Html.text "Docs"] ]
   in

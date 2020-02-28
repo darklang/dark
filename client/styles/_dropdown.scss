@@ -212,6 +212,7 @@ $wrapper-background: $black2;
     margin-right: -4px;
     padding-bottom: $spacing-medium;
     background: lighten($black2, 5%);
+    cursor: auto;
 
     .item {
       padding-top: 2px;

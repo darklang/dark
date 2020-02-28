@@ -64,7 +64,12 @@ let gtlid () : tlid = TLID (Util.random () |> string_of_int)
 (* -------------------------------------- *)
 
 let rec unwrapCursorState (s : cursorState) : cursorState =
-  match s with Dragging (_, _, _, nested) -> unwrapCursorState nested | _ -> s
+  match s with
+  | DraggingTL (_, _, _, nested) | PanningCanvas {prevCursorState = nested; _}
+    ->
+      unwrapCursorState nested
+  | _ ->
+      s
 
 
 let tlidOf (s : cursorState) : tlid option =
@@ -79,10 +84,12 @@ let tlidOf (s : cursorState) : tlid option =
         Some tlid )
   | Deselected ->
       None
-  | Dragging (_, _, _, _) ->
-      None
   | FluidEntering tlid ->
       Some tlid
+  (* NOTE: These have no id because unwrapCursorState
+   * should unwrap them *)
+  | DraggingTL _ | PanningCanvas _ ->
+      None
 
 
 let idOf (s : cursorState) : id option =
@@ -91,11 +98,11 @@ let idOf (s : cursorState) : id option =
       id
   | Entering entryCursor ->
     (match entryCursor with Creating _ -> None | Filling (_, id) -> Some id)
-  | Deselected ->
+  | Deselected | FluidEntering _ ->
       None
-  | Dragging (_, _, _, _) ->
-      None
-  | FluidEntering _ ->
+  (* NOTE: These have no id because unwrapCursorState
+   * should unwrap them *)
+  | DraggingTL _ | PanningCanvas _ ->
       None
 
 

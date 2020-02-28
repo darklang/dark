@@ -159,26 +159,6 @@ let fontAwesome (name : string) : msg Html.html =
   Html.i [Html.class' ("fa fa-" ^ name)] []
 
 
-let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
-  let open Json.Decode in
-  fn
-    { mePos =
-        (* We decode floats b/c newer Chromes may use floats instead of ints; we
-         * then truncate rather than moving to floats everywhere due to concerns
-         * about sending data back to browsers whose DOMs don't support float
-         * positions - see https://github.com/darklang/dark/pull/2016 for
-         * discussion, and
-         * https://drafts.csswg.org/cssom-view/#extensions-to-the-window-interface
-         * for the spec *)
-        { vx = field "pageX" Json.Decode.float j |> truncate
-        ; vy = field "pageY" Json.Decode.float j |> truncate }
-    ; button = field "button" int j
-    ; ctrlKey = field "ctrlKey" bool j
-    ; shiftKey = field "shiftKey" bool j
-    ; altKey = field "altKey" bool j
-    ; detail = field "detail" int j }
-
-
 let decodeTransEvent (fn : string -> 'a) j : 'a =
   let open Json.Decode in
   fn (field "propertyName" string j)
@@ -206,7 +186,7 @@ let eventBoth ~(key : string) (event : string) (constructor : mouseEvent -> msg)
     ~key
     event
     {stopPropagation = false; preventDefault = false}
-    (Decoders.wrapDecoder (decodeClickEvent constructor))
+    (Decoders.wrapDecoder (Decoders.clickEvent constructor))
 
 
 let eventPreventDefault
@@ -216,7 +196,7 @@ let eventPreventDefault
     ~key
     event
     {stopPropagation = false; preventDefault = true}
-    (Decoders.wrapDecoder (decodeClickEvent constructor))
+    (Decoders.wrapDecoder (Decoders.clickEvent constructor))
 
 
 let eventNeither
@@ -226,7 +206,7 @@ let eventNeither
     ~key
     event
     {stopPropagation = true; preventDefault = true}
-    (Decoders.wrapDecoder (decodeClickEvent constructor))
+    (Decoders.wrapDecoder (Decoders.clickEvent constructor))
 
 
 let eventNoPropagation
@@ -236,7 +216,7 @@ let eventNoPropagation
     ~key
     event
     {stopPropagation = true; preventDefault = false}
-    (Decoders.wrapDecoder (decodeClickEvent constructor))
+    (Decoders.wrapDecoder (Decoders.clickEvent constructor))
 
 
 let onTransitionEnd ~(key : string) ~(listener : string -> msg) :

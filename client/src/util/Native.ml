@@ -1,39 +1,5 @@
 open Tc
 
-let registerGlobal name key tagger decoder =
-  let open Vdom in
-  let enableCall callbacks_base =
-    let callbacks = ref callbacks_base in
-    let fn ev =
-      let open Tea_json.Decoder in
-      match decodeEvent decoder ev with
-      | Tea_result.Error err ->
-          Some (Types.EventDecoderError (name, key, err))
-      | Tea_result.Ok pos ->
-          Some (tagger pos)
-    in
-    let handler = EventHandlerCallback (key, fn) in
-    let elem = Web_node.document_node in
-    let cache = eventHandler_Register callbacks elem name handler in
-    fun () -> ignore (eventHandler_Unregister elem name cache)
-  in
-  Tea_sub.registration key enableCall
-
-
-(* Same, but no JSON decoding *)
-let registerGlobalDirect name key tagger =
-  let open Vdom in
-  let enableCall callbacks_base =
-    let callbacks = ref callbacks_base in
-    let fn ev = Some (tagger (Obj.magic ev)) in
-    let handler = EventHandlerCallback (key, fn) in
-    let elem = Web_node.document_node in
-    let cache = eventHandler_Register callbacks elem name handler in
-    fun () -> ignore (eventHandler_Unregister elem name cache)
-  in
-  Tea_sub.registration key enableCall
-
-
 type rect =
   { id : string
   ; top : int
@@ -151,41 +117,6 @@ module Window = struct
 
   external openUrl : string -> string -> unit = "open"
     [@@bs.val] [@@bs.scope "window"]
-
-  module OnFocusChange = struct
-    let decode =
-      let open Tea.Json.Decoder in
-      map (fun visible -> visible) (field "detail" bool)
-
-
-    let listen ~key tagger =
-      registerGlobal "windowFocusChange" key tagger decode
-  end
-end
-
-module DisplayClientError = struct
-  let decode =
-    let open Tea.Json.Decoder in
-    map (fun msg -> msg) (field "detail" string)
-
-
-  let listen ~key tagger = registerGlobal "displayError" key tagger decode
-end
-
-module OnWheel = struct
-  let decode =
-    let open Tea.Json.Decoder in
-    map2
-      (* Handle inputs that might be ints or floats, see decodeClickEvent for
-       * details, and
-       * https://drafts.csswg.org/cssom-view/#extensions-to-the-window-interface
-       * for the spec *)
-        (fun dX dY -> (dX |> truncate, dY |> truncate))
-      (field "deltaX" Tea.Json.Decoder.float)
-      (field "deltaY" Tea.Json.Decoder.float)
-
-
-  let listen ~key tagger = registerGlobal "wheel" key tagger decode
 end
 
 module OnCaptureView = struct
@@ -194,28 +125,9 @@ module OnCaptureView = struct
 
   let capture (() : unit) : Types.msg Tea.Cmd.t =
     Tea_cmd.call (fun _ -> _capture ())
-
-
-  let decode =
-    let open Tea.Json.Decoder in
-    map (fun msg -> msg) (field "detail" string)
-
-
-  let listen ~key tagger = registerGlobal "captureView" key tagger decode
-end
-
-module DarkMouse = struct
-  let moves ~key tagger =
-    registerGlobal "mousemove" key tagger Tea.Mouse.position
 end
 
 module Clipboard = struct
-  let copyListener ~key tagger = registerGlobalDirect "copy" key tagger
-
-  let pasteListener ~key tagger = registerGlobalDirect "paste" key tagger
-
-  let cutListener ~key tagger = registerGlobalDirect "cut" key tagger
-
   external copyToClipboard : string -> unit = "clipboard-copy" [@@bs.module]
 end
 
