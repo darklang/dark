@@ -181,8 +181,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         (Html.classList classes :: events)
         ((top :: body) @ data)
     ; avatars
-    ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
-    ]
+    ; Html.div
+        [ Html.classList [("use-wrapper", true); ("fade", hasFf)]
+          (* Block opening the omnibox here by preventing canvas pan start *)
+        ; ViewUtils.nothingMouseEvent "mousedown" ]
+        usages ]
   in
   ViewUtils.placeHtml pos boxClasses html
 
@@ -394,7 +397,9 @@ let accountView (m : model) : msg Html.html =
       [Html.text "Account"]
   in
   Html.div
-    [Html.class' "my-account"]
+    [ Html.class' "my-account"
+      (* Block opening the omnibox here by preventing canvas pan start *)
+    ; ViewUtils.nothingMouseEvent "mousedown" ]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
     ; Html.div [Html.class' "account-actions"] [settings; logout] ]
 
@@ -437,6 +442,8 @@ let view (m : model) : msg Html.html =
         [ Html.class' "doc-container"
         ; Html.href "https://ops-documentation.builtwithdark.com/user-manual"
         ; Html.target "_blank"
+          (* Block opening the omnibox here by preventing canvas pan start *)
+        ; ViewUtils.nothingMouseEvent "mousedown"
         ; ViewUtils.eventNoPropagation ~key:"doc" "click" (fun _ ->
               UpdateSegment OpenDocs) ]
         [fontAwesome "book"; Html.text "Docs"] ]

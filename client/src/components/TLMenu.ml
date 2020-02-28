@@ -80,6 +80,8 @@ let viewMenu (s : menuState) (tlid : tlid) (items : menuItem list) :
   in
   Html.div
     [ Html.classList [("more-actions", true); ("show", showMenu)]
+      (* Block opening the omnibox here by preventing canvas pan start *)
+    ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.eventPreventDefault
         ~key:("hide-tl-opts" ^ strTLID)
         "mouseleave"
