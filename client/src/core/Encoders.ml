@@ -741,8 +741,14 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
       ev "Entering" [ev "Creating" [pos pos_]]
   | Entering (Filling (tlid_, id_)) ->
       ev "Entering" [ev "Filling" [tlid tlid_; id id_]]
-  | Dragging (tlid_, vpos_, hasMoved, cursor) ->
-      ev "Dragging" [tlid tlid_; vPos vpos_; bool hasMoved; cursorState cursor]
+  | DraggingTL (tlid_, vpos_, hasMoved, cursor) ->
+      ev "DraggingTL" [tlid tlid_; vPos vpos_; bool hasMoved; cursorState cursor]
+  | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
+      (* TODO: There's a danger of mismatching the decoder order here because we're using an inline record.
+       * An order-independent encoding would alleviate this. *)
+      ev
+        "PanningCanvas"
+        [vPos viewportStart; vPos viewportCurr; cursorState prevCursorState]
   | Deselected ->
       ev "Deselected" []
   | FluidEntering tlid_ ->

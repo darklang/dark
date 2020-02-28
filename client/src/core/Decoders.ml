@@ -495,12 +495,26 @@ and cursorState j =
   let dv0 = variant0 in
   let dv1 = variant1 in
   let dv2 = variant2 in
+  let dv3 = variant3 in
   let dv4 = variant4 in
   variants
     [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
     ; ("Entering", dv1 (fun a -> Entering a) entering)
-    ; ( "Dragging"
-      , dv4 (fun a b c d -> Dragging (a, b, c, d)) tlid vPos bool cursorState )
+    ; ( "Dragging" (* Deprecated via DraggingTL *)
+      , dv4 (fun a b c d -> DraggingTL (a, b, c, d)) tlid vPos bool cursorState
+      )
+    ; ( "DraggingTL"
+      , dv4 (fun a b c d -> DraggingTL (a, b, c, d)) tlid vPos bool cursorState
+      )
+    ; ( "PanningCanvas"
+        (* TODO: There's a danger of mismatching the encoder order here because we're using an inline record.
+         * An order-independent encoding would alleviate this. *)
+      , dv3
+          (fun viewportStart viewportCurr prevCursorState ->
+            PanningCanvas {viewportStart; viewportCurr; prevCursorState})
+          vPos
+          vPos
+          cursorState )
     ; ("Deselected", dv0 Deselected) (* Old value *)
     ; ("SelectingCommand", dv2 (fun a b -> Selecting (a, Some b)) tlid id)
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
@@ -959,6 +973,37 @@ let parseDvalLiteral (str : string) : dval option =
       else None
   | _ ->
     (try Some (parseBasicDval (Json.parseOrRaise str)) with _ -> None)
+
+
+(** [clickEvent fn] implements a decoder converting a javascript mouse event
+ * into an OCaml record of type mouseEvent.
+ *
+ * Example usage:
+ *
+ *  let constructor = (fun mouseEvent -> AppMouseDown mouseEvent) in
+ *  Tea.Html.onWithOptions
+ *   ~key
+ *   event
+ *   {stopPropagation = true; preventDefault = true}
+ *   (Decoders.wrapDecoder (Decoders.clickEvent constructor))
+ *)
+let clickEvent (fn : mouseEvent -> 'a) j : 'a =
+  fn
+    { mePos =
+        (* We decode floats b/c newer Chromes may use floats instead of ints; we
+         * then truncate rather than moving to floats everywhere due to concerns
+         * about sending data back to browsers whose DOMs don't support float
+         * positions - see https://github.com/darklang/dark/pull/2016 for
+         * discussion, and
+         * https://drafts.csswg.org/cssom-view/#extensions-to-the-window-interface
+         * for the spec *)
+        { vx = field "pageX" Json.Decode.float j |> truncate
+        ; vy = field "pageY" Json.Decode.float j |> truncate }
+    ; button = field "button" int j
+    ; ctrlKey = field "ctrlKey" bool j
+    ; shiftKey = field "shiftKey" bool j
+    ; altKey = field "altKey" bool j
+    ; detail = field "detail" int j }
 
 
 let exception_ j : exception_ =
