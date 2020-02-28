@@ -506,7 +506,9 @@ and cursorState j =
     ; ( "DraggingTL"
       , dv4 (fun a b c d -> DraggingTL (a, b, c, d)) tlid vPos bool cursorState
       )
-    ; ( "PanningCanvas" (* TODO: change this encoding to be order-independent *)
+    ; ( "PanningCanvas"
+        (* TODO: There's a danger of mismatching the encoder order here because we're using an inline record.
+         * An order-independent encoding would alleviate this. *)
       , dv3
           (fun viewportStart viewportCurr prevCursorState ->
             PanningCanvas {viewportStart; viewportCurr; prevCursorState})
