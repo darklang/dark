@@ -51,10 +51,10 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
   let isFluidState =
     match m.cursorState with FluidEntering _ -> true | _ -> false
   in
-  let isSettingState = m.settingsView.opened in
+  let isSettingViewFocused = m.settingsView.opened in
   let isMac = Entry.getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then event.metaKey else event.ctrlKey in
-  if isFluidState || isSettingState
+  if isFluidState || isSettingViewFocused
   then NoChange
   else if osCmdKeyHeld && event.keyCode = Key.Z
   then
