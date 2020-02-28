@@ -144,27 +144,6 @@ body #app * {
   }
 }
 
-/* This cursor grab and auto ruleset
- * displays the grab cursor in pannable areas.
- * We need to modify .app as well because
- * the .canvas div doesn't always cover the
- * viewport and that nodes in the canvas can
- * be placed visually outside the .canvas div.
- *
- * The order of auto vs grab is important;
- * we need to override auto for some children.
- */
-.app > *,
-.canvas > * {
-  cursor: auto;
-}
-
-.app,
-.canvas,
-.canvas .overlay {
-  cursor: grab;
-}
-
 #canvas {
   position: absolute;
   top: 0;
