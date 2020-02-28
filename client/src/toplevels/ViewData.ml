@@ -152,7 +152,7 @@ let viewData (vs : ViewUtils.viewState) : msg Html.html list =
   let astID = FluidAST.toID vs.ast in
   let requestEls = viewTraces vs astID in
   let tlSelected =
-    match tlidOf vs.cursorState with
+    match CursorState.tlidOf vs.cursorState with
     | Some tlid when tlid = vs.tlid ->
         true
     | Some _ | None ->
@@ -176,7 +176,7 @@ let viewData (vs : ViewUtils.viewState) : msg Html.html list =
     else Vdom.noNode
   in
   let maxHeight =
-    if Some vs.tlid = tlidOf vs.cursorState
+    if Some vs.tlid = CursorState.tlidOf vs.cursorState
     then "max-content"
     else
       let height =

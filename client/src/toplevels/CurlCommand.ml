@@ -272,10 +272,10 @@ let copyCurlMod (m : model) (tlid : tlid) (pos : vPos) : modification =
   match makeCommand m tlid with
   | Some data ->
       Native.Clipboard.copyToClipboard data ;
-      let modFun m =
-        let m1 = TLMenu.update m tlid CloseMenu in
-        {m1 with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
-      in
-      TweakModel modFun
+      JustReturn
+        (fun m ->
+          let m = TLMenu.update m tlid CloseMenu in
+          ( {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
+          , Tea.Cmd.none ))
   | None ->
-      TweakModel (fun m -> TLMenu.update m tlid CloseMenu)
+      JustReturn (fun m -> (TLMenu.update m tlid CloseMenu, Tea.Cmd.none))

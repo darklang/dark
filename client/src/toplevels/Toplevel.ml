@@ -379,7 +379,7 @@ let asPage (tl : toplevel) (center : bool) : page =
 
 
 let selected (m : model) : toplevel option =
-  m.cursorState |> tlidOf |> Option.andThen ~f:(get m)
+  m.cursorState |> CursorState.tlidOf |> Option.andThen ~f:(get m)
 
 
 let selectedAST (m : model) : FluidAST.t option =

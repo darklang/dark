@@ -193,6 +193,7 @@ let setHoveringReferences (tlid : tlid) (ids : id list) : modification =
     | Some v ->
         Some {v with hoveringReferences = ids}
   in
-  TweakModel
+  JustReturn
     (fun m ->
-      {m with handlerProps = TLIDDict.update ~tlid ~f:new_props m.handlerProps})
+      ( {m with handlerProps = TLIDDict.update ~tlid ~f:new_props m.handlerProps}
+      , Tea.Cmd.none ))

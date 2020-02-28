@@ -1067,6 +1067,13 @@ and tlidSelectTarget =
   | STTopLevelRoot
 
 and modification =
+  | JustReturn of (model -> model * msg Tea.Cmd.t)
+      (** JustReturn is a migration path away from modifications. It takes in a
+        * model and directly returns a (model * msg Cmd.t) just like the update
+        * function. This modification should be preferred whenever possible. *)
+  (*
+   * Do not use any other modifications in new code
+   *)
   (* API Calls *)
   | AddOps of (op list * focus)
   | HandleAPIError of apiError
@@ -1076,7 +1083,6 @@ and modification =
   | TriggerHandlerAPICall of tlid
   | UpdateDBStatsAPICall of tlid
   (* End API Calls *)
-  | DisplayAndReportError of string * string option * string option
   | DisplayError of string
   | ClearError
   | Select of tlid * tlidSelectTarget
@@ -1097,7 +1103,6 @@ and modification =
   | Delete404 of fourOhFour
   | Enter of entryCursor
   | EnterWithOffset of entryCursor * int
-  | UpdateWorkerStats of tlid * workerStats
   | UpdateWorkerSchedules of string StrDict.t
   | NoChange
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
@@ -1110,7 +1115,6 @@ and modification =
   | DragTL of tlid * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
   | EndIntegrationTest
-  | SetCursorState of cursorState
   | SetPage of page
   | SetTLTraceID of tlid * traceID
   | ExecutingFunctionBegan of tlid * id
@@ -1122,7 +1126,6 @@ and modification =
       tlid * traceID * id * fnName * dvalArgsHash * int * dval
   | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
-  | TweakModel of (model -> model)
   | Apply of
       (   (* It can be tempting to call a function which returns
            * modifications. However, this can have a bug - the model
@@ -1137,7 +1140,6 @@ and modification =
   | CenterCanvasOn of tlid
   | InitIntrospect of toplevel list
   | RefreshUsages of tlid list
-  | UpdateDBStats of dbStatsStore
   | FluidCommandsShow of tlid * id
   | FluidCommandsClose
   (* We need to track clicks so that we don't mess with the caret while a

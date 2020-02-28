@@ -63,7 +63,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     @ match tl with TLDB _ -> dragEvents | _ -> [Vdom.noProp; Vdom.noProp]
   in
   let avatars = Avatar.viewAvatars m.avatarsList tlid in
-  let selected = Some tlid = tlidOf m.cursorState in
+  let selected = Some tlid = CursorState.tlidOf m.cursorState in
   let hovering = ViewUtils.isHoverOverTL vs in
   let boxClasses =
     let dragging =
@@ -85,7 +85,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let id =
     Fluid.getToken' m.fluidState vs.mainEditor.tokens
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
-    |> Option.orElse (idOf m.cursorState)
+    |> Option.orElse (CursorState.idOf m.cursorState)
   in
   let top =
     let viewDoc desc =
@@ -93,7 +93,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         [Html.class' "documentation-box"]
         (desc |> List.map ~f:(fun text -> Html.p [] [Html.text text]))
     in
-    match (tlidOf m.cursorState, id) with
+    match (CursorState.tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
           let regular =
@@ -191,7 +191,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
 
 let tlCacheKey (m : model) tl =
   let tlid = TL.id tl in
-  if Some tlid = tlidOf m.cursorState
+  if Some tlid = CursorState.tlidOf m.cursorState
   then None
   else
     let hovered =
@@ -229,7 +229,7 @@ let tlCacheKey (m : model) tl =
 
 let tlCacheKeyDB (m : model) tl =
   let tlid = TL.id tl in
-  if Some tlid = tlidOf m.cursorState
+  if Some tlid = CursorState.tlidOf m.cursorState
   then None
   else
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
@@ -239,7 +239,7 @@ let tlCacheKeyDB (m : model) tl =
 
 let tlCacheKeyTipe (m : model) tl =
   let tlid = TL.id tl in
-  if Some tlid = tlidOf m.cursorState
+  if Some tlid = CursorState.tlidOf m.cursorState
   then None
   else
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
@@ -248,7 +248,7 @@ let tlCacheKeyTipe (m : model) tl =
 
 let tlCacheKeyGroup (m : model) tl =
   let tlid = TL.id tl in
-  if Some tlid = tlidOf m.cursorState
+  if Some tlid = CursorState.tlidOf m.cursorState
   then None
   else
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
@@ -314,7 +314,7 @@ let viewCanvas (m : model) : msg Html.html =
       | FocusedHandler _ | FocusedDB _ ->
           true
       | Architecture ->
-        ( match unwrapCursorState m.cursorState with
+        ( match CursorState.unwrap m.cursorState with
         | Entering (Creating _) ->
             true
         | _ ->

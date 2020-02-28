@@ -414,7 +414,7 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
       ( match e.destination with
       | Some dest ->
           let cl =
-            if tlidOf m.cursorState = tlidOfIdentifier e.identifier
+            if CursorState.tlidOf m.cursorState = tlidOfIdentifier e.identifier
             then "default-link selected-entry"
             else if e.uses = Some 0
             then "default-link unused"
@@ -469,7 +469,9 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
       [Html.classList [("aux", true); (httpMethod, true)]]
       (verb @ pluslink)
   in
-  let selected = tlidOfIdentifier e.identifier = tlidOf m.cursorState in
+  let selected =
+    tlidOfIdentifier e.identifier = CursorState.tlidOf m.cursorState
+  in
   Html.div
     [Html.classList [("simple-item handler", true); ("selected", selected)]]
     [minuslink; mainlink; auxViews]
@@ -885,7 +887,7 @@ let rtCacheKey m =
   , m.groups
   , m.deletedGroups
     |> TD.mapValues ~f:(fun (g : group) -> TL.sortkey (TLGroup g))
-  , tlidOf m.cursorState
+  , CursorState.tlidOf m.cursorState
   , m.environment
   , m.editorSettings
   , m.error
