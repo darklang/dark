@@ -697,7 +697,7 @@ and op =
 (* params *)
 and sendPresenceParams = avatarModelMessage
 
-and sendInviteParams = inviteFormMessage
+and sendInviteParams = SettingsViewTypes.inviteFormMessage
 
 and addOpAPIParams =
   { ops : op list
@@ -961,37 +961,6 @@ and clipboardContents =
 (* Component Types *)
 (* --------------- *)
 
-(* Account View *)
-and settingsTab =
-  | UserSettings
-  | InviteUser of inviteFields
-
-and formField =
-  { value : string
-  ; error : string option }
-
-and inviteFields = {email : formField}
-
-and inviteFormMessage =
-  { email : string
-  ; inviterUsername : string
-  ; inviterName : string }
-
-and settingsViewState =
-  { opened : bool
-  ; tab : settingsTab
-  ; canvas_list : string list
-  ; org_list : string list
-  ; loading : bool }
-
-and settingsMsg =
-  | ToggleSettingsView of bool * settingsTab option
-  | SwitchSettingsTabs of settingsTab
-  | UpdateInviteForm of string
-  | SubmitForm
-  | TriggerSendInviteCallback of (unit, httpError) Tea.Result.t
-      [@printer opaque "TriggerSendInviteCallback"]
-
 (* TLMenu *)
 and menuState = {isOpen : bool}
 
@@ -1178,7 +1147,7 @@ and modification =
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
   | TLMenuUpdate of tlid * menuMsg
-  | SettingsViewUpdate of settingsMsg
+  | SettingsViewUpdate of SettingsViewTypes.settingsMsg
 
 (* ------------------- *)
 (* Msgs *)
@@ -1363,7 +1332,7 @@ and msg =
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
-  | SettingsViewMsg of settingsMsg
+  | SettingsViewMsg of SettingsViewTypes.settingsMsg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1708,7 +1677,7 @@ and model =
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
   ; currentUserFn : fnProps
-  ; settingsView : settingsViewState }
+  ; settingsView : SettingsViewTypes.settingsViewState }
 
 and savedUserSettings = {showUserWelcomeModal : bool}
 

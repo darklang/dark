@@ -1,10 +1,12 @@
-open Prelude
+open SettingsViewTypes
+open Tc
 
 (* Dark *)
 module Cmd = Tea.Cmd
 module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module K = FluidKeyboard
+module Html = Tea_html_extended
 
 let fontAwesome = ViewUtils.fontAwesome
 
@@ -36,7 +38,8 @@ let validateForm (tab : settingsTab) : bool * settingsTab =
       (false, tab)
 
 
-let submitForm (m : model) (tab : settingsTab) : model * msg Cmd.t =
+let submitForm (m : Types.model) (tab : settingsTab) :
+    Types.model * Types.msg Cmd.t =
   match tab with
   | InviteUser info ->
       let sendInviteMsg =
@@ -50,7 +53,8 @@ let submitForm (m : model) (tab : settingsTab) : model * msg Cmd.t =
       (m, Cmd.none)
 
 
-let update (m : model) (msg : settingsMsg) : model * msg Cmd.t =
+let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
+    =
   match msg with
   | ToggleSettingsView (opened, tab) ->
       let enablePan = if opened then m.canvasProps.enablePan else true in
@@ -97,7 +101,7 @@ let settingsTabToText (tab : settingsTab) : string =
 
 (* View code *)
 
-let viewUserCanvases (acc : settingsViewState) : msg Html.html list =
+let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
   let canvasLink c =
     let url = "/a/" ^ c in
     Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
@@ -123,7 +127,7 @@ let viewUserCanvases (acc : settingsViewState) : msg Html.html list =
   orgView @ canvasView
 
 
-let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
+let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
   let introText =
     [ Html.h2 [] [Html.text "Share Dark with a friend"]
     ; Html.p
@@ -157,7 +161,7 @@ let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
         ; ViewUtils.eventNoPropagation
             ~key:"close-settings-modal"
             "click"
-            (fun _ -> SettingsViewMsg SubmitForm) ]
+            (fun _ -> Types.SettingsViewMsg SubmitForm) ]
         btn
     in
     [ Html.div
@@ -170,7 +174,7 @@ let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
                 [ Html.input'
                     [ Vdom.attribute "" "spellcheck" "false"
                     ; Events.onInput (fun str ->
-                          SettingsViewMsg (UpdateInviteForm str))
+                          Types.SettingsViewMsg (UpdateInviteForm str))
                     ; Attributes.value inputVal ]
                     []
                 ; Html.p [Html.class' "error-text"] [Html.text error] ] ]
@@ -179,7 +183,7 @@ let viewInviteUserToDark (svs : settingsViewState) : msg Html.html list =
   introText @ inviteform
 
 
-let settingsTabToHtml (svs : settingsViewState) : msg Html.html list =
+let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
   | UserSettings ->
@@ -188,7 +192,7 @@ let settingsTabToHtml (svs : settingsViewState) : msg Html.html list =
       viewInviteUserToDark svs
 
 
-let tabTitleView (tab : settingsTab) (showInvite : bool) : msg Html.html =
+let tabTitleView (tab : settingsTab) (showInvite : bool) : Types.msg Html.html =
   let tabTitle (t : settingsTab) =
     let isSameTab =
       match (tab, t) with
@@ -202,7 +206,7 @@ let tabTitleView (tab : settingsTab) (showInvite : bool) : msg Html.html =
       ; ViewUtils.eventNoPropagation
           ~key:"close-settings-modal"
           "click"
-          (fun _ -> SettingsViewMsg (SwitchSettingsTabs t)) ]
+          (fun _ -> Types.SettingsViewMsg (SwitchSettingsTabs t)) ]
       [Html.text (settingsTabToText t)]
   in
   (* Remove "allTabs" with variant *)
@@ -215,13 +219,13 @@ let onKeydown (evt : Web.Node.event) : Types.msg option =
   |> Option.andThen ~f:(fun e ->
          match e with
          | {K.key = K.Enter; _} ->
-             Some (SettingsViewMsg SubmitForm)
+             Some (Types.SettingsViewMsg SubmitForm)
          | _ ->
              None)
 
 
 let settingViewWrapper (acc : settingsViewState) (showInvite : bool) :
-    msg Html.html =
+    Types.msg Html.html =
   let tabView = settingsTabToHtml acc in
   Html.div
     [Html.class' "settings-tab-wrapper"]
@@ -229,14 +233,14 @@ let settingViewWrapper (acc : settingsViewState) (showInvite : bool) :
     @ tabView )
 
 
-let html (m : model) : msg Html.html =
+let html (m : Types.model) : Types.msg Html.html =
   let closingBtn =
     Html.div
       [ Html.class' "close-btn"
       ; ViewUtils.eventNoPropagation
           ~key:"close-settings-modal"
           "click"
-          (fun _ -> SettingsViewMsg (ToggleSettingsView (false, None))) ]
+          (fun _ -> Types.SettingsViewMsg (ToggleSettingsView (false, None))) ]
       [fontAwesome "times"]
   in
   (* Remove with variant test *)
@@ -246,7 +250,7 @@ let html (m : model) : msg Html.html =
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          SettingsViewMsg (ToggleSettingsView (false, None))) ]
+          Types.SettingsViewMsg (ToggleSettingsView (false, None))) ]
     [ Html.div
         [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"
