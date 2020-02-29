@@ -272,10 +272,11 @@ let copyCurlMod (m : model) (tlid : tlid) (pos : vPos) : modification =
   match makeCommand m tlid with
   | Some data ->
       Native.Clipboard.copyToClipboard data ;
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let m = TLMenu.update m tlid CloseMenu in
           ( {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
           , Tea.Cmd.none ))
   | None ->
-      JustReturn (fun m -> (TLMenu.update m tlid CloseMenu, Tea.Cmd.none))
+      ReplaceAllModificationsWithThisOne
+        (fun m -> (TLMenu.update m tlid CloseMenu, Tea.Cmd.none))

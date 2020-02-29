@@ -228,7 +228,7 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
 
 
 let cpSetIndex (_m : Types.model) (i : int) : Types.modification =
-  JustReturn
+  ReplaceAllModificationsWithThisOne
     (fun m ->
       let cp = {m.fluidState.cp with index = i} in
       let fluidState = {m.fluidState with cp; upDownCol = None} in
@@ -249,13 +249,13 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
     | _ ->
         NoChange )
   | K.Up ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let cp = moveUp m.fluidState.cp in
           let fluidState = {m.fluidState with cp} in
           ({m with fluidState}, focusItem cp.index))
   | K.Down ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let cp = moveDown m.fluidState.cp in
           let fluidState = {m.fluidState with cp} in

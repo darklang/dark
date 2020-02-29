@@ -193,7 +193,7 @@ let setHoveringReferences (tlid : tlid) (ids : id list) : modification =
     | Some v ->
         Some {v with hoveringReferences = ids}
   in
-  JustReturn
+  ReplaceAllModificationsWithThisOne
     (fun m ->
       ( {m with handlerProps = TLIDDict.update ~tlid ~f:new_props m.handlerProps}
       , Tea.Cmd.none ))

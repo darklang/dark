@@ -61,7 +61,7 @@ let end_ (_m : model) (_id : id) (_pick : pick) : modification =
 
 
 let toggle (id : id) (isExpanded : bool) : modification =
-  JustReturn
+  ReplaceAllModificationsWithThisOne
     (fun m ->
       let featureFlags =
         StrDict.insert ~key:(deID id) ~value:isExpanded m.featureFlags

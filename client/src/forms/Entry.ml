@@ -266,7 +266,7 @@ let newHandler m space name modifier pos =
       then FluidEntering tlid
       else Entering (Filling (tlid, idToEnter))
     in
-    [ JustReturn
+    [ ReplaceAllModificationsWithThisOne
         (fun m ->
           {m with fluidState = newS} |> CursorState.setCursorState cursorState)
     ]
@@ -623,7 +623,7 @@ let submitACItem
           | PGroupName _, ACGroupName name, _ ->
               replace (PGroupName (B.newF name))
           | pd, item, _ ->
-              JustReturn
+              ReplaceAllModificationsWithThisOne
                 (fun m ->
                   let custom =
                     Types.show_blankOrData pd

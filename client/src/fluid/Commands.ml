@@ -99,7 +99,7 @@ let commands : command list =
             | None ->
                 Some "Could not copy, try again after clicking this handler."
           in
-          JustReturn
+          ReplaceAllModificationsWithThisOne
             (fun m ->
               (* TODO: toastPos is a vPos, how do we get a vPos without a
                * mouseEvent? *)
