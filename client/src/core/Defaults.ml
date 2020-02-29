@@ -170,4 +170,6 @@ let defaultModel : model =
       ; tab = UserSettings
       ; canvas_list = []
       ; org_list = []
-      ; loading = false } }
+      ; loading = false
+      ; tab_size = 1
+      ; color_scheme = Dark } }

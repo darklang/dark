@@ -12,7 +12,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
 
-let allTabs = [UserSettings; InviteUser defaultInviteFields]
+let allTabs = [UserSettings; EditorSettings; InviteUser defaultInviteFields]
 
 let validateEmail (email : formField) : formField =
   let error =
@@ -53,6 +53,16 @@ let submitForm (m : Types.model) (tab : settingsTab) :
       (m, Cmd.none)
 
 
+let updateEditorSetting (m : Types.model) (setting : editorSetting) :
+    Types.model =
+  match setting with
+  | TabSize tab_size ->
+      let tab_size = int_of_string tab_size in
+      {m with settingsView = {m.settingsView with tab_size}}
+  | ColorScheme _color ->
+      m
+
+
 let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
     =
   match msg with
@@ -91,12 +101,21 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
               tab = InviteUser defaultInviteFields
             ; loading = false } }
       , Cmd.none )
+  | UpdateEditorSettings setting ->
+      let newMod = updateEditorSetting m setting in
+      (newMod, Cmd.none)
 
 
 (* View functions *)
 
 let settingsTabToText (tab : settingsTab) : string =
-  match tab with UserSettings -> "Canvases" | InviteUser _ -> "Share"
+  match tab with
+  | UserSettings ->
+      "Canvases"
+  | InviteUser _ ->
+      "Share"
+  | EditorSettings ->
+      "Editor"
 
 
 (* View code *)
@@ -183,6 +202,30 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
   introText @ inviteform
 
 
+let viewEditorSettings (svs : settingsViewState) : Types.msg Html.html list =
+  let tabSize = string_of_int svs.tab_size in
+  [ Html.div
+      [Html.class' "editor-settings"]
+      [ Html.h2 [] [Html.text "Editor settings"]
+      ; Html.div
+          [Html.class' "editor-setting-feild"]
+          [ Html.h3 [Html.class' "title"] [Html.text "Tab Size:"]
+          ; Html.p
+              [Html.class' "subtitle"]
+              [Html.text "The number of spaces a tab is equal to."]
+          ; Html.input'
+              [ Vdom.attribute "" "spellcheck" "false"
+              ; Events.onInput (fun i ->
+                    Types.SettingsViewMsg (UpdateEditorSettings (TabSize i)))
+              ; Attributes.value tabSize
+              ; Attributes.min "0"
+              ; Html.type' "number" ]
+              [] ]
+      ; Html.div
+          [Html.class' "editor-setting-feild"]
+          [Html.h3 [Html.class' "title"] [Html.text "Color Scheme:"]] ] ]
+
+
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
@@ -190,13 +233,17 @@ let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
       viewUserCanvases svs
   | InviteUser _ ->
       viewInviteUserToDark svs
+  | EditorSettings ->
+      viewEditorSettings svs
 
 
 let tabTitleView (tab : settingsTab) (showInvite : bool) : Types.msg Html.html =
   let tabTitle (t : settingsTab) =
     let isSameTab =
       match (tab, t) with
-      | UserSettings, UserSettings | InviteUser _, InviteUser _ ->
+      | UserSettings, UserSettings
+      | InviteUser _, InviteUser _
+      | EditorSettings, EditorSettings ->
           true
       | _ ->
           false

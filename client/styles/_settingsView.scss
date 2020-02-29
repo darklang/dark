@@ -118,4 +118,24 @@
       color: $white1;
     }
   }
+  .editor-settings {
+    .editor-setting-feild {
+      .title {
+        text-align: start;
+        margin-bottom: 15px;
+      }
+      .subtitle {
+        margin-bottom: 15px;
+        color: $grey3;
+      }
+      input {
+        background-color: $black3;
+        height: 35px;
+        width: 75px;
+        padding: 0px 10px;
+        caret-color: $grey3;
+        color: $white1;
+      }
+    }
+  }
 }
