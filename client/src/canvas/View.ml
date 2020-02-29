@@ -386,13 +386,13 @@ let viewToast (t : toast) : msg Html.html =
 let accountView (m : model) : msg Html.html =
   let logout =
     Html.a
-      [ Html.class' "setting-btn action-link"
+      [ Html.class' "account-action-btn"
       ; Html.href "https://login.darklang.com/logout" ]
       [Html.text "Logout"]
   in
   let docs =
     Html.a
-      [ Html.class' "setting-btn action-link"
+      [ Html.class' "account-action-btn"
       ; Html.href docsURL
       ; Html.target "_blank"
       ; ViewUtils.eventNoPropagation ~key:"account-doc" "click" (fun _ ->
@@ -401,7 +401,7 @@ let accountView (m : model) : msg Html.html =
   in
   let settings =
     Html.p
-      [ Html.class' "setting-btn"
+      [ Html.class' "account-action-btn"
       ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
             SettingsViewMsg (ToggleSettingsView true)) ]
       [Html.text "Account"]
