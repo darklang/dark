@@ -187,11 +187,14 @@ let processFocus (m : model) (focus : focus) : modification =
       ( match (mTl, pd) with
       | Some tl, Some (Some pd) when TL.isValidBlankOrID tl (P.toID pd) ->
           let query = AutocompleteMod (ACSetQuery (P.toContent pd)) in
-          Many [SetPage page; JustReturn (CursorState.setCursorState cs); query]
+          Many
+            [ SetPage page
+            ; ReplaceAllModificationsWithThisOne (CursorState.setCursorState cs)
+            ; query ]
       | Some _, Some None | Some _, None ->
           Many
             [ SetPage page
-            ; JustReturn (CursorState.setCursorState cs)
+            ; ReplaceAllModificationsWithThisOne (CursorState.setCursorState cs)
             ; AutocompleteMod (ACSetQuery "") ]
       | _, _ ->
           NoChange )
@@ -311,7 +314,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (withFocus, Cmd.batch [wfCmd; API.addOp withFocus FocusNoChange params])
     in
     match mod_ with
-    | JustReturn f ->
+    | ReplaceAllModificationsWithThisOne f ->
         f m
     | DisplayError e ->
         ({m with error = Some e}, Cmd.none)
@@ -1006,7 +1009,8 @@ let update_ (msg : msg) (m : model) : modification =
         | PanningCanvas {prevCursorState; _} ->
             (* In case we are already panning, we got into a weird state;
              * we should stop panning. *)
-            JustReturn (CursorState.setCursorState prevCursorState)
+            ReplaceAllModificationsWithThisOne
+              (CursorState.setCursorState prevCursorState)
         | _ ->
             PanCanvas
               { viewportStart = event.mePos
@@ -1065,9 +1069,12 @@ let update_ (msg : msg) (m : model) : modification =
              <= maxSquareDistToConsiderAsClick
           then
             Many
-              ( JustReturn (CursorState.setCursorState prevCursorState)
+              ( ReplaceAllModificationsWithThisOne
+                  (CursorState.setCursorState prevCursorState)
               :: clickBehavior )
-          else JustReturn (CursorState.setCursorState prevCursorState)
+          else
+            ReplaceAllModificationsWithThisOne
+              (CursorState.setCursorState prevCursorState)
       | DraggingTL (draggingTLID, _, hasMoved, origCursorState) ->
         ( match TL.get m draggingTLID with
         | Some tl ->
@@ -1078,10 +1085,13 @@ let update_ (msg : msg) (m : model) : modification =
               if not (TL.isGroup tl)
               then
                 Many
-                  [ JustReturn (CursorState.setCursorState origCursorState)
+                  [ ReplaceAllModificationsWithThisOne
+                      (CursorState.setCursorState origCursorState)
                   ; AddOps ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
                   ]
-              else JustReturn (CursorState.setCursorState origCursorState)
+              else
+                ReplaceAllModificationsWithThisOne
+                  (CursorState.setCursorState origCursorState)
             else
               (* if we haven't moved, treat this as a single click and not a attempted drag *)
               let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
@@ -1091,7 +1101,8 @@ let update_ (msg : msg) (m : model) : modification =
               | _ ->
                   defaultBehaviour )
         | None ->
-            JustReturn (CursorState.setCursorState origCursorState) )
+            ReplaceAllModificationsWithThisOne
+              (CursorState.setCursorState origCursorState) )
       | _ ->
           NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
@@ -1105,7 +1116,8 @@ let update_ (msg : msg) (m : model) : modification =
         match Analysis.getTrace m tlid traceID with
         | Some (_, Error _) ->
             let m, cmd = Analysis.requestTrace m tlid traceID in
-            [JustReturn (fun old -> ({old with syncState = m.syncState}, cmd))]
+            [ ReplaceAllModificationsWithThisOne
+                (fun old -> ({old with syncState = m.syncState}, cmd)) ]
         | _ ->
             []
       in
@@ -1170,15 +1182,19 @@ let update_ (msg : msg) (m : model) : modification =
                   match gTlid with
                   | Some tlid ->
                       Many
-                        [ JustReturn (CursorState.setCursorState origCursorState)
+                        [ ReplaceAllModificationsWithThisOne
+                            (CursorState.setCursorState origCursorState)
                         ; AddToGroup (tlid, draggingTLID) ]
                   | None ->
                       Many
-                        [ JustReturn (CursorState.setCursorState origCursorState)
+                        [ ReplaceAllModificationsWithThisOne
+                            (CursorState.setCursorState origCursorState)
                         ; AddOps
                             ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
                         ]
-                else JustReturn (CursorState.setCursorState origCursorState)
+                else
+                  ReplaceAllModificationsWithThisOne
+                    (CursorState.setCursorState origCursorState)
               else
                 (* if we haven't moved, treat this as a single click and not a attempted drag *)
                 let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
@@ -1188,7 +1204,8 @@ let update_ (msg : msg) (m : model) : modification =
                 | _ ->
                     defaultBehaviour )
           | None ->
-              JustReturn (CursorState.setCursorState origCursorState) )
+              ReplaceAllModificationsWithThisOne
+                (CursorState.setCursorState origCursorState) )
         | Entering (Filling _ as cursor) ->
             Many
               [ Entry.commit m cursor
@@ -1211,7 +1228,8 @@ let update_ (msg : msg) (m : model) : modification =
           select targetID
       | DraggingTL (_, _, _, prevCursorState)
       | PanningCanvas {prevCursorState; _} ->
-          JustReturn (CursorState.setCursorState prevCursorState)
+          ReplaceAllModificationsWithThisOne
+            (CursorState.setCursorState prevCursorState)
       | Entering cursor ->
           let defaultBehaviour = select targetID in
           ( match cursor with
@@ -1253,7 +1271,8 @@ let update_ (msg : msg) (m : model) : modification =
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | DraggingTL (_, _, _, origCursorState) ->
-        JustReturn (CursorState.setCursorState origCursorState)
+        ReplaceAllModificationsWithThisOne
+          (CursorState.setCursorState origCursorState)
     | Deselected ->
         Many [Select (tlid, STTopLevelRoot); SetTLTraceID (tlid, traceID)]
     | _ ->
@@ -1277,7 +1296,7 @@ let update_ (msg : msg) (m : model) : modification =
       | None ->
           NoChange )
   | ToggleEditorSetting fn ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m -> ({m with editorSettings = fn m.editorSettings}, Cmd.none))
   | SaveTestButton ->
       MakeCmd (API.saveTest m)
@@ -1331,7 +1350,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelDeleteForever tlid ->
       Many
         [ AddOps ([DeleteTLForever tlid], FocusSame)
-        ; JustReturn
+        ; ReplaceAllModificationsWithThisOne
             (fun m ->
               ( { m with
                   deletedHandlers = TD.remove ~tlid m.deletedHandlers
@@ -1351,7 +1370,7 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserFunctionForever tlid ->
       Many
         [ AddOps ([DeleteFunctionForever tlid], FocusSame)
-        ; JustReturn
+        ; ReplaceAllModificationsWithThisOne
             (fun m ->
               ( { m with
                   deletedUserFunctions = TD.remove ~tlid m.deletedUserFunctions
@@ -1383,12 +1402,13 @@ let update_ (msg : msg) (m : model) : modification =
               ( match gTlid with
               | Some gTlid ->
                   Many
-                    [ JustReturn (CursorState.setCursorState origCursorState)
+                    [ ReplaceAllModificationsWithThisOne
+                        (CursorState.setCursorState origCursorState)
                     ; MoveMemberToNewGroup (gTlid, tlid, newMod) ]
               | None ->
                   (* update the toplevel pos with the curent event position  *)
                   Many
-                    [ JustReturn
+                    [ ReplaceAllModificationsWithThisOne
                         (fun _ ->
                           CursorState.setCursorState origCursorState newMod)
                     ; AddOps ([MoveTL (tlid, mePos)], FocusNoChange) ] )
@@ -1401,17 +1421,18 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | CloseWelcomeModal ->
       Entry.sendSegmentMessage WelcomeModal ;
-      JustReturn (fun m -> ({m with showUserWelcomeModal = false}, Cmd.none))
+      ReplaceAllModificationsWithThisOne
+        (fun m -> ({m with showUserWelcomeModal = false}, Cmd.none))
   | DeleteUserTypeForever tlid ->
       Many
         [ AddOps ([DeleteTypeForever tlid], FocusSame)
-        ; JustReturn
+        ; ReplaceAllModificationsWithThisOne
             (fun m ->
               ( {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes}
               , Cmd.none )) ]
   | DeleteGroupForever tlid ->
       (* TODO: Add AddOps *)
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           ({m with deletedGroups = TD.remove ~tlid m.deletedGroups}, Cmd.none))
   | AddOpsAPICallback (focus, params, Ok (r : addOpAPIResponse)) ->
@@ -1490,7 +1511,7 @@ let update_ (msg : msg) (m : model) : modification =
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in
       Many
-        [ JustReturn
+        [ ReplaceAllModificationsWithThisOne
             (fun m ->
               let settingsView =
                 { m.settingsView with
@@ -1545,7 +1566,7 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many
         [ OverrideTraces traces
-        ; JustReturn
+        ; ReplaceAllModificationsWithThisOne
             (fun m ->
               let handlerProps =
                 RT.setHandlerExeState params.thTLID Complete m.handlerProps
@@ -1553,11 +1574,11 @@ let update_ (msg : msg) (m : model) : modification =
               ({m with handlerProps}, Cmd.none)) ]
   | GetUnlockedDBsAPICallback (Ok unlockedDBs) ->
       Many
-        [ JustReturn
+        [ ReplaceAllModificationsWithThisOne
             (fun m -> (Sync.markResponseInModel m ~key:"unlocked", Cmd.none))
         ; SetUnlockedDBs unlockedDBs ]
   | LoadPackagesAPICallback (Ok loadedPackages) ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           ( { m with
               packageFns =
@@ -1625,7 +1646,7 @@ let update_ (msg : msg) (m : model) : modification =
             , [(params.gtdrpTraceID, Error MaximumCallStackError)] ) ]
       in
       Many
-        [ JustReturn
+        [ ReplaceAllModificationsWithThisOne
             (fun m ->
               let key = "tracefetch-" ^ params.gtdrpTraceID in
               let m = Sync.markResponseInModel m ~key in
@@ -1636,7 +1657,7 @@ let update_ (msg : msg) (m : model) : modification =
                 (Some error))
         ; UpdateTraces traces ]
   | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let key = "tracefetch-" ^ params.gtdrpTraceID in
           let m = Sync.markResponseInModel m ~key in
@@ -1650,7 +1671,7 @@ let update_ (msg : msg) (m : model) : modification =
         StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]
       in
       Many
-        [ JustReturn
+        [ ReplaceAllModificationsWithThisOne
             (fun m ->
               let key = "tracefetch-" ^ params.gtdrpTraceID in
               (Sync.markResponseInModel m ~key, Cmd.none))
@@ -1675,7 +1696,7 @@ let update_ (msg : msg) (m : model) : modification =
       let key =
         params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
       in
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let key = "update-db-stats-" ^ key in
           let m = Sync.markResponseInModel m ~key in
@@ -1688,7 +1709,7 @@ let update_ (msg : msg) (m : model) : modification =
       let key =
         params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
       in
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let key = "update-db-stats-" ^ key in
           (Sync.markResponseInModel m ~key, Cmd.none))
@@ -1696,7 +1717,7 @@ let update_ (msg : msg) (m : model) : modification =
       let key =
         params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
       in
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let m = Sync.markResponseInModel m ~key:("update-db-stats-" ^ key) in
           let newStore =
@@ -1727,7 +1748,7 @@ let update_ (msg : msg) (m : model) : modification =
               * corresponding actual http error *)
            Tea.Http.Aborted)
   | ReceiveFetch (WorkerStatsFetchFailure (params, url, error)) ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let key = "get-worker-stats-" ^ deTLID params.workerStatsTlid in
           let m = Sync.markResponseInModel m ~key in
@@ -1737,12 +1758,12 @@ let update_ (msg : msg) (m : model) : modification =
             (Some url)
             (Some error))
   | ReceiveFetch (WorkerStatsFetchMissing params) ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let key = "get-worker-stats-" ^ deTLID params.workerStatsTlid in
           (Sync.markResponseInModel m ~key, Cmd.none))
   | ReceiveFetch (WorkerStatsFetchSuccess (params, result)) ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let key = "get-worker-stats-" ^ deTLID params.workerStatsTlid in
           let m = Sync.markResponseInModel m ~key in
@@ -1783,7 +1804,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~reload:false)
   | GetUnlockedDBsAPICallback (Error err) ->
       Many
-        [ JustReturn
+        [ ReplaceAllModificationsWithThisOne
             (fun m -> (Sync.markResponseInModel m ~key:"unlocked", Cmd.none))
         ; HandleAPIError
             (APIError.make
@@ -1826,7 +1847,8 @@ let update_ (msg : msg) (m : model) : modification =
        * different msg each time that we have to understand. *)
       NoChange
   | PageVisibilityChange vis ->
-      JustReturn (fun m -> ({m with visibility = vis}, Cmd.none))
+      ReplaceAllModificationsWithThisOne
+        (fun m -> ({m with visibility = vis}, Cmd.none))
   | CreateHandlerFrom404 ({space; path; modifier; _} as fof) ->
       let center = Viewport.findNewPos m in
       let tlid = gtlid () in
@@ -1874,7 +1896,7 @@ let update_ (msg : msg) (m : model) : modification =
               , FocusExact (tlid, FluidExpression.toID ast) )
           ; Delete404 fof ] )
   | MarkRoutingTableOpen (shouldOpen, key) ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           ( { m with
               routingTableOpenDetails =
@@ -1883,7 +1905,8 @@ let update_ (msg : msg) (m : model) : modification =
                 else StrSet.remove ~value:key m.routingTableOpenDetails ) }
           , Cmd.none ))
   | ToggleSideBar ->
-      JustReturn (fun m -> ({m with sidebarOpen = not m.sidebarOpen}, Cmd.none))
+      ReplaceAllModificationsWithThisOne
+        (fun m -> ({m with sidebarOpen = not m.sidebarOpen}, Cmd.none))
   | CreateRouteHandler action ->
       let center = Viewport.findNewPos m in
       Entry.submitOmniAction m center action
@@ -1905,14 +1928,15 @@ let update_ (msg : msg) (m : model) : modification =
         [ AddOps ([SetType tipe], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
   | LockHandler (tlid, locked) ->
-      JustReturn (fun m -> (Handlers.setHandlerLock tlid locked m, Cmd.none))
+      ReplaceAllModificationsWithThisOne
+        (fun m -> (Handlers.setHandlerLock tlid locked m, Cmd.none))
   | EnablePanning pan ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           ({m with canvasProps = {m.canvasProps with enablePan = pan}}, Cmd.none))
   | ClipboardCopyEvent e ->
       let toast =
-        JustReturn
+        ReplaceAllModificationsWithThisOne
           (fun m ->
             ( {m with toast = {m.toast with toastMessage = Some "Copied!"}}
             , Cmd.none ))
@@ -1924,7 +1948,7 @@ let update_ (msg : msg) (m : model) : modification =
       Fluid.update m (FluidPaste data)
   | ClipboardCutEvent e ->
       let toast =
-        JustReturn
+        ReplaceAllModificationsWithThisOne
           (fun m ->
             ( {m with toast = {m.toast with toastMessage = Some "Copied!"}}
             , Cmd.none ))
@@ -1935,7 +1959,7 @@ let update_ (msg : msg) (m : model) : modification =
       Many [SetClipboardContents (copyData, e); mod_; toast]
   | ClipboardCopyLivevalue (lv, pos) ->
       Native.Clipboard.copyToClipboard lv ;
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           ( {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
           , Cmd.none ))
@@ -1953,9 +1977,10 @@ let update_ (msg : msg) (m : model) : modification =
         ^ error
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
-      JustReturn (fun m -> (Handlers.setHandlerState tlid state m, Cmd.none))
+      ReplaceAllModificationsWithThisOne
+        (fun m -> (Handlers.setHandlerState tlid state m, Cmd.none))
   | CanvasPanAnimationEnd ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           ( { m with
               canvasProps =
@@ -1977,7 +2002,7 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidMsg FluidCut | FluidMsg (FluidPaste _) ->
       recover "Fluid functions should not happen here" ~debug:msg NoChange
   | FluidMsg (FluidCommandsFilter query) ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let cp = FluidCommands.filter m query m.fluidState.cp in
           ({m with fluidState = {m.fluidState with cp}}, Cmd.none))
@@ -1996,7 +2021,7 @@ let update_ (msg : msg) (m : model) : modification =
       |> Option.map ~f:(fun cmd -> MakeCmd cmd)
       |> Option.withDefault ~default:(DisplayError "No function to upload")
   | SetHandlerExeIdle tlid ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
           ({m with handlerProps}, Cmd.none))
@@ -2023,15 +2048,17 @@ let update_ (msg : msg) (m : model) : modification =
       (* Handle all other messages *)
       Fluid.update m msg
   | ResetToast ->
-      JustReturn (fun m -> ({m with toast = Defaults.defaultToast}, Cmd.none))
+      ReplaceAllModificationsWithThisOne
+        (fun m -> ({m with toast = Defaults.defaultToast}, Cmd.none))
   | UpdateMinimap data ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           ({m with canvasProps = {m.canvasProps with minimap = data}}, Cmd.none))
   | HideTopbar ->
-      JustReturn (fun m -> ({m with showTopbar = false}, Cmd.none))
+      ReplaceAllModificationsWithThisOne
+        (fun m -> ({m with showTopbar = false}, Cmd.none))
   | LogoutOfDark ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           ( {m with editorSettings = {m.editorSettings with runTimers = false}}
           , API.logout m ))
@@ -2041,7 +2068,7 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | GoToArchitecturalView ->
       Many
-        [ JustReturn
+        [ ReplaceAllModificationsWithThisOne
             (fun m ->
               ( {m with canvasProps = {m.canvasProps with minimap = None}}
               , Cmd.none ))

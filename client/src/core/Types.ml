@@ -1067,13 +1067,16 @@ and tlidSelectTarget =
   | STTopLevelRoot
 
 and modification =
-  | JustReturn of (model -> model * msg Tea.Cmd.t)
-      (** JustReturn is a migration path away from modifications. It takes in a
-        * model and directly returns a (model * msg Cmd.t) just like the update
-        * function. This modification should be preferred whenever possible. *)
-  (*
-   * Do not use any other modifications in new code
-   *)
+  | ReplaceAllModificationsWithThisOne of (model -> model * msg Tea.Cmd.t)
+      (** ReplaceAllModificationsWithThisOne is a migration path away from modifications. It
+        * takes in a model and directly returns a (model * msg Cmd.t) just like
+        * The update function.
+        *
+        * This modification should be used in all new code.
+        *
+        * The intent is to completely replace all existing modifications with
+        * this one, then remove the modification type entirely, directly
+        * returning the (model * Cmd.t) from the update function *)
   (* API Calls *)
   | AddOps of (op list * focus)
   | HandleAPIError of apiError

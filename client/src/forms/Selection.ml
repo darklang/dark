@@ -104,7 +104,7 @@ let dblclick (m : model) (tlid : tlid) (id : id) (offset : int option) :
 (* the name here is _awful_, but going to rip all of the glue
  * out soon so i pinky promise that it'll go away *)
 let fluidEnteringMod tlid =
-  JustReturn
+  ReplaceAllModificationsWithThisOne
     (fun m ->
       {m with fluidState = {m.fluidState with newPos = 0}}
       |> CursorState.setCursorState (FluidEntering tlid))

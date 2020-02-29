@@ -5343,7 +5343,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
     ->
       FluidCommands.cpSetIndex m index
   | FluidUpdateDropdownIndex index ->
-      JustReturn
+      ReplaceAllModificationsWithThisOne
         (fun m ->
           let fluidState = acSetIndex index m.fluidState in
           ({m with fluidState}, Tea.Cmd.none))
@@ -5479,7 +5479,8 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                     NoChange
               in
               Many
-                [ JustReturn (fun m -> (TL.withAST m tlid newAST, Tea.Cmd.none))
+                [ ReplaceAllModificationsWithThisOne
+                    (fun m -> (TL.withAST m tlid newAST, Tea.Cmd.none))
                 ; Toplevel.setSelectedAST m newAST
                 ; requestAnalysis
                 ; UpdateASTCache
@@ -5487,7 +5488,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
             else Types.NoChange
           in
           Types.Many
-            [ JustReturn
+            [ ReplaceAllModificationsWithThisOne
                 (fun m -> ({m with fluidState = newState}, Tea.Cmd.none))
             ; astMod
             ; eventSpecMod
