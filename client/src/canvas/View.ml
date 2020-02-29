@@ -8,6 +8,8 @@ module E = FluidExpression
 
 let fontAwesome = ViewUtils.fontAwesome
 
+let docsURL = "https://ops-documentation.builtwithdark.com/user-manual"
+
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
   let vs = ViewUtils.createVS m tl in
@@ -384,8 +386,18 @@ let viewToast (t : toast) : msg Html.html =
 let accountView (m : model) : msg Html.html =
   let logout =
     Html.a
-      [Html.href "https://login.darklang.com/logout"; Html.class' "action-link"]
+      [ Html.class' "setting-btn action-link"
+      ; Html.href "https://login.darklang.com/logout" ]
       [Html.text "Logout"]
+  in
+  let docs =
+    Html.a
+      [ Html.class' "setting-btn action-link"
+      ; Html.href docsURL
+      ; Html.target "_blank"
+      ; ViewUtils.eventNoPropagation ~key:"account-doc" "click" (fun _ ->
+            UpdateSegment OpenDocs) ]
+      [Html.text "Documentation"]
   in
   let settings =
     Html.p
@@ -399,7 +411,7 @@ let accountView (m : model) : msg Html.html =
       (* Block opening the omnibox here by preventing canvas pan start *)
     ; ViewUtils.nothingMouseEvent "mousedown" ]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] [settings; logout] ]
+    ; Html.div [Html.class' "account-actions"] [settings; docs; logout] ]
 
 
 let view (m : model) : msg Html.html =
@@ -436,7 +448,7 @@ let view (m : model) : msg Html.html =
   let viewDocs =
     [ Html.a
         [ Html.class' "doc-container"
-        ; Html.href "https://ops-documentation.builtwithdark.com/user-manual"
+        ; Html.href docsURL
         ; Html.target "_blank"
           (* Block opening the omnibox here by preventing canvas pan start *)
         ; ViewUtils.nothingMouseEvent "mousedown"
