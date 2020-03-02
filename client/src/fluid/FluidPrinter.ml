@@ -8,21 +8,13 @@ type token = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
-module Options = struct
-  type featureFlag =
-    | FeatureFlagOnlyDisabled
-        (** FeatureFlagOnlyDisabled is used in the main editor panel to only
+type featureFlagTokenization =
+  | FeatureFlagOnlyDisabled
+      (** FeatureFlagOnlyDisabled is used in the main editor panel to only
           * show the flag's old code *)
-    | FeatureFlagConditionAndEnabled
-        (** FeatureFlagConditionAndEnabled is used in the secondary editor
+  | FeatureFlagConditionAndEnabled
+      (** FeatureFlagConditionAndEnabled is used in the secondary editor
           * panel for editing a flag's condition and new code *)
-
-  type t = {featureFlags : featureFlag}
-
-  let default = {featureFlags = FeatureFlagOnlyDisabled}
-
-  let featureFlagPanel = {featureFlags = FeatureFlagConditionAndEnabled}
-end
 
 module Builder = struct
   type t =
@@ -34,7 +26,7 @@ module Builder = struct
     ; xPos : int option
           (** [xPos] tracks the indent for nesting.
             * `None` indicates it's ready to go after a newline *)
-    ; options : Options.t }
+    ; ffTokenization : featureFlagTokenization }
 
   let rec endsInNewline (b : t) : bool =
     (* The latest token is on the front *)
@@ -47,7 +39,12 @@ module Builder = struct
         false
 
 
-  let empty = {tokens = []; xPos = Some 0; indent = 0; options = Options.default}
+  let empty =
+    { tokens = []
+    ; xPos = Some 0
+    ; indent = 0
+    ; ffTokenization = FeatureFlagOnlyDisabled }
+
 
   (** id is the id of the first token in the builder or None if the builder is empty. *)
   let id (b : t) : id option = List.last b.tokens |> Option.map ~f:T.tid
@@ -448,7 +445,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EFeatureFlag (id, _name, cond, disabled, enabled) ->
     (* Feature flag tokens are displayed in two different editor panels, so
      * they are built differently depending on the current builder option. *)
-    ( match b.options.featureFlags with
+    ( match b.ffTokenization with
     | FeatureFlagOnlyDisabled ->
         b |> nest ~indent:2 disabled
     | FeatureFlagConditionAndEnabled ->
@@ -495,9 +492,10 @@ let tidy (tokens : fluidToken list) : fluidToken list =
   tokens |> List.filter ~f:(function TIndent 0 -> false | _ -> true)
 
 
-let tokenizeWithOptions (options : Options.t) (e : FluidExpression.t) :
+let tokenizeWithFFTokenization
+    (ffTokenization : featureFlagTokenization) (e : FluidExpression.t) :
     tokenInfo list =
-  {Builder.empty with options}
+  {Builder.empty with ffTokenization}
   |> toTokens' e
   |> Builder.asTokens
   |> tidy
@@ -505,7 +503,7 @@ let tokenizeWithOptions (options : Options.t) (e : FluidExpression.t) :
   |> infoize
 
 
-let tokenize = tokenizeWithOptions Options.default
+let tokenize = tokenizeWithFFTokenization FeatureFlagOnlyDisabled
 
 let tokenizeForViewKind (k : editorViewKind) (expr : FluidExpression.t) :
     FluidToken.tokenInfo list =
@@ -513,7 +511,7 @@ let tokenizeForViewKind (k : editorViewKind) (expr : FluidExpression.t) :
   | MainView ->
       tokenize expr
   | FeatureFlagView ->
-      tokenizeWithOptions Options.featureFlagPanel expr
+      tokenizeWithFFTokenization FeatureFlagConditionAndEnabled expr
 
 
 let tokensToString (tis : tokenInfo list) : string =
