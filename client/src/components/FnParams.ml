@@ -71,7 +71,10 @@ let update (m : model) (msg : fnpMsg) : modification =
 let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
     msg Html.html =
   let freeVariables =
-    uf.ufAST |> AST.freeVariables |> List.map ~f:Tuple2.second
+    uf.ufAST
+    |> FluidAST.toExpr
+    |> AST.freeVariables
+    |> List.map ~f:Tuple2.second
   in
   let canDeleteParameter pname =
     List.member ~value:pname freeVariables |> not

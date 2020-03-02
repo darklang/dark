@@ -56,7 +56,7 @@ let defaultTLID = TLID "handler1"
 let defaultHandler =
   { hTLID = defaultTLID
   ; pos = {x = 0; y = 0}
-  ; ast = EBlank (gid ())
+  ; ast = FluidAST.ofExpr (EBlank (gid ()))
   ; spec =
       {space = B.newF "HTTP"; name = B.newF "/src"; modifier = B.newF "POST"} }
 
@@ -89,7 +89,7 @@ let run () =
       in
       let handlerWithPointer fnName fnRail =
         let id = ID "ast1" in
-        let ast = E.EFnCall (id, fnName, [], fnRail) in
+        let ast = FluidAST.ofExpr (E.EFnCall (id, fnName, [], fnRail)) in
         ({defaultHandler with ast}, id)
       in
       let init fnName fnRail =
@@ -103,7 +103,7 @@ let run () =
           let res =
             match mod' with
             | AddOps ([SetHandler (_, _, h)], _) ->
-              ( match h.ast with
+              ( match FluidAST.toExpr h.ast with
               | EFnCall (_, "Int::notResulty", [], NoRail) ->
                   true
               | _ ->
@@ -114,7 +114,7 @@ let run () =
           expect res |> toEqual true) ;
       test "toggles any fncall off rail in a thread" (fun () ->
           let fn = fn ~ster:Rail "List::getAt_v2" [pipeTarget; int 5] in
-          let ast = pipe emptyList [fn] in
+          let ast = pipe emptyList [fn] |> FluidAST.ofExpr in
           let h = {defaultHandler with ast} in
           let m = model [h] in
           let id = E.toID fn in
@@ -123,7 +123,7 @@ let run () =
           let res =
             match mod' with
             | AddOps ([SetHandler (_, _, h)], _) ->
-              ( match h.ast with
+              ( match FluidAST.toExpr h.ast with
               | EPipe
                   ( _
                   , [ EList (_, [])
@@ -145,7 +145,7 @@ let run () =
           let res =
             match mod' with
             | AddOps ([SetHandler (_, _, h)], _) ->
-              ( match h.ast with
+              ( match FluidAST.toExpr h.ast with
               | EFnCall (_, "Result::resulty", [], Rail) ->
                   true
               | _ ->
@@ -171,7 +171,7 @@ let run () =
       in
       test "datastore renamed, handler updates variable" (fun () ->
           let h =
-            { ast = EVariable (ID "ast1", "ElmCode")
+            { ast = FluidAST.ofExpr (EVariable (ID "ast1", "ElmCode"))
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
@@ -187,7 +187,7 @@ let run () =
                 ; ufmDescription = ""
                 ; ufmReturnTipe = B.new_ ()
                 ; ufmInfix = false }
-            ; ufAST = EVariable (ID "ast3", "ElmCode") }
+            ; ufAST = FluidAST.ofExpr (EVariable (ID "ast3", "ElmCode")) }
           in
           let model =
             { D.defaultModel with
@@ -199,7 +199,7 @@ let run () =
           let res =
             match List.sortBy ~f:Encoders.tlidOf ops with
             | [SetHandler (_, _, h); SetFunction f] ->
-              ( match (h.ast, f.ufAST) with
+              ( match (FluidAST.toExpr h.ast, FluidAST.toExpr f.ufAST) with
               | EVariable (_, "WeirdCode"), EVariable (_, "WeirdCode") ->
                   true
               | _ ->
@@ -210,7 +210,7 @@ let run () =
           expect res |> toEqual true) ;
       test "datastore renamed, handler does not change" (fun () ->
           let h =
-            { ast = EVariable (ID "ast1", "request")
+            { ast = FluidAST.ofExpr (EVariable (ID "ast1", "request"))
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
@@ -292,7 +292,7 @@ let run () =
           in
           expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->
-      let modelAndTl (ast : fluidExpr) =
+      let modelAndTl (ast : FluidAST.t) =
         let hTLID = defaultTLID in
         let tl =
           { hTLID
@@ -317,19 +317,21 @@ let run () =
         (m, TLHandler tl)
       in
       test "with sole expression" (fun () ->
-          let ast = int 4 in
+          let ast = FluidAST.ofExpr (int 4) in
           let m, tl = modelAndTl ast in
           expect
-            ( R.extractVarInAst m tl (E.toID ast) "var" ast
-            |> FluidPrinter.eToTestString ~index:0 )
+            ( R.extractVarInAst m tl (FluidAST.toID ast) "var" ast
+            |> FluidAST.toExpr
+            |> FluidPrinter.eToTestString )
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
           let expr = fn "Int::add" [var "b"; int 4] in
-          let ast = let' "b" (int 5) expr in
+          let ast = FluidAST.ofExpr (let' "b" (int 5) expr) in
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.toID expr) "var" ast
-            |> FluidPrinter.eToTestString ~index:0 )
+            |> FluidAST.toExpr
+            |> FluidPrinter.eToTestString )
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
           let expr =
@@ -339,11 +341,14 @@ let run () =
           in
           let threadedExpr = fn "Dict::set" [str "id"; var "id"] in
           let exprInThread = pipe expr [threadedExpr] in
-          let ast = let' "id" (fn "Uuid::generate" []) exprInThread in
+          let ast =
+            FluidAST.ofExpr (let' "id" (fn "Uuid::generate" []) exprInThread)
+          in
           let m, tl = modelAndTl ast in
           expect
             ( R.extractVarInAst m tl (E.toID expr) "var" ast
-            |> FluidPrinter.eToTestString ~index:0 )
+            |> FluidAST.toExpr
+            |> FluidPrinter.eToTestString )
           |> toEqual
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n") ;
       ()) ;
@@ -351,14 +356,12 @@ let run () =
       test "simple example" (fun () ->
           let ast = fn "myFn" [int 1; int 2; int 3] in
           expect
-            ( AST.reorderFnCallArgs "myFn" 0 1 ast
-            |> FluidPrinter.eToHumanString ~index:0 )
+            (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidPrinter.eToHumanString)
           |> toEqual "myFn 2 1 3") ;
       test "simple pipe" (fun () ->
           let ast = pipe (int 1) [fn "myFn" [int 2; int 3]] in
           expect
-            ( AST.reorderFnCallArgs "myFn" 1 2 ast
-            |> FluidPrinter.eToHumanString ~index:0 )
+            (AST.reorderFnCallArgs "myFn" 1 2 ast |> FluidPrinter.eToHumanString)
           |> toEqual "1\n|>myFn 3 2\n") ;
       test "pipe but the fn is later" (fun () ->
           let ast =
@@ -370,8 +373,7 @@ let run () =
               ; fn "other3" [] ]
           in
           expect
-            ( AST.reorderFnCallArgs "myFn" 1 2 ast
-            |> FluidPrinter.eToTestString ~index:0 )
+            (AST.reorderFnCallArgs "myFn" 1 2 ast |> FluidPrinter.eToTestString)
           |> toEqual "1\n|>other1\n|>other2\n|>myFn 3 2\n|>other3\n") ;
       test "pipe and arg 0" (fun () ->
           let ast =
@@ -383,7 +385,6 @@ let run () =
               ; fn "other3" [] ]
           in
           expect
-            ( AST.reorderFnCallArgs "myFn" 0 1 ast
-            |> FluidPrinter.eToTestString ~index:0 )
+            (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidPrinter.eToTestString)
           |> toEqual "1\n|>other1\n|>other2\n|>\\x -> myFn 2 x 3\n|>other3\n") ;
       ())

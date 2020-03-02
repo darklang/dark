@@ -8,7 +8,7 @@ let run () =
           let ast = FluidExpression.EBlank (gid ()) in
           let tlFunc =
             TLFunc
-              { ufAST = ast
+              { ufAST = FluidAST.ofExpr ast
               ; ufTLID = gtlid ()
               ; ufMetadata =
                   { ufmName = Blank (gid ())
@@ -20,6 +20,7 @@ let run () =
           let tl = tlFunc in
           let vs : ViewUtils.viewState =
             { tl
+            ; ast = FluidAST.ofExpr ast
             ; cursorState = Deselected
             ; fluidState = Defaults.defaultFluidState
             ; tlid = gtlid ()
@@ -46,6 +47,9 @@ let run () =
             ; tlTraceIDs = TLIDDict.empty
             ; testVariants = []
             ; featureFlags = StrDict.empty
+            ; extraEditors = []
+            ; mainEditor =
+                {tlid = gtlid (); editorId = None; expr = ast; tokens = []}
             ; handlerProp = None
             ; canvasName = ""
             ; userContentHost = ""
@@ -55,7 +59,6 @@ let run () =
             ; avatarsList = []
             ; permission = Some ReadWrite
             ; workerStats = None
-            ; tokenSplits = []
             ; menuState = {isOpen = false}
             ; isExecuting = false
             ; fnProps =

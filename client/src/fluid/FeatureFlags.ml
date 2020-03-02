@@ -30,8 +30,7 @@ let wrap (_ : model) (tl : toplevel) (id : id) : modification =
     EFeatureFlag (gid (), "flag-name", E.newB (), e, E.newB ())
   in
   TL.getAST tl
-  |> Option.map ~f:(E.update ~f:replacement id)
-  |> Option.map ~f:(TL.setASTMod tl)
+  |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
   |> Option.withDefault ~default:NoChange
 
 
@@ -47,8 +46,7 @@ let unwrap (_ : model) (tl : toplevel) (id : id) : modification =
         recover "tried to remove non-feature flag" expr
   in
   TL.getAST tl
-  |> Option.map ~f:(E.update ~f:replacement id)
-  |> Option.map ~f:(TL.setASTMod tl)
+  |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
   |> Option.withDefault ~default:NoChange
 
 

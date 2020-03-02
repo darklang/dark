@@ -12,8 +12,8 @@ let debugState s =
     }
 
 
-let h ast : handler =
-  { ast
+let h (expr : FluidExpression.t) : handler =
+  { ast = FluidAST.ofExpr expr
   ; hTLID = TLID "7"
   ; pos = {x = 0; y = 0}
   ; spec =

@@ -59,7 +59,7 @@ let commandsFor (m : model) (expr : fluidExpr) : command list =
 let show (m : model) (tlid : tlid) (id : id) : model =
   TL.get m tlid
   |> Option.andThen ~f:TL.getAST
-  |> Option.andThen ~f:(FluidExpression.find id)
+  |> Option.andThen ~f:(FluidAST.find id)
   |> Option.map ~f:(fun expr ->
          let cp =
            { index = 0
@@ -148,11 +148,9 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
         TL.get m tlid
         |> Option.andThen ~f:TL.getAST
         |> Option.map ~f:(fun ast ->
-               match FluidExpression.find id ast with
-               | Some expr ->
-                   commandsFor m expr
-               | None ->
-                   [])
+               ast
+               |> FluidAST.find id
+               |> function Some expr -> commandsFor m expr | None -> [])
         |> recoverOpt "no tl for location" ~default:[]
     | _ ->
         fluidCommands m

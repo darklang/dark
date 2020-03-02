@@ -57,7 +57,8 @@ let defaultFluidState : fluidState =
   ; selectionStart = None
   ; errorDvSrc = SourceNone
   ; midClick = false
-  ; activeEditorPanelIdx = 0 }
+  ; extraEditors = []
+  ; activeEditorId = None }
 
 
 let defaultCanvasProps : canvasProps =
@@ -90,7 +91,7 @@ let defaultFnSpace : fnProps =
 let defaultModel : model =
   { error = None
   ; lastMsg = IgnoreMsg
-  ; lastMod = NoChange
+  ; lastMods = []
   ; opCtrs = StrDict.empty
   ; clientOpCtrId = ""
   ; complete =

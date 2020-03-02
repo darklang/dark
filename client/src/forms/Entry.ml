@@ -278,7 +278,7 @@ let newHandler m space name modifier pos =
   let tlid = gtlid () in
   let spaceid = gid () in
   let handler =
-    { ast = EBlank (gid ())
+    { ast = FluidAST.ofExpr (EBlank (gid ()))
     ; spec =
         { space = F (spaceid, space)
         ; name = B.ofOption name
@@ -286,20 +286,19 @@ let newHandler m space name modifier pos =
     ; hTLID = tlid
     ; pos }
   in
+  let astID = handler.ast |> FluidAST.toID in
   let idToEnter =
     (* TL.getNextBlank requires that there be a tl in the model to operate on;
      * here, we're setting an ID to focus before the model is updated, so we
      * generate our list of blankOrDatas here *)
     (* Fallback to ast if spec has no blanks *)
-    handler.spec
-    |> SpecHeaders.firstBlank
-    |> Option.withDefault ~default:(handler.ast |> FluidExpression.toID)
+    handler.spec |> SpecHeaders.firstBlank |> Option.withDefault ~default:astID
   in
   let fluidMods =
     let s = m.fluidState in
     let newS = {s with newPos = 0} in
     let cursorState =
-      if idToEnter = (handler.ast |> FluidExpression.toID)
+      if idToEnter = astID
       then FluidEntering tlid
       else Entering (Filling (tlid, idToEnter))
     in

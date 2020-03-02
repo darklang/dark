@@ -108,29 +108,31 @@ let findUsagesInAST
     (datastores : tlid StrDict.t)
     (handlers : tlid StrDict.t)
     (functions : tlid StrDict.t)
-    (ast : FluidExpression.t) : usage list =
-  FluidExpression.filterMap ast ~f:(fun e ->
-      match e with
-      | EVariable (id, name) ->
-          StrDict.get ~key:name datastores
-          |> Option.map ~f:(fun dbTLID -> (dbTLID, id))
-      | EFnCall (id, "emit", [_; EString (_, space_); EString (_, name_)], _) ->
-          let name = Util.removeQuotes name_ in
-          let space = Util.removeQuotes space_ in
-          let key = keyForHandlerSpec space name in
-          StrDict.get ~key handlers
-          |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
-      | EFnCall (id, "emit_v1", [_; EString (_, name_)], _) ->
-          let name = Util.removeQuotes name_ in
-          let space = "WORKER" in
-          let key = keyForHandlerSpec space name in
-          StrDict.get ~key handlers
-          |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
-      | EFnCall (id, name, _, _) ->
-          StrDict.get ~key:name functions
-          |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
-      | _ ->
-          None)
+    (ast : FluidAST.t) : usage list =
+  FluidAST.toExpr ast
+  |> FluidExpression.filterMap ~f:(fun e ->
+         match e with
+         | EVariable (id, name) ->
+             StrDict.get ~key:name datastores
+             |> Option.map ~f:(fun dbTLID -> (dbTLID, id))
+         | EFnCall (id, "emit", [_; EString (_, space_); EString (_, name_)], _)
+           ->
+             let name = Util.removeQuotes name_ in
+             let space = Util.removeQuotes space_ in
+             let key = keyForHandlerSpec space name in
+             StrDict.get ~key handlers
+             |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
+         | EFnCall (id, "emit_v1", [_; EString (_, name_)], _) ->
+             let name = Util.removeQuotes name_ in
+             let space = "WORKER" in
+             let key = keyForHandlerSpec space name in
+             StrDict.get ~key handlers
+             |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
+         | EFnCall (id, name, _, _) ->
+             StrDict.get ~key:name functions
+             |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
+         | _ ->
+             None)
   |> List.map ~f:(fun (usedIn, id) -> {refersTo = tlid; usedIn; id})
 
 

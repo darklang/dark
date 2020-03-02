@@ -453,7 +453,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                     Some
                       (Fluid.setPosition
                          state
-                         (Fluid.posFromCaretTarget state ast caretTarget))
+                         (Fluid.posFromCaretTarget ast state caretTarget))
                 | None ->
                     None
               in
@@ -962,13 +962,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let hcache =
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
-                 let value = FluidPrinter.eToHumanString h.ast in
+                 let value =
+                   FluidPrinter.eToHumanString (FluidAST.toExpr h.ast)
+                 in
                  cache |> TLIDDict.insert ~tlid:h.hTLID ~value)
         in
         let searchCache =
           userFunctions
           |> List.foldl ~init:hcache ~f:(fun f cache ->
-                 let value = FluidPrinter.eToHumanString f.ufAST in
+                 let value =
+                   FluidPrinter.eToHumanString (FluidAST.toExpr f.ufAST)
+                 in
                  cache |> TLIDDict.insert ~tlid:f.ufTLID ~value)
         in
         ({m with searchCache}, Cmd.none)
@@ -1256,22 +1260,6 @@ let update_ (msg : msg) (m : model) : modification =
         Native.OffsetEstimator.estimateClickOffset (showID targetID) event
       in
       Selection.dblclick m targetExnID targetID offset
-  | ToplevelClick (targetExnID, _) ->
-      let defaultBehaviour =
-        [ Select (targetExnID, STTopLevelRoot)
-        ; Apply
-            (fun m ->
-              Fluid.update
-                m
-                (FluidMouseUp
-                   {tlid = targetExnID; selection = None; editorIdx = 0})) ]
-      in
-      ( match m.cursorState with
-      (* If we click away from an entry box, commit it before doing the default behaviour *)
-      | Entering (Filling _ as cursor) ->
-          Many (Entry.commit m cursor :: defaultBehaviour)
-      | _ ->
-          Many defaultBehaviour )
   | ExecuteFunctionButton (tlid, id, name) ->
       let selectionTarget : tlidSelectTarget =
         (* Note that the intent here is to make the live value visible, which
@@ -1827,7 +1815,7 @@ let update_ (msg : msg) (m : model) : modification =
       let pos = center in
       let ast = FluidExpression.EBlank (gid ()) in
       let aHandler =
-        { ast
+        { ast = FluidAST.ofExpr ast
         ; spec =
             { space = B.newF space
             ; name = B.newF path
@@ -2081,7 +2069,15 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
   let newm, newc = updateMod mods (m, Cmd.none) in
   SavedSettings.save m ;
   SavedUserSettings.save m ;
-  ({newm with lastMsg = msg; lastMod = mods}, newc)
+  let lastMods =
+    (* ARGH List.take returns empty if count > length *)
+    let newMods = show_modification mods :: m.lastMods in
+    let maxLen = 10 in
+    if List.length newMods > maxLen
+    then List.take newMods ~count:maxLen
+    else newMods
+  in
+  ({newm with lastMsg = msg; lastMods}, newc)
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =

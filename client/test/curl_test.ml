@@ -6,7 +6,7 @@ module B = BlankOr
 let defaultTLID = TLID "7"
 
 let http ~(path : string) ?(meth = "GET") () : handler =
-  { ast = EBlank (gid ())
+  { ast = FluidAST.ofExpr (EBlank (gid ()))
   ; hTLID = defaultTLID
   ; pos = {x = 0; y = 0}
   ; spec = {space = B.newF "HTTP"; name = B.newF path; modifier = B.newF meth}
@@ -65,7 +65,7 @@ let run () =
       test "returns None for non-HTTP handlers" (fun () ->
           let cronTLID = TLID "2" in
           let cron =
-            { ast = EBlank (gid ())
+            { ast = FluidAST.ofExpr (EBlank (gid ()))
             ; hTLID = cronTLID
             ; pos = {x = 0; y = 0}
             ; spec =

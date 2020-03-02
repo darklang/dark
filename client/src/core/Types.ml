@@ -228,7 +228,7 @@ and handlerSpace =
   | HSDeprecatedOther
 
 and handler =
-  { ast : FluidExpression.t
+  { ast : FluidAST.t
   ; spec : handlerSpec
   ; hTLID : tlid
   ; pos : pos }
@@ -290,7 +290,7 @@ and userFunctionMetadata =
 and userFunction =
   { ufTLID : tlid
   ; ufMetadata : userFunctionMetadata
-  ; ufAST : FluidExpression.t }
+  ; ufAST : FluidAST.t }
 
 and userRecordField =
   { urfName : string blankOr
@@ -1176,16 +1176,15 @@ and fluidInputEvent =
 
 and fluidMouseUp =
   { tlid : tlid
-  ; selection :
-      (* The (int * int) here represents the selection beginning + end (the
-       * selection may be left->right or right->left) If the selection is None, the
-       * selection will be read from the browser rather than the browser's
-       * selection being set. *)
-      (int * int) option
-  ; editorIdx :
-      (* editorIdx tells which fluid editor was clicked on.
-       * see fluidState.activeEditorPanelIdx *)
-      int }
+  ; editorId : string option
+        (** editorId is the id of the editor that was clicked on, or None if it was
+          * the main editor *)
+  ; selection : (int * int) option
+        (** selection is the beginning + end of the browser selection on
+          * mouseup. The selection may be left->right or right->left. If the
+          * selection is None, the selection will be read from the browser
+          * rather than the browser's selection being set. *)
+  }
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
@@ -1218,7 +1217,6 @@ and msg =
   (* we have the actual node when TLDragRegionMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)
   | TLDragRegionMouseUp of tlid * mouseEvent
-  | ToplevelClick of tlid * mouseEvent
   | ToplevelDelete of tlid
   | ToplevelDeleteForever of tlid
   | DragToplevel of tlid * Tea.Mouse.position [@printer opaque "DragToplevel"]
@@ -1553,6 +1551,19 @@ and fluidCommandState =
   ; location : (tlid * id) option
   ; filter : string option }
 
+(** editorViewKind represents the type of editorView. This impacts, for
+  * example, how expressions are tokenized within the view. *)
+and editorViewKind =
+  | MainView
+  | FeatureFlagView
+
+and editorView =
+  { id : string
+        (** the unique id of this editor panel, used to identify it, eg, when
+          * it is clicked and needs focus *)
+  ; expressionId : id  (** the id of the top-most expression in this panel *)
+  ; kind : editorViewKind }
+
 and fluidState =
   { error : string option
   ; actions : string list
@@ -1574,14 +1585,15 @@ and fluidState =
       (* The source id of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; activeEditorPanelIdx :
-      (* activeEditorPanelIdx is the 0-based index of the editor that is active inside
-       * the current TL. Most TLs will only have a single editor most of the
-       * time, but when displaying, eg, a feature flag condition there will be
-       * multiple. This is used to place the caret correctly and modify the
-       * correct set of tokens. idx=0 is always the "main" editor and should
-       * always exist. *)
-      int }
+  ; extraEditors : editorView list
+        (** extraEditors is a list of extra (non-main) editor panels that
+          * should be rendered for the active fluid editor. For example, when a
+          * handler with a feature flag is focused, this is populated with an
+          * extra editorView for the feature flag condition. *)
+  ; activeEditorId : string option
+        (** activeEditorId is the id (editorView.id) of the active (focused)
+         * editor within the handler, or None if the main editor is active. *)
+  }
 
 (* Avatars *)
 and avatar =
@@ -1603,7 +1615,7 @@ and avatarModelMessage =
 and model =
   { error : string option
   ; lastMsg : msg
-  ; lastMod : modification
+  ; lastMods : string list
   ; tests : variantTest list
   ; complete : autocomplete
   ; builtInFunctions : function_ list
