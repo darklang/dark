@@ -790,7 +790,7 @@ let t_db_query_works () =
     (queryv (str "x") |> exec)
     (Db.dbQueryExceptionToString
        (Db.DBQueryException
-          "Incorrect type in `\"x\"`, expected Bool but got a String in \"x\"")) ;
+          "Incorrect type in `\"x\"`, expected Bool but got a Str in \"x\"")) ;
   check_error
     "bad variable name"
     ( queryv

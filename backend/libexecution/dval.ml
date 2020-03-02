@@ -31,7 +31,7 @@ let rec tipe_to_string t : string =
   | TCharacter ->
       "Character"
   | TStr ->
-      "String"
+      "Str"
   | TList ->
       "List"
   | TObj ->
