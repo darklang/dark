@@ -5182,11 +5182,11 @@ let getCopySelection (m : model) : clipboardContents =
            |> FluidPrinter.eToHumanString
            |> String.slice ~from ~to_
          in
-         let js =
+         let json =
            reconstructExprFromRange ast m.fluidState (from, to_)
            |> Option.map ~f:Clipboard.exprToClipboardContents
          in
-         Some (text, js))
+         Some (text, json))
   |> Option.withDefault ~default:("", None)
 
 
