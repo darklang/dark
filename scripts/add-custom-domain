@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 . ./scripts/support/assert-in-container "$0" "$@"
 
@@ -16,7 +16,7 @@ app.foo.com, api.foo.com, etc. See docs/custom-domains.md for why.
 EOF
 )"
 
-if [[ $# -ne 2 ]]; then
+if [[ $# -ne 2 || "$1" == '--help' ]]; then
     echo "$HELP"
     exit 1
 fi
@@ -104,10 +104,10 @@ new_webserver_match="${new_apex_string} ${new_domain_string}"
 # up not doing that, but don't care to remember how to translate perl regex back
 # into sed regex.
 # Add to the "should_use_https" match
-perl -i -pe "s/(\| \[\"www\"; \"kiksht\"; \"com\"\]) ->/\1 ${new_webserver_match} ->/s" backend/libbackend/webserver.ml
+perl -i -pe "s/(\(\* ACD-should_use_https-MARKER \*\))/\1 ${new_webserver_match}/s" backend/libbackend/webserver.ml
 
 # Add to the "route_host" match
-perl -i -pe "s/(Some \(Canvas \"alex\"\))/\1 ${new_webserver_match} -> Some (Canvas \"${CANVAS}\")/" backend/libbackend/webserver.ml
+perl -i -pe "s/(\(\* ACD-route_host-MARKER \*\))/\1 ${new_webserver_match} -> Some (Canvas \"${CANVAS}\")/" backend/libbackend/webserver.ml
 
 # Fix formatting after the above two regexes
 scripts/format format > /dev/null
