@@ -472,6 +472,18 @@ let aPipeInsideIf = if' b aLongPipe b
 
 let aNestedPipe = pipe (list []) [listFn [pipe aList5 [listFn [aList6]]]]
 
+(* ------------- *)
+(* Feature Flags *)
+(* ------------- *)
+
+let flag cond oldCode newCode =
+  EFeatureFlag (gid (), "flag-name", cond, oldCode, newCode)
+
+
+let flagOld oldCode = EFeatureFlag (gid (), "flag-name", falseBool, oldCode, b)
+
+let flagNew newCode = EFeatureFlag (gid (), "flag-name", trueBool, b, newCode)
+
 (* ---------------- *)
 (* Complex *)
 (* ---------------- *)
