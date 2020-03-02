@@ -411,7 +411,7 @@ let accountView (m : model) : msg Html.html =
       (* Block opening the omnibox here by preventing canvas pan start *)
     ; ViewUtils.nothingMouseEvent "mousedown" ]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] [settings; docs; logout] ]
+    ; Html.div [Html.class' "account-actions"] [docs; settings; logout] ]
 
 
 let view (m : model) : msg Html.html =
