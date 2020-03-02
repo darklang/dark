@@ -218,7 +218,7 @@ let isValidBlankOrID (tl : toplevel) (id : id) : bool =
 (* ASTs *)
 (* ------------------------- *)
 
-let getAST (tl : toplevel) : FluidExpression.t option =
+let getAST (tl : toplevel) : FluidAST.t option =
   match tl with
   | TLHandler h ->
       Some h.ast
@@ -228,7 +228,7 @@ let getAST (tl : toplevel) : FluidExpression.t option =
       None
 
 
-let setAST (tl : toplevel) (newAST : FluidExpression.t) : toplevel =
+let setAST (tl : toplevel) (newAST : FluidAST.t) : toplevel =
   match tl with
   | TLHandler h ->
       TLHandler {h with ast = newAST}
@@ -238,7 +238,7 @@ let setAST (tl : toplevel) (newAST : FluidExpression.t) : toplevel =
       tl
 
 
-let withAST (m : model) (tlid : tlid) (ast : FluidExpression.t) : model =
+let withAST (m : model) (tlid : tlid) (ast : FluidAST.t) : model =
   { m with
     handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
   ; userFunctions =
@@ -246,7 +246,7 @@ let withAST (m : model) (tlid : tlid) (ast : FluidExpression.t) : model =
           {uf with ufAST = ast}) }
 
 
-let setASTMod (tl : toplevel) (ast : FluidExpression.t) : modification =
+let setASTMod (tl : toplevel) (ast : FluidAST.t) : modification =
   match tl with
   | TLHandler h ->
       if h.ast = ast
@@ -262,6 +262,16 @@ let setASTMod (tl : toplevel) (ast : FluidExpression.t) : modification =
       recover "no ast in DBs" ~debug:tl NoChange
   | TLGroup _ ->
       recover "no ast in Groups" ~debug:tl NoChange
+
+
+(** modifyASTMod is a combination of getAST and setASTMod. It fetches the AST
+  * for [tl] and passes it to [f], which should return a modified version of the
+  * AST. An AddOps modification is returned, which updates the AST accordingly. *)
+let modifyASTMod (tl : toplevel) ~(f : FluidAST.t -> FluidAST.t) : modification
+    =
+  getAST tl
+  |> Option.map ~f:(f >> setASTMod tl)
+  |> Option.withDefault ~default:NoChange
 
 
 let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
@@ -372,11 +382,11 @@ let selected (m : model) : toplevel option =
   m.cursorState |> tlidOf |> Option.andThen ~f:(get m)
 
 
-let selectedAST (m : model) : FluidExpression.t option =
+let selectedAST (m : model) : FluidAST.t option =
   selected m |> Option.andThen ~f:getAST
 
 
-let setSelectedAST (m : model) (ast : FluidExpression.t) : modification =
+let setSelectedAST (m : model) (ast : FluidAST.t) : modification =
   match selected m with None -> NoChange | Some tl -> setASTMod tl ast
 
 
@@ -392,14 +402,17 @@ let allBlanks (tl : toplevel) : id list =
   (tl |> blankOrData |> List.filter ~f:P.isBlank |> List.map ~f:P.toID)
   @ ( tl
     |> getAST
-    |> Option.map ~f:AST.blanks
+    |> Option.map ~f:FluidAST.blanks
     |> Option.withDefault ~default:[]
     |> List.map ~f:FluidExpression.toID )
 
 
 let allIDs (tl : toplevel) : id list =
   (tl |> blankOrData |> List.map ~f:P.toID)
-  @ (tl |> getAST |> Option.map ~f:AST.ids |> Option.withDefault ~default:[])
+  @ ( tl
+    |> getAST
+    |> Option.map ~f:FluidAST.ids
+    |> Option.withDefault ~default:[] )
 
 
 let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head

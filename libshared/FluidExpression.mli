@@ -56,8 +56,8 @@ val newB : unit -> t
 val walk : f:(t -> t) -> t -> t
 
 (** [preTraversal f ast] walks the entire AST from top to bottom, calling f on
- * each function. It returns a new AST with every subexpression e replaced by
- * [f e].  Unlike walk, it does not require you to call preorder again. After
+ * each expression. It returns a new AST with every subexpression e replaced by
+ * [f e].  Unlike walk, it does not require you to call preTraversal again. After
  * calling [f], the result is then recursed into; if this isn't what you want
  * call postTraversal. *)
 val preTraversal : f:(t -> t) -> t -> t
@@ -76,9 +76,9 @@ val postTraversal : f:(t -> t) -> t -> t
 val filterMap : f:(t -> 'a option) -> t -> 'a list
 
 (** [filter f ast] calls f on every expression, returning a list of all
- * expressions for which [f e] is true. Recurses into expressions: if a
- * child and its parent (or grandparent, etc) both match, then both will be
- * in the result list.  *)
+ * expressions for which [f e] is true. Recurses into expressions:
+ * if a child and its parent (or grandparent, etc) both match, then both will
+ * be in the result list.  *)
 val filter : f:(t -> bool) -> t -> t list
 
 (** [findExprOrPat target within] recursively finds the subtree
@@ -105,6 +105,12 @@ val hasEmptyWithId : Shared.id -> t -> bool
 (** [isBlank e] returns true iff [e] is an EBlank. *)
 val isBlank : t -> bool
 
+(** [blanks e] returns all children [c] of [e] where [isBlank c] is true *)
+val blanks : t -> t list
+
+(** [ids e] returns the id of [e] and all its children *)
+val ids : t -> Shared.id list
+
 (** [update f target ast] recursively searches [ast] for an expression e
     having an Shared.id of [target].
 
@@ -122,3 +128,5 @@ val renameVariableUses : oldName:string -> newName:string -> t -> t
 val updateVariableUses : string -> f:(t -> t) -> t -> t
 
 val clone : t -> t
+
+val ancestors : Shared.id -> t -> t list

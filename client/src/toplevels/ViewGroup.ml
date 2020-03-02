@@ -87,7 +87,7 @@ let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
   let body, data =
     match tl with
     | TLHandler h ->
-        (ViewHandler.view vs h [], ViewData.viewData vs h.ast)
+        (ViewHandler.view vs h [], ViewData.viewData vs)
     | TLDB db ->
         (ViewDB.viewDB vs db [], [])
     | _ ->

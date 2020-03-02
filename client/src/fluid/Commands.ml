@@ -81,7 +81,7 @@ let commands : command list =
         (fun m tl id ->
           let name =
             TL.getAST tl
-            |> Option.andThen ~f:(fun ast -> FluidExpression.find id ast)
+            |> Option.andThen ~f:(FluidAST.find id)
             |> Option.andThen ~f:(function
                    | EFnCall (_, fluidName, _, _) ->
                        Some fluidName

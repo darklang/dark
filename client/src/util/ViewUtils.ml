@@ -5,8 +5,17 @@ module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
 
+type editorViewState =
+  { tlid : tlid
+  ; editorId : string option
+  ; expr : E.t
+  ; tokens : FluidToken.tokenInfo list }
+
 type viewState =
   { tl : toplevel
+  ; ast : FluidAST.t
+  ; mainEditor : editorViewState
+  ; extraEditors : editorViewState list
   ; cursorState : cursorState
   ; tlid : tlid
   ; isAdmin : bool
@@ -36,13 +45,6 @@ type viewState =
   ; workerStats : workerStats option
   ; menuState : menuState
   ; isExecuting : bool
-  ; tokenSplits :
-      (* tokenSplits are the result of calling Printer.tokenizeWithSplits on an
-       * AST. The head split is always the main editor, with the optional tail
-       * being other editor panels. fluidState.activeEditorPanelIdx allows indexing
-       * into this list to get the tokens for the currently active editor
-       * panel. *)
-      FluidPrinter.split list
   ; fnProps : fnProps }
 
 (* ----------------------------- *)
@@ -58,12 +60,33 @@ let createVS (m : model) (tl : toplevel) : viewState =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
   let traceID = Analysis.getSelectedTraceID m tlid in
-  let tokenSplits =
-    TL.getAST tl
-    |> Option.map ~f:FluidPrinter.tokenizeWithSplits
-    |> Option.withDefault ~default:[]
+  let ast =
+    TL.getAST tl |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
+  in
+  let mainEditor =
+    let expr = FluidAST.toExpr ast in
+    { tlid
+    ; editorId = None
+    ; expr
+    ; tokens = FluidPrinter.tokenizeForViewKind MainView expr }
+  in
+  let extraEditors =
+    List.filterMap m.fluidState.extraEditors ~f:(fun e ->
+        let expr =
+          ast
+          |> FluidAST.find e.expressionId
+          |> recoverOpt
+               ~default:(E.newB ())
+               (Printf.sprintf
+                  "failed to find expr %s for editor %s"
+                  (e.expressionId |> deID)
+                  e.id)
+        in
+        let tokens = FluidPrinter.tokenizeForViewKind e.kind expr in
+        Some {tlid; editorId = Some e.id; expr; tokens})
   in
   { tl
+  ; ast
   ; tlid
   ; cursorState = unwrapCursorState m.cursorState
   ; hovering =
@@ -94,6 +117,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; tlTraceIDs = m.tlTraceIDs
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
+  ; mainEditor
+  ; extraEditors
   ; handlerProp = hp
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
@@ -121,7 +146,6 @@ let createVS (m : model) (tl : toplevel) : viewState =
           m.avatarsList
       | _ ->
           [] )
-  ; tokenSplits
   ; permission = m.permission
   ; workerStats =
       (* Right now we patch because worker execution link depends on name instead of TLID. When we fix our worker association to depend on TLID instead of name, then we will get rid of this patchy hack. *)
@@ -298,12 +322,6 @@ let isHoverOverTL (vs : viewState) : bool =
       true
   | _ ->
       false
-
-
-let getMainTokens (vs : viewState) : FluidPrinter.tokenInfo list =
-  List.head vs.tokenSplits
-  |> Option.map ~f:(fun (p : FluidPrinter.split) -> p.tokens)
-  |> Option.withDefault ~default:[]
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u

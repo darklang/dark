@@ -20,7 +20,7 @@ let aHandler
     () : toplevel =
   let space = match space with None -> B.new_ () | Some name -> B.newF name in
   let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  TLHandler {ast = expr; spec; hTLID = tlid; pos}
+  TLHandler {ast = FluidAST.ofExpr expr; spec; hTLID = tlid; pos}
 
 
 let run () =

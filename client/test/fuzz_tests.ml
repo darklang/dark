@@ -60,8 +60,9 @@ let processMsg (inputs : fluidInputEvent list) (s : fluidState) (ast : E.t) :
     E.t * fluidState =
   let h = Fluid_utils.h ast in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
-  List.foldl inputs ~init:(ast, s) ~f:(fun input (ast, s) ->
+  List.foldl inputs ~init:(h.ast, s) ~f:(fun input (ast, s) ->
       updateMsg m h.hTLID ast (FluidInputEvent input) s)
+  |> Tuple2.mapFirst ~f:FluidAST.toExpr
 
 
 (* ------------------ *)
@@ -113,11 +114,7 @@ let longLines : FuzzTest.t =
   { name = "no lines above 120 chars"
   ; check =
       (fun ~testcase:_ ~newAST _ ->
-        let allTokens =
-          FluidPrinter.tokenizeWithSplits newAST
-          |> List.map ~f:(fun (s : FluidPrinter.split) -> s.tokens)
-          |> List.concat
-        in
+        let allTokens = FluidPrinter.tokenize newAST in
         List.all allTokens ~f:(fun ti -> ti.startCol + ti.length <= 120))
   ; ignore = (fun _ -> false)
   ; fn = (fun testcase -> (testcase, defaultTestState)) }

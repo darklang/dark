@@ -8,7 +8,7 @@ let run () =
   describe "Introspect" (fun () ->
       let h1tlid = gtlid () in
       let h1data =
-        { ast = EBlank (gid ())
+        { ast = FluidAST.ofExpr (EBlank (gid ()))
         ; spec =
             { space = B.newF "JOB"
             ; name = B.newF "processOrder"
@@ -20,11 +20,12 @@ let run () =
       let dbRefID = gid () in
       let h2data =
         { ast =
-            EFnCall
-              ( gid ()
-              , "DB::deleteAll_v1"
-              , [EVariable (dbRefID, "Books")]
-              , NoRail )
+            FluidAST.ofExpr
+              (EFnCall
+                 ( gid ()
+                 , "DB::deleteAll_v1"
+                 , [EVariable (dbRefID, "Books")]
+                 , NoRail ))
         ; spec =
             { space = B.newF "HTTP"
             ; name = B.newF "/hello"
@@ -81,7 +82,7 @@ let run () =
                     ; ufmDescription = "can users put docs here?"
                     ; ufmReturnTipe = B.new_ ()
                     ; ufmInfix = false }
-                ; ufAST = FluidExpression.newB () } ]
+                ; ufAST = FluidAST.ofExpr (FluidExpression.newB ()) } ]
           in
           expect (tlidsToUpdateUsage ops) |> toEqual [h1tlid; fntlid]) ;
       ()) ;

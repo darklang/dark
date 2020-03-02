@@ -1000,7 +1000,7 @@ test("fluid_ac_validate_on_lose_focus", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
   await t
-    .pressKey("r e q u e s t . b o d y")
+    .typeText("#active-editor", "request.body")
     .click("#app", { offsetX: 500, offsetY: 50 }) //click away from fluid
     .expect(true)
     .ok();
@@ -1101,7 +1101,7 @@ test("use_pkg_fn", async t => {
 test("fluid_show_docs_for_command_on_selected_code", async t => {
   await createRepl(t);
   await gotoAST(t);
-  await t.pressKey("1 9 9 9").pressKey("alt+x");
+  await t.typeText("#active-editor", "1999").pressKey("alt+x");
 
   await t.expect(Selector("#cmd-filter").exists).ok();
   await t.expect(Selector(".documentation-box").exists).ok();

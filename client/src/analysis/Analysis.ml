@@ -128,15 +128,11 @@ let getTipeOf (m : model) (id : id) (traceID : traceID) : tipe option =
 
 let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
     : dval list option =
+  let ast = tl |> TL.getAST in
   let threadPrevious =
-    tl
-    |> TL.getAST
-    |> Option.andThen ~f:(AST.threadPrevious callerID)
-    |> Option.toList
+    ast |> Option.andThen ~f:(AST.threadPrevious callerID) |> Option.toList
   in
-  let caller =
-    tl |> TL.getAST |> Option.andThen ~f:(FluidExpression.find callerID)
-  in
+  let caller = ast |> Option.andThen ~f:(FluidAST.find callerID) in
   let args =
     match caller with
     | Some (EFnCall (_, _, args, _)) ->
@@ -164,8 +160,9 @@ let getAvailableVarnames
     |> Option.andThen ~f:(fun t -> Some t.input)
     |> Option.withDefault ~default:StrDict.empty
   in
-  let varsFor ast =
+  let varsFor (ast : FluidAST.t) =
     ast
+    |> FluidAST.toExpr
     |> AST.variablesIn
     |> StrDict.get ~key:id
     |> Option.withDefault ~default:StrDict.empty

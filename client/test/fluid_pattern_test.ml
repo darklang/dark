@@ -15,8 +15,8 @@ let eToTestString = Printer.eToTestString
 
 let pToString = Printer.pToString
 
-let h ast =
-  { ast
+let h expr =
+  { ast = FluidAST.ofExpr expr
   ; hTLID = TLID "7"
   ; spec =
       { space = BlankOr.newF "HTTP"
@@ -72,20 +72,20 @@ let run () =
     let newAST, newState =
       let h = h ast in
       let m = {m with handlers = Handlers.fromList [h]} in
-      List.foldl inputs ~init:(ast, s) ~f:(fun input (ast, s) ->
+      List.foldl inputs ~init:(h.ast, s) ~f:(fun input (ast, s) ->
           updateMsg m h.hTLID ast (FluidInputEvent input) s)
     in
     let result =
-      match newAST with
+      match FluidAST.toExpr newAST with
       | EMatch (_, _, [(pat, _)]) ->
           pat
       | _ ->
-          failwith ("can't match: " ^ eToTestString newAST)
+          failwith ("can't match: " ^ eToTestString (FluidAST.toExpr newAST))
     in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "pattern after" (eToStructure newAST) ) ;
+      Js.log2 "pattern after" (eToStructure (FluidAST.toExpr newAST)) ) ;
     (pToString result, max 0 (newState.newPos - extra))
   in
   let keypress (key : K.key) : fluidInputEvent =

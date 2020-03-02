@@ -133,7 +133,9 @@ let replaceParamName
     let newBody =
       match (search, replacement) with
       | PParamName (F (_, oldName)), PParamName (F (_, newName)) ->
-          FluidExpression.renameVariableUses ~oldName ~newName uf.ufAST
+          uf.ufAST
+          |> FluidAST.map
+               ~f:(FluidExpression.renameVariableUses ~oldName ~newName)
       | _ ->
           uf.ufAST
     in

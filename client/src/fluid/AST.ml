@@ -195,9 +195,9 @@ let getParamIndex (expr : E.t) (id : id) : (string * int) option =
       None
 
 
-let threadPrevious (id : id) (ast : E.t) : E.t option =
-  let parent = E.findParent id ast in
-  match parent with
+let threadPrevious (id : id) (ast : FluidAST.t) : E.t option =
+  FluidAST.findParent id ast
+  |> function
   | Some (EPipe (_, exprs)) ->
       exprs
       |> List.find ~f:(fun e -> E.toID e = id)
@@ -209,57 +209,6 @@ let threadPrevious (id : id) (ast : E.t) : E.t option =
 (* ------------------------- *)
 (* Ancestors *)
 (* ------------------------- *)
-let ancestors (id : id) (expr : E.t) : E.t list =
-  let rec rec_ancestors (tofind : id) (walk : E.t list) (exp : E.t) =
-    let rec_ id_ e_ walk_ = rec_ancestors id_ (e_ :: walk_) in
-    let reclist id_ e_ walk_ exprs =
-      exprs |> List.map ~f:(rec_ id_ e_ walk_) |> List.concat
-    in
-    if E.toID exp = tofind
-    then walk
-    else
-      match exp with
-      | EInteger _
-      | EString _
-      | EBool _
-      | EFloat _
-      | ENull _
-      | EBlank _
-      | EPipeTarget _ ->
-          []
-      | EVariable _ ->
-          []
-      | ELet (_, _, rhs, body) ->
-          reclist id exp walk [rhs; body]
-      | EIf (_, cond, ifbody, elsebody) ->
-          reclist id exp walk [cond; ifbody; elsebody]
-      | EFnCall (_, _, exprs, _) ->
-          reclist id exp walk exprs
-      | EBinOp (_, _, lhs, rhs, _) ->
-          reclist id exp walk [lhs; rhs]
-      | ELambda (_, _, lexpr) ->
-          rec_ id exp walk lexpr
-      | EPipe (_, exprs) ->
-          reclist id exp walk exprs
-      | EFieldAccess (_, obj, _) ->
-          rec_ id exp walk obj
-      | EList (_, exprs) ->
-          reclist id expr walk exprs
-      | ERecord (_, pairs) ->
-          pairs |> List.map ~f:Tuple2.second |> reclist id expr walk
-      | EFeatureFlag (_, _, cond, a, b) ->
-          reclist id exp walk [cond; a; b]
-      | EMatch (_, matchExpr, cases) ->
-          reclist id exp walk (matchExpr :: List.map ~f:Tuple2.second cases)
-      | EConstructor (_, _, args) ->
-          reclist id exp walk args
-      | EPartial (_, _, oldExpr) ->
-          rec_ id exp walk oldExpr
-      | ERightPartial (_, _, oldExpr) ->
-          rec_ id exp walk oldExpr
-  in
-  rec_ancestors id [] expr
-
 
 let freeVariables (ast : E.t) : (id * string) list =
   (* Find all variable lookups that lookup a variable that
@@ -306,12 +255,6 @@ let freeVariables (ast : E.t) : (id * string) list =
          | _ ->
              None)
   |> List.uniqueBy ~f:(fun (_, name) -> name)
-
-
-let blanks (ast : E.t) : E.t list = E.filter ast ~f:E.isBlank
-
-let ids (ast : E.t) : id list =
-  E.filter ast ~f:(fun _ -> true) |> List.map ~f:E.toID
 
 
 module VarDict = StrDict

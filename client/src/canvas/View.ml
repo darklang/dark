@@ -24,11 +24,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let body, data =
     match tl with
     | TLHandler h ->
-        (ViewHandler.view vs h dragEvents, ViewData.viewData vs h.ast)
+        (ViewHandler.view vs h dragEvents, ViewData.viewData vs)
     | TLDB db ->
         (ViewDB.viewDB vs db dragEvents, [])
     | TLFunc f ->
-        ([ViewUserFunction.view vs f], ViewData.viewData vs f.ufAST)
+        ([ViewUserFunction.view vs f], ViewData.viewData vs)
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
     | TLGroup g ->
@@ -83,7 +83,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; ("group", match tl with TLGroup _ -> true | _ -> false) ]
   in
   let id =
-    Fluid.getToken' m.fluidState (ViewUtils.getMainTokens vs)
+    Fluid.getToken' m.fluidState vs.mainEditor.tokens
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (idOf m.cursorState)
   in
@@ -112,7 +112,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let selectedFnDocString =
           let fn =
             TL.getAST tl
-            |> Option.andThen ~f:(fun ast -> FluidExpression.find id ast)
+            |> Option.andThen ~f:(fun ast -> FluidAST.find id ast)
             |> Option.andThen ~f:(function
                    | E.EFnCall (_, name, _, _) | EBinOp (_, name, _, _, _) ->
                        Some name
@@ -132,7 +132,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           let param =
             TL.get m tlid
             |> Option.andThen ~f:TL.getAST
-            |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
+            |> Option.andThen ~f:(fun ast ->
+                   AST.getParamIndex (FluidAST.toExpr ast) id)
             |> Option.andThen ~f:(fun (name, index) ->
                    m.fluidState.ac.functions
                    |> List.find ~f:(fun f -> name = f.fnName)
@@ -426,11 +427,12 @@ let view (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
   let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
   let ast =
-    TL.selectedAST m |> Option.withDefault ~default:(E.EBlank (gid ()))
+    TL.selectedAST m
+    |> Option.withDefault ~default:(FluidAST.ofExpr (E.EBlank (gid ())))
   in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [FluidView.viewStatus m ast]
+    then [FluidDebugger.view m ast]
     else [Vdom.noNode]
   in
   let viewDocs =
