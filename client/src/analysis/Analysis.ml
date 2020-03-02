@@ -410,7 +410,7 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
 
 
 let analyzeFocused (m : model) : model * msg Cmd.t =
-  match tlidOf m.cursorState with
+  match CursorState.tlidOf m.cursorState with
   | Some tlid ->
       let trace =
         getSelectedTraceID m tlid

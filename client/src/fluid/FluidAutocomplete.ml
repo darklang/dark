@@ -628,9 +628,9 @@ let updateAutocompleteVisibility (m : model) : model =
     | Some (tlid, _) ->
         Some tlid
     | None ->
-        tlidOf m.cursorState
+        CursorState.tlidOf m.cursorState
   in
-  let newTlid = tlidOf m.cursorState in
+  let newTlid = CursorState.tlidOf m.cursorState in
   if isOpened m.fluidState.ac && oldTlid <> newTlid
   then
     let newAc = reset m in

@@ -14,7 +14,7 @@ module Key = Keyboard
 module Regex = Util.Regex
 
 let undo_redo (m : model) (redo : bool) : modification =
-  match tlidOf m.cursorState with
+  match CursorState.tlidOf m.cursorState with
   | Some tlid ->
       let undo =
         if redo
@@ -186,7 +186,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 [ AutocompleteMod (ACSetVisible true)
                 ; AutocompleteMod (ACSetQuery v)
                 ; AutocompleteMod (ACSetVisible true)
-                ; MakeCmd (Entry.focusEntry m) ]
+                ; MakeCmd (CursorState.focusEntry m) ]
           | _ ->
               AutocompleteMod (ACSetVisible true) )
     | Deselected ->

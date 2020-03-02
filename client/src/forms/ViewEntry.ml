@@ -102,7 +102,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html =
 
 
 let viewEntry (m : model) : msg Html.html =
-  match unwrapCursorState m.cursorState with
+  match CursorState.unwrap m.cursorState with
   | Entering (Creating pos) ->
       let styleProp =
         match pos with

@@ -99,10 +99,9 @@ let commands : command list =
             | None ->
                 Some "Could not copy, try again after clicking this handler."
           in
-          let modFun m =
-            (* TODO: toastPos is a vPos, how do we get a vPos without a
-             * mouseEvent? *)
-            {m with toast = {toastMessage; toastPos = None}}
-          in
-          TweakModel modFun)
+          ReplaceAllModificationsWithThisOne
+            (fun m ->
+              (* TODO: toastPos is a vPos, how do we get a vPos without a
+               * mouseEvent? *)
+              ({m with toast = {toastMessage; toastPos = None}}, Tea.Cmd.none)))
     ; doc = "Copy request as curl command" } ]
