@@ -88,13 +88,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
   { tl
   ; ast
   ; tlid
-  ; cursorState = unwrapCursorState m.cursorState
+  ; cursorState = CursorState.unwrap m.cursorState
   ; hovering =
       m.hovering
       |> List.filter ~f:(fun (tlid, _) -> tlid = tlid)
       |> List.head
       |> Option.andThen ~f:(fun ((_, i) as res) ->
-             match idOf m.cursorState with
+             match CursorState.idOf m.cursorState with
              | Some cur ->
                  if cur = i then None else Some res
              | _ ->
@@ -123,11 +123,11 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
   ; refersToRefs =
-      ( if tlidOf m.cursorState = Some tlid
+      ( if CursorState.tlidOf m.cursorState = Some tlid
       then Introspect.allRefersTo tlid m
       else [] )
   ; usedInRefs =
-      ( if tlidOf m.cursorState = Some tlid
+      ( if CursorState.tlidOf m.cursorState = Some tlid
       then Introspect.allUsedIn tlid m
       else [] )
   ; hoveringRefs =

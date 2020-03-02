@@ -32,7 +32,7 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
     ; Html.dd
         []
         [ Html.text
-            ( tlidOf m.cursorState
+            ( CursorState.tlidOf m.cursorState
             |> Option.map ~f:deTLID
             |> Option.withDefault ~default:"None" ) ]
     ; dtText "ast root"

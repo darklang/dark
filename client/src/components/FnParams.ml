@@ -64,8 +64,14 @@ let update (m : model) (msg : fnpMsg) : modification =
         |> Option.withDefault ~default:(m.currentUserFn, [])
   in
   if List.isEmpty mods
-  then TweakModel (fun m -> {m with currentUserFn})
-  else Many (mods @ [TweakModel (fun m -> {m with currentUserFn})])
+  then
+    ReplaceAllModificationsWithThisOne
+      (fun m -> ({m with currentUserFn}, Tea.Cmd.none))
+  else
+    Many
+      ( mods
+      @ [ ReplaceAllModificationsWithThisOne
+            (fun m -> ({m with currentUserFn}, Tea.Cmd.none)) ] )
 
 
 let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :

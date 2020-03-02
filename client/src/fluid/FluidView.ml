@@ -421,7 +421,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
 
 
 let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
-  if tlidOf vs.cursorState = Some vs.tlid
+  if CursorState.tlidOf vs.cursorState = Some vs.tlid
   then
     let id = FluidAST.toID vs.ast in
     match Analysis.getLiveValueLoadable vs.analysisStore id with

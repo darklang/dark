@@ -52,7 +52,7 @@ let viewDbLatestEntry (stats : dbStats) : msg Html.html =
 
 let viewDBData (vs : viewState) (db : db) : msg Html.html =
   match StrDict.get ~key:(deTLID db.dbTLID) vs.dbStats with
-  | Some stats when tlidOf vs.cursorState = Some db.dbTLID ->
+  | Some stats when CursorState.tlidOf vs.cursorState = Some db.dbTLID ->
       let liveVal = viewDbLatestEntry stats in
       let count = viewDbCount stats in
       Html.div [Html.class' "dbdata"] [count; liveVal]

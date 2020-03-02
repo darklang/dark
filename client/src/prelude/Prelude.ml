@@ -63,49 +63,6 @@ let gtlid () : tlid = TLID (Util.random () |> string_of_int)
 (* CursorState *)
 (* -------------------------------------- *)
 
-let rec unwrapCursorState (s : cursorState) : cursorState =
-  match s with
-  | DraggingTL (_, _, _, nested) | PanningCanvas {prevCursorState = nested; _}
-    ->
-      unwrapCursorState nested
-  | _ ->
-      s
-
-
-let tlidOf (s : cursorState) : tlid option =
-  match unwrapCursorState s with
-  | Selecting (tlid, _) ->
-      Some tlid
-  | Entering entryCursor ->
-    ( match entryCursor with
-    | Creating _ ->
-        None
-    | Filling (tlid, _) ->
-        Some tlid )
-  | Deselected ->
-      None
-  | FluidEntering tlid ->
-      Some tlid
-  (* NOTE: These have no id because unwrapCursorState
-   * should unwrap them *)
-  | DraggingTL _ | PanningCanvas _ ->
-      None
-
-
-let idOf (s : cursorState) : id option =
-  match unwrapCursorState s with
-  | Selecting (_, id) ->
-      id
-  | Entering entryCursor ->
-    (match entryCursor with Creating _ -> None | Filling (_, id) -> Some id)
-  | Deselected | FluidEntering _ ->
-      None
-  (* NOTE: These have no id because unwrapCursorState
-   * should unwrap them *)
-  | DraggingTL _ | PanningCanvas _ ->
-      None
-
-
 module Debug = struct
   let log ?(f : 'a -> 'b = fun x -> Obj.magic x) (msg : string) (data : 'a) : 'a
       =

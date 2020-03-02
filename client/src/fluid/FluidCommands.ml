@@ -227,22 +227,21 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
   Html.div [Html.class' "command-palette"] [filterInput; cmdsView]
 
 
-let cpSetIndex (_m : Types.model) (i : int) (s : Types.fluidState) :
-    Types.modification =
-  let newState = {s with cp = {s.cp with index = i}; upDownCol = None} in
-  let cmd = Types.MakeCmd (focusItem i) in
-  let m = Types.TweakModel (fun m -> {m with fluidState = newState}) in
-  Types.Many [m; cmd]
+let cpSetIndex (_m : Types.model) (i : int) : Types.modification =
+  ReplaceAllModificationsWithThisOne
+    (fun m ->
+      let cp = {m.fluidState.cp with index = i} in
+      let fluidState = {m.fluidState with cp; upDownCol = None} in
+      ({m with fluidState}, focusItem i))
 
 
 let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
-  let s = m.fluidState in
   let key = keyEvt.key in
   match key with
   | K.Enter ->
-    ( match s.cp.location with
+    ( match m.fluidState.cp.location with
     | Some (tlid, id) ->
-      ( match highlighted s.cp with
+      ( match highlighted m.fluidState.cp with
       | Some cmd ->
           Many [executeCommand m tlid id cmd; FluidCommandsClose]
       | None ->
@@ -250,15 +249,17 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
     | _ ->
         NoChange )
   | K.Up ->
-      let cp = moveUp s.cp in
-      let cmd = Types.MakeCmd (focusItem cp.index) in
-      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
-      Types.Many [m; cmd]
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let cp = moveUp m.fluidState.cp in
+          let fluidState = {m.fluidState with cp} in
+          ({m with fluidState}, focusItem cp.index))
   | K.Down ->
-      let cp = moveDown s.cp in
-      let cmd = Types.MakeCmd (focusItem cp.index) in
-      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
-      Types.Many [m; cmd]
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let cp = moveDown m.fluidState.cp in
+          let fluidState = {m.fluidState with cp} in
+          ({m with fluidState}, focusItem cp.index))
   | K.Escape ->
       FluidCommandsClose
   | _ ->
@@ -273,9 +274,9 @@ let updateCommandPaletteVisibility (m : model) : model =
     | Some (tlid, _) ->
         Some tlid
     | None ->
-        tlidOf m.cursorState
+        CursorState.tlidOf m.cursorState
   in
-  let newTlid = tlidOf m.cursorState in
+  let newTlid = CursorState.tlidOf m.cursorState in
   if isOpened m.fluidState.cp && oldTlid <> newTlid
   then
     let newCp = reset m in
