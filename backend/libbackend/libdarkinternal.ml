@@ -186,7 +186,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 let name = Unicode_string.to_string name in
                 let result = Account.upsert_user ~username ~email ~name () in
                 ( match result with
-                | Ok _ ->
+                | Ok () ->
                     Dval.dstr_of_string_exn ""
                 | Error msg ->
                     Exception.code msg )
@@ -215,7 +215,7 @@ that's already taken, returns an error."
                          r)
                 in
                 ( match result with
-                | Ok _ ->
+                | Ok () ->
                     DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
@@ -254,7 +254,7 @@ that's already taken, returns an error."
                          r)
                 in
                 ( match result with
-                | Ok _ ->
+                | Ok () ->
                     DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
@@ -281,7 +281,7 @@ that's already taken, returns an error."
                          r)
                 in
                 ( match result with
-                | Ok _ ->
+                | Ok () ->
                     DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )

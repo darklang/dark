@@ -31,6 +31,7 @@ val for_host : string -> Uuidm.t option
 val for_host_exn : string -> Uuidm.t
 
 (* Add (or update) a user, returns Result (unit,error) *)
+(* NOTE: email must match the email in auth0 for this user *)
 val upsert_user :
      username:string
   -> email:string
@@ -39,6 +40,7 @@ val upsert_user :
   -> (unit, string) Result.t
 
 (* Add a user; return error if we can't b/c username (unique) was taken *)
+(* NOTE: email must match the email in auth0 for this user *)
 val insert_user :
      username:string
   -> email:string
