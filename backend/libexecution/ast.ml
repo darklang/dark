@@ -701,6 +701,7 @@ and exec_fn
     (id : id)
     (fn : fn)
     (args : dval_map) : dval =
+  let state = {state with executing_fnname = fnname} in
   let arglist =
     fn.parameters
     |> List.map ~f:(fun (p : param) -> p.name)
