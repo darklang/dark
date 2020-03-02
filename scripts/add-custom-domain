@@ -16,7 +16,7 @@ app.foo.com, api.foo.com, etc. See docs/custom-domains.md for why.
 EOF
 )"
 
-if [[ $# -ne 2 ]]; then
+if [[ $# -ne 2 || "$1" == '--help' ]]; then
     echo "$HELP"
     exit 1
 fi
