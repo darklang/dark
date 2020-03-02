@@ -210,7 +210,7 @@ let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
 
 let sendInvite (m : model) (invite : SettingsViewTypes.inviteFormMessage) :
     msg Tea.Cmd.t =
-  let url = "https://ops-adduser.builtwithdark.com/sendInvite" in
+  let url = "https://ops-adduser.builtwithdark.com/send-invite" in
   let request =
     postJson
       ~withCredentials:true
