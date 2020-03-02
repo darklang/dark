@@ -176,7 +176,7 @@ let fns : Lib.shortfn list =
                          ( "Float::sum requires all values to be floats, but "
                          ^ Dval.to_developer_repr_v0 example_value
                          ^ " is a "
-                         ^ Dval.tipename example_value )
+                         ^ Dval.pretty_tipename example_value )
                        ~expected:"every list item to be an float "
                        "Sum expects you to pass a list of floats")
               |> Result.ok_exn

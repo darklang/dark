@@ -21,7 +21,11 @@ val tipe_of_string : Core_kernel.String.t -> Types.tipe_
 
 val tipe_of : Types.RuntimeT.dval -> Types.tipe_
 
+(** [pretty_tipename dval] produces a non-user-facing name for the type of the given [dval]. *)
 val tipename : Types.RuntimeT.dval -> string
+
+(** [pretty_tipename dval] produces a user-facing name for the type of the given [dval]. *)
+val pretty_tipename : Types.RuntimeT.dval -> string
 
 val unsafe_tipe_to_yojson : Types.RuntimeT.tipe -> Yojson.Safe.t
 
