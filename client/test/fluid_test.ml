@@ -63,6 +63,12 @@ let eToStructure = Printer.eToStructure
 
 let deOption msg v = match v with Some v -> v | None -> failwith msg
 
+type testcase =
+  { ast : FluidAST.t
+  ; state : fluidState }
+
+let testcaseOf e = {ast = FluidAST.ofExpr e; state = defaultTestState}
+
 type expectedAttrs =
   { containsPartials : bool
   ; containsFnsOnRail : bool }
@@ -92,9 +98,11 @@ let process
     (inputs : fluidInputEvent list)
     (selectionStart : int option)
     (pos : int)
-    (ast : FluidExpression.t) : testResult =
-  let s = defaultTestState in
-  let ast = if clone then E.clone ast else ast in
+    (case : testcase) : testResult =
+  let s = case.state in
+  let ast =
+    (if clone then FluidAST.clone case.ast else case.ast) |> FluidAST.toExpr
+  in
   let newlinesBefore (pos : int) =
     (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
@@ -185,8 +193,8 @@ let process
   ((toString result, (selPos, finalPos)), {containsPartials; containsFnsOnRail})
 
 
-let render (expr : fluidExpr) : testResult =
-  process ~wrap:true ~clone:false ~debug:false [] None 0 expr
+let render (case : testcase) : testResult =
+  process ~wrap:true ~clone:false ~debug:false [] None 0 case
 
 
 let keypress ?(shiftHeld = false) (key : K.key) : fluidInputEvent =
@@ -199,8 +207,8 @@ let del
     ?(debug = false)
     ?(clone = true)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [DeleteContentForward] None pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~clone ~debug [DeleteContentForward] None pos case
 
 
 let bs
@@ -208,8 +216,8 @@ let bs
     ?(debug = false)
     ?(clone = true)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [DeleteContentBackward] None pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~clone ~debug [DeleteContentBackward] None pos case
 
 
 let tab
@@ -218,8 +226,8 @@ let tab
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Tab] None pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Tab] None pos case
 
 
 let ctrlLeft
@@ -228,7 +236,7 @@ let ctrlLeft
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (expr : fluidExpr) : testResult =
+    (case : testcase) : testResult =
   let maintainSelection =
     if shiftHeld then K.KeepSelection else K.DropSelection
   in
@@ -239,7 +247,7 @@ let ctrlLeft
     [keypress ~shiftHeld (K.GoToStartOfWord maintainSelection)]
     None
     pos
-    expr
+    case
 
 
 let ctrlRight
@@ -248,7 +256,7 @@ let ctrlRight
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (expr : fluidExpr) : testResult =
+    (case : testcase) : testResult =
   let maintainSelection =
     if shiftHeld then K.KeepSelection else K.DropSelection
   in
@@ -259,7 +267,7 @@ let ctrlRight
     [keypress ~shiftHeld (K.GoToEndOfWord maintainSelection)]
     None
     pos
-    expr
+    case
 
 
 let shiftTab
@@ -268,8 +276,8 @@ let shiftTab
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.ShiftTab] None pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~clone ~debug [keypress ~shiftHeld K.ShiftTab] None pos case
 
 
 let space
@@ -277,8 +285,8 @@ let space
     ?(debug = false)
     ?(clone = true)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress K.Space] None pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~clone ~debug [keypress K.Space] None pos case
 
 
 let enter
@@ -287,8 +295,8 @@ let enter
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Enter] None pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Enter] None pos case
 
 
 let key
@@ -298,8 +306,8 @@ let key
     ?(shiftHeld = false)
     (key : K.key)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld key] None pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~clone ~debug [keypress ~shiftHeld key] None pos case
 
 
 let selectionPress
@@ -310,7 +318,7 @@ let selectionPress
     (key : K.key)
     (selectionStart : int)
     (pos : int)
-    (expr : fluidExpr) : testResult =
+    (case : testcase) : testResult =
   process
     ~wrap
     ~clone
@@ -318,7 +326,7 @@ let selectionPress
     [keypress ~shiftHeld key]
     (Some selectionStart)
     pos
-    expr
+    case
 
 
 let selectionInputs
@@ -328,8 +336,8 @@ let selectionInputs
     (inputs : fluidInputEvent list)
     (selectionStart : int)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug inputs (Some selectionStart) pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~clone ~debug inputs (Some selectionStart) pos case
 
 
 let keys
@@ -339,7 +347,7 @@ let keys
     ?(shiftHeld = false)
     (keys : K.key list)
     (pos : int)
-    (expr : fluidExpr) : testResult =
+    (case : testcase) : testResult =
   process
     ~wrap
     ~debug
@@ -347,7 +355,7 @@ let keys
     (List.map ~f:(keypress ~shiftHeld) keys)
     None
     pos
-    expr
+    case
 
 
 let modkeys
@@ -356,7 +364,7 @@ let modkeys
     ?(clone = true)
     (keys : (K.key * modifierKeys) list)
     (pos : int)
-    (expr : fluidExpr) : testResult =
+    (case : testcase) : testResult =
   process
     ~wrap
     ~clone
@@ -372,7 +380,7 @@ let modkeys
        keys)
     None
     pos
-    expr
+    case
 
 
 let ins
@@ -381,8 +389,8 @@ let ins
     ?(clone = true)
     (s : string)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~debug ~clone [InsertText s] None pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~debug ~clone [InsertText s] None pos case
 
 
 let insMany
@@ -391,7 +399,7 @@ let insMany
     ?(clone = true)
     (strings : string list)
     (pos : int)
-    (expr : fluidExpr) : testResult =
+    (case : testcase) : testResult =
   process
     ~wrap
     ~debug
@@ -399,7 +407,7 @@ let insMany
     (List.map strings ~f:(fun s -> InsertText s))
     None
     pos
-    expr
+    case
 
 
 let inputs
@@ -409,8 +417,8 @@ let inputs
     ?(selectionStart = None)
     (inputs : fluidInputEvent list)
     (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~debug ~clone inputs selectionStart pos expr
+    (case : testcase) : testResult =
+  process ~wrap ~debug ~clone inputs selectionStart pos case
 
 
 (* Test expecting no partials found and an expected caret position but no selection *)
@@ -419,7 +427,7 @@ let t
     ?(expectsFnOnRail = false)
     (name : string)
     (initial : fluidExpr)
-    (fn : fluidExpr -> testResult)
+    (fn : testcase -> testResult)
     (expectedStr : string) =
   let insertCaret
       (((str, (_selection, caret)), res) :
@@ -430,13 +438,14 @@ let t
     | a, b ->
         ([a; b] |> String.join ~sep:caretString, res)
   in
+  let case = {ast = FluidAST.ofExpr initial; state = defaultTestState} in
   test
     ( name
     ^ " - `"
     ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
     (fun () ->
-      expect (fn initial |> insertCaret)
+      expect (fn case |> insertCaret)
       |> toEqual
            ( expectedStr
            , { containsPartials = expectsPartial
@@ -447,17 +456,18 @@ let t
 let ts
     (name : string)
     (initial : fluidExpr)
-    (fn : fluidExpr -> testResult)
+    (fn : testcase -> testResult)
     ((expectedString, (expectedSelStart, expectedPos)) :
       string * (int option * int)) =
   let expected = (expectedString, (expectedSelStart, expectedPos)) in
+  let case = {ast = FluidAST.ofExpr initial; state = defaultTestState} in
   test
     ( name
     ^ " - `"
     ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
     ^ "`" )
     (fun () ->
-      expect (fn initial)
+      expect (fn case)
       |> toEqual
            (expected, {containsPartials = false; containsFnsOnRail = false}))
 
