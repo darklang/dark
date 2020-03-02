@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # A script to run ocamlformat within the container, same as we do for
 # ocamlmerlin.
