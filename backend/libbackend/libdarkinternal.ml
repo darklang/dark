@@ -186,8 +186,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 let name = Unicode_string.to_string name in
                 let result = Account.upsert_user ~username ~email ~name () in
                 ( match result with
-                | Ok password ->
-                    Dval.dstr_of_string_exn password
+                | Ok () ->
+                    Dval.dstr_of_string_exn ""
                 | Error msg ->
                     Exception.code msg )
             | args ->
@@ -215,8 +215,8 @@ that's already taken, returns an error."
                          r)
                 in
                 ( match result with
-                | Ok password ->
-                    DResult (ResOk (Dval.dstr_of_string_exn password))
+                | Ok () ->
+                    DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
@@ -254,8 +254,8 @@ that's already taken, returns an error."
                          r)
                 in
                 ( match result with
-                | Ok password ->
-                    DResult (ResOk (Dval.dstr_of_string_exn password))
+                | Ok () ->
+                    DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
@@ -267,7 +267,7 @@ that's already taken, returns an error."
     ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
     ; r = TResult
     ; d =
-        "Add a user. Returns a result containing the password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
+        "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
     ; f =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name] ->
@@ -281,8 +281,8 @@ that's already taken, returns an error."
                          r)
                 in
                 ( match result with
-                | Ok password ->
-                    DResult (ResOk (Dval.dstr_of_string_exn password))
+                | Ok () ->
+                    DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->

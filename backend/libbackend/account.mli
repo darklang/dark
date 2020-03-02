@@ -30,22 +30,24 @@ val for_host : string -> Uuidm.t option
 (* Get the owner of a host *)
 val for_host_exn : string -> Uuidm.t
 
-(* Add (or update) a user, returns Result (password,error) *)
+(* Add (or update) a user, returns Result (unit,error) *)
+(* NOTE: email must match the email in auth0 for this user *)
 val upsert_user :
      username:string
   -> email:string
   -> name:string
   -> unit
-  -> (string, string) Result.t
+  -> (unit, string) Result.t
 
 (* Add a user; return error if we can't b/c username (unique) was taken *)
+(* NOTE: email must match the email in auth0 for this user *)
 val insert_user :
      username:string
   -> email:string
   -> name:string
   -> ?segment_metadata:Libexecution.Types.RuntimeT.dval_map
   -> unit
-  -> (string, string) Result.t
+  -> (unit, string) Result.t
 
 (* Set whether user is an admin *)
 val set_admin : username:string -> bool -> unit
