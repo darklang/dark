@@ -372,21 +372,22 @@ let insert_user
     ~(email : string)
     ~(name : string)
     ?(segment_metadata : Types.RuntimeT.dval_map option)
-    () : (string, string) Result.t =
-  let plaintext = Util.random_string 16 in
-  let password = Password.from_plaintext plaintext in
+    () : (unit, string) Result.t =
+  (* As of the move to auth0, we  no longer store passwords in postgres. We do
+   * still use postgres locally, which is why we're not removing the field
+   * entirely. Local account creation is done in
+   * upsert_account_exn/upsert_admin_exn, so using Password.invalid here does
+   * not affect that *)
+  let password = Password.invalid in
   insert_account {username; email; name; password} ~segment_metadata
-  |> Result.map ~f:(fun () -> plaintext)
 
 
 (* Any external calls to this should also call Stroller.segment_identify_user;
  * we can't do it here because that sets up a module dependency cycle *)
 let upsert_user ~(username : string) ~(email : string) ~(name : string) () :
-    (string, string) Result.t =
-  let plaintext = Util.random_string 16 in
-  let password = Password.from_plaintext plaintext in
+    (unit, string) Result.t =
+  let password = Password.invalid in
   upsert_account {username; email; name; password}
-  |> Result.map ~f:(fun () -> plaintext)
 
 
 let init_testing () : unit =
