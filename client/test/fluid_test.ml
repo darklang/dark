@@ -3506,7 +3506,7 @@ let run () =
         "autocomplete for Nothing at end of a line"
         (if' b (partial "Nothing" b) b)
         (space 21)
-        "if ___\nthen\n  Nothing\n~else\n  ___" ;
+        "if ___\nthen\n  Nothing~\nelse\n  ___" ;
       t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
@@ -3586,7 +3586,7 @@ let run () =
                        (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
         (space ~clone:false 105)
-        "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body\n~foo" ;
+        "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body~\nfoo" ;
       t
         "autocomplete with tab in presence of no blanks places caret at end of autocompleted thing"
         (ELet
