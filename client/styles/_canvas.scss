@@ -297,8 +297,6 @@ body #app * {
   .account-actions {
     height: 0;
     padding: 0;
-    transition: height 0.4s;
-    padding-left: 15px;
     box-sizing: border-box;
     background: $black3;
     overflow: hidden;
@@ -308,17 +306,22 @@ body #app * {
     justify-content: space-around;
     text-align: right;
     .account-action-btn {
-      margin: 0;
-      padding: 10px 0px;
+      margin: 10px;
+
       cursor: pointer;
       color: $white1;
       &:hover {
         color: $purple;
       }
+
+      & + .account-action-btn {
+        margin-top: 5px;
+      }
     }
     .account-action-spacer {
       background-color: $grey2;
-      height: 2px;
+      height: 1px;
+      margin: 10px 0;
     }
     a {
       text-decoration: none;
@@ -327,6 +330,6 @@ body #app * {
 
   &:hover > .account-actions {
     height: auto;
-    padding: $spacing-small;
+    padding: 5px $spacing-medium;
   }
 }
