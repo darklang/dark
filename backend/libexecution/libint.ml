@@ -403,7 +403,7 @@ let fns : Lib.shortfn list =
                          ( "Int::sum requires all values to be integers, but "
                          ^ Dval.to_developer_repr_v0 example_value
                          ^ " is a "
-                         ^ Dval.tipename example_value )
+                         ^ Dval.pretty_tipename example_value )
                        ~expected:"every list item to be an int "
                        "Sum expects you to pass a list of ints")
               |> Result.ok_exn

@@ -61,7 +61,7 @@ let fns : Lib.shortfn list =
                              ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
                              ^ Dval.to_developer_repr_v0 example_value
                              ^ " is a "
-                             ^ Dval.tipename example_value )
+                             ^ Dval.pretty_tipename example_value )
                            ~expected:"every value to be a char"
                            "foreach expects you to return chars")
                   |> Result.ok_exn )
