@@ -697,10 +697,18 @@ let save_all (c : canvas) : unit =
   let tlids = List.map ~f:Tuple.T2.get1 c.ops in
   save_tlids c tlids
 
-
 (* ------------------------- *)
 (* Testing/validation *)
 (* ------------------------- *)
+
+let load_and_resave (h : host) : (unit, string list) Result.t =
+  ignore (Db.run ~name:"start_transaction" ~params:[] "BEGIN") ;
+  let result =
+    load_all h []
+    |> Result.map ~f:(fun c -> save_all !c)
+  in
+  ignore (Db.run ~name:"end_transaction" ~params:[] "COMMIT") ;
+  result
 
 let load_and_resave_from_test_file (host : string) : unit =
   let owner = Account.for_host_exn host in
