@@ -67,7 +67,7 @@ let fns : Lib.shortfn list =
           | state, [_; (DStr _ as b)] ->
               DError
                 ( SourceNone
-                , "The first param ("
+                , "The second param ("
                   ^ Dval.to_developer_repr_v0 b
                   ^ ") is a String, but "
                   ^ state.executing_fnname
