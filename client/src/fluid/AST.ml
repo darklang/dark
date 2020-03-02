@@ -195,9 +195,9 @@ let getParamIndex (expr : E.t) (id : id) : (string * int) option =
       None
 
 
-let threadPrevious (id : id) (ast : E.t) : E.t option =
-  let parent = E.findParent id ast in
-  match parent with
+let threadPrevious (id : id) (ast : FluidAST.t) : E.t option =
+  FluidAST.findParent id ast
+  |> function
   | Some (EPipe (_, exprs)) ->
       exprs
       |> List.find ~f:(fun e -> E.toID e = id)

@@ -135,9 +135,7 @@ let fnArgExprs (token : token) (ast : FluidAST.t) : E.t list =
   | EPipeTarget _ :: rest ->
       (* It's a little slow to look this up, so only look when we know we're
        * in a thread. *)
-      let previous =
-        ast |> FluidAST.toExpr |> AST.threadPrevious id |> Option.toList
-      in
+      let previous = ast |> AST.threadPrevious id |> Option.toList in
       previous @ rest
   | exprs ->
       exprs
