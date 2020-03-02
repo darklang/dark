@@ -1390,10 +1390,10 @@ bs-uuid@0.3.1:
   dependencies:
     uuid "^3.2.1"
 
-bs-webapi@0.15.7:
-  version "0.15.7"
-  resolved "https://registry.yarnpkg.com/bs-webapi/-/bs-webapi-0.15.7.tgz#4d6bc7723d0614a2864953659e703163f1023ba4"
-  integrity sha512-Mu8H+9DRIPK6VuqgzyUp5FoeBLSlhOqQcqc6G05At019kIZowQU783MoSedTbt9OctE9N1yO91DoDzMTWHspdg==
+bs-webapi@0.15.8:
+  version "0.15.8"
+  resolved "https://registry.yarnpkg.com/bs-webapi/-/bs-webapi-0.15.8.tgz#0e9ce264063ed4ce803e05620f2bf91773f92153"
+  integrity sha512-1efc8zOH2KDYU6sIjQQjOTgj+6ggtSius/x8fBMXYy9EHZTMBjzPrmjmsTPwwuojTo2fhrLA0VVDQeTiA25n3A==
 
 bucklescript-tea@darklang/bucklescript-tea#master:
   version "0.11.1"
