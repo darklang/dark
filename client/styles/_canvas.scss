@@ -316,6 +316,10 @@ body #app * {
         color: $purple;
       }
     }
+    .account-action-spacer {
+      background-color: $grey2;
+      height: 2px;
+    }
     a {
       text-decoration: none;
     }

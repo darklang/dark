@@ -399,6 +399,7 @@ let accountView (m : model) : msg Html.html =
             UpdateSegment OpenDocs) ]
       [Html.text "Documentation"]
   in
+  let spacer = Html.div [Html.class' "account-action-spacer"] [] in
   let settings =
     Html.p
       [ Html.class' "account-action-btn"
@@ -411,7 +412,8 @@ let accountView (m : model) : msg Html.html =
       (* Block opening the omnibox here by preventing canvas pan start *)
     ; ViewUtils.nothingMouseEvent "mousedown" ]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] [docs; settings; logout] ]
+    ; Html.div [Html.class' "account-actions"] [settings; logout; spacer; docs]
+    ]
 
 
 let view (m : model) : msg Html.html =
