@@ -840,14 +840,15 @@ let viewSidebar_ (m : model) : msg Html.html =
    * then toggle the visibility with CSS *)
   List.map [SidebarClosed; SidebarOpen] ~f:(fun variant ->
       let active = if m.sidebarOpen then SidebarOpen else SidebarClosed in
+      let isClosed = variant = SidebarClosed in
       Html.div
         [ Html.classList
             [ ("active", variant = active)
             ; ("viewing-table", true)
-            ; ("isClosed", variant = SidebarClosed) ] ]
+            ; ("isClosed", isClosed) ] ]
         ( [toggleSidebar variant]
         @ [ Html.div
-              [Html.classList [("groups", true); ("groups-closed", true)]]
+              [Html.classList [("groups", true); ("groups-closed", isClosed)]]
               ( List.map ~f:(showCategories variant m) cats
               @ [showDeployStats variant m; showAdminDebugger variant] )
           ; status ] ))
