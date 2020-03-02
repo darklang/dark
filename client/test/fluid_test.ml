@@ -3074,6 +3074,11 @@ let run () =
         plainIf
         (ctrlRight 4)
         "if 5\nthen\n  6~\nelse\n  7" ;
+      t
+        "space in AC at end of then line should not advance"
+        (let' "x" (int 5) (if' (partial "x" b) b b))
+        (space 14)
+        "let x = 5\nif x~\nthen\n  ___\nelse\n  ___" ;
       ()) ;
   describe "Lists" (fun () ->
       t "create list" b (ins "[" 0) "[~]" ;
