@@ -155,9 +155,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           else None
         in
         acFnDocString
+        |> Option.orElse cmdDocString
         |> Option.orElse selectedParamDocString
         |> Option.orElse selectedFnDocString
-        |> Option.orElse cmdDocString
         |> Option.withDefault ~default:Vdom.noNode
     | _ ->
         Vdom.noNode
