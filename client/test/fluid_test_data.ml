@@ -297,6 +297,12 @@ let aFullFnCall = EFnCall (gid (), "Int::add", [five; five], NoRail)
 
 let aFnCallWithVersion = EFnCall (gid (), "DB::getAll_v1", [b], NoRail)
 
+let aFnCallWithZeroArgs = EFnCall (gid (), "List::empty", [], NoRail)
+
+let aFnCallWithZeroArgsAndVersion =
+  EFnCall (gid (), "List::empty_v1", [], NoRail)
+
+
 let aFnCallWithBlockArg = EFnCall (gid (), "Dict::map", [b; b], NoRail)
 
 let aBinOp = EBinOp (gid (), "==", b, b, NoRail)
@@ -471,6 +477,10 @@ let aBinopPlusPipe = pipe b [binop "+" pipeTarget (int 10)]
 let aPipeInsideIf = if' b aLongPipe b
 
 let aNestedPipe = pipe (list []) [listFn [pipe aList5 [listFn [aList6]]]]
+
+let aPipeWithFilledFunction =
+  pipe (str "hello") [fn "String::length_v1" [pipeTarget]]
+
 
 (* ---------------- *)
 (* Complex *)
