@@ -550,6 +550,21 @@ let eToTestString (e : E.t) : string =
   |> String.join ~sep:""
 
 
+let testStringForViewKind (k : editorViewKind) (expr : FluidExpression.t) :
+    string =
+  let ff =
+    match k with
+    | MainView ->
+        FeatureFlagOnlyDisabled
+    | FeatureFlagView ->
+        FeatureFlagConditionAndEnabled
+  in
+  expr
+  |> tokenizeWithFFTokenization ff
+  |> List.map ~f:(fun ti -> T.toTestText ti.token)
+  |> String.join ~sep:""
+
+
 let eToHumanString (e : E.t) : string = e |> tokenize |> tokensToString
 
 let eToStructure ?(includeIDs = false) (e : E.t) : string =
