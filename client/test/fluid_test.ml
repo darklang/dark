@@ -67,15 +67,17 @@ module TestCase = struct
   type t =
     { ast : FluidAST.t
     ; state : fluidState
-    ; wrap : bool }
+    ; wrap : bool
+    ; clone : bool
+    ; debug : bool }
 
   let ofExpr e =
-    {ast = FluidAST.ofExpr e; state = defaultTestState; wrap = true}
+    { ast = FluidAST.ofExpr e
+    ; state = defaultTestState
+    ; wrap = true
+    ; clone = true
+    ; debug = false }
 end
-
-type expectedAttrs =
-  { containsPartials : bool
-  ; containsFnsOnRail : bool }
 
 module TestResult = struct
   type t =
@@ -162,18 +164,13 @@ let processMsg
 
 
 let process
-    ~(debug : bool)
-    ~(clone : bool)
-    ~(wrap : bool)
     (inputs : fluidInputEvent list)
     (selectionStart : int option)
     (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  (* hack to support old ~wrap param of process instead of setting testcase.wrap *)
-  let case = {case with wrap} in
-  let s = case.state in
+    (tc : TestCase.t) : TestResult.t =
+  let s = tc.state in
   let ast =
-    (if clone then FluidAST.clone case.ast else case.ast) |> FluidAST.toExpr
+    (if tc.clone then FluidAST.clone tc.ast else tc.ast) |> FluidAST.toExpr
   in
   let newlinesBefore (pos : int) =
     (* How many newlines occur before the pos, it'll be indented by 2 for
@@ -187,213 +184,124 @@ let process
            FluidToken.isNewline ti.token && ti.startPos < pos)
     |> List.length
   in
-  let ast = if wrap then if' (bool true) ast (int 5) else ast in
+  let ast = if tc.wrap then if' (bool true) ast (int 5) else ast in
   (* See the "Wrap" block comment at the top of the file for an explanation of this *)
   let addWrapper pos =
-    if wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
+    if tc.wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
   in
   let pos = addWrapper pos in
   let selectionStart = Option.map selectionStart ~f:addWrapper in
   let s = {s with oldPos = pos; newPos = pos; selectionStart} in
-  if debug
+  if tc.debug
   then (
     Js.log2 "state before " (Fluid_utils.debugState s) ;
     Js.log2 "expr before" (eToStructure ~includeIDs:true ast) ) ;
   let newAST, newState = processMsg inputs s ast in
   let result =
     FluidAST.map newAST ~f:(function
-        | EIf (_, _, expr, _) when wrap ->
+        | EIf (_, _, expr, _) when tc.wrap ->
             expr
-        | expr when not wrap ->
+        | expr when not tc.wrap ->
             expr
         | expr ->
             failwith ("the wrapper is broken: " ^ FluidPrinter.eToStructure expr))
   in
-  if debug
+  if tc.debug
   then (
     Js.log2 "state after" (Fluid_utils.debugState newState) ;
     Js.log2
       "expr after"
       (eToStructure ~includeIDs:true (FluidAST.toExpr result)) ) ;
-  {TestResult.testcase = case; ast = result; state = newState}
+  {TestResult.testcase = tc; ast = result; state = newState}
 
 
-let render (case : TestCase.t) : TestResult.t =
-  process ~wrap:true ~clone:false ~debug:false [] None 0 case
-
+let render (case : TestCase.t) : TestResult.t = process [] None 0 case
 
 let keypress ?(shiftHeld = false) (key : K.key) : fluidInputEvent =
   Keypress
     {key; shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
 
 
-let del
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process ~wrap ~clone ~debug [DeleteContentForward] None pos case
+let del (pos : int) (case : TestCase.t) : TestResult.t =
+  process [DeleteContentForward] None pos case
 
 
-let bs
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process ~wrap ~clone ~debug [DeleteContentBackward] None pos case
+let bs (pos : int) (case : TestCase.t) : TestResult.t =
+  process [DeleteContentBackward] None pos case
 
 
-let tab
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Tab] None pos case
+let tab ?(shiftHeld = false) (pos : int) (case : TestCase.t) : TestResult.t =
+  process [keypress ~shiftHeld K.Tab] None pos case
 
 
-let ctrlLeft
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
+let ctrlLeft ?(shiftHeld = false) (pos : int) (case : TestCase.t) : TestResult.t
+    =
   let maintainSelection =
     if shiftHeld then K.KeepSelection else K.DropSelection
   in
   process
-    ~wrap
-    ~clone
-    ~debug
     [keypress ~shiftHeld (K.GoToStartOfWord maintainSelection)]
     None
     pos
     case
 
 
-let ctrlRight
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
+let ctrlRight ?(shiftHeld = false) (pos : int) (case : TestCase.t) :
+    TestResult.t =
   let maintainSelection =
     if shiftHeld then K.KeepSelection else K.DropSelection
   in
   process
-    ~wrap
-    ~clone
-    ~debug
     [keypress ~shiftHeld (K.GoToEndOfWord maintainSelection)]
     None
     pos
     case
 
 
-let shiftTab
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.ShiftTab] None pos case
+let shiftTab ?(shiftHeld = false) (pos : int) (case : TestCase.t) : TestResult.t
+    =
+  process [keypress ~shiftHeld K.ShiftTab] None pos case
 
 
-let space
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process ~wrap ~clone ~debug [keypress K.Space] None pos case
+let space (pos : int) (case : TestCase.t) : TestResult.t =
+  process [keypress K.Space] None pos case
 
 
-let enter
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Enter] None pos case
+let enter ?(shiftHeld = false) (pos : int) (case : TestCase.t) : TestResult.t =
+  process [keypress ~shiftHeld K.Enter] None pos case
 
 
-let key
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (key : K.key)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld key] None pos case
+let key ?(shiftHeld = false) (key : K.key) (pos : int) (case : TestCase.t) :
+    TestResult.t =
+  process [keypress ~shiftHeld key] None pos case
 
 
 let selectionPress
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
     ?(shiftHeld = false)
     (key : K.key)
     (selectionStart : int)
     (pos : int)
     (case : TestCase.t) : TestResult.t =
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [keypress ~shiftHeld key]
-    (Some selectionStart)
-    pos
-    case
+  process [keypress ~shiftHeld key] (Some selectionStart) pos case
 
 
 let selectionInputs
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
     (inputs : fluidInputEvent list)
     (selectionStart : int)
     (pos : int)
     (case : TestCase.t) : TestResult.t =
-  process ~wrap ~clone ~debug inputs (Some selectionStart) pos case
+  process inputs (Some selectionStart) pos case
 
 
 let keys
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (keys : K.key list)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process
-    ~wrap
-    ~debug
-    ~clone
-    (List.map ~f:(keypress ~shiftHeld) keys)
-    None
-    pos
-    case
+    ?(shiftHeld = false) (keys : K.key list) (pos : int) (case : TestCase.t) :
+    TestResult.t =
+  process (List.map ~f:(keypress ~shiftHeld) keys) None pos case
 
 
-let modkeys
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    (keys : (K.key * modifierKeys) list)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
+let modkeys (keys : (K.key * modifierKeys) list) (pos : int) (case : TestCase.t)
+    : TestResult.t =
   process
-    ~wrap
-    ~clone
-    ~debug
     (List.map
        ~f:(fun (key, mods) ->
          Keypress
@@ -408,48 +316,30 @@ let modkeys
     case
 
 
-let ins
-    ?(debug = false)
-    ?(wrap = true)
-    ?(clone = true)
-    (s : string)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process ~wrap ~debug ~clone [InsertText s] None pos case
+let ins (s : string) (pos : int) (case : TestCase.t) : TestResult.t =
+  process [InsertText s] None pos case
 
 
-let insMany
-    ?(debug = false)
-    ?(wrap = true)
-    ?(clone = true)
-    (strings : string list)
-    (pos : int)
-    (case : TestCase.t) : TestResult.t =
-  process
-    ~wrap
-    ~debug
-    ~clone
-    (List.map strings ~f:(fun s -> InsertText s))
-    None
-    pos
-    case
+let insMany (strings : string list) (pos : int) (case : TestCase.t) :
+    TestResult.t =
+  process (List.map strings ~f:(fun s -> InsertText s)) None pos case
 
 
 let inputs
-    ?(debug = false)
-    ?(wrap = true)
-    ?(clone = true)
     ?(selectionStart = None)
     (inputs : fluidInputEvent list)
     (pos : int)
     (case : TestCase.t) : TestResult.t =
-  process ~wrap ~debug ~clone inputs selectionStart pos case
+  process inputs selectionStart pos case
 
 
 (* Test expecting no partials found and an expected caret position but no selection *)
 let t
     ?(expectsPartial = false)
     ?(expectsFnOnRail = false)
+    ?(wrap = true)
+    ?(clone = true)
+    ?(debug = false)
     (name : string)
     (initial : fluidExpr)
     (fn : TestCase.t -> TestResult.t)
@@ -457,7 +347,9 @@ let t
   let case =
     { TestCase.ast = FluidAST.ofExpr initial
     ; state = defaultTestState
-    ; wrap = true }
+    ; wrap
+    ; clone
+    ; debug }
   in
   test
     ( name
@@ -474,6 +366,9 @@ let t
 
 (* Test expecting no partials found and an expected resulting selection *)
 let ts
+    ?(wrap = true)
+    ?(clone = true)
+    ?(debug = false)
     (name : string)
     (initial : fluidExpr)
     (fn : TestCase.t -> TestResult.t)
@@ -482,7 +377,9 @@ let ts
   let case =
     { TestCase.ast = FluidAST.ofExpr initial
     ; state = defaultTestState
-    ; wrap = true }
+    ; wrap
+    ; clone
+    ; debug }
   in
   test
     ( name
@@ -1482,19 +1379,21 @@ let run () =
         "obj.~***@@.field2" ;
       t
         ~expectsPartial:true
+        ~clone:false
         "insert dot to complete partial field"
         (EPartial
            ( gid ()
            , "body"
            , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
            ))
-        (ins ~clone:false "." 11)
+        (ins "." 11)
         "request.body.~***" ;
       t
         ~expectsPartial:true
+        ~clone:false
         "insert dot even when no content in the field"
         (EVariable (ID "fake-acdata1", "request"))
-        (insMany ~clone:false ["."; "."] 7)
+        (insMany ["."; "."] 7)
         "request.body.~***" ;
       t
         ~expectsPartial:true
@@ -1692,26 +1591,28 @@ let run () =
         render
         "~HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }" ;
       t
-        ~expectsPartial:true
         "reflows put the caret in the right place on insert"
+        ~expectsPartial:true
+        ~wrap:false
         (let justShortEnoughNotToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
          in
          fn
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
-        (ins ~wrap:false "x" 120)
+        (ins "x" 120)
         "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01x~" ;
       t
-        ~expectsPartial:true
         "reflows put the caret in the right place on bs"
+        ~expectsPartial:true
+        ~wrap:false
         (let justLongEnoughToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij012"
          in
          fn
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justLongEnoughToReflow])
-        (bs ~wrap:false 129)
+        (bs 129)
         "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~" ;
       t
         "ctrl+left on function in middle of version moves to beg of version"
@@ -1735,9 +1636,9 @@ let run () =
         "DB::getAll~v1 ___________________" ;
       t
         "backspace after selecting a versioned 0-arg fnCall deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
         (fn "HttpClient::post_v4" [])
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
+        (inputs [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
       ()) ;
   describe "Binops" (fun () ->
@@ -2103,15 +2004,15 @@ let run () =
         "~123.456" ;
       t
         "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
         (binop "/" (fn "HttpClient::post_v4" []) (int 5))
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
+        (inputs [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
       t
         "backspace after selecting all with a binop partial in a binop deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
         (binop "+" (partial "D" (binop "-" (int 5) (int 5))) (int 5))
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteWordBackward] 0)
+        (inputs [keypress K.SelectAll; DeleteWordBackward] 0)
         "~___" ;
       t
         ~expectsPartial:true
@@ -2184,9 +2085,9 @@ let run () =
         "Ju~@@ ___" ;
       t
         "backspace after selecting all with a `Just |___` in a match deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
         (match' b [(pConstructor "Just" [pBlank ()], b)])
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
+        (inputs [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
@@ -2963,15 +2864,15 @@ let run () =
         "[]\n|>List::append [5]\n               |>List::append [6]\n               |>~___\n" ;
       t
         "enter at the end of pipe expression with line below creates a new entry"
+        ~wrap:false (* indent counting is all weird with wrapper *)
         (let' "a" (pipe (list []) [listFn [aList5]]) five)
-        (enter ~wrap:false 37)
-        (* indent counting is all weird with wrapper *)
+        (enter 37)
         "let a = []\n        |>List::append [5]\n        |>~___\n5" ;
       t
         "enter at the beginning of expression after pipe creates let, not pipe"
+        ~wrap:false (* indent counting is all weird with wrapper *)
         (let' "a" (pipe (list []) [listFn [aList5]]) five)
-        (enter ~wrap:false 38)
-        (* indent counting is all weird with wrapper *)
+        (enter 38)
         "let a = []\n        |>List::append [5]\nlet *** = ___\n~5" ;
       t
         "inserting a pipe into another pipe gives a single pipe1"
@@ -3010,9 +2911,9 @@ let run () =
         "[]\n|>List::append [5]\n|>List::append~ [5]\n" ;
       t
         "bsing a blank pipe after a piped 1-arg function deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
         (pipe aList5 [fn "List::length" [pipeTarget]; b])
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
+        (inputs [keypress K.SelectAll; DeleteContentBackward] 0)
         "~___" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
@@ -3254,13 +3155,15 @@ let run () =
         "{~}" ;
       t
         "inserting valid text in an empty record works"
+        ~wrap:false
         emptyRecord
-        (ins "f" 1 ~wrap:false)
+        (ins "f" 1)
         "{\n  f~ : ___\n}" ;
       t
         "inserting text in nested record gets correct position"
+        ~wrap:false
         listWithRecord
-        (ins "f" 2 ~wrap:false)
+        (ins "f" 2)
         "[{\n   f~ : ___\n }]" ;
       t
         "inserting space in empty record field does nothing"
@@ -3517,17 +3420,19 @@ let run () =
         "List::empty\n|>~___\n" ;
       t
         "shift enter in a field works correctly"
+        ~clone:false
         (EPartial
            ( gid ()
            , "bo"
            , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
            ))
-        (key ~clone:false K.ShiftEnter 10)
+        (key K.ShiftEnter 10)
         "request.body\n|>~___\n" ;
       t
         "shift enter in pipe autocompletes and creates pipe"
+        ~wrap:false
         (pipe (list []) [partial "appe" b])
-        (key ~wrap:false K.ShiftEnter 9)
+        (key K.ShiftEnter 9)
         "[]\n|>List::append ___________\n|>~___\n" ;
       t "autocomplete for Just" (partial "Just" b) (enter 4) "Just ~___" ;
       t "autocomplete for Ok" (partial "Ok" b) (enter 2) "Ok ~___" ;
@@ -3540,28 +3445,29 @@ let run () =
       t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
+        ~clone:false
         (EPartial
            ( gid ()
            , "bo"
            , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
            ))
-        (enter ~clone:false 10)
+        (enter 10)
         "request.body~" ;
       t
         "autocomplete shows first alphabetical item for fields"
+        ~clone:false
         (let' "request" (int 5) (EVariable (ID "fake-acdata2", "request")))
-        (inputs [InsertText "."; keypress K.Enter] ~clone:false 23)
+        (inputs [InsertText "."; keypress K.Enter] 23)
         "let request = 5\nrequest.author~" ;
       t
         "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
+        ~clone:false
         (let' "request" (int 5) (EVariable (ID "fake-acdata2", "request")))
-        (inputs
-           [InsertText "."; InsertText "t"; keypress K.Enter]
-           ~clone:false
-           23)
+        (inputs [InsertText "."; InsertText "t"; keypress K.Enter] 23)
         "let request = 5\nrequest.title~" ;
       t
         "autocomplete for field autocommits"
+        ~clone:false
         (let'
            "x"
            (partial
@@ -3571,10 +3477,11 @@ let run () =
                  "longfield"))
            b)
         (* Right should make it commit *)
-        (key ~clone:false K.Right 20)
+        (key K.Right 20)
         "let x = request.body\n~___" ;
       t
         "down works on autocomplete for fields"
+        ~clone:false
         (let'
            "x"
            (partial
@@ -3583,11 +3490,12 @@ let run () =
                  (EVariable (ID "fake-acdata1", "request"))
                  "longfield"))
            b)
-        (keys ~clone:false [K.Down; K.Enter] 16)
+        (keys [K.Down; K.Enter] 16)
         "let x = request.formBody~\n___" ;
       t
-        ~expectsPartial:true
         "autocomplete for field is committed by dot"
+        ~clone:false
+        ~expectsPartial:true
         (EPartial
            ( gid ()
            , "bod"
@@ -3595,10 +3503,11 @@ let run () =
                (gid (), EVariable (ID "fake-acdata1", "request"), "longfield")
            ))
         (* Dot should select the autocomplete *)
-        (ins ~clone:false "." 11)
+        (ins "." 11)
         "request.body.~***" ;
       t
         "autocomplete with space moves to next non-whitespace rather than blank"
+        ~clone:false
         (ELet
            ( gid ()
            , "request"
@@ -3615,10 +3524,11 @@ let run () =
                    , EFieldAccess
                        (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
-        (space ~clone:false 105)
+        (space 105)
         "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body\n~foo" ;
       t
         "autocomplete with tab in presence of no blanks places caret at end of autocompleted thing"
+        ~clone:false
         (ELet
            ( gid ()
            , "request"
@@ -3632,7 +3542,7 @@ let run () =
                    , EFieldAccess
                        (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
-        (tab ~clone:false 77)
+        (tab 77)
         "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;
       test "click into partial opens autocomplete" (fun () ->
           let ast = let' "request" aShortInt aPartialVar in
@@ -4074,8 +3984,9 @@ let run () =
         "let *** = ~___\n5" ;
       t
         "shift tab goes to last blank in editor"
+        ~wrap:false
         nonEmptyLetWithBlankEnd
-        (shiftTab ~wrap:false 4)
+        (shiftTab 4)
         "let *** = 6\n~___" ;
       t "cant tab to filled letLHS" letWithLhs (tab 0) "~let n = 6\n5" ;
       t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
