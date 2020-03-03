@@ -413,7 +413,7 @@ let accountView (m : model) : msg Html.html =
     if VariantTesting.variantIsActive m InviteVariant
     then
       Html.p
-        [ Html.class' "setting-btn invite"
+        [ Html.class' "account-action-btn invite"
         ; ViewUtils.eventNoPropagation ~key:"open-invite" "click" (fun _ ->
               SettingsViewMsg
                 (ToggleSettingsView
