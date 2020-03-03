@@ -2319,8 +2319,13 @@ let acMoveBasedOnKey
           but could do    [aced,|___]
         *)
         let startPos = posFromCaretTarget ast s currCaretTarget in
-        caretTargetForNextNonWhitespaceToken ~pos:startPos ast s
-        |> Option.withDefault ~default:currCaretTarget
+        ( match getNeighbours ~pos:startPos tokens with
+        | _, R (TNewline _, _), _ ->
+            (* If we're on a newline, don't move forward *)
+            currCaretTarget
+        | _ ->
+            caretTargetForNextNonWhitespaceToken ~pos:startPos ast s
+            |> Option.withDefault ~default:currCaretTarget )
     | _ ->
         currCaretTarget
   in
