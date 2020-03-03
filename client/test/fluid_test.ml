@@ -7,8 +7,6 @@ module K = FluidKeyboard
 module E = FluidExpression
 open FluidShortcuts
 
-let toString = Printer.eToTestString
-
 let eToStructure = Printer.eToStructure
 
 (*
@@ -61,19 +59,91 @@ let eToStructure = Printer.eToStructure
  *  There are more tests in fluid_pattern_tests for match patterns.
  *)
 
+let wrapperOffset = 15
+
 let deOption msg v = match v with Some v -> v | None -> failwith msg
 
-type testcase =
-  { ast : FluidAST.t
-  ; state : fluidState }
+module TestCase = struct
+  type t =
+    { ast : FluidAST.t
+    ; state : fluidState
+    ; wrap : bool }
 
-let testcaseOf e = {ast = FluidAST.ofExpr e; state = defaultTestState}
+  let ofExpr e =
+    {ast = FluidAST.ofExpr e; state = defaultTestState; wrap = true}
+end
 
 type expectedAttrs =
   { containsPartials : bool
   ; containsFnsOnRail : bool }
 
-type testResult = (string * (int option * int)) * expectedAttrs
+module TestResult = struct
+  type t =
+    { testcase : TestCase.t
+    ; ast : FluidAST.t
+    ; state : fluidState }
+
+  let tokenize (t : t) : FluidToken.tokenInfo list =
+    FluidPrinter.tokenize (FluidAST.toExpr t.ast)
+
+
+  let containsPartials (t : t) : bool =
+    List.any (tokenize t) ~f:(fun ti ->
+        match ti.token with
+        | TRightPartial _ | TPartial _ | TFieldPartial _ ->
+            true
+        | _ ->
+            false)
+
+
+  let containsFnsOnRail (t : t) : bool =
+    FluidAST.filter t.ast ~f:(function
+        | EBinOp (_, _, _, _, Rail) | EFnCall (_, _, _, Rail) ->
+            true
+        | _ ->
+            false)
+    |> ( <> ) []
+
+
+  let removeWrapperFromCaretPos (t : t) (p : int) : int =
+    let endPos = ref (p - wrapperOffset) in
+    (* Account for the newlines as we find them, or else we won't know our
+       * position to find the newlines correctly. There'll be extra indentation,
+       * so we need to subtract those to get the pos we expect. *)
+    let tokens = tokenize t in
+    tokens
+    |> List.iter ~f:(fun ti ->
+           match ti.token with
+           | TNewline _ when !endPos > ti.endPos ->
+               endPos := !endPos - 2
+           | _ ->
+               ()) ;
+    let last = tokens |> List.last |> deOption "last" |> fun x -> x.endPos in
+    (* even though the wrapper allows tests to go past the start and end, it's
+          * weird to test for *)
+    max 0 (min last !endPos)
+
+
+  let pos (t : t) : int =
+    if t.testcase.wrap
+    then removeWrapperFromCaretPos t t.state.newPos
+    else t.state.newPos
+
+
+  let selection (t : t) =
+    if t.testcase.wrap
+    then Option.map t.state.selectionStart ~f:(removeWrapperFromCaretPos t)
+    else t.state.selectionStart
+
+
+  let toString (t : t) : string = FluidAST.toExpr t.ast |> Printer.eToTestString
+
+  let toStringWithCaret (t : t) : string =
+    let caretString = "~" in
+    match toString t |> String.splitAt ~index:(pos t) with
+    | a, b ->
+        [a; b] |> String.join ~sep:caretString
+end
 
 type modifierKeys =
   { shiftKey : bool
@@ -98,7 +168,9 @@ let process
     (inputs : fluidInputEvent list)
     (selectionStart : int option)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
+  (* hack to support old ~wrap param of process instead of setting testcase.wrap *)
+  let case = {case with wrap} in
   let s = case.state in
   let ast =
     (if clone then FluidAST.clone case.ast else case.ast) |> FluidAST.toExpr
@@ -117,7 +189,6 @@ let process
   in
   let ast = if wrap then if' (bool true) ast (int 5) else ast in
   (* See the "Wrap" block comment at the top of the file for an explanation of this *)
-  let wrapperOffset = 15 in
   let addWrapper pos =
     if wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
   in
@@ -130,70 +201,24 @@ let process
     Js.log2 "expr before" (eToStructure ~includeIDs:true ast) ) ;
   let newAST, newState = processMsg inputs s ast in
   let result =
-    match FluidAST.toExpr newAST with
-    | EIf (_, _, expr, _) when wrap ->
-        expr
-    | expr when not wrap ->
-        expr
-    | expr ->
-        failwith ("the wrapper is broken: " ^ toString expr)
-  in
-  let removeWrapperFromCaretPos (p : int) : int =
-    let endPos = ref (p - wrapperOffset) in
-    (* Account for the newlines as we find them, or else we won't know our
-       * position to find the newlines correctly. There'll be extra indentation,
-       * so we need to subtract those to get the pos we expect. *)
-    result
-    |> Printer.tokenize
-    |> List.iter ~f:(fun ti ->
-           match ti.token with
-           | TNewline _ when !endPos > ti.endPos ->
-               endPos := !endPos - 2
-           | _ ->
-               ()) ;
-    let last =
-      Printer.tokenize result
-      |> List.last
-      |> deOption "last"
-      |> fun x -> x.endPos
-    in
-    (* even though the wrapper allows tests to go past the start and end, it's
-          * weird to test for *)
-    max 0 (min last !endPos)
-  in
-  let finalPos =
-    if wrap then removeWrapperFromCaretPos newState.newPos else newState.newPos
-  in
-  let selPos =
-    if wrap
-    then Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
-    else newState.selectionStart
-  in
-  let containsPartials =
-    List.any (Printer.tokenize result) ~f:(fun ti ->
-        match ti.token with
-        | TRightPartial _ | TPartial _ | TFieldPartial _ ->
-            true
-        | _ ->
-            false)
-  in
-  let containsFnsOnRail =
-    result
-    |> FluidExpression.filter ~f:(function
-           | EBinOp (_, _, _, _, Rail) | EFnCall (_, _, _, Rail) ->
-               true
-           | _ ->
-               false)
-    |> ( <> ) []
+    FluidAST.map newAST ~f:(function
+        | EIf (_, _, expr, _) when wrap ->
+            expr
+        | expr when not wrap ->
+            expr
+        | expr ->
+            failwith ("the wrapper is broken: " ^ FluidPrinter.eToStructure expr))
   in
   if debug
   then (
     Js.log2 "state after" (Fluid_utils.debugState newState) ;
-    Js.log2 "expr after" (eToStructure ~includeIDs:true result) ) ;
-  ((toString result, (selPos, finalPos)), {containsPartials; containsFnsOnRail})
+    Js.log2
+      "expr after"
+      (eToStructure ~includeIDs:true (FluidAST.toExpr result)) ) ;
+  {TestResult.testcase = case; ast = result; state = newState}
 
 
-let render (case : testcase) : testResult =
+let render (case : TestCase.t) : TestResult.t =
   process ~wrap:true ~clone:false ~debug:false [] None 0 case
 
 
@@ -207,7 +232,7 @@ let del
     ?(debug = false)
     ?(clone = true)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~clone ~debug [DeleteContentForward] None pos case
 
 
@@ -216,7 +241,7 @@ let bs
     ?(debug = false)
     ?(clone = true)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~clone ~debug [DeleteContentBackward] None pos case
 
 
@@ -226,7 +251,7 @@ let tab
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~clone ~debug [keypress ~shiftHeld K.Tab] None pos case
 
 
@@ -236,7 +261,7 @@ let ctrlLeft
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   let maintainSelection =
     if shiftHeld then K.KeepSelection else K.DropSelection
   in
@@ -256,7 +281,7 @@ let ctrlRight
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   let maintainSelection =
     if shiftHeld then K.KeepSelection else K.DropSelection
   in
@@ -276,7 +301,7 @@ let shiftTab
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~clone ~debug [keypress ~shiftHeld K.ShiftTab] None pos case
 
 
@@ -285,7 +310,7 @@ let space
     ?(debug = false)
     ?(clone = true)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~clone ~debug [keypress K.Space] None pos case
 
 
@@ -295,7 +320,7 @@ let enter
     ?(clone = true)
     ?(shiftHeld = false)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~clone ~debug [keypress ~shiftHeld K.Enter] None pos case
 
 
@@ -306,7 +331,7 @@ let key
     ?(shiftHeld = false)
     (key : K.key)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~clone ~debug [keypress ~shiftHeld key] None pos case
 
 
@@ -318,7 +343,7 @@ let selectionPress
     (key : K.key)
     (selectionStart : int)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process
     ~wrap
     ~clone
@@ -336,7 +361,7 @@ let selectionInputs
     (inputs : fluidInputEvent list)
     (selectionStart : int)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~clone ~debug inputs (Some selectionStart) pos case
 
 
@@ -347,7 +372,7 @@ let keys
     ?(shiftHeld = false)
     (keys : K.key list)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process
     ~wrap
     ~debug
@@ -364,7 +389,7 @@ let modkeys
     ?(clone = true)
     (keys : (K.key * modifierKeys) list)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process
     ~wrap
     ~clone
@@ -389,7 +414,7 @@ let ins
     ?(clone = true)
     (s : string)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~debug ~clone [InsertText s] None pos case
 
 
@@ -399,7 +424,7 @@ let insMany
     ?(clone = true)
     (strings : string list)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process
     ~wrap
     ~debug
@@ -417,7 +442,7 @@ let inputs
     ?(selectionStart = None)
     (inputs : fluidInputEvent list)
     (pos : int)
-    (case : testcase) : testResult =
+    (case : TestCase.t) : TestResult.t =
   process ~wrap ~debug ~clone inputs selectionStart pos case
 
 
@@ -427,49 +452,54 @@ let t
     ?(expectsFnOnRail = false)
     (name : string)
     (initial : fluidExpr)
-    (fn : testcase -> testResult)
+    (fn : TestCase.t -> TestResult.t)
     (expectedStr : string) =
-  let insertCaret
-      (((str, (_selection, caret)), res) :
-        (string * (int option * int)) * expectedAttrs) : string * expectedAttrs
-      =
-    let caretString = "~" in
-    match str |> String.splitAt ~index:caret with
-    | a, b ->
-        ([a; b] |> String.join ~sep:caretString, res)
+  let case =
+    { TestCase.ast = FluidAST.ofExpr initial
+    ; state = defaultTestState
+    ; wrap = true }
   in
-  let case = {ast = FluidAST.ofExpr initial; state = defaultTestState} in
   test
     ( name
     ^ " - `"
-    ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
+    ^ ( FluidPrinter.eToStructure initial
+      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
-      expect (fn case |> insertCaret)
-      |> toEqual
-           ( expectedStr
-           , { containsPartials = expectsPartial
-             ; containsFnsOnRail = expectsFnOnRail } ))
+      let res = fn case in
+      let open TestResult in
+      expect (toStringWithCaret res, containsPartials res, containsFnsOnRail res)
+      |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
 
 
 (* Test expecting no partials found and an expected resulting selection *)
 let ts
     (name : string)
     (initial : fluidExpr)
-    (fn : testcase -> testResult)
+    (fn : TestCase.t -> TestResult.t)
     ((expectedString, (expectedSelStart, expectedPos)) :
       string * (int option * int)) =
-  let expected = (expectedString, (expectedSelStart, expectedPos)) in
-  let case = {ast = FluidAST.ofExpr initial; state = defaultTestState} in
+  let case =
+    { TestCase.ast = FluidAST.ofExpr initial
+    ; state = defaultTestState
+    ; wrap = true }
+  in
   test
     ( name
     ^ " - `"
-    ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
+    ^ ( FluidPrinter.eToStructure initial
+      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
-      expect (fn case)
-      |> toEqual
-           (expected, {containsPartials = false; containsFnsOnRail = false}))
+      let res = fn case in
+      let open TestResult in
+      expect
+        ( toString res
+        , containsPartials res
+        , containsFnsOnRail res
+        , selection res
+        , pos res )
+      |> toEqual (expectedString, false, false, expectedSelStart, expectedPos))
 
 
 let run () =
@@ -3228,11 +3258,6 @@ let run () =
         (ins "f" 1 ~wrap:false)
         "{\n  f~ : ___\n}" ;
       t
-        "inserting valid text in an empty record works"
-        emptyRecord
-        (ins "f" 1 ~wrap:false)
-        "{\n  f~ : ___\n}" ;
-      t
         "inserting text in nested record gets correct position"
         listWithRecord
         (ins "f" 2 ~wrap:false)
@@ -3626,20 +3651,14 @@ let run () =
              newState.ac.index)
           |> toEqual (Some 0)) ;
       test "backspace on partial will open AC if query matches" (fun () ->
-          let ast = let' "request" aShortInt aPartialVar in
-          let s = defaultTestState in
-          expect
-            ( moveTo 19 s
-            |> (fun s -> updateKey (keypress K.Down) (FluidAST.ofExpr ast) s)
-            |> (fun (ast, s) ->
-                 ast |> FluidAST.toExpr |> processMsg [DeleteContentBackward] s)
-            |> fun (ast, s) ->
-            match (toString (FluidAST.toExpr ast), s.ac.index) with
-            | "let request = 1\nre", Some 0 ->
-                true
-            | _ ->
-                false )
-          |> toEqual true) ;
+          let ast = FluidAST.ofExpr (let' "request" aShortInt aPartialVar) in
+          let s = defaultTestState |> moveTo 19 in
+          let ast, s = updateKey (keypress K.Down) ast s in
+          let ast, s =
+            ast |> FluidAST.toExpr |> processMsg [DeleteContentBackward] s
+          in
+          let result = FluidPrinter.eToTestString (FluidAST.toExpr ast) in
+          expect (result, s.ac.index) |> toEqual ("let request = 1\nre", Some 0)) ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
