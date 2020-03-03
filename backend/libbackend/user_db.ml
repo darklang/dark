@@ -27,7 +27,7 @@ let type_error_msg col tipe dv : string =
   "Expected a value of type "
   ^ Dval.tipe_to_string tipe
   ^ " but got a "
-  ^ Dval.tipename dv
+  ^ Dval.pretty_tipename dv
   ^ " in column "
   ^ col
 

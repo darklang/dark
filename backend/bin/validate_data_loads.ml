@@ -124,6 +124,7 @@ let () =
                    ; exec = (fun ~state _ _ -> DNull)
                    ; execution_id = Types.id_of_int 0
                    ; fail_fn = None
+                   ; executing_fnname = ""
                    ; load_fn_result = (fun _ _ -> None)
                    ; load_fn_arguments = (fun _ -> [])
                    ; store_fn_result = (fun _ _ _ -> ())

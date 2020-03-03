@@ -320,6 +320,11 @@ let correct_field_livevalue (_ : model) : testResult =
   pass
 
 
+let int_add_with_float_error_includes_fnname (_ : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let fluid_execute_function_shows_live_value (_ : model) : testResult =
   (* The test logic is in tests.js *)
   pass
@@ -729,6 +734,8 @@ let trigger (test_name : string) : integrationTestState =
         execute_function_works
     | "correct_field_livevalue" ->
         correct_field_livevalue
+    | "int_add_with_float_error_includes_fnname" ->
+        int_add_with_float_error_includes_fnname
     | "fluid_execute_function_shows_live_value" ->
         fluid_execute_function_shows_live_value
     | "function_version_renders" ->
