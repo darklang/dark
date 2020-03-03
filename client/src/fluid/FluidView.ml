@@ -226,6 +226,27 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
         let tokenId = T.tid ti.token in
         let idStr = deID tokenId in
         let content = T.toText ti.token in
+        let tooltip =
+          ( match ti.token with
+          | TIfElseKeyword _ ->
+              FluidAST.find tokenId vs.ast
+              |> Option.andThen ~f:(function
+                     | FluidExpression.EIf (_, cond, _, _) ->
+                         Some cond
+                     | expr ->
+                         recover
+                           ~debug:expr
+                           "Expected an EIf, got something else"
+                           None)
+              |> Option.map ~f:(fun cond ->
+                     cond
+                     |> FluidPrinter.tokenize
+                     |> FluidPrinter.tokensToString
+                     |> fun s -> "Bool::not " ^ s)
+          | _ ->
+              None )
+          |> Option.map ~f:(fun s -> Html.title s)
+        in
         let analysisId = T.analysisID ti.token in
         (* Apply CSS classes to token *)
         let tokenClasses = T.toCssClasses ti.token in
@@ -295,9 +316,14 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
           | None ->
               [Html.text content]
         in
-        Html.span
-          [Html.classList (cls @ conditionalClasses)]
-          (innerNode @ nested)
+        let attrs =
+          match tooltip with
+          | None ->
+              [Html.classList (cls @ conditionalClasses)]
+          | Some tooltip ->
+              [tooltip; Html.classList (cls @ conditionalClasses)]
+        in
+        Html.span attrs (innerNode @ nested)
       in
       if vs.permission = Some ReadWrite
       then [element [dropdown ti; viewPlayIcon ti ~vs]]
