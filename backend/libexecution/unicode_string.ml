@@ -134,6 +134,10 @@ let length t =
 
 let is_substring ~substring t = String.is_substring ~substring t
 
+let starts_with ~prefix t = String.is_prefix ~prefix t
+
+let ends_with ~suffix t = String.is_suffix ~suffix t
+
 (* I don't know whether or not UTF-8 validity/normalization are defined operations
  * for the naive byte-sequence find+replace operations, hence the re-validation/normalization
  * after the fact. I couldn't find anything on a cursory Google, but I'd probably have to
