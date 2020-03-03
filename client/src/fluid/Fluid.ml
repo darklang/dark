@@ -4529,6 +4529,7 @@ let rec updateKey
           | Keypress {key = K.Right; _} | Keypress {key = K.Left; _} ->
               true
           | InsertText txt ->
+              (* if the partial is a valid function name, don't commit *)
               let newQueryString = str ^ txt in
               s.ac.allCompletions
               |> List.filter ~f:(fun aci ->
@@ -4540,8 +4541,9 @@ let rec updateKey
         in
         if shouldCommit
         then
-          (* TODO(JULIAN): Is this explicit or not? Figure it out, ask Paul *)
-          let committedAST = commitIfValid newState.newPos ti newAST s in
+          (* Use the new position as we may want to commit if we've moved, but
+           * use the old AST so as not to double-commit *)
+          let committedAST = commitIfValid newState.newPos ti ast s in
           updateKey
             ~recursing:true
             inputEvent
