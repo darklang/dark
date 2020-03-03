@@ -61,6 +61,8 @@ let eToStructure = Printer.eToStructure
 
 let wrapperOffset = 15
 
+let magicFeatureFlagTokenizationPrefix = 20 (* "when true\nenabled\n  " *)
+
 let deOption msg v = match v with Some v -> v | None -> failwith msg
 
 module TestCase = struct
@@ -68,6 +70,7 @@ module TestCase = struct
     { ast : FluidAST.t
     ; originalExpr : FluidExpression.t
     ; state : fluidState
+    ; editor : int option
     ; wrap : bool
     ; clone : bool
     ; debug : bool }
@@ -78,6 +81,7 @@ module TestCase = struct
       ?(debug = false)
       ?(pos = 0)
       ?(sel = None)
+      ?(editor = None)
       (originalExpr : FluidExpression.t) : t =
     let selectionStart, pos =
       match sel with None -> (None, pos) | Some (a, b) -> (Some a, b)
@@ -92,27 +96,45 @@ module TestCase = struct
       FluidAST.ofExpr fullExpr
     in
     let state =
-      let newlinesBefore (pos : int) =
-        (* How many newlines occur before the pos, it'll be indented by 2 for
-         * each newline, once the expr is wrapped in an if, so we need to add
-         * 2*nl to get the pos in place. (Note: it's correct to just count them,
-         * as opposed to the iterative approach we do later, because we're using
-         * the raw ast not the wrapped one *)
-        originalExpr
-        |> Printer.tokenize
-        |> List.filter ~f:(fun ti ->
-               FluidToken.isNewline ti.token && ti.startPos < pos)
-        |> List.length
-      in
-      (* See the "Wrap" block comment at the top of the file for an explanation of this *)
-      let addWrapper pos =
-        if wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
-      in
-      let pos = addWrapper pos in
-      let selectionStart = Option.map selectionStart ~f:addWrapper in
       let extraEditors = Fluid.buildFeatureFlagEditors ast in
       let activeEditorId =
-        List.head extraEditors |> Option.map ~f:(fun e -> e.id)
+        editor
+        |> Option.andThen ~f:(fun index -> List.getAt ~index extraEditors)
+        |> Option.map ~f:(fun e -> e.id)
+      in
+      (* re-calculate selectionStart, pos taking into account either
+       * None -> the if/else wrapper because we are testing the main editor
+       * Some -> the feature flag tokenization because we're in an extra (FF) editor *)
+      let selectionStart, pos =
+        match activeEditorId with
+        | None ->
+            let newlinesBefore (pos : int) =
+              (* How many newlines occur before the pos, it'll be indented by 2 for
+               * each newline, once the expr is wrapped in an if, so we need to add
+               * 2*nl to get the pos in place. (Note: it's correct to just count them,
+               * as opposed to the iterative approach we do later, because we're using
+               * the raw ast not the wrapped one *)
+              originalExpr
+              |> Printer.tokenize
+              |> List.filter ~f:(fun ti ->
+                     FluidToken.isNewline ti.token && ti.startPos < pos)
+              |> List.length
+            in
+            (* See the "Wrap" block comment at the top of the file for an explanation of this *)
+            let addWrapper pos =
+              if wrap
+              then pos + wrapperOffset + (newlinesBefore pos * 2)
+              else pos
+            in
+            let pos = addWrapper pos in
+            let selectionStart = Option.map selectionStart ~f:addWrapper in
+            (selectionStart, pos)
+        | Some _ ->
+            let selectionStart =
+              Option.map selectionStart ~f:(fun s ->
+                  s + magicFeatureFlagTokenizationPrefix)
+            in
+            (selectionStart, pos + magicFeatureFlagTokenizationPrefix)
       in
       { defaultTestState with
         activeEditorId
@@ -121,14 +143,12 @@ module TestCase = struct
       ; oldPos = pos
       ; newPos = pos }
     in
-    {originalExpr; ast; state; wrap; clone; debug}
+    {originalExpr; editor; ast; state; wrap; clone; debug}
 end
 
 module TestResult = struct
   type t =
-    { wrapped : bool
-    ; initialAST : FluidAST.t
-    ; initialState : fluidState
+    { testcase : TestCase.t
     ; resultAST : FluidAST.t
     ; resultState : fluidState }
 
@@ -173,13 +193,15 @@ module TestResult = struct
 
 
   let pos (t : t) : int =
-    if t.wrapped
+    if Option.isSome t.testcase.editor
+    then t.resultState.newPos - magicFeatureFlagTokenizationPrefix
+    else if t.testcase.wrap
     then removeWrapperFromCaretPos t t.resultState.newPos
     else t.resultState.newPos
 
 
   let selection (t : t) =
-    if t.wrapped
+    if t.testcase.wrap
     then
       Option.map t.resultState.selectionStart ~f:(removeWrapperFromCaretPos t)
     else t.resultState.selectionStart
@@ -229,6 +251,8 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
   in
   let resultAST =
     FluidAST.map processedAST ~f:(function
+        | EFeatureFlag (_, _, _, _, expr) when Option.isSome tc.editor ->
+            expr
         | EIf (_, _, expr, _) when tc.wrap ->
             expr
         | expr when not tc.wrap ->
@@ -242,11 +266,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
     Js.log2
       "expr after"
       (eToStructure ~includeIDs:true (FluidAST.toExpr resultAST)) ) ;
-  { TestResult.wrapped = tc.wrap
-  ; initialAST = tc.ast
-  ; initialState = tc.state
-  ; resultAST
-  ; resultState }
+  {TestResult.testcase = tc; resultAST; resultState}
 
 
 let render (case : TestCase.t) : TestResult.t = process [] case
@@ -333,6 +353,31 @@ let t
       |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
 
 
+let tflag
+    ?(expectsPartial = false)
+    ?(expectsFnOnRail = false)
+    ?(debug = false)
+    ?(pos = 0)
+    ?(sel = None)
+    (name : string)
+    (expr : fluidExpr)
+    (fn : TestCase.t -> TestResult.t)
+    (expectedStr : string) =
+  let expr = flagNew expr in
+  let case = TestCase.init ~wrap:false ~pos ~sel ~debug ~editor:(Some 0) expr in
+  test
+    ( name
+    ^ " in FF - `"
+    ^ ( FluidPrinter.eToStructure expr
+      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+    ^ "`" )
+    (fun () ->
+      let res = fn case in
+      let open TestResult in
+      expect (toStringWithCaret res, containsPartials res, containsFnsOnRail res)
+      |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
+
+
 (* Test expecting no partials found and an expected resulting selection *)
 let ts
     ?(wrap = true)
@@ -368,9 +413,11 @@ let run () =
   OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
       t "insert mid string" aStr ~pos:3 (ins "c") "\"soc~me string\"" ;
+      tflag "insert mid string" aStr ~pos:3 (ins "c") "\"soc~me string\"" ;
       t "del mid string" aStr ~pos:3 del "\"so~e string\"" ;
       t "bs mid string" aStr ~pos:4 bs "\"so~e string\"" ;
       t "insert empty string" emptyStr ~pos:1 (ins "c") "\"c~\"" ;
+      tflag "insert empty string" emptyStr ~pos:1 (ins "c") "\"c~\"" ;
       t "del empty string" emptyStr ~pos:1 del "\"~\"" ;
       t "del empty string from outside" emptyStr del "~___" ;
       t "bs empty string" emptyStr ~pos:1 bs "~___" ;
