@@ -697,6 +697,8 @@ and op =
 (* params *)
 and sendPresenceParams = avatarModelMessage
 
+and sendInviteParams = SettingsViewTypes.inviteFormMessage
+
 and addOpAPIParams =
   { ops : op list
   ; opCtr : int
@@ -959,17 +961,6 @@ and clipboardContents =
 (* Component Types *)
 (* --------------- *)
 
-(* Setting View *)
-and settingsTab = UserSettings
-
-and settingsViewState =
-  { opened : bool
-  ; tab : settingsTab
-  ; canvas_list : string list
-  ; org_list : string list }
-
-and settingsMsg = ToggleSettingsView of bool
-
 (* TLMenu *)
 and menuState = {isOpen : bool}
 
@@ -1161,7 +1152,7 @@ and modification =
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
   | TLMenuUpdate of tlid * menuMsg
-  | SettingsViewUpdate of settingsMsg
+  | SettingsViewUpdate of SettingsViewTypes.settingsMsg
 
 (* ------------------- *)
 (* Msgs *)
@@ -1210,6 +1201,7 @@ and fluidMsg =
 and segmentTrack =
   | WelcomeModal
   | OpenDocs
+  | InviteUser
 
 and msg =
   | IgnoreMsg
@@ -1343,7 +1335,7 @@ and msg =
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
-  | SettingsViewMsg of settingsMsg
+  | SettingsViewMsg of SettingsViewTypes.settingsMsg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1354,6 +1346,7 @@ and variantTest =
       StubVariant
   | GroupVariant
   | FeatureFlagVariant
+  | InviteVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1701,7 +1694,7 @@ and model =
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
   ; currentUserFn : fnProps
-  ; settingsView : settingsViewState }
+  ; settingsView : SettingsViewTypes.settingsViewState }
 
 and savedUserSettings = {showUserWelcomeModal : bool}
 

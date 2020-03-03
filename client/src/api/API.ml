@@ -208,6 +208,32 @@ let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
   else Tea.Cmd.none
 
 
+let sendInvite (m : model) (invite : SettingsViewTypes.inviteFormMessage) :
+    msg Tea.Cmd.t =
+  let url = "https://ops-adduser.builtwithdark.com/send-invite" in
+  let request =
+    postJson
+      ~withCredentials:true
+      (fun _ -> ())
+      m.csrfToken
+      url
+      (Encoders.sendInviteParams invite)
+  in
+  (* If origin is https://darklang.com, then we're in prod (or ngrok, running
+    * against prod) and
+    * ops-adduser.darklang.com's CORS rules will allow this request. If not, we're
+    * in local, and both CORS and auth (session, canvas_id) will not work against
+    * ops-adduser.darklang.com. By putting the conditional here instead of at the
+    * beginning of the function, we still exercise the message and request
+    * generating code locally. *)
+  if m.origin = "https://darklang.com"
+  then
+    Tea.Http.send
+      (fun x -> SettingsViewMsg (TriggerSendInviteCallback x))
+      request
+  else Tea.Cmd.none
+
+
 (* We do some dropping of ops based on clientOpCtrId+opCtr to preserve ordering.
  * (opCtr is per-clientOpCtrId, and inc'd client-side; thus we know, when processing
  * a set of ops whether this is the latest seen so far from a given client, or

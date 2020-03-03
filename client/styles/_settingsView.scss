@@ -1,5 +1,25 @@
-.modal-overlay.setting {
-  .setting-tab-wrapper {
+.modal-overlay.settings {
+  .modal {
+    height: 75%;
+  }
+  .settings-tab-titles {
+    display: flex;
+    width: 100%;
+    border-bottom: solid 3px $grey1;
+    .tab-title {
+      height: 100%;
+      margin: 0;
+      margin-bottom: -3px;
+      padding: 0px 10px;
+      color: $grey2;
+      cursor: pointer;
+      &.selected {
+        color: $white3;
+        border-bottom: solid 3px $grey3;
+      }
+    }
+  }
+  .settings-tab-wrapper {
     width: calc(100% - 30px);
     display: flex;
     flex-direction: column;
@@ -10,6 +30,7 @@
       display: none;
     }
   }
+  // Account view (canvas list)
   .canvas-list {
     min-height: 35px;
     max-height: 200px;
@@ -51,6 +72,50 @@
       }
       list-style-type: none;
       padding: 5px 8px;
+    }
+  }
+  // Invite to dark
+  .invite-form {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    h3 {
+      margin: 0px;
+    }
+    .error-text {
+      color: $red;
+      margin: 0px;
+      height: 25px;
+    }
+    .form-field {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-around;
+      width: 100%;
+      max-width: 550px;
+      flex-wrap: wrap;
+      margin-top: 25px;
+      input {
+        background-color: $black3;
+        height: 35px;
+        width: 35ch;
+        padding: 0px 10px;
+        caret-color: $grey3;
+        color: $white1;
+      }
+    }
+    .submit-btn {
+      width: 125px;
+      padding: 10px 15px;
+      background: $grey2;
+      border-radius: 3px;
+      margin-top: 35px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $white1;
     }
   }
 }

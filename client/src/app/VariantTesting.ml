@@ -16,6 +16,8 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some GroupVariant
     | "ff" ->
         Some FeatureFlagVariant
+    | "invite" ->
+        Some InviteVariant
     | _ ->
         None )
 
@@ -29,6 +31,8 @@ let toCSSClass (vt : variantTest) : string =
         "grouping"
     | FeatureFlagVariant ->
         "ff"
+    | InviteVariant ->
+        "invite"
   in
   test ^ "-variant"
 
