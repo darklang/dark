@@ -77,6 +77,10 @@ val of_characters : Character.t list -> t
 
 val is_substring : substring:t -> t -> bool
 
+val starts_with : prefix:t -> t -> bool
+
+val ends_with : suffix:t -> t -> bool
+
 val replace : search:t -> replace:t -> t -> t
 
 val regexp_replace : pattern:string -> replacement:t -> t -> t
