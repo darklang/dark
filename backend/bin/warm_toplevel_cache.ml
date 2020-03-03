@@ -2,6 +2,16 @@ open Core_kernel
 open Libbackend
 open Libcommon
 
+(* This script loads and resaves every Canvas (ie. their oplists).
+ *
+ * It was initially created (March 2020)
+ * to ensure every eligible toplevel had their * denormalised `deleted` and
+ * `rendered_oplist_cache` columns populated.
+ *
+ * If you're adding another nullable column to `toplevel_oplists` and want to
+ * populate it, this script might be for you!
+ *
+ * *)
 
 let () =
     Nocrypto_entropy_unix.initialize () ;
