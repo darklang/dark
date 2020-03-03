@@ -5199,15 +5199,12 @@ let getCopySelection (m : model) : clipboardContents =
   |> Option.withDefault ~default:("", None)
 
 
-let buildFeatureFlagEditors (m : model) (ast : FluidAST.t) : editorView list =
-  if List.member m.tests ~value:FeatureFlagVariant
-  then
-    FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
-    |> List.map ~f:(fun e ->
-           { id = "flag-" ^ (e |> E.toID |> deID)
-           ; expressionId = E.toID e
-           ; kind = FeatureFlagView })
-  else []
+let buildFeatureFlagEditors (ast : FluidAST.t) : editorView list =
+  FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
+  |> List.map ~f:(fun e ->
+         { id = "flag-" ^ (e |> E.toID |> deID)
+         ; expressionId = E.toID e
+         ; kind = FeatureFlagView })
 
 
 let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
@@ -5235,8 +5232,9 @@ let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
    position from persisting when a user switched handlers *)
         (ast, {s with selectionStart = None} |> acClear)
   in
-  let s = {s with extraEditors = buildFeatureFlagEditors m ast} in
-  (ast, s)
+  if List.member m.tests ~value:FeatureFlagVariant
+  then (ast, {s with extraEditors = buildFeatureFlagEditors ast})
+  else (ast, s)
 
 
 let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
