@@ -309,10 +309,6 @@ body #app * {
       margin: 10px;
       cursor: pointer;
       color: $white1;
-      &.invite {
-        padding-top: 0px;
-        padding-bottom: 10px;
-      }
       &:hover {
         color: $purple;
       }
