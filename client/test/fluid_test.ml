@@ -66,22 +66,11 @@ let deOption msg v = match v with Some v -> v | None -> failwith msg
 module TestCase = struct
   type t =
     { ast : FluidAST.t
+    ; originalExpr : FluidExpression.t
     ; state : fluidState
-    ; pos : int
-    ; selectionStart : int option
     ; wrap : bool
     ; clone : bool
     ; debug : bool }
-
-  let ofExpr e =
-    { ast = FluidAST.ofExpr e
-    ; state = defaultTestState
-    ; pos = 0
-    ; selectionStart = None
-    ; wrap = true
-    ; clone = true
-    ; debug = false }
-
 
   let init
       ?(wrap = true)
@@ -89,72 +78,66 @@ module TestCase = struct
       ?(debug = false)
       ?(pos = 0)
       ?(sel = None)
-      (expr : FluidExpression.t) : t =
+      (originalExpr : FluidExpression.t) : t =
     let selectionStart, pos =
       match sel with None -> (None, pos) | Some (a, b) -> (Some a, b)
     in
-    { ast = FluidAST.ofExpr expr
-    ; state = defaultTestState
-    ; selectionStart
-    ; pos
-    ; wrap
-    ; clone
-    ; debug }
-
-
-  let fullAST (tc : t) : FluidAST.t =
     let ast =
-      if tc.wrap
-      then FluidAST.ofExpr (if' (bool true) (FluidAST.toExpr tc.ast) (int 5))
-      else tc.ast
+      let fullExpr =
+        if wrap then if' (bool true) originalExpr (int 5) else originalExpr
+      in
+      let fullExpr =
+        if clone then FluidExpression.clone fullExpr else fullExpr
+      in
+      FluidAST.ofExpr fullExpr
     in
-    if tc.clone then FluidAST.clone ast else ast
-
-
-  let state (tc : t) : fluidState =
-    let newlinesBefore (pos : int) =
-      (* How many newlines occur before the pos, it'll be indented by 2 for
-       * each newline, once the expr is wrapped in an if, so we need to add
-       * 2*nl to get the pos in place. (Note: it's correct to just count them,
-       * as opposed to the iterative approach we do later, because we're using
-       * the raw ast not the wrapped one *)
-      tc.ast
-      |> FluidAST.toExpr
-      |> Printer.tokenize
-      |> List.filter ~f:(fun ti ->
-             FluidToken.isNewline ti.token && ti.startPos < pos)
-      |> List.length
+    let state =
+      let newlinesBefore (pos : int) =
+        (* How many newlines occur before the pos, it'll be indented by 2 for
+         * each newline, once the expr is wrapped in an if, so we need to add
+         * 2*nl to get the pos in place. (Note: it's correct to just count them,
+         * as opposed to the iterative approach we do later, because we're using
+         * the raw ast not the wrapped one *)
+        originalExpr
+        |> Printer.tokenize
+        |> List.filter ~f:(fun ti ->
+               FluidToken.isNewline ti.token && ti.startPos < pos)
+        |> List.length
+      in
+      (* See the "Wrap" block comment at the top of the file for an explanation of this *)
+      let addWrapper pos =
+        if wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
+      in
+      let pos = addWrapper pos in
+      let selectionStart = Option.map selectionStart ~f:addWrapper in
+      let extraEditors = Fluid.buildFeatureFlagEditors ast in
+      let activeEditorId =
+        List.head extraEditors |> Option.map ~f:(fun e -> e.id)
+      in
+      { defaultTestState with
+        activeEditorId
+      ; selectionStart
+      ; extraEditors
+      ; oldPos = pos
+      ; newPos = pos }
     in
-    (* See the "Wrap" block comment at the top of the file for an explanation of this *)
-    let addWrapper pos =
-      if tc.wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
-    in
-    let pos = addWrapper tc.pos in
-    let selectionStart = Option.map tc.selectionStart ~f:addWrapper in
-    let extraEditors = Fluid.buildFeatureFlagEditors (fullAST tc) in
-    let activeEditorId =
-      List.head extraEditors |> Option.map ~f:(fun e -> e.id)
-    in
-    { tc.state with
-      activeEditorId
-    ; selectionStart
-    ; extraEditors
-    ; oldPos = pos
-    ; newPos = pos }
+    {originalExpr; ast; state; wrap; clone; debug}
 end
 
 module TestResult = struct
   type t =
-    { testcase : TestCase.t
-    ; ast : FluidAST.t
-    ; state : fluidState }
+    { wrapped : bool
+    ; initialAST : FluidAST.t
+    ; initialState : fluidState
+    ; resultAST : FluidAST.t
+    ; resultState : fluidState }
 
-  let tokenize (t : t) : FluidToken.tokenInfo list =
-    FluidPrinter.tokenize (FluidAST.toExpr t.ast)
+  let tokenizeResult (t : t) : FluidToken.tokenInfo list =
+    FluidPrinter.tokenize (FluidAST.toExpr t.resultAST)
 
 
   let containsPartials (t : t) : bool =
-    List.any (tokenize t) ~f:(fun ti ->
+    List.any (tokenizeResult t) ~f:(fun ti ->
         match ti.token with
         | TRightPartial _ | TPartial _ | TFieldPartial _ ->
             true
@@ -163,7 +146,7 @@ module TestResult = struct
 
 
   let containsFnsOnRail (t : t) : bool =
-    FluidAST.filter t.ast ~f:(function
+    FluidAST.filter t.resultAST ~f:(function
         | EBinOp (_, _, _, _, Rail) | EFnCall (_, _, _, Rail) ->
             true
         | _ ->
@@ -176,14 +159,13 @@ module TestResult = struct
     (* Account for the newlines as we find them, or else we won't know our
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
-    let tokens = tokenize t in
-    tokens
-    |> List.iter ~f:(fun ti ->
-           match ti.token with
-           | TNewline _ when !endPos > ti.endPos ->
-               endPos := !endPos - 2
-           | _ ->
-               ()) ;
+    let tokens = tokenizeResult t in
+    List.iter tokens ~f:(fun ti ->
+        match ti.token with
+        | TNewline _ when !endPos > ti.endPos ->
+            endPos := !endPos - 2
+        | _ ->
+            ()) ;
     let last = tokens |> List.last |> deOption "last" |> fun x -> x.endPos in
     (* even though the wrapper allows tests to go past the start and end, it's
           * weird to test for *)
@@ -191,20 +173,21 @@ module TestResult = struct
 
 
   let pos (t : t) : int =
-    if t.testcase.wrap
-    then removeWrapperFromCaretPos t t.state.newPos
-    else t.state.newPos
+    if t.wrapped
+    then removeWrapperFromCaretPos t t.resultState.newPos
+    else t.resultState.newPos
 
 
   let selection (t : t) =
-    if t.testcase.wrap
-    then Option.map t.state.selectionStart ~f:(removeWrapperFromCaretPos t)
-    else t.state.selectionStart
+    if t.wrapped
+    then
+      Option.map t.resultState.selectionStart ~f:(removeWrapperFromCaretPos t)
+    else t.resultState.selectionStart
 
 
   let toString (t : t) : string =
-    let expr = FluidAST.toExpr t.ast in
-    match focusedEditor t.state with
+    let expr = FluidAST.toExpr t.resultAST in
+    match focusedEditor t.resultState with
     | None ->
         Printer.testStringForViewKind MainView expr
     | Some {kind; _} ->
@@ -235,15 +218,17 @@ let processMsg
 
 
 let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
-  let ast = TestCase.fullAST tc |> FluidAST.toExpr in
-  let s = TestCase.state tc in
   if tc.debug
   then (
-    Js.log2 "state before " (Fluid_utils.debugState s) ;
-    Js.log2 "expr before" (eToStructure ~includeIDs:true ast) ) ;
-  let newAST, newState = processMsg inputs s ast in
-  let result =
-    FluidAST.map newAST ~f:(function
+    Js.log2 "state before " (Fluid_utils.debugState tc.state) ;
+    Js.log2
+      "expr before"
+      (FluidAST.toExpr tc.ast |> eToStructure ~includeIDs:true) ) ;
+  let processedAST, resultState =
+    FluidAST.toExpr tc.ast |> processMsg inputs tc.state
+  in
+  let resultAST =
+    FluidAST.map processedAST ~f:(function
         | EIf (_, _, expr, _) when tc.wrap ->
             expr
         | expr when not tc.wrap ->
@@ -253,11 +238,15 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
   in
   if tc.debug
   then (
-    Js.log2 "state after" (Fluid_utils.debugState newState) ;
+    Js.log2 "state after" (Fluid_utils.debugState resultState) ;
     Js.log2
       "expr after"
-      (eToStructure ~includeIDs:true (FluidAST.toExpr result)) ) ;
-  {TestResult.testcase = tc; ast = result; state = newState}
+      (eToStructure ~includeIDs:true (FluidAST.toExpr resultAST)) ) ;
+  { TestResult.wrapped = tc.wrap
+  ; initialAST = tc.ast
+  ; initialState = tc.state
+  ; resultAST
+  ; resultState }
 
 
 let render (case : TestCase.t) : TestResult.t = process [] case
