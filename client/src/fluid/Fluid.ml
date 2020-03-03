@@ -1065,7 +1065,7 @@ let moveToAstRef
   moveToCaretTarget s ast {astRef; offset}
 
 
-(* [caretTargetForEndOfExpr' expr] produces a caretTarget corresponding
+(** [caretTargetForEndOfExpr' expr] produces a caretTarget corresponding
  * to the very end of the expr. The concept of "very end" is related to an
  * understanding of the tokenization of the expr, even though this function
  * doesn't explicitly depend on any tokenization functions. *)
@@ -3695,7 +3695,15 @@ let doInfixInsert
          | ARNull _, expr
          | ARVariable _, expr
          | ARList _, expr
-         | ARRecord _, expr ->
+         | ARRecord _, expr
+         (* This works for function calls because
+          * the caretTargetForEndOfExpr' of a function
+          * call will only line up with the
+          * (caretTargetFromTokenInfo pos ti) if all its
+          * arguments have been filled (because it has none or
+          * because they're filled with pipe targets)
+          *)
+         | ARFnCall _, expr ->
              if caretTargetForEndOfExpr' expr = ct
              then
                let newID = gid () in
@@ -3731,12 +3739,14 @@ let doInfixInsert
                  )
            | None ->
                None )
-         | ARPipe _, _
+         (* Exhaustiveness *)
+         | ARPipe _, _ ->
+             None
+         (* Don't insert *)
          | ARFieldAccess (_, FAPFieldOp), _
          | ARLet _, _
          | ARIf _, _
          | ARBinOp _, _
-         | ARFnCall _, _
          | ARPartial _, _
          | ARRightPartial _, _
          | ARConstructor _, _
