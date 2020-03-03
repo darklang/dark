@@ -191,6 +191,10 @@ let getParamIndex (expr : E.t) (id : id) : (string * int) option =
       args
       |> List.findIndex ~f:(fun a -> E.toID a = id)
       |> Option.map ~f:(fun i -> (name, i))
+  | Some (EBinOp (_, name, arg1, arg2, _)) ->
+      [arg1; arg2]
+      |> List.findIndex ~f:(fun a -> E.toID a = id)
+      |> Option.map ~f:(fun i -> (name, i))
   | _ ->
       None
 
