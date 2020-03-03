@@ -126,6 +126,13 @@ let t_uuid_string_roundtrip () =
     (match exec_ast ast with DList [p1; p2] -> compare_dval p1 p2 | _ -> 1)
 
 
+let t_substring_works () =
+  check_dval
+    "substring"
+    (exec_ast' (fn "String::isSubstring_v1" [str "a string"; str "in"]))
+    (DBool true)
+
+
 let suite =
   [ ( "String::length_v2 returns the correct length for a string containing an emoji"
     , `Quick
@@ -162,4 +169,5 @@ let suite =
     , `Quick
     , t_string_trim_preserves_emoji )
   ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
-  ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip) ]
+  ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip)
+  ; ("substring works", `Quick, t_substring_works) ]

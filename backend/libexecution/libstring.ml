@@ -641,6 +641,20 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["String::isSubstring_v1"]
+    ; ins = []
+    ; p = [par "lookingIn" TStr; par "searchingFor" TStr]
+    ; r = TBool
+    ; d = "Checks if `lookingIn` contains `searchingFor`"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr haystack; DStr needle] ->
+              DBool (Unicode_string.is_substring ~substring:needle haystack)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["String::trim"]
     ; ins = []
