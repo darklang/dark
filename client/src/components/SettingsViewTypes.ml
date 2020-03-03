@@ -11,6 +11,7 @@ type formField =
 type inviteFields = {email : formField}
 
 and settingsTab =
+  | CanvasInfo
   | UserSettings
   | InviteUser of inviteFields
 [@@deriving show]
@@ -21,18 +22,27 @@ type inviteFormMessage =
   ; inviterName : string }
 [@@deriving show]
 
+type canvasInformation =
+  { canvas_description : string
+  ; has_shipped : bool
+  ; shipped_date: string option }
+[@@deriving show]
+
 type settingsViewState =
   { opened : bool
   ; tab : settingsTab
   ; canvas_list : string list
   ; org_list : string list
-  ; loading : bool }
+  ; loading : bool
+  ; canvas_information : canvasInformation }
 [@@deriving show]
 
 type settingsMsg =
   | ToggleSettingsView of bool * settingsTab option
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string
+  | UpdateCanvasDescription of string
+  | ToggleCanvasDeployStatus
   | SubmitForm
   | TriggerSendInviteCallback of
       (unit, (string Tea.Http.error[@opaque])) Tea.Result.t

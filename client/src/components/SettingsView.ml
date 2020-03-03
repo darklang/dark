@@ -12,7 +12,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
 
-let allTabs = [UserSettings; InviteUser defaultInviteFields]
+let allTabs = [CanvasInfo; UserSettings; InviteUser defaultInviteFields]
 
 let validateEmail (email : formField) : formField =
   let error =
@@ -70,6 +70,24 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       let form = {email = {value; error = None}} in
       ( {m with settingsView = {m.settingsView with tab = InviteUser form}}
       , Cmd.none )
+  | UpdateCanvasDescription value ->
+      ( { m with
+          settingsView =
+            { m.settingsView with
+              canvas_information =
+                { m.settingsView.canvas_information with
+                  canvas_description = value } } }
+      , Cmd.none )
+  | ToggleCanvasDeployStatus ->
+        let has_shipped = not m.settingsView.canvas_information.has_shipped in
+        (* Todo - Get the date now when has_shipped is true *)
+      ( { m with
+          settingsView =
+            { m.settingsView with
+              canvas_information =
+                { m.settingsView.canvas_information with
+                  has_shipped } } }
+      , Cmd.none )
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
       Entry.sendSegmentMessage InviteUser ;
@@ -96,7 +114,13 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
 (* View functions *)
 
 let settingsTabToText (tab : settingsTab) : string =
-  match tab with UserSettings -> "Canvases" | InviteUser _ -> "Share"
+  match tab with
+  | CanvasInfo ->
+      "Canvas info"
+  | UserSettings ->
+      "Canvases"
+  | InviteUser _ ->
+      "Share"
 
 
 (* View code *)
@@ -183,9 +207,48 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
   introText @ inviteform
 
 
+let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
+  let shippedText =
+    if canvas.has_shipped
+    then "Project has shipped(as of)"
+    else "Project has shipped"
+  in
+  [ Html.div
+      [Html.class' "canvas-info"]
+      [ Html.h2 [] [Html.text "Canvas Information"]
+      ; Html.p
+          []
+          [Html.text "Provide any extra information related to this project"]
+      ; Html.div
+          [Html.class' "canvas-desc"]
+          [ Html.h3 [] [Html.text "Canvas description:"]
+          ; Html.textarea
+              [ Vdom.attribute "" "spellcheck" "false"
+              ; Events.onInput (fun str ->
+                    Types.SettingsViewMsg (UpdateCanvasDescription str))
+              ; Attributes.value canvas.canvas_description ]
+              [] ]
+      ; Html.div
+          [Html.class' "canvas-shipped-info"]
+          [ Html.input'
+              [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
+                    Types.SettingsViewMsg ToggleCanvasDeployStatus)
+              ; Html.type' "checkbox"
+              ; Html.checked canvas.has_shipped ]
+              []
+          ; Html.p [] [Html.text shippedText] ]
+      ; Html.p
+          [Html.class' "sub-text"]
+          [ Html.text
+              "Dark is evolving quickly - let us know if your project is shipped and we will make sure to add it to our smoke tests."
+          ]; Html.p [Html.class' "created-text"] [Html.text "Canvas created on: "] ] ]
+
+
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
+  | CanvasInfo ->
+      viewCanvasInfo svs.canvas_information
   | UserSettings ->
       viewUserCanvases svs
   | InviteUser _ ->
@@ -196,7 +259,9 @@ let tabTitleView (tab : settingsTab) : Types.msg Html.html =
   let tabTitle (t : settingsTab) =
     let isSameTab =
       match (tab, t) with
-      | UserSettings, UserSettings | InviteUser _, InviteUser _ ->
+      | UserSettings, UserSettings
+      | InviteUser _, InviteUser _
+      | CanvasInfo, CanvasInfo ->
           true
       | _ ->
           false

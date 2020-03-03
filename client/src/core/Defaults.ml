@@ -164,4 +164,5 @@ let defaultModel : model =
       ; tab = UserSettings
       ; canvas_list = []
       ; org_list = []
-      ; loading = false } }
+      ; loading = false
+      ; canvas_information = {canvas_description = ""; has_shipped = false; shipped_date = None} } }
