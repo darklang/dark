@@ -595,6 +595,15 @@ test("correct_field_livevalue", async t => {
   await t.expect(v1).eql("5");
 });
 
+test("int_add_with_float_error_includes_fnname", async t => {
+  await t
+    .click(Selector(".fluid-editor")) // required to see the return value (navigate is insufficient)
+    .expect(available(".return-value"))
+    .ok()
+    .expect(Selector(".return-value").innerText)
+    .contains("but + only works on Ints.");
+});
+
 test("function_version_renders", async t => {
   await createRepl(t);
   await t
