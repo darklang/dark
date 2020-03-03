@@ -671,4 +671,32 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["String::startsWith"]
+    ; ins = []
+    ; p = [par "subject" TStr; par "prefix" TStr]
+    ; r = TBool
+    ; d = "Checks if `subject` starts with `prefix`"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr subject; DStr prefix] ->
+              DBool (Unicode_string.starts_with ~prefix subject)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["String::endsWith"]
+    ; ins = []
+    ; p = [par "subject" TStr; par "suffix" TStr]
+    ; r = TBool
+    ; d = "Checks if `subject` ends with `suffix`"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr subject; DStr suffix] ->
+              DBool (Unicode_string.ends_with ~suffix subject)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
