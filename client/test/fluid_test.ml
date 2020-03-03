@@ -1481,6 +1481,24 @@ let run () =
       ()) ;
   describe "Functions" (fun () ->
       t
+        ~expectsPartial:true
+        "pipe key starts partial after zero arg function"
+        aFnCallWithZeroArgs
+        (ins "|" 11)
+        "List::empty |~" ;
+      t
+        ~expectsPartial:true
+        "pipe key starts partial after zero arg function with version"
+        aFnCallWithZeroArgsAndVersion
+        (ins "|" 13)
+        "List::emptyv1 |~" ;
+      t
+        ~expectsPartial:true
+        "pipe key starts partial after piped function with one arg"
+        aPipeWithFilledFunction
+        (ins "|" 26)
+        "\"hello\"\n|>String::lengthv1 |~\n" ;
+      t
         "space on a sep goes to next arg"
         aFnCall
         (space 10)
