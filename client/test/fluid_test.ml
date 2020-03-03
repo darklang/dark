@@ -1556,37 +1556,37 @@ let run () =
         "del on function with version"
         aFnCallWithVersion
         (del 11)
-        "DB::getAllv~@ ___________________" ;
+        "DB::getAll~ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version"
         aFnCallWithVersion
         (bs 12)
-        "DB::getAllv~@ ___________________" ;
+        "DB::getAll~ ___________________" ;
       t
         ~expectsPartial:true
         "del on function with version in between the version and function name"
         aFnCallWithVersion
         (del 10)
-        "DB::getAll~1@ ___________________" ;
+        "DB::getAll~ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version in between the version and function name"
         aFnCallWithVersion
         (bs 10)
-        "DB::getAl~v1@ ___________________" ;
+        "DB::getAl~@ ___________________" ;
       t
         ~expectsPartial:true
         "del on function with version in function name"
         aFnCallWithVersion
         (del 7)
-        "DB::get~llv1@ ___________________" ;
+        "DB::get~ll@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version in function name"
         aFnCallWithVersion
         (bs 8)
-        "DB::get~llv1@ ___________________" ;
+        "DB::get~ll@ ___________________" ;
       t
         "adding function with version goes to the right place"
         b
@@ -1602,19 +1602,19 @@ let run () =
         "DeleteWordBackward in middle of function deletes to beg of function"
         aFnCallWithVersion
         (inputs [DeleteWordBackward] 6)
-        "~tAllv1@Allv@ ___________________" ;
+        "~tAll@etAl@ ___________________" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward in end of function version deletes to function"
         aFnCallWithVersion
         (inputs [DeleteWordBackward] 12)
-        "DB::getAll~@@ ___________________" ;
+        "DB::getAll~ ___________________" ;
       t
         ~expectsPartial:true
         "DeleteWordForward in middle of function deletes to beg of function"
         aFnCallWithVersion
         (inputs [DeleteWordForward] 6)
-        "DB::ge~v1@lv@ ___________________" ;
+        "DB::ge~@Al@ ___________________" ;
       t
         "DeleteWordForward in end of function version moves cursor to end of blank "
         aFnCallWithVersion
@@ -1640,7 +1640,7 @@ let run () =
         "reflows work for partials too "
         (partial "TEST" (fn "HttpClient::post_v4" [str string160; b; b; b]))
         render
-        "~TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
+        "~TEST@lient::pos@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
       t
         "reflows happen for functions whose arguments have newlines"
         (fn "HttpClient::post_v4" [emptyStr; emptyRowRecord; b; b])
