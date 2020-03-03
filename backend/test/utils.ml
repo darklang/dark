@@ -352,6 +352,7 @@ let test_execution_data
     ; user_tipes = IDMap.data !c.user_tipes
     ; package_fns = !c.package_fns
     ; fail_fn = None
+    ; executing_fnname = ""
     ; dbs = TL.dbs !c.dbs
     ; execution_id
     ; trace = (fun ~on_execution_path _ _ -> ())
@@ -391,7 +392,8 @@ let execute_ops
         ; package_fns
         ; account_id
         ; canvas_id
-        ; fail_fn = _ }
+        ; fail_fn = _
+        ; executing_fnname = _ }
       , input_vars ) =
     test_execution_data ~trace_id ops
   in

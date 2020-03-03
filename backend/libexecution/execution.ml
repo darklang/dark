@@ -120,6 +120,7 @@ let execute_handler
     ; context = Real
     ; execution_id
     ; fail_fn = None
+    ; executing_fnname = ""
     ; load_fn_result
     ; load_fn_arguments
     ; store_fn_result
@@ -172,6 +173,7 @@ let execute_function
     ; context = Real
     ; execution_id
     ; fail_fn = None
+    ; executing_fnname = fnname
     ; load_fn_result = load_no_results
     ; load_fn_arguments = load_no_arguments
     ; store_fn_result
@@ -231,6 +233,7 @@ let analyse_ast
     ; context = Preview
     ; execution_id
     ; fail_fn = None
+    ; executing_fnname = ""
     ; load_fn_result
     ; load_fn_arguments
     ; store_fn_result = store_no_results

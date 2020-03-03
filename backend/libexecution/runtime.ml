@@ -14,8 +14,8 @@ let error
     ?bt
     ~actual:(Dval.to_developer_repr_v0 actual)
     ~result:(Dval.to_developer_repr_v0 result)
-    ~actual_tipe:(Dval.tipename actual)
-    ~result_tipe:(Dval.tipename result)
+    ~actual_tipe:(Dval.pretty_tipename actual)
+    ~result_tipe:(Dval.pretty_tipename result)
     ~info
     ~expected
     ~workarounds

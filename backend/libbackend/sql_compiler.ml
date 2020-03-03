@@ -182,7 +182,7 @@ let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe_) : unit =
       ^ "`, expected "
       ^ Dval.tipe_to_string expected_tipe
       ^ " but got a "
-      ^ Dval.tipename dval
+      ^ Dval.pretty_tipename dval
       ^ " in "
       ^ Dval.to_developer_repr_v0 dval )
 
