@@ -208,4 +208,26 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["Int::max"]
+    ; ins = []
+    ; p = [par "a" TInt; par "b" TInt]
+    ; r = TBool
+    ; d = "Returns the higher of a and b"
+    ; f =
+        InProcess
+          (function
+          | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Int::min"]
+    ; ins = []
+    ; p = [par "a" TInt; par "b" TInt]
+    ; r = TBool
+    ; d = "Returns the lower of `a` and `b`"
+    ; f =
+        InProcess
+          (function
+          | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
+    ; ps = true
     ; dep = false } ]
