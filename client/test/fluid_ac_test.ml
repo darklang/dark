@@ -50,6 +50,8 @@ let sampleFunctions : function_ list =
 
 let defaultTLID = TLID "7"
 
+let defaultTraceID = "94167980-f909-527e-a4af-bc3155f586d3"
+
 let defaultID = gid ()
 
 let defaultID2 = gid ()
@@ -112,8 +114,8 @@ let defaultModel
   ; cursorState = FluidEntering tlid
   ; builtInFunctions = sampleFunctions
   ; analyses =
-      StrDict.singleton (* The default traceID for TLID 7 *)
-        ~key:"94167980-f909-527e-a4af-bc3155f586d3"
+      StrDict.singleton
+        ~key:defaultTraceID
         ~value:
           (LoadableSuccess
              (StrDict.singleton
@@ -399,15 +401,16 @@ let run () =
               |> toEqual true) ;
           ()) ;
       describe "filter" (fun () ->
+          let filterFor m ~pos candidates =
+            let ac = acFor ~pos m in
+            let m = {m with fluidState = {m.fluidState with ac}} in
+            let fullQ = defaultFullQuery m "" in
+            AC.filter m ac candidates fullQ
+          in
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
               let m = defaultModel ~dbs:[aDB ()] () in
-              let ac = acFor m in
               let _valid, invalid =
-                AC.filter
-                  m
-                  ac
-                  [FACVariable ("MyDB", None)]
-                  (defaultFullQuery m "")
+                filterFor m ~pos:0 [FACVariable ("MyDB", None)]
               in
               expect (List.member ~value:(FACVariable ("MyDB", None)) invalid)
               |> toEqual true) ;
@@ -417,89 +420,36 @@ let run () =
             ; FACConstructorName ("Ok", 1)
             ; FACConstructorName ("Error", 1) ]
           in
-          (* TODO: not yet working in fluid
           test "Only Just and Nothing are allowed in Option-blank" (fun () ->
-              let param1id = ID "123" in
-              let expr =
-                EFnCall
-                  (gid (), "Option::withDefault", [EBlank param1id], NoRail)
-              in
+              let expr = fn ~ster:NoRail "Option::withDefault" [b] in
               let handler = aHandler ~expr () in
-              let m =
-                defaultModel ~handlers:[handler] ()
-              in
-              let target = Some (defaultTLID, PExpr (Blank param1id)) in
-              let ac = acFor ~target m in
-              let newM = {m with complete = fromFluidAC ac} in
-              let ti =
-                match toTokens newM.fluidState expr |> List.head with
-                | Some ti ->
-                    ti
-                | _ ->
-                    defaultTokenInfo
-              in
-              let dv =
-                Analysis.getCurrentLiveValue
-                  newM
-                  handler.id
-                  (ti.token |> FluidToken.tid)
-              in
-              let fullQ = (handler, ti, dv, "") in
-              let valid, _invalid = AC.filter newM ac consFAC fullQ in
-              expect
-                ( List.length valid = 2
-                && List.member ~value:(FACConstructorName ("Just", 1)) valid
-                && List.member ~value:(FACConstructorName ("Nothing", 0)) valid
-                )
-              |> toEqual true ) ; *)
-          (* TODO: not yet working in fluid
-           * test "Only Ok and Error are allowed in Result-blank" (fun () ->
-              let param1id = ID "123" in
-              let expr =
-                EFnCall
-                  (gid (), "Result::catchError", [EBlank param1id], NoRail)
-              in
+              let m = defaultModel ~handlers:[handler] () in
+              let valid, _invalid = filterFor m consFAC ~pos:20 in
+              expect valid
+              |> toEqual
+                   [ FACConstructorName ("Just", 1)
+                   ; FACConstructorName ("Nothing", 0) ]) ;
+          test "Only Ok and Error are allowed in Result blank" (fun () ->
+              let expr = fn ~ster:NoRail "Result::withDefault" [b] in
               let handler = aHandler ~expr () in
-              let m =
-                defaultModel ~handlers:[handler] ()
-              in
-              let target = Some (defaultTLID, PExpr (Blank param1id)) in
-              let ac = acFor ~target m in
-              let newM = {m with complete = fromFluidAC ac} in
-              let ti =
-                match toTokens newM.fluidState expr |> List.head with
-                | Some ti ->
-                    ti
-                | _ ->
-                    defaultTokenInfo
-              in
-              let dv =
-                Analysis.getCurrentLiveValue
-                  newM
-                  handler.id
-                  (ti.token |> FluidToken.tid)
-              in
-              let fullQ = (handler, ti, dv, "") in
-              let valid, _invalid = AC.filter newM ac consFAC fullQ in
-              expect
-                ( List.length valid = 2
-                && List.member ~value:(FACConstructorName ("Ok", 1)) valid
-                && List.member ~value:(FACConstructorName ("Error", 1)) valid
-                )
-              |> toEqual true ) ;*)
+              let m = defaultModel ~handlers:[handler] () in
+              let valid, _invalid = filterFor m consFAC ~pos:20 in
+              expect valid
+              |> toEqual
+                   [ FACConstructorName ("Ok", 1)
+                   ; FACConstructorName ("Error", 1) ]) ;
           test "Constructors are also available in Any expression" (fun () ->
               let m = enteringHandler () in
               let ac = acFor m in
               let valid, _invalid =
                 AC.filter m ac consFAC (defaultFullQuery m "")
               in
-              expect
-                ( List.member ~value:(FACConstructorName ("Ok", 1)) valid
-                && List.member ~value:(FACConstructorName ("Error", 1)) valid
-                && List.member ~value:(FACConstructorName ("Just", 1)) valid
-                && List.member ~value:(FACConstructorName ("Nothing", 0)) valid
-                )
-              |> toEqual true) ;
+              expect valid
+              |> toEqual
+                   [ FACConstructorName ("Just", 1)
+                   ; FACConstructorName ("Nothing", 0)
+                   ; FACConstructorName ("Ok", 1)
+                   ; FACConstructorName ("Error", 1) ]) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
               let tlid = TLID "789" in
               let mID = ID "1234" in
