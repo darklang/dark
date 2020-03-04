@@ -35,7 +35,46 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DInt a; DInt b] -> DInt (Dint.( + ) a b) | args -> fail args)
+          | _, [DInt a; DInt b] ->
+              DInt (Dint.( + ) a b)
+          | state, [(DFloat _ as a); _] ->
+              DError
+                ( SourceNone
+                , "The first param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::add to add Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | state, [_; (DFloat _ as b)] ->
+              DError
+                ( SourceNone
+                , "The second param ("
+                  ^ Dval.to_developer_repr_v0 b
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::add to add Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | state, [(DStr _ as a); _] ->
+              DError
+                ( SourceNone
+                , "The first param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a String, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use ++ or String::append to join Strings or parse Strings to Ints with String::toInt."
+                )
+          | state, [_; (DStr _ as b)] ->
+              DError
+                ( SourceNone
+                , "The second param ("
+                  ^ Dval.to_developer_repr_v0 b
+                  ^ ") is a String, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use ++ or String::append to join Strings or parse Strings to Ints with String::toInt."
+                )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::subtract"]
@@ -46,7 +85,28 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DInt a; DInt b] -> DInt (Dint.( - ) a b) | args -> fail args)
+          | _, [DInt a; DInt b] ->
+              DInt (Dint.( - ) a b)
+          | state, [(DFloat _ as a); _] ->
+              DError
+                ( SourceNone
+                , "The first param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::subtract to subtract Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | state, [_; (DFloat _ as b)] ->
+              DError
+                ( SourceNone
+                , "The second param ("
+                  ^ Dval.to_developer_repr_v0 b
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::subtract to subtract Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::multiply"]
@@ -57,7 +117,28 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DInt a; DInt b] -> DInt (Dint.( * ) a b) | args -> fail args)
+          | _, [DInt a; DInt b] ->
+              DInt (Dint.( * ) a b)
+          | state, [(DFloat _ as a); _] ->
+              DError
+                ( SourceNone
+                , "The first param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | state, [_; (DFloat _ as b)] ->
+              DError
+                ( SourceNone
+                , "The second param ("
+                  ^ Dval.to_developer_repr_v0 b
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::power"]
@@ -82,7 +163,28 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DInt a; DInt b] -> DInt (Dint.( / ) a b) | args -> fail args)
+          | _, [DInt a; DInt b] ->
+              DInt (Dint.( / ) a b)
+          | state, [(DFloat _ as a); _] ->
+              DError
+                ( SourceNone
+                , "The first param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::divide to divide Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | state, [_; (DFloat _ as b)] ->
+              DError
+                ( SourceNone
+                , "The second param ("
+                  ^ Dval.to_developer_repr_v0 b
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::divide to divide Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::greaterThan"]
@@ -92,7 +194,29 @@ let fns : Lib.shortfn list =
     ; d = "Returns true if a is greater than b"
     ; f =
         InProcess
-          (function _, [DInt a; DInt b] -> DBool (a > b) | args -> fail args)
+          (function
+          | _, [DInt a; DInt b] ->
+              DBool (a > b)
+          | state, [(DFloat _ as a); _] ->
+              DError
+                ( SourceNone
+                , "The first param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | state, [_; (DFloat _ as b)] ->
+              DError
+                ( SourceNone
+                , "The second param ("
+                  ^ Dval.to_developer_repr_v0 b
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::greaterThanOrEqualTo"]
@@ -102,7 +226,29 @@ let fns : Lib.shortfn list =
     ; d = "Returns true if a is greater than or equal to b"
     ; f =
         InProcess
-          (function _, [DInt a; DInt b] -> DBool (a >= b) | args -> fail args)
+          (function
+          | _, [DInt a; DInt b] ->
+              DBool (a >= b)
+          | state, [(DFloat _ as a); _] ->
+              DError
+                ( SourceNone
+                , "The first param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | state, [_; (DFloat _ as b)] ->
+              DError
+                ( SourceNone
+                , "The second param ("
+                  ^ Dval.to_developer_repr_v0 b
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::lessThan"]
@@ -112,7 +258,29 @@ let fns : Lib.shortfn list =
     ; d = "Returns true if a is less than b"
     ; f =
         InProcess
-          (function _, [DInt a; DInt b] -> DBool (a < b) | args -> fail args)
+          (function
+          | _, [DInt a; DInt b] ->
+              DBool (a < b)
+          | state, [(DFloat _ as a); _] ->
+              DError
+                ( SourceNone
+                , "The first param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::lessThan to compare Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | state, [_; (DFloat _ as b)] ->
+              DError
+                ( SourceNone
+                , "The second param ("
+                  ^ Dval.to_developer_repr_v0 b
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::lessThan to compare Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::lessThanOrEqualTo"]
@@ -122,7 +290,29 @@ let fns : Lib.shortfn list =
     ; d = "Returns true if a is less than or equal to b"
     ; f =
         InProcess
-          (function _, [DInt a; DInt b] -> DBool (a <= b) | args -> fail args)
+          (function
+          | _, [DInt a; DInt b] ->
+              DBool (a <= b)
+          | state, [(DFloat _ as a); _] ->
+              DError
+                ( SourceNone
+                , "The first param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | state, [_; (DFloat _ as b)] ->
+              DError
+                ( SourceNone
+                , "The second param ("
+                  ^ Dval.to_developer_repr_v0 b
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::floor to truncate Floats to Ints."
+                )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::random"]
@@ -166,7 +356,19 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DInt a] -> DFloat (Dint.to_float a |> sqrt) | args -> fail args)
+          | _, [DInt a] ->
+              DFloat (Dint.to_float a |> sqrt)
+          | state, [(DFloat _ as a)] ->
+              DError
+                ( SourceNone
+                , "The param ("
+                  ^ Dval.to_developer_repr_v0 a
+                  ^ ") is a Float, but "
+                  ^ state.executing_fnname
+                  ^ " only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::floor to truncate the Float to an Int."
+                )
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::toFloat"]
@@ -201,11 +403,33 @@ let fns : Lib.shortfn list =
                          ( "Int::sum requires all values to be integers, but "
                          ^ Dval.to_developer_repr_v0 example_value
                          ^ " is a "
-                         ^ Dval.tipename example_value )
+                         ^ Dval.pretty_tipename example_value )
                        ~expected:"every list item to be an int "
                        "Sum expects you to pass a list of ints")
               |> Result.ok_exn
           | args ->
               fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Int::max"]
+    ; ins = []
+    ; p = [par "a" TInt; par "b" TInt]
+    ; r = TBool
+    ; d = "Returns the higher of a and b"
+    ; f =
+        InProcess
+          (function
+          | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Int::min"]
+    ; ins = []
+    ; p = [par "a" TInt; par "b" TInt]
+    ; r = TBool
+    ; d = "Returns the lower of `a` and `b`"
+    ; f =
+        InProcess
+          (function
+          | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
     ; ps = true
     ; dep = false } ]

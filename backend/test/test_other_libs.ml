@@ -613,6 +613,18 @@ let t_float_stdlibs () =
   ()
 
 
+let t_int_stdlibs () =
+  check_dval
+    "Int::max works"
+    (exec_ast' (fn "Int::max" [int 5; int 6]))
+    (Dval.dint 6) ;
+  check_dval
+    "Int::min works"
+    (exec_ast' (fn "Int::min" [int 5; int 6]))
+    (Dval.dint 5) ;
+  ()
+
+
 (* Test does not demonstrate how it'd be used with complex inputs/lambdas (say,
  * comparing two semvers); the goal is simply to demonstrate:
  * - a basic happy-path works
@@ -670,6 +682,7 @@ let suite =
   ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws)
   ; ("URL percent encoding", `Quick, t_url_encode)
   ; ("Float stdlibs work", `Quick, t_float_stdlibs)
+  ; ("Int stdlibs work", `Quick, t_int_stdlibs)
   ; ("Bytes stdlibs work", `Quick, t_libbytes)
   ; ("List::sortByComparator works", `Quick, t_liblist_sort_by_comparator_works)
   ]

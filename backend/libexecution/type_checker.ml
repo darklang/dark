@@ -24,7 +24,7 @@ module Error = struct
         "Expected to see a value of type "
         ^ Dval.tipe_to_string expected_tipe
         ^ " but found a "
-        ^ Dval.tipename actual_value
+        ^ Dval.pretty_tipename actual_value
     | MismatchedRecordFields {expected_fields; actual_fields} ->
         (* More or less wholesale from User_db's type checker *)
         let missing_fields = String.Set.diff expected_fields actual_fields in
