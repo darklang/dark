@@ -45,7 +45,7 @@ let replaceFunctionResult
     (m : model)
     (tlid : TLID.t)
     (traceID : traceID)
-    (callerID : id)
+    (callerID : ID.t)
     (fnName : string)
     (hash : dvalArgsHash)
     (hashVersion : int)
@@ -84,7 +84,7 @@ let replaceFunctionResult
   {m with traces}
 
 
-let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
+let getLiveValueLoadable (analysisStore : analysisStore) (ID id : ID.t) :
     executionResult loadable =
   match analysisStore with
   | LoadableSuccess dvals ->
@@ -102,7 +102,7 @@ let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
       LoadableError error
 
 
-let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
+let getLiveValue' (analysisStore : analysisStore) (ID id : ID.t) : dval option =
   match analysisStore with
   | LoadableSuccess dvals ->
     ( match StrDict.get dvals ~key:id with
@@ -114,20 +114,21 @@ let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
       None
 
 
-let getLiveValue (m : model) (id : id) (traceID : traceID) : dval option =
+let getLiveValue (m : model) (id : ID.t) (traceID : traceID) : dval option =
   getLiveValue' (getStoredAnalysis m traceID) id
 
 
-let getTipeOf' (analysisStore : analysisStore) (id : id) : tipe option =
+let getTipeOf' (analysisStore : analysisStore) (id : ID.t) : tipe option =
   getLiveValue' analysisStore id |> Option.map ~f:RT.typeOf
 
 
-let getTipeOf (m : model) (id : id) (traceID : traceID) : tipe option =
+let getTipeOf (m : model) (id : ID.t) (traceID : traceID) : tipe option =
   getLiveValue m id traceID |> Option.map ~f:RT.typeOf
 
 
-let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
-    : dval list option =
+let getArguments
+    (m : model) (tl : toplevel) (callerID : ID.t) (traceID : traceID) :
+    dval list option =
   let ast = tl |> TL.getAST in
   let threadPrevious =
     ast |> Option.andThen ~f:(AST.threadPrevious callerID) |> Option.toList
@@ -149,7 +150,7 @@ let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
  * at an expression with the given [id] within the ast of the [tl]. The dval for a given varname
  * comes from the trace with [traceID]. *)
 let getAvailableVarnames
-    (m : model) (tl : toplevel) (ID id : id) (traceID : traceID) :
+    (m : model) (tl : toplevel) (id : ID.t) (traceID : traceID) :
     (string * dval option) list =
   (* TODO: Calling out is so slow that calculating on the fly is faster.
    * But we can also cache this so that's it's not in the display hot-path *)
@@ -164,7 +165,7 @@ let getAvailableVarnames
     ast
     |> FluidAST.toExpr
     |> AST.variablesIn
-    |> StrDict.get ~key:id
+    |> StrDict.get ~key:(ID.toString id)
     |> Option.withDefault ~default:StrDict.empty
     |> StrDict.toList
     |> List.map ~f:(fun (varname, id) -> (varname, getLiveValue m id traceID))

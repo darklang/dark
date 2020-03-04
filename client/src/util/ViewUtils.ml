@@ -19,7 +19,7 @@ type viewState =
   ; cursorState : cursorState
   ; tlid : TLID.t
   ; isAdmin : bool
-  ; hovering : (TLID.t * id) option
+  ; hovering : (TLID.t * ID.t) option
   ; ac : autocomplete
   ; showEntry : bool
   ; showLivevalue : bool
@@ -29,16 +29,16 @@ type viewState =
   ; dbStats : dbStatsStore
   ; ufns : userFunction list
   ; fns : function_ list
-  ; executingFunctions : id list
+  ; executingFunctions : ID.t list
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
-  ; refersToRefs : (toplevel * id list) list
+  ; refersToRefs : (toplevel * ID.t list) list
   ; usedInRefs : toplevel list
-  ; hoveringRefs : id list
+  ; hoveringRefs : ID.t list
   ; fluidState : fluidState
   ; avatarsList : avatar list
   ; permission : permission option

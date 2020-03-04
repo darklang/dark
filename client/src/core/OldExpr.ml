@@ -291,7 +291,7 @@ and fromFluidPattern (p : FluidPattern.t) : pattern =
       Blank id
 
 
-and toFluidPattern (mid : id) (p : pattern) : FluidPattern.t =
+and toFluidPattern (mid : ID.t) (p : pattern) : FluidPattern.t =
   match p with
   | Blank id ->
       FPBlank (mid, id)

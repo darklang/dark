@@ -305,7 +305,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
   |> List.flatten
 
 
-let viewArrow (curID : id) (srcID : id) : Types.msg Html.html =
+let viewArrow (curID : ID.t) (srcID : ID.t) : Types.msg Html.html =
   let curSelector = ".id-" ^ ID.toString curID in
   let srcSelector = ".id-" ^ ID.toString srcID in
   match
@@ -585,7 +585,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   let mainEditor = fluidEditorView vs vs.mainEditor in
   let returnValue = viewReturnValue vs in
   let secondaryEditors =
-    let findRowOffestOfMainTokenWithId (target : id) : int option =
+    let findRowOffestOfMainTokenWithId (target : ID.t) : int option =
       (* FIXME(ds) this is a giant hack to find the row offset of the corresponding
        * token in the main view for each secondary editor. This works by getting
        * the id of the split (ie, the id of the first token in the split)

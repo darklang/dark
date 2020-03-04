@@ -155,8 +155,8 @@ let curlFromCurrentTrace (m : model) (tlid : TLID.t) : string option =
       None
 
 
-let curlFromHttpClientCall (m : model) (tlid : TLID.t) (id : id) (name : string)
-    : string option =
+let curlFromHttpClientCall
+    (m : model) (tlid : TLID.t) (id : ID.t) (name : string) : string option =
   let traces =
     StrDict.get ~key:(TLID.toString tlid) m.traces
     |> recoverOption

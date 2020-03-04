@@ -43,8 +43,8 @@ let fnParamsView (params : userFunctionParameter list) : msg Html.html =
   Html.div [Html.class' "fields"] (List.map ~f:paramView params)
 
 
-let hoveringRefProps (originTLID : TLID.t) (originIDs : id list) ~(key : string)
-    =
+let hoveringRefProps
+    (originTLID : TLID.t) (originIDs : ID.t list) ~(key : string) =
   [ ViewUtils.eventNoPropagation
       ~key:(key ^ "-in_" ^ TLID.toString originTLID)
       "mouseenter"
@@ -57,7 +57,7 @@ let hoveringRefProps (originTLID : TLID.t) (originIDs : id list) ~(key : string)
 
 let dbView
     (originTLID : TLID.t)
-    (originIDs : id list)
+    (originIDs : ID.t list)
     (tlid : TLID.t)
     (name : string)
     (cols : dbColumn list)
@@ -78,7 +78,7 @@ let dbView
 
 let handlerView
     (originTLID : TLID.t)
-    (originIDs : id list)
+    (originIDs : ID.t list)
     (tlid : TLID.t)
     (space : string)
     (name : string)
@@ -105,7 +105,7 @@ let handlerView
 
 let fnView
     (originTLID : TLID.t)
-    (originIDs : id list)
+    (originIDs : ID.t list)
     (tlid : TLID.t)
     (name : string)
     (params : userFunctionParameter list)
@@ -147,8 +147,8 @@ let renderView originalTLID direction (tl, originalIDs) =
 
 
 let allUsagesView
-    (tlid : TLID.t) (uses : toplevel list) (refs : (toplevel * id list) list) :
-    msg Html.html list =
+    (tlid : TLID.t) (uses : toplevel list) (refs : (toplevel * ID.t list) list)
+    : msg Html.html list =
   let refersTo = List.map ~f:(renderView tlid "refers-to") refs in
   let usedIn =
     List.map ~f:(fun use -> (renderView tlid "used-in") (use, [])) uses

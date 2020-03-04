@@ -13,7 +13,7 @@ type nPattern =
 
 and pattern = nPattern Types.blankOr
 
-val toFluidPattern : Types.id -> pattern -> FluidPattern.t
+val toFluidPattern : ID.t -> pattern -> FluidPattern.t
 
 val fromFluidPattern : FluidPattern.t -> pattern
 

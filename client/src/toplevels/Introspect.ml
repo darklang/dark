@@ -78,7 +78,7 @@ let tlidsToUpdateUsage (ops : op list) : TLID.t list =
   |> List.uniqueBy ~f:TLID.toString
 
 
-let allRefersTo (tlid : TLID.t) (m : model) : (toplevel * id list) list =
+let allRefersTo (tlid : TLID.t) (m : model) : (toplevel * ID.t list) list =
   m.tlRefersTo
   |> TLIDDict.get ~tlid
   |> Option.withDefault ~default:IDPairSet.empty
@@ -185,7 +185,7 @@ let refreshUsages (m : model) (tlids : TLID.t list) : model =
   {m with tlUsedIn = newTlUsedIn; tlRefersTo = newTlRefersTo}
 
 
-let setHoveringReferences (tlid : TLID.t) (ids : id list) : modification =
+let setHoveringReferences (tlid : TLID.t) (ids : ID.t list) : modification =
   let new_props x =
     match x with
     | None ->
