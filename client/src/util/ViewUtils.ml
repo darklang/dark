@@ -6,7 +6,7 @@ module TD = TLIDDict
 module E = FluidExpression
 
 type editorViewState =
-  { tlid : tlid
+  { tlid : TLID.t
   ; editorId : string option
   ; expr : E.t
   ; tokens : FluidToken.tokenInfo list }
@@ -17,9 +17,9 @@ type viewState =
   ; mainEditor : editorViewState
   ; extraEditors : editorViewState list
   ; cursorState : cursorState
-  ; tlid : tlid
+  ; tlid : TLID.t
   ; isAdmin : bool
-  ; hovering : (tlid * id) option
+  ; hovering : (TLID.t * id) option
   ; ac : autocomplete
   ; showEntry : bool
   ; showLivevalue : bool

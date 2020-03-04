@@ -35,7 +35,7 @@ let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
     Html.div [Html.class' "group-name form"] [nameField]
 
 
-let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
+let previewMembers (gTLID : TLID.t) (tl : toplevel) : msg Html.html =
   let body =
     match tl with
     | TLHandler h ->
@@ -99,8 +99,8 @@ let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
 let viewGroupMembers
     (m : model)
     (vs : viewState)
-    (gTLID : tlid)
-    (members : tlid list)
+    (gTLID : TLID.t)
+    (members : TLID.t list)
     (preview : bool) : msg Html.html =
   if List.length members == 0
   then

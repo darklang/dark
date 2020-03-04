@@ -43,7 +43,8 @@ let fnParamsView (params : userFunctionParameter list) : msg Html.html =
   Html.div [Html.class' "fields"] (List.map ~f:paramView params)
 
 
-let hoveringRefProps (originTLID : tlid) (originIDs : id list) ~(key : string) =
+let hoveringRefProps (originTLID : TLID.t) (originIDs : id list) ~(key : string)
+    =
   [ ViewUtils.eventNoPropagation
       ~key:(key ^ "-in_" ^ showTLID originTLID)
       "mouseenter"
@@ -55,16 +56,16 @@ let hoveringRefProps (originTLID : tlid) (originIDs : id list) ~(key : string) =
 
 
 let dbView
-    (originTLID : tlid)
+    (originTLID : TLID.t)
     (originIDs : id list)
-    (tlid : tlid)
+    (tlid : TLID.t)
     (name : string)
     (cols : dbColumn list)
     (direction : string) : msg Html.html =
   Html.div
     ( [ Html.class' ("ref-block db " ^ direction)
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-db-link" ^ showTLID tlid)
+          ~key:("ref-db-link" ^ TLID.toString tlid)
           "click"
           (fun _ -> GoTo (FocusedDB (tlid, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-db-hover" )
@@ -76,9 +77,9 @@ let dbView
 
 
 let handlerView
-    (originTLID : tlid)
+    (originTLID : TLID.t)
     (originIDs : id list)
-    (tlid : tlid)
+    (tlid : TLID.t)
     (space : string)
     (name : string)
     (modifier : string option)
@@ -103,9 +104,9 @@ let handlerView
 
 
 let fnView
-    (originTLID : tlid)
+    (originTLID : TLID.t)
     (originIDs : id list)
-    (tlid : tlid)
+    (tlid : TLID.t)
     (name : string)
     (params : userFunctionParameter list)
     (direction : string) : msg Html.html =
@@ -146,7 +147,7 @@ let renderView originalTLID direction (tl, originalIDs) =
 
 
 let allUsagesView
-    (tlid : tlid) (uses : toplevel list) (refs : (toplevel * id list) list) :
+    (tlid : TLID.t) (uses : toplevel list) (refs : (toplevel * id list) list) :
     msg Html.html list =
   let refersTo = List.map ~f:(renderView tlid "refers-to") refs in
   let usedIn =

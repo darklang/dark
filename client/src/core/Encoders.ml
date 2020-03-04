@@ -191,7 +191,7 @@ and blankOrData (pd : Types.blankOrData) : Js.Json.t =
       ev "PGroupName" [blankOr string g]
 
 
-and tlidOf (op : Types.op) : Types.tlid =
+and tlidOf (op : Types.op) : TLID.t =
   match op with
   | SetHandler (tlid, _, _) ->
       tlid

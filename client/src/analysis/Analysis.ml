@@ -14,7 +14,7 @@ module TD = TLIDDict
 (* Analyses *)
 (* ---------------------- *)
 
-let getTraces (m : model) (tlid : tlid) : trace list =
+let getTraces (m : model) (tlid : TLID.t) : trace list =
   StrDict.get ~key:(deTLID tlid) m.traces
   |> Option.withDefault
        ~default:
@@ -25,7 +25,7 @@ let getTraces (m : model) (tlid : tlid) : trace list =
            , Result.fail NoneYet ) ]
 
 
-let getTrace (m : model) (tlid : tlid) (traceID : traceID) : trace option =
+let getTrace (m : model) (tlid : TLID.t) (traceID : traceID) : trace option =
   getTraces m tlid |> List.find ~f:(fun (id, _) -> id = traceID)
 
 
@@ -43,7 +43,7 @@ let record (old : analyses) (id : traceID) (result : analysisStore) : analyses =
 
 let replaceFunctionResult
     (m : model)
-    (tlid : tlid)
+    (tlid : TLID.t)
     (traceID : traceID)
     (callerID : id)
     (fnName : string)
@@ -192,7 +192,7 @@ let getAvailableVarnames
 (* ---------------------- *)
 
 let selectedTraceID
-    (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid) :
+    (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : TLID.t) :
     traceID option =
   (* We briefly do analysis on a toplevel which does not have an *)
   (* analysis available, so be careful here. *)
@@ -204,19 +204,20 @@ let selectedTraceID
       List.head traces |> Option.map ~f:Tuple2.first
 
 
-let selectedTrace (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid)
-    : trace option =
+let selectedTrace
+    (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : TLID.t) :
+    trace option =
   selectedTraceID tlTraceIDs traces tlid
   |> Option.andThen ~f:(fun traceID ->
          List.find ~f:(fun (id, _) -> id = traceID) traces)
 
 
-let setSelectedTraceID (m : model) (tlid : tlid) (traceID : traceID) : model =
+let setSelectedTraceID (m : model) (tlid : TLID.t) (traceID : traceID) : model =
   let newCursors = TLIDDict.insert ~tlid ~value:traceID m.tlTraceIDs in
   {m with tlTraceIDs = newCursors}
 
 
-let getSelectedTraceID (m : model) (tlid : tlid) : traceID option =
+let getSelectedTraceID (m : model) (tlid : TLID.t) : traceID option =
   let traces = getTraces m tlid in
   selectedTraceID m.tlTraceIDs traces tlid
 

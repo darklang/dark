@@ -58,7 +58,7 @@ let deTLID = TLID.toString
 
 let showTLID = TLID.toString
 
-let gtlid () : tlid = TLID.fromString (Util.random () |> string_of_int)
+let gtlid () : TLID.t = TLID.fromString (Util.random () |> string_of_int)
 
 (* -------------------------------------- *)
 (* CursorState *)

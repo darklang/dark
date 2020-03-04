@@ -61,8 +61,8 @@ let getStringIndex ti pos : int =
       recover "getting index of non-string" ~debug:(ti.token, pos) 0
 
 
-let astAndStateFromTLID (m : model) (tlid : tlid) : (FluidAST.t * state) option
-    =
+let astAndStateFromTLID (m : model) (tlid : TLID.t) :
+    (FluidAST.t * state) option =
   (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
    * make `fromExpr` accept only the info it needs, and differentiate between
    * handler-specific and global fluid state. *)
@@ -4592,7 +4592,8 @@ and replaceText ~(ast : FluidAST.t) ~state (str : string) :
 
 
 let updateAutocomplete
-    (m : model) (tlid : tlid) (ast : FluidAST.t) (s : fluidState) : fluidState =
+    (m : model) (tlid : TLID.t) (ast : FluidAST.t) (s : fluidState) : fluidState
+    =
   match getToken ast s with
   | Some ti when T.isAutocompletable ti.token ->
       let m = TL.withAST m tlid ast in
@@ -5540,7 +5541,7 @@ let renderCallback (m : model) : unit =
       ()
 
 
-let cleanUp (m : model) (tlid : tlid option) : model * modification =
+let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
   let state = m.fluidState in
   let rmPartialsMod =
     tlid

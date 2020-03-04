@@ -475,8 +475,8 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
 
 
 let reorderFnCallArgs
-    (m : model) (tlid : tlid) (fnName : string) (oldPos : int) (newPos : int) :
-    modification list =
+    (m : model) (tlid : TLID.t) (fnName : string) (oldPos : int) (newPos : int)
+    : modification list =
   Introspect.allUsedIn tlid m
   |> List.filterMap ~f:(fun tl ->
          match TL.getAST tl with Some ast -> Some (tl, ast) | None -> None)

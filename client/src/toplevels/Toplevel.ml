@@ -86,7 +86,7 @@ let fromList (tls : toplevel list) : toplevel TLIDDict.t =
   tls |> List.map ~f:(fun tl -> (id tl, tl)) |> TD.fromList
 
 
-let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
+let move (tlid : TLID.t) (xOffset : int) (yOffset : int) (m : model) : model =
   let newPos p = {x = p.x + xOffset; y = p.y + yOffset} in
   { m with
     handlers =
@@ -238,7 +238,7 @@ let setAST (tl : toplevel) (newAST : FluidAST.t) : toplevel =
       tl
 
 
-let withAST (m : model) (tlid : tlid) (ast : FluidAST.t) : model =
+let withAST (m : model) (tlid : TLID.t) (ast : FluidAST.t) : model =
   { m with
     handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
   ; userFunctions =
@@ -334,7 +334,7 @@ let structural (m : model) : toplevel TD.t =
   |> TD.mergeLeft (TD.map ~f:(fun group -> TLGroup group) m.groups)
 
 
-let get (m : model) (tlid : tlid) : toplevel option = TD.get ~tlid (all m)
+let get (m : model) (tlid : TLID.t) : toplevel option = TD.get ~tlid (all m)
 
 let find (tl : toplevel) (id_ : id) : blankOrData option =
   blankOrData tl
@@ -347,11 +347,11 @@ let find (tl : toplevel) (id_ : id) : blankOrData option =
   |> List.head
 
 
-let getPD (m : model) (tlid : tlid) (id : id) : blankOrData option =
+let getPD (m : model) (tlid : TLID.t) (id : id) : blankOrData option =
   get m tlid |> Option.andThen ~f:(fun tl -> find tl id)
 
 
-let getTLAndPD (m : model) (tlid : tlid) (id : id) :
+let getTLAndPD (m : model) (tlid : TLID.t) (id : id) :
     (toplevel * blankOrData option) option =
   get m tlid |> Option.map ~f:(fun tl -> (tl, find tl id))
 

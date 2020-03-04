@@ -13,10 +13,10 @@ type sidebarVariant =
   | SidebarClosed
 
 type identifier =
-  | Tlid of tlid
+  | Tlid of TLID.t
   | Other of string
 
-let tlidOfIdentifier identifier : tlid option =
+let tlidOfIdentifier identifier : TLID.t option =
   match identifier with Tlid tlid -> Some tlid | Other _ -> None
 
 

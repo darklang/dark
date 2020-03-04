@@ -9,7 +9,7 @@ let rec unwrap (s : cursorState) : cursorState =
       s
 
 
-let tlidOf (s : cursorState) : tlid option =
+let tlidOf (s : cursorState) : TLID.t option =
   match unwrap s with
   | Selecting (tlid, _) ->
       Some tlid

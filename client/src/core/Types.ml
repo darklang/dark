@@ -1,8 +1,6 @@
 open Tc
 
 (* == legacy aliases == *)
-type tlid = TLID.t [@@deriving show]
-
 type id = ID.t [@@deriving show]
 
 module TLIDDict = TLID.Dict
@@ -174,8 +172,8 @@ and handlerModifer = string
 (* usedIn is a TL that's refered to in the refersTo tl at id *)
 (* refersTo is a TL that uses the usedIn tl at id *)
 and usage =
-  { usedIn : tlid
-  ; refersTo : tlid
+  { usedIn : TLID.t
+  ; refersTo : TLID.t
   ; id : id }
 
 (* handlers *)
@@ -194,14 +192,14 @@ and handlerSpace =
 and handler =
   { ast : FluidAST.t
   ; spec : handlerSpec
-  ; hTLID : tlid
+  ; hTLID : TLID.t
   ; pos : pos }
 
 (* groups *)
 and group =
   { gName : string blankOr
-  ; gTLID : tlid
-  ; members : tlid list
+  ; gTLID : TLID.t
+  ; members : TLID.t list
   ; pos : pos }
 
 (* dbs *)
@@ -228,7 +226,7 @@ and dbMigration =
   ; cols : dbColumn list }
 
 and db =
-  { dbTLID : tlid
+  { dbTLID : TLID.t
   ; dbName : dbName blankOr
   ; cols : dbColumn list
   ; version : int
@@ -252,7 +250,7 @@ and userFunctionMetadata =
   ; ufmInfix : bool }
 
 and userFunction =
-  { ufTLID : tlid
+  { ufTLID : TLID.t
   ; ufMetadata : userFunctionMetadata
   ; ufAST : FluidAST.t }
 
@@ -263,7 +261,7 @@ and userRecordField =
 and userTipeDefinition = UTRecord of userRecordField list
 
 and userTipe =
-  { utTLID : tlid
+  { utTLID : TLID.t
   ; utName : string blankOr
   ; utVersion : int
   ; utDefinition : userTipeDefinition }
@@ -286,7 +284,7 @@ and packageFn =
   ; description : string
   ; author : string
   ; deprecated : bool
-  ; pfTLID : tlid }
+  ; pfTLID : TLID.t }
 
 (* toplevels *)
 and toplevel =
@@ -491,15 +489,15 @@ and isLeftButton = bool
 (* ----------------------------- *)
 and entryCursor =
   | Creating of pos option (* If we know the position the user wants the handler to be at (presumably because they clicked there to get the omnibox), then use it. Otherwise, if there's no position, we'll pick one for them later *)
-  | Filling of tlid * id
+  | Filling of TLID.t * id
 
 and hasMoved = bool
 
 and cursorState =
-  | Selecting of tlid * id option
+  | Selecting of TLID.t * id option
   | Entering of entryCursor
-  | FluidEntering of tlid
-  | DraggingTL of tlid * vPos * hasMoved * cursorState
+  | FluidEntering of TLID.t
+  | DraggingTL of TLID.t * vPos * hasMoved * cursorState
   | PanningCanvas of
       { viewportStart : vPos
       ; viewportCurr : vPos
@@ -586,7 +584,7 @@ and traceError =
 
 and trace = traceID * (traceError, traceData) Result.t
 
-and traces = trace list (* indexed by tlid *) StrDict.t
+and traces = trace list (* indexed by TLID.t *) StrDict.t
 
 and fourOhFour =
   { space : string
@@ -623,37 +621,37 @@ and rollbackID = id
 and rollforwardID = id
 
 and op =
-  | SetHandler of tlid * pos * handler
-  | CreateDB of tlid * pos * dbName
-  | AddDBCol of tlid * id * id
-  | SetDBColName of tlid * id * dbColName
-  | SetDBColType of tlid * id * dbColType
-  | DeleteTL of tlid
-  | MoveTL of tlid * pos
-  | TLSavepoint of tlid
-  | UndoTL of tlid
-  | RedoTL of tlid
+  | SetHandler of TLID.t * pos * handler
+  | CreateDB of TLID.t * pos * dbName
+  | AddDBCol of TLID.t * id * id
+  | SetDBColName of TLID.t * id * dbColName
+  | SetDBColType of TLID.t * id * dbColType
+  | DeleteTL of TLID.t
+  | MoveTL of TLID.t * pos
+  | TLSavepoint of TLID.t
+  | UndoTL of TLID.t
+  | RedoTL of TLID.t
   | SetFunction of userFunction
-  | DeleteFunction of tlid
-  | ChangeDBColName of tlid * id * dbColName
-  | ChangeDBColType of tlid * id * dbColType
+  | DeleteFunction of TLID.t
+  | ChangeDBColName of TLID.t * id * dbColName
+  | ChangeDBColType of TLID.t * id * dbColType
   | DeprecatedInitDbm of
-      tlid * id * rollbackID * rollforwardID * dbMigrationKind
-  | SetExpr of tlid * id * FluidExpression.t
-  | CreateDBMigration of tlid * rollbackID * rollforwardID * dbColumn list
-  | AddDBColToDBMigration of tlid * id * id
-  | SetDBColNameInDBMigration of tlid * id * dbColName
-  | SetDBColTypeInDBMigration of tlid * id * dbColType
-  | DeleteColInDBMigration of tlid * id
-  | AbandonDBMigration of tlid
-  | DeleteDBCol of tlid * id
-  | RenameDBname of tlid * dbName
-  | CreateDBWithBlankOr of tlid * pos * id * dbName
-  | DeleteTLForever of tlid
-  | DeleteFunctionForever of tlid
+      TLID.t * id * rollbackID * rollforwardID * dbMigrationKind
+  | SetExpr of TLID.t * id * FluidExpression.t
+  | CreateDBMigration of TLID.t * rollbackID * rollforwardID * dbColumn list
+  | AddDBColToDBMigration of TLID.t * id * id
+  | SetDBColNameInDBMigration of TLID.t * id * dbColName
+  | SetDBColTypeInDBMigration of TLID.t * id * dbColType
+  | DeleteColInDBMigration of TLID.t * id
+  | AbandonDBMigration of TLID.t
+  | DeleteDBCol of TLID.t * id
+  | RenameDBname of TLID.t * dbName
+  | CreateDBWithBlankOr of TLID.t * pos * id * dbName
+  | DeleteTLForever of TLID.t
+  | DeleteFunctionForever of TLID.t
   | SetType of userTipe
-  | DeleteType of tlid
-  | DeleteTypeForever of tlid
+  | DeleteType of TLID.t
+  | DeleteTypeForever of TLID.t
 
 (* ------------------- *)
 (* APIs *)
@@ -669,7 +667,7 @@ and addOpAPIParams =
   ; clientOpCtrId : string }
 
 and executeFunctionAPIParams =
-  { efpTLID : tlid
+  { efpTLID : TLID.t
   ; efpTraceID : traceID
   ; efpCallerID : id
   ; efpArgs : dval list
@@ -678,17 +676,17 @@ and executeFunctionAPIParams =
 and uploadFnAPIParams = {uplFn : userFunction}
 
 and triggerHandlerAPIParams =
-  { thTLID : tlid
+  { thTLID : TLID.t
   ; thTraceID : traceID
   ; thInput : inputValueDict }
 
 and getTraceDataAPIParams =
-  { gtdrpTlid : tlid
+  { gtdrpTlid : TLID.t
   ; gtdrpTraceID : traceID }
 
-and dbStatsAPIParams = {dbStatsTlids : tlid list}
+and dbStatsAPIParams = {dbStatsTlids : TLID.t list}
 
-and workerStatsAPIParams = {workerStatsTlid : tlid}
+and workerStatsAPIParams = {workerStatsTlid : TLID.t}
 
 and updateWorkerScheduleAPIParams =
   { workerName : string
@@ -749,13 +747,13 @@ and addOpStrollerMsg =
 and dvalArgsHash = string
 
 and executeFunctionAPIResult =
-  dval * dvalArgsHash * int * tlid list * unlockedDBs
+  dval * dvalArgsHash * int * TLID.t list * unlockedDBs
 
 and uploadFnAPIResult = unit
 
 and loadPackagesAPIResult = packageFn list
 
-and triggerHandlerAPIResult = tlid list
+and triggerHandlerAPIResult = TLID.t list
 
 and unlockedDBs = StrSet.t
 
@@ -767,7 +765,7 @@ and dbStatsAPIResult = dbStatsStore
 
 and workerStatsAPIResult = workerStats
 
-and allTracesAPIResult = {traces : (tlid * traceID) list}
+and allTracesAPIResult = {traces : (TLID.t * traceID) list}
 
 and initialLoadAPIResult =
   { handlers : handler list
@@ -847,7 +845,7 @@ and omniAction =
   | NewCronHandler of string option
   | NewReplHandler of string option
   | NewGroup of string option
-  | Goto of page * tlid * displayText * isDynamic
+  | Goto of page * TLID.t * displayText * isDynamic
 
 and autocompleteItem =
   | ACOmniAction of omniAction
@@ -878,7 +876,7 @@ and autocompleteItem =
   (* Groups *)
   | ACGroupName of string
 
-and target = tlid * blankOrData
+and target = TLID.t * blankOrData
 
 and autocomplete =
   { admin : bool
@@ -953,16 +951,16 @@ and centerPage = bool
 
 and page =
   | Architecture
-  | FocusedFn of tlid
-  | FocusedHandler of tlid * centerPage
-  | FocusedDB of tlid * centerPage
-  | FocusedType of tlid
-  | FocusedGroup of tlid * centerPage
+  | FocusedFn of TLID.t
+  | FocusedHandler of TLID.t * centerPage
+  | FocusedDB of TLID.t * centerPage
+  | FocusedType of TLID.t
+  | FocusedGroup of TLID.t * centerPage
 
 and focus =
   | FocusNothing
-  | FocusExact of tlid * id
-  | FocusNext of tlid * id option
+  | FocusExact of TLID.t * id
+  | FocusNext of TLID.t * id option
   | FocusPageAndCursor of page * cursorState
   | FocusSame
   (* unchanged *)
@@ -1001,7 +999,7 @@ and editorSettings =
   { showFluidDebugger : bool
   ; runTimers : bool }
 
-(* tlidSelectTarget represents a target inside a TLID for use
+(* TLID.tSelectTarget represents a target inside a TLID for use
    by the `Select` modification.
 
    In Fluid, we should probably use STCaret in all cases --
@@ -1036,16 +1034,16 @@ and modification =
   | AddOps of (op list * focus)
   | HandleAPIError of apiError
   | GetUnlockedDBsAPICall
-  | GetWorkerStatsAPICall of tlid
-  | ExecutingFunctionAPICall of tlid * id * string
-  | TriggerHandlerAPICall of tlid
-  | UpdateDBStatsAPICall of tlid
+  | GetWorkerStatsAPICall of TLID.t
+  | ExecutingFunctionAPICall of TLID.t * id * string
+  | TriggerHandlerAPICall of TLID.t
+  | UpdateDBStatsAPICall of TLID.t
   (* End API Calls *)
   | DisplayError of string
   | ClearError
-  | Select of tlid * tlidSelectTarget
-  | SetHover of tlid * id
-  | ClearHover of tlid * id
+  | Select of TLID.t * tlidSelectTarget
+  | SetHover of TLID.t * id
+  | ClearHover of TLID.t * id
   | Deselect
   | RemoveToplevel of toplevel
   | RemoveGroup of toplevel
@@ -1070,18 +1068,18 @@ and modification =
       { viewportStart : vPos
       ; viewportCurr : vPos
       ; prevCursorState : cursorState }
-  | DragTL of tlid * vPos * hasMoved * cursorState
+  | DragTL of TLID.t * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
   | EndIntegrationTest
   | SetPage of page
-  | SetTLTraceID of tlid * traceID
-  | ExecutingFunctionBegan of tlid * id
-  | ExecutingFunctionComplete of (tlid * id) list
+  | SetTLTraceID of TLID.t * traceID
+  | ExecutingFunctionBegan of TLID.t * id
+  | ExecutingFunctionComplete of (TLID.t * id) list
   | MoveCanvasTo of pos * isTransitionAnimated
   | UpdateTraces of traces
   | OverrideTraces of traces
   | UpdateTraceFunctionResult of
-      tlid * traceID * id * fnName * dvalArgsHash * int * dval
+      TLID.t * traceID * id * fnName * dvalArgsHash * int * dval
   | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | Apply of
@@ -1095,10 +1093,10 @@ and modification =
        -> modification)
   | SetTypes of userTipe list * userTipe list * bool
   | SetPermission of permission option
-  | CenterCanvasOn of tlid
+  | CenterCanvasOn of TLID.t
   | InitIntrospect of toplevel list
-  | RefreshUsages of tlid list
-  | FluidCommandsShow of tlid * id
+  | RefreshUsages of TLID.t list
+  | FluidCommandsShow of TLID.t * id
   | FluidCommandsClose
   (* We need to track clicks so that we don't mess with the caret while a
    * click is happening. *)
@@ -1107,15 +1105,15 @@ and modification =
   | UpdateAvatarList of avatar list
   | ExpireAvatars
   | AddGroup of group
-  | AddToGroup of tlid * tlid
-  | UndoGroupDelete of tlid * group
-  | MoveMemberToNewGroup of tlid * tlid * model
+  | AddToGroup of TLID.t * TLID.t
+  | UndoGroupDelete of TLID.t * group
+  | MoveMemberToNewGroup of TLID.t * TLID.t * model
   | ShowSaveToast
   | SetClipboardContents of clipboardContents * clipboardEvent
-  | UpdateASTCache of tlid * string
+  | UpdateASTCache of TLID.t * string
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
-  | TLMenuUpdate of tlid * menuMsg
+  | TLMenuUpdate of TLID.t * menuMsg
   | SettingsViewUpdate of SettingsViewTypes.settingsMsg
 
 (* ------------------- *)
@@ -1135,7 +1133,7 @@ and fluidInputEvent =
   | ReplaceText of string
 
 and fluidMouseUp =
-  { tlid : tlid
+  { tlid : TLID.t
   ; editorId : string option
         (** editorId is the id of the editor that was clicked on, or None if it was
           * the main editor *)
@@ -1151,7 +1149,7 @@ and fluidMsg =
   | FluidInputEvent of fluidInputEvent
   | FluidCut
   | FluidPaste of clipboardContents
-  | FluidMouseDown of tlid
+  | FluidMouseDown of TLID.t
   | FluidMouseUp of fluidMouseUp
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
@@ -1174,13 +1172,13 @@ and msg =
   | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]
   | AppMouseUp of mouseEvent
   | WindowMouseUp of mouseEvent
-  | TLDragRegionMouseDown of tlid * mouseEvent
+  | TLDragRegionMouseDown of TLID.t * mouseEvent
   (* we have the actual node when TLDragRegionMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)
-  | TLDragRegionMouseUp of tlid * mouseEvent
-  | ToplevelDelete of tlid
-  | ToplevelDeleteForever of tlid
-  | DragToplevel of tlid * Tea.Mouse.position [@printer opaque "DragToplevel"]
+  | TLDragRegionMouseUp of TLID.t * mouseEvent
+  | ToplevelDelete of TLID.t
+  | ToplevelDeleteForever of TLID.t
+  | DragToplevel of TLID.t * Tea.Mouse.position [@printer opaque "DragToplevel"]
   | EntryInputMsg of string
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
@@ -1194,7 +1192,7 @@ and msg =
   | GetUnlockedDBsAPICallback of
       (getUnlockedDBsAPIResult, httpError) Tea.Result.t
       [@printer opaque "GetUnlockedDBsAPICallback"]
-  | NewTracePush of (traceID * tlid list)
+  | NewTracePush of (traceID * TLID.t list)
   | New404Push of fourOhFour
   | NewStaticDeployPush of staticDeploy
   | WorkerStatePush of string StrDict.t
@@ -1225,7 +1223,7 @@ and msg =
   | FinishIntegrationTest
   | SaveTestButton
   | ToggleEditorSetting of (editorSettings -> editorSettings)
-  | ExecuteFunctionButton of tlid * id * string
+  | ExecuteFunctionButton of TLID.t * id * string
   | ExecuteFunctionFromWithin of executeFunctionAPIParams
   | CreateHandlerFrom404 of fourOhFour
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
@@ -1234,37 +1232,37 @@ and msg =
   | StartFeatureFlag
   | EndFeatureFlag of id * pick
   | ToggleFeatureFlag of id * bool
-  | DeleteUserFunctionParameter of tlid * userFunctionParameter
-  | AddUserFunctionParameter of tlid
-  | UploadFn of tlid
-  | DeleteUserTypeField of tlid * userRecordField
-  | BlankOrClick of tlid * id * mouseEvent
-  | BlankOrDoubleClick of tlid * id * mouseEvent
-  | BlankOrMouseEnter of tlid * id * mouseEvent
-  | BlankOrMouseLeave of tlid * id * mouseEvent
+  | DeleteUserFunctionParameter of TLID.t * userFunctionParameter
+  | AddUserFunctionParameter of TLID.t
+  | UploadFn of TLID.t
+  | DeleteUserTypeField of TLID.t * userRecordField
+  | BlankOrClick of TLID.t * id * mouseEvent
+  | BlankOrDoubleClick of TLID.t * id * mouseEvent
+  | BlankOrMouseEnter of TLID.t * id * mouseEvent
+  | BlankOrMouseLeave of TLID.t * id * mouseEvent
   | MouseWheel of int * int
-  | TraceClick of tlid * traceID * mouseEvent
-  | TraceMouseEnter of tlid * traceID * mouseEvent
-  | TraceMouseLeave of tlid * traceID * mouseEvent
-  | TriggerHandler of tlid
+  | TraceClick of TLID.t * traceID * mouseEvent
+  | TraceMouseEnter of TLID.t * traceID * mouseEvent
+  | TraceMouseLeave of TLID.t * traceID * mouseEvent
+  | TriggerHandler of TLID.t
   | CreateRouteHandler of omniAction
   | ToggleSideBar
   | CreateFunction
   | ExtractFunction
   | CreateType
-  | DeleteUserFunction of tlid
-  | DeleteUserFunctionForever of tlid
-  | DeleteUserType of tlid
-  | DeleteUserTypeForever of tlid
-  | DeleteGroupForever of tlid
-  | RestoreToplevel of tlid
-  | LockHandler of tlid * bool
+  | DeleteUserFunction of TLID.t
+  | DeleteUserFunctionForever of TLID.t
+  | DeleteUserType of TLID.t
+  | DeleteUserTypeForever of TLID.t
+  | DeleteGroupForever of TLID.t
+  | RestoreToplevel of TLID.t
+  | LockHandler of TLID.t * bool
   | ReceiveAnalysis of performAnalysisResult
   | ReceiveFetch of fetchResult
   | EnablePanning of bool
-  | StartMigration of tlid
-  | AbandonMigration of tlid
-  | DeleteColInDB of tlid * id
+  | StartMigration of TLID.t
+  | AbandonMigration of TLID.t
+  | DeleteColInDB of TLID.t * id
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
   | ClipboardCopyEvent of clipboardEvent
@@ -1272,21 +1270,21 @@ and msg =
   | ClipboardPasteEvent of clipboardEvent
   | ClipboardCopyLivevalue of string * vPos
   | EventDecoderError of string * string * string
-  | UpdateHandlerState of tlid * handlerState
+  | UpdateHandlerState of TLID.t * handlerState
   | CanvasPanAnimationEnd
   | GoTo of page
-  | SetHoveringReferences of tlid * id list
+  | SetHoveringReferences of TLID.t * id list
   | TriggerSendPresenceCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerSendPresenceCallback"]
-  | TakeOffErrorRail of tlid * id
-  | SetHandlerExeIdle of tlid
-  | CopyCurl of tlid * vPos
-  | TLMenuMsg of tlid * menuMsg
+  | TakeOffErrorRail of TLID.t * id
+  | SetHandlerExeIdle of TLID.t
+  | CopyCurl of TLID.t * vPos
+  | TLMenuMsg of TLID.t * menuMsg
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
-  | DeleteGroup of tlid
-  | DragGroupMember of tlid * tlid * mouseEvent
+  | DeleteGroup of TLID.t
+  | DragGroupMember of TLID.t * TLID.t * mouseEvent
   | CreateGroup
   | HideTopbar
   | LogoutOfDark
@@ -1295,7 +1293,7 @@ and msg =
   | RunWorker of string
   | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
       [@printer opaque "UpdateWorkerScheduleCallback"]
-  | NewTabFromTLMenu of string * tlid
+  | NewTabFromTLMenu of string * TLID.t
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
@@ -1499,7 +1497,7 @@ and fluidAutocompleteState =
   ; index : int option
   ; query :
       (* We need to refer back to the previous one *)
-      (tlid * fluidTokenInfo) option
+      (TLID.t * fluidTokenInfo) option
         (* ------------------------------- *)
         (* Cached results *)
         (* ------------------------------- *)
@@ -1510,7 +1508,7 @@ and fluidAutocompleteState =
 and fluidCommandState =
   { index : int
   ; commands : command list
-  ; location : (tlid * id) option
+  ; location : (TLID.t * id) option
   ; filter : string option }
 
 (** editorViewKind represents the type of editorView. This impacts, for
@@ -1570,7 +1568,7 @@ and avatar =
 
 and avatarModelMessage =
   { browserId : string
-  ; tlid : tlid option
+  ; tlid : TLID.t option
   ; canvasName : string
   ; timestamp : float }
 
@@ -1583,7 +1581,7 @@ and model =
   ; builtInFunctions : function_ list
   ; cursorState : cursorState
   ; currentPage : page
-  ; hovering : (tlid * id) list
+  ; hovering : (TLID.t * id) list
   ; groups : group TLIDDict.t
   ; handlers : handler TLIDDict.t
   ; deletedHandlers : handler TLIDDict.t
@@ -1604,7 +1602,7 @@ and model =
       integrationTestState
   ; visibility : PageVisibility.visibility
   ; syncState : syncState
-  ; executingFunctions : (tlid * id) list
+  ; executingFunctions : (TLID.t * id) list
   ; tlTraceIDs : tlTraceIDs (* This is TLID id to traceID map *)
   ; featureFlags : flagsVS
   ; canvasProps : canvasProps
@@ -1622,9 +1620,9 @@ and model =
         (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
    * if myFunc was called in Repl2 at id, then the dict would be:
    *
-   *   { repl2.tlid: { (myFunc.tlid, id) } }
+   *   { repl2.tlid { (myFunc.tlid, id) } }
    *
-   * which you can read as "repl2 refersTo myfunc". So a tlid points to the TLs
+   * which you can read as "repl2 refersTo myfunc". So a TLID.t points to the TLs
    * it uses. *)
   ; tlRefersTo : IDPairSet.t TLIDDict.t
         (* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg

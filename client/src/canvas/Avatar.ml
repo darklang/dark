@@ -1,6 +1,6 @@
 open Prelude
 
-let filterAvatarsByTlid (avatars : avatar list) (tlid : tlid) : avatar list =
+let filterAvatarsByTlid (avatars : avatar list) (tlid : TLID.t) : avatar list =
   avatars
   |> List.filter ~f:(fun (av : Types.avatar) ->
          match av.tlid with
@@ -52,7 +52,7 @@ let avatarDiv (avatar : avatar) : msg Html.html =
     []
 
 
-let viewAvatars (avatars : avatar list) (tlid : tlid) : msg Html.html =
+let viewAvatars (avatars : avatar list) (tlid : TLID.t) : msg Html.html =
   let avList = filterAvatarsByTlid avatars tlid in
   let renderAvatar (a : avatar) = avatarDiv a in
   let avatars = List.map ~f:renderAvatar avList in
