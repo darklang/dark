@@ -440,6 +440,28 @@ let t_http_request_redirects () =
           (Uri.of_string "http://test.builtwithdark.com/test")))
 
 
+let t_is_canvas_name_valid () =
+  let is_valid valid name =
+    AT.check
+      AT.bool
+      (name ^ " " ^ if valid then "passes" else "fails")
+      valid
+      (Webserver.is_canvas_name_valid name)
+  in
+  "demo-hello" |> is_valid true ;
+  "demo-" |> is_valid false ;
+  "demo--" |> is_valid false ;
+  "demo" |> is_valid true ;
+  "demo-hello-world" |> is_valid true ;
+  "demo-hello_world" |> is_valid true ;
+  "demo-hello world" |> is_valid false ;
+  "-demo" |> is_valid false ;
+  "demo-(^@^)" |> is_valid false ;
+  "demo-a_a" |> is_valid true ;
+  "demo-9" |> is_valid true ;
+  ()
+
+
 let suite =
   [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
   ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
@@ -456,4 +478,5 @@ let suite =
     , `Quick
     , t_head_and_get_requests_are_coalesced )
   ; ("canonicalizing requests works", `Quick, t_canonicalize_maintains_schemes)
-  ; ("http requests redirect", `Quick, t_http_request_redirects) ]
+  ; ("http requests redirect", `Quick, t_http_request_redirects)
+  ; ("canvas name validator works", `Quick, t_is_canvas_name_valid) ]
