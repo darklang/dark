@@ -1631,7 +1631,7 @@ let admin_ui_handler
       respond
         ~execution_id
         `Bad_request
-        "Your canvas name must:\n - Start and end with an alphanumeric character\n - May contain a dash or understore only if it is between two alpahnumeric charcters"
+        "Your canvas name must:\n - Consist of lowercase alphanumeric characters, '-', and '_'\n - Start and end with an alphanumeric character (no initial/final '-' or '_')"
   | _ ->
       respond ~execution_id `Not_found "Not found"
 
