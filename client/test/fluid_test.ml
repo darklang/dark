@@ -3116,6 +3116,11 @@ let run () =
         (ins "," 3)
         "[56,~___]" ;
       t
+        "insert separator after item creates blank when list is in match"
+        (match' single [(pBlank (), b)])
+        (ins "," 9)
+        "match [56,~___]\n  *** -> ___\n" ;
+      t
         "insert separator between items creates blank"
         multi
         (ins "," 3)

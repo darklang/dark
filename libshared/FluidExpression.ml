@@ -200,8 +200,8 @@ let findParent (target : id) (expr : t) : t option =
           List.findMap ~f:fp [lexpr; rexpr]
       | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
           fp expr
-      | EMatch (_, _, pairs) ->
-          pairs |> List.map ~f:Tuple2.second |> List.findMap ~f:fp
+      | EMatch (_, expr, pairs) ->
+          expr :: (pairs |> List.map ~f:Tuple2.second) |> List.findMap ~f:fp
       | ERecord (_, fields) ->
           fields |> List.map ~f:Tuple2.second |> List.findMap ~f:fp
       | EFnCall (_, _, exprs, _)
