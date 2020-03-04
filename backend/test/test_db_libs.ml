@@ -304,6 +304,54 @@ let t_db_queryOne_works () =
     (exec_handler ~ops ast)
 
 
+let t_db_queryOne_supports_Date_comparison () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDB (dbid, pos, "MyDB")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid)
+    ; Op.SetDBColName (dbid, colnameid, "ts")
+    ; Op.SetDBColType (dbid, coltypeid, "Date") ]
+  in
+  let after = "2100-01-01T00:00:00Z" in
+  let before = "1900-01-01T00:00:00Z" in
+  let middle = "2000-01-01T00:00:00Z" in
+  (* The Result::map_v1 and Option::andThen calls are necessary because
+   * Date::parse_v2 returns a Result, and exec_handler doesn't leave those on
+   * the rail. *)
+  let ast op =
+    Printf.sprintf
+      "(let _ (Result::map_v1 (Date::parse_v2 '%s') (\\date -> (DB::set_v1 (obj (ts date)) 'before' MyDB)))
+       (let _ (Result::map_v1 (Date::parse_v2 '%s') (\\date -> (DB::set_v1 (obj (ts date)) 'after' MyDB)))
+       (let middle (Date::parse_v2 '%s')
+       (Option::andThen (Result::toOption middle) (\\middle -> (DB::queryOne_v3 MyDB (\\value -> (%s middle (. value ts))))))))) "
+      before
+      after
+      middle
+      op
+  in
+  let expected (date : string) : dval =
+    DOption
+      (OptJust
+         (DObj (DvalMap.singleton "ts" (DDate (date |> Util.date_of_isostring)))))
+  in
+  check_dval
+    "Date::< middle ts.value gets us the after date"
+    (expected after)
+    (exec_handler ~ops (ast "Date::<")) ;
+  check_dval
+    "Date::> middle ts.value gets us the before date"
+    (expected before)
+    (exec_handler ~ops (ast "Date::>")) ;
+  check_dval
+    "Date::lessThan middle ts.value gets us the after date"
+    (expected after)
+    (exec_handler ~ops (ast "Date::lessThan")) ;
+  check_dval
+    "Date::greaterThan middle ts.value gets us the before date"
+    (expected before)
+    (exec_handler ~ops (ast "Date::greaterThan"))
+
+
 let t_db_queryOne_returns_nothing_if_none () =
   clear_test_data () ;
   let ops =
@@ -995,6 +1043,9 @@ let suite =
     , t_db_queryWithKey_works_with_many )
   ; ("DB::get_v1 returns Nothing if not found", `Quick, t_db_get_returns_nothing)
   ; ("DB::queryOne returns Some obj if found", `Quick, t_db_queryOne_works)
+  ; ( "DB::queryOne_v3 supports Date:: comparison"
+    , `Quick
+    , t_db_queryOne_supports_Date_comparison )
   ; ( "DB::queryOne returns Nothing if not found"
     , `Quick
     , t_db_queryOne_returns_nothing_if_none )
