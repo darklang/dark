@@ -67,8 +67,6 @@ let defaultToplevel =
     ; pos = Defaults.origin }
 
 
-let defaultDval = DNull
-
 let defaultTokenInfo =
   { startRow = 0
   ; startCol = 0
@@ -157,34 +155,6 @@ let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) () :
   ; oldMigrations = []
   ; activeMigration = None
   ; pos = {x = 0; y = 0} }
-
-
-let enteringFunction
-    ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
-    model =
-  defaultModel
-    ~dbs
-    ~handlers
-    ~userTipes
-    ~userFunctions:(aFunction () :: userFunctions)
-    ()
-
-
-let enteringDBField
-    ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
-    model =
-  defaultModel ~dbs:([aDB ()] @ dbs) ~handlers ~userTipes ~userFunctions ()
-
-
-let enteringDBType
-    ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
-    model =
-  defaultModel
-    ~dbs:([aDB ~fieldid:defaultID2 ~typeid:defaultID ()] @ dbs)
-    ~handlers
-    ~userTipes
-    ~userFunctions
-    ()
 
 
 let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
