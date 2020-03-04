@@ -477,6 +477,7 @@ let save_toplevel_oplist
     ~(account_id : Uuidm.t)
     ~tipe
     ~(deleted : bool option)
+    ~(pos : Types.pos option)
     ~(name : string option)
     ~(module_ : string option)
     ~(modifier : string option)
@@ -491,11 +492,18 @@ let save_toplevel_oplist
     match o with Some boolean -> Db.Bool boolean | None -> Db.Null
   in
   let tipe_str = Toplevel.tl_tipe_to_string tipe in
+  let pos_option pos =
+    match pos with
+    | Some pos ->
+        Db.String (pos |> Types.pos_to_yojson |> Yojson.Safe.to_string)
+    | None ->
+        Db.Null
+  in
   Db.run
     ~name:"save per tlid oplist"
     "INSERT INTO toplevel_oplists
-    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache, deleted)
-    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10, $11)
+    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache, deleted, pos)
+    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10, $11, $12)
     ON CONFLICT (canvas_id, tlid) DO UPDATE
     SET account_id = $2,
         digest = $4,
@@ -505,7 +513,8 @@ let save_toplevel_oplist
         modifier = $8,
         data = $9,
         rendered_oplist_cache = $10,
-        deleted = $11;
+        deleted = $11,
+        pos = $12;
         "
     ~params:
       [ Uuid canvas_id
@@ -518,7 +527,8 @@ let save_toplevel_oplist
       ; string_option modifier
       ; Binary (Op.oplist_to_string ops)
       ; binary_option binary_repr
-      ; bool_option deleted ]
+      ; bool_option deleted
+      ; pos_option pos ]
 
 
 (* ------------------------- *)
