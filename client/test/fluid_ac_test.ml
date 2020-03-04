@@ -427,6 +427,15 @@ let run () =
               expect (List.filter invalid ~f:isVariable)
               |> toEqual [FACVariable ("MyDB", Some (DDB "MyDB"))]) ;
           (* test "Only Just and Nothing are allowed in Option-blank" (fun () -> *)
+          test "Constructors are available in Any expression" (fun () ->
+              let m = enteringHandler () in
+              let valid, _invalid = filterFor m ~pos:0 in
+              expect (List.filter valid ~f:isConstructor)
+              |> toEqual
+                   [ FACConstructorName ("Just", 1)
+                   ; FACConstructorName ("Nothing", 0)
+                   ; FACConstructorName ("Ok", 1)
+                   ; FACConstructorName ("Error", 1) ]) ;
           (*     let expr = fn ~ster:NoRail "Option::withDefault" [b] in *)
           (*     let handler = aHandler ~expr () in *)
           (*     let m = defaultModel ~handlers:[handler] () in *)
@@ -444,18 +453,6 @@ let run () =
           (*     |> toEqual *)
           (*          [ FACConstructorName ("Ok", 1) *)
           (*          ; FACConstructorName ("Error", 1) ]) ; *)
-          test "Constructors are also available in Any expression" (fun () ->
-              let m = enteringHandler () in
-              let ac = acFor m in
-              let valid, _invalid =
-                AC.filter m ac consFAC (defaultFullQuery m "")
-              in
-              expect valid
-              |> toEqual
-                   [ FACConstructorName ("Just", 1)
-                   ; FACConstructorName ("Nothing", 0)
-                   ; FACConstructorName ("Ok", 1)
-                   ; FACConstructorName ("Error", 1) ]) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
               let tlid = TLID "789" in
               let mID = ID "1234" in
