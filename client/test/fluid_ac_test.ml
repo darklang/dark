@@ -100,11 +100,17 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
 (* Sets the model with the appropriate toplevels *)
 let defaultModel
     ?(tlid = defaultTLID)
+    ?(analyses = [])
     ?(dbs = [])
     ?(handlers = [])
     ?(userFunctions = [])
     ?(userTipes = [])
     () : model =
+  let analyses =
+    analyses
+    |> List.map ~f:(fun (ID id, value) -> (id, ExecutedResult value))
+    |> StrDict.fromList
+  in
   let default = Fluid_test_data.defaultTestModel in
   { default with
     handlers = Handlers.fromList handlers
@@ -113,18 +119,11 @@ let defaultModel
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState = FluidEntering tlid
   ; builtInFunctions = sampleFunctions
+  ; fluidState =
+      { default.fluidState with
+        ac = {default.fluidState.ac with functions = sampleFunctions} }
   ; analyses =
-      StrDict.singleton
-        ~key:defaultTraceID
-        ~value:
-          (LoadableSuccess
-             (StrDict.singleton
-                ~key:"12"
-                ~value:
-                  (ExecutedResult
-                     (DObj
-                        (StrDict.fromList [("title", DNull); ("author", DNull)])))))
-  }
+      StrDict.singleton ~key:defaultTraceID ~value:(LoadableSuccess analyses) }
 
 
 let aHandler
