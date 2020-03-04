@@ -97,35 +97,6 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
   (tl, ti, None, query)
 
 
-(* Sets the model with the appropriate toplevels *)
-let defaultModel
-    ?(tlid = defaultTLID)
-    ?(analyses = [])
-    ?(dbs = [])
-    ?(handlers = [])
-    ?(userFunctions = [])
-    ?(userTipes = [])
-    () : model =
-  let analyses =
-    analyses
-    |> List.map ~f:(fun (ID id, value) -> (id, ExecutedResult value))
-    |> StrDict.fromList
-  in
-  let default = Fluid_test_data.defaultTestModel in
-  { default with
-    handlers = Handlers.fromList handlers
-  ; dbs = DB.fromList dbs
-  ; userFunctions = UserFunctions.fromList userFunctions
-  ; userTipes = UserTypes.fromList userTipes
-  ; cursorState = FluidEntering tlid
-  ; builtInFunctions = sampleFunctions
-  ; fluidState =
-      { default.fluidState with
-        ac = {default.fluidState.ac with functions = sampleFunctions} }
-  ; analyses =
-      StrDict.singleton ~key:defaultTraceID ~value:(LoadableSuccess analyses) }
-
-
 let aHandler
     ?(tlid = defaultTLID)
     ?(expr = defaultExpr)
@@ -158,9 +129,34 @@ let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) () :
   ; pos = {x = 0; y = 0} }
 
 
-let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
-    model =
-  defaultModel ~handlers:[aHandler ~space ~expr ()] ()
+(* Sets the model with the appropriate toplevels *)
+let defaultModel
+    ?(tlid = defaultTLID)
+    ?(analyses = [])
+    ?(dbs = [])
+    ?(expr = defaultExpr)
+    ?(handlers = [aHandler ~expr ()])
+    ?(userFunctions = [])
+    ?(userTipes = [])
+    () : model =
+  let analyses =
+    analyses
+    |> List.map ~f:(fun (ID id, value) -> (id, ExecutedResult value))
+    |> StrDict.fromList
+  in
+  let default = Fluid_test_data.defaultTestModel in
+  { default with
+    handlers = Handlers.fromList handlers
+  ; dbs = DB.fromList dbs
+  ; userFunctions = UserFunctions.fromList userFunctions
+  ; userTipes = UserTypes.fromList userTipes
+  ; cursorState = FluidEntering tlid
+  ; builtInFunctions = sampleFunctions
+  ; fluidState =
+      { default.fluidState with
+        ac = {default.fluidState.ac with functions = sampleFunctions} }
+  ; analyses =
+      StrDict.singleton ~key:defaultTraceID ~value:(LoadableSuccess analyses) }
 
 
 (* AC targeting a tlid and pointer *)
@@ -188,7 +184,7 @@ let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
 let run () =
   describe "autocomplete" (fun () ->
       describe "queryWhenEntering" (fun () ->
-          let m = enteringHandler () in
+          let m = defaultModel () in
           let acForQueries (qs : string list) =
             List.foldl qs ~init:(acFor m) ~f:(setQuery m)
             |> (fun x -> x.completions)
@@ -360,7 +356,7 @@ let run () =
               |> toEqual (Some (FACKeyword KLambda))) ;
           test "http handlers have request" (fun () ->
               let space = Some "HTTP" in
-              let m = enteringHandler ~space () in
+              let m = defaultModel ~handlers:[aHandler ~space ()] () in
               expect
                 ( acFor m
                 |> setQuery m "request"
@@ -428,7 +424,7 @@ let run () =
               |> toEqual [FACVariable ("MyDB", Some (DDB "MyDB"))]) ;
           (* test "Only Just and Nothing are allowed in Option-blank" (fun () -> *)
           test "Constructors are available in Any expression" (fun () ->
-              let m = enteringHandler () in
+              let m = defaultModel () in
               let valid, _invalid = filterFor m ~pos:0 in
               expect (List.filter valid ~f:isConstructor)
               |> toEqual
