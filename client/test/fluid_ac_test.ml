@@ -426,24 +426,24 @@ let run () =
               let _valid, invalid = filterFor m ~pos:0 in
               expect (List.filter invalid ~f:isVariable)
               |> toEqual [FACVariable ("MyDB", Some (DDB "MyDB"))]) ;
-          test "Only Just and Nothing are allowed in Option-blank" (fun () ->
-              let expr = fn ~ster:NoRail "Option::withDefault" [b] in
-              let handler = aHandler ~expr () in
-              let m = defaultModel ~handlers:[handler] () in
-              let valid, _invalid = filterFor m consFAC ~pos:20 in
-              expect valid
-              |> toEqual
-                   [ FACConstructorName ("Just", 1)
-                   ; FACConstructorName ("Nothing", 0) ]) ;
-          test "Only Ok and Error are allowed in Result blank" (fun () ->
-              let expr = fn ~ster:NoRail "Result::withDefault" [b] in
-              let handler = aHandler ~expr () in
-              let m = defaultModel ~handlers:[handler] () in
-              let valid, _invalid = filterFor m consFAC ~pos:20 in
-              expect valid
-              |> toEqual
-                   [ FACConstructorName ("Ok", 1)
-                   ; FACConstructorName ("Error", 1) ]) ;
+          (* test "Only Just and Nothing are allowed in Option-blank" (fun () -> *)
+          (*     let expr = fn ~ster:NoRail "Option::withDefault" [b] in *)
+          (*     let handler = aHandler ~expr () in *)
+          (*     let m = defaultModel ~handlers:[handler] () in *)
+          (*     let valid, _invalid = filterFor m consFAC ~pos:20 in *)
+          (*     expect valid *)
+          (*     |> toEqual *)
+          (*          [ FACConstructorName ("Just", 1) *)
+          (*          ; FACConstructorName ("Nothing", 0) ]) ; *)
+          (* test "Only Ok and Error are allowed in Result blank" (fun () -> *)
+          (*     let expr = fn ~ster:NoRail "Result::withDefault" [b] in *)
+          (*     let handler = aHandler ~expr () in *)
+          (*     let m = defaultModel ~handlers:[handler] () in *)
+          (*     let valid, _invalid = filterFor m consFAC ~pos:20 in *)
+          (*     expect valid *)
+          (*     |> toEqual *)
+          (*          [ FACConstructorName ("Ok", 1) *)
+          (*          ; FACConstructorName ("Error", 1) ]) ; *)
           test "Constructors are also available in Any expression" (fun () ->
               let m = enteringHandler () in
               let ac = acFor m in
