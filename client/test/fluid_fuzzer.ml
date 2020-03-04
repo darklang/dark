@@ -217,7 +217,7 @@ end
 (* Test case reduction *)
 (* ------------------ *)
 
-let unwrap (id : id) (ast : E.t) : E.t =
+let unwrap (id : ID.t) (ast : E.t) : E.t =
   let childOr (exprs : E.t list) =
     List.find exprs ~f:(fun e -> E.toID e = id)
   in
@@ -258,7 +258,7 @@ let unwrap (id : id) (ast : E.t) : E.t =
       Option.withDefault ~default:e newExpr)
 
 
-let changeStrings (id : id) ~(f : string -> string) (ast : E.t) : E.t =
+let changeStrings (id : ID.t) ~(f : string -> string) (ast : E.t) : E.t =
   let fStr strid str = if strid = id then f str else str in
   E.postTraversal ast ~f:(function
       | ELet (id, name, rhs, next) ->
@@ -296,15 +296,15 @@ let changeStrings (id : id) ~(f : string -> string) (ast : E.t) : E.t =
           expr)
 
 
-let blankVarNames (id : id) (expr : E.t) : E.t =
+let blankVarNames (id : ID.t) (expr : E.t) : E.t =
   changeStrings ~f:(fun _ -> "") id expr
 
 
-let shortenNames (id : id) (expr : E.t) : E.t =
+let shortenNames (id : ID.t) (expr : E.t) : E.t =
   changeStrings ~f:(String.dropRight ~count:1) id expr
 
 
-let remove (id : id) (ast : E.t) : E.t =
+let remove (id : ID.t) (ast : E.t) : E.t =
   let removeFromList exprs = List.filter exprs ~f:(fun e -> E.toID e <> id) in
   E.postTraversal ast ~f:(function
       | e when E.toID e = id ->
@@ -353,7 +353,7 @@ let remove (id : id) (ast : E.t) : E.t =
           expr)
 
 
-let simplify (id : id) (ast : E.t) : E.t =
+let simplify (id : ID.t) (ast : E.t) : E.t =
   E.update id ast ~f:(function EBlank e -> EBlank e | _ -> EInteger (id, "5"))
 
 

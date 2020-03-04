@@ -8,13 +8,13 @@ type htmlConfig =
   (* Add this class (can be done multiple times) *)
   | WithClass of string
   (* when you click this node, select this pointer *)
-  | ClickSelectAs of id
+  | ClickSelectAs of ID.t
   | ClickSelect
   (* highlight this node as if it were ID *)
-  | MouseoverAs of id
+  | MouseoverAs of ID.t
   | Mouseover
   (* use this as ID for Mouseover, ClickSelect *)
-  | WithID of id
+  | WithID of ID.t
   (* editable *)
   | Enterable
   (* Adds param name to the left *)

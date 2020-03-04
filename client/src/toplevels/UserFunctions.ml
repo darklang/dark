@@ -217,7 +217,7 @@ let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
   {uf with ufMetadata = newM}
 
 
-let idOfLastBlankor (f : userFunction) : id =
+let idOfLastBlankor (f : userFunction) : ID.t =
   List.last f.ufMetadata.ufmParameters
   |> Option.andThen ~f:(fun p -> Some (B.toID p.ufpTipe))
   |> Option.withDefault ~default:(B.toID f.ufMetadata.ufmName)

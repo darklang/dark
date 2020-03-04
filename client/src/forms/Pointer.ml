@@ -68,7 +68,7 @@ let emptyD (pt : blankOrType) : blankOrData =
       PGroupName (Blank id)
 
 
-let toID (pd : blankOrData) : id =
+let toID (pd : blankOrData) : ID.t =
   match pd with
   | PEventModifier d ->
       B.toID d

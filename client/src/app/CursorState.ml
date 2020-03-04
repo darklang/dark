@@ -28,7 +28,7 @@ let tlidOf (s : cursorState) : TLID.t option =
       None
 
 
-let idOf (s : cursorState) : id option =
+let idOf (s : cursorState) : ID.t option =
   match unwrap s with
   | Selecting (_, id) ->
       id

@@ -210,7 +210,7 @@ let blankOrData (tl : toplevel) : blankOrData list =
       Groups.blankOrData g
 
 
-let isValidBlankOrID (tl : toplevel) (id : id) : bool =
+let isValidBlankOrID (tl : toplevel) (id : ID.t) : bool =
   List.member ~value:id (tl |> blankOrData |> List.map ~f:P.toID)
 
 
@@ -336,7 +336,7 @@ let structural (m : model) : toplevel TD.t =
 
 let get (m : model) (tlid : TLID.t) : toplevel option = TD.get ~tlid (all m)
 
-let find (tl : toplevel) (id_ : id) : blankOrData option =
+let find (tl : toplevel) (id_ : ID.t) : blankOrData option =
   blankOrData tl
   |> List.filter ~f:(fun d -> id_ = P.toID d)
   |> assertFn
@@ -347,11 +347,11 @@ let find (tl : toplevel) (id_ : id) : blankOrData option =
   |> List.head
 
 
-let getPD (m : model) (tlid : TLID.t) (id : id) : blankOrData option =
+let getPD (m : model) (tlid : TLID.t) (id : ID.t) : blankOrData option =
   get m tlid |> Option.andThen ~f:(fun tl -> find tl id)
 
 
-let getTLAndPD (m : model) (tlid : TLID.t) (id : id) :
+let getTLAndPD (m : model) (tlid : TLID.t) (id : ID.t) :
     (toplevel * blankOrData option) option =
   get m tlid |> Option.map ~f:(fun tl -> (tl, find tl id))
 
@@ -394,11 +394,11 @@ let setSelectedAST (m : model) (ast : FluidAST.t) : modification =
 (* Blanks *)
 (* ------------------------- *)
 
-type predecessor = id option
+type predecessor = ID.t option
 
-type successor = id option
+type successor = ID.t option
 
-let allBlanks (tl : toplevel) : id list =
+let allBlanks (tl : toplevel) : ID.t list =
   (tl |> blankOrData |> List.filter ~f:P.isBlank |> List.map ~f:P.toID)
   @ ( tl
     |> getAST
@@ -407,7 +407,7 @@ let allBlanks (tl : toplevel) : id list =
     |> List.map ~f:FluidExpression.toID )
 
 
-let allIDs (tl : toplevel) : id list =
+let allIDs (tl : toplevel) : ID.t list =
   (tl |> blankOrData |> List.map ~f:P.toID)
   @ ( tl
     |> getAST
@@ -419,7 +419,7 @@ let firstBlank (tl : toplevel) : successor = tl |> allBlanks |> List.head
 
 let lastBlank (tl : toplevel) : successor = tl |> allBlanks |> List.last
 
-let getNextBlank (tl : toplevel) (id : id) : successor =
+let getNextBlank (tl : toplevel) (id : ID.t) : successor =
   let all = allIDs tl in
   let index =
     List.elemIndex ~value:id all |> Option.withDefault ~default:(-1)
@@ -431,7 +431,7 @@ let getNextBlank (tl : toplevel) (id : id) : successor =
   |> Option.orElse (firstBlank tl)
 
 
-let getPrevBlank (tl : toplevel) (id : id) : predecessor =
+let getPrevBlank (tl : toplevel) (id : ID.t) : predecessor =
   let all = allIDs tl in
   let index =
     List.elemIndex ~value:id all

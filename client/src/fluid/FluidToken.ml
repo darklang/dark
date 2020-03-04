@@ -4,9 +4,9 @@ type t = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
-let fakeid : id = ID "fake-id"
+let fakeid = ID.fromString "fake-id"
 
-let tid (t : t) : id =
+let tid (t : t) : ID.t =
   match t with
   | TInteger (id, _)
   | TFloatWhole (id, _)
@@ -74,7 +74,7 @@ let tid (t : t) : id =
       fakeid
 
 
-let analysisID (t : t) : id =
+let analysisID (t : t) : ID.t =
   match t with
   | TLetVarName (_, id, _)
   | TLetKeyword (_, id)
@@ -88,7 +88,7 @@ let analysisID (t : t) : id =
       tid t
 
 
-let parentExprID (t : t) : id =
+let parentExprID (t : t) : ID.t =
   match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
 
 
@@ -453,7 +453,7 @@ let toIndex (t : t) : int option =
       None
 
 
-let toParentID (t : t) : id option =
+let toParentID (t : t) : ID.t option =
   match t with
   | TRecordFieldname {recordID = id; _}
   | TPatternBlank (id, _, _)

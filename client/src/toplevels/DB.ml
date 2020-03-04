@@ -48,7 +48,7 @@ let isLocked (m : model) (tlid : TLID.t) : bool =
   not (StrSet.has ~value:(TLID.toString tlid) m.unlockedDBs)
 
 
-let isMigrationCol (db : db) (id : id) : bool =
+let isMigrationCol (db : db) (id : ID.t) : bool =
   match db.activeMigration with
   | Some schema ->
       let inCols =

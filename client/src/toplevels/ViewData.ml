@@ -113,7 +113,7 @@ let viewTrace
   Html.li props (dotHtml @ [viewData])
 
 
-let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
+let viewTraces (vs : ViewUtils.viewState) (astID : ID.t) : msg Html.html list =
   let traceToHtml ((traceID, traceData) : trace) =
     let value =
       Option.map ~f:(fun td -> td.input) (traceData |> Result.to_option)
