@@ -1068,9 +1068,26 @@ let update_ (msg : msg) (m : model) : modification =
           if distSquared viewportStart viewportCurr
              <= maxSquareDistToConsiderAsClick
           then
+            (* Note: the "obvious" thing to do here is to use CursorState.setCursorState
+             * instead of this custom modification. However, setCursorState also
+             * fires a focus command, which might focus something that doesn't
+             * exist in the DOM post-rendering the model (commands are executed post-render).
+             *
+             * An example of where this would break down with setCursorState:
+             * if we have the omnibox open, setting the cursor state while panning would
+             * refocus the omnibox and promptly deselect it, but because rendering
+             * happens before commands, the model with the omnibox deselected would render,
+             * and then the focus command would error due to the omnibox no longer existing.
+             *
+             * The following hack bypasses this issue until we can modify the command generation
+             * for things like setCursorState to happen with the latest version of the model
+             * rather than the way we do it now, where commands may be invalid due to incremental model
+             * changes.
+             *)
             Many
               ( ReplaceAllModificationsWithThisOne
-                  (CursorState.setCursorState prevCursorState)
+                  (fun m ->
+                    ({m with cursorState = prevCursorState}, Tea.Cmd.none))
               :: clickBehavior )
           else
             ReplaceAllModificationsWithThisOne
