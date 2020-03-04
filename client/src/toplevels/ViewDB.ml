@@ -128,7 +128,11 @@ let viewDBCol
       Html.div
         [ Html.class' "delete-col"
         ; ViewUtils.eventNoPropagation
-            ~key:("dcidb-" ^ TLID.toString tlid ^ "-" ^ (n |> B.toID |> showID))
+            ~key:
+              ( "dcidb-"
+              ^ TLID.toString tlid
+              ^ "-"
+              ^ (n |> B.toID |> ID.toString) )
             "click"
             (fun _ -> DeleteColInDB (tlid, B.toID n)) ]
         [fontAwesome "minus-circle"]

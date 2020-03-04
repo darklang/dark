@@ -245,7 +245,7 @@ let freeVariables (ast : E.t) : (id * string) list =
            | _ ->
                None)
     |> List.concat
-    |> List.map ~f:(E.toID >> deID)
+    |> List.map ~f:(E.toID >> ID.toString)
     |> StrSet.fromList
   in
   ast
@@ -253,7 +253,7 @@ let freeVariables (ast : E.t) : (id * string) list =
          | EVariable (id, name) ->
              (* Don't include EVariable lookups that we know are looking
               * up a variable bound in this expression *)
-             if StrSet.member ~value:(deID id) definedAndUsed
+             if StrSet.member ~value:(ID.toString id) definedAndUsed
              then None
              else Some (id, name)
          | _ ->
@@ -352,7 +352,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
  * Each symbol table maps from every available variable name to the id of the corresponding value expression bound to that name. *)
 let variablesIn (ast : E.t) : avDict =
   let sym_store = IDTable.make () in
-  let trace expr st = IDTable.set sym_store (deID (E.toID expr)) st in
+  let trace expr st = IDTable.set sym_store (ID.toString (E.toID expr)) st in
   sym_exec ~trace VarDict.empty ast ;
   sym_store |> IDTable.toList |> StrDict.fromList
 

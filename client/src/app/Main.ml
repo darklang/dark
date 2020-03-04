@@ -1217,7 +1217,7 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrClick (targetExnID, targetID, event) ->
       let select id =
         let offset =
-          Native.OffsetEstimator.estimateClickOffset (showID id) event
+          Native.OffsetEstimator.estimateClickOffset (ID.toString id) event
         in
         (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
          * as double clicks to automatically enter them. *)
@@ -1247,7 +1247,7 @@ let update_ (msg : msg) (m : model) : modification =
           select targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       let offset =
-        Native.OffsetEstimator.estimateClickOffset (showID targetID) event
+        Native.OffsetEstimator.estimateClickOffset (ID.toString targetID) event
       in
       Selection.dblclick m targetExnID targetID offset
   | ExecuteFunctionButton (tlid, id, name) ->

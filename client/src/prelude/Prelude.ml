@@ -44,17 +44,13 @@ module Json = struct
   module Encode = Json_encode_extended
 end
 
-(* -------------------------- *)
-(* Legacy ID Related Aliasaes *)
-(* -------------------------- *)
-
-let deID = ID.toString
-
-let showID = ID.toString
+(* --- *)
+(* IDs *)
+(* --- *)
 
 let gid = Shared.gid
 
-let gtlid () : TLID.t = TLID.fromString (Util.random () |> string_of_int)
+let gtlid () : TLID.t = Util.random () |> string_of_int |> TLID.fromString
 
 (* -------------------------------------- *)
 (* CursorState *)

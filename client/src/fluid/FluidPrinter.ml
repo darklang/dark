@@ -558,7 +558,9 @@ let eToStructure ?(includeIDs = false) (e : E.t) : string =
   |> List.map ~f:(fun ti ->
          "<"
          ^ T.toTypeName ti.token
-         ^ (if includeIDs then "(" ^ (T.tid ti.token |> deID) ^ ")" else "")
+         ^ ( if includeIDs
+           then "(" ^ (T.tid ti.token |> ID.toString) ^ ")"
+           else "" )
          ^ ":"
          ^ T.toText ti.token
          ^ ">")
