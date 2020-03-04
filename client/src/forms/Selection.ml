@@ -10,7 +10,7 @@ module TL = Toplevel
 (* These used to have keyboard shortcuts to move between traces. When we
  * reintroduce shortcuts, it would likely be nice to have them again. *)
 (* ------------------------------- *)
-let moveToOlderTrace (m : model) (tlid : tlid) : modification =
+let moveToOlderTrace (m : model) (tlid : TLID.t) : modification =
   let traceIDs = Analysis.getTraces m tlid |> List.map ~f:Tuple2.first in
   let traceID =
     match Analysis.getSelectedTraceID m tlid with
@@ -24,7 +24,7 @@ let moveToOlderTrace (m : model) (tlid : tlid) : modification =
   |> Option.withDefault ~default:NoChange
 
 
-let moveToNewerTrace (m : model) (tlid : tlid) : modification =
+let moveToNewerTrace (m : model) (tlid : TLID.t) : modification =
   let traceIDs = Analysis.getTraces m tlid |> List.map ~f:Tuple2.first in
   let traceID =
     match Analysis.getSelectedTraceID m tlid with
@@ -67,8 +67,8 @@ let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
       NoChange
 
 
-let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
-    modification =
+let enterWithOffset (m : model) (tlid : TLID.t) (id : id) (offset : int option)
+    : modification =
   match TL.get m tlid with
   | Some (TLDB db as tl) ->
       enterDB m db tl id
@@ -89,11 +89,11 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
       recover "Entering invalid tl" ~debug:(tlid, id) NoChange
 
 
-let enter (m : model) (tlid : tlid) (id : id) : modification =
+let enter (m : model) (tlid : TLID.t) (id : id) : modification =
   enterWithOffset m tlid id None
 
 
-let dblclick (m : model) (tlid : tlid) (id : id) (offset : int option) :
+let dblclick (m : model) (tlid : TLID.t) (id : id) (offset : int option) :
     modification =
   enterWithOffset m tlid id offset
 
@@ -123,7 +123,7 @@ let maybeEnterFluid
       else fluidEnteringMod tlid
 
 
-let enterNextBlank (m : model) (tlid : tlid) (cur : id) : modification =
+let enterNextBlank (m : model) (tlid : TLID.t) (cur : id) : modification =
   match TL.get m tlid with
   | None ->
       recover "entering no TL" ~debug:(tlid, cur) NoChange
@@ -137,7 +137,7 @@ let enterNextBlank (m : model) (tlid : tlid) (cur : id) : modification =
       maybeEnterFluid ~nonFluidCursorMod:target tl nextBlank
 
 
-let enterPrevBlank (m : model) (tlid : tlid) (cur : id) : modification =
+let enterPrevBlank (m : model) (tlid : TLID.t) (cur : id) : modification =
   match TL.get m tlid with
   | None ->
       recover "entering no TL" ~debug:(tlid, cur) NoChange

@@ -13,7 +13,7 @@ let upsert (m : model) (h : handler) : model =
   {m with handlers = TD.insert ~tlid:h.hTLID ~value:h m.handlers}
 
 
-let update (m : model) ~(tlid : tlid) ~(f : handler -> handler) : model =
+let update (m : model) ~(tlid : TLID.t) ~(f : handler -> handler) : model =
   {m with handlers = TD.updateIfPresent ~tlid ~f m.handlers}
 
 
@@ -29,7 +29,7 @@ let getWorkerSchedule (m : model) (h : handler) : string option =
       None
 
 
-let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
+let setHandlerLock (tlid : TLID.t) (lock : bool) (m : model) : model =
   let updateProps prop =
     match prop with
     | Some p ->
@@ -41,7 +41,7 @@ let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
   {m with handlerProps = props}
 
 
-let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
+let setHandlerState (tlid : TLID.t) (state : handlerState) (m : model) : model =
   let updateProps prop =
     match prop with
     | Some p ->

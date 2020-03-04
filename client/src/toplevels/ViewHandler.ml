@@ -211,7 +211,8 @@ let viewEventSpec
     [viewType; viewEventName; viewActions]
 
 
-let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list =
+let handlerAttrs (tlid : TLID.t) (state : handlerState) : msg Vdom.property list
+    =
   let sid = showTLID tlid in
   let codeHeight id =
     let e =

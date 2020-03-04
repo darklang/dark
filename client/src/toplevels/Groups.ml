@@ -15,7 +15,7 @@ let remove (m : model) (g : group) : model =
 
 
 (* Temporary to check if tlid is a deletedGroup *)
-let isFromDeletedGroup (m : model) (tlid : tlid) : group option =
+let isFromDeletedGroup (m : model) (tlid : TLID.t) : group option =
   TD.get ~tlid m.deletedGroups
 
 
@@ -27,7 +27,8 @@ let upsert (m : model) (g : group) : model =
   {m with groups = TD.insert ~tlid:g.gTLID ~value:g m.groups}
 
 
-let addToGroup (m : model) (gTLID : tlid) (tlid : tlid) : model * msg Cmd.t =
+let addToGroup (m : model) (gTLID : TLID.t) (tlid : TLID.t) : model * msg Cmd.t
+    =
   let group = TD.get ~tlid:gTLID m.groups in
   match group with
   | Some g ->
@@ -61,13 +62,13 @@ let createEmptyGroup (name : string option) (pos : pos) : modification =
   Many [AddGroup group; Deselect]
 
 
-let isInGroup (tlid : tlid) (groups : group TLIDDict.t) : bool =
+let isInGroup (tlid : TLID.t) (groups : group TLIDDict.t) : bool =
   groups
   |> TLIDDict.values
   |> List.any ~f:(fun g -> List.member ~value:tlid g.members)
 
 
-let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
+let posInGroup (mePos : pos) (groups : group TLIDDict.t) : TLID.t list =
   groups
   |> TLIDDict.mapValues ~f:(fun group -> group)
   |> List.filter ~f:(fun (g : Types.group) ->
@@ -96,7 +97,7 @@ let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
   |> TD.tlids
 
 
-let landedInGroup (tlid : tlid) (groups : group TLIDDict.t) : tlid list =
+let landedInGroup (tlid : TLID.t) (groups : group TLIDDict.t) : TLID.t list =
   match
     Native.Ext.querySelector (".tl-" ^ deTLID tlid)
     |> Option.andThen ~f:(fun e ->

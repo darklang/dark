@@ -118,7 +118,7 @@ let viewDBColType (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
 
 
 let viewDBCol
-    (vs : viewState) (isMigra : bool) (tlid : tlid) ((n, t) : dbColumn) :
+    (vs : viewState) (isMigra : bool) (tlid : TLID.t) ((n, t) : dbColumn) :
     msg Html.html =
   let deleteButton =
     if vs.permission = Some ReadWrite
