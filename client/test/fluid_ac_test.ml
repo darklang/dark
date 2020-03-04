@@ -97,19 +97,13 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
   (tl, ti, None, query)
 
 
-let fillingCS ?(tlid = defaultTLID) ?(_id = defaultID) () : cursorState =
-  FluidEntering tlid
-
-
-let creatingCS : cursorState = FluidEntering defaultTLID
-
 (* Sets the model with the appropriate toplevels *)
 let defaultModel
+    ?(tlid = defaultTLID)
     ?(dbs = [])
     ?(handlers = [])
     ?(userFunctions = [])
     ?(userTipes = [])
-    ~cursorState
     () : model =
   let default = Fluid_test_data.defaultTestModel in
   { default with
@@ -117,7 +111,7 @@ let defaultModel
   ; dbs = DB.fromList dbs
   ; userFunctions = UserFunctions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
-  ; cursorState
+  ; cursorState = FluidEntering tlid
   ; builtInFunctions = sampleFunctions
   ; analyses =
       StrDict.singleton (* The default traceID for TLID 7 *)
@@ -169,7 +163,6 @@ let enteringFunction
     ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
     model =
   defaultModel
-    ~cursorState:(fillingCS ())
     ~dbs
     ~handlers
     ~userTipes
@@ -180,20 +173,13 @@ let enteringFunction
 let enteringDBField
     ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
     model =
-  defaultModel
-    ~cursorState:(fillingCS ())
-    ~dbs:([aDB ()] @ dbs)
-    ~handlers
-    ~userTipes
-    ~userFunctions
-    ()
+  defaultModel ~dbs:([aDB ()] @ dbs) ~handlers ~userTipes ~userFunctions ()
 
 
 let enteringDBType
     ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
     model =
   defaultModel
-    ~cursorState:(fillingCS ())
     ~dbs:([aDB ~fieldid:defaultID2 ~typeid:defaultID ()] @ dbs)
     ~handlers
     ~userTipes
@@ -203,10 +189,7 @@ let enteringDBType
 
 let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
     model =
-  defaultModel
-    ~cursorState:(fillingCS ())
-    ~handlers:[aHandler ~space ~expr ()]
-    ()
+  defaultModel ~handlers:[aHandler ~space ~expr ()] ()
 
 
 (* AC targeting a tlid and pointer *)
@@ -435,7 +418,7 @@ let run () =
               in
               let m =
                 defaultModel
-                  ~cursorState:(fillingCS ~tlid:fntlid ())
+                  ~tlid:fntlid
                   ~dbs:[aDB ~tlid:(TLID "db123") ()]
                   ~userFunctions:[fn]
                   ()
@@ -447,9 +430,7 @@ let run () =
           ()) ;
       describe "filter" (fun () ->
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
-              let m =
-                defaultModel ~cursorState:(fillingCS ()) ~dbs:[aDB ()] ()
-              in
+              let m = defaultModel ~dbs:[aDB ()] () in
               let ac = acFor m in
               let _valid, invalid =
                 AC.filter
@@ -475,7 +456,7 @@ let run () =
               in
               let handler = aHandler ~expr () in
               let m =
-                defaultModel ~handlers:[handler] ~cursorState:(fillingCS ()) ()
+                defaultModel ~handlers:[handler] ()
               in
               let target = Some (defaultTLID, PExpr (Blank param1id)) in
               let ac = acFor ~target m in
@@ -510,7 +491,7 @@ let run () =
               in
               let handler = aHandler ~expr () in
               let m =
-                defaultModel ~handlers:[handler] ~cursorState:(fillingCS ()) ()
+                defaultModel ~handlers:[handler] ()
               in
               let target = Some (defaultTLID, PExpr (Blank param1id)) in
               let ac = acFor ~target m in
@@ -556,10 +537,7 @@ let run () =
               let pattern = P.FPVariable (mID, patID, "o") in
               let expr = match' b [(pattern, b)] in
               let m =
-                defaultModel
-                  ~cursorState:(fillingCS ~tlid ~_id:patID ())
-                  ~handlers:[aHandler ~tlid ~expr ()]
-                  ()
+                defaultModel ~handlers:[aHandler ~tlid ~expr ()] ()
                 |> fun m -> {m with builtInFunctions = []}
               in
               expect
