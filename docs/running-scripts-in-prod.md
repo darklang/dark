@@ -39,4 +39,6 @@ when being built in `scripts/gcp-build-containers`. It'll look something like a
 `cp -f _build/default/backend/bin/foo.exe "$DIR/bin"` command before the invocation of `docker build` that's relevant to you. At time of writing, there's an
 example in `gcp-build-containers` of `emergency_login_script.exe` doing this.
 
+You'll also need to add the built filepath (eg. `_build/default/backend/bin/foo.exe`) to the `paths` array in the `persist_to_workspace` step of `build-backend` in `.circleci/config.yml` to ensure the file makes it from the initial compile stage to the build/deploy containers stage.
+
 
