@@ -167,8 +167,6 @@ let dval_to_sql (dval : dval) : string =
          * changing in one place and not the other. By doing it how we are now,
          * we make this consistent with the serialization used to store Dates in
          * the DB *)
-        (* "CAST(%s as timestamp with time zone)" *)
-        (* (Db.escape (String (date |> Util.isostring_of_date))) *)
         "CAST(%s::jsonb->>'value' as timestamp with time zone)"
         (Db.escape (String (DDate date |> Dval.to_internal_queryable_v1)))
   | DInt i ->
