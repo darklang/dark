@@ -535,7 +535,7 @@ let tokenize : E.t -> FluidToken.tokenInfo list =
   tokenizeWithFFTokenization FeatureFlagOnlyDisabled
 
 
-let tokenizeForViewKind (k : editorViewKind) (expr : FluidExpression.t) :
+let tokenizeForViewKind (k : FluidEditor.viewKind) (expr : FluidExpression.t) :
     FluidToken.tokenInfo list =
   match k with
   | MainView ->

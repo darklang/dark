@@ -1542,7 +1542,7 @@ and fluidState =
       (* The source ID.t *of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; extraEditors : editorView list
+  ; extraEditors : FluidEditor.t StrDict.t
         (** extraEditors is a list of extra (non-main) editor panels that
           * should be rendered for the active fluideditor. For example, when a
           * handler with a feature flag is focused, this is populated with an

@@ -57,7 +57,7 @@ let defaultFluidState : fluidState =
   ; selectionStart = None
   ; errorDvSrc = SourceNone
   ; midClick = false
-  ; extraEditors = []
+  ; extraEditors = StrDict.empty
   ; activeEditorId = None }
 
 

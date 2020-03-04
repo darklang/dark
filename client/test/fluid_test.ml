@@ -167,11 +167,9 @@ module TestCase = struct
       FluidAST.ofExpr fullExpr
     in
     let state =
-      let extraEditors = Fluid.buildFeatureFlagEditors ast in
+      let extraEditors = FluidEditor.build ast in
       let activeEditorId =
-        if ff
-        then List.head extraEditors |> Option.map ~f:(fun e -> e.id)
-        else None
+        if ff then List.head (StrDict.keys extraEditors) else None
       in
       (* re-calculate selectionStart, pos taking into account either
        * None -> the if/else wrapper because we are testing the main editor
@@ -261,7 +259,7 @@ module TestResult = struct
     ; resultAST : FluidAST.t
     ; resultState : fluidState }
 
-  let viewKind (res : t) : editorViewKind =
+  let viewKind (res : t) : FluidEditor.viewKind =
     match Fluid.focusedEditor res.resultState with
     | None ->
         MainView
@@ -4826,7 +4824,7 @@ let run () =
         shiftTab
         "let *** = ~___\n5" ;
       t
-        "shift tab goes to last blank in editor"
+        "shift tab goes to last blank in main editor"
         ~wrap:false
         nonEmptyLetWithBlankEnd
         ~pos:4

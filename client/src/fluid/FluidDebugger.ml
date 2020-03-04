@@ -46,8 +46,8 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
         []
         [ Html.ul
             []
-            (List.map s.extraEditors ~f:(fun e -> Html.li [] [Html.text e.id]))
-        ]
+            (List.map (StrDict.keys s.extraEditors) ~f:(fun id ->
+                 Html.li [] [Html.text id])) ]
     ; dtText "acIndex"
     ; Html.dd
         []
