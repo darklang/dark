@@ -4015,7 +4015,7 @@ let run () =
       ()) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
-          let id = ID "543" in
+          let id = ID.fromString "543" in
           expect
             (let ast = E.EString (id, "test") in
              let tokens = Printer.tokenize ast in

@@ -12,13 +12,13 @@ type ('a, 'b) transformation_test_result =
 
 let run () =
   describe "ast" (fun () ->
-      let id1 = ID "5" in
-      let id2 = ID "10" in
-      let id3 = ID "11" in
-      let id4 = ID "12" in
-      let id5 = ID "13" in
-      let id6 = ID "14" in
-      let id7 = ID "15" in
+      let id1 = ID.fromString "5" in
+      let id2 = ID.fromString "10" in
+      let id3 = ID.fromString "11" in
+      let id4 = ID.fromString "12" in
+      let id5 = ID.fromString "13" in
+      let id6 = ID.fromString "14" in
+      let id7 = ID.fromString "15" in
       test "lambda var is not free" (fun () ->
           expect
             (freeVariables
@@ -36,7 +36,7 @@ let run () =
       test
         "variablesIn correctly identifies available vars in let RHS with incomplete LHS"
         (fun () ->
-          let testId = ID "testme" in
+          let testId = ID.fromString "testme" in
           let inner = ELet (gid (), "", EBlank testId, E.newB ()) in
           let outer = ELet (gid (), "variable", int 4, inner) in
           let vars = variablesIn outer |> StrDict.get ~key:"testme" in
@@ -45,11 +45,11 @@ let run () =
       test
         "variablesIn correctly gets rhs id of latest let definition"
         (fun () ->
-          let let1ID = ID "let1ID" in
-          let let2ID = ID "let2ID" in
-          let a1ID = ID "a1ID" in
+          let let1ID = ID.fromString "let1ID" in
+          let let2ID = ID.fromString "let2ID" in
+          let a1ID = ID.fromString "a1ID" in
           let a1 = int ~id:a1ID 4 in
-          let a2ID = ID "a2ID" in
+          let a2ID = ID.fromString "a2ID" in
           let a2 = int ~id:a2ID 9 in
           let lastBlank = EBlank (ID "lastBlankid") in
           let ast = ELet (let1ID, "a", a1, ELet (let2ID, "a", a2, lastBlank)) in

@@ -75,7 +75,7 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
          | RenameDBname _
          | SetDBColName _ ->
              None)
-  |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
+  |> List.uniqueBy ~f:TLID.toString
 
 
 let allRefersTo (tlid : tlid) (m : model) : (toplevel * id list) list =

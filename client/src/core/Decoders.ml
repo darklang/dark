@@ -132,9 +132,9 @@ let bytes_from_base64url (b64 : string) : Bytes.t =
  * to bs-json we'll just json stringify it and use that *)
 let wireIdentifier j = try string j with _ -> int j |> string_of_int
 
-let id j : id = Types.ID (wireIdentifier j)
+let id = ID.fromString << wireIdentifier
 
-let tlid j = TLID (wireIdentifier j)
+let tlid = TLID.fromString << wireIdentifier
 
 let pos j : pos = {x = field "x" int j; y = field "y" int j}
 
