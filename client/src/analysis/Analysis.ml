@@ -15,11 +15,11 @@ module TD = TLIDDict
 (* ---------------------- *)
 
 let getTraces (m : model) (tlid : TLID.t) : trace list =
-  StrDict.get ~key:(deTLID tlid) m.traces
+  StrDict.get ~key:(TLID.toString tlid) m.traces
   |> Option.withDefault
        ~default:
          [ ( BsUuid.Uuid.V5.create
-               ~name:(deTLID tlid)
+               ~name:(TLID.toString tlid)
                ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
              |> BsUuid.Uuid.V5.toString
            , Result.fail NoneYet ) ]
@@ -59,7 +59,7 @@ let replaceFunctionResult
   in
   let traces =
     m.traces
-    |> StrDict.update ~key:(deTLID tlid) ~f:(fun ml ->
+    |> StrDict.update ~key:(TLID.toString tlid) ~f:(fun ml ->
            ml
            |> Option.withDefault
                 ~default:

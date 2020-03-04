@@ -54,10 +54,6 @@ let showID = ID.toString
 
 let gid = Shared.gid
 
-let deTLID = TLID.toString
-
-let showTLID = TLID.toString
-
 let gtlid () : TLID.t = TLID.fromString (Util.random () |> string_of_int)
 
 (* -------------------------------------- *)

@@ -41,7 +41,7 @@ let viewKillFieldBtn (t : userTipe) (field : userRecordField) : msg Html.html =
     ; ViewUtils.eventNoPropagation
         ~key:
           ( "dutf-"
-          ^ showTLID t.utTLID
+          ^ TLID.toString t.utTLID
           ^ "-"
           ^ (field.urfName |> B.toID |> showID) )
         "click"

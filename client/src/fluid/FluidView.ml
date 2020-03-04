@@ -68,7 +68,7 @@ let viewCopyButton tlid value : msg Html.html =
     ; Html.title "Copy this expression's value to the clipboard"
     ; ViewUtils.eventNoPropagation
         "click"
-        ~key:("copylivevalue-" ^ value ^ showTLID tlid)
+        ~key:("copylivevalue-" ^ value ^ TLID.toString tlid)
         (fun m -> ClipboardCopyLivevalue (value, m.mePos)) ]
     [ViewUtils.fontAwesome "copy"]
 
@@ -472,7 +472,7 @@ let fluidEditorView
     (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
     Types.msg Html.html =
   let ({tlid; fluidState = state; _} : ViewUtils.viewState) = vs in
-  let tlidStr = deTLID tlid in
+  let tlidStr = TLID.toString tlid in
   let textInputListeners =
     (* the command palette is inside div.fluid-editor but has it's own input
      * handling, so don't do normal fluid input stuff if it's open *)

@@ -65,7 +65,7 @@ let viewItem (keyID : string) (i : menuItem) : msg Html.html =
 
 let viewMenu (s : menuState) (tlid : TLID.t) (items : menuItem list) :
     msg Html.html =
-  let strTLID = showTLID tlid in
+  let strTLID = TLID.toString tlid in
   let showMenu = s.isOpen in
   let actions = List.map ~f:(viewItem strTLID) items in
   let toggleMenu =

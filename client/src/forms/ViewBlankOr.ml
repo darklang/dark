@@ -98,19 +98,19 @@ let div
     | Some id ->
         [ ViewUtils.eventNoPropagation
             "click"
-            ~key:("bcc-" ^ showTLID tlid ^ "-" ^ showID id)
+            ~key:("bcc-" ^ TLID.toString tlid ^ "-" ^ showID id)
             (fun x -> BlankOrClick (tlid, id, x))
         ; ViewUtils.eventNoPropagation
             "dblclick"
-            ~key:("bcdc-" ^ showTLID tlid ^ "-" ^ showID id)
+            ~key:("bcdc-" ^ TLID.toString tlid ^ "-" ^ showID id)
             (fun x -> BlankOrDoubleClick (tlid, id, x))
         ; ViewUtils.eventNoPropagation
             "mouseenter"
-            ~key:("me-" ^ showTLID tlid ^ "-" ^ showID id)
+            ~key:("me-" ^ TLID.toString tlid ^ "-" ^ showID id)
             (fun x -> BlankOrMouseEnter (tlid, id, x))
         ; ViewUtils.eventNoPropagation
             "mouseleave"
-            ~key:("ml-" ^ showTLID tlid ^ "-" ^ showID id)
+            ~key:("ml-" ^ TLID.toString tlid ^ "-" ^ showID id)
             (fun x -> BlankOrMouseLeave (tlid, id, x)) ]
     | _ ->
         (* Rather than relying on property lengths changing, we should use

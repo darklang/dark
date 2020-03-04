@@ -72,10 +72,10 @@ let posInGroup (mePos : pos) (groups : group TLIDDict.t) : TLID.t list =
   groups
   |> TLIDDict.mapValues ~f:(fun group -> group)
   |> List.filter ~f:(fun (g : Types.group) ->
-         match Native.Ext.querySelector (".tl-" ^ deTLID g.gTLID) with
+         match Native.Ext.querySelector (".tl-" ^ TLID.toString g.gTLID) with
          | Some elem ->
              let groupPos =
-               Native.Ext.getBoundingClient elem ("tl-" ^ deTLID g.gTLID)
+               Native.Ext.getBoundingClient elem ("tl-" ^ TLID.toString g.gTLID)
              in
              (* Check if the toplevel pos is inside the group *)
              (* X *)
@@ -99,18 +99,22 @@ let posInGroup (mePos : pos) (groups : group TLIDDict.t) : TLID.t list =
 
 let landedInGroup (tlid : TLID.t) (groups : group TLIDDict.t) : TLID.t list =
   match
-    Native.Ext.querySelector (".tl-" ^ deTLID tlid)
+    Native.Ext.querySelector (".tl-" ^ TLID.toString tlid)
     |> Option.andThen ~f:(fun e ->
-           Some (Native.Ext.getBoundingClient e ("tl-" ^ deTLID tlid)))
+           Some (Native.Ext.getBoundingClient e ("tl-" ^ TLID.toString tlid)))
   with
   | Some tlPos ->
       groups
       |> TLIDDict.mapValues ~f:(fun group -> group)
       |> List.filter ~f:(fun (g : Types.group) ->
-             match Native.Ext.querySelector (".tl-" ^ deTLID g.gTLID) with
+             match
+               Native.Ext.querySelector (".tl-" ^ TLID.toString g.gTLID)
+             with
              | Some elem ->
                  let groupPos =
-                   Native.Ext.getBoundingClient elem ("tl-" ^ deTLID g.gTLID)
+                   Native.Ext.getBoundingClient
+                     elem
+                     ("tl-" ^ TLID.toString g.gTLID)
                  in
                  (* Check if the toplevel is inside the group *)
                  if tlPos.right < groupPos.left
