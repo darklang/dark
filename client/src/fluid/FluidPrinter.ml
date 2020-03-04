@@ -530,7 +530,9 @@ let tokenizeWithFFTokenization
   |> infoize
 
 
-let tokenize = tokenizeWithFFTokenization FeatureFlagOnlyDisabled
+let tokenize : E.t -> FluidToken.tokenInfo list =
+  tokenizeWithFFTokenization FeatureFlagOnlyDisabled
+
 
 let tokenizeForViewKind (k : editorViewKind) (expr : FluidExpression.t) :
     FluidToken.tokenInfo list =
