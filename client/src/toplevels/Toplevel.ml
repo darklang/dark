@@ -424,7 +424,7 @@ let getNextBlank (tl : toplevel) (id : id) : successor =
   let index =
     List.elemIndex ~value:id all |> Option.withDefault ~default:(-1)
   in
-  let blanks = allBlanks tl |> List.map ~f:deID |> StrSet.fromList in
+  let blanks = allBlanks tl |> List.map ~f:ID.toString |> StrSet.fromList in
   all
   |> List.drop ~count:(index + 1)
   |> List.find ~f:(fun id -> StrSet.has blanks ~value:(ID.toString id))
@@ -437,7 +437,7 @@ let getPrevBlank (tl : toplevel) (id : id) : predecessor =
     List.elemIndex ~value:id all
     |> Option.withDefault ~default:(List.length all)
   in
-  let blanks = allBlanks tl |> List.map ~f:deID |> StrSet.fromList in
+  let blanks = allBlanks tl |> List.map ~f:ID.toString |> StrSet.fromList in
   all
   |> List.take ~count:index
   |> List.reverse

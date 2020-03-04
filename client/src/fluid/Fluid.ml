@@ -888,7 +888,7 @@ let posFromCaretTarget (ast : FluidAST.t) (s : fluidState) (ct : caretTarget) :
   | None ->
       (*
         NOTE: This is very useful for fixing issues in dev, but much too large for Rollbar:
-        (Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(Printer.eToStructure ~includeIDs:true ast)) ());
+        (Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(Printer.eToStructure ~incluID.toStrings:true ast)) ());
       *)
       recover
         "We expected to find the given caretTarget in the token stream but couldn't."
@@ -1396,7 +1396,7 @@ let addMatchPatternAt
     (matchId : id) (idx : int) (ast : FluidAST.t) (s : fluidState) :
     FluidAST.t * fluidState =
   let action =
-    Printf.sprintf "addMatchPatternAt(id=%s idx=%d)" (deID matchId) idx
+    Printf.sprintf "addMatchPatternAt(id=%s idx=%d)" (ID.toString matchId) idx
   in
   let s = recordAction action s in
   let ast =
@@ -1707,7 +1707,9 @@ let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : FluidAST.t)
     may be useful for doing caret placement. *)
 let makeIntoLetBody (id : id) (ast : FluidAST.t) (s : fluidState) :
     FluidAST.t * fluidState * id =
-  let s = recordAction (Printf.sprintf "makeIntoLetBody(%s)" (deID id)) s in
+  let s =
+    recordAction (Printf.sprintf "makeIntoLetBody(%s)" (ID.toString id)) s
+  in
   let lid = gid () in
   let ast =
     FluidAST.update id ast ~f:(fun expr -> ELet (lid, "", E.newB (), expr))
@@ -2042,7 +2044,7 @@ let rec findAppropriateParentToWrap
 let createPipe ~(findParent : bool) (id : id) (ast : FluidAST.t) (s : state) :
     FluidAST.t * state * id option =
   let action =
-    Printf.sprintf "createPipe(id=%s findParent=%B)" (deID id) findParent
+    Printf.sprintf "createPipe(id=%s findParent=%B)" (ID.toString id) findParent
   in
   let s = recordAction action s in
   let exprToReplace =
@@ -2068,7 +2070,9 @@ let createPipe ~(findParent : bool) (id : id) (ast : FluidAST.t) (s : state) :
 let addPipeExprAt (pipeId : id) (idx : int) (ast : FluidAST.t) (s : fluidState)
     : FluidAST.t * fluidState * id =
   let open FluidExpression in
-  let action = Printf.sprintf "addPipeExprAt(id=%s idx=%d)" (deID pipeId) idx in
+  let action =
+    Printf.sprintf "addPipeExprAt(id=%s idx=%d)" (ID.toString pipeId) idx
+  in
   let s = recordAction action s in
   let bid = gid () in
   let ast =
@@ -5220,7 +5224,7 @@ let buildFeatureFlagEditors (m : model) (ast : FluidAST.t) : editorView list =
   then
     FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
     |> List.map ~f:(fun e ->
-           { id = "flag-" ^ (e |> E.toID |> deID)
+           { id = "flag-" ^ (e |> E.toID |> ID.toString)
            ; expressionId = E.toID e
            ; kind = FeatureFlagView })
   else []

@@ -365,7 +365,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
     let eIDs = ast |> E.filterMap ~f:(fun e -> Some (E.toID e)) in
     let ids =
       tokenIDs @ eIDs
-      |> List.uniqueBy ~f:Prelude.deID
+      |> List.uniqueBy ~f:ID.toString
       |> List.indexedMap ~f:(fun i v -> (i, v))
     in
     let length = List.length ids in

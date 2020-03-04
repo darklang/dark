@@ -663,9 +663,9 @@ let toDebugInfo (t : t) : string =
   | TStringMLEnd (_, _, offset, _) ->
       "offset=" ^ string_of_int offset
   | TNewline (Some (_, pid, Some idx)) ->
-      "parent=" ^ deID pid ^ " idx=" ^ string_of_int idx
+      "parent=" ^ ID.toString pid ^ " idx=" ^ string_of_int idx
   | TNewline (Some (_, pid, None)) ->
-      "parent=" ^ deID pid ^ " idx=none"
+      "parent=" ^ ID.toString pid ^ " idx=none"
   | TNewline None ->
       "no parent"
   | TPipe (_, idx, len) ->
@@ -683,7 +683,7 @@ let toDebugInfo (t : t) : string =
   | TPatternFloatWhole (mid, _, _, idx)
   | TPatternFloatPoint (mid, _, idx)
   | TPatternFloatFractional (mid, _, _, idx) ->
-      "match=" ^ deID mid ^ " idx=" ^ string_of_int idx
+      "match=" ^ ID.toString mid ^ " idx=" ^ string_of_int idx
   | _ ->
       ""
 
@@ -709,9 +709,9 @@ let show_tokenInfo (ti : tokenInfo) =
     ; Html.dt [] [Html.text "tok"]
     ; Html.dd [] [Html.text (toText ti.token)]
     ; Html.dt [] [Html.text "id"]
-    ; Html.dd [] [Html.text (tid ti.token |> deID)]
+    ; Html.dd [] [Html.text (tid ti.token |> ID.toString)]
     ; Html.dt [] [Html.text "aid"]
-    ; Html.dd [] [Html.text (analysisID ti.token |> deID)]
+    ; Html.dd [] [Html.text (analysisID ti.token |> ID.toString)]
     ; Html.dt [] [Html.text "type"]
     ; Html.dd [] [Html.text (toTypeName ti.token)]
     ; Html.dt [] [Html.text "debug"]

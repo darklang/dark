@@ -68,7 +68,7 @@ let centerCanvasOn (tl : toplevel) : pos =
 
 (* Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas *)
 let moveToToken (id : id) (tl : toplevel) : int option * int option =
-  let tokenSelector = ".id-" ^ Prelude.deID id in
+  let tokenSelector = ".id-" ^ ID.toString id in
   let tlSelector = ".tl-" ^ TLID.toString (TL.id tl) in
   match Native.Ext.querySelector tokenSelector with
   | Some tokenDom ->

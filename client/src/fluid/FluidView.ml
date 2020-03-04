@@ -224,7 +224,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
   List.map editor.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = T.tid ti.token in
-        let idStr = deID tokenId in
+        let idStr = ID.toString tokenId in
         let content = T.toText ti.token in
         let analysisId = T.analysisID ti.token in
         (* Apply CSS classes to token *)
@@ -306,8 +306,8 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
 
 
 let viewArrow (curID : id) (srcID : id) : Types.msg Html.html =
-  let curSelector = ".id-" ^ deID curID in
-  let srcSelector = ".id-" ^ deID srcID in
+  let curSelector = ".id-" ^ ID.toString curID in
+  let srcSelector = ".id-" ^ ID.toString srcID in
   match
     (Native.Ext.querySelector curSelector, Native.Ext.querySelector srcSelector)
   with
@@ -363,7 +363,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
         [ viewArrow id srcId
         ; Html.div
             [ ViewUtils.eventNoPropagation
-                ~key:("lv-src-" ^ deID srcId)
+                ~key:("lv-src-" ^ ID.toString srcId)
                 "click"
                 (fun _ -> FluidMsg (FluidFocusOnToken srcId))
             ; Html.class' "jump-src"

@@ -79,7 +79,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
                ~default:(E.newB ())
                (Printf.sprintf
                   "failed to find expr %s for editor %s"
-                  (e.expressionId |> deID)
+                  (e.expressionId |> ID.toString)
                   e.id)
         in
         let tokens = FluidPrinter.tokenizeForViewKind e.kind expr in

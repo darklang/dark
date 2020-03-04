@@ -64,6 +64,6 @@ let toggle (id : id) (isExpanded : bool) : modification =
   ReplaceAllModificationsWithThisOne
     (fun m ->
       let featureFlags =
-        StrDict.insert ~key:(deID id) ~value:isExpanded m.featureFlags
+        StrDict.insert ~key:(ID.toString id) ~value:isExpanded m.featureFlags
       in
       ({m with featureFlags}, Tea.Cmd.none))

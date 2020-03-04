@@ -1,7 +1,5 @@
 val gid : unit -> UnsharedTypes.id
 
-val deID : UnsharedTypes.id -> string
-
 type jsonType = Yojson.Safe.t
 
 module Rollbar : sig
