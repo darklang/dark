@@ -369,26 +369,25 @@ let result_to_response
       let resp_headers =
         Header.of_list resp_headers |> maybe_infer_ct value |> maybe_infer_cors
       in
-      let content_type = Header.get resp_headers "Content-Type" in
       let body =
-        match content_type with
-        (* TODO: only pretty print for a webbrowser *)
-        | Some content_type
-          when String.is_prefix ~prefix:"text/plain" content_type
-               || String.is_prefix ~prefix:"application/xml" content_type ->
-            Dval.to_enduser_readable_text_v0 value
-        | Some content_type
-          when String.is_prefix ~prefix:"text/html" content_type ->
-            Dval.to_enduser_readable_html_v0 value
-        | Some content_type
-          when String.is_prefix ~prefix:"application/json" content_type ->
-            Dval.to_pretty_machine_json_v1 value
+        match value with
+        | DBytes body ->
+            (* If the body is a DBytes, don't re-encode it *)
+            body |> RTT.RawBytes.to_string
         | _ ->
-          ( match value with
-          | DBytes body ->
-              body |> RTT.RawBytes.to_string
-          | _ ->
-              Dval.to_pretty_machine_json_v1 value )
+            let content_type_prefix =
+              Header.get resp_headers "Content-Type"
+              |> Option.map ~f:(fun ct -> ct |> String.split ~on:';')
+              |> Option.bind ~f:List.hd
+            in
+            ( match content_type_prefix with
+            (* TODO: only pretty print for a webbrowser *)
+            | Some "text/plain" | Some "application/xml" ->
+                Dval.to_enduser_readable_text_v0 value
+            | Some "text/html" ->
+                Dval.to_enduser_readable_html_v0 value
+            | Some "application/json" | _ ->
+                Dval.to_pretty_machine_json_v1 value )
       in
       let status = Cohttp.Code.status_of_code code in
       Respond {resp_headers; execution_id; status; body}
