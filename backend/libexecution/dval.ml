@@ -674,11 +674,11 @@ let of_internal_queryable_v0 (str : string) : dval =
 
 let to_internal_queryable_v1 dval : string =
   match dval with
-  | DObj _ ->
+  | DObj _ | DDate _ ->
       dval |> unsafe_dval_to_yojson_v0 ~redact:false |> Yojson.Safe.to_string
   | _ ->
       Exception.internal
-        "trying to serialize non-objects using an object-serializer"
+        "trying to serialize non-object/date using an object/date-serializer"
 
 
 let of_internal_queryable_v1 (str : string) : dval =
