@@ -1,5 +1,17 @@
 open Tc
-include UnsharedTypes
+
+(* == legacy aliases == *)
+type tlid = TLID.t [@@deriving show]
+
+type id = ID.t [@@deriving show]
+
+module TLIDDict = TLID.Dict
+module TLIDSet = TLID.Set
+module IDSet = ID.Set
+
+(* == end legacy aliases == *)
+
+type analysisID = UnsharedTypes.analysisID [@@deriving show]
 
 let show_list ~(f : 'a -> string) (x : 'a list) : string =
   "[" ^ String.join ~sep:"," (List.map ~f x) ^ "]"
@@ -33,28 +45,10 @@ type exception_ =
 (* ---------------------- *)
 (* Basic types *)
 (* ---------------------- *)
-and tlid = TLID of string
-
 and 'a blankOr =
   | Blank of id
   | F of id * 'a
 [@@deriving show {with_path = false}]
-
-module TLID = struct
-  type t = tlid
-
-  let toString (TLID str) = str
-
-  let fromString str = TLID str
-end
-
-module ID = struct
-  type t = id
-
-  let toString (ID str) = str
-
-  let fromString str = ID str
-end
 
 module Pair (K1 : Key) (K2 : Key) = struct
   type t = K1.t * K2.t
@@ -75,37 +69,7 @@ module Pair (K1 : Key) (K2 : Key) = struct
           ^ str )
 end
 
-module TLIDDict = struct
-  include Tc.Dict (TLID)
-
-  (* TODO: convert the tlid key back to being called key *)
-  let get ~(tlid : tlid) (dict : 'value t) : 'value option = get ~key:tlid dict
-
-  let insert ~(tlid : tlid) ~(value : 'value) (dict : 'value t) : 'value t =
-    insert ~key:tlid ~value dict
-
-
-  let tlids (dict : 'value t) : tlid list = dict |> keys
-
-  let updateIfPresent ~(tlid : tlid) ~(f : 'v -> 'v) (dict : 'value t) :
-      'value t =
-    updateIfPresent ~key:tlid ~f dict
-
-
-  let update ~(tlid : tlid) ~(f : 'v option -> 'v option) (dict : 'value t) :
-      'value t =
-    update ~key:tlid ~f dict
-
-
-  let remove ~(tlid : tlid) (dict : 'value t) : 'value t = remove ~key:tlid dict
-
-  let removeMany ~(tlids : tlid list) (dict : 'value t) : 'value t =
-    removeMany ~keys:tlids dict
-end
-
-module TLIDSet = Tc.Set (TLID)
-module IDSet = Tc.Set (ID)
-module IDPair = Pair (TLID) (ID)
+module IDPair = Pair (TLID.T) (ID.T)
 module IDPairSet = Tc.Set (IDPair)
 
 (* There are two coordinate systems. Pos is an absolute position in the *)

@@ -48,7 +48,7 @@ let sampleFunctions : function_ list =
          ; fnDeprecated = fnName = "Some::deprecated" })
 
 
-let defaultTLID = TLID "7"
+let defaultTLID = TLID.fromString "7"
 
 let defaultID = gid ()
 
@@ -423,9 +423,9 @@ let run () =
                    |> itemPresent (FACVariable ("event", None)) ])
               |> toEqual [true; true]) ;
           test "functions have DB names in the autocomplete" (fun () ->
-              let blankid = ID "123" in
+              let blankid = ID.fromString "123" in
               let dbNameBlank = EBlank blankid in
-              let fntlid = TLID "fn123" in
+              let fntlid = TLID.fromString "fn123" in
               let fn =
                 aFunction
                   ~tlid:fntlid
@@ -550,9 +550,9 @@ let run () =
                 )
               |> toEqual true) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
-              let tlid = TLID "789" in
-              let mID = ID "1234" in
-              let patID = ID "456" in
+              let tlid = TLID.fromString "789" in
+              let mID = ID.fromString "1234" in
+              let patID = ID.fromString "456" in
               let pattern = P.FPVariable (mID, patID, "o") in
               let expr = match' b [(pattern, b)] in
               let m =

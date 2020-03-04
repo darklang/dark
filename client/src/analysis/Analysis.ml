@@ -252,7 +252,7 @@ module NewTracePush = struct
   let decode =
     let open Tea.Json.Decoder in
     let traceID = map (fun id -> (id : traceID)) string in
-    let tlids = list (map (fun id -> TLID id) Native.Decoder.wireIdentifier) in
+    let tlids = list (map TLID.fromString Native.Decoder.wireIdentifier) in
     field "detail" (Native.Decoder.tuple2 traceID tlids)
 
 
@@ -320,22 +320,22 @@ let contextFromModel (m : model) : fetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
 
 
-let updateDBStats m (TLID tlid) =
+let updateDBStats m tlid =
   Sync.attempt
-    ~key:("update-db-stats-" ^ tlid)
+    ~key:("update-db-stats-" ^ TLID.toString tlid)
     m
     (Tea_cmd.call (fun _ ->
          Fetcher.request
-           (contextFromModel m, DbStatsFetch {dbStatsTlids = [TLID tlid]})))
+           (contextFromModel m, DbStatsFetch {dbStatsTlids = [tlid]})))
 
 
-let getWorkerStats m (TLID tlid) =
+let getWorkerStats m tlid =
   Sync.attempt
-    ~key:("get-worker-stats-" ^ tlid)
+    ~key:("get-worker-stats-" ^ TLID.toString tlid)
     m
     (Tea_cmd.call (fun _ ->
          Fetcher.request
-           (contextFromModel m, WorkerStatsFetch {workerStatsTlid = TLID tlid})))
+           (contextFromModel m, WorkerStatsFetch {workerStatsTlid = tlid})))
 
 
 let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :

@@ -51,7 +51,7 @@ let sampleFunctions =
     ; fnInfix = false } ]
 
 
-let defaultTLID = TLID "handler1"
+let defaultTLID = TLID.fromString "handler1"
 
 let defaultHandler =
   { hTLID = defaultTLID
@@ -88,7 +88,7 @@ let run () =
         ; handlers = Handlers.fromList hs }
       in
       let handlerWithPointer fnName fnRail =
-        let id = ID "ast1" in
+        let id = ID.fromString "ast1" in
         let ast = FluidAST.ofExpr (E.EFnCall (id, fnName, [], fnRail)) in
         ({defaultHandler with ast}, id)
       in

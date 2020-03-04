@@ -3,7 +3,7 @@ open Tester
 open CurlCommand
 module B = BlankOr
 
-let defaultTLID = TLID "7"
+let defaultTLID = TLID.fromString "7"
 
 let http ~(path : string) ?(meth = "GET") () : handler =
   { ast = FluidAST.ofExpr (EBlank (gid ()))
@@ -63,7 +63,7 @@ let run () =
       test "returns None if tlid not found" (fun () ->
           expect (curlFromSpec m (TLID "1")) |> toEqual None) ;
       test "returns None for non-HTTP handlers" (fun () ->
-          let cronTLID = TLID "2" in
+          let cronTLID = TLID.fromString "2" in
           let cron =
             { ast = FluidAST.ofExpr (EBlank (gid ()))
             ; hTLID = cronTLID
