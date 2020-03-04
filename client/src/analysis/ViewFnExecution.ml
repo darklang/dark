@@ -108,7 +108,7 @@ let executionEvents status tlid id name =
       [Html.noProp; Html.noProp; Html.noProp; Html.noProp]
   | Ready | Replayable ->
       [ ViewUtils.eventNoPropagation
-          ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
+          ~key:("efb-" ^ TLID.toString tlid ^ "-" ^ showID id ^ "-" ^ name)
           "click"
           (fun _ -> ExecuteFunctionButton (tlid, id, name))
       ; ViewUtils.nothingMouseEvent "mouseup"

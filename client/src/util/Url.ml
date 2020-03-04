@@ -18,15 +18,15 @@ let urlFor (page : page) : string =
     | Architecture ->
         []
     | FocusedFn tlid ->
-        [("fn", deTLID tlid)]
+        [("fn", TLID.toString tlid)]
     | FocusedHandler (tlid, _) ->
-        [("handler", deTLID tlid)]
+        [("handler", TLID.toString tlid)]
     | FocusedDB (tlid, _) ->
-        [("db", deTLID tlid)]
+        [("db", TLID.toString tlid)]
     | FocusedType tlid ->
-        [("type", deTLID tlid)]
+        [("type", TLID.toString tlid)]
     | FocusedGroup (tlid, _) ->
-        [("group", deTLID tlid)]
+        [("group", TLID.toString tlid)]
   in
   hashUrlParams args
 

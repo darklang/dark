@@ -15,11 +15,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let vs = ViewUtils.createVS m tl in
   let dragEvents =
     [ ViewUtils.eventNoPropagation
-        ~key:("tlmd-" ^ showTLID tlid)
+        ~key:("tlmd-" ^ TLID.toString tlid)
         "mousedown"
         (fun x -> TLDragRegionMouseDown (tlid, x))
     ; ViewUtils.eventNoPropagation
-        ~key:("tlmu-" ^ showTLID tlid)
+        ~key:("tlmu-" ^ TLID.toString tlid)
         "mouseup"
         (fun x -> TLDragRegionMouseUp (tlid, x)) ]
   in
@@ -80,7 +80,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   (* Need to add aditional css class to remove background color *)
   let classes =
     [ ("toplevel", true)
-    ; ("tl-" ^ deTLID tlid, true)
+    ; ("tl-" ^ TLID.toString tlid, true)
     ; ("selected", selected)
     ; ("group", match tl with TLGroup _ -> true | _ -> false) ]
   in
@@ -178,7 +178,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
        * vdom node is rebuilt so that we don't get yelled at about the fact that
        * the property list or body nodes may be of differing length. Eg, DBs and
        * Fns have different property list lengths *)
-        ~unique:(showTLID tlid)
+        ~unique:(TLID.toString tlid)
         (Html.classList classes :: events)
         ((top :: body) @ data)
     ; avatars
@@ -280,7 +280,7 @@ let viewCanvas (m : model) : msg Html.html =
        * if not (though only when using our Util cache). This leads to the
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
        * know exactly how. TODO: we removed the Util cache so it might work. *)
-        |> List.sortBy ~f:(fun tl -> deTLID (TL.id tl))
+        |> List.sortBy ~f:(fun tl -> TLID.toString (TL.id tl))
         (* Filter out toplevels that are not in a group *)
         |> List.filter ~f:(fun tl -> not (Groups.isInGroup (TL.id tl) m.groups))
         |> List.map ~f:(viewTL m)

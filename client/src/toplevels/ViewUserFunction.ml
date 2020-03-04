@@ -57,7 +57,7 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
     match (fn.ufMetadata.ufmName, exeStatus) with
     | F (_, fnName), CanExecute (traceID, args) ->
         ViewUtils.eventNoPropagation
-          ~key:("run-fun" ^ "-" ^ showTLID fn.ufTLID ^ "-" ^ traceID)
+          ~key:("run-fun" ^ "-" ^ TLID.toString fn.ufTLID ^ "-" ^ traceID)
           "click"
           (fun _ ->
             ExecuteFunctionFromWithin
@@ -94,7 +94,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let addParamBtn =
     if vs.permission = Some ReadWrite
     then
-      let strTLID = showTLID fn.ufTLID in
+      let strTLID = TLID.toString fn.ufTLID in
       Html.div
         ~unique:("add-param-col-" ^ strTLID)
         [ Html.class' "col new-parameter"

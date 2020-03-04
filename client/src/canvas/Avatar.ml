@@ -7,7 +7,7 @@ let filterAvatarsByTlid (avatars : avatar list) (tlid : TLID.t) : avatar list =
          | None ->
              false
          | Some avTlid ->
-             avTlid == (tlid |> deTLID))
+             avTlid == (tlid |> TLID.toString))
 
 
 let avatarUrl (email : string) (name : string option) : string =

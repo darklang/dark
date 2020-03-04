@@ -93,7 +93,7 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
         ; ViewUtils.eventNoPropagation
             ~key:
               ( "dufp-"
-              ^ showTLID uf.ufTLID
+              ^ TLID.toString uf.ufTLID
               ^ "-"
               ^ (p.ufpName |> B.toID |> showID) )
             "click"

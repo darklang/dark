@@ -74,7 +74,7 @@ let previewMembers (gTLID : TLID.t) (tl : toplevel) : msg Html.html =
   in
   let event =
     ViewUtils.eventNoPropagation
-      ~key:("tlmd-" ^ showTLID tlid)
+      ~key:("tlmd-" ^ TLID.toString tlid)
       "dragend"
       (fun x -> DragGroupMember (gTLID, tlid, x))
   in
@@ -136,7 +136,7 @@ let viewGroup
       then ViewUtils.nothingMouseEvent "click"
       else
         ViewUtils.eventNeither
-          ~key:("entry-" ^ showTLID group.gTLID)
+          ~key:("entry-" ^ TLID.toString group.gTLID)
           "click"
           (fun _ -> DeleteGroup group.gTLID)
     in

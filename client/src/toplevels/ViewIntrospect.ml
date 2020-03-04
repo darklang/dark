@@ -46,11 +46,11 @@ let fnParamsView (params : userFunctionParameter list) : msg Html.html =
 let hoveringRefProps (originTLID : TLID.t) (originIDs : id list) ~(key : string)
     =
   [ ViewUtils.eventNoPropagation
-      ~key:(key ^ "-in_" ^ showTLID originTLID)
+      ~key:(key ^ "-in_" ^ TLID.toString originTLID)
       "mouseenter"
       (fun _ -> SetHoveringReferences (originTLID, originIDs))
   ; ViewUtils.eventNoPropagation
-      ~key:(key ^ "-out_" ^ showTLID originTLID)
+      ~key:(key ^ "-out_" ^ TLID.toString originTLID)
       "mouseleave"
       (fun _ -> SetHoveringReferences (originTLID, [])) ]
 
@@ -94,7 +94,7 @@ let handlerView
   Html.div
     ( [ Html.class' ("ref-block handler " ^ direction)
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-handler-link" ^ showTLID tlid)
+          ~key:("ref-handler-link" ^ TLID.toString tlid)
           "click"
           (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-handler-hover" )
@@ -117,7 +117,7 @@ let fnView
   Html.div
     ( [ Html.class' ("ref-block fn " ^ direction)
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-fn-link" ^ showTLID tlid)
+          ~key:("ref-fn-link" ^ TLID.toString tlid)
           "click"
           (fun _ -> GoTo (FocusedFn tlid)) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
