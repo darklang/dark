@@ -172,7 +172,4 @@ let versionDisplayName (fnName : string) : string =
   if version = "0" then "" else "v" ^ version
 
 
-(* Get the function mod and name (no version) *)
-let partialName (name : string) : string =
-  let name = fnDisplayName name in
-  name
+let partialName = fnDisplayName
