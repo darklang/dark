@@ -448,6 +448,7 @@ let load_all host (newops : Op.op list) : (canvas ref, string list) Result.t =
   load_from ~f:Serialize.load_all_from_db host owner newops
 
 
+
 let load_only_tlids ~tlids host (newops : Op.op list) :
     (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
@@ -487,16 +488,12 @@ let load_from_cache ~tlids host owner : (canvas ref, string list) Result.t =
       ~f:(fun x -> not (List.mem ~equal:( = ) fast_loaded_tlids x))
       tlids
   in
-  (* urgh, handlers/dbs need a pos but we can't get them from their serialized/cached definition.
-   * It's okay to just set an arbitrary default here, because we're _only using these for execution_ and
-   * pos's are only needed for the editor *)
-  let pos = {x = 0; y = 0} in
   (* canvas initialized via the normal loading path with the non-fast loaded tlids
    * loaded traditionally via the oplist *)
   let canvas = load_only_undeleted_tlids ~tlids:not_loaded_tlids host [] in
   canvas
   |> Result.map ~f:(fun canvas ->
-         List.iter (IDMap.to_alist fast_loaded_handlers) ~f:(fun (tlid, h) ->
+         List.iter (IDMap.to_alist fast_loaded_handlers) ~f:(fun (tlid, (h, pos)) ->
              let c = !canvas in
              let c =
                { c with
@@ -504,7 +501,7 @@ let load_from_cache ~tlids host owner : (canvas ref, string list) Result.t =
                    IDMap.set c.handlers tlid {tlid; pos; data = Handler h} }
              in
              canvas := c) ;
-         List.iter (IDMap.to_alist fast_loaded_dbs) ~f:(fun (tlid, db) ->
+         List.iter (IDMap.to_alist fast_loaded_dbs) ~f:(fun (tlid, (db, pos)) ->
              let c = !canvas in
              let c =
                {c with dbs = IDMap.set c.dbs tlid {tlid; pos; data = DB db}}
@@ -527,6 +524,13 @@ let load_from_cache ~tlids host owner : (canvas ref, string list) Result.t =
          canvas := {!canvas with ops = []} ;
          canvas)
 
+let load_all_from_cache host : (canvas ref, string list) Result.t =
+  let owner = Account.for_host_exn host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+  load_from_cache
+    ~tlids:(Serialize.fetch_all_tlids ~canvas_id ())
+    host
+    owner
 
 let load_http_from_cache ~verb ~path host : (canvas ref, string list) Result.t =
   (* Attempt to load all required toplvels via their
