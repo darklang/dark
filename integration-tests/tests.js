@@ -195,6 +195,14 @@ const scrollBy = ClientFunction((id, dx, dy) => {
   document.getElementById(id).scrollBy(dx, dy);
 });
 
+// NOTE: this is synchronous, not async, so we don't have to fuss with promises
+const getBwdResponse = ClientFunction(function(url) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.open("GET", url, false);
+  xhttp.send(null);
+  return xhttp.responseText;
+});
+
 // ------------------------
 // Tests below here. Don't forget to update client/src/IntegrationTest.ml
 // ------------------------
@@ -1114,4 +1122,13 @@ test("fluid_show_docs_for_command_on_selected_code", async t => {
 
   await t.expect(Selector("#cmd-filter").exists).ok();
   await t.expect(Selector(".documentation-box").exists).ok();
+});
+
+// Regression test:
+// Pre-fix, we expect the response body to be "Zm9v" ("foo" |> base64).
+// Post-fix, we expect "foo"
+test("fluid-bytes-response", async t => {
+  const url = "/";
+  const resp = await getBwdResponse(user_content_url(t, url));
+  await t.expect(resp).eql("foo");
 });
