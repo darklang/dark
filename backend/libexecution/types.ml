@@ -566,6 +566,7 @@ module RuntimeT = struct
     ; store_fn_result : store_fn_result_type
     ; load_fn_arguments : load_fn_arguments_type
     ; store_fn_arguments : store_fn_arguments_type
+    ; executing_fnname : string
     ; fail_fn : fail_fn_type }
 
   and funcimpl =

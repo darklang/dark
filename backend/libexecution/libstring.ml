@@ -61,7 +61,7 @@ let fns : Lib.shortfn list =
                              ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
                              ^ Dval.to_developer_repr_v0 example_value
                              ^ " is a "
-                             ^ Dval.tipename example_value )
+                             ^ Dval.pretty_tipename example_value )
                            ~expected:"every value to be a char"
                            "foreach expects you to return chars")
                   |> Result.ok_exn )
@@ -641,6 +641,20 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["String::isSubstring_v1"]
+    ; ins = []
+    ; p = [par "lookingIn" TStr; par "searchingFor" TStr]
+    ; r = TBool
+    ; d = "Checks if `lookingIn` contains `searchingFor`"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr haystack; DStr needle] ->
+              DBool (Unicode_string.is_substring ~substring:needle haystack)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["String::trim"]
     ; ins = []
@@ -668,6 +682,34 @@ let fns : Lib.shortfn list =
           | _, [DStr str] ->
               let theBytes = Unicode_string.to_utf8_bytes str in
               DBytes theBytes
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["String::startsWith"]
+    ; ins = []
+    ; p = [par "subject" TStr; par "prefix" TStr]
+    ; r = TBool
+    ; d = "Checks if `subject` starts with `prefix`"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr subject; DStr prefix] ->
+              DBool (Unicode_string.starts_with ~prefix subject)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["String::endsWith"]
+    ; ins = []
+    ; p = [par "subject" TStr; par "suffix" TStr]
+    ; r = TBool
+    ; d = "Checks if `subject` ends with `suffix`"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr subject; DStr suffix] ->
+              DBool (Unicode_string.ends_with ~suffix subject)
           | args ->
               fail args)
     ; ps = true

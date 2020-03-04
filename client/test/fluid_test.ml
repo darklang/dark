@@ -1666,6 +1666,27 @@ let run () =
       ()) ;
   describe "Functions" (fun () ->
       t
+        ~expectsPartial:true
+        "pipe key starts partial after zero arg function"
+        aFnCallWithZeroArgs
+        ~pos:11
+        (ins "|")
+        "List::empty |~" ;
+      t
+        ~expectsPartial:true
+        "pipe key starts partial after zero arg function with version"
+        aFnCallWithZeroArgsAndVersion
+        ~pos:13
+        (ins "|")
+        "List::emptyv1 |~" ;
+      t
+        ~expectsPartial:true
+        "pipe key starts partial after piped function with one arg"
+        aPipeWithFilledFunction
+        ~pos:26
+        (ins "|")
+        "\"hello\"\n|>String::lengthv1 |~\n" ;
+      t
         "space on a sep goes to next arg"
         aFnCall
         ~pos:10
@@ -3538,6 +3559,12 @@ let run () =
         ~pos:4
         ctrlRight
         "if 5\nthen\n  6~\nelse\n  7" ;
+      t
+        "space in AC at end of then line should not advance"
+        (let' "x" (int 5) (if' (partial "x" b) b b))
+        ~pos:14
+        space
+        "let x = 5\nif x~\nthen\n  ___\nelse\n  ___" ;
       ()) ;
   describe "Lists" (fun () ->
       t "create list" b ~pos:0 (ins "[") "[~]" ;
@@ -4062,7 +4089,7 @@ let run () =
         (if' b (partial "Nothing" b) b)
         ~pos:21
         space
-        "if ___\nthen\n  Nothing\n~else\n  ___" ;
+        "if ___\nthen\n  Nothing~\nelse\n  ___" ;
       t "autocomplete for Error" (partial "Error" b) ~pos:5 enter "Error ~___" ;
       t
         "autocomplete for field"
@@ -4135,6 +4162,7 @@ let run () =
       t
         "autocomplete with space moves to next non-whitespace rather than blank"
         ~clone:false
+        ~pos:105
         (ELet
            ( gid ()
            , "request"
@@ -4151,9 +4179,8 @@ let run () =
                    , EFieldAccess
                        (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
-        ~pos:105
         space
-        "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body\n~foo" ;
+        "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body~\nfoo" ;
       t
         "autocomplete with tab in presence of no blanks places caret at end of autocompleted thing"
         ~clone:false

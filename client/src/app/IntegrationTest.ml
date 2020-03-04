@@ -320,6 +320,11 @@ let correct_field_livevalue (_ : model) : testResult =
   pass
 
 
+let int_add_with_float_error_includes_fnname (_ : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let fluid_execute_function_shows_live_value (_ : model) : testResult =
   (* The test logic is in tests.js *)
   pass
@@ -683,6 +688,8 @@ let fluid_show_docs_for_command_on_selected_code (_m : model) : testResult =
   pass
 
 
+let fluid_bytes_response (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -729,6 +736,8 @@ let trigger (test_name : string) : integrationTestState =
         execute_function_works
     | "correct_field_livevalue" ->
         correct_field_livevalue
+    | "int_add_with_float_error_includes_fnname" ->
+        int_add_with_float_error_includes_fnname
     | "fluid_execute_function_shows_live_value" ->
         fluid_execute_function_shows_live_value
     | "function_version_renders" ->
@@ -807,5 +816,7 @@ let trigger (test_name : string) : integrationTestState =
         use_pkg_fn
     | "fluid_show_docs_for_command_on_selected_code" ->
         fluid_show_docs_for_command_on_selected_code
+    | "fluid-bytes-response" ->
+        fluid_bytes_response
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

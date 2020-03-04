@@ -1,0 +1,49 @@
+[
+  [ "TLSavepoint", 1723824638 ],
+  [
+    "SetHandler",
+    1723824638,
+    { "x": 429, "y": 116 },
+    {
+      "tlid": 1723824638,
+      "ast": [
+        "Filled",
+        1095348949,
+        [
+          "Let",
+          [ "Filled", 1559342922, "val" ],
+          [
+            "Filled",
+            379121043,
+            [
+              "FnCall",
+              "String::toBytes",
+              [ [ "Filled", 931258363, [ "Value", "\"foo\"" ] ] ]
+            ]
+          ],
+          [
+            "Filled",
+            1549926819,
+            [
+              "FnCall",
+              "Http::respondWithJson",
+              [
+                [ "Filled", 1052606096, [ "Variable", "val" ] ],
+                [ "Filled", 730858672, [ "Value", "200" ] ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Filled", 410771935, "HTTP" ],
+        "name": [ "Filled", 385967964, "/" ],
+        "modifier": [ "Filled", 1002045962, "GET" ],
+        "types": {
+          "input": [ "Blank", 859731620 ],
+          "output": [ "Blank", 1248048228 ]
+        }
+      }
+    }
+  ]
+]

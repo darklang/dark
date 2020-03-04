@@ -207,6 +207,9 @@ type browserPlatform =
   | Windows
   | UnknownPlatform
 
+external validateEmail : string -> bool = "validateEmail"
+  [@@bs.val] [@@bs.scope "window"] [@@bs.scope "Dark"]
+
 external jsGetBrowserPlatform : unit -> browserPlatform Js.Nullable.t
   = "getBrowserPlatform"
   [@@bs.val] [@@bs.scope "window"]
@@ -221,7 +224,13 @@ external jsSendSegmentMessage : string -> unit = "sendSegmentMessage"
   [@@bs.val] [@@bs.scope "window"]
 
 let string_of_segment_track (e : segmentTrack) : string =
-  match e with WelcomeModal -> "Welcome Modal" | OpenDocs -> "Open docs"
+  match e with
+  | WelcomeModal ->
+      "Welcome Modal"
+  | OpenDocs ->
+      "Open docs"
+  | InviteUser ->
+      "User shared dark"
 
 
 let sendSegmentMessage (event : segmentTrack) : unit =

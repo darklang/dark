@@ -195,6 +195,14 @@ const scrollBy = ClientFunction((id, dx, dy) => {
   document.getElementById(id).scrollBy(dx, dy);
 });
 
+// NOTE: this is synchronous, not async, so we don't have to fuss with promises
+const getBwdResponse = ClientFunction(function(url) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.open("GET", url, false);
+  xhttp.send(null);
+  return xhttp.responseText;
+});
+
 // ------------------------
 // Tests below here. Don't forget to update client/src/IntegrationTest.ml
 // ------------------------
@@ -593,6 +601,15 @@ test("correct_field_livevalue", async t => {
   let v1 = await Selector(".selected .live-value.loaded").innerText;
 
   await t.expect(v1).eql("5");
+});
+
+test("int_add_with_float_error_includes_fnname", async t => {
+  await t
+    .click(Selector(".fluid-editor")) // required to see the return value (navigate is insufficient)
+    .expect(available(".return-value"))
+    .ok()
+    .expect(Selector(".return-value").innerText)
+    .contains("but + only works on Ints.");
 });
 
 test("function_version_renders", async t => {
@@ -1105,4 +1122,13 @@ test("fluid_show_docs_for_command_on_selected_code", async t => {
 
   await t.expect(Selector("#cmd-filter").exists).ok();
   await t.expect(Selector(".documentation-box").exists).ok();
+});
+
+// Regression test:
+// Pre-fix, we expect the response body to be "Zm9v" ("foo" |> base64).
+// Post-fix, we expect "foo"
+test("fluid-bytes-response", async t => {
+  const url = "/";
+  const resp = await getBwdResponse(user_content_url(t, url));
+  await t.expect(resp).eql("foo");
 });

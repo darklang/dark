@@ -353,6 +353,17 @@ function addWheelListener(elem) {
   return listener(elem);
 }
 
+// ---------------------------
+// Validation
+// ---------------------------
+
+var validator = require("validator");
+
+function validateEmail(email) {
+  return validator.isEmail(email);
+}
+window.Dark.validateEmail = validateEmail;
+
 setTimeout(function() {
   const canvasName = new URL(window.location).pathname.split("/")[2];
   const params = JSON.stringify({

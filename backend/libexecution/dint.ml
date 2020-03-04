@@ -38,6 +38,10 @@ let one = Int63.one
 
 let zero = Int63.zero
 
+let max = Int63.max
+
+let min = Int63.min
+
 let init () =
   (* TODO: init random *)
   ()
