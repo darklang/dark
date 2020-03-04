@@ -400,25 +400,32 @@ let run () =
               |> toEqual true) ;
           ()) ;
       describe "filter" (fun () ->
-          let filterFor m ~pos candidates =
+          let isConstructor = function
+            | FACConstructorName _ ->
+                true
+            | _ ->
+                false
+          in
+          let isVariable = function FACVariable _ -> true | _ -> false in
+          let filterFor m ~pos =
             let ac = acFor ~pos m in
             let m = {m with fluidState = {m.fluidState with ac}} in
-            let fullQ = defaultFullQuery m "" in
-            AC.filter m ac candidates fullQ
+            let newAC = setQuery m "" ac in
+            (newAC.completions, newAC.invalidCompletions)
           in
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
-              let m = defaultModel ~dbs:[aDB ()] () in
-              let _valid, invalid =
-                filterFor m ~pos:0 [FACVariable ("MyDB", None)]
+              let targetID = gid () in
+              let expr = fn "Int::add" [EBlank targetID; b] in
+              let m =
+                defaultModel
+                  ~analyses:[(targetID, DDB "MyDB")]
+                  ~dbs:[aDB ~tlid:(TLID "23") ()]
+                  ~handlers:[aHandler ~expr ()]
+                  ()
               in
-              expect (List.member ~value:(FACVariable ("MyDB", None)) invalid)
-              |> toEqual true) ;
-          let consFAC =
-            [ FACConstructorName ("Just", 1)
-            ; FACConstructorName ("Nothing", 0)
-            ; FACConstructorName ("Ok", 1)
-            ; FACConstructorName ("Error", 1) ]
-          in
+              let _valid, invalid = filterFor m ~pos:0 in
+              expect (List.filter invalid ~f:isVariable)
+              |> toEqual [FACVariable ("MyDB", Some (DDB "MyDB"))]) ;
           test "Only Just and Nothing are allowed in Option-blank" (fun () ->
               let expr = fn ~ster:NoRail "Option::withDefault" [b] in
               let handler = aHandler ~expr () in
