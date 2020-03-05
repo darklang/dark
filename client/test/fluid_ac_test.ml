@@ -279,28 +279,6 @@ let run () =
                 |> setQuery "Twit::1334xxx"
                 |> fun x -> x.index )
               |> toEqual None) ;
-          (* test "Filter by method signature for typed values" ( fun () ->
-              expect
-                ( acFor m
-                |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
-                |> setQuery ""
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName
-                |> Set.fromList
-                |> (==) (Set.fromList ["List::head"]) )
-              |> toEqual true ) ;
-
-          test "Show allowed fields for objects" ( fun () ->
-              expect
-                ( acFor m
-                |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
-                |> setQuery ""
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName
-                |> Set.fromList
-                |> (==) (Set.fromList ["Int::add", "+"]))
-              |> toEqual true ) ;
-           *)
           test
             "ordering = startsWith then case match then case insensitive match"
             (fun () ->
@@ -459,6 +437,28 @@ let run () =
               let _valid, invalid = filterFor m ~pos:35 in
               expect (List.filter invalid ~f:isVariable)
               |> toEqual [FACVariable ("myvar", Some (DInt 5))]) ;
+          (* test "Filter by method signature for typed values" ( fun () ->
+              expect
+                ( acFor m
+                |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
+                |> setQuery ""
+                |> (fun x -> x.completions)
+                |> List.map ~f:AC.asName
+                |> Set.fromList
+                |> (==) (Set.fromList ["List::head"]) )
+              |> toEqual true ) ;
+
+          test "Show allowed fields for objects" ( fun () ->
+              expect
+                ( acFor m
+                |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
+                |> setQuery ""
+                |> (fun x -> x.completions)
+                |> List.map ~f:AC.asName
+                |> Set.fromList
+                |> (==) (Set.fromList ["Int::add", "+"]))
+              |> toEqual true ) ;
+           *)
           (* test "Only Just and Nothing are allowed in Option-blank" (fun () -> *)
           (*     let expr = fn ~ster:NoRail "Option::withDefault" [b] in *)
           (*     let handler = aHandler ~expr () in *)
