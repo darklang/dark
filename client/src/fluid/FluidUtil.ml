@@ -173,3 +173,6 @@ let versionDisplayName (fnName : string) : string =
 
 
 let partialName = fnDisplayName
+
+let ghostPartialName (fnName : string) =
+  partialName fnName ^ versionDisplayName fnName
