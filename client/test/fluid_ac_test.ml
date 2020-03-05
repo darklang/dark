@@ -79,7 +79,8 @@ let defaultTokenInfo =
   ; token = TBlank defaultID }
 
 
-let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
+let defaultFullQuery
+    ?(tl = defaultToplevel) (ac : fluidAutocompleteState) (query : string) :
     AC.fullQuery =
   let ti =
     match tl with
@@ -92,9 +93,7 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
     | _ ->
         defaultTokenInfo
   in
-  let _, ti =
-    m.fluidState.ac.query |> Option.withDefault ~default:(TL.id tl, ti)
-  in
+  let _, ti = ac.query |> Option.withDefault ~default:(TL.id tl, ti) in
   (tl, ti, None, query)
 
 
@@ -171,8 +170,8 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
   AC.regenerate m (AC.init m) (tlid, ti)
 
 
-let setQuery (m : model) (q : string) (a : AC.autocomplete) : AC.autocomplete =
-  let fullQ = defaultFullQuery m q in
+let setQuery (q : string) (a : AC.autocomplete) : AC.autocomplete =
+  let fullQ = defaultFullQuery a q in
   AC.refilter fullQ a
 
 
@@ -185,7 +184,7 @@ let run () =
       describe "queryWhenEntering" (fun () ->
           let m = defaultModel () in
           let acForQueries (qs : string list) =
-            List.foldl qs ~init:(acFor m) ~f:(setQuery m)
+            List.foldl qs ~init:(acFor m) ~f:setQuery
             |> (fun x -> x.completions)
             |> List.map ~f:AC.asName
           in
@@ -197,26 +196,25 @@ let run () =
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit::somef"
-                |> setQuery m "Twit::someO"
+                |> setQuery "Twit::somef"
+                |> setQuery "Twit::someO"
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "Twit::someOtherFunc")) ;
           test "Returning to empty unselects" (fun () ->
-              expect
-                (acFor m |> setQuery m "lis" |> setQuery m "" |> AC.highlighted)
+              expect (acFor m |> setQuery "lis" |> setQuery "" |> AC.highlighted)
               |> toEqual None) ;
           test "resetting the query refilters" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit::somefunc"
-                |> setQuery m "Twit::some"
+                |> setQuery "Twit::somefunc"
+                |> setQuery "Twit::some"
                 |> AC.selectDown
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "Twit::someOtherFunc")) ;
           test "deprecated functions are removed" (fun () ->
-              expect (acFor m |> setQuery m "deprecated" |> AC.highlighted)
+              expect (acFor m |> setQuery "deprecated" |> AC.highlighted)
               |> toEqual None) ;
           test "sorts correctly without typing ::" (fun () ->
               expect (acForQuery "dbget" |> List.head)
@@ -234,12 +232,12 @@ let run () =
               |> toEqual ["DB::getAll_v1"; "DB::getAll_v2"]) ;
           test "search finds only prefixed" (fun () ->
               expect (acForQuery "twit::y") |> toEqual ["Twit::yetAnother"]) ;
-          test "show results when the only option is the setQuery m" (fun () ->
+          test "show results when the only option is the setQuery" (fun () ->
               expect (acForQuery "List::head" |> List.length) |> toEqual 1) ;
           test "scrolling down a bit works" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit"
+                |> setQuery "Twit"
                 |> AC.selectDown
                 |> AC.selectDown
                 |> fun x -> x.index )
@@ -247,7 +245,7 @@ let run () =
           test "scrolling loops one way" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit:"
+                |> setQuery "Twit:"
                 |> AC.selectDown
                 |> AC.selectDown
                 |> AC.selectDown
@@ -256,7 +254,7 @@ let run () =
           test "scrolling loops the other way" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit:"
+                |> setQuery "Twit:"
                 |> AC.selectDown
                 |> AC.selectUp
                 |> AC.selectUp
@@ -267,7 +265,7 @@ let run () =
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit:"
+                |> setQuery "Twit:"
                 |> AC.selectUp
                 |> AC.selectUp
                 |> fun x -> x.index )
@@ -275,17 +273,17 @@ let run () =
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit"
+                |> setQuery "Twit"
                 |> AC.selectDown
                 |> AC.selectDown
-                |> setQuery m "Twit::1334xxx"
+                |> setQuery "Twit::1334xxx"
                 |> fun x -> x.index )
               |> toEqual None) ;
           (* test "Filter by method signature for typed values" ( fun () ->
               expect
                 ( acFor m
                 |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
-                |> setQuery m ""
+                |> setQuery ""
                 |> (fun x -> x.completions)
                 |> List.map ~f:AC.asName
                 |> Set.fromList
@@ -296,7 +294,7 @@ let run () =
               expect
                 ( acFor m
                 |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
-                |> setQuery m ""
+                |> setQuery ""
                 |> (fun x -> x.completions)
                 |> List.map ~f:AC.asName
                 |> Set.fromList
@@ -308,7 +306,7 @@ let run () =
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "withLo"
+                |> setQuery "withLo"
                 |> (fun x -> x.completions)
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:AC.asName )
@@ -322,53 +320,53 @@ let run () =
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "+"
+                |> setQuery "+"
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "+")) ;
           test "null works" (fun () ->
-              expect (acFor m |> setQuery m "nu" |> AC.highlighted)
+              expect (acFor m |> setQuery "nu" |> AC.highlighted)
               |> toEqual (Some (FACLiteral "null"))) ;
           test "Ok works" (fun () ->
-              expect (acFor m |> setQuery m "Ok" |> AC.highlighted)
+              expect (acFor m |> setQuery "Ok" |> AC.highlighted)
               |> toEqual (Some (FACConstructorName ("Ok", 1)))) ;
           test "Error works" (fun () ->
-              expect (acFor m |> setQuery m "Error" |> AC.highlighted)
+              expect (acFor m |> setQuery "Error" |> AC.highlighted)
               |> toEqual (Some (FACConstructorName ("Error", 1)))) ;
           test "true works" (fun () ->
-              expect (acFor m |> setQuery m "tr" |> AC.highlighted)
+              expect (acFor m |> setQuery "tr" |> AC.highlighted)
               |> toEqual (Some (FACLiteral "true"))) ;
           test "case insensitive true works" (fun () ->
-              expect (acFor m |> setQuery m "tR" |> AC.highlighted)
+              expect (acFor m |> setQuery "tR" |> AC.highlighted)
               |> toEqual (Some (FACLiteral "true"))) ;
           test "false works" (fun () ->
-              expect (acFor m |> setQuery m "fa" |> AC.highlighted)
+              expect (acFor m |> setQuery "fa" |> AC.highlighted)
               |> toEqual (Some (FACLiteral "false"))) ;
           test "if works" (fun () ->
-              expect (acFor m |> setQuery m "if" |> AC.highlighted)
+              expect (acFor m |> setQuery "if" |> AC.highlighted)
               |> toEqual (Some (FACKeyword KIf))) ;
           test "let works" (fun () ->
-              expect (acFor m |> setQuery m "let" |> AC.highlighted)
+              expect (acFor m |> setQuery "let" |> AC.highlighted)
               |> toEqual (Some (FACKeyword KLet))) ;
           test "Lambda works" (fun () ->
-              expect (acFor m |> setQuery m "lambda" |> AC.highlighted)
+              expect (acFor m |> setQuery "lambda" |> AC.highlighted)
               |> toEqual (Some (FACKeyword KLambda))) ;
           test "http handlers have request" (fun () ->
               let space = Some "HTTP" in
               let m = defaultModel ~handlers:[aHandler ~space ()] () in
               expect
                 ( acFor m
-                |> setQuery m "request"
+                |> setQuery "request"
                 |> itemPresent (FACVariable ("request", None)) )
               |> toEqual true) ;
           test "handlers with no route have request and event" (fun () ->
               expect
                 (let ac = acFor m in
                  [ ac
-                   |> setQuery m "request"
+                   |> setQuery "request"
                    |> itemPresent (FACVariable ("request", None))
                  ; ac
-                   |> setQuery m "event"
+                   |> setQuery "event"
                    |> itemPresent (FACVariable ("event", None)) ])
               |> toEqual [true; true]) ;
           test "functions have DB names in the autocomplete" (fun () ->
