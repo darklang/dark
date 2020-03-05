@@ -920,7 +920,8 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; account = field "account" account j
   ; canvas_list = field "canvas_list" (list string) j
   ; org_list = field "org_list" (list string) j
-  ; worker_schedules = field "worker_schedules" (strDict string) j }
+  ; worker_schedules = field "worker_schedules" (strDict string) j
+  ; creation_date = field "creation_date" string j }
 
 
 let allTracesResult j : allTracesAPIResult =

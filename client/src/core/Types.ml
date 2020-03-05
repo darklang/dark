@@ -796,7 +796,8 @@ and initialLoadAPIResult =
   ; account : account
   ; canvas_list : string list
   ; org_list : string list
-  ; worker_schedules : string StrDict.t }
+  ; worker_schedules : string StrDict.t
+  ; creation_date : string }
 
 and saveTestAPIResult = string
 
