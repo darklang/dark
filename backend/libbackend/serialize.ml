@@ -597,6 +597,15 @@ let hosts_for (account_name : string) : string list =
   |> List.dedup_and_sort ~compare
 
 
+let canvas_creation_date canvas_id =
+  Db.fetch_one
+    ~name:"canvas_creation_date"
+    "SELECT created_at from canvases
+     WHERE canvases.id = $1"
+    ~params:[Uuid canvas_id]
+  |> List.hd_exn
+
+
 let orgs_for (account_name : string) : string list =
   Db.fetch
     ~name:"fetch_orgs"
