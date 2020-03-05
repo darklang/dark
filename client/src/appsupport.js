@@ -364,6 +364,14 @@ function validateEmail(email) {
 }
 window.Dark.validateEmail = validateEmail;
 
+var moment = require("moment");
+
+function formatDate([date, format]) {
+  return moment(date).format(format);
+}
+
+window.Dark.formatDate = formatDate;
+
 setTimeout(function() {
   const canvasName = new URL(window.location).pathname.split("/")[2];
   const params = JSON.stringify({
