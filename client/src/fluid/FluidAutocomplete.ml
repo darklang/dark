@@ -271,16 +271,17 @@ let matchesTypes (isPipeMemberVal : bool) (paramTipe : tipe) (dv : dval option)
 
 let matcher
     (tipeConstraintOnTarget : tipe)
-    (dbnames : string list)
     (matchTypesOfFn : tipe -> function_ -> bool)
     (item : autocompleteItem) =
   match item with
   | FACFunction fn ->
       matchTypesOfFn tipeConstraintOnTarget fn
-  | FACVariable (var, _) ->
-      if List.member ~value:var dbnames
-      then tipeConstraintOnTarget = TDB
-      else true
+  | FACVariable (_, dval) ->
+    ( match dval with
+    | Some dv ->
+        Runtime.typeOf dv = tipeConstraintOnTarget
+    | None ->
+        true )
   | FACConstructorName (name, _) ->
     ( match tipeConstraintOnTarget with
     | TOption ->
@@ -409,7 +410,6 @@ let generate
 
 
 let filter
-    (m : model)
     (a : autocomplete)
     (candidates0 : autocompleteItem list)
     ((tl, ti, dval, queryString) : fullQuery) :
@@ -452,22 +452,18 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  let dbnames = TL.allDBNames m.dbs in
-  let isPipeMemberVal = isPipeMember tl ti in
+  let isPipeMember = isPipeMember tl ti in
   let tipeConstraintOnTarget = paramTipeForTarget a tl ti in
-  let matchTypesOfFn pt = matchesTypes isPipeMemberVal pt dval in
-  List.partition
-    ~f:(matcher tipeConstraintOnTarget dbnames matchTypesOfFn)
-    allMatches
+  let matchTypesOfFn pt = matchesTypes isPipeMember pt dval in
+  List.partition ~f:(matcher tipeConstraintOnTarget matchTypesOfFn) allMatches
 
 
 let refilter
-    (m : model)
-    ((tl, ti, _, queryString) as query : fullQuery)
-    (old : autocomplete) : autocomplete =
+    ((tl, ti, _, queryString) as query : fullQuery) (old : autocomplete) :
+    autocomplete =
   (* add or replace the literal the user is typing to the completions *)
   let newCompletions, invalidCompletions =
-    filter m old old.allCompletions query
+    filter old old.allCompletions query
   in
   let oldHighlight = highlighted old in
   let allCompletions = newCompletions @ invalidCompletions in
@@ -531,7 +527,7 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
       let queryString = toQueryString ti in
       let dval = dvalForToken m tl ti in
       let query = (tl, ti, dval, queryString) in
-      generate m a query |> refilter m query
+      generate m a query |> refilter query
 
 
 (* ---------------------------- *)
