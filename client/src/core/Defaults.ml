@@ -165,4 +165,4 @@ let defaultModel : model =
       ; canvas_list = []
       ; org_list = []
       ; loading = false
-      ; canvas_information = {canvas_description = ""; has_shipped = false; shipped_date = None} } }
+      ; canvas_information = {canvas_description = ""; shipped_date = None} } }

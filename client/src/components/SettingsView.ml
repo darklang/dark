@@ -79,14 +79,19 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
                   canvas_description = value } } }
       , Cmd.none )
   | ToggleCanvasDeployStatus ->
-        let has_shipped = not m.settingsView.canvas_information.has_shipped in
-        (* Todo - Get the date now when has_shipped is true *)
+      let shipped_date =
+        match m.settingsView.canvas_information.shipped_date with
+        | Some _ ->
+            None
+        | None ->
+            let rawDate = Js.Date.now () in
+            Some (Entry.formatDate (rawDate, "L"))
+      in
       ( { m with
           settingsView =
             { m.settingsView with
               canvas_information =
-                { m.settingsView.canvas_information with
-                  has_shipped } } }
+                {m.settingsView.canvas_information with shipped_date} } }
       , Cmd.none )
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
@@ -209,9 +214,11 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
 
 let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   let shippedText =
-    if canvas.has_shipped
-    then "Project has shipped(as of)"
-    else "Project has shipped"
+    match canvas.shipped_date with
+    | Some date ->
+        "(as of " ^ date ^ ")"
+    | None ->
+        ""
   in
   [ Html.div
       [Html.class' "canvas-info"]
@@ -234,14 +241,16 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
               [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
                     Types.SettingsViewMsg ToggleCanvasDeployStatus)
               ; Html.type' "checkbox"
-              ; Html.checked canvas.has_shipped ]
+              ; Html.checked (canvas.shipped_date |> Option.is_some) ]
               []
-          ; Html.p [] [Html.text shippedText] ]
+          ; Html.p [] [Html.text ("Project has shipped" ^ shippedText)] ]
       ; Html.p
           [Html.class' "sub-text"]
           [ Html.text
               "Dark is evolving quickly - let us know if your project is shipped and we will make sure to add it to our smoke tests."
-          ]; Html.p [Html.class' "created-text"] [Html.text "Canvas created on: "] ] ]
+          ]
+      ; Html.p [Html.class' "created-text"] [Html.text "Canvas created on: "] ]
+  ]
 
 
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =

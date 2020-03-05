@@ -24,8 +24,7 @@ type inviteFormMessage =
 
 type canvasInformation =
   { canvas_description : string
-  ; has_shipped : bool
-  ; shipped_date: string option }
+  ; shipped_date : string option }
 [@@deriving show]
 
 type settingsViewState =
