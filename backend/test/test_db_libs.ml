@@ -3,6 +3,7 @@ open Libexecution
 open Libbackend
 open Types.RuntimeT
 open Utils
+open Libshared.FluidShortcuts
 
 let t_db_add_roundtrip () =
   clear_test_data () ;
@@ -316,18 +317,44 @@ let t_db_queryOne_supports_Date_comparison () =
   let before = "1900-01-01T00:00:00Z" in
   let middle = "2000-01-01T00:00:00Z" in
   (* The Result::map_v1 and Option::andThen calls are necessary because
-   * Date::parse_v2 returns a Result, and exec_handler doesn't leave those on
+   * Date::parse_v2 returns a Result, and exec_ast' doesn't leave those on
    * the rail. *)
   let ast op =
-    Printf.sprintf
-      "(let _ (Result::map_v1 (Date::parse_v2 '%s') (\\date -> (DB::set_v1 (obj (ts date)) 'before' MyDB)))
-       (let _ (Result::map_v1 (Date::parse_v2 '%s') (\\date -> (DB::set_v1 (obj (ts date)) 'after' MyDB)))
-       (let middle (Date::parse_v2 '%s')
-       (Option::andThen (Result::toOption middle) (\\middle -> (DB::queryOne_v3 MyDB (\\value -> (%s middle (. value ts))))))))) "
-      before
-      after
-      middle
-      op
+    let'
+      "_"
+      (fn
+         "Result::map_v1"
+         [ fn "Date::parse_v2" [str before]
+         ; lambda
+             ["date"]
+             (fn
+                "DB::set_v1"
+                [record [("ts", var "date")]; str "before"; var "MyDB"]) ])
+      (let'
+         "_"
+         (fn
+            "Result::map_v1"
+            [ fn "Date::parse_v2" [str after]
+            ; lambda
+                ["date"]
+                (fn
+                   "DB::set_v1"
+                   [record [("ts", var "date")]; str "after"; var "MyDB"]) ])
+         (let'
+            "middle"
+            (fn "Date::parse_v2" [str middle])
+            (fn
+               "Option::andThen"
+               [ fn "Result::toOption" [var "middle"]
+               ; lambda
+                   ["middle"]
+                   (fn
+                      "DB::queryOne_v3"
+                      [ var "MyDB"
+                      ; lambda
+                          ["value"]
+                          (fn op [var "middle"; fieldAccess (var "value") "ts"])
+                      ]) ])))
   in
   let expected (date : string) : dval =
     DOption
@@ -337,19 +364,19 @@ let t_db_queryOne_supports_Date_comparison () =
   check_dval
     "Date::< middle ts.value gets us the after date"
     (expected after)
-    (exec_handler ~ops (ast "Date::<")) ;
+    (exec_ast' ~ops (ast "Date::<")) ;
   check_dval
     "Date::> middle ts.value gets us the before date"
     (expected before)
-    (exec_handler ~ops (ast "Date::>")) ;
+    (exec_ast' ~ops (ast "Date::>")) ;
   check_dval
     "Date::lessThan middle ts.value gets us the after date"
     (expected after)
-    (exec_handler ~ops (ast "Date::lessThan")) ;
+    (exec_ast' ~ops (ast "Date::lessThan")) ;
   check_dval
     "Date::greaterThan middle ts.value gets us the before date"
     (expected before)
-    (exec_handler ~ops (ast "Date::greaterThan"))
+    (exec_ast' ~ops (ast "Date::greaterThan"))
 
 
 let t_db_queryOne_returns_nothing_if_none () =
