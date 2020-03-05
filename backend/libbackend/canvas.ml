@@ -469,7 +469,7 @@ let load_with_dbs ~tlids host (newops : Op.op list) :
   load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
 
 
-let load_from_cache ~tlids host owner : (canvas ref, string list) Result.t =
+let load_from_cache ?(uncached_loader = load_only_undeleted_tlids) ~tlids host owner : (canvas ref, string list) Result.t =
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let ( fast_loaded_handlers
       , fast_loaded_dbs
@@ -490,7 +490,7 @@ let load_from_cache ~tlids host owner : (canvas ref, string list) Result.t =
   in
   (* canvas initialized via the normal loading path with the non-fast loaded tlids
    * loaded traditionally via the oplist *)
-  let canvas = load_only_undeleted_tlids ~tlids:not_loaded_tlids host [] in
+  let canvas = uncached_loader ~tlids:not_loaded_tlids host [] in
   canvas
   |> Result.map ~f:(fun canvas ->
          List.iter (IDMap.to_alist fast_loaded_handlers) ~f:(fun (tlid, (h, pos)) ->
@@ -528,6 +528,7 @@ let load_all_from_cache host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
+    ~uncached_loader:load_only_tlids
     ~tlids:(Serialize.fetch_all_tlids ~canvas_id ())
     host
     owner
