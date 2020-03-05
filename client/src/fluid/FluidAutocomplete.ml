@@ -91,7 +91,7 @@ let asTypeString (item : autocompleteItem) : string =
       |> List.map ~f:(fun x -> x.paramTipe)
       |> List.map ~f:RT.tipe2str
       |> String.join ~sep:", "
-      |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
+      |> fun s -> "(" ^ s ^ ") -> " ^ RT.tipe2str f.fnReturnTipe
   | FACField _ ->
       "field"
   | FACVariable (_, odv) ->
