@@ -210,7 +210,7 @@ type browserPlatform =
 external validateEmail : string -> bool = "validateEmail"
   [@@bs.val] [@@bs.scope "window"] [@@bs.scope "Dark"]
 
-external formatDate : float * string -> string = "formatDate"
+external formatDate : string * string -> string = "formatDate"
   [@@bs.val] [@@bs.scope "window"] [@@bs.scope "Dark"]
 
 external jsGetBrowserPlatform : unit -> browserPlatform Js.Nullable.t

@@ -24,7 +24,8 @@ type inviteFormMessage =
 
 type canvasInformation =
   { canvas_description : string
-  ; shipped_date : string option }
+  ; shipped_date : string option
+  ; created_at : string }
 [@@deriving show]
 
 type settingsViewState =
@@ -43,6 +44,7 @@ type settingsMsg =
   | UpdateCanvasDescription of string
   | ToggleCanvasDeployStatus
   | SubmitForm
+  | SetSettingsView of string list * string list * string
   | TriggerSendInviteCallback of
       (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
       [@printer opaque "TriggerSendInviteCallback"]
