@@ -84,7 +84,9 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
         | Some _ ->
             None
         | None ->
-            let rawDate = Js.Date.now () in
+            let rawDate =
+              Js.Date.now () |> Js.Date.fromFloat |> Js.Date.toUTCString
+            in
             Some (Entry.formatDate (rawDate, "L"))
       in
       ( { m with
@@ -99,6 +101,15 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       if isInvalid
       then ({m with settingsView = {m.settingsView with tab = newTab}}, Cmd.none)
       else submitForm m m.settingsView.tab
+  | SetSettingsView (org_list, canvas_list, created_at) ->
+      ( { m with
+          settingsView =
+            { m.settingsView with
+              org_list
+            ; canvas_list
+            ; canvas_information =
+                {m.settingsView.canvas_information with created_at} } }
+      , Cmd.none )
   | TriggerSendInviteCallback (Ok _) ->
       ( { m with
           toast = {toastMessage = Some "Sent!"; toastPos = None}
@@ -216,10 +227,11 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   let shippedText =
     match canvas.shipped_date with
     | Some date ->
-        "(as of " ^ date ^ ")"
+        " (as of " ^ date ^ ")"
     | None ->
         ""
   in
+  let create_at_date = Entry.formatDate (canvas.created_at, "L") in
   [ Html.div
       [Html.class' "canvas-info"]
       [ Html.h2 [] [Html.text "Canvas Information"]
@@ -249,8 +261,9 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
           [ Html.text
               "Dark is evolving quickly - let us know if your project is shipped and we will make sure to add it to our smoke tests."
           ]
-      ; Html.p [Html.class' "created-text"] [Html.text "Canvas created on: "] ]
-  ]
+      ; Html.p
+          [Html.class' "created-text"]
+          [Html.text ("Canvas created on: " ^ create_at_date)] ] ]
 
 
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
