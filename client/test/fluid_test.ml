@@ -1574,37 +1574,37 @@ let run () =
         "del on function with version"
         aFnCallWithVersion
         (del 11)
-        "DB::getAll~@@ ___________________" ;
+        "DB::getAllv~@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version"
         aFnCallWithVersion
         (bs 12)
-        "DB::getAll~@@ ___________________" ;
+        "DB::getAllv~@ ___________________" ;
       t
         ~expectsPartial:true
         "del on function with version in between the version and function name"
         aFnCallWithVersion
         (del 10)
-        "DB::getAll~@@ ___________________" ;
+        "DB::getAll~1@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version in between the version and function name"
         aFnCallWithVersion
         (bs 10)
-        "DB::getAl~@v@ ___________________" ;
+        "DB::getAl~v1@ ___________________" ;
       t
         ~expectsPartial:true
         "del on function with version in function name"
         aFnCallWithVersion
         (del 7)
-        "DB::get~ll@v@ ___________________" ;
+        "DB::get~llv1@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version in function name"
         aFnCallWithVersion
         (bs 8)
-        "DB::get~ll@v@ ___________________" ;
+        "DB::get~llv1@ ___________________" ;
       t
         "adding function with version goes to the right place"
         b
@@ -1620,7 +1620,7 @@ let run () =
         "DeleteWordBackward in middle of function deletes to beg of function"
         aFnCallWithVersion
         (inputs [DeleteWordBackward] 6)
-        "~tAll@etAllv@ ___________________" ;
+        "~tAllv1@Allv@ ___________________" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward in end of function version deletes to function"
@@ -1632,7 +1632,7 @@ let run () =
         "DeleteWordForward in middle of function deletes to beg of function"
         aFnCallWithVersion
         (inputs [DeleteWordForward] 6)
-        "DB::ge~@Allv@ ___________________" ;
+        "DB::ge~v1@lv@ ___________________" ;
       t
         "DeleteWordForward in end of function version moves cursor to end of blank "
         aFnCallWithVersion
