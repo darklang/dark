@@ -9,40 +9,41 @@ open Fluid_test_data
 open FluidShortcuts
 
 let sampleFunctions : function_ list =
-  [ ("Twit::somefunc", TObj)
-  ; ("Twit::someOtherFunc", TObj)
-  ; ("Twit::yetAnother", TObj)
-  ; ("+", TInt)
-  ; ("Int::add", TInt)
-  ; ("Dict::keys", TObj)
-  ; ("List::head", TList)
-  ; ("withlower", TObj)
-  ; ("withLower", TObj)
-  ; ("SomeModule::withLower", TObj)
-  ; ("SomeOtherModule::withlower", TObj)
-  ; ("HTTP::post", TAny)
-  ; ("HTTP::head", TAny)
-  ; ("HTTP::get", TAny)
-  ; ("HTTP::options", TAny)
-  ; ("Some::deprecated", TAny)
-  ; ("DB::deleteAll", TDB)
-  ; ("DB::generateKey", TStr)
-  ; ("DB::getAll_v2", TList)
-  ; ("DB::getAll_v1", TList)
+  [ ("Twit::somefunc", [TObj], TAny)
+  ; ("Twit::someOtherFunc", [TObj], TAny)
+  ; ("Twit::yetAnother", [TObj], TAny)
+  ; ("+", [TInt; TInt], TInt)
+  ; ("Int::add", [TInt; TInt], TInt)
+  ; ("Dict::keys", [TObj], TList)
+  ; ("List::head", [TList], TAny)
+  ; ("withlower", [TObj], TObj)
+  ; ("withLower", [TObj], TObj)
+  ; ("SomeModule::withLower", [TObj], TObj)
+  ; ("SomeOtherModule::withlower", [TObj], TObj)
+  ; ("HTTP::post", [TAny], TAny)
+  ; ("HTTP::head", [TAny], TAny)
+  ; ("HTTP::get", [TAny], TAny)
+  ; ("HTTP::options", [TAny], TAny)
+  ; ("Some::deprecated", [TAny], TAny)
+  ; ("DB::deleteAll", [TDB], TNull)
+  ; ("DB::generateKey", [], TStr)
+  ; ("DB::getAll_v2", [TDB], TList)
+  ; ("DB::getAll_v1", [TDB], TList)
     (* ordering is deliberate - we want the query to order s.t. get is before getAll *)
-  ; ("DB::get_v1", TList)
-  ; ("String::append", TStr)
-  ; ("Option::withDefault", TOption)
-  ; ("Result::catchError", TResult) ]
-  |> List.map ~f:(fun (fnName, paramTipe) ->
+  ; ("DB::get_v1", [TDB], TList)
+  ; ("String::append", [TStr], TStr)
+  ; ("Option::withDefault", [TOption], TAny)
+  ; ("Result::withDefault", [TResult], TAny) ]
+  |> List.map ~f:(fun (fnName, paramTipes, fnReturnTipe) ->
          { fnName
          ; fnParameters =
-             [ { paramName = "x"
-               ; paramTipe
-               ; paramBlock_args = []
-               ; paramOptional = false
-               ; paramDescription = "" } ]
-         ; fnReturnTipe = TBool
+             List.map paramTipes ~f:(fun paramTipe ->
+                 { paramName = "x"
+                 ; paramTipe
+                 ; paramBlock_args = []
+                 ; paramOptional = false
+                 ; paramDescription = "" })
+         ; fnReturnTipe
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
          ; fnInfix = true
@@ -404,14 +405,18 @@ let run () =
                    ; FACConstructorName ("Nothing", 0)
                    ; FACConstructorName ("Ok", 1)
                    ; FACConstructorName ("Error", 1) ]) ;
-          test "String functions allow strings" (fun () ->
+          test "Method argument filters by variable type" (fun () ->
               let id = gid () in
+              let id2 = gid () in
               let expr =
-                let' "myvar" (str ~id "asd") (fn "String::append" [b; b])
+                let'
+                  "mystr"
+                  (str ~id "asd")
+                  (let' "myint" (int ~id:id2 5) (fn "String::append" [b; b]))
               in
               let m =
                 defaultModel
-                  ~analyses:[(id, DStr "asd")]
+                  ~analyses:[(id, DStr "asd"); (id2, DInt 5)]
                   ~handlers:
                     [ aHandler
                         ~space:
@@ -420,63 +425,41 @@ let run () =
                         () ]
                   ()
               in
-              let valid, _invalid = filterFor m ~pos:35 in
-              expect (List.filter valid ~f:isVariable)
-              |> toEqual [FACVariable ("myvar", Some (DStr "asd"))]) ;
-          test "String functions make ints invalid" (fun () ->
-              let id = gid () in
-              let expr =
-                let' "myvar" (str ~id "asd") (fn "String::append" [b; b])
-              in
-              let m =
-                defaultModel
-                  ~analyses:[(id, DInt 5)]
-                  ~handlers:[aHandler ~expr ()]
-                  ()
-              in
-              let _valid, invalid = filterFor m ~pos:35 in
-              expect (List.filter invalid ~f:isVariable)
-              |> toEqual [FACVariable ("myvar", Some (DInt 5))]) ;
-          (* test "Filter by method signature for typed values" ( fun () ->
+              let valid, invalid = filterFor m ~pos:47 in
               expect
-                ( acFor m
-                |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
-                |> setQuery ""
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName
-                |> Set.fromList
-                |> (==) (Set.fromList ["List::head"]) )
-              |> toEqual true ) ;
-
-          test "Show allowed fields for objects" ( fun () ->
+                ( List.filter valid ~f:isVariable
+                , List.filter invalid ~f:isVariable )
+              |> toEqual
+                   ( [FACVariable ("mystr", Some (DStr "asd"))]
+                   , [FACVariable ("myint", Some (DInt 5))] )) ;
+          test "Method argument filters by fn return type " (fun () ->
+              let expr = fn "String::append" [b; b] in
+              let m = defaultModel ~handlers:[aHandler ~expr ()] () in
+              let valid, invalid = filterFor m ~pos:15 in
               expect
-                ( acFor m
-                |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
-                |> setQuery ""
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName
-                |> Set.fromList
-                |> (==) (Set.fromList ["Int::add", "+"]))
-              |> toEqual true ) ;
-           *)
-          (* test "Only Just and Nothing are allowed in Option-blank" (fun () -> *)
-          (*     let expr = fn ~ster:NoRail "Option::withDefault" [b] in *)
-          (*     let handler = aHandler ~expr () in *)
-          (*     let m = defaultModel ~handlers:[handler] () in *)
-          (*     let valid, _invalid = filterFor m consFAC ~pos:20 in *)
-          (*     expect valid *)
-          (*     |> toEqual *)
-          (*          [ FACConstructorName ("Just", 1) *)
-          (*          ; FACConstructorName ("Nothing", 0) ]) ; *)
-          (* test "Only Ok and Error are allowed in Result blank" (fun () -> *)
-          (*     let expr = fn ~ster:NoRail "Result::withDefault" [b] in *)
-          (*     let handler = aHandler ~expr () in *)
-          (*     let m = defaultModel ~handlers:[handler] () in *)
-          (*     let valid, _invalid = filterFor m consFAC ~pos:20 in *)
-          (*     expect valid *)
-          (*     |> toEqual *)
-          (*          [ FACConstructorName ("Ok", 1) *)
-          (*          ; FACConstructorName ("Error", 1) ]) ; *)
+                ( valid
+                  |> List.map ~f:AC.asName
+                  |> List.member ~value:"String::append"
+                , invalid
+                  |> List.map ~f:AC.asName
+                  |> List.member ~value:"Int::add" )
+              |> toEqual (true, true)) ;
+          test "Only Just and Nothing are allowed in Option-blank" (fun () ->
+              let expr = fn "Option::withDefault" [b] in
+              let m = defaultModel ~handlers:[aHandler ~expr ()] () in
+              let valid, _invalid = filterFor m ~pos:20 in
+              expect (valid |> List.filter ~f:isConstructor)
+              |> toEqual
+                   [ FACConstructorName ("Just", 1)
+                   ; FACConstructorName ("Nothing", 0) ]) ;
+          test "Only Ok and Error are allowed in Result blank" (fun () ->
+              let expr = fn "Result::withDefault" [b] in
+              let m = defaultModel ~handlers:[aHandler ~expr ()] () in
+              let valid, _invalid = filterFor m ~pos:20 in
+              expect (valid |> List.filter ~f:isConstructor)
+              |> toEqual
+                   [ FACConstructorName ("Ok", 1)
+                   ; FACConstructorName ("Error", 1) ]) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
               let tlid = TLID "789" in
               let mID = ID "1234" in
