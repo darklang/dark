@@ -192,7 +192,7 @@ let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
       viewInviteUserToDark svs
 
 
-let tabTitleView (tab : settingsTab) (showInvite : bool) : Types.msg Html.html =
+let tabTitleView (tab : settingsTab) : Types.msg Html.html =
   let tabTitle (t : settingsTab) =
     let isSameTab =
       match (tab, t) with
@@ -209,8 +209,6 @@ let tabTitleView (tab : settingsTab) (showInvite : bool) : Types.msg Html.html =
           (fun _ -> Types.SettingsViewMsg (SwitchSettingsTabs t)) ]
       [Html.text (settingsTabToText t)]
   in
-  (* Remove "allTabs" with variant *)
-  let allTabs = if showInvite then allTabs else [UserSettings] in
   Html.div [Html.class' "settings-tab-titles"] (List.map allTabs ~f:tabTitle)
 
 
@@ -224,13 +222,11 @@ let onKeydown (evt : Web.Node.event) : Types.msg option =
              None)
 
 
-let settingViewWrapper (acc : settingsViewState) (showInvite : bool) :
-    Types.msg Html.html =
+let settingViewWrapper (acc : settingsViewState) : Types.msg Html.html =
   let tabView = settingsTabToHtml acc in
   Html.div
     [Html.class' "settings-tab-wrapper"]
-    ( [Html.h1 [] [Html.text "Account"]; tabTitleView acc.tab showInvite]
-    @ tabView )
+    ([Html.h1 [] [Html.text "Account"]; tabTitleView acc.tab] @ tabView)
 
 
 let html (m : Types.model) : Types.msg Html.html =
@@ -243,8 +239,6 @@ let html (m : Types.model) : Types.msg Html.html =
           (fun _ -> Types.SettingsViewMsg (ToggleSettingsView (false, None))) ]
       [fontAwesome "times"]
   in
-  (* Remove with variant test *)
-  let showInvite = VariantTesting.variantIsActive m InviteVariant in
   Html.div
     [ Html.class' "settings modal-overlay"
     ; ViewUtils.nothingMouseEvent "mousedown"
@@ -259,4 +253,4 @@ let html (m : Types.model) : Types.msg Html.html =
         ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
               EnablePanning true)
         ; Html.onCB "keydown" "keydown" onKeydown ]
-        [settingViewWrapper m.settingsView showInvite; closingBtn] ]
+        [settingViewWrapper m.settingsView; closingBtn] ]
