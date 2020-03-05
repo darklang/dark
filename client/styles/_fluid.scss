@@ -474,7 +474,9 @@ since they are essentially both commands just acting upon different things. */
           float: right;
           margin-left: 4ch;
           text-transform: lowercase;
-          font-family: monospace;
+          font-family: "Fira Code", monospace;
+          font-size: 13.33px;
+          height: 16px;
           color: darken($dropdown-foreground, 15%);
         }
       }
