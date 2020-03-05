@@ -14,6 +14,8 @@
   * [map] or [toExpr] as appropriate. *)
 type t
 
+val show : t -> string
+
 (** [pp] allows @deriving show to work *)
 val pp : Format.formatter -> t -> unit
 

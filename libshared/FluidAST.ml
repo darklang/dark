@@ -2,6 +2,8 @@ module E = FluidExpression
 
 type t = Root of E.t
 
+let show (Root e) = E.show e
+
 let pp f (Root e) = E.pp f e
 
 let toExpr (Root e) = e
