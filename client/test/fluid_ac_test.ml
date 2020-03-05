@@ -31,6 +31,7 @@ let sampleFunctions : function_ list =
   ; ("DB::getAll_v1", TList)
     (* ordering is deliberate - we want the query to order s.t. get is before getAll *)
   ; ("DB::get_v1", TList)
+  ; ("String::append", TStr)
   ; ("Option::withDefault", TOption)
   ; ("Result::catchError", TResult) ]
   |> List.map ~f:(fun (fnName, paramTipe) ->
@@ -134,8 +135,7 @@ let defaultModel
     ?(tlid = defaultTLID)
     ?(analyses = [])
     ?(dbs = [])
-    ?(expr = defaultExpr)
-    ?(handlers = [aHandler ~expr ()])
+    ?(handlers = [aHandler ()])
     ?(userFunctions = [])
     ?(userTipes = [])
     () : model =
@@ -162,19 +162,18 @@ let defaultModel
 (* AC targeting a tlid and pointer *)
 let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
   let ti =
-    match TL.get m tlid with
-    | Some (TLHandler {ast; _}) | Some (TLFunc {ufAST = ast; _}) ->
-        Fluid.getToken ast {m.fluidState with newPos = pos}
-        |> Option.withDefault ~default:defaultTokenInfo
-    | _ ->
-        defaultTokenInfo
+    TL.get m tlid
+    |> Option.andThen ~f:TL.getAST
+    |> Option.andThen ~f:(fun ast ->
+           Fluid.getToken ast {m.fluidState with newPos = pos})
+    |> Option.withDefault ~default:defaultTokenInfo
   in
   AC.regenerate m (AC.init m) (tlid, ti)
 
 
 let setQuery (m : model) (q : string) (a : AC.autocomplete) : AC.autocomplete =
   let fullQ = defaultFullQuery m q in
-  AC.refilter m fullQ a
+  AC.refilter fullQ a
 
 
 let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
@@ -405,24 +404,21 @@ let run () =
           let isVariable = function FACVariable _ -> true | _ -> false in
           let filterFor m ~pos =
             let ac = acFor ~pos m in
-            let m = {m with fluidState = {m.fluidState with ac}} in
-            let newAC = setQuery m "" ac in
-            (newAC.completions, newAC.invalidCompletions)
+            (ac.completions, ac.invalidCompletions)
           in
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
-              let targetID = gid () in
-              let expr = fn "Int::add" [EBlank targetID; b] in
+              let id = gid () in
+              let expr = fn "Int::add" [EBlank id; b] in
               let m =
                 defaultModel
-                  ~analyses:[(targetID, DDB "MyDB")]
+                  ~analyses:[(id, DDB "MyDB")]
                   ~dbs:[aDB ~tlid:(TLID "23") ()]
                   ~handlers:[aHandler ~expr ()]
                   ()
               in
-              let _valid, invalid = filterFor m ~pos:0 in
+              let _valid, invalid = filterFor m ~pos:9 in
               expect (List.filter invalid ~f:isVariable)
               |> toEqual [FACVariable ("MyDB", Some (DDB "MyDB"))]) ;
-          (* test "Only Just and Nothing are allowed in Option-blank" (fun () -> *)
           test "Constructors are available in Any expression" (fun () ->
               let m = defaultModel () in
               let valid, _invalid = filterFor m ~pos:0 in
@@ -432,6 +428,40 @@ let run () =
                    ; FACConstructorName ("Nothing", 0)
                    ; FACConstructorName ("Ok", 1)
                    ; FACConstructorName ("Error", 1) ]) ;
+          test "String functions allow strings" (fun () ->
+              let id = gid () in
+              let expr =
+                let' "myvar" (str ~id "asd") (fn "String::append" [b; b])
+              in
+              let m =
+                defaultModel
+                  ~analyses:[(id, DStr "asd")]
+                  ~handlers:
+                    [ aHandler
+                        ~space:
+                          (Some "REPL" (* remove `request` var from valid *))
+                        ~expr
+                        () ]
+                  ()
+              in
+              let valid, _invalid = filterFor m ~pos:35 in
+              expect (List.filter valid ~f:isVariable)
+              |> toEqual [FACVariable ("myvar", Some (DStr "asd"))]) ;
+          test "String functions make ints invalid" (fun () ->
+              let id = gid () in
+              let expr =
+                let' "myvar" (str ~id "asd") (fn "String::append" [b; b])
+              in
+              let m =
+                defaultModel
+                  ~analyses:[(id, DInt 5)]
+                  ~handlers:[aHandler ~expr ()]
+                  ()
+              in
+              let _valid, invalid = filterFor m ~pos:35 in
+              expect (List.filter invalid ~f:isVariable)
+              |> toEqual [FACVariable ("myvar", Some (DInt 5))]) ;
+          (* test "Only Just and Nothing are allowed in Option-blank" (fun () -> *)
           (*     let expr = fn ~ster:NoRail "Option::withDefault" [b] in *)
           (*     let handler = aHandler ~expr () in *)
           (*     let m = defaultModel ~handlers:[handler] () in *)
