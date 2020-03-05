@@ -305,6 +305,11 @@ ENV CARGO_HOME=/home/dark/.cargo
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
+
+RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
+        -O /usr/bin/cloud_sql_proxy \
+  && chmod +x /usr/bin/cloud_sql_proxy
+
 user dark
 
 

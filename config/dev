@@ -65,6 +65,12 @@ DARK_CONFIG_GCLOUD_APPLICATION_CREDENTIALS=balmy-ground-195100-d9b0f3de3013.json
 DARK_CONFIG_STATIC_ASSETS_BUCKET=dark-static-assets-dev
 DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN=n
 
+# Cloud SQL proxy
+## ONLY IN DEV because if you're in prod, k8s provides this
+DARK_CONFIG_MY_PROJECT=balmy-ground-195100
+DARK_CONFIG_REGION=us-west-1
+DARK_CONFIG_DB_INSTANCE=dark-west
+
 ######################################
 # XXX: Changes won't take effect until you restart script/builder
 ######################################
