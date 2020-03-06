@@ -23,9 +23,12 @@ _not_ managed certificates.
   again, for redirects, not SSL certs.
 
 ## Dark ops instructions
+- Create a new branch
 - Run `scripts/add-custom-domain`; it will generate the necessary code changes.
+  Make sure to supply the DOMAIN without the `https://` prefix and the raw CANVAS name without `builtwithdark`.
 - It will also instruct you in the necessary manual steps to run _after_ the
   CNAME is ready, but _before_ merging the script's changes.
+  - If the domain is not a www domain that we want to redirect, you will need to manually remove several of the generated changes.
   - The CNAME must exist before the below is done because Let's Encrypt (and
     thus Google) uses DNS to verify that "we" (the user) control the domain
     before issuing a cert.
