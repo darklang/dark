@@ -448,7 +448,6 @@ let load_all host (newops : Op.op list) : (canvas ref, string list) Result.t =
   load_from ~f:Serialize.load_all_from_db host owner newops
 
 
-
 let load_only_tlids ~tlids host (newops : Op.op list) :
     (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
@@ -469,7 +468,9 @@ let load_with_dbs ~tlids host (newops : Op.op list) :
   load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
 
 
-let load_from_cache ?(uncached_loader = load_only_undeleted_tlids) ~tlids host owner : (canvas ref, string list) Result.t =
+let load_from_cache
+    ?(uncached_loader = load_only_undeleted_tlids) ~tlids host owner :
+    (canvas ref, string list) Result.t =
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let ( fast_loaded_handlers
       , fast_loaded_dbs
@@ -493,7 +494,9 @@ let load_from_cache ?(uncached_loader = load_only_undeleted_tlids) ~tlids host o
   let canvas = uncached_loader ~tlids:not_loaded_tlids host [] in
   canvas
   |> Result.map ~f:(fun canvas ->
-         List.iter (IDMap.to_alist fast_loaded_handlers) ~f:(fun (tlid, (h, pos)) ->
+         List.iter
+           (IDMap.to_alist fast_loaded_handlers)
+           ~f:(fun (tlid, (h, pos)) ->
              let c = !canvas in
              let c =
                { c with
@@ -524,6 +527,7 @@ let load_from_cache ?(uncached_loader = load_only_undeleted_tlids) ~tlids host o
          canvas := {!canvas with ops = []} ;
          canvas)
 
+
 let load_all_from_cache host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
@@ -532,6 +536,7 @@ let load_all_from_cache host : (canvas ref, string list) Result.t =
     ~tlids:(Serialize.fetch_all_tlids ~canvas_id ())
     host
     owner
+
 
 let load_http_from_cache ~verb ~path host : (canvas ref, string list) Result.t =
   (* Attempt to load all required toplvels via their

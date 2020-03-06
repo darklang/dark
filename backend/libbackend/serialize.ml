@@ -172,7 +172,13 @@ let strs2rendered_oplist_cache_query_result strs :
          | [data] ->
              (data, None)
          | [data; pos] ->
-             (data, Some (pos |> (fun s -> String.drop_prefix s 1) |> Yojson.Safe.from_string |> Types.pos_of_yojson |> Result.ok_or_failwith))
+             ( data
+             , Some
+                 ( pos
+                 |> (fun s -> String.drop_prefix s 1)
+                 |> Yojson.Safe.from_string
+                 |> Types.pos_of_yojson
+                 |> Result.ok_or_failwith ) )
          | _ ->
              Exception.internal "Shape of per_tlid cached reprs")
   |> List.fold
@@ -204,7 +210,10 @@ let strs2rendered_oplist_cache_query_result strs :
            | None ->
              ( match try_parse ~f:handler_of_binary_string str with
              | Some h ->
-                 ( IDMap.add_exn handlers ~key:h.tlid ~data:(h, Option.value_exn pos)
+                 ( IDMap.add_exn
+                     handlers
+                     ~key:h.tlid
+                     ~data:(h, Option.value_exn pos)
                  , dbs
                  , user_fns
                  , user_tipes )
