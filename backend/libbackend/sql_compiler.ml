@@ -325,9 +325,10 @@ let rec lambda_to_sql
       ( match expected_tipe with
       | TDate ->
           (* This match arm handles types that are serialized in
-           * unsafe_dval_to_yojson using wrap_user_type or wrap_user_str.  Right
-           * now, of the types sql compiler supports, that's just TDate.
-           Likely future candidates include DPassword and DUuid; at time of
+           * unsafe_dval_to_yojson using wrap_user_type or wrap_user_str, maning
+           * they are wrapped in {type:, value:}.  Right now, of the types sql
+           * compiler supports, that's just TDate.
+             Likely future candidates include DPassword and DUuid; at time of
              writing, DCharacter and DBytes also serialize this way but are not
              allowed as DB field types. *)
           Printf.sprintf
