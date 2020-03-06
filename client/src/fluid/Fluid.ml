@@ -1212,7 +1212,9 @@ let rec caretTargetForStartOfExpr' : fluidExpr -> caretTarget = function
   | EPipe (id, exprChain) ->
       List.getAt ~index:0 exprChain
       |> Option.map ~f:(fun expr -> caretTargetForStartOfExpr' expr)
-      |> Option.withDefault ~default:{astRef = ARPipe (id, 0); offset = 0}
+      |> recoverOpt
+           "caretTargetForStartOfExpr' - EPipe"
+           ~default:{astRef = ARPipe (id, 0); offset = 0}
   | EConstructor (id, _, _) ->
       {astRef = ARConstructor id; offset = 0}
   | (EFeatureFlag _ | EPipeTarget _) as expr ->
