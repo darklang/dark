@@ -76,136 +76,73 @@ let rec uses (var : string) (expr : E.t) : E.t list =
 
 
 (* ------------------------- *)
-(* Children *)
-(* ------------------------- *)
-let children (expr : E.t) : E.t list =
-  match expr with
-  | EInteger _
-  | EString _
-  | EBool _
-  | EFloat _
-  | ENull _
-  | EBlank _
-  | EPipeTarget _ ->
-      []
-  | EVariable _ ->
-      []
-  | EIf (_, cond, ifbody, elsebody) ->
-      [cond; ifbody; elsebody]
-  | EFnCall (_, _, exprs, _) ->
-      exprs
-  | EBinOp (_, _, lhs, rhs, _) ->
-      [lhs; rhs]
-  | EConstructor (_, _, exprs) ->
-      exprs
-  | ELambda (_, _, lexpr) ->
-      [lexpr]
-  | EPipe (_, exprs) ->
-      exprs
-  | EFieldAccess (_, obj, _) ->
-      [obj]
-  | ELet (_, _, rhs, body) ->
-      [rhs; body]
-  | ERecord (_, pairs) ->
-      pairs |> List.map ~f:Tuple2.second
-  | EList (_, elems) ->
-      elems
-  | EFeatureFlag (_, _, cond, a, b) ->
-      [cond; a; b]
-  | EMatch (_, matchExpr, cases) ->
-      let casePointers = cases |> List.map ~f:Tuple2.second in
-      matchExpr :: casePointers
-  | EPartial (_, _, oldExpr) ->
-      [oldExpr]
-  | ERightPartial (_, _, oldExpr) ->
-      [oldExpr]
-
-
-(* ------------------------- *)
-(* Parents *)
-(* ------------------------- *)
-let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
-  let fpow = findParentOfWithin_ eid in
-  (* the `or` of all items in the list *)
-  let fpowList xs =
-    xs |> List.map ~f:fpow |> List.filterMap ~f:identity |> List.head
-  in
-  if List.member ~value:eid (haystack |> children |> List.map ~f:E.toID)
-  then Some haystack
-  else
-    match haystack with
-    | EInteger _
-    | EString _
-    | EBool _
-    | EFloat _
-    | ENull _
-    | EBlank _
-    | EPipeTarget _ ->
-        None
-    | EVariable _ ->
-        None
-    | ELet (_, _, rhs, body) ->
-        fpowList [rhs; body]
-    | EIf (_, cond, ifbody, elsebody) ->
-        fpowList [cond; ifbody; elsebody]
-    | EFnCall (_, _, exprs, _) ->
-        fpowList exprs
-    | EBinOp (_, _, lhs, rhs, _) ->
-        fpowList [lhs; rhs]
-    | EConstructor (_, _, exprs) ->
-        fpowList exprs
-    | ELambda (_, _, lexpr) ->
-        fpow lexpr
-    | EPipe (_, exprs) ->
-        fpowList exprs
-    | EFieldAccess (_, obj, _) ->
-        fpow obj
-    | EList (_, exprs) ->
-        fpowList exprs
-    (* we don't check the children because it's done up top *)
-    | ERecord (_, pairs) ->
-        pairs |> List.map ~f:Tuple2.second |> fpowList
-    | EFeatureFlag (_, _, cond, a, b) ->
-        fpowList [cond; a; b]
-    | EMatch (_, matchExpr, cases) ->
-        fpowList (matchExpr :: (cases |> List.map ~f:Tuple2.second))
-    | EPartial (_, _, oldExpr) ->
-        fpow oldExpr
-    | ERightPartial (_, _, oldExpr) ->
-        fpow oldExpr
-
-
-let findParentOfWithin (id : id) (haystack : E.t) : E.t =
-  findParentOfWithin_ id haystack
-  |> recoverOpt "findParentOfWithin" ~default:(E.newB ())
-
-
-(* ------------------------- *)
 (* EPipe stuff *)
 (* ------------------------- *)
 
-let getParamIndex (expr : E.t) (id : id) : (string * int) option =
-  let parent = findParentOfWithin_ id expr in
-  match parent with
-  | Some (EFnCall (_, name, args, _)) ->
-      args
-      |> List.findIndex ~f:(fun a -> E.toID a = id)
-      |> Option.map ~f:(fun i -> (name, i))
-  | Some (EBinOp (_, name, arg1, arg2, _)) ->
-      [arg1; arg2]
-      |> List.findIndex ~f:(fun a -> E.toID a = id)
-      |> Option.map ~f:(fun i -> (name, i))
-  | _ ->
-      None
-
-
-let threadPrevious (id : id) (ast : FluidAST.t) : E.t option =
-  FluidAST.findParent id ast
-  |> function
+let pipePrevious (id : id) (ast : FluidAST.t) : E.t option =
+  match FluidAST.findParent id ast with
   | Some (EPipe (_, exprs)) ->
       exprs
       |> List.find ~f:(fun e -> E.toID e = id)
       |> Option.andThen ~f:(fun value -> Util.listPrevious ~value exprs)
+  | _ ->
+      None
+
+
+(* Given the ID of a function call or binop, return its arguments. Takes pipes into account. *)
+let getArguments (id : id) (ast : FluidAST.t) : E.t list =
+  let pipePrevious = pipePrevious id ast in
+  let caller = FluidAST.find id ast in
+  let defaultArgs =
+    match caller with
+    | Some (EFnCall (_, _, args, _)) ->
+        args
+    | Some (EBinOp (_, _, arg0, arg1, _)) ->
+        [arg0; arg1]
+    | _ ->
+        []
+  in
+  match (pipePrevious, defaultArgs) with
+  | Some previous, EPipeTarget _ :: rest ->
+      (* pipetarget should be a pipetarget, but technically we might
+       * allow something invalid here, esp due to copy/paste *)
+      previous :: rest
+  | _ ->
+      defaultArgs
+
+
+(* Search for `id`, and if it is an argument of a function, return the function
+  * name and the index of the parameter it corresponds to.
+  *
+  * eg: Int::add 4 3 => if `id` was the id of the `4` expression, then we'd
+  *                     return (`Int::add`, 0)
+  * *)
+let getParamIndex (id : id) (ast : FluidAST.t) : (string * int) option =
+  let parent =
+    match FluidAST.findParent id ast with
+    | Some (EPipe (_, exprs)) ->
+        (* For an argument piped into a function, the "parent" would
+         * be the next pipe member) *)
+        exprs
+        |> List.find ~f:(fun e -> E.toID e = id)
+        |> Option.andThen ~f:(fun value -> Util.listNext ~value exprs)
+    | parent ->
+        parent
+  in
+  let meta =
+    match parent with
+    | Some (EFnCall (fnID, name, _, _)) ->
+        Some (fnID, name)
+    | Some (EBinOp (fnID, name, _, _, _)) ->
+        Some (fnID, name)
+    | _ ->
+        None
+  in
+  match meta with
+  | Some (fnID, name) ->
+      getArguments fnID ast
+      |> List.findIndex ~f:(fun e -> E.toID e = id)
+      |> Option.map ~f:(fun index -> (name, index))
   | _ ->
       None
 

@@ -33,6 +33,36 @@ let run () =
           in
           expect (freeVariables (EMatch (id1, e, pats)))
           |> toEqual [(id4, "request")]) ;
+      test "getArguments of binop works" (fun () ->
+          let arg1 = int 4 in
+          let arg2 = str "asf" in
+          let e = binop "+" arg1 arg2 in
+          let ast = FluidAST.ofExpr e in
+          expect (getArguments (E.toID e) ast) |> toEqual [arg1; arg2]) ;
+      test "getArguments of fncall works" (fun () ->
+          let arg1 = int 4 in
+          let arg2 = str "asf" in
+          let e = fn "Int::add" [arg1; arg2] in
+          let ast = FluidAST.ofExpr e in
+          expect (getArguments (E.toID e) ast) |> toEqual [arg1; arg2]) ;
+      test "getArguments of pipe works" (fun () ->
+          let id = gid () in
+          let arg1 = int 4 in
+          let arg2 = str "asf" in
+          let e = pipe arg1 [fn ~id "Int::add" [pipeTarget; arg2]] in
+          let ast = FluidAST.ofExpr e in
+          expect (getArguments id ast) |> toEqual [arg1; arg2]) ;
+      test "getParamIndex of pipe works" (fun () ->
+          let id1 = gid () in
+          let id2 = gid () in
+          let e =
+            pipe
+              (str ~id:id1 "asd")
+              [fn "String::append" [pipeTarget; EBlank id2]]
+          in
+          let ast = FluidAST.ofExpr e in
+          expect (getParamIndex id1 ast, getParamIndex id2 ast)
+          |> toEqual (Some ("String::append", 0), Some ("String::append", 1))) ;
       test
         "variablesIn correctly identifies available vars in let RHS with incomplete LHS"
         (fun () ->
