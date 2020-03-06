@@ -404,6 +404,13 @@ let accountView (m : model) : msg Html.html =
       [Html.text "Documentation"]
   in
   let spacer = Html.div [Html.class' "account-action-spacer"] [] in
+  let canvasInfo =
+    Html.p
+      [ Html.class' "account-action-btn"
+      ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
+            SettingsViewMsg (ToggleSettingsView (true, Some CanvasInfo))) ]
+      [Html.text "Canvas Info"]
+  in
   let settings =
     Html.p
       [ Html.class' "account-action-btn"
@@ -427,7 +434,7 @@ let accountView (m : model) : msg Html.html =
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
     ; Html.div
         [Html.class' "account-actions"]
-        [settings; share; logout; spacer; docs] ]
+        [canvasInfo; settings; share; logout; spacer; docs] ]
 
 
 let view (m : model) : msg Html.html =
