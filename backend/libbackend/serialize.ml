@@ -176,7 +176,7 @@ let strs2rendered_oplist_cache_query_result strs :
                |> Types.pos_of_yojson
                |> Result.ok
              in
-             ( data, pos )
+             (data, pos)
          | _ ->
              Exception.internal "Shape of per_tlid cached reprs")
   |> List.fold
