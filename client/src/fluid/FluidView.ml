@@ -120,34 +120,13 @@ let fnForToken state token : function_ option =
       None
 
 
-let fnArgExprs (token : token) (ast : FluidAST.t) : E.t list =
-  let id = T.tid token in
-  let exprs =
-    match FluidAST.find id ast with
-    | Some (EFnCall (_, _, exprs, _)) ->
-        exprs
-    | Some (EBinOp (_, _, lhs, rhs, _)) ->
-        [lhs; rhs]
-    | _ ->
-        []
-  in
-  match exprs with
-  | EPipeTarget _ :: rest ->
-      (* It's a little slow to look this up, so only look when we know we're
-       * in a thread. *)
-      let previous = ast |> AST.threadPrevious id |> Option.toList in
-      previous @ rest
-  | exprs ->
-      exprs
-
-
 let viewPlayIcon ~(vs : ViewUtils.viewState) (ti : T.tokenInfo) :
     Types.msg Html.html =
   match fnForToken vs.fluidState ti.token with
   | Some fn when not fn.fnPreviewExecutionSafe ->
       (* Looking these up can be slow, so the fnPreviewExecutionSafe check
        * above is very important *)
-      let allExprs = fnArgExprs ti.token vs.ast in
+      let allExprs = AST.getArguments (T.tid ti.token) vs.ast in
       let argIDs = List.map ~f:E.toID allExprs in
       ( match ti.token with
       | TFnVersion (id, _, _, _) ->
@@ -346,7 +325,9 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
              then None
              else
                let id = T.tid token in
-               let args = fnArgExprs token vs.ast |> List.map ~f:E.toID in
+               let args =
+                 AST.getArguments (T.tid token) vs.ast |> List.map ~f:E.toID
+               in
                ViewFnExecution.fnExecutionStatus vs fn id args
                |> ViewFnExecution.executionError
                |> Option.some)
