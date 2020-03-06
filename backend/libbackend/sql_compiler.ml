@@ -168,7 +168,7 @@ let dval_to_sql (dval : dval) : string =
          * we make this consistent with the serialization used to store Dates in
          * the DB *)
         "CAST(%s::jsonb->>'value' as timestamp with time zone)"
-        (Db.escape (String (DDate date |> Dval.to_internal_queryable_v1)))
+        (Db.escape (String (DDate date |> Dval.to_internal_queryable_field_v1)))
   | DInt i ->
       (* types don't line up to use Db.Int *)
       Db.escape_string (Dint.to_string i)
