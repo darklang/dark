@@ -332,7 +332,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EFnCall (id, fnName, args, ster) ->
       let displayName = FluidUtil.fnDisplayName fnName in
       let versionDisplayName = FluidUtil.versionDisplayName fnName in
-      let partialName = FluidUtil.partialName fnName in
+      let partialName = FluidUtil.fnDisplayNameWithVersion fnName in
       let versionToken =
         if versionDisplayName = ""
         then []
