@@ -86,12 +86,12 @@ let rec escape (param : param) : string =
       |> single_quote
   | QueryableDval dv ->
       dv
-      |> Dval.to_internal_queryable_v1
+      |> Dval.to_internal_queryable_field_v1
       |> escape_string
       |> single_quote
       |> cast_to ~tipe:"jsonb"
   | QueryableDvalmap dvm ->
-      DObj dvm
+      dvm
       |> Dval.to_internal_queryable_v1
       |> escape_string
       |> single_quote
@@ -129,9 +129,9 @@ let rec to_sql param : string =
   | Secret str ->
       str
   | QueryableDval dv ->
-      Dval.to_internal_queryable_v1 dv
+      Dval.to_internal_queryable_field_v1 dv
   | QueryableDvalmap dvm ->
-      Dval.to_internal_queryable_v1 (DObj dvm)
+      Dval.to_internal_queryable_v1 dvm
   | RoundtrippableDval dv ->
       Dval.to_internal_roundtrippable_v0 dv
   | RoundtrippableDvalmap dvm ->
@@ -178,9 +178,9 @@ let rec to_log param : string =
   | RoundtrippableDvalmap dvm ->
       DObj dvm |> Dval.to_internal_roundtrippable_v0 |> abbrev
   | QueryableDval dv ->
-      dv |> Dval.to_internal_queryable_v1 |> abbrev
+      dv |> Dval.to_internal_queryable_field_v1 |> abbrev
   | QueryableDvalmap dvm ->
-      DObj dvm |> Dval.to_internal_queryable_v1 |> abbrev
+      dvm |> Dval.to_internal_queryable_v1 |> abbrev
   | Null ->
       "NULL"
   | Time t ->
