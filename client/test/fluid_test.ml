@@ -57,9 +57,9 @@ open FluidShortcuts
  *  There are more tests in fluid_pattern_tests for match patterns.
  *)
 
-let wrapperOffset = 15
+let magicIfElseWrapperPrefix = 15 (* "if true\nthen\n  " *)
 
-let magicFeatureFlagTokenizationPrefix = 20 (* "when true\nenabled\n  " *)
+let magicFeatureFlagPrefix = 20 (* "when true\nenabled\n  " *)
 
 let deOption msg v = match v with Some v -> v | None -> failwith msg
 
@@ -68,7 +68,7 @@ module TestCase = struct
     { ast : FluidAST.t
     ; originalExpr : FluidExpression.t
     ; state : fluidState
-    ; editor : int option
+    ; ff : bool
     ; wrap : bool
     ; clone : bool
     ; debug : bool }
@@ -79,14 +79,18 @@ module TestCase = struct
       ?(debug = false)
       ?(pos = 0)
       ?(sel = None)
-      ?(editor = None)
+      ?(ff = false)
       (originalExpr : FluidExpression.t) : t =
     let selectionStart, pos =
       match sel with None -> (None, pos) | Some (a, b) -> (Some a, b)
     in
     let ast =
       let fullExpr =
-        if wrap then if' (bool true) originalExpr (int 5) else originalExpr
+        if ff
+        then flagNew originalExpr
+        else if wrap
+        then if' (bool true) originalExpr (int 5)
+        else originalExpr
       in
       let fullExpr =
         if clone then FluidExpression.clone fullExpr else fullExpr
@@ -96,52 +100,90 @@ module TestCase = struct
     let state =
       let extraEditors = Fluid.buildFeatureFlagEditors ast in
       let activeEditorId =
-        editor
-        |> Option.andThen ~f:(fun index -> List.getAt ~index extraEditors)
-        |> Option.map ~f:(fun e -> e.id)
+        if ff
+        then List.head extraEditors |> Option.map ~f:(fun e -> e.id)
+        else None
       in
       (* re-calculate selectionStart, pos taking into account either
        * None -> the if/else wrapper because we are testing the main editor
-       * Some -> the feature flag tokenization because we're in an extra (FF) editor *)
+       * Some -> the feature flag tokenization because we're in an extra (FF) editor
+       *
+       * See the block comment at the top of the file for further discussion of this *)
+      let origSel, origPos = (selectionStart, pos) in
       let selectionStart, pos =
-        match activeEditorId with
-        | None ->
-            let newlinesBefore (pos : int) =
-              (* How many newlines occur before the pos, it'll be indented by 2 for
-               * each newline, once the expr is wrapped in an if, so we need to add
-               * 2*nl to get the pos in place. (Note: it's correct to just count them,
-               * as opposed to the iterative approach we do later, because we're using
-               * the raw ast not the wrapped one *)
-              originalExpr
-              |> Printer.tokenize
-              |> List.filter ~f:(fun ti ->
-                     FluidToken.isNewline ti.token && ti.startPos < pos)
-              |> List.length
-            in
-            (* See the "Wrap" block comment at the top of the file for an explanation of this *)
-            let addWrapper pos =
-              if wrap
-              then pos + wrapperOffset + (newlinesBefore pos * 2)
-              else pos
-            in
-            let pos = addWrapper pos in
-            let selectionStart = Option.map selectionStart ~f:addWrapper in
-            (selectionStart, pos)
-        | Some _ ->
-            let selectionStart =
-              Option.map selectionStart ~f:(fun s ->
-                  s + magicFeatureFlagTokenizationPrefix)
-            in
-            (selectionStart, pos + magicFeatureFlagTokenizationPrefix)
+        let newlinesBefore (pos : int) =
+          (* Both the main editor if/then/else wrapper and the feature flag
+           * panel tokenization cause the actual tokenization of our result to
+           * contain an extra indent (2 spaces) for each line in the result.
+           *
+           * Consider:
+           *
+           * if true
+           * then
+           *   [1, 2, 3] << test case expectation is only this line
+           * else
+           * 5
+           *
+           * or in the feature flag case:
+           *
+           * when true
+           * enabled
+           *   [1, 2, 3] << test case expectation is only this line
+           *
+           * In order to correctly "fix" the expected caret pos, we need to
+           * count the number of newlines before that position so that we can
+           * add (2 * count) to the pos.
+           *
+           * Importantly, we do this on the original expr
+           *)
+          originalExpr
+          |> Printer.tokenize
+          |> List.filter ~f:(fun ti ->
+                 FluidToken.isNewline ti.token && ti.startPos < pos)
+          |> List.length
+        in
+        if ff
+        then
+          (* if we're testing a flag panel, it ALWAYS has the extra
+           * tokenization to deal with, regardless of if ~wrap was set *)
+          let fixup (p : int) =
+            p + magicFeatureFlagPrefix + (newlinesBefore p * 2)
+          in
+          let selectionStart = Option.map selectionStart ~f:fixup in
+          (selectionStart, fixup pos)
+        else if wrap
+        then
+          (* if the main editor was wrapped, remove it in the same way *)
+          let fixup (p : int) =
+            p + magicIfElseWrapperPrefix + (newlinesBefore p * 2)
+          in
+          let selectionStart = Option.map selectionStart ~f:fixup in
+          (selectionStart, fixup pos)
+        else
+          (* if not in FF and not wrapped, then just leave the pos/selection alone *)
+          (selectionStart, pos)
       in
+      if debug
+      then
+        Js.log
+          (Printf.sprintf
+             "(sel, pos) fixed from (%s, %d) to (%s, %d)"
+             ( origSel
+             |> Option.map ~f:string_of_int
+             |> Option.withDefault ~default:"None" )
+             origPos
+             ( selectionStart
+             |> Option.map ~f:string_of_int
+             |> Option.withDefault ~default:"None" )
+             pos) ;
       { defaultTestState with
-        activeEditorId
+        extraEditors
+      ; activeEditorId
       ; selectionStart
-      ; extraEditors
       ; oldPos = pos
       ; newPos = pos }
     in
-    {originalExpr; editor; ast; state; wrap; clone; debug}
+    {originalExpr; ff; ast; state; wrap; clone; debug}
 end
 
 module TestResult = struct
@@ -150,8 +192,16 @@ module TestResult = struct
     ; resultAST : FluidAST.t
     ; resultState : fluidState }
 
+  let viewKind (res : t) : editorViewKind =
+    match Fluid.focusedEditor res.resultState with
+    | None ->
+        MainView
+    | Some {kind; _} ->
+        kind
+
+
   let tokenizeResult (res : t) : FluidToken.tokenInfo list =
-    Printer.tokenize (FluidAST.toExpr res.resultAST)
+    FluidAST.toExpr res.resultAST |> Printer.tokenizeForViewKind (viewKind res)
 
 
   let containsPartials (res : t) : bool =
@@ -172,8 +222,8 @@ module TestResult = struct
     |> ( <> ) []
 
 
-  let removeWrapperFromCaretPos (res : t) (p : int) : int =
-    let endPos = ref (p - wrapperOffset) in
+  let removeWrapperFromCaretPos (res : t) (whichMagic : int) (p : int) : int =
+    let endPos = ref (p - whichMagic) in
     (* Account for the newlines as we find them, or else we won't know our
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
@@ -191,29 +241,37 @@ module TestResult = struct
 
 
   let pos (res : t) : int =
-    if Option.isSome res.testcase.editor
-    then res.resultState.newPos - magicFeatureFlagTokenizationPrefix
+    if res.testcase.ff
+    then
+      removeWrapperFromCaretPos
+        res
+        magicFeatureFlagPrefix
+        res.resultState.newPos
     else if res.testcase.wrap
-    then removeWrapperFromCaretPos res res.resultState.newPos
+    then
+      removeWrapperFromCaretPos
+        res
+        magicIfElseWrapperPrefix
+        res.resultState.newPos
     else res.resultState.newPos
 
 
   let selection (res : t) : int option =
-    if res.testcase.wrap
+    if res.testcase.ff
     then
       Option.map
         res.resultState.selectionStart
-        ~f:(removeWrapperFromCaretPos res)
+        ~f:(removeWrapperFromCaretPos res magicFeatureFlagPrefix)
+    else if res.testcase.wrap
+    then
+      Option.map
+        res.resultState.selectionStart
+        ~f:(removeWrapperFromCaretPos res magicIfElseWrapperPrefix)
     else res.resultState.selectionStart
 
 
   let toString (res : t) : string =
-    let expr = FluidAST.toExpr res.resultAST in
-    match Fluid.focusedEditor res.resultState with
-    | None ->
-        Printer.testStringForViewKind MainView expr
-    | Some {kind; _} ->
-        Printer.testStringForViewKind kind expr
+    FluidAST.toExpr res.resultAST |> Printer.testStringForViewKind MainView
 
 
   let toStringWithCaret (res : t) : string =
@@ -256,7 +314,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
   in
   let resultAST =
     FluidAST.map processedAST ~f:(function
-        | EFeatureFlag (_, _, _, _, expr) when Option.isSome tc.editor ->
+        | EFeatureFlag (_, _, _, _, expr) when tc.ff ->
             expr
         | EIf (_, _, expr, _) when tc.wrap ->
             expr
@@ -335,6 +393,7 @@ let inputs (inputs : fluidInputEvent list) (case : TestCase.t) : TestResult.t =
 let t
     ?(expectsPartial = false)
     ?(expectsFnOnRail = false)
+    ?(brokenInFF = false)
     ?(wrap = true)
     ?(clone = true)
     ?(debug = false)
@@ -344,54 +403,41 @@ let t
     (expr : fluidExpr)
     (fn : TestCase.t -> TestResult.t)
     (expectedStr : string) =
-  let case = TestCase.init ~wrap ~clone ~debug ~pos ~sel expr in
-  test
-    ( name
+  let testName ?(ff = false) () =
+    name
+    ^ (if ff then " in FF " else "")
     ^ " - `"
     ^ ( Printer.eToTestString expr
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
-    ^ "`" )
-    (fun () ->
+    ^ "`"
+  in
+  let case = TestCase.init ~wrap ~clone ~debug ~pos ~sel expr in
+  test (testName ()) (fun () ->
       let res = fn case in
       let open TestResult in
       expect (toStringWithCaret res, containsPartials res, containsFnsOnRail res)
-      |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
-
-
-let tflag
-    ?(expectsPartial = false)
-    ?(expectsFnOnRail = false)
-    ?(debug = false)
-    ?(pos = 0)
-    ?(sel = None)
-    (name : string)
-    (expr : fluidExpr)
-    (fn : TestCase.t -> TestResult.t)
-    (expectedStr : string) =
-  let expr = flagNew expr in
-  let case = TestCase.init ~wrap:false ~pos ~sel ~debug ~editor:(Some 0) expr in
-  test
-    ( name
-    ^ " in FF - `"
-    ^ ( Printer.eToTestString expr
-      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
-    ^ "`" )
-    (fun () ->
-      let res = fn case in
-      let open TestResult in
-      expect (toStringWithCaret res, containsPartials res, containsFnsOnRail res)
-      |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
+      |> toEqual (expectedStr, expectsPartial, expectsFnOnRail)) ;
+  (* also run the same test in a feature flag editor panel, unless it's marked as not working *)
+  if not brokenInFF
+  then
+    let case =
+      TestCase.init ~wrap:false ~clone ~debug ~pos ~sel ~ff:true expr
+    in
+    test (testName ~ff:true ()) (fun () ->
+        let res = fn case in
+        let open TestResult in
+        expect
+          (toStringWithCaret res, containsPartials res, containsFnsOnRail res)
+        |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
 
 
 let run () =
   OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
       t "insert mid string" aStr ~pos:3 (ins "c") "\"soc~me string\"" ;
-      tflag "insert mid string" aStr ~pos:3 (ins "c") "\"soc~me string\"" ;
       t "del mid string" aStr ~pos:3 del "\"so~e string\"" ;
       t "bs mid string" aStr ~pos:4 bs "\"so~e string\"" ;
       t "insert empty string" emptyStr ~pos:1 (ins "c") "\"c~\"" ;
-      tflag "insert empty string" emptyStr ~pos:1 (ins "c") "\"c~\"" ;
       t "del empty string" emptyStr ~pos:1 del "\"~\"" ;
       t "del empty string from outside" emptyStr del "~___" ;
       t "bs empty string" emptyStr ~pos:1 bs "~___" ;
@@ -1856,6 +1902,7 @@ let run () =
         "~HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }" ;
       t
         "reflows put the caret in the right place on insert"
+        ~brokenInFF:true
         ~expectsPartial:true
         ~wrap:false
         (let justShortEnoughNotToReflow =
@@ -2892,6 +2939,7 @@ let run () =
         "match ___\n  ~*** -> ___\n" ;
       t
         "ctrl+right 2 times from end doesnt move"
+        ~brokenInFF:true
         emptyMatch
         ~pos:22
         (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection])
