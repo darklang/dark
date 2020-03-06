@@ -234,6 +234,10 @@ let string_of_segment_track (e : segmentTrack) : string =
       "Open docs"
   | InviteUser ->
       "User shared dark"
+  | ShipCanvas date ->
+      "Canvas shippped - " ^ date
+  | UnShipCanvas date ->
+      "Canvas unshipped - " ^ date
 
 
 let sendSegmentMessage (event : segmentTrack) : unit =
