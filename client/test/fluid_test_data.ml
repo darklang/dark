@@ -486,10 +486,6 @@ let aPipeWithFilledFunction =
 (* Feature Flags *)
 (* ------------- *)
 
-let flag cond oldCode newCode =
-  EFeatureFlag (gid (), "flag-name", cond, oldCode, newCode)
-
-
 let flagOld oldCode = EFeatureFlag (gid (), "flag-name", falseBool, oldCode, b)
 
 let flagNew newCode = EFeatureFlag (gid (), "flag-name", trueBool, b, newCode)
