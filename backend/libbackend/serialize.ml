@@ -169,16 +169,14 @@ let strs2rendered_oplist_cache_query_result strs :
   strs
   |> List.map ~f:(fun results ->
          match results with
-         | [data] ->
-             (data, None)
          | [data; pos] ->
-             ( data
-             , Some
-                 ( pos
-                 |> (fun s -> String.drop_prefix s 1)
-                 |> Yojson.Safe.from_string
-                 |> Types.pos_of_yojson
-                 |> Result.ok_or_failwith ) )
+             let pos =
+               pos
+               |> Yojson.Safe.from_string
+               |> Types.pos_of_yojson
+               |> Result.ok
+             in
+             ( data, pos )
          | _ ->
              Exception.internal "Shape of per_tlid cached reprs")
   |> List.fold
@@ -203,20 +201,23 @@ let strs2rendered_oplist_cache_query_result strs :
          | None ->
            ( match try_parse ~f:db_of_binary_string str with
            | Some db ->
-               ( handlers
-               , IDMap.add_exn dbs ~key:db.tlid ~data:(db, Option.value_exn pos)
-               , user_fns
-               , user_tipes )
+               let dbs =
+                 pos
+                 |> Option.map ~f:(fun pos ->
+                        IDMap.add_exn dbs ~key:db.tlid ~data:(db, pos))
+                 |> Option.value ~default:dbs
+               in
+               (handlers, dbs, user_fns, user_tipes)
            | None ->
              ( match try_parse ~f:handler_of_binary_string str with
              | Some h ->
-                 ( IDMap.add_exn
-                     handlers
-                     ~key:h.tlid
-                     ~data:(h, Option.value_exn pos)
-                 , dbs
-                 , user_fns
-                 , user_tipes )
+                 let handlers =
+                   pos
+                   |> Option.map ~f:(fun pos ->
+                          IDMap.add_exn handlers ~key:h.tlid ~data:(h, pos))
+                   |> Option.value ~default:handlers
+                 in
+                 (handlers, dbs, user_fns, user_tipes)
              | None ->
                ( match try_parse ~f:user_tipe_of_binary_string str with
                | Some t ->
