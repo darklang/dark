@@ -64,7 +64,12 @@ val of_internal_queryable_v0 : string -> Types.RuntimeT.dval
  * queryable using jsonb in our DB. This reduces some of the v0 bugs, but at
  * the cost of not supporting many typed that we'll want to put in it.  Also
  * roundtrippable. Does not redact. *)
-val to_internal_queryable_v1 : Types.RuntimeT.dval -> string
+val to_internal_queryable_v1 : Types.RuntimeT.dval_map -> string
+
+(* to_internal_queryable_v1 (above) is how we serialize what we put in the user db
+ * (a DObj);  to_internal_queryable_field_v1 lets us use the same serializers
+ * for fields so we can query safely from sql_compiler.ml *)
+val to_internal_queryable_field_v1 : Types.RuntimeT.dval -> string
 
 (* This is a format used for roundtripping dvals internally, while still being
  * queryable using jsonb in our DB. There are some rare cases where it will
