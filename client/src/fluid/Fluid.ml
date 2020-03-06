@@ -1211,8 +1211,12 @@ let rec caretTargetForStartOfExpr' : fluidExpr -> caretTarget = function
       {astRef = ARList (id, LPOpen); offset = 0}
   | ERecord (id, _) ->
       {astRef = ARRecord (id, RPOpen); offset = 0}
-  | EPipe (id, _) ->
-      {astRef = ARPipe (id, 0); offset = 0}
+  | EPipe (id, exprChain) ->
+      List.getAt ~index:0 exprChain
+      |> Option.map ~f:(fun expr -> caretTargetForStartOfExpr' expr)
+      |> recoverOpt
+           "caretTargetForStartOfExpr' - EPipe"
+           ~default:{astRef = ARPipe (id, 0); offset = 0}
   | EConstructor (id, _, _) ->
       {astRef = ARConstructor id; offset = 0}
   | (EFeatureFlag _ | EPipeTarget _) as expr ->
@@ -2016,11 +2020,12 @@ let rec findAppropriateParentToWrap
     | EIf _
     | EMatch _
     | ERecord _
-    | EPipe _
     | ELambda _
     (* Not sure what to do here, probably nothing fancy *)
     | EFeatureFlag _ ->
         Some child
+    | EPipe _ ->
+        Some parent
     (* These are the expressions we're trying to skip. They are "sub-line" expressions. *)
     | EBinOp _ | EFnCall _ | EList _ | EConstructor _ | EFieldAccess _ ->
         findAppropriateParentToWrap parent ast
