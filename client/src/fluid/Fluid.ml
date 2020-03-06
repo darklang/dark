@@ -1111,7 +1111,9 @@ let rec caretTargetForEndOfExpr' : fluidExpr -> caretTarget = function
       |> Option.withDefault
            ~default:
              { astRef = ARFnCall id
-             ; offset = fnName |> FluidUtil.partialName |> String.length }
+             ; offset =
+                 fnName |> FluidUtil.fnDisplayNameWithVersion |> String.length
+             }
   | EPartial (_, _, EBinOp (_, _, _, rhsExpr, _)) ->
       (* We need this so that (for example) when we backspace a binop containing a binop within a partial,
        * we can keep hitting backspace to delete the whole thing. This isn't (currently) needed for
@@ -1877,7 +1879,8 @@ let replacePartialWithArguments
         |> Option.withDefault
              ~default:
                { astRef = ARFnCall id
-               ; offset = fnName |> FluidUtil.partialName |> String.length }
+               ; offset = fnName |> FluidUtil.ghostPartialName |> String.length
+               }
     | EConstructor (id, cName, argExprs) ->
         argExprs
         |> List.find ~f:(function EPipeTarget _ -> false | _ -> true)
@@ -2770,7 +2773,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
     | ARVariable _, (EVariable (_, varName) as oldExpr) ->
         mkPartialOrBlank ~str:(mutation varName) ~oldExpr
     | ARBinOp _, (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr) ->
-        let str = op |> FluidUtil.partialName |> mutation |> String.trim in
+        let str = op |> FluidUtil.ghostPartialName |> mutation |> String.trim in
         if str = ""
         then
           (* Delete the binop *)
