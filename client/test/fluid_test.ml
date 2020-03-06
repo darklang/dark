@@ -1930,7 +1930,7 @@ let run () =
         (binop "<" anInt anInt)
         (inputs [InsertText "="; keypress K.Enter] 7)
         "12345 <= ~12345" ;
-      test "wrapping a binop in a let with enter" (fun () ->
+      test "wrapping a binop in a let with enter creates correct ast" (fun () ->
           let pos = 0 in
           let ast = binop "+" (int 1) (int 2) in
           let s =
