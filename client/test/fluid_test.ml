@@ -217,10 +217,15 @@ module TestResult = struct
 
 
   let toStringWithCaret (res : t) : string =
-    let caretString = "~" in
-    match toString res |> String.splitAt ~index:(pos res) with
-    | a, b ->
-        [a; b] |> String.join ~sep:caretString
+    let insert = "~" in
+    let endPos = pos res in
+    let s = String.insertAt ~insert ~index:endPos (toString res) in
+    Option.map (selection res) ~f:(fun startPos ->
+        (* account for selection being in either direction *)
+        if startPos < endPos
+        then String.insertAt ~insert ~index:startPos s
+        else String.insertAt ~insert ~index:(startPos + 1) s)
+    |> Option.withDefault ~default:s
 end
 
 type modifierKeys =
@@ -378,37 +383,6 @@ let tflag
       |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
 
 
-(* Test expecting no partials found and an expected resulting selection *)
-let ts
-    ?(wrap = true)
-    ?(clone = true)
-    ?(debug = false)
-    ?(pos = 0)
-    ?sel
-    (name : string)
-    (initial : fluidExpr)
-    (fn : TestCase.t -> TestResult.t)
-    ((expectedString, (expectedSelStart, expectedPos)) :
-      string * (int option * int)) =
-  let case = TestCase.init ~wrap ~clone ~debug ~pos ~sel initial in
-  test
-    ( name
-    ^ " - `"
-    ^ ( Printer.eToTestString initial
-      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
-    ^ "`" )
-    (fun () ->
-      let res = fn case in
-      let open TestResult in
-      expect
-        ( toString res
-        , containsPartials res
-        , containsFnsOnRail res
-        , selection res
-        , TestResult.pos res )
-      |> toEqual (expectedString, false, false, expectedSelStart, expectedPos))
-
-
 let run () =
   OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
@@ -513,18 +487,18 @@ let run () =
         ~pos:3
         (inputs [DeleteWordForward])
         "\"so~ string\"" ;
-      ts
+      t
         "When the entire string is selected, backspace will delete entire string, returning a blank"
         aStr
         ~sel:(0, 13)
         (inputs [DeleteContentBackward])
-        ("___", (None, 0)) ;
-      ts
+        "~___" ;
+      t
         "Replace text in string if text is inserted with selection"
         aStr
         ~sel:(1, 5)
         (inputs [InsertText "a"])
-        ("\"a string\"", (None, 2)) ;
+        "\"a~ string\"" ;
       ()) ;
   describe "Multi-line Strings" (fun () ->
       t
@@ -961,12 +935,12 @@ let run () =
         (partial "abcdefgh" b)
         (ins "\"")
         "\"~abcdefgh" ;
-      ts
+      t
         "Replace text in multiline string if text is inserted with selection"
         mlStrWSpace
         ~sel:(1, 72)
         (inputs [InsertText "a"])
-        ("\"a89_ abcdefghi,\"", (None, 2)) ;
+        "\"a~89_ abcdefghi,\"" ;
       ()) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins "0") "~12345" ;
@@ -1027,12 +1001,12 @@ let run () =
         ~pos:18
         (inputs [DeleteWordBackward])
         "~___" ;
-      ts
+      t
         "Replace int if inserted with selection"
         anInt
         ~sel:(0, 4)
         (inputs [InsertText "4"])
-        ("45", (None, 1)) ;
+        "4~5" ;
       ()) ;
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt ~pos:5 (ins ".") "12345.~" ;
@@ -1211,12 +1185,12 @@ let run () =
         ~pos:3
         (inputs [DeleteWordForward])
         "123~456" ;
-      ts
+      t
         "Replace text in float if int is inserted with selection"
         aFloat
         ~sel:(1, 6)
         (inputs [InsertText "4"])
-        ("146", (None, 2)) ;
+        "14~6" ;
       ()) ;
   describe "Bools" (fun () ->
       t ~expectsPartial:true "insert start of true" trueBool (ins "c") "c~true" ;
@@ -2381,12 +2355,12 @@ let run () =
         ~pos:3
         (ins "&")
         "if &~ ++ ____________\nthen\n  ___\nelse\n  ___" ;
-      ts
+      t
         "Replacing text when selecting over binop works"
         (binop "++" (str "five") (str "six"))
         ~sel:(3, 13)
         (inputs [InsertText "a"])
-        ("\"fiax\"", (None, 4)) ;
+        "\"fia~x\"" ;
       ()) ;
   describe "Constructors" (fun () ->
       t
@@ -3944,18 +3918,18 @@ let run () =
         ~pos:6
         ctrlRight
         "{\n  f1 : 56~\n  f2 : 78\n}" ;
-      ts
+      t
         "Replace text when selecting over record"
         (record [("f1", fiftySix); ("f2", seventyEight)])
         ~sel:(10, 21)
         (inputs [InsertText "5"])
-        ("{\n  f1 : 55\n}", (None, 11)) ;
-      ts
+        "{\n  f1 : 55~\n}" ;
+      t
         "Replace text remove selected text when inserting wrong type"
         (record [("f1", fiftySix); ("f2", seventyEight)])
         ~sel:(10, 21)
         (inputs [InsertText "a"])
-        ("{\n  f1 : 5\n}", (None, 10)) ;
+        "{\n  f1 : 5~\n}" ;
       ()) ;
   describe "Autocomplete" (fun () ->
       (* Note that many of these autocomplete tests use ~clone:false
@@ -4475,7 +4449,7 @@ let run () =
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n           EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}" ;
       ()) ;
   describe "Selection Movement" (fun () ->
-      ts
+      t
         "shift right selects"
         longLets
         (modkeys
@@ -4484,9 +4458,8 @@ let run () =
                ; altKey = false
                ; metaKey = false
                ; ctrlKey = false } ) ])
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 0, 4) ) ;
-      ts
+        "~let ~firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "shift down selects"
         longLets
         ~pos:4
@@ -4496,9 +4469,8 @@ let run () =
                ; altKey = false
                ; metaKey = false
                ; ctrlKey = false } ) ])
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 4, 52) ) ;
-      ts
+        "let ~firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet ~secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "shift left selects"
         longLets
         ~pos:52
@@ -4508,15 +4480,13 @@ let run () =
                ; altKey = false
                ; metaKey = false
                ; ctrlKey = false } ) ])
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 52, 48) ) ;
-      ts
+        "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\n~let ~secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "keypress on selection drops selection"
         longLets
         ~sel:(0, 13)
         (key K.Left)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (None, 0) ) ;
+        "~let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shiftless left aborts left-to-right selection on left"
         longLets
@@ -4553,68 +4523,60 @@ let run () =
         ~sel:(5, 4)
         (key ~shiftHeld:true K.ShiftEnter)
         "4 + 5\n    |>~___\n" ;
-      ts
+      t
         "K.ShiftEnter doesn't persist selection"
         anInt
         ~sel:(0, 5)
         (key ~shiftHeld:true K.ShiftEnter)
-        ("12345\n|>___\n", (None, 8)) ;
-      ts
+        "12345\n|>~___\n" ;
+      t
         "K.SelectAll selects all"
         longLets
         ~pos:4
         (key K.SelectAll)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 0, 89) ) ;
-      ts
+        "~let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"~" ;
+      t
         "K.GoToStartOfWord + shift selects to start of word"
         longLets
         ~pos:16
         (key (K.GoToStartOfWord KeepSelection))
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 16, 4) ) ;
-      ts
+        "let ~firstLetName~ = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToEndOfWord selects to end of word"
         longLets
         ~pos:4
         (key (K.GoToEndOfWord KeepSelection))
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 4, 16) ) ;
-      ts
+        "let ~firstLetName~ = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToStartOfLine selects from mid to start of line"
         longLets
         ~pos:29
         (key (K.GoToStartOfLine KeepSelection))
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 29, 0) ) ;
-      ts
+        "~let firstLetName = \"ABCDEFGHI~JKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToEndOfLine selects from mid to end of line"
         longLets
         ~pos:29
         (key (K.GoToEndOfLine KeepSelection))
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 29, 47) ) ;
-      ts
+        "let firstLetName = \"ABCDEFGHI~JKLMNOPQRSTUVWXYZ\"~\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToStartOfLine selects from end to start of line"
         longLets
         ~pos:47
         (key (K.GoToStartOfLine KeepSelection))
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 47, 0) ) ;
-      ts
+        "~let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"~\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToEndOfLine selects to end of line"
         longLets
         ~pos:0
         (key (K.GoToEndOfLine KeepSelection))
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 0, 47) ) ;
-      ts
+        "~let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"~\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "Replace text in let if text is inserted with selection"
         longLets
         ~sel:(9, 35)
         (inputs [InsertText "a"])
-        ( "let firsta = \"PQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (None, 10) ) ;
+        "let firsta~ = \"PQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       ()) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
