@@ -2013,11 +2013,12 @@ let rec findAppropriateParentToWrap
     | EIf _
     | EMatch _
     | ERecord _
-    | EPipe _
     | ELambda _
     (* Not sure what to do here, probably nothing fancy *)
     | EFeatureFlag _ ->
         Some child
+    | EPipe _ ->
+        Some parent
     (* These are the expressions we're trying to skip. They are "sub-line" expressions. *)
     | EBinOp _ | EFnCall _ | EList _ | EConstructor _ | EFieldAccess _ ->
         findAppropriateParentToWrap parent ast
