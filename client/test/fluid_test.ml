@@ -150,12 +150,12 @@ module TestResult = struct
     ; resultAST : FluidAST.t
     ; resultState : fluidState }
 
-  let tokenizeResult (t : t) : FluidToken.tokenInfo list =
-    Printer.tokenize (FluidAST.toExpr t.resultAST)
+  let tokenizeResult (res : t) : FluidToken.tokenInfo list =
+    Printer.tokenize (FluidAST.toExpr res.resultAST)
 
 
-  let containsPartials (t : t) : bool =
-    List.any (tokenizeResult t) ~f:(fun ti ->
+  let containsPartials (res : t) : bool =
+    List.any (tokenizeResult res) ~f:(fun ti ->
         match ti.token with
         | TRightPartial _ | TPartial _ | TFieldPartial _ ->
             true
@@ -163,8 +163,8 @@ module TestResult = struct
             false)
 
 
-  let containsFnsOnRail (t : t) : bool =
-    FluidAST.filter t.resultAST ~f:(function
+  let containsFnsOnRail (res : t) : bool =
+    FluidAST.filter res.resultAST ~f:(function
         | EBinOp (_, _, _, _, Rail) | EFnCall (_, _, _, Rail) ->
             true
         | _ ->
@@ -172,12 +172,12 @@ module TestResult = struct
     |> ( <> ) []
 
 
-  let removeWrapperFromCaretPos (t : t) (p : int) : int =
+  let removeWrapperFromCaretPos (res : t) (p : int) : int =
     let endPos = ref (p - wrapperOffset) in
     (* Account for the newlines as we find them, or else we won't know our
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
-    let tokens = tokenizeResult t in
+    let tokens = tokenizeResult res in
     List.iter tokens ~f:(fun ti ->
         match ti.token with
         | TNewline _ when !endPos > ti.endPos ->
@@ -190,33 +190,35 @@ module TestResult = struct
     max 0 (min last !endPos)
 
 
-  let pos (t : t) : int =
-    if Option.isSome t.testcase.editor
-    then t.resultState.newPos - magicFeatureFlagTokenizationPrefix
-    else if t.testcase.wrap
-    then removeWrapperFromCaretPos t t.resultState.newPos
-    else t.resultState.newPos
+  let pos (res : t) : int =
+    if Option.isSome res.testcase.editor
+    then res.resultState.newPos - magicFeatureFlagTokenizationPrefix
+    else if res.testcase.wrap
+    then removeWrapperFromCaretPos res res.resultState.newPos
+    else res.resultState.newPos
 
 
-  let selection (t : t) =
-    if t.testcase.wrap
+  let selection (res : t) : int option =
+    if res.testcase.wrap
     then
-      Option.map t.resultState.selectionStart ~f:(removeWrapperFromCaretPos t)
-    else t.resultState.selectionStart
+      Option.map
+        res.resultState.selectionStart
+        ~f:(removeWrapperFromCaretPos res)
+    else res.resultState.selectionStart
 
 
-  let toString (t : t) : string =
-    let expr = FluidAST.toExpr t.resultAST in
-    match Fluid.focusedEditor t.resultState with
+  let toString (res : t) : string =
+    let expr = FluidAST.toExpr res.resultAST in
+    match Fluid.focusedEditor res.resultState with
     | None ->
         Printer.testStringForViewKind MainView expr
     | Some {kind; _} ->
         Printer.testStringForViewKind kind expr
 
 
-  let toStringWithCaret (t : t) : string =
+  let toStringWithCaret (res : t) : string =
     let caretString = "~" in
-    match toString t |> String.splitAt ~index:(pos t) with
+    match toString res |> String.splitAt ~index:(pos res) with
     | a, b ->
         [a; b] |> String.join ~sep:caretString
 end
@@ -256,7 +258,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
         | expr when not tc.wrap ->
             expr
         | expr ->
-            failwith ("the wrapper is broken: " ^ Printer.eToStructure expr))
+            failwith ("the wrapper is broken: " ^ Printer.eToTestString expr))
   in
   if tc.debug
   then (
@@ -341,7 +343,7 @@ let t
   test
     ( name
     ^ " - `"
-    ^ ( Printer.eToStructure expr
+    ^ ( Printer.eToTestString expr
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
@@ -366,7 +368,7 @@ let tflag
   test
     ( name
     ^ " in FF - `"
-    ^ ( Printer.eToStructure expr
+    ^ ( Printer.eToTestString expr
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
@@ -392,7 +394,7 @@ let ts
   test
     ( name
     ^ " - `"
-    ^ ( Printer.eToStructure initial
+    ^ ( Printer.eToTestString initial
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
