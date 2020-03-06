@@ -2718,6 +2718,26 @@ let run () =
         anInt
         (enter 0)
         "let *** = ___\n~12345" ;
+      test "wrapping a pipe in a let with enter creates correct ast" (fun () ->
+          let pos = 0 in
+          let ast = aPipe in
+          let s =
+            { defaultTestState with
+              oldPos = pos
+            ; newPos = pos
+            ; selectionStart = None }
+          in
+          let newAST, _newState =
+            processMsg [keypress ~shiftHeld:false K.Enter] s ast
+          in
+          expect (Printer.eToTestcase (FluidAST.toExpr newAST))
+          |> toEqual
+               "(let' \"\" (b) (pipe (list []) [(fn \"List::append\" [(pipeTarget);(list [(int 5)])]);(fn \"List::append\" [(pipeTarget);(list [(int 5)])])]))") ;
+      t
+        "wrapping a pipe in a let with enter places caret correctly"
+        aPipe
+        (enter 0)
+        "let *** = ___\n~[]\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "Ctrl+left in front of a varname moves to previous editable text"
         matchWithTwoLets
