@@ -15,7 +15,11 @@ set -euo pipefail
 # 2) This does leave around a cloud_sql_proxy process per invoke of this script.
 # If that ends up being a problem, we could try reaping them periodically, or
 # perhaps if `ps | grep cloud_sql_proxy | wc -l` is greater than some threshold.
+#
+# 3) -verbose=false because we don't need to know about non-error'ing client
+# connection open/close events
 cloud_sql_proxy \
+    -verbose=false \
     -dir /tmp \
     -instances "${DARK_CONFIG_MY_PROJECT}:${DARK_CONFIG_REGION}:${DARK_CONFIG_DB_INSTANCE}=unix:cloud_sql_proxy" &
 
