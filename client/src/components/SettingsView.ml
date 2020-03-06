@@ -80,14 +80,17 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       , Cmd.none )
   | ToggleCanvasDeployStatus ->
       let shipped_date =
+        let rawDate =
+          Js.Date.now () |> Js.Date.fromFloat |> Js.Date.toUTCString
+        in
+        let formatedDate = Entry.formatDate (rawDate, "L") in
         match m.settingsView.canvas_information.shipped_date with
         | Some _ ->
+            Entry.sendSegmentMessage (UnShipCanvas formatedDate) ;
             None
         | None ->
-            let rawDate =
-              Js.Date.now () |> Js.Date.fromFloat |> Js.Date.toUTCString
-            in
-            Some (Entry.formatDate (rawDate, "L"))
+            Entry.sendSegmentMessage (ShipCanvas formatedDate) ;
+            Some formatedDate
       in
       ( { m with
           settingsView =
