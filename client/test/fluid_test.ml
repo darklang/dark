@@ -7,8 +7,6 @@ module K = FluidKeyboard
 module E = FluidExpression
 open FluidShortcuts
 
-let eToStructure = Printer.eToStructure
-
 (*
  * These tests are all written in a common style: t "del end of whole"
  * aFloat (del 2) ("12~.456") ;
@@ -153,7 +151,7 @@ module TestResult = struct
     ; resultState : fluidState }
 
   let tokenizeResult (t : t) : FluidToken.tokenInfo list =
-    FluidPrinter.tokenize (FluidAST.toExpr t.resultAST)
+    Printer.tokenize (FluidAST.toExpr t.resultAST)
 
 
   let containsPartials (t : t) : bool =
@@ -209,7 +207,7 @@ module TestResult = struct
 
   let toString (t : t) : string =
     let expr = FluidAST.toExpr t.resultAST in
-    match focusedEditor t.resultState with
+    match Fluid.focusedEditor t.resultState with
     | None ->
         Printer.testStringForViewKind MainView expr
     | Some {kind; _} ->
@@ -245,7 +243,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
     Js.log2 "state before " (Fluid_utils.debugState tc.state) ;
     Js.log2
       "expr before"
-      (FluidAST.toExpr tc.ast |> eToStructure ~includeIDs:true) ) ;
+      (FluidAST.toExpr tc.ast |> Printer.eToStructure ~includeIDs:true) ) ;
   let processedAST, resultState =
     FluidAST.toExpr tc.ast |> processMsg inputs tc.state
   in
@@ -258,14 +256,14 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
         | expr when not tc.wrap ->
             expr
         | expr ->
-            failwith ("the wrapper is broken: " ^ FluidPrinter.eToStructure expr))
+            failwith ("the wrapper is broken: " ^ Printer.eToStructure expr))
   in
   if tc.debug
   then (
     Js.log2 "state after" (Fluid_utils.debugState resultState) ;
     Js.log2
       "expr after"
-      (eToStructure ~includeIDs:true (FluidAST.toExpr resultAST)) ) ;
+      (Printer.eToStructure ~includeIDs:true (FluidAST.toExpr resultAST)) ) ;
   {TestResult.testcase = tc; resultAST; resultState}
 
 
@@ -343,7 +341,7 @@ let t
   test
     ( name
     ^ " - `"
-    ^ ( FluidPrinter.eToStructure expr
+    ^ ( Printer.eToStructure expr
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
@@ -368,7 +366,7 @@ let tflag
   test
     ( name
     ^ " in FF - `"
-    ^ ( FluidPrinter.eToStructure expr
+    ^ ( Printer.eToStructure expr
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
@@ -394,7 +392,7 @@ let ts
   test
     ( name
     ^ " - `"
-    ^ ( FluidPrinter.eToStructure initial
+    ^ ( Printer.eToStructure initial
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
@@ -4223,7 +4221,7 @@ let run () =
           let ast, s =
             ast |> FluidAST.toExpr |> processMsg [DeleteContentBackward] s
           in
-          let result = FluidPrinter.eToTestString (FluidAST.toExpr ast) in
+          let result = Printer.eToTestString (FluidAST.toExpr ast) in
           expect (result, s.ac.index) |> toEqual ("let request = 1\nre", Some 0)) ;
       (* TODO: this doesn't work but should *)
       (* t *)
@@ -4357,7 +4355,7 @@ let run () =
              | ELet (_, _, EBool (_, false), _) ->
                  "success"
              | e ->
-                 eToStructure e)
+                 Printer.eToStructure e)
           |> toEqual "success") ;
       t
         "moving right off a function autocompletes it anyway"
