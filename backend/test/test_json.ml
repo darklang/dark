@@ -60,7 +60,11 @@ let t_dval_yojson_roundtrips () =
 
 let t_dval_user_db_json_roundtrips () =
   let queryable_rt v =
-    v |> Dval.to_internal_queryable_v1 |> Dval.of_internal_queryable_v1
+    v
+    |> (function
+         | DObj dval_map -> dval_map | _ -> Exception.internal "dobj only here")
+    |> Dval.to_internal_queryable_v1
+    |> Dval.of_internal_queryable_v1
   in
   let check name (v : dval) =
     check_dval ("queryable: " ^ name) v (queryable_rt v) ;
@@ -82,7 +86,11 @@ let t_dval_user_db_v1_migration () =
   in
   let backwards v =
     (* Saved with new version, can be read with old version *)
-    v |> Dval.to_internal_queryable_v1 |> Dval.of_internal_queryable_v0
+    v
+    |> (function
+         | DObj dval_map -> dval_map | _ -> Exception.internal "dobj only here")
+    |> Dval.to_internal_queryable_v1
+    |> Dval.of_internal_queryable_v0
   in
   let check name (v : dval) =
     check_dval ("forward: " ^ name) v (forward v) ;
@@ -330,11 +338,24 @@ let t_password_serialization2 () =
   let roundtrips name serialize deserialize =
     let bytes = Bytes.of_string "encryptedbytes" in
     let password = DObj (DvalMap.singleton "x" (DPassword bytes)) in
+    let wrapped_serialize dval =
+      dval
+      |> (function
+           | DObj dval_map ->
+               dval_map
+           | _ ->
+               Exception.internal "dobj only here")
+      |> serialize
+    in
     AT.check
       at_dval
       ("Passwords serialize in non-redaction function: " ^ name)
       password
-      (password |> serialize |> deserialize |> serialize |> deserialize)
+      ( password
+      |> wrapped_serialize
+      |> deserialize
+      |> wrapped_serialize
+      |> deserialize )
   in
   (* roundtrips *)
   roundtrips

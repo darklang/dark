@@ -19,6 +19,10 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       boolOp TInt op
   | "+" | "-" | "*" | "/" | "%" | "^" ->
       allInts op
+  | "Date::<" | "Date::lessThan" ->
+      boolOp TDate "<"
+  | "Date::>" | "Date::greaterThan" ->
+      boolOp TDate ">"
   | "Int::mod" ->
       allInts "%"
   | "Int::add" ->
@@ -101,6 +105,8 @@ let tipe_to_sql_tipe (t : tipe_) : string =
       "double precision"
   | TBool ->
       "bool"
+  | TDate ->
+      "timestamp with time zone"
   | _ ->
       error2 "We do not support this type of DB field yet" (show_tipe_ t)
 
@@ -142,7 +148,6 @@ let dval_to_sql (dval : dval) : string =
   | DObj _
   | DList _
   | DResp _
-  | DDate _
   | DBlock _
   | DError _
   | DCharacter _
@@ -154,6 +159,16 @@ let dval_to_sql (dval : dval) : string =
   | DResult _
   | DBytes _ ->
       error2 "This value is not yet supported" (Dval.to_developer_repr_v0 dval)
+  | DDate date ->
+      Printf.sprintf
+        (* Note: a previous iteration of this (during development, never
+         * shipped) used Util.isostring_of_date and skipped the
+         * ::jsonb->'value'; however, then we risk the serialization format
+         * changing in one place and not the other. By doing it how we are now,
+         * we make this consistent with the serialization used to store Dates in
+         * the DB *)
+        "CAST(%s::jsonb->>'value' as timestamp with time zone)"
+        (Db.escape (String (DDate date |> Dval.to_internal_queryable_field_v1)))
   | DInt i ->
       (* types don't line up to use Db.Int *)
       Db.escape_string (Dint.to_string i)
@@ -307,11 +322,24 @@ let rec lambda_to_sql
       in
       if expected_tipe <> TNull (* Fields are allowed be null *)
       then typecheck fieldname tipe expected_tipe ;
-      "(CAST(data::jsonb->>'"
-      ^ Db.escape_string fieldname
-      ^ "' as "
-      ^ Db.escape_string (tipe_to_sql_tipe tipe)
-      ^ "))"
+      ( match expected_tipe with
+      | TDate ->
+          (* This match arm handles types that are serialized in
+           * unsafe_dval_to_yojson using wrap_user_type or wrap_user_str, maning
+           * they are wrapped in {type:, value:}.  Right now, of the types sql
+           * compiler supports, that's just TDate.
+             Likely future candidates include DPassword and DUuid; at time of
+             writing, DCharacter and DBytes also serialize this way but are not
+             allowed as DB field types. *)
+          Printf.sprintf
+            "(CAST(data::jsonb->'%s'->>'value' as %s))"
+            (Db.escape_string fieldname)
+            (Db.escape_string (tipe_to_sql_tipe tipe))
+      | _ ->
+          Printf.sprintf
+            "(CAST(data::jsonb->>'%s' as %s))"
+            (Db.escape_string fieldname)
+            (Db.escape_string (tipe_to_sql_tipe tipe)) )
   | _ ->
       error2 "We do not yet support compiling this code" (show_expr expr)
 
