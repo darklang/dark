@@ -462,6 +462,28 @@ let ts
            (expected, {containsPartials = false; containsFnsOnRail = false}))
 
 
+(** [tStruct name ast pos inputs expectedStructure] 
+* tests if applying [inputs] to the [ast] with a 
+* non-selecting state derived from [pos] produces a structure
+* that matches the [expectedStructure] string.
+* The format of that string must match that produced by Printer.eToTestcase.
+* [name] is the name of the test.
+*)
+let tStruct
+    (name : string)
+    (ast : fluidExpr)
+    ~(pos : int)
+    (inputs : fluidInputEvent list)
+    (expectedStructure : string) =
+  test name (fun () ->
+      let s =
+        {defaultTestState with oldPos = pos; newPos = pos; selectionStart = None}
+      in
+      let newAST, _newState = processMsg inputs s ast in
+      expect (Printer.eToTestcase (FluidAST.toExpr newAST))
+      |> toEqual expectedStructure)
+
+
 let run () =
   OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
@@ -1930,20 +1952,12 @@ let run () =
         (binop "<" anInt anInt)
         (inputs [InsertText "="; keypress K.Enter] 7)
         "12345 <= ~12345" ;
-      test "wrapping a binop in a let with enter creates correct ast" (fun () ->
-          let pos = 0 in
-          let ast = binop "+" (int 1) (int 2) in
-          let s =
-            { defaultTestState with
-              oldPos = pos
-            ; newPos = pos
-            ; selectionStart = None }
-          in
-          let newAST, _newState =
-            processMsg [keypress ~shiftHeld:false K.Enter] s ast
-          in
-          expect (Printer.eToTestcase (FluidAST.toExpr newAST))
-          |> toEqual "(let' \"\" (b) (binop \"+\" (int 1) (int 2)))") ;
+      tStruct
+        "wrapping a binop in a let with enter creates correct ast"
+        (binop "+" (int 1) (int 2))
+        ~pos:0
+        [keypress ~shiftHeld:false K.Enter]
+        "(let' \"\" (b) (binop \"+\" (int 1) (int 2)))" ;
       t
         ~expectsPartial:true
         "adding binop in `if` works"
@@ -2718,21 +2732,12 @@ let run () =
         anInt
         (enter 0)
         "let *** = ___\n~12345" ;
-      test "wrapping a pipe in a let with enter creates correct ast" (fun () ->
-          let pos = 0 in
-          let ast = aPipe in
-          let s =
-            { defaultTestState with
-              oldPos = pos
-            ; newPos = pos
-            ; selectionStart = None }
-          in
-          let newAST, _newState =
-            processMsg [keypress ~shiftHeld:false K.Enter] s ast
-          in
-          expect (Printer.eToTestcase (FluidAST.toExpr newAST))
-          |> toEqual
-               "(let' \"\" (b) (pipe (list []) [(fn \"List::append\" [(pipeTarget);(list [(int 5)])]);(fn \"List::append\" [(pipeTarget);(list [(int 5)])])]))") ;
+      tStruct
+        "wrapping a pipe in a let with enter creates correct ast"
+        aPipe
+        ~pos:0
+        [keypress ~shiftHeld:false K.Enter]
+        "(let' \"\" (b) (pipe (list []) [(fn \"List::append\" [(pipeTarget);(list [(int 5)])]);(fn \"List::append\" [(pipeTarget);(list [(int 5)])])]))" ;
       t
         "wrapping a pipe in a let with enter places caret correctly"
         aPipe
