@@ -180,7 +180,8 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
   let cmdToken =
     match vs.fluidState.cp.location with
     | Some (ltlid, id) when editor.tlid = ltlid ->
-        (* Reversing list will get us the last token visually rendered with matching expression ID, so we don't have to keep track of max pos *)
+        (* Reversing list will get us the last token visually rendered with
+         * matching expression ID, so we don't have to keep track of max pos *)
         editor.tokens
         |> List.reverse
         |> List.getBy ~f:(fun ti -> FluidToken.tid ti.token = id)
@@ -589,10 +590,25 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
              |> findRowOffestOfMainTokenWithId
              |> Option.withDefault ~default:0
            in
-           Html.div
-             [ Html.class' "fluid-secondary-editor"
-             ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-             [fluidEditorView vs e; errorRail])
+           let flagIcon =
+             let eid = Option.valueExn e.editorId in
+             Html.div
+               [ Html.class' "ff-icon"
+               ; ViewUtils.eventNoPropagation
+                   "click"
+                   ~key:("ff-toggle" ^ eid ^ string_of_bool e.isOpen)
+                   (fun _ev -> ToggleEditorPanel (vs.tlid, eid, not e.isOpen))
+               ]
+               [ViewUtils.fontAwesome "flag"]
+           in
+           let editorDiv =
+             Html.div
+               [ Html.classList
+                   [("fluid-secondary-editor", true); ("open", e.isOpen)]
+               ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
+               [fluidEditorView vs e; errorRail]
+           in
+           Html.div [Html.class' "fluid-panel"] [flagIcon; editorDiv])
   in
   mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
 

@@ -175,10 +175,9 @@ let processFocus (m : model) (focus : focus) : modification =
     | _ ->
         NoChange )
   | FocusPageAndCursor (page, cs) ->
-      let useCS = Page.tlidOf page = CursorState.tlidOf cs in
       let tlid, mID =
         (* If they don't match, the URL wins *)
-        if useCS
+        if Page.tlidOf page = CursorState.tlidOf cs
         then (CursorState.tlidOf cs, CursorState.idOf cs)
         else (Page.tlidOf page, None)
       in
@@ -191,10 +190,14 @@ let processFocus (m : model) (focus : focus) : modification =
             [ SetPage page
             ; ReplaceAllModificationsWithThisOne (CursorState.setCursorState cs)
             ; query ]
-      | Some _, Some None | Some _, None ->
+      | Some tl, Some None | Some tl, None ->
           Many
             [ SetPage page
-            ; ReplaceAllModificationsWithThisOne (CursorState.setCursorState cs)
+            ; ReplaceAllModificationsWithThisOne
+                (fun m ->
+                  m
+                  |> Fluid.loadTL (Toplevel.id tl)
+                  |> CursorState.setCursorState cs)
             ; AutocompleteMod (ACSetQuery "") ]
       | _, _ ->
           NoChange )
@@ -426,56 +429,45 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           (Page.setPage m m.currentPage page, cmds)
         else
           (Page.setPage m m.currentPage Architecture, Url.updateUrl Architecture)
-    | Select (tlid, p) ->
-        let ( (cursorState : cursorState)
-            , (maybeNewFluidState : fluidState option) ) =
-          match p with
+    | Select (tlid, selTarget) ->
+        let prevTLID = CursorState.tlidOf m.cursorState in
+        let tl = TL.get m tlid in
+        let m =
+          match selTarget with
           | STTopLevelRoot ->
-            ( match TL.get m tlid with
+            ( match tl with
             | Some (TLDB _) | Some (TLGroup _) | Some (TLTipe _) ->
-                (Selecting (tlid, None), None)
+                {m with cursorState = Selecting (tlid, None)}
             | Some (TLFunc _) | Some (TLHandler _) ->
-                (FluidEntering tlid, None)
+                let m = {m with cursorState = FluidEntering tlid} in
+                if prevTLID <> Some tlid then Fluid.loadTL tlid m else m
             | None ->
-                (Deselected, None) )
+                {m with cursorState = Deselected} )
           | STID id ->
             ( match TL.getPD m tlid id with
             | Some _ ->
-                (Selecting (tlid, Some id), None)
+                {m with cursorState = Selecting (tlid, Some id)}
             | None ->
-                (FluidEntering tlid, None) )
-          | STCaret caretTarget ->
-              let maybeNewFluidState =
-                match Fluid.astAndStateFromTLID m tlid with
-                | Some (ast, state) ->
-                    Some
-                      (Fluid.setPosition
-                         state
-                         (Fluid.posFromCaretTarget ast state caretTarget))
-                | None ->
-                    None
-              in
-              (FluidEntering tlid, maybeNewFluidState)
+                Fluid.loadTL tlid m )
+          | STCaret ct ->
+              let m = {m with cursorState = FluidEntering tlid} in
+              if prevTLID <> Some tlid
+              then Fluid.loadTL ~ct:(Some ct) tlid m
+              else m
         in
         let m, hashcmd =
-          match TL.get m tlid with
-          | Some tl when CursorState.tlidOf m.cursorState <> Some tlid ->
+          match tl with
+          | Some tl when prevTLID <> Some tlid ->
               let page = TL.asPage tl false in
               let m = Page.setPage m m.currentPage page in
               (m, Url.updateUrl page)
           | _ ->
               (m, Cmd.none)
         in
-        let m =
-          { m with
-            cursorState
-          ; fluidState =
-              maybeNewFluidState |> Option.withDefault ~default:m.fluidState }
-        in
         let m, acCmd =
           (* Note that we want to ensure that when we click out of an entry box that the AC is
            * reset, else we can't scroll. *)
-          match p with
+          match selTarget with
           | STTopLevelRoot ->
               processAutocompleteMods m [ACReset]
           | STID _ ->
@@ -501,9 +493,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
           let m = {m with cursorState = Deselected} in
-          let m =
-            {m with fluidState = Fluid.deselectFluidEditor m.fluidState}
-          in
+          let m = {m with fluidState = Fluid.resetFluidState m.fluidState} in
           let timeStamp = Js.Date.now () /. 1000.0 in
           let avMessage : avatarModelMessage =
             { canvasName = m.canvasName
@@ -1310,8 +1300,16 @@ let update_ (msg : msg) (m : model) : modification =
       FeatureFlags.start m
   | EndFeatureFlag (id, pick) ->
       FeatureFlags.end_ m id pick
-  | ToggleFeatureFlag (id, is) ->
-      FeatureFlags.toggle id is
+  | ToggleEditorPanel (tlid, editorId, isOpen) ->
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          (* ensure this editor is focused *)
+          let m = {m with cursorState = FluidEntering tlid} in
+          let m = Fluid.loadTL tlid m in
+          let editors =
+            FluidEditor.State.setOpen isOpen editorId m.fluidState.editors
+          in
+          ({m with fluidState = {m.fluidState with editors}}, Cmd.none))
   | ExtractFunction ->
     ( match m.cursorState with
     | Selecting (tlid, mId) ->

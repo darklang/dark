@@ -997,18 +997,18 @@ and editorSettings =
   { showFluidDebugger : bool
   ; runTimers : bool }
 
-(* tlidSelectTarget represents a target insID.t *e a TLID for use
+(* tlidSelectTarget represents a target inside a TLID for use
    by the `Select` modification.
 
    In Fluid, we should probably use STCaret in all cases --
-   knowing the ID.t *of an ast node (via STID) is insufficient
+   knowing the id of an ast node (via STID) is insufficient
    to know where to place the caret within that node.
    In non-fluid, the concept of a caret doesn't really exist;
    we select nodes at any nesting level as a whole, so STID is
    sufficient.
 
    If we want to select a toplevel as a whole but don't have a
-   specific ID.t *in mind, we use STTopLevelRoot. There's a few
+   specific id in mind, we use STTopLevelRoot. There's a few
    places where we do this as a fallback when we expected to find
    an id but couldn't (they used to use Some(id) with an implicit
    fallback to None). *)
@@ -1229,7 +1229,7 @@ and msg =
   | PageVisibilityChange of PageVisibility.visibility
   | StartFeatureFlag
   | EndFeatureFlag of ID.t * pick
-  | ToggleFeatureFlag of ID.t * bool
+  | ToggleEditorPanel of TLID.t * string * bool
   | DeleteUserFunctionParameter of TLID.t * userFunctionParameter
   | AddUserFunctionParameter of TLID.t
   | UploadFn of TLID.t
@@ -1542,11 +1542,10 @@ and fluidState =
       (* The source ID.t *of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; extraEditors : FluidEditor.t StrDict.t
-        (** extraEditors is a list of extra (non-main) editor panels that
-          * should be rendered for the active fluideditor. For example, when a
-          * handler with a feature flag is focused, this is populated with an
-          * extra editorView for the feature flag condition. *)
+  ; editors : FluidEditor.State.t
+        (** [editors] holds the state of non-main panel editors, such as those
+         * for feature flags.  The active editor (where the caret is) is
+         * indicated by activeEditorId below. *)
   ; activeEditorId : string option
         (** activeEditorId is the id(editorView.id) of the active (focused)
          * editor within the handler, or None if the main editor is active. *)

@@ -506,15 +506,23 @@ since they are essentially both commands just acting upon different things. */
   @include precedence(4);
 }
 
-.fluid-secondary-editor {
-  background-color: #2d2d2d;
+.fluid-panel {
   position: absolute;
   left: calc(100% + 20px);
 
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  width: max-content;
+  .fluid-secondary-editor {
+    display: none;
+    background-color: #2d2d2d;
+    flex-direction: row;
+    justify-content: space-between;
+    width: max-content;
+    min-width: 300px;
+    min-height: 100px;
+
+    &.open {
+      display: flex;
+    }
+  }
 }
 
 .fluid-error-rail {

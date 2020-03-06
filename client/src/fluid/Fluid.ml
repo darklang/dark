@@ -32,13 +32,14 @@ type token = T.t
 
 type state = Types.fluidState
 
-let deselectFluidEditor (s : fluidState) : fluidState =
+let resetFluidState (s : fluidState) : fluidState =
+  let editors = FluidEditor.State.hideAll s.editors in
   { s with
     oldPos = 0
   ; newPos = 0
   ; upDownCol = None
   ; activeEditorId = None
-  ; extraEditors = StrDict.empty }
+  ; editors }
 
 
 let getStringIndexMaybe ti pos : int option =
@@ -59,28 +60,6 @@ let getStringIndex ti pos : int =
       i
   | None ->
       recover "getting index of non-string" ~debug:(ti.token, pos) 0
-
-
-let astAndStateFromTLID (m : model) (tlid : TLID.t) :
-    (FluidAST.t * state) option =
-  (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
-   * make `fromExpr` accept only the info it needs, and differentiate between
-   * handler-specific and global fluid state. *)
-  let removeHandlerTransientState m =
-    {m with fluidState = {m.fluidState with ac = AC.reset m}}
-  in
-  TL.get m tlid
-  |> Option.andThen ~f:TL.getAST
-  |> Option.map ~f:(fun ast ->
-         let state =
-           (* We need to discard transient state if the selected handler has changed *)
-           if Some tlid = CursorState.tlidOf m.cursorState
-           then m.fluidState
-           else
-             let newM = removeHandlerTransientState m in
-             newM.fluidState
-         in
-         (ast, state))
 
 
 type neighbour =
@@ -113,7 +92,7 @@ let rec getTokensAtPosition
 
 let focusedEditor (s : fluidState) : FluidEditor.t option =
   s.activeEditorId
-  |> Option.andThen ~f:(fun eid -> StrDict.get s.extraEditors ~key:eid)
+  |> Option.andThen ~f:(fun eid -> FluidEditor.State.get s.editors ~id:eid)
 
 
 let exprOfFocusedEditor (ast : FluidAST.t) (s : fluidState) : FluidExpression.t
@@ -1349,6 +1328,24 @@ let caretTargetForEndOfMatchPattern
        "caretTargetForEndOfMatchPattern got an invalid id/index"
        ~debug:(matchID, index)
        ~default:{astRef = ARInvalid; offset = 0}
+
+
+let loadTL ?(ct = None) (tlid : TLID.t) (m : model) : model =
+  let m = {m with cursorState = FluidEntering tlid} in
+  TL.get m tlid
+  |> Option.andThen ~f:TL.getAST
+  |> Option.map ~f:(fun ast ->
+         let editors = FluidEditor.State.init tlid ast in
+         let ac = AC.reset m in
+         (* If we got passed a caretTarget, setPosition to it *)
+         let fluidState =
+           ct
+           |> Option.map ~f:(posFromCaretTarget ast m.fluidState)
+           |> Option.map ~f:(setPosition m.fluidState)
+           |> Option.withDefault ~default:m.fluidState
+         in
+         {m with fluidState = {fluidState with editors; ac}})
+  |> Option.withDefault ~default:m
 
 
 (* ---------------- *)
@@ -5259,12 +5256,10 @@ let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
           |> acClear )
     | None ->
         (* We reset the fluidState to prevent the selection and/or cursor
-   position from persisting when a user switched handlers *)
+         * position from persisting when a user switched handlers *)
         (ast, {s with selectionStart = None} |> acClear)
   in
-  if List.member m.tests ~value:FeatureFlagVariant
-  then (ast, {s with extraEditors = FluidEditor.build ast})
-  else (ast, s)
+  (ast, s)
 
 
 let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)

@@ -8,6 +8,7 @@ module E = FluidExpression
 type editorViewState =
   { tlid : TLID.t
   ; editorId : string option
+  ; isOpen : bool
   ; expr : E.t
   ; tokens : FluidToken.tokenInfo list }
 
@@ -68,24 +69,43 @@ let createVS (m : model) (tl : toplevel) : viewState =
     { tlid
     ; editorId = None
     ; expr
+    ; isOpen = true
     ; tokens = FluidPrinter.tokenizeForViewKind MainView expr }
   in
   let extraEditors =
-    StrDict.filterMapValues
-      m.fluidState.extraEditors
-      ~f:(fun (e : FluidEditor.t) ->
-        let expr =
-          ast
-          |> FluidAST.find e.expressionId
-          |> recoverOpt
-               ~default:(E.newB ())
-               (Printf.sprintf
-                  "failed to find expr %s for editor %s"
-                  (e.expressionId |> ID.toString)
-                  e.id)
-        in
-        let tokens = FluidPrinter.tokenizeForViewKind e.kind expr in
-        Some {tlid; editorId = Some e.id; expr; tokens})
+    (* There are cases like page load where we create a bunch of viewStates at once,
+     * but we only have a single fluidState in the model. If we were to blindly
+     * apply this map for every toplevel, we'd share the fluidState and create
+     * incorrect editors. So, we check the toplevel of the editors with the
+     * toplevel that's being created and don't create the editor if it doesn't
+     * match. Given we create the editors within a FluidEditor.State with the
+     * same TLID, they should always all have the same TLID, but this code
+     * doesn't know that, so we have to filter them out individually. *)
+    FluidEditor.State.map
+      m.fluidState.editors
+      ~f:(fun (editor : FluidEditor.t) ->
+        if editor.tlid <> tlid
+        then None
+        else
+          let expr =
+            FluidAST.find editor.expressionId ast
+            |> recoverOpt
+                 ~default:(E.newB ())
+                 (Printf.sprintf
+                    "failed to find expr %s for editor %s in TLID %s "
+                    (editor.expressionId |> ID.toString)
+                    editor.id
+                    (TLID.toString tlid))
+          in
+          let tokens = FluidPrinter.tokenizeForViewKind editor.kind expr in
+          Some
+            { tlid
+            ; editorId = Some editor.id
+            ; isOpen = editor.isOpen
+            ; expr
+            ; tokens })
+    |> List.filterMap ~f:identity
+    (* filter out None *)
   in
   { tl
   ; ast

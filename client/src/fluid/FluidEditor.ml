@@ -1,7 +1,5 @@
 open Tc
 
-(** editorViewKind represents the type of editorView. This impacts, for
-  * example, how expressions are tokenized within the view. *)
 type viewKind =
   | MainView
   | FeatureFlagView
@@ -9,16 +7,37 @@ type viewKind =
 
 type t =
   { id : string
-        (** the unique id of this editor panel, used to identify it, eg, when
-          * it is clicked and needs focus *)
-  ; expressionId : ID.t  (** the id of the top-most expression in this panel *)
-  ; kind : viewKind }
+  ; tlid : TLID.t
+  ; expressionId : ID.t
+  ; kind : viewKind
+  ; isOpen : bool }
 [@@deriving show {with_path = false}]
 
-let build (ast : FluidAST.t) : t StrDict.t =
-  FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
-  |> List.map ~f:(fun e ->
-         let expressionId = FluidExpression.toID e in
-         let id = "flag-" ^ ID.toString expressionId in
-         (id, {id; expressionId; kind = FeatureFlagView}))
-  |> StrDict.fromList
+type t' = t (* just so we can use it inside State *)
+[@@deriving show {with_path = false}]
+
+module State = struct
+  type t = t' StrDict.t [@@deriving show {with_path = false}]
+
+  let empty : t = StrDict.empty
+
+  let init (tlid : TLID.t) (ast : FluidAST.t) : t =
+    FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
+    |> List.map ~f:(fun e ->
+           let expressionId = FluidExpression.toID e in
+           let id = "flag-" ^ ID.toString expressionId in
+           (id, {id; tlid; expressionId; isOpen = false; kind = FeatureFlagView}))
+    |> StrDict.fromList
+
+
+  let setOpen (isOpen : bool) (id : string) (d : t) : t =
+    StrDict.updateIfPresent d ~key:id ~f:(fun v -> {v with isOpen})
+
+
+  let hideAll (d : t) : t = StrDict.map d ~f:(fun v -> {v with isOpen = false})
+
+  let get ~(id : string) (d : t) : t' option = StrDict.get ~key:id d
+
+  (* don't omit params or type-checker complains *)
+  let map ~f d = StrDict.mapValues ~f d
+end

@@ -58,12 +58,3 @@ let start (_m : model) : modification =
 let end_ (_m : model) (_id : ID.t) (_pick : pick) : modification =
   (* TODO: needs to be reimplmented in fluid *)
   NoChange
-
-
-let toggle (id : ID.t) (isExpanded : bool) : modification =
-  ReplaceAllModificationsWithThisOne
-    (fun m ->
-      let featureFlags =
-        StrDict.insert ~key:(ID.toString id) ~value:isExpanded m.featureFlags
-      in
-      ({m with featureFlags}, Tea.Cmd.none))

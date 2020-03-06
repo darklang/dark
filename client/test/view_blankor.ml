@@ -49,7 +49,11 @@ let run () =
             ; featureFlags = StrDict.empty
             ; extraEditors = []
             ; mainEditor =
-                {tlid = gtlid (); editorId = None; expr = ast; tokens = []}
+                { tlid = gtlid ()
+                ; editorId = None
+                ; expr = ast
+                ; isOpen = true
+                ; tokens = [] }
             ; handlerProp = None
             ; canvasName = ""
             ; userContentHost = ""
