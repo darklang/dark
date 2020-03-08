@@ -470,7 +470,8 @@ since they are essentially both commands just acting upon different things. */
           @extend .fluid-fn-version;
         }
 
-        &.invalid, &.invalid .types {
+        &.invalid,
+        &.invalid .types {
           color: lighten($grey2, 5%);
 
           &.highlighted {
