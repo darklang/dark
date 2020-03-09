@@ -2481,6 +2481,8 @@ let acClick
   updateFromACItem entry ti ast s K.Enter
 
 
+(* If `newPos` is outside `ti`, and `ti` matches the current autocomplete entry
+ * perfectly, then select and commit that autocomplete entry *)
 let commitIfValid
     (newPos : int) (ti : T.tokenInfo) (ast : FluidAST.t) (s : fluidState) :
     FluidAST.t =
@@ -4507,10 +4509,13 @@ let rec updateKey
         (newAST, newState)
   in
   (* If we were on a partial and have moved off it, we may want to commit that
-   * partial. This is done here because the logic is different that clicking.
+   * partial. For example, if we fully typed out "String::append", then click
+   * away, we want that to become `String::append ___ ___`. 
    *
    * We "commit the partial" using the old state, and then we do the action
-   * again to make sure we go to the right place for the new canvas. *)
+   * again to make sure we go to the right place for the new canvas.
+   *
+   * This is done here because the logic is different that clicking. *)
   if recursing
   then (newAST, newState)
   else
@@ -4536,6 +4541,7 @@ let rec updateKey
           | Keypress {key = K.Right; _} | Keypress {key = K.Left; _} ->
               true
           | InsertText txt ->
+              (* if the partial is a valid function name, don't commit *)
               let newQueryString = str ^ txt in
               s.ac.allCompletions
               |> List.filter ~f:(fun aci ->
@@ -4547,8 +4553,9 @@ let rec updateKey
         in
         if shouldCommit
         then
-          (* TODO(JULIAN): Is this explicit or not? Figure it out, ask Paul *)
-          let committedAST = commitIfValid newState.newPos ti newAST s in
+          (* Use the new position as we may want to commit if we've moved, but
+           * use the old AST so as not to double-commit *)
+          let committedAST = commitIfValid newState.newPos ti ast s in
           updateKey
             ~recursing:true
             inputEvent

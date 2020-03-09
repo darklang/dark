@@ -3616,6 +3616,13 @@ let run () =
         (ins ~clone:false "." 11)
         "request.body.~***" ;
       t
+        ~expectsPartial:true
+        "pressing + doesn't introduce two pluses (check committing bug)"
+        (partial "asdasd" b)
+        (* Right should make it commit *)
+        (ins "+" 3)
+        "asd+~asd" ;
+      t
         "autocomplete with space moves to next non-whitespace rather than blank"
         (ELet
            ( gid ()
