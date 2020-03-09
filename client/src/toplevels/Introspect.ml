@@ -7,7 +7,7 @@ let keyForHandlerSpec (space : string) (name : string) : string =
   space ^ ":" ^ name
 
 
-let dbsByName (dbs : db TD.t) : tlid StrDict.t =
+let dbsByName (dbs : db TD.t) : TLID.t StrDict.t =
   dbs
   |> TD.filterMapValues ~f:(fun db ->
          db.dbName
@@ -16,7 +16,7 @@ let dbsByName (dbs : db TD.t) : tlid StrDict.t =
   |> StrDict.fromList
 
 
-let handlersByName (hs : handler TD.t) : tlid StrDict.t =
+let handlersByName (hs : handler TD.t) : TLID.t StrDict.t =
   hs
   |> TD.mapValues ~f:(fun h ->
          let space =
@@ -30,7 +30,7 @@ let handlersByName (hs : handler TD.t) : tlid StrDict.t =
   |> StrDict.fromList
 
 
-let functionsByName (fns : userFunction TD.t) : tlid StrDict.t =
+let functionsByName (fns : userFunction TD.t) : TLID.t StrDict.t =
   fns
   |> TD.filterMapValues ~f:(fun fn ->
          fn.ufMetadata.ufmName
@@ -39,7 +39,7 @@ let functionsByName (fns : userFunction TD.t) : tlid StrDict.t =
   |> StrDict.fromList
 
 
-let tlidsToUpdateUsage (ops : op list) : tlid list =
+let tlidsToUpdateUsage (ops : op list) : TLID.t list =
   ops
   |> List.filterMap ~f:(fun op ->
          match op with
@@ -75,10 +75,10 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
          | RenameDBname _
          | SetDBColName _ ->
              None)
-  |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
+  |> List.uniqueBy ~f:TLID.toString
 
 
-let allRefersTo (tlid : tlid) (m : model) : (toplevel * id list) list =
+let allRefersTo (tlid : TLID.t) (m : model) : (toplevel * ID.t list) list =
   m.tlRefersTo
   |> TLIDDict.get ~tlid
   |> Option.withDefault ~default:IDPairSet.empty
@@ -95,7 +95,7 @@ let allRefersTo (tlid : tlid) (m : model) : (toplevel * id list) list =
          TL.get m tlid |> Option.map ~f:(fun tl -> (tl, IDSet.toList ids)))
 
 
-let allUsedIn (tlid : tlid) (m : model) : toplevel list =
+let allUsedIn (tlid : TLID.t) (m : model) : toplevel list =
   m.tlUsedIn
   |> TLIDDict.get ~tlid
   |> Option.withDefault ~default:TLIDSet.empty
@@ -104,10 +104,10 @@ let allUsedIn (tlid : tlid) (m : model) : toplevel list =
 
 
 let findUsagesInAST
-    (tlid : tlid)
-    (datastores : tlid StrDict.t)
-    (handlers : tlid StrDict.t)
-    (functions : tlid StrDict.t)
+    (tlid : TLID.t)
+    (datastores : TLID.t StrDict.t)
+    (handlers : TLID.t StrDict.t)
+    (functions : TLID.t StrDict.t)
     (ast : FluidAST.t) : usage list =
   FluidAST.toExpr ast
   |> FluidExpression.filterMap ~f:(fun e ->
@@ -138,15 +138,15 @@ let findUsagesInAST
 
 let getUsageFor
     (tl : toplevel)
-    (datastores : tlid StrDict.t)
-    (handlers : tlid StrDict.t)
-    (functions : tlid StrDict.t) : usage list =
+    (datastores : TLID.t StrDict.t)
+    (handlers : TLID.t StrDict.t)
+    (functions : TLID.t StrDict.t) : usage list =
   TL.getAST tl
   |> Option.map ~f:(findUsagesInAST (TL.id tl) datastores handlers functions)
   |> Option.withDefault ~default:[]
 
 
-let refreshUsages (m : model) (tlids : tlid list) : model =
+let refreshUsages (m : model) (tlids : TLID.t list) : model =
   let datastores = dbsByName m.dbs in
   let handlers = handlersByName m.handlers in
   let functions = functionsByName m.userFunctions in
@@ -185,7 +185,7 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
   {m with tlUsedIn = newTlUsedIn; tlRefersTo = newTlRefersTo}
 
 
-let setHoveringReferences (tlid : tlid) (ids : id list) : modification =
+let setHoveringReferences (tlid : TLID.t) (ids : ID.t list) : modification =
   let new_props x =
     match x with
     | None ->

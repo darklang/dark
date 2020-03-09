@@ -9,7 +9,7 @@ let allNames (fns : userFunction TLIDDict.t) : string list =
   fns |> TD.filterMapValues ~f:(fun fn -> B.toOption fn.ufMetadata.ufmName)
 
 
-let toID (uf : userFunction) : tlid = uf.ufTLID
+let toID (uf : userFunction) : TLID.t = uf.ufTLID
 
 let upsert (m : model) (userFunction : userFunction) : model =
   { m with
@@ -17,7 +17,7 @@ let upsert (m : model) (userFunction : userFunction) : model =
       TD.insert ~tlid:userFunction.ufTLID ~value:userFunction m.userFunctions }
 
 
-let update (m : model) ~(tlid : tlid) ~(f : userFunction -> userFunction) :
+let update (m : model) ~(tlid : TLID.t) ~(f : userFunction -> userFunction) :
     model =
   {m with userFunctions = TD.updateIfPresent ~tlid ~f m.userFunctions}
 
@@ -217,7 +217,7 @@ let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
   {uf with ufMetadata = newM}
 
 
-let idOfLastBlankor (f : userFunction) : id =
+let idOfLastBlankor (f : userFunction) : ID.t =
   List.last f.ufMetadata.ufmParameters
   |> Option.andThen ~f:(fun p -> Some (B.toID p.ufpTipe))
   |> Option.withDefault ~default:(B.toID f.ufMetadata.ufmName)
@@ -235,7 +235,7 @@ let inputToArgs (f : userFunction) (input : inputValueDict) : dval list =
              default)
 
 
-let canDelete (usedInRefs : toplevel list) (tlid : tlid) : bool =
+let canDelete (usedInRefs : toplevel list) (tlid : TLID.t) : bool =
   (* Allow deletion if the only callers are itself or there are no references at all.
     List.all returns true if the list is empty.
   *)

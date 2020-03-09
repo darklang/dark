@@ -4,9 +4,9 @@ type t = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
-let fakeid : id = ID "fake-id"
+let fakeid = ID.fromString "fake-id"
 
-let tid (t : t) : id =
+let tid (t : t) : ID.t =
   match t with
   | TInteger (id, _)
   | TFloatWhole (id, _)
@@ -74,7 +74,7 @@ let tid (t : t) : id =
       fakeid
 
 
-let analysisID (t : t) : id =
+let analysisID (t : t) : ID.t =
   match t with
   | TLetVarName (_, id, _)
   | TLetKeyword (_, id)
@@ -88,7 +88,7 @@ let analysisID (t : t) : id =
       tid t
 
 
-let parentExprID (t : t) : id =
+let parentExprID (t : t) : ID.t =
   match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
 
 
@@ -453,7 +453,7 @@ let toIndex (t : t) : int option =
       None
 
 
-let toParentID (t : t) : id option =
+let toParentID (t : t) : ID.t option =
   match t with
   | TRecordFieldname {recordID = id; _}
   | TPatternBlank (id, _, _)
@@ -663,9 +663,9 @@ let toDebugInfo (t : t) : string =
   | TStringMLEnd (_, _, offset, _) ->
       "offset=" ^ string_of_int offset
   | TNewline (Some (_, pid, Some idx)) ->
-      "parent=" ^ deID pid ^ " idx=" ^ string_of_int idx
+      "parent=" ^ ID.toString pid ^ " idx=" ^ string_of_int idx
   | TNewline (Some (_, pid, None)) ->
-      "parent=" ^ deID pid ^ " idx=none"
+      "parent=" ^ ID.toString pid ^ " idx=none"
   | TNewline None ->
       "no parent"
   | TPipe (_, idx, len) ->
@@ -683,7 +683,7 @@ let toDebugInfo (t : t) : string =
   | TPatternFloatWhole (mid, _, _, idx)
   | TPatternFloatPoint (mid, _, idx)
   | TPatternFloatFractional (mid, _, _, idx) ->
-      "match=" ^ deID mid ^ " idx=" ^ string_of_int idx
+      "match=" ^ ID.toString mid ^ " idx=" ^ string_of_int idx
   | _ ->
       ""
 
@@ -709,9 +709,9 @@ let show_tokenInfo (ti : tokenInfo) =
     ; Html.dt [] [Html.text "tok"]
     ; Html.dd [] [Html.text (toText ti.token)]
     ; Html.dt [] [Html.text "id"]
-    ; Html.dd [] [Html.text (tid ti.token |> deID)]
+    ; Html.dd [] [Html.text (tid ti.token |> ID.toString)]
     ; Html.dt [] [Html.text "aid"]
-    ; Html.dd [] [Html.text (analysisID ti.token |> deID)]
+    ; Html.dd [] [Html.text (analysisID ti.token |> ID.toString)]
     ; Html.dt [] [Html.text "type"]
     ; Html.dd [] [Html.text (toTypeName ti.token)]
     ; Html.dt [] [Html.text "debug"]

@@ -1,7 +1,5 @@
 let gid () : Base.Int63.t = Base.Int63.random Base.Int63.max_value
 
-let deID = Base.Int63.to_string
-
 type jsonType = Yojson.Safe.t
 
 module Rollbar = struct

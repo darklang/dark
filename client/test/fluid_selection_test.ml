@@ -25,7 +25,8 @@ let run () =
             ; newPos = 12
             ; selectionStart = Some 8 }
           in
-          expect (getSelectedExprID ast s) |> toEqual (Some (ID "letVal"))) ;
+          expect (getSelectedExprID ast s)
+          |> toEqual (Some (ID.fromString "letVal"))) ;
       test "select larger expressions" (fun () ->
           let ast =
             E.EFnCall (ID "fn", "+", [int 1; int 2], NoRail) |> FluidAST.ofExpr
@@ -36,7 +37,8 @@ let run () =
             ; newPos = 4
             ; selectionStart = Some 0 }
           in
-          expect (getSelectedExprID ast s) |> toEqual (Some (ID "fn"))) ;
+          expect (getSelectedExprID ast s)
+          |> toEqual (Some (ID.fromString "fn"))) ;
       test "selects part of AST" (fun () ->
           let ast =
             let' "a" (EFnCall (ID "fn", "+", [int 1; int 2], NoRail)) b
@@ -48,6 +50,7 @@ let run () =
             ; newPos = 12
             ; selectionStart = Some 8 }
           in
-          expect (getSelectedExprID ast s) |> toEqual (Some (ID "fn"))) ;
+          expect (getSelectedExprID ast s)
+          |> toEqual (Some (ID.fromString "fn"))) ;
       ()) ;
   ()

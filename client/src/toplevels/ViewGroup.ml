@@ -35,7 +35,7 @@ let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
     Html.div [Html.class' "group-name form"] [nameField]
 
 
-let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
+let previewMembers (gTLID : TLID.t) (tl : toplevel) : msg Html.html =
   let body =
     match tl with
     | TLHandler h ->
@@ -70,11 +70,11 @@ let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
         recover
           "No other toplevel should be in a group"
           ~debug:tl
-          (TLID "fake-id")
+          (TLID.fromString "fake-id")
   in
   let event =
     ViewUtils.eventNoPropagation
-      ~key:("tlmd-" ^ showTLID tlid)
+      ~key:("tlmd-" ^ TLID.toString tlid)
       "dragend"
       (fun x -> DragGroupMember (gTLID, tlid, x))
   in
@@ -99,8 +99,8 @@ let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
 let viewGroupMembers
     (m : model)
     (vs : viewState)
-    (gTLID : tlid)
-    (members : tlid list)
+    (gTLID : TLID.t)
+    (members : TLID.t list)
     (preview : bool) : msg Html.html =
   if List.length members == 0
   then
@@ -136,7 +136,7 @@ let viewGroup
       then ViewUtils.nothingMouseEvent "click"
       else
         ViewUtils.eventNeither
-          ~key:("entry-" ^ showTLID group.gTLID)
+          ~key:("entry-" ^ TLID.toString group.gTLID)
           "click"
           (fun _ -> DeleteGroup group.gTLID)
     in

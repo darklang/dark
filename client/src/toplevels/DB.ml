@@ -4,13 +4,13 @@ open Prelude
 module B = BlankOr
 module TD = TLIDDict
 
-let toID (db : db) : tlid = db.dbTLID
+let toID (db : db) : TLID.t = db.dbTLID
 
 let upsert (m : model) (db : db) : model =
   {m with dbs = TD.insert ~tlid:db.dbTLID ~value:db m.dbs}
 
 
-let update (m : model) ~(tlid : tlid) ~(f : db -> db) : model =
+let update (m : model) ~(tlid : TLID.t) ~(f : db -> db) : model =
   {m with dbs = TD.updateIfPresent ~tlid ~f m.dbs}
 
 
@@ -44,11 +44,11 @@ let hasCol (db : db) (name : string) : bool =
          match colname with Blank _ -> false | F (_, n) -> name = n)
 
 
-let isLocked (m : model) (TLID tlid : tlid) : bool =
-  not (StrSet.has ~value:tlid m.unlockedDBs)
+let isLocked (m : model) (tlid : TLID.t) : bool =
+  not (StrSet.has ~value:(TLID.toString tlid) m.unlockedDBs)
 
 
-let isMigrationCol (db : db) (id : id) : bool =
+let isMigrationCol (db : db) (id : ID.t) : bool =
   match db.activeMigration with
   | Some schema ->
       let inCols =
@@ -65,7 +65,7 @@ let isMigrationLockReady (m : dbMigration) : bool =
     (FluidExpression.isBlank m.rollforward || FluidExpression.isBlank m.rollback)
 
 
-let startMigration (tlid : tlid) (cols : dbColumn list) : modification =
+let startMigration (tlid : TLID.t) (cols : dbColumn list) : modification =
   let newCols =
     cols |> List.map ~f:(fun (n, t) -> (B.clone identity n, B.clone identity t))
   in

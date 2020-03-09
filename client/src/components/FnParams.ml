@@ -93,9 +93,9 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
         ; ViewUtils.eventNoPropagation
             ~key:
               ( "dufp-"
-              ^ showTLID uf.ufTLID
+              ^ TLID.toString uf.ufTLID
               ^ "-"
-              ^ (p.ufpName |> B.toID |> showID) )
+              ^ (p.ufpName |> B.toID |> ID.toString) )
             "click"
             (fun _ -> DeleteUserFunctionParameter (uf.ufTLID, p)) ]
         [fontAwesome "times-circle"]
@@ -169,7 +169,7 @@ let viewParam
     (index : int)
     (p : userFunctionParameter) : msg Html.html list =
   let nameId = p.ufpName |> B.toID in
-  let strId = showID nameId in
+  let strId = ID.toString nameId in
   let dragStart evt =
     jsDragStart evt ;
     FnParamMsg (ParamDragStart index)

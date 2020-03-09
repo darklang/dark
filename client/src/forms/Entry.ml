@@ -300,7 +300,7 @@ let newDB (name : string) (pos : pos) : modification =
    * data in the user_data table. But it's 99.999% correct, which of course
    * is the best type of correct *)
   Many
-    ( AppendUnlockedDBs (StrSet.fromList [deTLID tlid])
+    ( AppendUnlockedDBs (StrSet.fromList [TLID.toString tlid])
     :: AddOps (rpcCalls, FocusExact (tlid, next))
     :: pageChanges )
 

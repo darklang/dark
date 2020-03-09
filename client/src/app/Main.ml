@@ -1221,7 +1221,7 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrClick (targetExnID, targetID, event) ->
       let select id =
         let offset =
-          Native.OffsetEstimator.estimateClickOffset (showID id) event
+          Native.OffsetEstimator.estimateClickOffset (ID.toString id) event
         in
         (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
          * as double clicks to automatically enter them. *)
@@ -1251,7 +1251,7 @@ let update_ (msg : msg) (m : model) : modification =
           select targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       let offset =
-        Native.OffsetEstimator.estimateClickOffset (showID targetID) event
+        Native.OffsetEstimator.estimateClickOffset (ID.toString targetID) event
       in
       Selection.dblclick m targetExnID targetID offset
   | ExecuteFunctionButton (tlid, id, name) ->
@@ -1491,7 +1491,7 @@ let update_ (msg : msg) (m : model) : modification =
       let traces =
         List.foldl x.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
             let trace = (traceid, Error NoneYet) in
-            StrDict.update dict ~key:(deTLID tlid) ~f:(function
+            StrDict.update dict ~key:(TLID.toString tlid) ~f:(function
                 | Some existing ->
                     Some (existing @ [trace])
                 | None ->
@@ -1546,7 +1546,8 @@ let update_ (msg : msg) (m : model) : modification =
       (params, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
         List.map
-          ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, Error NoneYet)]))
+          ~f:(fun tlid ->
+            (TLID.toString tlid, [(params.efpTraceID, Error NoneYet)]))
           tlids
       in
       Many
@@ -1564,7 +1565,8 @@ let update_ (msg : msg) (m : model) : modification =
   | TriggerHandlerAPICallback (params, Ok tlids) ->
       let (traces : Prelude.traces) =
         List.map
-          ~f:(fun tlid -> (deTLID tlid, [(params.thTraceID, Error NoneYet)]))
+          ~f:(fun tlid ->
+            (TLID.toString tlid, [(params.thTraceID, Error NoneYet)]))
           tlids
         |> StrDict.fromList
       in
@@ -1591,7 +1593,7 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTracePush (traceID, tlids) ->
       let traces =
         List.map
-          ~f:(fun tlid -> (deTLID tlid, [(traceID, Error NoneYet)]))
+          ~f:(fun tlid -> (TLID.toString tlid, [(traceID, Error NoneYet)]))
           tlids
       in
       UpdateTraces (StrDict.fromList traces)
@@ -1646,7 +1648,7 @@ let update_ (msg : msg) (m : model) : modification =
     ->
       let traces =
         StrDict.fromList
-          [ ( deTLID params.gtdrpTlid
+          [ ( TLID.toString params.gtdrpTlid
             , [(params.gtdrpTraceID, Error MaximumCallStackError)] ) ]
       in
       Many
@@ -1672,7 +1674,7 @@ let update_ (msg : msg) (m : model) : modification =
             (Some error))
   | ReceiveFetch (TraceFetchSuccess (params, result)) ->
       let traces =
-        StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]
+        StrDict.fromList [(TLID.toString params.gtdrpTlid, [result.trace])]
       in
       Many
         [ ReplaceAllModificationsWithThisOne
@@ -1698,7 +1700,7 @@ let update_ (msg : msg) (m : model) : modification =
            Tea.Http.Aborted)
   | ReceiveFetch (DbStatsFetchFailure (params, url, error)) ->
       let key =
-        params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
+        params.dbStatsTlids |> List.map ~f:TLID.toString |> String.join ~sep:","
       in
       ReplaceAllModificationsWithThisOne
         (fun m ->
@@ -1711,7 +1713,7 @@ let update_ (msg : msg) (m : model) : modification =
             (Some error))
   | ReceiveFetch (DbStatsFetchMissing params) ->
       let key =
-        params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
+        params.dbStatsTlids |> List.map ~f:TLID.toString |> String.join ~sep:","
       in
       ReplaceAllModificationsWithThisOne
         (fun m ->
@@ -1719,7 +1721,7 @@ let update_ (msg : msg) (m : model) : modification =
           (Sync.markResponseInModel m ~key, Cmd.none))
   | ReceiveFetch (DbStatsFetchSuccess (params, result)) ->
       let key =
-        params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
+        params.dbStatsTlids |> List.map ~f:TLID.toString |> String.join ~sep:","
       in
       ReplaceAllModificationsWithThisOne
         (fun m ->
@@ -1754,7 +1756,9 @@ let update_ (msg : msg) (m : model) : modification =
   | ReceiveFetch (WorkerStatsFetchFailure (params, url, error)) ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
-          let key = "get-worker-stats-" ^ deTLID params.workerStatsTlid in
+          let key =
+            "get-worker-stats-" ^ TLID.toString params.workerStatsTlid
+          in
           let m = Sync.markResponseInModel m ~key in
           Rollbar.displayAndReportError
             m
@@ -1764,12 +1768,16 @@ let update_ (msg : msg) (m : model) : modification =
   | ReceiveFetch (WorkerStatsFetchMissing params) ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
-          let key = "get-worker-stats-" ^ deTLID params.workerStatsTlid in
+          let key =
+            "get-worker-stats-" ^ TLID.toString params.workerStatsTlid
+          in
           (Sync.markResponseInModel m ~key, Cmd.none))
   | ReceiveFetch (WorkerStatsFetchSuccess (params, result)) ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
-          let key = "get-worker-stats-" ^ deTLID params.workerStatsTlid in
+          let key =
+            "get-worker-stats-" ^ TLID.toString params.workerStatsTlid
+          in
           let m = Sync.markResponseInModel m ~key in
           let tlid = params.workerStatsTlid in
           let workerStats = TLIDDict.insert ~tlid ~value:result m.workerStats in
@@ -1881,7 +1889,7 @@ let update_ (msg : msg) (m : model) : modification =
       let traceMods =
         match List.head traces with
         | Some (first, _) ->
-            let traceDict = StrDict.fromList [(deTLID tlid, traces)] in
+            let traceDict = StrDict.fromList [(TLID.toString tlid, traces)] in
             [UpdateTraces traceDict; SetTLTraceID (tlid, first)]
         | None ->
             []
@@ -2151,7 +2159,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     (* we use IDs here because the node will change *)
     (* before they're triggered *)
     | DraggingTL (id, _, _, _) ->
-        let listenerKey = "mouse_moves_" ^ deTLID id in
+        let listenerKey = "mouse_moves_" ^ TLID.toString id in
         [ BrowserListeners.DarkMouse.moves ~key:listenerKey (fun event ->
               DragToplevel (id, event)) ]
     | PanningCanvas _ ->

@@ -14,18 +14,18 @@ module TD = TLIDDict
 (* Analyses *)
 (* ---------------------- *)
 
-let getTraces (m : model) (tlid : tlid) : trace list =
-  StrDict.get ~key:(deTLID tlid) m.traces
+let getTraces (m : model) (tlid : TLID.t) : trace list =
+  StrDict.get ~key:(TLID.toString tlid) m.traces
   |> Option.withDefault
        ~default:
          [ ( BsUuid.Uuid.V5.create
-               ~name:(deTLID tlid)
+               ~name:(TLID.toString tlid)
                ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
              |> BsUuid.Uuid.V5.toString
            , Result.fail NoneYet ) ]
 
 
-let getTrace (m : model) (tlid : tlid) (traceID : traceID) : trace option =
+let getTrace (m : model) (tlid : TLID.t) (traceID : traceID) : trace option =
   getTraces m tlid |> List.find ~f:(fun (id, _) -> id = traceID)
 
 
@@ -43,9 +43,9 @@ let record (old : analyses) (id : traceID) (result : analysisStore) : analyses =
 
 let replaceFunctionResult
     (m : model)
-    (tlid : tlid)
+    (tlid : TLID.t)
     (traceID : traceID)
-    (callerID : id)
+    (callerID : ID.t)
     (fnName : string)
     (hash : dvalArgsHash)
     (hashVersion : int)
@@ -59,7 +59,7 @@ let replaceFunctionResult
   in
   let traces =
     m.traces
-    |> StrDict.update ~key:(deTLID tlid) ~f:(fun ml ->
+    |> StrDict.update ~key:(TLID.toString tlid) ~f:(fun ml ->
            ml
            |> Option.withDefault
                 ~default:
@@ -84,7 +84,7 @@ let replaceFunctionResult
   {m with traces}
 
 
-let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
+let getLiveValueLoadable (analysisStore : analysisStore) (ID id : ID.t) :
     executionResult loadable =
   match analysisStore with
   | LoadableSuccess dvals ->
@@ -102,7 +102,7 @@ let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
       LoadableError error
 
 
-let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
+let getLiveValue' (analysisStore : analysisStore) (ID id : ID.t) : dval option =
   match analysisStore with
   | LoadableSuccess dvals ->
     ( match StrDict.get dvals ~key:id with
@@ -114,20 +114,21 @@ let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
       None
 
 
-let getLiveValue (m : model) (id : id) (traceID : traceID) : dval option =
+let getLiveValue (m : model) (id : ID.t) (traceID : traceID) : dval option =
   getLiveValue' (getStoredAnalysis m traceID) id
 
 
-let getTipeOf' (analysisStore : analysisStore) (id : id) : tipe option =
+let getTipeOf' (analysisStore : analysisStore) (id : ID.t) : tipe option =
   getLiveValue' analysisStore id |> Option.map ~f:RT.typeOf
 
 
-let getTipeOf (m : model) (id : id) (traceID : traceID) : tipe option =
+let getTipeOf (m : model) (id : ID.t) (traceID : traceID) : tipe option =
   getLiveValue m id traceID |> Option.map ~f:RT.typeOf
 
 
-let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
-    : dval list option =
+let getArguments
+    (m : model) (tl : toplevel) (callerID : ID.t) (traceID : traceID) :
+    dval list option =
   let ast = tl |> TL.getAST in
   let threadPrevious =
     ast |> Option.andThen ~f:(AST.threadPrevious callerID) |> Option.toList
@@ -149,7 +150,7 @@ let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
  * at an expression with the given [id] within the ast of the [tl]. The dval for a given varname
  * comes from the trace with [traceID]. *)
 let getAvailableVarnames
-    (m : model) (tl : toplevel) (ID id : id) (traceID : traceID) :
+    (m : model) (tl : toplevel) (id : ID.t) (traceID : traceID) :
     (string * dval option) list =
   (* TODO: Calling out is so slow that calculating on the fly is faster.
    * But we can also cache this so that's it's not in the display hot-path *)
@@ -164,7 +165,7 @@ let getAvailableVarnames
     ast
     |> FluidAST.toExpr
     |> AST.variablesIn
-    |> StrDict.get ~key:id
+    |> StrDict.get ~key:(ID.toString id)
     |> Option.withDefault ~default:StrDict.empty
     |> StrDict.toList
     |> List.map ~f:(fun (varname, id) -> (varname, getLiveValue m id traceID))
@@ -192,7 +193,7 @@ let getAvailableVarnames
 (* ---------------------- *)
 
 let selectedTraceID
-    (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid) :
+    (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : TLID.t) :
     traceID option =
   (* We briefly do analysis on a toplevel which does not have an *)
   (* analysis available, so be careful here. *)
@@ -204,19 +205,20 @@ let selectedTraceID
       List.head traces |> Option.map ~f:Tuple2.first
 
 
-let selectedTrace (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid)
-    : trace option =
+let selectedTrace
+    (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : TLID.t) :
+    trace option =
   selectedTraceID tlTraceIDs traces tlid
   |> Option.andThen ~f:(fun traceID ->
          List.find ~f:(fun (id, _) -> id = traceID) traces)
 
 
-let setSelectedTraceID (m : model) (tlid : tlid) (traceID : traceID) : model =
+let setSelectedTraceID (m : model) (tlid : TLID.t) (traceID : traceID) : model =
   let newCursors = TLIDDict.insert ~tlid ~value:traceID m.tlTraceIDs in
   {m with tlTraceIDs = newCursors}
 
 
-let getSelectedTraceID (m : model) (tlid : tlid) : traceID option =
+let getSelectedTraceID (m : model) (tlid : TLID.t) : traceID option =
   let traces = getTraces m tlid in
   selectedTraceID m.tlTraceIDs traces tlid
 
@@ -252,7 +254,7 @@ module NewTracePush = struct
   let decode =
     let open Tea.Json.Decoder in
     let traceID = map (fun id -> (id : traceID)) string in
-    let tlids = list (map (fun id -> TLID id) Native.Decoder.wireIdentifier) in
+    let tlids = list (map TLID.fromString Native.Decoder.wireIdentifier) in
     field "detail" (Native.Decoder.tuple2 traceID tlids)
 
 
@@ -320,22 +322,22 @@ let contextFromModel (m : model) : fetchContext =
   {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
 
 
-let updateDBStats m (TLID tlid) =
+let updateDBStats m tlid =
   Sync.attempt
-    ~key:("update-db-stats-" ^ tlid)
+    ~key:("update-db-stats-" ^ TLID.toString tlid)
     m
     (Tea_cmd.call (fun _ ->
          Fetcher.request
-           (contextFromModel m, DbStatsFetch {dbStatsTlids = [TLID tlid]})))
+           (contextFromModel m, DbStatsFetch {dbStatsTlids = [tlid]})))
 
 
-let getWorkerStats m (TLID tlid) =
+let getWorkerStats m tlid =
   Sync.attempt
-    ~key:("get-worker-stats-" ^ tlid)
+    ~key:("get-worker-stats-" ^ TLID.toString tlid)
     m
     (Tea_cmd.call (fun _ ->
          Fetcher.request
-           (contextFromModel m, WorkerStatsFetch {workerStatsTlid = TLID tlid})))
+           (contextFromModel m, WorkerStatsFetch {workerStatsTlid = tlid})))
 
 
 let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
