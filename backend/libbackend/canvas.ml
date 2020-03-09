@@ -468,6 +468,18 @@ let load_with_dbs ~tlids host (newops : Op.op list) :
   load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
 
 
+(* `uncached_loader` is the function used to initialize the canvas, and load
+ * any necessary tlids that were not returned from the fast_loader/materialized view.
+ *
+ * tlids might not be returned from the materialized view/fast loader/cache if:
+ *  a) they have no materialized view (probably not possible anymore!)
+ *  b) they are deleted, because the cache query filters out deleted items
+ *  c) the deserializers for the cache version are broken (due to a binary version
+ *  change!)
+ *
+ *  The default is `load_only_undeleted_tlids` which also filters out deleted
+ *  toplevels, but is parameterized in case a caller wants to load deleted toplevels.
+ *)
 let load_from_cache
     ?(uncached_loader = load_only_undeleted_tlids) ~tlids host owner :
     (canvas ref, string list) Result.t =
@@ -532,6 +544,8 @@ let load_all_from_cache host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
+  (* As we're loading _all_, we want to pass in an uncached_loader that
+   * will ensure we also load deleted toplevels *)
     ~uncached_loader:load_only_tlids
     ~tlids:(Serialize.fetch_all_tlids ~canvas_id ())
     host
