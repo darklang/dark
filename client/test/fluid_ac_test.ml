@@ -31,7 +31,8 @@ let sampleFunctions : function_ list =
   ; ("DB::getAll_v1", [TDB], TList)
     (* ordering is deliberate - we want the query to order s.t. get is before getAll *)
   ; ("DB::get_v1", [TDB], TList)
-  ; ("String::append", [TStr], TStr)
+  ; ("String::append", [TStr; TStr], TStr)
+  ; ("List::append", [TList; TList], TList)
   ; ("Option::withDefault", [TOption], TAny)
   ; ("Result::withDefault", [TResult], TAny) ]
   |> List.map ~f:(fun (fnName, paramTipes, fnReturnTipe) ->
@@ -81,8 +82,8 @@ let defaultTokenInfo =
 
 
 let defaultFullQuery
-    ?(tl = defaultToplevel) (ac : fluidAutocompleteState) (query : string) :
-    AC.fullQuery =
+    ?(tl = defaultToplevel) (ac : fluidAutocompleteState) (queryString : string)
+    : AC.fullQuery =
   let ti =
     match tl with
     | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
@@ -95,7 +96,7 @@ let defaultFullQuery
         defaultTokenInfo
   in
   let _, ti = ac.query |> Option.withDefault ~default:(TL.id tl, ti) in
-  (tl, ti, None, query)
+  {tl; ti; fieldDval = None; pipedDval = None; queryString}
 
 
 let aHandler
@@ -460,6 +461,18 @@ let run () =
               |> toEqual
                    [ FACConstructorName ("Ok", 1)
                    ; FACConstructorName ("Error", 1) ]) ;
+          test "Use piped types" (fun () ->
+              let id = gid () in
+              let expr = pipe (str ~id "asd") [partial "append" b] in
+              let m =
+                defaultModel
+                  ~analyses:[(id, DStr "asd")]
+                  ~handlers:[aHandler ~expr ()]
+                  ()
+              in
+              let valid, _invalid = filterFor m ~pos:14 in
+              expect (valid |> List.map ~f:AC.asName)
+              |> toEqual ["String::append"]) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
               let tlid = TLID "789" in
               let mID = ID "1234" in
