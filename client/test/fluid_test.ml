@@ -7,54 +7,112 @@ module K = FluidKeyboard
 module E = FluidExpression
 open FluidShortcuts
 
-(*
- * These tests are all written in a common style: t "del end of whole"
- * aFloat (del 2) ("12~.456") ;
+(**
+ ************
+ * Overview *
+ ************
  *
- * This is a test that takes the fluidExpr called aFloat, and does a del on
- * it in position 2. The stringified result is "12.456" and the caret should
- * be in position 2 (indicated by the tilde).
+ * These tests are all written in a common style:
  *
- * There are a handful of functions you can call, including key,
- * keys, insert, bs, del, tab, shiftTab, and render.
+ * t "del end of whole" aFloat ~pos:2 del "12~.456" ;
  *
+ * This is a test that takes the fluidExpr called aFloat, starts the caret at
+ * position 2, and inputs a single delete.
  *
- * There are a few different ways of running a test:
- *  - t vs t ~expectsPartial:true:
- *    - a test case is created by calling t. This also asserts that the result
- *      does not include a partial.
- *    - you can also call t ~expectsPartial:true, which asserts that the result _does_ include a
- *      partial.
- *  - debug:
- *      When you need more information about a single test, set the ~debug:true
- *      flag.
+ * The stringified result is "12.456" and the caret should be in position 2
+ * (indicated by the tilde in the expectation string).
+ *
+ * There are a handful of functions you can call, including key, keys, insert,
+ * bs, del, tab, shiftTab, and render (no input, just verify rendering of an
+ * expression).
+
+ ***********
+ * Options *
+ ***********
+
+ * There are a few options that can be passed to [t]:
+ *
+ * expectsPartial:
+ *   By default, tests expect not to contain partials. When passed
+ *   ~expectPartial:true, the test will assert that the result /does/ include
+ *   a partial.
+ *
+ * debug:
+ *   When you need more information about a single test, set the ~debug:true
+ *   flag to see the entire AST/fluidState before and after the test.
+ *
+ * pos:
+ *   Sets the initial position of the caret (fluidState.newPos), which
+ *   otherwise defaults to 0.
+ *
+ * sel:
+ *   Takes a tuple and sets an initial selection (fluidState.selectionStart and
+ *   newPos).  The first element in the tuple always sets selectionStart, so a
+ *   RTL selection can be set by giving a "backwards" tuple. Eg, ~sel:(0,2)
+ *   selects the first two characters left-to-right while ~sel:(2,0) selects
+ *   them right-to-left.
+
+ **********************
+ * Expectation String *
+ **********************
+
  * There are also certain conventions in the display of text in the output:
- *  - TBlanks are displayed as `___`
- *  - TPlaceHolders are displayed as underscores of the original length:
- *  for example if the original is " a : Int " then we show
- *    `_________`
- *  - TPartials are displayed as text - to detect their presence,
- *    see "t vs t ~expectsPartial:true" above.
- *  - TGhostPartials are displayed as multiple @ signs
- *  - Other blanks (see FluidToken.isBlank) are displayed as `***` This is
- *    controlled by FluidToken.toTestText
- *  - Wrap:
- *      When I started writing these tests, I discovered that they kept passing
- *      despite there being a bug. Whenever the caret went over the end, it
- *      would stay in the last place, giving a false pass. To avoid this,
- *      I wrapped all test cases:
- *         ```
- *         if true
- *         then
- *           expression-I-actually-want-to-test
- *         else
- *           5
- *         ```
- *      We go to great efforts to fix the indentation afterwards. However, you
- *      may find that your test works without the wrapping and doesn't work
- *      with it. The solution is to try it wrapped in the editor and see where
- *      it goes wrong. *
- *  There are more tests in fluid_pattern_tests for match patterns.
+ *
+ *  TBlanks are displayed as `___`
+ *
+ *  TPlaceHolders are displayed as underscores of the original length.
+ *  For example if the original is " a : Int " then we show  `_________`
+ *
+ *  TPartials are displayed as text - to detect their presence, see
+ *  "~expectsPartial:true" above.
+ *
+ *  TGhostPartials are displayed as multiple @ signs.
+ *
+ *  Other blanks (see FluidToken.isBlank) are displayed as `***` This is
+ *  controlled by FluidPrinter.toTestText.
+ *
+ *  Caret placement is marked with a single `~`. Selections are marked with `«`
+ *  as the start of the selection and `»` as the end. This allow detecting both
+ *  LTR and RTL selection.
+
+ ***********
+ * Wrapper *
+ ***********
+
+ * All test case expressions are automatically wrapped in an if statement. This
+ * allows us to detect abnormalities that would otherwise be hidden by the
+ * expression being the root of the AST. For example, before this we frequently
+ * had tests that passed despite there being a bug in the caret placement that
+ * would otherwise move the caret out-of-bounds.
+ *
+ *    ```
+ *    if true
+ *    then
+ *      expression-I-actually-want-to-test
+ *    else
+ *      5
+ *    ```
+ *
+ * We go to great efforts to fix the indentation afterwards. However, you
+ * may find that your test works without the wrapping and doesn't work
+ * with it. The solution is to try it wrapped in the editor and see where
+ * it goes wrong.
+ *
+ * If all else fails, you can disable wrapping your testcase with ~wrap:false.
+
+ *****************
+ * Feature Flags *
+ *****************
+
+ * All test cases created with `t` are automatically run inside a feature flag
+ * panel as well as in the main editor. That is, they are run in the "new code"
+ * section of the feature flag, with the flag being the root of the AST. As
+ * with the wrapper, similar steps are taken to remove the extra tokens and
+ * spacing in the flag panel.
+ *
+ * If for some reason this doesn't work (which is definitely a bug!), you can
+ * disable running the test in the flag panel with `brokenInFF:true` until you
+ * fix the behavior.
  *)
 
 let magicIfElseWrapperPrefix = 15 (* "if true\nthen\n  " *)
