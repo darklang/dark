@@ -30,7 +30,7 @@
     "html2canvas": "1.0.0-rc.5",
     "mouse-wheel": "1.2.0",
     "pusher-js": "5.1.1",
-    "rollbar": "2.14.4",
+    "rollbar": "2.15.0",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "0.0.6",
     "validator": "^12.2.0"
