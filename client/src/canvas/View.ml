@@ -125,45 +125,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           in
           match fnAndRail with
           | Some (fn, sendToRail) ->
-              let errRailHint =
-                let handleRailMsg =
-                  Html.text
-                    ( match sendToRail with
-                    | Rail ->
-                        "Use `take-function-off-rail` to handle the `Nothing` case."
-                    | NoRail ->
-                        "Use `put-function-on-rail` to restore this behavior."
-                    )
-                in
-                let errorRail =
-                  Html.a
-                    [ Html.class' "link"
-                    ; Html.href
-                        "https://ops-documentation.builtwithdark.com/user-manual/error-handling#error-rail"
-                    ; Html.target "_blank" ]
-                    [Html.text "error rail"]
-                in
-                match fn.fnReturnTipe with
-                | TOption ->
-                    Html.p
-                      []
-                      [ Html.text "By default, this function goes to the "
-                      ; errorRail
-                      ; Html.text
-                          " on `Nothing` and returns the unwrapped value in `Just value` otherwise. "
-                      ; handleRailMsg ]
-                | TResult ->
-                    Html.p
-                      []
-                      [ Html.text "By default, this function goes to the "
-                      ; errorRail
-                      ; Html.text
-                          " on `Error` and returns the unwrapped value in `Ok value` otherwise. "
-                      ; handleRailMsg ]
-                | _ ->
-                    Html.noNode
-              in
-              Some (viewDoc [p fn.fnDescription; errRailHint])
+              Some
+                (viewDoc
+                   [ p fn.fnDescription
+                   ; ViewErrorRailHint.viewFunction fn (Some sendToRail) ])
           | None ->
               None
         in
