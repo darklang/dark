@@ -124,7 +124,7 @@ let children (expr : E.t) : E.t list =
 (* ------------------------- *)
 (* Parents *)
 (* ------------------------- *)
-let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
+let rec findParentOfWithin_ (eid : ID.t) (haystack : E.t) : E.t option =
   let fpow = findParentOfWithin_ eid in
   (* the `or` of all items in the list *)
   let fpowList xs =
@@ -175,7 +175,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : E.t) : E.t option =
         fpow oldExpr
 
 
-let findParentOfWithin (id : id) (haystack : E.t) : E.t =
+let findParentOfWithin (id : ID.t) (haystack : E.t) : E.t =
   findParentOfWithin_ id haystack
   |> recoverOpt "findParentOfWithin" ~default:(E.newB ())
 
@@ -184,7 +184,7 @@ let findParentOfWithin (id : id) (haystack : E.t) : E.t =
 (* EPipe stuff *)
 (* ------------------------- *)
 
-let getParamIndex (expr : E.t) (id : id) : (string * int) option =
+let getParamIndex (expr : E.t) (id : ID.t) : (string * int) option =
   let parent = findParentOfWithin_ id expr in
   match parent with
   | Some (EFnCall (_, name, args, _)) ->
@@ -199,7 +199,7 @@ let getParamIndex (expr : E.t) (id : id) : (string * int) option =
       None
 
 
-let threadPrevious (id : id) (ast : FluidAST.t) : E.t option =
+let threadPrevious (id : ID.t) (ast : FluidAST.t) : E.t option =
   FluidAST.findParent id ast
   |> function
   | Some (EPipe (_, exprs)) ->
@@ -214,7 +214,7 @@ let threadPrevious (id : id) (ast : FluidAST.t) : E.t option =
 (* Ancestors *)
 (* ------------------------- *)
 
-let freeVariables (ast : E.t) : (id * string) list =
+let freeVariables (ast : E.t) : (ID.t * string) list =
   (* Find all variable lookups that lookup a variable that
    * is also _defined_ in this expression. We create a set of
    * these IDs so we can filter them out later. *)
@@ -245,7 +245,7 @@ let freeVariables (ast : E.t) : (id * string) list =
            | _ ->
                None)
     |> List.concat
-    |> List.map ~f:(E.toID >> deID)
+    |> List.map ~f:(E.toID >> ID.toString)
     |> StrSet.fromList
   in
   ast
@@ -253,7 +253,7 @@ let freeVariables (ast : E.t) : (id * string) list =
          | EVariable (id, name) ->
              (* Don't include EVariable lookups that we know are looking
               * up a variable bound in this expression *)
-             if StrSet.member ~value:(deID id) definedAndUsed
+             if StrSet.member ~value:(ID.toString id) definedAndUsed
              then None
              else Some (id, name)
          | _ ->
@@ -264,7 +264,7 @@ let freeVariables (ast : E.t) : (id * string) list =
 module VarDict = StrDict
 module IDTable = Belt.MutableMap.String
 
-type sym_set = id VarDict.t
+type sym_set = ID.t VarDict.t
 
 type sym_store = sym_set IDTable.t
 
@@ -352,7 +352,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
  * Each symbol table maps from every available variable name to the id of the corresponding value expression bound to that name. *)
 let variablesIn (ast : E.t) : avDict =
   let sym_store = IDTable.make () in
-  let trace expr st = IDTable.set sym_store (deID (E.toID expr)) st in
+  let trace expr st = IDTable.set sym_store (ID.toString (E.toID expr)) st in
   sym_exec ~trace VarDict.empty ast ;
   sym_store |> IDTable.toList |> StrDict.fromList
 

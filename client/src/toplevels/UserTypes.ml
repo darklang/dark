@@ -19,13 +19,13 @@ let blankOrData (t : userTipe) : blankOrData list =
   namePointer :: definitionPointers
 
 
-let toID (ut : userTipe) : tlid = ut.utTLID
+let toID (ut : userTipe) : TLID.t = ut.utTLID
 
 let upsert (m : model) (ut : userTipe) : model =
   {m with userTipes = TD.insert ~tlid:ut.utTLID ~value:ut m.userTipes}
 
 
-let update (m : model) ~(tlid : tlid) ~(f : userTipe -> userTipe) : model =
+let update (m : model) ~(tlid : TLID.t) ~(f : userTipe -> userTipe) : model =
   {m with userTipes = TD.updateIfPresent ~tlid ~f m.userTipes}
 
 

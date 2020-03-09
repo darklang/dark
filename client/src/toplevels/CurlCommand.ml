@@ -82,7 +82,7 @@ let objAsHeaderCurl (dv : dval) : string option =
       None
 
 
-let curlFromSpec (m : model) (tlid : tlid) : string option =
+let curlFromSpec (m : model) (tlid : TLID.t) : string option =
   TL.get m tlid
   |> Option.andThen ~f:TL.asHandler
   |> Option.andThen ~f:(fun h ->
@@ -113,7 +113,7 @@ let curlFromSpec (m : model) (tlid : tlid) : string option =
   fullBody (for both formBody and jsonBody),
   url (which includes queryParams)
 *)
-let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
+let curlFromCurrentTrace (m : model) (tlid : TLID.t) : string option =
   let wrapInList o =
     o |> Option.andThen ~f:(fun v -> Some [v]) |> Option.withDefault ~default:[]
   in
@@ -155,12 +155,12 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
       None
 
 
-let curlFromHttpClientCall (m : model) (tlid : tlid) (id : id) (name : string) :
-    string option =
+let curlFromHttpClientCall
+    (m : model) (tlid : TLID.t) (id : ID.t) (name : string) : string option =
   let traces =
     StrDict.get ~key:(TLID.toString tlid) m.traces
     |> recoverOption
-         ~debug:(show_tlid tlid)
+         ~debug:(TLID.toString tlid)
          "TLID not found in m.traces in curlFromHttpClientCall"
   in
   let traceId =
@@ -180,7 +180,7 @@ let curlFromHttpClientCall (m : model) (tlid : tlid) (id : id) (name : string) :
   let tl =
     TL.get m tlid
     |> recoverOption
-         ~debug:(show_tlid tlid)
+         ~debug:(TLID.toString tlid)
          "TLID not found in model in curlFromHttpClientCall"
   in
   let args =
@@ -190,7 +190,7 @@ let curlFromHttpClientCall (m : model) (tlid : tlid) (id : id) (name : string) :
      * that, or make it toast instructions? *)
     |> recoverOption
          "Args not found in model in curlFromHttpClientCall"
-         ~debug:(show_tlid tlid, Option.map ~f:show_traceID traceId)
+         ~debug:(TLID.toString tlid, Option.map ~f:show_traceID traceId)
   in
   let data =
     args
@@ -264,11 +264,11 @@ let curlFromHttpClientCall (m : model) (tlid : tlid) (id : id) (name : string) :
   data
 
 
-let makeCommand (m : model) (tlid : tlid) : string option =
+let makeCommand (m : model) (tlid : TLID.t) : string option =
   curlFromCurrentTrace m tlid |> Option.orElse (curlFromSpec m tlid)
 
 
-let copyCurlMod (m : model) (tlid : tlid) (pos : vPos) : modification =
+let copyCurlMod (m : model) (tlid : TLID.t) (pos : vPos) : modification =
   match makeCommand m tlid with
   | Some data ->
       Native.Clipboard.copyToClipboard data ;

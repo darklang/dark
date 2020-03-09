@@ -15,7 +15,7 @@ let remove (m : model) (g : group) : model =
 
 
 (* Temporary to check if tlid is a deletedGroup *)
-let isFromDeletedGroup (m : model) (tlid : tlid) : group option =
+let isFromDeletedGroup (m : model) (tlid : TLID.t) : group option =
   TD.get ~tlid m.deletedGroups
 
 
@@ -27,7 +27,8 @@ let upsert (m : model) (g : group) : model =
   {m with groups = TD.insert ~tlid:g.gTLID ~value:g m.groups}
 
 
-let addToGroup (m : model) (gTLID : tlid) (tlid : tlid) : model * msg Cmd.t =
+let addToGroup (m : model) (gTLID : TLID.t) (tlid : TLID.t) : model * msg Cmd.t
+    =
   let group = TD.get ~tlid:gTLID m.groups in
   match group with
   | Some g ->
@@ -61,20 +62,20 @@ let createEmptyGroup (name : string option) (pos : pos) : modification =
   Many [AddGroup group; Deselect]
 
 
-let isInGroup (tlid : tlid) (groups : group TLIDDict.t) : bool =
+let isInGroup (tlid : TLID.t) (groups : group TLIDDict.t) : bool =
   groups
   |> TLIDDict.values
   |> List.any ~f:(fun g -> List.member ~value:tlid g.members)
 
 
-let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
+let posInGroup (mePos : pos) (groups : group TLIDDict.t) : TLID.t list =
   groups
   |> TLIDDict.mapValues ~f:(fun group -> group)
   |> List.filter ~f:(fun (g : Types.group) ->
-         match Native.Ext.querySelector (".tl-" ^ deTLID g.gTLID) with
+         match Native.Ext.querySelector (".tl-" ^ TLID.toString g.gTLID) with
          | Some elem ->
              let groupPos =
-               Native.Ext.getBoundingClient elem ("tl-" ^ deTLID g.gTLID)
+               Native.Ext.getBoundingClient elem ("tl-" ^ TLID.toString g.gTLID)
              in
              (* Check if the toplevel pos is inside the group *)
              (* X *)
@@ -96,20 +97,24 @@ let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
   |> TD.tlids
 
 
-let landedInGroup (tlid : tlid) (groups : group TLIDDict.t) : tlid list =
+let landedInGroup (tlid : TLID.t) (groups : group TLIDDict.t) : TLID.t list =
   match
-    Native.Ext.querySelector (".tl-" ^ deTLID tlid)
+    Native.Ext.querySelector (".tl-" ^ TLID.toString tlid)
     |> Option.andThen ~f:(fun e ->
-           Some (Native.Ext.getBoundingClient e ("tl-" ^ deTLID tlid)))
+           Some (Native.Ext.getBoundingClient e ("tl-" ^ TLID.toString tlid)))
   with
   | Some tlPos ->
       groups
       |> TLIDDict.mapValues ~f:(fun group -> group)
       |> List.filter ~f:(fun (g : Types.group) ->
-             match Native.Ext.querySelector (".tl-" ^ deTLID g.gTLID) with
+             match
+               Native.Ext.querySelector (".tl-" ^ TLID.toString g.gTLID)
+             with
              | Some elem ->
                  let groupPos =
-                   Native.Ext.getBoundingClient elem ("tl-" ^ deTLID g.gTLID)
+                   Native.Ext.getBoundingClient
+                     elem
+                     ("tl-" ^ TLID.toString g.gTLID)
                  in
                  (* Check if the toplevel is inside the group *)
                  if tlPos.right < groupPos.left

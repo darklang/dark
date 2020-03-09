@@ -18,15 +18,15 @@ let urlFor (page : page) : string =
     | Architecture ->
         []
     | FocusedFn tlid ->
-        [("fn", deTLID tlid)]
+        [("fn", TLID.toString tlid)]
     | FocusedHandler (tlid, _) ->
-        [("handler", deTLID tlid)]
+        [("handler", TLID.toString tlid)]
     | FocusedDB (tlid, _) ->
-        [("db", deTLID tlid)]
+        [("db", TLID.toString tlid)]
     | FocusedType tlid ->
-        [("type", deTLID tlid)]
+        [("type", TLID.toString tlid)]
     | FocusedGroup (tlid, _) ->
-        [("group", deTLID tlid)]
+        [("group", TLID.toString tlid)]
   in
   hashUrlParams args
 
@@ -58,35 +58,35 @@ let parseLocation (loc : Web.Location.location) : page option =
   let fn () =
     match StrDict.get ~key:"fn" unstructured with
     | Some sid ->
-        Some (FocusedFn (TLID sid))
+        Some (FocusedFn (TLID.fromString sid))
     | _ ->
         None
   in
   let handler () =
     match StrDict.get ~key:"handler" unstructured with
     | Some sid ->
-        Some (FocusedHandler (TLID sid, true))
+        Some (FocusedHandler (TLID.fromString sid, true))
     | _ ->
         None
   in
   let db () =
     match StrDict.get ~key:"db" unstructured with
     | Some sid ->
-        Some (FocusedDB (TLID sid, true))
+        Some (FocusedDB (TLID.fromString sid, true))
     | _ ->
         None
   in
   let tipe () =
     match StrDict.get ~key:"type" unstructured with
     | Some sid ->
-        Some (FocusedType (TLID sid))
+        Some (FocusedType (TLID.fromString sid))
     | _ ->
         None
   in
   let group () =
     match StrDict.get ~key:"group" unstructured with
     | Some sid ->
-        Some (FocusedGroup (TLID sid, true))
+        Some (FocusedGroup (TLID.fromString sid, true))
     | _ ->
         None
   in
