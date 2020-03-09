@@ -68,7 +68,7 @@ let viewCopyButton tlid value : msg Html.html =
     ; Html.title "Copy this expression's value to the clipboard"
     ; ViewUtils.eventNoPropagation
         "click"
-        ~key:("copylivevalue-" ^ value ^ showTLID tlid)
+        ~key:("copylivevalue-" ^ value ^ TLID.toString tlid)
         (fun m -> ClipboardCopyLivevalue (value, m.mePos)) ]
     [ViewUtils.fontAwesome "copy"]
 
@@ -224,7 +224,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
   List.map editor.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = T.tid ti.token in
-        let idStr = deID tokenId in
+        let idStr = ID.toString tokenId in
         let content = T.toText ti.token in
         let analysisId = T.analysisID ti.token in
         (* Apply CSS classes to token *)
@@ -305,9 +305,9 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
   |> List.flatten
 
 
-let viewArrow (curID : id) (srcID : id) : Types.msg Html.html =
-  let curSelector = ".id-" ^ deID curID in
-  let srcSelector = ".id-" ^ deID srcID in
+let viewArrow (curID : ID.t) (srcID : ID.t) : Types.msg Html.html =
+  let curSelector = ".id-" ^ ID.toString curID in
+  let srcSelector = ".id-" ^ ID.toString srcID in
   match
     (Native.Ext.querySelector curSelector, Native.Ext.querySelector srcSelector)
   with
@@ -363,7 +363,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
         [ viewArrow id srcId
         ; Html.div
             [ ViewUtils.eventNoPropagation
-                ~key:("lv-src-" ^ deID srcId)
+                ~key:("lv-src-" ^ ID.toString srcId)
                 "click"
                 (fun _ -> FluidMsg (FluidFocusOnToken srcId))
             ; Html.class' "jump-src"
@@ -472,7 +472,7 @@ let fluidEditorView
     (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
     Types.msg Html.html =
   let ({tlid; fluidState = state; _} : ViewUtils.viewState) = vs in
-  let tlidStr = deTLID tlid in
+  let tlidStr = TLID.toString tlid in
   let textInputListeners =
     (* the command palette is inside div.fluid-editor but has it's own input
      * handling, so don't do normal fluid input stuff if it's open *)
@@ -585,7 +585,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   let mainEditor = fluidEditorView vs vs.mainEditor in
   let returnValue = viewReturnValue vs in
   let secondaryEditors =
-    let findRowOffestOfMainTokenWithId (target : id) : int option =
+    let findRowOffestOfMainTokenWithId (target : ID.t) : int option =
       (* FIXME(ds) this is a giant hack to find the row offset of the corresponding
        * token in the main view for each secondary editor. This works by getting
        * the id of the split (ie, the id of the first token in the split)

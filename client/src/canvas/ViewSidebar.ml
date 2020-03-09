@@ -13,17 +13,17 @@ type sidebarVariant =
   | SidebarClosed
 
 type identifier =
-  | Tlid of tlid
+  | Tlid of TLID.t
   | Other of string
 
-let tlidOfIdentifier identifier : tlid option =
+let tlidOfIdentifier identifier : TLID.t option =
   match identifier with Tlid tlid -> Some tlid | Other _ -> None
 
 
 let entryKeyFromIdentifier identifier : string =
   match identifier with
   | Tlid tlid ->
-      "entry-" ^ showTLID tlid
+      "entry-" ^ TLID.toString tlid
   | Other s ->
       "entry-" ^ s
 
@@ -709,15 +709,15 @@ let adminDebuggerView (m : model) : msg Html.html =
     | Architecture ->
         "Architecture"
     | FocusedFn tlid ->
-        Printf.sprintf "Fn (TLID %s)" (deTLID tlid)
+        Printf.sprintf "Fn (TLID %s)" (TLID.toString tlid)
     | FocusedHandler (tlid, _) ->
-        Printf.sprintf "Handler (TLID %s)" (deTLID tlid)
+        Printf.sprintf "Handler (TLID %s)" (TLID.toString tlid)
     | FocusedDB (tlid, _) ->
-        Printf.sprintf "DB (TLID %s)" (deTLID tlid)
+        Printf.sprintf "DB (TLID %s)" (TLID.toString tlid)
     | FocusedType tlid ->
-        Printf.sprintf "Type (TLID %s)" (deTLID tlid)
+        Printf.sprintf "Type (TLID %s)" (TLID.toString tlid)
     | FocusedGroup (tlid, _) ->
-        Printf.sprintf "Group (TLID %s)" (deTLID tlid)
+        Printf.sprintf "Group (TLID %s)" (TLID.toString tlid)
   in
   let flagText =
     "["

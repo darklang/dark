@@ -6,7 +6,7 @@ module TL = Toplevel
 
 let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) : msg Html.html
     =
-  let strTLID = showTLID vs.tlid in
+  let strTLID = TLID.toString vs.tlid in
   let schedule =
     vs.workerStats
     |> Option.andThen ~f:(fun (ws : Types.workerStats) -> ws.schedule)
@@ -57,7 +57,7 @@ let viewTrace
     ; ("unfetchable", isUnfetchable) ]
   in
   let eventKey constructor =
-    constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
+    constructor ^ "-" ^ TLID.toString tlid ^ "-" ^ traceID
   in
   let events =
     if isUnfetchable
@@ -113,7 +113,7 @@ let viewTrace
   Html.li props (dotHtml @ [viewData])
 
 
-let viewTraces (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
+let viewTraces (vs : ViewUtils.viewState) (astID : ID.t) : msg Html.html list =
   let traceToHtml ((traceID, traceData) : trace) =
     let value =
       Option.map ~f:(fun td -> td.input) (traceData |> Result.to_option)
@@ -180,7 +180,7 @@ let viewData (vs : ViewUtils.viewState) : msg Html.html list =
     then "max-content"
     else
       let height =
-        Native.Ext.querySelector (".tl-" ^ showTLID vs.tlid ^ " .ast")
+        Native.Ext.querySelector (".tl-" ^ TLID.toString vs.tlid ^ " .ast")
         |> Option.andThen ~f:(fun e -> Some (Native.Ext.clientHeight e + 20))
         |> Option.withDefault ~default:100
       in

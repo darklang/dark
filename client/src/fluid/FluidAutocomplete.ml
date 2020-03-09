@@ -295,7 +295,7 @@ let matcher
       true
 
 
-type query = tlid * tokenInfo
+type query = TLID.t * tokenInfo
 
 type fullQuery = toplevel * tokenInfo * dval option * string
 

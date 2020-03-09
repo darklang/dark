@@ -15,12 +15,12 @@ type fnExecutionStatus =
   | Replayable
   | NoPermission
 
-let functionIsExecuting (vs : viewState) (id : id) : bool =
+let functionIsExecuting (vs : viewState) (id : ID.t) : bool =
   List.member ~value:id vs.executingFunctions
 
 
 let fnExecutionStatus
-    (vs : viewState) (fn : function_) (id : id) (args : id list) =
+    (vs : viewState) (fn : function_) (id : ID.t) (args : ID.t list) =
   let isComplete id =
     match Analysis.getLiveValue' vs.analysisStore id with
     | None | Some (DError _) | Some (DIncomplete _) ->
@@ -108,7 +108,7 @@ let executionEvents status tlid id name =
       [Html.noProp; Html.noProp; Html.noProp; Html.noProp]
   | Ready | Replayable ->
       [ ViewUtils.eventNoPropagation
-          ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
+          ~key:("efb-" ^ TLID.toString tlid ^ "-" ^ ID.toString id ^ "-" ^ name)
           "click"
           (fun _ -> ExecuteFunctionButton (tlid, id, name))
       ; ViewUtils.nothingMouseEvent "mouseup"
@@ -117,7 +117,7 @@ let executionEvents status tlid id name =
 
 
 let fnExecutionButton
-    (vs : viewState) (fn : function_) (id : id) (args : id list) =
+    (vs : viewState) (fn : function_) (id : ID.t) (args : ID.t list) =
   let name = fn.fnName in
   let status = fnExecutionStatus vs fn id args in
   if fn.fnPreviewExecutionSafe

@@ -64,9 +64,9 @@ let base64url_bytes (input : Bytes.t) : string =
  * of expressing all existing ids as ints because bucklescript is strict
  * about int == 32 bit. As far as we're concerned, ids are strings and
  * we know nothing about their parseability as ints *)
-let id (Types.ID id) = string id
+let id = ID.toString >> string
 
-let tlid (Types.TLID tlid) = string tlid
+let tlid = TLID.toString >> string
 
 let pos (p : Types.pos) = object_ [("x", int p.x); ("y", int p.y)]
 
@@ -191,7 +191,7 @@ and blankOrData (pd : Types.blankOrData) : Js.Json.t =
       ev "PGroupName" [blankOr string g]
 
 
-and tlidOf (op : Types.op) : Types.tlid =
+and tlidOf (op : Types.op) : TLID.t =
   match op with
   | SetHandler (tlid, _, _) ->
       tlid

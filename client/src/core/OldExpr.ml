@@ -163,8 +163,10 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
       | EPipeTarget _ :: args when inPipe ->
           F
             ( id
-            , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
-            )
+            , FnCall
+                ( F (ID (ID.toString id ^ "_name"), name)
+                , List.map ~f:r args
+                , ster ) )
       | _nonPipeTarget :: _ when inPipe ->
           recover
             "fn has a pipe but no pipe target"
@@ -173,8 +175,10 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
       | args ->
           F
             ( id
-            , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
-            ) )
+            , FnCall
+                ( F (ID (ID.toString id ^ "_name"), name)
+                , List.map ~f:r args
+                , ster ) ) )
     | EBinOp (id, name, arg1, arg2, ster) ->
       ( match arg1 with
       | EPipeTarget _ when not inPipe ->
@@ -186,8 +190,9 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
           F
             ( id
             , FnCall
-                (F (ID (deID id ^ "_name"), name), [fromFluidExpr arg2], ster)
-            )
+                ( F (ID (ID.toString id ^ "_name"), name)
+                , [fromFluidExpr arg2]
+                , ster ) )
       | _nonPipeTarget when inPipe ->
           recover
             "binop has a pipe but no pipe target"
@@ -197,7 +202,7 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
           F
             ( id
             , FnCall
-                ( F (ID (deID id ^ "_name"), name)
+                ( F (ID (ID.toString id ^ "_name"), name)
                 , [fromFluidExpr arg1; fromFluidExpr arg2]
                 , ster ) ) )
     | ELambda (id, vars, body) ->
@@ -286,7 +291,7 @@ and fromFluidPattern (p : FluidPattern.t) : pattern =
       Blank id
 
 
-and toFluidPattern (mid : id) (p : pattern) : FluidPattern.t =
+and toFluidPattern (mid : ID.t) (p : pattern) : FluidPattern.t =
   match p with
   | Blank id ->
       FPBlank (mid, id)
