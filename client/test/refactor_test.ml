@@ -161,7 +161,7 @@ let run () =
           expect res |> toEqual true)) ;
   describe "renameDBReferences" (fun () ->
       let db0 =
-        { dbTLID = TLID "db0"
+        { dbTLID = TLID.fromString "db0"
         ; dbName = B.newF "ElmCode"
         ; cols = []
         ; version = 0
@@ -180,7 +180,7 @@ let run () =
             ; pos = {x = 0; y = 0} }
           in
           let f =
-            { ufTLID = TLID "tl-3"
+            { ufTLID = TLID.fromString "tl-3"
             ; ufMetadata =
                 { ufmName = B.newF "f-1"
                 ; ufmParameters = []

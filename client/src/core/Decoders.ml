@@ -776,7 +776,7 @@ let op j : op =
       )
     ; ("DeleteDBCol", variant2 (fun t i -> DeleteDBCol (t, i)) tlid id)
       (* deprecated, can't happen *)
-    ; ("DeprecatedInitDbm", variant1 (fun _ -> UndoTL (TLID "")) tlid)
+    ; ("DeprecatedInitDbm", variant1 (fun _ -> UndoTL TLID.empty) tlid)
     ; ( "CreateDBMigration"
       , variant4
           (fun t rbid rfid cols -> CreateDBMigration (t, rbid, rfid, cols))

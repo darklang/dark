@@ -1,4 +1,4 @@
-val gid : unit -> UnsharedTypes.id
+val gid : unit -> ID.t
 
 type jsonType = Js.Json.t
 

@@ -1,4 +1,4 @@
-let gid () = UnsharedTypes.ID (Js_math.random_int 0 2147483647 |> string_of_int)
+let gid () = Js_math.random_int 0 2147483647 |> string_of_int |> ID.fromString
 
 type jsonType = Js.Json.t
 

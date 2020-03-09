@@ -400,7 +400,7 @@ let autocomplete_visible_height (_m : model) : testResult =
 
 
 let fn_page_returns_to_lastpos (m : model) : testResult =
-  match TL.get m (TLID "123") with
+  match TL.get m (TLID.fromString "123") with
   | Some tl ->
       let centerPos = Viewport.centerCanvasOn tl in
       if m.canvasProps.offset = centerPos
@@ -416,7 +416,7 @@ let load_with_unnamed_function (_m : model) : testResult = pass
 
 let extract_from_function (m : model) : testResult =
   match m.cursorState with
-  | FluidEntering (TLID "123") ->
+  | FluidEntering tlid when tlid = TLID.fromString "123" ->
       if TD.count m.userFunctions = 2 then pass else fail m.userFunctions
   | _ ->
       fail (show_cursorState m.cursorState)
@@ -657,7 +657,7 @@ let fluid_test_copy_request_as_curl (m : model) : testResult =
   let curl =
     CurlCommand.curlFromHttpClientCall
       m
-      (TLID "91390945")
+      (TLID.fromString "91390945")
       (ID "753586717")
       "HttpClient::post"
   in

@@ -61,7 +61,7 @@ let run () =
           expect (curlFromSpec m1 defaultTLID)
           |> toEqual (Some "curl https://test-curl.builtwithdark.com/test")) ;
       test "returns None if tlid not found" (fun () ->
-          expect (curlFromSpec m (TLID "1")) |> toEqual None) ;
+          expect (curlFromSpec m (TLID.fromString "1")) |> toEqual None) ;
       test "returns None for non-HTTP handlers" (fun () ->
           let cronTLID = TLID.fromString "2" in
           let cron =
