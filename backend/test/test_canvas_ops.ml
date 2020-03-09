@@ -72,6 +72,7 @@ let t_db_oplist_roundtrip () =
     ~binary_repr:None
     ~tlid
     ~deleted:None
+    ~pos:None
     ~canvas_id
     ~account_id:owner
     ~tipe:TL.TLHandler
