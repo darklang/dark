@@ -573,42 +573,13 @@ let rec documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
   let simpleDoc (text : string) = Some [p text] in
   match aci with
   | FACFunction f ->
-      let errRailHint =
-        let errorRail =
-          Html.a
-            [ Html.class' "link"
-            ; Html.href
-                "https://ops-documentation.builtwithdark.com/user-manual/error-handling#error-rail"
-            ; Html.target "_blank" ]
-            [Html.text "error rail"]
-        in
-        match f.fnReturnTipe with
-        | TOption ->
-            Html.p
-              []
-              [ Html.text "By default, this function goes to the "
-              ; errorRail
-              ; Html.text
-                  " on `Nothing` and returns the unwrapped value in `Just value` otherwise. "
-              ]
-        | TResult ->
-            Html.p
-              []
-              [ Html.text "By default, this function goes to the "
-              ; errorRail
-              ; Html.text
-                  " on `Error` and returns the unwrapped value in `Ok value` otherwise. "
-              ]
-        | _ ->
-            Html.noNode
-      in
       let desc =
         if String.length f.fnDescription <> 0
         then f.fnDescription
         else "Function call with no description"
       in
       let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
-      Some [p desc; errRailHint]
+      Some [p desc; ViewErrorRailHint.viewFunction f None]
   | FACConstructorName ("Just", _) ->
       simpleDoc "An Option containing a value"
   | FACConstructorName ("Nothing", _) ->
