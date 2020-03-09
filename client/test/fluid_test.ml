@@ -298,6 +298,10 @@ module TestResult = struct
     max 0 (min last !endPos)
 
 
+  (** [pos r] returns the equivalent of fluidState.newPos from test result [r],
+    * unwrapping or remove feature flag tokens as appropriate.
+    *
+    * See the block comment at top of file for more. *)
   let pos (res : t) : int =
     if res.testcase.ff
     then
@@ -314,6 +318,10 @@ module TestResult = struct
     else res.resultState.newPos
 
 
+  (** [selection r] returns the equivalent of fluidState.selectionStart from
+    * test result [r], unwrapping or remove feature flag tokens as appropriate.
+    *
+    * See the block comment at top of file for more. *)
   let selection (res : t) : int option =
     if res.testcase.ff
     then
