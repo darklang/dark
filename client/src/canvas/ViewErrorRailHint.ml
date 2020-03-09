@@ -61,9 +61,7 @@ let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
                ; errorRail
                ; Html.text
                    " so you need to handle `Just value` and `Nothing` manually. "
-               ; Html.text
-                   "Alternatively, use `put-function-on-rail`."
-               ])
+               ; Html.text "Alternatively, use `put-function-on-rail`." ])
       | TResult, Rail ->
           Some
             (Html.p
@@ -82,8 +80,6 @@ let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
                ; errorRail
                ; Html.text
                    " so you need to handle `Error error` and `Ok value` manually. "
-               ; Html.text
-                   "Alternatively, use `put-function-on-rail`."
-               ])
+               ; Html.text "Alternatively, use `put-function-on-rail`." ])
       | _, (Rail | NoRail) ->
           None ) )
