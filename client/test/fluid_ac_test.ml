@@ -9,39 +9,42 @@ open Fluid_test_data
 open FluidShortcuts
 
 let sampleFunctions : function_ list =
-  [ ("Twit::somefunc", TObj)
-  ; ("Twit::someOtherFunc", TObj)
-  ; ("Twit::yetAnother", TObj)
-  ; ("+", TInt)
-  ; ("Int::add", TInt)
-  ; ("Dict::keys", TObj)
-  ; ("List::head", TList)
-  ; ("withlower", TObj)
-  ; ("withLower", TObj)
-  ; ("SomeModule::withLower", TObj)
-  ; ("SomeOtherModule::withlower", TObj)
-  ; ("HTTP::post", TAny)
-  ; ("HTTP::head", TAny)
-  ; ("HTTP::get", TAny)
-  ; ("HTTP::options", TAny)
-  ; ("Some::deprecated", TAny)
-  ; ("DB::deleteAll", TDB)
-  ; ("DB::generateKey", TStr)
-  ; ("DB::getAll_v2", TList)
-  ; ("DB::getAll_v1", TList)
+  [ ("Twit::somefunc", [TObj], TAny)
+  ; ("Twit::someOtherFunc", [TObj], TAny)
+  ; ("Twit::yetAnother", [TObj], TAny)
+  ; ("+", [TInt; TInt], TInt)
+  ; ("Int::add", [TInt; TInt], TInt)
+  ; ("Dict::keys", [TObj], TList)
+  ; ("List::head", [TList], TAny)
+  ; ("withlower", [TObj], TObj)
+  ; ("withLower", [TObj], TObj)
+  ; ("SomeModule::withLower", [TObj], TObj)
+  ; ("SomeOtherModule::withlower", [TObj], TObj)
+  ; ("HTTP::post", [TAny], TAny)
+  ; ("HTTP::head", [TAny], TAny)
+  ; ("HTTP::get", [TAny], TAny)
+  ; ("HTTP::options", [TAny], TAny)
+  ; ("Some::deprecated", [TAny], TAny)
+  ; ("DB::deleteAll", [TDB], TNull)
+  ; ("DB::generateKey", [], TStr)
+  ; ("DB::getAll_v2", [TDB], TList)
+  ; ("DB::getAll_v1", [TDB], TList)
     (* ordering is deliberate - we want the query to order s.t. get is before getAll *)
-  ; ("DB::get_v1", TList)
-  ; ("Option::withDefault", TOption)
-  ; ("Result::catchError", TResult) ]
-  |> List.map ~f:(fun (fnName, paramTipe) ->
+  ; ("DB::get_v1", [TDB], TList)
+  ; ("String::append", [TStr; TStr], TStr)
+  ; ("List::append", [TList; TList], TList)
+  ; ("Option::withDefault", [TOption], TAny)
+  ; ("Result::withDefault", [TResult], TAny) ]
+  |> List.map ~f:(fun (fnName, paramTipes, fnReturnTipe) ->
          { fnName
          ; fnParameters =
-             [ { paramName = "x"
-               ; paramTipe
-               ; paramBlock_args = []
-               ; paramOptional = false
-               ; paramDescription = "" } ]
-         ; fnReturnTipe = TBool
+             List.map paramTipes ~f:(fun paramTipe ->
+                 { paramName = "x"
+                 ; paramTipe
+                 ; paramBlock_args = []
+                 ; paramOptional = false
+                 ; paramDescription = "" })
+         ; fnReturnTipe
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
          ; fnInfix = true
@@ -49,6 +52,8 @@ let sampleFunctions : function_ list =
 
 
 let defaultTLID = TLID.fromString "7"
+
+let defaultTraceID = "94167980-f909-527e-a4af-bc3155f586d3"
 
 let defaultID = gid ()
 
@@ -67,8 +72,6 @@ let defaultToplevel =
     ; pos = Defaults.origin }
 
 
-let defaultDval = DNull
-
 let defaultTokenInfo =
   { startRow = 0
   ; startCol = 0
@@ -78,8 +81,9 @@ let defaultTokenInfo =
   ; token = TBlank defaultID }
 
 
-let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
-    AC.fullQuery =
+let defaultFullQuery
+    ?(tl = defaultToplevel) (ac : fluidAutocompleteState) (queryString : string)
+    : AC.fullQuery =
   let ti =
     match tl with
     | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
@@ -91,46 +95,8 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
     | _ ->
         defaultTokenInfo
   in
-  let _, ti =
-    m.fluidState.ac.query |> Option.withDefault ~default:(TL.id tl, ti)
-  in
-  (tl, ti, None, query)
-
-
-let fillingCS ?(tlid = defaultTLID) ?(_id = defaultID) () : cursorState =
-  FluidEntering tlid
-
-
-let creatingCS : cursorState = FluidEntering defaultTLID
-
-(* Sets the model with the appropriate toplevels *)
-let defaultModel
-    ?(dbs = [])
-    ?(handlers = [])
-    ?(userFunctions = [])
-    ?(userTipes = [])
-    ~cursorState
-    () : model =
-  let default = Fluid_test_data.defaultTestModel in
-  { default with
-    handlers = Handlers.fromList handlers
-  ; dbs = DB.fromList dbs
-  ; userFunctions = UserFunctions.fromList userFunctions
-  ; userTipes = UserTypes.fromList userTipes
-  ; cursorState
-  ; builtInFunctions = sampleFunctions
-  ; analyses =
-      StrDict.singleton (* The default traceID for TLID 7 *)
-        ~key:"94167980-f909-527e-a4af-bc3155f586d3"
-        ~value:
-          (LoadableSuccess
-             (StrDict.singleton
-                ~key:"12"
-                ~value:
-                  (ExecutedResult
-                     (DObj
-                        (StrDict.fromList [("title", DNull); ("author", DNull)])))))
-  }
+  let _, ti = ac.query |> Option.withDefault ~default:(TL.id tl, ti) in
+  {tl; ti; fieldList = []; pipedDval = None; queryString}
 
 
 let aHandler
@@ -165,66 +131,50 @@ let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) () :
   ; pos = {x = 0; y = 0} }
 
 
-let enteringFunction
-    ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
-    model =
-  defaultModel
-    ~cursorState:(fillingCS ())
-    ~dbs
-    ~handlers
-    ~userTipes
-    ~userFunctions:(aFunction () :: userFunctions)
-    ()
-
-
-let enteringDBField
-    ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
-    model =
-  defaultModel
-    ~cursorState:(fillingCS ())
-    ~dbs:([aDB ()] @ dbs)
-    ~handlers
-    ~userTipes
-    ~userFunctions
-    ()
-
-
-let enteringDBType
-    ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
-    model =
-  defaultModel
-    ~cursorState:(fillingCS ())
-    ~dbs:([aDB ~fieldid:defaultID2 ~typeid:defaultID ()] @ dbs)
-    ~handlers
-    ~userTipes
-    ~userFunctions
-    ()
-
-
-let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
-    model =
-  defaultModel
-    ~cursorState:(fillingCS ())
-    ~handlers:[aHandler ~space ~expr ()]
-    ()
+(* Sets the model with the appropriate toplevels *)
+let defaultModel
+    ?(tlid = defaultTLID)
+    ?(analyses = [])
+    ?(dbs = [])
+    ?(handlers = [aHandler ()])
+    ?(userFunctions = [])
+    ?(userTipes = [])
+    () : model =
+  let analyses =
+    analyses
+    |> List.map ~f:(fun (id, value) -> (ID.toString id, ExecutedResult value))
+    |> StrDict.fromList
+  in
+  let default = Fluid_test_data.defaultTestModel in
+  { default with
+    handlers = Handlers.fromList handlers
+  ; dbs = DB.fromList dbs
+  ; userFunctions = UserFunctions.fromList userFunctions
+  ; userTipes = UserTypes.fromList userTipes
+  ; cursorState = FluidEntering tlid
+  ; builtInFunctions = sampleFunctions
+  ; fluidState =
+      { default.fluidState with
+        ac = {default.fluidState.ac with functions = sampleFunctions} }
+  ; analyses =
+      StrDict.singleton ~key:defaultTraceID ~value:(LoadableSuccess analyses) }
 
 
 (* AC targeting a tlid and pointer *)
 let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
   let ti =
-    match TL.get m tlid with
-    | Some (TLHandler {ast; _}) | Some (TLFunc {ufAST = ast; _}) ->
-        Fluid.getToken ast {m.fluidState with newPos = pos}
-        |> Option.withDefault ~default:defaultTokenInfo
-    | _ ->
-        defaultTokenInfo
+    TL.get m tlid
+    |> Option.andThen ~f:TL.getAST
+    |> Option.andThen ~f:(fun ast ->
+           Fluid.getToken ast {m.fluidState with newPos = pos})
+    |> Option.withDefault ~default:defaultTokenInfo
   in
   AC.regenerate m (AC.init m) (tlid, ti)
 
 
-let setQuery (m : model) (q : string) (a : AC.autocomplete) : AC.autocomplete =
-  let fullQ = defaultFullQuery m q in
-  AC.refilter m fullQ a
+let setQuery (q : string) (a : AC.autocomplete) : AC.autocomplete =
+  let fullQ = defaultFullQuery a q in
+  AC.refilter fullQ a
 
 
 let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
@@ -234,9 +184,9 @@ let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
 let run () =
   describe "autocomplete" (fun () ->
       describe "queryWhenEntering" (fun () ->
-          let m = enteringHandler () in
+          let m = defaultModel () in
           let acForQueries (qs : string list) =
-            List.foldl qs ~init:(acFor m) ~f:(setQuery m)
+            List.foldl qs ~init:(acFor m) ~f:setQuery
             |> (fun x -> x.completions)
             |> List.map ~f:AC.asName
           in
@@ -248,26 +198,25 @@ let run () =
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit::somef"
-                |> setQuery m "Twit::someO"
+                |> setQuery "Twit::somef"
+                |> setQuery "Twit::someO"
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "Twit::someOtherFunc")) ;
           test "Returning to empty unselects" (fun () ->
-              expect
-                (acFor m |> setQuery m "lis" |> setQuery m "" |> AC.highlighted)
+              expect (acFor m |> setQuery "lis" |> setQuery "" |> AC.highlighted)
               |> toEqual None) ;
           test "resetting the query refilters" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit::somefunc"
-                |> setQuery m "Twit::some"
+                |> setQuery "Twit::somefunc"
+                |> setQuery "Twit::some"
                 |> AC.selectDown
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "Twit::someOtherFunc")) ;
           test "deprecated functions are removed" (fun () ->
-              expect (acFor m |> setQuery m "deprecated" |> AC.highlighted)
+              expect (acFor m |> setQuery "deprecated" |> AC.highlighted)
               |> toEqual None) ;
           test "sorts correctly without typing ::" (fun () ->
               expect (acForQuery "dbget" |> List.head)
@@ -285,12 +234,12 @@ let run () =
               |> toEqual ["DB::getAll_v1"; "DB::getAll_v2"]) ;
           test "search finds only prefixed" (fun () ->
               expect (acForQuery "twit::y") |> toEqual ["Twit::yetAnother"]) ;
-          test "show results when the only option is the setQuery m" (fun () ->
+          test "show results when the only option is the setQuery" (fun () ->
               expect (acForQuery "List::head" |> List.length) |> toEqual 1) ;
           test "scrolling down a bit works" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit"
+                |> setQuery "Twit"
                 |> AC.selectDown
                 |> AC.selectDown
                 |> fun x -> x.index )
@@ -298,7 +247,7 @@ let run () =
           test "scrolling loops one way" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit:"
+                |> setQuery "Twit:"
                 |> AC.selectDown
                 |> AC.selectDown
                 |> AC.selectDown
@@ -307,7 +256,7 @@ let run () =
           test "scrolling loops the other way" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit:"
+                |> setQuery "Twit:"
                 |> AC.selectDown
                 |> AC.selectUp
                 |> AC.selectUp
@@ -318,7 +267,7 @@ let run () =
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit:"
+                |> setQuery "Twit:"
                 |> AC.selectUp
                 |> AC.selectUp
                 |> fun x -> x.index )
@@ -326,40 +275,18 @@ let run () =
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit"
+                |> setQuery "Twit"
                 |> AC.selectDown
                 |> AC.selectDown
-                |> setQuery m "Twit::1334xxx"
+                |> setQuery "Twit::1334xxx"
                 |> fun x -> x.index )
               |> toEqual None) ;
-          (* test "Filter by method signature for typed values" ( fun () ->
-              expect
-                ( acFor m
-                |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
-                |> setQuery m ""
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName
-                |> Set.fromList
-                |> (==) (Set.fromList ["List::head"]) )
-              |> toEqual true ) ;
-
-          test "Show allowed fields for objects" ( fun () ->
-              expect
-                ( acFor m
-                |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
-                |> setQuery m ""
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName
-                |> Set.fromList
-                |> (==) (Set.fromList ["Int::add", "+"]))
-              |> toEqual true ) ;
-           *)
           test
             "ordering = startsWith then case match then case insensitive match"
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "withLo"
+                |> setQuery "withLo"
                 |> (fun x -> x.completions)
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:AC.asName )
@@ -373,53 +300,53 @@ let run () =
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "+"
+                |> setQuery "+"
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "+")) ;
           test "null works" (fun () ->
-              expect (acFor m |> setQuery m "nu" |> AC.highlighted)
+              expect (acFor m |> setQuery "nu" |> AC.highlighted)
               |> toEqual (Some (FACLiteral "null"))) ;
           test "Ok works" (fun () ->
-              expect (acFor m |> setQuery m "Ok" |> AC.highlighted)
+              expect (acFor m |> setQuery "Ok" |> AC.highlighted)
               |> toEqual (Some (FACConstructorName ("Ok", 1)))) ;
           test "Error works" (fun () ->
-              expect (acFor m |> setQuery m "Error" |> AC.highlighted)
+              expect (acFor m |> setQuery "Error" |> AC.highlighted)
               |> toEqual (Some (FACConstructorName ("Error", 1)))) ;
           test "true works" (fun () ->
-              expect (acFor m |> setQuery m "tr" |> AC.highlighted)
+              expect (acFor m |> setQuery "tr" |> AC.highlighted)
               |> toEqual (Some (FACLiteral "true"))) ;
           test "case insensitive true works" (fun () ->
-              expect (acFor m |> setQuery m "tR" |> AC.highlighted)
+              expect (acFor m |> setQuery "tR" |> AC.highlighted)
               |> toEqual (Some (FACLiteral "true"))) ;
           test "false works" (fun () ->
-              expect (acFor m |> setQuery m "fa" |> AC.highlighted)
+              expect (acFor m |> setQuery "fa" |> AC.highlighted)
               |> toEqual (Some (FACLiteral "false"))) ;
           test "if works" (fun () ->
-              expect (acFor m |> setQuery m "if" |> AC.highlighted)
+              expect (acFor m |> setQuery "if" |> AC.highlighted)
               |> toEqual (Some (FACKeyword KIf))) ;
           test "let works" (fun () ->
-              expect (acFor m |> setQuery m "let" |> AC.highlighted)
+              expect (acFor m |> setQuery "let" |> AC.highlighted)
               |> toEqual (Some (FACKeyword KLet))) ;
           test "Lambda works" (fun () ->
-              expect (acFor m |> setQuery m "lambda" |> AC.highlighted)
+              expect (acFor m |> setQuery "lambda" |> AC.highlighted)
               |> toEqual (Some (FACKeyword KLambda))) ;
           test "http handlers have request" (fun () ->
               let space = Some "HTTP" in
-              let m = enteringHandler ~space () in
+              let m = defaultModel ~handlers:[aHandler ~space ()] () in
               expect
                 ( acFor m
-                |> setQuery m "request"
+                |> setQuery "request"
                 |> itemPresent (FACVariable ("request", None)) )
               |> toEqual true) ;
           test "handlers with no route have request and event" (fun () ->
               expect
                 (let ac = acFor m in
                  [ ac
-                   |> setQuery m "request"
+                   |> setQuery "request"
                    |> itemPresent (FACVariable ("request", None))
                  ; ac
-                   |> setQuery m "event"
+                   |> setQuery "event"
                    |> itemPresent (FACVariable ("event", None)) ])
               |> toEqual [true; true]) ;
           test "functions have DB names in the autocomplete" (fun () ->
@@ -435,7 +362,7 @@ let run () =
               in
               let m =
                 defaultModel
-                  ~cursorState:(fillingCS ~tlid:fntlid ())
+                  ~tlid:fntlid
                   ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
                   ~userFunctions:[fn]
                   ()
@@ -446,109 +373,106 @@ let run () =
               |> toEqual true) ;
           ()) ;
       describe "filter" (fun () ->
-          test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
-              let m =
-                defaultModel ~cursorState:(fillingCS ()) ~dbs:[aDB ()] ()
-              in
-              let ac = acFor m in
-              let _valid, invalid =
-                AC.filter
-                  m
-                  ac
-                  [FACVariable ("MyDB", None)]
-                  (defaultFullQuery m "")
-              in
-              expect (List.member ~value:(FACVariable ("MyDB", None)) invalid)
-              |> toEqual true) ;
-          let consFAC =
-            [ FACConstructorName ("Just", 1)
-            ; FACConstructorName ("Nothing", 0)
-            ; FACConstructorName ("Ok", 1)
-            ; FACConstructorName ("Error", 1) ]
+          let isConstructor = function
+            | FACConstructorName _ ->
+                true
+            | _ ->
+                false
           in
-          (* TODO: not yet working in fluid
+          let isVariable = function FACVariable _ -> true | _ -> false in
+          let filterFor m ~pos =
+            let ac = acFor ~pos m in
+            (ac.completions, ac.invalidCompletions)
+          in
+          test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
+              let id = gid () in
+              let expr = fn "Int::add" [EBlank id; b] in
+              let m =
+                defaultModel
+                  ~analyses:[(id, DDB "MyDB")]
+                  ~dbs:[aDB ~tlid:(TLID.fromString "23") ()]
+                  ~handlers:[aHandler ~expr ()]
+                  ()
+              in
+              let _valid, invalid = filterFor m ~pos:9 in
+              expect (List.filter invalid ~f:isVariable)
+              |> toEqual [FACVariable ("MyDB", Some (DDB "MyDB"))]) ;
+          test "Constructors are available in Any expression" (fun () ->
+              let m = defaultModel () in
+              let valid, _invalid = filterFor m ~pos:0 in
+              expect (List.filter valid ~f:isConstructor)
+              |> toEqual
+                   [ FACConstructorName ("Just", 1)
+                   ; FACConstructorName ("Nothing", 0)
+                   ; FACConstructorName ("Ok", 1)
+                   ; FACConstructorName ("Error", 1) ]) ;
+          test "Method argument filters by variable type" (fun () ->
+              let id = gid () in
+              let id2 = gid () in
+              let expr =
+                let'
+                  "mystr"
+                  (str ~id "asd")
+                  (let' "myint" (int ~id:id2 5) (fn "String::append" [b; b]))
+              in
+              let m =
+                defaultModel
+                  ~analyses:[(id, DStr "asd"); (id2, DInt 5)]
+                  ~handlers:
+                    [ aHandler
+                        ~space:
+                          (Some "REPL" (* remove `request` var from valid *))
+                        ~expr
+                        () ]
+                  ()
+              in
+              let valid, invalid = filterFor m ~pos:47 in
+              expect
+                ( List.filter valid ~f:isVariable
+                , List.filter invalid ~f:isVariable )
+              |> toEqual
+                   ( [FACVariable ("mystr", Some (DStr "asd"))]
+                   , [FACVariable ("myint", Some (DInt 5))] )) ;
+          test "Method argument filters by fn return type " (fun () ->
+              let expr = fn "String::append" [b; b] in
+              let m = defaultModel ~handlers:[aHandler ~expr ()] () in
+              let valid, invalid = filterFor m ~pos:15 in
+              expect
+                ( valid
+                  |> List.map ~f:AC.asName
+                  |> List.member ~value:"String::append"
+                , invalid
+                  |> List.map ~f:AC.asName
+                  |> List.member ~value:"Int::add" )
+              |> toEqual (true, true)) ;
           test "Only Just and Nothing are allowed in Option-blank" (fun () ->
-              let param1id = ID "123" in
-              let expr =
-                EFnCall
-                  (gid (), "Option::withDefault", [EBlank param1id], NoRail)
-              in
-              let handler = aHandler ~expr () in
+              let expr = fn "Option::withDefault" [b] in
+              let m = defaultModel ~handlers:[aHandler ~expr ()] () in
+              let valid, _invalid = filterFor m ~pos:20 in
+              expect (valid |> List.filter ~f:isConstructor)
+              |> toEqual
+                   [ FACConstructorName ("Just", 1)
+                   ; FACConstructorName ("Nothing", 0) ]) ;
+          test "Only Ok and Error are allowed in Result blank" (fun () ->
+              let expr = fn "Result::withDefault" [b] in
+              let m = defaultModel ~handlers:[aHandler ~expr ()] () in
+              let valid, _invalid = filterFor m ~pos:20 in
+              expect (valid |> List.filter ~f:isConstructor)
+              |> toEqual
+                   [ FACConstructorName ("Ok", 1)
+                   ; FACConstructorName ("Error", 1) ]) ;
+          test "Use piped types" (fun () ->
+              let id = gid () in
+              let expr = pipe (str ~id "asd") [partial "append" b] in
               let m =
-                defaultModel ~handlers:[handler] ~cursorState:(fillingCS ()) ()
+                defaultModel
+                  ~analyses:[(id, DStr "asd")]
+                  ~handlers:[aHandler ~expr ()]
+                  ()
               in
-              let target = Some (defaultTLID, PExpr (Blank param1id)) in
-              let ac = acFor ~target m in
-              let newM = {m with complete = fromFluidAC ac} in
-              let ti =
-                match toTokens newM.fluidState expr |> List.head with
-                | Some ti ->
-                    ti
-                | _ ->
-                    defaultTokenInfo
-              in
-              let dv =
-                Analysis.getCurrentLiveValue
-                  newM
-                  handler.id
-                  (ti.token |> FluidToken.tid)
-              in
-              let fullQ = (handler, ti, dv, "") in
-              let valid, _invalid = AC.filter newM ac consFAC fullQ in
-              expect
-                ( List.length valid = 2
-                && List.member ~value:(FACConstructorName ("Just", 1)) valid
-                && List.member ~value:(FACConstructorName ("Nothing", 0)) valid
-                )
-              |> toEqual true ) ; *)
-          (* TODO: not yet working in fluid
-           * test "Only Ok and Error are allowed in Result-blank" (fun () ->
-              let param1id = ID "123" in
-              let expr =
-                EFnCall
-                  (gid (), "Result::catchError", [EBlank param1id], NoRail)
-              in
-              let handler = aHandler ~expr () in
-              let m =
-                defaultModel ~handlers:[handler] ~cursorState:(fillingCS ()) ()
-              in
-              let target = Some (defaultTLID, PExpr (Blank param1id)) in
-              let ac = acFor ~target m in
-              let newM = {m with complete = fromFluidAC ac} in
-              let ti =
-                match toTokens newM.fluidState expr |> List.head with
-                | Some ti ->
-                    ti
-                | _ ->
-                    defaultTokenInfo
-              in
-              let dv =
-                Analysis.getCurrentLiveValue
-                  newM
-                  handler.id
-                  (ti.token |> FluidToken.tid)
-              in
-              let fullQ = (handler, ti, dv, "") in
-              let valid, _invalid = AC.filter newM ac consFAC fullQ in
-              expect
-                ( List.length valid = 2
-                && List.member ~value:(FACConstructorName ("Ok", 1)) valid
-                && List.member ~value:(FACConstructorName ("Error", 1)) valid
-                )
-              |> toEqual true ) ;*)
-          test "Constructors are also available in Any expression" (fun () ->
-              let m = enteringHandler () in
-              let ac = acFor m in
-              let valid, _invalid =
-                AC.filter m ac consFAC (defaultFullQuery m "")
-              in
-              expect
-                ( List.member ~value:(FACConstructorName ("Ok", 1)) valid
-                && List.member ~value:(FACConstructorName ("Error", 1)) valid
-                && List.member ~value:(FACConstructorName ("Just", 1)) valid
-                && List.member ~value:(FACConstructorName ("Nothing", 0)) valid
-                )
-              |> toEqual true) ;
+              let valid, _invalid = filterFor m ~pos:14 in
+              expect (valid |> List.map ~f:AC.asName)
+              |> toEqual ["String::append"]) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
               let tlid = TLID.fromString "789" in
               let mID = ID.fromString "1234" in
@@ -556,10 +480,7 @@ let run () =
               let pattern = P.FPVariable (mID, patID, "o") in
               let expr = match' b [(pattern, b)] in
               let m =
-                defaultModel
-                  ~cursorState:(fillingCS ~tlid ~_id:patID ())
-                  ~handlers:[aHandler ~tlid ~expr ()]
-                  ()
+                defaultModel ~handlers:[aHandler ~tlid ~expr ()] ()
                 |> fun m -> {m with builtInFunctions = []}
               in
               expect

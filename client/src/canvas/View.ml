@@ -134,8 +134,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           let param =
             TL.get m tlid
             |> Option.andThen ~f:TL.getAST
-            |> Option.andThen ~f:(fun ast ->
-                   AST.getParamIndex (FluidAST.toExpr ast) id)
+            |> Option.andThen ~f:(AST.getParamIndex id)
             |> Option.andThen ~f:(fun (name, index) ->
                    m.fluidState.ac.functions
                    |> List.find ~f:(fun f -> name = f.fnName)
