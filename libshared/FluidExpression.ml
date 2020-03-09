@@ -220,8 +220,7 @@ let findParent (target : id) (expr : t) : t option =
     then parent
     else
       let f = findParent' ~parent:(Some expr) target in
-      let children = children expr in
-      List.findMap ~f children
+      List.findMap ~f (children expr)
   in
   findParent' ~parent:None target expr
 
