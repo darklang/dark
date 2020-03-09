@@ -1111,7 +1111,9 @@ let rec caretTargetForEndOfExpr' : fluidExpr -> caretTarget = function
       |> Option.withDefault
            ~default:
              { astRef = ARFnCall id
-             ; offset = fnName |> FluidUtil.partialName |> String.length }
+             ; offset =
+                 fnName |> FluidUtil.fnDisplayNameWithVersion |> String.length
+             }
   | EPartial (_, _, EBinOp (_, _, _, rhsExpr, _)) ->
       (* We need this so that (for example) when we backspace a binop containing a binop within a partial,
        * we can keep hitting backspace to delete the whole thing. This isn't (currently) needed for
@@ -1209,8 +1211,12 @@ let rec caretTargetForStartOfExpr' : fluidExpr -> caretTarget = function
       {astRef = ARList (id, LPOpen); offset = 0}
   | ERecord (id, _) ->
       {astRef = ARRecord (id, RPOpen); offset = 0}
-  | EPipe (id, _) ->
-      {astRef = ARPipe (id, 0); offset = 0}
+  | EPipe (id, exprChain) ->
+      List.getAt ~index:0 exprChain
+      |> Option.map ~f:(fun expr -> caretTargetForStartOfExpr' expr)
+      |> recoverOpt
+           "caretTargetForStartOfExpr' - EPipe"
+           ~default:{astRef = ARPipe (id, 0); offset = 0}
   | EConstructor (id, _, _) ->
       {astRef = ARConstructor id; offset = 0}
   | (EFeatureFlag _ | EPipeTarget _) as expr ->
@@ -1877,7 +1883,8 @@ let replacePartialWithArguments
         |> Option.withDefault
              ~default:
                { astRef = ARFnCall id
-               ; offset = fnName |> FluidUtil.partialName |> String.length }
+               ; offset = fnName |> FluidUtil.ghostPartialName |> String.length
+               }
     | EConstructor (id, cName, argExprs) ->
         argExprs
         |> List.find ~f:(function EPipeTarget _ -> false | _ -> true)
@@ -2013,11 +2020,12 @@ let rec findAppropriateParentToWrap
     | EIf _
     | EMatch _
     | ERecord _
-    | EPipe _
     | ELambda _
     (* Not sure what to do here, probably nothing fancy *)
     | EFeatureFlag _ ->
         Some child
+    | EPipe _ ->
+        Some parent
     (* These are the expressions we're trying to skip. They are "sub-line" expressions. *)
     | EBinOp _ | EFnCall _ | EList _ | EConstructor _ | EFieldAccess _ ->
         findAppropriateParentToWrap parent ast
@@ -2770,7 +2778,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
     | ARVariable _, (EVariable (_, varName) as oldExpr) ->
         mkPartialOrBlank ~str:(mutation varName) ~oldExpr
     | ARBinOp _, (EBinOp (_, op, lhsExpr, rhsExpr, _) as oldExpr) ->
-        let str = op |> FluidUtil.partialName |> mutation |> String.trim in
+        let str = op |> FluidUtil.ghostPartialName |> mutation |> String.trim in
         if str = ""
         then
           (* Delete the binop *)

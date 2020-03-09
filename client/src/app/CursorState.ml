@@ -83,4 +83,9 @@ let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
 let setCursorState (cursorState : cursorState) (m : model) :
     model * msg Tea.Cmd.t =
   let m = {m with cursorState} in
+  (* TODO: Move the focusEntry part of this out, to happen
+  * once all modifications have been applied. It's currently
+  * too easy to call this only to have a later modification
+  * change the model in such a way that the resulting view
+  * no longer contains the thing we want to focus. *)
   (m, focusEntry m)

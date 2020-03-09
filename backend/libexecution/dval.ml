@@ -672,13 +672,20 @@ let of_internal_queryable_v0 (str : string) : dval =
   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
 
 
-let to_internal_queryable_v1 dval : string =
-  match dval with
-  | DObj _ ->
-      dval |> unsafe_dval_to_yojson_v0 ~redact:false |> Yojson.Safe.to_string
-  | _ ->
-      Exception.internal
-        "trying to serialize non-objects using an object-serializer"
+let to_internal_queryable_field_json_v1 dval : Yojson.Safe.t =
+  dval |> unsafe_dval_to_yojson_v0 ~redact:false
+
+
+let to_internal_queryable_field_v1 dval : string =
+  dval |> to_internal_queryable_field_json_v1 |> Yojson.Safe.to_string
+
+
+let to_internal_queryable_v1 (dval_map : dval_map) : string =
+  dval_map
+  |> DvalMap.toList
+  |> List.map ~f:(fun (k, dval) ->
+         (k, dval |> to_internal_queryable_field_json_v1))
+  |> fun l -> `Assoc l |> Yojson.Safe.to_string
 
 
 let of_internal_queryable_v1 (str : string) : dval =

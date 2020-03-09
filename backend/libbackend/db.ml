@@ -86,12 +86,12 @@ let rec escape (param : param) : string =
       |> single_quote
   | QueryableDval dv ->
       dv
-      |> Dval.to_internal_queryable_v1
+      |> Dval.to_internal_queryable_field_v1
       |> escape_string
       |> single_quote
       |> cast_to ~tipe:"jsonb"
   | QueryableDvalmap dvm ->
-      DObj dvm
+      dvm
       |> Dval.to_internal_queryable_v1
       |> escape_string
       |> single_quote
@@ -129,9 +129,9 @@ let rec to_sql param : string =
   | Secret str ->
       str
   | QueryableDval dv ->
-      Dval.to_internal_queryable_v1 dv
+      Dval.to_internal_queryable_field_v1 dv
   | QueryableDvalmap dvm ->
-      Dval.to_internal_queryable_v1 (DObj dvm)
+      Dval.to_internal_queryable_v1 dvm
   | RoundtrippableDval dv ->
       Dval.to_internal_roundtrippable_v0 dv
   | RoundtrippableDvalmap dvm ->
@@ -178,9 +178,9 @@ let rec to_log param : string =
   | RoundtrippableDvalmap dvm ->
       DObj dvm |> Dval.to_internal_roundtrippable_v0 |> abbrev
   | QueryableDval dv ->
-      dv |> Dval.to_internal_queryable_v1 |> abbrev
+      dv |> Dval.to_internal_queryable_field_v1 |> abbrev
   | QueryableDvalmap dvm ->
-      DObj dvm |> Dval.to_internal_queryable_v1 |> abbrev
+      dvm |> Dval.to_internal_queryable_v1 |> abbrev
   | Null ->
       "NULL"
   | Time t ->
@@ -496,7 +496,7 @@ exception DBQueryException of string
 
 let dbQueryExceptionToString = function
   | DBQueryException str ->
-      "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datstore query. If you think your operation should be supported, let us know in #general.\n\n  Error: "
+      "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\n  Error: "
       ^ str
   | _ ->
       ""

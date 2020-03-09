@@ -311,7 +311,9 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       |> addMany [TBinOp (id, op); TSep id]
       |> nest ~indent:0 ~placeholderFor:(Some (id, op, 1)) rexpr
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
-      let ghost = ghostPartial id newName (FluidUtil.partialName oldName) in
+      let ghost =
+        ghostPartial id newName (FluidUtil.ghostPartialName oldName)
+      in
       let start b =
         match lexpr with
         | EPipeTarget _ ->
@@ -330,7 +332,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EFnCall (id, fnName, args, ster) ->
       let displayName = FluidUtil.fnDisplayName fnName in
       let versionDisplayName = FluidUtil.versionDisplayName fnName in
-      let partialName = FluidUtil.partialName fnName in
+      let partialName = FluidUtil.fnDisplayNameWithVersion fnName in
       let versionToken =
         if versionDisplayName = ""
         then []
@@ -343,7 +345,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
       let partial = TPartial (id, newName) in
       let newText = T.toText partial in
-      let oldText = FluidUtil.partialName oldName in
+      let oldText = FluidUtil.ghostPartialName oldName in
       let ghost = ghostPartial id newText oldText in
       b |> add partial |> addMany ghost |> addArgs oldName id args
   | EConstructor (id, name, exprs) ->
