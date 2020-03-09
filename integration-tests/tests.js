@@ -1095,7 +1095,7 @@ test("use_pkg_fn", async t => {
   await t
     .typeText("#active-editor", "test_admin")
     .expect(Selector(".autocomplete-item.fluid-selected.valid").textContent)
-    .eql("test_admin/stdlib/Test::one_v0() ->  Any")
+    .eql("test_admin/stdlib/Test::one_v0() -> Any")
     .pressKey("enter");
 
   // this await confirms that we can get a live value in the editor
