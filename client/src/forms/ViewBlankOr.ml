@@ -8,13 +8,13 @@ type htmlConfig =
   (* Add this class (can be done multiple times) *)
   | WithClass of string
   (* when you click this node, select this pointer *)
-  | ClickSelectAs of id
+  | ClickSelectAs of ID.t
   | ClickSelect
   (* highlight this node as if it were ID *)
-  | MouseoverAs of id
+  | MouseoverAs of ID.t
   | Mouseover
   (* use this as ID for Mouseover, ClickSelect *)
-  | WithID of id
+  | WithID of ID.t
   (* editable *)
   | Enterable
   (* Adds param name to the left *)
@@ -83,7 +83,7 @@ let div
     if targetted then ["mouseovered-selectable"] else []
   in
   let idClasses =
-    match thisID with Some id -> ["blankOr"; "id-" ^ deID id] | _ -> []
+    match thisID with Some id -> ["blankOr"; "id-" ^ ID.toString id] | _ -> []
   in
   let allClasses =
     classes
@@ -98,19 +98,19 @@ let div
     | Some id ->
         [ ViewUtils.eventNoPropagation
             "click"
-            ~key:("bcc-" ^ showTLID tlid ^ "-" ^ showID id)
+            ~key:("bcc-" ^ TLID.toString tlid ^ "-" ^ ID.toString id)
             (fun x -> BlankOrClick (tlid, id, x))
         ; ViewUtils.eventNoPropagation
             "dblclick"
-            ~key:("bcdc-" ^ showTLID tlid ^ "-" ^ showID id)
+            ~key:("bcdc-" ^ TLID.toString tlid ^ "-" ^ ID.toString id)
             (fun x -> BlankOrDoubleClick (tlid, id, x))
         ; ViewUtils.eventNoPropagation
             "mouseenter"
-            ~key:("me-" ^ showTLID tlid ^ "-" ^ showID id)
+            ~key:("me-" ^ TLID.toString tlid ^ "-" ^ ID.toString id)
             (fun x -> BlankOrMouseEnter (tlid, id, x))
         ; ViewUtils.eventNoPropagation
             "mouseleave"
-            ~key:("ml-" ^ showTLID tlid ^ "-" ^ showID id)
+            ~key:("ml-" ^ TLID.toString tlid ^ "-" ^ ID.toString id)
             (fun x -> BlankOrMouseLeave (tlid, id, x)) ]
     | _ ->
         (* Rather than relying on property lengths changing, we should use
@@ -119,14 +119,15 @@ let div
   in
   let leftSideHtml = showParamName in
   let idAttr =
-    match thisID with Some i -> Html.id (showID i) | _ -> Vdom.noProp
+    match thisID with Some i -> Html.id (ID.toString i) | _ -> Vdom.noProp
   in
   let attrs = idAttr :: classAttr :: events in
   Html.div
   (* if the id of the blank_or changes, this whole node should be redrawn
      * without any further diffing. there's no good reason for the Vdom/Dom node
      * to be re-used for a different blank_or *)
-    ~unique:(thisID |> Option.map ~f:showID |> Option.withDefault ~default:"")
+    ~unique:
+      (thisID |> Option.map ~f:ID.toString |> Option.withDefault ~default:"")
     attrs
     (leftSideHtml @ content)
 

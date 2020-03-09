@@ -4,8 +4,6 @@ type analysisID = id [@@deriving show {with_path = false}, eq]
 
 let gid = Unshared.gid
 
-let deID = Unshared.deID
-
 module Recover = struct
   (* We never want to crash the app. Instead, send a rollbar notification of the invalid state and try to continue. *)
   let recover ?(debug : 'd option) (msg : string) (recoveryVal : 'r) : 'r =

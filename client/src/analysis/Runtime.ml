@@ -401,7 +401,7 @@ let pathFromInputVars (iv : inputValueDict) : string option =
 
 
 let setHandlerExeState
-    (tlid : tlid) (state : exeState) (hp : handlerProp TLIDDict.t) :
+    (tlid : TLID.t) (state : exeState) (hp : handlerProp TLIDDict.t) :
     handlerProp TLIDDict.t =
   hp
   |> TLIDDict.update ~tlid ~f:(fun old ->

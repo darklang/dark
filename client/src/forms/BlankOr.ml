@@ -1,6 +1,8 @@
 open Prelude
 
-let toID (b : 'a blankOr) : id = match b with Blank id -> id | F (id, _) -> id
+let toID (b : 'a blankOr) : ID.t =
+  match b with Blank id -> id | F (id, _) -> id
+
 
 let new_ (() : unit) : 'a blankOr = Blank (gid ())
 
@@ -32,6 +34,6 @@ let ofOption (o : 'a option) : 'a blankOr =
   match o with Some v -> newF v | None -> new_ ()
 
 
-let replace (search : id) (replacement : 'a blankOr) (bo : 'a blankOr) :
+let replace (search : ID.t) (replacement : 'a blankOr) (bo : 'a blankOr) :
     'a blankOr =
   if toID bo = search then replacement else bo

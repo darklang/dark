@@ -11,14 +11,14 @@ type menuItem =
   ; action : mouseEvent -> msg
   ; disableMsg : string option }
 
-let isOpen (m : model) (tlid : tlid) : bool =
+let isOpen (m : model) (tlid : TLID.t) : bool =
   m.tlMenus
   |> TLIDDict.get ~tlid
   |> Option.map ~f:(fun o -> o.isOpen)
   |> Option.withDefault ~default:false
 
 
-let update (m : model) (tlid : tlid) (msg : menuMsg) : model =
+let update (m : model) (tlid : TLID.t) (msg : menuMsg) : model =
   let tlMenus =
     m.tlMenus
     |> TLIDDict.update ~tlid ~f:(fun _s ->
@@ -63,9 +63,9 @@ let viewItem (keyID : string) (i : menuItem) : msg Html.html =
   Html.div attrs [icon; Html.text i.title]
 
 
-let viewMenu (s : menuState) (tlid : tlid) (items : menuItem list) :
+let viewMenu (s : menuState) (tlid : TLID.t) (items : menuItem list) :
     msg Html.html =
-  let strTLID = showTLID tlid in
+  let strTLID = TLID.toString tlid in
   let showMenu = s.isOpen in
   let actions = List.map ~f:(viewItem strTLID) items in
   let toggleMenu =
