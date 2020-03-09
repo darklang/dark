@@ -449,8 +449,6 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  (* If it's in a pipe, we just test the first parameter. Otherwise, we'll test
-   * them all. *)
   let pipedType = Option.map ~f:RT.typeOf query.pipedDval in
   let expectedReturnType = findExpectedType a query.tl query.ti in
   List.partition ~f:(matcher pipedType expectedReturnType) allMatches
