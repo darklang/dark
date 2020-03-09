@@ -614,33 +614,44 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
           in
           let handler () =
             IDMap.find c.handlers tlid
-            |> Option.bind ~f:TL.as_handler
-            |> Option.map ~f:(fun h ->
-                   (Serialize.handler_to_binary_string h, false, TL.TLHandler))
+            |> Option.bind ~f:(fun tl ->
+                   tl |> TL.as_handler |> Option.map ~f:(fun h -> (tl.pos, h)))
+            |> Option.map ~f:(fun (pos, h) ->
+                   ( Serialize.handler_to_binary_string h
+                   , false
+                   , Some pos
+                   , TL.TLHandler ))
           in
           let deleted_handler () =
             IDMap.find c.deleted_handlers tlid
-            |> Option.bind ~f:TL.as_handler
-            |> Option.map ~f:(fun h ->
-                   (Serialize.handler_to_binary_string h, true, TL.TLHandler))
+            |> Option.bind ~f:(fun tl ->
+                   tl |> TL.as_handler |> Option.map ~f:(fun h -> (tl.pos, h)))
+            |> Option.map ~f:(fun (pos, h) ->
+                   ( Serialize.handler_to_binary_string h
+                   , true
+                   , Some pos
+                   , TL.TLHandler ))
           in
           let db () =
             IDMap.find c.dbs tlid
-            |> Option.bind ~f:TL.as_db
-            |> Option.map ~f:(fun db ->
-                   (Serialize.db_to_binary_string db, false, TL.TLDB))
+            |> Option.bind ~f:(fun tl ->
+                   tl |> TL.as_db |> Option.map ~f:(fun db -> (tl.pos, db)))
+            |> Option.map ~f:(fun (pos, db) ->
+                   (Serialize.db_to_binary_string db, false, Some pos, TL.TLDB))
           in
           let deleted_db () =
             IDMap.find c.deleted_dbs tlid
-            |> Option.bind ~f:TL.as_db
-            |> Option.map ~f:(fun db ->
-                   (Serialize.db_to_binary_string db, true, TL.TLDB))
+            |> Option.bind ~f:(fun tl ->
+                   tl |> TL.as_db |> Option.map ~f:(fun db -> (tl.pos, db)))
+            |> Option.map ~f:(fun (pos, db) ->
+                   (Serialize.db_to_binary_string db, true, Some pos, TL.TLDB))
           in
           let user_function () =
             IDMap.find c.user_functions tlid
             |> Option.map ~f:(fun fn ->
                    ( Serialize.user_fn_to_binary_string fn
                    , false
+                   , None
                    , TL.TLUserFunction ))
           in
           let deleted_user_function () =
@@ -648,19 +659,26 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             |> Option.map ~f:(fun fn ->
                    ( Serialize.user_fn_to_binary_string fn
                    , true
+                   , None
                    , TL.TLUserFunction ))
           in
           let user_tipe () =
             IDMap.find c.user_tipes tlid
             |> Option.map ~f:(fun t ->
-                   (Serialize.user_tipe_to_binary_string t, false, TL.TLUserTipe))
+                   ( Serialize.user_tipe_to_binary_string t
+                   , false
+                   , None
+                   , TL.TLUserTipe ))
           in
           let deleted_user_tipe () =
             IDMap.find c.deleted_user_tipes tlid
             |> Option.map ~f:(fun t ->
-                   (Serialize.user_tipe_to_binary_string t, true, TL.TLUserTipe))
+                   ( Serialize.user_tipe_to_binary_string t
+                   , true
+                   , None
+                   , TL.TLUserTipe ))
           in
-          let binary_repr, deleted, tipe =
+          let binary_repr, deleted, pos, tipe =
             handler ()
             |> Tc.Option.or_else_lazy deleted_handler
             |> Tc.Option.or_else_lazy db
@@ -670,11 +688,12 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             |> Tc.Option.or_else_lazy deleted_user_function
             |> Tc.Option.or_else_lazy user_tipe
             |> Tc.Option.or_else_lazy deleted_user_tipe
-            |> Option.map ~f:(fun (str, d, t) -> (Some str, Some d, t))
+            |> Option.map ~f:(fun (str, d, pos, t) ->
+                   (Some str, Some d, pos, t))
             (* If the user calls Undo enough, we might not know
              * the tipe here. In that case, set to handler cause
              * it won't be used anyway *)
-            |> Option.value ~default:(None, None, TL.TLHandler)
+            |> Option.value ~default:(None, None, None, TL.TLHandler)
           in
           Serialize.save_toplevel_oplist
             oplist
@@ -686,6 +705,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             ~module_
             ~modifier
             ~deleted
+            ~pos
             ~tipe
         else ())
   with e -> Libexecution.Exception.reraise_as_pageable e
