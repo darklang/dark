@@ -47,7 +47,7 @@ module Builder = struct
 
 
   (** id is the id of the first token in the builder or None if the builder is empty. *)
-  let id (b : t) : id option = List.last b.tokens |> Option.map ~f:T.tid
+  let id (b : t) : ID.t option = List.last b.tokens |> Option.map ~f:T.tid
 
   let lineLimit = 120
 
@@ -111,7 +111,8 @@ module Builder = struct
     {b with indent = newIndent} |> f |> fun b -> {b with indent = oldIndent}
 
 
-  let addNewlineIfNeeded (nlInfo : (id * id * int option) option) (b : t) : t =
+  let addNewlineIfNeeded (nlInfo : (ID.t * ID.t * int option) option) (b : t) :
+      t =
     if endsInNewline b then b else add (TNewline nlInfo) b
 
 
@@ -165,7 +166,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
    * int: index of the placeholder within the expr's parameters
    *)
   let nest
-      ?(placeholderFor : (id * string * int) option = None)
+      ?(placeholderFor : (ID.t * string * int) option = None)
       ~indent
       (e : E.t)
       (b : Builder.t) : Builder.t =
@@ -190,7 +191,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
     in
     b |> indentBy ~indent ~f:(addNested ~f:tokensFn)
   in
-  let addArgs (name : string) (id : id) (args : E.t list) (b : Builder.t) :
+  let addArgs (name : string) (id : ID.t) (args : E.t list) (b : Builder.t) :
       Builder.t =
     let args, offset =
       match args with EPipeTarget _ :: args -> (args, 1) | _ -> (args, 0)
@@ -562,7 +563,9 @@ let eToStructure ?(includeIDs = false) (e : E.t) : string =
   |> List.map ~f:(fun ti ->
          "<"
          ^ T.toTypeName ti.token
-         ^ (if includeIDs then "(" ^ (T.tid ti.token |> deID) ^ ")" else "")
+         ^ ( if includeIDs
+           then "(" ^ (T.tid ti.token |> ID.toString) ^ ")"
+           else "" )
          ^ ":"
          ^ T.toText ti.token
          ^ ">")

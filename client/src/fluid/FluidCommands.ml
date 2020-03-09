@@ -56,7 +56,7 @@ let commandsFor (m : model) (expr : fluidExpr) : command list =
   |> List.filter ~f:httpClientRequestFilter
 
 
-let show (m : model) (tlid : tlid) (id : id) : model =
+let show (m : model) (tlid : TLID.t) (id : ID.t) : model =
   TL.get m tlid
   |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(FluidAST.find id)
@@ -71,7 +71,7 @@ let show (m : model) (tlid : tlid) (id : id) : model =
   |> Option.withDefault ~default:m
 
 
-let executeCommand (m : model) (tlid : tlid) (id : id) (cmd : command) :
+let executeCommand (m : model) (tlid : TLID.t) (id : ID.t) (cmd : command) :
     modification =
   match TL.get m tlid with
   | Some tl ->
@@ -165,7 +165,7 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
   {cp with filter; commands; index = 0}
 
 
-let isOpenOnTL (s : fluidCommandState) (tlid : tlid) : bool =
+let isOpenOnTL (s : fluidCommandState) (tlid : TLID.t) : bool =
   match s.location with Some (ltlid, _) when tlid = ltlid -> true | _ -> false
 
 

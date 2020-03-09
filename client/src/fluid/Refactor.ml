@@ -60,7 +60,7 @@ type wrapLoc =
   | WMatchExpr
   | WMatchArm
 
-let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
+let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : ID.t) : modification =
   let replacement e : FluidExpression.t =
     let newBlankPattern mid = OldExpr.toFluidPattern mid (Blank (gid ())) in
     match wl with
@@ -100,7 +100,7 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : id) : modification =
   |> Option.withDefault ~default:NoChange
 
 
-let takeOffRail (_m : model) (tl : toplevel) (id : id) : modification =
+let takeOffRail (_m : model) (tl : toplevel) (id : ID.t) : modification =
   TL.getAST tl
   |> Option.map ~f:(fun ast ->
          ast
@@ -113,7 +113,7 @@ let takeOffRail (_m : model) (tl : toplevel) (id : id) : modification =
   |> Option.withDefault ~default:NoChange
 
 
-let putOnRail (m : model) (tl : toplevel) (id : id) : modification =
+let putOnRail (m : model) (tl : toplevel) (id : ID.t) : modification =
   (* Only toggle onto rail iff. return tipe is TOption or TResult *)
   let isRailable name =
     (* We don't want to use m.complete.functions as the autocomplete
@@ -140,8 +140,11 @@ let putOnRail (m : model) (tl : toplevel) (id : id) : modification =
 
 
 let extractVarInAst
-    (m : model) (tl : toplevel) (id : id) (varname : string) (ast : FluidAST.t)
-    : FluidAST.t =
+    (m : model)
+    (tl : toplevel)
+    (id : ID.t)
+    (varname : string)
+    (ast : FluidAST.t) : FluidAST.t =
   let traceID = Analysis.getSelectedTraceID m (TL.id tl) in
   match FluidAST.find id ast with
   | Some e ->
@@ -184,12 +187,12 @@ let extractVarInAst
       ast
 
 
-let extractVariable (m : model) (tl : toplevel) (id : id) : modification =
+let extractVariable (m : model) (tl : toplevel) (id : ID.t) : modification =
   let varname = "var" ^ string_of_int (Util.random ()) in
   TL.modifyASTMod tl ~f:(extractVarInAst m tl id varname)
 
 
-let extractFunction (m : model) (tl : toplevel) (id : id) : modification =
+let extractFunction (m : model) (tl : toplevel) (id : ID.t) : modification =
   let tlid = TL.id tl in
   let ast = TL.getAST tl in
   match (ast, Option.andThen ast ~f:(FluidAST.find id)) with
@@ -374,8 +377,8 @@ let removeFunctionParameter
   transformFnCalls m uf fn
 
 
-let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : id) :
-    modification =
+let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : ID.t)
+    : modification =
   let open FluidExpression in
   let transformOp old =
     let fn e =
@@ -475,8 +478,8 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
 
 
 let reorderFnCallArgs
-    (m : model) (tlid : tlid) (fnName : string) (oldPos : int) (newPos : int) :
-    modification list =
+    (m : model) (tlid : TLID.t) (fnName : string) (oldPos : int) (newPos : int)
+    : modification list =
   Introspect.allUsedIn tlid m
   |> List.filterMap ~f:(fun tl ->
          match TL.getAST tl with Some ast -> Some (tl, ast) | None -> None)

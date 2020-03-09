@@ -43,28 +43,29 @@ let fnParamsView (params : userFunctionParameter list) : msg Html.html =
   Html.div [Html.class' "fields"] (List.map ~f:paramView params)
 
 
-let hoveringRefProps (originTLID : tlid) (originIDs : id list) ~(key : string) =
+let hoveringRefProps
+    (originTLID : TLID.t) (originIDs : ID.t list) ~(key : string) =
   [ ViewUtils.eventNoPropagation
-      ~key:(key ^ "-in_" ^ showTLID originTLID)
+      ~key:(key ^ "-in_" ^ TLID.toString originTLID)
       "mouseenter"
       (fun _ -> SetHoveringReferences (originTLID, originIDs))
   ; ViewUtils.eventNoPropagation
-      ~key:(key ^ "-out_" ^ showTLID originTLID)
+      ~key:(key ^ "-out_" ^ TLID.toString originTLID)
       "mouseleave"
       (fun _ -> SetHoveringReferences (originTLID, [])) ]
 
 
 let dbView
-    (originTLID : tlid)
-    (originIDs : id list)
-    (tlid : tlid)
+    (originTLID : TLID.t)
+    (originIDs : ID.t list)
+    (tlid : TLID.t)
     (name : string)
     (cols : dbColumn list)
     (direction : string) : msg Html.html =
   Html.div
     ( [ Html.class' ("ref-block db " ^ direction)
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-db-link" ^ showTLID tlid)
+          ~key:("ref-db-link" ^ TLID.toString tlid)
           "click"
           (fun _ -> GoTo (FocusedDB (tlid, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-db-hover" )
@@ -76,9 +77,9 @@ let dbView
 
 
 let handlerView
-    (originTLID : tlid)
-    (originIDs : id list)
-    (tlid : tlid)
+    (originTLID : TLID.t)
+    (originIDs : ID.t list)
+    (tlid : TLID.t)
     (space : string)
     (name : string)
     (modifier : string option)
@@ -93,7 +94,7 @@ let handlerView
   Html.div
     ( [ Html.class' ("ref-block handler " ^ direction)
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-handler-link" ^ showTLID tlid)
+          ~key:("ref-handler-link" ^ TLID.toString tlid)
           "click"
           (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-handler-hover" )
@@ -103,9 +104,9 @@ let handlerView
 
 
 let fnView
-    (originTLID : tlid)
-    (originIDs : id list)
-    (tlid : tlid)
+    (originTLID : TLID.t)
+    (originIDs : ID.t list)
+    (tlid : TLID.t)
     (name : string)
     (params : userFunctionParameter list)
     (direction : string) : msg Html.html =
@@ -116,7 +117,7 @@ let fnView
   Html.div
     ( [ Html.class' ("ref-block fn " ^ direction)
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-fn-link" ^ showTLID tlid)
+          ~key:("ref-fn-link" ^ TLID.toString tlid)
           "click"
           (fun _ -> GoTo (FocusedFn tlid)) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
@@ -146,8 +147,8 @@ let renderView originalTLID direction (tl, originalIDs) =
 
 
 let allUsagesView
-    (tlid : tlid) (uses : toplevel list) (refs : (toplevel * id list) list) :
-    msg Html.html list =
+    (tlid : TLID.t) (uses : toplevel list) (refs : (toplevel * ID.t list) list)
+    : msg Html.html list =
   let refersTo = List.map ~f:(renderView tlid "refers-to") refs in
   let usedIn =
     List.map ~f:(fun use -> (renderView tlid "used-in") (use, [])) uses

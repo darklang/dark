@@ -3,7 +3,7 @@ module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
 
-let tlidOf (page : page) : tlid option =
+let tlidOf (page : page) : TLID.t option =
   match page with
   | Architecture ->
       None
@@ -169,7 +169,7 @@ let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
 
 (* Go back to Architecture view if user is on the type/fn page
     and then deletes same UserType/UserFunction *)
-let maybeChangeFromPage (tlid : tlid) (page : page) : modification list =
+let maybeChangeFromPage (tlid : TLID.t) (page : page) : modification list =
   match tlidOf page with
   | Some ptlid when ptlid = tlid ->
       [SetPage Architecture]

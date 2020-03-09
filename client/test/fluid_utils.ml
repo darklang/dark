@@ -14,7 +14,7 @@ let debugState s =
 
 let h (expr : FluidExpression.t) : handler =
   { ast = FluidAST.ofExpr expr
-  ; hTLID = TLID "7"
+  ; hTLID = TLID.fromString "7"
   ; pos = {x = 0; y = 0}
   ; spec =
       { space = BlankOr.newF "HTTP"

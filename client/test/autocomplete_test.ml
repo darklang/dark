@@ -500,7 +500,7 @@ let run () =
       describe "code search" (fun () ->
           let http =
             aHandler
-              ~tlid:(TLID "123")
+              ~tlid:(TLID.fromString "123")
               ~space:(Some "HTTP")
               ~name:(Some "/hello")
               ~modifier:(Some "GET")
@@ -511,7 +511,7 @@ let run () =
           in
           let repl =
             aHandler
-              ~tlid:(TLID "456")
+              ~tlid:(TLID.fromString "456")
               ~space:(Some "REPL")
               ~name:(Some "findingDori")
               ~modifier:(Some "_")
@@ -520,7 +520,7 @@ let run () =
           in
           let fn =
             aFunction
-              ~tlid:(TLID "789")
+              ~tlid:(TLID.fromString "789")
               ~name:"fn1"
               ~expr:
                 (ELet

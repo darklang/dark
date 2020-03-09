@@ -1,5 +1,13 @@
 open Tc
-include UnsharedTypes
+
+(* == legacy aliases == *)
+module TLIDDict = TLID.Dict
+module TLIDSet = TLID.Set
+module IDSet = ID.Set
+
+type analysisID = ID.t [@@deriving show]
+
+(* == end legacy aliases == *)
 
 let show_list ~(f : 'a -> string) (x : 'a list) : string =
   "[" ^ String.join ~sep:"," (List.map ~f x) ^ "]"
@@ -33,28 +41,10 @@ type exception_ =
 (* ---------------------- *)
 (* Basic types *)
 (* ---------------------- *)
-and tlid = TLID of string
-
 and 'a blankOr =
-  | Blank of id
-  | F of id * 'a
+  | Blank of ID.t
+  | F of ID.t * 'a
 [@@deriving show {with_path = false}]
-
-module TLID = struct
-  type t = tlid
-
-  let toString (TLID str) = str
-
-  let fromString str = TLID str
-end
-
-module ID = struct
-  type t = id
-
-  let toString (ID str) = str
-
-  let fromString str = ID str
-end
 
 module Pair (K1 : Key) (K2 : Key) = struct
   type t = K1.t * K2.t
@@ -75,37 +65,7 @@ module Pair (K1 : Key) (K2 : Key) = struct
           ^ str )
 end
 
-module TLIDDict = struct
-  include Tc.Dict (TLID)
-
-  (* TODO: convert the tlid key back to being called key *)
-  let get ~(tlid : tlid) (dict : 'value t) : 'value option = get ~key:tlid dict
-
-  let insert ~(tlid : tlid) ~(value : 'value) (dict : 'value t) : 'value t =
-    insert ~key:tlid ~value dict
-
-
-  let tlids (dict : 'value t) : tlid list = dict |> keys
-
-  let updateIfPresent ~(tlid : tlid) ~(f : 'v -> 'v) (dict : 'value t) :
-      'value t =
-    updateIfPresent ~key:tlid ~f dict
-
-
-  let update ~(tlid : tlid) ~(f : 'v option -> 'v option) (dict : 'value t) :
-      'value t =
-    update ~key:tlid ~f dict
-
-
-  let remove ~(tlid : tlid) (dict : 'value t) : 'value t = remove ~key:tlid dict
-
-  let removeMany ~(tlids : tlid list) (dict : 'value t) : 'value t =
-    removeMany ~keys:tlids dict
-end
-
-module TLIDSet = Tc.Set (TLID)
-module IDSet = Tc.Set (ID)
-module IDPair = Pair (TLID) (ID)
+module IDPair = Pair (TLID.T) (ID.T)
 module IDPairSet = Tc.Set (IDPair)
 
 (* There are two coordinate systems. Pos is an absolute position in the *)
@@ -210,9 +170,9 @@ and handlerModifer = string
 (* usedIn is a TL that's refered to in the refersTo tl at id *)
 (* refersTo is a TL that uses the usedIn tl at id *)
 and usage =
-  { usedIn : tlid
-  ; refersTo : tlid
-  ; id : id }
+  { usedIn : TLID.t
+  ; refersTo : TLID.t
+  ; id : ID.t }
 
 (* handlers *)
 and handlerSpec =
@@ -230,14 +190,14 @@ and handlerSpace =
 and handler =
   { ast : FluidAST.t
   ; spec : handlerSpec
-  ; hTLID : tlid
+  ; hTLID : TLID.t
   ; pos : pos }
 
 (* groups *)
 and group =
   { gName : string blankOr
-  ; gTLID : tlid
-  ; members : tlid list
+  ; gTLID : TLID.t
+  ; members : TLID.t list
   ; pos : pos }
 
 (* dbs *)
@@ -264,7 +224,7 @@ and dbMigration =
   ; cols : dbColumn list }
 
 and db =
-  { dbTLID : tlid
+  { dbTLID : TLID.t
   ; dbName : dbName blankOr
   ; cols : dbColumn list
   ; version : int
@@ -288,7 +248,7 @@ and userFunctionMetadata =
   ; ufmInfix : bool }
 
 and userFunction =
-  { ufTLID : tlid
+  { ufTLID : TLID.t
   ; ufMetadata : userFunctionMetadata
   ; ufAST : FluidAST.t }
 
@@ -299,7 +259,7 @@ and userRecordField =
 and userTipeDefinition = UTRecord of userRecordField list
 
 and userTipe =
-  { utTLID : tlid
+  { utTLID : TLID.t
   ; utName : string blankOr
   ; utVersion : int
   ; utDefinition : userTipeDefinition }
@@ -322,7 +282,7 @@ and packageFn =
   ; description : string
   ; author : string
   ; deprecated : bool
-  ; pfTLID : tlid }
+  ; pfTLID : TLID.t }
 
 (* toplevels *)
 and toplevel =
@@ -351,11 +311,11 @@ and resultT =
 
 and dval_source =
   | SourceNone
-  | SourceId of id
+  | SourceId of ID.t
 
 and dblock_args =
   { symtable : dval StrDict.t
-  ; params : (id * string) list
+  ; params : (ID.t * string) list
   ; body : FluidExpression.t }
 
 and dval =
@@ -465,7 +425,7 @@ type astFlagPart =
    string" without needing to know if it is a TString relative to a combination
    of TStringMLStart, TStringMLMiddle, TStringMLEnd.
 
-   The IDs below all refer to the AST node id
+   The IDs below all refer to the AST node ID.t *
 
    NOTE(JULIAN): We intentionally do not have any astRefs that include
    parts that refer to an part of the AST that contains nested expressions.
@@ -473,28 +433,28 @@ type astFlagPart =
    to generate a more specific astRef within the nested expression.
     *)
 type astRef =
-  | ARInteger of id
-  | ARBool of id
-  | ARString of id * astStringPart
-  | ARFloat of id * astFloatPart
-  | ARNull of id
-  | ARBlank of id
-  | ARLet of id * astLetPart
-  | ARIf of id * astIfPart
-  | ARBinOp of id (* matches the operator *)
-  | ARFieldAccess of id * astFieldAccessPart
-  | ARVariable of id
-  | ARFnCall of id (* Matches the fn name+version *)
-  | ARPartial of id
-  | ARRightPartial of id
-  | ARList of id * astListPart
-  | ARRecord of id * astRecordPart
-  | ARPipe of id * int (* index of the pipe *)
-  | ARConstructor of id (* name of the constructor *)
-  | ARMatch of id * astMatchPart
-  | ARLambda of id * astLambdaPart
-  | ARPattern of id * astPatternPart
-  | ARFlag of id * astFlagPart
+  | ARInteger of ID.t
+  | ARBool of ID.t
+  | ARString of ID.t * astStringPart
+  | ARFloat of ID.t * astFloatPart
+  | ARNull of ID.t
+  | ARBlank of ID.t
+  | ARLet of ID.t * astLetPart
+  | ARIf of ID.t * astIfPart
+  | ARBinOp of ID.t (* matches the operator *)
+  | ARFieldAccess of ID.t * astFieldAccessPart
+  | ARVariable of ID.t
+  | ARFnCall of ID.t (* Matches the fn name+version *)
+  | ARPartial of ID.t
+  | ARRightPartial of ID.t
+  | ARList of ID.t * astListPart
+  | ARRecord of ID.t * astRecordPart
+  | ARPipe of ID.t * int (* index of the pipe *)
+  | ARConstructor of ID.t (* name of the constructor *)
+  | ARMatch of ID.t * astMatchPart
+  | ARLambda of ID.t * astLambdaPart
+  | ARPattern of ID.t * astPatternPart
+  | ARFlag of ID.t * astFlagPart
   (* for use if something that should never happen happened *)
   | ARInvalid
 [@@deriving show {with_path = false}]
@@ -527,15 +487,15 @@ and isLeftButton = bool
 (* ----------------------------- *)
 and entryCursor =
   | Creating of pos option (* If we know the position the user wants the handler to be at (presumably because they clicked there to get the omnibox), then use it. Otherwise, if there's no position, we'll pick one for them later *)
-  | Filling of tlid * id
+  | Filling of TLID.t * ID.t
 
 and hasMoved = bool
 
 and cursorState =
-  | Selecting of tlid * id option
+  | Selecting of TLID.t * ID.t option
   | Entering of entryCursor
-  | FluidEntering of tlid
-  | DraggingTL of tlid * vPos * hasMoved * cursorState
+  | FluidEntering of TLID.t
+  | DraggingTL of TLID.t * vPos * hasMoved * cursorState
   | PanningCanvas of
       { viewportStart : vPos
       ; viewportCurr : vPos
@@ -566,7 +526,7 @@ and intermediateResultStore = executionResult StrDict.t
 
 (* map from expression ids to symbol table, which maps from varname strings to
  * the ids of the expressions that represent their values *)
-and avDict = id StrDict.t StrDict.t
+and avDict = ID.t StrDict.t StrDict.t
 
 and inputValueDict = dvalDict
 
@@ -576,7 +536,7 @@ and analyses = analysisStore (* indexed by traceID *) StrDict.t
 
 and functionResult =
   { fnName : string
-  ; callerID : id
+  ; callerID : ID.t
   ; argHash : string
   ; argHashVersion : int
   ; value : dval }
@@ -622,7 +582,7 @@ and traceError =
 
 and trace = traceID * (traceError, traceData) Result.t
 
-and traces = trace list (* indexed by tlid *) StrDict.t
+and traces = trace list (* indexed by TLID.t *) StrDict.t
 
 and fourOhFour =
   { space : string
@@ -654,42 +614,42 @@ and workerStats =
 (* ------------------- *)
 (* ops *)
 (* ------------------- *)
-and rollbackID = id
+and rollbackID = ID.t
 
-and rollforwardID = id
+and rollforwardID = ID.t
 
 and op =
-  | SetHandler of tlid * pos * handler
-  | CreateDB of tlid * pos * dbName
-  | AddDBCol of tlid * id * id
-  | SetDBColName of tlid * id * dbColName
-  | SetDBColType of tlid * id * dbColType
-  | DeleteTL of tlid
-  | MoveTL of tlid * pos
-  | TLSavepoint of tlid
-  | UndoTL of tlid
-  | RedoTL of tlid
+  | SetHandler of TLID.t * pos * handler
+  | CreateDB of TLID.t * pos * dbName
+  | AddDBCol of TLID.t * ID.t * ID.t
+  | SetDBColName of TLID.t * ID.t * dbColName
+  | SetDBColType of TLID.t * ID.t * dbColType
+  | DeleteTL of TLID.t
+  | MoveTL of TLID.t * pos
+  | TLSavepoint of TLID.t
+  | UndoTL of TLID.t
+  | RedoTL of TLID.t
   | SetFunction of userFunction
-  | DeleteFunction of tlid
-  | ChangeDBColName of tlid * id * dbColName
-  | ChangeDBColType of tlid * id * dbColType
+  | DeleteFunction of TLID.t
+  | ChangeDBColName of TLID.t * ID.t * dbColName
+  | ChangeDBColType of TLID.t * ID.t * dbColType
   | DeprecatedInitDbm of
-      tlid * id * rollbackID * rollforwardID * dbMigrationKind
-  | SetExpr of tlid * id * FluidExpression.t
-  | CreateDBMigration of tlid * rollbackID * rollforwardID * dbColumn list
-  | AddDBColToDBMigration of tlid * id * id
-  | SetDBColNameInDBMigration of tlid * id * dbColName
-  | SetDBColTypeInDBMigration of tlid * id * dbColType
-  | DeleteColInDBMigration of tlid * id
-  | AbandonDBMigration of tlid
-  | DeleteDBCol of tlid * id
-  | RenameDBname of tlid * dbName
-  | CreateDBWithBlankOr of tlid * pos * id * dbName
-  | DeleteTLForever of tlid
-  | DeleteFunctionForever of tlid
+      TLID.t * ID.t * rollbackID * rollforwardID * dbMigrationKind
+  | SetExpr of TLID.t * ID.t * FluidExpression.t
+  | CreateDBMigration of TLID.t * rollbackID * rollforwardID * dbColumn list
+  | AddDBColToDBMigration of TLID.t * ID.t * ID.t
+  | SetDBColNameInDBMigration of TLID.t * ID.t * dbColName
+  | SetDBColTypeInDBMigration of TLID.t * ID.t * dbColType
+  | DeleteColInDBMigration of TLID.t * ID.t
+  | AbandonDBMigration of TLID.t
+  | DeleteDBCol of TLID.t * ID.t
+  | RenameDBname of TLID.t * dbName
+  | CreateDBWithBlankOr of TLID.t * pos * ID.t * dbName
+  | DeleteTLForever of TLID.t
+  | DeleteFunctionForever of TLID.t
   | SetType of userTipe
-  | DeleteType of tlid
-  | DeleteTypeForever of tlid
+  | DeleteType of TLID.t
+  | DeleteTypeForever of TLID.t
 
 (* ------------------- *)
 (* APIs *)
@@ -705,26 +665,26 @@ and addOpAPIParams =
   ; clientOpCtrId : string }
 
 and executeFunctionAPIParams =
-  { efpTLID : tlid
+  { efpTLID : TLID.t
   ; efpTraceID : traceID
-  ; efpCallerID : id
+  ; efpCallerID : ID.t
   ; efpArgs : dval list
   ; efpFnName : string }
 
 and uploadFnAPIParams = {uplFn : userFunction}
 
 and triggerHandlerAPIParams =
-  { thTLID : tlid
+  { thTLID : TLID.t
   ; thTraceID : traceID
   ; thInput : inputValueDict }
 
 and getTraceDataAPIParams =
-  { gtdrpTlid : tlid
+  { gtdrpTlid : TLID.t
   ; gtdrpTraceID : traceID }
 
-and dbStatsAPIParams = {dbStatsTlids : tlid list}
+and dbStatsAPIParams = {dbStatsTlids : TLID.t list}
 
-and workerStatsAPIParams = {workerStatsTlid : tlid}
+and workerStatsAPIParams = {workerStatsTlid : TLID.t}
 
 and updateWorkerScheduleAPIParams =
   { workerName : string
@@ -785,13 +745,13 @@ and addOpStrollerMsg =
 and dvalArgsHash = string
 
 and executeFunctionAPIResult =
-  dval * dvalArgsHash * int * tlid list * unlockedDBs
+  dval * dvalArgsHash * int * TLID.t list * unlockedDBs
 
 and uploadFnAPIResult = unit
 
 and loadPackagesAPIResult = packageFn list
 
-and triggerHandlerAPIResult = tlid list
+and triggerHandlerAPIResult = TLID.t list
 
 and unlockedDBs = StrSet.t
 
@@ -803,7 +763,7 @@ and dbStatsAPIResult = dbStatsStore
 
 and workerStatsAPIResult = workerStats
 
-and allTracesAPIResult = {traces : (tlid * traceID) list}
+and allTracesAPIResult = {traces : (TLID.t * traceID) list}
 
 and initialLoadAPIResult =
   { handlers : handler list
@@ -859,7 +819,7 @@ and displayText = string
   In the case of "Jump to", results are filtered by name,
     and do not need to be dynamically generated.
   But in the case of "Found in", results are dynamically generated,
-    based on the content that is inside.
+    based on the content that is insID.t *e.
 *)
 and isDynamic = bool
 
@@ -872,7 +832,7 @@ and keyword =
 
 and command =
   { commandName : string
-  ; action : model -> toplevel -> id -> modification
+  ; action : model -> toplevel -> ID.t -> modification
   ; doc : string }
 
 and omniAction =
@@ -883,7 +843,7 @@ and omniAction =
   | NewCronHandler of string option
   | NewReplHandler of string option
   | NewGroup of string option
-  | Goto of page * tlid * displayText * isDynamic
+  | Goto of page * TLID.t * displayText * isDynamic
 
 and autocompleteItem =
   | ACOmniAction of omniAction
@@ -914,7 +874,7 @@ and autocompleteItem =
   (* Groups *)
   | ACGroupName of string
 
-and target = tlid * blankOrData
+and target = TLID.t * blankOrData
 
 and autocomplete =
   { admin : bool
@@ -972,7 +932,7 @@ and menuMsg =
 and fnProps =
   { draggingParamIndex : int option
   ; dragOverSpaceIndex : int option
-  ; justMovedParam : id option }
+  ; justMovedParam : ID.t option }
 
 and fnpMsg =
   | ParamDragStart of int
@@ -989,16 +949,16 @@ and centerPage = bool
 
 and page =
   | Architecture
-  | FocusedFn of tlid
-  | FocusedHandler of tlid * centerPage
-  | FocusedDB of tlid * centerPage
-  | FocusedType of tlid
-  | FocusedGroup of tlid * centerPage
+  | FocusedFn of TLID.t
+  | FocusedHandler of TLID.t * centerPage
+  | FocusedDB of TLID.t * centerPage
+  | FocusedType of TLID.t
+  | FocusedGroup of TLID.t * centerPage
 
 and focus =
   | FocusNothing
-  | FocusExact of tlid * id
-  | FocusNext of tlid * id option
+  | FocusExact of TLID.t * ID.t
+  | FocusNext of TLID.t * ID.t option
   | FocusPageAndCursor of page * cursorState
   | FocusSame
   (* unchanged *)
@@ -1037,24 +997,24 @@ and editorSettings =
   { showFluidDebugger : bool
   ; runTimers : bool }
 
-(* tlidSelectTarget represents a target inside a TLID for use
+(* tlidSelectTarget represents a target insID.t *e a TLID for use
    by the `Select` modification.
 
    In Fluid, we should probably use STCaret in all cases --
-   knowing the id of an ast node (via STID) is insufficient
+   knowing the ID.t *of an ast node (via STID) is insufficient
    to know where to place the caret within that node.
    In non-fluid, the concept of a caret doesn't really exist;
    we select nodes at any nesting level as a whole, so STID is
    sufficient.
 
    If we want to select a toplevel as a whole but don't have a
-   specific id in mind, we use STTopLevelRoot. There's a few
+   specific ID.t *in mind, we use STTopLevelRoot. There's a few
    places where we do this as a fallback when we expected to find
    an id but couldn't (they used to use Some(id) with an implicit
    fallback to None). *)
 and tlidSelectTarget =
   | STCaret of caretTarget
-  | STID of id
+  | STID of ID.t
   | STTopLevelRoot
 
 and modification =
@@ -1072,16 +1032,16 @@ and modification =
   | AddOps of (op list * focus)
   | HandleAPIError of apiError
   | GetUnlockedDBsAPICall
-  | GetWorkerStatsAPICall of tlid
-  | ExecutingFunctionAPICall of tlid * id * string
-  | TriggerHandlerAPICall of tlid
-  | UpdateDBStatsAPICall of tlid
+  | GetWorkerStatsAPICall of TLID.t
+  | ExecutingFunctionAPICall of TLID.t * ID.t * string
+  | TriggerHandlerAPICall of TLID.t
+  | UpdateDBStatsAPICall of TLID.t
   (* End API Calls *)
   | DisplayError of string
   | ClearError
-  | Select of tlid * tlidSelectTarget
-  | SetHover of tlid * id
-  | ClearHover of tlid * id
+  | Select of TLID.t * tlidSelectTarget
+  | SetHover of TLID.t * ID.t
+  | ClearHover of TLID.t * ID.t
   | Deselect
   | RemoveToplevel of toplevel
   | RemoveGroup of toplevel
@@ -1106,18 +1066,18 @@ and modification =
       { viewportStart : vPos
       ; viewportCurr : vPos
       ; prevCursorState : cursorState }
-  | DragTL of tlid * vPos * hasMoved * cursorState
+  | DragTL of TLID.t * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
   | EndIntegrationTest
   | SetPage of page
-  | SetTLTraceID of tlid * traceID
-  | ExecutingFunctionBegan of tlid * id
-  | ExecutingFunctionComplete of (tlid * id) list
+  | SetTLTraceID of TLID.t * traceID
+  | ExecutingFunctionBegan of TLID.t * ID.t
+  | ExecutingFunctionComplete of (TLID.t * ID.t) list
   | MoveCanvasTo of pos * isTransitionAnimated
   | UpdateTraces of traces
   | OverrideTraces of traces
   | UpdateTraceFunctionResult of
-      tlid * traceID * id * fnName * dvalArgsHash * int * dval
+      TLID.t * traceID * ID.t * fnName * dvalArgsHash * int * dval
   | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | Apply of
@@ -1131,10 +1091,10 @@ and modification =
        -> modification)
   | SetTypes of userTipe list * userTipe list * bool
   | SetPermission of permission option
-  | CenterCanvasOn of tlid
+  | CenterCanvasOn of TLID.t
   | InitIntrospect of toplevel list
-  | RefreshUsages of tlid list
-  | FluidCommandsShow of tlid * id
+  | RefreshUsages of TLID.t list
+  | FluidCommandsShow of TLID.t * ID.t
   | FluidCommandsClose
   (* We need to track clicks so that we don't mess with the caret while a
    * click is happening. *)
@@ -1143,15 +1103,15 @@ and modification =
   | UpdateAvatarList of avatar list
   | ExpireAvatars
   | AddGroup of group
-  | AddToGroup of tlid * tlid
-  | UndoGroupDelete of tlid * group
-  | MoveMemberToNewGroup of tlid * tlid * model
+  | AddToGroup of TLID.t * TLID.t
+  | UndoGroupDelete of TLID.t * group
+  | MoveMemberToNewGroup of TLID.t * TLID.t * model
   | ShowSaveToast
   | SetClipboardContents of clipboardContents * clipboardEvent
-  | UpdateASTCache of tlid * string
+  | UpdateASTCache of TLID.t * string
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
-  | TLMenuUpdate of tlid * menuMsg
+  | TLMenuUpdate of TLID.t * menuMsg
   | SettingsViewUpdate of SettingsViewTypes.settingsMsg
 
 (* ------------------- *)
@@ -1171,9 +1131,9 @@ and fluidInputEvent =
   | ReplaceText of string
 
 and fluidMouseUp =
-  { tlid : tlid
+  { tlid : TLID.t
   ; editorId : string option
-        (** editorId is the id of the editor that was clicked on, or None if it was
+        (** editorId is the ID.t *of the editor that was clicked on, or None if it was
           * the main editor *)
   ; selection : (int * int) option
         (** selection is the beginning + end of the browser selection on
@@ -1187,11 +1147,11 @@ and fluidMsg =
   | FluidInputEvent of fluidInputEvent
   | FluidCut
   | FluidPaste of clipboardContents
-  | FluidMouseDown of tlid
+  | FluidMouseDown of TLID.t
   | FluidMouseUp of fluidMouseUp
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
-  | FluidFocusOnToken of id
+  | FluidFocusOnToken of ID.t
   | FluidClearErrorDvSrc
   | FluidUpdateAutocomplete
   (* Index of the dropdown(autocomplete or command palette) item *)
@@ -1210,13 +1170,13 @@ and msg =
   | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]
   | AppMouseUp of mouseEvent
   | WindowMouseUp of mouseEvent
-  | TLDragRegionMouseDown of tlid * mouseEvent
+  | TLDragRegionMouseDown of TLID.t * mouseEvent
   (* we have the actual node when TLDragRegionMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)
-  | TLDragRegionMouseUp of tlid * mouseEvent
-  | ToplevelDelete of tlid
-  | ToplevelDeleteForever of tlid
-  | DragToplevel of tlid * Tea.Mouse.position [@printer opaque "DragToplevel"]
+  | TLDragRegionMouseUp of TLID.t * mouseEvent
+  | ToplevelDelete of TLID.t
+  | ToplevelDeleteForever of TLID.t
+  | DragToplevel of TLID.t * Tea.Mouse.position [@printer opaque "DragToplevel"]
   | EntryInputMsg of string
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
@@ -1230,7 +1190,7 @@ and msg =
   | GetUnlockedDBsAPICallback of
       (getUnlockedDBsAPIResult, httpError) Tea.Result.t
       [@printer opaque "GetUnlockedDBsAPICallback"]
-  | NewTracePush of (traceID * tlid list)
+  | NewTracePush of (traceID * TLID.t list)
   | New404Push of fourOhFour
   | NewStaticDeployPush of staticDeploy
   | WorkerStatePush of string StrDict.t
@@ -1261,46 +1221,46 @@ and msg =
   | FinishIntegrationTest
   | SaveTestButton
   | ToggleEditorSetting of (editorSettings -> editorSettings)
-  | ExecuteFunctionButton of tlid * id * string
+  | ExecuteFunctionButton of TLID.t * ID.t * string
   | ExecuteFunctionFromWithin of executeFunctionAPIParams
   | CreateHandlerFrom404 of fourOhFour
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string
   | PageVisibilityChange of PageVisibility.visibility
   | StartFeatureFlag
-  | EndFeatureFlag of id * pick
-  | ToggleFeatureFlag of id * bool
-  | DeleteUserFunctionParameter of tlid * userFunctionParameter
-  | AddUserFunctionParameter of tlid
-  | UploadFn of tlid
-  | DeleteUserTypeField of tlid * userRecordField
-  | BlankOrClick of tlid * id * mouseEvent
-  | BlankOrDoubleClick of tlid * id * mouseEvent
-  | BlankOrMouseEnter of tlid * id * mouseEvent
-  | BlankOrMouseLeave of tlid * id * mouseEvent
+  | EndFeatureFlag of ID.t * pick
+  | ToggleFeatureFlag of ID.t * bool
+  | DeleteUserFunctionParameter of TLID.t * userFunctionParameter
+  | AddUserFunctionParameter of TLID.t
+  | UploadFn of TLID.t
+  | DeleteUserTypeField of TLID.t * userRecordField
+  | BlankOrClick of TLID.t * ID.t * mouseEvent
+  | BlankOrDoubleClick of TLID.t * ID.t * mouseEvent
+  | BlankOrMouseEnter of TLID.t * ID.t * mouseEvent
+  | BlankOrMouseLeave of TLID.t * ID.t * mouseEvent
   | MouseWheel of int * int
-  | TraceClick of tlid * traceID * mouseEvent
-  | TraceMouseEnter of tlid * traceID * mouseEvent
-  | TraceMouseLeave of tlid * traceID * mouseEvent
-  | TriggerHandler of tlid
+  | TraceClick of TLID.t * traceID * mouseEvent
+  | TraceMouseEnter of TLID.t * traceID * mouseEvent
+  | TraceMouseLeave of TLID.t * traceID * mouseEvent
+  | TriggerHandler of TLID.t
   | CreateRouteHandler of omniAction
   | ToggleSideBar
   | CreateFunction
   | ExtractFunction
   | CreateType
-  | DeleteUserFunction of tlid
-  | DeleteUserFunctionForever of tlid
-  | DeleteUserType of tlid
-  | DeleteUserTypeForever of tlid
-  | DeleteGroupForever of tlid
-  | RestoreToplevel of tlid
-  | LockHandler of tlid * bool
+  | DeleteUserFunction of TLID.t
+  | DeleteUserFunctionForever of TLID.t
+  | DeleteUserType of TLID.t
+  | DeleteUserTypeForever of TLID.t
+  | DeleteGroupForever of TLID.t
+  | RestoreToplevel of TLID.t
+  | LockHandler of TLID.t * bool
   | ReceiveAnalysis of performAnalysisResult
   | ReceiveFetch of fetchResult
   | EnablePanning of bool
-  | StartMigration of tlid
-  | AbandonMigration of tlid
-  | DeleteColInDB of tlid * id
+  | StartMigration of TLID.t
+  | AbandonMigration of TLID.t
+  | DeleteColInDB of TLID.t * ID.t
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
   | ClipboardCopyEvent of clipboardEvent
@@ -1308,21 +1268,21 @@ and msg =
   | ClipboardPasteEvent of clipboardEvent
   | ClipboardCopyLivevalue of string * vPos
   | EventDecoderError of string * string * string
-  | UpdateHandlerState of tlid * handlerState
+  | UpdateHandlerState of TLID.t * handlerState
   | CanvasPanAnimationEnd
   | GoTo of page
-  | SetHoveringReferences of tlid * id list
+  | SetHoveringReferences of TLID.t * ID.t list
   | TriggerSendPresenceCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerSendPresenceCallback"]
-  | TakeOffErrorRail of tlid * id
-  | SetHandlerExeIdle of tlid
-  | CopyCurl of tlid * vPos
-  | TLMenuMsg of tlid * menuMsg
+  | TakeOffErrorRail of TLID.t * ID.t
+  | SetHandlerExeIdle of TLID.t
+  | CopyCurl of TLID.t * vPos
+  | TLMenuMsg of TLID.t * menuMsg
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
-  | DeleteGroup of tlid
-  | DragGroupMember of tlid * tlid * mouseEvent
+  | DeleteGroup of TLID.t
+  | DragGroupMember of TLID.t * TLID.t * mouseEvent
   | CreateGroup
   | HideTopbar
   | LogoutOfDark
@@ -1331,7 +1291,7 @@ and msg =
   | RunWorker of string
   | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
       [@printer opaque "UpdateWorkerScheduleCallback"]
-  | NewTabFromTLMenu of string * tlid
+  | NewTabFromTLMenu of string * TLID.t
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
@@ -1379,9 +1339,9 @@ and handlerProp =
   { handlerLock : bool
   ; handlerState : handlerState
   ; hoveringReferences :
-      (* When hovering over a reference, this is the list of ids that refer to
+      (* When hovering over a reference, this is the list of ID.ts that refer to
        * the reference *)
-      id list
+      ID.t list
   ; execution : exeState }
 
 and tlTraceIDs = traceID TLIDDict.t
@@ -1403,105 +1363,105 @@ and placeholder =
   ; tipe : string }
 
 and fluidToken =
-  | TInteger of id * string
-  | TString of id * string
-  (* multi-line strings: id, segment, start offset, full-string *)
-  | TStringMLStart of id * string * int * string
-  | TStringMLMiddle of id * string * int * string
-  | TStringMLEnd of id * string * int * string
-  | TBlank of id
+  | TInteger of ID.t * string
+  | TString of ID.t * string
+  (* multi-line strings: ID.t *, segment, start offset, full-string *)
+  | TStringMLStart of ID.t * string * int * string
+  | TStringMLMiddle of ID.t * string * int * string
+  | TStringMLEnd of ID.t * string * int * string
+  | TBlank of ID.t
   | TPlaceholder of
-      { blankID : id
-      ; fnID : id
+      { blankID : ID.t
+      ; fnID : ID.t
       ; placeholder : placeholder }
-  | TTrue of id
-  | TFalse of id
-  | TNullToken of id
-  | TFloatWhole of id * string
-  | TFloatPoint of id
-  | TFloatFractional of id * string
+  | TTrue of ID.t
+  | TFalse of ID.t
+  | TNullToken of ID.t
+  | TFloatWhole of ID.t * string
+  | TFloatPoint of ID.t
+  | TFloatFractional of ID.t * string
   (* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. *)
-  | TPartial of id * string
+  | TPartial of ID.t * string
   (* A partial that extends out to the right. Used to create binops. *)
-  | TRightPartial of id * string
+  | TRightPartial of ID.t * string
   (* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way *)
-  | TPartialGhost of id * string
-  (* the id here disambiguates with other separators for reflow *)
-  | TSep of id
-  (* The first id is the id of the expression directly associated with the
-   * newline. The second id is the id of that expression's parent. In an
+  | TPartialGhost of ID.t * string
+  (* the ID.t *here disambiguates with other separators for reflow *)
+  | TSep of ID.t
+  (* The first ID.t *is the ID.t *of the expression directly associated with the
+   * newline. The second ID.t *is the ID.t *of that expression's parent. In an
    * expression with potentially many newlines (ie, a pipeline), the int holds
    * the relative line number (index) of this newline. *)
-  | TNewline of (id * id * int option) option
+  | TNewline of (ID.t * ID.t * int option) option
   | TIndent of int
-  | TLetKeyword of id * analysisID
+  | TLetKeyword of ID.t * analysisID
   (* Let-expr id * rhs id * varname *)
-  | TLetVarName of id * analysisID * string
-  | TLetAssignment of id * analysisID
-  | TIfKeyword of id
-  | TIfThenKeyword of id
-  | TIfElseKeyword of id
-  | TBinOp of id * string
-  | TFieldOp of (* fieldAccess *) id * (* lhs *) id
-  | TFieldName of id (* fieldAccess *) * id (* lhs *) * string
+  | TLetVarName of ID.t * analysisID * string
+  | TLetAssignment of ID.t * analysisID
+  | TIfKeyword of ID.t
+  | TIfThenKeyword of ID.t
+  | TIfElseKeyword of ID.t
+  | TBinOp of ID.t * string
+  | TFieldOp of (* fieldAccess *) ID.t * (* lhs *) ID.t
+  | TFieldName of ID.t (* fieldAccess *) * ID.t (* lhs *) * string
   | TFieldPartial of
-      (* Partial ID, fieldAccess ID, analysisID (lhs), name *) id
-      * id
-      * id
+      (* Partial ID, fieldAccess ID, analysisID (lhs), name *) ID.t
+      * ID.t
+      * ID.t
       * string
-  | TVariable of id * string
-  (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
-  | TFnName of id * string * string * string * FluidExpression.sendToRail
-  (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
-  | TFnVersion of id * string * string * string
-  | TLambdaComma of id * int
-  | TLambdaArrow of id
-  | TLambdaSymbol of id
-  | TLambdaVar of id * analysisID * int * string
-  | TListOpen of id
-  | TListClose of id
-  | TListComma of id * int
+  | TVariable of ID.t * string
+  (* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
+  | TFnName of ID.t * string * string * string * FluidExpression.sendToRail
+  (* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
+  | TFnVersion of ID.t * string * string * string
+  | TLambdaComma of ID.t * int
+  | TLambdaArrow of ID.t
+  | TLambdaSymbol of ID.t
+  | TLambdaVar of ID.t * analysisID * int * string
+  | TListOpen of ID.t
+  | TListClose of ID.t
+  | TListComma of ID.t * int
   (* 2nd int is the number of pipe segments there are *)
-  | TPipe of id * int * int
-  | TRecordOpen of id
+  | TPipe of ID.t * int * int
+  | TRecordOpen of ID.t
   | TRecordFieldname of
-      { recordID : id
-      ; exprID : id
+      { recordID : ID.t
+      ; exprID : ID.t
       ; index : int
       ; fieldName : string }
-  | TRecordSep of id * int * analysisID
-  | TRecordClose of id
-  | TMatchKeyword of id
+  | TRecordSep of ID.t * int * analysisID
+  | TRecordClose of ID.t
+  | TMatchKeyword of ID.t
   | TMatchBranchArrow of
-      { matchID : id
-      ; patternID : id
+      { matchID : ID.t
+      ; patternID : ID.t
       ; index : int }
   (* for all these TPattern* variants:
-   * - the first id is the match id
-   * - the second id is the pattern id
+   * - the first ID.t *is the match ID.t *
+   * - the second ID.t *is the pattern ID.t *
    * - the final int is the index of the (pattern -> expr) *)
-  | TPatternVariable of id * id * string * int
-  | TPatternConstructorName of id * id * string * int
-  | TPatternInteger of id * id * string * int
+  | TPatternVariable of ID.t * ID.t * string * int
+  | TPatternConstructorName of ID.t * ID.t * string * int
+  | TPatternInteger of ID.t * ID.t * string * int
   | TPatternString of
-      { matchID : id
-      ; patternID : id
+      { matchID : ID.t
+      ; patternID : ID.t
       ; str : string
       ; branchIdx : int }
-  | TPatternTrue of id * id * int
-  | TPatternFalse of id * id * int
-  | TPatternNullToken of id * id * int
-  | TPatternFloatWhole of id * id * string * int
-  | TPatternFloatPoint of id * id * int
-  | TPatternFloatFractional of id * id * string * int
-  | TPatternBlank of id * id * int
-  | TConstructorName of id * string
-  | TParenOpen of id
-  | TParenClose of id
-  | TFlagWhenKeyword of id
-  | TFlagEnabledKeyword of id
+  | TPatternTrue of ID.t * ID.t * int
+  | TPatternFalse of ID.t * ID.t * int
+  | TPatternNullToken of ID.t * ID.t * int
+  | TPatternFloatWhole of ID.t * ID.t * string * int
+  | TPatternFloatPoint of ID.t * ID.t * int
+  | TPatternFloatFractional of ID.t * ID.t * string * int
+  | TPatternBlank of ID.t * ID.t * int
+  | TConstructorName of ID.t * string
+  | TParenOpen of ID.t
+  | TParenClose of ID.t
+  | TFlagWhenKeyword of ID.t
+  | TFlagEnabledKeyword of ID.t
 
 and fluidTokenInfo =
   { startRow : int
@@ -1512,10 +1472,10 @@ and fluidTokenInfo =
   ; token : fluidToken }
 
 and fluidPatternAutocomplete =
-  | FPAVariable of id * id * string
-  | FPAConstructor of id * id * string * FluidPattern.t list
-  | FPANull of id * id
-  | FPABool of id * id * bool
+  | FPAVariable of ID.t * ID.t * string
+  | FPAConstructor of ID.t * ID.t * string * FluidPattern.t list
+  | FPANull of ID.t * ID.t
+  | FPABool of ID.t * ID.t * bool
 
 and fluidAutocompleteItem =
   | FACFunction of function_
@@ -1534,7 +1494,7 @@ and fluidAutocompleteState =
   ; index : int option
   ; query :
       (* We need to refer back to the previous one *)
-      (tlid * fluidTokenInfo) option
+      (TLID.t * fluidTokenInfo) option
         (* ------------------------------- *)
         (* Cached results *)
         (* ------------------------------- *)
@@ -1545,7 +1505,7 @@ and fluidAutocompleteState =
 and fluidCommandState =
   { index : int
   ; commands : command list
-  ; location : (tlid * id) option
+  ; location : (TLID.t * ID.t) option
   ; filter : string option }
 
 (** editorViewKind represents the type of editorView. This impacts, for
@@ -1558,7 +1518,7 @@ and editorView =
   { id : string
         (** the unique id of this editor panel, used to identify it, eg, when
           * it is clicked and needs focus *)
-  ; expressionId : id  (** the id of the top-most expression in this panel *)
+  ; expressionId : ID.t  (** the id of the top-most expression in this panel *)
   ; kind : editorViewKind }
 
 and fluidState =
@@ -1579,16 +1539,16 @@ and fluidState =
        * lose the information we're trying to get from the click. *)
       bool
   ; errorDvSrc :
-      (* The source id of an error-dval of where the cursor is on and we might
+      (* The source ID.t *of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
   ; extraEditors : editorView list
         (** extraEditors is a list of extra (non-main) editor panels that
-          * should be rendered for the active fluid editor. For example, when a
+          * should be rendered for the active fluideditor. For example, when a
           * handler with a feature flag is focused, this is populated with an
           * extra editorView for the feature flag condition. *)
   ; activeEditorId : string option
-        (** activeEditorId is the id (editorView.id) of the active (focused)
+        (** activeEditorId is the id(editorView.id) of the active (focused)
          * editor within the handler, or None if the main editor is active. *)
   }
 
@@ -1605,7 +1565,7 @@ and avatar =
 
 and avatarModelMessage =
   { browserId : string
-  ; tlid : tlid option
+  ; tlid : TLID.t option
   ; canvasName : string
   ; timestamp : float }
 
@@ -1618,7 +1578,7 @@ and model =
   ; builtInFunctions : function_ list
   ; cursorState : cursorState
   ; currentPage : page
-  ; hovering : (tlid * id) list
+  ; hovering : (TLID.t * ID.t) list
   ; groups : group TLIDDict.t
   ; handlers : handler TLIDDict.t
   ; deletedHandlers : handler TLIDDict.t
@@ -1639,8 +1599,8 @@ and model =
       integrationTestState
   ; visibility : PageVisibility.visibility
   ; syncState : syncState
-  ; executingFunctions : (tlid * id) list
-  ; tlTraceIDs : tlTraceIDs (* This is TLID id to traceID map *)
+  ; executingFunctions : (TLID.t * ID.t) list
+  ; tlTraceIDs : tlTraceIDs (* This is TLID ID.t *to traceID map *)
   ; featureFlags : flagsVS
   ; canvasProps : canvasProps
   ; canvasName : string
@@ -1657,9 +1617,9 @@ and model =
         (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
    * if myFunc was called in Repl2 at id, then the dict would be:
    *
-   *   { repl2.tlid: { (myFunc.tlid, id) } }
+   *   { repl2.tlid { (myFunc.tlid, id) } }
    *
-   * which you can read as "repl2 refersTo myfunc". So a tlid points to the TLs
+   * which you can read as "repl2 refersTo myfunc". So a TLID.t points to the TLs
    * it uses. *)
   ; tlRefersTo : IDPairSet.t TLIDDict.t
         (* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg

@@ -51,7 +51,7 @@ let viewDbLatestEntry (stats : dbStats) : msg Html.html =
 
 
 let viewDBData (vs : viewState) (db : db) : msg Html.html =
-  match StrDict.get ~key:(deTLID db.dbTLID) vs.dbStats with
+  match StrDict.get ~key:(TLID.toString db.dbTLID) vs.dbStats with
   | Some stats when CursorState.tlidOf vs.cursorState = Some db.dbTLID ->
       let liveVal = viewDbLatestEntry stats in
       let count = viewDbCount stats in
@@ -118,7 +118,7 @@ let viewDBColType (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
 
 
 let viewDBCol
-    (vs : viewState) (isMigra : bool) (tlid : tlid) ((n, t) : dbColumn) :
+    (vs : viewState) (isMigra : bool) (tlid : TLID.t) ((n, t) : dbColumn) :
     msg Html.html =
   let deleteButton =
     if vs.permission = Some ReadWrite
@@ -128,7 +128,11 @@ let viewDBCol
       Html.div
         [ Html.class' "delete-col"
         ; ViewUtils.eventNoPropagation
-            ~key:("dcidb-" ^ showTLID tlid ^ "-" ^ (n |> B.toID |> showID))
+            ~key:
+              ( "dcidb-"
+              ^ TLID.toString tlid
+              ^ "-"
+              ^ (n |> B.toID |> ID.toString) )
             "click"
             (fun _ -> DeleteColInDB (tlid, B.toID n)) ]
         [fontAwesome "minus-circle"]
@@ -182,7 +186,7 @@ let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
     Html.button
       [ Html.Attributes.disabled false
       ; ViewUtils.eventNoPropagation
-          ~key:("am-" ^ showTLID db.dbTLID)
+          ~key:("am-" ^ TLID.toString db.dbTLID)
           "click"
           (fun _ -> AbandonMigration db.dbTLID) ]
       [Html.text "cancel"]
