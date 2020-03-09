@@ -3,6 +3,13 @@ open Prelude
 (* Dark *)
 module E = FluidExpression
 
+(** [viewFunction fn sendToRail] returns a (possibly noNode) DOM node that
+ * provides a contextual hint about error-rail usage for the function [fn].
+ *
+ * The message is customized based on the function return value
+ * and the error rail status in [sendToRail]. Use `None` to indicate
+ * that the error rail status is unknown (as in autocomplete).
+ *)
 let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
     'a Vdom.t =
   let errorRail =
@@ -26,7 +33,7 @@ let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
                [ Html.text "By default, this function goes to the "
                ; errorRail
                ; Html.text
-                   " on `Nothing` and returns the unwrapped value in `Just value` otherwise. "
+                   " on `Nothing` and returns the unwrapped value in `Just <value>` otherwise. "
                ])
       | TResult ->
           Some
@@ -35,7 +42,7 @@ let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
                [ Html.text "By default, this function goes to the "
                ; errorRail
                ; Html.text
-                   " on `Error` and returns the unwrapped value in `Ok value` otherwise. "
+                   " on `Error` and returns the unwrapped value in `Ok <value>` otherwise. "
                ])
       | _ ->
           None )
@@ -49,7 +56,7 @@ let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
                [ Html.text "This function goes to the "
                ; errorRail
                ; Html.text
-                   " on `Nothing` and returns the unwrapped value in `Just value` otherwise. "
+                   " on `Nothing` and returns the unwrapped value in `Just <value>` otherwise. "
                ; Html.text
                    "Use `take-function-off-rail` to handle the `Nothing` case."
                ])
@@ -60,7 +67,7 @@ let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
                [ Html.text "This function is not on the "
                ; errorRail
                ; Html.text
-                   " so you need to handle `Just value` and `Nothing` manually. "
+                   ", so you need to handle `Just <value>` and `Nothing` manually. "
                ; Html.text "Alternatively, use `put-function-on-rail`." ])
       | TResult, Rail ->
           Some
@@ -69,7 +76,7 @@ let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
                [ Html.text "This function goes to the "
                ; errorRail
                ; Html.text
-                   " on `Error` and returns the unwrapped value in `Ok value` otherwise. "
+                   " on `Error` and returns the unwrapped value in `Ok <value>` otherwise. "
                ; Html.text
                    "Use `take-function-off-rail` to handle the `Error` case." ])
       | TResult, NoRail ->
@@ -79,7 +86,7 @@ let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
                [ Html.text "This function is not on the "
                ; errorRail
                ; Html.text
-                   " so you need to handle `Error error` and `Ok value` manually. "
+                   ", so you need to handle `Error error` and `Ok <value>` manually. "
                ; Html.text "Alternatively, use `put-function-on-rail`." ])
       | _, (Rail | NoRail) ->
           None ) )
