@@ -821,53 +821,56 @@ let appendQuery (m : model) (str : string) (a : autocomplete) : autocomplete =
   setQuery m q a
 
 
-let documentationForItem (aci : autocompleteItem) : string option =
+let documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
+  let p (text : string) = Html.p [] [Html.text text] in
   match aci with
   | ACOmniAction _ ->
       None
   | ACHTTPModifier verb ->
-      Some ("Make this handler match the " ^ verb ^ " HTTP verb")
+      Some [p ("Make this handler match the " ^ verb ^ " HTTP verb")]
   | ACCronTiming timing ->
-      Some ("Request this handler to trigger " ^ timing)
+      Some [p ("Request this handler to trigger " ^ timing)]
   | ACEventSpace "HTTP" ->
-      Some "This handler will respond to HTTP requests"
+      Some [p "This handler will respond to HTTP requests"]
   | ACEventSpace "CRON" ->
-      Some "This handler will periodically trigger"
+      Some [p "This handler will periodically trigger"]
   | ACEventSpace "WORKER" ->
-      Some "This handler will run emitted events in the background"
+      Some [p "This handler will run emitted events in the background"]
   | ACEventSpace "REPL" ->
-      Some "This handler allows you run code in it"
+      Some [p "This handler allows you run code in it"]
   | ACEventSpace _ ->
       Some
-        "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
+        [ p
+            "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
+        ]
   | ACReplName name ->
-      Some ("A REPL named " ^ name)
+      Some [p ("A REPL named " ^ name)]
   | ACWorkerName name ->
-      Some ("Respond to events emitted to " ^ name)
+      Some [p ("Respond to events emitted to " ^ name)]
   | ACCronName _ ->
-      Some "Name of your CRON job"
+      Some [p "Name of your CRON job"]
   | ACHTTPRoute name ->
-      Some ("Handle HTTP requests made to " ^ name)
+      Some [p ("Handle HTTP requests made to " ^ name)]
   | ACDBName name ->
-      Some ("Set the DB's name to " ^ name)
+      Some [p ("Set the DB's name to " ^ name)]
   | ACDBColType tipe ->
-      Some ("This field will be a " ^ tipe)
+      Some [p ("This field will be a " ^ tipe)]
   | ACParamTipe tipe ->
-      Some ("This parameter will be a " ^ RT.tipe2str tipe)
+      Some [p ("This parameter will be a " ^ RT.tipe2str tipe)]
   | ACTypeFieldTipe tipe ->
-      Some ("This parameter will be a " ^ RT.tipe2str tipe)
+      Some [p ("This parameter will be a " ^ RT.tipe2str tipe)]
   | ACDBColName name ->
-      Some ("Set the DB's column name to" ^ name)
+      Some [p ("Set the DB's column name to" ^ name)]
   | ACEventModifier name ->
-      Some ("Set event modifier to " ^ name)
+      Some [p ("Set event modifier to " ^ name)]
   | ACFnName fnName ->
-      Some ("Set function name to " ^ fnName)
+      Some [p ("Set function name to " ^ fnName)]
   | ACParamName paramName ->
-      Some ("Set param name to " ^ paramName)
+      Some [p ("Set param name to " ^ paramName)]
   | ACTypeName typeName ->
-      Some ("Set type name to " ^ typeName)
+      Some [p ("Set type name to " ^ typeName)]
   | ACGroupName groupName ->
-      Some ("Set group name to " ^ groupName)
+      Some [p ("Set group name to " ^ groupName)]
   | ACTypeFieldName _ ->
       None
 

@@ -106,7 +106,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             |> Option.andThen ~f:FluidAutocomplete.documentationForItem
             |> Option.orElse regular
           in
-          Option.map desc ~f:(fun desc -> viewDoc [p desc])
+          Option.map desc ~f:(fun desc -> viewDoc desc)
         in
         let selectedFnDocString =
           let fnAndRail =

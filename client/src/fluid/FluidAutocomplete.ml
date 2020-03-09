@@ -568,48 +568,81 @@ let selectUp (a : autocomplete) : autocomplete =
       a
 
 
-let rec documentationForItem (aci : autocompleteItem) : string option =
+let rec documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
+  let p (text : string) = Html.p [] [Html.text text] in
   match aci with
   | FACFunction f ->
+      let errRailHint =
+      let errorRail =
+                    Html.a
+                      [ Html.class' "link"
+                      ; Html.href
+                          "https://ops-documentation.builtwithdark.com/user-manual/error-handling#error-rail"
+                      ; Html.target "_blank" ]
+                      [Html.text "error rail"]
+                  in
+        match f.fnReturnTipe with
+        | TOption ->
+            (Html.p
+              []
+              [ Html.text "By default, this function goes to the "
+              ; errorRail
+              ; Html.text
+                  " on `Nothing` and returns the unwrapped value in `Just value` otherwise. "])
+        | TResult ->
+            (Html.p
+                      []
+                      [ Html.text "By default, this function goes to the "
+                      ; errorRail
+                      ; Html.text
+                          " on `Error` and returns the unwrapped value in `Ok value` otherwise. "
+                      ])
+        | _ ->
+            Html.noNode
+      in
       let desc =
         if String.length f.fnDescription <> 0
         then f.fnDescription
         else "Function call with no description"
       in
       let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
-      Some desc
+      Some [p desc; errRailHint]
   | FACConstructorName ("Just", _) ->
-      Some "An Option containing a value"
+      Some [p "An Option containing a value"]
   | FACConstructorName ("Nothing", _) ->
-      Some "An Option representing Nothing"
+      Some [p "An Option representing Nothing"]
   | FACConstructorName ("Ok", _) ->
-      Some "A successful Result containing a value"
+      Some [p "A successful Result containing a value"]
   | FACConstructorName ("Error", _) ->
-      Some "A Result representing a failure"
+      Some [p "A Result representing a failure"]
   | FACConstructorName (name, _) ->
-      Some ("TODO: this should never occur: the constructor " ^ name)
+      Some [p ("TODO: this should never occur: the constructor " ^ name)]
   | FACField fieldname ->
-      Some ("The '" ^ fieldname ^ "' field of the object")
+      Some [p ("The '" ^ fieldname ^ "' field of the object")]
   | FACVariable (var, _) ->
       if String.isCapitalized var
-      then Some ("The datastore '" ^ var ^ "'")
-      else Some ("The variable '" ^ var ^ "'")
+      then Some [p ("The datastore '" ^ var ^ "'")]
+      else Some [p ("The variable '" ^ var ^ "'")]
   | FACLiteral lit ->
-      Some ("The literal value '" ^ lit ^ "'")
+      Some [p ("The literal value '" ^ lit ^ "'")]
   | FACKeyword KLet ->
-      Some "A `let` expression allows you assign a variable to an expression"
+      Some [p "A `let` expression allows you assign a variable to an expression"]
   | FACKeyword KIf ->
-      Some "An `if` expression allows you to branch on a boolean condition"
+      Some [p "An `if` expression allows you to branch on a boolean condition"]
   | FACKeyword KLambda ->
       Some
-        "A `lambda` creates an anonymous function. This is most often used for iterating through lists"
+        [ p
+            "A `lambda` creates an anonymous function. This is most often used for iterating through lists"
+        ]
   | FACKeyword KMatch ->
       Some
-        "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
+        [ p
+            "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
+        ]
   | FACKeyword KPipe ->
-      Some "Pipe into another expression"
-  | FACPattern p ->
-    ( match p with
+      Some [p "Pipe into another expression"]
+  | FACPattern pat ->
+    ( match pat with
     | FPAConstructor (_, _, name, args) ->
         documentationForItem (FACConstructorName (name, List.length args))
     | FPAVariable (_, _, name) ->
@@ -617,7 +650,7 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
     | FPABool (_, _, var) ->
         documentationForItem (FACLiteral (string_of_bool var))
     | FPANull _ ->
-        Some "A 'null' literal" )
+        Some [p "A 'null' literal"] )
 
 
 let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index
