@@ -570,33 +570,35 @@ let selectUp (a : autocomplete) : autocomplete =
 
 let rec documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
   let p (text : string) = Html.p [] [Html.text text] in
+  let simpleDoc (text : string) = Some [p text] in
   match aci with
   | FACFunction f ->
       let errRailHint =
-      let errorRail =
-                    Html.a
-                      [ Html.class' "link"
-                      ; Html.href
-                          "https://ops-documentation.builtwithdark.com/user-manual/error-handling#error-rail"
-                      ; Html.target "_blank" ]
-                      [Html.text "error rail"]
-                  in
+        let errorRail =
+          Html.a
+            [ Html.class' "link"
+            ; Html.href
+                "https://ops-documentation.builtwithdark.com/user-manual/error-handling#error-rail"
+            ; Html.target "_blank" ]
+            [Html.text "error rail"]
+        in
         match f.fnReturnTipe with
         | TOption ->
-            (Html.p
+            Html.p
               []
               [ Html.text "By default, this function goes to the "
               ; errorRail
               ; Html.text
-                  " on `Nothing` and returns the unwrapped value in `Just value` otherwise. "])
+                  " on `Nothing` and returns the unwrapped value in `Just value` otherwise. "
+              ]
         | TResult ->
-            (Html.p
-                      []
-                      [ Html.text "By default, this function goes to the "
-                      ; errorRail
-                      ; Html.text
-                          " on `Error` and returns the unwrapped value in `Ok value` otherwise. "
-                      ])
+            Html.p
+              []
+              [ Html.text "By default, this function goes to the "
+              ; errorRail
+              ; Html.text
+                  " on `Error` and returns the unwrapped value in `Ok value` otherwise. "
+              ]
         | _ ->
             Html.noNode
       in
@@ -608,39 +610,36 @@ let rec documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
       let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
       Some [p desc; errRailHint]
   | FACConstructorName ("Just", _) ->
-      Some [p "An Option containing a value"]
+      simpleDoc "An Option containing a value"
   | FACConstructorName ("Nothing", _) ->
-      Some [p "An Option representing Nothing"]
+      simpleDoc "An Option representing Nothing"
   | FACConstructorName ("Ok", _) ->
-      Some [p "A successful Result containing a value"]
+      simpleDoc "A successful Result containing a value"
   | FACConstructorName ("Error", _) ->
-      Some [p "A Result representing a failure"]
+      simpleDoc "A Result representing a failure"
   | FACConstructorName (name, _) ->
-      Some [p ("TODO: this should never occur: the constructor " ^ name)]
+      simpleDoc ("TODO: this should never occur: the constructor " ^ name)
   | FACField fieldname ->
-      Some [p ("The '" ^ fieldname ^ "' field of the object")]
+      simpleDoc ("The '" ^ fieldname ^ "' field of the object")
   | FACVariable (var, _) ->
       if String.isCapitalized var
-      then Some [p ("The datastore '" ^ var ^ "'")]
-      else Some [p ("The variable '" ^ var ^ "'")]
+      then simpleDoc ("The datastore '" ^ var ^ "'")
+      else simpleDoc ("The variable '" ^ var ^ "'")
   | FACLiteral lit ->
-      Some [p ("The literal value '" ^ lit ^ "'")]
+      simpleDoc ("The literal value '" ^ lit ^ "'")
   | FACKeyword KLet ->
-      Some [p "A `let` expression allows you assign a variable to an expression"]
+      simpleDoc
+        "A `let` expression allows you assign a variable to an expression"
   | FACKeyword KIf ->
-      Some [p "An `if` expression allows you to branch on a boolean condition"]
+      simpleDoc "An `if` expression allows you to branch on a boolean condition"
   | FACKeyword KLambda ->
-      Some
-        [ p
-            "A `lambda` creates an anonymous function. This is most often used for iterating through lists"
-        ]
+      simpleDoc
+        "A `lambda` creates an anonymous function. This is most often used for iterating through lists"
   | FACKeyword KMatch ->
-      Some
-        [ p
-            "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
-        ]
+      simpleDoc
+        "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
   | FACKeyword KPipe ->
-      Some [p "Pipe into another expression"]
+      simpleDoc "Pipe into another expression"
   | FACPattern pat ->
     ( match pat with
     | FPAConstructor (_, _, name, args) ->
@@ -650,7 +649,7 @@ let rec documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
     | FPABool (_, _, var) ->
         documentationForItem (FACLiteral (string_of_bool var))
     | FPANull _ ->
-        Some [p "A 'null' literal"] )
+        simpleDoc "A 'null' literal" )
 
 
 let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index
