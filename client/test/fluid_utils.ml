@@ -7,7 +7,6 @@ let debugState s =
       ac =
         { s.ac with
           functions = []
-        ; allCompletions = []
         ; completions = (if s.ac.index = None then [] else s.ac.completions) }
     }
 

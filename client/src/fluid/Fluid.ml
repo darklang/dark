@@ -4543,7 +4543,7 @@ let rec updateKey
           | InsertText txt ->
               (* if the partial is a valid function name, don't commit *)
               let newQueryString = str ^ txt in
-              s.ac.allCompletions
+              AC.allCompletions s.ac
               |> List.filter ~f:(fun aci ->
                      String.contains ~substring:newQueryString (AC.asName aci))
               |> ( == ) []

@@ -236,13 +236,13 @@ let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   |> Option.withDefault ~default:false
 
 
-let findExpectedType (a : autocomplete) (tl : toplevel) (ti : tokenInfo) : tipe
-    =
+let findExpectedType
+    (functions : function_ list) (tl : toplevel) (ti : tokenInfo) : tipe =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
   |> Option.andThen ~f:(AST.getParamIndex id)
   |> Option.andThen ~f:(fun (name, index) ->
-         a.functions
+         functions
          |> List.find ~f:(fun f -> name = f.fnName)
          |> Option.map ~f:(fun x -> x.fnParameters)
          |> Option.andThen ~f:(List.getAt ~index)
@@ -345,13 +345,13 @@ let generatePatterns ti a queryString =
   let alreadyHasPatterns =
     List.any
       ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
-      a.allCompletions
+      (allCompletions a)
   in
   let newStandardPatterns mid =
     (* if patterns are in the autocomplete already, don't bother creating
         * new FACPatterns with different mids and pids *)
     ( if alreadyHasPatterns
-    then a.allCompletions
+    then allCompletions a
     else
       [ FPABool (mid, gid (), true)
       ; FPABool (mid, gid (), false)
@@ -388,22 +388,21 @@ let generatePatterns ti a queryString =
 
 let generateFields fieldList = List.map ~f:(fun x -> FACField x) fieldList
 
-let generate (m : model) (a : autocomplete) (query : fullQuery) : autocomplete =
-  let items =
-    match query.ti.token with
-    | TPatternBlank _ | TPatternVariable _ ->
-        generatePatterns query.ti a query.queryString
-    | TFieldName _ | TFieldPartial _ ->
-        generateFields query.fieldList
-    | _ ->
-        generateExprs m query.tl a query.ti
-  in
-  {a with allCompletions = items}
+let generate (m : model) (a : autocomplete) (query : fullQuery) :
+    autocompleteItem list =
+  match query.ti.token with
+  | TPatternBlank _ | TPatternVariable _ ->
+      generatePatterns query.ti a query.queryString
+  | TFieldName _ | TFieldPartial _ ->
+      generateFields query.fieldList
+  | _ ->
+      generateExprs m query.tl a query.ti
 
 
 let filter
-    (a : autocomplete) (candidates0 : autocompleteItem list) (query : fullQuery)
-    : autocompleteItem list * autocompleteItem list =
+    (functions : function_ list)
+    (candidates0 : autocompleteItem list)
+    (query : fullQuery) : autocompleteItem list * autocompleteItem list =
   let stripColons = Regex.replace ~re:(Regex.regex "::") ~repl:"" in
   let lcq = query.queryString |> String.toLower |> stripColons in
   let stringify i =
@@ -443,15 +442,15 @@ let filter
   in
   (* Now split list by type validity *)
   let pipedType = Option.map ~f:RT.typeOf query.pipedDval in
-  let expectedReturnType = findExpectedType a query.tl query.ti in
+  let expectedReturnType = findExpectedType functions query.tl query.ti in
   List.partition ~f:(matcher pipedType expectedReturnType) allMatches
 
 
-let refilter (query : fullQuery) (old : autocomplete) : autocomplete =
+let refilter
+    (query : fullQuery) (old : autocomplete) (items : autocompleteItem list) :
+    autocomplete =
   (* add or replace the literal the user is typing to the completions *)
-  let newCompletions, invalidCompletions =
-    filter old old.allCompletions query
-  in
+  let newCompletions, invalidCompletions = filter old.functions items query in
   let oldHighlight = highlighted old in
   let allCompletions = newCompletions @ invalidCompletions in
   let newCount = List.length allCompletions in
@@ -515,7 +514,8 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
       let fieldList = findFields m tl ti in
       let pipedDval = findPipedDval m tl ti in
       let query = {tl; ti; fieldList; pipedDval; queryString} in
-      generate m a query |> refilter query
+      let items = generate m a query in
+      refilter query a items
 
 
 (* ---------------------------- *)

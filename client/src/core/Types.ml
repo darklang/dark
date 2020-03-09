@@ -1499,8 +1499,7 @@ and fluidAutocompleteState =
         (* Cached results *)
         (* ------------------------------- *)
   ; completions : fluidAutocompleteItem list
-  ; invalidCompletions : fluidAutocompleteItem list
-  ; allCompletions : fluidAutocompleteItem list }
+  ; invalidCompletions : fluidAutocompleteItem list }
 
 and fluidCommandState =
   { index : int

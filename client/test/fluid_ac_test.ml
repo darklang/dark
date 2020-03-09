@@ -174,7 +174,7 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
 
 let setQuery (q : string) (a : AC.autocomplete) : AC.autocomplete =
   let fullQ = defaultFullQuery a q in
-  AC.refilter fullQ a
+  AC.refilter fullQ a (AC.allCompletions a)
 
 
 let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
