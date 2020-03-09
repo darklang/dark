@@ -275,7 +275,7 @@ let matcher
   | FACVariable (_, dval) ->
     ( match dval with
     | Some dv ->
-        Runtime.typeOf dv = expectedReturnType
+        RT.isCompatible (Runtime.typeOf dv) expectedReturnType
     | None ->
         true )
   | FACConstructorName (name, _) ->
