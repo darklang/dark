@@ -3,23 +3,6 @@ open Autocomplete
 open Prelude
 module B = BlankOr
 
-let sampleFunctions : function_ list =
-  [("Twit::somefunc", TObj)]
-  |> List.map ~f:(fun (fnName, paramTipe) ->
-         { fnName
-         ; fnParameters =
-             [ { paramName = "x"
-               ; paramTipe
-               ; paramBlock_args = []
-               ; paramOptional = false
-               ; paramDescription = "" } ]
-         ; fnReturnTipe = TBool
-         ; fnPreviewExecutionSafe = false
-         ; fnDescription = ""
-         ; fnInfix = true
-         ; fnDeprecated = fnName = "Some::deprecated" })
-
-
 let defaultTLID = gtlid ()
 
 let defaultID = gid ()
@@ -51,9 +34,7 @@ let defaultModel
   ; userFunctions = UserFunctions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
-  ; fluidState =
-      { Defaults.defaultFluidState with
-        ac = {Defaults.defaultFluidState.ac with functions = sampleFunctions} }
+  ; fluidState = Defaults.defaultFluidState
   ; builtInFunctions = [] }
 
 
@@ -150,9 +131,7 @@ let enteringEventNameHandler ?(space : string option = None) () : model =
 
 
 let creatingOmni : model =
-  { Defaults.defaultModel with
-    cursorState = Entering (Creating None)
-  ; builtInFunctions = sampleFunctions }
+  {Defaults.defaultModel with cursorState = Entering (Creating None)}
 
 
 (* AC targeting a tlid and pointer *)
@@ -177,7 +156,6 @@ let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
 
 
 let run () =
-  OldExpr.functions := sampleFunctions ;
   describe "autocomplete" (fun () ->
       describe "generation" (fun () ->
           test

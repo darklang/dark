@@ -176,45 +176,51 @@ let rec find (target : id) (expr : t) : t option =
         |> Option.orElseLazy (fun () -> fe caseb)
 
 
+let children (expr : t) : t list =
+  match expr with
+  (* None *)
+  | EInteger _
+  | EString _
+  | EBool _
+  | EFloat _
+  | ENull _
+  | EBlank _
+  | EPipeTarget _
+  | EVariable _ ->
+      []
+  (* One *)
+  | EPartial (_, _, expr)
+  | ERightPartial (_, _, expr)
+  | ELambda (_, _, expr)
+  | EFieldAccess (_, expr, _) ->
+      [expr]
+  (* Two *)
+  | EBinOp (_, _, c0, c1, _) | ELet (_, _, c0, c1) ->
+      [c0; c1]
+  (* Three *)
+  | EFeatureFlag (_, _, c0, c1, c2) | EIf (_, c0, c1, c2) ->
+      [c0; c1; c2]
+  (* List *)
+  | EFnCall (_, _, exprs, _)
+  | EList (_, exprs)
+  | EConstructor (_, _, exprs)
+  | EPipe (_, exprs) ->
+      exprs
+  (* Special *)
+  | ERecord (_, pairs) ->
+      pairs |> List.map ~f:Tuple2.second
+  | EMatch (_, matchExpr, cases) ->
+      let casePointers = cases |> List.map ~f:Tuple2.second in
+      matchExpr :: casePointers
+
+
 let findParent (target : id) (expr : t) : t option =
   let rec findParent' ~(parent : t option) (target : id) (expr : t) : t option =
-    let fp = findParent' ~parent:(Some expr) target in
     if toID expr = target
     then parent
     else
-      match expr with
-      | EInteger _
-      | EBlank _
-      | EString _
-      | EVariable _
-      | EBool _
-      | ENull _
-      | EPipeTarget _
-      | EFloat _ ->
-          None
-      | ELet (_, _, rhs, next) ->
-          List.findMap ~f:fp [rhs; next]
-      | EIf (_, cond, ifexpr, elseexpr) ->
-          List.findMap ~f:fp [cond; ifexpr; elseexpr]
-      | EBinOp (_, _, lexpr, rexpr, _) ->
-          List.findMap ~f:fp [lexpr; rexpr]
-      | EFieldAccess (_, expr, _) | ELambda (_, _, expr) ->
-          fp expr
-      | EMatch (_, expr, pairs) ->
-          expr :: (pairs |> List.map ~f:Tuple2.second) |> List.findMap ~f:fp
-      | ERecord (_, fields) ->
-          fields |> List.map ~f:Tuple2.second |> List.findMap ~f:fp
-      | EFnCall (_, _, exprs, _)
-      | EList (_, exprs)
-      | EConstructor (_, _, exprs)
-      | EPipe (_, exprs) ->
-          List.findMap ~f:fp exprs
-      | EPartial (_, _, expr) ->
-          fp expr
-      | ERightPartial (_, _, expr) ->
-          fp expr
-      | EFeatureFlag (_, _, cond, casea, caseb) ->
-          List.findMap ~f:fp [cond; casea; caseb]
+      let f = findParent' ~parent:(Some expr) target in
+      List.findMap ~f (children expr)
   in
   findParent' ~parent:None target expr
 

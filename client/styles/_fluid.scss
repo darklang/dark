@@ -470,11 +470,22 @@ since they are essentially both commands just acting upon different things. */
           @extend .fluid-fn-version;
         }
 
+        &.invalid,
+        &.invalid .types {
+          color: lighten($grey2, 5%);
+
+          &.highlighted {
+            color: darken($highlight-color, 30%);
+          }
+        }
+
         .types {
           float: right;
           margin-left: 4ch;
           text-transform: lowercase;
-          font-family: monospace;
+          font-family: "Fira Code", monospace;
+          font-size: 13.33px;
+          height: 16px;
           color: darken($dropdown-foreground, 15%);
         }
       }

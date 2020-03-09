@@ -91,7 +91,7 @@ let asTypeString (item : autocompleteItem) : string =
       |> List.map ~f:(fun x -> x.paramTipe)
       |> List.map ~f:RT.tipe2str
       |> String.join ~sep:", "
-      |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
+      |> fun s -> "(" ^ s ^ ") -> " ^ RT.tipe2str f.fnReturnTipe
   | FACField _ ->
       "field"
   | FACVariable (_, odv) ->
@@ -195,22 +195,22 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
       true
 
 
-let dvalFields (dv : dval) : string list =
-  match dv with DObj dict -> StrDict.keys dict | _ -> []
+(* Return the value being piped into the token at ti, if there is one *)
+let findPipedDval (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
+  let id =
+    TL.getAST tl
+    |> Option.andThen ~f:(AST.pipePrevious (FluidToken.tid ti.token))
+    |> Option.map ~f:FluidExpression.toID
+  in
+  let tlid = TL.id tl in
+  Analysis.getSelectedTraceID m tlid
+  |> Option.andThen2 id ~f:(Analysis.getLiveValue m)
+  |> Option.andThen ~f:(fun dv ->
+         match dv with DIncomplete _ -> None | _ -> Some dv)
 
 
-let findCompatiblePipeParam (fn : function_) (tipe : tipe) : parameter option =
-  fn.fnParameters
-  |> List.head
-  |> Option.andThen ~f:(fun fst ->
-         if RT.isCompatible fst.paramTipe tipe then Some fst else None)
-
-
-let findParamByType (fn : function_) (tipe : tipe) : parameter option =
-  fn.fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
-
-
-let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
+(* Return the fields of the object being referenced at ti, if there is one *)
+let findFields (m : model) (tl : toplevel) (ti : tokenInfo) : string list =
   let tlid = TL.id tl in
   let id =
     match ti.token with
@@ -223,23 +223,24 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   in
   Analysis.getSelectedTraceID m tlid
   |> Option.andThen ~f:(Analysis.getLiveValue m id)
-  |> Option.andThen ~f:(fun dv ->
-         match dv with DIncomplete _ -> None | _ -> Some dv)
+  |> Option.map ~f:(fun dv ->
+         match dv with DObj dict -> StrDict.keys dict | _ -> [])
+  |> Option.withDefault ~default:[]
 
 
 let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
-  |> Option.andThen ~f:(FluidAST.toExpr >> AST.findParentOfWithin_ id)
+  |> Option.andThen ~f:(FluidAST.findParent id)
   |> Option.map ~f:(fun e -> match e with E.EPipe _ -> true | _ -> false)
   |> Option.withDefault ~default:false
 
 
-let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
-    tipe =
+let findExpectedType (a : autocomplete) (tl : toplevel) (ti : tokenInfo) : tipe
+    =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
-  |> Option.andThen ~f:(fun ast -> AST.getParamIndex (FluidAST.toExpr ast) id)
+  |> Option.andThen ~f:(AST.getParamIndex id)
   |> Option.andThen ~f:(fun (name, index) ->
          a.functions
          |> List.find ~f:(fun f -> name = f.fnName)
@@ -249,40 +250,35 @@ let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
   |> Option.withDefault ~default:TAny
 
 
-let matchesTypes (isPipeMemberVal : bool) (paramTipe : tipe) (dv : dval option)
-    : function_ -> bool =
- fun fn ->
-  let matchesReturnType = RT.isCompatible fn.fnReturnTipe paramTipe in
-  let matchesParamType =
-    match dv with
-    | Some dval ->
-        if isPipeMemberVal
-        then None <> findCompatiblePipeParam fn (RT.typeOf dval)
-        else None <> findParamByType fn (RT.typeOf dval)
-    | None ->
-        true
-  in
-  matchesReturnType && matchesParamType
-
-
 (* ------------------------------------ *)
 (* Dynamic Items *)
 (* ------------------------------------ *)
 
 let matcher
-    (tipeConstraintOnTarget : tipe)
-    (dbnames : string list)
-    (matchTypesOfFn : tipe -> function_ -> bool)
+    (pipedType : tipe option)
+    (expectedReturnType : tipe)
     (item : autocompleteItem) =
   match item with
   | FACFunction fn ->
-      matchTypesOfFn tipeConstraintOnTarget fn
-  | FACVariable (var, _) ->
-      if List.member ~value:var dbnames
-      then tipeConstraintOnTarget = TDB
-      else true
+      let matchesReturnType =
+        RT.isCompatible fn.fnReturnTipe expectedReturnType
+      in
+      let matchedPipedType =
+        match (List.head fn.fnParameters, pipedType) with
+        | Some param, Some pipedType ->
+            RT.isCompatible param.paramTipe pipedType
+        | _ ->
+            true
+      in
+      matchedPipedType && matchesReturnType
+  | FACVariable (_, dval) ->
+    ( match dval with
+    | Some dv ->
+        RT.isCompatible (Runtime.typeOf dv) expectedReturnType
+    | None ->
+        true )
   | FACConstructorName (name, _) ->
-    ( match tipeConstraintOnTarget with
+    ( match expectedReturnType with
     | TOption ->
         name = "Just" || name = "Nothing"
     | TResult ->
@@ -297,7 +293,12 @@ let matcher
 
 type query = TLID.t * tokenInfo
 
-type fullQuery = toplevel * tokenInfo * dval option * string
+type fullQuery =
+  { tl : toplevel
+  ; ti : tokenInfo
+  ; fieldList : string list
+  ; pipedDval : dval option
+  ; queryString : string }
 
 let toQueryString (ti : tokenInfo) : string =
   if FluidToken.isBlank ti.token then "" else FluidToken.toText ti.token
@@ -385,37 +386,26 @@ let generatePatterns ti a queryString =
       []
 
 
-let generateFields dval =
-  match dval with
-  | Some dv when RT.typeOf dv = TObj ->
-      List.map ~f:(fun x -> FACField x) (dvalFields dv)
-  | _ ->
-      []
+let generateFields fieldList = List.map ~f:(fun x -> FACField x) fieldList
 
-
-let generate
-    (m : model) (a : autocomplete) ((tl, ti, dval, queryString) : fullQuery) :
-    autocomplete =
+let generate (m : model) (a : autocomplete) (query : fullQuery) : autocomplete =
   let items =
-    match ti.token with
+    match query.ti.token with
     | TPatternBlank _ | TPatternVariable _ ->
-        generatePatterns ti a queryString
+        generatePatterns query.ti a query.queryString
     | TFieldName _ | TFieldPartial _ ->
-        generateFields dval
+        generateFields query.fieldList
     | _ ->
-        generateExprs m tl a ti
+        generateExprs m query.tl a query.ti
   in
   {a with allCompletions = items}
 
 
 let filter
-    (m : model)
-    (a : autocomplete)
-    (candidates0 : autocompleteItem list)
-    ((tl, ti, dval, queryString) : fullQuery) :
-    autocompleteItem list * autocompleteItem list =
+    (a : autocomplete) (candidates0 : autocompleteItem list) (query : fullQuery)
+    : autocompleteItem list * autocompleteItem list =
   let stripColons = Regex.replace ~re:(Regex.regex "::") ~repl:"" in
-  let lcq = queryString |> String.toLower |> stripColons in
+  let lcq = query.queryString |> String.toLower |> stripColons in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
@@ -429,7 +419,7 @@ let filter
   in
   let startsWith, candidates2 =
     List.partition
-      ~f:(stringify >> String.startsWith ~prefix:queryString)
+      ~f:(stringify >> String.startsWith ~prefix:query.queryString)
       candidates1
   in
   let startsWithCI, candidates3 =
@@ -439,7 +429,7 @@ let filter
   in
   let substring, substringCI =
     List.partition
-      ~f:(stringify >> String.contains ~substring:queryString)
+      ~f:(stringify >> String.contains ~substring:query.queryString)
       candidates3
   in
   let stringMatch, _notMatched =
@@ -452,22 +442,15 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  let dbnames = TL.allDBNames m.dbs in
-  let isPipeMemberVal = isPipeMember tl ti in
-  let tipeConstraintOnTarget = paramTipeForTarget a tl ti in
-  let matchTypesOfFn pt = matchesTypes isPipeMemberVal pt dval in
-  List.partition
-    ~f:(matcher tipeConstraintOnTarget dbnames matchTypesOfFn)
-    allMatches
+  let pipedType = Option.map ~f:RT.typeOf query.pipedDval in
+  let expectedReturnType = findExpectedType a query.tl query.ti in
+  List.partition ~f:(matcher pipedType expectedReturnType) allMatches
 
 
-let refilter
-    (m : model)
-    ((tl, ti, _, queryString) as query : fullQuery)
-    (old : autocomplete) : autocomplete =
+let refilter (query : fullQuery) (old : autocomplete) : autocomplete =
   (* add or replace the literal the user is typing to the completions *)
   let newCompletions, invalidCompletions =
-    filter m old old.allCompletions query
+    filter old old.allCompletions query
   in
   let oldHighlight = highlighted old in
   let allCompletions = newCompletions @ invalidCompletions in
@@ -480,12 +463,12 @@ let refilter
     match old.query with Some (_, ti) -> toQueryString ti | _ -> ""
   in
   let isFieldPartial =
-    match ti.token with TFieldPartial _ -> true | _ -> false
+    match query.ti.token with TFieldPartial _ -> true | _ -> false
   in
   let index =
     if isFieldPartial
     then
-      if queryString = "" && queryString <> oldQueryString
+      if query.queryString = "" && query.queryString <> oldQueryString
       then
         (* Show autocomplete - the first item - when there's no text. If we
          * just deleted the text, reset to the top. But only reset on change
@@ -501,10 +484,10 @@ let refilter
         oldHighlightNewIndex
       else (* Always show fields. *)
         Some 0
-    else if queryString = "" || newCount = 0
+    else if query.queryString = "" || newCount = 0
     then (* Do nothing if no queryString or autocomplete list *)
       None
-    else if oldQueryString = queryString
+    else if oldQueryString = query.queryString
     then
       (* If we didn't change anything, don't change anything *)
       match oldHighlightNewIndex with
@@ -517,7 +500,7 @@ let refilter
   in
   { old with
     index
-  ; query = Some (TL.id tl, ti)
+  ; query = Some (TL.id query.tl, query.ti)
   ; completions = newCompletions
   ; invalidCompletions }
 
@@ -529,9 +512,10 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
       reset m
   | Some tl ->
       let queryString = toQueryString ti in
-      let dval = dvalForToken m tl ti in
-      let query = (tl, ti, dval, queryString) in
-      generate m a query |> refilter m query
+      let fieldList = findFields m tl ti in
+      let pipedDval = findPipedDval m tl ti in
+      let query = {tl; ti; fieldList; pipedDval; queryString} in
+      generate m a query |> refilter query
 
 
 (* ---------------------------- *)

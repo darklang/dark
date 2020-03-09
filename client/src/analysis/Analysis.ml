@@ -9,6 +9,7 @@ module P = Pointer
 module RT = Runtime
 module TL = Toplevel
 module TD = TLIDDict
+module E = FluidExpression
 
 (* ---------------------- *)
 (* Analyses *)
@@ -129,21 +130,15 @@ let getTipeOf (m : model) (id : ID.t) (traceID : traceID) : tipe option =
 let getArguments
     (m : model) (tl : toplevel) (callerID : ID.t) (traceID : traceID) :
     dval list option =
-  let ast = tl |> TL.getAST in
-  let threadPrevious =
-    ast |> Option.andThen ~f:(AST.threadPrevious callerID) |> Option.toList
-  in
-  let caller = ast |> Option.andThen ~f:(FluidAST.find callerID) in
-  let args =
-    match caller with
-    | Some (EFnCall (_, _, args, _)) ->
-        threadPrevious @ args
-    | _ ->
-        []
-  in
-  let argIDs = List.map ~f:FluidExpression.toID args in
-  let dvals = List.filterMap argIDs ~f:(fun id -> getLiveValue m id traceID) in
-  if List.length dvals = List.length argIDs then Some dvals else None
+  match TL.getAST tl with
+  | Some ast ->
+      let argIDs = ast |> AST.getArguments callerID |> List.map ~f:E.toID in
+      let dvals =
+        List.filterMap argIDs ~f:(fun id -> getLiveValue m id traceID)
+      in
+      if List.length dvals = List.length argIDs then Some dvals else None
+  | None ->
+      None
 
 
 (** [getAvailableVarnames m tl id traceID] gets a list of (varname, dval option)s that are in scope
