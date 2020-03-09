@@ -48,7 +48,7 @@ let run () =
       test
         "cannot delete a function with used-in references from elsewhere"
         (fun () ->
-          let caller = aHandler ~tlid:(TLID "1") () in
+          let caller = aHandler ~tlid:(TLID.fromString "1") () in
           expect (canDelete [caller] defaultTLID) |> toEqual false) ;
       test "can delete if only used-in references are itself" (fun () ->
           let fn = aFn () in
@@ -57,7 +57,7 @@ let run () =
         "cannot delete if any one of the used-in references is from elsewhere"
         (fun () ->
           let fn = aFn () in
-          let caller = aHandler ~tlid:(TLID "1") () in
+          let caller = aHandler ~tlid:(TLID.fromString "1") () in
           expect (canDelete [fn; caller] defaultTLID) |> toEqual false) ;
       ()) ;
   ()

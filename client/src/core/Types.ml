@@ -5,9 +5,9 @@ module TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
 module IDSet = ID.Set
 
-(* == end legacy aliases == *)
+type analysisID = ID.t [@@deriving show]
 
-type analysisID = UnsharedTypes.analysisID [@@deriving show]
+(* == end legacy aliases == *)
 
 let show_list ~(f : 'a -> string) (x : 'a list) : string =
   "[" ^ String.join ~sep:"," (List.map ~f x) ^ "]"
@@ -997,7 +997,7 @@ and editorSettings =
   { showFluidDebugger : bool
   ; runTimers : bool }
 
-(* TLID.tSelectTarget represents a target insID.t *e a TLID for use
+(* tlidSelectTarget represents a target insID.t *e a TLID for use
    by the `Select` modification.
 
    In Fluid, we should probably use STCaret in all cases --
@@ -1010,7 +1010,7 @@ and editorSettings =
    If we want to select a toplevel as a whole but don't have a
    specific ID.t *in mind, we use STTopLevelRoot. There's a few
    places where we do this as a fallback when we expected to find
-   an ID.t *but couldn't (they used to use Some(id) with an implicit
+   an id but couldn't (they used to use Some(id) with an implicit
    fallback to None). *)
 and tlidSelectTarget =
   | STCaret of caretTarget
@@ -1517,7 +1517,7 @@ and editorViewKind =
 
 and editorView =
   { id : string
-        (** the unique ID.t *of this editor panel, used to ID.t *entify it, eg, when
+        (** the unique id of this editor panel, used to identify it, eg, when
           * it is clicked and needs focus *)
   ; expressionId : ID.t  (** the id of the top-most expression in this panel *)
   ; kind : editorViewKind }
@@ -1596,7 +1596,7 @@ and model =
   ; f404s : fourOhFour list
   ; unlockedDBs : unlockedDBs
   ; integrationTestState
-      (* State of indivID.t *ual integration tests *) :
+      (* State of individual integration tests *) :
       integrationTestState
   ; visibility : PageVisibility.visibility
   ; syncState : syncState

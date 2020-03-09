@@ -436,7 +436,7 @@ let run () =
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ~tlid:fntlid ())
-                  ~dbs:[aDB ~tlid:(TLID "db123") ()]
+                  ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
                   ~userFunctions:[fn]
                   ()
               in
