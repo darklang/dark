@@ -21,7 +21,7 @@ set -euo pipefail
 cloud_sql_proxy \
     -verbose=false \
     -dir /tmp \
-    -instances "${DARK_CONFIG_MY_PROJECT}:${DARK_CONFIG_REGION}:${DARK_CONFIG_DB_INSTANCE}=unix:cloud_sql_proxy" &
+    -instances "${DARK_CONFIG_GCP_PSQL_MY_PROJECT}:${DARK_CONFIG_GCP_PSQL_REGION}:${DARK_CONFIG_GCP_PSQL_DB_INSTANCE}=unix:cloud_sql_proxy" &
 
 PGPASSWORD=$(kubectl get secrets cloudsql-db-credentials -o json |  jq -r '.data.password' | base64 -d)
 export PGPASSWORD
