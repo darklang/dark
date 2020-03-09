@@ -43,7 +43,7 @@ let moveLeft (m : model) : modification =
 
 let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
-(* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
+(* Centers the toplevel on canvas based on windowWidth and sidebarWidth
   Default values (when we can't find get elements from dom) are based on
   min-widths defined in app.less. At some point we will want to find a
   less volatile method for the constant definitions.
@@ -57,7 +57,7 @@ let centerCanvasOn (tl : toplevel) : pos =
   in
   let tlWidth =
     let tle =
-      Native.Ext.querySelector (".toplevel.tl-" ^ Prelude.showTLID (TL.id tl))
+      Native.Ext.querySelector (".toplevel.tl-" ^ TLID.toString (TL.id tl))
     in
     match tle with Some e -> Native.Ext.clientWidth e | None -> 245
   in
@@ -67,9 +67,9 @@ let centerCanvasOn (tl : toplevel) : pos =
 
 
 (* Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas *)
-let moveToToken (id : id) (tl : toplevel) : int option * int option =
-  let tokenSelector = ".id-" ^ Prelude.deID id in
-  let tlSelector = ".tl-" ^ Prelude.deTLID (TL.id tl) in
+let moveToToken (id : ID.t) (tl : toplevel) : int option * int option =
+  let tokenSelector = ".id-" ^ ID.toString id in
+  let tlSelector = ".tl-" ^ TLID.toString (TL.id tl) in
   match Native.Ext.querySelector tokenSelector with
   | Some tokenDom ->
       let sidebarWidth =

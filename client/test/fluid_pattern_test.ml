@@ -17,7 +17,7 @@ let pToString = Printer.pToString
 
 let h expr =
   { ast = FluidAST.ofExpr expr
-  ; hTLID = TLID "7"
+  ; hTLID = TLID.fromString "7"
   ; spec =
       { space = BlankOr.newF "HTTP"
       ; name = BlankOr.newF "/test"

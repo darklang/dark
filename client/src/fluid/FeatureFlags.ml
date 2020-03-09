@@ -25,7 +25,7 @@ let fromFlagged (pick : pick) (expr : E.t) : E.t =
 (** [wrap m tl id]  returns a [modification] which finds the expression
   * having [id] in toplevel [tl] and makes it into the default case of a
   * new feature flag. *)
-let wrap (_ : model) (tl : toplevel) (id : id) : modification =
+let wrap (_ : model) (tl : toplevel) (id : ID.t) : modification =
   let replacement e : E.t =
     EFeatureFlag (gid (), "flag-name", E.newB (), e, E.newB ())
   in
@@ -37,7 +37,7 @@ let wrap (_ : model) (tl : toplevel) (id : id) : modification =
 (** [unwrap m tl id]  returns a [modification] which unwraps the feature flag
  * expression having [id] in toplevel [tl], replacing it with its default case.
  * If the expression having [id] is not a FeatureFlag, does nothing. *)
-let unwrap (_ : model) (tl : toplevel) (id : id) : modification =
+let unwrap (_ : model) (tl : toplevel) (id : ID.t) : modification =
   let replacement e : E.t =
     match e with
     | E.EFeatureFlag (_id, _name, _cond, default, _enabled) ->
@@ -55,15 +55,15 @@ let start (_m : model) : modification =
   NoChange
 
 
-let end_ (_m : model) (_id : id) (_pick : pick) : modification =
+let end_ (_m : model) (_id : ID.t) (_pick : pick) : modification =
   (* TODO: needs to be reimplmented in fluid *)
   NoChange
 
 
-let toggle (id : id) (isExpanded : bool) : modification =
+let toggle (id : ID.t) (isExpanded : bool) : modification =
   ReplaceAllModificationsWithThisOne
     (fun m ->
       let featureFlags =
-        StrDict.insert ~key:(deID id) ~value:isExpanded m.featureFlags
+        StrDict.insert ~key:(ID.toString id) ~value:isExpanded m.featureFlags
       in
       ({m with featureFlags}, Tea.Cmd.none))

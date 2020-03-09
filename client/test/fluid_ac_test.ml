@@ -51,7 +51,7 @@ let sampleFunctions : function_ list =
          ; fnDeprecated = fnName = "Some::deprecated" })
 
 
-let defaultTLID = TLID "7"
+let defaultTLID = TLID.fromString "7"
 
 let defaultTraceID = "94167980-f909-527e-a4af-bc3155f586d3"
 
@@ -142,7 +142,7 @@ let defaultModel
     () : model =
   let analyses =
     analyses
-    |> List.map ~f:(fun (ID id, value) -> (id, ExecutedResult value))
+    |> List.map ~f:(fun (id, value) -> (ID.toString id, ExecutedResult value))
     |> StrDict.fromList
   in
   let default = Fluid_test_data.defaultTestModel in
@@ -350,9 +350,9 @@ let run () =
                    |> itemPresent (FACVariable ("event", None)) ])
               |> toEqual [true; true]) ;
           test "functions have DB names in the autocomplete" (fun () ->
-              let blankid = ID "123" in
+              let blankid = ID.fromString "123" in
               let dbNameBlank = EBlank blankid in
-              let fntlid = TLID "fn123" in
+              let fntlid = TLID.fromString "fn123" in
               let fn =
                 aFunction
                   ~tlid:fntlid
@@ -363,7 +363,7 @@ let run () =
               let m =
                 defaultModel
                   ~tlid:fntlid
-                  ~dbs:[aDB ~tlid:(TLID "db123") ()]
+                  ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
                   ~userFunctions:[fn]
                   ()
               in
@@ -390,7 +390,7 @@ let run () =
               let m =
                 defaultModel
                   ~analyses:[(id, DDB "MyDB")]
-                  ~dbs:[aDB ~tlid:(TLID "23") ()]
+                  ~dbs:[aDB ~tlid:(TLID.fromString "23") ()]
                   ~handlers:[aHandler ~expr ()]
                   ()
               in
@@ -474,9 +474,9 @@ let run () =
               expect (valid |> List.map ~f:AC.asName)
               |> toEqual ["String::append"]) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
-              let tlid = TLID "789" in
-              let mID = ID "1234" in
-              let patID = ID "456" in
+              let tlid = TLID.fromString "789" in
+              let mID = ID.fromString "1234" in
+              let patID = ID.fromString "456" in
               let pattern = P.FPVariable (mID, patID, "o") in
               let expr = match' b [(pattern, b)] in
               let m =

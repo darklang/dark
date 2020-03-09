@@ -6,7 +6,7 @@ module TD = TLIDDict
 module E = FluidExpression
 
 type editorViewState =
-  { tlid : tlid
+  { tlid : TLID.t
   ; editorId : string option
   ; expr : E.t
   ; tokens : FluidToken.tokenInfo list }
@@ -17,9 +17,9 @@ type viewState =
   ; mainEditor : editorViewState
   ; extraEditors : editorViewState list
   ; cursorState : cursorState
-  ; tlid : tlid
+  ; tlid : TLID.t
   ; isAdmin : bool
-  ; hovering : (tlid * id) option
+  ; hovering : (TLID.t * ID.t) option
   ; ac : autocomplete
   ; showEntry : bool
   ; showLivevalue : bool
@@ -29,16 +29,16 @@ type viewState =
   ; dbStats : dbStatsStore
   ; ufns : userFunction list
   ; fns : function_ list
-  ; executingFunctions : id list
+  ; executingFunctions : ID.t list
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
-  ; refersToRefs : (toplevel * id list) list
+  ; refersToRefs : (toplevel * ID.t list) list
   ; usedInRefs : toplevel list
-  ; hoveringRefs : id list
+  ; hoveringRefs : ID.t list
   ; fluidState : fluidState
   ; avatarsList : avatar list
   ; permission : permission option
@@ -79,7 +79,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
                ~default:(E.newB ())
                (Printf.sprintf
                   "failed to find expr %s for editor %s"
-                  (e.expressionId |> deID)
+                  (e.expressionId |> ID.toString)
                   e.id)
         in
         let tokens = FluidPrinter.tokenizeForViewKind e.kind expr in

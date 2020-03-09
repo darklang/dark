@@ -44,20 +44,13 @@ module Json = struct
   module Encode = Json_encode_extended
 end
 
-(* -------------------------------------- *)
+(* --- *)
 (* IDs *)
-(* -------------------------------------- *)
-let deID (ID i : id) : string = i
+(* --- *)
 
-let showID (ID i : id) = i
+let gid = Shared.gid
 
-let gid () = Shared.gid ()
-
-let deTLID (TLID i : tlid) : string = i
-
-let showTLID (TLID i) = i
-
-let gtlid () : tlid = TLID (Util.random () |> string_of_int)
+let gtlid () : TLID.t = Util.random () |> string_of_int |> TLID.fromString
 
 (* -------------------------------------- *)
 (* CursorState *)

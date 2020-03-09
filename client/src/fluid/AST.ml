@@ -82,7 +82,7 @@ let rec uses (var : string) (expr : E.t) : E.t list =
 (* If the expression at `id` is one of the expressions in a pipe, this returns
  * the previous expression in that pipe (eg, the one that is piped into this
  * one) *)
-let pipePrevious (id : id) (ast : FluidAST.t) : E.t option =
+let pipePrevious (id : ID.t) (ast : FluidAST.t) : E.t option =
   match FluidAST.findParent id ast with
   | Some (EPipe (_, exprs)) ->
       exprs
@@ -94,7 +94,7 @@ let pipePrevious (id : id) (ast : FluidAST.t) : E.t option =
 
 (* If the expression at `id` is one of the expressions in a pipe, this returns
  * the next expression in that pipe (eg, the one that the expr at `id` pipes into) *)
-let pipeNext (id : id) (ast : FluidAST.t) : E.t option =
+let pipeNext (id : ID.t) (ast : FluidAST.t) : E.t option =
   match FluidAST.findParent id ast with
   | Some (EPipe (_, exprs)) ->
       exprs
@@ -105,7 +105,7 @@ let pipeNext (id : id) (ast : FluidAST.t) : E.t option =
 
 
 (* Given the ID of a function call or binop, return its arguments. Takes pipes into account. *)
-let getArguments (id : id) (ast : FluidAST.t) : E.t list =
+let getArguments (id : ID.t) (ast : FluidAST.t) : E.t list =
   let pipePrevious = pipePrevious id ast in
   let caller = FluidAST.find id ast in
   let defaultArgs =
@@ -133,7 +133,7 @@ let getArguments (id : id) (ast : FluidAST.t) : E.t list =
  * eg: Int::add 4 3 => if `id` was the id of the `4` expression, then we'd
  *                     return (`Int::add`, 0)
  *)
-let getParamIndex (id : id) (ast : FluidAST.t) : (string * int) option =
+let getParamIndex (id : ID.t) (ast : FluidAST.t) : (string * int) option =
   let parent =
     pipeNext id ast |> Option.orElseLazy (fun () -> FluidAST.findParent id ast)
   in
@@ -150,7 +150,7 @@ let getParamIndex (id : id) (ast : FluidAST.t) : (string * int) option =
 (* Ancestors *)
 (* ------------------------- *)
 
-let freeVariables (ast : E.t) : (id * string) list =
+let freeVariables (ast : E.t) : (ID.t * string) list =
   (* Find all variable lookups that lookup a variable that
    * is also _defined_ in this expression. We create a set of
    * these IDs so we can filter them out later. *)
@@ -181,7 +181,7 @@ let freeVariables (ast : E.t) : (id * string) list =
            | _ ->
                None)
     |> List.concat
-    |> List.map ~f:(E.toID >> deID)
+    |> List.map ~f:(E.toID >> ID.toString)
     |> StrSet.fromList
   in
   ast
@@ -189,7 +189,7 @@ let freeVariables (ast : E.t) : (id * string) list =
          | EVariable (id, name) ->
              (* Don't include EVariable lookups that we know are looking
               * up a variable bound in this expression *)
-             if StrSet.member ~value:(deID id) definedAndUsed
+             if StrSet.member ~value:(ID.toString id) definedAndUsed
              then None
              else Some (id, name)
          | _ ->
@@ -200,7 +200,7 @@ let freeVariables (ast : E.t) : (id * string) list =
 module VarDict = StrDict
 module IDTable = Belt.MutableMap.String
 
-type sym_set = id VarDict.t
+type sym_set = ID.t VarDict.t
 
 type sym_store = sym_set IDTable.t
 
@@ -288,7 +288,7 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
  * Each symbol table maps from every available variable name to the id of the corresponding value expression bound to that name. *)
 let variablesIn (ast : E.t) : avDict =
   let sym_store = IDTable.make () in
-  let trace expr st = IDTable.set sym_store (deID (E.toID expr)) st in
+  let trace expr st = IDTable.set sym_store (ID.toString (E.toID expr)) st in
   sym_exec ~trace VarDict.empty ast ;
   sym_store |> IDTable.toList |> StrDict.fromList
 

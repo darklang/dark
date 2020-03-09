@@ -82,11 +82,11 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
           then
             [ Html.title "Replay this execution"
             ; ViewUtils.eventNoPropagation
-                ~key:("lh" ^ "-" ^ showTLID vs.tlid)
+                ~key:("lh" ^ "-" ^ TLID.toString vs.tlid)
                 "click"
                 (fun _ -> TriggerHandler vs.tlid)
             ; ViewUtils.onAnimationEnd
-                ~key:("exe" ^ "-" ^ showTLID vs.tlid)
+                ~key:("exe" ^ "-" ^ TLID.toString vs.tlid)
                 ~listener:(fun name ->
                   if name = "fadeIn"
                   then SetHandlerExeIdle vs.tlid
@@ -211,8 +211,9 @@ let viewEventSpec
     [viewType; viewEventName; viewActions]
 
 
-let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list =
-  let sid = showTLID tlid in
+let handlerAttrs (tlid : TLID.t) (state : handlerState) : msg Vdom.property list
+    =
+  let sid = TLID.toString tlid in
   let codeHeight id =
     let e =
       Native.Ext.querySelector (".toplevel.tl-" ^ id ^ " .handler-body")

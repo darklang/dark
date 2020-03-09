@@ -33,10 +33,10 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
         []
         [ Html.text
             ( CursorState.tlidOf m.cursorState
-            |> Option.map ~f:deTLID
+            |> Option.map ~f:TLID.toString
             |> Option.withDefault ~default:"None" ) ]
     ; dtText "ast root"
-    ; Html.dd [] [Html.text (FluidAST.toID ast |> deID)]
+    ; Html.dd [] [Html.text (FluidAST.toID ast |> ID.toString)]
     ; dtText "active editor"
     ; Html.dd
         []
