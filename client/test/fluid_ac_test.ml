@@ -96,7 +96,7 @@ let defaultFullQuery
         defaultTokenInfo
   in
   let _, ti = ac.query |> Option.withDefault ~default:(TL.id tl, ti) in
-  {tl; ti; fieldDval = None; pipedDval = None; queryString}
+  {tl; ti; fieldList = []; pipedDval = None; queryString}
 
 
 let aHandler

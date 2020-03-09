@@ -195,10 +195,7 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
       true
 
 
-let dvalFields (dv : dval) : string list =
-  match dv with DObj dict -> StrDict.keys dict | _ -> []
-
-
+(* Return the value being piped into the token at ti, if there is one *)
 let findPipedDval (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   let id =
     TL.getAST tl
@@ -212,7 +209,8 @@ let findPipedDval (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
          match dv with DIncomplete _ -> None | _ -> Some dv)
 
 
-let findFieldDval (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
+(* Return the fields of the object being referenced at ti, if there is one *)
+let findFields (m : model) (tl : toplevel) (ti : tokenInfo) : string list =
   let tlid = TL.id tl in
   let id =
     match ti.token with
@@ -225,8 +223,9 @@ let findFieldDval (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   in
   Analysis.getSelectedTraceID m tlid
   |> Option.andThen ~f:(Analysis.getLiveValue m id)
-  |> Option.andThen ~f:(fun dv ->
-         match dv with DIncomplete _ -> None | _ -> Some dv)
+  |> Option.map ~f:(fun dv ->
+         match dv with DObj dict -> StrDict.keys dict | _ -> [])
+  |> Option.withDefault ~default:[]
 
 
 let isPipeMember (tl : toplevel) (ti : tokenInfo) =
@@ -297,7 +296,7 @@ type query = tlid * tokenInfo
 type fullQuery =
   { tl : toplevel
   ; ti : tokenInfo
-  ; fieldDval : dval option
+  ; fieldList : string list
   ; pipedDval : dval option
   ; queryString : string }
 
@@ -387,13 +386,7 @@ let generatePatterns ti a queryString =
       []
 
 
-let generateFields dval =
-  match dval with
-  | Some dv when RT.typeOf dv = TObj ->
-      List.map ~f:(fun x -> FACField x) (dvalFields dv)
-  | _ ->
-      []
-
+let generateFields fieldList = List.map ~f:(fun x -> FACField x) fieldList
 
 let generate (m : model) (a : autocomplete) (query : fullQuery) : autocomplete =
   let items =
@@ -401,7 +394,7 @@ let generate (m : model) (a : autocomplete) (query : fullQuery) : autocomplete =
     | TPatternBlank _ | TPatternVariable _ ->
         generatePatterns query.ti a query.queryString
     | TFieldName _ | TFieldPartial _ ->
-        generateFields query.fieldDval
+        generateFields query.fieldList
     | _ ->
         generateExprs m query.tl a query.ti
   in
@@ -519,9 +512,9 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
       reset m
   | Some tl ->
       let queryString = toQueryString ti in
-      let fieldDval = findFieldDval m tl ti in
+      let fieldList = findFields m tl ti in
       let pipedDval = findPipedDval m tl ti in
-      let query = {tl; ti; fieldDval; pipedDval; queryString} in
+      let query = {tl; ti; fieldList; pipedDval; queryString} in
       generate m a query |> refilter query
 
 
