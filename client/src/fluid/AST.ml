@@ -79,12 +79,27 @@ let rec uses (var : string) (expr : E.t) : E.t list =
 (* EPipe stuff *)
 (* ------------------------- *)
 
+(* If the expression at `id` is one of the expressions in a pipe, this returns
+ * the previous expression in that pipe (eg, the one that is piped into this
+ * one) *)
 let pipePrevious (id : id) (ast : FluidAST.t) : E.t option =
   match FluidAST.findParent id ast with
   | Some (EPipe (_, exprs)) ->
       exprs
       |> List.find ~f:(fun e -> E.toID e = id)
       |> Option.andThen ~f:(fun value -> Util.listPrevious ~value exprs)
+  | _ ->
+      None
+
+
+(* If the expression at `id` is one of the expressions in a pipe, this returns
+ * the next expression in that pipe (eg, the one that the expr at `id` pipes into) *)
+let pipeNext (id : id) (ast : FluidAST.t) : E.t option =
+  match FluidAST.findParent id ast with
+  | Some (EPipe (_, exprs)) ->
+      exprs
+      |> List.find ~f:(fun e -> E.toID e = id)
+      |> Option.andThen ~f:(fun value -> Util.listNext ~value exprs)
   | _ ->
       None
 
@@ -111,35 +126,19 @@ let getArguments (id : id) (ast : FluidAST.t) : E.t list =
       defaultArgs
 
 
-(* Search for `id`, and if it is an argument of a function, return the function
-  * name and the index of the parameter it corresponds to.
-  *
-  * eg: Int::add 4 3 => if `id` was the id of the `4` expression, then we'd
-  *                     return (`Int::add`, 0)
-  * *)
+(* Search for `id`, and if it is an argument of a function (including if it is
+ * being piped into afunction), return the function name and the index of the
+ * parameter it corresponds to.
+ *
+ * eg: Int::add 4 3 => if `id` was the id of the `4` expression, then we'd
+ *                     return (`Int::add`, 0)
+ *)
 let getParamIndex (id : id) (ast : FluidAST.t) : (string * int) option =
   let parent =
-    match FluidAST.findParent id ast with
-    | Some (EPipe (_, exprs)) ->
-        (* For an argument piped into a function, the "parent" would
-         * be the next pipe member) *)
-        exprs
-        |> List.find ~f:(fun e -> E.toID e = id)
-        |> Option.andThen ~f:(fun value -> Util.listNext ~value exprs)
-    | parent ->
-        parent
+    pipeNext id ast |> Option.orElseLazy (fun () -> FluidAST.findParent id ast)
   in
-  let meta =
-    match parent with
-    | Some (EFnCall (fnID, name, _, _)) ->
-        Some (fnID, name)
-    | Some (EBinOp (fnID, name, _, _, _)) ->
-        Some (fnID, name)
-    | _ ->
-        None
-  in
-  match meta with
-  | Some (fnID, name) ->
+  match parent with
+  | Some (EFnCall (fnID, name, _, _)) | Some (EBinOp (fnID, name, _, _, _)) ->
       getArguments fnID ast
       |> List.findIndex ~f:(fun e -> E.toID e = id)
       |> Option.map ~f:(fun index -> (name, index))
