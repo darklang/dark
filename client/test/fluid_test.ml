@@ -495,6 +495,28 @@ let t
         |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
 
 
+(** [tStruct name ast pos inputs expectedStructure]
+* tests if applying [inputs] to the [ast] with a
+* non-selecting state derived from [pos] produces a structure
+* that matches the [expectedStructure] string.
+* The format of that string must match that produced by Printer.eToTestcase.
+* [name] is the name of the test.
+*)
+let tStruct
+    (name : string)
+    (ast : fluidExpr)
+    ~(pos : int)
+    (inputs : fluidInputEvent list)
+    (expectedStructure : string) =
+  test name (fun () ->
+      let s =
+        {defaultTestState with oldPos = pos; newPos = pos; selectionStart = None}
+      in
+      let newAST, _newState = processMsg inputs s ast in
+      expect (Printer.eToTestcase (FluidAST.toExpr newAST))
+      |> toEqual expectedStructure)
+
+
 let run () =
   OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
@@ -1858,42 +1880,42 @@ let run () =
         aFnCallWithVersion
         ~pos:11
         del
-        "DB::getAllv~@ ___________________" ;
+        "DB::getAll~@@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version"
         aFnCallWithVersion
         ~pos:12
         bs
-        "DB::getAllv~@ ___________________" ;
+        "DB::getAll~@@ ___________________" ;
       t
         ~expectsPartial:true
         "del on function with version in between the version and function name"
         aFnCallWithVersion
         ~pos:10
         del
-        "DB::getAll~1@ ___________________" ;
+        "DB::getAll~@@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version in between the version and function name"
         aFnCallWithVersion
         ~pos:10
         bs
-        "DB::getAl~v1@ ___________________" ;
+        "DB::getAl~@v@ ___________________" ;
       t
         ~expectsPartial:true
         "del on function with version in function name"
         aFnCallWithVersion
         ~pos:7
         del
-        "DB::get~llv1@ ___________________" ;
+        "DB::get~ll@v@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version in function name"
         aFnCallWithVersion
         ~pos:8
         bs
-        "DB::get~llv1@ ___________________" ;
+        "DB::get~ll@v@ ___________________" ;
       t
         "adding function with version goes to the right place"
         b
@@ -1912,7 +1934,7 @@ let run () =
         aFnCallWithVersion
         ~pos:6
         (inputs [DeleteWordBackward])
-        "~tAllv1@Allv@ ___________________" ;
+        "~tAll@etAllv@ ___________________" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward in end of function version deletes to function"
@@ -1926,7 +1948,7 @@ let run () =
         aFnCallWithVersion
         ~pos:6
         (inputs [DeleteWordForward])
-        "DB::ge~v1@lv@ ___________________" ;
+        "DB::ge~@Allv@ ___________________" ;
       t
         "DeleteWordForward in end of function version moves cursor to end of blank "
         aFnCallWithVersion
@@ -2273,18 +2295,12 @@ let run () =
         ~pos:7
         (inputs [InsertText "="; keypress K.Enter])
         "12345 <= ~12345" ;
-      test "wrapping a binop in a let with enter" (fun () ->
-          let pos = 0 in
-          let ast = binop "+" (int 1) (int 2) in
-          let s =
-            { defaultTestState with
-              oldPos = pos
-            ; newPos = pos
-            ; selectionStart = None }
-          in
-          let newAST, _newState = processMsg [keypress K.Enter] s ast in
-          expect (Printer.eToTestcase (FluidAST.toExpr newAST))
-          |> toEqual "(let' \"\" (b) (binop \"+\" (int 1) (int 2)))") ;
+      tStruct
+        "wrapping a binop in a let with enter creates correct ast"
+        (binop "+" (int 1) (int 2))
+        ~pos:0
+        [keypress ~shiftHeld:false K.Enter]
+        "(let' \"\" (b) (binop \"+\" (int 1) (int 2)))" ;
       t
         ~expectsPartial:true
         "adding binop in `if` works"
@@ -3203,6 +3219,17 @@ let run () =
         ~pos:0
         enter
         "let *** = ___\n~12345" ;
+      tStruct
+        "wrapping a pipe in a let with enter creates correct ast"
+        aPipe
+        ~pos:0
+        [keypress ~shiftHeld:false K.Enter]
+        "(let' \"\" (b) (pipe (list []) [(fn \"List::append\" [(pipeTarget);(list [(int 5)])]);(fn \"List::append\" [(pipeTarget);(list [(int 5)])])]))" ;
+      t
+        "wrapping a pipe in a let with enter places caret correctly"
+        aPipe
+        enter
+        "let *** = ___\n~[]\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "Ctrl+left in front of a varname moves to previous editable text"
         matchWithTwoLets
@@ -3676,6 +3703,12 @@ let run () =
         ~pos:3
         (ins ",")
         "[56,~___]" ;
+      t
+        "insert separator after item creates blank when list is in match"
+        (match' single [(pBlank (), b)])
+        ~pos:9
+        (ins ",")
+        "match [56,~___]\n  *** -> ___\n" ;
       t
         "insert separator between items creates blank"
         multi

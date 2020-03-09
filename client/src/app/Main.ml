@@ -1068,9 +1068,13 @@ let update_ (msg : msg) (m : model) : modification =
           if distSquared viewportStart viewportCurr
              <= maxSquareDistToConsiderAsClick
           then
+            (* {m with cursorState = prevCursorState} bypasses the focus part of 
+             * CursorState.setCursorState to avoid focusing any elements that
+             * clickBehavior might dismiss (ex closing the omnibox). *)
             Many
               ( ReplaceAllModificationsWithThisOne
-                  (CursorState.setCursorState prevCursorState)
+                  (fun m ->
+                    ({m with cursorState = prevCursorState}, Tea.Cmd.none))
               :: clickBehavior )
           else
             ReplaceAllModificationsWithThisOne

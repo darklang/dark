@@ -60,6 +60,14 @@
 )
 
 (executable
+  (name warm_toplevel_cache)
+  (modules warm_toplevel_cache)
+  (flags (-warn-error +A -w +9))
+  (libraries libbackend libcommon)
+  (preprocess (pps lwt_ppx))
+)
+
+(executable
   (name migration_to_deprecate_old_types)
   (modules migration_to_deprecate_old_types)
   (flags (-warn-error +A -w +9))
