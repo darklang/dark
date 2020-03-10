@@ -33,6 +33,7 @@ let sampleFunctions : function_ list =
   ; ("DB::get_v1", [TDB], TList)
   ; ("String::append", [TStr; TStr], TStr)
   ; ("List::append", [TList; TList], TList)
+  ; ("String::newline", [], TStr)
   ; ("Option::withDefault", [TOption], TAny)
   ; ("Result::withDefault", [TResult], TAny) ]
   |> List.map ~f:(fun (fnName, paramTipes, fnReturnTipe) ->
@@ -478,6 +479,21 @@ let run () =
               let valid, _invalid = filterFor m ~pos:14 in
               expect (valid |> List.map ~f:AC.asName)
               |> toEqual ["String::append"]) ;
+          test "functions with no arguments are invalid when piping" (fun () ->
+              let id = gid () in
+              let expr = pipe (int ~id 5) [partial "string" b] in
+              let m =
+                defaultModel
+                  ~analyses:[(id, DInt 5)]
+                  ~handlers:[aHandler ~expr ()]
+                  ()
+              in
+              let _valid, invalid = filterFor m ~pos:10 in
+              expect
+                ( invalid
+                |> List.map ~f:AC.asName
+                |> List.filter ~f:(( = ) "String::newline") )
+              |> toEqual ["String::newline"]) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
               let tlid = TLID.fromString "789" in
               let mID = ID.fromString "1234" in
