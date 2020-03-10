@@ -262,7 +262,7 @@ let typeCheck
     (data, data) Either.t =
   let open Either in
   let valid = Left {item; validity = FACItemValid} in
-  let invalid reason = Left {item; validity = reason} in
+  let invalid reason = Right {item; validity = reason} in
   match item with
   | FACFunction fn ->
       if not (RT.isCompatible fn.fnReturnTipe expectedReturnType)
