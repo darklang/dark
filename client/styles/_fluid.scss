@@ -473,6 +473,9 @@ since they are essentially both commands just acting upon different things. */
         &.invalid,
         &.invalid .types {
           color: lighten($grey2, 5%);
+          .invalidCulprit {
+            color: desaturate(lighten($red, 10%), 5%);
+          }
 
           &.highlighted {
             color: darken($highlight-color, 30%);

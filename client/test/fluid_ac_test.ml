@@ -33,6 +33,7 @@ let sampleFunctions : function_ list =
   ; ("DB::get_v1", [TDB], TList)
   ; ("String::append", [TStr; TStr], TStr)
   ; ("List::append", [TList; TList], TList)
+  ; ("String::newline", [], TStr)
   ; ("Option::withDefault", [TOption], TAny)
   ; ("Result::withDefault", [TResult], TAny) ]
   |> List.map ~f:(fun (fnName, paramTipes, fnReturnTipe) ->
@@ -174,11 +175,23 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
 
 let setQuery (q : string) (a : AC.autocomplete) : AC.autocomplete =
   let fullQ = defaultFullQuery a q in
-  AC.refilter fullQ a
+  AC.refilter fullQ a (List.map ~f:(fun {item; _} -> item) a.completions)
 
 
-let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
-  List.member ~value:aci ac.completions
+let filterValid (a : AC.autocomplete) : AC.autocompleteItem list =
+  List.filterMap a.completions ~f:(function
+      | {item; validity = FACItemValid} ->
+          Some item
+      | _ ->
+          None)
+
+
+let filterInvalid (a : AC.autocomplete) : AC.autocompleteItem list =
+  List.filterMap a.completions ~f:(function
+      | {validity = FACItemValid; _} ->
+          None
+      | {item; _} ->
+          Some item)
 
 
 let run () =
@@ -187,7 +200,7 @@ let run () =
           let m = defaultModel () in
           let acForQueries (qs : string list) =
             List.foldl qs ~init:(acFor m) ~f:setQuery
-            |> (fun x -> x.completions)
+            |> filterValid
             |> List.map ~f:AC.asName
           in
           let acForQuery (q : string) = acForQueries [q] in
@@ -287,8 +300,7 @@ let run () =
               expect
                 ( acFor m
                 |> setQuery "withLo"
-                |> (fun x -> x.completions)
-                (* |> List.filter ~f:isStaticItem *)
+                |> filterValid
                 |> List.map ~f:AC.asName )
               |> toEqual
                    [ "withLower"
@@ -334,21 +346,16 @@ let run () =
           test "http handlers have request" (fun () ->
               let space = Some "HTTP" in
               let m = defaultModel ~handlers:[aHandler ~space ()] () in
-              expect
-                ( acFor m
-                |> setQuery "request"
-                |> itemPresent (FACVariable ("request", None)) )
-              |> toEqual true) ;
+              expect (acFor m |> setQuery "request" |> filterValid)
+              |> toEqual [FACVariable ("request", None)]) ;
           test "handlers with no route have request and event" (fun () ->
               expect
                 (let ac = acFor m in
-                 [ ac
-                   |> setQuery "request"
-                   |> itemPresent (FACVariable ("request", None))
-                 ; ac
-                   |> setQuery "event"
-                   |> itemPresent (FACVariable ("event", None)) ])
-              |> toEqual [true; true]) ;
+                 ( ac |> setQuery "request" |> filterValid
+                 , ac |> setQuery "event" |> filterValid ))
+              |> toEqual
+                   ( [FACVariable ("request", None)]
+                   , [FACVariable ("event", None)] )) ;
           test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID.fromString "123" in
               let dbNameBlank = EBlank blankid in
@@ -368,9 +375,8 @@ let run () =
                   ()
               in
               let ac = acFor ~tlid:fntlid ~pos:14 m in
-              expect
-                (ac |> itemPresent (FACVariable ("MyDB", Some (DDB "MyDB"))))
-              |> toEqual true) ;
+              expect (ac |> setQuery "MyDB" |> filterValid)
+              |> toEqual [FACVariable ("MyDB", Some (DDB "MyDB"))]) ;
           ()) ;
       describe "filter" (fun () ->
           let isConstructor = function
@@ -382,7 +388,7 @@ let run () =
           let isVariable = function FACVariable _ -> true | _ -> false in
           let filterFor m ~pos =
             let ac = acFor ~pos m in
-            (ac.completions, ac.invalidCompletions)
+            (filterValid ac, filterInvalid ac)
           in
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
               let id = gid () in
@@ -473,6 +479,21 @@ let run () =
               let valid, _invalid = filterFor m ~pos:14 in
               expect (valid |> List.map ~f:AC.asName)
               |> toEqual ["String::append"]) ;
+          test "functions with no arguments are invalid when piping" (fun () ->
+              let id = gid () in
+              let expr = pipe (int ~id 5) [partial "string" b] in
+              let m =
+                defaultModel
+                  ~analyses:[(id, DInt 5)]
+                  ~handlers:[aHandler ~expr ()]
+                  ()
+              in
+              let _valid, invalid = filterFor m ~pos:10 in
+              expect
+                ( invalid
+                |> List.map ~f:AC.asName
+                |> List.filter ~f:(( = ) "String::newline") )
+              |> toEqual ["String::newline"]) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
               let tlid = TLID.fromString "789" in
               let mID = ID.fromString "1234" in
@@ -484,9 +505,7 @@ let run () =
                 |> fun m -> {m with builtInFunctions = []}
               in
               expect
-                ( acFor ~tlid ~pos:13 m
-                |> (fun x -> x.completions)
-                |> List.map ~f:(fun x -> AC.asName x) )
+                (acFor ~tlid ~pos:13 m |> filterValid |> List.map ~f:AC.asName)
               |> toEqual ["o"; "Ok"; "Nothing"; "Error"]) ;
           ()) ;
       ()) ;
