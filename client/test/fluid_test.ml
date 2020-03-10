@@ -22,24 +22,16 @@ open FluidShortcuts
  * The stringified result is "12.456" and the caret should be in position 2
  * (indicated by the tilde in the expectation string).
  *
- * There are a handful of functions you can call, including key, keys, insert,
- * bs, del, tab, shiftTab, and render (no input, just verify rendering of an
- * expression).
+ * There are a handful of functions you can call to simulate input, including
+ * key, keys, insert, bs, del, tab, and shiftTab. render works similarly, but
+ * doesn't simulate input; it only verifies that the given expression renders
+ * correctly.
 
  ***********
  * Options *
  ***********
 
- * There are a few options that can be passed to [t]:
- *
- * expectsPartial:
- *   By default, tests expect not to contain partials. When passed
- *   ~expectPartial:true, the test will assert that the result /does/ include
- *   a partial.
- *
- * debug:
- *   When you need more information about a single test, set the ~debug:true
- *   flag to see the entire AST/fluidState before and after the test.
+ * There are a few options that can be passed to [t]. All are optional.
  *
  * pos:
  *   Sets the initial position of the caret (fluidState.newPos), which
@@ -51,7 +43,16 @@ open FluidShortcuts
  *   RTL selection can be set by giving a "backwards" tuple. Eg, ~sel:(0,2)
  *   selects the first two characters left-to-right while ~sel:(2,0) selects
  *   them right-to-left.
-
+ *
+ * expectsPartial
+ *   By default, tests expect zero partials in the result. When passed
+ *   ~expectPartial:true, the test will assert that the result /does/ include
+ *   a partial.
+ *
+ * debug
+ *   When you need more information about a single test, set the ~debug:true
+ *   flag to see the entire AST/fluidState before and after the test.
+ *
  **********************
  * Expectation String *
  **********************
@@ -66,7 +67,8 @@ open FluidShortcuts
  *  TPartials are displayed as text - to detect their presence, see
  *  "~expectsPartial:true" above.
  *
- *  TGhostPartials are displayed as multiple @ signs.
+ *  TGhostPartials are displayed as normal except their first and last
+ *  characters are replaced with @ signs.
  *
  *  Other blanks (see FluidToken.isBlank) are displayed as `***` This is
  *  controlled by FluidPrinter.toTestText.
@@ -85,13 +87,11 @@ open FluidShortcuts
  * had tests that passed despite there being a bug in the caret placement that
  * would otherwise move the caret out-of-bounds.
  *
- *    ```
- *    if true
- *    then
- *      expression-I-actually-want-to-test
- *    else
- *      5
- *    ```
+ * if true
+ * then
+ *   test-expression-tokenized-here
+ * else
+ *   5
  *
  * We go to great efforts to fix the indentation afterwards. However, you
  * may find that your test works without the wrapping and doesn't work
@@ -106,13 +106,24 @@ open FluidShortcuts
 
  * All test cases created with `t` are automatically run inside a feature flag
  * panel as well as in the main editor. That is, they are run in the "new code"
- * section of the feature flag, with the flag being the root of the AST. As
- * with the wrapper, similar steps are taken to remove the extra tokens and
- * spacing in the flag panel.
+ * section of the feature flag, with the flag being the root of the AST.
  *
- * If for some reason this doesn't work (which is definitely a bug!), you can
- * disable running the test in the flag panel with `brokenInFF:true` until you
- * fix the behavior.
+ * The token list in the flag panel always contains more than just the tokens
+ * from the test expression, since a flag panel contains the condition and
+ * keywords as well:
+ *
+ * when true
+ * enabled
+ *   test-expression-tokenized-here
+ *
+ * As with the if/then/else wrapper, similar steps are taken to remove the
+ * extra tokens and spacing in the flag panel, adjusting all positions as
+ * necessary.
+ *
+ * If for some reason your test doesn't run successfully in both the main
+ * editor and the flag panel (which is definitely a bug!), you can disable
+ * running the test in the flag panel with `brokenInFF:true` until you fix the
+ * behavior.
  *)
 
 let magicIfElseWrapperPrefix = 15 (* "if true\nthen\n  " *)
@@ -299,9 +310,10 @@ module TestResult = struct
 
 
   (** [pos r] returns the equivalent of fluidState.newPos from test result [r],
-    * unwrapping or remove feature flag tokens as appropriate.
+    * adjusted to take into account either the test wrapper (if enabled) or the
+    * extra tokens in the feature flag panel (if running the test in a FF)
     *
-    * See the block comment at top of file for more. *)
+    * See the block comment at top of file for more info about wrapping magic. *)
   let pos (res : t) : int =
     if res.testcase.ff
     then
@@ -319,9 +331,11 @@ module TestResult = struct
 
 
   (** [selection r] returns the equivalent of fluidState.selectionStart from
-    * test result [r], unwrapping or remove feature flag tokens as appropriate.
+    * test result [r], adjusted to take into account either the test wrapper (if
+    * enabled) or the extra tokens in the feature flag panel (if running the
+    * test in a FF)
     *
-    * See the block comment at top of file for more. *)
+    * See the block comment at top of file for more info about wrapping magic. *)
   let selection (res : t) : int option =
     if res.testcase.ff
     then
