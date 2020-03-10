@@ -120,7 +120,8 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     , Cmd.batch
         [ API.loadPackages m
         ; API.initialLoad m (FocusPageAndCursor (page, savedCursorState))
-        ; API.sendPresence m avMessage ] )
+        ; API.sendPresence m avMessage
+        ; API.getCanvasInfo m ] )
 
 
 let processFocus (m : model) (focus : focus) : modification =
@@ -2104,14 +2105,23 @@ let update_ (msg : msg) (m : model) : modification =
                ~reload:false
                err) ]
   | SettingsViewMsg (TriggerUpdateCanvasInfoCallback (Error err) as msg) ->
-               Many
-                 [ SettingsViewUpdate msg
-                 ; HandleAPIError
-                     (APIError.make
-                        ~context:"TriggerUpdateCanvasInfoCallback"
-                        ~importance:IgnorableError
-                        ~reload:false
-                        err) ]
+      Many
+        [ SettingsViewUpdate msg
+        ; HandleAPIError
+            (APIError.make
+               ~context:"TriggerUpdateCanvasInfoCallback"
+               ~importance:IgnorableError
+               ~reload:false
+               err) ]
+  | SettingsViewMsg (TriggerGetCanvasInfoCallback (Error err) as msg) ->
+      Many
+        [ SettingsViewUpdate msg
+        ; HandleAPIError
+            (APIError.make
+               ~context:"TriggerGetCanvasInfoCallback"
+               ~importance:IgnorableError
+               ~reload:false
+               err) ]
   | SettingsViewMsg msg ->
       SettingsViewUpdate msg
   | FnParamMsg msg ->

@@ -234,6 +234,23 @@ let sendInvite (m : model) (invite : SettingsViewTypes.inviteFormMessage) :
   else Tea.Cmd.none
 
 
+let getCanvasInfo (m : model) : msg Tea.Cmd.t =
+  let url =
+    "http://sydney-canvas-information.builtwithdark.localhost:8000/canvas-info"
+  in
+  let request =
+    postJson
+      (* ~withCredentials:true *)
+      Decoders.loadCanvasInfoAPIResult
+      m.csrfToken
+      url
+      (Encoders.getCanvasInfoParams m.canvasName)
+  in
+  Tea.Http.send
+    (fun x -> SettingsViewMsg (TriggerGetCanvasInfoCallback x))
+    request
+
+
 let sendCanvasInfo (m : model) (canvasInfo : SettingsViewTypes.updateCanvasInfo)
     : msg Tea.Cmd.t =
   let url =

@@ -28,6 +28,8 @@ type updateCanvasInfo =
   ; canvasShipped : string }
 [@@deriving show]
 
+type getCanvasInfoParams = {canvasName : string} [@@deriving show]
+
 type canvasInformation =
   { canvas_description : string
   ; shipped_date : string option
@@ -41,6 +43,11 @@ type settingsViewState =
   ; org_list : string list
   ; loading : bool
   ; canvas_information : canvasInformation }
+[@@deriving show]
+
+type loadCanvasInfoAPIResult =
+  { canvas_description : string
+  ; shipped_date : string }
 [@@deriving show]
 
 type settingsMsg =
@@ -57,4 +64,7 @@ type settingsMsg =
   | TriggerUpdateCanvasInfoCallback of
       (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
       [@printer opaque "TriggerUpdateCanvasInfoCallback"]
+  | TriggerGetCanvasInfoCallback of
+      (loadCanvasInfoAPIResult, (string Tea.Http.error[@opaque])) Tea.Result.t
+      [@printer opaque "LoadPackagesAPICallback"]
 [@@deriving show]

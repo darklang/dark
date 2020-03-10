@@ -131,8 +131,6 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       ( { m with
           toast = {toastMessage = Some "Canvas Info saved!"; toastPos = None} }
       , Cmd.none )
-  | TriggerUpdateCanvasInfoCallback (Error _) ->
-      (m, Cmd.none)
   | TriggerSendInviteCallback (Ok _) ->
       ( { m with
           toast = {toastMessage = Some "Sent!"; toastPos = None}
@@ -148,6 +146,23 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
               tab = InviteUser defaultInviteFields
             ; loading = false } }
       , Cmd.none )
+  | TriggerGetCanvasInfoCallback (Ok data) ->
+      let shipped_date =
+        if String.length data.shipped_date == 0
+        then None
+        else Some data.shipped_date
+      in
+      ( { m with
+          settingsView =
+            { m.settingsView with
+              canvas_information =
+                { m.settingsView.canvas_information with
+                  canvas_description = data.canvas_description
+                ; shipped_date } } }
+      , Cmd.none )
+  | TriggerUpdateCanvasInfoCallback (Error _)
+  | TriggerGetCanvasInfoCallback (Error _) ->
+      (m, Cmd.none)
 
 
 (* View functions *)

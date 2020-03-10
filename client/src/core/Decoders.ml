@@ -940,6 +940,11 @@ let uploadFnAPIResult _ : uploadFnAPIResult = ()
 
 let loadPackagesAPIResult j : loadPackagesAPIResult = list packageFn j
 
+let loadCanvasInfoAPIResult j : SettingsViewTypes.loadCanvasInfoAPIResult =
+  { canvas_description = field "canvasDescription" string j
+  ; shipped_date = field "canvasShippedDate" string j }
+
+
 let triggerHandlerAPIResult j : triggerHandlerAPIResult =
   field "touched_tlids" (list tlid) j
 
