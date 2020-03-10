@@ -84,7 +84,7 @@ let asName (aci : item) : string =
 
 (* Return the string types of the item's arguments and return types. If the
  * item is not a function, the return type will still be used, and might not be
- * a hint that is not a real type, such as "variable". *)
+ * a real type, sometimes it's a hint such as "variable". *)
 let asTypeStrings (item : item) : string list * string =
   match item with
   | FACFunction f ->
