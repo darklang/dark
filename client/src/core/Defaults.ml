@@ -50,7 +50,7 @@ let defaultFluidState : fluidState =
       { functions = []
       ; index = None
       ; query = None
-      ; completions = []
+      ; validCompletions = []
       ; invalidCompletions = [] }
   ; cp = {index = 0; commands = []; location = None; filter = None}
   ; selectionStart = None

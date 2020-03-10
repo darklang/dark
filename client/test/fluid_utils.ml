@@ -7,8 +7,8 @@ let debugState s =
       ac =
         { s.ac with
           functions = []
-        ; completions = (if s.ac.index = None then [] else s.ac.completions) }
-    }
+        ; validCompletions =
+            (if s.ac.index = None then [] else s.ac.validCompletions) } }
 
 
 let h (expr : FluidExpression.t) : handler =
