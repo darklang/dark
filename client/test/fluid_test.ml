@@ -71,8 +71,8 @@ open FluidShortcuts
  *  Other blanks (see FluidToken.isBlank) are displayed as `***` This is
  *  controlled by FluidPrinter.toTestText.
  *
- *  Caret placement is marked with a single `~`. Selections are marked with `«`
- *  as the start of the selection and `»` as the end. This allow detecting both
+ *  Caret placement is marked with a single `~`. Selections are marked with `»`
+ *  as the start of the selection and `«` as the end. This allow detecting both
  *  LTR and RTL selection.
 
  ***********
@@ -348,14 +348,14 @@ module TestResult = struct
     | None ->
         String.insertAt ~insert:"~" ~index:(pos res) s
     | Some startPos ->
-        let s = String.insertAt ~insert:"«" ~index:startPos s in
+        let s = String.insertAt ~insert:"»" ~index:startPos s in
         let endPos = pos res in
         (* if a LTR selection, then we'll have already inserted an extra
          * character, so need to bump the position more to account for that
          * since we use a 2-byte character, this is 2 not 1 *)
         if endPos > startPos
-        then String.insertAt ~insert:"»" ~index:(endPos + 2) s
-        else String.insertAt ~insert:"»" ~index:endPos s
+        then String.insertAt ~insert:"«" ~index:(endPos + 2) s
+        else String.insertAt ~insert:"«" ~index:endPos s
 end
 
 type modifierKeys =
@@ -4611,7 +4611,7 @@ let run () =
                ; altKey = false
                ; metaKey = false
                ; ctrlKey = false } ) ])
-        "«let »firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+        "»let «firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shift down selects"
         longLets
@@ -4622,7 +4622,7 @@ let run () =
                ; altKey = false
                ; metaKey = false
                ; ctrlKey = false } ) ])
-        "let «firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet »secondLetName = \"0123456789\"\n\"RESULT\"" ;
+        "let »firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet «secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shift left selects"
         longLets
@@ -4633,7 +4633,7 @@ let run () =
                ; altKey = false
                ; metaKey = false
                ; ctrlKey = false } ) ])
-        "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\n»let «secondLetName = \"0123456789\"\n\"RESULT\"" ;
+        "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\n«let »secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "keypress on selection drops selection"
         longLets
@@ -4687,43 +4687,43 @@ let run () =
         longLets
         ~pos:4
         (key K.SelectAll)
-        "«let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"»" ;
+        "»let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"«" ;
       t
         "K.GoToStartOfWord + shift selects to start of word"
         longLets
         ~pos:16
         (key (K.GoToStartOfWord KeepSelection))
-        "let »firstLetName« = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+        "let «firstLetName» = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "K.GoToEndOfWord selects to end of word"
         longLets
         ~pos:4
         (key (K.GoToEndOfWord KeepSelection))
-        "let «firstLetName» = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+        "let »firstLetName« = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "K.GoToStartOfLine selects from mid to start of line"
         longLets
         ~pos:29
         (key (K.GoToStartOfLine KeepSelection))
-        "»let firstLetName = \"ABCDEFGHI«JKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+        "«let firstLetName = \"ABCDEFGHI»JKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "K.GoToEndOfLine selects from mid to end of line"
         longLets
         ~pos:29
         (key (K.GoToEndOfLine KeepSelection))
-        "let firstLetName = \"ABCDEFGHI«JKLMNOPQRSTUVWXYZ\"»\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+        "let firstLetName = \"ABCDEFGHI»JKLMNOPQRSTUVWXYZ\"«\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "K.GoToStartOfLine selects from end to start of line"
         longLets
         ~pos:47
         (key (K.GoToStartOfLine KeepSelection))
-        "»let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"«\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+        "«let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"»\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "K.GoToEndOfLine selects to end of line"
         longLets
         ~pos:0
         (key (K.GoToEndOfLine KeepSelection))
-        "«let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"»\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+        "»let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"«\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "Replace text in let if text is inserted with selection"
         longLets
