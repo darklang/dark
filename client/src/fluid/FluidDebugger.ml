@@ -56,7 +56,9 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
     ; dtText "acEntryCount"
-    ; Html.dd [] [Html.text (s.ac.completions |> List.length |> string_of_int)]
+    ; Html.dd
+        []
+        [Html.text (s.ac.validCompletions |> List.length |> string_of_int)]
     ; dtText "upDownCol"
     ; Html.dd
         []

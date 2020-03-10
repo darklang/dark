@@ -178,7 +178,7 @@ let setQuery (q : string) (a : AC.autocomplete) : AC.autocomplete =
 
 
 let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
-  List.member ~value:aci ac.completions
+  List.member ~value:aci ac.validCompletions
 
 
 let run () =
@@ -187,7 +187,7 @@ let run () =
           let m = defaultModel () in
           let acForQueries (qs : string list) =
             List.foldl qs ~init:(acFor m) ~f:setQuery
-            |> (fun x -> x.completions)
+            |> (fun x -> x.validCompletions)
             |> List.map ~f:AC.asName
           in
           let acForQuery (q : string) = acForQueries [q] in
@@ -287,7 +287,7 @@ let run () =
               expect
                 ( acFor m
                 |> setQuery "withLo"
-                |> (fun x -> x.completions)
+                |> (fun x -> x.validCompletions)
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:AC.asName )
               |> toEqual
@@ -380,9 +380,15 @@ let run () =
                 false
           in
           let isVariable = function FACVariable _ -> true | _ -> false in
+          let isInvalidVariable = function
+            | FACVariable _, _ ->
+                true
+            | _ ->
+                false
+          in
           let filterFor m ~pos =
             let ac = acFor ~pos m in
-            (ac.completions, ac.invalidCompletions)
+            (ac.validCompletions, ac.invalidCompletions)
           in
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
               let id = gid () in
@@ -395,8 +401,10 @@ let run () =
                   ()
               in
               let _valid, invalid = filterFor m ~pos:9 in
-              expect (List.filter invalid ~f:isVariable)
-              |> toEqual [FACVariable ("MyDB", Some (DDB "MyDB"))]) ;
+              expect (List.filter invalid ~f:isInvalidVariable)
+              |> toEqual
+                   [ ( FACVariable ("MyDB", Some (DDB "MyDB"))
+                     , FACItemInvalidReturnType ) ]) ;
           test "Constructors are available in Any expression" (fun () ->
               let m = defaultModel () in
               let valid, _invalid = filterFor m ~pos:0 in
@@ -429,10 +437,11 @@ let run () =
               let valid, invalid = filterFor m ~pos:47 in
               expect
                 ( List.filter valid ~f:isVariable
-                , List.filter invalid ~f:isVariable )
+                , List.filter invalid ~f:isInvalidVariable )
               |> toEqual
                    ( [FACVariable ("mystr", Some (DStr "asd"))]
-                   , [FACVariable ("myint", Some (DInt 5))] )) ;
+                   , [ ( FACVariable ("myint", Some (DInt 5))
+                       , FACItemInvalidReturnType ) ] )) ;
           test "Method argument filters by fn return type " (fun () ->
               let expr = fn "String::append" [b; b] in
               let m = defaultModel ~handlers:[aHandler ~expr ()] () in
@@ -442,6 +451,7 @@ let run () =
                   |> List.map ~f:AC.asName
                   |> List.member ~value:"String::append"
                 , invalid
+                  |> List.map ~f:Tuple2.first
                   |> List.map ~f:AC.asName
                   |> List.member ~value:"Int::add" )
               |> toEqual (true, true)) ;
@@ -485,7 +495,7 @@ let run () =
               in
               expect
                 ( acFor ~tlid ~pos:13 m
-                |> (fun x -> x.completions)
+                |> (fun x -> x.validCompletions)
                 |> List.map ~f:(fun x -> AC.asName x) )
               |> toEqual ["o"; "Ok"; "Nothing"; "Error"]) ;
           ()) ;

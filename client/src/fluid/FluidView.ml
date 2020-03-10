@@ -54,10 +54,13 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
       acis
   in
   let index = ac.index |> Option.withDefault ~default:(-1) in
-  let invalidIndex = index - List.length ac.completions in
+  let invalidIndex = index - List.length ac.validCompletions in
   let autocompleteList =
-    toList ac.completions "valid" index
-    @ toList ac.invalidCompletions "invalid" invalidIndex
+    toList ac.validCompletions "valid" index
+    @ toList
+        (List.map ~f:Tuple2.first ac.invalidCompletions)
+        "invalid"
+        invalidIndex
   in
   Html.div [Attrs.id "fluid-dropdown"] [Html.ul [] autocompleteList]
 
