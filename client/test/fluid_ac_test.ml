@@ -82,8 +82,7 @@ let defaultTokenInfo =
   ; token = TBlank defaultID }
 
 
-let defaultFullQuery
-    ?(tl = defaultToplevel) (ac : fluidAutocompleteState) (queryString : string)
+let defaultFullQuery ?(tl = defaultToplevel) (ac : AC.t) (queryString : string)
     : AC.fullQuery =
   let ti =
     match tl with
@@ -162,7 +161,7 @@ let defaultModel
 
 
 (* AC targeting a tlid and pointer *)
-let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
+let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.t =
   let ti =
     TL.get m tlid
     |> Option.andThen ~f:TL.getAST
@@ -173,12 +172,12 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
   AC.regenerate m (AC.init m) (tlid, ti)
 
 
-let setQuery (q : string) (a : AC.autocomplete) : AC.autocomplete =
+let setQuery (q : string) (a : AC.t) : AC.t =
   let fullQ = defaultFullQuery a q in
   AC.refilter fullQ a (List.map ~f:(fun {item; _} -> item) a.completions)
 
 
-let filterValid (a : AC.autocomplete) : AC.autocompleteItem list =
+let filterValid (a : AC.t) : AC.item list =
   List.filterMap a.completions ~f:(function
       | {item; validity = FACItemValid} ->
           Some item
@@ -186,7 +185,7 @@ let filterValid (a : AC.autocomplete) : AC.autocompleteItem list =
           None)
 
 
-let filterInvalid (a : AC.autocomplete) : AC.autocompleteItem list =
+let filterInvalid (a : AC.t) : AC.item list =
   List.filterMap a.completions ~f:(function
       | {validity = FACItemValid; _} ->
           None
