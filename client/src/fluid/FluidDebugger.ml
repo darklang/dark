@@ -58,7 +58,7 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
     ; dtText "acEntryCount"
     ; Html.dd
         []
-        [Html.text (s.ac.validCompletions |> List.length |> string_of_int)]
+        [Html.text (FluidAutocomplete.numCompletions s.ac |> string_of_int)]
     ; dtText "upDownCol"
     ; Html.dd
         []
