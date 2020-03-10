@@ -278,6 +278,9 @@ let matcher
             if RT.isCompatible param.paramTipe pipedType
             then Left (item, FACItemValid)
             else Right (item, FACItemInvalidPipedArg)
+        | None, Some _ ->
+            (* if it takes no arguments, piping into it is invalid *)
+            Right (item, FACItemInvalidPipedArg)
         | _ ->
             Left (item, FACItemValid) )
   | FACVariable (_, dval) ->
