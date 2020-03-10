@@ -86,31 +86,31 @@ let asName (aci : autocompleteItem) : string =
         "null" )
 
 
-let asTypeString (item : autocompleteItem) : string =
+let asTypeStrings (item : autocompleteItem) : string list * string =
   match item with
   | FACFunction f ->
       f.fnParameters
       |> List.map ~f:(fun x -> x.paramTipe)
       |> List.map ~f:RT.tipe2str
-      |> String.join ~sep:", "
-      |> fun s -> "(" ^ s ^ ") -> " ^ RT.tipe2str f.fnReturnTipe
+      |> fun s -> (s, RT.tipe2str f.fnReturnTipe)
   | FACField _ ->
-      "field"
+      ([], "field")
   | FACVariable (_, odv) ->
       odv
       |> Option.map ~f:(fun dv -> dv |> RT.typeOf |> RT.tipe2str)
       |> Option.withDefault ~default:"variable"
+      |> fun r -> ([], r)
   | FACPattern (FPAVariable _) ->
-      "variable"
+      ([], "variable")
   | FACConstructorName (name, _) | FACPattern (FPAConstructor (_, _, name, _))
     ->
       if name = "Just"
-      then "(any) -> option"
+      then (["any"], "option")
       else if name = "Nothing"
-      then "option"
+      then ([], "option")
       else if name = "Ok" || name = "Error"
-      then "(any) -> result"
-      else ""
+      then (["any"], "result")
+      else ([], "unknown")
   | FACLiteral lit ->
       let tipe =
         lit
@@ -119,16 +119,20 @@ let asTypeString (item : autocompleteItem) : string =
         |> RT.typeOf
         |> RT.tipe2str
       in
-      tipe ^ " literal"
+      ([], tipe ^ " literal")
   | FACPattern (FPABool _) ->
-      "boolean literal"
+      ([], "boolean literal")
   | FACKeyword _ ->
-      "keyword"
+      ([], "keyword")
   | FACPattern (FPANull _) ->
-      "null"
+      ([], "null")
 
 
-let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
+let asString (aci : autocompleteItem) : string =
+  let argTypes, returnType = asTypeStrings aci in
+  let typeString = String.join ~sep:", " argTypes ^ " -> " ^ returnType in
+  asName aci ^ typeString
+
 
 (* ---------------------------- *)
 (* Utils *)
