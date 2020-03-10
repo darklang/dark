@@ -149,6 +149,8 @@ let isField (aci : autocompleteItem) : bool =
   match aci with FACField _ -> true | _ -> false
 
 
+let item (data : autocompleteData) : autocompleteItem = data.item
+
 (* ---------------------------- *)
 (* External: utils *)
 (* ---------------------------- *)

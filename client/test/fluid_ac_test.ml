@@ -494,6 +494,20 @@ let run () =
                 |> List.map ~f:AC.asName
                 |> List.filter ~f:(( = ) "String::newline") )
               |> toEqual ["String::newline"]) ;
+          test "valid come before invalid in the autocomplete" (fun () ->
+              let id = gid () in
+              let expr = pipe (str ~id "asd") [partial "append" b] in
+              let m =
+                defaultModel
+                  ~analyses:[(id, DStr "asd")]
+                  ~handlers:[aHandler ~expr ()]
+                  ()
+              in
+              let ac = acFor m ~pos:14 in
+              let valid = filterValid ac in
+              let invalid = filterInvalid ac in
+              expect (List.map ~f:AC.item ac.completions)
+              |> toEqual (valid @ invalid)) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
               let tlid = TLID.fromString "789" in
               let mID = ID.fromString "1234" in
