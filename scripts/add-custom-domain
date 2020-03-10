@@ -26,6 +26,11 @@ CANVAS=$2
 # Apex is "the domain minus /^.*\./". We'll verify below that APEX contains exactly one '.'
 APEX=${DOMAIN#*.}
 
+# There are things we only need to do if the custom domain is a www - the nginx
+# apex redirect, and adding the apex to route_host - so let's add a bool here
+# we can check against
+PREFIX="$(echo "${DOMAIN}" | awk -F"." '{print $1}')"
+
 # shellcheck disable=SC2000
 if [[ "$(echo "${DOMAIN}" | awk -F"." '{print NF-1}')" -ne 2 ]]; then
     echo "We expected DOMAIN to be a domain with 3 parts (www.foo.com), but it was ${DOMAIN}."
@@ -82,7 +87,8 @@ else
 fi
 
 # Nginx apex->www redirect
-cat <<EOF >> scripts/support/nginx.conf
+if [[ "${PREFIX}" == "www" ]]; then
+  cat <<EOF >> scripts/support/nginx.conf
 
 server {
   listen 8000;
@@ -90,6 +96,7 @@ server {
   return 301 \$http_x_forwarded_proto://${DOMAIN}\$request_uri;
 }
 EOF
+fi
 
 # This takes foo.com and www.foo.com and transforms them into
 # '| ["foo"; "com"] | ["www"; "foo"; "com"]`, which we can then put into
@@ -98,7 +105,13 @@ EOF
 new_apex_string="|[\"$(echo "$APEX" | sed -e 's/\./"; "/g')\"]"
 # shellcheck disable=SC2001
 new_domain_string="|[\"$(echo "$DOMAIN" | sed -e 's/\./"; "/g')\"]"
-new_webserver_match="${new_apex_string} ${new_domain_string}"
+
+if [[ "${PREFIX}" == "www" ]]; then
+    new_webserver_match="${new_apex_string} ${new_domain_string}"
+else
+    new_webserver_match="${new_domain_string}"
+fi
+
 
 # Note: perl below b/c I'd initially intended to do multiline matching; I ended
 # up not doing that, but don't care to remember how to translate perl regex back
