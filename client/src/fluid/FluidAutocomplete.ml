@@ -579,7 +579,7 @@ let rec documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
         else "Function call with no description"
       in
       let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
-      Some [p desc; ViewErrorRailHint.viewFunction f None]
+      Some [p desc; ViewErrorRailDoc.hintForFunction f None]
   | FACConstructorName ("Just", _) ->
       simpleDoc "An Option containing a value"
   | FACConstructorName ("Nothing", _) ->
