@@ -127,7 +127,8 @@ let asTypeStrings (item : item) : string list * string =
       ([], "null")
 
 
-let asString (aci : item) : string =
+(* Used for matching, not for displaying to users *)
+let asMatchingString (aci : item) : string =
   let argTypes, returnType = asTypeStrings aci in
   let typeString = String.join ~sep:", " argTypes ^ " -> " ^ returnType in
   asName aci ^ typeString
@@ -417,7 +418,7 @@ let filter
   let stripColons = Regex.replace ~re:(Regex.regex "::") ~repl:"" in
   let lcq = query.queryString |> String.toLower |> stripColons in
   let stringify i =
-    (if 1 >= String.length lcq then asName i else asString i)
+    (if 1 >= String.length lcq then asName i else asMatchingString i)
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
     |> stripColons
   in
