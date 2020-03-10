@@ -417,14 +417,25 @@ $prodColor: black;
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      // 22% ensures that all of the method "OPTIONS" is visible on HTTP handlers
-      width: 22%;
+      // 25% ensures that all of the method "OPTIONS" is visible on HTTP handlers
+      width: 25%;
       overflow: hidden;
       .verb {
         font-size: 14px;
         text-decoration: none;
         margin-right: 1ch;
       }
+
+      a,
+      a:visited,
+      a:active {
+        color: $white2;
+      }
+
+      a:hover {
+        color: $yellow;
+      }
+
       &.GET a,
       &.GET span {
         color: $http-get;
