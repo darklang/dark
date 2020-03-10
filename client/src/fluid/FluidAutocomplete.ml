@@ -565,9 +565,50 @@ let selectUp (a : t) : t =
 
 let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index
 
+let typeErrorDoc ({item; validity} : data) : msg Vdom.t =
+  let _types = asTypeStrings item in
+  let _validity = validity in
+  match validity with
+  | FACItemValid ->
+      Vdom.noNode
+  | FACItemInvalidPipedArg ->
+      let pipedType = "Int" in
+      let acFunction = "String::append" in
+      let acFirstArgType = "String" in
+      Html.div
+        []
+        [ Html.span [Html.class' "type-error"] [Html.text "Type error: "]
+        ; Html.text "A value of type "
+        ; Html.span [Html.class' "type-name"] [Html.text pipedType]
+        ; Html.text " is being piped into this function call, but "
+        ; Html.span [Html.class' "function-name"] [Html.text acFunction]
+        ; Html.text " takes a "
+        ; Html.span [Html.class' "type-name"] [Html.text acFirstArgType]
+        ; Html.text " as its first argument." ]
+  | FACItemInvalidReturnType ->
+      let existingFunction = "Int::add" in
+      let parameterName = "a" in
+      let parameterType = "Int" in
+      let acFunction = "String::append" in
+      let acReturnType = "String" in
+      Html.div
+        []
+        [ Html.span [Html.class' "type-error"] [Html.text "Type error: "]
+        ; Html.span [Html.class' "function-name"] [Html.text existingFunction]
+        ; Html.text " expects "
+        ; Html.span [Html.class' "parameter-name"] [Html.text parameterName]
+        ; Html.text " to be a "
+        ; Html.span [Html.class' "type-name"] [Html.text parameterType]
+        ; Html.text ", but "
+        ; Html.span [Html.class' "function-name"] [Html.text acFunction]
+        ; Html.text " returns a "
+        ; Html.span [Html.class' "type-name"] [Html.text acReturnType] ]
+
+
 let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
   let p (text : string) = Html.p [] [Html.text text] in
-  let simpleDoc (text : string) = Some [p text] in
+  let typeDoc = typeErrorDoc {item; validity} in
+  let simpleDoc (text : string) = Some [p text; typeDoc] in
   match item with
   | FACFunction f ->
       let desc =
@@ -576,7 +617,7 @@ let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
         else "Function call with no description"
       in
       let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
-      Some [p desc; ViewErrorRailDoc.hintForFunction f None]
+      Some [p desc; ViewErrorRailDoc.hintForFunction f None; typeDoc]
   | FACConstructorName ("Just", _) ->
       simpleDoc "An Option containing a value"
   | FACConstructorName ("Nothing", _) ->
