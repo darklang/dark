@@ -30,32 +30,6 @@ let t_should_use_https () =
     [true; true; false; false]
 
 
-let t_redirect_to () =
-  let module CRequest = Cohttp_lwt_unix.Request in
-  AT.check
-    (AT.list (AT.option AT.string))
-    "redirect_to works"
-    (List.map
-       ~f:(fun x ->
-         let uri = Uri.of_string x in
-         let host =
-           x |> Uri.of_string |> CRequest.make |> Webserver.route_host
-         in
-         Webserver.redirect_to host uri |> Option.map ~f:Uri.to_string)
-       [ "http://example.com"
-       ; "http://builtwithdark.com"
-       ; "https://builtwithdark.com"
-       ; "http://test.builtwithdark.com"
-       ; "https://test.builtwithdark.com"
-       ; "http://test.builtwithdark.com/x/y?z=a" ])
-    [ None
-    ; Some "https://builtwithdark.com"
-    ; None
-    ; Some "https://test.builtwithdark.com"
-    ; None
-    ; Some "https://test.builtwithdark.com/x/y?z=a" ]
-
-
 let t_canonicalize_maintains_schemes () =
   (* We don't test the https variants as the request we can't make requests
    * that have them, and they never occur in either dev or prod. *)
@@ -178,7 +152,7 @@ let t_authenticate_then_handle_code_and_cookie () =
   let test_id = Types.id_of_int 1234 in
   (* uri doesn't matter very much since this should be uri-agnostic *)
   (* takes a req, returns the status code and the  parameters for Set-cookie: __session=whatever; [...] *)
-  let ath_cookie ((req, body) : Req.t * string) :
+  let auth_cookie ((req, body) : Req.t * string) :
       int * (string option * string option) =
     Lwt_main.run
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
@@ -210,7 +184,7 @@ let t_authenticate_then_handle_code_and_cookie () =
        (AT.pair AT.int (AT.pair (AT.option AT.string) (AT.option AT.string))))
     "authenticate_then_handle sets cookies correctly"
     (List.map
-       ~f:ath_cookie
+       ~f:auth_cookie
        (* valid basic auth login on darklang.com *)
        [ ( Req.make
              ~meth:`POST
@@ -243,8 +217,10 @@ let t_authenticate_then_handle_code_and_cookie () =
        ; (Req.make (Uri.of_string "http://darklang.localhost/a/test"), "")
          (* login form loads *)
        ; (Req.make (Uri.of_string "http://darklang.localhost/login"), "") ])
+    (* Note: if Config.should_use_https is true, these will have the secure
+     * flag; but that's per-env, and not true in test *)
     [ ( 302
-      , ( Some "Max-Age=604800; domain=darklang.com; path=/; secure; httponly"
+      , ( Some "Max-Age=604800; domain=darklang.com; path=/; httponly"
         , Some "/a/test" ) )
     ; ( 302
       , ( Some "Max-Age=604800; domain=darklang.localhost; path=/; httponly"
@@ -434,7 +410,6 @@ let t_is_canvas_name_valid () =
 
 let suite =
   [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
-  ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
   ; ("bad ssl cert", `Slow, t_bad_ssl_cert)
   ; ( "authenticate_then_handle sets status codes and cookies correctly "
     , `Quick
@@ -448,5 +423,4 @@ let suite =
     , `Quick
     , t_head_and_get_requests_are_coalesced )
   ; ("canonicalizing requests works", `Quick, t_canonicalize_maintains_schemes)
-  ; ("http requests redirect", `Quick, t_http_request_redirects)
   ; ("canvas name validator works", `Quick, t_is_canvas_name_valid) ]
