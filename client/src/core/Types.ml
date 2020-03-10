@@ -1486,6 +1486,15 @@ and fluidAutocompleteItem =
   | FACKeyword of keyword
   | FACPattern of fluidPatternAutocomplete
 
+and fluidAutocompleteData =
+  { item : fluidAutocompleteItem
+  ; validity : fluidAutocompleteValidity }
+
+and fluidAutocompleteValidity =
+  | FACItemValid
+  | FACItemInvalidReturnType
+  | FACItemInvalidPipedArg
+
 and fluidAutocompleteState =
   { (* ------------------------------- *)
     (* state *)
@@ -1498,9 +1507,7 @@ and fluidAutocompleteState =
         (* ------------------------------- *)
         (* Cached results *)
         (* ------------------------------- *)
-  ; completions : fluidAutocompleteItem list
-  ; invalidCompletions : fluidAutocompleteItem list
-  ; allCompletions : fluidAutocompleteItem list }
+  ; completions : fluidAutocompleteData list }
 
 and fluidCommandState =
   { index : int

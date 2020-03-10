@@ -46,13 +46,7 @@ let defaultFluidState : fluidState =
         ; altKey = false
         ; metaKey = false
         ; ctrlKey = false }
-  ; ac =
-      { functions = []
-      ; index = None
-      ; query = None
-      ; completions = []
-      ; invalidCompletions = []
-      ; allCompletions = [] }
+  ; ac = {functions = []; index = None; query = None; completions = []}
   ; cp = {index = 0; commands = []; location = None; filter = None}
   ; selectionStart = None
   ; errorDvSrc = SourceNone

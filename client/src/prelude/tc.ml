@@ -77,6 +77,12 @@ module Result = struct
   let isOk (v : ('err, 'ok) t) : bool = match v with Ok _ -> true | _ -> false
 end
 
+module Either = struct
+  type ('a, 'b) t =
+    | Left of 'a
+    | Right of 'b
+end
+
 module List = struct
   include Tablecloth.List
 
@@ -142,6 +148,22 @@ module List = struct
         |> updateAt ~index:newPos ~f:(fun _ -> old)
     | _ ->
         l
+
+
+  (* Partition into two lists, of potentially different type, using function
+   * `f`.  Returns value in the first list for `Left` and second list for
+   * `Right`. *)
+  let partitionMap ~(f : 'c -> ('a, 'b) Either.t) (items : 'c list) :
+      'a list * 'b list =
+    Tablecloth.List.foldr
+      ~init:([], [])
+      ~f:(fun item (lefts, rights) ->
+        match f item with
+        | Left a ->
+            (a :: lefts, rights)
+        | Right b ->
+            (lefts, b :: rights))
+      items
 end
 
 module Float = struct

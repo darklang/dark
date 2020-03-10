@@ -2285,7 +2285,7 @@ let acMoveDown (s : state) : state =
     | None ->
         0
     | Some current ->
-        min (current + 1) (List.length (AC.allCompletions s.ac) - 1)
+        min (current + 1) (AC.numCompletions s.ac - 1)
   in
   acSetIndex index s
 
@@ -4543,9 +4543,9 @@ let rec updateKey
           | InsertText txt ->
               (* if the partial is a valid function name, don't commit *)
               let newQueryString = str ^ txt in
-              s.ac.allCompletions
-              |> List.filter ~f:(fun aci ->
-                     String.contains ~substring:newQueryString (AC.asName aci))
+              s.ac.completions
+              |> List.filter ~f:(fun {item; _} ->
+                     String.contains ~substring:newQueryString (AC.asName item))
               |> ( == ) []
           | _ ->
               (* unreachable due to when condition on enclosing match branch *)

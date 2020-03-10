@@ -19,10 +19,42 @@ type viewState = ViewUtils.viewState
 
 type token = T.t
 
+let viewAutocompleteItemTypes ({item; validity} : fluidAutocompleteData) :
+    Types.msg Html.html =
+  let args, rt = AC.asTypeStrings item in
+  let html =
+    let returnTypeHtml =
+      let returnTypeClass =
+        if validity = FACItemInvalidReturnType then "invalidCulprit" else ""
+      in
+      [Html.span [Html.class' returnTypeClass] [Html.text rt]]
+    in
+    let argsHtml =
+      match args with
+      | [] ->
+          []
+      | arg0 :: rest ->
+          let arg0Class =
+            if validity = FACItemInvalidPipedArg then "invalidCulprit" else ""
+          in
+          let args =
+            Html.span [Html.class' arg0Class] [Html.text arg0]
+            :: List.map ~f:Html.text rest
+          in
+          args
+          |> List.intersperse (Html.text ", ")
+          |> fun args -> [Html.text "("] @ args @ [Html.text ") -> "]
+    in
+    argsHtml @ returnTypeHtml
+  in
+  Html.span [Html.class' "types"] html
+
+
 let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
-  let toList acis class' index =
-    List.indexedMap
-      ~f:(fun i item ->
+  let index = ac.index |> Option.withDefault ~default:(-1) in
+  let autocompleteList =
+    List.indexedMap ac.completions ~f:(fun i {item; validity} ->
+        let class' = if validity = FACItemValid then "valid" else "invalid" in
         let highlighted = index = i in
         let name = AC.asName item in
         let fnDisplayName = FluidUtil.fnDisplayName name in
@@ -32,6 +64,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
           then Html.span [Html.class' "version"] [Html.text versionDisplayName]
           else Vdom.noNode
         in
+        let types = viewAutocompleteItemTypes {item; validity} in
         Html.li
           ~unique:name
           [ Attrs.classList
@@ -47,17 +80,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
               ~key:("ac-mousemove" ^ name)
               "mousemove"
               (fun _ -> FluidMsg (FluidUpdateDropdownIndex i)) ]
-          [ Html.text fnDisplayName
-          ; versionView
-          ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
-          ])
-      acis
-  in
-  let index = ac.index |> Option.withDefault ~default:(-1) in
-  let invalidIndex = index - List.length ac.completions in
-  let autocompleteList =
-    toList ac.completions "valid" index
-    @ toList ac.invalidCompletions "invalid" invalidIndex
+          [Html.text fnDisplayName; versionView; types])
   in
   Html.div [Attrs.id "fluid-dropdown"] [Html.ul [] autocompleteList]
 

@@ -11,6 +11,8 @@ type autocomplete = fluidAutocompleteState [@@deriving show]
 
 type autocompleteItem = fluidAutocompleteItem [@@deriving show]
 
+type autocompleteData = fluidAutocompleteData [@@deriving show]
+
 type tokenInfo = fluidTokenInfo [@@deriving show]
 
 let focusItem (i : int) : msg Tea.Cmd.t =
@@ -84,31 +86,34 @@ let asName (aci : autocompleteItem) : string =
         "null" )
 
 
-let asTypeString (item : autocompleteItem) : string =
+(* Return the string types of the item's arguments and return types. If the
+ * item is not a function, the return type will still be used, and might not be
+ * a hint that is not a real type, such as "variable". *)
+let asTypeStrings (item : autocompleteItem) : string list * string =
   match item with
   | FACFunction f ->
       f.fnParameters
       |> List.map ~f:(fun x -> x.paramTipe)
       |> List.map ~f:RT.tipe2str
-      |> String.join ~sep:", "
-      |> fun s -> "(" ^ s ^ ") -> " ^ RT.tipe2str f.fnReturnTipe
+      |> fun s -> (s, RT.tipe2str f.fnReturnTipe)
   | FACField _ ->
-      "field"
+      ([], "field")
   | FACVariable (_, odv) ->
       odv
       |> Option.map ~f:(fun dv -> dv |> RT.typeOf |> RT.tipe2str)
       |> Option.withDefault ~default:"variable"
+      |> fun r -> ([], r)
   | FACPattern (FPAVariable _) ->
-      "variable"
+      ([], "variable")
   | FACConstructorName (name, _) | FACPattern (FPAConstructor (_, _, name, _))
     ->
       if name = "Just"
-      then "(any) -> option"
+      then (["any"], "option")
       else if name = "Nothing"
-      then "option"
+      then ([], "option")
       else if name = "Ok" || name = "Error"
-      then "(any) -> result"
-      else ""
+      then (["any"], "result")
+      else ([], "unknown")
   | FACLiteral lit ->
       let tipe =
         lit
@@ -117,16 +122,20 @@ let asTypeString (item : autocompleteItem) : string =
         |> RT.typeOf
         |> RT.tipe2str
       in
-      tipe ^ " literal"
+      ([], tipe ^ " literal")
   | FACPattern (FPABool _) ->
-      "boolean literal"
+      ([], "boolean literal")
   | FACKeyword _ ->
-      "keyword"
+      ([], "keyword")
   | FACPattern (FPANull _) ->
-      "null"
+      ([], "null")
 
 
-let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
+let asString (aci : autocompleteItem) : string =
+  let argTypes, returnType = asTypeStrings aci in
+  let typeString = String.join ~sep:", " argTypes ^ " -> " ^ returnType in
+  asName aci ^ typeString
+
 
 (* ---------------------------- *)
 (* Utils *)
@@ -171,13 +180,16 @@ let allFunctions (m : model) : function_ list =
   functions @ userFunctionMetadata @ packageFunctions |> filterAndSort
 
 
-let allCompletions (a : autocomplete) : autocompleteItem list =
-  a.completions @ a.invalidCompletions
+(* Return the autocompleteItem that is highlighted (at a.index position in the
+ * list), along with whether that it is a valid autocomplete option right now. *)
+let highlightedWithValidity (a : autocomplete) : autocompleteData option =
+  Option.andThen a.index ~f:(fun index -> List.getAt ~index a.completions)
 
 
-(* gets the autocompleteItem that is highlighted (at a.index position in the list). *)
+(* Return the autocompleteItem that is highlighted (at a.index position in the
+ * list). *)
 let highlighted (a : autocomplete) : autocompleteItem option =
-  Option.andThen a.index ~f:(fun index -> List.getAt ~index (allCompletions a))
+  highlightedWithValidity a |> Option.map ~f:(fun d -> d.item)
 
 
 let rec containsOrdered (needle : string) (haystack : string) : bool =
@@ -194,6 +206,10 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
   | None ->
       true
 
+
+(* ------------------------------------ *)
+(* Type checking *)
+(* ------------------------------------ *)
 
 (* Return the value being piped into the token at ti, if there is one *)
 let findPipedDval (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
@@ -236,13 +252,13 @@ let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   |> Option.withDefault ~default:false
 
 
-let findExpectedType (a : autocomplete) (tl : toplevel) (ti : tokenInfo) : tipe
-    =
+let findExpectedType
+    (functions : function_ list) (tl : toplevel) (ti : tokenInfo) : tipe =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
   |> Option.andThen ~f:(AST.getParamIndex id)
   |> Option.andThen ~f:(fun (name, index) ->
-         a.functions
+         functions
          |> List.find ~f:(fun f -> name = f.fnName)
          |> Option.map ~f:(fun x -> x.fnParameters)
          |> Option.andThen ~f:(List.getAt ~index)
@@ -250,45 +266,53 @@ let findExpectedType (a : autocomplete) (tl : toplevel) (ti : tokenInfo) : tipe
   |> Option.withDefault ~default:TAny
 
 
-(* ------------------------------------ *)
-(* Dynamic Items *)
-(* ------------------------------------ *)
-
-let matcher
+(* Checks whether an autocomplete item matches the expected types *)
+let typeCheck
     (pipedType : tipe option)
     (expectedReturnType : tipe)
-    (item : autocompleteItem) =
+    (item : autocompleteItem) : (autocompleteData, autocompleteData) Either.t =
+  let open Either in
+  let valid = Left {item; validity = FACItemValid} in
+  let invalid reason = Left {item; validity = reason} in
   match item with
   | FACFunction fn ->
-      let matchesReturnType =
-        RT.isCompatible fn.fnReturnTipe expectedReturnType
-      in
-      let matchedPipedType =
+      if not (RT.isCompatible fn.fnReturnTipe expectedReturnType)
+      then invalid FACItemInvalidReturnType
+      else (
         match (List.head fn.fnParameters, pipedType) with
         | Some param, Some pipedType ->
-            RT.isCompatible param.paramTipe pipedType
+            if RT.isCompatible param.paramTipe pipedType
+            then valid
+            else invalid FACItemInvalidPipedArg
+        | None, Some _ ->
+            (* if it takes no arguments, piping into it is invalid *)
+            invalid FACItemInvalidPipedArg
         | _ ->
-            true
-      in
-      matchedPipedType && matchesReturnType
+            valid )
   | FACVariable (_, dval) ->
     ( match dval with
     | Some dv ->
-        RT.isCompatible (Runtime.typeOf dv) expectedReturnType
+        if RT.isCompatible (Runtime.typeOf dv) expectedReturnType
+        then valid
+        else invalid FACItemInvalidReturnType
     | None ->
-        true )
+        valid )
   | FACConstructorName (name, _) ->
     ( match expectedReturnType with
     | TOption ->
-        name = "Just" || name = "Nothing"
+        if name = "Just" || name = "Nothing"
+        then valid
+        else invalid FACItemInvalidReturnType
     | TResult ->
-        name = "Ok" || name = "Error"
+        if name = "Ok" || name = "Error"
+        then valid
+        else invalid FACItemInvalidReturnType
     | TAny ->
-        true
+        valid
     | _ ->
-        false )
+        invalid FACItemInvalidReturnType )
   | _ ->
-      true
+      valid
 
 
 type query = TLID.t * tokenInfo
@@ -341,17 +365,17 @@ let generateExprs m (tl : toplevel) a ti =
   varnames @ constructors @ literals @ keywords @ functions
 
 
-let generatePatterns ti a queryString =
+let generatePatterns ti a queryString : autocompleteItem list =
   let alreadyHasPatterns =
     List.any
-      ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
-      a.allCompletions
+      ~f:(fun v -> match v with {item = FACPattern _; _} -> true | _ -> false)
+      a.completions
   in
   let newStandardPatterns mid =
     (* if patterns are in the autocomplete already, don't bother creating
         * new FACPatterns with different mids and pids *)
     ( if alreadyHasPatterns
-    then a.allCompletions
+    then a.completions |> List.map ~f:(fun {item; _} -> item)
     else
       [ FPABool (mid, gid (), true)
       ; FPABool (mid, gid (), false)
@@ -388,22 +412,21 @@ let generatePatterns ti a queryString =
 
 let generateFields fieldList = List.map ~f:(fun x -> FACField x) fieldList
 
-let generate (m : model) (a : autocomplete) (query : fullQuery) : autocomplete =
-  let items =
-    match query.ti.token with
-    | TPatternBlank _ | TPatternVariable _ ->
-        generatePatterns query.ti a query.queryString
-    | TFieldName _ | TFieldPartial _ ->
-        generateFields query.fieldList
-    | _ ->
-        generateExprs m query.tl a query.ti
-  in
-  {a with allCompletions = items}
+let generate (m : model) (a : autocomplete) (query : fullQuery) :
+    autocompleteItem list =
+  match query.ti.token with
+  | TPatternBlank _ | TPatternVariable _ ->
+      generatePatterns query.ti a query.queryString
+  | TFieldName _ | TFieldPartial _ ->
+      generateFields query.fieldList
+  | _ ->
+      generateExprs m query.tl a query.ti
 
 
 let filter
-    (a : autocomplete) (candidates0 : autocompleteItem list) (query : fullQuery)
-    : autocompleteItem list * autocompleteItem list =
+    (functions : function_ list)
+    (candidates0 : autocompleteItem list)
+    (query : fullQuery) : autocompleteData list =
   let stripColons = Regex.replace ~re:(Regex.regex "::") ~repl:"" in
   let lcq = query.queryString |> String.toLower |> stripColons in
   let stringify i =
@@ -443,21 +466,26 @@ let filter
   in
   (* Now split list by type validity *)
   let pipedType = Option.map ~f:RT.typeOf query.pipedDval in
-  let expectedReturnType = findExpectedType a query.tl query.ti in
-  List.partition ~f:(matcher pipedType expectedReturnType) allMatches
-
-
-let refilter (query : fullQuery) (old : autocomplete) : autocomplete =
-  (* add or replace the literal the user is typing to the completions *)
-  let newCompletions, invalidCompletions =
-    filter old old.allCompletions query
+  let expectedReturnType = findExpectedType functions query.tl query.ti in
+  let valid, invalid =
+    List.partitionMap allMatches ~f:(typeCheck pipedType expectedReturnType)
   in
+  valid @ invalid
+
+
+let refilter
+    (query : fullQuery) (old : autocomplete) (items : autocompleteItem list) :
+    autocomplete =
+  (* add or replace the literal the user is typing to the completions *)
+  let newCompletions = filter old.functions items query in
   let oldHighlight = highlighted old in
-  let allCompletions = newCompletions @ invalidCompletions in
-  let newCount = List.length allCompletions in
+  let newCount = List.length newCompletions in
   let oldHighlightNewIndex =
     oldHighlight
-    |> Option.andThen ~f:(fun oh -> List.elemIndex ~value:oh allCompletions)
+    |> Option.andThen ~f:(fun oh ->
+           List.elemIndex
+             ~value:oh
+             (List.map ~f:(fun {item; _} -> item) newCompletions))
   in
   let oldQueryString =
     match old.query with Some (_, ti) -> toQueryString ti | _ -> ""
@@ -501,8 +529,7 @@ let refilter (query : fullQuery) (old : autocomplete) : autocomplete =
   { old with
     index
   ; query = Some (TL.id query.tl, query.ti)
-  ; completions = newCompletions
-  ; invalidCompletions }
+  ; completions = newCompletions }
 
 
 let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
@@ -515,7 +542,8 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
       let fieldList = findFields m tl ti in
       let pipedDval = findPipedDval m tl ti in
       let query = {tl; ti; fieldList; pipedDval; queryString} in
-      generate m a query |> refilter query
+      let items = generate m a query in
+      refilter query a items
 
 
 (* ---------------------------- *)
@@ -528,9 +556,7 @@ let updateFunctions m : model =
   }
 
 
-let numCompletions (a : autocomplete) : int =
-  List.length a.completions + List.length a.invalidCompletions
-
+let numCompletions (a : autocomplete) : int = List.length a.completions
 
 let selectDown (a : autocomplete) : autocomplete =
   match a.index with
