@@ -108,5 +108,7 @@ let pFloat ?(mid = gid ()) ?(id = gid ()) (whole : string) (fraction : string) :
 
 let pNull ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t = FPNull (mid, id)
 
-let pBlank ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t =
-  FPBlank (mid, id)
+let pBlank ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t = FPBlank (mid, id)
+
+let flag cond oldCode newCode =
+  EFeatureFlag (gid (), "flag-name", cond, oldCode, newCode)

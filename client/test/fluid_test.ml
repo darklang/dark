@@ -7,67 +7,370 @@ module K = FluidKeyboard
 module E = FluidExpression
 open FluidShortcuts
 
-let toString = Printer.eToTestString
+(**
+ ************
+ * Overview *
+ ************
+ *
+ * These tests are all written in a common style:
+ *
+ * t "del end of whole" aFloat ~pos:2 del "12~.456" ;
+ *
+ * This is a test that takes the fluidExpr called aFloat, starts the caret at
+ * position 2, and inputs a single delete.
+ *
+ * The stringified result is "12.456" and the caret should be in position 2
+ * (indicated by the tilde in the expectation string).
+ *
+ * There are a handful of functions you can call to simulate input, including
+ * key, keys, insert, bs, del, tab, and shiftTab. render works similarly, but
+ * doesn't simulate input; it only verifies that the given expression renders
+ * correctly.
 
-let eToStructure = Printer.eToStructure
+ ***********
+ * Options *
+ ***********
 
-(*
- * These tests are all written in a common style: t "del end of whole"
- * aFloat (del 2) ("12~.456") ;
+ * There are a few options that can be passed to [t]. All are optional.
  *
- * This is a test that takes the fluidExpr called aFloat, and does a del on
- * it in position 2. The stringified result is "12.456" and the caret should
- * be in position 2 (indicated by the tilde).
+ * pos:
+ *   Sets the initial position of the caret (fluidState.newPos), which
+ *   otherwise defaults to 0.
  *
- * There are a handful of functions you can call, including key,
- * keys, insert, bs, del, tab, shiftTab, and render.
+ * sel:
+ *   Takes a tuple and sets an initial selection (fluidState.selectionStart and
+ *   newPos).  The first element in the tuple always sets selectionStart, so a
+ *   RTL selection can be set by giving a "backwards" tuple. Eg, ~sel:(0,2)
+ *   selects the first two characters left-to-right while ~sel:(2,0) selects
+ *   them right-to-left.
  *
+ * expectsPartial
+ *   By default, tests expect zero partials in the result. When passed
+ *   ~expectPartial:true, the test will assert that the result /does/ include
+ *   a partial.
  *
- * There are a few different ways of running a test:
- *  - t vs t ~expectsPartial:true:
- *    - a test case is created by calling t. This also asserts that the result
- *      does not include a partial.
- *    - you can also call t ~expectsPartial:true, which asserts that the result _does_ include a
- *      partial.
- *  - debug:
- *      When you need more information about a single test, set the ~debug:true
- *      flag.
+ * debug
+ *   When you need more information about a single test, set the ~debug:true
+ *   flag to see the entire AST/fluidState before and after the test.
+ *
+ **********************
+ * Expectation String *
+ **********************
+
  * There are also certain conventions in the display of text in the output:
- *  - TBlanks are displayed as `___`
- *  - TPlaceHolders are displayed as underscores of the original length:
- *  for example if the original is " a : Int " then we show
- *    `_________`
- *  - TPartials are displayed as text - to detect their presence,
- *    see "t vs t ~expectsPartial:true" above.
- *  - TGhostPartials are displayed as multiple @ signs
- *  - Other blanks (see FluidToken.isBlank) are displayed as `***` This is
- *    controlled by FluidToken.toTestText
- *  - Wrap:
- *      When I started writing these tests, I discovered that they kept passing
- *      despite there being a bug. Whenever the caret went over the end, it
- *      would stay in the last place, giving a false pass. To avoid this,
- *      I wrapped all test cases:
- *         ```
- *         if true
- *         then
- *           expression-I-actually-want-to-test
- *         else
- *           5
- *         ```
- *      We go to great efforts to fix the indentation afterwards. However, you
- *      may find that your test works without the wrapping and doesn't work
- *      with it. The solution is to try it wrapped in the editor and see where
- *      it goes wrong. *
- *  There are more tests in fluid_pattern_tests for match patterns.
+ *
+ *  TBlanks are displayed as `___`
+ *
+ *  TPlaceHolders are displayed as underscores of the original length.
+ *  For example if the original is " a : Int " then we show  `_________`
+ *
+ *  TPartials are displayed as text - to detect their presence, see
+ *  "~expectsPartial:true" above.
+ *
+ *  TGhostPartials are displayed as normal except their first and last
+ *  characters are replaced with @ signs.
+ *
+ *  Other blanks (see FluidToken.isBlank) are displayed as `***` This is
+ *  controlled by FluidPrinter.toTestText.
+ *
+ *  Caret placement is marked with a single `~`. Selections are marked with `»`
+ *  as the start of the selection and `«` as the end. This allow detecting both
+ *  LTR and RTL selection.
+
+ ***********
+ * Wrapper *
+ ***********
+
+ * All test case expressions are automatically wrapped in an if statement. This
+ * allows us to detect abnormalities that would otherwise be hidden by the
+ * expression being the root of the AST. For example, before this we frequently
+ * had tests that passed despite there being a bug in the caret placement that
+ * would otherwise move the caret out-of-bounds.
+ *
+ * if true
+ * then
+ *   test-expression-tokenized-here
+ * else
+ *   5
+ *
+ * We go to great efforts to fix the indentation afterwards. However, you
+ * may find that your test works without the wrapping and doesn't work
+ * with it. The solution is to try it wrapped in the editor and see where
+ * it goes wrong.
+ *
+ * If all else fails, you can disable wrapping your testcase with ~wrap:false.
+
+ *****************
+ * Feature Flags *
+ *****************
+
+ * All test cases created with `t` are automatically run inside a feature flag
+ * panel as well as in the main editor. That is, they are run in the "new code"
+ * section of the feature flag, with the flag being the root of the AST.
+ *
+ * The token list in the flag panel always contains more than just the tokens
+ * from the test expression, since a flag panel contains the condition and
+ * keywords as well:
+ *
+ * when true
+ * enabled
+ *   test-expression-tokenized-here
+ *
+ * As with the if/then/else wrapper, similar steps are taken to remove the
+ * extra tokens and spacing in the flag panel, adjusting all positions as
+ * necessary.
+ *
+ * If for some reason your test doesn't run successfully in both the main
+ * editor and the flag panel (which is definitely a bug!), you can disable
+ * running the test in the flag panel with `brokenInFF:true` until you fix the
+ * behavior.
  *)
+
+let magicIfElseWrapperPrefix = 15 (* "if true\nthen\n  " *)
+
+let magicFeatureFlagPrefix = 20 (* "when true\nenabled\n  " *)
 
 let deOption msg v = match v with Some v -> v | None -> failwith msg
 
-type expectedAttrs =
-  { containsPartials : bool
-  ; containsFnsOnRail : bool }
+module TestCase = struct
+  type t =
+    { ast : FluidAST.t
+    ; originalExpr : FluidExpression.t
+    ; state : fluidState
+    ; ff : bool
+    ; wrap : bool
+    ; clone : bool
+    ; debug : bool }
 
-type testResult = (string * (int option * int)) * expectedAttrs
+  let init
+      ?(wrap = true)
+      ?(clone = true)
+      ?(debug = false)
+      ?(pos = 0)
+      ?(sel = None)
+      ?(ff = false)
+      (originalExpr : FluidExpression.t) : t =
+    let selectionStart, pos =
+      match sel with None -> (None, pos) | Some (a, b) -> (Some a, b)
+    in
+    let ast =
+      let fullExpr =
+        if ff
+        then flagNew originalExpr
+        else if wrap
+        then if' (bool true) originalExpr (int 5)
+        else originalExpr
+      in
+      let fullExpr =
+        if clone then FluidExpression.clone fullExpr else fullExpr
+      in
+      FluidAST.ofExpr fullExpr
+    in
+    let state =
+      let extraEditors = Fluid.buildFeatureFlagEditors ast in
+      let activeEditorId =
+        if ff
+        then List.head extraEditors |> Option.map ~f:(fun e -> e.id)
+        else None
+      in
+      (* re-calculate selectionStart, pos taking into account either
+       * None -> the if/else wrapper because we are testing the main editor
+       * Some -> the feature flag tokenization because we're in an extra (FF) editor
+       *
+       * See the block comment at the top of the file for further discussion of this *)
+      let origSel, origPos = (selectionStart, pos) in
+      let selectionStart, pos =
+        let newlinesBefore (pos : int) =
+          (* Both the main editor if/then/else wrapper and the feature flag
+           * panel tokenization cause the actual tokenization of our result to
+           * contain an extra indent (2 spaces) for each line in the result.
+           *
+           * Consider:
+           *
+           * if true
+           * then
+           *   [1, 2, 3] << test case expectation is only this line
+           * else
+           * 5
+           *
+           * or in the feature flag case:
+           *
+           * when true
+           * enabled
+           *   [1, 2, 3] << test case expectation is only this line
+           *
+           * In order to correctly "fix" the expected caret pos, we need to
+           * count the number of newlines before that position so that we can
+           * add (2 * count) to the pos.
+           *
+           * Importantly, we do this on the original expr
+           *)
+          originalExpr
+          |> Printer.tokenize
+          |> List.filter ~f:(fun ti ->
+                 FluidToken.isNewline ti.token && ti.startPos < pos)
+          |> List.length
+        in
+        if ff
+        then
+          (* if we're testing a flag panel, it ALWAYS has the extra
+           * tokenization to deal with, regardless of if ~wrap was set *)
+          let fixup (p : int) =
+            p + magicFeatureFlagPrefix + (newlinesBefore p * 2)
+          in
+          let selectionStart = Option.map selectionStart ~f:fixup in
+          (selectionStart, fixup pos)
+        else if wrap
+        then
+          (* if the main editor was wrapped, remove it in the same way *)
+          let fixup (p : int) =
+            p + magicIfElseWrapperPrefix + (newlinesBefore p * 2)
+          in
+          let selectionStart = Option.map selectionStart ~f:fixup in
+          (selectionStart, fixup pos)
+        else
+          (* if not in FF and not wrapped, then just leave the pos/selection alone *)
+          (selectionStart, pos)
+      in
+      if debug
+      then
+        Js.log
+          (Printf.sprintf
+             "(sel, pos) fixed from (%s, %d) to (%s, %d)"
+             ( origSel
+             |> Option.map ~f:string_of_int
+             |> Option.withDefault ~default:"None" )
+             origPos
+             ( selectionStart
+             |> Option.map ~f:string_of_int
+             |> Option.withDefault ~default:"None" )
+             pos) ;
+      { defaultTestState with
+        extraEditors
+      ; activeEditorId
+      ; selectionStart
+      ; oldPos = pos
+      ; newPos = pos }
+    in
+    {originalExpr; ff; ast; state; wrap; clone; debug}
+end
+
+module TestResult = struct
+  type t =
+    { testcase : TestCase.t
+    ; resultAST : FluidAST.t
+    ; resultState : fluidState }
+
+  let viewKind (res : t) : editorViewKind =
+    match Fluid.focusedEditor res.resultState with
+    | None ->
+        MainView
+    | Some {kind; _} ->
+        kind
+
+
+  let tokenizeResult (res : t) : FluidToken.tokenInfo list =
+    FluidAST.toExpr res.resultAST |> Printer.tokenizeForViewKind (viewKind res)
+
+
+  let containsPartials (res : t) : bool =
+    List.any (tokenizeResult res) ~f:(fun ti ->
+        match ti.token with
+        | TRightPartial _ | TPartial _ | TFieldPartial _ ->
+            true
+        | _ ->
+            false)
+
+
+  let containsFnsOnRail (res : t) : bool =
+    FluidAST.filter res.resultAST ~f:(function
+        | EBinOp (_, _, _, _, Rail) | EFnCall (_, _, _, Rail) ->
+            true
+        | _ ->
+            false)
+    |> ( <> ) []
+
+
+  let removeWrapperFromCaretPos (res : t) (whichMagic : int) (p : int) : int =
+    let endPos = ref (p - whichMagic) in
+    (* Account for the newlines as we find them, or else we won't know our
+       * position to find the newlines correctly. There'll be extra indentation,
+       * so we need to subtract those to get the pos we expect. *)
+    let tokens = tokenizeResult res in
+    List.iter tokens ~f:(fun ti ->
+        match ti.token with
+        | TNewline _ when !endPos > ti.endPos ->
+            endPos := !endPos - 2
+        | _ ->
+            ()) ;
+    let last = tokens |> List.last |> deOption "last" |> fun x -> x.endPos in
+    (* even though the wrapper allows tests to go past the start and end, it's
+          * weird to test for *)
+    max 0 (min last !endPos)
+
+
+  (** [pos r] returns the equivalent of fluidState.newPos from test result [r],
+    * adjusted to take into account either the test wrapper (if enabled) or the
+    * extra tokens in the feature flag panel (if running the test in a FF)
+    *
+    * See the block comment at top of file for more info about wrapping magic. *)
+  let pos (res : t) : int =
+    if res.testcase.ff
+    then
+      removeWrapperFromCaretPos
+        res
+        magicFeatureFlagPrefix
+        res.resultState.newPos
+    else if res.testcase.wrap
+    then
+      removeWrapperFromCaretPos
+        res
+        magicIfElseWrapperPrefix
+        res.resultState.newPos
+    else res.resultState.newPos
+
+
+  (** [selection r] returns the equivalent of fluidState.selectionStart from
+    * test result [r], adjusted to take into account either the test wrapper (if
+    * enabled) or the extra tokens in the feature flag panel (if running the
+    * test in a FF)
+    *
+    * See the block comment at top of file for more info about wrapping magic. *)
+  let selection (res : t) : int option =
+    if res.testcase.ff
+    then
+      Option.map
+        res.resultState.selectionStart
+        ~f:(removeWrapperFromCaretPos res magicFeatureFlagPrefix)
+    else if res.testcase.wrap
+    then
+      Option.map
+        res.resultState.selectionStart
+        ~f:(removeWrapperFromCaretPos res magicIfElseWrapperPrefix)
+    else res.resultState.selectionStart
+
+
+  let toString (res : t) : string =
+    FluidAST.toExpr res.resultAST |> Printer.testStringForViewKind MainView
+
+
+  let toStringWithCaret (res : t) : string =
+    (* "pos" = the caret position if no selection
+     * or the end of the selection if there is one *)
+    let s = toString res in
+    match selection res with
+    | None ->
+        String.insertAt ~insert:"~" ~index:(pos res) s
+    | Some startPos ->
+        let s = String.insertAt ~insert:"»" ~index:startPos s in
+        let endPos = pos res in
+        (* if a LTR selection, then we'll have already inserted an extra
+         * character, so need to bump the position more to account for that
+         * since we use a 2-byte character, this is 2 not 1 *)
+        if endPos > startPos
+        then String.insertAt ~insert:"«" ~index:(endPos + 2) s
+        else String.insertAt ~insert:"«" ~index:endPos s
+end
 
 type modifierKeys =
   { shiftKey : bool
@@ -85,282 +388,69 @@ let processMsg
       updateMsg m h.hTLID ast (FluidInputEvent input) s)
 
 
-let process
-    ~(debug : bool)
-    ~(clone : bool)
-    ~(wrap : bool)
-    (inputs : fluidInputEvent list)
-    (selectionStart : int option)
-    (pos : int)
-    (ast : FluidExpression.t) : testResult =
-  let s = defaultTestState in
-  let ast = if clone then E.clone ast else ast in
-  let newlinesBefore (pos : int) =
-    (* How many newlines occur before the pos, it'll be indented by 2 for
-       * each newline, once the expr is wrapped in an if, so we need to add
-       * 2*nl to get the pos in place. (Note: it's correct to just count them,
-       * as opposed to the iterative approach we do later, because we're using
-       * the old ast that has no newlines. *)
-    ast
-    |> Printer.tokenize
-    |> List.filter ~f:(fun ti ->
-           FluidToken.isNewline ti.token && ti.startPos < pos)
-    |> List.length
-  in
-  let ast = if wrap then if' (bool true) ast (int 5) else ast in
-  (* See the "Wrap" block comment at the top of the file for an explanation of this *)
-  let wrapperOffset = 15 in
-  let addWrapper pos =
-    if wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
-  in
-  let pos = addWrapper pos in
-  let selectionStart = Option.map selectionStart ~f:addWrapper in
-  let s = {s with oldPos = pos; newPos = pos; selectionStart} in
-  if debug
+let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
+  if tc.debug
   then (
-    Js.log2 "state before " (Fluid_utils.debugState s) ;
-    Js.log2 "expr before" (eToStructure ~includeIDs:true ast) ) ;
-  let newAST, newState = processMsg inputs s ast in
-  let result =
-    match FluidAST.toExpr newAST with
-    | EIf (_, _, expr, _) when wrap ->
-        expr
-    | expr when not wrap ->
-        expr
-    | expr ->
-        failwith ("the wrapper is broken: " ^ toString expr)
+    Js.log2 "state before " (Fluid_utils.debugState tc.state) ;
+    Js.log2
+      "expr before"
+      (FluidAST.toExpr tc.ast |> Printer.eToStructure ~includeIDs:true) ) ;
+  let processedAST, resultState =
+    FluidAST.toExpr tc.ast |> processMsg inputs tc.state
   in
-  let removeWrapperFromCaretPos (p : int) : int =
-    let endPos = ref (p - wrapperOffset) in
-    (* Account for the newlines as we find them, or else we won't know our
-       * position to find the newlines correctly. There'll be extra indentation,
-       * so we need to subtract those to get the pos we expect. *)
-    result
-    |> Printer.tokenize
-    |> List.iter ~f:(fun ti ->
-           match ti.token with
-           | TNewline _ when !endPos > ti.endPos ->
-               endPos := !endPos - 2
-           | _ ->
-               ()) ;
-    let last =
-      Printer.tokenize result
-      |> List.last
-      |> deOption "last"
-      |> fun x -> x.endPos
-    in
-    (* even though the wrapper allows tests to go past the start and end, it's
-          * weird to test for *)
-    max 0 (min last !endPos)
+  let resultAST =
+    FluidAST.map processedAST ~f:(function
+        | EFeatureFlag (_, _, _, _, expr) when tc.ff ->
+            expr
+        | EIf (_, _, expr, _) when tc.wrap ->
+            expr
+        | expr when not tc.wrap ->
+            expr
+        | expr ->
+            failwith ("the wrapper is broken: " ^ Printer.eToTestString expr))
   in
-  let finalPos =
-    if wrap then removeWrapperFromCaretPos newState.newPos else newState.newPos
-  in
-  let selPos =
-    if wrap
-    then Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
-    else newState.selectionStart
-  in
-  let containsPartials =
-    List.any (Printer.tokenize result) ~f:(fun ti ->
-        match ti.token with
-        | TRightPartial _ | TPartial _ | TFieldPartial _ ->
-            true
-        | _ ->
-            false)
-  in
-  let containsFnsOnRail =
-    result
-    |> FluidExpression.filter ~f:(function
-           | EBinOp (_, _, _, _, Rail) | EFnCall (_, _, _, Rail) ->
-               true
-           | _ ->
-               false)
-    |> ( <> ) []
-  in
-  if debug
+  if tc.debug
   then (
-    Js.log2 "state after" (Fluid_utils.debugState newState) ;
-    Js.log2 "expr after" (eToStructure ~includeIDs:true result) ) ;
-  ((toString result, (selPos, finalPos)), {containsPartials; containsFnsOnRail})
+    Js.log2 "state after" (Fluid_utils.debugState resultState) ;
+    Js.log2
+      "expr after"
+      (Printer.eToStructure ~includeIDs:true (FluidAST.toExpr resultAST)) ) ;
+  {TestResult.testcase = tc; resultAST; resultState}
 
 
-let render (expr : fluidExpr) : testResult =
-  process ~wrap:true ~clone:false ~debug:false [] None 0 expr
-
+let render (case : TestCase.t) : TestResult.t = process [] case
 
 let keypress ?(shiftHeld = false) (key : K.key) : fluidInputEvent =
   Keypress
     {key; shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
 
 
-let del
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [DeleteContentForward] None pos expr
+let del (case : TestCase.t) : TestResult.t = process [DeleteContentForward] case
+
+let bs (case : TestCase.t) : TestResult.t = process [DeleteContentBackward] case
+
+let ctrlLeft = process [keypress (K.GoToStartOfWord K.DropSelection)]
+
+let ctrlRight = process [keypress (K.GoToEndOfWord K.DropSelection)]
+
+let shiftTab = process [keypress ~shiftHeld:true K.ShiftTab]
+
+let space = process [keypress K.Space]
+
+let enter = process [keypress K.Enter]
+
+let key ?(shiftHeld = false) (key : K.key) (case : TestCase.t) : TestResult.t =
+  process [keypress ~shiftHeld key] case
 
 
-let bs
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [DeleteContentBackward] None pos expr
+let keys ?(shiftHeld = false) (keys : K.key list) (case : TestCase.t) :
+    TestResult.t =
+  process (List.map ~f:(keypress ~shiftHeld) keys) case
 
 
-let tab
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Tab] None pos expr
-
-
-let ctrlLeft
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  let maintainSelection =
-    if shiftHeld then K.KeepSelection else K.DropSelection
-  in
+let modkeys (keys : (K.key * modifierKeys) list) (case : TestCase.t) :
+    TestResult.t =
   process
-    ~wrap
-    ~clone
-    ~debug
-    [keypress ~shiftHeld (K.GoToStartOfWord maintainSelection)]
-    None
-    pos
-    expr
-
-
-let ctrlRight
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  let maintainSelection =
-    if shiftHeld then K.KeepSelection else K.DropSelection
-  in
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [keypress ~shiftHeld (K.GoToEndOfWord maintainSelection)]
-    None
-    pos
-    expr
-
-
-let shiftTab
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.ShiftTab] None pos expr
-
-
-let space
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress K.Space] None pos expr
-
-
-let enter
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld K.Enter] None pos expr
-
-
-let key
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (key : K.key)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug [keypress ~shiftHeld key] None pos expr
-
-
-let selectionPress
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (key : K.key)
-    (selectionStart : int)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~clone
-    ~debug
-    [keypress ~shiftHeld key]
-    (Some selectionStart)
-    pos
-    expr
-
-
-let selectionInputs
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    (inputs : fluidInputEvent list)
-    (selectionStart : int)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~clone ~debug inputs (Some selectionStart) pos expr
-
-
-let keys
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    ?(shiftHeld = false)
-    (keys : K.key list)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~debug
-    ~clone
-    (List.map ~f:(keypress ~shiftHeld) keys)
-    None
-    pos
-    expr
-
-
-let modkeys
-    ?(wrap = true)
-    ?(debug = false)
-    ?(clone = true)
-    (keys : (K.key * modifierKeys) list)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~clone
-    ~debug
     (List.map
        ~f:(fun (key, mods) ->
          Keypress
@@ -370,100 +460,65 @@ let modkeys
            ; metaKey = mods.metaKey
            ; ctrlKey = mods.ctrlKey })
        keys)
-    None
-    pos
-    expr
+    case
 
 
-let ins
-    ?(debug = false)
-    ?(wrap = true)
-    ?(clone = true)
-    (s : string)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~debug ~clone [InsertText s] None pos expr
+let ins (s : string) (case : TestCase.t) : TestResult.t =
+  process [InsertText s] case
 
 
-let insMany
-    ?(debug = false)
-    ?(wrap = true)
-    ?(clone = true)
-    (strings : string list)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process
-    ~wrap
-    ~debug
-    ~clone
-    (List.map strings ~f:(fun s -> InsertText s))
-    None
-    pos
-    expr
+let insMany (strings : string list) (case : TestCase.t) : TestResult.t =
+  process (List.map strings ~f:(fun s -> InsertText s)) case
 
 
-let inputs
-    ?(debug = false)
-    ?(wrap = true)
-    ?(clone = true)
-    ?(selectionStart = None)
-    (inputs : fluidInputEvent list)
-    (pos : int)
-    (expr : fluidExpr) : testResult =
-  process ~wrap ~debug ~clone inputs selectionStart pos expr
+let inputs (inputs : fluidInputEvent list) (case : TestCase.t) : TestResult.t =
+  process inputs case
 
 
 (* Test expecting no partials found and an expected caret position but no selection *)
 let t
     ?(expectsPartial = false)
     ?(expectsFnOnRail = false)
+    ?(brokenInFF = false)
+    ?(wrap = true)
+    ?(clone = true)
+    ?(debug = false)
+    ?(pos = 0)
+    ?sel
     (name : string)
-    (initial : fluidExpr)
-    (fn : fluidExpr -> testResult)
+    (expr : fluidExpr)
+    (fn : TestCase.t -> TestResult.t)
     (expectedStr : string) =
-  let insertCaret
-      (((str, (_selection, caret)), res) :
-        (string * (int option * int)) * expectedAttrs) : string * expectedAttrs
-      =
-    let caretString = "~" in
-    match str |> String.splitAt ~index:caret with
-    | a, b ->
-        ([a; b] |> String.join ~sep:caretString, res)
+  let testName ?(ff = false) () =
+    name
+    ^ (if ff then " in FF " else "")
+    ^ " - `"
+    ^ ( Printer.eToTestString expr
+      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+    ^ "`"
   in
-  test
-    ( name
-    ^ " - `"
-    ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
-    ^ "`" )
-    (fun () ->
-      expect (fn initial |> insertCaret)
-      |> toEqual
-           ( expectedStr
-           , { containsPartials = expectsPartial
-             ; containsFnsOnRail = expectsFnOnRail } ))
+  let case = TestCase.init ~wrap ~clone ~debug ~pos ~sel expr in
+  test (testName ()) (fun () ->
+      let res = fn case in
+      let open TestResult in
+      expect (toStringWithCaret res, containsPartials res, containsFnsOnRail res)
+      |> toEqual (expectedStr, expectsPartial, expectsFnOnRail)) ;
+  (* also run the same test in a feature flag editor panel, unless it's marked as not working *)
+  if not brokenInFF
+  then
+    let case =
+      TestCase.init ~wrap:false ~clone ~debug ~pos ~sel ~ff:true expr
+    in
+    test (testName ~ff:true ()) (fun () ->
+        let res = fn case in
+        let open TestResult in
+        expect
+          (toStringWithCaret res, containsPartials res, containsFnsOnRail res)
+        |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
 
 
-(* Test expecting no partials found and an expected resulting selection *)
-let ts
-    (name : string)
-    (initial : fluidExpr)
-    (fn : fluidExpr -> testResult)
-    ((expectedString, (expectedSelStart, expectedPos)) :
-      string * (int option * int)) =
-  let expected = (expectedString, (expectedSelStart, expectedPos)) in
-  test
-    ( name
-    ^ " - `"
-    ^ (toString initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
-    ^ "`" )
-    (fun () ->
-      expect (fn initial)
-      |> toEqual
-           (expected, {containsPartials = false; containsFnsOnRail = false}))
-
-
-(** [tStruct name ast pos inputs expectedStructure] 
-* tests if applying [inputs] to the [ast] with a 
+(** [tStruct name ast pos inputs expectedStructure]
+* tests if applying [inputs] to the [ast] with a
 * non-selecting state derived from [pos] produces a structure
 * that matches the [expectedStructure] string.
 * The format of that string must match that produced by Printer.eToTestcase.
@@ -487,214 +542,244 @@ let tStruct
 let run () =
   OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
-      t "insert mid string" aStr (ins "c" 3) "\"soc~me string\"" ;
-      t "del mid string" aStr (del 3) "\"so~e string\"" ;
-      t "bs mid string" aStr (bs 4) "\"so~e string\"" ;
-      t "insert empty string" emptyStr (ins "c" 1) "\"c~\"" ;
-      t "del empty string" emptyStr (del 1) "\"~\"" ;
-      t "del empty string from outside" emptyStr (del 0) "~___" ;
-      t "bs empty string" emptyStr (bs 1) "~___" ;
-      t "bs outside empty string" emptyStr (bs 2) "\"~\"" ;
-      t "bs near-empty string" oneCharStr (bs 2) "\"~\"" ;
-      t "del near-empty string" oneCharStr (del 1) "\"~\"" ;
-      t "insert outside string" aStr (ins "c" 0) "~\"some string\"" ;
-      t "del outside string" aStr (del 0) "~\"some string\"" ;
-      t "bs outside string" aStr (bs 0) "~\"some string\"" ;
-      t "insert start of string" aStr (ins "c" 1) "\"c~some string\"" ;
-      t "del start of string" aStr (del 1) "\"~ome string\"" ;
-      t "bs start of string" aStr (bs 1) "~\"some string\"" ;
-      t "insert end of string" aStr (ins "c" 12) "\"some stringc~\"" ;
-      t "del end of string" aStr (del 12) "\"some string~\"" ;
-      t "bs end of string" aStr (bs 12) "\"some strin~\"" ;
-      t "insert after end" aStr (ins "c" 13) "\"some string\"~" ;
-      t "del after end of string" aStr (del 13) "\"some string\"~" ;
-      t "bs after end" aStr (bs 13) "\"some string~\"" ;
-      t "insert space in string" aStr (key K.Space 3) "\"so ~me string\"" ;
-      t "del space in string" aStr (del 5) "\"some~string\"" ;
-      t "bs space in string" aStr (bs 6) "\"some~string\"" ;
-      t "final quote is swallowed" aStr (ins "\"" 12) "\"some string\"~" ;
-      t "insert backtick in string" aStr (ins "`" 1) "\"`~some string\"" ;
+      t "insert mid string" aStr ~pos:3 (ins "c") "\"soc~me string\"" ;
+      t "del mid string" aStr ~pos:3 del "\"so~e string\"" ;
+      t "bs mid string" aStr ~pos:4 bs "\"so~e string\"" ;
+      t "insert empty string" emptyStr ~pos:1 (ins "c") "\"c~\"" ;
+      t "del empty string" emptyStr ~pos:1 del "\"~\"" ;
+      t "del empty string from outside" emptyStr del "~___" ;
+      t "bs empty string" emptyStr ~pos:1 bs "~___" ;
+      t "bs outside empty string" emptyStr ~pos:2 bs "\"~\"" ;
+      t "bs near-empty string" oneCharStr ~pos:2 bs "\"~\"" ;
+      t "del near-empty string" oneCharStr ~pos:1 del "\"~\"" ;
+      t "insert outside string" aStr (ins "c") "~\"some string\"" ;
+      t "del outside string" aStr del "~\"some string\"" ;
+      t "bs outside string" aStr bs "~\"some string\"" ;
+      t "insert start of string" aStr ~pos:1 (ins "c") "\"c~some string\"" ;
+      t "del start of string" aStr ~pos:1 del "\"~ome string\"" ;
+      t "bs start of string" aStr ~pos:1 bs "~\"some string\"" ;
+      t "insert end of string" aStr ~pos:12 (ins "c") "\"some stringc~\"" ;
+      t "del end of string" aStr ~pos:12 del "\"some string~\"" ;
+      t "bs end of string" aStr ~pos:12 bs "\"some strin~\"" ;
+      t "insert after end" aStr ~pos:13 (ins "c") "\"some string\"~" ;
+      t "del after end of string" aStr ~pos:13 del "\"some string\"~" ;
+      t "bs after end" aStr ~pos:13 bs "\"some string~\"" ;
+      t "insert space in string" aStr ~pos:3 (key K.Space) "\"so ~me string\"" ;
+      t "del space in string" aStr ~pos:5 del "\"some~string\"" ;
+      t "bs space in string" aStr ~pos:6 bs "\"some~string\"" ;
+      t "final quote is swallowed" aStr ~pos:12 (ins "\"") "\"some string\"~" ;
+      t "insert backtick in string" aStr ~pos:1 (ins "`") "\"`~some string\"" ;
       t
         "ctrl+left from mid string goes front of word in string"
         aStr
-        (ctrlLeft 12)
+        ~pos:12
+        ctrlLeft
         "\"some ~string\"" ;
       t
         "ctrl+right from mid string goes end of word in string"
         aStr
-        (ctrlRight 2)
+        ~pos:2
+        ctrlRight
         "\"some~ string\"" ;
       t
         "ctrl+left from beg of string goes front of next word in string"
         aStr
-        (ctrlLeft 6)
+        ~pos:6
+        ctrlLeft
         "\"~some string\"" ;
       t
         "ctrl+right goes end of word in string"
         aStr
-        (ctrlRight 5)
+        ~pos:5
+        ctrlRight
         "\"some string~\"" ;
       t
         "DeleteWordBackward at end of last word in string should only delete last word"
         aStr
-        (inputs [DeleteWordBackward] 12)
+        ~pos:12
+        (inputs [DeleteWordBackward])
         "\"some ~\"" ;
       t
         "DeleteWordBackward at beg of last word in string should delete first word"
         aStr
-        (inputs [DeleteWordBackward] 6)
+        ~pos:6
+        (inputs [DeleteWordBackward])
         "\"~string\"" ;
       t
         "DeleteWordBackward at beg of first word in string does nothing"
         aStr
-        (inputs [DeleteWordBackward] 1)
+        ~pos:1
+        (inputs [DeleteWordBackward])
         "~\"some string\"" ;
       t
         "DeleteWordBackward in the middle of first word in string only deletes in front of the cursor"
         aStr
-        (inputs [DeleteWordBackward] 3)
+        ~pos:3
+        (inputs [DeleteWordBackward])
         "\"~me string\"" ;
       t
         "DeleteWordForward at end of last word in string moves cursor outside string"
         aStr
-        (inputs [DeleteWordForward] 12)
+        ~pos:12
+        (inputs [DeleteWordForward])
         "\"some string\"~" ;
       t
         "DeleteWordForward at beg of last word in string should delete last word"
         aStr
-        (inputs [DeleteWordForward] 6)
+        ~pos:6
+        (inputs [DeleteWordForward])
         "\"some ~\"" ;
       t
         "DeleteWordForward at beg of first word deletes first word"
         aStr
-        (inputs [DeleteWordForward] 1)
+        ~pos:1
+        (inputs [DeleteWordForward])
         "\"~ string\"" ;
       t
         "DeleteWordForward in the middle of first word in string deletes to next whitespace"
         aStr
-        (inputs [DeleteWordForward] 3)
+        ~pos:3
+        (inputs [DeleteWordForward])
         "\"so~ string\"" ;
-      ts
+      t
         "When the entire string is selected, backspace will delete entire string, returning a blank"
         aStr
-        (selectionInputs [DeleteContentBackward] 0 13)
-        ("___", (None, 0)) ;
-      ts
+        ~sel:(0, 13)
+        (inputs [DeleteContentBackward])
+        "~___" ;
+      t
         "Replace text in string if text is inserted with selection"
         aStr
-        (inputs [InsertText "a"] 1 ~selectionStart:(Some 5))
-        ("\"a string\"", (None, 2)) ;
+        ~sel:(1, 5)
+        (inputs [InsertText "a"])
+        "\"a~ string\"" ;
       ()) ;
   describe "Multi-line Strings" (fun () ->
       t
         "insert into start string"
         mlStr
-        (ins "c" 3)
+        ~pos:3
+        (ins "c")
         ( "\"12c~3456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert into middle string"
         mlStr
-        (ins "c" 44 (* quote + 2 + newline *))
+        ~pos:44 (* quote + 2 + newline *)
+        (ins "c")
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12c~3456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert into end string"
         mlStr
-        (ins "c" 85 (* quote + 2 + newline*2 *))
+        ~pos:85 (* quote + 2 + newline*2 *)
+        (ins "c")
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12c~3456789_\"" ) ;
       t
         "del mid start string"
         mlStr
-        (del 3)
+        ~pos:3
+        del
         ( "\"12~456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_\"" ) ;
       t
         "del mid middle string"
         mlStr
-        (del 44)
+        ~pos:44
+        del
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12~456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_\"" ) ;
       t
         "del mid end string"
         mlStr
-        (del 85)
+        ~pos:85
+        del
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12~456789_\"" ) ;
       t
         "bs mid start string"
         mlStr
-        (bs 4)
+        ~pos:4
+        bs
         ( "\"12~456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_\"" ) ;
       t
         "bs mid middle string"
         mlStr
-        (bs 45)
+        ~pos:45
+        bs
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12~456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_\"" ) ;
       t
         "bs mid end string"
         mlStr
-        (bs 86)
+        ~pos:86
+        bs
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12~456789_\"" ) ;
       t
         "insert outside string"
         mlStr
-        (ins "c" 0)
+        ~pos:0
+        (ins "c")
         ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
       t
         "del outside string"
         mlStr
-        (del 0)
+        ~pos:0
+        del
         ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
       t
         "bs outside string"
         mlStr
-        (bs 0)
+        ~pos:0
+        bs
         ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
       t
         "insert start of start string"
         mlStr
-        (ins "c" 1)
+        ~pos:1
+        (ins "c")
         ( "\"c~123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert start of middle string"
         mlStr
-        (ins "c" 42)
+        ~pos:42
+        (ins "c")
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "c~123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert start of end string"
         mlStr
-        (ins "c" 83)
+        ~pos:83
+        (ins "c")
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "c~123456789_\"" ) ;
       t
         "del start of start string"
         mlStr
-        (del 1)
+        ~pos:1
+        del
         ( "\"~23456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_\"" ) ;
@@ -702,7 +787,8 @@ let run () =
         "del start of middle string"
         (* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad *)
         mlStr
-        (del 42)
+        ~pos:42
+        del
         ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
         ^ "23456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_\"" ) ;
@@ -710,68 +796,78 @@ let run () =
         "del start of end string"
         (* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad *)
         mlStr
-        (del 83)
+        ~pos:83
+        del
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,~\n"
         ^ "23456789_\"" ) ;
       t
         "bs start of start string"
         mlStr
-        (bs 1)
+        ~pos:1
+        bs
         ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
       t
         "bs start of middle string"
         mlStr
-        (bs 42)
+        ~pos:42
+        bs
         ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
       t
         "bs start of end string"
         mlStr
-        (bs 83)
+        ~pos:83
+        bs
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,~\n"
         ^ "123456789_\"" ) ;
       t
         "insert end of start string"
         mlStr
-        (ins "c" 41)
+        ~pos:41
+        (ins "c")
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\nc~"
         ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert end of middle string"
         mlStr
-        (ins "c" 82)
+        ~pos:82
+        (ins "c")
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\nc~"
         ^ "123456789_\"" ) ;
       t
         "insert end of end string"
         mlStr
-        (ins "c" 93)
+        ~pos:93
+        (ins "c")
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_c~\"" ) ;
       t
         "string converts to ml string"
         (str mlSegment)
-        (ins "c" 41)
+        ~pos:41
+        (ins "c")
         "\"123456789_abcdefghi,123456789_abcdefghi,\nc~\"" ;
       t
         "indented string converts to ml string"
         (if' (str mlSegment) b b)
-        (ins "c" 44)
+        ~pos:44
+        (ins "c")
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "insert end of indented start string"
         (if' (str (mlSegment ^ mlSegment)) b b)
-        (ins "c" 44)
+        ~pos:44
+        (ins "c")
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~123456789_abcdefghi,123456789_abcdefghi\n"
         ^ "   ,\"\n"
@@ -779,7 +875,8 @@ let run () =
       t
         "insert end of indented end string"
         (if' (str (mlSegment ^ mlSegment)) b b)
-        (ins "c" 88)
+        ~pos:88
+        (ins "c")
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~\"\n"
@@ -787,63 +884,72 @@ let run () =
       t
         "del end of start string"
         mlStr
-        (del 41)
+        ~pos:41
+        del
         ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
       t
         "del end of middle string"
         mlStr
-        (del 82)
+        ~pos:82
+        del
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,~\n"
         ^ "123456789_\"" ) ;
       t
         "del end of end string"
         mlStr
-        (del 93)
+        ~pos:93
+        del
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_~\"" ) ;
       t
         "bs end of start string"
         mlStr
-        (bs 41)
+        ~pos:41
+        bs
         ( "\"123456789_abcdefghi,123456789_abcdefghi"
         ^ "~1\n23456789_abcdefghi,123456789_abcdefghi,"
         ^ "1\n23456789_\"" ) ;
       t
         "bs end of middle string"
         mlStr
-        (bs 82)
+        ~pos:82
+        bs
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi"
         ^ "~1\n23456789_\"" ) ;
       t
         "bs end of end string"
         mlStr
-        (bs 93)
+        ~pos:93
+        bs
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789~\"" ) ;
       t
         "insert after end of end string"
         mlStr
-        (ins "c" 94)
+        ~pos:94
+        (ins "c")
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"~" ) ;
       t
         "del after end of end string"
         mlStr
-        (del 94)
+        ~pos:94
+        del
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"~" ) ;
       t
         "bs after end of end string"
         mlStr
-        (bs 94)
+        ~pos:94
+        bs
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_~\"" ) ;
@@ -851,101 +957,115 @@ let run () =
       t
         "final quote is swallowed"
         mlStr
-        (ins "\"" 93)
+        ~pos:93
+        (ins "\"")
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"~" ) ;
       t
         "bs, 3 lines to 2, end"
         (if' (str (mlSegment ^ mlSegment ^ "c")) b b)
-        (bs 93)
+        ~pos:93
+        bs
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "bs, 2 lines to 1, end"
         (if' (str (mlSegment ^ "c")) b b)
-        (bs 49)
+        ~pos:49
+        bs
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "del, 3 lines to 2, end"
         (if' (str (mlSegment ^ mlSegment ^ "c")) b b)
-        (del 92)
+        ~pos:92
+        del
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "del, 2 lines to 1, end"
         (if' (str (mlSegment ^ "c")) b b)
-        (del 48)
+        ~pos:48
+        del
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "ctrl+left at beg of start string moves to beg"
         mlStrWSpace
-        (ctrlLeft 6)
+        ~pos:6
+        ctrlLeft
         ( "\"~123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
         ^ "ghi,\"" ) ;
       t
         "ctrl+left at beg of middle string moves to beg"
         mlStrWSpace
-        (ctrlLeft 54)
+        ~pos:54
+        ctrlLeft
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " ~123456789_ abcdefghi, 123456789_ abcdef\n"
         ^ "ghi,\"" ) ;
       t
         "ctrl+left at beg of end string moves to beg"
         mlStrWSpace
-        (ctrlLeft 76)
+        ~pos:76
+        ctrlLeft
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " 123456789_ abcdefghi, ~123456789_ abcdef\n"
         ^ "ghi,\"" ) ;
       t
         "ctrl+right at beg of start string moves to end"
         mlStrWSpace
-        (ctrlRight 0)
+        ctrlRight
         ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
         ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
         ^ "ghi,\"" ) ;
       t
         "ctrl+right at beg of middle string moves to end"
         mlStrWSpace
-        (ctrlRight 46)
+        ~pos:46
+        ctrlRight
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " 123456789_~ abcdefghi, 123456789_ abcdef\n"
         ^ "ghi,\"" ) ;
       t
         "ctrl+right at beg of end string moves to end"
         mlStrWSpace
-        (ctrlRight 76)
+        ~pos:76
+        ctrlRight
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " 123456789_ abcdefghi, 123456789_ abcdef~\n"
         ^ "ghi,\"" ) ;
       t
         "DeleteWordBackward at the end of line deletes word in front"
         mlStrWSpace
-        (inputs [DeleteWordBackward] 82)
+        ~pos:82
+        (inputs [DeleteWordBackward])
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " 123456789_ abcdefghi, 123456789_ ~ghi,\"" ) ;
       t
         "DeleteWordBackward at the beg of line goes to end of line above "
         mlStrWSpace
-        (inputs [DeleteWordBackward] 42)
+        ~pos:42
+        (inputs [DeleteWordBackward])
         ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
         ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
         ^ "ghi,\"" ) ;
       t
         "DeleteWordForward at the end of line deletes up to the next whitespace"
         mlStrWSpace
-        (inputs [DeleteWordForward] 82)
+        ~pos:82
+        (inputs [DeleteWordForward])
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " 123456789_ abcdefghi, 123456789_ abcdef~\"" ) ;
       t
         "DeleteWordForward at the beg of line deletes until the next whitespace"
         mlStrWSpace
-        (inputs [DeleteWordForward] 42)
+        ~pos:42
+        (inputs [DeleteWordForward])
         (* ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ; *)
         (* The non-commented version is a bit weird for caret placement,
@@ -955,382 +1075,519 @@ let run () =
       t
         "adding a quote at the front turns a partial into a string"
         (partial "abcdefgh\"" b)
-        (ins "\"" 0)
+        (ins "\"")
         "\"~abcdefgh\"" ;
       t
         "adding a quote at the back turns a partial into a string"
         (partial "\"abcdefgh" b)
-        (ins "\"" 9)
+        ~pos:9
+        (ins "\"")
         "\"abcdefgh\"~" ;
       t
         ~expectsPartial:true
         "just one quote doesn't turn a partial into a string"
         (partial "abcdefgh" b)
-        (ins "\"" 0)
+        (ins "\"")
         "\"~abcdefgh" ;
-      ts
+      t
         "Replace text in multiline string if text is inserted with selection"
         mlStrWSpace
-        (inputs [InsertText "a"] 1 ~selectionStart:(Some 72))
-        ("\"a89_ abcdefghi,\"", (None, 2)) ;
+        ~sel:(1, 72)
+        (inputs [InsertText "a"])
+        "\"a~89_ abcdefghi,\"" ;
       ()) ;
   describe "Integers" (fun () ->
-      t "insert 0 at front " anInt (ins "0" 0) "~12345" ;
-      t "insert at end of short" aShortInt (ins "2" 1) "12~" ;
-      t "insert not a number" anInt (ins "c" 0) "~12345" ;
-      t "insert start of number" anInt (ins "5" 0) "5~12345" ;
-      t "del start of number" anInt (del 0) "~2345" ;
-      t "bs start of number" anInt (bs 0) "~12345" ;
-      t "insert end of number" anInt (ins "0" 5) "123450~" ;
-      t "del end of number" anInt (del 5) "12345~" ;
-      t "bs end of number" anInt (bs 5) "1234~" ;
-      t "insert number at scale" aHugeInt (ins "9" 5) "200009~0000000000000" ;
-      t "insert number at scale" aHugeInt (ins "9" 0) "9~20000000000000000" ;
-      t "insert number at scale" aHugeInt (ins "9" 19) "2000000000000000000~" ;
+      t "insert 0 at front " anInt (ins "0") "~12345" ;
+      t "insert at end of short" aShortInt ~pos:1 (ins "2") "12~" ;
+      t "insert not a number" anInt (ins "c") "~12345" ;
+      t "insert start of number" anInt (ins "5") "5~12345" ;
+      t "del start of number" anInt del "~2345" ;
+      t "bs start of number" anInt bs "~12345" ;
+      t "insert end of number" anInt ~pos:5 (ins "0") "123450~" ;
+      t "del end of number" anInt ~pos:5 del "12345~" ;
+      t "bs end of number" anInt ~pos:5 bs "1234~" ;
+      t
+        "insert number at scale"
+        aHugeInt
+        ~pos:5
+        (ins "9")
+        "200009~0000000000000" ;
+      t "insert number at scale" aHugeInt (ins "9") "9~20000000000000000" ;
+      t
+        "insert number at scale"
+        aHugeInt
+        ~pos:19
+        (ins "9")
+        "2000000000000000000~" ;
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
-        (ins "3" 18)
+        ~pos:18
+        (ins "3")
         "4611686018427387903~" ;
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
-        (ins "4" 18)
+        ~pos:18
+        (ins "4")
         "461168601842738790~" ;
       t
         "ctrl+left go to beg of int moves to beg"
         oneShorterThanMax62BitInt
-        (ctrlLeft 11)
+        ~pos:11
+        ctrlLeft
         "~461168601842738790" ;
       t
         "ctrl+right go to end of int moves to end"
         oneShorterThanMax62BitInt
-        (ctrlRight 11)
+        ~pos:11
+        ctrlRight
         "461168601842738790~" ;
       t
         "DeleteWordBackward in the middle of an int deletes all the nums in front of cursor"
         oneShorterThanMax62BitInt
-        (inputs [DeleteWordBackward] 11)
+        ~pos:11
+        (inputs [DeleteWordBackward])
         "~2738790" ;
       t
         "DeleteWordBackward at the end of an int deletes it all"
         oneShorterThanMax62BitInt
-        (inputs [DeleteWordBackward] 18)
+        ~pos:18
+        (inputs [DeleteWordBackward])
         "~___" ;
-      ts
+      t
         "Replace int if inserted with selection"
         anInt
-        (inputs [InsertText "4"] 0 ~selectionStart:(Some 4))
-        ("45", (None, 1)) ;
+        ~sel:(0, 4)
+        (inputs [InsertText "4"])
+        "4~5" ;
       ()) ;
   describe "Floats" (fun () ->
-      t "insert . converts to float - end" anInt (ins "." 5) "12345.~" ;
-      t "insert . converts to float - middle" anInt (ins "." 3) "123.~45" ;
-      t "insert . converts to float - start" anInt (ins "." 0) ".~12345" ;
-      t "insert . converts to float - short" aShortInt (ins "." 1) "1.~" ;
-      t "continue after adding dot" aPartialFloat (ins "2" 2) "1.2~" ;
-      t "insert zero in whole - start" aFloat (ins "0" 0) "~123.456" ;
-      t "insert zero in whole - no whole" aFloatWithoutWhole (ins "0" 0) "0~.1" ;
-      t "insert int in whole - start" aFloat (ins "9" 0) "9~123.456" ;
-      t "insert int in whole - middle" aFloat (ins "0" 1) "10~23.456" ;
-      t "insert int in whole - end" aFloat (ins "0" 3) "1230~.456" ;
-      t "insert int in fraction - start" aFloat (ins "0" 4) "123.0~456" ;
-      t "insert int in fraction - middle" aFloat (ins "0" 6) "123.450~6" ;
-      t "insert int in fraction - end" aFloat (ins "0" 7) "123.4560~" ;
-      t "insert non-int in whole" aFloat (ins "c" 2) "12~3.456" ;
-      t "insert non-int in fraction" aFloat (ins "c" 6) "123.45~6" ;
-      t "del dot" aFloat (del 3) "123~456" ;
-      t "del dot at scale" aHugeFloat (del 9) "123456789~123456789" ;
-      t "del dot at limit1" maxPosIntWithDot (del 16) "4611686018427387~903" ;
-      t "del dot at limit2" maxPosIntPlus1WithDot (del 16) "4611686018427387~90" ;
-      t "del start of whole" aFloat (del 0) "~23.456" ;
-      t "del middle of whole" aFloat (del 1) "1~3.456" ;
-      t "del end of whole" aFloat (del 2) "12~.456" ;
-      t "del start of fraction" aFloat (del 4) "123.~56" ;
-      t "del middle of fraction" aFloat (del 5) "123.4~6" ;
-      t "del end of fraction" aFloat (del 6) "123.45~" ;
-      t "del dot converts to int" aFloat (del 3) "123~456" ;
-      t "del dot converts to int, no fraction" aPartialFloat (del 1) "1~" ;
-      t "bs dot" aFloat (bs 4) "123~456" ;
-      t "bs dot at scale" aHugeFloat (bs 10) "123456789~123456789" ;
-      t "bs dot at limit1" maxPosIntWithDot (bs 17) "4611686018427387~903" ;
-      t "bs dot at limit2" maxPosIntPlus1WithDot (bs 17) "4611686018427387~90" ;
-      t "bs start of whole" aFloat (bs 1) "~23.456" ;
-      t "bs middle of whole" aFloat (bs 2) "1~3.456" ;
-      t "bs end of whole" aFloat (bs 3) "12~.456" ;
-      t "bs start of fraction" aFloat (bs 5) "123.~56" ;
-      t "bs middle of fraction" aFloat (bs 6) "123.4~6" ;
-      t "bs end of fraction" aFloat (bs 7) "123.45~" ;
-      t "bs dot converts to int" aFloat (bs 4) "123~456" ;
-      t "bs dot converts to int, no fraction" aPartialFloat (bs 2) "1~" ;
-      t "continue after adding dot" aPartialFloat (ins "2" 2) "1.2~" ;
-      t "ctrl+left start of whole moves to beg" aFloat (ctrlLeft 0) "~123.456" ;
-      t "ctrl+left middle of whole moves to beg" aFloat (ctrlLeft 1) "~123.456" ;
-      t "ctrl+left end of whole moves to beg" aFloat (ctrlLeft 2) "~123.456" ;
+      t "insert . converts to float - end" anInt ~pos:5 (ins ".") "12345.~" ;
+      t "insert . converts to float - middle" anInt ~pos:3 (ins ".") "123.~45" ;
+      t "insert . converts to float - start" anInt ~pos:0 (ins ".") ".~12345" ;
+      t "insert . converts to float - short" aShortInt ~pos:1 (ins ".") "1.~" ;
+      t "continue after adding dot" aPartialFloat ~pos:2 (ins "2") "1.2~" ;
+      t "insert zero in whole - start" aFloat ~pos:0 (ins "0") "~123.456" ;
+      t
+        "insert zero in whole - no whole"
+        aFloatWithoutWhole
+        ~pos:0
+        (ins "0")
+        "0~.1" ;
+      t "insert int in whole - start" aFloat ~pos:0 (ins "9") "9~123.456" ;
+      t "insert int in whole - middle" aFloat ~pos:1 (ins "0") "10~23.456" ;
+      t "insert int in whole - end" aFloat ~pos:3 (ins "0") "1230~.456" ;
+      t "insert int in fraction - start" aFloat ~pos:4 (ins "0") "123.0~456" ;
+      t "insert int in fraction - middle" aFloat ~pos:6 (ins "0") "123.450~6" ;
+      t "insert int in fraction - end" aFloat ~pos:7 (ins "0") "123.4560~" ;
+      t "insert non-int in whole" aFloat ~pos:2 (ins "c") "12~3.456" ;
+      t "insert non-int in fraction" aFloat ~pos:6 (ins "c") "123.45~6" ;
+      t "del dot" aFloat ~pos:3 del "123~456" ;
+      t "del dot at scale" aHugeFloat ~pos:9 del "123456789~123456789" ;
+      t "del dot at limit1" maxPosIntWithDot ~pos:16 del "4611686018427387~903" ;
+      t
+        "del dot at limit2"
+        maxPosIntPlus1WithDot
+        ~pos:16
+        del
+        "4611686018427387~90" ;
+      t "del start of whole" aFloat ~pos:0 del "~23.456" ;
+      t "del middle of whole" aFloat ~pos:1 del "1~3.456" ;
+      t "del end of whole" aFloat ~pos:2 del "12~.456" ;
+      t "del start of fraction" aFloat ~pos:4 del "123.~56" ;
+      t "del middle of fraction" aFloat ~pos:5 del "123.4~6" ;
+      t "del end of fraction" aFloat ~pos:6 del "123.45~" ;
+      t "del dot converts to int" aFloat ~pos:3 del "123~456" ;
+      t "del dot converts to int, no fraction" aPartialFloat ~pos:1 del "1~" ;
+      t "bs dot" aFloat ~pos:4 bs "123~456" ;
+      t "bs dot at scale" aHugeFloat ~pos:10 bs "123456789~123456789" ;
+      t "bs dot at limit1" maxPosIntWithDot ~pos:17 bs "4611686018427387~903" ;
+      t
+        "bs dot at limit2"
+        maxPosIntPlus1WithDot
+        ~pos:17
+        bs
+        "4611686018427387~90" ;
+      t "bs start of whole" aFloat ~pos:1 bs "~23.456" ;
+      t "bs middle of whole" aFloat ~pos:2 bs "1~3.456" ;
+      t "bs end of whole" aFloat ~pos:3 bs "12~.456" ;
+      t "bs start of fraction" aFloat ~pos:5 bs "123.~56" ;
+      t "bs middle of fraction" aFloat ~pos:6 bs "123.4~6" ;
+      t "bs end of fraction" aFloat ~pos:7 bs "123.45~" ;
+      t "bs dot converts to int" aFloat ~pos:4 bs "123~456" ;
+      t "bs dot converts to int, no fraction" aPartialFloat ~pos:2 bs "1~" ;
+      t "continue after adding dot" aPartialFloat ~pos:2 (ins "2") "1.2~" ;
+      t
+        "ctrl+left start of whole moves to beg"
+        aFloat
+        ~pos:0
+        ctrlLeft
+        "~123.456" ;
+      t
+        "ctrl+left middle of whole moves to beg"
+        aFloat
+        ~pos:1
+        ctrlLeft
+        "~123.456" ;
+      t "ctrl+left end of whole moves to beg" aFloat ~pos:2 ctrlLeft "~123.456" ;
       t
         "ctrl+left start of fraction moves to beg"
         aFloat
-        (ctrlLeft 4)
+        ~pos:4
+        ctrlLeft
         "123~.456" ;
       t
         "ctrl+left middle of fraction moves to beg"
         aFloat
-        (ctrlLeft 5)
+        ~pos:5
+        ctrlLeft
         "123.~456" ;
-      t "ctrl+left end of fraction moves to beg" aFloat (ctrlLeft 6) "123.~456" ;
-      t "ctrl+right start of whole moves to end" aFloat (ctrlRight 0) "123~.456" ;
+      t
+        "ctrl+left end of fraction moves to beg"
+        aFloat
+        ~pos:6
+        ctrlLeft
+        "123.~456" ;
+      t
+        "ctrl+right start of whole moves to end"
+        aFloat
+        ~pos:0
+        ctrlRight
+        "123~.456" ;
       t
         "ctrl+right middle of whole moves to end"
         aFloat
-        (ctrlRight 1)
+        ~pos:1
+        ctrlRight
         "123~.456" ;
-      t "ctrl+right end of whole moves to end" aFloat (ctrlRight 2) "123~.456" ;
-      t "ctrl+right end of whole moves to end" aFloat (ctrlRight 3) "123.~456" ;
+      t
+        "ctrl+right end of whole moves to end"
+        aFloat
+        ~pos:2
+        ctrlRight
+        "123~.456" ;
+      t
+        "ctrl+right end of whole moves to end"
+        aFloat
+        ~pos:3
+        ctrlRight
+        "123.~456" ;
       t
         "ctrl+right start of fraction moves to end"
         aFloat
-        (ctrlRight 4)
+        ~pos:4
+        ctrlRight
         "123.456~" ;
       t
         "ctrl+right middle of fraction moves to end"
         aFloat
-        (ctrlRight 5)
+        ~pos:5
+        ctrlRight
         "123.456~" ;
       t
         "ctrl+right end of fraction moves to end"
         aFloat
-        (ctrlRight 6)
+        ~pos:6
+        ctrlRight
         "123.456~" ;
       t
         "DeleteWordBackward in the middle of an fraction deletes all the nums in front of cursor up to the ."
         aFloat
-        (inputs [DeleteWordBackward] 6)
+        ~pos:6
+        (inputs [DeleteWordBackward])
         "123.~6" ;
       t
         "DeleteWordBackward in the middle of a whole deletes all the nums in front of cursor"
         aFloat
-        (inputs [DeleteWordBackward] 2)
+        ~pos:2
+        (inputs [DeleteWordBackward])
         "~3.456" ;
       t
         "DeleteWordBackward in the end of a fraction deletes all the nums in up to the ."
         aFloat
-        (inputs [DeleteWordBackward] 7)
+        ~pos:7
+        (inputs [DeleteWordBackward])
         "123.~" ;
       t
         "DeleteWordBackward in the end of a whole deletes all the nums in front of cursor"
         aFloat
-        (inputs [DeleteWordBackward] 3)
+        ~pos:3
+        (inputs [DeleteWordBackward])
         "~.456" ;
       t
         "DeleteWordForward in the middle of an fraction deletes all the nums after the cursor"
         aFloat
-        (inputs [DeleteWordForward] 6)
+        ~pos:6
+        (inputs [DeleteWordForward])
         "123.45~" ;
       t
         "DeleteWordForward in the middle of a whole deletes all the nums in front of the ."
         aFloat
-        (inputs [DeleteWordForward] 2)
+        ~pos:2
+        (inputs [DeleteWordForward])
         "12~.456" ;
       t
         "DeleteWordForward in the end of a fraction does nothing"
         aFloat
-        (inputs [DeleteWordForward] 7)
+        ~pos:7
+        (inputs [DeleteWordForward])
         "123.456~" ;
       t
         "DeleteWordForward in the end of a whole deletes dot"
         aFloat
-        (inputs [DeleteWordForward] 3)
+        ~pos:3
+        (inputs [DeleteWordForward])
         "123~456" ;
-      ts
+      t
         "Replace text in float if int is inserted with selection"
         aFloat
-        (inputs [InsertText "4"] 1 ~selectionStart:(Some 6))
-        ("146", (None, 2)) ;
+        ~sel:(1, 6)
+        (inputs [InsertText "4"])
+        "14~6" ;
       ()) ;
   describe "Bools" (fun () ->
+      t ~expectsPartial:true "insert start of true" trueBool (ins "c") "c~true" ;
+      t ~expectsPartial:true "del start of true" trueBool del "~rue" ;
+      t "bs start of true" trueBool bs "~true" ;
       t
         ~expectsPartial:true
-        "insert start of true"
+        "insert end of true"
         trueBool
-        (ins "c" 0)
-        "c~true" ;
-      t ~expectsPartial:true "del start of true" trueBool (del 0) "~rue" ;
-      t "bs start of true" trueBool (bs 0) "~true" ;
-      t ~expectsPartial:true "insert end of true" trueBool (ins "0" 4) "true0~" ;
-      t "del end of true" trueBool (del 4) "true~" ;
-      t ~expectsPartial:true "bs end of true" trueBool (bs 4) "tru~" ;
+        ~pos:4
+        (ins "0")
+        "true0~" ;
+      t "del end of true" trueBool ~pos:4 del "true~" ;
+      t ~expectsPartial:true "bs end of true" trueBool ~pos:4 bs "tru~" ;
       t
         ~expectsPartial:true
         "insert middle of true"
         trueBool
-        (ins "0" 2)
+        ~pos:2
+        (ins "0")
         "tr0~ue" ;
-      t ~expectsPartial:true "del middle of true" trueBool (del 2) "tr~e" ;
-      t ~expectsPartial:true "bs middle of true" trueBool (bs 2) "t~ue" ;
+      t ~expectsPartial:true "del middle of true" trueBool ~pos:2 del "tr~e" ;
+      t ~expectsPartial:true "bs middle of true" trueBool ~pos:2 bs "t~ue" ;
       t
         ~expectsPartial:true
         "insert start of false"
         falseBool
-        (ins "c" 0)
+        (ins "c")
         "c~false" ;
-      t ~expectsPartial:true "del start of false" falseBool (del 0) "~alse" ;
-      t "bs start of false" falseBool (bs 0) "~false" ;
+      t ~expectsPartial:true "del start of false" falseBool del "~alse" ;
+      t "bs start of false" falseBool bs "~false" ;
       t
         ~expectsPartial:true
         "insert end of false"
         falseBool
-        (ins "0" 5)
+        ~pos:5
+        (ins "0")
         "false0~" ;
-      t "del end of false" falseBool (del 5) "false~" ;
-      t ~expectsPartial:true "bs end of false" falseBool (bs 5) "fals~" ;
+      t "del end of false" falseBool ~pos:5 del "false~" ;
+      t ~expectsPartial:true "bs end of false" falseBool ~pos:5 bs "fals~" ;
       t
         ~expectsPartial:true
         "insert middle of false"
         falseBool
-        (ins "0" 2)
+        ~pos:2
+        (ins "0")
         "fa0~lse" ;
-      t ~expectsPartial:true "del middle of false" falseBool (del 2) "fa~se" ;
-      t ~expectsPartial:true "bs middle of false" falseBool (bs 2) "f~lse" ;
-      t "ctrl+left start of true doesnt move" trueBool (ctrlLeft 0) "~true" ;
-      t "ctrl+right start of true moves to beg" trueBool (ctrlRight 0) "true~" ;
-      t "ctrl+left middle of true moves to beg" trueBool (ctrlLeft 2) "~true" ;
-      t "ctrl+left end of true moves to bed" trueBool (ctrlLeft 4) "~true" ;
-      t "ctrl+right end of true doesnt move" trueBool (ctrlRight 4) "true~" ;
-      t "ctrl+right middle of true moves to end" trueBool (ctrlRight 2) "true~" ;
-      t "ctrl+left start of false doesnt move" falseBool (ctrlLeft 0) "~false" ;
+      t ~expectsPartial:true "del middle of false" falseBool ~pos:2 del "fa~se" ;
+      t ~expectsPartial:true "bs middle of false" falseBool ~pos:2 bs "f~lse" ;
+      t "ctrl+left start of true doesnt move" trueBool ~pos:0 ctrlLeft "~true" ;
       t
-        "ctrl+right start of false moves to end"
+        "ctrl+right start of true moves to beg"
+        trueBool
+        ~pos:0
+        ctrlRight
+        "true~" ;
+      t "ctrl+left middle of true moves to beg" trueBool ~pos:2 ctrlLeft "~true" ;
+      t "ctrl+left end of true moves to bed" trueBool ~pos:4 ctrlLeft "~true" ;
+      t "ctrl+right end of true doesnt move" trueBool ~pos:4 ctrlRight "true~" ;
+      t
+        "ctrl+right middle of true moves to end"
+        trueBool
+        ~pos:2
+        ctrlRight
+        "true~" ;
+      t
+        "ctrl+left start of false doesnt move"
         falseBool
-        (ctrlRight 0)
+        ~pos:0
+        ctrlLeft
+        "~false" ;
+      t "ctrl+right start of false moves to end" falseBool ctrlRight "false~" ;
+      t "ctrl+left end of false moves to beg" falseBool ~pos:5 ctrlLeft "~false" ;
+      t
+        "ctrl+right end of false moves to end"
+        falseBool
+        ~pos:5
+        ctrlRight
         "false~" ;
-      t "ctrl+left end of false moves to beg" falseBool (ctrlLeft 5) "~false" ;
-      t "ctrl+right end of false moves to end" falseBool (ctrlRight 5) "false~" ;
-      t "ctrl+left middle of false moves to beg" falseBool (ctrlLeft 2) "~false" ;
+      t
+        "ctrl+left middle of false moves to beg"
+        falseBool
+        ~pos:2
+        ctrlLeft
+        "~false" ;
       t
         "ctrl+right middle of false moves to end"
         falseBool
-        (ctrlRight 2)
+        ~pos:2
+        ctrlRight
         "false~" ;
       t
         "DeleteWordBackward at the end of a true deletes entire true"
         trueBool
-        (inputs [DeleteWordBackward] 4)
+        ~pos:4
+        (inputs [DeleteWordBackward])
         "~___" ;
       t
         "DeleteWordBackward at the end of a false deletes entire false"
         falseBool
-        (inputs [DeleteWordBackward] 5)
+        ~pos:5
+        (inputs [DeleteWordBackward])
         "~___" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward at the mid of a true deletes to beg"
         trueBool
-        (inputs [DeleteWordBackward] 2)
+        ~pos:2
+        (inputs [DeleteWordBackward])
         "~ue" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward at the mid of a false deletes to beg"
         falseBool
-        (inputs [DeleteWordBackward] 3)
+        ~pos:3
+        (inputs [DeleteWordBackward])
         "~se" ;
       t
         "DeleteWordForward at the end of a true does nothing"
         trueBool
-        (inputs [DeleteWordForward] 4)
+        ~pos:4
+        (inputs [DeleteWordForward])
         "true~" ;
       t
         "DeleteWordForward at the end of a false does nothing"
         falseBool
-        (inputs [DeleteWordForward] 5)
+        ~pos:5
+        (inputs [DeleteWordForward])
         "false~" ;
       t
         ~expectsPartial:true
         "DeleteWordForward at the mid of a true deletes to end"
         trueBool
-        (inputs [DeleteWordForward] 2)
+        ~pos:2
+        (inputs [DeleteWordForward])
         "tr~" ;
       t
         ~expectsPartial:true
         "DeleteWordForward at the mid of a false deletes to end"
         falseBool
-        (inputs [DeleteWordForward] 3)
+        ~pos:3
+        (inputs [DeleteWordForward])
         "fal~" ;
       ()) ;
   describe "Nulls" (fun () ->
-      t ~expectsPartial:true "insert start of null" aNull (ins "c" 0) "c~null" ;
-      t ~expectsPartial:true "del start of null" aNull (del 0) "~ull" ;
-      t "bs start of null" aNull (bs 0) "~null" ;
-      t "ctrl+left start of null doesnt move" aNull (ctrlLeft 0) "~null" ;
-      t "ctrl+right start of null moves to end" aNull (ctrlRight 0) "null~" ;
-      t ~expectsPartial:true "insert end of null" aNull (ins "0" 4) "null0~" ;
-      t "del end of null" aNull (del 4) "null~" ;
-      t ~expectsPartial:true "bs end of null" aNull (bs 4) "nul~" ;
-      t "ctrl+left end of null doesnt move" aNull (ctrlLeft 4) "~null" ;
-      t "ctrl+right end of null moves to beg" aNull (ctrlRight 4) "null~" ;
-      t ~expectsPartial:true "insert middle of null" aNull (ins "0" 2) "nu0~ll" ;
-      t ~expectsPartial:true "del middle of null" aNull (del 2) "nu~l" ;
-      t ~expectsPartial:true "bs middle of null" aNull (bs 2) "n~ll" ;
-      t "ctrl+left middle of null moves to beg" aNull (ctrlLeft 2) "~null" ;
-      t "ctrl+right middle of null moves to end" aNull (ctrlRight 2) "null~" ;
+      t
+        ~expectsPartial:true
+        "insert start of null"
+        aNull
+        ~pos:0
+        (ins "c")
+        "c~null" ;
+      t ~expectsPartial:true "del start of null" aNull ~pos:0 del "~ull" ;
+      t "bs start of null" aNull ~pos:0 bs "~null" ;
+      t "ctrl+left start of null doesnt move" aNull ~pos:0 ctrlLeft "~null" ;
+      t "ctrl+right start of null moves to end" aNull ~pos:0 ctrlRight "null~" ;
+      t
+        ~expectsPartial:true
+        "insert end of null"
+        aNull
+        ~pos:4
+        (ins "0")
+        "null0~" ;
+      t "del end of null" aNull ~pos:4 del "null~" ;
+      t ~expectsPartial:true "bs end of null" aNull ~pos:4 bs "nul~" ;
+      t "ctrl+left end of null doesnt move" aNull ~pos:4 ctrlLeft "~null" ;
+      t "ctrl+right end of null moves to beg" aNull ~pos:4 ctrlRight "null~" ;
+      t
+        ~expectsPartial:true
+        "insert middle of null"
+        aNull
+        ~pos:2
+        (ins "0")
+        "nu0~ll" ;
+      t ~expectsPartial:true "del middle of null" aNull ~pos:2 del "nu~l" ;
+      t ~expectsPartial:true "bs middle of null" aNull ~pos:2 bs "n~ll" ;
+      t "ctrl+left middle of null moves to beg" aNull ~pos:2 ctrlLeft "~null" ;
+      t "ctrl+right middle of null moves to end" aNull ~pos:2 ctrlRight "null~" ;
       t
         "DeleteWordBackward at the end of a null deletes entire null"
         aNull
-        (inputs [DeleteWordBackward] 4)
+        ~pos:4
+        (inputs [DeleteWordBackward])
         "~___" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward at the mid of a null deletes to beg"
         aNull
-        (inputs [DeleteWordBackward] 2)
+        ~pos:2
+        (inputs [DeleteWordBackward])
         "~ll" ;
       t
         "DeleteWordForward at the end of a null does nothing"
         aNull
-        (inputs [DeleteWordForward] 4)
+        ~pos:4
+        (inputs [DeleteWordForward])
         "null~" ;
       t
         ~expectsPartial:true
         "DeleteWordForward at the mid of a null deletes to end"
         aNull
-        (inputs [DeleteWordForward] 2)
+        ~pos:2
+        (inputs [DeleteWordForward])
         "nu~" ;
       ()) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" b (ins "\"" 3) "\"~\"" ;
-      t "del middle of blank->blank" b (del 3) "___~" ;
-      t "bs middle of blank->blank" b (bs 3) "~___" ;
-      t "ctrl+left middle of null moves to beg" b (ctrlLeft 2) "~___" ;
-      t "ctrl+right middle of null moves to end" b (ctrlRight 2) "___~" ;
-      t "insert blank->string" b (ins "\"" 0) "\"~\"" ;
-      t "del blank->string" emptyStr (del 0) "~___" ;
-      t "bs blank->string" emptyStr (bs 1) "~___" ;
-      t "insert blank->int" b (ins "5" 0) "5~" ;
-      t "insert blank->int" b (ins "0" 0) "0~" ;
-      t "del int->blank " five (del 0) "~___" ;
-      t "bs int->blank " five (bs 1) "~___" ;
-      t "insert end of blank->int" b (ins "5" 1) "5~" ;
-      t ~expectsPartial:true "insert partial" b (ins "t" 0) "t~" ;
+      t "insert middle of blank->string" b ~pos:3 (ins "\"") "\"~\"" ;
+      t "del middle of blank->blank" b ~pos:3 del "___~" ;
+      t "bs middle of blank->blank" b ~pos:3 bs "~___" ;
+      t "ctrl+left middle of null moves to beg" b ~pos:2 ctrlLeft "~___" ;
+      t "ctrl+right middle of null moves to end" b ~pos:2 ctrlRight "___~" ;
+      t "insert blank->string" b ~pos:0 (ins "\"") "\"~\"" ;
+      t "del blank->string" emptyStr ~pos:0 del "~___" ;
+      t "bs blank->string" emptyStr ~pos:1 bs "~___" ;
+      t "insert blank->int" b ~pos:0 (ins "5") "5~" ;
+      t "insert blank->int" b ~pos:0 (ins "0") "0~" ;
+      t "del int->blank " five ~pos:0 del "~___" ;
+      t "bs int->blank " five ~pos:1 bs "~___" ;
+      t "insert end of blank->int" b ~pos:1 (ins "5") "5~" ;
+      t ~expectsPartial:true "insert partial" b ~pos:0 (ins "t") "t~" ;
       t
         "backspacing your way through a partial finishes"
         trueBool
+        ~pos:4
         (inputs
            [ DeleteContentBackward
            ; DeleteContentBackward
            ; DeleteContentBackward
            ; DeleteContentBackward
-           ; keypress K.Left ]
-           4)
+           ; keypress K.Left ])
         "~___" ;
-      t "insert blank->space" b (space 0) "~___" ;
+      t "insert blank->space" b ~pos:0 space "~___" ;
       t
         "DeleteWordBackward at the end of a blank does nothing"
         b
-        (inputs [DeleteWordBackward] 3)
+        ~pos:3
+        (inputs [DeleteWordBackward])
         "~___" ;
       t
         "DeleteWordForward at the end of a blank does nothing"
         b
-        (inputs [DeleteWordForward] 3)
+        ~pos:3
+        (inputs [DeleteWordForward])
         "___~" ;
       ()) ;
   describe "Fields" (fun () ->
@@ -1338,167 +1595,201 @@ let run () =
         ~expectsPartial:true
         "insert middle of fieldname"
         aField
-        (ins "c" 5)
+        ~pos:5
+        (ins "c")
         "obj.fc~ield" ;
-      t "cant insert invalid chars fieldname" aField (ins "$" 5) "obj.f~ield" ;
+      t
+        "cant insert invalid chars fieldname"
+        aField
+        ~pos:5
+        (ins "$")
+        "obj.f~ield" ;
       t
         ~expectsPartial:true
         "del middle of fieldname"
         aField
-        (del 5)
+        ~pos:5
+        del
         "obj.f~eld@" ;
-      t ~expectsPartial:true "del fieldname" aShortField (del 4) "obj.~***" ;
-      t ~expectsPartial:true "bs fieldname" aShortField (bs 5) "obj.~***" ;
+      t ~expectsPartial:true "del fieldname" aShortField ~pos:4 del "obj.~***" ;
+      t ~expectsPartial:true "bs fieldname" aShortField ~pos:5 bs "obj.~***" ;
       t
         ~expectsPartial:true
         "insert end of fieldname"
         aField
-        (ins "c" 9)
+        ~pos:9
+        (ins "c")
         "obj.fieldc~" ;
       t
         ~expectsPartial:true
         "insert end of varname"
         aField
-        (ins "c" 3)
+        ~pos:3
+        (ins "c")
         "objc~.field" ;
       t
         ~expectsPartial:true
         "insert start of fieldname"
         aField
-        (ins "c" 4)
+        ~pos:4
+        (ins "c")
         "obj.c~field" ;
       t
         ~expectsPartial:true
         "insert blank fieldname"
         aBlankField
-        (ins "c" 4)
+        ~pos:4
+        (ins "c")
         "obj.c~" ;
-      t "del fieldop with name" aShortField (del 3) "obj~" ;
-      t "bs fieldop with name" aShortField (bs 4) "obj~" ;
-      t "del fieldop with blank" aBlankField (del 3) "obj~" ;
-      t "bs fieldop with blank" aBlankField (bs 4) "obj~" ;
-      t "del fieldop in nested" aNestedField (del 3) "obj~.field2" ;
-      t "bs fieldop in nested" aNestedField (bs 4) "obj~.field2" ;
+      t "del fieldop with name" aShortField ~pos:3 del "obj~" ;
+      t "bs fieldop with name" aShortField ~pos:4 bs "obj~" ;
+      t "del fieldop with blank" aBlankField ~pos:3 del "obj~" ;
+      t "bs fieldop with blank" aBlankField ~pos:4 bs "obj~" ;
+      t "del fieldop in nested" aNestedField ~pos:3 del "obj~.field2" ;
+      t "bs fieldop in nested" aNestedField ~pos:4 bs "obj~.field2" ;
       t
         ~expectsPartial:true
         "add dot after variable"
         aVar
-        (ins "." 8)
+        ~pos:8
+        (ins ".")
         "variable.~***" ;
       t
         ~expectsPartial:true
         "add dot after partial "
         aPartialVar
-        (ins "." 3)
+        ~pos:3
+        (ins ".")
         "request.~***" ;
       t
         ~expectsPartial:true
         "add dot after field"
         aField
-        (ins "." 9)
+        ~pos:9
+        (ins ".")
         "obj.field.~***" ;
-      t "insert space in blank " aBlankField (space 4) "obj.~***" ;
+      t "insert space in blank " aBlankField ~pos:4 space "obj.~***" ;
       t
         "ctrl+left in name moves to beg of name"
         aShortField
-        (ctrlLeft 2)
+        ~pos:2
+        ctrlLeft
         "~obj.f" ;
       t
         "ctrl+right in name moves to end of name"
         aShortField
-        (ctrlRight 2)
+        ~pos:2
+        ctrlRight
         "obj~.f" ;
       t
         "ctrl+left in beg of fieldname moves to beg of fieldname"
         aNestedField
-        (ctrlLeft 4)
+        ~pos:4
+        ctrlLeft
         "~obj.field.field2" ;
       t
         "ctrl+right in beg of fieldname moves to the end of fieldname"
         aNestedField
-        (ctrlRight 4)
+        ~pos:4
+        ctrlRight
         "obj.field~.field2" ;
       t
         "ctrl+left in middle of fieldname moves to end of fieldname"
         aNestedField
-        (ctrlLeft 5)
+        ~pos:5
+        ctrlLeft
         "obj.~field.field2" ;
       t
         "ctrl+right in middle of fieldname moves to beg of fieldname"
         aNestedField
-        (ctrlRight 5)
+        ~pos:5
+        ctrlRight
         "obj.field~.field2" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward in middle of fieldname deletes to beg of fieldname"
         aNestedField
-        (inputs [DeleteWordBackward] 6)
+        ~pos:6
+        (inputs [DeleteWordBackward])
         "obj.~eld@@.field2" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward at end of fieldname deletes entire fieldname"
         aNestedField
-        (inputs [DeleteWordBackward] 9)
+        ~pos:9
+        (inputs [DeleteWordBackward])
         "obj.~***@@.field2" ;
       t
         "DeleteWordBackward at end of dot deletes fieldname"
         aNestedField
-        (inputs [DeleteWordBackward] 4)
+        ~pos:4
+        (inputs [DeleteWordBackward])
         "obj~.field2" ;
       t
         ~expectsPartial:true
         "DeleteWordForward in middle of fieldname deletes to end of fieldname"
         aNestedField
-        (inputs [DeleteWordForward] 6)
+        ~pos:6
+        (inputs [DeleteWordForward])
         "obj.fi~@l@.field2" ;
       t
         "DeleteWordForward at end of fieldname deletes next fieldname"
         aNestedField
-        (inputs [DeleteWordForward] 9)
+        ~pos:9
+        (inputs [DeleteWordForward])
         "obj.field~" ;
       t
         ~expectsPartial:true
         "DeleteWordForward at end of dot deletes fieldname"
         aNestedField
-        (inputs [DeleteWordForward] 4)
+        ~pos:4
+        (inputs [DeleteWordForward])
         "obj.~***@@.field2" ;
       t
         ~expectsPartial:true
+        ~clone:false
         "insert dot to complete partial field"
         (EPartial
            ( gid ()
            , "body"
            , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
            ))
-        (ins ~clone:false "." 11)
+        ~pos:11
+        (ins ".")
         "request.body.~***" ;
       t
         ~expectsPartial:true
+        ~clone:false
         "insert dot even when no content in the field"
         (EVariable (ID "fake-acdata1", "request"))
-        (insMany ~clone:false ["."; "."] 7)
+        ~pos:7
+        (insMany ["."; "."])
         "request.body.~***" ;
       t
         ~expectsPartial:true
         "bs fieldpartial character"
         (partial "a" (fieldAccess b ""))
-        (bs 5)
+        ~pos:5
+        bs
         "___.~***" ;
       t
         ~expectsPartial:true
         "del fieldpartial character"
         (partial "a" (fieldAccess b ""))
-        (del 4)
+        ~pos:4
+        del
         "___.~***" ;
       t
         "commit fieldpartial on enter"
         (partial "u" (fieldAccess aShortVar ""))
-        (enter 3)
+        ~pos:3
+        enter
         "v.u~" ;
       t
         "commit fieldpartial when cursor moves elsewhere"
         (partial "u" (fieldAccess aShortVar ""))
-        (keys [K.Left; K.Left] 3)
+        ~pos:3
+        (keys [K.Left; K.Left])
         "v~.u" ;
       ()) ;
   describe "Functions" (fun () ->
@@ -1506,36 +1797,42 @@ let run () =
         ~expectsPartial:true
         "pipe key starts partial after zero arg function"
         aFnCallWithZeroArgs
-        (ins "|" 11)
+        ~pos:11
+        (ins "|")
         "List::empty |~" ;
       t
         ~expectsPartial:true
         "pipe key starts partial after zero arg function with version"
         aFnCallWithZeroArgsAndVersion
-        (ins "|" 13)
+        ~pos:13
+        (ins "|")
         "List::emptyv1 |~" ;
       t
         ~expectsPartial:true
         "pipe key starts partial after piped function with one arg"
         aPipeWithFilledFunction
-        (ins "|" 26)
+        ~pos:26
+        (ins "|")
         "\"hello\"\n|>String::lengthv1 |~\n" ;
       t
         "space on a sep goes to next arg"
         aFnCall
-        (space 10)
+        ~pos:10
+        space
         "Int::add 5 ~_________" ;
       t
         ~expectsPartial:true
         "bs function renames"
         aFnCall
-        (bs 8)
+        ~pos:8
+        bs
         "Int::ad~@ 5 _________" ;
       t
         ~expectsPartial:true
         "deleting a function renames"
         aFnCall
-        (del 7)
+        ~pos:7
+        del
         "Int::ad~@ 5 _________" ;
       t
         ~expectsFnOnRail:true
@@ -1543,7 +1840,8 @@ let run () =
         (partial
            "HttpClient::post_v4"
            (fn ~ster:Rail "HttpClient::get_v3" [b; b; b; b]))
-        (enter 18)
+        ~pos:18
+        enter
         "HttpClient::postv4 ~______________ ____________ ______________ ________________" ;
       t
         ~expectsFnOnRail:false
@@ -1551,40 +1849,47 @@ let run () =
         (partial
            "HttpClient::post_v4"
            (fn ~ster:NoRail "HttpClient::get_v3" [b; b; b; b]))
-        (enter 18)
+        ~pos:18
+        enter
         "HttpClient::postv4 ~______________ ____________ ______________ ________________" ;
       t
         ~expectsFnOnRail:false
         "change a function to one not allowed does not stay on error rail"
         (partial "Int::add" (fn ~ster:Rail "HttpClient::get_v3" [b; b; b; b]))
-        (enter 8)
+        ~pos:8
+        enter
         "Int::add ~_________ _________" ;
       t
         ~expectsFnOnRail:true
         "changing a default-off to a default-on goes onto the rail"
         (partial "HttpClient::post_v4" (fn ~ster:NoRail "Int::add" [b; b]))
-        (enter 18)
+        ~pos:18
+        enter
         "HttpClient::postv4 ~______________ ____________ ______________ ________________" ;
       t
         ~expectsFnOnRail:false
         "changing a default-on to a default-off does not stay onto the rail"
         (partial "Int::add" (fn ~ster:Rail "HttpClient::get_v3" [b; b; b; b]))
-        (enter 8)
+        ~pos:8
+        enter
         "Int::add ~_________ _________" ;
       t
         "renaming a function maintains unaligned params in let scope"
         (partial "Int::" (fn "Int::add" [five; six]))
-        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
+        ~pos:5
+        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter])
         "let b = 6\nInt::sqrt ~5" ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
         (partial "Int::" (fn "Int::add" [var "a"; var "b"]))
-        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
+        ~pos:5
+        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter])
         "Int::sqrt ~a" ;
       t
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
         (partial "Int::" (fn "Int::add" [b; b]))
-        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter] 5)
+        ~pos:5
+        (inputs [InsertText "s"; InsertText "q"; keypress K.Enter])
         "Int::sqrt ~_________" ;
       (* TODO: functions are not implemented fully. I deld bs and
        * del because we were switching to partials, but this isn't
@@ -1595,70 +1900,82 @@ let run () =
         ~expectsPartial:true
         "del on function with version"
         aFnCallWithVersion
-        (del 11)
+        ~pos:11
+        del
         "DB::getAll~@@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version"
         aFnCallWithVersion
-        (bs 12)
+        ~pos:12
+        bs
         "DB::getAll~@@ ___________________" ;
       t
         ~expectsPartial:true
         "del on function with version in between the version and function name"
         aFnCallWithVersion
-        (del 10)
+        ~pos:10
+        del
         "DB::getAll~@@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version in between the version and function name"
         aFnCallWithVersion
-        (bs 10)
+        ~pos:10
+        bs
         "DB::getAl~@v@ ___________________" ;
       t
         ~expectsPartial:true
         "del on function with version in function name"
         aFnCallWithVersion
-        (del 7)
+        ~pos:7
+        del
         "DB::get~ll@v@ ___________________" ;
       t
         ~expectsPartial:true
         "bs on function with version in function name"
         aFnCallWithVersion
-        (bs 8)
+        ~pos:8
+        bs
         "DB::get~ll@v@ ___________________" ;
       t
         "adding function with version goes to the right place"
         b
-        (inputs [InsertText "d"; InsertText "b"; keypress K.Enter] 0)
+        ~pos:0
+        (inputs [InsertText "d"; InsertText "b"; keypress K.Enter])
         "DB::getAllv1 ~___________________" ;
       t
         "backspacing a fn arg's separator goes to the right place"
         (fn "Int::add" [five; six])
-        (bs 11)
+        ~pos:11
+        bs
         "Int::add 5~ 6" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward in middle of function deletes to beg of function"
         aFnCallWithVersion
-        (inputs [DeleteWordBackward] 6)
+        ~pos:6
+        (inputs [DeleteWordBackward])
         "~tAll@etAllv@ ___________________" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward in end of function version deletes to function"
         aFnCallWithVersion
-        (inputs [DeleteWordBackward] 12)
+        ~pos:12
+        (inputs [DeleteWordBackward])
         "DB::getAll~@@ ___________________" ;
       t
         ~expectsPartial:true
         "DeleteWordForward in middle of function deletes to beg of function"
         aFnCallWithVersion
-        (inputs [DeleteWordForward] 6)
+        ~pos:6
+        (inputs [DeleteWordForward])
         "DB::ge~@Allv@ ___________________" ;
       t
         "DeleteWordForward in end of function version moves cursor to end of blank "
         aFnCallWithVersion
-        (inputs [DeleteWordForward] 12)
+        ~pos:12
+        (inputs [DeleteWordForward])
         "DB::getAllv1 ___________________~" ;
       let string40 = "0123456789abcdefghij0123456789abcdefghij" in
       let string80 = string40 ^ string40 in
@@ -1692,52 +2009,62 @@ let run () =
         render
         "~HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }" ;
       t
-        ~expectsPartial:true
         "reflows put the caret in the right place on insert"
+        ~brokenInFF:true
+        ~expectsPartial:true
+        ~wrap:false
         (let justShortEnoughNotToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
          in
          fn
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
-        (ins ~wrap:false "x" 120)
+        ~pos:120
+        (ins "x")
         "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01x~" ;
       t
-        ~expectsPartial:true
         "reflows put the caret in the right place on bs"
+        ~expectsPartial:true
+        ~wrap:false
         (let justLongEnoughToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij012"
          in
          fn
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justLongEnoughToReflow])
-        (bs ~wrap:false 129)
+        ~pos:129
+        bs
         "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~" ;
       t
         "ctrl+left on function in middle of version moves to beg of version"
         aFnCallWithVersion
-        (ctrlLeft 11)
+        ~pos:11
+        ctrlLeft
         "DB::getAll~v1 ___________________" ;
       t
         "ctrl+right on function in middle of version moves to end of version"
         aFnCallWithVersion
-        (ctrlRight 11)
+        ~pos:11
+        ctrlRight
         "DB::getAllv1~ ___________________" ;
       t
         "ctrl+left on function in middle of function name moves to beg of fn name"
         aFnCallWithVersion
-        (ctrlLeft 7)
+        ~pos:7
+        ctrlLeft
         "~DB::getAllv1 ___________________" ;
       t
         "ctrl+right on function in middle of function name moves to end of fn name"
         aFnCallWithVersion
-        (ctrlRight 7)
+        ~pos:7
+        ctrlRight
         "DB::getAll~v1 ___________________" ;
       t
         "backspace after selecting a versioned 0-arg fnCall deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
         (fn "HttpClient::post_v4" [])
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
+        ~pos:0
+        (inputs [keypress K.SelectAll; DeleteContentBackward])
         "~___" ;
       ()) ;
   describe "Binops" (fun () ->
@@ -1745,156 +2072,185 @@ let run () =
         ~expectsPartial:true
         "pipe key starts partial"
         trueBool
-        (ins "|" 4)
+        ~pos:4
+        (ins "|")
         "true |~" ;
       t
         "pressing enter completes partial"
         trueBool
-        (inputs [InsertText "|"; keypress K.Down; keypress K.Enter] 4)
+        ~pos:4
+        (inputs [InsertText "|"; keypress K.Down; keypress K.Enter])
         "true || ~__________" ;
       t
         "pressing space completes partial"
         trueBool
-        (inputs [InsertText "|"; keypress K.Down; keypress K.Space] 4)
+        ~pos:4
+        (inputs [InsertText "|"; keypress K.Down; keypress K.Space])
         "true || ~__________" ;
       t
         ~expectsPartial:true
         "pressing plus key starts partial"
         trueBool
-        (ins "+" 4)
+        ~pos:4
+        (ins "+")
         "true +~" ;
       t
         ~expectsPartial:true
         "pressing caret key starts partial"
         anInt
-        (ins "^" 5)
+        ~pos:5
+        (ins "^")
         "12345 ^~" ;
       t
         ~expectsPartial:true
         "pressing plus key starts partial after string"
         aStr
-        (ins "+" 13)
+        ~pos:13
+        (ins "+")
         "\"some string\" +~" ;
       t
         ~expectsPartial:true
         "pressing plus key starts partial after float"
         aFloat
-        (ins "+" 7)
+        ~pos:7
+        (ins "+")
         "123.456 +~" ;
       t
         ~expectsPartial:true
         "ins | starts partial after null"
         aNull
-        (ins "|" 4)
+        ~pos:4
+        (ins "|")
         "null |~" ;
       t
         ~expectsPartial:true
         "ins | starts partial after variable"
         aVar
-        (ins "|" 8)
+        ~pos:8
+        (ins "|")
         "variable |~" ;
       t
         ~expectsPartial:true
         "ins | starts partial after list"
         aList5
-        (ins "|" 3)
+        ~pos:3
+        (ins "|")
         "[5] |~" ;
       t
         ~expectsPartial:true
         "ins + starts partial after fieldname"
         aField
-        (ins "+" 9)
+        ~pos:9
+        (ins "+")
         "obj.field +~" ;
       t
         ~expectsPartial:true
         "ins | starts partial after multiRowRecord"
         multiRowRecord
-        (ins "|" 23)
+        ~pos:23
+        (ins "|")
         "{\n  f1 : 56\n  f2 : 78\n} |~" ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
-        (inputs [InsertText "|"; InsertText "|"; keypress K.Space] 4)
+        ~pos:4
+        (inputs [InsertText "|"; InsertText "|"; keypress K.Space])
         "true || ~__________" ;
       t
         "piping into newline creates pipe"
         trueBool
-        (inputs [InsertText "|"; InsertText ">"; keypress K.Space] 4)
+        ~pos:4
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Space])
         "true\n|>~___\n" ;
       t
         "pressing bs to clear partial reverts for blank rhs"
         (partial "|" (binop "||" anInt b))
-        (bs 7)
+        ~pos:7
+        bs
         "12345~" ;
       t
         "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start"
         (partial "|" (binop "||" b b))
-        (bs 12)
+        ~pos:12
+        bs
         "~___" ;
       t
         "pressing del to clear partial reverts for blank rhs"
         (partial "|" (binop "||" anInt b))
-        (del 6)
+        ~pos:6
+        del
         "12345~" ;
       t
         "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start"
         (partial "|" (binop "||" b b))
-        (del 11)
+        ~pos:11
+        del
         "~___" ;
       t
         "using bs to remove an infix with a placeholder goes to right place"
         (partial "|" (binop "||" b b))
-        (bs 12)
+        ~pos:12
+        bs
         "~___" ;
       t
         "using bs to remove an infix with a placeholder goes to right place 2"
         (partial "|" (binop "||" five b))
-        (bs 3)
+        ~pos:3
+        bs
         "5~" ;
       t
         "deleting binop between bools does not combine them"
         (partial "|" (binop "||" trueBool falseBool))
-        (bs 6)
+        ~pos:6
+        bs
         "true~" ;
       t
         "pressing bs to clear rightpartial reverts for blank rhs"
         (rightPartial "|" b)
-        (bs 5)
+        ~pos:5
+        bs
         "~___" ;
       t
         "pressing bs on single digit binop deletes binop and combines rhs and lhs"
         (binop "+" anInt anInt)
-        (bs 7)
+        ~pos:7
+        bs
         "12345~12345" ;
       t
         "using del to remove an infix with a placeholder goes to right place"
         (partial "|" (binop "||" b b))
-        (del 11)
+        ~pos:11
+        del
         "~___" ;
       t
         "pressing del to clear rightpartial reverts for blank rhs"
         (rightPartial "|" b)
-        (del 4)
+        ~pos:4
+        del
         "~___" ;
       t
         "pressing del on single digit binop deletes binop and combines rhs and lhs"
         (binop "+" anInt anInt)
-        (del 6)
+        ~pos:6
+        del
         "12345~12345" ;
       t
         "pressing del to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
-        (inputs [DeleteContentForward; DeleteContentForward] 7)
+        ~pos:7
+        (inputs [DeleteContentForward; DeleteContentForward])
         "\"five~six\"" ;
       t
         "pressing backspace to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 9)
+        ~pos:9
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "\"five~six\"" ;
       t
         "pressing bs to remove a binop after a blank doesnt delete rhs"
         (binop "++" b (str "six"))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 15)
+        ~pos:15
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "~\"six\"" ;
       t
         "pressing bs to remove a string binop combines lhs and rhs"
@@ -1902,7 +2258,8 @@ let run () =
            "++"
            (str "one")
            (binop "++" (str "two") (binop "++" (str "three") (str "four"))))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 17)
+        ~pos:17
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "\"one\" ++ \"two~three\" ++ \"four\"" ;
       t
         "pressing bs to remove binop before a blank doesnt entire delete rhs"
@@ -1910,7 +2267,8 @@ let run () =
            "++"
            (str "one")
            (binop "++" (str "two") (binop "++" b (str "four"))))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 17)
+        ~pos:17
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "\"one\" ++ \"two\"~ ++ \"four\"" ;
       t
         "pressing bs to remove binop after a blank doesnt entire delete rhs"
@@ -1918,39 +2276,46 @@ let run () =
            "++"
            (str "one")
            (binop "++" (str "two") (binop "++" b (str "four"))))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 33)
+        ~pos:33
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "\"one\" ++ \"two\" ++ ~\"four\"" ;
       t
         "pressing letters and numbers on a partial completes it"
         b
-        (insMany ["5"; "+"; "5"] 0)
+        ~pos:0
+        (insMany ["5"; "+"; "5"])
         "5 + 5~" ;
       t
         ~expectsPartial:true
         "pressing pipe while editing a partial works properly"
         (partial "|" (binop "||" anInt anInt))
-        (ins "|" 7)
+        ~pos:7
+        (ins "|")
         "12345 ||~ 12345" ;
       t
         ~expectsPartial:true
         "pressing = after < should go to partial"
         (binop "<" anInt anInt)
-        (ins "=" 7)
+        ~pos:7
+        (ins "=")
         "12345 <=~ 12345" ;
       t
         "changing binop to fn should work"
         (partial "Int::add" (binop "+" anInt anInt))
-        (keys [K.Enter] 14)
+        ~pos:14
+        (keys [K.Enter])
         "Int::add ~12345 12345" ;
       t
         "changing fn to binops should work"
         (partial "+" (fn "Int::add" [anInt; anInt]))
-        (keys [K.Enter] 1)
+        ~pos:1
+        (keys [K.Enter])
         "~12345 + 12345" ;
       t
         "changing binop should work"
         (binop "<" anInt anInt)
-        (inputs [InsertText "="; keypress K.Enter] 7)
+        ~pos:7
+        (inputs [InsertText "="; keypress K.Enter])
         "12345 <= ~12345" ;
       tStruct
         "wrapping a binop in a let with enter creates correct ast"
@@ -1962,53 +2327,63 @@ let run () =
         ~expectsPartial:true
         "adding binop in `if` works"
         (if' b b b)
-        (ins "%" 3)
+        ~pos:3
+        (ins "%")
         "if %~\nthen\n  ___\nelse\n  ___" ;
       t
         ~expectsPartial:true
         "show ghost partial"
         aFullBinOp
-        (bs 8)
+        ~pos:8
+        bs
         "myvar |~@ 5" ;
       t
         "ctrl+left from end of < moves to front of <"
         (binop "<" anInt anInt)
-        (ctrlLeft 7)
+        ~pos:7
+        ctrlLeft
         "12345 ~< 12345" ;
       t
         "ctrl+right from end of < moves to end of second int"
         (binop "<" anInt anInt)
-        (ctrlRight 7)
+        ~pos:7
+        ctrlRight
         "12345 < 12345~" ;
       t
         "ctrl+left from beg of < moves to front of first int"
         (binop "<" anInt anInt)
-        (ctrlLeft 6)
+        ~pos:6
+        ctrlLeft
         "~12345 < 12345" ;
       t
         "ctrl+right from beg of < moves to end of <"
         (binop "<" anInt anInt)
-        (ctrlRight 6)
+        ~pos:6
+        ctrlRight
         "12345 <~ 12345" ;
       t
         "DeleteWordBackward in end of binop deletes binop and combines rhs and lhs"
         (binop "<" anInt anInt)
-        (inputs [DeleteWordBackward] 7)
+        ~pos:7
+        (inputs [DeleteWordBackward])
         "12345~12345" ;
       t
         "DeleteWordBackward in front of binop deletes first int"
         (binop "<" anInt anInt)
-        (inputs [DeleteWordBackward] 5)
+        ~pos:5
+        (inputs [DeleteWordBackward])
         "~_________ < 12345" ;
       t
         "DeleteWordForward in end of binop deletes second int"
         (binop "<" anInt anInt)
-        (inputs [DeleteWordForward] 8)
+        ~pos:8
+        (inputs [DeleteWordForward])
         "12345 < ~_________" ;
       t
         "DeleteWordForward in front of binop deletes binop and combines rhs and lhs"
         (binop "<" anInt anInt)
-        (inputs [DeleteWordForward] 6)
+        ~pos:6
+        (inputs [DeleteWordForward])
         "12345~12345" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
@@ -2016,169 +2391,204 @@ let run () =
       t
         "pressing bs on || in binop deletes right side"
         (binop "||" trueBool falseBool)
-        (inputs [DeleteContentBackward; DeleteContentBackward] 7)
+        ~pos:7
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "true~" ;
       t
         "pressing bs on || in binop deletes blank on rhs"
         (binop "||" falseBool b)
-        (inputs [DeleteContentBackward; DeleteContentBackward] 8)
+        ~pos:8
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "false~" ;
       t
         "pressing bs on || in binop deletes blank on lhs"
         (binop "||" b falseBool)
-        (inputs [DeleteContentBackward; DeleteContentBackward] 13)
+        ~pos:13
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "~false" ;
       t
         "pressing bs on || in binop after blank deletes blank but rest of the lhs"
         (binop "||" falseBool (binop "||" b trueBool))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 22)
+        ~pos:22
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "false || ~true" ;
       t
         "pressing bs on || in binop before blank deletes blank but rest of the lhs"
         (binop "||" falseBool (binop "||" b trueBool))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 8)
+        ~pos:8
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "false~ || true" ;
       t
         "pressing bs on ++ binop before blank deletes blank but rest of the lhs"
         (binop "+" (int 10) (binop "*" (int 5) (binop "+" b (int 10))))
-        (bs 8)
+        ~pos:8
+        bs
         "10 + 5~ + 10" ;
       t
         "pressing bs on ++ binop after blank deletes blank but rest of the lhs"
         (binop "+" (int 20) (binop "*" (int 1) (binop "+" b (int 5))))
-        (bs 20)
+        ~pos:20
+        bs
         "20 + 1 * ~5" ;
       t
         "pressing bs on < binop before blank deletes blank but rest of the lhs"
         (binop "<" (int 20) (binop "<" b (int 50)))
-        (bs 4)
+        ~pos:4
+        bs
         "20~ < 50" ;
       t
         "pressing bs on < binop after blank deletes blank but rest of the lhs"
         (binop "<" (int 25) (binop "<" b (int 50)))
-        (bs 16)
+        ~pos:16
+        bs
         "25 < ~50" ;
       t
         "pressing bs on - binop before blank deletes blank but rest of the lhs"
         (binop "-" (int 200) (binop "-" (int 5) (binop "*" b (int 24))))
-        (bs 9)
+        ~pos:9
+        bs
         "200 - 5~ * 24" ;
       t
         "pressing bs on - binop after blank deletes blank but rest of the lhs"
         (binop "-" (int 200) (binop "-" (int 5) (binop "*" b (int 24))))
-        (bs 15)
+        ~pos:15
+        bs
         "200 - 5 - ~24" ;
       t
         "pressing bs on != binop before blank deletes blank but rest of the lhs"
         (binop "!=" (int 54321) (binop "!=" (int 21) (binop "!=" b (int 5))))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 14)
+        ~pos:14
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "54321 != 21~ != 5" ;
       t
         "pressing bs on != binop after blank deletes blank but rest of the lhs"
         (binop "!=" (int 54321) (binop "!=" (int 21) (binop "!=" b (int 5))))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 21)
+        ~pos:21
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "54321 != 21 != ~5" ;
       t
         "pressing bs on != binop combines lhs and rhs string"
         (binop "!=" (str "One") (binop "!=" (str "Two") (str "Three")))
-        (inputs [DeleteContentBackward; DeleteContentBackward] 8)
+        ~pos:8
+        (inputs [DeleteContentBackward; DeleteContentBackward])
         "\"One~Two\" != \"Three\"" ;
       t
         "pressing bs on / binop deletes rhs"
         (binop "/" aFloat aFloat)
-        (bs 9)
+        ~pos:9
+        bs
         "123.456~" ;
       t
         "pressing bs on / binop before blank deletes blank"
         (binop "/" b aFloat)
-        (bs 5)
+        ~pos:5
+        bs
         "~123.456" ;
       t
         "backspace after selecting all with a versioned 0-arg fnCall in a binop deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
+        ~pos:0
         (binop "/" (fn "HttpClient::post_v4" []) (int 5))
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
+        (inputs [keypress K.SelectAll; DeleteContentBackward])
         "~___" ;
       t
         "backspace after selecting all with a binop partial in a binop deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
         (binop "+" (partial "D" (binop "-" (int 5) (int 5))) (int 5))
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteWordBackward] 0)
+        (inputs [keypress K.SelectAll; DeleteWordBackward])
         "~___" ;
       t
         ~expectsPartial:true
         "inserting a binop in a placeholder works"
         (if' (binop "++" b b) b b)
-        (ins "&" 3)
+        ~pos:3
+        (ins "&")
         "if &~ ++ ____________\nthen\n  ___\nelse\n  ___" ;
-      ts
+      t
         "Replacing text when selecting over binop works"
         (binop "++" (str "five") (str "six"))
-        (inputs [InsertText "a"] 3 ~selectionStart:(Some 13))
-        ("\"fiax\"", (None, 4)) ;
+        ~sel:(3, 13)
+        (inputs [InsertText "a"])
+        "\"fia~x\"" ;
       ()) ;
   describe "Constructors" (fun () ->
       t
         ~expectsPartial:true
         "arguments work in constructors"
         aConstructor
-        (ins "t" 5)
+        ~pos:5
+        (ins "t")
         "Just t~" ;
-      t "int arguments work in constructors" aConstructor (ins "5" 5) "Just 5~" ;
+      t
+        "int arguments work in constructors"
+        aConstructor
+        ~pos:5
+        (ins "5")
+        "Just 5~" ;
       t
         ~expectsPartial:true
         "bs on a constructor converts it to a partial with ghost"
         aConstructor
-        (bs 4)
+        ~pos:4
+        bs
         "Jus~@ ___" ;
       t
         ~expectsPartial:true
         "del on a constructor converts it to a partial with ghost"
         aConstructor
-        (del 0)
+        ~pos:0
+        del
         "~ust@ ___" ;
       t
         "space on a constructor blank does nothing"
         aConstructor
-        (space 5)
+        ~pos:5
+        space
         "Just ~___" ;
       t
         "ctrl+left mid constructor moves to beg"
         aConstructor
-        (ctrlLeft 2)
+        ~pos:2
+        ctrlLeft
         "~Just ___" ;
       t
         "ctrl+left mid constructor moves to end"
         aConstructor
-        (ctrlRight 2)
+        ~pos:2
+        ctrlRight
         "Just~ ___" ;
       t
         "DeleteWordBackward at end of constructor deletes to beg "
         aConstructor
-        (inputs [DeleteWordBackward] 4)
+        ~pos:4
+        (inputs [DeleteWordBackward])
         "~___" ;
       t
         ~expectsPartial:true
         "DeleteWordBackward mid constructor deletes to beg "
         aConstructor
-        (inputs [DeleteWordBackward] 2)
+        ~pos:2
+        (inputs [DeleteWordBackward])
         "~st@@ ___" ;
       t
         "DeleteWordForward at end of constructor moves to blank "
         aConstructor
-        (inputs [DeleteWordForward] 4)
+        ~pos:4
+        (inputs [DeleteWordForward])
         "Just ___~" ;
       t
         ~expectsPartial:true
         "DeleteWordForward mid constructor deletes to end "
         aConstructor
-        (inputs [DeleteWordForward] 2)
+        ~pos:2
+        (inputs [DeleteWordForward])
         "Ju~@@ ___" ;
       t
         "backspace after selecting all with a `Just |___` in a match deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
         (match' b [(pConstructor "Just" [pBlank ()], b)])
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
+        ~pos:0
+        (inputs [keypress K.SelectAll; DeleteContentBackward])
         "~___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
@@ -2191,63 +2601,74 @@ let run () =
       t
         "type - after a lambda var to move into a lambda arrow"
         aLambda
-        (ins "-" 4)
+        ~pos:4
+        (ins "-")
         "\\*** -~> ___" ;
       t
         "type - before a lambda arrow to move into a lambda arrow"
         aLambda
-        (ins "-" 5)
+        ~pos:5
+        (ins "-")
         "\\*** -~> ___" ;
       t
         "type > inside a lambda arrow to move past it"
         aLambda
-        (ins ">" 6)
+        ~pos:6
+        (ins ">")
         "\\*** -> ~___" ;
       (* end type -> to move through a lambda *)
-      t "bs over lambda symbol" aLambda (bs 1) "~___" ;
-      t "insert space in lambda" aLambda (key K.Space 1) "\\~*** -> ___" ;
-      t "bs non-empty lambda symbol" nonEmptyLambda (bs 1) "\\~*** -> 5" ;
-      t "del lambda symbol" aLambda (del 0) "~___" ;
-      t "del non-empty lambda symbol" nonEmptyLambda (del 0) "~\\*** -> 5" ;
+      t "bs over lambda symbol" aLambda ~pos:1 bs "~___" ;
+      t "insert space in lambda" aLambda ~pos:1 (key K.Space) "\\~*** -> ___" ;
+      t "bs non-empty lambda symbol" nonEmptyLambda ~pos:1 bs "\\~*** -> 5" ;
+      t "del lambda symbol" aLambda ~pos:0 del "~___" ;
+      t "del non-empty lambda symbol" nonEmptyLambda ~pos:0 del "~\\*** -> 5" ;
       t
         "insert changes occurence of binding var"
         (lambdaWithUsedBinding "binding")
-        (ins "c" 8)
+        ~pos:8
+        (ins "c")
         "\\bindingc~ -> bindingc" ;
       t
         "insert changes occurence of binding 2nd var"
         (lambdaWithUsed2ndBinding "binding")
-        (ins "c" 17)
+        ~pos:17
+        (ins "c")
         "\\somevar, bindingc~ -> bindingc" ;
       t
         "dont jump in lambdavars with infix chars"
         aLambda
-        (ins "+" 1)
+        ~pos:1
+        (ins "+")
         "\\~*** -> ___" ;
       t
         "dont allow name to start with a number"
         aLambda
-        (ins "5" 1)
+        ~pos:1
+        (ins "5")
         "\\~*** -> ___" ;
       t
         "dont allow name to start with a number, pt 2"
         (lambdaWithBinding "test" five)
-        (ins "2" 1)
+        ~pos:1
+        (ins "2")
         "\\~test -> 5" ;
       t
         "dont allow name to start with a number, pt 3"
         aLambda
-        (ins "5" 3)
+        ~pos:3
+        (ins "5")
         (* TODO: this looks wrong *)
         "\\**~* -> ___" ;
       t
         "creating lambda in block placeholder should set arguments"
         aFnCallWithBlockArg
-        (ins "\\" 24)
+        ~pos:24
+        (ins "\\")
         "Dict::map _____________ \\~key, value -> ___" ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe"
         (pipe b [b])
+        ~pos:6
         (inputs
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the pipe *)
@@ -2255,87 +2676,99 @@ let run () =
            ; InsertText "a"
            ; InsertText "p"
            ; keypress K.Enter
-           ; InsertText "\\" ]
-           6)
+           ; InsertText "\\" ])
         "___\n|>Dict::map \\~key, value -> ___\n" ;
       t
         "deleting a lambda argument should work"
         lambdaWithTwoBindings
-        (del 2)
+        ~pos:2
+        del
         "\\x~ -> ___" ;
       t
         "backspacing a lambda argument should work"
         lambdaWithTwoBindings
-        (bs 3)
+        ~pos:3
+        bs
         "\\x~ -> ___" ;
       t
         "deleting a lambda argument should update used variable"
         (lambdaWithUsed2ndBinding "x")
-        (del 8)
+        ~pos:8
+        del
         "\\somevar~ -> ___" ;
       t
         "can add lambda arguments when blank"
         aLambda
-        (ins "," 4)
+        ~pos:4
+        (ins ",")
         "\\***, ~*** -> ___" ;
       t
         "can add lambda arguments to used binding"
         lambdaWithTwoBindings
-        (ins "," 5)
+        ~pos:5
+        (ins ",")
         "\\x, y, ~*** -> ___" ;
       t
         "can add lambda arguments in middle used binding"
         lambdaWithTwoBindings
-        (ins "," 2)
+        ~pos:2
+        (ins ",")
         "\\x, ~***, y -> ___" ;
       t
         "can add lambda arguments in the front"
         lambdaWithTwoBindings
-        (ins "," 1)
+        ~pos:1
+        (ins ",")
         "\\~***, x, y -> ___" ;
       t
         "can add lambda arguments in front of middle"
         lambdaWithTwoBindings
-        (ins "," 4)
+        ~pos:4
+        (ins ",")
         "\\x, ~***, y -> ___" ;
       t
         "cant insert a blank from outside the lambda"
         lambdaWithTwoBindings
-        (ins "," 0)
+        ~pos:0
+        (ins ",")
         "~\\x, y -> ___" ;
       t
         "cant bs a blank from the space in a lambda"
         lambdaWithTwoBindings
-        (bs 4)
+        ~pos:4
+        bs
         "\\x,~ y -> ___" ;
       t
         "ctrl+left twice over lamda from beg moves to beg of first param"
         lambdaWithTwoBindings
+        ~pos:1
         (keys
-           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection]
-           1)
+           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection])
         "~\\x, y -> ___" ;
       t
         "ctrl+right twice over lamda from beg moves to last blank"
         lambdaWithTwoBindings
-        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection] 1)
+        ~pos:1
+        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection])
         "\\x, y~ -> ___" ;
       t
         "ctrl+left twice over lamda from end moves to end of second param"
         lambdaWithTwoBindings
+        ~pos:12
         (keys
-           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection]
-           12)
+           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection])
         "\\x, ~y -> ___" ;
       t
         "ctrl+right twice over lamda from end doesnt move"
         lambdaWithTwoBindings
-        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection] 12)
+        ~pos:12
+        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection])
         "\\x, y -> ___~" ;
       t
         "bs second sep in 3-var lambda"
         lambdaWith3UsedBindings
-        (bs 12)
+        ~pos:12
+        bs
         "\\aVar, bVar~ -> aVar + ___ * bVar" ;
       ()) ;
   describe "Variables" (fun () ->
@@ -2343,120 +2776,141 @@ let run () =
         ~expectsPartial:true
         "insert middle of variable"
         aVar
-        (ins "c" 5)
+        ~pos:5
+        (ins "c")
         "variac~ble" ;
-      t ~expectsPartial:true "del middle of variable" aVar (del 5) "varia~le" ;
+      t ~expectsPartial:true "del middle of variable" aVar ~pos:5 del "varia~le" ;
       t
         ~expectsPartial:true
         "insert capital works"
         aVar
-        (ins "A" 5)
+        ~pos:5
+        (ins "A")
         "variaA~ble" ;
       t
         ~expectsPartial:true
         "insert non-identifier symbol"
         aVar
-        (ins "$" 5)
+        ~pos:5
+        (ins "$")
         "varia$~ble" ;
-      t "del variable" aShortVar (del 0) "~___" ;
-      t ~expectsPartial:true "del long variable" aVar (del 0) "~ariable" ;
-      t ~expectsPartial:true "del mid variable" aVar (del 6) "variab~e" ;
-      t "bs variable" aShortVar (bs 1) "~___" ;
-      t ~expectsPartial:true "bs mid variable" aVar (bs 8) "variabl~" ;
-      t ~expectsPartial:true "bs mid variable" aVar (bs 6) "varia~le" ;
+      t "del variable" aShortVar ~pos:0 del "~___" ;
+      t ~expectsPartial:true "del long variable" aVar ~pos:0 del "~ariable" ;
+      t ~expectsPartial:true "del mid variable" aVar ~pos:6 del "variab~e" ;
+      t "bs variable" aShortVar ~pos:1 bs "~___" ;
+      t ~expectsPartial:true "bs mid variable" aVar ~pos:8 bs "variabl~" ;
+      t ~expectsPartial:true "bs mid variable" aVar ~pos:6 bs "varia~le" ;
       t
         "variable doesn't override if"
         (let' "i" b (partial "i" b))
-        (inputs [InsertText "f"; keypress K.Enter] 13)
+        ~pos:13
+        (inputs [InsertText "f"; keypress K.Enter])
         "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "ctrl+left from beg of variable doesnt move"
         aVar
-        (ctrlLeft 0)
+        ~pos:0
+        ctrlLeft
         "~variable" ;
       t
         "ctrl+right from beg of variable moves to end"
         aVar
-        (ctrlRight 0)
+        ~pos:0
+        ctrlRight
         "variable~" ;
       t
         "ctrl+left from end of variable moves to beg"
         aVar
-        (ctrlLeft 8)
+        ~pos:8
+        ctrlLeft
         "~variable" ;
       t
         "ctrl+right from end of variable doesnt move"
         aVar
-        (ctrlRight 8)
+        ~pos:8
+        ctrlRight
         "variable~" ;
       ()) ;
   describe "Match" (fun () ->
       t
         "move to the front of match"
         emptyMatch
-        (key (K.GoToStartOfLine DropSelection) 6)
+        ~pos:6
+        (key (K.GoToStartOfLine DropSelection))
         "~match ___\n  *** -> ___\n" ;
       t
         "move to the end of match"
         emptyMatch
-        (key (K.GoToEndOfLine DropSelection) 0)
+        ~pos:0
+        (key (K.GoToEndOfLine DropSelection))
         "match ___~\n  *** -> ___\n" ;
       t
         "move to the front of match on line 2"
         emptyMatch
-        (key (K.GoToStartOfLine DropSelection) 15)
+        ~pos:15
+        (key (K.GoToStartOfLine DropSelection))
         "match ___\n  ~*** -> ___\n" ;
       t
         "move to the end of match on line 2"
         emptyMatch
-        (key (K.GoToEndOfLine DropSelection) 12)
+        ~pos:12
+        (key (K.GoToEndOfLine DropSelection))
         "match ___\n  *** -> ___~\n" ;
       t
         "move back over match"
         emptyMatch
-        (key K.Left 6)
+        ~pos:6
+        (key K.Left)
         "~match ___\n  *** -> ___\n" ;
       t
         "move forward over match"
         emptyMatch
-        (key K.Right 0)
+        ~pos:0
+        (key K.Right)
         "match ~___\n  *** -> ___\n" ;
-      t "bs over empty match" emptyMatch (bs 6) "~___" ;
+      t "bs over empty match" emptyMatch ~pos:6 bs "~___" ;
       t
         "bs over empty match with 2 patterns"
         emptyMatchWithTwoPatterns
-        (bs 6)
+        ~pos:6
+        bs
         "~___" ;
       t
         "bs over match with 2 patterns"
         matchWithPatterns
-        (bs 6)
+        ~pos:6
+        bs
         "match ~___\n  3 -> ___\n" ;
-      t "del over empty match" emptyMatch (del 0) "~___" ;
+      t "del over empty match" emptyMatch ~pos:0 del "~___" ;
       t
         "del over empty match with 2 patterns"
         emptyMatchWithTwoPatterns
-        (del 0)
+        ~pos:0
+        del
         "~___" ;
       t
         "del over match with 2 patterns"
         matchWithPatterns
-        (del 0)
+        ~pos:0
+        del
         "~match ___\n  3 -> ___\n" ;
       t
         "del constructor in match pattern"
         matchWithConstructorPattern
-        (del 12)
+        ~pos:12
+        del
         "match ___\n  ~ust -> ___\n" ;
       t
         "bs constructor in match pattern"
         matchWithConstructorPattern
-        (bs 16)
+        ~pos:16
+        bs
         "match ___\n  Jus~ -> ___\n" ;
       t
         "insert changes occurence of non-shadowed var in case"
         (matchWithBinding "binding" (var "binding"))
-        (ins "c" 19)
+        ~pos:19
+        (ins "c")
         "match ___\n  bindingc~ -> bindingc\n" ;
       t
         "insert only changes var in same branch"
@@ -2465,7 +2919,8 @@ let run () =
            (var "binding")
            "binding"
            (var "binding"))
-        (ins "c" 19)
+        ~pos:19
+        (ins "c")
         "match ___\n  bindingc~ -> bindingc\n  binding -> binding\n" ;
       t
         "bs only changes var in same branch"
@@ -2474,7 +2929,8 @@ let run () =
            (var "binding")
            "binding"
            (var "binding"))
-        (bs 19)
+        ~pos:19
+        bs
         "match ___\n  bindin~ -> bindin\n  binding -> binding\n" ;
       (*    TODO: uncomment this once the behavior is fixed
       t
@@ -2489,111 +2945,131 @@ let run () =
       t
         "insert changes occurence of non-shadowed var in case constructor"
         (matchWithConstructorBinding "binding" (var "binding"))
-        (ins "c" 22)
+        ~pos:22
+        (ins "c")
         "match ___\n  Ok bindingc~ -> bindingc\n" ;
       t
         "insert space in blank match"
         emptyMatch
-        (key K.Space 6)
+        ~pos:6
+        (key K.Space)
         "match ~___\n  *** -> ___\n" ;
       t
         "insert space in blank match on line 2"
         emptyMatch
-        (key K.Space 12)
+        ~pos:12
+        (key K.Space)
         "match ___\n  ~*** -> ___\n" ;
       t
         "enter at the end of the cond creates a new row"
         matchWithPatterns
-        (enter 9)
+        ~pos:9
+        enter
         "match ___\n  ~*** -> ___\n  3 -> ___\n" ;
       t
         "enter at the end of a row creates a new row"
         emptyMatchWithTwoPatterns
-        (enter 22)
+        ~pos:22
+        enter
         "match ___\n  *** -> ___\n  ~*** -> ___\n  *** -> ___\n" ;
       t
         "enter at the end of the last row creates a new row"
         emptyMatchWithTwoPatterns
-        (enter 35)
+        ~pos:35
+        enter
         "match ___\n  *** -> ___\n  *** -> ___\n  ~*** -> ___\n" ;
       t
         "enter at the end of the last row in nested match creates a new row"
         nestedMatch
-        (enter 50)
+        ~pos:50
+        enter
         "match ___\n  *** -> match ___\n           *** -> ___\n           ~*** -> ___\n" ;
       t
         "enter at beginning of line after match adds let, not match row"
         (let' "a" emptyMatch five)
-        (enter 39)
+        ~pos:39
+        enter
         "let a = match ___\n          *** -> ___\nlet *** = ___\n~5" ;
       t
         "enter at the start of a row creates a new row"
         matchWithPatterns
-        (enter 12)
+        ~pos:12
+        enter
         "match ___\n  *** -> ___\n  ~3 -> ___\n" ;
       t
         "enter at the start of row, with match in row above, creates a new row"
         (match' (int 1) [(pInt 5, match' (int 2) [(pInt 6, b)]); (pInt 7, b)])
-        (enter 43)
+        ~pos:43
+        enter
         "match 1\n  5 -> match 2\n         6 -> ___\n  *** -> ___\n  ~7 -> ___\n" ;
       t
         "backspace first row deletes it"
         emptyMatchWithTwoPatterns
-        (bs 12)
+        ~pos:12
+        bs
         "match ~___\n  *** -> ___\n" ;
       t
         "backspace second row deletes it"
         emptyMatchWithTwoPatterns
-        (bs 25)
+        ~pos:25
+        bs
         "match ___\n  *** -> ~___\n" ;
       t
         "backspacing only row doesn't delete"
         emptyMatch
-        (bs 12)
+        ~pos:12
+        bs
         "match ~___\n  *** -> ___\n" ;
       t
         "backspacing second matchSep ( |-> ) moves to end of pattern"
         emptyMatchWithTwoPatterns
-        (bs 29)
+        ~pos:29
+        bs
         "match ___\n  *** -> ___\n  ***~ -> ___\n" ;
       t
         "backspacing second matchSep ( -> |) -> moves to end of pattern"
         emptyMatchWithTwoPatterns
-        (bs 32)
+        ~pos:32
+        bs
         "match ___\n  *** -> ___\n  ***~ -> ___\n" ;
       t
         "ctrl+left 2 times from end moves to first blank"
         emptyMatch
+        ~pos:22
         (keys
-           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection]
-           22)
+           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection])
         "match ___\n  ~*** -> ___\n" ;
       t
         "ctrl+right 2 times from end doesnt move"
+        ~brokenInFF:true
         emptyMatch
-        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection] 22)
+        ~pos:22
+        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection])
         "match ___\n  *** -> ___\n~" ;
       t
         "ctrl+left 2 times from beg doesnt move"
         emptyMatch
+        ~pos:0
         (keys
-           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection]
-           0)
+           [K.GoToStartOfWord DropSelection; K.GoToStartOfWord DropSelection])
         "~match ___\n  *** -> ___\n" ;
       t
         "ctrl+right 2 times from beg moves to last blank"
         emptyMatch
-        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection] 0)
+        ~pos:0
+        (keys [K.GoToEndOfWord DropSelection; K.GoToEndOfWord DropSelection])
         "match ___\n  ***~ -> ___\n" ;
       t
         "ctrl+left from mid moves to previous blank "
         emptyMatch
-        (ctrlLeft 15)
+        ~pos:15
+        ctrlLeft
         "match ___\n  ~*** -> ___\n" ;
       t
         "ctrl+right from mid moves to next blank"
         emptyMatch
-        (ctrlRight 15)
+        ~pos:15
+        ctrlRight
         "match ___\n  *** -> ___~\n" ;
       (* delete row with delete *)
       ()) ;
@@ -2601,136 +3077,169 @@ let run () =
       t
         "move to the front of let"
         emptyLet
-        (key (K.GoToStartOfLine DropSelection) 4)
+        ~pos:4
+        (key (K.GoToStartOfLine DropSelection))
         "~let *** = ___\n5" ;
       t
         "move to the end of let"
         emptyLet
-        (key (K.GoToEndOfLine DropSelection) 4)
+        ~pos:4
+        (key (K.GoToEndOfLine DropSelection))
         "let *** = ___~\n5" ;
-      t "move back over let" emptyLet (key K.Left 4) "~let *** = ___\n5" ;
-      t "move forward over let" emptyLet (key K.Right 0) "let ~*** = ___\n5" ;
-      t "bs over empty let" emptyLet (bs 3) "~5" ;
-      t "del empty let" emptyLet (del 0) "~5" ;
-      t "bs over empty let - underscore" (let' "_" b b) (bs 3) "~___" ;
-      t "del empty let - underscore" (let' "_" b b) (del 0) "~___" ;
-      t "bs over non-empty let" nonEmptyLet (bs 3) "let~ *** = 6\n5" ;
-      t "del non-empty let" nonEmptyLet (del 0) "~let *** = 6\n5" ;
-      t "bs with let empty body" (let' "" (int 5) b) (bs 3) "~5" ;
-      t "del with let empty body" (let' "" (int 5) b) (del 0) "~5" ;
-      t "bs with let empty body" (let' "_" (int 5) b) (bs 3) "~5" ;
-      t "del with let empty body" (let' "_" (int 5) b) (del 0) "~5" ;
-      t "insert space on blank let" emptyLet (key K.Space 4) "let ~*** = ___\n5" ;
-      t "lhs on empty" emptyLet (ins "c" 4) "let c~ = ___\n5" ;
-      t "middle of blank" emptyLet (ins "c" 5) "let c~ = ___\n5" ;
-      t "bs letlhs" letWithLhs (bs 5) "let ~*** = 6\n5" ;
-      t "del letlhs" letWithLhs (del 4) "let ~*** = 6\n5" ;
+      t "move back over let" emptyLet ~pos:4 (key K.Left) "~let *** = ___\n5" ;
+      t
+        "move forward over let"
+        emptyLet
+        ~pos:0
+        (key K.Right)
+        "let ~*** = ___\n5" ;
+      t "bs over empty let" emptyLet ~pos:3 bs "~5" ;
+      t "del empty let" emptyLet ~pos:0 del "~5" ;
+      t "bs over empty let - underscore" (let' "_" b b) ~pos:3 bs "~___" ;
+      t "del empty let - underscore" (let' "_" b b) ~pos:0 del "~___" ;
+      t "bs over non-empty let" nonEmptyLet ~pos:3 bs "let~ *** = 6\n5" ;
+      t "del non-empty let" nonEmptyLet ~pos:0 del "~let *** = 6\n5" ;
+      t "bs with let empty body" (let' "" (int 5) b) ~pos:3 bs "~5" ;
+      t "del with let empty body" (let' "" (int 5) b) ~pos:0 del "~5" ;
+      t "bs with let empty body" (let' "_" (int 5) b) ~pos:3 bs "~5" ;
+      t "del with let empty body" (let' "_" (int 5) b) ~pos:0 del "~5" ;
+      t
+        "insert space on blank let"
+        emptyLet
+        ~pos:4
+        (key K.Space)
+        "let ~*** = ___\n5" ;
+      t "lhs on empty" emptyLet ~pos:4 (ins "c") "let c~ = ___\n5" ;
+      t "middle of blank" emptyLet ~pos:5 (ins "c") "let c~ = ___\n5" ;
+      t "bs letlhs" letWithLhs ~pos:5 bs "let ~*** = 6\n5" ;
+      t "del letlhs" letWithLhs ~pos:4 del "let ~*** = 6\n5" ;
       t
         "equals skips over assignment"
         emptyLet
-        (insMany ["c"; "="] 4)
+        ~pos:4
+        (insMany ["c"; "="])
         "let c = ~___\n5" ;
       t
         "equals skips over assignment 1"
         emptyLet
-        (ins "=" 7)
+        ~pos:7
+        (ins "=")
         "let *** = ~___\n5" ;
       t
         "equals skips over assignment 2"
         emptyLet
-        (ins "=" 8)
+        ~pos:8
+        (ins "=")
         "let *** = ~___\n5" ;
       t
         "equals skips over assignment 3"
         emptyLet
-        (ins "=" 9)
+        ~pos:9
+        (ins "=")
         "let *** = ~___\n5" ;
       t
         "bs changes occurence of binding var"
         (letWithUsedBinding "binding")
-        (bs 11)
+        ~pos:11
+        bs
         "let bindin~ = 6\nbindin" ;
       t
         "insert changes occurence of binding var"
         (letWithUsedBinding "binding")
-        (ins "c" 11)
+        ~pos:11
+        (ins "c")
         "let bindingc~ = 6\nbindingc" ;
       t
         "insert changes occurence of binding in match nested expr"
         (letWithBinding
            "binding"
            (match' b [(pVar "binding", var "binding"); (pInt 5, var "binding")]))
-        (ins "c" 11)
+        ~pos:11
+        (ins "c")
         "let bindingc~ = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n" ;
       t
         "insert doesn't change occurence of binding in shadowed lambda expr"
         (letWithBinding "binding" (lambda ["binding"] (var "binding")))
-        (ins "c" 11)
+        ~pos:11
+        (ins "c")
         "let bindingc~ = 6\n\\binding -> binding" ;
       t
         "insert changes occurence of binding in lambda expr"
         (letWithBinding "binding" (lambda ["somevar"] (var "binding")))
-        (ins "c" 11)
+        ~pos:11
+        (ins "c")
         "let bindingc~ = 6\n\\somevar -> bindingc" ;
       t
         "dont jump in letlhs with infix chars"
         emptyLet
-        (ins "+" 4)
+        ~pos:4
+        (ins "+")
         "let ~*** = ___\n5" ;
       t
         "dont allow letlhs to start with a number"
         emptyLet
-        (ins "5" 4)
+        ~pos:4
+        (ins "5")
         "let ~*** = ___\n5" ;
       t
         "dont allow letlhs to start with a number, pt 2"
         letWithLhs
-        (ins "2" 4)
+        ~pos:4
+        (ins "2")
         "let ~n = 6\n5" ;
       t
         "dont allow letlhs to start with a number, pt 3"
         emptyLet
-        (ins "5" 6)
+        ~pos:6
+        (ins "5")
         "let **~* = ___\n5" ;
       t
         "enter on the end of let goes to blank"
         nonEmptyLetWithBlankEnd
-        (enter 11)
+        ~pos:11
+        enter
         "let *** = 6\n~___" ;
       t
         "enter at the end of a line inserts let if no blank is next"
         nonEmptyLet
-        (enter 11)
+        ~pos:11
+        enter
         "let *** = 6\nlet ~*** = ___\n5" ;
       t
         "enter at the start of a let creates let above"
         twoLets
-        (enter 10)
+        ~pos:10
+        enter
         "let x = 5\nlet *** = ___\n~let y = 6\n7" ;
       t
         "enter at the start of first let creates let above"
         nonEmptyLet
-        (enter 0)
+        ~pos:0
+        enter
         "let *** = ___\n~let *** = 6\n5" ;
       t
         "enter at the end of a let with a let below inserts new let"
         twoLets
-        (enter 9)
+        ~pos:9
+        enter
         "let x = 5\nlet ~*** = ___\nlet y = 6\n7" ;
       t
         "enter on the end of first let inserts new let"
         matchWithTwoLets
-        (enter 28)
+        ~pos:28
+        enter
         "match ___\n  *** -> let x = 5\n         let ~*** = ___\n         let y = 6\n         ___\n" ;
       t
         "enter on the end of second let goes to blank"
         matchWithTwoLets
-        (enter 47)
+        ~pos:47
+        enter
         "match ___\n  *** -> let x = 5\n         let y = 6\n         ~___\n" ;
       t
         "enter at the start of a non-let also creates let above"
         anInt
-        (enter 0)
+        ~pos:0
+        enter
         "let *** = ___\n~12345" ;
       tStruct
         "wrapping a pipe in a let with enter creates correct ast"
@@ -2741,42 +3250,49 @@ let run () =
       t
         "wrapping a pipe in a let with enter places caret correctly"
         aPipe
-        (enter 0)
+        enter
         "let *** = ___\n~[]\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "Ctrl+left in front of a varname moves to previous editable text"
         matchWithTwoLets
-        (ctrlLeft 23)
+        ~pos:23
+        ctrlLeft
         "match ___\n  ~*** -> let x = 5\n         let y = 6\n         ___\n" ;
       t
         "Ctrl+right in front of a varname moves to next editable text"
         matchWithTwoLets
-        (ctrlRight 15)
+        ~pos:15
+        ctrlRight
         "match ___\n  *** -> let x~ = 5\n         let y = 6\n         ___\n" ;
       t
         "enter at the end of a non-let wraps literal expr in let"
         aShortInt
-        (enter 1)
+        ~pos:1
+        enter
         "let _ = 1\n~___" ;
       t
         "enter at the end of a non-let wraps fncall in let"
         aFullFnCall
-        (enter 12)
+        ~pos:12
+        enter
         "let _ = Int::add 5 5\n~___" ;
       t
         "enter at the end of non-final arg, should just go to next line: #1"
         (let' "x" (fn "Int::add" [record [("", int 5)]; int 6]) b)
-        (enter 60)
+        ~pos:60
+        enter
         "let x = Int::add\n          {\n            *** : 5\n          }\n          ~6\n___" ;
       t
         "enter at the end of a non-final arg should just go to next line: #2"
         (fn "Int::add" [record [("", int 5)]; int 6])
-        (enter 28)
+        ~pos:28
+        enter
         "Int::add\n  {\n    *** : 5\n  }\n  ~6" ;
       t
         "enter at the start of ast also creates let"
         anInt
-        (enter 0)
+        ~pos:0
+        enter
         "let *** = ___\n~12345" ;
       ()) ;
   describe "Pipes" (fun () ->
@@ -2784,32 +3300,38 @@ let run () =
       t
         "move to the front of pipe on line 1"
         aPipe
-        (key (K.GoToStartOfLine DropSelection) 2)
+        ~pos:2
+        (key (K.GoToStartOfLine DropSelection))
         "~[]\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 1"
         aPipe
-        (key (K.GoToEndOfLine DropSelection) 0)
+        ~pos:0
+        (key (K.GoToEndOfLine DropSelection))
         "[]~\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 2"
         aPipe
-        (key (K.GoToStartOfLine DropSelection) 8)
+        ~pos:8
+        (key (K.GoToStartOfLine DropSelection))
         "[]\n|>~List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 2"
         aPipe
-        (key (K.GoToEndOfLine DropSelection) 5)
+        ~pos:5
+        (key (K.GoToEndOfLine DropSelection))
         "[]\n|>List::append [5]~\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 3"
         aPipe
-        (key (K.GoToStartOfLine DropSelection) 40)
+        ~pos:40
+        (key (K.GoToStartOfLine DropSelection))
         "[]\n|>List::append [5]\n|>~List::append [5]\n" ;
       t
         "move to the end of pipe on line 3"
         aPipe
-        (key (K.GoToEndOfLine DropSelection) 24)
+        ~pos:24
+        (key (K.GoToEndOfLine DropSelection))
         "[]\n|>List::append [5]\n|>List::append [5]~\n" ;
       t
         "pipes appear on new lines"
@@ -2824,198 +3346,235 @@ let run () =
       t
         "backspacing a pipe's first pipe works"
         aLongPipe
-        (bs 5)
+        ~pos:5
+        bs
         "[]~\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
       t
         "deleting a pipe's first pipe works"
         aLongPipe
-        (del 3)
+        ~pos:3
+        del
         (* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad *)
         "[]~\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
       t
         "backspacing a pipe's second pipe works"
         aLongPipe
-        (bs 24)
+        ~pos:24
+        bs
         "[]\n|>List::append [2]~\n|>List::append [4]\n|>List::append [5]\n" ;
       t
         "deleting a pipe's second pipe works"
         aLongPipe
-        (del 22)
+        ~pos:22
+        del
         (* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad *)
         "[]\n|>List::append [2]~\n|>List::append [4]\n|>List::append [5]\n" ;
       t
         "backspacing a pipe's third pipe works"
         aLongPipe
-        (bs 43)
+        ~pos:43
+        bs
         "[]\n|>List::append [2]\n|>List::append [3]~\n|>List::append [5]\n" ;
       t
         "deleting a pipe's third pipe works"
         aLongPipe
-        (del 41)
+        ~pos:41
+        del
         (* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad *)
         "[]\n|>List::append [2]\n|>List::append [3]~\n|>List::append [5]\n" ;
       t
         "backspacing a pipe's last pipe works"
         aLongPipe
-        (bs 62)
+        ~pos:62
+        bs
         "[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]~\n" ;
       t
         "deleting a pipe's last pipe works"
         aLongPipe
-        (del 60)
+        ~pos:60
+        del
         "[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]~\n" ;
       t
         "backspacing a pipe's first pipe that isn't in the first column works"
         aPipeInsideIf
-        (bs 21)
+        ~pos:21
+        bs
         "if ___\nthen\n  []~\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
       t
         "deleting a pipe's first pipe that isn't in the first column works"
         aPipeInsideIf
-        (del 19)
+        ~pos:19
+        del
         (* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad *)
         "if ___\nthen\n  []~\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
       t
         "backspacing a pipe's second pipe that isn't in the first column works"
         aPipeInsideIf
-        (bs 42)
+        ~pos:42
+        bs
         "if ___\nthen\n  []\n  |>List::append [2]~\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
       t
         "deleting a pipe's second pipe that isn't in the first column works"
         aPipeInsideIf
-        (del 40)
+        ~pos:40
+        del
         (* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad *)
         "if ___\nthen\n  []\n  |>List::append [2]~\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
       t
         "backspacing a pipe's third pipe that isn't in the first column works"
         aPipeInsideIf
-        (bs 63)
+        ~pos:63
+        bs
         "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]~\n  |>List::append [5]\nelse\n  ___" ;
       t
         "deleting a pipe's third pipe that isn't in the first column works"
         aPipeInsideIf
-        (del 61)
+        ~pos:61
+        del
         (* TODO: fix caret affinity https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad *)
         "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]~\n  |>List::append [5]\nelse\n  ___" ;
       t
         "backspacing a pipe's fourth pipe that isn't in the first column works"
         aPipeInsideIf
-        (bs 84)
+        ~pos:84
+        bs
         "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]~\nelse\n  ___" ;
       t
         "deleting a pipe's fourth pipe that isn't in the first column works"
         aPipeInsideIf
-        (del 82)
+        ~pos:82
+        del
         "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]~\nelse\n  ___" ;
       t
         ~expectsPartial:true
         "backspacing a pipe's first fn works"
         aLongPipe
-        (bs 17)
+        ~pos:17
+        bs
         "[]\n|>List::appen~@ [2]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
       t
         ~expectsPartial:true
         "backspacing a pipe's first binop works"
         aBinopPipe
-        (bs 8)
+        ~pos:8
+        bs
         "___\n|>+~@ \"asd\"\n" ;
       t
         "bs to remove binop in pipe places caret correctly"
         aBinopPlusPipe
-        (bs 7)
+        ~pos:7
+        bs
         "___\n|>~10\n" ;
       t
         "adding infix functions adds the right number of blanks"
         emptyPipe
-        (inputs [InsertText "+"; keypress K.Enter] 6)
+        ~pos:6
+        (inputs [InsertText "+"; keypress K.Enter])
         "___\n|>+ ~_________\n" ;
       t
         "creating a pipe from an fn via a partial works"
         (partial "|>" aFnCall)
-        (enter 2)
+        ~pos:2
+        enter
         "Int::add 5 _________\n|>~___\n" ;
       t
         "enter at the end of a pipe expr creates a new entry"
         aPipe
-        (enter 21)
+        ~pos:21
+        enter
         "[]\n|>List::append [5]\n|>~___\n|>List::append [5]\n" ;
       t
         "enter at the end of the opening expr creates a new entry"
         aPipe
-        (enter 2)
+        ~pos:2
+        enter
         "[]\n|>~___\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "enter at the start of a line creates a new entry"
         aPipe
-        (enter 3)
+        ~pos:3
+        enter
         "[]\n|>___\n~|>List::append [5]\n|>List::append [5]\n" ;
       t
         "enter at start of blank (within pipe) creates a new entry"
         aPipe
-        (enter 5)
+        ~pos:5
+        enter
         "[]\n|>___\n|>~List::append [5]\n|>List::append [5]\n" ;
       t
         "enter at the end of the last expr creates a new entry"
         aPipe
-        (enter 40)
+        ~pos:40
+        enter
         "[]\n|>List::append [5]\n|>List::append [5]\n|>~___\n" ;
       t
         "enter at the end of the last nested expr creates a new entry"
         aNestedPipe
-        (enter 55)
+        ~pos:55
+        enter
         "[]\n|>List::append [5]\n               |>List::append [6]\n               |>~___\n" ;
       t
         "enter at the end of pipe expression with line below creates a new entry"
+        ~wrap:false (* indent counting is all weird with wrapper *)
         (let' "a" (pipe (list []) [listFn [aList5]]) five)
-        (enter ~wrap:false 37)
-        (* indent counting is all weird with wrapper *)
+        ~pos:37
+        enter
         "let a = []\n        |>List::append [5]\n        |>~___\n5" ;
       t
         "enter at the beginning of expression after pipe creates let, not pipe"
+        ~wrap:false (* indent counting is all weird with wrapper *)
         (let' "a" (pipe (list []) [listFn [aList5]]) five)
-        (enter ~wrap:false 38)
-        (* indent counting is all weird with wrapper *)
+        ~pos:38
+        enter
         "let a = []\n        |>List::append [5]\nlet *** = ___\n~5" ;
       t
         "inserting a pipe into another pipe gives a single pipe1"
         (pipe five [listFn [rightPartial "|>" aList5]])
-        (enter 23)
+        ~pos:23
+        enter
         "5\n|>List::append [5]\n|>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe2"
         (pipe five [listFn [aList5]])
-        (key K.ShiftEnter 19)
+        ~pos:19
+        (key K.ShiftEnter)
         "5\n|>List::append [5]\n|>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe3"
         five
-        (key K.ShiftEnter 1)
+        ~pos:1
+        (key K.ShiftEnter)
         "5\n|>~___\n" ;
       t
         "shift enter at a let's newline creates the pipe on the rhs"
         nonEmptyLet
-        (key K.ShiftEnter 11)
+        ~pos:11
+        (key K.ShiftEnter)
         "let *** = 6\n          |>~___\n5" ;
       t
         "shift enter in a record's newline creates the pipe in the expr, not the entire record"
         (record [("f1", fiftySix); ("f2", seventyEight)])
-        (key K.ShiftEnter 11)
+        ~pos:11
+        (key K.ShiftEnter)
         "{\n  f1 : 56\n       |>~___\n  f2 : 78\n}" ;
       t
         "ctrl+left moves to front of thread "
         aPipe
-        (ctrlLeft 19)
+        ~pos:19
+        ctrlLeft
         "[]\n|>~List::append [5]\n|>List::append [5]\n" ;
       t
         "ctrl+right moves to end of next thread "
         aPipe
-        (ctrlRight 20)
+        ~pos:20
+        ctrlRight
         "[]\n|>List::append [5]\n|>List::append~ [5]\n" ;
       t
         "bsing a blank pipe after a piped 1-arg function deletes all"
+        ~wrap:false (* wrap false because else we delete the wrapper *)
         (pipe aList5 [fn "List::length" [pipeTarget]; b])
-        (* wrap false because else we delete the wrapper *)
-        (inputs ~wrap:false [keypress K.SelectAll; DeleteContentBackward] 0)
+        ~pos:0
+        (inputs [keypress K.SelectAll; DeleteContentBackward])
         "~___" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
@@ -3025,130 +3584,158 @@ let run () =
       t
         "move over indent 1"
         plainIf
-        (key K.Left 12)
+        ~pos:12
+        (key K.Left)
         "if 5\nthen~\n  6\nelse\n  7" ;
       t
         "move over indent 2"
         plainIf
-        (key K.Left 21)
+        ~pos:21
+        (key K.Left)
         "if 5\nthen\n  6\nelse~\n  7" ;
-      t "bs over indent 1" plainIf (bs 12) "if 5\nthen~\n  6\nelse\n  7" ;
-      t "bs over indent 2" plainIf (bs 21) "if 5\nthen\n  6\nelse~\n  7" ;
-      t "bs over empty if" emptyIf (bs 2) "~___" ;
+      t "bs over indent 1" plainIf ~pos:12 bs "if 5\nthen~\n  6\nelse\n  7" ;
+      t "bs over indent 2" plainIf ~pos:21 bs "if 5\nthen\n  6\nelse~\n  7" ;
+      t "bs over empty if" emptyIf ~pos:2 bs "~___" ;
       t
         "move to front of line 1"
         plainIf
-        (key (K.GoToStartOfLine DropSelection) 4)
+        ~pos:4
+        (key (K.GoToStartOfLine DropSelection))
         "~if 5\nthen\n  6\nelse\n  7" ;
       t
         "move to end of line 1"
         plainIf
-        (key (K.GoToEndOfLine DropSelection) 0)
+        ~pos:0
+        (key (K.GoToEndOfLine DropSelection))
         "if 5~\nthen\n  6\nelse\n  7" ;
       t
         "move to front of line 3"
         plainIf
-        (key (K.GoToStartOfLine DropSelection) 13)
+        ~pos:13
+        (key (K.GoToStartOfLine DropSelection))
         "if 5\nthen\n  ~6\nelse\n  7" ;
       t
         "move to end of line 3"
         plainIf
-        (key (K.GoToEndOfLine DropSelection) 12)
+        ~pos:12
+        (key (K.GoToEndOfLine DropSelection))
         "if 5\nthen\n  6~\nelse\n  7" ;
       t
         "move to front of line 5 in nested if"
         nestedIf
-        (key (K.GoToStartOfLine DropSelection) 16)
+        ~pos:16
+        (key (K.GoToStartOfLine DropSelection))
         "if 5\nthen\n  ~if 5\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "move to end of line 5 in nested if"
         nestedIf
-        (key (K.GoToEndOfLine DropSelection) 12)
+        ~pos:12
+        (key (K.GoToEndOfLine DropSelection))
         "if 5\nthen\n  if 5~\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "try to insert space on blank"
         emptyIf
-        (key K.Space 3)
+        ~pos:3
+        (key K.Space)
         "if ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "try to insert space on blank indent 2"
         emptyIf
-        (key K.Space 14)
+        ~pos:14
+        (key K.Space)
         "if ___\nthen\n  ~___\nelse\n  ___" ;
       t
         "enter in front of an if wraps in a let"
         plainIf
-        (enter 0)
+        ~pos:0
+        enter
         "let *** = ___\n~if 5\nthen\n  6\nelse\n  7" ;
       t
         "enter at end of if line does nothing"
         plainIf
-        (enter 4)
+        ~pos:4
+        enter
         "if 5\n~then\n  6\nelse\n  7" ;
       t
         "enter at the end of then line wraps expr in let"
         plainIf
-        (enter 13)
+        ~pos:13
+        enter
         "if 5\nthen\n  let _ = 6\n  ~___\nelse\n  7" ;
       t
         "enter at the end of else line wraps expr in let"
         plainIf
-        (enter 22)
+        ~pos:22
+        enter
         "if 5\nthen\n  6\nelse\n  let _ = 7\n  ~___" ;
       t
         "enter at end of then line inserts let if no blank next "
         plainIf
-        (enter 9)
+        ~pos:9
+        enter
         "if 5\nthen\n  let ~*** = ___\n  6\nelse\n  7" ;
       t
         "enter at end of else line does inserts let if no blank next"
         (* TODO: This should probably do nothing, but right now it acts like
          * it's at the front of the line below. *)
         plainIf
-        (enter 18)
+        ~pos:18
+        enter
         "if 5\nthen\n  6\nelse\n  let ~*** = ___\n  7" ;
       t
         "ctrl+left from value moves to condition "
         plainIf
-        (ctrlLeft 12)
+        ~pos:12
+        ctrlLeft
         "if ~5\nthen\n  6\nelse\n  7" ;
       t
         "ctrl+right from condition moves to value "
         plainIf
-        (ctrlRight 4)
+        ~pos:4
+        ctrlRight
         "if 5\nthen\n  6~\nelse\n  7" ;
       t
         "space in AC at end of then line should not advance"
         (let' "x" (int 5) (if' (partial "x" b) b b))
-        (space 14)
+        ~pos:14
+        space
         "let x = 5\nif x~\nthen\n  ___\nelse\n  ___" ;
       ()) ;
   describe "Lists" (fun () ->
-      t "create list" b (ins "[" 0) "[~]" ;
-      t "insert into empty list inserts" emptyList (ins "5" 1) "[5~]" ;
-      t "inserting before the list does nothing" emptyList (ins "5" 0) "~[]" ;
-      t "insert space into multi list" multi (key K.Space 6) "[56,78~]" ;
-      t "insert space into single list" single (key K.Space 3) "[56~]" ;
-      t "insert into existing list item" single (ins "4" 1) "[4~56]" ;
+      t "create list" b ~pos:0 (ins "[") "[~]" ;
+      t "insert into empty list inserts" emptyList ~pos:1 (ins "5") "[5~]" ;
+      t
+        "inserting before the list does nothing"
+        emptyList
+        ~pos:0
+        (ins "5")
+        "~[]" ;
+      t "insert space into multi list" multi ~pos:6 (key K.Space) "[56,78~]" ;
+      t "insert space into single list" single ~pos:3 (key K.Space) "[56~]" ;
+      t "insert into existing list item" single ~pos:1 (ins "4") "[4~56]" ;
       t
         "insert separator before item creates blank"
         single
-        (ins "," 1)
+        ~pos:1
+        (ins ",")
         "[~___,56]" ;
       t
         "insert separator after item creates blank"
         single
-        (ins "," 3)
+        ~pos:3
+        (ins ",")
         "[56,~___]" ;
       t
         "insert separator after item creates blank when list is in match"
         (match' single [(pBlank (), b)])
-        (ins "," 9)
+        ~pos:9
+        (ins ",")
         "match [56,~___]\n  *** -> ___\n" ;
       t
         "insert separator between items creates blank"
         multi
-        (ins "," 3)
+        ~pos:3
+        (ins ",")
         "[56,~___,78]" ;
       (* t "insert separator mid integer makes two items" single (ins ',' 2) *)
       (*   ("[5,6]", 3) ; *)
@@ -3156,79 +3743,104 @@ let run () =
       t
         "insert separator mid string does nothing special "
         withStr
-        (ins "," 3)
+        ~pos:3
+        (ins ",")
         "[\"a,~b\"]" ;
       t
         "backspacing open bracket of empty list dels list"
         emptyList
-        (bs 1)
+        ~pos:1
+        bs
         "~___" ;
       t
         "backspacing close bracket of empty list moves inside list"
         emptyList
-        (bs 2)
+        ~pos:2
+        bs
         "[~]" ;
-      t "deleting open bracket of empty list dels list" emptyList (del 0) "~___" ;
-      t "close bracket at end of list is swallowed" emptyList (ins "]" 1) "[]~" ;
+      t
+        "deleting open bracket of empty list dels list"
+        emptyList
+        ~pos:0
+        del
+        "~___" ;
+      t
+        "close bracket at end of list is swallowed"
+        emptyList
+        ~pos:1
+        (ins "]")
+        "[]~" ;
       t
         "bs on first separator between ints merges ints on either side of sep"
         multi
-        (bs 4)
+        ~pos:4
+        bs
         "[56~78]" ;
       t
         "del before first separator between ints merges ints on either side of sep"
         multi
-        (del 3)
+        ~pos:3
+        del
         "[56~78]" ;
       t
         "bs on middle separator between ints merges ints on either side of sep"
         longList
-        (bs 10)
+        ~pos:10
+        bs
         "[56,78,56~78,56,78]" ;
       t
         "del before middle separator between ints merges ints on either side of sep"
         longList
-        (del 9)
+        ~pos:9
+        del
         "[56,78,56~78,56,78]" ;
       t
         "bs on separator between item and blank dels blank"
         listWithBlank
-        (bs 7)
+        ~pos:7
+        bs
         "[56,78~,56]" ;
       t
         "del on separator between item and blank dels blank"
         listWithBlank
-        (del 6)
+        ~pos:6
+        del
         "[56,78~,56]" ;
       t
         "bs on separator between blank and item dels blank"
         listWithBlank
-        (bs 11)
+        ~pos:11
+        bs
         "[56,78,~56]" ;
       t
         "del on separator between blank and item dels blank"
         listWithBlank
-        (del 10)
+        ~pos:10
+        del
         "[56,78,~56]" ;
       t
         "bs on separator between string items merges strings"
         multiWithStrs
-        (bs 6)
+        ~pos:6
+        bs
         "[\"ab~cd\",\"ef\"]" ;
       t
         "del before separator between string items merges strings"
         multiWithStrs
-        (del 5)
+        ~pos:5
+        del
         "[\"ab~cd\",\"ef\"]" ;
       t
         "ctrl+left at the beg of list item moves to beg of next list item"
         longList
-        (ctrlLeft 10)
+        ~pos:10
+        ctrlLeft
         "[56,78,~56,78,56,78]" ;
       t
         "ctrl+right at the end of list item moves to end of next list item"
         longList
-        (ctrlRight 12)
+        ~pos:12
+        ctrlRight
         "[56,78,56,78,56~,78]" ;
       t
         "a very long list wraps"
@@ -3258,195 +3870,233 @@ let run () =
         "~let a = [56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78]\n___" ;
       ()) ;
   describe "Record" (fun () ->
-      t "create record" b (ins "{" 0) "{~}" ;
-      t "inserting before the record does nothing" emptyRecord (ins "5" 0) "~{}" ;
+      t "create record" b ~pos:0 (ins "{") "{~}" ;
+      t
+        "inserting before the record does nothing"
+        emptyRecord
+        ~pos:0
+        (ins "5")
+        "~{}" ;
       t
         "inserting space between empty record does nothing"
         emptyRecord
-        (space 1)
+        ~pos:1
+        space
         "{~}" ;
       t
         "inserting valid text in an empty record works"
+        ~wrap:false
         emptyRecord
-        (ins "f" 1 ~wrap:false)
-        "{\n  f~ : ___\n}" ;
-      t
-        "inserting valid text in an empty record works"
-        emptyRecord
-        (ins "f" 1 ~wrap:false)
+        ~pos:1
+        (ins "f")
         "{\n  f~ : ___\n}" ;
       t
         "inserting text in nested record gets correct position"
+        ~wrap:false
         listWithRecord
-        (ins "f" 2 ~wrap:false)
+        ~pos:2
+        (ins "f")
         "[{\n   f~ : ___\n }]" ;
       t
         "inserting space in empty record field does nothing"
         emptyRowRecord
-        (space 4)
+        ~pos:4
+        space
         "{\n  ~*** : ___\n}" ;
       t
         "inserting space in empty record value does nothing"
         emptyRowRecord
-        (space 10)
+        ~pos:10
+        space
         "{\n  *** : ~___\n}" ;
       t
         "pressing enter in an the start of empty record adds a new line"
         emptyRecord
-        (enter 1)
+        ~pos:1
+        enter
         "{\n  ~*** : ___\n}" ;
-      t "enter fieldname" emptyRowRecord (ins "c" 4) "{\n  c~ : ___\n}" ;
+      t "enter fieldname" emptyRowRecord ~pos:4 (ins "c") "{\n  c~ : ___\n}" ;
       t
         "move to the front of an empty record"
         emptyRowRecord
-        (key (K.GoToStartOfLine DropSelection) 13)
+        ~pos:13
+        (key (K.GoToStartOfLine DropSelection))
         "{\n  ~*** : ___\n}" ;
       t
         "move to the end of an empty record"
         emptyRowRecord
-        (key (K.GoToEndOfLine DropSelection) 4)
+        ~pos:4
+        (key (K.GoToEndOfLine DropSelection))
         "{\n  *** : ___~\n}" ;
       t
         "cant enter invalid fieldname"
         emptyRowRecord
-        (ins "^" 4)
+        ~pos:4
+        (ins "^")
         "{\n  ~*** : ___\n}" ;
       t
         "backspacing open brace of empty record dels record"
         emptyRecord
-        (bs 1)
+        ~pos:1
+        bs
         "~___" ;
       t
         "backspacing close brace of empty record moves inside record"
         emptyRecord
-        (bs 2)
+        ~pos:2
+        bs
         "{~}" ;
       t
         "deleting open brace of empty record dels record"
         emptyRecord
-        (del 0)
+        ~pos:0
+        del
         "~___" ;
       t
         "close brace at end of record is swallowed"
         emptyRecord
-        (ins "}" 1)
+        ~pos:1
+        (ins "}")
         "{}~" ;
       t
         "backspacing empty record field clears entry"
         emptyRowRecord
-        (bs 4)
+        ~pos:4
+        bs
         "{~}" ;
       t
         "pressing enter at start to insert field places the caret correctly"
         functionWrappedEmptyRecord
-        (enter 22)
+        ~pos:22
+        enter
         "HttpClient::getv4\n  \"\"\n  {\n    ~*** : ___\n  }\n  {}" ;
       t
         "appending to int in expr works"
         singleRowRecord
-        (ins "1" 11)
+        ~pos:11
+        (ins "1")
         "{\n  f1 : 561~\n}" ;
       t
         "appending to int in expr works"
         multiRowRecord
-        (ins "1" 21)
+        ~pos:21
+        (ins "1")
         "{\n  f1 : 56\n  f2 : 781~\n}" ;
       t
         "move to the front of a record with multiRowRecordple values"
         multiRowRecord
-        (key (K.GoToStartOfLine DropSelection) 21)
+        ~pos:21
+        (key (K.GoToStartOfLine DropSelection))
         "{\n  f1 : 56\n  ~f2 : 78\n}" ;
       t
         "move to the end of a record with multiRowRecordple values"
         multiRowRecord
-        (key (K.GoToEndOfLine DropSelection) 14)
+        ~pos:14
+        (key (K.GoToEndOfLine DropSelection))
         "{\n  f1 : 56\n  f2 : 78~\n}" ;
       t
         "inserting at the end of the key works"
         emptyRowRecord
-        (ins "f" 6)
+        ~pos:6
+        (ins "f")
         "{\n  f~ : ___\n}" ;
       t
         "pressing enter at start adds a row"
         multiRowRecord
-        (enter 1)
+        ~pos:1
+        enter
         "{\n  ~*** : ___\n  f1 : 56\n  f2 : 78\n}" ;
       t
         "pressing enter at the back adds a row"
         multiRowRecord
-        (enter 22)
+        ~pos:22
+        enter
         "{\n  f1 : 56\n  f2 : 78\n  *** : ___\n~}" ;
       t
         "pressing enter at the start of a field adds a row"
         multiRowRecord
-        (enter 14)
+        ~pos:14
+        enter
         "{\n  f1 : 56\n  *** : ___\n  ~f2 : 78\n}" ;
       t
         "pressing enter at the start of a field adds a row to the correct expression"
         (record [("", match' b [(pInt 5, int 6)]); ("asd", b)])
-        (enter 39)
+        ~pos:39
+        enter
         "{\n  *** : match ___\n          5 -> 6\n  *** : ___\n  ~asd : ___\n}" ;
       t
         "pressing enter at the end of row adds a row"
         multiRowRecord
-        (enter 11)
+        ~pos:11
+        enter
         "{\n  f1 : 56\n  ~*** : ___\n  f2 : 78\n}" ;
       t
         "dont allow weird chars in recordFieldnames"
         emptyRowRecord
-        (ins ")" 4)
+        ~pos:4
+        (ins ")")
         "{\n  ~*** : ___\n}" ;
       t
         "dont jump in recordFieldnames with infix chars"
         emptyRowRecord
-        (ins "+" 4)
+        ~pos:4
+        (ins "+")
         "{\n  ~*** : ___\n}" ;
       t
         "dont jump in recordFieldnames with infix chars, pt 2"
         singleRowRecord
-        (ins "+" 6)
+        ~pos:6
+        (ins "+")
         "{\n  f1~ : 56\n}" ;
       t
         "colon should skip over the record colon"
         emptyRowRecord
-        (ins ":" 7)
+        ~pos:7
+        (ins ":")
         "{\n  *** : ~___\n}" ;
       t
         "dont allow key to start with a number"
         emptyRowRecord
-        (ins "5" 4)
+        ~pos:4
+        (ins "5")
         "{\n  ~*** : ___\n}" ;
       t
         "dont allow key to start with a number, pt 2"
         singleRowRecord
-        (ins "5" 4)
+        ~pos:4
+        (ins "5")
         "{\n  ~f1 : 56\n}" ;
       t
         "dont allow key to start with a number, pt 3"
         emptyRowRecord
-        (ins "5" 6)
+        ~pos:6
+        (ins "5")
         (* TODO: looks wrong *)
         "{\n  **~* : ___\n}" ;
       t
         "ctrl+left at beg of value movese to beg of key"
         multiRowRecord
-        (ctrlLeft 9)
+        ~pos:9
+        ctrlLeft
         "{\n  ~f1 : 56\n  f2 : 78\n}" ;
       t
         "ctrl+right at end of key moves to end of value"
         multiRowRecord
-        (ctrlRight 6)
+        ~pos:6
+        ctrlRight
         "{\n  f1 : 56~\n  f2 : 78\n}" ;
-      ts
+      t
         "Replace text when selecting over record"
         (record [("f1", fiftySix); ("f2", seventyEight)])
-        (inputs [InsertText "5"] 21 ~selectionStart:(Some 10))
-        ("{\n  f1 : 55\n}", (None, 11)) ;
-      ts
+        ~sel:(10, 21)
+        (inputs [InsertText "5"])
+        "{\n  f1 : 55~\n}" ;
+      t
         "Replace text remove selected text when inserting wrong type"
         (record [("f1", fiftySix); ("f2", seventyEight)])
-        (inputs [InsertText "a"] 21 ~selectionStart:(Some 10))
-        ("{\n  f1 : 5\n}", (None, 10)) ;
+        ~sel:(10, 21)
+        (inputs [InsertText "a"])
+        "{\n  f1 : 5~\n}" ;
       ()) ;
   describe "Autocomplete" (fun () ->
       (* Note that many of these autocomplete tests use ~clone:false
@@ -3454,132 +4104,162 @@ let run () =
       t
         "space autocompletes correctly"
         (partial "if" b)
-        (space 2)
+        ~pos:2
+        space
         "if ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "let moves to right place"
         (partial "let" b)
-        (enter 3)
+        ~pos:3
+        enter
         "let ~*** = ___\n___" ;
       t
         "autocomplete space moves forward by 1"
         aBinOp
-        (inputs [InsertText "r"; keypress K.Space] 0)
+        ~pos:0
+        (inputs [InsertText "r"; keypress K.Space])
         "request ~== _________" ;
       t
         "autocomplete enter moves to end of value"
         aBinOp
-        (inputs [InsertText "r"; keypress K.Enter] 0)
+        ~pos:0
+        (inputs [InsertText "r"; keypress K.Enter])
         "request~ == _________" ;
-      t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
+      t "can tab to lambda blank" aLambda ~pos:0 (key K.Tab) "\\~*** -> ___" ;
       t
         "autocomplete tab moves to next blank"
         aBinOp
-        (inputs [InsertText "r"; keypress K.Tab] 0)
+        ~pos:0
+        (inputs [InsertText "r"; keypress K.Tab])
         "request == ~_________" ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
         b
-        (inputs [InsertText "="; keypress K.Enter] 0)
+        ~pos:0
+        (inputs [InsertText "="; keypress K.Enter])
         "~_________ == _________" ;
       t
         "autocomplete enter on function with parameters moves to start of first blank"
         (partial "sqrt" b)
-        (enter 4)
+        ~pos:4
+        enter
         "Int::sqrt ~_________" ;
       t
         "autocomplete enter on niladic function moves to end of function"
         (partial "empty" b)
-        (enter 5)
+        ~pos:5
+        enter
         "List::empty~" ;
       t
         "autocomplete tab on bin-op moves to start of second blank"
         b
-        (inputs [InsertText "="; keypress K.Tab] 0)
+        ~pos:0
+        (inputs [InsertText "="; keypress K.Tab])
         "_________ == ~_________" ;
       t
         "autocomplete space on bin-op moves to start of first blank"
         b
-        (inputs [InsertText "="; keypress K.Space] 0)
+        ~pos:0
+        (inputs [InsertText "="; keypress K.Space])
         "~_________ == _________" ;
-      t "variable moves to right place" (partial "req" b) (enter 3) "request~" ;
+      t
+        "variable moves to right place"
+        (partial "req" b)
+        ~pos:3
+        enter
+        "request~" ;
       t
         "pipe moves to right place on blank"
         b
-        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 2)
+        ~pos:2
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter])
         "___\n|>~___\n" ;
       t
         "pipe moves to right place on placeholder"
         aFnCall
-        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 11)
+        ~pos:11
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter])
         "Int::add 5 _________\n|>~___\n" ;
       t
         "pipe moves to right place in if then"
         emptyIf
-        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 14)
+        ~pos:14
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter])
         "if ___\nthen\n  ___\n  |>~___\nelse\n  ___" ;
       t
         "pipe moves to right place in lambda body"
         aLambda
-        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 8)
+        ~pos:8
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter])
         "\\*** -> ___\n        |>~___\n" ;
       t
         "pipe moves to right place in match body"
         emptyMatch
-        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter] 19)
+        ~pos:19
+        (inputs [InsertText "|"; InsertText ">"; keypress K.Enter])
         "match ___\n  *** -> ___\n         |>~___\n" ;
       t
         "shift enter autocompletes and creates pipe"
         (partial "empty" b)
-        (key K.ShiftEnter 5)
+        ~pos:5
+        (key K.ShiftEnter)
         "List::empty\n|>~___\n" ;
       t
         "shift enter in a field works correctly"
+        ~clone:false
         (EPartial
            ( gid ()
            , "bo"
            , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
            ))
-        (key ~clone:false K.ShiftEnter 10)
+        ~pos:10
+        (key K.ShiftEnter)
         "request.body\n|>~___\n" ;
       t
         "shift enter in pipe autocompletes and creates pipe"
+        ~wrap:false
         (pipe (list []) [partial "appe" b])
-        (key ~wrap:false K.ShiftEnter 9)
+        ~pos:9
+        (key K.ShiftEnter)
         "[]\n|>List::append ___________\n|>~___\n" ;
-      t "autocomplete for Just" (partial "Just" b) (enter 4) "Just ~___" ;
-      t "autocomplete for Ok" (partial "Ok" b) (enter 2) "Ok ~___" ;
-      t "autocomplete for Nothing" (partial "Nothing" b) (enter 7) "Nothing~" ;
+      t "autocomplete for Just" (partial "Just" b) ~pos:4 enter "Just ~___" ;
+      t "autocomplete for Ok" (partial "Ok" b) ~pos:2 enter "Ok ~___" ;
+      t "autocomplete for Nothing" (partial "Nothing" b) ~pos:7 enter "Nothing~" ;
       t
         "autocomplete for Nothing at end of a line"
         (if' b (partial "Nothing" b) b)
-        (space 21)
+        ~pos:21
+        space
         "if ___\nthen\n  Nothing~\nelse\n  ___" ;
-      t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
+      t "autocomplete for Error" (partial "Error" b) ~pos:5 enter "Error ~___" ;
       t
         "autocomplete for field"
+        ~clone:false
         (EPartial
            ( gid ()
            , "bo"
            , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), "")
            ))
-        (enter ~clone:false 10)
+        ~pos:10
+        enter
         "request.body~" ;
       t
         "autocomplete shows first alphabetical item for fields"
+        ~clone:false
         (let' "request" (int 5) (EVariable (ID "fake-acdata2", "request")))
-        (inputs [InsertText "."; keypress K.Enter] ~clone:false 23)
+        ~pos:23
+        (inputs [InsertText "."; keypress K.Enter])
         "let request = 5\nrequest.author~" ;
       t
         "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
+        ~clone:false
         (let' "request" (int 5) (EVariable (ID "fake-acdata2", "request")))
-        (inputs
-           [InsertText "."; InsertText "t"; keypress K.Enter]
-           ~clone:false
-           23)
+        ~pos:23
+        (inputs [InsertText "."; InsertText "t"; keypress K.Enter])
         "let request = 5\nrequest.title~" ;
       t
         "autocomplete for field autocommits"
+        ~clone:false
         (let'
            "x"
            (partial
@@ -3589,10 +4269,12 @@ let run () =
                  "longfield"))
            b)
         (* Right should make it commit *)
-        (key ~clone:false K.Right 20)
+        ~pos:20
+        (key K.Right)
         "let x = request.body\n~___" ;
       t
         "down works on autocomplete for fields"
+        ~clone:false
         (let'
            "x"
            (partial
@@ -3601,11 +4283,13 @@ let run () =
                  (EVariable (ID "fake-acdata1", "request"))
                  "longfield"))
            b)
-        (keys ~clone:false [K.Down; K.Enter] 16)
+        ~pos:16
+        (keys [K.Down; K.Enter])
         "let x = request.formBody~\n___" ;
       t
-        ~expectsPartial:true
         "autocomplete for field is committed by dot"
+        ~clone:false
+        ~expectsPartial:true
         (EPartial
            ( gid ()
            , "bod"
@@ -3613,7 +4297,8 @@ let run () =
                (gid (), EVariable (ID "fake-acdata1", "request"), "longfield")
            ))
         (* Dot should select the autocomplete *)
-        (ins ~clone:false "." 11)
+        ~pos:11
+        (ins ".")
         "request.body.~***" ;
       t
         ~expectsPartial:true
@@ -3624,6 +4309,8 @@ let run () =
         "asd+~asd" ;
       t
         "autocomplete with space moves to next non-whitespace rather than blank"
+        ~clone:false
+        ~pos:105
         (ELet
            ( gid ()
            , "request"
@@ -3640,10 +4327,11 @@ let run () =
                    , EFieldAccess
                        (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
-        (space ~clone:false 105)
+        space
         "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body~\nfoo" ;
       t
         "autocomplete with tab in presence of no blanks places caret at end of autocompleted thing"
+        ~clone:false
         (ELet
            ( gid ()
            , "request"
@@ -3657,7 +4345,8 @@ let run () =
                    , EFieldAccess
                        (gid (), EVariable (ID "fake-acdata3", "request"), "") )
                , EVariable (gid (), "foo") ) ))
-        (tab ~clone:false 77)
+        ~pos:77
+        (key K.Tab)
         "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;
       test "click into partial opens autocomplete" (fun () ->
           let ast = let' "request" aShortInt aPartialVar in
@@ -3676,20 +4365,14 @@ let run () =
              newState.ac.index)
           |> toEqual (Some 0)) ;
       test "backspace on partial will open AC if query matches" (fun () ->
-          let ast = let' "request" aShortInt aPartialVar in
-          let s = defaultTestState in
-          expect
-            ( moveTo 19 s
-            |> (fun s -> updateKey (keypress K.Down) (FluidAST.ofExpr ast) s)
-            |> (fun (ast, s) ->
-                 ast |> FluidAST.toExpr |> processMsg [DeleteContentBackward] s)
-            |> fun (ast, s) ->
-            match (toString (FluidAST.toExpr ast), s.ac.index) with
-            | "let request = 1\nre", Some 0 ->
-                true
-            | _ ->
-                false )
-          |> toEqual true) ;
+          let ast = FluidAST.ofExpr (let' "request" aShortInt aPartialVar) in
+          let s = defaultTestState |> moveTo 19 in
+          let ast, s = updateKey (keypress K.Down) ast s in
+          let ast, s =
+            ast |> FluidAST.toExpr |> processMsg [DeleteContentBackward] s
+          in
+          let result = Printer.eToTestString (FluidAST.toExpr ast) in
+          expect (result, s.ac.index) |> toEqual ("let request = 1\nre", Some 0)) ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
@@ -3730,12 +4413,14 @@ let run () =
       t
         "right skips over indent when in indent"
         emptyIf
-        (key K.Right 12)
+        ~pos:12
+        (key K.Right)
         "if ___\nthen\n  ___~\nelse\n  ___" ;
       t
         "left skips over indent when in indent"
         emptyIf
-        (key K.Left 13)
+        ~pos:13
+        (key K.Left)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
       (* length *)
       test "up from first row is zero" (fun () ->
@@ -3755,7 +4440,8 @@ let run () =
       t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
-        (enter 16)
+        ~pos:16
+        enter
         ( "let var = if ___\n"
         ^ "          ~then\n"
         ^ "            6\n"
@@ -3765,22 +4451,26 @@ let run () =
       t
         "end of if-then blank goes up properly"
         emptyIf
-        (keys [K.Escape; K.Up] 17)
+        ~pos:17
+        (keys [K.Escape; K.Up])
         "if ___\nthen~\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes up properly, twice"
         emptyIf
-        (keys [K.Escape; K.Up; K.Up] 17)
+        ~pos:17
+        (keys [K.Escape; K.Up; K.Up])
         "if __~_\nthen\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes down properly"
         emptyIf
-        (keys [K.Escape; K.Down] 5)
+        ~pos:5
+        (keys [K.Escape; K.Down])
         "if ___\nthen~\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes down properly, twice"
         emptyIf
-        (keys [K.Escape; K.Down; K.Down] 5)
+        ~pos:5
+        (keys [K.Escape; K.Down; K.Down])
         "if ___\nthen\n  ___~\nelse\n  ___" ;
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
@@ -3815,29 +4505,33 @@ let run () =
              | ELet (_, _, EBool (_, false), _) ->
                  "success"
              | e ->
-                 eToStructure e)
+                 Printer.eToStructure e)
           |> toEqual "success") ;
       t
         "moving right off a function autocompletes it anyway"
         (let' "x" (partial "Int::add" b) b)
-        (key K.Right 16)
+        ~pos:16
+        (key K.Right)
         "let x = Int::add ~_________ _________\n___" ;
       t
         ~expectsPartial:true
         "pressing an infix which could be valid doesn't commit"
         b
-        (insMany ["|"; "|"] 0)
+        ~pos:0
+        (insMany ["|"; "|"])
         "||~" ;
       t
         ~expectsPartial:true
         "pressing an infix after true commits it "
         (partial "true" b)
-        (ins "+" 4)
+        ~pos:4
+        (ins "+")
         "true +~" ;
       t
         "moving left off a function autocompletes it anyway"
         (let' "x" (partial "Int::add" b) b)
-        (key K.Left 8)
+        ~pos:8
+        (key K.Left)
         "let x =~ Int::add _________ _________\n___" ;
       test "escape hides autocomplete" (fun () ->
           expect
@@ -3859,6 +4553,7 @@ let run () =
   describe "Line-based Deletion" (fun () ->
       t
         "DeleteSoftLineBackward with selection deletes just the selection"
+        ~sel:(66, 114)
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3868,10 +4563,11 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (selectionInputs [DeleteSoftLineBackward] 114 66)
+        (inputs [DeleteSoftLineBackward])
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
         "DeleteSoftLineForward with selection deletes just the selection"
+        ~sel:(66, 114)
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
          in
@@ -3881,7 +4577,7 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (selectionInputs [DeleteSoftLineForward] 114 66)
+        (inputs [DeleteSoftLineForward])
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
         "DeleteSoftLineBackward with no selection deletes to visual start of line"
@@ -3894,7 +4590,8 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (inputs [DeleteSoftLineBackward] 66)
+        ~pos:66
+        (inputs [DeleteSoftLineBackward])
         "HttpClient::postv4\n  \"\"\n  {\n    ~*** : \"1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234\n          567890abcdefghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
         "DeleteSoftLineForward with no selection deletes to visual end of line"
@@ -3907,7 +4604,8 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (inputs [DeleteSoftLineForward] 66)
+        ~pos:66
+        (inputs [DeleteSoftLineForward])
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~EFGHIJKLMNOPQR\n           STUVWXYZ1234567890abcdefghijklmnopqrstuv\n           wxyz\"\n  }\n  {}\n  {}" ;
       t
         "DeleteSoftLineBackward deletes up to line start at the end of a wrapping string"
@@ -3920,11 +4618,12 @@ let run () =
            ; record [("data", str veryLongString)]
            ; emptyRecord
            ; emptyRecord ])
-        (inputs [DeleteSoftLineBackward] 163)
+        ~pos:163
+        (inputs [DeleteSoftLineBackward])
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n           EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}" ;
       ()) ;
   describe "Selection Movement" (fun () ->
-      ts
+      t
         "shift right selects"
         longLets
         (modkeys
@@ -3932,123 +4631,126 @@ let run () =
              , { shiftKey = true
                ; altKey = false
                ; metaKey = false
-               ; ctrlKey = false } ) ]
-           0)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 0, 4) ) ;
-      ts
+               ; ctrlKey = false } ) ])
+        "»let «firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "shift down selects"
         longLets
+        ~pos:4
         (modkeys
            [ ( K.Down
              , { shiftKey = true
                ; altKey = false
                ; metaKey = false
-               ; ctrlKey = false } ) ]
-           4)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 4, 52) ) ;
-      ts
+               ; ctrlKey = false } ) ])
+        "let »firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet «secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "shift left selects"
         longLets
+        ~pos:52
         (modkeys
            [ ( K.Left
              , { shiftKey = true
                ; altKey = false
                ; metaKey = false
-               ; ctrlKey = false } ) ]
-           52)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 52, 48) ) ;
-      ts
+               ; ctrlKey = false } ) ])
+        "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\n«let »secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "keypress on selection drops selection"
         longLets
-        (selectionPress K.Left 0 13)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (None, 0) ) ;
+        ~sel:(0, 13)
+        (key K.Left)
+        "~let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shiftless left aborts left-to-right selection on left"
         longLets
-        (selectionPress K.Left 4 52)
+        ~sel:(4, 52)
+        (key K.Left)
         "let ~firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shiftless left aborts right-to-left selection on left"
         longLets
-        (selectionPress K.Left 52 4)
+        ~sel:(52, 4)
+        (key K.Left)
         "let ~firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shiftless right aborts left-to-right selection on right"
         longLets
-        (selectionPress K.Right 4 52)
+        ~sel:(4, 52)
+        (key K.Right)
         "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet ~secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shiftless right aborts right-to-left selection on right"
         longLets
-        (selectionPress K.Right 52 4)
+        ~sel:(52, 4)
+        (key K.Right)
         "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet ~secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
-        "selecting an expression pipes from it 1"
+        "selecting an expression LTR pipes from it"
         (binop "+" (int 4) (int 5))
-        (selectionPress ~shiftHeld:true K.ShiftEnter 4 5)
+        ~sel:(4, 5)
+        (key ~shiftHeld:true K.ShiftEnter)
         "4 + 5\n    |>~___\n" ;
       t
-        "selecting an expression pipes from it 2"
+        "selecting an expression RTL pipes from it"
         (binop "+" (int 4) (int 5))
-        (selectionPress ~shiftHeld:true K.ShiftEnter 5 4)
+        ~sel:(5, 4)
+        (key ~shiftHeld:true K.ShiftEnter)
         "4 + 5\n    |>~___\n" ;
-      ts
+      t
         "K.ShiftEnter doesn't persist selection"
         anInt
-        (selectionPress ~shiftHeld:true K.ShiftEnter 0 5)
-        ("12345\n|>___\n", (None, 8)) ;
-      ts
+        ~sel:(0, 5)
+        (key ~shiftHeld:true K.ShiftEnter)
+        "12345\n|>~___\n" ;
+      t
         "K.SelectAll selects all"
         longLets
-        (key K.SelectAll 4)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 0, 89) ) ;
-      ts
+        ~pos:4
+        (key K.SelectAll)
+        "»let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"«" ;
+      t
         "K.GoToStartOfWord + shift selects to start of word"
         longLets
-        (key (K.GoToStartOfWord KeepSelection) 16)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 16, 4) ) ;
-      ts
+        ~pos:16
+        (key (K.GoToStartOfWord KeepSelection))
+        "let «firstLetName» = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToEndOfWord selects to end of word"
         longLets
-        (key (K.GoToEndOfWord KeepSelection) 4)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 4, 16) ) ;
-      ts
+        ~pos:4
+        (key (K.GoToEndOfWord KeepSelection))
+        "let »firstLetName« = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToStartOfLine selects from mid to start of line"
         longLets
-        (key (K.GoToStartOfLine KeepSelection) 29)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 29, 0) ) ;
-      ts
+        ~pos:29
+        (key (K.GoToStartOfLine KeepSelection))
+        "«let firstLetName = \"ABCDEFGHI»JKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToEndOfLine selects from mid to end of line"
         longLets
-        (key (K.GoToEndOfLine KeepSelection) 29)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 29, 47) ) ;
-      ts
+        ~pos:29
+        (key (K.GoToEndOfLine KeepSelection))
+        "let firstLetName = \"ABCDEFGHI»JKLMNOPQRSTUVWXYZ\"«\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToStartOfLine selects from end to start of line"
         longLets
-        (key (K.GoToStartOfLine KeepSelection) 47)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 47, 0) ) ;
-      ts
+        ~pos:47
+        (key (K.GoToStartOfLine KeepSelection))
+        "«let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"»\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "K.GoToEndOfLine selects to end of line"
         longLets
-        (key (K.GoToEndOfLine KeepSelection) 0)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 0, 47) ) ;
-      ts
+        ~pos:0
+        (key (K.GoToEndOfLine KeepSelection))
+        "»let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"«\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
+      t
         "Replace text in let if text is inserted with selection"
         longLets
-        (inputs [InsertText "a"] 35 ~selectionStart:(Some 9))
-        ( "let firsta = \"PQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (None, 10) ) ;
+        ~sel:(9, 35)
+        (inputs [InsertText "a"])
+        "let firsta~ = \"PQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       ()) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
@@ -4070,47 +4772,69 @@ let run () =
                 (L (token, ti), R (token, ti), None))) ;
       ()) ;
   describe "Tabs" (fun () ->
-      t "tab goes to first block in a let" emptyLet (tab 0) "let ~*** = ___\n5" ;
+      t
+        "tab goes to first block in a let"
+        emptyLet
+        (key K.Tab)
+        "let ~*** = ___\n5" ;
       t
         "tab goes when on blank"
         completelyEmptyLet
-        (tab 10)
+        ~pos:10
+        (key K.Tab)
         "let *** = ___\n~___" ;
-      t "tab goes to second block in a let" emptyLet (tab 4) "let *** = ~___\n5" ;
-      t "tab wraps second block in a let" emptyLet (tab 15) "let ~*** = ___\n5" ;
+      t
+        "tab goes to second block in a let"
+        emptyLet
+        ~pos:4
+        (key K.Tab)
+        "let *** = ~___\n5" ;
+      t
+        "tab wraps second block in a let"
+        emptyLet
+        ~pos:15
+        (key K.Tab)
+        "let ~*** = ___\n5" ;
       t
         "shift tab goes to last block in a let"
         emptyLet
-        (shiftTab 14)
+        ~pos:14
+        shiftTab
         "let *** = ~___\n5" ;
       t
         "shift tab goes to previous block in a let"
         emptyLet
-        (shiftTab 10)
+        ~pos:10
+        shiftTab
         "let ~*** = ___\n5" ;
       t
         "shift tab completes autocomplete"
         completelyEmptyLet
-        (inputs [InsertText "i"; InsertText "f"; keypress K.ShiftTab] 14)
+        ~pos:14
+        (inputs [InsertText "i"; InsertText "f"; keypress K.ShiftTab])
         "let *** = ~___\nif ___\nthen\n  ___\nelse\n  ___" ;
       t
         "shift-tab goes when on blank"
         completelyEmptyLet
-        (shiftTab 14)
+        ~pos:14
+        shiftTab
         "let *** = ~___\n___" ;
       t
         "shift tab wraps from start of let"
         emptyLet
-        (shiftTab 4)
+        ~pos:4
+        shiftTab
         "let *** = ~___\n5" ;
       t
         "shift tab goes to last blank in editor"
+        ~wrap:false
         nonEmptyLetWithBlankEnd
-        (shiftTab ~wrap:false 4)
+        ~pos:4
+        shiftTab
         "let *** = 6\n~___" ;
-      t "cant tab to filled letLHS" letWithLhs (tab 0) "~let n = 6\n5" ;
-      t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
-      t "can shift tab to field blank" aBlankField (shiftTab 0) "obj.~***" ;
+      t "cant tab to filled letLHS" letWithLhs (key K.Tab) "~let n = 6\n5" ;
+      t "can tab to lambda blank" aLambda (key K.Tab) "\\~*** -> ___" ;
+      t "can shift tab to field blank" aBlankField shiftTab "obj.~***" ;
       ()) ;
   (* Disable string escaping for now *)
   (* describe "String escaping" (fun () -> ()) ; *)
@@ -4157,7 +4881,8 @@ let run () =
     ~expectsPartial:true
     "typing an unsupported char after an escape leaves us with a partial"
     aStrEscape
-    (ins "f" 3)
+    ~pos:3
+    (ins "f")
     "so\\f~me string" ;
   (* Not quite a regression, in that I noticed it pre-review, but still a thing
    * to check *)
@@ -4165,6 +4890,7 @@ let run () =
     ~expectsPartial:true
     "typing and then deleting an unsupported char after an escape leaves us with a partial with the caret in the right place"
     aStrEscape
-    (inputs [InsertText "f"; DeleteContentBackward] 3)
+    ~pos:3
+    (inputs [InsertText "f"; DeleteContentBackward])
     "so\\~me string" ;
   ()

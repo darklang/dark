@@ -482,6 +482,14 @@ let aPipeWithFilledFunction =
   pipe (str "hello") [fn "String::length_v1" [pipeTarget]]
 
 
+(* ------------- *)
+(* Feature Flags *)
+(* ------------- *)
+
+let flagOld oldCode = EFeatureFlag (gid (), "flag-name", falseBool, oldCode, b)
+
+let flagNew newCode = EFeatureFlag (gid (), "flag-name", trueBool, b, newCode)
+
 (* ---------------- *)
 (* Complex *)
 (* ---------------- *)
