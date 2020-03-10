@@ -199,7 +199,9 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
   in
   let isSelected tokenStart tokenEnd =
     let selStart, selEnd = Fluid.getSelectionRange vs.fluidState in
-    selStart <= tokenStart && tokenEnd <= selEnd
+    vs.fluidState.activeEditorId = editor.editorId
+    && selStart <= tokenStart
+    && tokenEnd <= selEnd
   in
   List.map editor.tokens ~f:(fun ti ->
       let element nested =
