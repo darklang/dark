@@ -552,7 +552,9 @@ let selectUp (a : autocomplete) : autocomplete =
       a
 
 
-let rec documentationForItem (aci : autocompleteItem) : string option =
+let rec documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
+  let p (text : string) = Html.p [] [Html.text text] in
+  let simpleDoc (text : string) = Some [p text] in
   match aci with
   | FACFunction f ->
       let desc =
@@ -561,39 +563,40 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
         else "Function call with no description"
       in
       let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
-      Some desc
+      Some [p desc; ViewErrorRailDoc.hintForFunction f None]
   | FACConstructorName ("Just", _) ->
-      Some "An Option containing a value"
+      simpleDoc "An Option containing a value"
   | FACConstructorName ("Nothing", _) ->
-      Some "An Option representing Nothing"
+      simpleDoc "An Option representing Nothing"
   | FACConstructorName ("Ok", _) ->
-      Some "A successful Result containing a value"
+      simpleDoc "A successful Result containing a value"
   | FACConstructorName ("Error", _) ->
-      Some "A Result representing a failure"
+      simpleDoc "A Result representing a failure"
   | FACConstructorName (name, _) ->
-      Some ("TODO: this should never occur: the constructor " ^ name)
+      simpleDoc ("TODO: this should never occur: the constructor " ^ name)
   | FACField fieldname ->
-      Some ("The '" ^ fieldname ^ "' field of the object")
+      simpleDoc ("The '" ^ fieldname ^ "' field of the object")
   | FACVariable (var, _) ->
       if String.isCapitalized var
-      then Some ("The datastore '" ^ var ^ "'")
-      else Some ("The variable '" ^ var ^ "'")
+      then simpleDoc ("The datastore '" ^ var ^ "'")
+      else simpleDoc ("The variable '" ^ var ^ "'")
   | FACLiteral lit ->
-      Some ("The literal value '" ^ lit ^ "'")
+      simpleDoc ("The literal value '" ^ lit ^ "'")
   | FACKeyword KLet ->
-      Some "A `let` expression allows you assign a variable to an expression"
+      simpleDoc
+        "A `let` expression allows you assign a variable to an expression"
   | FACKeyword KIf ->
-      Some "An `if` expression allows you to branch on a boolean condition"
+      simpleDoc "An `if` expression allows you to branch on a boolean condition"
   | FACKeyword KLambda ->
-      Some
+      simpleDoc
         "A `lambda` creates an anonymous function. This is most often used for iterating through lists"
   | FACKeyword KMatch ->
-      Some
+      simpleDoc
         "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
   | FACKeyword KPipe ->
-      Some "Pipe into another expression"
-  | FACPattern p ->
-    ( match p with
+      simpleDoc "Pipe into another expression"
+  | FACPattern pat ->
+    ( match pat with
     | FPAConstructor (_, _, name, args) ->
         documentationForItem (FACConstructorName (name, List.length args))
     | FPAVariable (_, _, name) ->
@@ -601,7 +604,7 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
     | FPABool (_, _, var) ->
         documentationForItem (FACLiteral (string_of_bool var))
     | FPANull _ ->
-        Some "A 'null' literal" )
+        simpleDoc "A 'null' literal" )
 
 
 let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index

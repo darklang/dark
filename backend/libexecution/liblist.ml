@@ -43,7 +43,8 @@ let fns =
     ; ins = []
     ; p = [par "list" TList]
     ; r = TOption
-    ; d = "Fetches the head of the list and returns an option"
+    ; d =
+        "Returns `Just` the head (first item) of a list. Returns `Nothing` if the list is empty."
     ; f =
         InProcess
           (function

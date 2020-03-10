@@ -90,11 +90,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     |> Option.orElse (CursorState.idOf m.cursorState)
   in
   let top =
-    let viewDoc desc =
-      Html.div
-        [Html.class' "documentation-box"]
-        (desc |> List.map ~f:(fun text -> Html.p [] [Html.text text]))
-    in
+    let p (text : string) = Html.p [] [Html.text text] in
+    let viewDoc desc = Html.div [Html.class' "documentation-box"] desc in
     match (CursorState.tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
@@ -109,24 +106,29 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             |> Option.andThen ~f:FluidAutocomplete.documentationForItem
             |> Option.orElse regular
           in
-          Option.map desc ~f:(fun desc -> viewDoc [desc])
+          Option.map desc ~f:(fun desc -> viewDoc desc)
         in
         let selectedFnDocString =
-          let fn =
+          let fnAndRail =
             TL.getAST tl
             |> Option.andThen ~f:(fun ast -> FluidAST.find id ast)
             |> Option.andThen ~f:(function
-                   | E.EFnCall (_, name, _, _) | EBinOp (_, name, _, _, _) ->
-                       Some name
+                   | E.EFnCall (_, name, _, sendToRail)
+                   | EBinOp (_, name, _, _, sendToRail) ->
+                       Some (name, sendToRail)
                    | _ ->
                        None)
-            |> Option.andThen ~f:(fun name ->
+            |> Option.andThen ~f:(fun (name, sendToRail) ->
                    m.fluidState.ac.functions
-                   |> List.find ~f:(fun f -> name = f.fnName))
+                   |> List.findMap ~f:(fun f ->
+                          if name = f.fnName then Some (f, sendToRail) else None))
           in
-          match fn with
-          | Some fn ->
-              Some (viewDoc [fn.fnDescription])
+          match fnAndRail with
+          | Some (fn, sendToRail) ->
+              Some
+                (viewDoc
+                   [ p fn.fnDescription
+                   ; ViewErrorRailDoc.hintForFunction fn (Some sendToRail) ])
           | None ->
               None
         in
@@ -142,9 +144,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                    |> Option.andThen ~f:(List.getAt ~index))
           in
           match param with
-          | Some p ->
-              let header = p.paramName ^ " : " ^ Runtime.tipe2str p.paramTipe in
-              Some (viewDoc [header; p.paramDescription])
+          | Some pm ->
+              let header =
+                pm.paramName ^ " : " ^ Runtime.tipe2str pm.paramTipe
+              in
+              Some (viewDoc [p header; p pm.paramDescription])
           | _ ->
               None
         in
@@ -152,7 +156,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           if FluidCommands.isOpenOnTL m.fluidState.cp tlid
           then
             FluidCommands.highlighted m.fluidState.cp
-            |> Option.map ~f:(fun c -> viewDoc [c.doc])
+            |> Option.map ~f:(fun c -> viewDoc [p c.doc])
           else None
         in
         acFnDocString

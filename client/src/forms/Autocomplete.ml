@@ -821,53 +821,55 @@ let appendQuery (m : model) (str : string) (a : autocomplete) : autocomplete =
   setQuery m q a
 
 
-let documentationForItem (aci : autocompleteItem) : string option =
+let documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
+  let p (text : string) = Html.p [] [Html.text text] in
+  let simpleDoc (text : string) = Some [p text] in
   match aci with
   | ACOmniAction _ ->
       None
   | ACHTTPModifier verb ->
-      Some ("Make this handler match the " ^ verb ^ " HTTP verb")
+      simpleDoc ("Make this handler match the " ^ verb ^ " HTTP verb")
   | ACCronTiming timing ->
-      Some ("Request this handler to trigger " ^ timing)
+      simpleDoc ("Request this handler to trigger " ^ timing)
   | ACEventSpace "HTTP" ->
-      Some "This handler will respond to HTTP requests"
+      simpleDoc "This handler will respond to HTTP requests"
   | ACEventSpace "CRON" ->
-      Some "This handler will periodically trigger"
+      simpleDoc "This handler will periodically trigger"
   | ACEventSpace "WORKER" ->
-      Some "This handler will run emitted events in the background"
+      simpleDoc "This handler will run emitted events in the background"
   | ACEventSpace "REPL" ->
-      Some "This handler allows you run code in it"
+      simpleDoc "This handler allows you run code in it"
   | ACEventSpace _ ->
-      Some
+      simpleDoc
         "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
   | ACReplName name ->
-      Some ("A REPL named " ^ name)
+      simpleDoc ("A REPL named " ^ name)
   | ACWorkerName name ->
-      Some ("Respond to events emitted to " ^ name)
+      simpleDoc ("Respond to events emitted to " ^ name)
   | ACCronName _ ->
-      Some "Name of your CRON job"
+      simpleDoc "Name of your CRON job"
   | ACHTTPRoute name ->
-      Some ("Handle HTTP requests made to " ^ name)
+      simpleDoc ("Handle HTTP requests made to " ^ name)
   | ACDBName name ->
-      Some ("Set the DB's name to " ^ name)
+      simpleDoc ("Set the DB's name to " ^ name)
   | ACDBColType tipe ->
-      Some ("This field will be a " ^ tipe)
+      simpleDoc ("This field will be a " ^ tipe)
   | ACParamTipe tipe ->
-      Some ("This parameter will be a " ^ RT.tipe2str tipe)
+      simpleDoc ("This parameter will be a " ^ RT.tipe2str tipe)
   | ACTypeFieldTipe tipe ->
-      Some ("This parameter will be a " ^ RT.tipe2str tipe)
+      simpleDoc ("This parameter will be a " ^ RT.tipe2str tipe)
   | ACDBColName name ->
-      Some ("Set the DB's column name to" ^ name)
+      simpleDoc ("Set the DB's column name to" ^ name)
   | ACEventModifier name ->
-      Some ("Set event modifier to " ^ name)
+      simpleDoc ("Set event modifier to " ^ name)
   | ACFnName fnName ->
-      Some ("Set function name to " ^ fnName)
+      simpleDoc ("Set function name to " ^ fnName)
   | ACParamName paramName ->
-      Some ("Set param name to " ^ paramName)
+      simpleDoc ("Set param name to " ^ paramName)
   | ACTypeName typeName ->
-      Some ("Set type name to " ^ typeName)
+      simpleDoc ("Set type name to " ^ typeName)
   | ACGroupName groupName ->
-      Some ("Set group name to " ^ groupName)
+      simpleDoc ("Set group name to " ^ groupName)
   | ACTypeFieldName _ ->
       None
 
