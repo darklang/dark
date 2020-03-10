@@ -204,6 +204,10 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
       true
 
 
+(* ------------------------------------ *)
+(* Type checking *)
+(* ------------------------------------ *)
+
 (* Return the value being piped into the token at ti, if there is one *)
 let findPipedDval (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   let id =
@@ -259,11 +263,8 @@ let findExpectedType
   |> Option.withDefault ~default:TAny
 
 
-(* ------------------------------------ *)
-(* Dynamic Items *)
-(* ------------------------------------ *)
-
-let matcher
+(* Checks whether an autocomplete item matches the expected types *)
+let typeCheck
     (pipedType : tipe option)
     (expectedReturnType : tipe)
     (item : autocompleteItem) : (autocompleteData, autocompleteData) Either.t =
@@ -462,7 +463,7 @@ let filter
   let pipedType = Option.map ~f:RT.typeOf query.pipedDval in
   let expectedReturnType = findExpectedType functions query.tl query.ti in
   let valid, invalid =
-    List.partitionMap allMatches ~f:(matcher pipedType expectedReturnType)
+    List.partitionMap allMatches ~f:(typeCheck pipedType expectedReturnType)
   in
   valid @ invalid
 
