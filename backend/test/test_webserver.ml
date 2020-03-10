@@ -13,11 +13,16 @@ module Code = Cohttp.Code
 module AT = Alcotest
 
 let t_should_use_https () =
+  let module CRequest = Cohttp_lwt_unix.Request in
   AT.check
     (AT.list AT.bool)
     "should_use_https works"
     (List.map
-       ~f:(fun x -> Webserver.should_use_https (Uri.of_string x))
+       ~f:(fun x ->
+         let req = x |> Uri.of_string |> CRequest.make in
+         Webserver.should_use_https
+           ~should_use_https:true
+           (Webserver.route_host req))
        [ "http://builtwithdark.com"
        ; "http://test.builtwithdark.com"
        ; "http://localhost"
@@ -26,15 +31,17 @@ let t_should_use_https () =
 
 
 let t_redirect_to () =
+  let module CRequest = Cohttp_lwt_unix.Request in
   AT.check
     (AT.list (AT.option AT.string))
     "redirect_to works"
     (List.map
        ~f:(fun x ->
-         x
-         |> Uri.of_string
-         |> Webserver.redirect_to
-         |> Option.map ~f:Uri.to_string)
+         let uri = Uri.of_string x in
+         let host =
+           x |> Uri.of_string |> CRequest.make |> Webserver.route_host
+         in
+         Webserver.redirect_to host uri |> Option.map ~f:Uri.to_string)
        [ "http://example.com"
        ; "http://builtwithdark.com"
        ; "https://builtwithdark.com"
@@ -401,43 +408,6 @@ let t_head_and_get_requests_are_coalesced () =
               ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test")) ])
     [ (200, (expected_content_length, expected_body))
     ; (200, (expected_content_length, "")) ]
-
-
-let t_http_request_redirects () =
-  let setup_canvas () =
-    let n1 = hop (http_handler (ast_for "'test_body'")) in
-    let canvas = ops2c_exn "test" [n1] in
-    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
-    C.save_all !canvas ;
-    canvas
-  in
-  let respond (req : Req.t) : int =
-    Lwt_main.run
-      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
-       let test_id = Types.id_of_int 1234 in
-       ignore (setup_canvas ()) ;
-       let%lwt resp, body =
-         Webserver.callback
-           ~k8s_callback:(fun _ ~execution_id ->
-             Cohttp_lwt_unix.Server.respond_string
-               ~status:(Cohttp.Code.status_of_code 911)
-               ~body:""
-               ())
-           ""
-           req
-           ""
-           test_id
-       in
-       resp |> Resp.status |> Code.code_of_status |> return)
-  in
-  AT.check
-    AT.int
-    "http requests redirect"
-    302
-    (respond
-       (Req.make
-          ?meth:(Some `GET)
-          (Uri.of_string "http://test.builtwithdark.com/test")))
 
 
 let t_is_canvas_name_valid () =

@@ -136,12 +136,8 @@ let respond
 
 (* If route_host is None, then we're going to fall back to the k8s_handler
  * anyway, which shouldn't redirect. *)
-let should_use_https route_host =
-  match (Config.should_use_https, route_host) with
-  | true, Some _ ->
-      true
-  | _ ->
-      false
+let should_use_https ?(should_use_https = Config.should_use_https) route_host =
+  match (should_use_https, route_host) with true, Some _ -> true | _ -> false
 
 
 let redirect_to route_host uri =
