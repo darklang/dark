@@ -673,6 +673,8 @@ and sendInviteParams = SettingsViewTypes.inviteFormMessage
 
 and sendCanvasInfoParams = SettingsViewTypes.updateCanvasInfo
 
+and getCanvasInfoParams = SettingsViewTypes.updateCanvasInfo
+
 and addOpAPIParams =
   { ops : op list
   ; opCtr : int

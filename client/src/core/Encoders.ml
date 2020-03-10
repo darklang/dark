@@ -464,6 +464,10 @@ and sendInviteParams (params : Types.sendInviteParams) : Js.Json.t =
     ; ("inviterName", string params.inviterName) ]
 
 
+and getCanvasInfoParams (canvasName : string) : Js.Json.t =
+  object_ [("canvasName", string canvasName)]
+
+
 and sendCanvasInfoParams (params : Types.sendCanvasInfoParams) : Js.Json.t =
   object_
     [ ("canvasName", string params.canvasName)
