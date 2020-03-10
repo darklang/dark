@@ -22,6 +22,12 @@ type inviteFormMessage =
   ; inviterName : string }
 [@@deriving show]
 
+type updateCanvasInfo =
+  { canvasName : string
+  ; canvasDescription : string
+  ; canvasShipped : string }
+[@@deriving show]
+
 type canvasInformation =
   { canvas_description : string
   ; shipped_date : string option
@@ -48,4 +54,7 @@ type settingsMsg =
   | TriggerSendInviteCallback of
       (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
       [@printer opaque "TriggerSendInviteCallback"]
+  | TriggerUpdateCanvasInfoCallback of
+      (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
+      [@printer opaque "TriggerUpdateCanvasInfoCallback"]
 [@@deriving show]

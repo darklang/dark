@@ -58,11 +58,25 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
   match msg with
   | ToggleSettingsView (opened, tab) ->
       let enablePan = if opened then m.canvasProps.enablePan else true in
+      let m, cmd =
+        match m.settingsView.tab with
+        | CanvasInfo when not opened ->
+              let msg =
+                { canvasName = m.canvasName
+                ; canvasDescription = m.settingsView.canvas_information.canvas_description
+                ; canvasShipped =
+                    m.settingsView.canvas_information.shipped_date
+                    |> Option.withDefault ~default:"" }
+              in
+              ( m , API.sendCanvasInfo m msg )
+        | _ ->
+            (m, Cmd.none)
+      in
       let tab = tab |> Option.withDefault ~default:UserSettings in
       ( { m with
           settingsView = {m.settingsView with opened; tab; loading = false}
         ; canvasProps = {m.canvasProps with enablePan} }
-      , Cmd.none )
+      , cmd )
   | SwitchSettingsTabs tab ->
       ( {m with settingsView = {m.settingsView with tab; loading = false}}
       , Cmd.none )
@@ -113,6 +127,12 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
             ; canvas_information =
                 {m.settingsView.canvas_information with created_at} } }
       , Cmd.none )
+  | TriggerUpdateCanvasInfoCallback (Ok _) ->
+      ( { m with
+          toast = {toastMessage = Some "Canvas Info saved!"; toastPos = None} }
+      , Cmd.none )
+  | TriggerUpdateCanvasInfoCallback (Error _) ->
+      (m, Cmd.none)
   | TriggerSendInviteCallback (Ok _) ->
       ( { m with
           toast = {toastMessage = Some "Sent!"; toastPos = None}

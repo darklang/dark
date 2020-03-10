@@ -2103,6 +2103,15 @@ let update_ (msg : msg) (m : model) : modification =
                ~importance:IgnorableError
                ~reload:false
                err) ]
+  | SettingsViewMsg (TriggerUpdateCanvasInfoCallback (Error err) as msg) ->
+               Many
+                 [ SettingsViewUpdate msg
+                 ; HandleAPIError
+                     (APIError.make
+                        ~context:"TriggerUpdateCanvasInfoCallback"
+                        ~importance:IgnorableError
+                        ~reload:false
+                        err) ]
   | SettingsViewMsg msg ->
       SettingsViewUpdate msg
   | FnParamMsg msg ->
