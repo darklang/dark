@@ -875,12 +875,6 @@ let posFromCaretTarget (ast : FluidAST.t) (s : fluidState) (ct : caretTarget) :
         s.newPos
 
 
-(** moveToCaretTarget returns a modified fluidState with newPos set to reflect
-    the caretTarget. *)
-let moveToCaretTarget (s : fluidState) (ast : FluidAST.t) (ct : caretTarget) =
-  {s with newPos = posFromCaretTarget ast s ct}
-
-
 (** caretTargetFromTokenInfo returns Some caretTarget corresponding to
   * the given top-level-global caret `pos`, with the precondition that
   * the pos is within the passed tokenInfo `ti`.
@@ -1031,6 +1025,13 @@ let caretTargetForNextNonWhitespaceToken
           else caretTargetFromTokenInfo ti.startPos ti )
   in
   tokensOfFocusedEditor ast s |> getNextWS
+
+
+(** moveToCaretTarget returns a modified fluidState with newPos set to reflect
+    the caretTarget. *)
+let moveToCaretTarget (s : fluidState) (ast : FluidAST.t) (ct : caretTarget) :
+    fluidState =
+  setPosition s (posFromCaretTarget ast s ct)
 
 
 (** moveToAstRef returns a modified fluidState with newPos set to reflect
@@ -1330,21 +1331,14 @@ let caretTargetForEndOfMatchPattern
        ~default:{astRef = ARInvalid; offset = 0}
 
 
-let loadTL ?(ct = None) (tlid : TLID.t) (m : model) : model =
+let loadTL (tlid : TLID.t) (m : model) : model =
   let m = {m with cursorState = FluidEntering tlid} in
   TL.get m tlid
   |> Option.andThen ~f:TL.getAST
   |> Option.map ~f:(fun ast ->
          let editors = FluidEditor.State.init tlid ast in
          let ac = AC.reset m in
-         (* If we got passed a caretTarget, setPosition to it *)
-         let fluidState =
-           ct
-           |> Option.map ~f:(posFromCaretTarget ast m.fluidState)
-           |> Option.map ~f:(setPosition m.fluidState)
-           |> Option.withDefault ~default:m.fluidState
-         in
-         {m with fluidState = {fluidState with editors; ac}})
+         {m with fluidState = {m.fluidState with editors; ac}})
   |> Option.withDefault ~default:m
 
 
@@ -4507,7 +4501,7 @@ let rec updateKey
   in
   (* If we were on a partial and have moved off it, we may want to commit that
    * partial. For example, if we fully typed out "String::append", then click
-   * away, we want that to become `String::append ___ ___`. 
+   * away, we want that to become `String::append ___ ___`.
    *
    * We "commit the partial" using the old state, and then we do the action
    * again to make sure we go to the right place for the new canvas.

@@ -451,9 +451,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 Fluid.loadTL tlid m )
           | STCaret ct ->
               let m = {m with cursorState = FluidEntering tlid} in
-              if prevTLID <> Some tlid
-              then Fluid.loadTL ~ct:(Some ct) tlid m
-              else m
+              let m =
+                if prevTLID <> Some tlid then Fluid.loadTL tlid m else m
+              in
+              (* If we got passed a caretTarget, also go to it *)
+              TL.get m tlid
+              |> Option.andThen ~f:TL.getAST
+              |> Option.map ~f:(fun ast ->
+                     Fluid.moveToCaretTarget m.fluidState ast ct)
+              |> Option.map ~f:(fun fluidState -> {m with fluidState})
+              |> Option.withDefault ~default:m
         in
         let m, hashcmd =
           match tl with
@@ -1058,7 +1065,7 @@ let update_ (msg : msg) (m : model) : modification =
           if distSquared viewportStart viewportCurr
              <= maxSquareDistToConsiderAsClick
           then
-            (* {m with cursorState = prevCursorState} bypasses the focus part of 
+            (* {m with cursorState = prevCursorState} bypasses the focus part of
              * CursorState.setCursorState to avoid focusing any elements that
              * clickBehavior might dismiss (ex closing the omnibox). *)
             Many
