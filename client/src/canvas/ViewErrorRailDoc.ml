@@ -3,15 +3,17 @@ open Prelude
 (* Dark *)
 module E = FluidExpression
 
-(** [viewFunction fn sendToRail] returns a (possibly noNode) DOM node that
+(** [hintForFunction fn sendToRail] returns a (possibly noNode) DOM node that
  * provides a contextual hint about error-rail usage for the function [fn].
  *
- * The message is customized based on the function return value
- * and the error rail status in [sendToRail]. Use `None` to indicate
- * that the error rail status is unknown (as in autocomplete).
+ * The message in the node is customized based on the function return value
+ * and the error rail status in [sendToRail].
+ * The error rail status is an option because there are cases where the error rail
+ * status has yet to be determined (eg autocomplete). Pass `None` for [sendToRail]
+ * in such cases.
  *)
-let viewFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option) :
-    'a Vdom.t =
+let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
+    : 'a Vdom.t =
   let errorRail =
     Html.a
       [ Html.class' "link"
