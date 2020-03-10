@@ -4544,8 +4544,8 @@ let rec updateKey
               (* if the partial is a valid function name, don't commit *)
               let newQueryString = str ^ txt in
               s.ac.completions
-              |> List.filter ~f:(fun (aci, _) ->
-                     String.contains ~substring:newQueryString (AC.asName aci))
+              |> List.filter ~f:(fun {item; _} ->
+                     String.contains ~substring:newQueryString (AC.asName item))
               |> ( == ) []
           | _ ->
               (* unreachable due to when condition on enclosing match branch *)

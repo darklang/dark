@@ -19,7 +19,7 @@ type viewState = ViewUtils.viewState
 
 type token = T.t
 
-let viewAutocompleteItemTypes ((item, validity) : fluidAutocompleteData) :
+let viewAutocompleteItemTypes ({item; validity} : fluidAutocompleteData) :
     Types.msg Html.html =
   let args, rt = AC.asTypeStrings item in
   let html =
@@ -53,7 +53,7 @@ let viewAutocompleteItemTypes ((item, validity) : fluidAutocompleteData) :
 let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
   let index = ac.index |> Option.withDefault ~default:(-1) in
   let autocompleteList =
-    List.indexedMap ac.completions ~f:(fun i (item, validity) ->
+    List.indexedMap ac.completions ~f:(fun i {item; validity} ->
         let class' = if validity = FACItemValid then "valid" else "invalid" in
         let highlighted = index = i in
         let name = AC.asName item in
@@ -64,7 +64,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
           then Html.span [Html.class' "version"] [Html.text versionDisplayName]
           else Vdom.noNode
         in
-        let types = viewAutocompleteItemTypes (item, validity) in
+        let types = viewAutocompleteItemTypes {item; validity} in
         Html.li
           ~unique:name
           [ Attrs.classList
