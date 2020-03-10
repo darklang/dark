@@ -234,6 +234,24 @@ let sendInvite (m : model) (invite : SettingsViewTypes.inviteFormMessage) :
   else Tea.Cmd.none
 
 
+let sendCanvasInfo (m : model) (canvasInfo : SettingsViewTypes.updateCanvasInfo)
+    : msg Tea.Cmd.t =
+  let url =
+    "http://sydney-canvas-information.builtwithdark.localhost:8000/update-canvas"
+  in
+  let request =
+    postJson
+      (* ~withCredentials:true *)
+        (fun _ -> ())
+      m.csrfToken
+      url
+      (Encoders.sendCanvasInfoParams canvasInfo)
+  in
+  Tea.Http.send
+    (fun x -> SettingsViewMsg (TriggerUpdateCanvasInfoCallback x))
+    request
+
+
 (* We do some dropping of ops based on clientOpCtrId+opCtr to preserve ordering.
  * (opCtr is per-clientOpCtrId, and inc'd client-side; thus we know, when processing
  * a set of ops whether this is the latest seen so far from a given client, or
