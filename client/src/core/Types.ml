@@ -1486,7 +1486,9 @@ and fluidAutocompleteItem =
   | FACKeyword of keyword
   | FACPattern of fluidPatternAutocomplete
 
-and fluidAutocompleteData = fluidAutocompleteItem * fluidAutocompleteValidity
+and fluidAutocompleteData =
+  { item : fluidAutocompleteItem
+  ; validity : fluidAutocompleteValidity }
 
 and fluidAutocompleteValidity =
   | FACItemValid

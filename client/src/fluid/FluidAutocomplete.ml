@@ -189,7 +189,7 @@ let highlightedWithValidity (a : autocomplete) : autocompleteData option =
 (* Return the autocompleteItem that is highlighted (at a.index position in the
  * list). *)
 let highlighted (a : autocomplete) : autocompleteItem option =
-  highlightedWithValidity a |> Option.map ~f:Tuple2.first
+  highlightedWithValidity a |> Option.map ~f:(fun d -> d.item)
 
 
 let rec containsOrdered (needle : string) (haystack : string) : bool =
@@ -272,45 +272,47 @@ let typeCheck
     (expectedReturnType : tipe)
     (item : autocompleteItem) : (autocompleteData, autocompleteData) Either.t =
   let open Either in
+  let valid = Left {item; validity = FACItemValid} in
+  let invalid reason = Left {item; validity = reason} in
   match item with
   | FACFunction fn ->
       if not (RT.isCompatible fn.fnReturnTipe expectedReturnType)
-      then Right (item, FACItemInvalidReturnType)
+      then invalid FACItemInvalidReturnType
       else (
         match (List.head fn.fnParameters, pipedType) with
         | Some param, Some pipedType ->
             if RT.isCompatible param.paramTipe pipedType
-            then Left (item, FACItemValid)
-            else Right (item, FACItemInvalidPipedArg)
+            then valid
+            else invalid FACItemInvalidPipedArg
         | None, Some _ ->
             (* if it takes no arguments, piping into it is invalid *)
-            Right (item, FACItemInvalidPipedArg)
+            invalid FACItemInvalidPipedArg
         | _ ->
-            Left (item, FACItemValid) )
+            valid )
   | FACVariable (_, dval) ->
     ( match dval with
     | Some dv ->
         if RT.isCompatible (Runtime.typeOf dv) expectedReturnType
-        then Left (item, FACItemValid)
-        else Right (item, FACItemInvalidReturnType)
+        then valid
+        else invalid FACItemInvalidReturnType
     | None ->
-        Left (item, FACItemValid) )
+        valid )
   | FACConstructorName (name, _) ->
     ( match expectedReturnType with
     | TOption ->
         if name = "Just" || name = "Nothing"
-        then Left (item, FACItemValid)
-        else Right (item, FACItemInvalidReturnType)
+        then valid
+        else invalid FACItemInvalidReturnType
     | TResult ->
         if name = "Ok" || name = "Error"
-        then Left (item, FACItemValid)
-        else Right (item, FACItemInvalidReturnType)
+        then valid
+        else invalid FACItemInvalidReturnType
     | TAny ->
-        Left (item, FACItemValid)
+        valid
     | _ ->
-        Right (item, FACItemInvalidReturnType) )
+        invalid FACItemInvalidReturnType )
   | _ ->
-      Left (item, FACItemValid)
+      valid
 
 
 type query = TLID.t * tokenInfo
@@ -366,14 +368,14 @@ let generateExprs m (tl : toplevel) a ti =
 let generatePatterns ti a queryString : autocompleteItem list =
   let alreadyHasPatterns =
     List.any
-      ~f:(fun v -> match v with FACPattern _, _ -> true | _ -> false)
+      ~f:(fun v -> match v with {item = FACPattern _; _} -> true | _ -> false)
       a.completions
   in
   let newStandardPatterns mid =
     (* if patterns are in the autocomplete already, don't bother creating
         * new FACPatterns with different mids and pids *)
     ( if alreadyHasPatterns
-    then a.completions |> List.map ~f:Tuple2.first
+    then a.completions |> List.map ~f:(fun {item; _} -> item)
     else
       [ FPABool (mid, gid (), true)
       ; FPABool (mid, gid (), false)
@@ -481,7 +483,9 @@ let refilter
   let oldHighlightNewIndex =
     oldHighlight
     |> Option.andThen ~f:(fun oh ->
-           List.elemIndex ~value:oh (List.map ~f:Tuple2.first newCompletions))
+           List.elemIndex
+             ~value:oh
+             (List.map ~f:(fun {item; _} -> item) newCompletions))
   in
   let oldQueryString =
     match old.query with Some (_, ti) -> toQueryString ti | _ -> ""

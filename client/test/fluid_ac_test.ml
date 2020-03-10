@@ -175,23 +175,23 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
 
 let setQuery (q : string) (a : AC.autocomplete) : AC.autocomplete =
   let fullQ = defaultFullQuery a q in
-  AC.refilter fullQ a (List.map ~f:Tuple2.first a.completions)
+  AC.refilter fullQ a (List.map ~f:(fun {item; _} -> item) a.completions)
 
 
 let filterValid (a : AC.autocomplete) : AC.autocompleteItem list =
   List.filterMap a.completions ~f:(function
-      | aci, FACItemValid ->
-          Some aci
+      | {item; validity = FACItemValid} ->
+          Some item
       | _ ->
           None)
 
 
 let filterInvalid (a : AC.autocomplete) : AC.autocompleteItem list =
   List.filterMap a.completions ~f:(function
-      | _, FACItemValid ->
+      | {validity = FACItemValid; _} ->
           None
-      | aci, _ ->
-          Some aci)
+      | {item; _} ->
+          Some item)
 
 
 let run () =
