@@ -20,9 +20,10 @@ type viewState = ViewUtils.viewState
 type token = T.t
 
 let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
-  let toList acis class' index =
-    List.indexedMap
-      ~f:(fun i (item, validity) ->
+  let index = ac.index |> Option.withDefault ~default:(-1) in
+  let autocompleteList =
+    List.indexedMap ac.completions ~f:(fun i (item, validity) ->
+        let class' = if validity = FACItemValid then "valid" else "invalid" in
         let highlighted = index = i in
         let name = AC.asName item in
         let fnDisplayName = FluidUtil.fnDisplayName name in
@@ -37,7 +38,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
           let html =
             let returnTypeHtml =
               let returnTypeClass =
-                if validity = Some FACItemInvalidReturnType
+                if validity = FACItemInvalidReturnType
                 then "invalidCulprit"
                 else ""
               in
@@ -49,7 +50,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
                   []
               | arg0 :: rest ->
                   let arg0Class =
-                    if validity = Some FACItemInvalidPipedArg
+                    if validity = FACItemInvalidPipedArg
                     then "invalidCulprit"
                     else ""
                   in
@@ -81,20 +82,6 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html =
               "mousemove"
               (fun _ -> FluidMsg (FluidUpdateDropdownIndex i)) ]
           [Html.text fnDisplayName; versionView; types])
-      acis
-  in
-  let autocompleteList =
-    let index = ac.index |> Option.withDefault ~default:(-1) in
-    let invalidIndex = index - List.length ac.validCompletions in
-    let validList =
-      List.map ~f:(fun item -> (item, None)) ac.validCompletions
-    in
-    let invalidList =
-      List.map
-        ~f:(fun (item, validity) -> (item, Some validity))
-        ac.invalidCompletions
-    in
-    toList validList "valid" index @ toList invalidList "invalid" invalidIndex
   in
   Html.div [Attrs.id "fluid-dropdown"] [Html.ul [] autocompleteList]
 
