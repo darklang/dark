@@ -235,38 +235,54 @@ let sendInvite (m : model) (invite : SettingsViewTypes.inviteFormMessage) :
 
 
 let getCanvasInfo (m : model) : msg Tea.Cmd.t =
-  let url =
-    "http://sydney-canvas-information.builtwithdark.localhost:8000/canvas-info"
-  in
+  let url = "https://accounts.darklang.com/canvas-info" in
   let request =
     postJson
-      (* ~withCredentials:true *)
+      ~withCredentials:true
       Decoders.loadCanvasInfoAPIResult
       m.csrfToken
       url
       (Encoders.getCanvasInfoParams m.canvasName)
   in
-  Tea.Http.send
-    (fun x -> SettingsViewMsg (TriggerGetCanvasInfoCallback x))
-    request
+  (* If origin is https://darklang.com, then we're in prod (or ngrok, running
+    * against prod) and
+    * ops-adduser.darklang.com's CORS rules will allow this request. If not, we're
+    * in local, and both CORS and auth (session, canvas_id) will not work against
+    * ops-adduser.darklang.com. By putting the conditional here instead of at the
+    * beginning of the function, we still exercise the message and request
+    * generating code locally. *)
+  if m.origin = "https://darklang.com"
+  then
+    Tea.Http.send
+      (fun x -> SettingsViewMsg (TriggerGetCanvasInfoCallback x))
+      request
+  else Tea.Cmd.none
 
 
 let sendCanvasInfo (m : model) (canvasInfo : SettingsViewTypes.updateCanvasInfo)
     : msg Tea.Cmd.t =
-  let url =
-    "http://sydney-canvas-information.builtwithdark.localhost:8000/update-canvas"
-  in
+  let url = "https://accounts.darklang.com/update-canvas-info" in
   let request =
     postJson
-      (* ~withCredentials:true *)
-        (fun _ -> ())
+      ~withCredentials:true
+      (fun _ -> ())
       m.csrfToken
       url
       (Encoders.sendCanvasInfoParams canvasInfo)
   in
-  Tea.Http.send
-    (fun x -> SettingsViewMsg (TriggerUpdateCanvasInfoCallback x))
-    request
+  (* If origin is https://darklang.com, then we're in prod (or ngrok, running
+    * against prod) and
+    * ops-adduser.darklang.com's CORS rules will allow this request. If not, we're
+    * in local, and both CORS and auth (session, canvas_id) will not work against
+    * ops-adduser.darklang.com. By putting the conditional here instead of at the
+    * beginning of the function, we still exercise the message and request
+    * generating code locally. *)
+  if m.origin = "https://darklang.com"
+  then
+    Tea.Http.send
+      (fun x -> SettingsViewMsg (TriggerUpdateCanvasInfoCallback x))
+      request
+  else Tea.Cmd.none
 
 
 (* We do some dropping of ops based on clientOpCtrId+opCtr to preserve ordering.
