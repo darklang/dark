@@ -578,10 +578,11 @@ let selectUp (a : autocomplete) : autocomplete =
       a
 
 
-let rec documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
+let rec documentationForItem ({item; validity} : autocompleteData) :
+    'a Vdom.t list option =
   let p (text : string) = Html.p [] [Html.text text] in
   let simpleDoc (text : string) = Some [p text] in
-  match aci with
+  match item with
   | FACFunction f ->
       let desc =
         if String.length f.fnDescription <> 0
@@ -624,11 +625,12 @@ let rec documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
   | FACPattern pat ->
     ( match pat with
     | FPAConstructor (_, _, name, args) ->
-        documentationForItem (FACConstructorName (name, List.length args))
+        documentationForItem
+          {item = FACConstructorName (name, List.length args); validity}
     | FPAVariable (_, _, name) ->
-        documentationForItem (FACVariable (name, None))
+        documentationForItem {item = FACVariable (name, None); validity}
     | FPABool (_, _, var) ->
-        documentationForItem (FACLiteral (string_of_bool var))
+        documentationForItem {item = FACLiteral (string_of_bool var); validity}
     | FPANull _ ->
         simpleDoc "A 'null' literal" )
 

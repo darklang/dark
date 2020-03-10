@@ -102,7 +102,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           in
           let desc =
             m.fluidState.ac
-            |> FluidAutocomplete.highlighted
+            |> FluidAutocomplete.highlightedWithValidity
             |> Option.andThen ~f:FluidAutocomplete.documentationForItem
             |> Option.orElse regular
           in
