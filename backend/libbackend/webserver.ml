@@ -134,39 +134,22 @@ let respond
   respond_or_redirect (Respond {resp_headers; execution_id; status; body})
 
 
-let should_use_https uri =
-  let parts =
-    uri |> Uri.host |> Option.value ~default:"" |> fun h -> String.split h '.'
-  in
-  match parts with
-  | ["darklang"; "com"]
-  | ["builtwithdark"; "com"]
-  | [_; "builtwithdark"; "com"]
-  (* Customers - do not remove the marker below *)
-  (* ACD-should_use_https-MARKER *)
-  | ["api"; "fiasco"; "club"]
-  | ["api"; "polotek"; "app"]
-  | ["scraper-proxy"; "galactic"; "zone"]
-  | ["accounts"; "darklang"; "com"]
-  | ["dark"; "mackenzieclark"; "codes"]
-  | ["hellobirb"; "com"]
-  | ["www"; "hellobirb"; "com"]
-  | ["talkpay"; "club"]
-  | ["www"; "talkpay"; "club"]
-  | ["kiksht"; "com"]
-  | ["www"; "kiksht"; "com"]
-  | ["food"; "placeofthin"; "gs"] ->
+(* If route_host is None, then we're going to fall back to the k8s_handler
+ * anyway, which shouldn't redirect. *)
+let should_use_https route_host =
+  match (Config.should_use_https, route_host) with
+  | true, Some _ ->
       true
   | _ ->
       false
 
 
-let redirect_to uri =
+let redirect_to route_host uri =
   let proto = uri |> Uri.scheme |> Option.value ~default:"" in
-  (* If it's http and on a domain that can be served with https,
-     we want to redirect to the same url but with the scheme
-     replaced by "https". *)
-  if proto = "http" && should_use_https uri
+  (* If it's http and on a known domain,
+     we want to redirect to the same url but with the scheme replaced by
+     "https". *)
+  if proto = "http" && should_use_https route_host
   then Some "https" |> Uri.with_scheme uri |> Some
   else None
 
@@ -1453,7 +1436,12 @@ let handle_local_login ~execution_id req body =
           [("username", `String username)]
           (fun _ ->
             let%lwt session = Auth.SessionLwt.new_for_username username in
-            let https_only_cookie = req |> CRequest.uri |> should_use_https in
+            let https_only_cookie =
+              req
+              |> CRequest.uri
+              |> Uri.scheme
+              |> fun scheme -> scheme = Some "https"
+            in
             let headers =
               username_header username
               :: Auth.SessionLwt.to_cookie_hdrs
@@ -2082,8 +2070,9 @@ let callback ~k8s_callback ip req body execution_id =
         ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
         ; ("uri", Uri.to_string uri)
         ; ("execution_id", Types.string_of_id execution_id) ] ;
+    let route_host = route_host req in
     (* first: if this isn't https and should be, redirect *)
-    match redirect_to (CRequest.uri req) with
+    match redirect_to route_host (CRequest.uri req) with
     | Some x ->
         S.respond_redirect ~uri:x ()
     | None ->
@@ -2103,7 +2092,7 @@ let callback ~k8s_callback ip req body execution_id =
             respond ~execution_id `OK ""
         | _ ->
           (* figure out what handler to dispatch to... *)
-          ( match route_host req with
+          ( match route_host with
           | Some (Canvas canvas) ->
               canvas_handler ~execution_id ~canvas ~ip ~uri ~body req
           | Some Static ->

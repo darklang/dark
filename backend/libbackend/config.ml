@@ -241,3 +241,6 @@ let build_hash =
 
 let use_login_darklang_com_for_login =
   bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"
+
+
+let should_use_https = bool "DARK_CONFIG_SHOULD_USE_HTTPS"
