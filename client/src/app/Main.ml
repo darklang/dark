@@ -338,12 +338,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           APIError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
         in
         let ignore =
+          (* Ignore when using Ngrok *)
+          let usingNgrok = VariantTesting.variantIsActive m NgrokVariant in
           (* This message is deep in the server code and hard to pull
-               * out, so just ignore for now *)
+              * out, so just ignore for now *)
           Js.log "Already at latest redo - ignoring server error" ;
-          String.contains
-            (APIError.msg apiError)
-            ~substring:"(client): Already at latest redo"
+          let redoError =
+            String.contains
+              (APIError.msg apiError)
+              ~substring:"(client): Already at latest redo"
+          in
+          redoError || usingNgrok
         in
         let cmd =
           if shouldReload
