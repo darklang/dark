@@ -18,29 +18,11 @@
     color: lighten(saturate($red, 25%), 30%);
   }
 
-  /* white & yellow */
-  function-name,
+  .function-name,
   .parameter-name {
-    color: lighten($white3, 10%);
-  }
-  .type-name {
-    color: $yellow;
-  }
-
-  /* purple & yellow
-  function-name, .parameter-name {
     color: lighten($purple, 10%);
-  }
-  type-name {
-    color: $yellow;
-  }
-  */
-  /* orange & green
-  .function-name, .parameter-name {
-    color: $orange;
   }
   .type-name {
     color: $green;
   }
-  */
 }
