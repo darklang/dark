@@ -227,8 +227,8 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v6-backend-{{ checksum "esy.json" }}
-            - v6-backend
+            - v7-backend-{{ checksum "esy.json" }}
+            - v7-backend
       # appsupport is needed for a unit test, but it is not needed as part
       # of the backend otherwise. It is compiled as part of the frontend
       # tests.
@@ -268,7 +268,7 @@ jobs:
             - _build
             - node_modules
             - /home/dark/.esy
-          key: v6-backend-{{ checksum "esy.json" }}
+          key: v7-backend-{{ checksum "esy.json" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 
