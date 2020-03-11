@@ -39,7 +39,11 @@ let viewAutocompleteItemTypes ({item; validity} : fluidAutocompleteData) :
           []
       | arg0 :: rest ->
           let arg0Class =
-            if validity = FACItemInvalidPipedArg then "invalidCulprit" else ""
+            match validity with
+            | FACItemInvalidPipedArg _ ->
+                "invalidCulprit"
+            | _ ->
+                ""
           in
           let args =
             Html.span [Html.class' arg0Class] [Html.text arg0]

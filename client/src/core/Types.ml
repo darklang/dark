@@ -1502,7 +1502,7 @@ and fluidAutocompleteData =
 and fluidAutocompleteValidity =
   | FACItemValid
   | FACItemInvalidReturnType of TypeInformation.t
-  | FACItemInvalidPipedArg
+  | FACItemInvalidPipedArg of tipe
 
 and fluidAutocompleteState =
   { (* ------------------------------- *)
