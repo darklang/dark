@@ -247,9 +247,7 @@ let findExpectedType
     (functions : function_ list) (tl : toplevel) (ti : tokenInfo) :
     TypeInformation.t =
   let id = FluidToken.tid ti.token in
-  let default : TypeInformation.t =
-    {fnName = "Unknown"; paramName = "Unknown"; returnType = TAny}
-  in
+  let default = TypeInformation.default in
   TL.getAST tl
   |> Option.andThen ~f:(AST.getParamIndex id)
   |> Option.andThen ~f:(fun (name, index) ->

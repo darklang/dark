@@ -122,6 +122,9 @@ module TypeInformation = struct
     ; paramName : string
     ; returnType : tipe }
   [@@deriving show]
+
+  let default : t =
+    {fnName = "Unknown"; paramName = "Unknown"; returnType = TAny}
 end
 
 (* ---------------------- *)
