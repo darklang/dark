@@ -903,11 +903,8 @@ let initial_load
       time "8-worker-schedules" (fun _ ->
           Event_queue.get_worker_schedules_for_canvas !c.id)
     in
-    let t9, creation_date =
-      time "9-creation-date" (fun _ -> Serialize.canvas_creation_date !c.id)
-    in
-    let t10, result =
-      time "10-to-frontend" (fun _ ->
+    let t9, result =
+      time "9-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
@@ -918,12 +915,11 @@ let initial_load
             account
             canvas_list
             org_list
-            worker_schedules
-            creation_date)
+            worker_schedules)
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10])
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9])
       `OK
       result
   with e -> Libexecution.Exception.reraise_as_pageable e
