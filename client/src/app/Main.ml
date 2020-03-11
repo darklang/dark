@@ -339,12 +339,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let ignore =
           (* Ignore when using Ngrok *)
-          let usingNgrok =
-            Url.queryParams ()
-            |> List.findMap ~f:(fun (str, _) ->
-                   if str = "localhost-assets" then Some str else None)
-            |> Option.isSome
-          in
+          let usingNgrok = VariantTesting.variantIsActive m NgrokVariant in
           (* This message is deep in the server code and hard to pull
               * out, so just ignore for now *)
           Js.log "Already at latest redo - ignoring server error" ;
