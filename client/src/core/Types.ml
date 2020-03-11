@@ -114,11 +114,20 @@ and tipe =
   | TDbList of tipe
   | TUserType of string * int
   | TBytes
+[@@deriving show]
+
+module TypeInformation = struct
+  type t =
+    { fnName : string
+    ; paramName : string
+    ; returnType : tipe }
+  [@@deriving show]
+end
 
 (* ---------------------- *)
 (* Exprs and AST types *)
 (* ---------------------- *)
-and fnName = string
+type fnName = string
 
 and fluidExpr = FluidExpression.t
 
@@ -1492,7 +1501,7 @@ and fluidAutocompleteData =
 
 and fluidAutocompleteValidity =
   | FACItemValid
-  | FACItemInvalidReturnType
+  | FACItemInvalidReturnType of TypeInformation.t
   | FACItemInvalidPipedArg
 
 and fluidAutocompleteState =

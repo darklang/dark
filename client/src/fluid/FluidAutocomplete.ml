@@ -244,39 +244,56 @@ let findFields (m : model) (tl : toplevel) (ti : tokenInfo) : string list =
 
 
 let findExpectedType
-    (functions : function_ list) (tl : toplevel) (ti : tokenInfo) : tipe =
+    (functions : function_ list) (tl : toplevel) (ti : tokenInfo) :
+    TypeInformation.t =
   let id = FluidToken.tid ti.token in
+  let default : TypeInformation.t =
+    {fnName = "Unknown"; paramName = "Unknown"; returnType = TAny}
+  in
   TL.getAST tl
   |> Option.andThen ~f:(AST.getParamIndex id)
   |> Option.andThen ~f:(fun (name, index) ->
          functions
          |> List.find ~f:(fun f -> name = f.fnName)
-         |> Option.map ~f:(fun x -> x.fnParameters)
-         |> Option.andThen ~f:(List.getAt ~index)
-         |> Option.map ~f:(fun x -> x.paramTipe))
-  |> Option.withDefault ~default:TAny
+         |> Option.map ~f:(fun fn ->
+                let param = List.getAt ~index fn.fnParameters in
+                let returnType =
+                  Option.map param ~f:(fun p -> p.paramTipe)
+                  |> Option.withDefault ~default:default.returnType
+                in
+                let paramName =
+                  Option.map param ~f:(fun p -> p.paramName)
+                  |> Option.withDefault ~default:default.paramName
+                in
+                ({fnName = fn.fnName; returnType; paramName} : TypeInformation.t)))
+  |> Option.withDefault ~default
 
 
 (* Checks whether an autocomplete item matches the expected types *)
 let typeCheck
-    (pipedType : tipe option) (expectedReturnType : tipe) (item : item) :
-    (data, data) Either.t =
+    (pipedType : tipe option)
+    (expectedReturnType : TypeInformation.t)
+    (item : item) : (data, data) Either.t =
   let open Either in
   let valid = Left {item; validity = FACItemValid} in
-  let invalid reason = Right {item; validity = reason} in
+  let invalidFirstArg = Right {item; validity = FACItemInvalidPipedArg} in
+  let invalidReturnType =
+    Right {item; validity = FACItemInvalidReturnType expectedReturnType}
+  in
+  let expectedReturnType = expectedReturnType.returnType in
   match item with
   | FACFunction fn ->
       if not (RT.isCompatible fn.fnReturnTipe expectedReturnType)
-      then invalid FACItemInvalidReturnType
+      then invalidReturnType
       else (
         match (List.head fn.fnParameters, pipedType) with
         | Some param, Some pipedType ->
             if RT.isCompatible param.paramTipe pipedType
             then valid
-            else invalid FACItemInvalidPipedArg
+            else invalidFirstArg
         | None, Some _ ->
             (* if it takes no arguments, piping into it is invalid *)
-            invalid FACItemInvalidPipedArg
+            invalidFirstArg
         | _ ->
             valid )
   | FACVariable (_, dval) ->
@@ -284,23 +301,19 @@ let typeCheck
     | Some dv ->
         if RT.isCompatible (Runtime.typeOf dv) expectedReturnType
         then valid
-        else invalid FACItemInvalidReturnType
+        else invalidReturnType
     | None ->
         valid )
   | FACConstructorName (name, _) ->
     ( match expectedReturnType with
     | TOption ->
-        if name = "Just" || name = "Nothing"
-        then valid
-        else invalid FACItemInvalidReturnType
+        if name = "Just" || name = "Nothing" then valid else invalidReturnType
     | TResult ->
-        if name = "Ok" || name = "Error"
-        then valid
-        else invalid FACItemInvalidReturnType
+        if name = "Ok" || name = "Error" then valid else invalidReturnType
     | TAny ->
         valid
     | _ ->
-        invalid FACItemInvalidReturnType )
+        invalidReturnType )
   | _ ->
       valid
 
@@ -454,9 +467,9 @@ let filter
   in
   (* Now split list by type validity *)
   let pipedType = Option.map ~f:RT.typeOf query.pipedDval in
-  let expectedReturnType = findExpectedType functions query.tl query.ti in
+  let expectedTypeInfo = findExpectedType functions query.tl query.ti in
   let valid, invalid =
-    List.partitionMap allMatches ~f:(typeCheck pipedType expectedReturnType)
+    List.partitionMap allMatches ~f:(typeCheck pipedType expectedTypeInfo)
   in
   valid @ invalid
 
@@ -585,20 +598,19 @@ let typeErrorDoc ({item; validity} : data) : msg Vdom.t =
         ; Html.text " takes a "
         ; Html.span [Html.class' "type-name"] [Html.text acFirstArgType]
         ; Html.text " as its first argument." ]
-  | FACItemInvalidReturnType ->
-      let existingFunction = "Int::add" in
-      let parameterName = "a" in
-      let parameterType = "Int" in
-      let acFunction = "String::append" in
-      let acReturnType = "String" in
+  | FACItemInvalidReturnType {fnName; paramName; returnType} ->
+      let acFunction = asName item in
+      let acReturnType = asTypeStrings item |> Tuple2.second in
       Html.div
         []
         [ Html.span [Html.class' "type-error"] [Html.text "Type error: "]
-        ; Html.span [Html.class' "function-name"] [Html.text existingFunction]
+        ; Html.span [Html.class' "function-name"] [Html.text fnName]
         ; Html.text " expects "
-        ; Html.span [Html.class' "parameter-name"] [Html.text parameterName]
+        ; Html.span [Html.class' "parameter-name"] [Html.text paramName]
         ; Html.text " to be a "
-        ; Html.span [Html.class' "type-name"] [Html.text parameterType]
+        ; Html.span
+            [Html.class' "type-name"]
+            [Html.text (RT.tipe2str returnType)]
         ; Html.text ", but "
         ; Html.span [Html.class' "function-name"] [Html.text acFunction]
         ; Html.text " returns a "
