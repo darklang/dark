@@ -84,7 +84,7 @@ let asName (aci : item) : string =
 
 (* Return the string types of the item's arguments and return types. If the
  * item is not a function, the return type will still be used, and might not be
- * a hint that is not a real type, such as "variable". *)
+ * a real type, sometimes it's a hint such as "variable". *)
 let asTypeStrings (item : item) : string list * string =
   match item with
   | FACFunction f ->
@@ -127,7 +127,8 @@ let asTypeStrings (item : item) : string list * string =
       ([], "null")
 
 
-let asString (aci : item) : string =
+(* Used for matching, not for displaying to users *)
+let asMatchingString (aci : item) : string =
   let argTypes, returnType = asTypeStrings aci in
   let typeString = String.join ~sep:", " argTypes ^ " -> " ^ returnType in
   asName aci ^ typeString
@@ -243,39 +244,56 @@ let findFields (m : model) (tl : toplevel) (ti : tokenInfo) : string list =
 
 
 let findExpectedType
-    (functions : function_ list) (tl : toplevel) (ti : tokenInfo) : tipe =
+    (functions : function_ list) (tl : toplevel) (ti : tokenInfo) :
+    TypeInformation.t =
   let id = FluidToken.tid ti.token in
+  let default = TypeInformation.default in
   TL.getAST tl
   |> Option.andThen ~f:(AST.getParamIndex id)
   |> Option.andThen ~f:(fun (name, index) ->
          functions
          |> List.find ~f:(fun f -> name = f.fnName)
-         |> Option.map ~f:(fun x -> x.fnParameters)
-         |> Option.andThen ~f:(List.getAt ~index)
-         |> Option.map ~f:(fun x -> x.paramTipe))
-  |> Option.withDefault ~default:TAny
+         |> Option.map ~f:(fun fn ->
+                let param = List.getAt ~index fn.fnParameters in
+                let returnType =
+                  Option.map param ~f:(fun p -> p.paramTipe)
+                  |> Option.withDefault ~default:default.returnType
+                in
+                let paramName =
+                  Option.map param ~f:(fun p -> p.paramName)
+                  |> Option.withDefault ~default:default.paramName
+                in
+                ({fnName = fn.fnName; returnType; paramName} : TypeInformation.t)))
+  |> Option.withDefault ~default
 
 
 (* Checks whether an autocomplete item matches the expected types *)
 let typeCheck
-    (pipedType : tipe option) (expectedReturnType : tipe) (item : item) :
-    (data, data) Either.t =
+    (pipedType : tipe option)
+    (expectedReturnType : TypeInformation.t)
+    (item : item) : (data, data) Either.t =
   let open Either in
   let valid = Left {item; validity = FACItemValid} in
-  let invalid reason = Right {item; validity = reason} in
+  let invalidFirstArg tipe =
+    Right {item; validity = FACItemInvalidPipedArg tipe}
+  in
+  let invalidReturnType =
+    Right {item; validity = FACItemInvalidReturnType expectedReturnType}
+  in
+  let expectedReturnType = expectedReturnType.returnType in
   match item with
   | FACFunction fn ->
       if not (RT.isCompatible fn.fnReturnTipe expectedReturnType)
-      then invalid FACItemInvalidReturnType
+      then invalidReturnType
       else (
         match (List.head fn.fnParameters, pipedType) with
         | Some param, Some pipedType ->
             if RT.isCompatible param.paramTipe pipedType
             then valid
-            else invalid FACItemInvalidPipedArg
-        | None, Some _ ->
+            else invalidFirstArg pipedType
+        | None, Some pipedType ->
             (* if it takes no arguments, piping into it is invalid *)
-            invalid FACItemInvalidPipedArg
+            invalidFirstArg pipedType
         | _ ->
             valid )
   | FACVariable (_, dval) ->
@@ -283,23 +301,19 @@ let typeCheck
     | Some dv ->
         if RT.isCompatible (Runtime.typeOf dv) expectedReturnType
         then valid
-        else invalid FACItemInvalidReturnType
+        else invalidReturnType
     | None ->
         valid )
   | FACConstructorName (name, _) ->
     ( match expectedReturnType with
     | TOption ->
-        if name = "Just" || name = "Nothing"
-        then valid
-        else invalid FACItemInvalidReturnType
+        if name = "Just" || name = "Nothing" then valid else invalidReturnType
     | TResult ->
-        if name = "Ok" || name = "Error"
-        then valid
-        else invalid FACItemInvalidReturnType
+        if name = "Ok" || name = "Error" then valid else invalidReturnType
     | TAny ->
         valid
     | _ ->
-        invalid FACItemInvalidReturnType )
+        invalidReturnType )
   | _ ->
       valid
 
@@ -417,7 +431,7 @@ let filter
   let stripColons = Regex.replace ~re:(Regex.regex "::") ~repl:"" in
   let lcq = query.queryString |> String.toLower |> stripColons in
   let stringify i =
-    (if 1 >= String.length lcq then asName i else asString i)
+    (if 1 >= String.length lcq then asName i else asMatchingString i)
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
     |> stripColons
   in
@@ -453,9 +467,9 @@ let filter
   in
   (* Now split list by type validity *)
   let pipedType = Option.map ~f:RT.typeOf query.pipedDval in
-  let expectedReturnType = findExpectedType functions query.tl query.ti in
+  let expectedTypeInfo = findExpectedType functions query.tl query.ti in
   let valid, invalid =
-    List.partitionMap allMatches ~f:(typeCheck pipedType expectedReturnType)
+    List.partitionMap allMatches ~f:(typeCheck pipedType expectedTypeInfo)
   in
   valid @ invalid
 
@@ -564,9 +578,55 @@ let selectUp (a : t) : t =
 
 let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index
 
+let typeErrorDoc ({item; validity} : data) : msg Vdom.t =
+  let _types = asTypeStrings item in
+  let _validity = validity in
+  match validity with
+  | FACItemValid ->
+      Vdom.noNode
+  | FACItemInvalidPipedArg tipe ->
+      let acFunction = asName item in
+      let acFirstArgType = asTypeStrings item |> Tuple2.first |> List.head in
+      let typeInfo =
+        match acFirstArgType with
+        | None ->
+            [Html.text " takes no arguments."]
+        | Some tipeStr ->
+            [ Html.text " takes a "
+            ; Html.span [Html.class' "type-name"] [Html.text tipeStr]
+            ; Html.text " as its first argument." ]
+      in
+      Html.div
+        []
+        ( [ Html.span [Html.class' "type-error"] [Html.text "Type error: "]
+          ; Html.text "A value of type "
+          ; Html.span [Html.class' "type-name"] [Html.text (RT.tipe2str tipe)]
+          ; Html.text " is being piped into this function call, but "
+          ; Html.span [Html.class' "function-name"] [Html.text acFunction] ]
+        @ typeInfo )
+  | FACItemInvalidReturnType {fnName; paramName; returnType} ->
+      let acFunction = asName item in
+      let acReturnType = asTypeStrings item |> Tuple2.second in
+      Html.div
+        []
+        [ Html.span [Html.class' "type-error"] [Html.text "Type error: "]
+        ; Html.span [Html.class' "function-name"] [Html.text fnName]
+        ; Html.text " expects "
+        ; Html.span [Html.class' "parameter-name"] [Html.text paramName]
+        ; Html.text " to be a "
+        ; Html.span
+            [Html.class' "type-name"]
+            [Html.text (RT.tipe2str returnType)]
+        ; Html.text ", but "
+        ; Html.span [Html.class' "function-name"] [Html.text acFunction]
+        ; Html.text " returns a "
+        ; Html.span [Html.class' "type-name"] [Html.text acReturnType] ]
+
+
 let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
   let p (text : string) = Html.p [] [Html.text text] in
-  let simpleDoc (text : string) = Some [p text] in
+  let typeDoc = typeErrorDoc {item; validity} in
+  let simpleDoc (text : string) = Some [p text; typeDoc] in
   match item with
   | FACFunction f ->
       let desc =
@@ -575,7 +635,7 @@ let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
         else "Function call with no description"
       in
       let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
-      Some [p desc; ViewErrorRailDoc.hintForFunction f None]
+      Some [p desc; ViewErrorRailDoc.hintForFunction f None; typeDoc]
   | FACConstructorName ("Just", _) ->
       simpleDoc "An Option containing a value"
   | FACConstructorName ("Nothing", _) ->
