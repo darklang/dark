@@ -15,6 +15,7 @@ type canvas =
   { host : string
   ; owner : Uuidm.t
   ; id : Uuidm.t
+  ; creation_date : string
   ; ops : (tlid * Op.oplist) list
   ; cors_setting : cors_setting option
   ; handlers : TL.toplevels
@@ -326,12 +327,14 @@ let init (host : string) (ops : Op.op list) : (canvas ref, string list) Result.t
     =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
+  let creation_date = Serialize.canvas_creation_date canvas_id in
   let cors = fetch_cors_setting canvas_id in
   let c =
     ref
       { host
       ; owner
       ; id = canvas_id
+      ; creation_date
       ; ops = []
       ; cors_setting = cors
       ; handlers = IDMap.empty
@@ -409,6 +412,7 @@ let load_from
   try
     let canvas_id = Serialize.fetch_canvas_id owner host in
     let cors = fetch_cors_setting canvas_id in
+    let creation_date = Serialize.canvas_creation_date canvas_id in
     let oldops = f ~host ~canvas_id () in
     (* TODO optimization: can we get only the functions we need (based on
      * fnnames found in the canvas) and/or cache this like we do the oplist? *)
@@ -421,6 +425,7 @@ let load_from
         { host
         ; owner
         ; id = canvas_id
+        ; creation_date
         ; ops = []
         ; cors_setting = cors
         ; handlers = IDMap.empty
