@@ -541,155 +541,163 @@ let static_assets_upload_handler
     ~(execution_id : Types.id) (canvas : string) (username : string) req body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let canvas = Canvas.id_for_name canvas in
-    try
-      let ct =
-        match Cohttp.Header.get (CRequest.headers req) "content-type" with
-        | Some s ->
-            s
-        | None ->
-            "error"
-      in
-      (* making branch a request-configurable option requires product work:
+    match try Some (Canvas.id_for_name canvas) with _ -> None with
+    | None ->
+        respond ~execution_id `Not_found "No canvas with this name exists"
+    | Some canvas ->
+        let ct =
+          match Cohttp.Header.get (CRequest.headers req) "content-type" with
+          | Some s ->
+              s
+          | None ->
+              "error"
+        in
+        (* making branch a request-configurable option requires product work:
         * https://trello.com/c/pAD4uoJc/520-figure-out-branch-feature-for-static-assets
        *)
-      let branch = "main" in
-      let sa = Static_assets.start_static_asset_deploy canvas branch username in
-      Stroller.push_new_static_deploy ~execution_id ~canvas_id:canvas sa ;
-      let deploy_hash = sa.deploy_hash in
-      let%lwt stream = Multipart.parse_stream (Lwt_stream.of_list [body]) ct in
-      let%lwt upload_results =
-        let%lwt parts = Multipart.get_parts stream in
-        let files =
-          (Multipart.StringMap.filter (fun _ v ->
-               match v with `File _ -> true | `String _ -> false))
-            parts
+        let branch = "main" in
+        let sa =
+          Static_assets.start_static_asset_deploy canvas branch username
         in
-        let files =
-          Multipart.StringMap.fold
-            (fun _ v acc ->
-              List.cons
-                ( match v with
-                | `File f ->
-                    f
-                | _ ->
-                    Exception.internal "didn't expect a non-`File here" )
-                acc)
-            files
-            ([] : Multipart.file List.t)
+        Stroller.push_new_static_deploy ~execution_id ~canvas_id:canvas sa ;
+        let deploy_hash = sa.deploy_hash in
+        let%lwt stream =
+          Multipart.parse_stream (Lwt_stream.of_list [body]) ct
         in
-        let processfile file =
-          let filename = Multipart.file_name file in
-          (* file_stream gives us a stream of strings; get a single string out
+        let%lwt upload_results =
+          let%lwt parts = Multipart.get_parts stream in
+          let files =
+            (Multipart.StringMap.filter (fun _ v ->
+                 match v with `File _ -> true | `String _ -> false))
+              parts
+          in
+          let files =
+            Multipart.StringMap.fold
+              (fun _ v acc ->
+                List.cons
+                  ( match v with
+                  | `File f ->
+                      f
+                  | _ ->
+                      Exception.internal "didn't expect a non-`File here" )
+                  acc)
+              files
+              ([] : Multipart.file List.t)
+          in
+          let processfile file =
+            let filename = Multipart.file_name file in
+            (* file_stream gives us a stream of strings; get a single string out
               of it *)
-          let%lwt body =
-            Lwt_stream.fold_s
-              (fun elt acc -> Lwt.return (acc ^ elt))
-              (Multipart.file_stream file)
-              ""
-          in
-          (* Replace DARK_STATIC_ASSETS_BASE_URL with the deployed URL. This
-           * will allow users to create SPAs with a sentinel value in them to
-           * converts to the absolute url. In React, you would do this with
-           * PUBLIC_URL. *)
-          let body =
-            let filetype = Magic_mime.lookup filename in
-            let is_valid_text body =
-              body |> Libexecution.Unicode_string.of_string |> Option.is_some
+            let%lwt body =
+              Lwt_stream.fold_s
+                (fun elt acc -> Lwt.return (acc ^ elt))
+                (Multipart.file_stream file)
+                ""
             in
-            (* Other mime type prefixes are video, image, audio,
-             * chemical, model, x-conference and can be ignored without
-             * the expensive conversion check *)
-            if String.is_prefix ~prefix:"video" filetype
-               || String.is_prefix ~prefix:"image" filetype
-               || String.is_prefix ~prefix:"audio" filetype
-               || String.is_prefix ~prefix:"chemical" filetype
-               || String.is_prefix ~prefix:"model" filetype
-               || String.is_prefix ~prefix:"x-conference" filetype
-            then body
-            else if String.is_prefix ~prefix:"text" filetype
-                    || is_valid_text body
-                    (* application/ or unknown and valid UTF-8*)
-            then
-              String.substr_replace_all
+            (* Replace DARK_STATIC_ASSETS_BASE_URL with the deployed URL. This
+             * will allow users to create SPAs with a sentinel value in them to
+             * converts to the absolute url. In React, you would do this with
+             * PUBLIC_URL. *)
+            let body =
+              let filetype = Magic_mime.lookup filename in
+              let is_valid_text body =
+                body |> Libexecution.Unicode_string.of_string |> Option.is_some
+              in
+              (* Other mime type prefixes are video, image, audio,
+               * chemical, model, x-conference and can be ignored without
+               * the expensive conversion check *)
+              if String.is_prefix ~prefix:"video" filetype
+                 || String.is_prefix ~prefix:"image" filetype
+                 || String.is_prefix ~prefix:"audio" filetype
+                 || String.is_prefix ~prefix:"chemical" filetype
+                 || String.is_prefix ~prefix:"model" filetype
+                 || String.is_prefix ~prefix:"x-conference" filetype
+              then body
+              else if String.is_prefix ~prefix:"text" filetype
+                      || is_valid_text body
+                      (* application/ or unknown and valid UTF-8*)
+              then
+                String.substr_replace_all
+                  body
+                  ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
+                  ~with_:sa.url
+              else (* application/* or unknown and _not_ valid UTF-8 *)
                 body
-                ~pattern:"DARK_STATIC_ASSETS_BASE_URL"
-                ~with_:sa.url
-            else (* application/* or unknown and _not_ valid UTF-8 *)
-              body
+            in
+            Static_assets.upload_to_bucket filename body canvas deploy_hash
           in
-          Static_assets.upload_to_bucket filename body canvas deploy_hash
+          Lwt.return (files |> List.map ~f:processfile)
         in
-        Lwt.return (files |> List.map ~f:processfile)
-      in
-      let%lwt _, errors =
-        upload_results
-        |> Lwt_list.partition_p (fun r ->
-               match%lwt r with
-               | Ok _ ->
-                   Lwt.return true
-               | Error _ ->
-                   Lwt.return false)
-      in
-      let deploy =
-        Static_assets.finish_static_asset_deploy canvas deploy_hash
-      in
-      Stroller.push_new_static_deploy ~execution_id ~canvas_id:canvas deploy ;
-      match errors with
-      | [] ->
-          respond
-            ~execution_id
-            `OK
-            ( Yojson.Safe.to_string
-                (`Assoc
-                  [ ("deploy_hash", `String deploy_hash)
-                  ; ( "url"
-                    , `String (Static_assets.url canvas deploy_hash `Short) )
-                  ; ( "long-url"
-                    , `String (Static_assets.url canvas deploy_hash `Long) ) ])
-            |> Yojson.Basic.prettify )
-      | _ ->
-          let err_strs =
-            errors
-            |> Lwt_list.map_p (fun e ->
-                   match%lwt e with
-                   | Error (`GcloudAuthError s) ->
-                       Lwt.return s
-                   | Error (`FailureUploadingStaticAsset s) ->
-                       Lwt.return s
-                   | Error (`FailureDeletingStaticAsset s) ->
-                       Lwt.return s
-                   | Ok _ ->
-                       Exception.internal
-                         "Can't happen, we partition error/ok above.")
-          in
-          err_strs
-          >>= (function
-          | err_strs ->
-              Log.erroR
-                "Failed to deploy static assets to "
-                ~params:
-                  [ ("canvas", Canvas.name_for_id canvas)
-                  ; ("errs", String.concat ~sep:";" err_strs) ] ;
-              Static_assets.delete_static_asset_deploy
-                canvas
-                branch
-                username
-                deploy_hash ;
-              respond
-                ~resp_headers:(server_timing []) (* t1; t2; etc *)
-                ~execution_id
-                `Internal_server_error
-                ( Yojson.Safe.to_string
-                    (`Assoc
-                      [ ("msg", `String "We couldn't put this upload in gcloud.")
-                      ; ( "execution_id"
-                        , `String (Types.string_of_id execution_id) )
-                      ; ( "errors"
-                        , `List (List.map ~f:(fun s -> `String s) err_strs) ) ])
-                |> Yojson.Basic.prettify ))
-    with e -> raise e
-  with _ -> respond ~execution_id `Not_found "Not found"
+        let%lwt _, errors =
+          upload_results
+          |> Lwt_list.partition_p (fun r ->
+                 match%lwt r with
+                 | Ok _ ->
+                     Lwt.return true
+                 | Error _ ->
+                     Lwt.return false)
+        in
+        let deploy =
+          Static_assets.finish_static_asset_deploy canvas deploy_hash
+        in
+        Stroller.push_new_static_deploy ~execution_id ~canvas_id:canvas deploy ;
+        ( match errors with
+        | [] ->
+            respond
+              ~execution_id
+              `OK
+              ( Yojson.Safe.to_string
+                  (`Assoc
+                    [ ("deploy_hash", `String deploy_hash)
+                    ; ( "url"
+                      , `String (Static_assets.url canvas deploy_hash `Short) )
+                    ; ( "long-url"
+                      , `String (Static_assets.url canvas deploy_hash `Long) )
+                    ])
+              |> Yojson.Basic.prettify )
+        | _ ->
+            let err_strs =
+              errors
+              |> Lwt_list.map_p (fun e ->
+                     match%lwt e with
+                     | Error (`GcloudAuthError s) ->
+                         Lwt.return s
+                     | Error (`FailureUploadingStaticAsset s) ->
+                         Lwt.return s
+                     | Error (`FailureDeletingStaticAsset s) ->
+                         Lwt.return s
+                     | Ok _ ->
+                         Exception.internal
+                           "Can't happen, we partition error/ok above.")
+            in
+            err_strs
+            >>= (function
+            | err_strs ->
+                Log.erroR
+                  "Failed to deploy static assets to "
+                  ~params:
+                    [ ("canvas", Canvas.name_for_id canvas)
+                    ; ("errs", String.concat ~sep:";" err_strs) ] ;
+                Static_assets.delete_static_asset_deploy
+                  canvas
+                  branch
+                  username
+                  deploy_hash ;
+                respond
+                  ~resp_headers:(server_timing []) (* t1; t2; etc *)
+                  ~execution_id
+                  `Internal_server_error
+                  ( Yojson.Safe.to_string
+                      (`Assoc
+                        [ ( "msg"
+                          , `String "We couldn't put this upload in gcloud." )
+                        ; ( "execution_id"
+                          , `String (Types.string_of_id execution_id) )
+                        ; ( "errors"
+                          , `List (List.map ~f:(fun s -> `String s) err_strs) )
+                        ])
+                  |> Yojson.Basic.prettify )) )
+  with e -> raise e
 
 
 let admin_add_op_handler
