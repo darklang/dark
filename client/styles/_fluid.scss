@@ -510,6 +510,10 @@ since they are essentially both commands just acting upon different things. */
   position: absolute;
   left: calc(100% + 20px);
 
+  .ff-icon {
+    color: magenta;
+  }
+
   .fluid-secondary-editor {
     display: none;
     background-color: #2d2d2d;
