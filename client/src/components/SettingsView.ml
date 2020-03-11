@@ -99,14 +99,14 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
         let rawDate =
           Js.Date.now () |> Js.Date.fromFloat |> Js.Date.toUTCString
         in
-        let formatedDate = Entry.formatDate (rawDate, "L") in
+        let formattedDate = Entry.formatDate (rawDate, "L") in
         match m.settingsView.canvas_information.shipped_date with
         | Some _ ->
-            Entry.sendSegmentMessage (UnShipCanvas formatedDate) ;
+            Entry.sendSegmentMessage (UnShipCanvas formattedDate) ;
             None
         | None ->
-            Entry.sendSegmentMessage (ShipCanvas formatedDate) ;
-            Some formatedDate
+            Entry.sendSegmentMessage (ShipCanvas formattedDate) ;
+            Some formattedDate
       in
       ( { m with
           settingsView =
