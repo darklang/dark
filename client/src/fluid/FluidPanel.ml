@@ -1,3 +1,4 @@
+(* See the mli for documentation *)
 open Tc
 
 type kind = FeatureFlag [@@deriving show {with_path = false}]

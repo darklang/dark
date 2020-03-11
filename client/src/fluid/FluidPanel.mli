@@ -1,6 +1,12 @@
+(** kind tells which type of FluidPanel this is, which can affect things like
+  * how it's expression is tokenized *)
 type kind = FeatureFlag [@@deriving show {with_path = false}]
 
 module State : sig
+  (** a State.t holds the state of a single Panel. This is mostly which
+    * expression it refers to and if it's open or closed.
+    *
+    * See docs/fluid-views.md for more. *)
   type t =
     { expressionId : ID.t
           (** the id of the top-most expression in this panel.
@@ -12,6 +18,9 @@ module State : sig
 end
 
 module Group : sig
+  (** a Group.t is a collection of panel states, stored as a dict of
+    * {expressionId => State.t}. This is embedded within fluidState, to hold the
+    * collective state of all the panels of a FluidView. *)
   type t [@@deriving show {with_path = false}]
 
   (** [init tlid ast] returns a Group.t for the given [ast] *)

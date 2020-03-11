@@ -1517,7 +1517,7 @@ and fluidState =
        * have recently jumped to *)
       dval_source
   ; panels : FluidPanel.Group.t
-        (** [editors] holds the state of panels, such as those for feature
+        (** [panels] holds the state of panels, such as those for feature
           * flags. The active panel (where the caret is) is indicated by
           * activePanelId below. *)
   ; activePanelId : ID.t option
