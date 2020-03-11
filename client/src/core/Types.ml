@@ -1306,6 +1306,7 @@ and variantTest =
       StubVariant
   | GroupVariant
   | FeatureFlagVariant
+  | NgrokVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
