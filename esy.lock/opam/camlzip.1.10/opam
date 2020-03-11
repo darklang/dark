@@ -1,5 +1,5 @@
 opam-version: "2.0"
-maintainer: "Etienne Millon <etienne@cryptosense.com>"
+maintainer: "Cryptosense <opensource@cryptosense.com>"
 authors: ["Xavier Leroy"]
 homepage: "https://github.com/xavierleroy/camlzip"
 bug-reports: "https://github.com/xavierleroy/camlzip/issues"
@@ -17,6 +17,6 @@ depends: [
 synopsis:
   "Provides easy access to compressed files in ZIP, GZIP and JAR format"
 url {
-  src: "https://github.com/xavierleroy/camlzip/archive/rel109.zip"
-  checksum: "md5=3f2f65634ca2f06fe4e4e7570318d043"
+  src: "https://github.com/xavierleroy/camlzip/archive/rel110.zip"
+  checksum: "sha256=a5541cbc38c14467a8abcbdcb54c1d2ed12515c1c4c6da0eb3bdafb44aff7996"
 }

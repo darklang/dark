@@ -41,8 +41,8 @@
     "@opam/sodium": "0.6.0",
     "@opam/tablecloth-native": "0.0.6",
     "@opam/uuidm": "0.9.7",
-    "@opam/uunf": "12.0.0",
-    "@opam/uuseg": "12.0.0",
+    "@opam/uunf": "13.0.0",
+    "@opam/uuseg": "13.0.0",
     "@opam/yojson": "1.7.0"
   },
   "devDependencies": {

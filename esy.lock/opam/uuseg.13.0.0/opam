@@ -1,18 +1,17 @@
 opam-version: "2.0"
 maintainer: "Daniel Bünzli <daniel.buenzl i@erratique.ch>"
-authors: ["Daniel Bünzli <daniel.buenzl i@erratique.ch>"]
+authors: ["The uuseg programmers"]
 homepage: "https://erratique.ch/software/uuseg"
 doc: "https://erratique.ch/software/uuseg"
 dev-repo: "git+https://erratique.ch/repos/uuseg.git"
 bug-reports: "https://github.com/dbuenzli/uuseg/issues"
 tags: [ "segmentation" "text" "unicode" "org:erratique" ]
 license: "ISC"
-depends: [ "ocaml" {>= "4.01.0"}
+depends: [ "ocaml" {>= "4.03.0"}
            "ocamlfind" {build}
            "ocamlbuild" {build}
            "topkg" {build}
-           "uchar"
-           "uucp" {>= "12.0.0" & < "13.0.0"} ]
+           "uucp" {>= "13.0.0" & < "14.0.0"} ]
 depopts: [ "uutf"
            "cmdliner"
            "uutf" {with-test}
@@ -45,6 +44,6 @@ OCaml UTF-X encoded strings. It is distributed under the ISC license.
 [2]: http://www.unicode.org/reports/tr14/
 """
 url {
-archive: "https://erratique.ch/software/uuseg/releases/uuseg-12.0.0.tbz"
-checksum: "1d4487ddf5154e3477e55021b978d58a"
+archive: "https://erratique.ch/software/uuseg/releases/uuseg-13.0.0.tbz"
+checksum: "a07a97fff61da604614ea8da0547ef6a"
 }
