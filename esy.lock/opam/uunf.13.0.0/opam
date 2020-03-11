@@ -1,6 +1,6 @@
 opam-version: "2.0"
 maintainer: "Daniel Bünzli <daniel.buenzl i@erratique.ch>"
-authors: ["Daniel Bünzli <daniel.buenzl i@erratique.ch>"]
+authors: ["The uunf programmers"]
 homepage: "https://erratique.ch/software/uunf"
 doc: "https://erratique.ch/software/uunf/doc/Uunf"
 dev-repo: "git+http://erratique.ch/repos/uunf.git"
@@ -8,11 +8,10 @@ bug-reports: "https://github.com/dbuenzli/uunf/issues"
 tags: [ "unicode" "text" "normalization" "org:erratique" ]
 license: "ISC"
 depends: [
-  "ocaml" {>= "4.01.0"}
+  "ocaml" {>= "4.03.0"}
   "ocamlfind" {build}
   "ocamlbuild" {build}
   "topkg" {build}
-  "uchar"
 ]
 depopts: [ "uutf" "cmdliner" ]
 conflicts: [ "uutf" {< "1.0.0"} ]
@@ -37,6 +36,6 @@ ISC license.
 [uutf]: http://erratique.ch/software/uutf
 """
 url {
-archive: "https://erratique.ch/software/uunf/releases/uunf-12.0.0.tbz"
-checksum: "3453822fa8140584c07e33f94f6665a7"
+archive: "https://erratique.ch/software/uunf/releases/uunf-13.0.0.tbz"
+checksum: "d90f2ffe12ca17e6804d2e3f1f59fdd9"
 }
