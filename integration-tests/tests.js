@@ -23,7 +23,7 @@ fixture`Integration Tests`
   .beforeEach(async t => {
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
-    var url = `${BASE_URL}${testname}?integration-test=true`;
+    var url = `${BASE_URL}${testname}?ff=1&integration-test=true`;
     var username = "test";
     if (testname.match(/_as_admin/)) {
       username = "test_admin";
@@ -481,49 +481,25 @@ test("rename_db_type", async t => {
     .pressKey("enter");
 });
 
-/* Disable for now, will bring back as command palette fn
 test("feature_flag_works", async t => {
+  await createRepl(t);
+  await gotoAST(t);
   await t
-    // Create an empty let
+    .typeText("#active-editor", "let a = 1")
+    .pressKey("tab")
+    .typeText("#active-editor", "\"fail\"")
+    .pressKey("alt+x")
+    .typeText("#cmd-filter", "add-feat")
     .pressKey("enter")
-    .pressKey("enter")
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
-    .typeText("#entry-box", "a")
-    .pressKey("enter")
-    .typeText("#entry-box", "13")
-    .pressKey("enter")
-    .pressKey("down")
-    .pressKey("esc")
-
-    // Click feature name
-    .click('.expr-actions .flag')
-
-    // Name it
-    .expect(available(".feature-flag")).ok()
-    .typeText("#entry-box", "myflag")
-    .pressKey("enter")
-
-    // Set condition
-    .typeText("#entry-box", "Int::greaterThan")
-    .pressKey("enter")
-    .typeText("#entry-box", "a")
-    .pressKey("enter")
-    .typeText("#entry-box", "10")
-    .pressKey("enter")
-
-    // Case A
-    .typeText("#entry-box", "\"")
-    .typeText("#entry-box", "A")
-    .pressKey("enter")
-
-    // Case B
-    .typeText("#entry-box", "\"")
-    .typeText("#entry-box", "B")
-    .pressKey("enter")
-
+    .debug()
+    .pressKey("tab") // go to flag condition
+    .typeText("#active-editor", "true")
+    .pressKey("tab") // go to flag new code
+    .typeText("#active-editor", "\"pass\"")
+    .expect(Selector('.selected .return-value').textContent).eql("\"pass\"")
 });
 
+/* Disable for now
 test("feature_flag_in_function", async t => {
   await t
     // Go to function

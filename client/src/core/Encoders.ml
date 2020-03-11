@@ -827,7 +827,6 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ("cursorState", cursorState se.cursorState)
     ; ("routingTableOpenDetails", tcStrSet se.routingTableOpenDetails)
     ; ("tlTraceIDs", tcStrDict traceID se.tlTraceIDs)
-    ; ("featureFlags", tcStrDict bool se.featureFlags)
     ; ("handlerProps", tcStrDict handlerProp se.handlerProps)
     ; ("canvasPos", pos se.canvasPos)
     ; ( "lastReload"

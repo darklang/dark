@@ -473,8 +473,6 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault StrSet.empty (field "routingTableOpenDetails" strSet) j
   ; tlTraceIDs =
       withDefault TLIDDict.empty (field "tlTraceIDs" (strDict traceID)) j
-  ; featureFlags =
-      withDefault StrDict.empty (field "featureFlags" (strDict bool)) j
   ; handlerProps =
       withDefault StrDict.empty (field "handlerProps" (strDict handlerProp)) j
   ; canvasPos = withDefault Defaults.origin (field "canvasPos" pos) j

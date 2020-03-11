@@ -1132,9 +1132,9 @@ and fluidInputEvent =
 
 and fluidMouseUp =
   { tlid : TLID.t
-  ; editorId : string option
-        (** editorId is the ID.t *of the editor that was clicked on, or None if it was
-          * the main editor *)
+  ; panelId : ID.t option
+        (** panelId is the id of the panel that was clicked on, or None if it
+         * was the main editor *)
   ; selection : (int * int) option
         (** selection is the beginning + end of the browser selection on
           * mouseup. The selection may be left->right or right->left. If the
@@ -1227,9 +1227,7 @@ and msg =
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string
   | PageVisibilityChange of PageVisibility.visibility
-  | StartFeatureFlag
-  | EndFeatureFlag of ID.t * pick
-  | ToggleEditorPanel of TLID.t * string * bool
+  | ToggleFluidPanel of TLID.t * ID.t * bool
   | DeleteUserFunctionParameter of TLID.t * userFunctionParameter
   | AddUserFunctionParameter of TLID.t
   | UploadFn of TLID.t
@@ -1306,17 +1304,6 @@ and variantTest =
       StubVariant
   | GroupVariant
   | FeatureFlagVariant
-
-(* ----------------------------- *)
-(* FeatureFlags *)
-(* ----------------------------- *)
-and ffIsExpanded = bool
-
-and pick =
-  | PickA
-  | PickB
-
-and flagsVS = ffIsExpanded StrDict.t
 
 (* ----------------------------- *)
 (* Model *)
@@ -1508,19 +1495,6 @@ and fluidCommandState =
   ; location : (TLID.t * ID.t) option
   ; filter : string option }
 
-(** editorViewKind represents the type of editorView. This impacts, for
-  * example, how expressions are tokenized within the view. *)
-and editorViewKind =
-  | MainView
-  | FeatureFlagView
-
-and editorView =
-  { id : string
-        (** the unique id of this editor panel, used to identify it, eg, when
-          * it is clicked and needs focus *)
-  ; expressionId : ID.t  (** the id of the top-most expression in this panel *)
-  ; kind : editorViewKind }
-
 and fluidState =
   { error : string option
   ; actions : string list
@@ -1542,13 +1516,13 @@ and fluidState =
       (* The source ID.t *of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; editors : FluidEditor.State.t
-        (** [editors] holds the state of non-main panel editors, such as those
-         * for feature flags.  The active editor (where the caret is) is
-         * indicated by activeEditorId below. *)
-  ; activeEditorId : string option
-        (** activeEditorId is the id(editorView.id) of the active (focused)
-         * editor within the handler, or None if the main editor is active. *)
+  ; panels : FluidPanel.Group.t
+        (** [editors] holds the state of panels, such as those for feature
+          * flags. The active panel (where the caret is) is indicated by
+          * activePanelId below. *)
+  ; activePanelId : ID.t option
+        (** activePanelId is the id of the active (focused) panel within the
+          * handler, or None if the main editor is active. *)
   }
 
 (* Avatars *)
@@ -1599,8 +1573,7 @@ and model =
   ; visibility : PageVisibility.visibility
   ; syncState : syncState
   ; executingFunctions : (TLID.t * ID.t) list
-  ; tlTraceIDs : tlTraceIDs (* This is TLID ID.t *to traceID map *)
-  ; featureFlags : flagsVS
+  ; tlTraceIDs : tlTraceIDs (* This is a TLID to traceID map *)
   ; canvasProps : canvasProps
   ; canvasName : string
   ; userContentHost : string
@@ -1661,7 +1634,6 @@ and savedSettings =
   ; cursorState : cursorState
   ; routingTableOpenDetails : StrSet.t
   ; tlTraceIDs : tlTraceIDs
-  ; featureFlags : flagsVS
   ; handlerProps : handlerProp TLIDDict.t
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option

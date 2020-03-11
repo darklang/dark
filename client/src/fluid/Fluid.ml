@@ -33,13 +33,8 @@ type token = T.t
 type state = Types.fluidState
 
 let resetFluidState (s : fluidState) : fluidState =
-  let editors = FluidEditor.State.hideAll s.editors in
-  { s with
-    oldPos = 0
-  ; newPos = 0
-  ; upDownCol = None
-  ; activeEditorId = None
-  ; editors }
+  let panels = FluidPanel.Group.hideAll s.panels in
+  {s with oldPos = 0; newPos = 0; upDownCol = None; activePanelId = None; panels}
 
 
 let getStringIndexMaybe ti pos : int option =
@@ -90,19 +85,19 @@ let rec getTokensAtPosition
       else getTokensAtPosition ~prev:(Some current) ~pos remaining
 
 
-let focusedEditor (s : fluidState) : FluidEditor.t option =
-  s.activeEditorId
-  |> Option.andThen ~f:(fun eid -> FluidEditor.State.get s.editors ~id:eid)
+let focusedEditor (s : fluidState) : FluidPanel.State.t option =
+  s.activePanelId
+  |> Option.andThen ~f:(fun eid -> FluidPanel.Group.get s.panels ~id:eid)
 
 
 let exprOfFocusedEditor (ast : FluidAST.t) (s : fluidState) : FluidExpression.t
     =
-  match s.activeEditorId with
+  match s.activePanelId with
   | None ->
       FluidAST.toExpr ast
   | Some _ ->
       focusedEditor s
-      |> Option.andThen ~f:(fun (e : FluidEditor.t) ->
+      |> Option.andThen ~f:(fun (e : FluidPanel.State.t) ->
              FluidAST.find e.expressionId ast)
       |> recoverOpt
            "cannot find expression for editor"
@@ -115,7 +110,7 @@ let tokenizeForFocusedEditor (s : fluidState) (expr : FluidExpression.t) :
   | None ->
       Printer.tokenize expr (* main editor, default tokenization *)
   | Some {kind; _} ->
-      Printer.tokenizeForViewKind kind expr
+      Printer.tokenizeForPanel kind expr
 
 
 let tokensOfFocusedEditor (ast : FluidAST.t) (s : fluidState) :
@@ -1329,17 +1324,6 @@ let caretTargetForEndOfMatchPattern
        "caretTargetForEndOfMatchPattern got an invalid id/index"
        ~debug:(matchID, index)
        ~default:{astRef = ARInvalid; offset = 0}
-
-
-let loadTL (tlid : TLID.t) (m : model) : model =
-  let m = {m with cursorState = FluidEntering tlid} in
-  TL.get m tlid
-  |> Option.andThen ~f:TL.getAST
-  |> Option.map ~f:(fun ast ->
-         let editors = FluidEditor.State.init tlid ast in
-         let ac = AC.reset m in
-         {m with fluidState = {m.fluidState with editors; ac}})
-  |> Option.withDefault ~default:m
 
 
 (* ---------------- *)
@@ -5231,7 +5215,7 @@ let getCopySelection (m : model) : clipboardContents =
 let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
     FluidAST.t * fluidState =
   let s =
-    {m.fluidState with midClick = false; activeEditorId = eventData.editorId}
+    {m.fluidState with midClick = false; activePanelId = eventData.panelId}
   in
   let selection =
     eventData.selection |> Option.orElseLazy Entry.getFluidSelectionRange

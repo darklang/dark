@@ -141,7 +141,7 @@ let viewPlayIcon ~(vs : ViewUtils.viewState) (ti : T.tokenInfo) :
       Vdom.noNode
 
 
-let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
+let toHtml (vs : ViewUtils.viewState) (es : ViewUtils.editorState) :
     Types.msg Html.html list =
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
@@ -179,10 +179,11 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
   let nesting = ref 0 in
   let cmdToken =
     match vs.fluidState.cp.location with
-    | Some (ltlid, id) when editor.tlid = ltlid ->
+    | Some (ltlid, id)
+      when es.tlid = ltlid && es.panelId = vs.fluidState.activePanelId ->
         (* Reversing list will get us the last token visually rendered with
          * matching expression ID, so we don't have to keep track of max pos *)
-        editor.tokens
+        es.tokens
         |> List.reverse
         |> List.getBy ~f:(fun ti -> FluidToken.tid ti.token = id)
     | _ ->
@@ -201,7 +202,7 @@ let toHtml (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
     let selStart, selEnd = Fluid.getSelectionRange vs.fluidState in
     selStart <= tokenStart && tokenEnd <= selEnd
   in
-  List.map editor.tokens ~f:(fun ti ->
+  List.map es.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = T.tid ti.token in
         let idStr = ID.toString tokenId in
@@ -442,16 +443,8 @@ let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
   else Vdom.noNode
 
 
-(** [fluidEditorView] builds a fluid editor panel for the given [tokenInfos].
-  * [~idx] is the index of the editor panel, with 0 being the "main" editor
-  * and >0 being any sub-editors (like for a feature flag). This [~idx]
-  * corresponds to the index of the tokenInfo list return from
-  * tokenizeWithSplits, and is used to ensure caret placement/focus/editing act
-  * against the correct token stream (that is, clicking on panel idx=1 means
-  * you are now editing index 1 of the splits returned from
-  * FluidPrinter.tokenizeWithSplits). *)
-let fluidEditorView
-    (vs : ViewUtils.viewState) (editor : ViewUtils.editorViewState) :
+(** [fluidEditorView] builds a fluid editor panel for the given [editorState] *)
+let fluidEditorView (vs : ViewUtils.viewState) (es : ViewUtils.editorState) :
     Types.msg Html.html =
   let ({tlid; fluidState = state; _} : ViewUtils.viewState) = vs in
   let tlidStr = TLID.toString tlid in
@@ -488,14 +481,14 @@ let fluidEditorView
                   FluidMsg
                     (FluidMouseUp
                        { tlid
-                       ; editorId = editor.editorId
+                       ; panelId = es.panelId
                        ; selection =
                            Fluid.getExpressionRangeAtCaret vs.ast state })
               | {detail = 2; altKey = false; _} ->
                   FluidMsg
                     (FluidMouseUp
                        { tlid
-                       ; editorId = editor.editorId
+                       ; panelId = es.panelId
                        ; selection = Fluid.getTokenRangeAtCaret vs.ast state })
               | _ ->
                   recover
@@ -503,15 +496,13 @@ let fluidEditorView
                     ~debug:ev
                     (FluidMsg
                        (FluidMouseUp
-                          {tlid; editorId = editor.editorId; selection = None}))
-              )
+                          {tlid; panelId = es.panelId; selection = None})) )
           | None ->
               recover
                 "found no caret pos in the doubleclick handler"
                 ~debug:ev
                 (FluidMsg
-                   (FluidMouseUp
-                      {tlid; editorId = editor.editorId; selection = None})))
+                   (FluidMouseUp {tlid; panelId = es.panelId; selection = None})))
     ; ViewUtils.eventNoPropagation
         ~key:("fluid-selection-mousedown" ^ tlidStr)
         "mousedown"
@@ -520,15 +511,14 @@ let fluidEditorView
         ~key:("fluid-selection-mouseup" ^ tlidStr)
         "mouseup"
         (fun _ ->
-          FluidMsg
-            (FluidMouseUp {tlid; editorId = editor.editorId; selection = None}))
+          FluidMsg (FluidMouseUp {tlid; panelId = es.panelId; selection = None}))
     ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ tlidStr) ~listener:(fun msg ->
           if msg = "flashError" || msg = "flashIncomplete"
           then FluidMsg FluidClearErrorDvSrc
           else IgnoreMsg) ]
   in
   let idAttr =
-    if vs.fluidState.activeEditorId = editor.editorId
+    if vs.fluidState.activePanelId = es.panelId
     then Attrs.id "active-editor"
     else Attrs.noProp
   in
@@ -542,7 +532,7 @@ let fluidEditorView
       ]
     @ clickHandlers
     @ Tuple3.toList textInputListeners )
-    (toHtml vs editor)
+    (toHtml vs es)
 
 
 let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
@@ -551,8 +541,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   in
   let errorRail =
     let indicators =
-      vs.mainEditor.tokens
-      |> List.map ~f:(viewErrorIndicator ~analysisStore ~state)
+      vs.tokens |> List.map ~f:(viewErrorIndicator ~analysisStore ~state)
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
     Html.div
@@ -564,51 +553,70 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
     then viewLiveValue vs
     else Vdom.noNode
   in
-  let mainEditor = fluidEditorView vs vs.mainEditor in
+  let editorState =
+    { ViewUtils.tlid
+    ; panelId = None
+    ; expression = FluidAST.toExpr vs.ast
+    ; tokens = vs.tokens }
+  in
+  let mainEditor = fluidEditorView vs editorState in
   let returnValue = viewReturnValue vs in
   let secondaryEditors =
     let findRowOffestOfMainTokenWithId (target : ID.t) : int option =
-      (* FIXME(ds) this is a giant hack to find the row offset of the corresponding
-       * token in the main view for each secondary editor. This works by getting
-       * the id of the split (ie, the id of the first token in the split)
-       * and then looking through the main tokens [O(N)] to find one with a
-       * corresponding id. This is brittle and will likely break at some point. We
-       * should do something better. *)
-      List.find vs.mainEditor.tokens ~f:(fun ti -> target = T.tid ti.token)
+      (* FIXME(ds) this is a giant hack to find the row offset of the
+       * corresponding token in the main view for each panel. This works by
+       * getting the id of the split (ie, the id of the first token in the
+       * split) and then looking through the main tokens [O(N)] to find one
+       * with a corresponding id. This is brittle and will likely break at some
+       * point. We should do something better. *)
+      List.find vs.tokens ~f:(fun ti -> target = T.tid ti.token)
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
-    vs.extraEditors
-    |> List.map ~f:(fun (e : ViewUtils.editorViewState) ->
-           let errorRail =
-             Html.div
-               [Html.classList [("fluid-error-rail", true); ("show", true)]]
-               []
-           in
-           let rowOffset =
-             e.expr
-             |> E.toID
-             |> findRowOffestOfMainTokenWithId
-             |> Option.withDefault ~default:0
-           in
-           let flagIcon =
-             let eid = Option.valueExn e.editorId in
-             Html.div
-               [ Html.class' "ff-icon"
-               ; ViewUtils.eventNoPropagation
-                   "click"
-                   ~key:("ff-toggle" ^ eid ^ string_of_bool e.isOpen)
-                   (fun _ev -> ToggleEditorPanel (vs.tlid, eid, not e.isOpen))
-               ]
-               [ViewUtils.fontAwesome "flag"]
-           in
-           let editorDiv =
-             Html.div
-               [ Html.classList
-                   [("fluid-secondary-editor", true); ("open", e.isOpen)]
-               ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-               [fluidEditorView vs e; errorRail]
-           in
-           Html.div [Html.class' "fluid-panel"] [flagIcon; editorDiv])
+    FluidPanel.Group.map vs.panels ~f:(fun (panel : FluidPanel.State.t) ->
+        let errorRail =
+          Html.div
+            [Html.classList [("fluid-error-rail", true); ("show", true)]]
+            []
+        in
+        let rowOffset =
+          panel.expressionId
+          |> findRowOffestOfMainTokenWithId
+          |> Option.withDefault ~default:0
+        in
+        let flagIcon =
+          let eid = panel.expressionId |> ID.toString in
+          Html.div
+            [ Html.class' "ff-icon"
+            ; ViewUtils.eventNoPropagation
+                "click"
+                ~key:("ff-toggle" ^ eid ^ string_of_bool panel.isOpen)
+                (fun _ev ->
+                  ToggleFluidPanel
+                    (vs.tlid, panel.expressionId, not panel.isOpen)) ]
+            [ViewUtils.fontAwesome "flag"]
+        in
+        let expression =
+          FluidAST.find panel.expressionId vs.ast
+          |> recoverOpt
+               ( "panel expression ID = "
+               ^ ID.toString panel.expressionId
+               ^ "  not found" )
+               ~default:(FluidExpression.EBlank (gid ()))
+        in
+        let editorState =
+          { ViewUtils.tlid
+          ; panelId = Some panel.expressionId
+          ; expression
+          ; tokens = FluidPrinter.tokenizeForPanel panel.kind expression }
+        in
+        let editorDiv =
+          Html.div
+            [ Html.classList
+                [("fluid-secondary-editor", true); ("open", panel.isOpen)]
+            ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
+            [fluidEditorView vs editorState; errorRail]
+        in
+        Html.div [Html.class' "fluid-panel"] [flagIcon; editorDiv])
   in
   mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
 

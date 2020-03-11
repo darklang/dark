@@ -10,3 +10,4 @@ end
 
 include T
 module Set = Tc.Set (T)
+module Dict = Tc.Dict (T)

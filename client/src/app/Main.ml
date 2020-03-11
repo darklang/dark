@@ -196,7 +196,7 @@ let processFocus (m : model) (focus : focus) : modification =
             ; ReplaceAllModificationsWithThisOne
                 (fun m ->
                   m
-                  |> Fluid.loadTL (Toplevel.id tl)
+                  |> FluidModel.loadTL (Toplevel.id tl)
                   |> CursorState.setCursorState cs)
             ; AutocompleteMod (ACSetQuery "") ]
       | _, _ ->
@@ -440,7 +440,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 {m with cursorState = Selecting (tlid, None)}
             | Some (TLFunc _) | Some (TLHandler _) ->
                 let m = {m with cursorState = FluidEntering tlid} in
-                if prevTLID <> Some tlid then Fluid.loadTL tlid m else m
+                if prevTLID <> Some tlid then FluidModel.loadTL tlid m else m
             | None ->
                 {m with cursorState = Deselected} )
           | STID id ->
@@ -448,11 +448,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             | Some _ ->
                 {m with cursorState = Selecting (tlid, Some id)}
             | None ->
-                Fluid.loadTL tlid m )
+                FluidModel.loadTL tlid m )
           | STCaret ct ->
               let m = {m with cursorState = FluidEntering tlid} in
               let m =
-                if prevTLID <> Some tlid then Fluid.loadTL tlid m else m
+                if prevTLID <> Some tlid then FluidModel.loadTL tlid m else m
               in
               (* If we got passed a caretTarget, also go to it *)
               TL.get m tlid
@@ -1303,20 +1303,10 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd (API.saveTest m)
   | FinishIntegrationTest ->
       EndIntegrationTest
-  | StartFeatureFlag ->
-      FeatureFlags.start m
-  | EndFeatureFlag (id, pick) ->
-      FeatureFlags.end_ m id pick
-  | ToggleEditorPanel (tlid, editorId, isOpen) ->
+  | ToggleFluidPanel (tlid, expressionID, isOpen) ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
-          (* ensure this editor is focused *)
-          let m = {m with cursorState = FluidEntering tlid} in
-          let m = Fluid.loadTL tlid m in
-          let editors =
-            FluidEditor.State.setOpen isOpen editorId m.fluidState.editors
-          in
-          ({m with fluidState = {m.fluidState with editors}}, Cmd.none))
+          (FluidModel.toggleFlagPanel tlid expressionID isOpen m, Cmd.none))
   | ExtractFunction ->
     ( match m.cursorState with
     | Selecting (tlid, mId) ->

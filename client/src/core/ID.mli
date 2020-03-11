@@ -18,3 +18,7 @@ end
 module Set : sig
   include module type of Tc.Set (T)
 end
+
+module Dict : sig
+  include module type of Tc.Dict (T)
+end

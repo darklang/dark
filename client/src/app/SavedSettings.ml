@@ -26,7 +26,6 @@ let toModel (e : savedSettings) : model =
   ; cursorState = e.cursorState |> canonicalizeCursorState
   ; routingTableOpenDetails = e.routingTableOpenDetails
   ; tlTraceIDs = e.tlTraceIDs
-  ; featureFlags = e.featureFlags
   ; handlerProps = e.handlerProps |> canonicalizeHandlerProps
   ; canvasProps = {m.canvasProps with offset = e.canvasPos}
   ; lastReload = e.lastReload
@@ -42,8 +41,6 @@ let model2editor (m : model) : savedSettings =
       m.routingTableOpenDetails
   ; tlTraceIDs = (* what trace is selected *)
                  m.tlTraceIDs
-  ; featureFlags = (* which flags are expanded *)
-                   m.featureFlags
   ; handlerProps = m.handlerProps
   ; canvasPos = m.canvasProps.offset
   ; lastReload = m.lastReload

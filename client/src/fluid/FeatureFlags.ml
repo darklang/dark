@@ -6,32 +6,36 @@ module P = Pointer
 module TL = Toplevel
 module E = FluidExpression
 
-let toFlagged (expr : E.t) : E.t =
-  match expr with
-  | EFeatureFlag (_, _, _, _, _) ->
-      recover "cant convert flagged to flagged" ~debug:expr expr
-  | _ ->
-      EFeatureFlag (gid (), "", E.newB (), expr, E.newB ())
-
-
-let fromFlagged (pick : pick) (expr : E.t) : E.t =
-  match expr with
-  | EFeatureFlag (_, _, _, a, b) ->
-    (match pick with PickA -> a | PickB -> b)
-  | _ ->
-      recover "cant convert flagged to flagged" ~debug:expr expr
-
-
 (** [wrap m tl id]  returns a [modification] which finds the expression
   * having [id] in toplevel [tl] and makes it into the default case of a
   * new feature flag. *)
 let wrap (_ : model) (tl : toplevel) (id : ID.t) : modification =
+  let flagId = gid () in
+  let flagName = "flag-" ^ ID.toString flagId in
   let replacement e : E.t =
-    EFeatureFlag (gid (), "flag-name", E.newB (), e, E.newB ())
+    EFeatureFlag (flagId, flagName, E.newB (), e, E.newB ())
   in
-  TL.getAST tl
-  |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
-  |> Option.withDefault ~default:NoChange
+  let setAST =
+    TL.getAST tl
+    |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
+    |> Option.withDefault ~default:NoChange
+  in
+  let focusFlagPanel =
+    ReplaceAllModificationsWithThisOne
+      (fun m ->
+        let m =
+          m
+          |> FluidModel.toggleFlagPanel (TL.id tl) flagId true
+          |> FluidModel.focusPanel flagId
+          |> fun m ->
+          (* FIXME(ds) should use a caretTarget instead *)
+          { m with
+            fluidState = {m.fluidState with newPos = 0; selectionStart = None}
+          }
+        in
+        (m, Tea.Cmd.NoCmd))
+  in
+  Many [setAST; focusFlagPanel]
 
 
 (** [unwrap m tl id]  returns a [modification] which unwraps the feature flag
@@ -45,16 +49,19 @@ let unwrap (_ : model) (tl : toplevel) (id : ID.t) : modification =
     | expr ->
         recover "tried to remove non-feature flag" expr
   in
-  TL.getAST tl
-  |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
-  |> Option.withDefault ~default:NoChange
-
-
-let start (_m : model) : modification =
-  (* TODO: needs to be reimplmented in fluid *)
-  NoChange
-
-
-let end_ (_m : model) (_id : ID.t) (_pick : pick) : modification =
-  (* TODO: needs to be reimplmented in fluid *)
-  NoChange
+  let setAST =
+    TL.getAST tl
+    |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
+    |> Option.withDefault ~default:NoChange
+  in
+  let deactivateFlagPanel =
+    ReplaceAllModificationsWithThisOne
+      (fun m ->
+        let m =
+          m
+          |> FluidModel.toggleFlagPanel (TL.id tl) id false
+          |> FluidModel.focusMainEditor
+        in
+        (m, Tea.Cmd.NoCmd))
+  in
+  Many [setAST; deactivateFlagPanel]

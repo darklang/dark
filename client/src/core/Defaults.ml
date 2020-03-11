@@ -25,7 +25,6 @@ let defaultSavedSettings : savedSettings =
   ; cursorState = Deselected
   ; routingTableOpenDetails = StrSet.empty
   ; tlTraceIDs = TLIDDict.empty
-  ; featureFlags = StrDict.empty
   ; handlerProps = TLIDDict.empty
   ; canvasPos = origin
   ; lastReload = None
@@ -57,8 +56,8 @@ let defaultFluidState : fluidState =
   ; selectionStart = None
   ; errorDvSrc = SourceNone
   ; midClick = false
-  ; editors = FluidEditor.State.empty
-  ; activeEditorId = None }
+  ; panels = FluidPanel.Group.empty
+  ; activePanelId = None }
 
 
 let defaultCanvasProps : canvasProps =
@@ -129,7 +128,6 @@ let defaultModel : model =
   ; cursorState = Deselected
   ; executingFunctions = []
   ; tlTraceIDs = TLIDDict.empty
-  ; featureFlags = StrDict.empty
   ; canvasProps = defaultCanvasProps
   ; canvasName = "builtwithdark"
   ; userContentHost = "builtwithdark.com"

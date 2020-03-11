@@ -535,12 +535,10 @@ let tokenize : E.t -> FluidToken.tokenInfo list =
   tokenizeWithFFTokenization FeatureFlagOnlyDisabled
 
 
-let tokenizeForViewKind (k : FluidEditor.viewKind) (expr : FluidExpression.t) :
+let tokenizeForPanel (k : FluidPanel.kind) (expr : FluidExpression.t) :
     FluidToken.tokenInfo list =
   match k with
-  | MainView ->
-      tokenize expr
-  | FeatureFlagView ->
+  | FluidPanel.FeatureFlag ->
       tokenizeWithFFTokenization FeatureFlagConditionAndEnabled expr
 
 
@@ -551,21 +549,6 @@ let tokensToString (tis : tokenInfo list) : string =
 let eToTestString (e : E.t) : string =
   e
   |> tokenize
-  |> List.map ~f:(fun ti -> T.toTestText ti.token)
-  |> String.join ~sep:""
-
-
-let testStringForViewKind (k : editorViewKind) (expr : FluidExpression.t) :
-    string =
-  let ff =
-    match k with
-    | MainView ->
-        FeatureFlagOnlyDisabled
-    | FeatureFlagView ->
-        FeatureFlagConditionAndEnabled
-  in
-  expr
-  |> tokenizeWithFFTokenization ff
   |> List.map ~f:(fun ti -> T.toTestText ti.token)
   |> String.join ~sep:""
 

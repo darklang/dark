@@ -37,17 +37,21 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
             |> Option.withDefault ~default:"None" ) ]
     ; dtText "ast root"
     ; Html.dd [] [Html.text (FluidAST.toID ast |> ID.toString)]
-    ; dtText "active editor"
+    ; dtText "active panel"
     ; Html.dd
         []
-        [Html.text (s.activeEditorId |> Option.withDefault ~default:"main")]
-    ; dtText "editors"
+        [ Html.text
+            ( s.activePanelId
+            |> Option.map ~f:ID.toString
+            |> Option.withDefault ~default:"main" ) ]
+    ; dtText "panels"
     ; Html.dd
         []
         [ Html.ul
             []
             (List.map
-               (FluidEditor.State.map s.editors ~f:(fun e -> e.id))
+               (FluidPanel.Group.map s.panels ~f:(fun e ->
+                    e.expressionId |> ID.toString))
                ~f:(fun id -> Html.li [] [Html.text id])) ]
     ; dtText "acIndex"
     ; Html.dd

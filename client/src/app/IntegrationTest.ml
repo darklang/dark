@@ -236,35 +236,9 @@ let rename_db_type (m : model) : testResult =
   |> Result.map (fun _ -> ())
 
 
-let feature_flag_works (m : model) : testResult =
-  let h = onlyHandler m in
-  let ast = h.ast |> FluidAST.toExpr in
-  match ast with
-  | ELet
-      ( _
-      , "a"
-      , EInteger (_, "13")
-      , EFeatureFlag
-          ( id
-          , "myflag"
-          , EFnCall
-              ( _
-              , "Int::greaterThan"
-              , [EVariable (_, "a"); EInteger (_, "10")]
-              , _ )
-          , EString (_, "\"A\"")
-          , EString (_, "\"B\"") ) ) ->
-      let res =
-        Analysis.getSelectedTraceID m h.hTLID
-        |> Option.andThen ~f:(Analysis.getLiveValue m id)
-      in
-      ( match res with
-      | Some val_ ->
-          if val_ = DStr "B" then pass else fail (show_fluidExpr ast, val_)
-      | _ ->
-          fail (show_fluidExpr ast, res) )
-  | _ ->
-      fail (show_fluidExpr ast, show_cursorState m.cursorState)
+let feature_flag_works (_ : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
 
 
 let feature_flag_in_function (m : model) : testResult =

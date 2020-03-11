@@ -5,18 +5,17 @@ module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
 
-type editorViewState =
+type editorState =
   { tlid : TLID.t
-  ; editorId : string option
-  ; isOpen : bool
-  ; expr : E.t
+  ; panelId : ID.t option
+  ; expression : FluidExpression.t
   ; tokens : FluidToken.tokenInfo list }
 
 type viewState =
   { tl : toplevel
   ; ast : FluidAST.t
-  ; mainEditor : editorViewState
-  ; extraEditors : editorViewState list
+  ; tokens : FluidToken.tokenInfo list
+  ; panels : FluidPanel.Group.t
   ; cursorState : cursorState
   ; tlid : TLID.t
   ; isAdmin : bool
@@ -33,7 +32,6 @@ type viewState =
   ; executingFunctions : ID.t list
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
-  ; featureFlags : flagsVS
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
@@ -64,51 +62,23 @@ let createVS (m : model) (tl : toplevel) : viewState =
   let ast =
     TL.getAST tl |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
   in
-  let mainEditor =
-    let expr = FluidAST.toExpr ast in
-    { tlid
-    ; editorId = None
-    ; expr
-    ; isOpen = true
-    ; tokens = FluidPrinter.tokenizeForViewKind MainView expr }
-  in
-  let extraEditors =
+  let tokens = FluidPrinter.tokenize (FluidAST.toExpr ast) in
+  let panels =
     (* There are cases like page load where we create a bunch of viewStates at once,
      * but we only have a single fluidState in the model. If we were to blindly
      * apply this map for every toplevel, we'd share the fluidState and create
-     * incorrect editors. So, we check the toplevel of the editors with the
-     * toplevel that's being created and don't create the editor if it doesn't
-     * match. Given we create the editors within a FluidEditor.State with the
-     * same TLID, they should always all have the same TLID, but this code
-     * doesn't know that, so we have to filter them out individually. *)
-    FluidEditor.State.map
-      m.fluidState.editors
-      ~f:(fun (editor : FluidEditor.t) ->
-        if editor.tlid <> tlid
-        then None
-        else
-          let expr =
-            FluidAST.find editor.expressionId ast
-            |> recoverOpt
-                 ~default:(E.newB ())
-                 (Printf.sprintf
-                    "failed to find expr %s for editor %s in TLID %s "
-                    (editor.expressionId |> ID.toString)
-                    editor.id
-                    (TLID.toString tlid))
-          in
-          let tokens = FluidPrinter.tokenizeForViewKind editor.kind expr in
-          Some
-            { tlid
-            ; editorId = Some editor.id
-            ; isOpen = editor.isOpen
-            ; expr
-            ; tokens })
-    |> List.filterMap ~f:identity
-    (* filter out None *)
+     * incorrect panels. So, we check the toplevel of the panels with the
+     * toplevel that's being created and don't create the panel if it doesn't
+     * match. We do create the FluidPanel.Group.t with all the same TLID, so
+     * they /should/ always all have the same TLID, but this code doesn't know
+     * that, so we have to filter them out individually.
+     *
+     * Once we have a fluidState per TLID, this can be removed. *)
+    FluidPanel.Group.filter ~f:(fun s -> s.tlid = tlid) m.fluidState.panels
   in
   { tl
   ; ast
+  ; tokens
   ; tlid
   ; cursorState = CursorState.unwrap m.cursorState
   ; hovering =
@@ -138,9 +108,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       |> List.map ~f:(fun (_, id) -> id)
   ; tlTraceIDs = m.tlTraceIDs
   ; testVariants = m.tests
-  ; featureFlags = m.featureFlags
-  ; mainEditor
-  ; extraEditors
+  ; panels
   ; handlerProp = hp
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
