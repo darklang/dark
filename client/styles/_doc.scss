@@ -15,15 +15,32 @@
     }
   }
   .type-error {
-    color: red;
+    color: lighten(saturate($red, 25%), 30%);
   }
-  .function-name {
-    color: yellow;
+
+  /* white & yellow */
+  function-name,
+  .parameter-name {
+    color: lighten($white3, 10%);
   }
   .type-name {
-    color: magenta;
+    color: $yellow;
   }
-  .parameter-name {
-    color: green;
+
+  /* purple & yellow
+  function-name, .parameter-name {
+    color: lighten($purple, 10%);
   }
+  type-name {
+    color: $yellow;
+  }
+  */
+  /* orange & green
+  .function-name, .parameter-name {
+    color: $orange;
+  }
+  .type-name {
+    color: $green;
+  }
+  */
 }
