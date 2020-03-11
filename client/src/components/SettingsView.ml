@@ -56,25 +56,27 @@ let submitForm (m : Types.model) (tab : settingsTab) :
 let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
     =
   match msg with
-  | ToggleSettingsView (opened, tab) ->
-      let enablePan = if opened then m.canvasProps.enablePan else true in
+  | ToggleSettingsView (opening, tab) ->
+      let enablePan = if opening then m.canvasProps.enablePan else true in
       let m, cmd =
         match m.settingsView.tab with
-        | CanvasInfo when not opened ->
-              let msg =
-                { canvasName = m.canvasName
-                ; canvasDescription = m.settingsView.canvas_information.canvas_description
-                ; canvasShipped =
-                    m.settingsView.canvas_information.shipped_date
-                    |> Option.withDefault ~default:"" }
-              in
-              ( m , API.sendCanvasInfo m msg )
+        | CanvasInfo when not opening ->
+            let msg =
+              { canvasName = m.canvasName
+              ; canvasDescription =
+                  m.settingsView.canvas_information.canvas_description
+              ; canvasShipped =
+                  m.settingsView.canvas_information.shipped_date
+                  |> Option.withDefault ~default:"" }
+            in
+            (m, API.sendCanvasInfo m msg)
         | _ ->
-            (m, Cmd.none)
+            CursorState.setCursorState Deselected m
       in
       let tab = tab |> Option.withDefault ~default:UserSettings in
       ( { m with
-          settingsView = {m.settingsView with opened; tab; loading = false}
+          settingsView =
+            {m.settingsView with opened = opening; tab; loading = false}
         ; canvasProps = {m.canvasProps with enablePan} }
       , cmd )
   | SwitchSettingsTabs tab ->
