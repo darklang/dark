@@ -27,7 +27,7 @@ let viewAutocompleteItemTypes ({item; validity} : fluidAutocompleteData) :
       let returnTypeClass =
         match validity with
         | FACItemInvalidReturnType _ ->
-            "invalidCulprit"
+            "invalid-culprit"
         | _ ->
             ""
       in
@@ -41,7 +41,7 @@ let viewAutocompleteItemTypes ({item; validity} : fluidAutocompleteData) :
           let arg0Class =
             match validity with
             | FACItemInvalidPipedArg _ ->
-                "invalidCulprit"
+                "invalid-culprit"
             | _ ->
                 ""
           in
