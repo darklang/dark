@@ -14,4 +14,15 @@
       color: $purple;
     }
   }
+  .type-error {
+    color: lighten(saturate($red, 25%), 30%);
+  }
+
+  .function-name,
+  .parameter-name {
+    color: lighten($purple, 10%);
+  }
+  .type-name {
+    color: $green;
+  }
 }
