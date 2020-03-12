@@ -5,17 +5,10 @@ module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
 
-type editorViewState =
-  { tlid : TLID.t
-  ; editorId : string option
-  ; expr : E.t
-  ; tokens : FluidToken.tokenInfo list }
-
 type viewState =
   { tl : toplevel
   ; ast : FluidAST.t
-  ; mainEditor : editorViewState
-  ; extraEditors : editorViewState list
+  ; tokens : FluidToken.tokenInfo list
   ; cursorState : cursorState
   ; tlid : TLID.t
   ; isAdmin : bool
@@ -63,30 +56,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
   let ast =
     TL.getAST tl |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
   in
-  let mainEditor =
-    let expr = FluidAST.toExpr ast in
-    { tlid
-    ; editorId = None
-    ; expr
-    ; tokens = FluidPrinter.tokenizeForViewKind MainView expr }
-  in
-  let extraEditors =
-    List.filterMap m.fluidState.extraEditors ~f:(fun e ->
-        let expr =
-          ast
-          |> FluidAST.find e.expressionId
-          |> recoverOpt
-               ~default:(E.newB ())
-               (Printf.sprintf
-                  "failed to find expr %s for editor %s"
-                  (e.expressionId |> ID.toString)
-                  e.id)
-        in
-        let tokens = FluidPrinter.tokenizeForViewKind e.kind expr in
-        Some {tlid; editorId = Some e.id; expr; tokens})
-  in
   { tl
   ; ast
+  ; tokens = FluidPrinter.tokenize (FluidAST.toExpr ast)
   ; tlid
   ; cursorState = CursorState.unwrap m.cursorState
   ; hovering =
@@ -117,8 +89,6 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; tlTraceIDs = m.tlTraceIDs
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
-  ; mainEditor
-  ; extraEditors
   ; handlerProp = hp
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
@@ -325,3 +295,12 @@ let isHoverOverTL (vs : viewState) : bool =
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
+
+let fnForToken (state : fluidState) token : function_ option =
+  match token with
+  | TBinOp (_, fnName)
+  | TFnVersion (_, _, _, fnName)
+  | TFnName (_, _, _, fnName, _) ->
+      Some (Functions.findByNameInList fnName state.ac.functions)
+  | _ ->
+      None
