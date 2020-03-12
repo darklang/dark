@@ -537,6 +537,13 @@ since they are essentially both commands just acting upon different things. */
   justify-content: space-between;
   width: max-content;
   padding: 4px;
+
+  .ff-icon {
+    position: absolute;
+    color: magenta;
+    top: -10px;
+    left: -5px;
+  }
 }
 
 .fluid-error-rail {
