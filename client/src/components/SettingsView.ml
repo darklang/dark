@@ -62,12 +62,17 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
         match m.settingsView.tab with
         | CanvasInfo when not opening ->
             let msg =
+              let canvasShipped =
+                match m.settingsView.canvas_information.shipped_date with
+                | Some date ->
+                    date |> Js.Date.toUTCString
+                | None ->
+                    ""
+              in
               { canvasName = m.canvasName
               ; canvasDescription =
                   m.settingsView.canvas_information.canvas_description
-              ; canvasShipped =
-                  m.settingsView.canvas_information.shipped_date
-                  |> Option.withDefault ~default:"" }
+              ; canvasShipped }
             in
             (m, API.sendCanvasInfo m msg)
         | _ ->
@@ -96,9 +101,7 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       , Cmd.none )
   | ToggleCanvasDeployStatus ->
       let shipped_date =
-        let rawDate =
-          Js.Date.now () |> Js.Date.fromFloat |> Js.Date.toUTCString
-        in
+        let rawDate = Js.Date.now () |> Js.Date.fromFloat in
         let formattedDate = Entry.formatDate (rawDate, "L") in
         match m.settingsView.canvas_information.shipped_date with
         | Some _ ->
@@ -106,7 +109,7 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
             None
         | None ->
             Entry.sendSegmentMessage (ShipCanvas formattedDate) ;
-            Some formattedDate
+            Some rawDate
       in
       ( { m with
           settingsView =
@@ -127,7 +130,8 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
               org_list
             ; canvas_list
             ; canvas_information =
-                {m.settingsView.canvas_information with created_at} } }
+                { m.settingsView.canvas_information with
+                  created_at = Some created_at } } }
       , Cmd.none )
   | TriggerUpdateCanvasInfoCallback (Ok _) ->
       ( { m with
@@ -152,7 +156,7 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       let shipped_date =
         if String.length data.shipped_date == 0
         then None
-        else Some data.shipped_date
+        else Some (Js.Date.fromString data.shipped_date)
       in
       ( { m with
           settingsView =
@@ -267,11 +271,18 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   let shippedText =
     match canvas.shipped_date with
     | Some date ->
-        " (as of " ^ date ^ ")"
+        let formattedDate = Entry.formatDate (date, "L") in
+        " (as of " ^ formattedDate ^ ")"
     | None ->
         ""
   in
-  let create_at_date = Entry.formatDate (canvas.created_at, "L") in
+  let create_at_text =
+    match canvas.created_at with
+    | Some date ->
+        "Canvas created on: " ^ Entry.formatDate (date, "L")
+    | None ->
+        ""
+  in
   [ Html.div
       [Html.class' "canvas-info"]
       [ Html.h2 [] [Html.text "Canvas Information"]
@@ -301,9 +312,7 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
           [ Html.text
               "Dark is evolving quickly - let us know if your project is shipped and we will make sure to add it to our smoke tests."
           ]
-      ; Html.p
-          [Html.class' "created-text"]
-          [Html.text ("Canvas created on: " ^ create_at_date)] ] ]
+      ; Html.p [Html.class' "created-text"] [Html.text create_at_text] ] ]
 
 
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =

@@ -801,7 +801,7 @@ and initialLoadAPIResult =
   ; canvas_list : string list
   ; org_list : string list
   ; worker_schedules : string StrDict.t
-  ; creation_date : string }
+  ; creation_date : Js.Date.t [@opaque] }
 
 and saveTestAPIResult = string
 

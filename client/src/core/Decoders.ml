@@ -921,7 +921,7 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; canvas_list = field "canvas_list" (list string) j
   ; org_list = field "org_list" (list string) j
   ; worker_schedules = field "worker_schedules" (strDict string) j
-  ; creation_date = field "creation_date" string j }
+  ; creation_date = field "creation_date" jsDate j }
 
 
 let allTracesResult j : allTracesAPIResult =

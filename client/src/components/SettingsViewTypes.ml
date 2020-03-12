@@ -32,8 +32,8 @@ type getCanvasInfoParams = {canvasName : string} [@@deriving show]
 
 type canvasInformation =
   { canvas_description : string
-  ; shipped_date : string option
-  ; created_at : string }
+  ; shipped_date : Js.Date.t option [@opaque]
+  ; created_at : Js.Date.t option [@opaque] }
 [@@deriving show]
 
 type settingsViewState =
@@ -57,7 +57,7 @@ type settingsMsg =
   | UpdateCanvasDescription of string
   | ToggleCanvasDeployStatus
   | SubmitForm
-  | SetSettingsView of string list * string list * string
+  | SetSettingsView of string list * string list * (Js.Date.t[@opaque])
   | TriggerSendInviteCallback of
       (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
       [@printer opaque "TriggerSendInviteCallback"]

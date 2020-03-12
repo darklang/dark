@@ -333,6 +333,20 @@ let to_all_traces_result (traces : tlid_traceid list) : string =
   {traces} |> all_traces_result_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
+type time = Time.t
+
+(* Warning: both to_string and date_of_string might raise; we could use _option types instead, but since we are using  this for encoding/decoding typed data, I do not think that is necessary right now *)
+let time_of_yojson (j : Yojson.Safe.t) : time =
+  j
+  |> Yojson.Safe.Util.to_string
+  (* NOTE:Safe.Util; this is "get a string from a (`String of string)", not "stringify an arbitrary Yojson object" *)
+  |> Util.date_of_isostring
+
+
+let time_to_yojson (time : time) : Yojson.Safe.t =
+  time |> Util.isostring_of_date |> fun s -> `String s
+
+
 (* Initial load *)
 type initial_load_rpc_result =
   { toplevels : TL.toplevel list
@@ -350,7 +364,7 @@ type initial_load_rpc_result =
   ; canvas_list : string list
   ; org_list : string list
   ; worker_schedules : Event_queue.Worker_states.t
-  ; creation_date : string }
+  ; creation_date : time }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
