@@ -597,13 +597,14 @@ let hosts_for (account_name : string) : string list =
   |> List.dedup_and_sort ~compare
 
 
-let canvas_creation_date canvas_id =
+let canvas_creation_date canvas_id : Core_kernel.Time.t =
   Db.fetch_one
     ~name:"canvas_creation_date"
     "SELECT created_at from canvases
      WHERE canvases.id = $1"
     ~params:[Uuid canvas_id]
   |> List.hd_exn
+  |> Db.date_of_sqlstring
 
 
 let orgs_for (account_name : string) : string list =

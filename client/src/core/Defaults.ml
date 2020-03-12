@@ -166,4 +166,4 @@ let defaultModel : model =
       ; org_list = []
       ; loading = false
       ; canvas_information =
-          {canvas_description = ""; shipped_date = None; created_at = ""} } }
+          {canvas_description = ""; shipped_date = None; created_at = None} } }

@@ -15,7 +15,7 @@ type canvas =
   { host : string
   ; owner : Uuidm.t
   ; id : Uuidm.t
-  ; creation_date : string
+  ; creation_date : Time.t [@opaque]
   ; ops : (tlid * Op.oplist) list
   ; cors_setting : cors_setting option
   ; handlers : TL.toplevels
