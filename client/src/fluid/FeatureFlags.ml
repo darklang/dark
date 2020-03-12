@@ -6,22 +6,6 @@ module P = Pointer
 module TL = Toplevel
 module E = FluidExpression
 
-let toFlagged (expr : E.t) : E.t =
-  match expr with
-  | EFeatureFlag (_, _, _, _, _) ->
-      recover "cant convert flagged to flagged" ~debug:expr expr
-  | _ ->
-      EFeatureFlag (gid (), "", E.newB (), expr, E.newB ())
-
-
-let fromFlagged (pick : pick) (expr : E.t) : E.t =
-  match expr with
-  | EFeatureFlag (_, _, _, a, b) ->
-    (match pick with PickA -> a | PickB -> b)
-  | _ ->
-      recover "cant convert flagged to flagged" ~debug:expr expr
-
-
 (** [wrap m tl id]  returns a [modification] which finds the expression
   * having [id] in toplevel [tl] and makes it into the default case of a
   * new feature flag. *)
@@ -48,22 +32,3 @@ let unwrap (_ : model) (tl : toplevel) (id : ID.t) : modification =
   TL.getAST tl
   |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
   |> Option.withDefault ~default:NoChange
-
-
-let start (_m : model) : modification =
-  (* TODO: needs to be reimplmented in fluid *)
-  NoChange
-
-
-let end_ (_m : model) (_id : ID.t) (_pick : pick) : modification =
-  (* TODO: needs to be reimplmented in fluid *)
-  NoChange
-
-
-let toggle (id : ID.t) (isExpanded : bool) : modification =
-  ReplaceAllModificationsWithThisOne
-    (fun m ->
-      let featureFlags =
-        StrDict.insert ~key:(ID.toString id) ~value:isExpanded m.featureFlags
-      in
-      ({m with featureFlags}, Tea.Cmd.none))
