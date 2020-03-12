@@ -247,7 +247,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
     { FluidEditorView.analysisStore = vs.analysisStore
     ; ast = vs.ast
     ; executingFunctions = vs.executingFunctions
-    ; editorId = None
+    ; editor = MainEditor
     ; hoveringRefs = vs.hoveringRefs
     ; fluidState = vs.fluidState
     ; permission = vs.permission
@@ -267,42 +267,40 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
       List.find vs.tokens ~f:(fun ti -> target = T.tid ti.token)
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
-    List.map vs.fluidState.extraEditors ~f:(fun (e : editorView) ->
-        let errorRail =
-          Html.div
-            [Html.classList [("fluid-error-rail", true); ("show", true)]]
-            []
-        in
-        let rowOffset =
-          e.expressionId
-          |> findRowOffestOfMainTokenWithId
-          |> Option.withDefault ~default:0
-        in
-        let tokens =
-          FluidAST.find e.expressionId vs.ast
-          |> Option.map ~f:(FluidPrinter.tokenizeForViewKind e.kind)
-          |> recoverOpt
-               ( "could not find expression id = "
-               ^ ID.toString e.expressionId
-               ^ " for editor "
-               ^ e.id )
-               ~default:[]
-        in
-        let editorState =
-          { FluidEditorView.analysisStore = vs.analysisStore
-          ; ast = vs.ast
-          ; executingFunctions = vs.executingFunctions
-          ; editorId = Some e.id
-          ; hoveringRefs = vs.hoveringRefs
-          ; fluidState = vs.fluidState
-          ; permission = vs.permission
-          ; tlid = vs.tlid
-          ; tokens }
-        in
-        Html.div
-          [ Html.class' "fluid-secondary-editor"
-          ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-          [FluidEditorView.view editorState; errorRail])
+    Fluid.buildFeatureFlagEditors vs.ast
+    |> List.map ~f:(fun e ->
+           match e with
+           | MainEditor ->
+               recover
+                 "got MainEditor when building feature flag editors"
+                 (Html.div [] [])
+           | FeatureFlagEditor expressionId ->
+               let errorRail =
+                 Html.div
+                   [Html.classList [("fluid-error-rail", true); ("show", true)]]
+                   []
+               in
+               let rowOffset =
+                 expressionId
+                 |> findRowOffestOfMainTokenWithId
+                 |> Option.withDefault ~default:0
+               in
+               let tokens = FluidPrinter.tokensForEditor e vs.ast in
+               let editorState =
+                 { FluidEditorView.analysisStore = vs.analysisStore
+                 ; ast = vs.ast
+                 ; executingFunctions = vs.executingFunctions
+                 ; editor = e
+                 ; hoveringRefs = vs.hoveringRefs
+                 ; fluidState = vs.fluidState
+                 ; permission = vs.permission
+                 ; tlid = vs.tlid
+                 ; tokens }
+               in
+               Html.div
+                 [ Html.class' "fluid-secondary-editor"
+                 ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
+                 [FluidEditorView.view editorState; errorRail])
   in
   mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
 

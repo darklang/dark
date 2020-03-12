@@ -4,7 +4,7 @@ type state =
   { analysisStore : analysisStore
   ; ast : FluidAST.t
   ; executingFunctions : ID.t list
-  ; editorId : string option
+  ; editor : fluidEditor
   ; hoveringRefs : ID.t list
   ; fluidState : fluidState
   ; permission : permission option
@@ -229,14 +229,14 @@ let view (s : state) : Types.msg Html.html =
                   FluidMsg
                     (FluidMouseUp
                        { tlid = s.tlid
-                       ; editorId = s.editorId
+                       ; editor = s.editor
                        ; selection =
                            Fluid.getExpressionRangeAtCaret s.ast fstate })
               | {detail = 2; altKey = false; _} ->
                   FluidMsg
                     (FluidMouseUp
                        { tlid = s.tlid
-                       ; editorId = s.editorId
+                       ; editor = s.editor
                        ; selection = Fluid.getTokenRangeAtCaret s.ast fstate })
               | _ ->
                   recover
@@ -244,16 +244,15 @@ let view (s : state) : Types.msg Html.html =
                     ~debug:ev
                     (FluidMsg
                        (FluidMouseUp
-                          { tlid = s.tlid
-                          ; editorId = s.editorId
-                          ; selection = None })) )
+                          {tlid = s.tlid; editor = s.editor; selection = None}))
+              )
           | None ->
               recover
                 "found no caret pos in the doubleclick handler"
                 ~debug:ev
                 (FluidMsg
                    (FluidMouseUp
-                      {tlid = s.tlid; editorId = s.editorId; selection = None})))
+                      {tlid = s.tlid; editor = s.editor; selection = None})))
     ; ViewUtils.eventNoPropagation
         ~key:("fluid-selection-mousedown" ^ tlidStr)
         "mousedown"
@@ -263,15 +262,14 @@ let view (s : state) : Types.msg Html.html =
         "mouseup"
         (fun _ ->
           FluidMsg
-            (FluidMouseUp
-               {tlid = s.tlid; editorId = s.editorId; selection = None}))
+            (FluidMouseUp {tlid = s.tlid; editor = s.editor; selection = None}))
     ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ tlidStr) ~listener:(fun msg ->
           if msg = "flashError" || msg = "flashIncomplete"
           then FluidMsg FluidClearErrorDvSrc
           else IgnoreMsg) ]
   in
   let idAttr =
-    if s.fluidState.activeEditorId = s.editorId
+    if s.fluidState.activeEditor = s.editor
     then Html.id "active-editor"
     else Html.noProp
   in

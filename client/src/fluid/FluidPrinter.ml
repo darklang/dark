@@ -535,12 +535,30 @@ let tokenize : E.t -> FluidToken.tokenInfo list =
   tokenizeWithFFTokenization FeatureFlagOnlyDisabled
 
 
-let tokenizeForViewKind (k : editorViewKind) (expr : FluidExpression.t) :
+(** returns the tokens that should populate the given editor *)
+let tokensForEditor (e : fluidEditor) (ast : FluidAST.t) :
     FluidToken.tokenInfo list =
-  match k with
-  | MainView ->
+  match e with
+  | MainEditor ->
+      tokenize (FluidAST.toExpr ast)
+  | FeatureFlagEditor id ->
+      FluidAST.find id ast
+      |> Option.map
+           ~f:(tokenizeWithFFTokenization FeatureFlagConditionAndEnabled)
+      |> recoverOpt
+           ( "could not find expression id = "
+           ^ ID.toString id
+           ^ " when tokenizing FF editor" )
+           ~default:[]
+
+
+(** returns the given expression, tokenized with the rules of the specified editor *)
+let tokenizeForEditor (e : fluidEditor) (expr : FluidExpression.t) :
+    FluidToken.tokenInfo list =
+  match e with
+  | MainEditor ->
       tokenize expr
-  | FeatureFlagView ->
+  | FeatureFlagEditor _ ->
       tokenizeWithFFTokenization FeatureFlagConditionAndEnabled expr
 
 
@@ -551,21 +569,6 @@ let tokensToString (tis : tokenInfo list) : string =
 let eToTestString (e : E.t) : string =
   e
   |> tokenize
-  |> List.map ~f:(fun ti -> T.toTestText ti.token)
-  |> String.join ~sep:""
-
-
-let testStringForViewKind (k : editorViewKind) (expr : FluidExpression.t) :
-    string =
-  let ff =
-    match k with
-    | MainView ->
-        FeatureFlagOnlyDisabled
-    | FeatureFlagView ->
-        FeatureFlagConditionAndEnabled
-  in
-  expr
-  |> tokenizeWithFFTokenization ff
   |> List.map ~f:(fun ti -> T.toTestText ti.token)
   |> String.join ~sep:""
 

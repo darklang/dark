@@ -6,7 +6,7 @@ module Token = FluidToken
 
 let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
   let s = m.fluidState in
-  let tokens = Fluid.tokensOfFocusedEditor ast m.fluidState in
+  let tokens = Fluid.tokensForActiveEditor ast m.fluidState in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =
@@ -38,16 +38,7 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
     ; dtText "ast root"
     ; Html.dd [] [Html.text (FluidAST.toID ast |> ID.toString)]
     ; dtText "active editor"
-    ; Html.dd
-        []
-        [Html.text (s.activeEditorId |> Option.withDefault ~default:"main")]
-    ; dtText "editors"
-    ; Html.dd
-        []
-        [ Html.ul
-            []
-            (List.map s.extraEditors ~f:(fun e -> Html.li [] [Html.text e.id]))
-        ]
+    ; Html.dd [] [Html.text (show_fluidEditor s.activeEditor)]
     ; dtText "acIndex"
     ; Html.dd
         []
