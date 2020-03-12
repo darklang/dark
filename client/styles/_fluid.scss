@@ -233,7 +233,10 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   caret-color: $foreground;
   font-size: 13.33px;
 
-  display: inline-block;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+
   max-width: 200ch;
   width: inherit;
 
@@ -244,6 +247,11 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   padding: 0.5ch;
 
   font-family: monaco, monospace;
+
+  .fluid-tokens {
+    display: inline-block;
+    width: inherit;
+  }
 
   .fluid-entry {
     display: inline-block;
@@ -260,6 +268,10 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 
   .fluid-newline {
     display: block;
+  }
+
+  .in-flag {
+    background-color: rgba(255, 0, 255, 0.3);
   }
 
   .fluid-category-string,
@@ -516,6 +528,7 @@ since they are essentially both commands just acting upon different things. */
 
 .fluid-secondary-editor {
   background-color: #2d2d2d;
+  box-shadow: 1px 2px 2px 0 #181818;
   position: absolute;
   left: calc(100% + 20px);
 
@@ -523,13 +536,22 @@ since they are essentially both commands just acting upon different things. */
   flex-direction: row;
   justify-content: space-between;
   width: max-content;
+  padding: 4px;
+
+  .ff-icon {
+    position: absolute;
+    color: magenta;
+    top: -10px;
+    left: -5px;
+  }
 }
 
 .fluid-error-rail {
   display: none;
   position: relative;
   width: 20px;
-  margin-top: 4px;
+  margin: 4px 0 0 8px;
+
   border-left: 1px dotted lighten($black3, 20%);
 
   &.show {
