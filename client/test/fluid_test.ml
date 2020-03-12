@@ -168,10 +168,8 @@ module TestCase = struct
     in
     let state =
       let extraEditors = Fluid.buildFeatureFlagEditors ast in
-      let activeEditorId =
-        if ff
-        then List.head extraEditors |> Option.map ~f:(fun e -> e.id)
-        else None
+      let activeEditor =
+        if ff then List.head extraEditors |> Option.valueExn else MainEditor
       in
       (* re-calculate selectionStart, pos taking into account either
        * None -> the if/else wrapper because we are testing the main editor
@@ -246,8 +244,7 @@ module TestCase = struct
              |> Option.withDefault ~default:"None" )
              pos) ;
       { defaultTestState with
-        extraEditors
-      ; activeEditorId
+        activeEditor
       ; selectionStart
       ; oldPos = pos
       ; newPos = pos }
@@ -261,16 +258,9 @@ module TestResult = struct
     ; resultAST : FluidAST.t
     ; resultState : fluidState }
 
-  let viewKind (res : t) : editorViewKind =
-    match Fluid.focusedEditor res.resultState with
-    | None ->
-        MainView
-    | Some {kind; _} ->
-        kind
-
-
   let tokenizeResult (res : t) : FluidToken.tokenInfo list =
-    FluidAST.toExpr res.resultAST |> Printer.tokenizeForViewKind (viewKind res)
+    FluidAST.toExpr res.resultAST
+    |> Printer.tokenizeForEditor res.resultState.activeEditor
 
 
   let containsPartials (res : t) : bool =
@@ -351,7 +341,7 @@ module TestResult = struct
 
 
   let toString (res : t) : string =
-    FluidAST.toExpr res.resultAST |> Printer.testStringForViewKind MainView
+    FluidAST.toExpr res.resultAST |> Printer.eToTestString
 
 
   let toStringWithCaret (res : t) : string =
@@ -4359,7 +4349,8 @@ let run () =
                  m
                  tlid
                  h.ast
-                 (FluidMouseUp {tlid; editorId = None; selection = Some (18, 18)})
+                 (FluidMouseUp
+                    {tlid; editor = MainEditor; selection = Some (18, 18)})
                  m.fluidState
              in
              newState.ac.index)

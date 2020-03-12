@@ -1144,9 +1144,8 @@ and fluidInputEvent =
 
 and fluidMouseUp =
   { tlid : TLID.t
-  ; editorId : string option
-        (** editorId is the ID.t *of the editor that was clicked on, or None if it was
-          * the main editor *)
+  ; editor : fluidEditor
+        (** fluidEditor is either MainEditor or a FeatureFlagEditor *)
   ; selection : (int * int) option
         (** selection is the beginning + end of the browser selection on
           * mouseup. The selection may be left->right or right->left. If the
@@ -1525,18 +1524,10 @@ and fluidCommandState =
   ; location : (TLID.t * ID.t) option
   ; filter : string option }
 
-(** editorViewKind represents the type of editorView. This impacts, for
-  * example, how expressions are tokenized within the view. *)
-and editorViewKind =
-  | MainView
-  | FeatureFlagView
-
-and editorView =
-  { id : string
-        (** the unique id of this editor panel, used to identify it, eg, when
-          * it is clicked and needs focus *)
-  ; expressionId : ID.t  (** the id of the top-most expression in this panel *)
-  ; kind : editorViewKind }
+and fluidEditor =
+  | MainEditor
+  | FeatureFlagEditor of ID.t
+[@@deriving show {with_path = false}]
 
 and fluidState =
   { error : string option
@@ -1559,15 +1550,7 @@ and fluidState =
       (* The source ID.t *of an error-dval of where the cursor is on and we might
        * have recently jumped to *)
       dval_source
-  ; extraEditors : editorView list
-        (** extraEditors is a list of extra (non-main) editor panels that
-          * should be rendered for the active fluideditor. For example, when a
-          * handler with a feature flag is focused, this is populated with an
-          * extra editorView for the feature flag condition. *)
-  ; activeEditorId : string option
-        (** activeEditorId is the id(editorView.id) of the active (focused)
-         * editor within the handler, or None if the main editor is active. *)
-  }
+  ; activeEditor : fluidEditor }
 
 (* Avatars *)
 and avatar =
