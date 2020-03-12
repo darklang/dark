@@ -37,10 +37,13 @@ let () =
   describe "Ast_test" Ast_test.run ;
   describe "Autocomplete_test" Autocomplete_test.run ;
   describe "Curl_test" Curl_test.run ;
-  describe "Fluid_clipboard_test" Fluid_clipboard_test.run ;
   describe "Darkstorage_test" Darkstorage_test.run ;
+  describe "Encoder test" Encoder_test.run ;
+  describe "Feature Flag test" Feature_flag_test.run ;
   describe "Fluid_ac_test" Fluid_ac_test.run ;
+  describe "Fluid_clipboard_test" Fluid_clipboard_test.run ;
   describe "Fluid_pattern_test" Fluid_pattern_test.run ;
+  describe "Fluid_selection_test" Fluid_selection_test.run ;
   describe "Fluid_test" Fluid_test.run ;
   describe "Fluid_token_test" Fluid_token_test.run ;
   describe "Introspect_test" Introspect_test.run ;
@@ -48,10 +51,8 @@ let () =
   describe "Refactor_test" Refactor_test.run ;
   describe "Rpc_test" Rpc_test.run ;
   describe "Runtime_test" Runtime_test.run ;
-  describe "View_blankor" View_blankor.run ;
-  describe "Encoder test" Encoder_test.run ;
-  describe "Fluid_selection_test" Fluid_selection_test.run ;
   describe "User_functions_test" Userfn_test.run ;
+  describe "View_blankor" View_blankor.run ;
   if !domTests
   then (
     DOMSupport.init () ;

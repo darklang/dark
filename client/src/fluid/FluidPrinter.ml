@@ -706,7 +706,7 @@ let rec eToTestcase (e : E.t) : string =
           List.map names ~f:(fun (_, name) -> quoted name) |> listed
         in
         spaced ["lambda"; names; r body]
-    | EFeatureFlag _ ->
-        "todo: feature flag: " ^ eToHumanString e
+    | EFeatureFlag (_, _, cond, oldCode, newCode) ->
+        spaced ["ff"; r cond; r oldCode; r newCode]
   in
   "(" ^ result ^ ")"
