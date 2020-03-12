@@ -1,47 +1,58 @@
 open Prelude
 module E = FluidExpression
 
-(** [wrap ast id] finds the expression having [id] and wraps it in a feature
- * flag (making it into the "old code" of the flag. *)
+let ancestorFlag (ast : FluidAST.t) (id : ID.t) : FluidExpression.t option =
+  FluidAST.ancestors id ast
+  |> List.find ~f:(function E.EFeatureFlag _ -> true | _ -> false)
+
+
+(** [wrap ast id] finds the expression having [id] and wraps it in a feature * *
+    flag (making it into the "old code" of the flag. *)
 let wrap (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
-  let inFF =
-    FluidAST.ancestors id ast
-    |> List.any ~f:(function E.EFeatureFlag _ -> true | _ -> false)
-  in
-  if inFF (* don't nest flags! *)
-  then ast
-  else
-    let replacement = function
-      | E.ELet (id, var, rhs, body) ->
-          let ff =
-            E.EFeatureFlag (gid (), "flag-name", E.newB (), rhs, E.newB ())
-          in
-          E.ELet (id, var, ff, body)
-      | e ->
-          E.EFeatureFlag (gid (), "flag-name", E.newB (), e, E.newB ())
-    in
-    FluidAST.update ~f:replacement id ast
+  match ancestorFlag ast id with
+  | Some _ ->
+      ast (* don't nest flags! *)
+  | None ->
+      FluidAST.update id ast ~f:(function
+          | E.ELet (id, var, rhs, body) ->
+              let ff =
+                E.EFeatureFlag (gid (), "flag-name", E.newB (), rhs, E.newB ())
+              in
+              E.ELet (id, var, ff, body)
+          | e ->
+              E.EFeatureFlag (gid (), "flag-name", E.newB (), e, E.newB ()))
 
 
-(** [wrap m tl id] returns a [modification] that calls [wrap] on the TL's AST
- * with the given [id]. *)
+(** [wrapCmd m tl id] returns a [modification] that calls [wrap] with the *
+    [tl]'s AST and the given [id]. *)
 let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
   Toplevel.getAST tl
   |> Option.map ~f:(fun ast -> wrap ast id |> Toplevel.setASTMod tl)
   |> Option.withDefault ~default:NoChange
 
 
-(** [unwrap m tl id]  returns a [modification] which unwraps the feature flag
- * expression having [id] in toplevel [tl], replacing it with its default case.
- * If the expression having [id] is not a FeatureFlag, does nothing. *)
-let unwrap (_ : model) (tl : toplevel) (id : ID.t) : modification =
-  let replacement e : E.t =
-    match e with
-    | E.EFeatureFlag (_id, _name, _cond, default, _enabled) ->
-        default
-    | expr ->
-        recover "tried to remove non-feature flag" expr
-  in
+(** [unwrap ast id] finds the expression having [id] and unwraps it, removing *
+    any feature flag in its ancestry and replacing it with the "old code" of the
+    flag. *)
+let unwrap (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
+  (* Either the given ID is a FF or it's somewhere in the ancestor chain. Find
+     it (hopefully). *)
+  FluidAST.find id ast
+  |> Option.andThen ~f:(function E.EFeatureFlag _ as e -> Some e | _ -> None)
+  |> Option.orElseLazy (fun _ -> ancestorFlag ast id)
+  |> Option.map ~f:(fun flag ->
+         (* once we've found the flag, remove it *)
+         FluidAST.update (E.toID flag) ast ~f:(function
+             | E.EFeatureFlag (_id, _name, _cond, oldCode, _newCode) ->
+                 oldCode
+             | e ->
+                 e (* ???? *)))
+  |> Option.withDefault ~default:ast
+
+
+(** [unwrapCmd m tl id] returns a [modification] that calls [unwrap] with the *
+    [tl]'s AST and the given [id]. *)
+let unwrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
   Toplevel.getAST tl
-  |> Option.map ~f:(FluidAST.update ~f:replacement id >> Toplevel.setASTMod tl)
+  |> Option.map ~f:(fun ast -> unwrap ast id |> Toplevel.setASTMod tl)
   |> Option.withDefault ~default:NoChange

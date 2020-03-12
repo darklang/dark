@@ -2,6 +2,8 @@ open Tc
 open FluidExpression
 open Shared
 
+let blank ?(id = gid ()) () : t = EBlank id
+
 let str ?(id = gid ()) (str : string) : t = EString (id, str)
 
 let int ?(id = gid ()) (int : int) : t = EInteger (id, string_of_int int)
@@ -110,5 +112,5 @@ let pNull ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t = FPNull (mid, id)
 
 let pBlank ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t = FPBlank (mid, id)
 
-let flag cond oldCode newCode =
-  EFeatureFlag (gid (), "flag-name", cond, oldCode, newCode)
+let flag ?(id = gid ()) cond oldCode newCode =
+  EFeatureFlag (id, "flag-name", cond, oldCode, newCode)

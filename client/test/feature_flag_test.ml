@@ -1,11 +1,12 @@
 open Tester
 module F = FluidShortcuts
 
-(** [testWrap name fn expected] tests FeatureFlag.wrap
+(** [testWrap name fn expected] tests FeatureFlag.wrap.
  *
- * Recal that FeatureFlag.wrap is called with [wrap ast id]. The [fn] expected
- * here is given the [id] and expected to return the [ast] (as a
- * FluidExpression to make life easier).
+ * Recal that FeatureFlag.wrap is called with [wrap ast id].
+ *
+ * The [fn] here is given the [id] and expected to return the [ast]
+ * (as a FluidExpression to make life easier).
  *
  * That means that in order to target a specific expression to be wrapped, use
  * the passed [id] as the ID of that expression when constructing it. For
@@ -14,16 +15,24 @@ module F = FluidShortcuts
  *
  * The [expected] string is in eToTestcase format. (That is, using an
  * S-expression-like syntax with the FluidShortcuts helpers.)
- *)
-let testWrap
-    (name : string) (fn : ID.t -> FluidExpression.t) (expected : string) =
+ *
+ * [testUnwrap] * works the same way. *)
+let testFlagFunction
+    (testFn : FluidAST.t -> ID.t -> FluidAST.t)
+    (name : string)
+    (exprFn : ID.t -> FluidExpression.t)
+    (expected : string) =
   test name (fun () ->
       let id = Shared.gid () in
-      let ast = FluidAST.ofExpr (fn id) in
-      let newAST = FeatureFlags.wrap ast id in
+      let ast = FluidAST.ofExpr (exprFn id) in
+      let newAST = testFn ast id in
       expect (FluidAST.toExpr newAST |> FluidPrinter.eToTestcase)
       |> toEqual expected)
 
+
+let testWrap = testFlagFunction FeatureFlags.wrap
+
+let testUnwrap = testFlagFunction FeatureFlags.unwrap
 
 let run () =
   describe "FeatureFlag.wrap" (fun () ->
@@ -46,4 +55,17 @@ let run () =
       testWrap
         "does not wrap an expr inside FF oldCode"
         (fun id -> F.flag (F.bool true) (F.str "old") (F.str ~id "new"))
-        {|(ff (bool true) (str "old") (str "new"))|})
+        {|(ff (bool true) (str "old") (str "new"))|}) ;
+  describe "FeatureFlag.unwrap" (fun () ->
+      testUnwrap
+        "unwrapping a simple expression leaves old code"
+        (fun id -> F.flag ~id (F.blank ()) (F.str "old") (F.str "new"))
+        {|(str "old")|} ;
+      testUnwrap
+        "unwrapping from within the old leaves the old code"
+        (fun id -> F.flag (F.blank ()) (F.str ~id "old") (F.str "new"))
+        {|(str "old")|} ;
+      testUnwrap
+        "unwrapping from within the new code leaves the old code"
+        (fun id -> F.flag (F.blank ()) (F.str "old") (F.str ~id "new"))
+        {|(str "old")|})

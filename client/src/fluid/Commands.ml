@@ -56,7 +56,7 @@ let commands : command list =
     ; action = FeatureFlags.wrapCmd
     ; doc = "Add a feature flag with the expression as the default case" }
   ; { commandName = "remove-feature-flag"
-    ; action = FeatureFlags.unwrap
+    ; action = FeatureFlags.unwrapCmd
     ; doc = "Replace the feature flag with the default case" }
   ; putFunctionOnRail
   ; takeFunctionOffRail
