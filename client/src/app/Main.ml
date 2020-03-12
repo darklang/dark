@@ -1073,7 +1073,7 @@ let update_ (msg : msg) (m : model) : modification =
           if distSquared viewportStart viewportCurr
              <= maxSquareDistToConsiderAsClick
           then
-            (* {m with cursorState = prevCursorState} bypasses the focus part of 
+            (* {m with cursorState = prevCursorState} bypasses the focus part of
              * CursorState.setCursorState to avoid focusing any elements that
              * clickBehavior might dismiss (ex closing the omnibox). *)
             Many
@@ -1311,12 +1311,6 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd (API.saveTest m)
   | FinishIntegrationTest ->
       EndIntegrationTest
-  | StartFeatureFlag ->
-      FeatureFlags.start m
-  | EndFeatureFlag (id, pick) ->
-      FeatureFlags.end_ m id pick
-  | ToggleFeatureFlag (id, is) ->
-      FeatureFlags.toggle id is
   | ExtractFunction ->
     ( match m.cursorState with
     | Selecting (tlid, mId) ->

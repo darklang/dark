@@ -1239,9 +1239,6 @@ and msg =
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string
   | PageVisibilityChange of PageVisibility.visibility
-  | StartFeatureFlag
-  | EndFeatureFlag of ID.t * pick
-  | ToggleFeatureFlag of ID.t * bool
   | DeleteUserFunctionParameter of TLID.t * userFunctionParameter
   | AddUserFunctionParameter of TLID.t
   | UploadFn of TLID.t
