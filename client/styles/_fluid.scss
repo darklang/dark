@@ -270,6 +270,10 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
     display: block;
   }
 
+  .in-flag {
+    background-color: rgba(255, 0, 255, 0.3);
+  }
+
   .fluid-category-string,
   .fluid-pattern-string {
     // I don't know why this works inside &:not(.fa) and not a level up ... but

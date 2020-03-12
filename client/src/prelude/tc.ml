@@ -353,10 +353,19 @@ module Set (K : Key) = struct
     StrSet.add ~value:(K.toString value) set
 
 
+  let addMany ~(values : K.t list) (set : t) : t =
+    List.foldl values ~init:set ~f:(fun v acc ->
+        StrSet.add ~value:(K.toString v) acc)
+
+
   let set = add
 
   let toList (set : t) : K.t list =
     set |> StrSet.toList |> List.map ~f:K.fromString
+
+
+  let member ~(value : K.t) (set : t) : bool =
+    StrSet.member ~value:(K.toString value) set
 
 
   let remove ~(value : K.t) (set : t) : t =

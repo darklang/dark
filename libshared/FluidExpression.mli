@@ -111,6 +111,9 @@ val blanks : t -> t list
 (** [ids e] returns the id of [e] and all its children *)
 val ids : t -> Shared.id list
 
+(** [children e] returns a list of all the children of [e] *)
+val children : t -> t list
+
 (** [update f target ast] recursively searches [ast] for an expression e
     having an Shared.id of [target].
 
