@@ -231,8 +231,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   in
   let errorRail =
     let indicators =
-      vs.mainEditor.tokens
-      |> List.map ~f:(viewErrorIndicator ~analysisStore ~state)
+      List.map vs.tokens ~f:(viewErrorIndicator ~analysisStore ~state)
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
     Html.div
@@ -253,7 +252,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
     ; fluidState = vs.fluidState
     ; permission = vs.permission
     ; tlid = vs.tlid
-    ; tokens = vs.mainEditor.tokens }
+    ; tokens = vs.tokens }
   in
   let mainEditor = FluidEditorView.view editorState in
   let returnValue = viewReturnValue vs in
@@ -265,37 +264,45 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
        * and then looking through the main tokens [O(N)] to find one with a
        * corresponding id. This is brittle and will likely break at some point. We
        * should do something better. *)
-      List.find vs.mainEditor.tokens ~f:(fun ti -> target = T.tid ti.token)
+      List.find vs.tokens ~f:(fun ti -> target = T.tid ti.token)
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
-    vs.extraEditors
-    |> List.map ~f:(fun (e : ViewUtils.editorViewState) ->
-           let errorRail =
-             Html.div
-               [Html.classList [("fluid-error-rail", true); ("show", true)]]
-               []
-           in
-           let rowOffset =
-             e.expr
-             |> E.toID
-             |> findRowOffestOfMainTokenWithId
-             |> Option.withDefault ~default:0
-           in
-           let editorState =
-             { FluidEditorView.analysisStore = vs.analysisStore
-             ; ast = vs.ast
-             ; executingFunctions = vs.executingFunctions
-             ; editorId = e.editorId
-             ; hoveringRefs = vs.hoveringRefs
-             ; fluidState = vs.fluidState
-             ; permission = vs.permission
-             ; tlid = vs.tlid
-             ; tokens = e.tokens }
-           in
-           Html.div
-             [ Html.class' "fluid-secondary-editor"
-             ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-             [FluidEditorView.view editorState; errorRail])
+    List.map vs.fluidState.extraEditors ~f:(fun (e : editorView) ->
+        let errorRail =
+          Html.div
+            [Html.classList [("fluid-error-rail", true); ("show", true)]]
+            []
+        in
+        let rowOffset =
+          e.expressionId
+          |> findRowOffestOfMainTokenWithId
+          |> Option.withDefault ~default:0
+        in
+        let tokens =
+          FluidAST.find e.expressionId vs.ast
+          |> Option.map ~f:(FluidPrinter.tokenizeForViewKind e.kind)
+          |> recoverOpt
+               ( "could not find expression id = "
+               ^ ID.toString e.expressionId
+               ^ " for editor "
+               ^ e.id )
+               ~default:[]
+        in
+        let editorState =
+          { FluidEditorView.analysisStore = vs.analysisStore
+          ; ast = vs.ast
+          ; executingFunctions = vs.executingFunctions
+          ; editorId = Some e.id
+          ; hoveringRefs = vs.hoveringRefs
+          ; fluidState = vs.fluidState
+          ; permission = vs.permission
+          ; tlid = vs.tlid
+          ; tokens }
+        in
+        Html.div
+          [ Html.class' "fluid-secondary-editor"
+          ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
+          [FluidEditorView.view editorState; errorRail])
   in
   mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
 

@@ -21,6 +21,7 @@ let run () =
           let vs : ViewUtils.viewState =
             { tl
             ; ast = FluidAST.ofExpr ast
+            ; tokens = []
             ; cursorState = Deselected
             ; fluidState = Defaults.defaultFluidState
             ; tlid = gtlid ()
@@ -47,9 +48,6 @@ let run () =
             ; tlTraceIDs = TLIDDict.empty
             ; testVariants = []
             ; featureFlags = StrDict.empty
-            ; extraEditors = []
-            ; mainEditor =
-                {tlid = gtlid (); editorId = None; expr = ast; tokens = []}
             ; handlerProp = None
             ; canvasName = ""
             ; userContentHost = ""
