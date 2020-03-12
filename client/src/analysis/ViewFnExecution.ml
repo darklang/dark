@@ -15,14 +15,28 @@ type fnExecutionStatus =
   | Replayable
   | NoPermission
 
-let functionIsExecuting (vs : viewState) (id : ID.t) : bool =
-  List.member ~value:id vs.executingFunctions
+type state =
+  { analysisStore : analysisStore
+  ; ast : FluidAST.t
+  ; executingFunctions : ID.t list
+  ; permission : permission option
+  ; tlid : TLID.t }
+
+let stateFromViewState (s : ViewUtils.viewState) : state =
+  { analysisStore = s.analysisStore
+  ; ast = s.ast
+  ; executingFunctions = s.executingFunctions
+  ; permission = s.permission
+  ; tlid = s.tlid }
 
 
 let fnExecutionStatus
-    (vs : viewState) (fn : function_) (id : ID.t) (args : ID.t list) =
+    (s : state) (fn : function_) (id : ID.t) (args : ID.t list) =
+  let functionIsExecuting (fid : ID.t) : bool =
+    List.member ~value:fid s.executingFunctions
+  in
   let isComplete id =
-    match Analysis.getLiveValue' vs.analysisStore id with
+    match Analysis.getLiveValue' s.analysisStore id with
     | None | Some (DError _) | Some (DIncomplete _) ->
         false
     | Some _ ->
@@ -31,13 +45,13 @@ let fnExecutionStatus
   let paramsComplete = List.all ~f:isComplete args in
   let resultHasValue = isComplete id in
   let name = fn.fnName in
-  if vs.permission <> Some ReadWrite
+  if s.permission <> Some ReadWrite
   then NoPermission
   else if name = "Password::check" || name = "Password::hash"
   then Unsafe
   else if not paramsComplete
   then IncompleteArgs
-  else if functionIsExecuting vs id
+  else if functionIsExecuting id
   then Executing
   else if resultHasValue
   then Replayable
@@ -117,16 +131,16 @@ let executionEvents status tlid id name =
 
 
 let fnExecutionButton
-    (vs : viewState) (fn : function_) (id : ID.t) (args : ID.t list) =
+    (s : state) (fn : function_) (id : ID.t) (args : ID.t list) =
   let name = fn.fnName in
-  let status = fnExecutionStatus vs fn id args in
+  let status = fnExecutionStatus s fn id args in
   if fn.fnPreviewExecutionSafe
   then Vdom.noNode
   else
     let class_ = executionClass status in
     let title = executionTitle status in
     let icon = executionIcon status in
-    let events = executionEvents status vs.tlid id name in
+    let events = executionEvents status s.tlid id name in
     Html.div
       ([Html.class' ("execution-button " ^ class_); Html.title title] @ events)
       [fontAwesome icon]

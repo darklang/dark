@@ -111,7 +111,8 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
                let args =
                  AST.getArguments (T.tid token) vs.ast |> List.map ~f:E.toID
                in
-               ViewFnExecution.fnExecutionStatus vs fn id args
+               let s = ViewFnExecution.stateFromViewState vs in
+               ViewFnExecution.fnExecutionStatus s fn id args
                |> ViewFnExecution.executionError
                |> Option.some)
     in
@@ -243,7 +244,18 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
     then viewLiveValue vs
     else Vdom.noNode
   in
-  let mainEditor = FluidEditorView.view vs vs.mainEditor in
+  let editorState =
+    { FluidEditorView.analysisStore = vs.analysisStore
+    ; ast = vs.ast
+    ; executingFunctions = vs.executingFunctions
+    ; editorId = None
+    ; hoveringRefs = vs.hoveringRefs
+    ; fluidState = vs.fluidState
+    ; permission = vs.permission
+    ; tlid = vs.tlid
+    ; tokens = vs.mainEditor.tokens }
+  in
+  let mainEditor = FluidEditorView.view editorState in
   let returnValue = viewReturnValue vs in
   let secondaryEditors =
     let findRowOffestOfMainTokenWithId (target : ID.t) : int option =
@@ -269,10 +281,21 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
              |> findRowOffestOfMainTokenWithId
              |> Option.withDefault ~default:0
            in
+           let editorState =
+             { FluidEditorView.analysisStore = vs.analysisStore
+             ; ast = vs.ast
+             ; executingFunctions = vs.executingFunctions
+             ; editorId = e.editorId
+             ; hoveringRefs = vs.hoveringRefs
+             ; fluidState = vs.fluidState
+             ; permission = vs.permission
+             ; tlid = vs.tlid
+             ; tokens = e.tokens }
+           in
            Html.div
              [ Html.class' "fluid-secondary-editor"
              ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-             [FluidEditorView.view vs e; errorRail])
+             [FluidEditorView.view editorState; errorRail])
   in
   mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
 
