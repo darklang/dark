@@ -325,3 +325,12 @@ let isHoverOverTL (vs : viewState) : bool =
 
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
+
+let fnForToken (state : fluidState) token : function_ option =
+  match token with
+  | TBinOp (_, fnName)
+  | TFnVersion (_, _, _, fnName)
+  | TFnName (_, _, _, fnName, _) ->
+      Some (Functions.findByNameInList fnName state.ac.functions)
+  | _ ->
+      None
