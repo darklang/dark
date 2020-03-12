@@ -208,14 +208,21 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   let mainEditor = FluidEditorView.view editorState in
   let returnValue = viewReturnValue vs in
   let secondaryEditors =
-    let findRowOffestOfMainTokenWithId (target : ID.t) : int option =
+    let findRowOffestOfMainTokenWithId (flagID : ID.t) : int option =
       (* FIXME(ds) this is a giant hack to find the row offset of the corresponding
        * token in the main view for each secondary editor. This works by getting
        * the id of the split (ie, the id of the first token in the split)
        * and then looking through the main tokens [O(N)] to find one with a
        * corresponding id. This is brittle and will likely break at some point. We
        * should do something better. *)
-      List.find vs.tokens ~f:(fun ti -> target = T.tid ti.token)
+      FluidAST.find flagID vs.ast
+      |> Option.andThen ~f:(function
+             | E.EFeatureFlag (_, _, _, oldCode, _) ->
+                 Some (E.toID oldCode)
+             | _ ->
+                 None)
+      |> Option.andThen ~f:(fun oldCodeID ->
+             List.find vs.tokens ~f:(fun ti -> oldCodeID = T.tid ti.token))
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
     Fluid.buildFeatureFlagEditors vs.ast
@@ -248,7 +255,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                in
                Html.div
                  [ Html.class' "fluid-secondary-editor"
-                 ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
+                 ; Html.styles [("top", string_of_int rowOffset ^ ".5rem")] ]
                  [flagIcon; FluidEditorView.view editorState])
   in
   mainEditor :: liveValue :: returnValue :: secondaryEditors
