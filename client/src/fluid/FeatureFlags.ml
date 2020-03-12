@@ -1,6 +1,10 @@
 open Prelude
 module E = FluidExpression
 
+type unwrapKeep =
+  | KeepOld
+  | KeepNew
+
 let ancestorFlag (ast : FluidAST.t) (id : ID.t) : FluidExpression.t option =
   FluidAST.ancestors id ast
   |> List.find ~f:(function E.EFeatureFlag _ -> true | _ -> false)
@@ -23,36 +27,38 @@ let wrap (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
               E.EFeatureFlag (gid (), "flag-name", E.newB (), e, E.newB ()))
 
 
-(** [wrapCmd m tl id] returns a [modification] that calls [wrap] with the *
-    [tl]'s AST and the given [id]. *)
+(** [wrapCmd m tl id] returns a [modification] that calls [wrap] with the
+    [tl]'s AST. *)
 let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
   Toplevel.getAST tl
   |> Option.map ~f:(fun ast -> wrap ast id |> Toplevel.setASTMod tl)
   |> Option.withDefault ~default:NoChange
 
 
-(** [unwrap ast id] finds the expression having [id] and unwraps it, removing *
-    any feature flag in its ancestry and replacing it with the "old code" of the
-    flag. *)
-let unwrap (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
+(** [unwrap keep ast id] finds the expression having [id] and unwraps it,
+ * removing *
+    any feature flag in its ancestry and replacing it with the "old code" of
+    the flag. *)
+let unwrap (keep : unwrapKeep) (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
   (* Either the given ID is a FF or it's somewhere in the ancestor chain. Find
      it (hopefully). *)
   FluidAST.find id ast
   |> Option.andThen ~f:(function E.EFeatureFlag _ as e -> Some e | _ -> None)
   |> Option.orElseLazy (fun _ -> ancestorFlag ast id)
   |> Option.map ~f:(fun flag ->
-         (* once we've found the flag, remove it *)
+         (* once we've found the flag, remove it, keeping the correct thing *)
          FluidAST.update (E.toID flag) ast ~f:(function
-             | E.EFeatureFlag (_id, _name, _cond, oldCode, _newCode) ->
-                 oldCode
+             | E.EFeatureFlag (_id, _name, _cond, oldCode, newCode) ->
+               (match keep with KeepOld -> oldCode | KeepNew -> newCode)
              | e ->
                  e (* ???? *)))
   |> Option.withDefault ~default:ast
 
 
-(** [unwrapCmd m tl id] returns a [modification] that calls [unwrap] with the *
-    [tl]'s AST and the given [id]. *)
-let unwrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
+(** [unwrapCmd keep m tl id] returns a [modification] that calls [unwrap] with
+ * the [tl]'s AST. *)
+let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
+    modification =
   Toplevel.getAST tl
-  |> Option.map ~f:(fun ast -> unwrap ast id |> Toplevel.setASTMod tl)
+  |> Option.map ~f:(fun ast -> unwrap keep ast id |> Toplevel.setASTMod tl)
   |> Option.withDefault ~default:NoChange

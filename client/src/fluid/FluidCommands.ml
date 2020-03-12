@@ -16,7 +16,8 @@ let fluidCommands (m : model) =
     Commands.commands
     |> List.filter ~f:(function
            | {commandName = "add-feature-flag"; _}
-           | {commandName = "remove-feature-flag"; _} ->
+           | {commandName = "discard-feature-flag"; _}
+           | {commandName = "commit-feature-flag"; _} ->
                false
            | _ ->
                true)

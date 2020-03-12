@@ -54,10 +54,13 @@ let commands : command list =
     ; doc = "Put expr in the arm of a match" }
   ; { commandName = "add-feature-flag"
     ; action = FeatureFlags.wrapCmd
-    ; doc = "Add a feature flag with the expression as the default case" }
-  ; { commandName = "remove-feature-flag"
-    ; action = FeatureFlags.unwrapCmd
-    ; doc = "Replace the feature flag with the default case" }
+    ; doc = "Add a feature flag around the expression" }
+  ; { commandName = "discard-feature-flag"
+    ; action = FeatureFlags.unwrapCmd FeatureFlags.KeepOld
+    ; doc = "Remove the flag, keeping the old code" }
+  ; { commandName = "commit-feature-flag"
+    ; action = FeatureFlags.unwrapCmd FeatureFlags.KeepNew
+    ; doc = "Remove the flag, keeping the new code" }
   ; putFunctionOnRail
   ; takeFunctionOffRail
   ; { commandName = "create-type"
