@@ -475,7 +475,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
      * they are built differently depending on the current builder option. *)
     ( match b.ffTokenization with
     | FeatureFlagOnlyDisabled ->
-        b |> nest ~indent:2 disabled
+        b |> addNested ~f:(toTokens' disabled)
     | FeatureFlagConditionAndEnabled ->
         b
         |> add (TFlagWhenKeyword id)

@@ -4884,4 +4884,11 @@ let run () =
     ~pos:3
     (inputs [InsertText "f"; DeleteContentBackward])
     "so\\~me string" ;
-  ()
+  () ;
+  describe "Feature Flags" (fun () ->
+      t
+        ~brokenInFF:true
+        "feature flag renders old code with no change"
+        letWithflagBody
+        render
+        "~let a = 1\n\"c\"")
