@@ -11,6 +11,8 @@ type state =
   ; tlid : TLID.t
   ; tokens : FluidToken.tokenInfo list }
 
+let isActiveEditor (s : state) = s.fluidState.activeEditor = s.editor
+
 let stateToFnExecutionState (s : state) : ViewFnExecution.state =
   { analysisStore = s.analysisStore
   ; ast = s.ast
@@ -99,13 +101,13 @@ let toHtml (s : state) : Types.msg Html.html list =
     | Some onTi when onTi = ti ->
         FluidCommands.viewCommandPalette s.fluidState.cp
     | _ ->
-        if Fluid.isAutocompleting ti s.fluidState
+        if Fluid.isAutocompleting ti s.fluidState && isActiveEditor s
         then FluidAutocompleteView.view s.fluidState.ac
         else Vdom.noNode
   in
   let isSelected tokenStart tokenEnd =
     let selStart, selEnd = Fluid.getSelectionRange s.fluidState in
-    selStart <= tokenStart && tokenEnd <= selEnd
+    isActiveEditor s && selStart <= tokenStart && tokenEnd <= selEnd
   in
   List.map s.tokens ~f:(fun ti ->
       let element nested =
@@ -128,7 +130,8 @@ let toHtml (s : state) : Types.msg Html.html list =
             | _ ->
                 (currNesting, None)
           in
-          (* We want 0 precedence to only show up at the AST root and not in any wraparounds, so this goes 0123412341234... *)
+          (* We want 0 precedence to only show up at the AST root and not in
+           * any wraparounds, so this goes 0123412341234... *)
           let wraparoundPrecedenceClass ~ext n =
             let wraparoundPrecedence =
               if n > 0 then ((n - 1) mod 4) + 1 else n
@@ -150,7 +153,9 @@ let toHtml (s : state) : Types.msg Html.html list =
           let isError =
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
             FluidToken.isErrorDisplayable ti.token
-            && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
+            && (* This expression is the source of its own incompleteness. We
+            only draw underlines under sources of incompletes, not all
+            propagated occurrences. *)
             sourceId = Some analysisId
           in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
