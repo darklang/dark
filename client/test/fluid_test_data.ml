@@ -490,6 +490,8 @@ let flagOld oldCode = EFeatureFlag (gid (), "flag-name", falseBool, oldCode, b)
 
 let flagNew newCode = EFeatureFlag (gid (), "flag-name", trueBool, b, newCode)
 
+let letWithflagBody = let' "a" aShortInt (flagOld oneCharStr)
+
 (* ---------------- *)
 (* Complex *)
 (* ---------------- *)
