@@ -1,7 +1,11 @@
 open Prelude
 
 let variantIsActive (m : model) (vt : variantTest) : bool =
-  List.member ~value:vt m.tests
+  match vt with
+  | FeatureFlagVariant ->
+      m.isAdmin || List.member ~value:vt m.tests
+  | _ ->
+      List.member ~value:vt m.tests
 
 
 let toVariantTest (s : string * bool) : variantTest option =
