@@ -196,8 +196,7 @@ let toHtml (s : state) : Types.msg Html.html list =
   |> List.flatten
 
 
-(** [view] builds a fluid editor *)
-let view (s : state) : Types.msg Html.html =
+let tokensView (s : state) : Types.msg Html.html =
   let tlidStr = TLID.toString s.tlid in
   let textInputListeners =
     (* the command palette is inside div.fluid-editor but has it's own input
@@ -280,7 +279,7 @@ let view (s : state) : Types.msg Html.html =
   in
   Html.div
     ( [ idAttr
-      ; Html.class' "fluid-editor"
+      ; Html.class' "fluid-tokens"
       ; Vdom.prop "contentEditable" "true"
       ; Html.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
@@ -289,3 +288,54 @@ let view (s : state) : Types.msg Html.html =
     @ clickHandlers
     @ Tuple3.toList textInputListeners )
     (toHtml s)
+
+
+let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
+    Types.msg Html.html =
+  let returnTipe (name : string) =
+    let fn = Functions.findByNameInList name s.fluidState.ac.functions in
+    Runtime.tipe2str fn.fnReturnTipe
+  in
+  let sentToRail (id : ID.t) =
+    let dv = Analysis.getLiveValue' s.analysisStore id in
+    match dv with
+    | Some (DErrorRail (DResult (ResError _)))
+    | Some (DErrorRail (DOption OptNothing)) ->
+        "ErrorRail"
+    | Some (DIncomplete _) | Some (DError _) ->
+        "EvalFail"
+    | _ ->
+        ""
+  in
+  match ti.token with
+  | TFnName (id, _, _, fnName, Rail) ->
+      let offset = string_of_int ti.startRow ^ "rem" in
+      let cls = ["error-indicator"; returnTipe fnName; sentToRail id] in
+      let event =
+        Vdom.noProp
+        (* TEMPORARY DISABLE
+          ViewUtils.eventNoPropagation
+            ~key:("er-" ^ show_id id)
+            "click"
+            (fun _ -> TakeOffErrorRail (tlid, id)) *)
+      in
+      Html.div
+        [ Html.class' (String.join ~sep:" " cls)
+        ; Html.styles [("top", offset)]
+        ; event ]
+        []
+  | _ ->
+      Vdom.noNode
+
+
+let errorRailView (s : state) : Types.msg Html.html =
+  let indicators = List.map s.tokens ~f:(viewErrorIndicator s) in
+  let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
+  Html.div
+    [Html.classList [("fluid-error-rail", true); ("show", hasMaybeErrors)]]
+    indicators
+
+
+(** [view] builds a fluid editor *)
+let view (s : state) : Types.msg Html.html =
+  Html.div [Html.class' "fluid-editor"] [tokensView s; errorRailView s]
