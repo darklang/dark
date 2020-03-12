@@ -226,6 +226,9 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                  "got MainEditor when building feature flag editors"
                  (Html.div [] [])
            | FeatureFlagEditor expressionId ->
+               let flagIcon =
+                 Html.div [Html.class' "ff-icon"] [ViewUtils.fontAwesome "flag"]
+               in
                let rowOffset =
                  expressionId
                  |> findRowOffestOfMainTokenWithId
@@ -246,7 +249,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                Html.div
                  [ Html.class' "fluid-secondary-editor"
                  ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-                 [FluidEditorView.view editorState])
+                 [flagIcon; FluidEditorView.view editorState])
   in
   mainEditor :: liveValue :: returnValue :: secondaryEditors
 
