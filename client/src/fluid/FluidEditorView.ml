@@ -109,6 +109,31 @@ let toHtml (s : state) : Types.msg Html.html list =
     let selStart, selEnd = Fluid.getSelectionRange s.fluidState in
     isActiveEditor s && selStart <= tokenStart && tokenEnd <= selEnd
   in
+  let idsInAFlag =
+    (* If we're in the main editor, find all the FF expressions, then build a
+     * set of all the IDs of them and their children. This is used below to
+     * apply a CSS class to highlight tokens contained in a FF. *)
+    match s.editor with
+    | FeatureFlagEditor _ ->
+        ID.Set.empty
+    | MainEditor ->
+        FluidAST.filter s.ast ~f:(function
+            | EFeatureFlag _ ->
+                true
+            | _ ->
+                false)
+        |> List.foldl ~init:ID.Set.empty ~f:(fun e acc ->
+               match e with
+               | FluidExpression.EFeatureFlag (_, _, _, oldCode, _) ->
+                   let values =
+                     FluidExpression.children oldCode
+                     |> List.map ~f:FluidExpression.toID
+                   in
+                   ID.Set.add ~value:(FluidExpression.toID oldCode) acc
+                   |> ID.Set.addMany ~values
+               | _ ->
+                   acc)
+  in
   List.map s.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = FluidToken.tid ti.token in
@@ -160,6 +185,7 @@ let toHtml (s : state) : Types.msg Html.html list =
           in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
+          ; ("in-flag", ID.Set.member idsInAFlag ~value:tokenId)
           ; ("fluid-error", isError)
           ; ( "fluid-executed"
             , wasExecuted tokenId |> Option.withDefault ~default:false )
