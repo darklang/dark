@@ -30,43 +30,6 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewErrorIndicator ~analysisStore ~state ti : Types.msg Html.html =
-  let returnTipe name =
-    let fn = Functions.findByNameInList name state.ac.functions in
-    Runtime.tipe2str fn.fnReturnTipe
-  in
-  let sentToRail id =
-    let dv = Analysis.getLiveValue' analysisStore id in
-    match dv with
-    | Some (DErrorRail (DResult (ResError _)))
-    | Some (DErrorRail (DOption OptNothing)) ->
-        "ErrorRail"
-    | Some (DIncomplete _) | Some (DError _) ->
-        "EvalFail"
-    | _ ->
-        ""
-  in
-  match ti.token with
-  | TFnName (id, _, _, fnName, Rail) ->
-      let offset = string_of_int ti.startRow ^ "rem" in
-      let cls = ["error-indicator"; returnTipe fnName; sentToRail id] in
-      let event =
-        Vdom.noProp
-        (* TEMPORARY DISABLE
-          ViewUtils.eventNoPropagation
-            ~key:("er-" ^ show_id id)
-            "click"
-            (fun _ -> TakeOffErrorRail (tlid, id)) *)
-      in
-      Html.div
-        [ Html.class' (String.join ~sep:" " cls)
-        ; Html.styles [("top", offset)]
-        ; event ]
-        []
-  | _ ->
-      Vdom.noNode
-
-
 let viewArrow (curID : ID.t) (srcID : ID.t) : Types.msg Html.html =
   let curSelector = ".id-" ^ ID.toString curID in
   let srcSelector = ".id-" ^ ID.toString srcID in
@@ -226,20 +189,8 @@ let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
 
 
 let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
-  let ({analysisStore; tlid; fluidState = state; _} : ViewUtils.viewState) =
-    vs
-  in
-  let errorRail =
-    let indicators =
-      List.map vs.tokens ~f:(viewErrorIndicator ~analysisStore ~state)
-    in
-    let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
-    Html.div
-      [Html.classList [("fluid-error-rail", true); ("show", hasMaybeErrors)]]
-      indicators
-  in
   let liveValue =
-    if vs.cursorState = FluidEntering tlid
+    if vs.cursorState = FluidEntering vs.tlid
     then viewLiveValue vs
     else Vdom.noNode
   in
@@ -275,11 +226,6 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                  "got MainEditor when building feature flag editors"
                  (Html.div [] [])
            | FeatureFlagEditor expressionId ->
-               let errorRail =
-                 Html.div
-                   [Html.classList [("fluid-error-rail", true); ("show", true)]]
-                   []
-               in
                let rowOffset =
                  expressionId
                  |> findRowOffestOfMainTokenWithId
@@ -300,9 +246,9 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                Html.div
                  [ Html.class' "fluid-secondary-editor"
                  ; Html.styles [("top", string_of_int rowOffset ^ "rem")] ]
-                 [FluidEditorView.view editorState; errorRail])
+                 [FluidEditorView.view editorState])
   in
-  mainEditor :: liveValue :: returnValue :: errorRail :: secondaryEditors
+  mainEditor :: liveValue :: returnValue :: secondaryEditors
 
 
 let view (vs : ViewUtils.viewState) =
