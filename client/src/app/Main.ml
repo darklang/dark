@@ -316,8 +316,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     match mod_ with
     | ReplaceAllModificationsWithThisOne f ->
         f m
-    | DisplayError e ->
-        ({m with error = Some e}, Cmd.none)
     | HandleAPIError apiError ->
         let now = Js.Date.now () |> Js.Date.fromFloat in
         let shouldReload =
@@ -367,15 +365,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM =
           let error =
             if APIError.shouldDisplayToUser apiError && not ignore
-            then Some (APIError.msg apiError)
+            then Error.set (APIError.msg apiError) m.error
             else m.error
           in
           let lastReload = if shouldReload then Some now else m.lastReload in
           {m with error; lastReload}
         in
         (newM, cmd)
-    | ClearError ->
-        ({m with error = None}, Cmd.none)
     | AddOps (ops, focus) ->
         handleAPI (API.opsParams ops ((m |> opCtr) + 1) m.clientOpCtrId) focus
     | GetUnlockedDBsAPICall ->
@@ -843,13 +839,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 (m, API.executeFunction m params)
             | None ->
                 (m, Cmd.none)
-                |> updateMod
-                     (DisplayError "Traces are not loaded for this handler")
+                |> Model.updateError
+                     (Error.set "Traces are not loaded for this handler")
                 |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
           | None ->
               (m, Cmd.none)
-              |> updateMod
-                   (DisplayError "Traces are not loaded for this handler")
+              |> Model.updateError
+                   (Error.set "Traces are not loaded for this handler")
               |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
       | None ->
           (* Attempted to execute a function in a toplevel that we just deleted! *)
@@ -1468,7 +1464,7 @@ let update_ (msg : msg) (m : model) : modification =
                   (UserTypes.fromList r.result.userTipes) }
           in
           let newState = processFocus m focus in
-          [AutocompleteMod ACReset; ClearError; newState]
+          [AutocompleteMod ACReset; Model.updateErrorMod Error.clear; newState]
       in
       Many (initialMods @ focusMods)
   | AddOpsStrollerMsg msg ->
@@ -1498,7 +1494,8 @@ let update_ (msg : msg) (m : model) : modification =
       in
       UpdateTraces traces
   | FetchAllTracesAPICallback (Error x) ->
-      DisplayError ("Failed to load traces: " ^ Tea_http.string_of_error x)
+      Model.updateErrorMod
+        (Error.set ("Failed to load traces: " ^ Tea_http.string_of_error x))
   | InitialLoadAPICallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
@@ -1533,14 +1530,14 @@ let update_ (msg : msg) (m : model) : modification =
         ; Append404s r.fofs
         ; AppendStaticDeploy r.staticDeploys
         ; AutocompleteMod ACReset
-        ; ClearError
+        ; Model.updateErrorMod Error.clear
         ; extraMod
         ; newState
         ; MakeCmd (API.fetchAllTraces m)
         ; InitIntrospect (TD.values allTLs)
         ; InitASTCache (r.handlers, r.userFunctions) ]
-  | SaveTestAPICallback (Ok msg_) ->
-      DisplayError ("Success! " ^ msg_)
+  | SaveTestAPICallback (Ok msg) ->
+      Model.updateErrorMod (Error.set ("Success! " ^ msg))
   | ExecuteFunctionAPICallback
       (params, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
@@ -1628,9 +1625,9 @@ let update_ (msg : msg) (m : model) : modification =
     | Ok (id, analysisResults) ->
         UpdateAnalysis (id, analysisResults)
     | Error (AnalysisExecutionError (_, str)) ->
-        DisplayError str
+        Model.updateErrorMod (Error.set str)
     | Error (AnalysisParseError str) ->
-        DisplayError str )
+        Model.updateErrorMod (Error.set str) )
   | ReceiveFetch (TraceFetchFailure (params, _, "Bad credentials")) ->
       HandleAPIError
         (APIError.make
@@ -1790,7 +1787,8 @@ let update_ (msg : msg) (m : model) : modification =
            ~reload:false
            err)
   | SaveTestAPICallback (Error err) ->
-      DisplayError ("Error: " ^ Tea_http.string_of_error err)
+      Model.updateErrorMod
+        (Error.set ("Error: " ^ Tea_http.string_of_error err))
   | ExecuteFunctionAPICallback (params, Error err) ->
       HandleAPIError
         (APIError.make
@@ -1830,8 +1828,8 @@ let update_ (msg : msg) (m : model) : modification =
            ~importance:ImportantError
            ~reload:false
            err)
-  | JSError msg_ ->
-      DisplayError ("Error in JS: " ^ msg_)
+  | JSError msg ->
+      Model.updateErrorMod (Error.set ("Error in JS: " ^ msg))
   | LocationChange loc ->
       Url.changeLocation loc
   | TimerFire (action, _) ->
@@ -1979,14 +1977,15 @@ let update_ (msg : msg) (m : model) : modification =
        *    - old clients after a deploy
        *    - lots of events using a bad decoder
        *    - rollbar token exhaustion *)
-      DisplayError
-        ( "INTERNAL: Error decoding js event "
-        ^ name
-        ^ " with key "
-        ^ key
-        ^ " got error: \""
-        ^ error
-        ^ "\"" )
+      Model.updateErrorMod
+        (Error.set
+           ( "INTERNAL: Error decoding js event "
+           ^ name
+           ^ " with key "
+           ^ key
+           ^ " got error: \""
+           ^ error
+           ^ "\"" ))
   | UpdateHandlerState (tlid, state) ->
       ReplaceAllModificationsWithThisOne
         (fun m -> (Handlers.setHandlerState tlid state m, Cmd.none))
@@ -2030,7 +2029,8 @@ let update_ (msg : msg) (m : model) : modification =
       |> Option.andThen ~f:TL.asUserFunction
       |> Option.map ~f:(fun uplFn -> API.uploadFn m {uplFn})
       |> Option.map ~f:(fun cmd -> MakeCmd cmd)
-      |> Option.withDefault ~default:(DisplayError "No function to upload")
+      |> Option.withDefault
+           ~default:(Model.updateErrorMod (Error.set "No function to upload"))
   | SetHandlerExeIdle tlid ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
@@ -2086,7 +2086,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; Deselect
         ; MakeCmd (Url.navigateTo Architecture) ]
   | DismissErrorBar ->
-      ClearError
+      Model.updateErrorMod Error.clear
   | PauseWorker workerName ->
       MakeCmd (API.updateWorkerSchedule m {workerName; schedule = "pause"})
   | RunWorker workerName ->
@@ -2094,7 +2094,7 @@ let update_ (msg : msg) (m : model) : modification =
   | UpdateWorkerScheduleCallback (Ok schedules) ->
       UpdateWorkerSchedules schedules
   | UpdateWorkerScheduleCallback (Error _) ->
-      DisplayError "Failed to update worker schedule"
+      Model.updateErrorMod (Error.set "Failed to update worker schedule")
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
@@ -2119,7 +2119,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~reload:false
            err)
   | UploadFnAPICallback (_, Ok _) ->
-      DisplayError "Successfully uploaded function"
+      Model.updateErrorMod (Error.set "Successfully uploaded function")
 
 
 let rec filter_read_only (m : model) (modification : modification) =
