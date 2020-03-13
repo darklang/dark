@@ -1049,8 +1049,6 @@ and modification =
   | TriggerHandlerAPICall of TLID.t
   | UpdateDBStatsAPICall of TLID.t
   (* End API Calls *)
-  | DisplayError of string
-  | ClearError
   | Select of TLID.t * tlidSelectTarget
   | SetHover of TLID.t * ID.t
   | ClearHover of TLID.t * ID.t
@@ -1570,7 +1568,7 @@ and avatarModelMessage =
   ; timestamp : float }
 
 and model =
-  { error : string option
+  { error : Error.t
   ; lastMsg : msg
   ; lastMods : string list
   ; tests : variantTest list

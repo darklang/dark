@@ -31,7 +31,7 @@ let undo_redo (m : model) (redo : bool) : modification =
                  load from disk/db once, but still check server side.
               *)
           if DB.isLocked m tlid
-          then DisplayError "Cannot undo/redo in locked DBs"
+          then Model.updateErrorMod (Error.set "Cannot undo/redo in locked DBs")
           else undo
       | None ->
           undo )
