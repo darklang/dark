@@ -5375,7 +5375,8 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidInputEvent (Keypress ke) when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
   | FluidInputEvent (Keypress {key = K.Enter; _})
-  (* TODO: mouseclick, space, tab *)
+  | FluidInputEvent (Keypress {key = K.Space; _})
+  | FluidInputEvent (Keypress {key = K.Tab; _})
     when AC.highlighted s.ac
          |> Option.map ~f:FluidAutocomplete.isCreateFn
          |> Option.withDefault ~default:false ->
