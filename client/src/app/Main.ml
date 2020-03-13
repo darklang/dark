@@ -1517,7 +1517,10 @@ let update_ (msg : msg) (m : model) : modification =
               let settingsView =
                 { m.settingsView with
                   canvas_list = r.canvas_list
-                ; org_list = r.org_list }
+                ; org_list = r.org_list
+                ; canvasInformation =
+                    { m.settingsView.canvasInformation with
+                      createdAt = Some r.creation_date } }
               in
               ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
               , Cmd.none ))
