@@ -129,20 +129,20 @@ let tipeView
     (originIDs : ID.t list)
     (tlid : TLID.t)
     (name : string)
-    (version : int)
+    (_version : int)
     (direction : string) : msg Html.html =
   let header =
-    [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#599ab2"]
-    ; Html.span [Html.class' "fnname"] [Html.text name] ]
+    [ Html.div [Html.class' "tipeicon"] [ViewUtils.svgIconTipe "#599ab2"]
+    ; Html.span [Html.class' "tipename"] [Html.text name] ]
   in
   Html.div
-    ( [ Html.class' ("ref-block fn " ^ direction)
+    ( [ Html.class' ("ref-block tipe " ^ direction)
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-fn-link" ^ TLID.toString tlid)
+          ~key:("ref-tipe-link" ^ TLID.toString tlid)
           "click"
           (fun _ -> GoTo (FocusedType tlid)) ]
-    @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
-    [Html.div [Html.class' "fnheader"] header; Html.text (Int.toString version)]
+    @ hoveringRefProps originTLID originIDs ~key:"ref-tipe-hover" )
+    [Html.div [Html.class' "tipeheader"] header]
 
 
 let renderView originalTLID direction (tl, originalIDs) =
