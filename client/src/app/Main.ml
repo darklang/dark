@@ -1927,7 +1927,7 @@ let update_ (msg : msg) (m : model) : modification =
       let center = Viewport.findNewPos m in
       Groups.createEmptyGroup None center
   | CreateFunction ->
-      Refactor.createNewFunction None
+      Refactor.createNewFunction m None
   | CreateType ->
       let tipe = Refactor.generateEmptyUserType () in
       Many
