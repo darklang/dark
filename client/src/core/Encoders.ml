@@ -473,7 +473,8 @@ and sendCanvasInfoParams (params : SettingsViewTypes.updateCanvasInfo) :
   object_
     [ ("canvasName", string params.canvasName)
     ; ("canvasDescription", string params.canvasDescription)
-    ; ("canvasShipped", string params.canvasShipped) ]
+    ; ("canvasShipped", string params.canvasShipped)
+    ; ("canvasCreation", string params.canvasCreation) ]
 
 
 and getTraceDataAPIParams (params : Types.getTraceDataAPIParams) : Js.Json.t =

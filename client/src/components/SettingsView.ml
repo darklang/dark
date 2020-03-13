@@ -74,10 +74,18 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
                 | None ->
                     ""
               in
+              let canvasCreation =
+                match m.settingsView.canvasInformation.createdAt with
+                | Some date ->
+                    date |> Js.Date.toUTCString
+                | None ->
+                    ""
+              in
               { canvasName = m.canvasName
               ; canvasDescription =
                   m.settingsView.canvasInformation.canvasDescription
-              ; canvasShipped }
+              ; canvasShipped
+              ; canvasCreation }
             in
             API.sendCanvasInfo m msg
         | _ ->
