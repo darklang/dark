@@ -821,7 +821,7 @@ let viewSidebar_ (m : model) : msg Html.html =
         deployStats2html
   in
   let status =
-    match m.error with
+    match Error.asOption m.error with
     | Some _ when m.isAdmin ->
         Html.div
           [Html.classList [("error-status error", true); ("opened", true)]]
