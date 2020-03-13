@@ -513,6 +513,6 @@ let createAndInsertNewFunction
               , Tea.Cmd.none ))
         ; (* Both ops in a single transaction *)
           TL.setASTMod ~ops:[op] tl newAST
-        ; SetPage (FocusedFn newFn.ufTLID) ]
+        ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ]
   | None ->
       NoChange
