@@ -110,17 +110,17 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
                 {m.settingsView.canvasInformation with canvasDescription = value}
             } }
       , Cmd.none )
-  | ToggleCanvasDeployStatus ->
+  | ToggleCanvasDeployStatus ship ->
       let shippedDate =
         let rawDate = Js.Date.now () |> Js.Date.fromFloat in
         let formattedDate = Util.formatDate (rawDate, "L") in
-        match m.settingsView.canvasInformation.shippedDate with
-        | Some _ ->
-            Entry.sendSegmentMessage (UnShipCanvas formattedDate) ;
-            None
-        | None ->
-            Entry.sendSegmentMessage (ShipCanvas formattedDate) ;
-            Some rawDate
+        if ship
+        then (
+          Entry.sendSegmentMessage (MarkCanvasAsInDevelopment formattedDate) ;
+          Some rawDate )
+        else (
+          Entry.sendSegmentMessage (MarkCanvasAsInDevelopment formattedDate) ;
+          None )
       in
       ( { m with
           settingsView =
@@ -269,13 +269,13 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
 
 
 let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
-  let shippedText =
+  let shipped, shippedText =
     match canvas.shippedDate with
     | Some date ->
         let formattedDate = Util.formatDate (date, "L") in
-        " (as of " ^ formattedDate ^ ")"
+        (true, " (as of " ^ formattedDate ^ ")")
     | None ->
-        ""
+        (false, "")
   in
   let create_at_text =
     match canvas.createdAt with
@@ -300,13 +300,14 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
               ; Attributes.value canvas.canvasDescription ]
               [] ]
       ; Html.div
-          [Html.class' "canvas-shipped-info"]
-          [ Html.input'
-              [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
-                    Types.SettingsViewMsg ToggleCanvasDeployStatus)
-              ; Html.type' "checkbox"
-              ; Html.checked (canvas.shippedDate |> Option.is_some) ]
-              []
+          [ Html.class' "canvas-shipped-info"
+          ; ViewUtils.eventNoPropagation
+              ~key:("ToggleCanvasDeployStatus" ^ shippedText)
+              "mouseup"
+              (fun _ ->
+                Types.SettingsViewMsg (ToggleCanvasDeployStatus (not shipped)))
+          ]
+          [ Html.input' [Html.type' "checkbox"; Html.checked shipped] []
           ; Html.p [] [Html.text ("Project has shipped" ^ shippedText)] ]
       ; Html.p
           [Html.class' "sub-text"]

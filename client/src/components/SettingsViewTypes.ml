@@ -55,7 +55,7 @@ type settingsMsg =
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string
   | UpdateCanvasDescription of string
-  | ToggleCanvasDeployStatus
+  | ToggleCanvasDeployStatus of bool
   | SubmitForm
   | TriggerSendInviteCallback of
       (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
