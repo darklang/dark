@@ -5382,7 +5382,8 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
          |> Option.withDefault ~default:false ->
     ( match (AC.highlighted s.ac, s.ac.query) with
     | Some (FACCreateFunction name), Some (tlid, ti) ->
-        Refactor.createNewFunction m tlid (FluidToken.tid ti.token) name
+        let id = FluidToken.tid ti.token in
+        Refactor.createAndInsertNewFunction m tlid id name
     | _ ->
         recover "this should not have happened" NoChange )
   | FluidClearErrorDvSrc ->
