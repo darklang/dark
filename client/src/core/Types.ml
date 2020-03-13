@@ -1172,8 +1172,8 @@ and segmentTrack =
   | WelcomeModal
   | OpenDocs
   | InviteUser
-  | ShipCanvas of string
-  | UnShipCanvas of string
+  | MarkCanvasAsShipped of string
+  | MarkCanvasAsInDevelopment of string
 
 and msg =
   | IgnoreMsg
