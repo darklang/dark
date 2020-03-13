@@ -5375,12 +5375,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
       CursorState.tlidOf m.cursorState
       |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
-      |> Option.andThen ~f:(fun tl ->
-             match TL.getAST tl with
-             | Some expr ->
-                 Some (tl, expr)
-             | None ->
-                 None)
+      |> Option.thenAlso ~f:TL.getAST
       |> Option.map ~f:(fun (tl, ast) ->
              let fluidState =
                let fs = moveToEndOfTarget ast s id in
