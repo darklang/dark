@@ -56,11 +56,16 @@ let submitForm (m : Types.model) (tab : settingsTab) :
 let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
     =
   match msg with
-  | ToggleSettingsView (opening, tab) ->
-      let enablePan = if opening then m.canvasProps.enablePan else true in
-      let m, cmd =
+  | OpenSettingsView tab ->
+      let m, cmd = CursorState.setCursorState Deselected m in
+      ( { m with
+          settingsView =
+            {m.settingsView with opened = true; tab; loading = false} }
+      , cmd )
+  | CloseSettingsView ->
+      let cmd =
         match m.settingsView.tab with
-        | CanvasInfo when not opening ->
+        | CanvasInfo ->
             let msg =
               let canvasShipped =
                 match m.settingsView.canvas_information.shipped_date with
@@ -74,15 +79,13 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
                   m.settingsView.canvas_information.canvas_description
               ; canvasShipped }
             in
-            (m, API.sendCanvasInfo m msg)
+            API.sendCanvasInfo m msg
         | _ ->
-            CursorState.setCursorState Deselected m
+            Cmd.none
       in
-      let tab = tab |> Option.withDefault ~default:UserSettings in
       ( { m with
-          settingsView =
-            {m.settingsView with opened = opening; tab; loading = false}
-        ; canvasProps = {m.canvasProps with enablePan} }
+          settingsView = {m.settingsView with opened = false; loading = false}
+        ; canvasProps = {m.canvasProps with enablePan = true} }
       , cmd )
   | SwitchSettingsTabs tab ->
       ( {m with settingsView = {m.settingsView with tab; loading = false}}
@@ -372,7 +375,7 @@ let html (m : Types.model) : Types.msg Html.html =
       ; ViewUtils.eventNoPropagation
           ~key:"close-settings-modal"
           "click"
-          (fun _ -> Types.SettingsViewMsg (ToggleSettingsView (false, None))) ]
+          (fun _ -> Types.SettingsViewMsg CloseSettingsView) ]
       [fontAwesome "times"]
   in
   Html.div
@@ -380,7 +383,7 @@ let html (m : Types.model) : Types.msg Html.html =
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          Types.SettingsViewMsg (ToggleSettingsView (false, None))) ]
+          Types.SettingsViewMsg CloseSettingsView) ]
     [ Html.div
         [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"

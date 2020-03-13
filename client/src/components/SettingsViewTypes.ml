@@ -51,7 +51,8 @@ type loadCanvasInfoAPIResult =
 [@@deriving show]
 
 type settingsMsg =
-  | ToggleSettingsView of bool * settingsTab option
+  | CloseSettingsView
+  | OpenSettingsView of settingsTab
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string
   | UpdateCanvasDescription of string
