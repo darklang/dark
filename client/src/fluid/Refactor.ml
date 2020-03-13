@@ -489,6 +489,7 @@ let reorderFnCallArgs
          |> TL.setASTMod tl)
 
 
+(* Create a new function, update the server, and go to the new function *)
 let createNewFunction (newFnName : string option) : modification =
   let fn = generateEmptyFunction () in
   let newFn =
@@ -507,6 +508,8 @@ let createNewFunction (newFnName : string option) : modification =
     ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ]
 
 
+(* Create a new function, update the expression (tlid, id) to call the new
+ * function, update the server about both functions, and go to the new function *)
 let createAndInsertNewFunction
     (m : model) (tlid : TLID.t) (partialID : ID.t) (newFnName : string) :
     modification =
