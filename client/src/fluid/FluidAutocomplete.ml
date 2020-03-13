@@ -80,6 +80,8 @@ let asName (aci : item) : string =
         string_of_bool v
     | FPANull _ ->
         "null" )
+  | FACCreateFunction name ->
+      "Create new function: " ^ name
 
 
 (* Return the string types of the item's arguments and return types. If the
@@ -125,6 +127,8 @@ let asTypeStrings (item : item) : string list * string =
       ([], "keyword")
   | FACPattern (FPANull _) ->
       ([], "null")
+  | FACCreateFunction _ ->
+      ([], "")
 
 
 (* Used for matching, not for displaying to users *)
@@ -144,6 +148,10 @@ let isVariable (aci : item) : bool =
 
 let isField (aci : item) : bool =
   match aci with FACField _ -> true | _ -> false
+
+
+let isCreateFn (aci : item) : bool =
+  match aci with FACCreateFunction _ -> true | _ -> false
 
 
 let item (data : data) : item = data.item
@@ -413,6 +421,8 @@ let generatePatterns ti a queryString : item list =
       []
 
 
+let generateCommands name = [FACCreateFunction name]
+
 let generateFields fieldList = List.map ~f:(fun x -> FACField x) fieldList
 
 let generate (m : model) (a : t) (query : fullQuery) : item list =
@@ -421,6 +431,8 @@ let generate (m : model) (a : t) (query : fullQuery) : item list =
       generatePatterns query.ti a query.queryString
   | TFieldName _ | TFieldPartial _ ->
       generateFields query.fieldList
+  | TPartial (_, name) ->
+      generateExprs m query.tl a query.ti @ generateCommands name
   | _ ->
       generateExprs m query.tl a query.ti
 
@@ -678,6 +690,8 @@ let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
         documentationForItem {item = FACLiteral (string_of_bool var); validity}
     | FPANull _ ->
         simpleDoc "A 'null' literal" )
+  | FACCreateFunction _ ->
+      None
 
 
 let updateAutocompleteVisibility (m : model) : model =

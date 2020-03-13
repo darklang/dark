@@ -1492,6 +1492,7 @@ and fluidAutocompleteItem =
   | FACLiteral of literal
   | FACKeyword of keyword
   | FACPattern of fluidPatternAutocomplete
+  | FACCreateFunction of string
 
 and fluidAutocompleteData =
   { item : fluidAutocompleteItem
