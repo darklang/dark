@@ -409,7 +409,7 @@ let accountView (m : model) : msg Html.html =
       [ Html.class' "account-action-btn"
       ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
             SettingsViewMsg (OpenSettingsView CanvasInfo)) ]
-      [Html.text "Canvas Info"]
+      [Html.text "About"]
   in
   let settings =
     Html.p

@@ -177,7 +177,7 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
 let settingsTabToText (tab : settingsTab) : string =
   match tab with
   | CanvasInfo ->
-      "Canvas info"
+      "About"
   | UserSettings ->
       "Canvases"
   | InviteUser _ ->
@@ -286,10 +286,12 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   in
   [ Html.div
       [Html.class' "canvas-info"]
-      [ Html.h2 [] [Html.text "Canvas Information"]
+      [ Html.h2 [] [Html.text "About"]
       ; Html.p
           []
-          [Html.text "Provide any extra information related to this project"]
+          [ Html.text
+              "Tell us about what you're building. This will help us figure out what to build into Dark."
+          ]
       ; Html.div
           [Html.class' "canvas-desc"]
           [ Html.h3 [] [Html.text "Canvas description:"]
@@ -308,11 +310,11 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
                 Types.SettingsViewMsg (ToggleCanvasDeployStatus (not shipped)))
           ]
           [ Html.input' [Html.type' "checkbox"; Html.checked shipped] []
-          ; Html.p [] [Html.text ("Project has shipped" ^ shippedText)] ]
+          ; Html.p [] [Html.text ("Project is live" ^ shippedText)] ]
       ; Html.p
           [Html.class' "sub-text"]
           [ Html.text
-              "Dark is evolving quickly - let us know if your project is shipped and we will make sure to add it to our smoke tests."
+              "*If your project has gone live, we'll use it to help us determine the health of the Dark infrastructure*"
           ]
       ; Html.p [Html.class' "created-text"] [Html.text create_at_text] ] ]
 
