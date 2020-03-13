@@ -489,6 +489,24 @@ let reorderFnCallArgs
          |> TL.setASTMod tl)
 
 
+let createNewFunction (newFnName : string option) : modification =
+  let fn = generateEmptyFunction () in
+  let newFn =
+    match newFnName with
+    | Some name ->
+        {fn with ufMetadata = {fn.ufMetadata with ufmName = F (gid (), name)}}
+    | None ->
+        fn
+  in
+  (* We need to update both the model and the backend *)
+  Many
+    [ ReplaceAllModificationsWithThisOne
+        (fun m -> (UserFunctions.upsert m newFn, Tea.Cmd.none))
+    ; (* Both ops in a single transaction *)
+      AddOps ([SetFunction newFn], FocusNothing)
+    ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ]
+
+
 let createAndInsertNewFunction
     (m : model) (tlid : TLID.t) (partialID : ID.t) (newFnName : string) :
     modification =
