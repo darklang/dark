@@ -489,7 +489,7 @@ let reorderFnCallArgs
          |> TL.setASTMod tl)
 
 
-let createNewFunction
+let createAndInsertNewFunction
     (m : model) (tlid : TLID.t) (partialID : ID.t) (newFnName : string) :
     modification =
   match Toplevel.get m tlid |> Option.thenAlso ~f:TL.getAST with
