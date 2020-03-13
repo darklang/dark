@@ -408,14 +408,14 @@ let accountView (m : model) : msg Html.html =
     Html.p
       [ Html.class' "account-action-btn"
       ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
-            SettingsViewMsg (ToggleSettingsView (true, Some CanvasInfo))) ]
+            SettingsViewMsg (OpenSettingsView CanvasInfo)) ]
       [Html.text "Canvas Info"]
   in
   let settings =
     Html.p
       [ Html.class' "account-action-btn"
       ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
-            SettingsViewMsg (ToggleSettingsView (true, Some UserSettings))) ]
+            SettingsViewMsg (OpenSettingsView UserSettings)) ]
       [Html.text "Account"]
   in
   let share =
@@ -423,8 +423,8 @@ let accountView (m : model) : msg Html.html =
       [ Html.class' "account-action-btn invite"
       ; ViewUtils.eventNoPropagation ~key:"open-invite" "click" (fun _ ->
             SettingsViewMsg
-              (ToggleSettingsView
-                 (true, Some (InviteUser SettingsView.defaultInviteFields)))) ]
+              (OpenSettingsView (InviteUser SettingsView.defaultInviteFields)))
+      ]
       [Html.text "Share Dark"]
   in
   Html.div
