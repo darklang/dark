@@ -9,7 +9,7 @@ let fns : Lib.shortfn list =
     ; p = [par "result" TResult; func ["val"]]
     ; r = TResult
     ; d =
-        "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing."
+        "If `result` is `Ok <value>`, returns `Ok <f value>` (the lambda `f` is applied to `value` and the result is wrapped in `Ok`). If `result` is `Error <msg>`, returns `result` unchanged."
     ; f =
         InProcess
           (function
@@ -29,7 +29,7 @@ let fns : Lib.shortfn list =
     ; p = [par "result" TResult; func ["val"]]
     ; r = TResult
     ; d =
-        "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing."
+        "If `result` is `Ok <value>`, returns `Ok <f value>` (the lambda `f` is applied to `value` and the result is wrapped in `Ok`). If `result` is `Error <msg>`, returns `result` unchanged."
     ; f =
         InProcess
           (function
@@ -49,7 +49,7 @@ let fns : Lib.shortfn list =
     ; p = [par "result" TResult; func ["val"]]
     ; r = TAny
     ; d =
-        "Transform a Result by calling `f` on the Error portion of the Result. If Ok , does nothing."
+        "If `result` is `Error <msg>`, returns `Error <f msg>` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok <value>`, returns `result` unchanged."
     ; f =
         InProcess
           (function
@@ -69,7 +69,7 @@ let fns : Lib.shortfn list =
     ; p = [par "result" TResult; func ["val"]]
     ; r = TAny
     ; d =
-        "Transform a Result by calling `f` on the Error portion of the Result. If Ok , does nothing."
+        "If `result` is `Error <msg>`, returns `Error <f msg>` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok <value>`, returns `result` unchanged."
     ; f =
         InProcess
           (function
@@ -89,7 +89,7 @@ let fns : Lib.shortfn list =
     ; p = [par "result" TResult; par "default" TAny]
     ; r = TAny
     ; d =
-        "Turn a result into a normal value, using `default` if the result is Error."
+        "If `result` is `Ok <value>`, returns `value`. Returns `default` otherwise."
     ; f =
         InProcess
           (function
@@ -104,7 +104,7 @@ let fns : Lib.shortfn list =
     ; p = [par "option" TOption; par "error" TStr]
     ; r = TResult
     ; d =
-        "Turn an option into a result, using `error` as the error message for Error."
+        "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just <value>`, returns `Ok <value>`. Returns `Error <error>` otherwise."
     ; f =
         InProcess
           (function
@@ -123,7 +123,7 @@ let fns : Lib.shortfn list =
     ; p = [par "option" TOption; par "error" TStr]
     ; r = TResult
     ; d =
-        "Turn an option into a result, using `error` as the error message for Error."
+        "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just <value>`, returns `Ok <value>`. Returns `Error <error>` otherwise."
     ; f =
         InProcess
           (function
@@ -183,7 +183,7 @@ let fns : Lib.shortfn list =
     ; p = [par "result" TResult; func ["val"]]
     ; r = TResult
     ; d =
-        "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing. Combines the result into a single Result, where if both the caller and the result are Error, the result is a single Error"
+        "If `result` is `Ok <value>`, returns `f <value>` (the lambda `f` is applied to `value` and must return `Error <msg>` or `Ok <newValue>`). If `result` is `Error <msg>`, returns `result` unchanged."
     ; f =
         InProcess
           (function
@@ -210,7 +210,7 @@ let fns : Lib.shortfn list =
     ; p = [par "result" TResult; func ["val"]]
     ; r = TResult
     ; d =
-        "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing. Combines the result into a single Result, where if both the caller and the result are Error, the result is a single Error"
+        "If `result` is `Ok <value>`, returns `f <value>` (the lambda `f` is applied to `value` and must return `Error <msg>` or `Ok <newValue>`). If `result` is `Error <msg>`, returns `result` unchanged."
     ; f =
         InProcess
           (function
