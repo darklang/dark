@@ -74,7 +74,7 @@ let commands : command list =
               let nameId = BlankOr.toID tipe.utName in
               AddOps ([SetType tipe], FocusNext (tipe.utTLID, Some nameId))
           | Error s ->
-              DisplayError ("Can't create-type: " ^ s))
+              Model.updateErrorMod (Error.set ("Can't create-type: " ^ s)))
     ; doc = "Create a type from a live value" }
   ; { commandName = "copy-request-as-curl"
     ; action =

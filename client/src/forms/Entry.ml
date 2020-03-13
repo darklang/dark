@@ -423,7 +423,9 @@ let submitACItem
           (* We submit when users click away from an input, but they might not have typed anything! We
            * don't want to adjust the validators to allow empty strings where they are not allowed, but we
            * also don't want to display an error when they were not responsible for it! *)
-          if stringValue = "" then NoChange else DisplayError error
+          if stringValue = ""
+          then NoChange
+          else Model.updateErrorMod (Error.set error)
       | None ->
           let wrap ops next =
             let wasEditing = P.isBlank pd |> not in
@@ -465,14 +467,17 @@ let submitACItem
           | PDBName (F (id, oldName)), ACDBName value, TLDB _ ->
               if AC.assertValid AC.dbNameValidator value <> value
               then
-                DisplayError
-                  ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
+                Model.updateErrorMod
+                  (Error.set
+                     ("DB name must match " ^ AC.dbNameValidator ^ " pattern"))
               else if oldName = value (* leave as is *)
               then
                 (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
                 Select (tlid, STID id)
               else if List.member ~value (TL.allDBNames m.dbs)
-              then DisplayError ("There is already a DB named " ^ value)
+              then
+                Model.updateErrorMod
+                  (Error.set ("There is already a DB named " ^ value))
               else
                 let varrefs = Refactor.renameDBReferences m oldName value in
                 AddOps (RenameDBname (tlid, value) :: varrefs, FocusNothing)
@@ -501,8 +506,9 @@ let submitACItem
               then wrapID [SetDBColNameInDBMigration (tlid, id, value)]
               else if DB.hasCol db value
               then
-                DisplayError
-                  ("Can't have two DB fields with the same name: " ^ value)
+                Model.updateErrorMod
+                  (Error.set
+                     ("Can't have two DB fields with the same name: " ^ value))
               else if B.isBlank cn
               then wrapID [SetDBColName (tlid, id, value)]
               else wrapID [ChangeDBColName (tlid, id, value)]
@@ -604,7 +610,9 @@ let submitACItem
               else if List.member
                         ~value
                         (UserFunctions.allNames m.userFunctions)
-              then DisplayError ("There is already a Function named " ^ value)
+              then
+                Model.updateErrorMod
+                  (Error.set ("There is already a Function named " ^ value))
               else
                 let newPD = PFnName (B.newF value) in
                 let new_ =
@@ -619,7 +627,9 @@ let submitACItem
               replace (PParamTipe (B.newF tipe))
           | PTypeName _, ACTypeName value, TLTipe old ->
               if List.member ~value (UserTypes.allNames m.userTipes)
-              then DisplayError ("There is already a Type named " ^ value)
+              then
+                Model.updateErrorMod
+                  (Error.set ("There is already a Type named " ^ value))
               else
                 let newPD = PTypeName (B.newF value) in
                 let new_ = UserTypes.replace pd newPD old in
@@ -704,7 +714,7 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
              * shows that it's not a valid input *)
             if m.complete.value = ""
             then NoChange
-            else DisplayError "Invalid input" ) )
+            else Model.updateErrorMod (Error.set "Invalid input") ) )
 
 
 (* Submit, but don't move the cursor
