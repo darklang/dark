@@ -113,7 +113,7 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
   | ToggleCanvasDeployStatus ->
       let shippedDate =
         let rawDate = Js.Date.now () |> Js.Date.fromFloat in
-        let formattedDate = Entry.formatDate (rawDate, "L") in
+        let formattedDate = Util.formatDate (rawDate, "L") in
         match m.settingsView.canvasInformation.shippedDate with
         | Some _ ->
             Entry.sendSegmentMessage (UnShipCanvas formattedDate) ;
@@ -272,7 +272,7 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   let shippedText =
     match canvas.shippedDate with
     | Some date ->
-        let formattedDate = Entry.formatDate (date, "L") in
+        let formattedDate = Util.formatDate (date, "L") in
         " (as of " ^ formattedDate ^ ")"
     | None ->
         ""
@@ -280,7 +280,7 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   let create_at_text =
     match canvas.createdAt with
     | Some date ->
-        "Canvas created on: " ^ Entry.formatDate (date, "L")
+        "Canvas created on: " ^ Util.formatDate (date, "L")
     | None ->
         ""
   in
