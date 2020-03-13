@@ -25,7 +25,8 @@ type inviteFormMessage =
 type updateCanvasInfo =
   { canvasName : string
   ; canvasDescription : string
-  ; canvasShipped : string }
+  ; canvasShipped : string
+  ; canvasCreation : string }
 [@@deriving show]
 
 type canvasInformation =
