@@ -68,7 +68,7 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
         | CanvasInfo ->
             let msg =
               let canvasShipped =
-                match m.settingsView.canvas_information.shipped_date with
+                match m.settingsView.canvasInformation.shippedDate with
                 | Some date ->
                     date |> Js.Date.toUTCString
                 | None ->
@@ -76,7 +76,7 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
               in
               { canvasName = m.canvasName
               ; canvasDescription =
-                  m.settingsView.canvas_information.canvas_description
+                  m.settingsView.canvasInformation.canvasDescription
               ; canvasShipped }
             in
             API.sendCanvasInfo m msg
@@ -98,15 +98,15 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       ( { m with
           settingsView =
             { m.settingsView with
-              canvas_information =
-                { m.settingsView.canvas_information with
-                  canvas_description = value } } }
+              canvasInformation =
+                {m.settingsView.canvasInformation with canvasDescription = value}
+            } }
       , Cmd.none )
   | ToggleCanvasDeployStatus ->
-      let shipped_date =
+      let shippedDate =
         let rawDate = Js.Date.now () |> Js.Date.fromFloat in
         let formattedDate = Entry.formatDate (rawDate, "L") in
-        match m.settingsView.canvas_information.shipped_date with
+        match m.settingsView.canvasInformation.shippedDate with
         | Some _ ->
             Entry.sendSegmentMessage (UnShipCanvas formattedDate) ;
             None
@@ -117,8 +117,8 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       ( { m with
           settingsView =
             { m.settingsView with
-              canvas_information =
-                {m.settingsView.canvas_information with shipped_date} } }
+              canvasInformation =
+                {m.settingsView.canvasInformation with shippedDate} } }
       , Cmd.none )
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
@@ -126,16 +126,6 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       if isInvalid
       then ({m with settingsView = {m.settingsView with tab = newTab}}, Cmd.none)
       else submitForm m m.settingsView.tab
-  | SetSettingsView (org_list, canvas_list, created_at) ->
-      ( { m with
-          settingsView =
-            { m.settingsView with
-              org_list
-            ; canvas_list
-            ; canvas_information =
-                { m.settingsView.canvas_information with
-                  created_at = Some created_at } } }
-      , Cmd.none )
   | TriggerUpdateCanvasInfoCallback (Ok _) ->
       ( { m with
           toast = {toastMessage = Some "Canvas Info saved!"; toastPos = None} }
@@ -156,18 +146,18 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
             ; loading = false } }
       , Cmd.none )
   | TriggerGetCanvasInfoCallback (Ok data) ->
-      let shipped_date =
-        if String.length data.shipped_date == 0
+      let shippedDate =
+        if String.length data.shippedDate == 0
         then None
-        else Some (Js.Date.fromString data.shipped_date)
+        else Some (Js.Date.fromString data.shippedDate)
       in
       ( { m with
           settingsView =
             { m.settingsView with
-              canvas_information =
-                { m.settingsView.canvas_information with
-                  canvas_description = data.canvas_description
-                ; shipped_date } } }
+              canvasInformation =
+                { m.settingsView.canvasInformation with
+                  canvasDescription = data.canvasDescription
+                ; shippedDate } } }
       , Cmd.none )
   | TriggerUpdateCanvasInfoCallback (Error _)
   | TriggerGetCanvasInfoCallback (Error _) ->
@@ -272,7 +262,7 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
 
 let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   let shippedText =
-    match canvas.shipped_date with
+    match canvas.shippedDate with
     | Some date ->
         let formattedDate = Entry.formatDate (date, "L") in
         " (as of " ^ formattedDate ^ ")"
@@ -280,7 +270,7 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
         ""
   in
   let create_at_text =
-    match canvas.created_at with
+    match canvas.createdAt with
     | Some date ->
         "Canvas created on: " ^ Entry.formatDate (date, "L")
     | None ->
@@ -299,7 +289,7 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
               [ Vdom.attribute "" "spellcheck" "false"
               ; Events.onInput (fun str ->
                     Types.SettingsViewMsg (UpdateCanvasDescription str))
-              ; Attributes.value canvas.canvas_description ]
+              ; Attributes.value canvas.canvasDescription ]
               [] ]
       ; Html.div
           [Html.class' "canvas-shipped-info"]
@@ -307,7 +297,7 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
               [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
                     Types.SettingsViewMsg ToggleCanvasDeployStatus)
               ; Html.type' "checkbox"
-              ; Html.checked (canvas.shipped_date |> Option.is_some) ]
+              ; Html.checked (canvas.shippedDate |> Option.is_some) ]
               []
           ; Html.p [] [Html.text ("Project has shipped" ^ shippedText)] ]
       ; Html.p
@@ -322,7 +312,7 @@ let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
   | CanvasInfo ->
-      viewCanvasInfo svs.canvas_information
+      viewCanvasInfo svs.canvasInformation
   | UserSettings ->
       viewUserCanvases svs
   | InviteUser _ ->
@@ -332,13 +322,7 @@ let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
 let tabTitleView (tab : settingsTab) : Types.msg Html.html =
   let tabTitle (t : settingsTab) =
     let isSameTab =
-      match (tab, t) with
-      | UserSettings, UserSettings
-      | InviteUser _, InviteUser _
-      | CanvasInfo, CanvasInfo ->
-          true
-      | _ ->
-          false
+      match (tab, t) with InviteUser _, InviteUser _ -> true | _ -> tab == t
     in
     Html.h3
       [ Html.classList [("tab-title", true); ("selected", isSameTab)]

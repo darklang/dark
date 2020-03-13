@@ -468,7 +468,8 @@ and getCanvasInfoParams (canvasName : string) : Js.Json.t =
   object_ [("canvasName", string canvasName)]
 
 
-and sendCanvasInfoParams (params : Types.sendCanvasInfoParams) : Js.Json.t =
+and sendCanvasInfoParams (params : SettingsViewTypes.updateCanvasInfo) :
+    Js.Json.t =
   object_
     [ ("canvasName", string params.canvasName)
     ; ("canvasDescription", string params.canvasDescription)
