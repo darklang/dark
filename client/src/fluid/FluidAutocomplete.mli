@@ -16,6 +16,8 @@ val isVariable : item -> bool
 
 val isField : item -> bool
 
+val isCreateFn : item -> bool
+
 val item : data -> item
 
 val allFunctions : Types.model -> Types.function_ list

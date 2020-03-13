@@ -2191,6 +2191,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : (E.t * caretTarget) option
   | FACPattern _ ->
       (* This only works for exprs *)
       None
+  | FACCreateFunction _ ->
+      (* This should be handled elsewhere *)
+      recover "invalid call to FACCreateFunction" None
 
 
 let acToPattern (entry : Types.fluidAutocompleteItem) :
@@ -2453,6 +2456,8 @@ let acEnter (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) (key : K.key) :
         |> Option.withDefault ~default:(ast, s)
     | _ ->
         (ast, s) )
+  | Some (FACCreateFunction _) ->
+      recover "FACNewfunction should be dealt with outside fluid.ml" (ast, s)
   | Some entry ->
       updateFromACItem entry ti ast s key
 
@@ -5369,6 +5374,16 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.openOmnibox m
   | FluidInputEvent (Keypress ke) when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
+  | FluidInputEvent (Keypress {key = K.Enter; _})
+  (* TODO: mouseclick, space, tab *)
+    when AC.highlighted s.ac
+         |> Option.map ~f:FluidAutocomplete.isCreateFn
+         |> Option.withDefault ~default:false ->
+    ( match (AC.highlighted s.ac, s.ac.query) with
+    | Some (FACCreateFunction name), Some (tlid, ti) ->
+        Refactor.createNewFunction m tlid (FluidToken.tid ti.token) name
+    | _ ->
+        recover "this should not have happened" NoChange )
   | FluidClearErrorDvSrc ->
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
   | FluidFocusOnToken id ->
