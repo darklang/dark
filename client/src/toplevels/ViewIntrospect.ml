@@ -124,6 +124,27 @@ let fnView
     [Html.div [Html.class' "fnheader"] header; fnParamsView params]
 
 
+let tipeView
+    (originTLID : TLID.t)
+    (originIDs : ID.t list)
+    (tlid : TLID.t)
+    (name : string)
+    (version : int)
+    (direction : string) : msg Html.html =
+  let header =
+    [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#599ab2"]
+    ; Html.span [Html.class' "fnname"] [Html.text name] ]
+  in
+  Html.div
+    ( [ Html.class' ("ref-block fn " ^ direction)
+      ; ViewUtils.eventNoPropagation
+          ~key:("ref-fn-link" ^ TLID.toString tlid)
+          "click"
+          (fun _ -> GoTo (FocusedType tlid)) ]
+    @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
+    [Html.div [Html.class' "fnheader"] header; Html.text (Int.toString version)]
+
+
 let renderView originalTLID direction (tl, originalIDs) =
   match tl with
   | TLDB {dbTLID; dbName = F (_, name); cols; _} ->
@@ -142,6 +163,8 @@ let renderView originalTLID direction (tl, originalIDs) =
       {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters; _}; ufAST = _}
     ->
       fnView originalTLID originalIDs ufTLID name ufmParameters direction
+  | TLTipe {utTLID; utName = F (_, name); utVersion; utDefinition = _} ->
+      tipeView originalTLID originalIDs utTLID name utVersion direction
   | _ ->
       Vdom.noNode
 
