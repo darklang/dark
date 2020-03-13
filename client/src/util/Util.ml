@@ -77,6 +77,9 @@ let humanReadableTimeElapsed (time : float) : string =
   if diff = "" then "less than a minute" else diff
 
 
+external formatDate : Js.Date.t * string -> string = "formatDate"
+  [@@bs.val] [@@bs.scope "window"] [@@bs.scope "Dark"]
+
 module Regex = struct
   type t = Js.Re.t
 
