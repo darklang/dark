@@ -150,6 +150,10 @@ let isField (aci : item) : bool =
   match aci with FACField _ -> true | _ -> false
 
 
+let isFnCall (aci : item) : bool =
+  match aci with FACFunction _ -> true | _ -> false
+
+
 let isCreateFn (aci : item) : bool =
   match aci with FACCreateFunction _ -> true | _ -> false
 
