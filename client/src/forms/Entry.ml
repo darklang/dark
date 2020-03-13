@@ -316,7 +316,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       in
       newDB name pos
   | NewFunction name ->
-      Refactor.createNewFunction name
+      Refactor.createNewFunction m name
   | NewHTTPHandler route ->
       newHandler m "HTTP" route None pos
   | NewWorkerHandler name ->
