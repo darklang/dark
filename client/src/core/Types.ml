@@ -1492,7 +1492,7 @@ and fluidAutocompleteItem =
   | FACLiteral of literal
   | FACKeyword of keyword
   | FACPattern of fluidPatternAutocomplete
-  | FACCreateFunction of string
+  | FACCreateFunction of string * TLID.t * ID.t
 
 and fluidAutocompleteData =
   { item : fluidAutocompleteItem

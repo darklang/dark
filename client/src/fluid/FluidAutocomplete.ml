@@ -80,7 +80,7 @@ let asName (aci : item) : string =
         string_of_bool v
     | FPANull _ ->
         "null" )
-  | FACCreateFunction name ->
+  | FACCreateFunction (name, _, _) ->
       "Create new function: " ^ name
 
 
@@ -425,18 +425,19 @@ let generatePatterns ti a queryString : item list =
       []
 
 
-let generateCommands name = [FACCreateFunction name]
+let generateCommands name tlid id = [FACCreateFunction (name, tlid, id)]
 
 let generateFields fieldList = List.map ~f:(fun x -> FACField x) fieldList
 
 let generate (m : model) (a : t) (query : fullQuery) : item list =
+  let tlid = TL.id query.tl in
   match query.ti.token with
   | TPatternBlank _ | TPatternVariable _ ->
       generatePatterns query.ti a query.queryString
   | TFieldName _ | TFieldPartial _ ->
       generateFields query.fieldList
-  | TPartial (_, name) ->
-      generateExprs m query.tl a query.ti @ generateCommands name
+  | TPartial (id, name) ->
+      generateExprs m query.tl a query.ti @ generateCommands name tlid id
   | _ ->
       generateExprs m query.tl a query.ti
 

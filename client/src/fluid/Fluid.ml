@@ -5374,15 +5374,16 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.openOmnibox m
   | FluidInputEvent (Keypress ke) when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
+  | FluidAutocompleteClick (FACCreateFunction (name, tlid, id)) ->
+      Refactor.createAndInsertNewFunction m tlid id name
   | FluidInputEvent (Keypress {key = K.Enter; _})
   | FluidInputEvent (Keypress {key = K.Space; _})
   | FluidInputEvent (Keypress {key = K.Tab; _})
     when AC.highlighted s.ac
          |> Option.map ~f:FluidAutocomplete.isCreateFn
          |> Option.withDefault ~default:false ->
-    ( match (AC.highlighted s.ac, s.ac.query) with
-    | Some (FACCreateFunction name), Some (tlid, ti) ->
-        let id = FluidToken.tid ti.token in
+    ( match AC.highlighted s.ac with
+    | Some (FACCreateFunction (name, tlid, id)) ->
         Refactor.createAndInsertNewFunction m tlid id name
     | _ ->
         recover "this should not have happened" NoChange )
