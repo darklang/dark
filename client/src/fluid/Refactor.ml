@@ -506,7 +506,8 @@ let createNewFunction (m : model) (newFnName : string option) : modification =
   in
   match newFnName with
   | Some name when hasExistingFunctionNamed m name ->
-      DisplayError ("Function named " ^ name ^ " already exists")
+      Model.updateErrorMod
+        (Error.set ("Function named " ^ name ^ " already exists"))
   | _ ->
       (* We need to update both the model and the backend *)
       Many
@@ -537,7 +538,9 @@ let createAndInsertNewFunction
       (* We need to update both the model and the backend *)
       let alreadyExists = hasExistingFunctionNamed m newFnName in
       if alreadyExists
-      then DisplayError ("Function named " ^ newFnName ^ " already exists")
+      then
+        Model.updateErrorMod
+          (Error.set ("Function named " ^ newFnName ^ " already exists"))
       else
         Many
           [ ReplaceAllModificationsWithThisOne
