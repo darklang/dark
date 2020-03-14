@@ -324,6 +324,7 @@ test("no_request_global_in_non_http_space", async t => {
   await gotoAST(t);
   await t
     .typeText("#active-editor", "request")
+    .pressKey("down")
     .expect(fluidAcHighlightedText("Http::badRequest"))
     .ok()
     .pressKey("enter");
