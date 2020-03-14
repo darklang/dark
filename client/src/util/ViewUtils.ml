@@ -248,6 +248,7 @@ let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 
 let widthInCh (w : int) : msg Vdom.property = w |> inCh |> Html.style "width"
 
+(* The same as static/icons/tipe.svg *)
 let svgIconTipe (color : string) : msg Html.html =
   Svg.svg
     [ Svg.Attributes.viewBox "0 0 32 32"
@@ -262,6 +263,7 @@ let svgIconTipe (color : string) : msg Html.html =
             [] ] ]
 
 
+(* The same as static/icons/fn.svg *)
 let svgIconFn (color : string) : msg Html.html =
   Svg.svg
     [ Svg.Attributes.viewBox "0 0 16 16"
