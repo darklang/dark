@@ -47,7 +47,10 @@ let tipesByName (uts : userTipe TD.t) : TLID.t StrDict.t =
   uts
   |> TD.mapValues ~f:(fun ut ->
          let name =
-           ut.utName |> B.toOption |> Option.withDefault ~default:"_"
+           ut.utName
+           |> B.toOption
+           (* Shouldn't happen: all tipes have a default name *)
+           |> recoverOpt "tipes should have default names" ~default:"_"
          in
          let version = ut.utVersion in
          let key = keyForTipe name version in
@@ -154,12 +157,15 @@ let findUsagesInAST
 
 let findUsagesInFunctionParams (tipes : TLID.t StrDict.t) (fn : userFunction) :
     usage list =
+  (* Versions are slightly aspirational, and we don't have them in most of
+   * the places we use tipes, including here *)
+  let version = 0 in
   fn.ufMetadata.ufmParameters
   |> List.filterMap ~f:(fun p ->
          p.ufpTipe
          |> B.toOption
          |> Option.map ~f:Runtime.tipe2str
-         |> Option.map ~f:(fun t -> keyForTipe t 0)
+         |> Option.map ~f:(fun t -> keyForTipe t version)
          |> Option.andThen ~f:(fun key -> StrDict.get ~key tipes)
          |> Option.thenAlso ~f:(fun _ -> Some (B.toID p.ufpTipe)))
   |> List.map ~f:(fun (usedIn, id) -> {refersTo = fn.ufTLID; usedIn; id})
