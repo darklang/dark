@@ -57,6 +57,20 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Float::truncate"; "Float::roundTowardsZero"]
+    ; ins = []
+    ; p = [par "a" TFloat]
+    ; r = TInt
+    ; d = "Discard the fractional portion of the float, rounding towards zero."
+    ; f =
+        InProcess
+          (function
+          | _, [DFloat a] ->
+              DInt (Float.round_towards_zero a |> Dint.of_float)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Float::sqrt"]
     ; ins = []
     ; p = [par "a" TFloat]
