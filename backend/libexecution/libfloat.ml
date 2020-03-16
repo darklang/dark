@@ -198,4 +198,32 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["Float::min"]
+    ; ins = []
+    ; p = [par "a" TFloat; par "b" TFloat]
+    ; r = TFloat
+    ; d = "Returns the lesser of float `a` and float `b`"
+    ; f =
+        InProcess
+          (function
+          | _, [DFloat a; DFloat b] ->
+              DFloat (Float.min a b)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Float::max"]
+    ; ins = []
+    ; p = [par "a" TFloat; par "b" TFloat]
+    ; r = TFloat
+    ; d = "Returns the greater of float `a` and float `b`"
+    ; f =
+        InProcess
+          (function
+          | _, [DFloat a; DFloat b] ->
+              DFloat (Float.max a b)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
