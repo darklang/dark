@@ -34,6 +34,8 @@ let ( * ) = Int63.( * )
 
 let pow = Int63.pow
 
+let abs = Int63.abs
+
 let one = Int63.one
 
 let zero = Int63.zero

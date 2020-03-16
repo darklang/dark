@@ -38,6 +38,8 @@ val min : t -> t -> t
 
 val pow : t -> t -> t
 
+val abs : t -> t
+
 val one : t
 
 val zero : t
