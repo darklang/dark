@@ -8,13 +8,13 @@ module Unicode_string = Libexecution.Unicode_string
 
 let find_db = Libexecution.Ast.find_db
 
-let fns : shortfn list =
-  [ { pns = ["DB::set_v1"]
-    ; ins = []
-    ; p = [par "val" TObj; par "key" TStr; par "table" TDB]
-    ; r = TObj
-    ; d = "Upsert `val` into `table`, accessible by `key`"
-    ; f =
+let fns : fn list =
+  [ { prefix_names = ["DB::set_v1"]
+    ; infix_names = []
+    ; parameters = [par "val" TObj; par "key" TStr; par "table" TDB]
+    ; return_type = TObj
+    ; description = "Upsert `val` into `table`, accessible by `key`"
+    ; func =
         InProcess
           (function
           | state, [DObj value; DStr key; DDB dbname] ->
@@ -24,15 +24,15 @@ let fns : shortfn list =
               DObj value
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::add_v0"]
-    ; ins = []
-    ; p = [par "val" TObj; par "table" TDB]
-    ; r = TStr
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::add_v0"]
+    ; infix_names = []
+    ; parameters = [par "val" TObj; par "table" TDB]
+    ; return_type = TStr
+    ; description =
         "Add `val` as a new entry into `table`, using a newly generated key. Returns the generated key."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DObj value; DDB dbname] ->
@@ -42,14 +42,14 @@ let fns : shortfn list =
               Dval.dstr_of_string_exn key
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::get_v1"]
-    ; ins = []
-    ; p = [par "key" TStr; par "table" TDB]
-    ; r = TOption
-    ; d = "Finds a value in `table` by `key"
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::get_v1"]
+    ; infix_names = []
+    ; parameters = [par "key" TStr; par "table" TDB]
+    ; return_type = TOption
+    ; description = "Finds a value in `table` by `key"
+    ; func =
         InProcess
           (function
           | state, [DStr key; DDB dbname] ->
@@ -58,14 +58,14 @@ let fns : shortfn list =
               User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::get_v2"]
-    ; ins = []
-    ; p = [par "key" TStr; par "table" TDB]
-    ; r = TOption
-    ; d = "Finds a value in `table` by `key"
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::get_v2"]
+    ; infix_names = []
+    ; parameters = [par "key" TStr; par "table" TDB]
+    ; return_type = TOption
+    ; description = "Finds a value in `table` by `key"
+    ; func =
         InProcess
           (function
           | state, [DStr key; DDB dbname] ->
@@ -74,15 +74,15 @@ let fns : shortfn list =
               User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::getMany_v1"]
-    ; ins = []
-    ; p = [par "keys" TList; par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::getMany_v1"]
+    ; infix_names = []
+    ; parameters = [par "keys" TList; par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList keys; DDB dbname] ->
@@ -103,15 +103,15 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::getMany_v2"]
-    ; ins = []
-    ; p = [par "keys" TList; par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::getMany_v2"]
+    ; infix_names = []
+    ; parameters = [par "keys" TList; par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Finds many values in `table` by `keys, returning a [value] list of values"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList keys; DDB dbname] ->
@@ -131,15 +131,15 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::getManyWithKeys"]
-    ; ins = []
-    ; p = [par "keys" TList; par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::getManyWithKeys"]
+    ; infix_names = []
+    ; parameters = [par "keys" TList; par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList keys; DDB dbname] ->
@@ -160,15 +160,15 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::getManyWithKeys_v1"]
-    ; ins = []
-    ; p = [par "keys" TList; par "table" TDB]
-    ; r = TObj
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::getManyWithKeys_v1"]
+    ; infix_names = []
+    ; parameters = [par "keys" TList; par "table" TDB]
+    ; return_type = TObj
+    ; description =
         "Finds many values in `table` by `keys, returning a {key:{value}, key2: {value2}} object of keys and values"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList keys; DDB dbname] ->
@@ -188,14 +188,14 @@ let fns : shortfn list =
               |> DObj
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::delete_v1"]
-    ; ins = []
-    ; p = [par "key" TStr; par "table" TDB]
-    ; r = TNull
-    ; d = "Delete `key` from `table`"
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::delete_v1"]
+    ; infix_names = []
+    ; parameters = [par "key" TStr; par "table" TDB]
+    ; return_type = TNull
+    ; description = "Delete `key` from `table`"
+    ; func =
         InProcess
           (function
           | state, [DStr key; DDB dbname] ->
@@ -205,14 +205,14 @@ let fns : shortfn list =
               DNull
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::deleteAll_v1"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TNull
-    ; d = "Delete everything from `table`"
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::deleteAll_v1"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TNull
+    ; description = "Delete everything from `table`"
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -221,16 +221,16 @@ let fns : shortfn list =
               DNull
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::query_v1"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::query_v1"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning a [[key, value]] list of lists"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -241,15 +241,15 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true (* see query_v2 *) }
-  ; { pns = ["DB::query_v2"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true (* see query_v2 *) }
+  ; { prefix_names = ["DB::query_v2"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -259,16 +259,16 @@ let fns : shortfn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
+    ; preview_execution_safe = false
+    ; deprecated = true }
     (* see queryExactFields *)
-  ; { pns = ["DB::query_v3"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TList
-    ; d =
+  ; { prefix_names = ["DB::query_v3"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -278,15 +278,15 @@ let fns : shortfn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::queryExactFields"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::queryExactFields"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -296,16 +296,16 @@ let fns : shortfn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::queryWithKey_v1"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::queryWithKey_v1"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning a [[key, value]] list of lists"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -316,17 +316,17 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
+    ; preview_execution_safe = false
+    ; deprecated = true }
     (* see queryExactFieldsWithKey *)
-  ; { pns = ["DB::queryWithKey_v2"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TObj
-    ; d =
+  ; { prefix_names = ["DB::queryWithKey_v2"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TObj
+    ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning {key : value} as an object"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -336,16 +336,16 @@ let fns : shortfn list =
               |> DObj
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::queryExactFieldsWithKey"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TObj
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::queryExactFieldsWithKey"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TObj
+    ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning {key : value} as an object. Previous called DB::queryWithKey_v2"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -355,15 +355,15 @@ let fns : shortfn list =
               |> DObj
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::queryOne_v1"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::queryOne_v1"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TOption
+    ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -378,15 +378,15 @@ let fns : shortfn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::queryOne_v2"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::queryOne_v2"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TOption
+    ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -401,16 +401,16 @@ let fns : shortfn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
+    ; preview_execution_safe = false
+    ; deprecated = true }
     (* see queryOneExactFields *)
-  ; { pns = ["DB::queryOneWithExactFields"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TOption
-    ; d =
+  ; { prefix_names = ["DB::queryOneWithExactFields"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TOption
+    ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -425,15 +425,15 @@ let fns : shortfn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::queryOneWithKey_v1"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::queryOneWithKey_v1"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TOption
+    ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -448,15 +448,15 @@ let fns : shortfn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::queryOneWithKey_v2"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::queryOneWithKey_v2"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TOption
+    ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -471,16 +471,16 @@ let fns : shortfn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
+    ; preview_execution_safe = false
+    ; deprecated = true }
     (* see queryOneExactFieldsWithKey *)
-  ; { pns = ["DB::queryOneWithExactFieldsWithKey"]
-    ; ins = []
-    ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TOption
-    ; d =
+  ; { prefix_names = ["DB::queryOneWithExactFieldsWithKey"]
+    ; infix_names = []
+    ; parameters = [par "spec" TObj; par "table" TDB]
+    ; return_type = TOption
+    ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
@@ -495,16 +495,16 @@ let fns : shortfn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::getAll_v1"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::getAll_v1"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Fetch all the values in `table`. Returns a list of lists such that the inner
         lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -515,14 +515,14 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::getAll_v2"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TList
-    ; d = "Fetch all the values in `table`."
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::getAll_v2"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TList
+    ; description = "Fetch all the values in `table`."
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -532,14 +532,14 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::getAll_v3"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TList
-    ; d = "Fetch all the values in `table`."
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::getAll_v3"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TList
+    ; description = "Fetch all the values in `table`."
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -549,16 +549,16 @@ let fns : shortfn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::getAllWithKeys_v1"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::getAllWithKeys_v1"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Fetch all the values in `table`. Returns a list of lists such that the inner
         lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -569,15 +569,15 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DB::getAllWithKeys_v2"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TObj
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["DB::getAllWithKeys_v2"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TObj
+    ; description =
         "Fetch all the values in `table`. Returns an object with key: value. ie. {key : value, key2: value2}"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -585,14 +585,14 @@ let fns : shortfn list =
               User_db.get_all ~state db |> DvalMap.from_list |> DObj
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::count"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TInt
-    ; d = "Return the number of items stored in `table`."
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::count"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TInt
+    ; description = "Return the number of items stored in `table`."
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -600,15 +600,15 @@ let fns : shortfn list =
               User_db.count ~state db |> Dval.dint
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
+    ; preview_execution_safe = false
+    ; deprecated = false }
   ; (* previously called `DB::keys` *)
-    { pns = ["DB::schemaFields_v1"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TList
-    ; d = "Fetch all the fieldNames in `table`"
-    ; f =
+    { prefix_names = ["DB::schemaFields_v1"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TList
+    ; description = "Fetch all the fieldNames in `table`"
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -618,14 +618,15 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::schema_v1"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TObj
-    ; d = "Returns an `Obj` representing { fieldName: fieldType } in `table`"
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::schema_v1"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TObj
+    ; description =
+        "Returns an `Obj` representing { fieldName: fieldType } in `table`"
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -636,29 +637,29 @@ let fns : shortfn list =
               |> Dval.to_dobj_exn
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::generateKey"]
-    ; ins = []
-    ; p = []
-    ; r = TStr
-    ; d = "Returns a random key suitable for use as a DB key"
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::generateKey"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TStr
+    ; description = "Returns a random key suitable for use as a DB key"
+    ; func =
         InProcess
           (function
           | _, [] ->
               Uuidm.v `V4 |> Uuidm.to_string |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::keys_v1"]
-    ; ins = []
-    ; p = [par "table" TDB]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::keys_v1"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB]
+    ; return_type = TList
+    ; description =
         "Fetch all the keys of entries in `table`. Returns an list with strings"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DDB dbname] ->
@@ -668,15 +669,15 @@ let fns : shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::query_v4"]
-    ; ins = []
-    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::query_v4"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; return_type = TList
+    ; description =
         "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DDB dbname; DBlock b] ->
@@ -689,15 +690,15 @@ let fns : shortfn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::queryWithKey_v3"]
-    ; ins = []
-    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
-    ; r = TObj
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::queryWithKey_v3"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; return_type = TObj
+    ; description =
         "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DDB dbname; DBlock b] ->
@@ -708,15 +709,15 @@ let fns : shortfn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::queryOne_v3"]
-    ; ins = []
-    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::queryOne_v3"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; return_type = TList
+    ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DDB dbname; DBlock b] ->
@@ -732,15 +733,15 @@ let fns : shortfn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DB::queryOneWithKey_v3"]
-    ; ins = []
-    ; p = [par "table" TDB; par "filter" TBlock ~args:["value"]]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["DB::queryOneWithKey_v3"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; return_type = TOption
+    ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DDB dbname; DBlock b] ->
@@ -756,5 +757,5 @@ let fns : shortfn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_execution_safe = false
+    ; deprecated = false } ]

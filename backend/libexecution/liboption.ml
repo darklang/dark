@@ -16,14 +16,14 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 
 let ( >>| ) = Result.( >>| )
 
-let fns : Lib.shortfn list =
-  [ { pns = ["Option::map"]
-    ; ins = []
-    ; p = [par "option" TOption; func ["val"]]
-    ; r = TOption
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["Option::map"]
+    ; infix_names = []
+    ; parameters = [par "option" TOption; func ["val"]]
+    ; return_type = TOption
+    ; description =
         "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DOption o; DBlock b] ->
@@ -35,15 +35,15 @@ let fns : Lib.shortfn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Option::map_v1"]
-    ; ins = []
-    ; p = [par "option" TOption; func ["val"]]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Option::map_v1"]
+    ; infix_names = []
+    ; parameters = [par "option" TOption; func ["val"]]
+    ; return_type = TOption
+    ; description =
         "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DOption o; DBlock b] ->
@@ -55,15 +55,15 @@ let fns : Lib.shortfn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Option::andThen"]
-    ; ins = []
-    ; p = [par "option" TOption; func ["val"]]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Option::andThen"]
+    ; infix_names = []
+    ; parameters = [par "option" TOption; func ["val"]]
+    ; return_type = TOption
+    ; description =
         "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing. Combines the result into a single option, where if both the caller and the result are Just, the result is a single Just"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DOption o; DBlock b] ->
@@ -82,20 +82,20 @@ let fns : Lib.shortfn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Option::withDefault"]
-    ; ins = []
-    ; p = [par "option" TOption; par "default" TAny]
-    ; r = TAny
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Option::withDefault"]
+    ; infix_names = []
+    ; parameters = [par "option" TOption; par "default" TAny]
+    ; return_type = TAny
+    ; description =
         "Turn an option into a normal value, using `default` if the option is Nothing."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DOption o; default] ->
             (match o with OptJust dv -> dv | OptNothing -> default)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_execution_safe = true
+    ; deprecated = false } ]

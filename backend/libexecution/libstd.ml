@@ -16,93 +16,93 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 
 let ( >>| ) = Result.( >>| )
 
-let fns : Lib.shortfn list =
-  [ { pns = ["toString"]
-    ; ins = []
-    ; p = [par "v" TAny]
-    ; r = TStr
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["toString"]
+    ; infix_names = []
+    ; parameters = [par "v" TAny]
+    ; return_type = TStr
+    ; description =
         "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_enduser_readable_text_v0 a)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["toRepr"]
-    ; ins = []
-    ; p = [par "v" TAny]
-    ; r = TStr
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["toRepr"]
+    ; infix_names = []
+    ; parameters = [par "v" TAny]
+    ; return_type = TStr
+    ; description =
         "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["equals"]
-    ; ins = ["=="]
-    ; p = [par "a" TAny; par "b" TAny]
-    ; r = TBool
-    ; d = "Returns true if the two value are equal"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["equals"]
+    ; infix_names = ["=="]
+    ; parameters = [par "a" TAny; par "b" TAny]
+    ; return_type = TBool
+    ; description = "Returns true if the two value are equal"
+    ; func =
         InProcess
           (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["notEquals"]
-    ; ins = ["!="]
-    ; p = [par "a" TAny; par "b" TAny]
-    ; r = TBool
-    ; d = "Returns true if the two value are not equal"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["notEquals"]
+    ; infix_names = ["!="]
+    ; parameters = [par "a" TAny; par "b" TAny]
+    ; return_type = TBool
+    ; description = "Returns true if the two value are not equal"
+    ; func =
         InProcess
           (function
           | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["assoc"]
-    ; ins = []
-    ; p = [par "obj" TObj; par "key" TStr; par "val" TAny]
-    ; r = TObj
-    ; d = "Return a copy of `obj` with the `key` set to `val`."
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["assoc"]
+    ; infix_names = []
+    ; parameters = [par "obj" TObj; par "key" TStr; par "val" TAny]
+    ; return_type = TObj
+    ; description = "Return a copy of `obj` with the `key` set to `val`."
+    ; func =
         InProcess
           (function
           | _, [DObj o; DStr k; v] ->
               DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["dissoc"]
-    ; ins = []
-    ; p = [par "obj" TObj; par "key" TStr]
-    ; r = TObj
-    ; d = "Return a copy of `obj` with `key` unset."
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["dissoc"]
+    ; infix_names = []
+    ; parameters = [par "obj" TObj; par "key" TStr]
+    ; return_type = TObj
+    ; description = "Return a copy of `obj` with `key` unset."
+    ; func =
         InProcess
           (function
           | _, [DObj o; DStr k] ->
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["toForm"]
-    ; ins = []
-    ; p = [par "obj" TObj; par "submit" TStr]
-    ; r = TStr
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["toForm"]
+    ; infix_names = []
+    ; parameters = [par "obj" TObj; par "submit" TStr]
+    ; return_type = TStr
+    ; description =
         "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DObj o; DStr uri] ->
@@ -132,28 +132,28 @@ let fns : Lib.shortfn list =
                 (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Error::toString"]
-    ; ins = []
-    ; p = [par "err" TError]
-    ; r = TStr
-    ; d = "Return a string representing the error"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Error::toString"]
+    ; infix_names = []
+    ; parameters = [par "err" TError]
+    ; return_type = TStr
+    ; description = "Return a string representing the error"
+    ; func =
         InProcess
           (function
           | _, [DError (_, err)] ->
               Dval.dstr_of_string_exn err
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["AWS::urlencode"]
-    ; ins = []
-    ; p = [par "str" TStr]
-    ; r = TStr
-    ; d = "Url encode a string per AWS' requirements"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["AWS::urlencode"]
+    ; infix_names = []
+    ; parameters = [par "str" TStr]
+    ; return_type = TStr
+    ; description = "Url encode a string per AWS' requirements"
+    ; func =
         InProcess
           (function
           | _, [DStr str] ->
@@ -163,14 +163,14 @@ let fns : Lib.shortfn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Twitter::urlencode"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d = "Url encode a string per Twitter's requirements"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Twitter::urlencode"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description = "Url encode a string per Twitter's requirements"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -180,5 +180,5 @@ let fns : Lib.shortfn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_execution_safe = true
+    ; deprecated = false } ]

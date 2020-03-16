@@ -3,29 +3,29 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : Lib.shortfn list =
-  [ { pns = ["Bytes::base64Encode"]
-    ; ins = []
-    ; p = [par "bytes" TBytes]
-    ; r = TStr
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["Bytes::base64Encode"]
+    ; infix_names = []
+    ; parameters = [par "bytes" TBytes]
+    ; return_type = TStr
+    ; description =
         "Base64URL encodes `bytes` with `=` padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DBytes bytes] ->
               Dval.dstr_of_string_exn (Libtarget.base64url_bytes bytes)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Bytes::hexEncode"]
-    ; ins = []
-    ; p = [par "bytes" TBytes]
-    ; r = TStr
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Bytes::hexEncode"]
+    ; infix_names = []
+    ; parameters = [par "bytes" TBytes]
+    ; return_type = TStr
+    ; description =
         "Hex (Base16) encodes `bytes` using an uppercase alphabet. Complies with RFC 4648 section 8."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DBytes bytes] ->
@@ -44,19 +44,19 @@ let fns : Lib.shortfn list =
               Buffer.contents buf |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Bytes::length"]
-    ; ins = []
-    ; p = [par "bytes" TBytes]
-    ; r = TInt
-    ; d = "Length of encoded byte string"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Bytes::length"]
+    ; infix_names = []
+    ; parameters = [par "bytes" TBytes]
+    ; return_type = TInt
+    ; description = "Length of encoded byte string"
+    ; func =
         InProcess
           (function
           | _, [DBytes bytes] ->
               Dval.dint (Bytes.length bytes)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_execution_safe = true
+    ; deprecated = false } ]
