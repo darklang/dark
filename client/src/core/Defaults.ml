@@ -166,4 +166,7 @@ let defaultModel : model =
       ; orgList = []
       ; loading = false
       ; canvasInformation =
-          {canvasDescription = ""; shippedDate = None; createdAt = None} } }
+          { canvasDescription = ""
+          ; shippedDate = None
+          ; createdAt = None
+          ; canvasName = "builtwithdark" } } }

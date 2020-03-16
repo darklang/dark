@@ -56,7 +56,7 @@ let submitForm (m : Types.model) (tab : settingsTab) :
 let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
     =
   match msg with
-  | SetSettingsView (canvasList, orgList, creationDate) ->
+  | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
       ( { m with
           settingsView =
             { m.settingsView with
@@ -64,7 +64,8 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
             ; orgList
             ; canvasInformation =
                 { m.settingsView.canvasInformation with
-                  createdAt = Some creationDate } } }
+                  canvasName
+                ; createdAt = Some creationDate } } }
       , Cmd.none )
   | OpenSettingsView tab ->
       let m, cmd = CursorState.setCursorState Deselected m in
@@ -91,7 +92,7 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
                 | None ->
                     ""
               in
-              { canvasName = m.canvasName
+              { canvasName = m.settingsView.canvasInformation.canvasName
               ; canvasDescription =
                   m.settingsView.canvasInformation.canvasDescription
               ; canvasShipped
