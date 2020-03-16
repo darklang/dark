@@ -63,6 +63,11 @@ def sass_compile():
   start = time.time()
   return run_frontend(start, "npx node-sass client/styles/app.scss > backend/static/app.css")
 
+def copy_static():
+  # For changing static files (esp icons)
+  start = time.time()
+  return run_frontend(start, "yarn run copy:static")
+
 def client_build():
   if os.environ.get("CI"):
     start = time.time()
@@ -217,6 +222,7 @@ class Should:
     self.client_build = False
     self.client_test = False
     self.sass_compile = False
+    self.copy_static = False
     self.reload_browser = False
     self.reload_server = False
     self.reload_stroller = False
@@ -253,6 +259,11 @@ def execute(should):
 
   if should.sass_compile:
     if not sass_compile(): success = False
+    should.generate_etags |= success
+    should.reload_browser |= success
+
+  if should.copy_static:
+    if not copy_static(): success = False
     should.generate_etags |= success
     should.reload_browser |= success
 
@@ -371,6 +382,9 @@ def mark(should, f):
 
   elif ".scss" in f:
     should.sass_compile = True
+
+  elif ".svg" in f:
+    should.copy_static = True
 
   elif ("scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
