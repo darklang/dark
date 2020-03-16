@@ -584,6 +584,11 @@ let t_float_stdlibs () =
     "Float::truncate works"
     (Dval.dint (-2367))
     (exec_ast' (fn "Float::truncate" [float' (-2367) 9267])) ;
+  check_dval
+    "Float::min works"
+    (DFloat (-10.0))
+    (exec_ast "(Float::min -10.0 1.0)") ;
+  check_dval "Float::max works" (DFloat 1.0) (exec_ast "(Float::max -10.0 1.0)") ;
   check_dval "Float::sqrt works" (exec_ast "(Float::sqrt 25.0)") (DFloat 5.0) ;
   check_dval
     "Float::divide works"
