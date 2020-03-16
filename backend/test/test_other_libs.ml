@@ -590,14 +590,32 @@ let t_float_stdlibs () =
     (exec_ast "(Float::min -10.0 1.0)") ;
   check_dval
     "Float::min works (pos)"
-    (DFloat (1.0))
+    (DFloat 1.0)
     (exec_ast "(Float::min 10.0 1.0)") ;
-  check_dval "Float::min works (nan)" (DFloat Float.nan) (exec_ast "(Float::min 10.0 NaN)") ;
-  check_dval "Float::min works (infinity)" (DFloat 1.0) (exec_ast "(Float::min Infinity 1.0)") ;
-  check_dval "Float::max works (neg)" (DFloat 1.0) (exec_ast "(Float::max -10.0 1.0)") ;
-  check_dval "Float::max works (pos)" (DFloat 10.0) (exec_ast "(Float::max 10.0 1.0)") ;
-  check_dval "Float::max works (nan)" (DFloat Float.nan) (exec_ast "(Float::max 10.0 NaN)") ;
-  check_dval "Float::max works (infinity)" (DFloat Float.infinity) (exec_ast "(Float::max Infinity 1.0)") ;
+  check_dval
+    "Float::min works (nan)"
+    (DFloat Float.nan)
+    (exec_ast "(Float::min 10.0 NaN)") ;
+  check_dval
+    "Float::min works (infinity)"
+    (DFloat 1.0)
+    (exec_ast "(Float::min Infinity 1.0)") ;
+  check_dval
+    "Float::max works (neg)"
+    (DFloat 1.0)
+    (exec_ast "(Float::max -10.0 1.0)") ;
+  check_dval
+    "Float::max works (pos)"
+    (DFloat 10.0)
+    (exec_ast "(Float::max 10.0 1.0)") ;
+  check_dval
+    "Float::max works (nan)"
+    (DFloat Float.nan)
+    (exec_ast "(Float::max 10.0 NaN)") ;
+  check_dval
+    "Float::max works (infinity)"
+    (DFloat Float.infinity)
+    (exec_ast "(Float::max Infinity 1.0)") ;
   check_dval "Float::sqrt works" (DFloat 5.0) (exec_ast "(Float::sqrt 25.0)") ;
   check_dval
     "Float::divide works"
