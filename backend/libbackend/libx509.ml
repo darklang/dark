@@ -3,14 +3,14 @@ open Libexecution
 open Libexecution.Lib
 module U = Libexecution.Unicode_string
 
-let fns =
-  [ { pns = ["X509::pemCertificatePublicKey"]
-    ; ins = []
-    ; p = [par "pemCert" TStr]
-    ; r = TResult
-    ; d =
+let fns : Types.RuntimeT.fn list =
+  [ { prefix_names = ["X509::pemCertificatePublicKey"]
+    ; infix_names = []
+    ; parameters = [par "pemCert" TStr]
+    ; return_type = TResult
+    ; description =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr cert] ->
@@ -29,5 +29,5 @@ let fns =
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_execution_safe = false
+    ; deprecated = false } ]

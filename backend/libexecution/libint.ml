@@ -14,25 +14,25 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
 
 let ( >>| ) = Result.( >>| )
 
-let fns : Lib.shortfn list =
-  [ { pns = ["Int::mod"]
-    ; ins = ["%"]
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TInt
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["Int::mod"]
+    ; infix_names = ["%"]
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TInt
+    ; description =
         "Return `a` % `b`, the modulus of a and b. This is the integer remainder left when `a` is divided by `b`. For example, `15 % 6 = 3`."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.( % ) a b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::add"]
-    ; ins = ["+"]
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TInt
-    ; d = "Adds two integers together"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::add"]
+    ; infix_names = ["+"]
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TInt
+    ; description = "Adds two integers together"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] ->
@@ -75,14 +75,14 @@ let fns : Lib.shortfn list =
                 )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::subtract"]
-    ; ins = ["-"]
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TInt
-    ; d = "Subtracts two integers"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::subtract"]
+    ; infix_names = ["-"]
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TInt
+    ; description = "Subtracts two integers"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] ->
@@ -107,14 +107,14 @@ let fns : Lib.shortfn list =
                 )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::multiply"]
-    ; ins = ["*"]
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TInt
-    ; d = "Multiplies two integers"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::multiply"]
+    ; infix_names = ["*"]
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TInt
+    ; description = "Multiplies two integers"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] ->
@@ -139,28 +139,28 @@ let fns : Lib.shortfn list =
                 )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::power"]
-    ; ins = ["^"]
-    ; p = [par "base" TInt; par "exponent" TInt]
-    ; r = TInt
-    ; d = "Raise `base` to the power of `exponent`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::power"]
+    ; infix_names = ["^"]
+    ; parameters = [par "base" TInt; par "exponent" TInt]
+    ; return_type = TInt
+    ; description = "Raise `base` to the power of `exponent`"
+    ; func =
         InProcess
           (function
           | _, [DInt base; DInt exp] ->
               DInt (Dint.pow base exp)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::divide"]
-    ; ins = []
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TInt
-    ; d = "Divides two integers"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::divide"]
+    ; infix_names = []
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TInt
+    ; description = "Divides two integers"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] ->
@@ -185,14 +185,14 @@ let fns : Lib.shortfn list =
                 )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::greaterThan"]
-    ; ins = [">"]
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TBool
-    ; d = "Returns true if a is greater than b"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::greaterThan"]
+    ; infix_names = [">"]
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TBool
+    ; description = "Returns true if a is greater than b"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] ->
@@ -217,14 +217,14 @@ let fns : Lib.shortfn list =
                 )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::greaterThanOrEqualTo"]
-    ; ins = [">="]
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TBool
-    ; d = "Returns true if a is greater than or equal to b"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::greaterThanOrEqualTo"]
+    ; infix_names = [">="]
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TBool
+    ; description = "Returns true if a is greater than or equal to b"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] ->
@@ -249,14 +249,14 @@ let fns : Lib.shortfn list =
                 )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::lessThan"]
-    ; ins = ["<"]
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TBool
-    ; d = "Returns true if a is less than b"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::lessThan"]
+    ; infix_names = ["<"]
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TBool
+    ; description = "Returns true if a is less than b"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] ->
@@ -281,14 +281,14 @@ let fns : Lib.shortfn list =
                 )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::lessThanOrEqualTo"]
-    ; ins = ["<="]
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TBool
-    ; d = "Returns true if a is less than or equal to b"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::lessThanOrEqualTo"]
+    ; infix_names = ["<="]
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TBool
+    ; description = "Returns true if a is less than or equal to b"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] ->
@@ -313,14 +313,14 @@ let fns : Lib.shortfn list =
                 )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::random"]
-    ; ins = []
-    ; p = [par "start" TInt; par "end" TInt]
-    ; r = TInt
-    ; d = "Returns a random integer between a and b (inclusive)"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::random"]
+    ; infix_names = []
+    ; parameters = [par "start" TInt; par "end" TInt]
+    ; return_type = TInt
+    ; description = "Returns a random integer between a and b (inclusive)"
+    ; func =
         InProcess
           (function
           (*( +1 as Random.int is exclusive *)
@@ -329,14 +329,15 @@ let fns : Lib.shortfn list =
               DInt (a + one + Dint.random (b - a))
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["Int::random_v1"]
-    ; ins = []
-    ; p = [par "start" TInt; par "end" TInt]
-    ; r = TInt
-    ; d = "Returns a random integer between `start` and `end` (inclusive)."
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["Int::random_v1"]
+    ; infix_names = []
+    ; parameters = [par "start" TInt; par "end" TInt]
+    ; return_type = TInt
+    ; description =
+        "Returns a random integer between `start` and `end` (inclusive)."
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] ->
@@ -346,14 +347,14 @@ let fns : Lib.shortfn list =
               DInt (lower + Dint.random (upper - lower))
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["Int::sqrt"]
-    ; ins = []
-    ; p = [par "a" TInt]
-    ; r = TFloat
-    ; d = "Get the square root of an Int"
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["Int::sqrt"]
+    ; infix_names = []
+    ; parameters = [par "a" TInt]
+    ; return_type = TFloat
+    ; description = "Get the square root of an Int"
+    ; func =
         InProcess
           (function
           | _, [DInt a] ->
@@ -369,25 +370,25 @@ let fns : Lib.shortfn list =
                 )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::toFloat"]
-    ; ins = []
-    ; p = [par "a" TInt]
-    ; r = TFloat
-    ; d = "Converts an Int to a Float"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::toFloat"]
+    ; infix_names = []
+    ; parameters = [par "a" TInt]
+    ; return_type = TFloat
+    ; description = "Converts an Int to a Float"
+    ; func =
         InProcess
           (function
           | _, [DInt a] -> DFloat (Dint.to_float a) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::sum"]
-    ; ins = []
-    ; p = [par "a" TList]
-    ; r = TInt
-    ; d = "Returns the sum of all the ints in the list"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::sum"]
+    ; infix_names = []
+    ; parameters = [par "a" TList]
+    ; return_type = TInt
+    ; description = "Returns the sum of all the ints in the list"
+    ; func =
         InProcess
           (function
           | _, [DList l] ->
@@ -409,27 +410,27 @@ let fns : Lib.shortfn list =
               |> Result.ok_exn
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::max"]
-    ; ins = []
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TBool
-    ; d = "Returns the higher of a and b"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::max"]
+    ; infix_names = []
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TBool
+    ; description = "Returns the higher of a and b"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Int::min"]
-    ; ins = []
-    ; p = [par "a" TInt; par "b" TInt]
-    ; r = TBool
-    ; d = "Returns the lower of `a` and `b`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Int::min"]
+    ; infix_names = []
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TBool
+    ; description = "Returns the lower of `a` and `b`"
+    ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_execution_safe = true
+    ; deprecated = false } ]

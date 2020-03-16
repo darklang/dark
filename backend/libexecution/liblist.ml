@@ -6,27 +6,27 @@ module RT = Runtime
 let list_repeat = Util.list_repeat
 
 let fns =
-  [ { pns = ["List::head"]
-    ; ins = []
-    ; p = [par "list" TList]
-    ; r = TAny
-    ; d =
+  [ { prefix_names = ["List::head"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TAny
+    ; description =
         "Returns the head of a list. Returns null if the empty list is passed."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DList l] ->
             (match List.hd l with Some dv -> dv | None -> DNull)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["List::head_v1"]
-    ; ins = []
-    ; p = [par "list" TList]
-    ; r = TOption
-    ; d = "Fetches the head of the list and returns an option"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["List::head_v1"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TOption
+    ; description = "Fetches the head of the list and returns an option"
+    ; func =
         InProcess
           (function
           | _, [DList l] ->
@@ -37,15 +37,15 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["List::head_v2"]
-    ; ins = []
-    ; p = [par "list" TList]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["List::head_v2"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TOption
+    ; description =
         "Returns `Just` the head (first item) of a list. Returns `Nothing` if the list is empty."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DList l] ->
@@ -56,44 +56,45 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::empty"]
-    ; ins = []
-    ; p = []
-    ; r = TList
-    ; d = "Returns an empty list."
-    ; f = InProcess (function _, [] -> DList [] | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::push"]
-    ; ins = []
-    ; p = [par "list" TList; par "val" TAny]
-    ; r = TList
-    ; d = "Add element `val` to front of list `list`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::empty"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TList
+    ; description = "Returns an empty list."
+    ; func = InProcess (function _, [] -> DList [] | args -> fail args)
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::push"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; par "val" TAny]
+    ; return_type = TList
+    ; description = "Add element `val` to front of list `list`"
+    ; func =
         InProcess
           (* fake cf handled by call *)
           (function
           | _, [DList l; i] -> DList (i :: l) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::pushBack"]
-    ; ins = []
-    ; p = [par "list" TList; par "val" TAny]
-    ; r = TList
-    ; d = "Add element `val` to back of list `list`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::pushBack"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; par "val" TAny]
+    ; return_type = TList
+    ; description = "Add element `val` to back of list `list`"
+    ; func =
         InProcess
           (function _, [DList l; i] -> DList (l @ [i]) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::last"]
-    ; ins = []
-    ; p = [par "list" TList]
-    ; r = TAny
-    ; d = "Returns the last item in a last. Returns null if the list is empty."
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::last"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TAny
+    ; description =
+        "Returns the last item in a last. Returns null if the list is empty."
+    ; func =
         InProcess
           (function
           | _, [DList []] ->
@@ -102,14 +103,14 @@ let fns =
               List.last_exn l
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["List::last_v1"]
-    ; ins = []
-    ; p = [par "list" TList]
-    ; r = TOption
-    ; d = "Returns the last item in the list as an option"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["List::last_v1"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TOption
+    ; description = "Returns the last item in the list as an option"
+    ; func =
         InProcess
           (function
           | _, [DList []] ->
@@ -118,14 +119,14 @@ let fns =
               DOption (OptJust (List.last_exn l))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["List::last_v2"]
-    ; ins = []
-    ; p = [par "list" TList]
-    ; r = TOption
-    ; d = "Returns the last item in the list as an option"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["List::last_v2"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TOption
+    ; description = "Returns the last item in the list as an option"
+    ; func =
         InProcess
           (function
           | _, [DList []] ->
@@ -134,24 +135,25 @@ let fns =
               Dval.to_opt_just (List.last_exn l)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::reverse"]
-    ; ins = []
-    ; p = [par "list" TList]
-    ; r = TList
-    ; d = "Reverses `list`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::reverse"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TList
+    ; description = "Reverses `list`"
+    ; func =
         InProcess
           (function _, [DList l] -> DList (List.rev l) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::findFirst"]
-    ; ins = []
-    ; p = [par "l" TList; func ["val"]]
-    ; r = TAny
-    ; d = "Find the first element of the list, for which `f` returns true"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::findFirst"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; func ["val"]]
+    ; return_type = TAny
+    ; description =
+        "Find the first element of the list, for which `f` returns true"
+    ; func =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
@@ -161,15 +163,15 @@ let fns =
               (match List.find ~f l with None -> DNull | Some dv -> dv)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["List::findFirst_v1"]
-    ; ins = []
-    ; p = [par "l" TList; func ["val"]]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["List::findFirst_v1"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; func ["val"]]
+    ; return_type = TOption
+    ; description =
         "Find the first element of the list, for which `f` returns true. Returns Nothing if none return true"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
@@ -183,15 +185,15 @@ let fns =
                   DOption (OptJust dv) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["List::findFirst_v2"]
-    ; ins = []
-    ; p = [par "l" TList; func ["val"]]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["List::findFirst_v2"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; func ["val"]]
+    ; return_type = TOption
+    ; description =
         "Find the first element of the list, for which `f` returns true. Returns Nothing if none return true"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
@@ -205,56 +207,56 @@ let fns =
                   Dval.to_opt_just dv )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::contains"]
-    ; ins = []
-    ; p = [par "l" TList; par "val" TAny]
-    ; r = TBool
-    ; d = "Returns if the value is in the list"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::contains"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; par "val" TAny]
+    ; return_type = TBool
+    ; description = "Returns if the value is in the list"
+    ; func =
         InProcess
           (function
           | _, [DList l; i] ->
               DBool (List.mem ~equal:equal_dval l i)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::repeat"]
-    ; ins = []
-    ; p = [par "times" TInt; par "val" TAny]
-    ; r = TList
-    ; d = "Returns a list containing `val` repeated `count` times"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::repeat"]
+    ; infix_names = []
+    ; parameters = [par "times" TInt; par "val" TAny]
+    ; return_type = TList
+    ; description = "Returns a list containing `val` repeated `count` times"
+    ; func =
         InProcess
           (function
           | _, [DInt t; dv] ->
               DList (List.init (Dint.to_int_exn t) ~f:(fun _ -> dv))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::length"]
-    ; ins = []
-    ; p = [par "l" TList]
-    ; r = TInt
-    ; d = "Returns the length of the list"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::length"]
+    ; infix_names = []
+    ; parameters = [par "l" TList]
+    ; return_type = TInt
+    ; description = "Returns the length of the list"
+    ; func =
         InProcess
           (function
           | _, [DList l] -> Dval.dint (List.length l) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::range"]
-    ; ins = []
-    ; p =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::range"]
+    ; infix_names = []
+    ; parameters =
         [ par "start" TInt ~d:"First number in the range, will be included"
         ; par "stop" TInt ~d:"Last number in the range, is included" ]
-    ; r = TList
-    ; d =
+    ; return_type = TList
+    ; description =
         "Return a list of increasing integers from `start` to `stop`, inclusive"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DInt start; DInt stop] ->
@@ -263,15 +265,15 @@ let fns =
                 |> List.map ~f:(fun i -> Dval.dint i) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::fold"]
-    ; ins = []
-    ; p = [par "l" TList; par "init" TAny; func ["accum"; "curr"]]
-    ; r = TAny
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::fold"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; par "init" TAny; func ["accum"; "curr"]]
+    ; return_type = TAny
+    ; description =
         "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList l; init; DBlock b] ->
@@ -282,15 +284,15 @@ let fns =
               List.fold ~f ~init l
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::flatten"]
-    ; ins = []
-    ; p = [par "l" TList]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::flatten"]
+    ; infix_names = []
+    ; parameters = [par "l" TList]
+    ; return_type = TList
+    ; description =
         "Returns a single list containing the elements of all the lists in `l`"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DList l] ->
@@ -304,15 +306,15 @@ let fns =
               List.fold ~init:(DList []) ~f l
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::uniqueBy"]
-    ; ins = []
-    ; p = [par "l" TList; func ["val"]]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::uniqueBy"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; func ["val"]]
+    ; return_type = TList
+    ; description =
         "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
@@ -322,39 +324,39 @@ let fns =
                      compare_dval (fn a) (fn b)))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::isEmpty"]
-    ; ins = []
-    ; p = [par "l" TList]
-    ; r = TBool
-    ; d = "Returns true iff. the list `l` is empty"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::isEmpty"]
+    ; infix_names = []
+    ; parameters = [par "l" TList]
+    ; return_type = TBool
+    ; description = "Returns true iff. the list `l` is empty"
+    ; func =
         InProcess
           (function
           | _, [DList l] -> DBool (List.is_empty l) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::sort"]
-    ; ins = []
-    ; p = [par "list" TList]
-    ; r = TList
-    ; d = "Returns `list` sorted in ascending order"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::sort"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TList
+    ; description = "Returns `list` sorted in ascending order"
+    ; func =
         InProcess
           (function
           | _, [DList list] ->
               list |> List.sort ~compare:compare_dval |> DList
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::sortBy"]
-    ; ins = []
-    ; p = [par "list" TList; func ["val"]]
-    ; r = TList
-    ; d = "Returns `list`, sorted using the results of `f`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::sortBy"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; func ["val"]]
+    ; return_type = TList
+    ; description = "Returns `list`, sorted using the results of `f`"
+    ; func =
         InProcess
           (function
           | state, [DList list; DBlock b] ->
@@ -364,15 +366,15 @@ let fns =
               |> DList
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::sortByComparator"]
-    ; ins = []
-    ; p = [par "list" TList; func ["val"]]
-    ; r = TResult
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::sortByComparator"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; func ["val"]]
+    ; return_type = TResult
+    ; description =
         "Returns `list`, sorted using a `f`, a lambda taking two args and returning -1, 0, and 1"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList list; DBlock b] ->
@@ -427,29 +429,29 @@ let fns =
                   DResult (ResError (Dval.dstr_of_string_exn e.short)) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::append"]
-    ; ins = []
-    ; p = [par "l1" TList; par "l2" TList]
-    ; r = TList
-    ; d = "Returns the combined list of `l1` and `l2`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::append"]
+    ; infix_names = []
+    ; parameters = [par "l1" TList; par "l2" TList]
+    ; return_type = TList
+    ; description = "Returns the combined list of `l1` and `l2`"
+    ; func =
         InProcess
           (function
           | _, [DList l1; DList l2] ->
               DList (List.append l1 l2) (* no checking for fake cf required *)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::filter"]
-    ; ins = []
-    ; p = [par "l" TList; func ["val"]]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::filter"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; func ["val"]]
+    ; return_type = TList
+    ; description =
         "Return only values in `l` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
@@ -469,14 +471,15 @@ let fns =
               else DList (List.filter ~f l)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["List::filter_v1"]
-    ; ins = []
-    ; p = [par "l" TList; func ["val"]]
-    ; r = TList
-    ; d = "Return only values in `l` which meet the function's criteria"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["List::filter_v1"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; func ["val"]]
+    ; return_type = TList
+    ; description =
+        "Return only values in `l` which meet the function's criteria"
+    ; func =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
@@ -498,44 +501,44 @@ let fns =
               (match !fakecf with None -> DList result | Some v -> v)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::drop"]
-    ; ins = []
-    ; p = [par "l" TList; par "count" TInt]
-    ; r = TList
-    ; d = "Drops the first `count` items from the list"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::drop"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; par "count" TInt]
+    ; return_type = TList
+    ; description = "Drops the first `count` items from the list"
+    ; func =
         InProcess
           (function
           | _, [DList l; DInt c] ->
               DList (List.drop l (Dint.to_int_exn c))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::take"]
-    ; ins = []
-    ; p = [par "l" TList; par "count" TInt]
-    ; r = TList
-    ; d = "Drops all but the first `count` items from the list"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::take"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; par "count" TInt]
+    ; return_type = TList
+    ; description = "Drops all but the first `count` items from the list"
+    ; func =
         InProcess
           (function
           | _, [DList l; DInt c] ->
               DList (List.take l (Dint.to_int_exn c))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::foreach"]
-    ; ins = []
-    ; p = [par "l" TList; func ["val"]]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::foreach"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; func ["val"]]
+    ; return_type = TList
+    ; description =
         "Call `f` on every item in the list, returning a list of the results of
   those calls"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
@@ -543,16 +546,16 @@ let fns =
               DList (List.map ~f l)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["List::map"]
-    ; ins = []
-    ; p = [par "l" TList; func ["val"]]
-    ; r = TList
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["List::map"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; func ["val"]]
+    ; return_type = TList
+    ; description =
         "Call `f` on every item in the list, returning a list of the results of
   those calls"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
@@ -560,15 +563,15 @@ let fns =
               Dval.to_list (List.map ~f l)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["List::getAt"]
-    ; ins = []
-    ; p = [par "l" TList; par "index" TInt]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["List::getAt"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; par "index" TInt]
+    ; return_type = TOption
+    ; description =
         "Returns `Just item` at `index` in list `l` if `index` is less than the length of the list otherwise returns `Nothing`"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DList l; DInt index] ->
@@ -577,15 +580,15 @@ let fns =
               |> Option.value ~default:(DOption OptNothing)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["List::getAt_v1"]
-    ; ins = []
-    ; p = [par "l" TList; par "index" TInt]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["List::getAt_v1"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; par "index" TInt]
+    ; return_type = TOption
+    ; description =
         "Returns `Just item` at `index` in list `l` if `index` is less than the length of the list otherwise returns `Nothing`"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DList l; DInt index] ->
@@ -594,5 +597,5 @@ let fns =
               |> Option.value ~default:(DOption OptNothing)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_execution_safe = true
+    ; deprecated = false } ]

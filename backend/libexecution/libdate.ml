@@ -3,14 +3,14 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : Lib.shortfn list =
-  [ { pns = ["Date::parse"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TDate
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["Date::parse"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TDate
+    ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -18,15 +18,15 @@ let fns : Lib.shortfn list =
               with e -> RT.error "Invalid date format" )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Date::parse_v1"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Date::parse_v1"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TResult
+    ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -40,15 +40,15 @@ let fns : Lib.shortfn list =
                   (ResError (Dval.dstr_of_string_exn "Invalid date format")) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Date::parse_v2"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Date::parse_v2"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TResult
+    ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -60,136 +60,138 @@ let fns : Lib.shortfn list =
             )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::toString"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TStr
-    ; d = "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::toString"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TStr
+    ; description =
+        "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
               Dval.dstr_of_string_exn (Util.isostring_of_date d)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::toStringISO8601BasicDateTime"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TStr
-    ; d = "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::toStringISO8601BasicDateTime"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TStr
+    ; description =
+        "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
               Dval.dstr_of_string_exn (Util.isostring_of_date_basic_datetime d)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::toStringISO8601BasicDate"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TStr
-    ; d = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::toStringISO8601BasicDate"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TStr
+    ; description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
               Dval.dstr_of_string_exn (Util.isostring_of_date_basic_date d)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::now"]
-    ; ins = []
-    ; p = []
-    ; r = TDate
-    ; d = "Returns the current time."
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::now"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TDate
+    ; description = "Returns the current time."
+    ; func =
         InProcess (function _, [] -> DDate (Time.now ()) | args -> fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["Date::add"]
-    ; ins = []
-    ; p = [par "d" TDate; par "seconds" TInt]
-    ; r = TDate
-    ; d = "Returns a new Date `seconds` seconds after `d`"
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["Date::add"]
+    ; infix_names = []
+    ; parameters = [par "d" TDate; par "seconds" TInt]
+    ; return_type = TDate
+    ; description = "Returns a new Date `seconds` seconds after `d`"
+    ; func =
         InProcess
           (function
           | _, [DDate d; DInt s] ->
               DDate (Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::sub"]
-    ; ins = []
-    ; p = [par "d" TDate; par "seconds" TInt]
-    ; r = TDate
-    ; d = "Returns a new Date `seconds` seconds before `d`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::sub"]
+    ; infix_names = []
+    ; parameters = [par "d" TDate; par "seconds" TInt]
+    ; return_type = TDate
+    ; description = "Returns a new Date `seconds` seconds before `d`"
+    ; func =
         InProcess
           (function
           | _, [DDate d; DInt s] ->
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Date::subtract"]
-    ; ins = []
-    ; p = [par "d" TDate; par "seconds" TInt]
-    ; r = TDate
-    ; d = "Returns a new Date `seconds` seconds before `d`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Date::subtract"]
+    ; infix_names = []
+    ; parameters = [par "d" TDate; par "seconds" TInt]
+    ; return_type = TDate
+    ; description = "Returns a new Date `seconds` seconds before `d`"
+    ; func =
         InProcess
           (function
           | _, [DDate d; DInt s] ->
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::greaterThan"]
-    ; ins = ["Date::>"]
-    ; p = [par "d1" TDate; par "d2" TDate]
-    ; r = TBool
-    ; d = "Returns whether `d1` > ` d2`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::greaterThan"]
+    ; infix_names = ["Date::>"]
+    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; return_type = TBool
+    ; description = "Returns whether `d1` > ` d2`"
+    ; func =
         InProcess
           (function
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( > ) d1 d2)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::lessThan"]
-    ; ins = ["Date::<"]
-    ; p = [par "d1" TDate; par "d2" TDate]
-    ; r = TBool
-    ; d = "Returns whether `d1` < ` d2`"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::lessThan"]
+    ; infix_names = ["Date::<"]
+    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; return_type = TBool
+    ; description = "Returns whether `d1` < ` d2`"
+    ; func =
         InProcess
           (function
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( < ) d1 d2)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::toSeconds"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TInt
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::toSeconds"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TInt
+    ; description =
         "Converts a Date `date` to an integer representing seconds since the Unix epoch"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
@@ -200,15 +202,15 @@ let fns : Lib.shortfn list =
               |> Dval.dint
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::fromSeconds"]
-    ; ins = []
-    ; p = [par "seconds" TInt]
-    ; r = TDate
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::fromSeconds"]
+    ; infix_names = []
+    ; parameters = [par "seconds" TInt]
+    ; return_type = TDate
+    ; description =
         "Converts an integer representing seconds since the Unix epoch into a Date"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DInt s] ->
@@ -219,14 +221,14 @@ let fns : Lib.shortfn list =
               |> DDate
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::toHumanReadable"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TStr
-    ; d = "Turn a Date into a human readable format"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::toHumanReadable"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TStr
+    ; description = "Turn a Date into a human readable format"
+    ; func =
         InProcess
           (function
           | _, [DDate date] ->
@@ -293,28 +295,29 @@ let fns : Lib.shortfn list =
               Dval.dstr_of_string_exn diff
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true (* This doesn't mean anything *) }
-  ; { pns = ["Date::year"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TInt
-    ; d = "Returns the year portion of the Date as an int"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true (* This doesn't mean anything *) }
+  ; { prefix_names = ["Date::year"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TInt
+    ; description = "Returns the year portion of the Date as an int"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
               d |> Time.to_date ~zone:Time.Zone.utc |> Date.year |> Dval.dint
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::month"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TInt
-    ; d = "Returns the month portion of the Date as an int between 1 and 12"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::month"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TInt
+    ; description =
+        "Returns the month portion of the Date as an int between 1 and 12"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
@@ -325,28 +328,28 @@ let fns : Lib.shortfn list =
               |> Dval.dint
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::day"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TInt
-    ; d = "Returns the day portion of the Date as an int"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::day"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TInt
+    ; description = "Returns the day portion of the Date as an int"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
               d |> Time.to_date ~zone:Time.Zone.utc |> Date.day |> Dval.dint
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::hour"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TInt
-    ; d = "Returns the hour portion of the Date as an int"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::hour"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TInt
+    ; description = "Returns the hour portion of the Date as an int"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
@@ -358,14 +361,14 @@ let fns : Lib.shortfn list =
               |> DInt
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Date::hour_v1"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TInt
-    ; d = "Returns the hour portion of the Date as an int"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Date::hour_v1"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TInt
+    ; description = "Returns the hour portion of the Date as an int"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
@@ -377,14 +380,14 @@ let fns : Lib.shortfn list =
               |> DInt
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::minute"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TInt
-    ; d = "Returns the minute portion of the Date as an int"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::minute"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TInt
+    ; description = "Returns the minute portion of the Date as an int"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
@@ -396,14 +399,14 @@ let fns : Lib.shortfn list =
               |> DInt
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Date::second"]
-    ; ins = []
-    ; p = [par "date" TDate]
-    ; r = TInt
-    ; d = "Returns the second portion of the Date as an int"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Date::second"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TInt
+    ; description = "Returns the second portion of the Date as an int"
+    ; func =
         InProcess
           (function
           | _, [DDate d] ->
@@ -415,5 +418,5 @@ let fns : Lib.shortfn list =
               |> DInt
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_execution_safe = true
+    ; deprecated = false } ]

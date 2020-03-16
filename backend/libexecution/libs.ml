@@ -22,19 +22,7 @@ let add_fn (m : fnmap) (f : RuntimeT.fn) : fnmap =
 
 let static_fns : fnmap ref = ref FnMap.empty
 
-let add_short_fn (s : shortfn) : unit =
-  let (def : RuntimeT.fn) =
-    { prefix_names = s.pns
-    ; infix_names = s.ins
-    ; return_type = s.r
-    ; parameters = s.p
-    ; description = s.d
-    ; func = s.f
-    ; preview_execution_safe = s.ps
-    ; deprecated = s.dep }
-  in
-  static_fns := add_fn !static_fns def
-
+let add_static_fn (s : RTT.fn) : unit = static_fns := add_fn !static_fns s
 
 let fns (user_fns : RuntimeT.user_fn list) : fnmap =
   user_fns
@@ -74,6 +62,6 @@ let filter_out_non_preview_safe_functions_for_tests ~(f : unit -> unit) () :
   ()
 
 
-let init (libs : shortfn list) : unit =
-  List.iter ~f:add_short_fn libs ;
+let init (libs : RTT.fn list) : unit =
+  List.iter ~f:add_static_fn libs ;
   ()

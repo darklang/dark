@@ -4,13 +4,14 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : Lib.shortfn list =
-  [ { pns = ["emit"]
-    ; ins = []
-    ; p = [par "Data" TAny; par "Space" TStr; par "Name" TStr]
-    ; r = TAny
-    ; d = "Emit event `name` in `space`, passing along `data` as a parameter"
-    ; f =
+let fns : fn list =
+  [ { prefix_names = ["emit"]
+    ; infix_names = []
+    ; parameters = [par "Data" TAny; par "Space" TStr; par "Name" TStr]
+    ; return_type = TAny
+    ; description =
+        "Emit event `name` in `space`, passing along `data` as a parameter"
+    ; func =
         InProcess
           (function
           | {canvas_id; account_id; _}, [data; DStr space; DStr name] ->
@@ -21,14 +22,14 @@ let fns : Lib.shortfn list =
               data
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["emit_v1"]
-    ; ins = []
-    ; p = [par "event" TAny; par "Name" TStr]
-    ; r = TAny
-    ; d = "Emit a `event` to the `name` worker"
-    ; f =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["emit_v1"]
+    ; infix_names = []
+    ; parameters = [par "event" TAny; par "Name" TStr]
+    ; return_type = TAny
+    ; description = "Emit a `event` to the `name` worker"
+    ; func =
         InProcess
           (function
           | {canvas_id; account_id; _}, [data; DStr name] ->
@@ -38,5 +39,5 @@ let fns : Lib.shortfn list =
               data
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_execution_safe = false
+    ; deprecated = false } ]

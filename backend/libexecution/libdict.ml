@@ -4,12 +4,12 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns =
-  [ { pns = ["Dict::keys"]
-    ; ins = []
-    ; p = [par "dict" TObj]
-    ; r = TList
-    ; d = "Return the dictionary's keys"
-    ; f =
+  [ { prefix_names = ["Dict::keys"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj]
+    ; return_type = TList
+    ; description = "Return the dictionary's keys"
+    ; func =
         InProcess
           (function
           | _, [DObj o] ->
@@ -19,26 +19,26 @@ let fns =
               |> fun l -> DList l
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Dict::values"]
-    ; ins = []
-    ; p = [par "dict" TObj]
-    ; r = TList
-    ; d = "Return the dictionary's values"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::values"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj]
+    ; return_type = TList
+    ; description = "Return the dictionary's values"
+    ; func =
         InProcess
           (function
           | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Dict::get"]
-    ; ins = []
-    ; p = [par "dict" TObj; par "key" TStr]
-    ; r = TAny
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::get"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; par "key" TStr]
+    ; return_type = TAny
+    ; description =
         "Looks up `key` in object `dict` and returns the value if found, and Error otherwise"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
@@ -49,14 +49,14 @@ let fns =
                 DNull )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Dict::get_v1"]
-    ; ins = []
-    ; p = [par "dict" TObj; par "key" TStr]
-    ; r = TOption
-    ; d = "Looks up `key` in object `dict` and returns an option"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Dict::get_v1"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; par "key" TStr]
+    ; return_type = TOption
+    ; description = "Looks up `key` in object `dict` and returns an option"
+    ; func =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
@@ -67,14 +67,14 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Dict::get_v2"]
-    ; ins = []
-    ; p = [par "dict" TObj; par "key" TStr]
-    ; r = TOption
-    ; d = "Looks up `key` in object `dict` and returns an option"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Dict::get_v2"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; par "key" TStr]
+    ; return_type = TOption
+    ; description = "Looks up `key` in object `dict` and returns an option"
+    ; func =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
@@ -85,15 +85,15 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Dict::foreach"]
-    ; ins = []
-    ; p = [par "dict" TObj; func ["val"]]
-    ; r = TObj
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::foreach"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; func ["val"]]
+    ; return_type = TObj
+    ; description =
         "Iterates each `value` in object `dict` and mutates it according to the provided lambda"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DObj o; DBlock b] ->
@@ -101,15 +101,15 @@ let fns =
               DObj (Map.map ~f o)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Dict::map"]
-    ; ins = []
-    ; p = [par "dict" TObj; func ["key"; "value"]]
-    ; r = TObj
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Dict::map"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; func ["key"; "value"]]
+    ; return_type = TObj
+    ; description =
         "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DObj o; DBlock b] ->
@@ -119,15 +119,15 @@ let fns =
               DObj (Map.mapi ~f o)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Dict::filter"]
-    ; ins = []
-    ; p = [par "dict" TObj; func ["key"; "value"]]
-    ; r = TObj
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::filter"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; func ["key"; "value"]]
+    ; return_type = TObj
+    ; description =
         "Return only values in `dict` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DObj o; DBlock b] ->
@@ -153,15 +153,15 @@ let fns =
               else DObj (Base.Map.filteri ~f o)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Dict::filter_v1"]
-    ; ins = []
-    ; p = [par "dict" TObj; func ["key"; "value"]]
-    ; r = TObj
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = true }
+  ; { prefix_names = ["Dict::filter_v1"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; func ["key"; "value"]]
+    ; return_type = TObj
+    ; description =
         "Return only values in `dict` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DObj o; DBlock b] ->
@@ -198,37 +198,38 @@ let fns =
               (match filtered_result with Ok o -> DObj o | Error dv -> dv)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Dict::empty"]
-    ; ins = []
-    ; p = []
-    ; r = TObj
-    ; d = "Return an empty dictionary"
-    ; f = InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Dict::merge"]
-    ; ins = []
-    ; p = [par "left" TObj; par "right" TObj]
-    ; r = TObj
-    ; d =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::empty"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TObj
+    ; description = "Return an empty dictionary"
+    ; func =
+        InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::merge"]
+    ; infix_names = []
+    ; parameters = [par "left" TObj; par "right" TObj]
+    ; return_type = TObj
+    ; description =
         "Return a combined dictionary with both dictionaries' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DObj l; DObj r] ->
               DObj (Util.merge_right l r)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Dict::toJSON"]
-    ; ins = []
-    ; p = [par "dict" TObj]
-    ; r = TStr
-    ; d = "Dumps `dict` to a JSON string"
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::toJSON"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj]
+    ; return_type = TStr
+    ; description = "Dumps `dict` to a JSON string"
+    ; func =
         InProcess
           (function
           | _, [DObj o] ->
@@ -237,33 +238,33 @@ let fns =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Dict::set"]
-    ; ins = []
-    ; p = [par "dict" TObj; par "key" TStr; par "val" TAny]
-    ; r = TObj
-    ; d = "Return a copy of `dict` with the `key` set to `val`."
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::set"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; par "key" TStr; par "val" TAny]
+    ; return_type = TObj
+    ; description = "Return a copy of `dict` with the `key` set to `val`."
+    ; func =
         InProcess
           (function
           | _, [DObj o; DStr k; v] ->
               DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Dict::remove"]
-    ; ins = []
-    ; p = [par "dict" TObj; par "key" TStr]
-    ; r = TObj
-    ; d = "Return a copy of `dict` with `key` unset."
-    ; f =
+    ; preview_execution_safe = true
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::remove"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; par "key" TStr]
+    ; return_type = TObj
+    ; description = "Return a copy of `dict` with `key` unset."
+    ; func =
         InProcess
           (function
           | _, [DObj o; DStr k] ->
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_execution_safe = true
+    ; deprecated = false } ]

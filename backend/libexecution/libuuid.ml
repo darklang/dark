@@ -16,15 +16,15 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 
 let ( >>| ) = Result.( >>| )
 
-let fns : Lib.shortfn list =
-  [ { pns = ["Uuid::generate"]
-    ; ins = []
-    ; p = []
-    ; r = TUuid
-    ; d = "Generate a new UUID v4 according to RFC 4122"
-    ; f =
+let fns : fn list =
+  [ { prefix_names = ["Uuid::generate"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TUuid
+    ; description = "Generate a new UUID v4 according to RFC 4122"
+    ; func =
         InProcess (function _, [] -> DUuid (Uuidm.v `V4) | args -> fail args)
         (* similarly to Date::now, it's not particularly fun for this to change
      * when live programming *)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_execution_safe = false
+    ; deprecated = false } ]

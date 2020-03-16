@@ -130,13 +130,13 @@ let handle_error (fn : unit -> dval) =
 
 
 let fns =
-  [ { pns = ["JWT::signAndEncode"]
-    ; ins = []
-    ; p = [par "pemPrivKey" TStr; par "payload" TAny]
-    ; r = TStr
-    ; d =
+  [ { prefix_names = ["JWT::signAndEncode"]
+    ; infix_names = []
+    ; parameters = [par "pemPrivKey" TStr; par "payload" TAny]
+    ; return_type = TStr
+    ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr key; payload] ->
@@ -151,15 +151,16 @@ let fns =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["JWT::signAndEncodeWithHeaders"]
-    ; ins = []
-    ; p = [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
-    ; r = TStr
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["JWT::signAndEncodeWithHeaders"]
+    ; infix_names = []
+    ; parameters =
+        [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
+    ; return_type = TStr
+    ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr key; DObj headers; payload] ->
@@ -179,15 +180,15 @@ let fns =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["JWT::signAndEncode_v1"]
-    ; ins = []
-    ; p = [par "pemPrivKey" TStr; par "payload" TAny]
-    ; r = TResult
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["JWT::signAndEncode_v1"]
+    ; infix_names = []
+    ; parameters = [par "pemPrivKey" TStr; par "payload" TAny]
+    ; return_type = TResult
+    ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr key; payload] ->
@@ -203,15 +204,16 @@ let fns =
                   |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["JWT::signAndEncodeWithHeaders_v1"]
-    ; ins = []
-    ; p = [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
-    ; r = TResult
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["JWT::signAndEncodeWithHeaders_v1"]
+    ; infix_names = []
+    ; parameters =
+        [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
+    ; return_type = TResult
+    ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr key; DObj headers; payload] ->
@@ -232,15 +234,15 @@ let fns =
                   |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["JWT::verifyAndExtract"]
-    ; ins = []
-    ; p = [par "pemPubKey" TStr; par "token" TStr]
-    ; r = TOption
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = false }
+  ; { prefix_names = ["JWT::verifyAndExtract"]
+    ; infix_names = []
+    ; parameters = [par "pemPubKey" TStr; par "token" TStr]
+    ; return_type = TOption
+    ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr key; DStr token] ->
@@ -269,15 +271,15 @@ let fns =
                   DOption OptNothing ) )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["JWT::verifyAndExtract_v1"]
-    ; ins = []
-    ; p = [par "pemPubKey" TStr; par "token" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_execution_safe = false
+    ; deprecated = true }
+  ; { prefix_names = ["JWT::verifyAndExtract_v1"]
+    ; infix_names = []
+    ; parameters = [par "pemPubKey" TStr; par "token" TStr]
+    ; return_type = TResult
+    ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr key; DStr token] ->
@@ -312,5 +314,5 @@ let fns =
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_execution_safe = false
+    ; deprecated = false } ]
