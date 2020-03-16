@@ -794,10 +794,10 @@ and initialLoadAPIResult =
   ; groups : group list
   ; deletedGroups : group list
   ; account : account
-  ; canvas_list : string list
-  ; org_list : string list
-  ; worker_schedules : string StrDict.t
-  ; creation_date : Js.Date.t [@opaque] }
+  ; canvasList : string list
+  ; orgList : string list
+  ; workerSchedules : string StrDict.t
+  ; creationDate : Js.Date.t [@opaque] }
 
 and saveTestAPIResult = string
 
@@ -1646,7 +1646,7 @@ and model =
   ; toast : toast
   ; username : string
   ; account : account
-  ; worker_schedules : string StrDict.t
+  ; workerSchedules : string StrDict.t
   ; searchCache : string TLIDDict.t
   ; editorSettings : editorSettings
   ; teaDebuggerEnabled : bool

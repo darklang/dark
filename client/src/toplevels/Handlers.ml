@@ -24,7 +24,7 @@ let remove (m : model) (h : handler) : model =
 let getWorkerSchedule (m : model) (h : handler) : string option =
   match h.spec.name with
   | F (_, name) ->
-      StrDict.get ~key:name m.worker_schedules
+      StrDict.get ~key:name m.workerSchedules
   | Blank _ ->
       None
 

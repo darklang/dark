@@ -56,14 +56,16 @@ let submitForm (m : Types.model) (tab : settingsTab) :
 let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
     =
   match msg with
-  | SetSettingsView (canvas_list, org_list, creation_date) ->
-       ({m with
-       settingsView = {m.settingsView with
-          canvas_list
-        ; org_list
-        ; canvasInformation =
-            { m.settingsView.canvasInformation with
-              createdAt = Some creation_date } }}, Cmd.none)
+  | SetSettingsView (canvasList, orgList, creationDate) ->
+      ( { m with
+          settingsView =
+            { m.settingsView with
+              canvasList
+            ; orgList
+            ; canvasInformation =
+                { m.settingsView.canvasInformation with
+                  createdAt = Some creationDate } } }
+      , Cmd.none )
   | OpenSettingsView tab ->
       let m, cmd = CursorState.setCursorState Deselected m in
       ( { m with
@@ -200,8 +202,8 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
     Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
   in
   let canvases =
-    if List.length acc.canvas_list > 0
-    then List.map acc.canvas_list ~f:canvasLink |> Html.ul []
+    if List.length acc.canvasList > 0
+    then List.map acc.canvasList ~f:canvasLink |> Html.ul []
     else Html.p [] [Html.text "No other personal canvases"]
   in
   let canvasView =
@@ -209,9 +211,9 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p [] [Html.text "Create a new canvas by navigating to the URL"] ]
   in
-  let orgs = List.map acc.org_list ~f:canvasLink |> Html.ul [] in
+  let orgs = List.map acc.orgList ~f:canvasLink |> Html.ul [] in
   let orgView =
-    if List.length acc.org_list > 0
+    if List.length acc.orgList > 0
     then
       [ Html.p [Html.class' "canvas-list-title"] [Html.text "Shared canvases:"]
       ; Html.div [Html.class' "canvas-list"] [orgs] ]
@@ -315,8 +317,7 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
               ~key:("SetCanvasDeployStatus" ^ shippedText)
               "mouseup"
               (fun _ ->
-                Types.SettingsViewMsg (SetCanvasDeployStatus (not shipped)))
-          ]
+                Types.SettingsViewMsg (SetCanvasDeployStatus (not shipped))) ]
           [ Html.input' [Html.type' "checkbox"; Html.checked shipped] []
           ; Html.p [] [Html.text ("Project is live" ^ shippedText)] ]
       ; Html.p
