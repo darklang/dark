@@ -38,8 +38,9 @@ let validateForm (tab : settingsTab) : bool * settingsTab =
       (false, tab)
 
 
-let submitForm (m : Types.model) (tab : settingsTab) :
-    Types.model * Types.msg Cmd.t =
+let submitForm (m : Types.model) : Types.model * Types.msg Cmd.t =
+  let tab = m.settingsView.tab in
+  Entry.sendSegmentMessage InviteUser ;
   match tab with
   | InviteUser info ->
       let sendInviteMsg =
@@ -53,74 +54,54 @@ let submitForm (m : Types.model) (tab : settingsTab) :
       (m, Cmd.none)
 
 
-let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
-    =
+let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
+  let msg =
+    let canvasShipped =
+      match m.settingsView.canvasInformation.shippedDate with
+      | Some date ->
+          date |> Js.Date.toUTCString
+      | None ->
+          ""
+    in
+    let canvasCreation =
+      match m.settingsView.canvasInformation.createdAt with
+      | Some date ->
+          date |> Js.Date.toUTCString
+      | None ->
+          ""
+    in
+    { canvasName = m.settingsView.canvasInformation.canvasName
+    ; canvasDescription = m.settingsView.canvasInformation.canvasDescription
+    ; canvasShipped
+    ; canvasCreation }
+  in
+  API.sendCanvasInfo m msg
+
+
+let update (settingsView : settingsViewState) (msg : settingsMsg) :
+    settingsViewState =
   match msg with
   | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
-      ( { m with
-          settingsView =
-            { m.settingsView with
-              canvasList
-            ; orgList
-            ; canvasInformation =
-                { m.settingsView.canvasInformation with
-                  canvasName
-                ; createdAt = Some creationDate } } }
-      , Cmd.none )
+      { settingsView with
+        canvasList
+      ; orgList
+      ; canvasInformation =
+          { settingsView.canvasInformation with
+            canvasName
+          ; createdAt = Some creationDate } }
   | OpenSettingsView tab ->
-      let m, cmd = CursorState.setCursorState Deselected m in
-      ( { m with
-          settingsView =
-            {m.settingsView with opened = true; tab; loading = false} }
-      , cmd )
-  | CloseSettingsView ->
-      let cmd =
-        match m.settingsView.tab with
-        | CanvasInfo ->
-            let msg =
-              let canvasShipped =
-                match m.settingsView.canvasInformation.shippedDate with
-                | Some date ->
-                    date |> Js.Date.toUTCString
-                | None ->
-                    ""
-              in
-              let canvasCreation =
-                match m.settingsView.canvasInformation.createdAt with
-                | Some date ->
-                    date |> Js.Date.toUTCString
-                | None ->
-                    ""
-              in
-              { canvasName = m.settingsView.canvasInformation.canvasName
-              ; canvasDescription =
-                  m.settingsView.canvasInformation.canvasDescription
-              ; canvasShipped
-              ; canvasCreation }
-            in
-            API.sendCanvasInfo m msg
-        | _ ->
-            Cmd.none
-      in
-      ( { m with
-          settingsView = {m.settingsView with opened = false; loading = false}
-        ; canvasProps = {m.canvasProps with enablePan = true} }
-      , cmd )
+      {settingsView with opened = true; tab; loading = false}
+  | CloseSettingsView _ ->
+      {settingsView with opened = false; loading = false}
   | SwitchSettingsTabs tab ->
-      ( {m with settingsView = {m.settingsView with tab; loading = false}}
-      , Cmd.none )
+      {settingsView with tab; loading = false}
   | UpdateInviteForm value ->
       let form = {email = {value; error = None}} in
-      ( {m with settingsView = {m.settingsView with tab = InviteUser form}}
-      , Cmd.none )
+      {settingsView with tab = InviteUser form}
   | UpdateCanvasDescription value ->
-      ( { m with
-          settingsView =
-            { m.settingsView with
-              canvasInformation =
-                {m.settingsView.canvasInformation with canvasDescription = value}
-            } }
-      , Cmd.none )
+      { settingsView with
+        canvasInformation =
+          {settingsView.canvasInformation with canvasDescription = value} }
   | SetCanvasDeployStatus ship ->
       let shippedDate =
         let rawDate = Js.Date.now () |> Js.Date.fromFloat in
@@ -133,54 +114,27 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
           Entry.sendSegmentMessage (MarkCanvasAsInDevelopment formattedDate) ;
           None )
       in
-      ( { m with
-          settingsView =
-            { m.settingsView with
-              canvasInformation =
-                {m.settingsView.canvasInformation with shippedDate} } }
-      , Cmd.none )
-  | SubmitForm ->
-      let isInvalid, newTab = validateForm m.settingsView.tab in
-      Entry.sendSegmentMessage InviteUser ;
-      if isInvalid
-      then ({m with settingsView = {m.settingsView with tab = newTab}}, Cmd.none)
-      else submitForm m m.settingsView.tab
-  | TriggerUpdateCanvasInfoCallback (Ok _) ->
-      ( { m with
-          toast = {toastMessage = Some "Canvas Info saved!"; toastPos = None} }
-      , Cmd.none )
+      { settingsView with
+        canvasInformation = {settingsView.canvasInformation with shippedDate} }
   | TriggerSendInviteCallback (Ok _) ->
-      ( { m with
-          toast = {toastMessage = Some "Sent!"; toastPos = None}
-        ; settingsView =
-            { m.settingsView with
-              tab = InviteUser defaultInviteFields
-            ; loading = false } }
-      , Cmd.none )
+      {settingsView with tab = InviteUser defaultInviteFields; loading = false}
   | TriggerSendInviteCallback (Error _) ->
-      ( { m with
-          settingsView =
-            { m.settingsView with
-              tab = InviteUser defaultInviteFields
-            ; loading = false } }
-      , Cmd.none )
+      {settingsView with tab = InviteUser defaultInviteFields; loading = false}
   | TriggerGetCanvasInfoCallback (Ok data) ->
       let shippedDate =
         if String.length data.shippedDate == 0
         then None
         else Some (Js.Date.fromString data.shippedDate)
       in
-      ( { m with
-          settingsView =
-            { m.settingsView with
-              canvasInformation =
-                { m.settingsView.canvasInformation with
-                  canvasDescription = data.canvasDescription
-                ; shippedDate } } }
-      , Cmd.none )
-  | TriggerUpdateCanvasInfoCallback (Error _)
+      { settingsView with
+        canvasInformation =
+          { settingsView.canvasInformation with
+            canvasDescription = data.canvasDescription
+          ; shippedDate } }
+  | SubmitForm
+  | TriggerUpdateCanvasInfoCallback _
   | TriggerGetCanvasInfoCallback (Error _) ->
-      (m, Cmd.none)
+      settingsView
 
 
 (* View functions *)
@@ -380,7 +334,8 @@ let html (m : Types.model) : Types.msg Html.html =
       ; ViewUtils.eventNoPropagation
           ~key:"close-settings-modal"
           "click"
-          (fun _ -> Types.SettingsViewMsg CloseSettingsView) ]
+          (fun _ ->
+            Types.SettingsViewMsg (CloseSettingsView m.settingsView.tab)) ]
       [fontAwesome "times"]
   in
   Html.div
@@ -388,7 +343,7 @@ let html (m : Types.model) : Types.msg Html.html =
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          Types.SettingsViewMsg CloseSettingsView) ]
+          Types.SettingsViewMsg (CloseSettingsView m.settingsView.tab)) ]
     [ Html.div
         [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"
