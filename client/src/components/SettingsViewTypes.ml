@@ -30,7 +30,8 @@ type updateCanvasInfo =
 [@@deriving show]
 
 type canvasInformation =
-  { canvasDescription : string
+  { canvasName : string
+  ; canvasDescription : string
   ; shippedDate : Js.Date.t option [@opaque]
   ; createdAt : Js.Date.t option [@opaque] }
 [@@deriving show]
@@ -51,7 +52,8 @@ type loadCanvasInfoAPIResult =
 
 type settingsMsg =
   | CloseSettingsView
-  | SetSettingsView of ((string list * string list * Js.Date.t)[@opaque])
+  | SetSettingsView of
+      ((string * string list * string list * Js.Date.t)[@opaque])
   | OpenSettingsView of settingsTab
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string

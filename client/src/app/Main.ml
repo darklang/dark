@@ -1517,7 +1517,8 @@ let update_ (msg : msg) (m : model) : modification =
               let m, _ =
                 SettingsView.update
                   m
-                  (SetSettingsView (r.canvasList, r.orgList, r.creationDate))
+                  (SetSettingsView
+                     (m.canvasName, r.canvasList, r.orgList, r.creationDate))
               in
               ({m with opCtrs = r.opCtrs; account = r.account}, Cmd.none))
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
