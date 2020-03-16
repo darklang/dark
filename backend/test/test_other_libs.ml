@@ -587,11 +587,11 @@ let t_float_stdlibs () =
   check_dval
     "Float::min works (neg)"
     (DFloat (-10.0))
-    (exec_ast' (fn "Float::min" [float - 10.0; float 1.0])) ;
+    (exec_ast' (fn "Float::min" [float' (-10) 0; float' 1 0])) ;
   check_dval
     "Float::min works (pos)"
     (DFloat 1.0)
-    (exec_ast' (fn "Float::min" [float 10.0; float 1.0])) ;
+    (exec_ast' (fn "Float::min" [float' 10 0; float' 1 0])) ;
   check_dval
     "Float::min works (nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
@@ -605,11 +605,11 @@ let t_float_stdlibs () =
   check_dval
     "Float::max works (neg)"
     (DFloat 1.0)
-    (exec_ast' (fn "Float::max" [float - 10.0; float 1.0])) ;
+    (exec_ast' (fn "Float::max" [float' (-10) 0; float' 1 0])) ;
   check_dval
     "Float::max works (pos)"
     (DFloat 10.0)
-    (exec_ast' (fn "Float::max" [float 10.0; float 1.0])) ;
+    (exec_ast' (fn "Float::max" [float' 10 0; float' 1 0])) ;
   check_dval
     "Float::max works (nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
