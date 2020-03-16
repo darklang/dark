@@ -19,7 +19,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "a" TFloat]
     ; r = TInt
-    ; d = "Round above to an integer value"
+    ; d = "Round up to an integer value"
     ; f =
         InProcess
           (function
@@ -33,7 +33,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "a" TFloat]
     ; r = TInt
-    ; d = "Round down to an integer value"
+    ; d =
+        "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
     ; f =
         InProcess
           (function
@@ -47,12 +48,26 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "a" TFloat]
     ; r = TInt
-    ; d = "Round to nearest integer value"
+    ; d = "Round to the nearest integer value"
     ; f =
         InProcess
           (function
           | _, [DFloat a] ->
               DInt (Float.round a |> Dint.of_float)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Float::truncate"; "Float::roundTowardsZero"]
+    ; ins = []
+    ; p = [par "a" TFloat]
+    ; r = TInt
+    ; d = "Discard the fractional portion of the float, rounding towards zero."
+    ; f =
+        InProcess
+          (function
+          | _, [DFloat a] ->
+              DInt (Float.round_towards_zero a |> Dint.of_float)
           | args ->
               fail args)
     ; ps = true
