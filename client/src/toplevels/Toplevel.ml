@@ -246,16 +246,19 @@ let withAST (m : model) (tlid : TLID.t) (ast : FluidAST.t) : model =
           {uf with ufAST = ast}) }
 
 
-let setASTMod (tl : toplevel) (ast : FluidAST.t) : modification =
+(* Create the modification to set the AST in this toplevel. `ops` is optional
+ * other ops to include in this modification. Does not change the model. *)
+let setASTMod ?(ops = []) (tl : toplevel) (ast : FluidAST.t) : modification =
   match tl with
   | TLHandler h ->
       if h.ast = ast
       then NoChange
-      else AddOps ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
+      else
+        AddOps (ops @ [SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
   | TLFunc f ->
       if f.ufAST = ast
       then NoChange
-      else AddOps ([SetFunction {f with ufAST = ast}], FocusNoChange)
+      else AddOps (ops @ [SetFunction {f with ufAST = ast}], FocusNoChange)
   | TLTipe _ ->
       recover "no ast in Tipes" ~debug:tl NoChange
   | TLDB _ ->

@@ -316,19 +316,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       in
       newDB name pos
   | NewFunction name ->
-      let blankfn = Refactor.generateEmptyFunction () in
-      let newfn =
-        match name with
-        | Some n ->
-            let metadata = blankfn.ufMetadata in
-            let newMetadata = {metadata with ufmName = F (gid (), n)} in
-            {blankfn with ufMetadata = newMetadata}
-        | None ->
-            blankfn
-      in
-      Many
-        [ AddOps ([SetFunction newfn], FocusNothing)
-        ; MakeCmd (Url.navigateTo (FocusedFn newfn.ufTLID)) ]
+      Refactor.createNewFunction m name
   | NewHTTPHandler route ->
       newHandler m "HTTP" route None pos
   | NewWorkerHandler name ->

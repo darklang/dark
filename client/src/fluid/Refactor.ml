@@ -487,3 +487,69 @@ let reorderFnCallArgs
          ast
          |> FluidAST.map ~f:(AST.reorderFnCallArgs fnName oldPos newPos)
          |> TL.setASTMod tl)
+
+
+let hasExistingFunctionNamed (m : model) (name : string) : bool =
+  let fns = Introspect.functionsByName m.userFunctions in
+  StrDict.has fns ~key:name
+
+
+(* Create a new function, update the server, and go to the new function *)
+let createNewFunction (m : model) (newFnName : string option) : modification =
+  let fn = generateEmptyFunction () in
+  let newFn =
+    match newFnName with
+    | Some name ->
+        {fn with ufMetadata = {fn.ufMetadata with ufmName = F (gid (), name)}}
+    | None ->
+        fn
+  in
+  match newFnName with
+  | Some name when hasExistingFunctionNamed m name ->
+      Model.updateErrorMod
+        (Error.set ("Function named " ^ name ^ " already exists"))
+  | _ ->
+      (* We need to update both the model and the backend *)
+      Many
+        [ ReplaceAllModificationsWithThisOne
+            (fun m -> (UserFunctions.upsert m newFn, Tea.Cmd.none))
+        ; (* Both ops in a single transaction *)
+          AddOps ([SetFunction newFn], FocusNothing)
+        ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ]
+
+
+(* Create a new function, update the expression (tlid, id) to call the new
+ * function, update the server about both functions, and go to the new function *)
+let createAndInsertNewFunction
+    (m : model) (tlid : TLID.t) (partialID : ID.t) (newFnName : string) :
+    modification =
+  match Toplevel.get m tlid |> Option.thenAlso ~f:TL.getAST with
+  | Some (tl, ast) ->
+      (* Create the new function *)
+      let fn = generateEmptyFunction () in
+      let newFn =
+        { fn with
+          ufMetadata = {fn.ufMetadata with ufmName = F (gid (), newFnName)} }
+      in
+      let op = SetFunction newFn in
+      (* Update the old ast *)
+      let replacement = E.EFnCall (partialID, newFnName, [], NoRail) in
+      let newAST = FluidAST.replace partialID ast ~replacement in
+      (* We need to update both the model and the backend *)
+      let alreadyExists = hasExistingFunctionNamed m newFnName in
+      if alreadyExists
+      then
+        Model.updateErrorMod
+          (Error.set ("Function named " ^ newFnName ^ " already exists"))
+      else
+        Many
+          [ ReplaceAllModificationsWithThisOne
+              (fun m ->
+                ( ( TL.withAST m tlid newAST
+                  |> fun m -> UserFunctions.upsert m newFn )
+                , Tea.Cmd.none ))
+          ; (* Both ops in a single transaction *)
+            TL.setASTMod ~ops:[op] tl newAST
+          ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ]
+  | None ->
+      NoChange
