@@ -57,39 +57,33 @@ let buttonLink ~(key : string) (content : msg Html.html) (handler : msg) :
   Html.a [event; Html.class' "button-link"] [content]
 
 
-let htmlObject (src : string) =
-  Html.node
-    "object"
-    [Vdom.attribute "" "data" src; Html.type' "image/svg+xml"]
-    []
-
-
 let categoryIcon (name : string) : msg Html.html list =
+  let svg = ViewUtils.svg in
   match String.toLower name with
   | "http" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg")]
+      [svg "icons/http.svg"]
   | "dbs" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/db.svg")]
+      [svg "icons/db.svg"]
   | "fns" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fn.svg")]
+      [svg "icons/fn-white.svg"]
   | "deleted" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/deleted.svg")]
+      [svg "icons/deleted.svg"]
   | "static" ->
       [fontAwesome "file"]
   | "types" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg")]
+      [svg "icons/types-white.svg"]
   | "cron" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/cron.svg")]
+      [svg "icons/cron.svg"]
   | "repl" ->
       [fontAwesome "terminal"]
   | "worker" ->
       [fontAwesome "wrench"]
   | "fof" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
+      [svg "icons/fof.svg"]
   | "group" ->
       [fontAwesome "object-group"]
   | _ ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
+      [svg "icons/undefined.svg"]
 
 
 let handlerCategory

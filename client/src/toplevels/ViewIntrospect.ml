@@ -111,7 +111,7 @@ let fnView
     (params : userFunctionParameter list)
     (direction : string) : msg Html.html =
   let header =
-    [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#599ab2"]
+    [ Html.div [Html.class' "fnicon"] [ViewUtils.svg "icons/fn-blue.svg"]
     ; Html.span [Html.class' "fnname"] [Html.text name] ]
   in
   Html.div
@@ -122,6 +122,27 @@ let fnView
           (fun _ -> GoTo (FocusedFn tlid)) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
     [Html.div [Html.class' "fnheader"] header; fnParamsView params]
+
+
+let tipeView
+    (originTLID : TLID.t)
+    (originIDs : ID.t list)
+    (tlid : TLID.t)
+    (name : string)
+    (_version : int)
+    (direction : string) : msg Html.html =
+  let header =
+    [ Html.div [Html.class' "tipeicon"] [ViewUtils.svg "icons/types-blue.svg"]
+    ; Html.span [Html.class' "tipename"] [Html.text name] ]
+  in
+  Html.div
+    ( [ Html.class' ("ref-block tipe " ^ direction)
+      ; ViewUtils.eventNoPropagation
+          ~key:("ref-tipe-link" ^ TLID.toString tlid)
+          "click"
+          (fun _ -> GoTo (FocusedType tlid)) ]
+    @ hoveringRefProps originTLID originIDs ~key:"ref-tipe-hover" )
+    [Html.div [Html.class' "tipeheader"] header]
 
 
 let renderView originalTLID direction (tl, originalIDs) =
@@ -142,6 +163,8 @@ let renderView originalTLID direction (tl, originalIDs) =
       {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters; _}; ufAST = _}
     ->
       fnView originalTLID originalIDs ufTLID name ufmParameters direction
+  | TLTipe {utTLID; utName = F (_, name); utVersion; utDefinition = _} ->
+      tipeView originalTLID originalIDs utTLID name utVersion direction
   | _ ->
       Vdom.noNode
 
