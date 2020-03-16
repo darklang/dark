@@ -582,8 +582,8 @@ let t_float_stdlibs () =
   check_dval "Float::round works" (exec_ast "(Float::round 1.5)") (Dval.dint 2) ;
   check_dval
     "Float::truncate works"
-    (exec_ast "(Float::truncate -2367.9267)")
-    (Dval.dint (-2367)) ;
+    (Dval.dint (-2367))
+    (exec_ast' (fn "Float::truncate" (float' (-2367) 9267))) ;
   check_dval "Float::sqrt works" (exec_ast "(Float::sqrt 25.0)") (DFloat 5.0) ;
   check_dval
     "Float::divide works"
