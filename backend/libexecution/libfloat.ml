@@ -72,7 +72,7 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
-  ; { pns = ["Float::abs"]
+  ; { pns = ["Float::absoluteValue"]
     ; ins = []
     ; p = [par "a" TFloat]
     ; r = TFloat
