@@ -51,7 +51,7 @@ type loadCanvasInfoAPIResult =
 [@@deriving show]
 
 type settingsMsg =
-  | CloseSettingsView
+  | CloseSettingsView of settingsTab
   | SetSettingsView of
       ((string * string list * string list * Js.Date.t)[@opaque])
   | OpenSettingsView of settingsTab

@@ -955,7 +955,42 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
     | SettingsViewUpdate msg ->
-        SettingsView.update m msg
+        let m, cmd =
+          match msg with
+          | OpenSettingsView _ ->
+              CursorState.setCursorState Deselected m
+          | TriggerUpdateCanvasInfoCallback (Ok _) ->
+              ( { m with
+                  toast =
+                    {toastMessage = Some "Canvas Info saved!"; toastPos = None}
+                }
+              , Cmd.none )
+          | TriggerSendInviteCallback (Ok _) ->
+              ( {m with toast = {toastMessage = Some "Sent!"; toastPos = None}}
+              , Cmd.none )
+          | CloseSettingsView tab ->
+              let cmd =
+                match tab with
+                | CanvasInfo ->
+                    SettingsView.sendCanvasInformation m
+                | _ ->
+                    Cmd.none
+              in
+              ({m with canvasProps = {m.canvasProps with enablePan = true}}, cmd)
+          | SubmitForm ->
+              let isInvalid, newTab =
+                SettingsView.validateForm m.settingsView.tab
+              in
+              if isInvalid
+              then
+                ( {m with settingsView = {m.settingsView with tab = newTab}}
+                , Cmd.none )
+              else SettingsView.submitForm m
+          | _ ->
+              (m, Cmd.none)
+        in
+        let settingsView = SettingsView.update m.settingsView msg in
+        ({m with settingsView}, cmd)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1514,13 +1549,14 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ ReplaceAllModificationsWithThisOne
             (fun m ->
-              let m, _ =
+              let settingsView =
                 SettingsView.update
-                  m
+                  m.settingsView
                   (SetSettingsView
                      (m.canvasName, r.canvasList, r.orgList, r.creationDate))
               in
-              ({m with opCtrs = r.opCtrs; account = r.account}, Cmd.none))
+              ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
+              , Cmd.none ))
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
