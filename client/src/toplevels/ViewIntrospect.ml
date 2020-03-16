@@ -111,7 +111,7 @@ let fnView
     (params : userFunctionParameter list)
     (direction : string) : msg Html.html =
   let header =
-    [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#599ab2"]
+    [ Html.div [Html.class' "fnicon"] [ViewUtils.svg "icons/fn-blue.svg"]
     ; Html.span [Html.class' "fnname"] [Html.text name] ]
   in
   Html.div
@@ -132,7 +132,7 @@ let tipeView
     (_version : int)
     (direction : string) : msg Html.html =
   let header =
-    [ Html.div [Html.class' "tipeicon"] [ViewUtils.svgIconTipe "#599ab2"]
+    [ Html.div [Html.class' "tipeicon"] [ViewUtils.svg "icons/types-blue.svg"]
     ; Html.span [Html.class' "tipename"] [Html.text name] ]
   in
   Html.div
