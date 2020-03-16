@@ -187,7 +187,7 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
-  ; { pns = ["Int::abs"]
+  ; { pns = ["Int::absoluteValue"]
     ; ins = []
     ; p = [par "a" TInt]
     ; r = TInt
