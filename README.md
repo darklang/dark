@@ -316,7 +316,14 @@ You can also disable the polling (ans consequently the building):
 
 ## Debugging the client
 
-Click the "EnableDebugger" button on the bottom bar of the app.
+You can enable the FluidDebugger by mousing over the Gear in the
+left-sidebar. There is also "Enable debugger" which enables a legacy
+debugger that nobody uses and doesn't work well.
+
+If you're using Chrome, enable Custom Formatters to see OCaml values in
+Chrome Dev Tools instead of their JS representation. From within Chrome
+Dev Tools, click "⠇", "Settings", "Preferences", "Enable Custom
+Formatters".
 
 ## Running the client in production
 
