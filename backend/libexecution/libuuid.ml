@@ -26,5 +26,5 @@ let fns : fn list =
         InProcess (function _, [] -> DUuid (Uuidm.v `V4) | args -> fail args)
         (* similarly to Date::now, it's not particularly fun for this to change
      * when live programming *)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

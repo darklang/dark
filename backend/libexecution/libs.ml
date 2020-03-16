@@ -46,7 +46,7 @@ let get_fn_exn ~(user_fns : RuntimeT.user_fn list) (name : string) : RuntimeT.fn
 
 
 (* We sometimes want to test execution similar to how it's run in the
- * frontend, which do not have any preview_execution_safe functions available
+ * frontend, which do not have any preview_safety = Unsafe functions available
  * (it's more complicated than that, it's really backend-only tests that
  * they're missing, but we dont have a way to tell easily so this will have
  * to do. *)
@@ -54,7 +54,10 @@ let filter_out_non_preview_safe_functions_for_tests ~(f : unit -> unit) () :
     unit =
   let old_fns = !static_fns in
   let new_fns =
-    Prelude.StrDict.filter ~f:(fun fn -> fn.preview_execution_safe) old_fns
+    Prelude.StrDict.filter
+      ~f:(fun fn ->
+        match fn.preview_safety with Safe -> true | Unsafe -> false)
+      old_fns
   in
   static_fns := new_fns ;
   f () ;

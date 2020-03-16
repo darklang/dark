@@ -17,7 +17,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn (Libtarget.base64url_bytes bytes)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Bytes::hexEncode"]
     ; infix_names = []
@@ -44,7 +44,7 @@ let fns : fn list =
               Buffer.contents buf |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Bytes::length"]
     ; infix_names = []
@@ -58,5 +58,5 @@ let fns : fn list =
               Dval.dint (Bytes.length bytes)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

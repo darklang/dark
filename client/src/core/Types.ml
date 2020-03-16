@@ -811,12 +811,16 @@ and parameter =
   ; paramOptional : bool
   ; paramDescription : string }
 
+and previewSafety =
+  | Safe
+  | Unsafe
+
 and function_ =
   { fnName : string
   ; fnParameters : parameter list
   ; fnDescription : string
   ; fnReturnTipe : tipe
-  ; fnPreviewExecutionSafe : bool
+  ; fnPreviewSafety : previewSafety
   ; fnDeprecated : bool
   ; fnInfix : bool }
 

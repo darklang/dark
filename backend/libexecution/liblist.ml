@@ -19,7 +19,7 @@ let fns =
             (match List.hd l with Some dv -> dv | None -> DNull)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["List::head_v1"]
     ; infix_names = []
@@ -37,7 +37,7 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["List::head_v2"]
     ; infix_names = []
@@ -56,7 +56,7 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::empty"]
     ; infix_names = []
@@ -64,7 +64,7 @@ let fns =
     ; return_type = TList
     ; description = "Returns an empty list."
     ; func = InProcess (function _, [] -> DList [] | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::push"]
     ; infix_names = []
@@ -76,7 +76,7 @@ let fns =
           (* fake cf handled by call *)
           (function
           | _, [DList l; i] -> DList (i :: l) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::pushBack"]
     ; infix_names = []
@@ -86,7 +86,7 @@ let fns =
     ; func =
         InProcess
           (function _, [DList l; i] -> DList (l @ [i]) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::last"]
     ; infix_names = []
@@ -103,7 +103,7 @@ let fns =
               List.last_exn l
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["List::last_v1"]
     ; infix_names = []
@@ -119,7 +119,7 @@ let fns =
               DOption (OptJust (List.last_exn l))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["List::last_v2"]
     ; infix_names = []
@@ -135,7 +135,7 @@ let fns =
               Dval.to_opt_just (List.last_exn l)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::reverse"]
     ; infix_names = []
@@ -145,7 +145,7 @@ let fns =
     ; func =
         InProcess
           (function _, [DList l] -> DList (List.rev l) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::findFirst"]
     ; infix_names = []
@@ -163,7 +163,7 @@ let fns =
               (match List.find ~f l with None -> DNull | Some dv -> dv)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["List::findFirst_v1"]
     ; infix_names = []
@@ -185,7 +185,7 @@ let fns =
                   DOption (OptJust dv) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["List::findFirst_v2"]
     ; infix_names = []
@@ -207,7 +207,7 @@ let fns =
                   Dval.to_opt_just dv )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::contains"]
     ; infix_names = []
@@ -221,7 +221,7 @@ let fns =
               DBool (List.mem ~equal:equal_dval l i)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::repeat"]
     ; infix_names = []
@@ -235,7 +235,7 @@ let fns =
               DList (List.init (Dint.to_int_exn t) ~f:(fun _ -> dv))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::length"]
     ; infix_names = []
@@ -246,7 +246,7 @@ let fns =
         InProcess
           (function
           | _, [DList l] -> Dval.dint (List.length l) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::range"]
     ; infix_names = []
@@ -265,7 +265,7 @@ let fns =
                 |> List.map ~f:(fun i -> Dval.dint i) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::fold"]
     ; infix_names = []
@@ -284,7 +284,7 @@ let fns =
               List.fold ~f ~init l
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::flatten"]
     ; infix_names = []
@@ -306,7 +306,7 @@ let fns =
               List.fold ~init:(DList []) ~f l
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::uniqueBy"]
     ; infix_names = []
@@ -324,7 +324,7 @@ let fns =
                      compare_dval (fn a) (fn b)))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::isEmpty"]
     ; infix_names = []
@@ -335,7 +335,7 @@ let fns =
         InProcess
           (function
           | _, [DList l] -> DBool (List.is_empty l) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::sort"]
     ; infix_names = []
@@ -349,7 +349,7 @@ let fns =
               list |> List.sort ~compare:compare_dval |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::sortBy"]
     ; infix_names = []
@@ -366,7 +366,7 @@ let fns =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::sortByComparator"]
     ; infix_names = []
@@ -429,7 +429,7 @@ let fns =
                   DResult (ResError (Dval.dstr_of_string_exn e.short)) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::append"]
     ; infix_names = []
@@ -443,7 +443,7 @@ let fns =
               DList (List.append l1 l2) (* no checking for fake cf required *)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::filter"]
     ; infix_names = []
@@ -471,7 +471,7 @@ let fns =
               else DList (List.filter ~f l)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["List::filter_v1"]
     ; infix_names = []
@@ -501,7 +501,7 @@ let fns =
               (match !fakecf with None -> DList result | Some v -> v)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::drop"]
     ; infix_names = []
@@ -515,7 +515,7 @@ let fns =
               DList (List.drop l (Dint.to_int_exn c))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::take"]
     ; infix_names = []
@@ -529,7 +529,7 @@ let fns =
               DList (List.take l (Dint.to_int_exn c))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::foreach"]
     ; infix_names = []
@@ -546,7 +546,7 @@ let fns =
               DList (List.map ~f l)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["List::map"]
     ; infix_names = []
@@ -563,7 +563,7 @@ let fns =
               Dval.to_list (List.map ~f l)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::getAt"]
     ; infix_names = []
@@ -580,7 +580,7 @@ let fns =
               |> Option.value ~default:(DOption OptNothing)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["List::getAt_v1"]
     ; infix_names = []
@@ -597,5 +597,5 @@ let fns =
               |> Option.value ~default:(DOption OptNothing)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

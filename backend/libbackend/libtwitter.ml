@@ -133,5 +133,5 @@ let fns =
                 ; parameters =
                     auth_param :: List.map ~f:param2param op.parameters
                 ; description = Base.Option.value ~default:"" op.summary
-                ; preview_execution_safe = false
+                ; preview_safety = Unsafe
                 ; deprecated = false }))

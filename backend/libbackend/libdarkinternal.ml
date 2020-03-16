@@ -57,7 +57,7 @@ let fns : fn list =
     ; return_type = TNull
     ; description = "TODO"
     ; func = internal_fn (fun _ -> DNull)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::endUsers"]
     ; infix_names = []
@@ -83,7 +83,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 |> DList
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::checkAllCanvases"]
     ; infix_names = []
@@ -91,7 +91,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; return_type = TNull
     ; description = "TODO"
     ; func = internal_fn (fun _ -> DNull)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DarkInternal::migrateAllCanvases"]
     ; infix_names = []
@@ -99,7 +99,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; return_type = TNull
     ; description = "REMOVED"
     ; func = internal_fn (fun _ -> DNull)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DarkInternal::cleanupOldTraces"]
     ; infix_names = []
@@ -107,7 +107,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; return_type = TNull
     ; description = "Deprecated, use v1"
     ; func = internal_fn (fun _ -> DNull)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DarkInternal::cleanupOldTraces_v1"]
     ; infix_names = []
@@ -120,7 +120,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 DFloat (Canvas.cleanup_old_traces ())
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::cleanupOldTracesForCanvas_v1"]
     ; infix_names = []
@@ -134,7 +134,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 DFloat (Canvas.cleanup_old_traces_for_canvas canvas_id)
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::checkCanvas"]
     ; infix_names = []
@@ -152,7 +152,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DBool false )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::migrateCanvas"]
     ; infix_names = []
@@ -170,7 +170,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::upsertUser"]
     ; infix_names = []
@@ -192,7 +192,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     Exception.code msg )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DarkInternal::insertUser_v1"]
     ; infix_names = []
@@ -221,7 +221,7 @@ that's already taken, returns an error."
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DarkInternal::insertUser_v2"]
     ; infix_names = []
@@ -260,7 +260,7 @@ that's already taken, returns an error."
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::upsertUser_v1"]
     ; infix_names = []
@@ -287,7 +287,7 @@ that's already taken, returns an error."
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::getUser"]
     ; infix_names = []
@@ -313,7 +313,7 @@ that's already taken, returns an error."
                             ; ("email", Dval.dstr_of_string_exn email) ])) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DarkInternal::getUser_v1"]
     ; infix_names = []
@@ -340,7 +340,7 @@ that's already taken, returns an error."
                             ; ("admin", DBool admin) ])) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::getUserByEmail"]
     ; infix_names = []
@@ -366,7 +366,7 @@ that's already taken, returns an error."
                             ; ("admin", DBool admin) ])) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::setAdmin"]
     ; infix_names = []
@@ -382,7 +382,7 @@ that's already taken, returns an error."
                 DNull
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::getUsers"]
     ; infix_names = []
@@ -397,7 +397,7 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::getAllCanvases"]
     ; infix_names = []
@@ -409,7 +409,7 @@ that's already taken, returns an error."
             Serialize.current_hosts ()
             |> List.map ~f:Dval.dstr_of_string_exn
             |> DList)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::canvasesFor"]
     ; infix_names = []
@@ -425,7 +425,7 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::schema"]
     ; infix_names = []
@@ -467,7 +467,7 @@ that's already taken, returns an error."
                     Dval.to_dobj_exn [] )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::canvasAsText"]
     ; infix_names = []
@@ -481,7 +481,7 @@ that's already taken, returns an error."
                   (Canvas.to_string (Unicode_string.to_string host))
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::handlers"]
     ; infix_names = []
@@ -505,7 +505,7 @@ that's already taken, returns an error."
                 |> fun l -> DList l
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::functions"]
     ; infix_names = []
@@ -528,7 +528,7 @@ that's already taken, returns an error."
                 |> fun l -> DList l
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::canLoadTraces"]
     ; infix_names = []
@@ -566,7 +566,7 @@ that's already taken, returns an error."
                 with _ -> DBool false )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::getCORSSetting"]
     ; infix_names = []
@@ -599,7 +599,7 @@ that's already taken, returns an error."
                 !canvas.cors_setting |> cors_setting_to_dval
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::setCORSSetting"]
     ; infix_names = []
@@ -647,7 +647,7 @@ that's already taken, returns an error."
                     s |> DOption |> ResOk |> DResult )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::dbs"]
     ; infix_names = []
@@ -672,7 +672,7 @@ that's already taken, returns an error."
                 |> fun l -> DList l
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::oplistInfo"]
     ; infix_names = []
@@ -735,7 +735,7 @@ that's already taken, returns an error."
                 |> fun o -> DObj o
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::storedEvents"]
     ; infix_names = []
@@ -784,7 +784,7 @@ that's already taken, returns an error."
                     DOption (OptJust event_list) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::pushStrollerEvent"]
     ; infix_names = []
@@ -811,7 +811,7 @@ that's already taken, returns an error."
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DarkInternal::pushStrollerEvent_v1"]
     ; infix_names = []
@@ -838,7 +838,7 @@ that's already taken, returns an error."
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::sessionKeyToUsername"]
     ; infix_names = []
@@ -858,7 +858,7 @@ that's already taken, returns an error."
                     DResult (ResOk (Dval.dstr_of_string_exn username)) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::canvasIdOfCanvasName"]
     ; infix_names = []
@@ -880,7 +880,7 @@ that's already taken, returns an error."
                     DOption OptNothing)
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::usernameToUserInfo"]
     ; infix_names = []
@@ -906,7 +906,7 @@ that's already taken, returns an error."
                     |> DOption )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::grant"]
     ; infix_names = []
@@ -955,7 +955,7 @@ that's already taken, returns an error."
                 |> result_to_dval
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::grantsFor"]
     ; infix_names = []
@@ -982,7 +982,7 @@ that's already taken, returns an error."
                 |> fun obj -> DObj obj
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::orgsFor"]
     ; infix_names = []
@@ -1009,7 +1009,7 @@ that's already taken, returns an error."
                 |> fun obj -> DObj obj
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::checkPermission"]
     ; infix_names = []
@@ -1031,7 +1031,7 @@ that's already taken, returns an error."
                 |> Dval.dstr_of_string_exn
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::log"]
     ; infix_names = []
@@ -1089,7 +1089,7 @@ that's already taken, returns an error."
                 DObj log
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::fnsUsed"]
     ; infix_names = []
@@ -1120,7 +1120,7 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::fieldNamesUsed"]
     ; infix_names = []
@@ -1151,7 +1151,7 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::fnMetadata"]
     ; infix_names = []
@@ -1180,7 +1180,7 @@ that's already taken, returns an error."
                 )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::allFunctions"]
     ; infix_names = []
@@ -1225,7 +1225,7 @@ that's already taken, returns an error."
                 DList fns
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::clearStaticAssets"]
     ; infix_names = []
@@ -1243,7 +1243,7 @@ that's already taken, returns an error."
                 DNull
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::getAllSchedulingRules"]
     ; infix_names = []
@@ -1258,7 +1258,7 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::getSchedulingRulesForCanvas"]
     ; infix_names = []
@@ -1274,7 +1274,7 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::addWorkerSchedulingBlock"]
     ; infix_names = []
@@ -1283,7 +1283,7 @@ that's already taken, returns an error."
     ; description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
     ; func = modify_schedule Event_queue.block_worker
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::removeWorkerSchedulingBlock"]
     ; infix_names = []
@@ -1292,7 +1292,7 @@ that's already taken, returns an error."
     ; description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
     ; func = modify_schedule Event_queue.unblock_worker
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::newSessionForUsername"]
     ; infix_names = []
@@ -1346,7 +1346,7 @@ that's already taken, returns an error."
                                 "Failed to create session")) ) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DarkInternal::newSessionForUsername_v1"]
     ; infix_names = []
@@ -1409,7 +1409,7 @@ that's already taken, returns an error."
                                 "Failed to create session")) ) )
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DarkInternal::deleteSession"]
     ; infix_names = []
@@ -1429,5 +1429,5 @@ that's already taken, returns an error."
                 |> Dval.dint
             | args ->
                 fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

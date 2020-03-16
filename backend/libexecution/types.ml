@@ -541,6 +541,11 @@ module RuntimeT = struct
     | NonExecutedResult of dval
   [@@deriving eq, show, yojson]
 
+  type fn_preview_safety =
+    | Safe
+    | Unsafe
+  [@@deriving eq, show, yojson]
+
   type exec_state =
     { tlid : tlid
     ; canvas_id : Uuidm.t
@@ -583,7 +588,7 @@ module RuntimeT = struct
     ; return_type : tipe
     ; description : string
     ; func : funcimpl
-    ; preview_execution_safe : bool
+    ; preview_safety : fn_preview_safety
     ; deprecated : bool }
 
   (* We need equal_ and show_ for Canvas.canvas to derive *)
@@ -620,7 +625,7 @@ module RuntimeT = struct
         ; parameters = params
         ; return_type = t
         ; description = uf.metadata.description
-        ; preview_execution_safe = false
+        ; preview_safety = Unsafe
         ; func = UserCreated (uf.tlid, uf.ast)
         ; deprecated = false }
         |> Some

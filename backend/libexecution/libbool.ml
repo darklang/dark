@@ -12,7 +12,7 @@ let fns : fn list =
         "Returns the inverse of `b`: true is `b` is false and false if `b` is true"
     ; func =
         InProcess (function _, [DBool b] -> DBool (not b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Bool::and"]
     ; infix_names = ["&&"]
@@ -23,7 +23,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DBool a; DBool b] -> DBool (a && b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Bool::or"]
     ; infix_names = ["||"]
@@ -34,7 +34,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Bool::isNull"]
     ; infix_names = []
@@ -48,7 +48,7 @@ let fns : fn list =
             (match value with DNull -> DBool true | _ -> DBool false)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Bool::isError"]
     ; infix_names = []
@@ -62,5 +62,5 @@ let fns : fn list =
             (match value with DError _ -> DBool true | _ -> DBool false)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true } ]

@@ -25,7 +25,7 @@ let fns : fn list =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
     ; func =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::foreach_v1"]
     ; infix_names = []
@@ -68,7 +68,7 @@ let fns : fn list =
                   |> Result.ok_exn )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::newline"]
     ; infix_names = []
@@ -77,7 +77,7 @@ let fns : fn list =
     ; description = "Returns a string containing a single '\n'"
     ; func =
         InProcess (function _ -> DStr (Unicode_string.of_string_exn "\n"))
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::toList"]
     ; infix_names = []
@@ -87,7 +87,7 @@ let fns : fn list =
         "Returns the list of characters (byte, not EGC) in the string"
     ; func =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::toList_v1"]
     ; infix_names = []
@@ -102,7 +102,7 @@ let fns : fn list =
               DList (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::replaceAll"]
     ; infix_names = []
@@ -117,7 +117,7 @@ let fns : fn list =
               DStr (Unicode_string.replace ~search ~replace s)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::toInt"]
     ; infix_names = []
@@ -137,7 +137,7 @@ let fns : fn list =
                     "Expected a string with only numbers" )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::toInt_v1"]
     ; infix_names = []
@@ -156,7 +156,7 @@ let fns : fn list =
                     ("Expected a string with only numbers, got " ^ utf8) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::toFloat"]
     ; infix_names = []
@@ -175,7 +175,7 @@ let fns : fn list =
                     "Expected a string representation of an IEEE float" )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::toFloat_v1"]
     ; infix_names = []
@@ -193,7 +193,7 @@ let fns : fn list =
                     "Expected a string representation of an IEEE float" )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::toUppercase"]
     ; infix_names = []
@@ -208,7 +208,7 @@ let fns : fn list =
                 (String.uppercase (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::toUppercase_v1"]
     ; infix_names = []
@@ -219,7 +219,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::toLowercase"]
     ; infix_names = []
@@ -234,7 +234,7 @@ let fns : fn list =
                 (String.lowercase (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::toLowercase_v1"]
     ; infix_names = []
@@ -245,7 +245,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::length"]
     ; infix_names = []
@@ -259,7 +259,7 @@ let fns : fn list =
               Dval.dint (String.length (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::length_v1"]
     ; infix_names = []
@@ -273,7 +273,7 @@ let fns : fn list =
               Dval.dint (Unicode_string.length s)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::append"]
     ; infix_names = ["++"]
@@ -287,7 +287,7 @@ let fns : fn list =
               DStr (Unicode_string.append s1 s2)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::slugify"]
     ; infix_names = []
@@ -316,7 +316,7 @@ let fns : fn list =
               |> fun s -> DStr s
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::reverse"]
     ; infix_names = []
@@ -327,7 +327,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::split"]
     ; infix_names = []
@@ -345,7 +345,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::join"]
     ; infix_names = []
@@ -369,7 +369,7 @@ let fns : fn list =
               DStr (Unicode_string.concat ~sep s)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::fromList"]
     ; infix_names = []
@@ -378,7 +378,7 @@ let fns : fn list =
     ; description = "Returns the list of characters as a string"
     ; func =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::fromList_v1"]
     ; infix_names = []
@@ -399,7 +399,7 @@ let fns : fn list =
                 |> Unicode_string.of_characters )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::fromChar"]
     ; infix_names = []
@@ -408,7 +408,7 @@ let fns : fn list =
     ; description = "Converts a char to a string"
     ; func =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::fromChar_v1"]
     ; infix_names = []
@@ -422,7 +422,7 @@ let fns : fn list =
               DStr (Unicode_string.of_character c)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::base64Encode"]
     ; infix_names = []
@@ -441,7 +441,7 @@ let fns : fn list =
                    (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::base64Decode"]
     ; infix_names = []
@@ -471,7 +471,7 @@ let fns : fn list =
                       "Not a valid base64 string" ) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::digest"]
     ; infix_names = []
@@ -488,7 +488,7 @@ let fns : fn list =
                 (Libtarget.digest384 (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::sha384"]
     ; infix_names = []
@@ -504,7 +504,7 @@ let fns : fn list =
                 (Libtarget.digest384 (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::sha256"]
     ; infix_names = []
@@ -520,7 +520,7 @@ let fns : fn list =
                 (Libtarget.digest256 (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::random"]
     ; infix_names = []
@@ -538,7 +538,7 @@ let fns : fn list =
                 Dval.dstr_of_string_exn (Util.random_string (Dint.to_int_exn l))
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["String::random_v1"]
     ; infix_names = []
@@ -559,7 +559,7 @@ let fns : fn list =
                         (Util.random_string (Dint.to_int_exn l))))
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["String::random_v2"]
     ; infix_names = []
@@ -579,7 +579,7 @@ let fns : fn list =
                      (Util.random_string (Dint.to_int_exn l)))
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["String::htmlEscape"]
     ; infix_names = []
@@ -595,7 +595,7 @@ let fns : fn list =
                 (Util.html_escape (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["String::toUUID"]
     ; infix_names = []
@@ -616,7 +616,7 @@ let fns : fn list =
             )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::toUUID_v1"]
     ; infix_names = []
@@ -637,7 +637,7 @@ let fns : fn list =
             )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::isSubstring"]
     ; infix_names = []
@@ -651,7 +651,7 @@ let fns : fn list =
               DBool (Unicode_string.is_substring ~substring:needle haystack)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::isSubstring_v1"]
     ; infix_names = []
@@ -665,7 +665,7 @@ let fns : fn list =
               DBool (Unicode_string.is_substring ~substring:needle haystack)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::trim"]
     ; infix_names = []
@@ -680,7 +680,7 @@ let fns : fn list =
               DStr (Unicode_string.trim to_trim)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::toBytes"]
     ; infix_names = []
@@ -696,7 +696,7 @@ let fns : fn list =
               DBytes theBytes
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::startsWith"]
     ; infix_names = []
@@ -710,7 +710,7 @@ let fns : fn list =
               DBool (Unicode_string.starts_with ~prefix subject)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::endsWith"]
     ; infix_names = []
@@ -724,5 +724,5 @@ let fns : fn list =
               DBool (Unicode_string.ends_with ~suffix subject)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

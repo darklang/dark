@@ -18,7 +18,7 @@ let fns : fn list =
               with e -> RT.error "Invalid date format" )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Date::parse_v1"]
     ; infix_names = []
@@ -40,7 +40,7 @@ let fns : fn list =
                   (ResError (Dval.dstr_of_string_exn "Invalid date format")) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Date::parse_v2"]
     ; infix_names = []
@@ -60,7 +60,7 @@ let fns : fn list =
             )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::toString"]
     ; infix_names = []
@@ -75,7 +75,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn (Util.isostring_of_date d)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::toStringISO8601BasicDateTime"]
     ; infix_names = []
@@ -90,7 +90,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn (Util.isostring_of_date_basic_datetime d)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::toStringISO8601BasicDate"]
     ; infix_names = []
@@ -104,7 +104,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn (Util.isostring_of_date_basic_date d)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::now"]
     ; infix_names = []
@@ -113,7 +113,7 @@ let fns : fn list =
     ; description = "Returns the current time."
     ; func =
         InProcess (function _, [] -> DDate (Time.now ()) | args -> fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["Date::add"]
     ; infix_names = []
@@ -127,7 +127,7 @@ let fns : fn list =
               DDate (Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::sub"]
     ; infix_names = []
@@ -141,7 +141,7 @@ let fns : fn list =
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Date::subtract"]
     ; infix_names = []
@@ -155,7 +155,7 @@ let fns : fn list =
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::greaterThan"]
     ; infix_names = ["Date::>"]
@@ -169,7 +169,7 @@ let fns : fn list =
               DBool (Time.( > ) d1 d2)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::lessThan"]
     ; infix_names = ["Date::<"]
@@ -183,7 +183,7 @@ let fns : fn list =
               DBool (Time.( < ) d1 d2)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::toSeconds"]
     ; infix_names = []
@@ -202,7 +202,7 @@ let fns : fn list =
               |> Dval.dint
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::fromSeconds"]
     ; infix_names = []
@@ -221,7 +221,7 @@ let fns : fn list =
               |> DDate
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::toHumanReadable"]
     ; infix_names = []
@@ -295,7 +295,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn diff
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true (* This doesn't mean anything *) }
   ; { prefix_names = ["Date::year"]
     ; infix_names = []
@@ -309,7 +309,7 @@ let fns : fn list =
               d |> Time.to_date ~zone:Time.Zone.utc |> Date.year |> Dval.dint
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::month"]
     ; infix_names = []
@@ -328,7 +328,7 @@ let fns : fn list =
               |> Dval.dint
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::day"]
     ; infix_names = []
@@ -342,7 +342,7 @@ let fns : fn list =
               d |> Time.to_date ~zone:Time.Zone.utc |> Date.day |> Dval.dint
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::hour"]
     ; infix_names = []
@@ -361,7 +361,7 @@ let fns : fn list =
               |> DInt
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Date::hour_v1"]
     ; infix_names = []
@@ -380,7 +380,7 @@ let fns : fn list =
               |> DInt
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::minute"]
     ; infix_names = []
@@ -399,7 +399,7 @@ let fns : fn list =
               |> DInt
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Date::second"]
     ; infix_names = []
@@ -418,5 +418,5 @@ let fns : fn list =
               |> DInt
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

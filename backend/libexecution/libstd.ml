@@ -30,7 +30,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn (Dval.to_enduser_readable_text_v0 a)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["toRepr"]
     ; infix_names = []
@@ -45,7 +45,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["equals"]
     ; infix_names = ["=="]
@@ -55,7 +55,7 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["notEquals"]
     ; infix_names = ["!="]
@@ -66,7 +66,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["assoc"]
     ; infix_names = []
@@ -80,7 +80,7 @@ let fns : fn list =
               DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["dissoc"]
     ; infix_names = []
@@ -94,7 +94,7 @@ let fns : fn list =
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["toForm"]
     ; infix_names = []
@@ -132,7 +132,7 @@ let fns : fn list =
                 (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Error::toString"]
     ; infix_names = []
@@ -146,7 +146,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn err
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["AWS::urlencode"]
     ; infix_names = []
@@ -163,7 +163,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Twitter::urlencode"]
     ; infix_names = []
@@ -180,5 +180,5 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

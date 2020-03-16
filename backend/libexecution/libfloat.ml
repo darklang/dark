@@ -27,7 +27,7 @@ let fns : fn list =
               DInt (Float.round_up a |> Dint.of_float)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::floor"; "Float::roundDown"]
     ; infix_names = []
@@ -41,7 +41,7 @@ let fns : fn list =
               DInt (Float.round_down a |> Dint.of_float)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::round"]
     ; infix_names = []
@@ -55,7 +55,7 @@ let fns : fn list =
               DInt (Float.round a |> Dint.of_float)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::sqrt"]
     ; infix_names = []
@@ -65,7 +65,7 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::divide"]
     ; infix_names = ["/"]
@@ -76,7 +76,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::add"]
     ; infix_names = []
@@ -87,7 +87,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::multiply"]
     ; infix_names = []
@@ -98,7 +98,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::subtract"]
     ; infix_names = []
@@ -109,7 +109,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::greaterThan"]
     ; infix_names = []
@@ -120,7 +120,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::greaterThanOrEqualTo"]
     ; infix_names = []
@@ -131,7 +131,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::lessThan"]
     ; infix_names = []
@@ -142,7 +142,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::lessThanOrEqualTo"]
     ; infix_names = []
@@ -153,7 +153,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::sum"]
     ; infix_names = []
@@ -182,5 +182,5 @@ let fns : fn list =
               |> Result.ok_exn
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]
