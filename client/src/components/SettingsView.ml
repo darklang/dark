@@ -129,7 +129,7 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
 
 let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
   let introText =
-    [ Html.h2 [] [Html.text "Share Dark with a friend"]
+    [ Html.h2 [] [Html.text "Share Dark with a friend or colleague"]
     ; Html.p
         []
         [ Html.text
