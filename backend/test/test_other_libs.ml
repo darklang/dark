@@ -625,12 +625,12 @@ let t_float_stdlibs () =
 let t_int_stdlibs () =
   check_dval
     "Int::max works"
-    (exec_ast' (fn "Int::max" [int 5; int 6]))
-    (Dval.dint 6) ;
+    (Dval.dint 6)
+    (exec_ast' (fn "Int::max" [int 5; int 6])) ;
   check_dval
     "Int::min works"
-    (exec_ast' (fn "Int::min" [int 5; int 6]))
-    (Dval.dint 5) ;
+    (Dval.dint 5)
+    (exec_ast' (fn "Int::min" [int 5; int 6])) ;
   ()
 
 
