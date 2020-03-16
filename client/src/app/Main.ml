@@ -1514,15 +1514,8 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ ReplaceAllModificationsWithThisOne
             (fun m ->
-              let settingsView =
-                { m.settingsView with
-                  canvas_list = r.canvas_list
-                ; org_list = r.org_list
-                ; canvasInformation =
-                    { m.settingsView.canvasInformation with
-                      createdAt = Some r.creation_date } }
-              in
-              ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
+              let m, _ = SettingsView.update m (SetSettingsView (r.canvas_list, r.org_list, r.creation_date)) in
+              ( {m with opCtrs = r.opCtrs; account = r.account}
               , Cmd.none ))
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)

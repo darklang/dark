@@ -56,6 +56,14 @@ let submitForm (m : Types.model) (tab : settingsTab) :
 let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
     =
   match msg with
+  | SetSettingsView (canvas_list, org_list, creation_date) ->
+       ({m with
+       settingsView = {m.settingsView with
+          canvas_list
+        ; org_list
+        ; canvasInformation =
+            { m.settingsView.canvasInformation with
+              createdAt = Some creation_date } }}, Cmd.none)
   | OpenSettingsView tab ->
       let m, cmd = CursorState.setCursorState Deselected m in
       ( { m with
@@ -110,7 +118,7 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
                 {m.settingsView.canvasInformation with canvasDescription = value}
             } }
       , Cmd.none )
-  | ToggleCanvasDeployStatus ship ->
+  | SetCanvasDeployStatus ship ->
       let shippedDate =
         let rawDate = Js.Date.now () |> Js.Date.fromFloat in
         let formattedDate = Util.formatDate (rawDate, "L") in
@@ -304,10 +312,10 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
       ; Html.div
           [ Html.class' "canvas-shipped-info"
           ; ViewUtils.eventNoPropagation
-              ~key:("ToggleCanvasDeployStatus" ^ shippedText)
+              ~key:("SetCanvasDeployStatus" ^ shippedText)
               "mouseup"
               (fun _ ->
-                Types.SettingsViewMsg (ToggleCanvasDeployStatus (not shipped)))
+                Types.SettingsViewMsg (SetCanvasDeployStatus (not shipped)))
           ]
           [ Html.input' [Html.type' "checkbox"; Html.checked shipped] []
           ; Html.p [] [Html.text ("Project is live" ^ shippedText)] ]

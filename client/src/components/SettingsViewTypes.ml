@@ -51,11 +51,12 @@ type loadCanvasInfoAPIResult =
 
 type settingsMsg =
   | CloseSettingsView
+  | SetSettingsView of (string list * string list * Js.Date.t [@opaque])
   | OpenSettingsView of settingsTab
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string
   | UpdateCanvasDescription of string
-  | ToggleCanvasDeployStatus of bool
+  | SetCanvasDeployStatus of bool
   | SubmitForm
   | TriggerSendInviteCallback of
       (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
