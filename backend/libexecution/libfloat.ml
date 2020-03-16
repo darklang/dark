@@ -72,6 +72,17 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Float::abs"]
+    ; ins = []
+    ; p = [par "a" TFloat]
+    ; r = TFloat
+    ; d =
+        "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+    ; f =
+        InProcess
+          (function _, [DFloat a] -> DFloat (Float.abs a) | args -> fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Float::sqrt"]
     ; ins = []
     ; p = [par "a" TFloat]
