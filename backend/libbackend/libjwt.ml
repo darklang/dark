@@ -151,7 +151,7 @@ let fns =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["JWT::signAndEncodeWithHeaders"]
     ; infix_names = []
@@ -180,7 +180,7 @@ let fns =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["JWT::signAndEncode_v1"]
     ; infix_names = []
@@ -204,7 +204,7 @@ let fns =
                   |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["JWT::signAndEncodeWithHeaders_v1"]
     ; infix_names = []
@@ -234,7 +234,7 @@ let fns =
                   |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["JWT::verifyAndExtract"]
     ; infix_names = []
@@ -271,7 +271,7 @@ let fns =
                   DOption OptNothing ) )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["JWT::verifyAndExtract_v1"]
     ; infix_names = []
@@ -314,5 +314,5 @@ let fns =
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

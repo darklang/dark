@@ -35,7 +35,7 @@ let fns : fn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Option::map_v1"]
     ; infix_names = []
@@ -55,7 +55,7 @@ let fns : fn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Option::andThen"]
     ; infix_names = []
@@ -82,7 +82,7 @@ let fns : fn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Option::withDefault"]
     ; infix_names = []
@@ -97,5 +97,5 @@ let fns : fn list =
             (match o with OptJust dv -> dv | OptNothing -> default)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

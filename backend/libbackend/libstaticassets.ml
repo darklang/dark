@@ -20,7 +20,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["StaticAssets::baseUrlForLatest"]
     ; infix_names = []
@@ -35,7 +35,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["StaticAssets::urlFor"]
     ; infix_names = []
@@ -54,7 +54,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["StaticAssets::urlForLatest"]
     ; infix_names = []
@@ -73,7 +73,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["StaticAssets::fetch"]
     ; infix_names = []
@@ -107,7 +107,7 @@ UTF-8 safe"))
               )
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["StaticAssets::fetch_v1"]
     ; infix_names = []
@@ -138,7 +138,7 @@ UTF-8 safe"))
                     (Dval.dstr_of_string_exn "Response was not UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["StaticAssets::fetchBytes"]
     ; infix_names = []
@@ -168,7 +168,7 @@ UTF-8 safe"))
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["StaticAssets::fetchLatest"]
     ; infix_names = []
@@ -202,7 +202,7 @@ UTF-8 safe"))
               )
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["StaticAssets::fetchLatest_v1"]
     ; infix_names = []
@@ -234,7 +234,7 @@ UTF-8 safe"))
 UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["StaticAssets::fetchLatestBytes"]
     ; infix_names = []
@@ -264,7 +264,7 @@ UTF-8 safe") )
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["StaticAssets::serve"]
     ; infix_names = []
@@ -318,7 +318,7 @@ UTF-8 safe") )
               )
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["StaticAssets::serve_v1"]
     ; infix_names = []
@@ -373,7 +373,7 @@ UTF-8 safe") )
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["StaticAssets::serveLatest"]
     ; infix_names = []
@@ -429,7 +429,7 @@ UTF-8 safe") )
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["StaticAssets::serveLatest_v1"]
     ; infix_names = []
@@ -484,5 +484,5 @@ UTF-8 safe") )
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
               Libexecution.Lib.fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

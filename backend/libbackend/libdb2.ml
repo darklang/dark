@@ -24,7 +24,7 @@ let fns : fn list =
               DObj value
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::add_v0"]
     ; infix_names = []
@@ -42,7 +42,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn key
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::get_v1"]
     ; infix_names = []
@@ -58,7 +58,7 @@ let fns : fn list =
               User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::get_v2"]
     ; infix_names = []
@@ -74,7 +74,7 @@ let fns : fn list =
               User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::getMany_v1"]
     ; infix_names = []
@@ -103,7 +103,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::getMany_v2"]
     ; infix_names = []
@@ -131,7 +131,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::getManyWithKeys"]
     ; infix_names = []
@@ -160,7 +160,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::getManyWithKeys_v1"]
     ; infix_names = []
@@ -188,7 +188,7 @@ let fns : fn list =
               |> DObj
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::delete_v1"]
     ; infix_names = []
@@ -205,7 +205,7 @@ let fns : fn list =
               DNull
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::deleteAll_v1"]
     ; infix_names = []
@@ -221,7 +221,7 @@ let fns : fn list =
               DNull
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::query_v1"]
     ; infix_names = []
@@ -241,7 +241,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true (* see query_v2 *) }
   ; { prefix_names = ["DB::query_v2"]
     ; infix_names = []
@@ -259,7 +259,7 @@ let fns : fn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
     (* see queryExactFields *)
   ; { prefix_names = ["DB::query_v3"]
@@ -278,7 +278,7 @@ let fns : fn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::queryExactFields"]
     ; infix_names = []
@@ -296,7 +296,7 @@ let fns : fn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::queryWithKey_v1"]
     ; infix_names = []
@@ -316,7 +316,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
     (* see queryExactFieldsWithKey *)
   ; { prefix_names = ["DB::queryWithKey_v2"]
@@ -336,7 +336,7 @@ let fns : fn list =
               |> DObj
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::queryExactFieldsWithKey"]
     ; infix_names = []
@@ -355,7 +355,7 @@ let fns : fn list =
               |> DObj
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::queryOne_v1"]
     ; infix_names = []
@@ -378,7 +378,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::queryOne_v2"]
     ; infix_names = []
@@ -401,7 +401,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
     (* see queryOneExactFields *)
   ; { prefix_names = ["DB::queryOneWithExactFields"]
@@ -425,7 +425,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::queryOneWithKey_v1"]
     ; infix_names = []
@@ -448,7 +448,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::queryOneWithKey_v2"]
     ; infix_names = []
@@ -471,7 +471,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
     (* see queryOneExactFieldsWithKey *)
   ; { prefix_names = ["DB::queryOneWithExactFieldsWithKey"]
@@ -495,7 +495,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::getAll_v1"]
     ; infix_names = []
@@ -515,7 +515,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::getAll_v2"]
     ; infix_names = []
@@ -532,7 +532,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::getAll_v3"]
     ; infix_names = []
@@ -549,7 +549,7 @@ let fns : fn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::getAllWithKeys_v1"]
     ; infix_names = []
@@ -569,7 +569,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["DB::getAllWithKeys_v2"]
     ; infix_names = []
@@ -585,7 +585,7 @@ let fns : fn list =
               User_db.get_all ~state db |> DvalMap.from_list |> DObj
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::count"]
     ; infix_names = []
@@ -600,7 +600,7 @@ let fns : fn list =
               User_db.count ~state db |> Dval.dint
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; (* previously called `DB::keys` *)
     { prefix_names = ["DB::schemaFields_v1"]
@@ -618,7 +618,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::schema_v1"]
     ; infix_names = []
@@ -637,7 +637,7 @@ let fns : fn list =
               |> Dval.to_dobj_exn
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::generateKey"]
     ; infix_names = []
@@ -651,7 +651,7 @@ let fns : fn list =
               Uuidm.v `V4 |> Uuidm.to_string |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::keys_v1"]
     ; infix_names = []
@@ -669,7 +669,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::query_v4"]
     ; infix_names = []
@@ -690,7 +690,7 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::queryWithKey_v3"]
     ; infix_names = []
@@ -709,7 +709,7 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::queryOne_v3"]
     ; infix_names = []
@@ -733,7 +733,7 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::queryOneWithKey_v3"]
     ; infix_names = []
@@ -757,5 +757,5 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

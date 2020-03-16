@@ -18,7 +18,7 @@ let fns : fn list =
               with _ -> DNull )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["JSON::read_v1"]
     ; infix_names = []
@@ -33,7 +33,7 @@ let fns : fn list =
               Dval.of_unknown_json_v1 (Unicode_string.to_string json)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["JSON::parse_v0"]
     ; infix_names = []
@@ -48,7 +48,7 @@ let fns : fn list =
               Dval.of_unknown_json_v1 (Unicode_string.to_string json)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["JSON::parse_v1"]
     ; infix_names = []
@@ -72,5 +72,5 @@ let fns : fn list =
             )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

@@ -134,13 +134,14 @@ let fnExecutionButton
     (s : state) (fn : function_) (id : ID.t) (args : ID.t list) =
   let name = fn.fnName in
   let status = fnExecutionStatus s fn id args in
-  if fn.fnPreviewExecutionSafe
-  then Vdom.noNode
-  else
-    let class_ = executionClass status in
-    let title = executionTitle status in
-    let icon = executionIcon status in
-    let events = executionEvents status s.tlid id name in
-    Html.div
-      ([Html.class' ("execution-button " ^ class_); Html.title title] @ events)
-      [fontAwesome icon]
+  match fn.fnPreviewSafety with
+  | Safe ->
+      Vdom.noNode
+  | Unsafe ->
+      let class_ = executionClass status in
+      let title = executionTitle status in
+      let icon = executionIcon status in
+      let events = executionEvents status s.tlid id name in
+      Html.div
+        ([Html.class' ("execution-button " ^ class_); Html.title title] @ events)
+        [fontAwesome icon]

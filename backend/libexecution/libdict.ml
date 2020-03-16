@@ -19,7 +19,7 @@ let fns =
               |> fun l -> DList l
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::values"]
     ; infix_names = []
@@ -30,7 +30,7 @@ let fns =
         InProcess
           (function
           | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::get"]
     ; infix_names = []
@@ -49,7 +49,7 @@ let fns =
                 DNull )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Dict::get_v1"]
     ; infix_names = []
@@ -67,7 +67,7 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Dict::get_v2"]
     ; infix_names = []
@@ -85,7 +85,7 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::foreach"]
     ; infix_names = []
@@ -101,7 +101,7 @@ let fns =
               DObj (Map.map ~f o)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Dict::map"]
     ; infix_names = []
@@ -119,7 +119,7 @@ let fns =
               DObj (Map.mapi ~f o)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::filter"]
     ; infix_names = []
@@ -153,7 +153,7 @@ let fns =
               else DObj (Base.Map.filteri ~f o)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Dict::filter_v1"]
     ; infix_names = []
@@ -198,7 +198,7 @@ let fns =
               (match filtered_result with Ok o -> DObj o | Error dv -> dv)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::empty"]
     ; infix_names = []
@@ -207,7 +207,7 @@ let fns =
     ; description = "Return an empty dictionary"
     ; func =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::merge"]
     ; infix_names = []
@@ -222,7 +222,7 @@ let fns =
               DObj (Util.merge_right l r)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::toJSON"]
     ; infix_names = []
@@ -238,7 +238,7 @@ let fns =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::set"]
     ; infix_names = []
@@ -252,7 +252,7 @@ let fns =
               DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::remove"]
     ; infix_names = []
@@ -266,5 +266,5 @@ let fns =
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

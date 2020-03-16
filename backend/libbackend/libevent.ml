@@ -22,7 +22,7 @@ let fns : fn list =
               data
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["emit_v1"]
     ; infix_names = []
@@ -39,5 +39,5 @@ let fns : fn list =
               data
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

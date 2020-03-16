@@ -25,7 +25,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.( % ) a b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::add"]
     ; infix_names = ["+"]
@@ -75,7 +75,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::subtract"]
     ; infix_names = ["-"]
@@ -107,7 +107,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::multiply"]
     ; infix_names = ["*"]
@@ -139,7 +139,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::power"]
     ; infix_names = ["^"]
@@ -153,7 +153,7 @@ let fns : fn list =
               DInt (Dint.pow base exp)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::divide"]
     ; infix_names = []
@@ -185,7 +185,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::greaterThan"]
     ; infix_names = [">"]
@@ -217,7 +217,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::greaterThanOrEqualTo"]
     ; infix_names = [">="]
@@ -249,7 +249,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::lessThan"]
     ; infix_names = ["<"]
@@ -281,7 +281,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::lessThanOrEqualTo"]
     ; infix_names = ["<="]
@@ -313,7 +313,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::random"]
     ; infix_names = []
@@ -329,7 +329,7 @@ let fns : fn list =
               DInt (a + one + Dint.random (b - a))
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = true }
   ; { prefix_names = ["Int::random_v1"]
     ; infix_names = []
@@ -347,7 +347,7 @@ let fns : fn list =
               DInt (lower + Dint.random (upper - lower))
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["Int::sqrt"]
     ; infix_names = []
@@ -370,7 +370,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::toFloat"]
     ; infix_names = []
@@ -381,7 +381,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DInt a] -> DFloat (Dint.to_float a) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::sum"]
     ; infix_names = []
@@ -410,7 +410,7 @@ let fns : fn list =
               |> Result.ok_exn
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::max"]
     ; infix_names = []
@@ -421,7 +421,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::min"]
     ; infix_names = []
@@ -432,5 +432,5 @@ let fns : fn list =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

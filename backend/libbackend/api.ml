@@ -138,7 +138,7 @@ type function_metadata =
   ; description : string
   ; return_type : string
   ; infix : bool
-  ; preview_execution_safe : bool
+  ; preview_safety : RuntimeT.fn_preview_safety
   ; deprecated : bool }
 [@@deriving yojson]
 
@@ -162,7 +162,7 @@ let functions ~username =
                v.parameters
          ; description = v.description
          ; return_type = Dval.tipe_to_string v.return_type
-         ; preview_execution_safe = v.preview_execution_safe
+         ; preview_safety = v.preview_safety
          ; infix = List.mem ~equal:( = ) v.infix_names k
          ; deprecated = v.deprecated })
   |> List.map ~f:function_metadata_to_yojson

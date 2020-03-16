@@ -16,7 +16,7 @@ let fns : Types.RuntimeT.fn list =
               DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; (* TODO(ian): merge Http::respond with Http::respond_with_headers
    * -- need to figure out how to deprecate functions w/o breaking
@@ -36,7 +36,7 @@ let fns : Types.RuntimeT.fn list =
               DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::success"]
     ; infix_names = []
@@ -48,7 +48,7 @@ let fns : Types.RuntimeT.fn list =
         InProcess
           (function
           | _, [dv] -> DResp (Response (200, []), dv) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::respondWithHtml"]
     ; infix_names = []
@@ -66,7 +66,7 @@ let fns : Types.RuntimeT.fn list =
                 , dv )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::respondWithText"]
     ; infix_names = []
@@ -84,7 +84,7 @@ let fns : Types.RuntimeT.fn list =
                 , dv )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::respondWithJson"]
     ; infix_names = []
@@ -103,7 +103,7 @@ let fns : Types.RuntimeT.fn list =
                 , dv )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::redirectTo"]
     ; infix_names = []
@@ -118,7 +118,7 @@ let fns : Types.RuntimeT.fn list =
               DResp (Redirect (Unicode_string.to_string url), DNull)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::badRequest"]
     ; infix_names = []
@@ -133,7 +133,7 @@ let fns : Types.RuntimeT.fn list =
               DResp (Response (400, []), DStr msg)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::notFound"]
     ; infix_names = []
@@ -145,7 +145,7 @@ let fns : Types.RuntimeT.fn list =
         InProcess
           (function
           | _, [] -> DResp (Response (404, []), DNull) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::unauthorized"]
     ; infix_names = []
@@ -157,7 +157,7 @@ let fns : Types.RuntimeT.fn list =
         InProcess
           (function
           | _, [] -> DResp (Response (401, []), DNull) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::forbidden"]
     ; infix_names = []
@@ -169,7 +169,7 @@ let fns : Types.RuntimeT.fn list =
         InProcess
           (function
           | _, [] -> DResp (Response (403, []), DNull) | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::setCookie"]
     ; infix_names = []
@@ -215,7 +215,7 @@ let fns : Types.RuntimeT.fn list =
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Http::setCookie_v1"]
     ; infix_names = []
@@ -271,5 +271,5 @@ let fns : Types.RuntimeT.fn list =
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

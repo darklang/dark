@@ -20,7 +20,7 @@ let fns : fn list =
                    (Dval.dstr_of_string_exn "application/x-www-form-urlencoded"))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::jsonContentType"]
     ; infix_names = []
@@ -37,7 +37,7 @@ let fns : fn list =
                    (Dval.dstr_of_string_exn "application/json; charset=utf-8"))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::plainTextContentType"]
     ; infix_names = []
@@ -54,7 +54,7 @@ let fns : fn list =
                    (Dval.dstr_of_string_exn "text/plain; charset=utf-8"))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::htmlContentType"]
     ; infix_names = []
@@ -71,7 +71,7 @@ let fns : fn list =
                    (Dval.dstr_of_string_exn "text/html; charset=utf-8"))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::bearerToken"]
     ; infix_names = []
@@ -91,5 +91,5 @@ let fns : fn list =
               DObj (DvalMap.singleton "Authorization" (DStr auth_string))
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

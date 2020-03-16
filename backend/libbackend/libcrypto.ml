@@ -54,7 +54,7 @@ let fns : fn list =
               |> DPassword
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["Password::check"]
     ; infix_names = []
@@ -75,7 +75,7 @@ let fns : fn list =
               |> DBool
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["Crypto::sha256"]
     ; infix_names = []
@@ -92,7 +92,7 @@ let fns : fn list =
               |> DBytes
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["Crypto::sha384"]
     ; infix_names = []
@@ -109,7 +109,7 @@ let fns : fn list =
               |> DBytes
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["Crypto::sha256hmac"]
     ; infix_names = []
@@ -126,7 +126,7 @@ let fns : fn list =
               Nocrypto.Hash.SHA256.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["Crypto::sha1hmac"]
     ; infix_names = []
@@ -143,5 +143,5 @@ let fns : fn list =
               Nocrypto.Hash.SHA1.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

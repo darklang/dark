@@ -22,7 +22,7 @@ let fns : fn list =
                 DResult r )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Result::map_v1"]
     ; infix_names = []
@@ -42,7 +42,7 @@ let fns : fn list =
                 DResult r )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Result::mapError"]
     ; infix_names = []
@@ -62,7 +62,7 @@ let fns : fn list =
                 DResult (ResError result) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Result::mapError_v1"]
     ; infix_names = []
@@ -82,7 +82,7 @@ let fns : fn list =
                 Dval.to_res_err result )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Result::withDefault"]
     ; infix_names = []
@@ -97,7 +97,7 @@ let fns : fn list =
             (match o with ResOk dv -> dv | ResError _ -> default)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Result::fromOption"]
     ; infix_names = []
@@ -116,7 +116,7 @@ let fns : fn list =
                 DResult (ResError (DStr error)) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Result::fromOption_v1"]
     ; infix_names = []
@@ -140,7 +140,7 @@ let fns : fn list =
                 Dval.to_res_err (DStr error) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Result::toOption"]
     ; infix_names = []
@@ -158,7 +158,7 @@ let fns : fn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Result::toOption_v1"]
     ; infix_names = []
@@ -176,7 +176,7 @@ let fns : fn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Result::andThen"]
     ; infix_names = []
@@ -203,7 +203,7 @@ let fns : fn list =
                 DResult (ResError msg) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Result::andThen_v1"]
     ; infix_names = []
@@ -232,5 +232,5 @@ let fns : fn list =
                 DResult (ResError msg) )
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = false } ]

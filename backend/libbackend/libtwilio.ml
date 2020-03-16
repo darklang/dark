@@ -61,5 +61,5 @@ let fns : fn list =
                 headers
           | args ->
               fail args)
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

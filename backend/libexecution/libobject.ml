@@ -11,7 +11,7 @@ let fns =
     ; description = "Return an empty object"
     ; func =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Object::merge"]
     ; infix_names = []
@@ -26,7 +26,7 @@ let fns =
               DObj (Util.merge_right l r)
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Object::toJSON"]
     ; infix_names = []
@@ -42,7 +42,7 @@ let fns =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Object::toJSON_v1"]
     ; infix_names = []
@@ -58,5 +58,5 @@ let fns =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_execution_safe = true
+    ; preview_safety = Safe
     ; deprecated = true } ]

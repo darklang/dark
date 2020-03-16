@@ -13,11 +13,14 @@ let parameter j : parameter =
 
 let function_ j : function_ =
   let open Json.Decode in
+  let previewSafetyVariants =
+    variants [("Safe", variant0 Safe); ("Unsafe", variant0 Unsafe)]
+  in
   { fnName = field "name" string j
   ; fnParameters = field "parameters" (list parameter) j
   ; fnDescription = field "description" string j
   ; fnReturnTipe = field "return_type" (string >> Runtime.str2tipe) j
-  ; fnPreviewExecutionSafe = field "preview_execution_safe" bool j
+  ; fnPreviewSafety = field "preview_safety" previewSafetyVariants j
   ; fnDeprecated = field "deprecated" bool j
   ; fnInfix = field "infix" bool j }
 

@@ -67,17 +67,18 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
       (* If fn needs to be manually executed, check status *)
       ViewUtils.fnForToken vs.fluidState token
       |> Option.andThen ~f:(fun fn ->
-             if fn.fnPreviewExecutionSafe
-             then None
-             else
-               let id = T.tid token in
-               let args =
-                 AST.getArguments (T.tid token) vs.ast |> List.map ~f:E.toID
-               in
-               let s = ViewFnExecution.stateFromViewState vs in
-               ViewFnExecution.fnExecutionStatus s fn id args
-               |> ViewFnExecution.executionError
-               |> Option.some)
+             match fn.fnPreviewSafety with
+             | Safe ->
+                 None
+             | Unsafe ->
+                 let id = T.tid token in
+                 let args =
+                   AST.getArguments (T.tid token) vs.ast |> List.map ~f:E.toID
+                 in
+                 let s = ViewFnExecution.stateFromViewState vs in
+                 ViewFnExecution.fnExecutionStatus s fn id args
+                 |> ViewFnExecution.executionError
+                 |> Option.some)
     in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
     | LoadableSuccess (ExecutedResult (DIncomplete _))
