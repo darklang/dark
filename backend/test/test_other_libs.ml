@@ -635,6 +635,22 @@ let t_float_stdlibs () =
     (exec_ast "(Float::abs -5.6)") ;
   check_dval "Float::abs works (pos)" (DFloat 5.6) (exec_ast "(Float::abs 5.6)") ;
   check_dval
+    "Float::negate works (nan)"
+    (DFloat Float.nan)
+    (exec_ast "(Float::negate NaN)") ;
+  check_dval
+    "Float::negate works (infinity)"
+    (DFloat Float.neg_infinity)
+    (exec_ast "(Float::negate Infinity)") ;
+  check_dval
+    "Float::negate works (neg)"
+    (DFloat 5.6)
+    (exec_ast "(Float::negate -5.6)") ;
+  check_dval
+    "Float::negate works (pos)"
+    (DFloat (-5.6))
+    (exec_ast "(Float::negate 5.6)") ;
+  check_dval
     "Float::divide works"
     (DFloat 4.5)
     (exec_ast "(Float::divide 9.0 2.0)") ;
@@ -677,6 +693,14 @@ let t_int_stdlibs () =
     (Dval.dint 5) ;
   check_dval "Int::abs works (neg)" (Dval.dint 5) (exec_ast "(Int::abs -5)") ;
   check_dval "Int::abs works (pos)" (Dval.dint 5) (exec_ast "(Int::abs 5)") ;
+  check_dval
+    "Int::negate works (neg)"
+    (Dval.dint 5)
+    (exec_ast "(Int::negate -5)") ;
+  check_dval
+    "Int::negate works (pos)"
+    (Dval.dint (-5))
+    (exec_ast "(Int::negate 5)") ;
   ()
 
 
