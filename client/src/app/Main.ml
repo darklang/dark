@@ -620,7 +620,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         processAutocompleteMods m [ACRegenerate]
     | UpdateWorkerSchedules schedules ->
-        let m = {m with worker_schedules = schedules} in
+        let m = {m with workerSchedules = schedules} in
         (m, Cmd.none)
     | UpdateTraces traces ->
         let newTraces =
@@ -1514,15 +1514,18 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ ReplaceAllModificationsWithThisOne
             (fun m ->
-              let m, _ = SettingsView.update m (SetSettingsView (r.canvas_list, r.org_list, r.creation_date)) in
-              ( {m with opCtrs = r.opCtrs; account = r.account}
-              , Cmd.none ))
+              let m, _ =
+                SettingsView.update
+                  m
+                  (SetSettingsView (r.canvasList, r.orgList, r.creationDate))
+              in
+              ({m with opCtrs = r.opCtrs; account = r.account}, Cmd.none))
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
         ; SetUnlockedDBs r.unlockedDBs
-        ; UpdateWorkerSchedules r.worker_schedules
+        ; UpdateWorkerSchedules r.workerSchedules
         ; SetPermission r.permission
         ; Append404s r.fofs
         ; AppendStaticDeploy r.staticDeploys

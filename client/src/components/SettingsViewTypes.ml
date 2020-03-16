@@ -38,8 +38,8 @@ type canvasInformation =
 type settingsViewState =
   { opened : bool
   ; tab : settingsTab
-  ; canvas_list : string list
-  ; org_list : string list
+  ; canvasList : string list
+  ; orgList : string list
   ; loading : bool
   ; canvasInformation : canvasInformation }
 [@@deriving show]
@@ -51,7 +51,7 @@ type loadCanvasInfoAPIResult =
 
 type settingsMsg =
   | CloseSettingsView
-  | SetSettingsView of (string list * string list * Js.Date.t [@opaque])
+  | SetSettingsView of ((string list * string list * Js.Date.t)[@opaque])
   | OpenSettingsView of settingsTab
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string
