@@ -38,6 +38,18 @@ let fns : Lib.shortfn list =
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Bool::xor"]
+    ; ins = []
+    ; p = [par "a" TBool; par "b" TBool]
+    ; r = TBool
+    ; d =
+        "Returns `true` if `a` is `true` or `b` is `true`, but not both. Returns `false` otherwise."
+    ; f =
+        InProcess
+          (function
+          | _, [DBool a; DBool b] -> DBool (a <> b) | args -> fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Bool::isNull"]
     ; ins = []
     ; p = [par "check" TAny]
