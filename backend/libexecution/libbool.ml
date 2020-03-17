@@ -9,7 +9,7 @@ let fns : fn list =
     ; parameters = [par "b" TBool]
     ; return_type = TBool
     ; description =
-        "Returns the inverse of `b`: true is `b` is false and false if `b` is true"
+        "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
     ; func =
         InProcess (function _, [DBool b] -> DBool (not b) | args -> fail args)
     ; preview_safety = Safe
@@ -66,7 +66,7 @@ let fns : fn list =
     ; infix_names = []
     ; parameters = [par "check" TAny]
     ; return_type = TBool
-    ; description = "Returns true if the `check` parameter is an error"
+    ; description = "Returns `true` if the `check` parameter is an error"
     ; func =
         InProcess
           (function
