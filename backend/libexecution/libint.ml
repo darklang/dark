@@ -187,6 +187,27 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Int::absoluteValue"]
+    ; ins = []
+    ; p = [par "a" TInt]
+    ; r = TInt
+    ; d =
+        "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+    ; f =
+        InProcess
+          (function _, [DInt a] -> DInt (Dint.abs a) | args -> fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Int::negate"]
+    ; ins = []
+    ; p = [par "a" TInt]
+    ; r = TInt
+    ; d = "Returns the negation of `a`, `-a`."
+    ; f =
+        InProcess
+          (function _, [DInt a] -> DInt (Dint.negate a) | args -> fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Int::greaterThan"]
     ; ins = [">"]
     ; p = [par "a" TInt; par "b" TInt]
