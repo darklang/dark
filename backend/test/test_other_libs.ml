@@ -622,6 +622,14 @@ let t_float_stdlibs () =
     (exec_ast "(Float::max Infinity 1.0)") ;
   check_dval "Float::sqrt works" (DFloat 5.0) (exec_ast "(Float::sqrt 25.0)") ;
   check_dval
+    "Float::power works"
+    (DFloat 2.0)
+    (exec_ast' (fn "Float::power" [float' 4 0; float' 0 5])) ;
+  check_dval
+    "Float::power works"
+    (DFloat 0.5)
+    (exec_ast' (fn "Float::power" [float' 4 0; float' 0 (-5)])) ;
+  check_dval
     "Float::absoluteValue works (nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.nan)
