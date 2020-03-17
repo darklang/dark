@@ -21,10 +21,6 @@ let t_stdlib_works () =
           "List::uniqueBy"
           [list [int 1; int 2; int 3; int 4]; lambda ["x"] (var "x")]))
     (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3; Dval.dint 4]) ;
-  check_error_contains
-    "base64decode"
-    (exec_ast' (fn "String::base64Decode" [str "random string"]))
-    "Not a valid base64 string" ;
   check_dval
     "getAt1"
     (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 0]))
@@ -308,6 +304,10 @@ let t_string_stdlibs_work () =
     "String::isEmpty works (full)"
     (DBool false)
     (exec_ast' (fn "String::isEmpty" [str "a"])) ;
+  check_error_contains
+    "String::base64decode errors on non-base64"
+    (exec_ast' (fn "String::base64Decode" [str "random string"]))
+    "Not a valid base64 string" ;
   ()
 
 
