@@ -569,6 +569,38 @@ let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> getNextEditablePos pos
   |> setPosition ~resetUD:true s
 
+
+let rec getPrevEditable (pos : int) (tokens : T.tokenInfo list) :
+    T.tokenInfo option =
+  tokens
+  |> List.filter ~f:(fun ti -> T.isTextToken ti.token && ti.endPos < pos)
+  |> List.last
+  |> Option.orElseLazy (fun () ->
+         let lastPos =
+           List.last tokens
+           |> Option.map ~f:(fun ti -> ti.startPos)
+           |> Option.withDefault ~default:0
+         in
+         if pos < lastPos
+         then List.last tokens
+         else getPrevEditable lastPos tokens)
+
+
+let getPrevEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
+  tokens
+  |> getPrevEditable pos
+  |> Option.map ~f:(fun ti ->
+         if T.isBlank ti.token then ti.startPos else ti.endPos)
+  |> Option.withDefault ~default:pos
+
+
+let moveToPrevEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
+  recordAction ~pos "moveToPrevBlank" s
+  |> tokensForActiveEditor ast
+  |> getPrevEditablePos pos
+  |> setPosition ~resetUD:true s
+
+
 let rec getPrevBlank (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
   tokens
@@ -4051,7 +4083,7 @@ let rec updateKey
         (ast, moveToNextEditable ~pos ast s)
     | Keypress {key = K.ShiftTab; _}, _, R (_, _)
     | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
-        (ast, moveToPrevBlank ~pos ast s)
+        (ast, moveToPrevEditable ~pos ast s)
     (* Left/Right movement *)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ ->
