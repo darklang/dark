@@ -19,14 +19,15 @@ let wrap (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
   | Some _ ->
       ast (* don't nest flags! *)
   | None ->
+      let flagName = "flag-" ^ (gid () |> ID.toString) in
       FluidAST.update id ast ~f:(function
           | E.ELet (id, var, rhs, body) ->
               let ff =
-                E.EFeatureFlag (gid (), "flag-name", E.newB (), rhs, E.newB ())
+                E.EFeatureFlag (gid (), flagName, E.newB (), rhs, E.newB ())
               in
               E.ELet (id, var, ff, body)
           | e ->
-              E.EFeatureFlag (gid (), "flag-name", E.newB (), e, E.newB ()))
+              E.EFeatureFlag (gid (), flagName, E.newB (), e, E.newB ()))
 
 
 (** [wrapCmd m tl id] returns a [modification] that calls [wrap] with the
