@@ -5,7 +5,7 @@ module FF = FeatureFlags
 
 (** [testWrap name fn expected] tests FeatureFlag.wrap.
  *
- * Recal that FeatureFlag.wrap is called with [wrap ast id].
+ * Recall that FeatureFlag.wrap is called with [wrap ast id].
  *
  * The [fn] here is given the [id] and expected to return the [ast]
  * (as a FluidExpression to make life easier).
