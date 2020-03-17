@@ -236,31 +236,31 @@ let t_dict_stdlibs_work () =
   let dint i = DInt (Dint.of_int i) in
   check_dval
     "dict keys"
-    (exec_ast "(Dict::keys (obj (key1 'val1')))")
-    (DList [dstr "key1"]) ;
+    (DList [dstr "key1"])
+    (exec_ast "(Dict::keys (obj (key1 'val1')))") ;
   check_dval
     "dict values"
-    (exec_ast "(Dict::values (obj (key1 'val1')))")
-    (DList [dstr "val1"]) ;
+    (DList [dstr "val1"])
+    (exec_ast "(Dict::values (obj (key1 'val1')))") ;
   check_dval
     "dict get"
-    (exec_ast "(Dict::get_v1 (obj (key1 'val1')) 'key1')")
-    (DOption (OptJust (dstr "val1"))) ;
+    (DOption (OptJust (dstr "val1")))
+    (exec_ast "(Dict::get_v1 (obj (key1 'val1')) 'key1')") ;
   check_dval
     "dict foreach"
-    (exec_ast
-       "(Dict::foreach (obj (key1 'val1') (key2 'val2')) (\\x -> (++ x '_append')))")
     (DObj
        (DvalMap.from_list
-          [("key1", dstr "val1_append"); ("key2", dstr "val2_append")])) ;
+          [("key1", dstr "val1_append"); ("key2", dstr "val2_append")]))
+    (exec_ast
+       "(Dict::foreach (obj (key1 'val1') (key2 'val2')) (\\x -> (++ x '_append')))") ;
   check_dval
     "dict map"
-    (exec_ast
-       "(Dict::map (obj (key1 'val1') (key2 'val2')) (\\k x -> (++ k x)))")
     (DObj
        (DvalMap.from_list
-          [("key1", dstr "key1val1"); ("key2", dstr "key2val2")])) ;
-  check_dval "dict empty" (exec_ast "(Dict::empty)") (DObj DvalMap.empty) ;
+          [("key1", dstr "key1val1"); ("key2", dstr "key2val2")]))
+    (exec_ast
+       "(Dict::map (obj (key1 'val1') (key2 'val2')) (\\k x -> (++ k x)))") ;
+  check_dval "dict empty" (DObj DvalMap.empty) (exec_ast "(Dict::empty)") ;
   check_dval
     "Dict::isEmpty works (empty)"
     (DBool true)
@@ -271,22 +271,22 @@ let t_dict_stdlibs_work () =
     (exec_ast' (fn "Dict::isEmpty" [record [("a", int 1)]])) ;
   check_dval
     "dict merge"
-    (exec_ast "(Dict::merge (obj (key1 'val1')) (obj (key2 'val2')))")
-    (DObj (DvalMap.from_list [("key1", dstr "val1"); ("key2", dstr "val2")])) ;
+    (DObj (DvalMap.from_list [("key1", dstr "val1"); ("key2", dstr "val2")]))
+    (exec_ast "(Dict::merge (obj (key1 'val1')) (obj (key2 'val2')))") ;
   check_dval
     "dict toJSON"
-    (exec_ast "(Dict::toJSON (obj (key1 'val1') (key2 'val2')))")
-    (dstr "{ \"key1\": \"val1\", \"key2\": \"val2\" }") ;
+    (dstr "{ \"key1\": \"val1\", \"key2\": \"val2\" }")
+    (exec_ast "(Dict::toJSON (obj (key1 'val1') (key2 'val2')))") ;
   check_dval
     "dict filter keeps val"
+    (DObj (DvalMap.from_list [("key1", dstr "val1")]))
     (exec_ast
-       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== v 'val1')))")
-    (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
+       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== v 'val1')))") ;
   check_dval
     "dict filter keeps key"
+    (DObj (DvalMap.from_list [("key1", dstr "val1")]))
     (exec_ast
-       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))")
-    (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
+       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))") ;
   check_incomplete
     "dict filter propagates incomplete from lambda"
     (exec_ast
