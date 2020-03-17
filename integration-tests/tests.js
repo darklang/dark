@@ -410,7 +410,7 @@ test("tabbing_through_let", async t => {
     .pressKey("tab tab")
     .typeText("#active-editor", "5")
     // fill in the var
-    .pressKey("tab")
+    .pressKey("tab tab")
     .typeText("#active-editor", "myvar");
 });
 
