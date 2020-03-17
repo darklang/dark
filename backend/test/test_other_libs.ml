@@ -299,6 +299,18 @@ let t_dict_stdlibs_work () =
   ()
 
 
+let t_string_stdlibs_work () =
+  check_dval
+    "String::isEmpty works (empty)"
+    (DBool true)
+    (exec_ast' (fn "String::isEmpty" [str ""])) ;
+  check_dval
+    "String::isEmpty works (full)"
+    (DBool false)
+    (exec_ast' (fn "String::isEmpty" [str "a"])) ;
+  ()
+
+
 let t_password_hashing_and_checking_works () =
   let ast =
     "(let password 'password'
@@ -800,6 +812,7 @@ let suite =
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
   ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work)
+  ; ("String stdlibs work", `Quick, t_string_stdlibs_work)
   ; ( "End-user password hashing and checking works"
     , `Quick
     , t_password_hashing_and_checking_works )
