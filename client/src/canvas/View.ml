@@ -174,7 +174,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
-  let hasFf = false in
+  let hasFF =
+    FluidAST.filter vs.ast ~f:(function EFeatureFlag _ -> true | _ -> false)
+    |> List.length
+    |> fun l -> l > 0
+  in
   let html =
     [ Html.div
       (* this unique key ensures that when switching between toplevels the entire
@@ -186,7 +190,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         ((top :: body) @ data)
     ; avatars
     ; Html.div
-        [ Html.classList [("use-wrapper", true); ("fade", hasFf)]
+        [ Html.classList [("use-wrapper", true); ("fade", hasFF)]
           (* Block opening the omnibox here by preventing canvas pan start *)
         ; ViewUtils.nothingMouseEvent "mousedown" ]
         usages ]
