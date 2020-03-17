@@ -103,6 +103,20 @@ let fns : Lib.shortfn list =
           (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Float::power"]
+    ; ins = []
+    ; p = [par "base" TFloat; par "exponent" TFloat]
+    ; r = TFloat
+    ; d = "Returns `base` raised to the power of `exponent`"
+    ; f =
+        InProcess
+          (function
+          | _, [DFloat base; DFloat exp] ->
+              DFloat (base ** exp)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Float::divide"]
     ; ins = ["/"]
     ; p = [par "a" TFloat; par "b" TFloat]
