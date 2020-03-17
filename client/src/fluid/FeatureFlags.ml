@@ -5,6 +5,8 @@ type unwrapKeep =
   | KeepOld
   | KeepNew
 
+(** [ancestorFlag ast id] returns the first ancestor of the expression having
+ * [id] that is a feature flag *)
 let ancestorFlag (ast : FluidAST.t) (id : ID.t) : FluidExpression.t option =
   FluidAST.ancestors id ast
   |> List.find ~f:(function E.EFeatureFlag _ -> true | _ -> false)
@@ -36,9 +38,8 @@ let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
 
 
 (** [unwrap keep ast id] finds the expression having [id] and unwraps it,
- * removing *
-    any feature flag in its ancestry and replacing it with the "old code" of
-    the flag. *)
+ * removing any feature flag in its ancestry and replacing it with either the
+ * old or new code, based on [keep]. *)
 let unwrap (keep : unwrapKeep) (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
   (* Either the given ID is a FF or it's somewhere in the ancestor chain. Find
      it (hopefully). *)
@@ -51,7 +52,7 @@ let unwrap (keep : unwrapKeep) (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
              | E.EFeatureFlag (_id, _name, _cond, oldCode, newCode) ->
                (match keep with KeepOld -> oldCode | KeepNew -> newCode)
              | e ->
-                 e (* ???? *)))
+                 recover "updating flag found non-flag expression" e))
   |> Option.withDefault ~default:ast
 
 
