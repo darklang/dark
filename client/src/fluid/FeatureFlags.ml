@@ -21,6 +21,17 @@ let wrap (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
   | None ->
       let flagName = "flag-" ^ (gid () |> ID.toString) in
       FluidAST.update id ast ~f:(function
+          (* Somewhat arbitrary decision: when flagging a let, only wrap the
+           * RHS. This avoids surprising behavior where multiple "lines" may
+           * be wrapped if we wrapped the body. Consider:
+           *   let a = 1
+           *   let b = 2
+           *   let c = 3
+           *   a + b + c
+           *
+           * Wrapping with the `let b` could wrap either `2` (the RHS) or
+           * `let c = 3 \n a + b + c` (the body). To make things feel more line based,
+           * we choose to only wrap the RHS. *)
           | E.ELet (id, var, rhs, body) ->
               let ff =
                 E.EFeatureFlag (gid (), flagName, E.newB (), rhs, E.newB ())
