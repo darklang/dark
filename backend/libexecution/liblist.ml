@@ -565,6 +565,57 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["List::map2DroppingExtra"]
+    ; infix_names = []
+    ; parameters =
+        [par "list1" TList; par "list2" TList; func ["list1Item"; "list2Item"]]
+    ; return_type = TList
+    ; description =
+        "Maps `f` over `list1` and `list2` in parallel, calling `f list1Item list2Item` on every pair of items from `list1` and `list2`,
+         where each pair is at the same index in both lists. If the lists differ in length, items from the longer list are dropped."
+    ; func =
+        InProcess
+          (function
+          | state, [DList l1; DList l2; DBlock b] ->
+              (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
+              let len = min (List.length l1) (List.length l2) in
+              let l1 = List.take l1 len in
+              let l2 = List.take l2 len in
+              let f (l1Item : dval) (l2Item : dval) : dval =
+                Ast.execute_dblock ~state b [l1Item; l2Item]
+              in
+              Dval.to_list (List.map2_exn ~f l1 l2)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::map2"]
+    ; infix_names = []
+    ; parameters =
+        [par "list1" TList; par "list2" TList; func ["list1Item"; "list2Item"]]
+    ; return_type = TOption
+    ; description =
+        "If the lists differ in length, returns `Nothing`.
+        Otherwise, returns `Just list` formed by mapping `f` over `list1` and `list2` in parallel,
+         calling `f list1Item list2Item` on every pair of items from `list1` and `list2`,
+         where each pair is at the same index in both lists."
+    ; func =
+        InProcess
+          (function
+          | state, [DList l1; DList l2; DBlock b] ->
+              let f (l1Item : dval) (l2Item : dval) : dval =
+                Ast.execute_dblock ~state b [l1Item; l2Item]
+              in
+              DOption
+                ( match List.map2 ~f l1 l2 with
+                | Ok res ->
+                    OptJust (Dval.to_list res)
+                | Unequal_lengths ->
+                    OptNothing )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["List::getAt"]
     ; infix_names = []
     ; parameters = [par "l" TList; par "index" TInt]
