@@ -295,6 +295,48 @@ let t_dict_stdlibs_work () =
   ()
 
 
+let t_list_stdlibs_work () =
+  check_dval
+    "List::map2 works (length mismatch)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn
+          "List::map2"
+          [ list [int 10; int 20; int 30]
+          ; list [int 1; int 2; int 3]
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "List::map2 works (length match)"
+    (DOption
+       (OptJust
+          (DList [Dval.dint (10 - 1); Dval.dint (20 - 2); Dval.dint (30 - 3)])))
+    (exec_ast'
+       (fn
+          "List::map2"
+          [ list [int 10; int 20; int 30]
+          ; list [int 1; int 2; int 3]
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "List::map2DroppingExtra works (length mismatch)"
+    (DList [Dval.dint (10 - 1); Dval.dint (20 - 2)])
+    (exec_ast'
+       (fn
+          "List::map2DroppingExtra"
+          [ list [int 10; int 20]
+          ; list [int 1; int 2; int 3]
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "List::map2DroppingExtra works (length match)"
+    (DList [Dval.dint (10 - 1); Dval.dint (20 - 2); Dval.dint (30 - 3)])
+    (exec_ast'
+       (fn
+          "List::map2DroppingExtra"
+          [ list [int 10; int 20; int 30]
+          ; list [int 1; int 2; int 3]
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  ()
+
+
 let t_string_stdlibs_work () =
   check_dval
     "String::isEmpty works (empty)"
@@ -812,6 +854,7 @@ let suite =
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
   ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work)
+  ; ("List stdlibs work", `Quick, t_list_stdlibs_work)
   ; ("String stdlibs work", `Quick, t_string_stdlibs_work)
   ; ( "End-user password hashing and checking works"
     , `Quick
