@@ -628,7 +628,8 @@ let t_float_stdlibs () =
   check_dval
     "Float::power works"
     (DFloat 0.5)
-    (exec_ast' (fn "Float::power" [float' 4 0; float' 0 (-5)])) ;
+    (* Writing -0.5 is currently awkward; this relies on string concatenation: *)
+    (exec_ast' (fn "Float::power" [float' 4 0; floatStr "-0" "5"])) ;
   check_dval
     "Float::absoluteValue works (nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
