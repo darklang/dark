@@ -73,7 +73,8 @@ let fns =
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TOption
-    ; description = "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
+    ; description =
+        "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
     ; func =
         InProcess
           (function
@@ -209,6 +210,17 @@ let fns =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Dict::isEmpty"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj]
+    ; return_type = TBool
+    ; description = "Returns `true` if the `dict` contains no key-value pairs."
+    ; func =
+        InProcess
+          (function
+          | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Dict::merge"]
     ; infix_names = []
     ; parameters = [par "left" TObj; par "right" TObj]
@@ -258,7 +270,8 @@ let fns =
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TObj
-    ; description = "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged."
+    ; description =
+        "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged."
     ; func =
         InProcess
           (function
