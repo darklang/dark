@@ -19,7 +19,7 @@ let fns : fn list =
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TInt
-    ; description = "Round above to an integer value"
+    ; description = "Round up to an integer value"
     ; func =
         InProcess
           (function
@@ -33,7 +33,8 @@ let fns : fn list =
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TInt
-    ; description = "Round down to an integer value"
+    ; description =
+        "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
     ; func =
         InProcess
           (function
@@ -47,7 +48,7 @@ let fns : fn list =
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TInt
-    ; description = "Round to nearest integer value"
+    ; description = "Round to the nearest integer value"
     ; func =
         InProcess
           (function
@@ -65,6 +66,42 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::truncate"; "Float::roundTowardsZero"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TInt
+    ; description =
+        "Discard the fractional portion of the float, rounding towards zero."
+    ; func =
+        InProcess
+          (function
+          | _, [DFloat a] ->
+              DInt (Float.round_towards_zero a |> Dint.of_float)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::absoluteValue"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TFloat
+    ; description =
+        "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+    ; func =
+        InProcess
+          (function _, [DFloat a] -> DFloat (Float.abs a) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::negate"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TFloat
+    ; description = "Returns the negation of `a`, `-a`."
+    ; func =
+        InProcess
+          (function _, [DFloat a] -> DFloat (Float.neg a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::divide"]
@@ -180,6 +217,34 @@ let fns : fn list =
                        ~expected:"every list item to be an float "
                        "Sum expects you to pass a list of floats")
               |> Result.ok_exn
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::min"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TFloat
+    ; description = "Returns the lesser of float `a` and float `b`"
+    ; func =
+        InProcess
+          (function
+          | _, [DFloat a; DFloat b] ->
+              DFloat (Float.min a b)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::max"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TFloat
+    ; description = "Returns the greater of float `a` and float `b`"
+    ; func =
+        InProcess
+          (function
+          | _, [DFloat a; DFloat b] ->
+              DFloat (Float.max a b)
           | args ->
               fail args)
     ; preview_safety = Safe

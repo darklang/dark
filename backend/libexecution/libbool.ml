@@ -36,6 +36,18 @@ let fns : fn list =
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Bool::xor"]
+    ; infix_names = []
+    ; parameters = [par "a" TBool; par "b" TBool]
+    ; return_type = TBool
+    ; description =
+        "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
+    ; func =
+        InProcess
+          (function
+          | _, [DBool a; DBool b] -> DBool (a <> b) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Bool::isNull"]
     ; infix_names = []
     ; parameters = [par "check" TAny]

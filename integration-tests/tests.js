@@ -324,6 +324,7 @@ test("no_request_global_in_non_http_space", async t => {
   await gotoAST(t);
   await t
     .typeText("#active-editor", "request")
+    .pressKey("down")
     .expect(fluidAcHighlightedText("Http::badRequest"))
     .ok()
     .pressKey("enter");
@@ -722,6 +723,15 @@ test("autocomplete_visible_height", async t => {
     .pressKey("r")
     .expect(Selector("li.autocomplete-item.valid").nth(5).visible)
     .ok();
+});
+
+test("create_new_function_from_autocomplete", async t => {
+  await createRepl(t);
+  await t
+    .typeText("#active-editor", "myFunctionName")
+    .expect(fluidAcHighlightedText())
+    .eql("Create new function: myFunctionName")
+    .pressKey("enter");
 });
 
 test("load_with_unnamed_function", async t => {

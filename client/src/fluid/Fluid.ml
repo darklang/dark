@@ -2191,6 +2191,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : (E.t * caretTarget) option
   | FACPattern _ ->
       (* This only works for exprs *)
       None
+  | FACCreateFunction _ ->
+      (* This should be handled elsewhere *)
+      recover "invalid call to FACCreateFunction" None
 
 
 let acToPattern (entry : Types.fluidAutocompleteItem) :
@@ -2453,6 +2456,8 @@ let acEnter (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) (key : K.key) :
         |> Option.withDefault ~default:(ast, s)
     | _ ->
         (ast, s) )
+  | Some (FACCreateFunction _) ->
+      recover "FACNewfunction should be dealt with outside fluid.ml" (ast, s)
   | Some entry ->
       updateFromACItem entry ti ast s key
 
@@ -5375,12 +5380,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
       CursorState.tlidOf m.cursorState
       |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
-      |> Option.andThen ~f:(fun tl ->
-             match TL.getAST tl with
-             | Some expr ->
-                 Some (tl, expr)
-             | None ->
-                 None)
+      |> Option.thenAlso ~f:TL.getAST
       |> Option.map ~f:(fun (tl, ast) ->
              let fluidState =
                let fs = moveToEndOfTarget ast s id in
@@ -5405,6 +5405,19 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       |> Option.withDefault ~default:NoChange
   | FluidCloseCmdPalette ->
       FluidCommandsClose
+  | FluidAutocompleteClick (FACCreateFunction (name, tlid, id)) ->
+      Refactor.createAndInsertNewFunction m tlid id name
+  | FluidInputEvent (Keypress {key = K.Enter; _})
+  | FluidInputEvent (Keypress {key = K.Space; _})
+  | FluidInputEvent (Keypress {key = K.Tab; _})
+    when AC.highlighted s.ac
+         |> Option.map ~f:FluidAutocomplete.isCreateFn
+         |> Option.withDefault ~default:false ->
+    ( match AC.highlighted s.ac with
+    | Some (FACCreateFunction (name, tlid, id)) ->
+        Refactor.createAndInsertNewFunction m tlid id name
+    | _ ->
+        recover "this should not have happened" NoChange )
   | FluidMouseDown _
   | FluidInputEvent _
   | FluidPaste _

@@ -476,7 +476,8 @@ let run () =
                   ()
               in
               let valid, _invalid = filterFor m ~pos:14 in
-              expect (valid |> List.map ~f:AC.asName)
+              expect
+                (valid |> List.filter ~f:AC.isFnCall |> List.map ~f:AC.asName)
               |> toEqual ["String::append"]) ;
           test "functions with no arguments are invalid when piping" (fun () ->
               let id = gid () in
