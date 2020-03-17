@@ -4782,6 +4782,8 @@ let run () =
         "let *** = ~___\n5" ;
       t
         "tab wraps second block in a let"
+        ~wrap:false
+        ~brokenInFF:true
         emptyLet
         ~pos:15
         (key K.Tab)
@@ -4812,20 +4814,29 @@ let run () =
         "let *** = ~___\n___" ;
       t
         "shift tab wraps from start of let"
+        ~wrap:false
+        ~brokenInFF:true
         emptyLet
         ~pos:4
         shiftTab
-        "let *** = ~___\n5" ;
+        "let *** = ___\n5~" ;
       t
         "shift tab goes to last blank in editor"
         ~wrap:false
+        ~brokenInFF:true
         nonEmptyLetWithBlankEnd
         ~pos:4
         shiftTab
         "let *** = 6\n~___" ;
-      t "cant tab to filled letLHS" letWithLhs (key K.Tab) "~let n = 6\n5" ;
+      t "cant tab to filled letLHS" letWithLhs (key K.Tab) "let n~ = 6\n5" ;
       t "can tab to lambda blank" aLambda (key K.Tab) "\\~*** -> ___" ;
-      t "can shift tab to field blank" aBlankField shiftTab "obj.~***" ;
+      t
+        "can shift tab to field blank"
+        ~wrap:false
+        ~brokenInFF:true
+        aBlankField
+        shiftTab
+        "obj.~***" ;
       ()) ;
   (* Disable string escaping for now *)
   (* describe "String escaping" (fun () -> ()) ; *)
