@@ -109,7 +109,7 @@ Then open a PR adding this account data to `account.ml` in the `upsert_admins` f
 
 ### If you're interviewing:
 
-- run `scripts/builder --compile --test` and leave it for 30-60mins to compile the Docker image.
+- run `scripts/builder --compile --test` and leave it for 10-15mins to compile the Docker image.
 - If there's any issues, let us know when we start and we can fix it in the background.
 
 ### Just serve it, not constantly recompiling
@@ -185,7 +185,11 @@ To run unit tests:
 
 - `scripts/builder --compile --test`
 
-Integration tests (run on your machine):
+Integration tests:
+
+- `scripts/run-in-docker ./integration-tests/run.sh`
+
+You can also run them on your machine, which gives you some debugging ability, and typically runs faster:
 
 - `./integration-tests/run.sh`
 
@@ -193,30 +197,30 @@ There are good debugging options for integration testing. See integration-tests/
 
 ## Accessing the container
 
-- `./scripts/run-in-docker bash`
+- `scripts/run-in-docker bash`
 
 ## Accessing the local db
 
-- `./scripts/run-in-docker psql -d devdb`
+- `scripts/run-in-docker psql -d devdb`
 
 ## Pull the prod db locally
 
-- `./scripts/download-gcp-db`
+- `scripts/download-gcp-db`
 
 This pulls all the data from gcp and puts it in a db named "prodclone".
 
 Access it:
 
-- `./scripts/builder --compile --watch [etc] --prodclone`
+- `scripts/builder --compile --watch [etc] --prodclone`
 
 You can reset the clone to a pristine production clone (at the time of
 download) with:
 
-- `./scripts/reset-prodclone`
+- `scripts/reset-prodclone`
 
 And access it directly with:
 
-- `./scripts/run-in-docker psql -d prodclone`
+- `scripts/run-in-docker psql -d prodclone`
 
 You can also access the real DB in production:
 
@@ -312,7 +316,14 @@ You can also disable the polling (ans consequently the building):
 
 ## Debugging the client
 
-Click the "EnableDebugger" button on the bottom bar of the app.
+You can enable the FluidDebugger by mousing over the Gear in the
+left-sidebar. There is also "Enable debugger" which enables a legacy
+debugger that nobody uses and doesn't work well.
+
+If you're using Chrome, enable Custom Formatters to see OCaml values in
+Chrome Dev Tools instead of their JS representation. From within Chrome
+Dev Tools, click "⠇", "Settings", "Preferences", "Enable Custom
+Formatters".
 
 ## Running the client in production
 

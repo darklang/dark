@@ -414,6 +414,28 @@ let fn_page_to_handler_pos (_m : model) : testResult = pass
 
 let load_with_unnamed_function (_m : model) : testResult = pass
 
+let create_new_function_from_autocomplete (m : model) : testResult =
+  let module TD = TLIDDict in
+  match (TD.toList m.userFunctions, TD.toList m.handlers) with
+  | ( [ ( _
+        , { ufAST
+          ; ufMetadata =
+              { ufmName = F (_, "myFunctionName")
+              ; ufmParameters = []
+              ; ufmDescription = ""
+              ; ufmReturnTipe = F (_, TAny)
+              ; ufmInfix = false }
+          ; _ } ) ]
+    , [(_, {ast; _})] ) ->
+    ( match (FluidAST.toExpr ufAST, FluidAST.toExpr ast) with
+    | EBlank _, EFnCall (_, "myFunctionName", [], _) ->
+        pass
+    | _ ->
+        fail "bad asts" )
+  | fns, hs ->
+      fail (fns, hs)
+
+
 let extract_from_function (m : model) : testResult =
   match m.cursorState with
   | FluidEntering tlid when tlid = TLID.fromString "123" ->
@@ -762,6 +784,8 @@ let trigger (test_name : string) : integrationTestState =
         autocomplete_visible_height
     | "load_with_unnamed_function" ->
         load_with_unnamed_function
+    | "create_new_function_from_autocomplete" ->
+        create_new_function_from_autocomplete
     | "extract_from_function" ->
         extract_from_function
     | "fluid_single_click_on_token_in_deselected_handler_focuses" ->

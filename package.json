@@ -23,7 +23,7 @@
     "bs-deriving": "44.1.1",
     "bs-fetch": "0.5.2",
     "bs-uuid": "0.3.1",
-    "bs-webapi": "0.15.8",
+    "bs-webapi": "0.15.9",
     "bucklescript-tea": "darklang/bucklescript-tea#master",
     "clipboard-copy": "3.1.0",
     "domready": "1.0.8",

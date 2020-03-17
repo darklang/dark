@@ -255,6 +255,8 @@ module StrDict = struct
 
 
   let singleton ~(key : key) ~(value : 'v) : 'v t = empty |> insert ~key ~value
+
+  let has ~key (dict : 'v t) : bool = Belt.Map.String.has dict key
 end
 
 module type Key = sig

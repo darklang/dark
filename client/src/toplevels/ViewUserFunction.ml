@@ -140,7 +140,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let titleRow =
     Html.div
       [Html.class' "spec-header"]
-      [ ViewUtils.svgIconFn "#7dcac0"
+      [ Html.div [Html.class' "fnicon"] [ViewUtils.svg "icons/fn-cyan.svg"]
       ; viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName
       ; Html.div [Html.class' "fn-actions"] [viewExecuteBtn vs fn; menuView] ]
   in

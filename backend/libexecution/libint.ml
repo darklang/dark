@@ -44,7 +44,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 a
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::add to add Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | state, [_; (DFloat _ as b)] ->
               DError
@@ -53,7 +53,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 b
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::add to add Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | state, [(DStr _ as a); _] ->
               DError
@@ -94,7 +94,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 a
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::subtract to subtract Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::subtract to subtract Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | state, [_; (DFloat _ as b)] ->
               DError
@@ -103,7 +103,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 b
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::subtract to subtract Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::subtract to subtract Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
               fail args)
@@ -126,7 +126,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 a
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | state, [_; (DFloat _ as b)] ->
               DError
@@ -135,7 +135,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 b
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
               fail args)
@@ -172,7 +172,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 a
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::divide to divide Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::divide to divide Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | state, [_; (DFloat _ as b)] ->
               DError
@@ -181,10 +181,31 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 b
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::divide to divide Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::divide to divide Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
               fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Int::absoluteValue"]
+    ; infix_names = []
+    ; parameters = [par "a" TInt]
+    ; return_type = TInt
+    ; description =
+        "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+    ; func =
+        InProcess
+          (function _, [DInt a] -> DInt (Dint.abs a) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Int::negate"]
+    ; infix_names = []
+    ; parameters = [par "a" TInt]
+    ; return_type = TInt
+    ; description = "Returns the negation of `a`, `-a`."
+    ; func =
+        InProcess
+          (function _, [DInt a] -> DInt (Dint.negate a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::greaterThan"]
@@ -204,7 +225,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 a
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | state, [_; (DFloat _ as b)] ->
               DError
@@ -213,7 +234,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 b
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
               fail args)
@@ -236,7 +257,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 a
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | state, [_; (DFloat _ as b)] ->
               DError
@@ -245,7 +266,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 b
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
               fail args)
@@ -268,7 +289,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 a
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::lessThan to compare Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | state, [_; (DFloat _ as b)] ->
               DError
@@ -277,7 +298,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 b
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::lessThan to compare Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
               fail args)
@@ -300,7 +321,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 a
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | state, [_; (DFloat _ as b)] ->
               DError
@@ -309,7 +330,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 b
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::floor to truncate Floats to Ints."
+                  ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
               fail args)
@@ -366,7 +387,7 @@ let fns : fn list =
                   ^ Dval.to_developer_repr_v0 a
                   ^ ") is a Float, but "
                   ^ state.executing_fnname
-                  ^ " only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::floor to truncate the Float to an Int."
+                  ^ " only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::truncate to truncate the Float to an Int."
                 )
           | args ->
               fail args)

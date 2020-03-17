@@ -568,60 +568,172 @@ let t_url_encode () =
 
 
 let t_float_stdlibs () =
-  check_dval "Float::sum works" (exec_ast "(Float::sum (1.0 0.2))") (DFloat 1.2) ;
+  check_dval "Float::sum works" (DFloat 1.2) (exec_ast "(Float::sum (1.0 0.2))") ;
   AT.check
     AT.bool
     "Float::sum fails on list elements that are not floats"
-    (match exec_ast "(Float::sum (1.0 2))" with DError _ -> true | _ -> false)
-    true ;
+    true
+    (match exec_ast "(Float::sum (1.0 2))" with DError _ -> true | _ -> false) ;
   check_dval
     "Float::ceiling works"
-    (exec_ast "(Float::ceiling 1.3)")
-    (Dval.dint 2) ;
-  check_dval "Float::floor works" (exec_ast "(Float::floor 1.8)") (Dval.dint 1) ;
-  check_dval "Float::round works" (exec_ast "(Float::round 1.5)") (Dval.dint 2) ;
-  check_dval "Float::sqrt works" (exec_ast "(Float::sqrt 25.0)") (DFloat 5.0) ;
+    (Dval.dint 2)
+    (exec_ast "(Float::ceiling 1.3)") ;
+  check_dval "Float::floor works" (Dval.dint 1) (exec_ast "(Float::floor 1.8)") ;
+  check_dval "Float::round works" (Dval.dint 2) (exec_ast "(Float::round 1.5)") ;
+  check_dval
+    "Float::truncate works"
+    (Dval.dint (-2367))
+    (exec_ast' (fn "Float::truncate" [float' (-2367) 9267])) ;
+  check_dval
+    "Float::min works (neg)"
+    (DFloat (-10.0))
+    (exec_ast' (fn "Float::min" [float' (-10) 0; float' 1 0])) ;
+  check_dval
+    "Float::min works (pos)"
+    (DFloat 1.0)
+    (exec_ast' (fn "Float::min" [float' 10 0; float' 1 0])) ;
+  check_dval
+    "Float::min works (nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.nan)
+    (exec_ast "(Float::min 10.0 NaN)") ;
+  check_dval
+    "Float::min works (infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat 1.0)
+    (exec_ast "(Float::min Infinity 1.0)") ;
+  check_dval
+    "Float::max works (neg)"
+    (DFloat 1.0)
+    (exec_ast' (fn "Float::max" [float' (-10) 0; float' 1 0])) ;
+  check_dval
+    "Float::max works (pos)"
+    (DFloat 10.0)
+    (exec_ast' (fn "Float::max" [float' 10 0; float' 1 0])) ;
+  check_dval
+    "Float::max works (nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.nan)
+    (exec_ast "(Float::max 10.0 NaN)") ;
+  check_dval
+    "Float::max works (infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.infinity)
+    (exec_ast "(Float::max Infinity 1.0)") ;
+  check_dval "Float::sqrt works" (DFloat 5.0) (exec_ast "(Float::sqrt 25.0)") ;
+  check_dval
+    "Float::absoluteValue works (nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.nan)
+    (exec_ast "(Float::absoluteValue NaN)") ;
+  check_dval
+    "Float::absoluteValue works (infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.infinity)
+    (exec_ast "(Float::absoluteValue -Infinity)") ;
+  check_dval
+    "Float::absoluteValue works (neg)"
+    (DFloat 5.6)
+    (exec_ast' (fn "Float::absoluteValue" [float' (-5) 6])) ;
+  check_dval
+    "Float::absoluteValue works (pos)"
+    (DFloat 5.6)
+    (exec_ast' (fn "Float::absoluteValue" [float' (-5) 6])) ;
+  check_dval
+    "Float::negate works (nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.nan)
+    (exec_ast "(Float::negate NaN)") ;
+  check_dval
+    "Float::negate works (infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.neg_infinity)
+    (exec_ast "(Float::negate Infinity)") ;
+  check_dval
+    "Float::negate works (neg)"
+    (DFloat 5.6)
+    (exec_ast' (fn "Float::negate" [float' (-5) 6])) ;
+  check_dval
+    "Float::negate works (pos)"
+    (DFloat (-5.6))
+    (exec_ast' (fn "Float::negate" [float' 5 6])) ;
   check_dval
     "Float::divide works"
-    (exec_ast "(Float::divide 9.0 2.0)")
-    (DFloat 4.5) ;
-  check_dval "Float::add works" (exec_ast "(Float::add 1.2 1.3)") (DFloat 2.5) ;
+    (DFloat 4.5)
+    (exec_ast "(Float::divide 9.0 2.0)") ;
+  check_dval "Float::add works" (DFloat 2.5) (exec_ast "(Float::add 1.2 1.3)") ;
   check_dval
     "Float::multiply works"
-    (exec_ast "(Float::multiply 26.0 0.5)")
-    (DFloat 13.0) ;
+    (DFloat 13.0)
+    (exec_ast "(Float::multiply 26.0 0.5)") ;
   check_dval
     "Float::subtract works"
-    (exec_ast "(Float::subtract 1.0 0.2)")
-    (DFloat 0.8) ;
+    (DFloat 0.8)
+    (exec_ast "(Float::subtract 1.0 0.2)") ;
   check_dval
     "Float::greaterThan works"
-    (exec_ast "(Float::greaterThan 0.2 0.1)")
-    (DBool true) ;
+    (DBool true)
+    (exec_ast "(Float::greaterThan 0.2 0.1)") ;
   check_dval
     "Float::greaterThanOrEqualTo works"
-    (exec_ast "(Float::greaterThanOrEqualTo 0.1 0.1)")
-    (DBool true) ;
+    (DBool true)
+    (exec_ast "(Float::greaterThanOrEqualTo 0.1 0.1)") ;
   check_dval
     "Float::lessThan works"
-    (exec_ast "(Float::lessThan 0.2 0.1)")
-    (DBool false) ;
+    (DBool false)
+    (exec_ast "(Float::lessThan 0.2 0.1)") ;
   check_dval
     "Float::lessThanOrEqualTo works"
-    (exec_ast "(Float::lessThanOrEqualTo 0.1 0.1)")
-    (DBool true) ;
+    (DBool true)
+    (exec_ast "(Float::lessThanOrEqualTo 0.1 0.1)") ;
   ()
 
 
 let t_int_stdlibs () =
   check_dval
     "Int::max works"
-    (exec_ast' (fn "Int::max" [int 5; int 6]))
-    (Dval.dint 6) ;
+    (Dval.dint 6)
+    (exec_ast' (fn "Int::max" [int 5; int 6])) ;
   check_dval
     "Int::min works"
     (exec_ast' (fn "Int::min" [int 5; int 6]))
     (Dval.dint 5) ;
+  check_dval
+    "Int::absoluteValue works (neg)"
+    (Dval.dint 5)
+    (exec_ast' (fn "Int::absoluteValue" [int (-5)])) ;
+  check_dval
+    "Int::absoluteValue works (pos)"
+    (Dval.dint 5)
+    (exec_ast' (fn "Int::absoluteValue" [int 5])) ;
+  check_dval
+    "Int::negate works (neg)"
+    (Dval.dint 5)
+    (exec_ast' (fn "Int::negate" [int (-5)])) ;
+  check_dval
+    "Int::negate works (pos)"
+    (Dval.dint (-5))
+    (exec_ast' (fn "Int::negate" [int 5])) ;
+  ()
+
+
+let t_bool_stdlibs () =
+  check_dval
+    "Bool::xor works (true, false)"
+    (exec_ast' (fn "Bool::xor" [bool true; bool false]))
+    (DBool true) ;
+  check_dval
+    "Bool::xor works (false, true)"
+    (exec_ast' (fn "Bool::xor" [bool false; bool true]))
+    (DBool true) ;
+  check_dval
+    "Bool::xor works (false, false)"
+    (exec_ast' (fn "Bool::xor" [bool false; bool false]))
+    (DBool false) ;
+  check_dval
+    "Bool::xor works (true, true)"
+    (exec_ast' (fn "Bool::xor" [bool true; bool true]))
+    (DBool false) ;
   ()
 
 
@@ -683,6 +795,7 @@ let suite =
   ; ("URL percent encoding", `Quick, t_url_encode)
   ; ("Float stdlibs work", `Quick, t_float_stdlibs)
   ; ("Int stdlibs work", `Quick, t_int_stdlibs)
+  ; ("Bool stdlibs work", `Quick, t_bool_stdlibs)
   ; ("Bytes stdlibs work", `Quick, t_libbytes)
   ; ("List::sortByComparator works", `Quick, t_liblist_sort_by_comparator_works)
   ]

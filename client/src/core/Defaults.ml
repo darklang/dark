@@ -82,7 +82,7 @@ let defaultFnSpace : fnProps =
 
 
 let defaultModel : model =
-  { error = None
+  { error = Error.default
   ; lastMsg = IgnoreMsg
   ; lastMods = []
   ; opCtrs = StrDict.empty

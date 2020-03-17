@@ -53,7 +53,8 @@ let viewIntegrationTestButton (testState : integrationTestState) : msg Html.html
   Html.div [Html.id "buttons"] integrationTestButton
 
 
-let viewError (message : string option) : msg Html.html =
+let viewError (message : Error.t) : msg Html.html =
+  let message = Error.asOption message in
   let viewErrorMsg =
     match message with
     | None ->
