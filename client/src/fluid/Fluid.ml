@@ -547,6 +547,28 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
+let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
+    T.tokenInfo option =
+  tokens
+  |> List.find ~f:(fun ti -> T.isTextToken ti.token && ti.startPos > pos)
+  |> Option.orElseLazy (fun () ->
+         if pos = 0 then None else getNextEditable 0 tokens)
+
+
+let getNextEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
+  tokens
+  |> getNextEditable pos
+  |> Option.map ~f:(fun ti ->
+         if T.isBlank ti.token then ti.startPos else ti.endPos)
+  |> Option.withDefault ~default:pos
+
+
+let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
+  recordAction ~pos "moveToNextEditable" s
+  |> tokensForActiveEditor ast
+  |> getNextEditablePos pos
+  |> setPosition ~resetUD:true s
+
 let rec getPrevBlank (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
   tokens
@@ -4026,7 +4048,7 @@ let rec updateKey
     (* Tab to next blank *)
     | Keypress {key = K.Tab; _}, _, R (_, _)
     | Keypress {key = K.Tab; _}, L (_, _), _ ->
-        (ast, moveToNextBlank ~pos ast s)
+        (ast, moveToNextEditable ~pos ast s)
     | Keypress {key = K.ShiftTab; _}, _, R (_, _)
     | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
         (ast, moveToPrevBlank ~pos ast s)
