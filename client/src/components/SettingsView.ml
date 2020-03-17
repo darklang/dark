@@ -137,6 +137,65 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
       settingsView
 
 
+let getModifications (m : Types.model) (msg : settingsMsg) : Types.modification
+    =
+  match msg with
+  | TriggerSendInviteCallback (Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"TriggerSendInviteCallback"
+           ~importance:IgnorableError
+           ~reload:false
+           err)
+  | TriggerUpdateCanvasInfoCallback (Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"TriggerUpdateCanvasInfoCallback"
+           ~importance:IgnorableError
+           ~reload:false
+           err)
+  | TriggerGetCanvasInfoCallback (Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"TriggerGetCanvasInfoCallback"
+           ~importance:IgnorableError
+           ~reload:false
+           err)
+  | OpenSettingsView _ ->
+      ReplaceAllModificationsWithThisOne
+        (fun m -> CursorState.setCursorState Deselected m)
+  | TriggerUpdateCanvasInfoCallback (Ok _) ->
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          ( { m with
+              toast = {toastMessage = Some "Canvas Info saved!"; toastPos = None}
+            }
+          , Cmd.none ))
+  | TriggerSendInviteCallback (Ok _) ->
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          ( {m with toast = {toastMessage = Some "Sent!"; toastPos = None}}
+          , Cmd.none ))
+  | CloseSettingsView tab ->
+      let cmd =
+        match tab with CanvasInfo -> sendCanvasInformation m | _ -> Cmd.none
+      in
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          ({m with canvasProps = {m.canvasProps with enablePan = true}}, cmd))
+  | SubmitForm ->
+      let isInvalid, newTab = validateForm m.settingsView.tab in
+      if isInvalid
+      then
+        ReplaceAllModificationsWithThisOne
+          (fun m ->
+            ( {m with settingsView = {m.settingsView with tab = newTab}}
+            , Cmd.none ))
+      else ReplaceAllModificationsWithThisOne (fun m -> submitForm m)
+  | _ ->
+      NoChange
+
+
 (* View functions *)
 
 let settingsTabToText (tab : settingsTab) : string =
