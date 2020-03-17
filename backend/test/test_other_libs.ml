@@ -53,6 +53,42 @@ let t_option_stdlibs_work () =
     "map just incomplete"
     (exec_ast "(Option::map_v1 _ (\\x -> (x)))") ;
   check_dval
+    "Option::map2 works (Just, Just)"
+    (DOption (OptJust (Dval.dint (10 - 1))))
+    (exec_ast'
+       (fn
+          "Option::map2"
+          [ optionConstructor (Some (int 10))
+          ; optionConstructor (Some (int 1))
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Option::map2 works (Just, Nothing)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn
+          "Option::map2"
+          [ optionConstructor (Some (int 10))
+          ; optionConstructor None
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Option::map2 works (Nothing, Just)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn
+          "Option::map2"
+          [ optionConstructor None
+          ; optionConstructor (Some (int 1))
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Option::map2 works (Nothing, Nothing)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn
+          "Option::map2"
+          [ optionConstructor None
+          ; optionConstructor None
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
     "withDefault just"
     (exec_ast "(Option::withDefault (Just 6) 5)")
     (Dval.dint 6) ;
