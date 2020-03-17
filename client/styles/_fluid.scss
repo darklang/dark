@@ -531,6 +531,7 @@ since they are essentially both commands just acting upon different things. */
   box-shadow: 1px 2px 2px 0 #181818;
   position: absolute;
   left: calc(100% + 20px);
+  z-index: 10;
 
   display: flex;
   flex-direction: row;
