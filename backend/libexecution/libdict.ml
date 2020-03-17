@@ -8,7 +8,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TList
-    ; description = "Return the dictionary's keys"
+    ; description = "Returns `dict`'s keys in a list, in an arbitrary order."
     ; func =
         InProcess
           (function
@@ -25,7 +25,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TList
-    ; description = "Return the dictionary's values"
+    ; description = "Returns `dict`'s values in a list, in an arbitrary order."
     ; func =
         InProcess
           (function
@@ -73,7 +73,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TOption
-    ; description = "Looks up `key` in object `dict` and returns an option"
+    ; description = "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
     ; func =
         InProcess
           (function
@@ -92,7 +92,7 @@ let fns =
     ; parameters = [par "dict" TObj; func ["val"]]
     ; return_type = TObj
     ; description =
-        "Iterates each `value` in object `dict` and mutates it according to the provided lambda"
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value. Use `Dict::map` if you need to use the key as part of the transformation."
     ; func =
         InProcess
           (function
@@ -108,7 +108,7 @@ let fns =
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
-        "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair. Consider `Dict::forEach` if you only need to use the value as part of the transformation."
     ; func =
         InProcess
           (function
@@ -160,7 +160,7 @@ let fns =
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
-        "Return only values in `dict` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
+        "Returns a new dictionary that only contains the key-value pairs in the original `dict` for which `f` returns `true`."
     ; func =
         InProcess
           (function
@@ -204,7 +204,7 @@ let fns =
     ; infix_names = []
     ; parameters = []
     ; return_type = TObj
-    ; description = "Return an empty dictionary"
+    ; description = "Returns an empty dictionary."
     ; func =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; preview_safety = Safe
@@ -214,7 +214,7 @@ let fns =
     ; parameters = [par "left" TObj; par "right" TObj]
     ; return_type = TObj
     ; description =
-        "Return a combined dictionary with both dictionaries' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
+        "Returns a combined dictionary with both dictionaries' keys and values. If the same key exists in both `left` and `right`, it will have the value from `right`."
     ; func =
         InProcess
           (function
@@ -228,7 +228,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TStr
-    ; description = "Dumps `dict` to a JSON string"
+    ; description = "Returns `dict` as a JSON string."
     ; func =
         InProcess
           (function
@@ -244,7 +244,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr; par "val" TAny]
     ; return_type = TObj
-    ; description = "Return a copy of `dict` with the `key` set to `val`."
+    ; description = "Returns a copy of `dict` with the `key` set to `val`."
     ; func =
         InProcess
           (function
@@ -258,7 +258,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TObj
-    ; description = "Return a copy of `dict` with `key` unset."
+    ; description = "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged."
     ; func =
         InProcess
           (function
