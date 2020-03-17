@@ -338,7 +338,7 @@ let t_list_stdlibs_work () =
     (exec_ast'
        (fn
           "List::map2"
-          [ list [int 10; int 20; int 30]
+          [ list [int 10; int 20]
           ; list [int 1; int 2; int 3]
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
