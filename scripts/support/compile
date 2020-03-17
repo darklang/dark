@@ -383,7 +383,7 @@ def mark(should, f):
   elif ".scss" in f:
     should.sass_compile = True
 
-  elif ".svg" in f:
+  elif "client/static/" in f:
     should.copy_static = True
 
   elif ("scripts" in f or ".sh" in f) and is_script(f):
