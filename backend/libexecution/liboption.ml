@@ -22,7 +22,8 @@ let fns : fn list =
     ; parameters = [par "option" TOption; func ["val"]]
     ; return_type = TOption
     ; description =
-        "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing."
+        "If `option` is `Just value`, returns `Just (f value)` (the lambda `f` is applied to `value` and the result is wrapped in `Just`).
+        If `result` is `Nothing`, returns `Nothing`."
     ; func =
         InProcess
           (function
@@ -42,7 +43,8 @@ let fns : fn list =
     ; parameters = [par "option" TOption; func ["val"]]
     ; return_type = TOption
     ; description =
-        "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing."
+        "If `option` is `Just value`, returns `Just (f value)` (the lambda `f` is applied to `value` and the result is wrapped in `Just`).
+        If `result` is `Nothing`, returns `Nothing`."
     ; func =
         InProcess
           (function
@@ -62,7 +64,7 @@ let fns : fn list =
     ; parameters = [par "option" TOption; func ["val"]]
     ; return_type = TOption
     ; description =
-        "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing. Combines the result into a single option, where if both the caller and the result are Just, the result is a single Just"
+        "If `option` is `Just value`, returns `f value` (the lambda `f` is applied to `value` and must return `Just newValue` or `Nothing`). If `option` is `Nothing`, returns `Nothing`."
     ; func =
         InProcess
           (function
@@ -89,7 +91,7 @@ let fns : fn list =
     ; parameters = [par "option" TOption; par "default" TAny]
     ; return_type = TAny
     ; description =
-        "Turn an option into a normal value, using `default` if the option is Nothing."
+        "If `option` is `Just value`, returns `value`. Returns `default` otherwise."
     ; func =
         InProcess
           (function
