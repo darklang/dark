@@ -59,6 +59,28 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Option::map2"]
+    ; infix_names = []
+    ; parameters =
+        [par "option1" TOption; par "option2" TOption; func ["value1"; "value2"]]
+    ; return_type = TOption
+    ; description =
+        "If both `option1` and `option2` are `Just _`, returns `Just (f value1 value2)` (the lambda `f` is applied to `value1` and `value2`, and the result is wrapped in `Just`).
+        If `option1` or `option2` are `Nothing`, returns `Nothing`."
+    ; func =
+        InProcess
+          (function
+          | state, [DOption o1; DOption o2; DBlock b] ->
+            ( match (o1, o2) with
+            | OptNothing, _ | _, OptNothing ->
+                DOption OptNothing
+            | OptJust dv1, OptJust dv2 ->
+                let result = Ast.execute_dblock ~state b [dv1; dv2] in
+                Dval.to_opt_just result )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Option::andThen"]
     ; infix_names = []
     ; parameters = [par "option" TOption; func ["val"]]
