@@ -622,6 +622,42 @@ let t_float_stdlibs () =
     (exec_ast "(Float::max Infinity 1.0)") ;
   check_dval "Float::sqrt works" (DFloat 5.0) (exec_ast "(Float::sqrt 25.0)") ;
   check_dval
+    "Float::absoluteValue works (nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.nan)
+    (exec_ast "(Float::absoluteValue NaN)") ;
+  check_dval
+    "Float::absoluteValue works (infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.infinity)
+    (exec_ast "(Float::absoluteValue -Infinity)") ;
+  check_dval
+    "Float::absoluteValue works (neg)"
+    (DFloat 5.6)
+    (exec_ast' (fn "Float::absoluteValue" [float' (-5) 6])) ;
+  check_dval
+    "Float::absoluteValue works (pos)"
+    (DFloat 5.6)
+    (exec_ast' (fn "Float::absoluteValue" [float' (-5) 6])) ;
+  check_dval
+    "Float::negate works (nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.nan)
+    (exec_ast "(Float::negate NaN)") ;
+  check_dval
+    "Float::negate works (infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.neg_infinity)
+    (exec_ast "(Float::negate Infinity)") ;
+  check_dval
+    "Float::negate works (neg)"
+    (DFloat 5.6)
+    (exec_ast' (fn "Float::negate" [float' (-5) 6])) ;
+  check_dval
+    "Float::negate works (pos)"
+    (DFloat (-5.6))
+    (exec_ast' (fn "Float::negate" [float' 5 6])) ;
+  check_dval
     "Float::divide works"
     (DFloat 4.5)
     (exec_ast "(Float::divide 9.0 2.0)") ;
@@ -660,8 +696,24 @@ let t_int_stdlibs () =
     (exec_ast' (fn "Int::max" [int 5; int 6])) ;
   check_dval
     "Int::min works"
+    (exec_ast' (fn "Int::min" [int 5; int 6]))
+    (Dval.dint 5) ;
+  check_dval
+    "Int::absoluteValue works (neg)"
     (Dval.dint 5)
-    (exec_ast' (fn "Int::min" [int 5; int 6])) ;
+    (exec_ast' (fn "Int::absoluteValue" [int (-5)])) ;
+  check_dval
+    "Int::absoluteValue works (pos)"
+    (Dval.dint 5)
+    (exec_ast' (fn "Int::absoluteValue" [int 5])) ;
+  check_dval
+    "Int::negate works (neg)"
+    (Dval.dint 5)
+    (exec_ast' (fn "Int::negate" [int (-5)])) ;
+  check_dval
+    "Int::negate works (pos)"
+    (Dval.dint (-5))
+    (exec_ast' (fn "Int::negate" [int 5])) ;
   ()
 
 
