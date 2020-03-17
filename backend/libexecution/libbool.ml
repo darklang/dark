@@ -43,7 +43,7 @@ let fns : Lib.shortfn list =
     ; p = [par "a" TBool; par "b" TBool]
     ; r = TBool
     ; d =
-        "Returns `true` if `a` is `true` or `b` is `true`, but not both. Returns `false` otherwise."
+        "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
     ; f =
         InProcess
           (function
