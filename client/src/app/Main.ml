@@ -955,40 +955,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
     | SettingsViewUpdate msg ->
-        let m, cmd =
-          match msg with
-          | OpenSettingsView _ ->
-              CursorState.setCursorState Deselected m
-          | TriggerUpdateCanvasInfoCallback (Ok _) ->
-              ( { m with
-                  toast =
-                    {toastMessage = Some "Canvas Info saved!"; toastPos = None}
-                }
-              , Cmd.none )
-          | TriggerSendInviteCallback (Ok _) ->
-              ( {m with toast = {toastMessage = Some "Sent!"; toastPos = None}}
-              , Cmd.none )
-          | CloseSettingsView tab ->
-              let cmd =
-                match tab with
-                | CanvasInfo ->
-                    SettingsView.sendCanvasInformation m
-                | _ ->
-                    Cmd.none
-              in
-              ({m with canvasProps = {m.canvasProps with enablePan = true}}, cmd)
-          | SubmitForm ->
-              let isInvalid, newTab =
-                SettingsView.validateForm m.settingsView.tab
-              in
-              if isInvalid
-              then
-                ( {m with settingsView = {m.settingsView with tab = newTab}}
-                , Cmd.none )
-              else SettingsView.submitForm m
-          | _ ->
-              (m, Cmd.none)
-        in
         let settingsView = SettingsView.update m.settingsView msg in
         ({m with settingsView}, cmd)
     (* applied from left to right *)
@@ -2135,35 +2101,9 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
-  | SettingsViewMsg (TriggerSendInviteCallback (Error err) as msg) ->
-      Many
-        [ SettingsViewUpdate msg
-        ; HandleAPIError
-            (APIError.make
-               ~context:"TriggerSendInviteCallback"
-               ~importance:IgnorableError
-               ~reload:false
-               err) ]
-  | SettingsViewMsg (TriggerUpdateCanvasInfoCallback (Error err) as msg) ->
-      Many
-        [ SettingsViewUpdate msg
-        ; HandleAPIError
-            (APIError.make
-               ~context:"TriggerUpdateCanvasInfoCallback"
-               ~importance:IgnorableError
-               ~reload:false
-               err) ]
-  | SettingsViewMsg (TriggerGetCanvasInfoCallback (Error err) as msg) ->
-      Many
-        [ SettingsViewUpdate msg
-        ; HandleAPIError
-            (APIError.make
-               ~context:"TriggerGetCanvasInfoCallback"
-               ~importance:IgnorableError
-               ~reload:false
-               err) ]
   | SettingsViewMsg msg ->
-      SettingsViewUpdate msg
+      let mods = SettingsView.getModifications m msg in
+      Many [mods; SettingsViewUpdate msg]
   | FnParamMsg msg ->
       FnParams.update m msg
   | UploadFnAPICallback (_, Error err) ->
