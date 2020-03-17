@@ -58,16 +58,6 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::sqrt"]
-    ; infix_names = []
-    ; parameters = [par "a" TFloat]
-    ; return_type = TFloat
-    ; description = "Get the square root of a float"
-    ; func =
-        InProcess
-          (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
-    ; preview_safety = Safe
-    ; deprecated = false }
   ; { prefix_names = ["Float::truncate"; "Float::roundTowardsZero"]
     ; infix_names = []
     ; parameters = [par "a" TFloat]
@@ -102,6 +92,30 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.neg a) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::sqrt"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TFloat
+    ; description = "Get the square root of a float"
+    ; func =
+        InProcess
+          (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::power"]
+    ; infix_names = []
+    ; parameters = [par "base" TFloat; par "exponent" TFloat]
+    ; return_type = TFloat
+    ; description = "Returns `base` raised to the power of `exponent`"
+    ; func =
+        InProcess
+          (function
+          | _, [DFloat base; DFloat exp] ->
+              DFloat (base ** exp)
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Float::divide"]
