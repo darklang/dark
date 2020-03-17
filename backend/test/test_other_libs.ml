@@ -262,6 +262,14 @@ let t_dict_stdlibs_work () =
           [("key1", dstr "key1val1"); ("key2", dstr "key2val2")])) ;
   check_dval "dict empty" (exec_ast "(Dict::empty)") (DObj DvalMap.empty) ;
   check_dval
+    "Dict::isEmpty works (empty)"
+    (DBool true)
+    (exec_ast' (fn "Dict::isEmpty" [record []])) ;
+  check_dval
+    "Dict::isEmpty works (full)"
+    (DBool false)
+    (exec_ast' (fn "Dict::isEmpty" [record [("a", int 1)]])) ;
+  check_dval
     "dict merge"
     (exec_ast "(Dict::merge (obj (key1 'val1')) (obj (key2 'val2')))")
     (DObj (DvalMap.from_list [("key1", dstr "val1"); ("key2", dstr "val2")])) ;
