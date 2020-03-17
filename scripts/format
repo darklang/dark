@@ -83,6 +83,10 @@ all_prettier_files() {
     -o -path "./node_modules" -prune \
     -o -path "backend/static" -prune \
     -o -path "./backend/static" -prune \
+    -o -path "client/static/vendor" -prune \
+    -o -path "./client/static/vendor" -prune \
+    -o -wholename "client/static/reset-normalize.css" -prune \
+    -o -wholename "./client/static/reset-normalize.css" -prune \
     -o -path "_esy" -prune \
     -o -path "./_esy" -prune \
     -o -path "/home/dark/.esy" -prune \
