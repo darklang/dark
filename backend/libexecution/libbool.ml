@@ -9,7 +9,7 @@ let fns : Lib.shortfn list =
     ; p = [par "b" TBool]
     ; r = TBool
     ; d =
-        "Returns the inverse of `b`: true is `b` is false and false if `b` is true"
+        "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
     ; f =
         InProcess (function _, [DBool b] -> DBool (not b) | args -> fail args)
     ; ps = true
@@ -18,7 +18,8 @@ let fns : Lib.shortfn list =
     ; ins = ["&&"]
     ; p = [par "a" TBool; par "b" TBool]
     ; r = TBool
-    ; d = "Returns true if both a and b are true"
+    ; d =
+        "Returns `true` if both `a` and `b` are true. Returns `false` otherwise."
     ; f =
         InProcess
           (function
@@ -29,18 +30,31 @@ let fns : Lib.shortfn list =
     ; ins = ["||"]
     ; p = [par "a" TBool; par "b" TBool]
     ; r = TBool
-    ; d = "Returns true if either a is true or b is true"
+    ; d =
+        "Returns `true` if `a`, `b`, or both are `true`. Returns `false` otherwise."
     ; f =
         InProcess
           (function
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Bool::xor"]
+    ; ins = []
+    ; p = [par "a" TBool; par "b" TBool]
+    ; r = TBool
+    ; d =
+        "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
+    ; f =
+        InProcess
+          (function
+          | _, [DBool a; DBool b] -> DBool (a <> b) | args -> fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Bool::isNull"]
     ; ins = []
     ; p = [par "check" TAny]
     ; r = TBool
-    ; d = "Returns true if the `check` parameter is null"
+    ; d = "Returns `true` if the `check` parameter is `null`"
     ; f =
         InProcess
           (function
@@ -54,7 +68,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "check" TAny]
     ; r = TBool
-    ; d = "Returns true if the `check` parameter is an error"
+    ; d = "Returns `true` if the `check` parameter is some `Error msg`"
     ; f =
         InProcess
           (function

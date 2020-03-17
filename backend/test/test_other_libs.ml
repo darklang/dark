@@ -717,6 +717,26 @@ let t_int_stdlibs () =
   ()
 
 
+let t_bool_stdlibs () =
+  check_dval
+    "Bool::xor works (true, false)"
+    (exec_ast' (fn "Bool::xor" [bool true; bool false]))
+    (DBool true) ;
+  check_dval
+    "Bool::xor works (false, true)"
+    (exec_ast' (fn "Bool::xor" [bool false; bool true]))
+    (DBool true) ;
+  check_dval
+    "Bool::xor works (false, false)"
+    (exec_ast' (fn "Bool::xor" [bool false; bool false]))
+    (DBool false) ;
+  check_dval
+    "Bool::xor works (true, true)"
+    (exec_ast' (fn "Bool::xor" [bool true; bool true]))
+    (DBool false) ;
+  ()
+
+
 (* Test does not demonstrate how it'd be used with complex inputs/lambdas (say,
  * comparing two semvers); the goal is simply to demonstrate:
  * - a basic happy-path works
@@ -775,6 +795,7 @@ let suite =
   ; ("URL percent encoding", `Quick, t_url_encode)
   ; ("Float stdlibs work", `Quick, t_float_stdlibs)
   ; ("Int stdlibs work", `Quick, t_int_stdlibs)
+  ; ("Bool stdlibs work", `Quick, t_bool_stdlibs)
   ; ("Bytes stdlibs work", `Quick, t_libbytes)
   ; ("List::sortByComparator works", `Quick, t_liblist_sort_by_comparator_works)
   ]
