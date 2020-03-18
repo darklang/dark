@@ -178,6 +178,30 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Result::map2"]
+    ; infix_names = []
+    ; parameters =
+        [par "result1" TResult; par "result2" TResult; func ["value1"; "value2"]]
+    ; return_type = TAny
+    ; description =
+        "If both `result1` and `result2` are `Ok _`, returns `Ok (f value1 value2)` (the lambda `f` is applied to `value1` and `value2`, and the result is wrapped in `Ok`).
+        If `result1` or `result2` are `Error`, returns the first error."
+    ; func =
+        InProcess
+          (function
+          | state, [DResult r1; DResult r2; DBlock b] ->
+            ( match (r1, r2) with
+            | ResError e1, _ ->
+                DResult (ResError e1)
+            | ResOk _, ResError e2 ->
+                DResult (ResError e2)
+            | ResOk dv1, ResOk dv2 ->
+                let result = Ast.execute_dblock ~state b [dv1; dv2] in
+                Dval.to_res_ok result )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Result::andThen"]
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]
