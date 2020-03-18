@@ -26,7 +26,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DStr s] ->
-              DBool (s = Unicode_string.of_string_exn "")
+              DBool (Unicode_string.length s = 0)
           | args ->
               fail args)
     ; preview_safety = Safe
