@@ -171,10 +171,14 @@ let strs2rendered_oplist_cache_query_result strs :
          match results with
          | [data; pos] ->
              let pos =
-               pos
-               |> Yojson.Safe.from_string
-               |> Types.pos_of_yojson
-               |> Result.ok
+               (* Yojson likes to raise if handed the empty string, which
+                * it might be if `pos` was null (ie. for user functions) *)
+               try
+                 pos
+                 |> Yojson.Safe.from_string
+                 |> Types.pos_of_yojson
+                 |> Result.ok
+               with _ -> None
              in
              (data, pos)
          | _ ->
@@ -291,7 +295,8 @@ let load_only_rendered_tlids
       WHERE canvas_id = $1
       AND tlid = ANY (string_to_array($2, $3)::bigint[])
       AND deleted IS FALSE
-      AND pos IS NOT NULL"
+      AND (((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type) AND pos IS NOT NULL)
+             OR tipe = 'user_function'::toplevel_type OR tipe = 'user_tipe'::toplevel_type)"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2rendered_oplist_cache_query_result
