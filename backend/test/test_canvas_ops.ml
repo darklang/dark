@@ -125,7 +125,7 @@ let t_http_oplist_loads_user_tipes () =
   in
   AT.check
     AT.bool
-    "handlers and types are loaded from cache #1"
+    "handlers and types are loaded from cache #2"
     true
     (!c2.ops = []) ;
   AT.check
@@ -154,10 +154,10 @@ let t_http_load_ignores_deleted_fns () =
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
-  AT.check AT.bool "handler is loaded from cache #2" true (!c2.ops = []) ;
+  AT.check AT.bool "handler is loaded from cache #3" true (!c2.ops = []) ;
   AT.check
     testable_handler
-    "handler is loaded correctly from cache #2"
+    "handler is loaded correctly from cache #3"
     handler
     ( !c2.handlers
     |> IDMap.data
@@ -269,6 +269,11 @@ let t_load_all_dbs_from_cache () =
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
+  AT.check
+    AT.bool
+    "dbs are loaded from cache"
+    true
+    (!c2.ops = []) ;
   AT.check
     (AT.list testable_id)
     "Loaded only undeleted dbs"
