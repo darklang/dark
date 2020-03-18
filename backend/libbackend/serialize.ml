@@ -296,7 +296,7 @@ let load_only_rendered_tlids
       AND tlid = ANY (string_to_array($2, $3)::bigint[])
       AND deleted IS FALSE
       AND (((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type) AND pos IS NOT NULL)
-             OR tipe <> 'handler'::toplevel_type)"
+             OR tipe = 'user_function'::toplevel_type OR tipe = 'user_tipe'::toplevel_type)"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2rendered_oplist_cache_query_result
