@@ -25,7 +25,10 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
   match ViewUtils.fnForToken s.fluidState ti.token with
   | Some ({fnPreviewSafety = Unsafe; _} as fn) ->
       (* Looking these up can be slow, so the fnPreviewSafety check
-       * above is very important *)
+       * above is very important.
+       *
+       * Note that fnPreviewSafety is calculated dynamically by
+       * FluidAutocomplete. *)
       let allExprs = AST.getArguments (FluidToken.tid ti.token) s.ast in
       let argIDs = List.map ~f:FluidExpression.toID allExprs in
       ( match ti.token with

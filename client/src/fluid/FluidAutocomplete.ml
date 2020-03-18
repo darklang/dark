@@ -181,6 +181,12 @@ let allFunctions (m : model) : function_ list =
     m.userFunctions
     |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
     |> List.filterMap ~f:UserFunctions.ufmToF
+    |> List.map ~f:(fun f ->
+           { f with
+             fnPreviewSafety =
+               ( if StrSet.has m.previewUnsafeUserFunctions ~value:f.fnName
+               then Unsafe
+               else Safe ) })
   in
   let functions = m.builtInFunctions |> filterAndSort in
   let packageFunctions =

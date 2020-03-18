@@ -1618,6 +1618,7 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
+  ; previewUnsafeUserFunctions : StrSet.t
   ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys : staticDeploy list
         (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
