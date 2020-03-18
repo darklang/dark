@@ -58,8 +58,8 @@ let t_option_stdlibs_work () =
     (exec_ast'
        (fn
           "Option::map2"
-          [ optionConstructor (Some (int 10))
-          ; optionConstructor (Some (int 1))
+          [ just (int 10)
+          ; just (int 1)
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "Option::map2 works (Just, Nothing)"
@@ -67,8 +67,8 @@ let t_option_stdlibs_work () =
     (exec_ast'
        (fn
           "Option::map2"
-          [ optionConstructor (Some (int 10))
-          ; optionConstructor None
+          [ just (int 10)
+          ; nothing ()
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "Option::map2 works (Nothing, Just)"
@@ -76,8 +76,8 @@ let t_option_stdlibs_work () =
     (exec_ast'
        (fn
           "Option::map2"
-          [ optionConstructor None
-          ; optionConstructor (Some (int 1))
+          [ nothing ()
+          ; just (int 1)
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "Option::map2 works (Nothing, Nothing)"
@@ -85,8 +85,8 @@ let t_option_stdlibs_work () =
     (exec_ast'
        (fn
           "Option::map2"
-          [ optionConstructor None
-          ; optionConstructor None
+          [ nothing ()
+          ; nothing ()
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "withDefault just"
@@ -155,8 +155,8 @@ let t_result_stdlibs_work () =
     (exec_ast'
        (fn
           "Result::map2"
-          [ resultOkConstructor (int 10)
-          ; resultOkConstructor (int 1)
+          [ ok (int 10)
+          ; ok (int 1)
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "Result::map2 works (Ok, Error)"
@@ -164,8 +164,8 @@ let t_result_stdlibs_work () =
     (exec_ast'
        (fn
           "Result::map2"
-          [ resultOkConstructor (int 10)
-          ; resultErrorConstructor (str "error2")
+          [ ok (int 10)
+          ; error (str "error2")
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "Result::map2 works (Error, Ok)"
@@ -173,8 +173,8 @@ let t_result_stdlibs_work () =
     (exec_ast'
        (fn
           "Result::map2"
-          [ resultErrorConstructor (str "error1")
-          ; resultOkConstructor (int 1)
+          [ error (str "error1")
+          ; ok (int 1)
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "Result::map2 works (Error, Error)"
@@ -182,8 +182,8 @@ let t_result_stdlibs_work () =
     (exec_ast'
        (fn
           "Result::map2"
-          [ resultErrorConstructor (str "error1")
-          ; resultErrorConstructor (str "error2")
+          [ error (str "error1")
+          ; error (str "error2")
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "maperror ok"
