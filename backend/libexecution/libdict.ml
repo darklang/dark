@@ -93,7 +93,7 @@ let fns =
     ; parameters = [par "dict" TObj; func ["val"]]
     ; return_type = TObj
     ; description =
-        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value. Use `Dict::map` if you need to use the key as part of the transformation."
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
     ; func =
         InProcess
           (function
@@ -109,7 +109,7 @@ let fns =
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
-        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair. Consider `Dict::forEach` if you only need to use the value as part of the transformation."
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair."
     ; func =
         InProcess
           (function
@@ -161,7 +161,7 @@ let fns =
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
-        "Returns a new dictionary that only contains the key-value pairs in the original `dict` for which `f` returns `true`."
+        "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
     ; func =
         InProcess
           (function
@@ -214,7 +214,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TBool
-    ; description = "Returns `true` if the `dict` contains no key-value pairs."
+    ; description = "Returns `true` if the `dict` contains no entries."
     ; func =
         InProcess
           (function
@@ -226,7 +226,7 @@ let fns =
     ; parameters = [par "left" TObj; par "right" TObj]
     ; return_type = TObj
     ; description =
-        "Returns a combined dictionary with both dictionaries' keys and values. If the same key exists in both `left` and `right`, it will have the value from `right`."
+        "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
     ; func =
         InProcess
           (function
