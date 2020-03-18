@@ -124,6 +124,11 @@ let t_http_oplist_loads_user_tipes () =
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
   AT.check
+    AT.bool
+    "handlers and types are loaded from cache #1"
+    true
+    (!c2.ops = []) ;
+  AT.check
     (AT.list (AT.testable pp_user_tipe equal_user_tipe))
     "user tipes"
     [tipe]
