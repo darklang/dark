@@ -2140,7 +2140,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
   SavedUserSettings.save m ;
   let lastMods =
     (* ARGH List.take returns empty if count > length *)
-    let newMods = show_modification mods :: m.lastMods in
+    let newMods = mods :: m.lastMods in
     let maxLen = 10 in
     if List.length newMods > maxLen
     then List.take newMods ~count:maxLen
