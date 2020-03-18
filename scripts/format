@@ -83,11 +83,14 @@ all_prettier_files() {
     -o -path "./node_modules" -prune \
     -o -path "backend/static" -prune \
     -o -path "./backend/static" -prune \
+    -o -path "client/static/vendor" -prune \
+    -o -path "./client/static/vendor" -prune \
     -o -path "_esy" -prune \
     -o -path "./_esy" -prune \
     -o -path "/home/dark/.esy" -prune \
     -o -path "lib" -prune \
-    -o -path "./lib" -prune
+    -o -path "./lib" -prune \
+  | grep --null-data --invert-match reset-normalize
 }
 
 all_ocaml_files() {

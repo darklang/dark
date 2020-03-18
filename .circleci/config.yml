@@ -210,12 +210,7 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths:
-            # Just enough for integration tests and deploy
-            - backend/static/app.css
-            - backend/static/app.js
-            - backend/static/appsupport.js
-            - backend/static/fetcher.js
-            - backend/static/analysiswrapper.js
+            - backend/static/
       - store_artifacts: { path: rundir }
       - store_artifacts: { path: backend/static/etags.json }
       - store_test_results: { path: rundir/test_results }
