@@ -62,10 +62,11 @@ let fns : fn list =
   ; { prefix_names = ["Option::map2"]
     ; infix_names = []
     ; parameters =
-        [par "option1" TOption; par "option2" TOption; func ["value1"; "value2"]]
+        [par "option1" TOption; par "option2" TOption; func ["v1"; "v2"]]
     ; return_type = TOption
     ; description =
-        "If both `option1` and `option2` are `Just _`, returns `Just (f value1 value2)` (the lambda `f` is applied to `value1` and `value2`, and the result is wrapped in `Just`).
+        "If both arguments are `Just` (`option1` is `Just v1` and `option2` is `Just v2`), returns `Just (f v1 v2)` --
+        the lambda `f` is applied to `v1` and `v2`, and the result is wrapped in `Just`.
         If `option1` or `option2` are `Nothing`, returns `Nothing`."
     ; func =
         InProcess
