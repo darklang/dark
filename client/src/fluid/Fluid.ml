@@ -558,8 +558,7 @@ let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
 let getNextEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
   tokens
   |> getNextEditable pos
-  |> Option.map ~f:(fun ti ->
-         if T.isBlank ti.token then ti.startPos else ti.endPos)
+  |> Option.map ~f:(fun ti -> ti.startPos)
   |> Option.withDefault ~default:pos
 
 
@@ -589,8 +588,7 @@ let rec getPrevEditable (pos : int) (tokens : T.tokenInfo list) :
 let getPrevEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
   tokens
   |> getPrevEditable pos
-  |> Option.map ~f:(fun ti ->
-         if T.isBlank ti.token then ti.startPos else ti.endPos)
+  |> Option.map ~f:(fun ti -> ti.startPos)
   |> Option.withDefault ~default:pos
 
 

@@ -4819,7 +4819,7 @@ let run () =
         emptyLet
         ~pos:4
         shiftTab
-        "let *** = ___\n5~" ;
+        "let *** = ___\n~5" ;
       t
         "shift tab goes to last blank in editor"
         ~wrap:false
@@ -4828,7 +4828,7 @@ let run () =
         ~pos:4
         shiftTab
         "let *** = 6\n~___" ;
-      t "cant tab to filled letLHS" letWithLhs (key K.Tab) "let n~ = 6\n5" ;
+      t "cant tab to filled letLHS" letWithLhs (key K.Tab) "let ~n = 6\n5" ;
       t "can tab to lambda blank" aLambda (key K.Tab) "\\~*** -> ___" ;
       t
         "can shift tab to field blank"
