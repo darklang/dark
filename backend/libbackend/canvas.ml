@@ -15,6 +15,7 @@ type canvas =
   { host : string
   ; owner : Uuidm.t
   ; id : Uuidm.t
+  ; creation_date : Time.t [@opaque]
   ; ops : (tlid * Op.oplist) list
   ; cors_setting : cors_setting option
   ; handlers : TL.toplevels
@@ -322,16 +323,28 @@ let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
   |> cors_setting_of_db_string
 
 
+let canvas_creation_date canvas_id : Core_kernel.Time.t =
+  Db.fetch_one
+    ~name:"canvas_creation_date"
+    "SELECT created_at from canvases
+      WHERE canvases.id = $1"
+    ~params:[Uuid canvas_id]
+  |> List.hd_exn
+  |> Db.date_of_sqlstring
+
+
 let init (host : string) (ops : Op.op list) : (canvas ref, string list) Result.t
     =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
+  let creation_date = canvas_creation_date canvas_id in
   let cors = fetch_cors_setting canvas_id in
   let c =
     ref
       { host
       ; owner
       ; id = canvas_id
+      ; creation_date
       ; ops = []
       ; cors_setting = cors
       ; handlers = IDMap.empty
@@ -409,6 +422,7 @@ let load_from
   try
     let canvas_id = Serialize.fetch_canvas_id owner host in
     let cors = fetch_cors_setting canvas_id in
+    let creation_date = canvas_creation_date canvas_id in
     let oldops = f ~host ~canvas_id () in
     (* TODO optimization: can we get only the functions we need (based on
      * fnnames found in the canvas) and/or cache this like we do the oplist? *)
@@ -421,6 +435,7 @@ let load_from
         { host
         ; owner
         ; id = canvas_id
+        ; creation_date
         ; ops = []
         ; cors_setting = cors
         ; handlers = IDMap.empty

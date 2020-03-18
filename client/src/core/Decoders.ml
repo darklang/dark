@@ -918,9 +918,10 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; groups = List.filterMap ~f:TL.asGroup tls
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
-  ; canvas_list = field "canvas_list" (list string) j
-  ; org_list = field "org_list" (list string) j
-  ; worker_schedules = field "worker_schedules" (strDict string) j }
+  ; canvasList = field "canvas_list" (list string) j
+  ; orgList = field "org_list" (list string) j
+  ; workerSchedules = field "worker_schedules" (strDict string) j
+  ; creationDate = field "creation_date" jsDate j }
 
 
 let allTracesResult j : allTracesAPIResult =
@@ -938,6 +939,11 @@ let executeFunctionAPIResult j : executeFunctionAPIResult =
 let uploadFnAPIResult _ : uploadFnAPIResult = ()
 
 let loadPackagesAPIResult j : loadPackagesAPIResult = list packageFn j
+
+let loadCanvasInfoAPIResult j : SettingsViewTypes.loadCanvasInfoAPIResult =
+  { canvasDescription = field "canvasDescription" string j
+  ; shippedDate = field "canvasShippedDate" string j }
+
 
 let triggerHandlerAPIResult j : triggerHandlerAPIResult =
   field "touched_tlids" (list tlid) j

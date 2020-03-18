@@ -12,7 +12,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
 
-let allTabs = [UserSettings; InviteUser defaultInviteFields]
+let allTabs = [CanvasInfo; UserSettings; InviteUser defaultInviteFields]
 
 let validateEmail (email : formField) : formField =
   let error =
@@ -38,8 +38,9 @@ let validateForm (tab : settingsTab) : bool * settingsTab =
       (false, tab)
 
 
-let submitForm (m : Types.model) (tab : settingsTab) :
-    Types.model * Types.msg Cmd.t =
+let submitForm (m : Types.model) : Types.model * Types.msg Cmd.t =
+  let tab = m.settingsView.tab in
+  Entry.sendSegmentMessage InviteUser ;
   match tab with
   | InviteUser info ->
       let sendInviteMsg =
@@ -53,50 +54,158 @@ let submitForm (m : Types.model) (tab : settingsTab) :
       (m, Cmd.none)
 
 
-let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
-    =
+let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
+  let msg =
+    let canvasShipped =
+      match m.settingsView.canvasInformation.shippedDate with
+      | Some date ->
+          date |> Js.Date.toUTCString
+      | None ->
+          ""
+    in
+    let canvasCreation =
+      match m.settingsView.canvasInformation.createdAt with
+      | Some date ->
+          date |> Js.Date.toUTCString
+      | None ->
+          ""
+    in
+    { canvasName = m.settingsView.canvasInformation.canvasName
+    ; canvasDescription = m.settingsView.canvasInformation.canvasDescription
+    ; canvasShipped
+    ; canvasCreation }
+  in
+  API.sendCanvasInfo m msg
+
+
+let update (settingsView : settingsViewState) (msg : settingsMsg) :
+    settingsViewState =
   match msg with
-  | ToggleSettingsView (opened, tab) ->
-      let enablePan = if opened then m.canvasProps.enablePan else true in
-      let tab = tab |> Option.withDefault ~default:UserSettings in
-      ( { m with
-          settingsView = {m.settingsView with opened; tab; loading = false}
-        ; canvasProps = {m.canvasProps with enablePan} }
-      , Cmd.none )
+  | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
+      { settingsView with
+        canvasList
+      ; orgList
+      ; canvasInformation =
+          { settingsView.canvasInformation with
+            canvasName
+          ; createdAt = Some creationDate } }
+  | OpenSettingsView tab ->
+      {settingsView with opened = true; tab; loading = false}
+  | CloseSettingsView _ ->
+      {settingsView with opened = false; loading = false}
   | SwitchSettingsTabs tab ->
-      ( {m with settingsView = {m.settingsView with tab; loading = false}}
-      , Cmd.none )
+      {settingsView with tab; loading = false}
   | UpdateInviteForm value ->
       let form = {email = {value; error = None}} in
-      ( {m with settingsView = {m.settingsView with tab = InviteUser form}}
-      , Cmd.none )
+      {settingsView with tab = InviteUser form}
+  | UpdateCanvasDescription value ->
+      { settingsView with
+        canvasInformation =
+          {settingsView.canvasInformation with canvasDescription = value} }
+  | SetCanvasDeployStatus ship ->
+      let shippedDate =
+        let rawDate = Js.Date.now () |> Js.Date.fromFloat in
+        let formattedDate = Util.formatDate (rawDate, "L") in
+        if ship
+        then (
+          Entry.sendSegmentMessage (MarkCanvasAsInDevelopment formattedDate) ;
+          Some rawDate )
+        else (
+          Entry.sendSegmentMessage (MarkCanvasAsInDevelopment formattedDate) ;
+          None )
+      in
+      { settingsView with
+        canvasInformation = {settingsView.canvasInformation with shippedDate} }
+  | TriggerSendInviteCallback (Ok _) ->
+      {settingsView with tab = InviteUser defaultInviteFields; loading = false}
+  | TriggerSendInviteCallback (Error _) ->
+      {settingsView with tab = InviteUser defaultInviteFields; loading = false}
+  | TriggerGetCanvasInfoCallback (Ok data) ->
+      let shippedDate =
+        if String.length data.shippedDate == 0
+        then None
+        else Some (Js.Date.fromString data.shippedDate)
+      in
+      { settingsView with
+        canvasInformation =
+          { settingsView.canvasInformation with
+            canvasDescription = data.canvasDescription
+          ; shippedDate } }
+  | SubmitForm
+  | TriggerUpdateCanvasInfoCallback _
+  | TriggerGetCanvasInfoCallback (Error _) ->
+      settingsView
+
+
+let getModifications (m : Types.model) (msg : settingsMsg) : Types.modification
+    =
+  match msg with
+  | TriggerSendInviteCallback (Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"TriggerSendInviteCallback"
+           ~importance:IgnorableError
+           ~reload:false
+           err)
+  | TriggerUpdateCanvasInfoCallback (Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"TriggerUpdateCanvasInfoCallback"
+           ~importance:IgnorableError
+           ~reload:false
+           err)
+  | TriggerGetCanvasInfoCallback (Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"TriggerGetCanvasInfoCallback"
+           ~importance:IgnorableError
+           ~reload:false
+           err)
+  | OpenSettingsView _ ->
+      ReplaceAllModificationsWithThisOne
+        (fun m -> CursorState.setCursorState Deselected m)
+  | TriggerUpdateCanvasInfoCallback (Ok _) ->
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          ( { m with
+              toast = {toastMessage = Some "Canvas Info saved!"; toastPos = None}
+            }
+          , Cmd.none ))
+  | TriggerSendInviteCallback (Ok _) ->
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          ( {m with toast = {toastMessage = Some "Sent!"; toastPos = None}}
+          , Cmd.none ))
+  | CloseSettingsView tab ->
+      let cmd =
+        match tab with CanvasInfo -> sendCanvasInformation m | _ -> Cmd.none
+      in
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          ({m with canvasProps = {m.canvasProps with enablePan = true}}, cmd))
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
-      Entry.sendSegmentMessage InviteUser ;
       if isInvalid
-      then ({m with settingsView = {m.settingsView with tab = newTab}}, Cmd.none)
-      else submitForm m m.settingsView.tab
-  | TriggerSendInviteCallback (Ok _) ->
-      ( { m with
-          toast = {toastMessage = Some "Sent!"; toastPos = None}
-        ; settingsView =
-            { m.settingsView with
-              tab = InviteUser defaultInviteFields
-            ; loading = false } }
-      , Cmd.none )
-  | TriggerSendInviteCallback (Error _) ->
-      ( { m with
-          settingsView =
-            { m.settingsView with
-              tab = InviteUser defaultInviteFields
-            ; loading = false } }
-      , Cmd.none )
+      then
+        ReplaceAllModificationsWithThisOne
+          (fun m ->
+            ( {m with settingsView = {m.settingsView with tab = newTab}}
+            , Cmd.none ))
+      else ReplaceAllModificationsWithThisOne (fun m -> submitForm m)
+  | _ ->
+      NoChange
 
 
 (* View functions *)
 
 let settingsTabToText (tab : settingsTab) : string =
-  match tab with UserSettings -> "Canvases" | InviteUser _ -> "Share"
+  match tab with
+  | CanvasInfo ->
+      "About"
+  | UserSettings ->
+      "Canvases"
+  | InviteUser _ ->
+      "Share"
 
 
 (* View code *)
@@ -107,8 +216,8 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
     Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
   in
   let canvases =
-    if List.length acc.canvas_list > 0
-    then List.map acc.canvas_list ~f:canvasLink |> Html.ul []
+    if List.length acc.canvasList > 0
+    then List.map acc.canvasList ~f:canvasLink |> Html.ul []
     else Html.p [] [Html.text "No other personal canvases"]
   in
   let canvasView =
@@ -116,9 +225,9 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p [] [Html.text "Create a new canvas by navigating to the URL"] ]
   in
-  let orgs = List.map acc.org_list ~f:canvasLink |> Html.ul [] in
+  let orgs = List.map acc.orgList ~f:canvasLink |> Html.ul [] in
   let orgView =
-    if List.length acc.org_list > 0
+    if List.length acc.orgList > 0
     then
       [ Html.p [Html.class' "canvas-list-title"] [Html.text "Shared canvases:"]
       ; Html.div [Html.class' "canvas-list"] [orgs] ]
@@ -183,9 +292,61 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
   introText @ inviteform
 
 
+let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
+  let shipped, shippedText =
+    match canvas.shippedDate with
+    | Some date ->
+        let formattedDate = Util.formatDate (date, "L") in
+        (true, " (as of " ^ formattedDate ^ ")")
+    | None ->
+        (false, "")
+  in
+  let create_at_text =
+    match canvas.createdAt with
+    | Some date ->
+        "Canvas created on: " ^ Util.formatDate (date, "L")
+    | None ->
+        ""
+  in
+  [ Html.div
+      [Html.class' "canvas-info"]
+      [ Html.h2 [] [Html.text "About"]
+      ; Html.p
+          []
+          [ Html.text
+              "Tell us about what you're building. This will help us figure out what to build into Dark."
+          ]
+      ; Html.div
+          [Html.class' "canvas-desc"]
+          [ Html.h3 [] [Html.text "Canvas description:"]
+          ; Html.textarea
+              [ Vdom.attribute "" "spellcheck" "false"
+              ; Events.onInput (fun str ->
+                    Types.SettingsViewMsg (UpdateCanvasDescription str))
+              ; Attributes.value canvas.canvasDescription ]
+              [] ]
+      ; Html.div
+          [ Html.class' "canvas-shipped-info"
+          ; ViewUtils.eventNoPropagation
+              ~key:("SetCanvasDeployStatus" ^ shippedText)
+              "mouseup"
+              (fun _ ->
+                Types.SettingsViewMsg (SetCanvasDeployStatus (not shipped))) ]
+          [ Html.input' [Html.type' "checkbox"; Html.checked shipped] []
+          ; Html.p [] [Html.text ("Project is live" ^ shippedText)] ]
+      ; Html.p
+          [Html.class' "sub-text"]
+          [ Html.text
+              "*If your project has gone live, we'll use it to help us determine the health of the Dark infrastructure*"
+          ]
+      ; Html.p [Html.class' "created-text"] [Html.text create_at_text] ] ]
+
+
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
+  | CanvasInfo ->
+      viewCanvasInfo svs.canvasInformation
   | UserSettings ->
       viewUserCanvases svs
   | InviteUser _ ->
@@ -195,11 +356,7 @@ let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
 let tabTitleView (tab : settingsTab) : Types.msg Html.html =
   let tabTitle (t : settingsTab) =
     let isSameTab =
-      match (tab, t) with
-      | UserSettings, UserSettings | InviteUser _, InviteUser _ ->
-          true
-      | _ ->
-          false
+      match (tab, t) with InviteUser _, InviteUser _ -> true | _ -> tab == t
     in
     Html.h3
       [ Html.classList [("tab-title", true); ("selected", isSameTab)]
@@ -236,7 +393,8 @@ let html (m : Types.model) : Types.msg Html.html =
       ; ViewUtils.eventNoPropagation
           ~key:"close-settings-modal"
           "click"
-          (fun _ -> Types.SettingsViewMsg (ToggleSettingsView (false, None))) ]
+          (fun _ ->
+            Types.SettingsViewMsg (CloseSettingsView m.settingsView.tab)) ]
       [fontAwesome "times"]
   in
   Html.div
@@ -244,7 +402,7 @@ let html (m : Types.model) : Types.msg Html.html =
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          Types.SettingsViewMsg (ToggleSettingsView (false, None))) ]
+          Types.SettingsViewMsg (CloseSettingsView m.settingsView.tab)) ]
     [ Html.div
         [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"

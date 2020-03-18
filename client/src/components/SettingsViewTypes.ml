@@ -11,6 +11,7 @@ type formField =
 type inviteFields = {email : formField}
 
 and settingsTab =
+  | CanvasInfo
   | UserSettings
   | InviteUser of inviteFields
 [@@deriving show]
@@ -21,20 +22,51 @@ type inviteFormMessage =
   ; inviterName : string }
 [@@deriving show]
 
+type updateCanvasInfo =
+  { canvasName : string
+  ; canvasDescription : string
+  ; canvasShipped : string
+  ; canvasCreation : string }
+[@@deriving show]
+
+type canvasInformation =
+  { canvasName : string
+  ; canvasDescription : string
+  ; shippedDate : Js.Date.t option [@opaque]
+  ; createdAt : Js.Date.t option [@opaque] }
+[@@deriving show]
+
 type settingsViewState =
   { opened : bool
   ; tab : settingsTab
-  ; canvas_list : string list
-  ; org_list : string list
-  ; loading : bool }
+  ; canvasList : string list
+  ; orgList : string list
+  ; loading : bool
+  ; canvasInformation : canvasInformation }
+[@@deriving show]
+
+type loadCanvasInfoAPIResult =
+  { canvasDescription : string
+  ; shippedDate : string }
 [@@deriving show]
 
 type settingsMsg =
-  | ToggleSettingsView of bool * settingsTab option
+  | CloseSettingsView of settingsTab
+  | SetSettingsView of
+      ((string * string list * string list * Js.Date.t)[@opaque])
+  | OpenSettingsView of settingsTab
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string
+  | UpdateCanvasDescription of string
+  | SetCanvasDeployStatus of bool
   | SubmitForm
   | TriggerSendInviteCallback of
       (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
       [@printer opaque "TriggerSendInviteCallback"]
+  | TriggerUpdateCanvasInfoCallback of
+      (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
+      [@printer opaque "TriggerUpdateCanvasInfoCallback"]
+  | TriggerGetCanvasInfoCallback of
+      (loadCanvasInfoAPIResult, (string Tea.Http.error[@opaque])) Tea.Result.t
+      [@printer opaque "LoadPackagesAPICallback"]
 [@@deriving show]
