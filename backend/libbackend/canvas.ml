@@ -369,14 +369,17 @@ let name_for_id (id : Uuidm.t) : string =
   |> List.hd_exn
 
 
-let id_for_name (name : string) : Uuidm.t =
-  Db.fetch_one
+let id_for_name_option (name : string) : Uuidm.t option =
+  Db.fetch_one_option
     ~name:"fetch_canvas_id"
     "SELECT id FROM canvases WHERE name = $1"
-    ~params:[String name]
-  |> List.hd_exn
-  |> Uuidm.of_string
-  |> Option.value_exn
+    ~params:[Db.String name]
+  |> Option.map ~f:(fun row -> row |> List.hd_exn)
+  |> Option.bind ~f:Uuidm.of_string
+
+
+let id_for_name (name : string) : Uuidm.t =
+  name |> id_for_name_option |> Option.value_exn
 
 
 let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit
@@ -1113,3 +1116,188 @@ let to_string (host : string) : string =
     @ deleted_dbs
     @ [" ------------- Deleted Functions ------------- "]
     @ deleted_user_functions )
+
+
+module Clone = struct
+  (* When we clone a canvas, we want to only copy over ops since the last
+   * TLSavepoint - this erases history, which is invisible and we don't really
+   * know at clone-time what's in there *)
+  let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
+    ops
+    (* Accumulate ops until we get to a TLSavepoint, at
+     * which point we're done - we
+     * throw out that op and everything after it in the
+     * list (before it in history) *)
+    |> List.fold_right ~init:(false, []) ~f:(fun e (finished, ops) ->
+           match (finished, ops, (e : Op.op)) with
+           | true, ops, _ | false, ops, TLSavepoint _ ->
+               (true, ops)
+           | false, ops, e ->
+               (false, e :: ops))
+    |> fun (_, ops) -> ops
+
+
+  (* Given an op, and an old_host and a new_host, update string literals from
+   * the old to the new host. Say your canvas contains a string literal that is
+   * exactly "old_host" (say, a user_fn called thisCanvasName) or one containing
+   * a url pointing to the old host ("://oldhost.builtwithdark.com/stuff", or
+   * its localhost equivalent), the op will be transformed to refer to the
+   * new_host *)
+  let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string)
+      : Op.op =
+    (* It might be nice if expr had an equivalent of FluidExpression.walk *)
+    let rec update_hosts_in_expr
+        (expr : Types.RuntimeT.expr) ~(old_host : string) ~(new_host : string) :
+        Types.RuntimeT.expr =
+      (* Helper function; its only purpose is to not have to pass ~old_host and
+       * ~new_host around anymore *)
+      let update_host (instr : string) ~(old_host : string) ~(new_host : string)
+          : string =
+        let host canvas : string =
+          Printf.sprintf "://%s.%s" canvas Config.user_content_host
+        in
+        instr |> Util.string_replace (host old_host) (host new_host)
+      in
+      let rec f (expr : Types.RuntimeT.expr) : Types.RuntimeT.expr =
+        match expr with
+        | Blank _ | Partial _ ->
+            expr
+        | Filled (id, nexpr) ->
+            Filled
+              ( id
+              , match nexpr with
+                | Value str when str = Printf.sprintf "\"%s\"" old_host ->
+                    (* This match covers string literals containing _exactly_
+                     * '"old_host"' (a string literal containing your
+                     * canvas' name) *)
+                    Value (Printf.sprintf "\"%s\"" new_host)
+                | Value str ->
+                    (* This match covers string literals containing
+                     * ://foo.builtwithdark.com/stuff (or the localhost equivalent) *)
+                    Value (str |> update_host ~old_host ~new_host)
+                | If (e1, e2, e3) ->
+                    If (e1 |> f, e2 |> f, e3 |> f)
+                | Thread exprs ->
+                    Thread (exprs |> List.map ~f)
+                | FnCall (fnname, exprs) ->
+                    FnCall (fnname, exprs |> List.map ~f)
+                | Variable varname ->
+                    Variable varname
+                | Let (varbind, e1, e2) ->
+                    Let (varbind, e1 |> f, e2 |> f)
+                | Lambda (varbinds, expr) ->
+                    Lambda (varbinds, expr |> f)
+                | FieldAccess (expr, field) ->
+                    FieldAccess (expr |> f, field)
+                | ObjectLiteral kvs ->
+                    ObjectLiteral
+                      (kvs |> List.map ~f:(fun (k, v) -> (k, v |> f)))
+                | ListLiteral exprs ->
+                    ListLiteral (exprs |> List.map ~f)
+                | FeatureFlag (string_or, e1, e2, e3) ->
+                    FeatureFlag (string_or, e1 |> f, e2 |> f, e3 |> f)
+                | FnCallSendToRail (fnname, exprs) ->
+                    FnCallSendToRail (fnname, exprs |> List.map ~f)
+                | Match (expr, arms) ->
+                    Match (expr, arms |> List.map ~f:(fun (k, v) -> (k, v |> f)))
+                | Constructor (string_or, exprs) ->
+                    Constructor (string_or, exprs |> List.map ~f)
+                | FluidPartial (str, expr) ->
+                    FluidPartial (str, expr |> f)
+                | FluidRightPartial (str, expr) ->
+                    FluidRightPartial (str, expr |> f) )
+      in
+      f expr
+    in
+    let old_ast = Op.ast_of op in
+    let new_ast =
+      old_ast |> Option.map ~f:(update_hosts_in_expr ~old_host ~new_host)
+    in
+    new_ast
+    |> Option.map ~f:(fun new_ast ->
+           match op with
+           | SetFunction userfn ->
+               Op.SetFunction {userfn with ast = new_ast}
+           | SetExpr (tlid, id, _) ->
+               SetExpr (tlid, id, new_ast)
+           | SetHandler (tlid, id, handler) ->
+               SetHandler (tlid, id, {handler with ast = new_ast})
+           | _ ->
+               op)
+    |> Option.value ~default:op
+
+
+  (* Given two canvas names, clone TLs from one to the other.
+   * - returns an error if from_canvas doesn't exist, or if to_canvas does
+   *   ("don't clobber an existing canvas")
+   * - removes history - only copies ops since the last TLSavepoint (per TL)
+   * - if there are string literals referring to the old canvas, rewrite them to
+   *   refer to the new one (see update_hosts_in_op)
+   * - runs in a DB transaction, so this should be all-or-nothing
+   * *)
+  let clone_canvas from_canvas_name to_canvas_name : (unit, string) result =
+    (* Ensure we can copy from and to - from_canvas must exist, to_canvas must
+     * not. Yes, this is potentially racy, if to_canvas gets created by user
+     * before we finish this function. Acceptable risk. *)
+    ( match
+        (id_for_name_option from_canvas_name, id_for_name_option to_canvas_name)
+      with
+    | None, _ ->
+        Error
+          (Printf.sprintf
+             "Can't clone from %s, no  such canvas exists"
+             from_canvas_name)
+    | _, Some _ ->
+        Error
+          (Printf.sprintf
+             "Can't clone onto %s, that canvas already exists"
+             to_canvas_name)
+    | Some _, None ->
+        Ok (from_canvas_name, to_canvas_name) )
+    |> Result.bind ~f:(fun (from_canvas_name, _) ->
+           (* Load from_canvas *)
+           let from_canvas = load_all from_canvas_name [] in
+           from_canvas |> Result.map_error ~f:(String.concat ~sep:", "))
+    |> Result.map ~f:(fun (from_canvas : canvas ref) ->
+           (* Transform the ops - remove pre-savepoint ops and update hosts
+            * (canvas names) in string literals *)
+           let to_ops =
+             !from_canvas.ops
+             |> List.map ~f:(fun (tlid, ops) ->
+                    (tlid, ops |> only_ops_since_last_savepoint))
+             |> List.map ~f:(fun (tlid, ops) ->
+                    let new_ops =
+                      ops
+                      |> List.map
+                           ~f:
+                             (update_hosts_in_op
+                                ~old_host:from_canvas_name
+                                ~new_host:to_canvas_name)
+                    in
+                    (tlid, new_ops))
+           in
+           let owner : Uuidm.t =
+             Account.auth_domain_for to_canvas_name
+             |> Account.id_of_username
+             |> Option.value_exn
+           in
+           (* In a transaction, save the new ops into to_canvas *)
+           try
+             (* fetch_canvas_id is what actually creates the canvas record,
+              * which must preceed save_all *)
+             Db.run ~name:"clone_canvas begin" "BEGIN" ~params:[] ;
+             let to_id = Serialize.fetch_canvas_id owner to_canvas_name in
+             let to_canvas : canvas ref =
+               ref
+                 { !from_canvas with
+                   host = to_canvas_name
+                 ; owner
+                 ; ops = to_ops
+                 ; id = to_id }
+             in
+             save_all !to_canvas ;
+             Db.run ~name:"clone_canvas commit" "COMMIT" ~params:[]
+           with e ->
+             Db.run ~name:"clone_canvas commit" "ROLLBACK" ~params:[] ;
+             raise e)
+end
