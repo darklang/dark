@@ -181,11 +181,12 @@ let fns : fn list =
   ; { prefix_names = ["Result::map2"]
     ; infix_names = []
     ; parameters =
-        [par "result1" TResult; par "result2" TResult; func ["value1"; "value2"]]
+        [par "result1" TResult; par "result2" TResult; func ["v1"; "v2"]]
     ; return_type = TAny
     ; description =
-        "If both `result1` and `result2` are `Ok _`, returns `Ok (f value1 value2)` (the lambda `f` is applied to `value1` and `value2`, and the result is wrapped in `Ok`).
-        If `result1` or `result2` are `Error`, returns the first error."
+        "If both arguments are `Ok` (`result1` is `Ok v1` and `result2` is `Ok v2`), returns `Ok (f v1 v2)` --
+        the lambda `f` is applied to `v1` and `v2`, and the result is wrapped in `Ok`.
+        Otherwise, returns the first of `result1` and `result2` that is an error."
     ; func =
         InProcess
           (function

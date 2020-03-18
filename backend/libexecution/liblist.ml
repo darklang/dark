@@ -568,11 +568,12 @@ let fns =
   ; { prefix_names = ["List::map2DroppingExtra"]
     ; infix_names = []
     ; parameters =
-        [par "list1" TList; par "list2" TList; func ["list1Item"; "list2Item"]]
+        [par "as" TList; par "bs" TList; func ["list1Item"; "list2Item"]]
     ; return_type = TList
     ; description =
-        "Maps `f` over `list1` and `list2` in parallel, calling `f list1Item list2Item` on every pair of items from `list1` and `list2`,
-         where each pair is at the same index in both lists. If the lists differ in length, items from the longer list are dropped."
+        {|Maps `f` over `as` and `bs` in parallel, calling `f a b` on every pair of items from `as` and `bs`.
+        If the lists differ in length, items from the longer list are dropped.
+        For example, if `as` is `[1,2]` and `bs` is `["x","y"]`, returns `[(f 1 "x"), (f 2 "y")]`.|}
     ; func =
         InProcess
           (function
@@ -591,14 +592,14 @@ let fns =
     ; deprecated = false }
   ; { prefix_names = ["List::map2"]
     ; infix_names = []
-    ; parameters =
-        [par "list1" TList; par "list2" TList; func ["list1Item"; "list2Item"]]
+    ; parameters = [par "as" TList; par "bs" TList; func ["a"; "b"]]
     ; return_type = TOption
     ; description =
-        "If the lists differ in length, returns `Nothing`.
-        Otherwise, returns `Just list` formed by mapping `f` over `list1` and `list2` in parallel,
-         calling `f list1Item list2Item` on every pair of items from `list1` and `list2`,
-         where each pair is at the same index in both lists."
+        {|If the lists differ in length, returns `Nothing`.
+        Otherwise, returns `Just list` formed by mapping `f` over `as` and `bs` in parallel,
+         calling `f a b` on every pair of items from `as` and `bs`.
+         For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`,
+         returns `[(f 1 "x"), (f 2 "y"), (f 3 "z")]`.|}
     ; func =
         InProcess
           (function
