@@ -54,7 +54,7 @@ let t_option_stdlibs_work () =
     (exec_ast "(Option::map_v1 _ (\\x -> (x)))") ;
   check_dval
     "Option::map2 works (Just, Just)"
-    (DOption (OptJust (Dval.dint (10 - 1))))
+    (DOption (OptJust (Dval.dint 9)))
     (exec_ast'
        (fn
           "Option::map2"
@@ -151,7 +151,7 @@ let t_result_stdlibs_work () =
     (DIncomplete SourceNone) ;
   check_dval
     "Result::map2 works (Ok, Ok)"
-    (DResult (ResOk (Dval.dint (10 - 1))))
+    (DResult (ResOk (Dval.dint 9)))
     (exec_ast'
        (fn
           "Result::map2"
@@ -380,9 +380,7 @@ let t_list_stdlibs_work () =
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "List::map2 works (length match)"
-    (DOption
-       (OptJust
-          (DList [Dval.dint (10 - 1); Dval.dint (20 - 2); Dval.dint (30 - 3)])))
+    (DOption (OptJust (DList [Dval.dint 9; Dval.dint 18; Dval.dint 27])))
     (exec_ast'
        (fn
           "List::map2"
@@ -391,7 +389,7 @@ let t_list_stdlibs_work () =
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "List::map2DroppingExtra works (length mismatch)"
-    (DList [Dval.dint (10 - 1); Dval.dint (20 - 2)])
+    (DList [Dval.dint 9; Dval.dint 18])
     (exec_ast'
        (fn
           "List::map2DroppingExtra"
@@ -400,7 +398,7 @@ let t_list_stdlibs_work () =
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "List::map2DroppingExtra works (length match)"
-    (DList [Dval.dint (10 - 1); Dval.dint (20 - 2); Dval.dint (30 - 3)])
+    (DList [Dval.dint 9; Dval.dint 18; Dval.dint 27])
     (exec_ast'
        (fn
           "List::map2DroppingExtra"
