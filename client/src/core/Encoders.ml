@@ -464,6 +464,19 @@ and sendInviteParams (params : Types.sendInviteParams) : Js.Json.t =
     ; ("inviterName", string params.inviterName) ]
 
 
+and getCanvasInfoParams (canvasName : string) : Js.Json.t =
+  object_ [("canvasName", string canvasName)]
+
+
+and sendCanvasInfoParams (params : SettingsViewTypes.updateCanvasInfo) :
+    Js.Json.t =
+  object_
+    [ ("canvasName", string params.canvasName)
+    ; ("canvasDescription", string params.canvasDescription)
+    ; ("canvasShipped", string params.canvasShipped)
+    ; ("canvasCreation", string params.canvasCreation) ]
+
+
 and getTraceDataAPIParams (params : Types.getTraceDataAPIParams) : Js.Json.t =
   object_
     [("tlid", tlid params.gtdrpTlid); ("trace_id", traceID params.gtdrpTraceID)]

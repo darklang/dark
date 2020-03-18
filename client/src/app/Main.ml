@@ -120,7 +120,8 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     , Cmd.batch
         [ API.loadPackages m
         ; API.initialLoad m (FocusPageAndCursor (page, savedCursorState))
-        ; API.sendPresence m avMessage ] )
+        ; API.sendPresence m avMessage
+        ; API.getCanvasInfo m ] )
 
 
 let processFocus (m : model) (focus : focus) : modification =
@@ -619,7 +620,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         processAutocompleteMods m [ACRegenerate]
     | UpdateWorkerSchedules schedules ->
-        let m = {m with worker_schedules = schedules} in
+        let m = {m with workerSchedules = schedules} in
         (m, Cmd.none)
     | UpdateTraces traces ->
         let newTraces =
@@ -954,7 +955,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
     | SettingsViewUpdate msg ->
-        SettingsView.update m msg
+        let settingsView = SettingsView.update m.settingsView msg in
+        ({m with settingsView}, cmd)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1514,9 +1516,10 @@ let update_ (msg : msg) (m : model) : modification =
         [ ReplaceAllModificationsWithThisOne
             (fun m ->
               let settingsView =
-                { m.settingsView with
-                  canvas_list = r.canvas_list
-                ; org_list = r.org_list }
+                SettingsView.update
+                  m.settingsView
+                  (SetSettingsView
+                     (m.canvasName, r.canvasList, r.orgList, r.creationDate))
               in
               ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
               , Cmd.none ))
@@ -1525,7 +1528,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
         ; SetUnlockedDBs r.unlockedDBs
-        ; UpdateWorkerSchedules r.worker_schedules
+        ; UpdateWorkerSchedules r.workerSchedules
         ; SetPermission r.permission
         ; Append404s r.fofs
         ; AppendStaticDeploy r.staticDeploys
@@ -2095,17 +2098,9 @@ let update_ (msg : msg) (m : model) : modification =
   | NewTabFromTLMenu (url, tlid) ->
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
-  | SettingsViewMsg (TriggerSendInviteCallback (Error err) as msg) ->
-      Many
-        [ SettingsViewUpdate msg
-        ; HandleAPIError
-            (APIError.make
-               ~context:"TriggerSendInviteCallback"
-               ~importance:IgnorableError
-               ~reload:false
-               err) ]
   | SettingsViewMsg msg ->
-      SettingsViewUpdate msg
+      let mods = SettingsView.getModifications m msg in
+      Many [mods; SettingsViewUpdate msg]
   | FnParamMsg msg ->
       FnParams.update m msg
   | UploadFnAPICallback (_, Error err) ->
