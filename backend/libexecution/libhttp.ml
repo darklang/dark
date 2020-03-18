@@ -2,33 +2,33 @@ open Core_kernel
 open Runtime
 open Lib
 
-let fns : Lib.shortfn list =
-  [ { pns = ["Http::respond"]
-    ; ins = []
-    ; p = [par "response" TAny; par "code" TInt]
-    ; r = TResp
-    ; d =
+let fns : Types.RuntimeT.fn list =
+  [ { prefix_names = ["Http::respond"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "code" TInt]
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; (* TODO(ian): merge Http::respond with Http::respond_with_headers
    * -- need to figure out how to deprecate functions w/o breaking
    * user code
    *)
-    { pns = ["Http::respondWithHeaders"]
-    ; ins = []
-    ; p = [par "response" TAny; par "headers" TObj; par "code" TInt]
-    ; r = TResp
-    ; d =
+    { prefix_names = ["Http::respondWithHeaders"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "headers" TObj; par "code" TInt]
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [dv; (DObj _ as obj); DInt code] ->
@@ -36,27 +36,27 @@ let fns : Lib.shortfn list =
               DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::success"]
-    ; ins = []
-    ; p = [par "response" TAny]
-    ; r = TResp
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::success"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny]
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [dv] -> DResp (Response (200, []), dv) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::respondWithHtml"]
-    ; ins = []
-    ; p = [par "response" TAny; par "code" TInt]
-    ; r = TResp
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::respondWithHtml"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "code" TInt]
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [dv; DInt code] ->
@@ -66,15 +66,15 @@ let fns : Lib.shortfn list =
                 , dv )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::respondWithText"]
-    ; ins = []
-    ; p = [par "response" TAny; par "code" TInt]
-    ; r = TResp
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::respondWithText"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "code" TInt]
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [dv; DInt code] ->
@@ -84,15 +84,15 @@ let fns : Lib.shortfn list =
                 , dv )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::respondWithJson"]
-    ; ins = []
-    ; p = [par "response" TAny; par "code" TInt]
-    ; r = TResp
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::respondWithJson"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "code" TInt]
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [dv; DInt code] ->
@@ -103,81 +103,81 @@ let fns : Lib.shortfn list =
                 , dv )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::redirectTo"]
-    ; ins = []
-    ; p = [par "url" TStr]
-    ; r = TResp
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::redirectTo"]
+    ; infix_names = []
+    ; parameters = [par "url" TStr]
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr url] ->
               DResp (Redirect (Unicode_string.to_string url), DNull)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::badRequest"]
-    ; ins = []
-    ; p = [par "error" TStr]
-    ; r = TResp
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::badRequest"]
+    ; infix_names = []
+    ; parameters = [par "error" TStr]
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr msg] ->
               DResp (Response (400, []), DStr msg)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::notFound"]
-    ; ins = []
-    ; p = []
-    ; r = TResp
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::notFound"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with 404 Not Found."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [] -> DResp (Response (404, []), DNull) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::unauthorized"]
-    ; ins = []
-    ; p = []
-    ; r = TResp
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::unauthorized"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [] -> DResp (Response (401, []), DNull) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::forbidden"]
-    ; ins = []
-    ; p = []
-    ; r = TResp
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::forbidden"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TResp
+    ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with 403 Forbidden."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [] -> DResp (Response (403, []), DNull) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Http::setCookie"]
-    ; ins = []
-    ; p = [par "name" TStr; par "value" TStr; par "params" TObj]
-    ; r = TObj
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Http::setCookie"]
+    ; infix_names = []
+    ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
+    ; return_type = TObj
+    ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::respondWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr name; DStr value; DObj o] ->
@@ -215,15 +215,15 @@ let fns : Lib.shortfn list =
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Http::setCookie_v1"]
-    ; ins = []
-    ; p = [par "name" TStr; par "value" TStr; par "params" TObj]
-    ; r = TObj
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Http::setCookie_v1"]
+    ; infix_names = []
+    ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
+    ; return_type = TObj
+    ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::respondWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr name; DStr value; DObj o] ->
@@ -271,5 +271,5 @@ let fns : Lib.shortfn list =
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_safety = Safe
+    ; deprecated = false } ]

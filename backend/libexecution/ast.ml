@@ -738,7 +738,7 @@ and exec_fn
   | _ ->
     ( match fn.func with
     | InProcess f ->
-        if state.context = Preview && not fn.preview_execution_safe
+        if state.context = Preview && fn.preview_safety <> Safe
         then
           match state.load_fn_result sfr_desc arglist with
           | Some (result, _ts) ->
@@ -766,7 +766,7 @@ and exec_fn
                 Exception.reraise e
           in
           (* there's no point storing data we'll never ask for *)
-          if not fn.preview_execution_safe
+          if fn.preview_safety <> Safe
           then state.store_fn_result sfr_desc arglist result ;
           result
     | PackageFunction body ->
@@ -777,7 +777,7 @@ and exec_fn
             match (state.context, state.load_fn_result sfr_desc arglist) with
             | Preview, Some (result, _ts) ->
                 Dval.unwrap_from_errorrail result
-            | Preview, None when not fn.preview_execution_safe ->
+            | Preview, None when fn.preview_safety <> Safe ->
                 DIncomplete (SourceId id)
             | _ ->
                 (* It's okay to execute user functions in both Preview and Real contexts,
@@ -791,7 +791,7 @@ and exec_fn
                 Dval.unwrap_from_errorrail result
           in
           (* there's no point storing data we'll never ask for *)
-          if not fn.preview_execution_safe
+          if fn.preview_safety <> Safe
           then state.store_fn_result sfr_desc arglist result ;
           result
       | Error errs ->

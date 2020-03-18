@@ -3,14 +3,14 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : Lib.shortfn list =
-  [ { pns = ["Result::map"]
-    ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
-    ; r = TResult
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["Result::map"]
+    ; infix_names = []
+    ; parameters = [par "result" TResult; func ["val"]]
+    ; return_type = TResult
+    ; description =
         "If `result` is `Ok value`, returns `Ok (f value)` (the lambda `f` is applied to `value` and the result is wrapped in `Ok`). If `result` is `Error msg`, returns `result` unchanged."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DResult r; DBlock b] ->
@@ -22,15 +22,15 @@ let fns : Lib.shortfn list =
                 DResult r )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::map_v1"]
-    ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Result::map_v1"]
+    ; infix_names = []
+    ; parameters = [par "result" TResult; func ["val"]]
+    ; return_type = TResult
+    ; description =
         "If `result` is `Ok value`, returns `Ok (f value)` (the lambda `f` is applied to `value` and the result is wrapped in `Ok`). If `result` is `Error msg`, returns `result` unchanged."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DResult r; DBlock d] ->
@@ -42,15 +42,15 @@ let fns : Lib.shortfn list =
                 DResult r )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::mapError"]
-    ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
-    ; r = TAny
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Result::mapError"]
+    ; infix_names = []
+    ; parameters = [par "result" TResult; func ["val"]]
+    ; return_type = TAny
+    ; description =
         "If `result` is `Error msg`, returns `Error (f msg)` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok value`, returns `result` unchanged."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DResult r; DBlock b] ->
@@ -62,15 +62,15 @@ let fns : Lib.shortfn list =
                 DResult (ResError result) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::mapError_v1"]
-    ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
-    ; r = TAny
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Result::mapError_v1"]
+    ; infix_names = []
+    ; parameters = [par "result" TResult; func ["val"]]
+    ; return_type = TAny
+    ; description =
         "If `result` is `Error msg`, returns `Error (f msg)` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok value`, returns `result` unchanged."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DResult r; DBlock b] ->
@@ -82,30 +82,30 @@ let fns : Lib.shortfn list =
                 Dval.to_res_err result )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::withDefault"]
-    ; ins = []
-    ; p = [par "result" TResult; par "default" TAny]
-    ; r = TAny
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Result::withDefault"]
+    ; infix_names = []
+    ; parameters = [par "result" TResult; par "default" TAny]
+    ; return_type = TAny
+    ; description =
         "If `result` is `Ok value`, returns `value`. Returns `default` otherwise."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DResult o; default] ->
             (match o with ResOk dv -> dv | ResError _ -> default)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::fromOption"]
-    ; ins = []
-    ; p = [par "option" TOption; par "error" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Result::fromOption"]
+    ; infix_names = []
+    ; parameters = [par "option" TOption; par "error" TStr]
+    ; return_type = TResult
+    ; description =
         "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just value`, returns `Ok value`. Returns `Error error` otherwise."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DOption o; DStr error] ->
@@ -116,15 +116,15 @@ let fns : Lib.shortfn list =
                 DResult (ResError (DStr error)) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::fromOption_v1"]
-    ; ins = []
-    ; p = [par "option" TOption; par "error" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Result::fromOption_v1"]
+    ; infix_names = []
+    ; parameters = [par "option" TOption; par "error" TStr]
+    ; return_type = TResult
+    ; description =
         "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just value`, returns `Ok value`. Returns `Error error` otherwise."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DOption o; DStr error] ->
@@ -140,14 +140,14 @@ let fns : Lib.shortfn list =
                 Dval.to_res_err (DStr error) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::toOption"]
-    ; ins = []
-    ; p = [par "result" TResult]
-    ; r = TAny
-    ; d = "Turn a result into an option."
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Result::toOption"]
+    ; infix_names = []
+    ; parameters = [par "result" TResult]
+    ; return_type = TAny
+    ; description = "Turn a result into an option."
+    ; func =
         InProcess
           (function
           | _, [DResult o] ->
@@ -158,14 +158,14 @@ let fns : Lib.shortfn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::toOption_v1"]
-    ; ins = []
-    ; p = [par "result" TResult]
-    ; r = TAny
-    ; d = "Turn a result into an option."
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Result::toOption_v1"]
+    ; infix_names = []
+    ; parameters = [par "result" TResult]
+    ; return_type = TAny
+    ; description = "Turn a result into an option."
+    ; func =
         InProcess
           (function
           | _, [DResult o] ->
@@ -176,15 +176,15 @@ let fns : Lib.shortfn list =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::andThen"]
-    ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Result::andThen"]
+    ; infix_names = []
+    ; parameters = [par "result" TResult; func ["val"]]
+    ; return_type = TResult
+    ; description =
         "If `result` is `Ok value`, returns `f value` (the lambda `f` is applied to `value` and must return `Error msg` or `Ok newValue`). If `result` is `Error msg`, returns `result` unchanged."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DResult o; DBlock b] ->
@@ -203,15 +203,15 @@ let fns : Lib.shortfn list =
                 DResult (ResError msg) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::andThen_v1"]
-    ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Result::andThen_v1"]
+    ; infix_names = []
+    ; parameters = [par "result" TResult; func ["val"]]
+    ; return_type = TResult
+    ; description =
         "If `result` is `Ok value`, returns `f value` (the lambda `f` is applied to `value` and must return `Error msg` or `Ok newValue`). If `result` is `Error msg`, returns `result` unchanged."
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DResult o; DBlock b] ->
@@ -232,5 +232,5 @@ let fns : Lib.shortfn list =
                 DResult (ResError msg) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_safety = Safe
+    ; deprecated = false } ]

@@ -6,13 +6,13 @@ open Libexecution.Lib
 module Unicode_string = Libexecution.Unicode_string
 module Dval = Libexecution.Dval
 
-let fns : shortfn list =
-  [ { pns = ["StaticAssets::baseUrlFor"]
-    ; ins = []
-    ; p = [par "deploy_hash" TStr]
-    ; r = TStr
-    ; d = "Return the baseUrl for the specified deploy hash"
-    ; f =
+let fns : fn list =
+  [ { prefix_names = ["StaticAssets::baseUrlFor"]
+    ; infix_names = []
+    ; parameters = [par "deploy_hash" TStr]
+    ; return_type = TStr
+    ; description = "Return the baseUrl for the specified deploy hash"
+    ; func =
         InProcess
           (function
           | state, [DStr deploy_hash] ->
@@ -20,14 +20,14 @@ let fns : shortfn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::baseUrlForLatest"]
-    ; ins = []
-    ; p = []
-    ; r = TStr
-    ; d = "Return the baseUrl for the latest deploy"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["StaticAssets::baseUrlForLatest"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TStr
+    ; description = "Return the baseUrl for the latest deploy"
+    ; func =
         InProcess
           (function
           | state, [] ->
@@ -35,14 +35,14 @@ let fns : shortfn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::urlFor"]
-    ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
-    ; r = TStr
-    ; d = "Return a url for the specified file and deploy hash"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["StaticAssets::urlFor"]
+    ; infix_names = []
+    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+    ; return_type = TStr
+    ; description = "Return a url for the specified file and deploy hash"
+    ; func =
         InProcess
           (function
           | state, [DStr deploy_hash; DStr file] ->
@@ -54,14 +54,14 @@ let fns : shortfn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::urlForLatest"]
-    ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TStr
-    ; d = "Return a url for the specified file and latest deploy"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["StaticAssets::urlForLatest"]
+    ; infix_names = []
+    ; parameters = [par "file" TStr]
+    ; return_type = TStr
+    ; description = "Return a url for the specified file and latest deploy"
+    ; func =
         InProcess
           (function
           | state, [DStr file] ->
@@ -73,15 +73,15 @@ let fns : shortfn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::fetch"]
-    ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["StaticAssets::fetch"]
+    ; infix_names = []
+    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+    ; return_type = TResult
+    ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DStr deploy_hash; DStr file] ->
@@ -107,15 +107,15 @@ UTF-8 safe"))
               )
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["StaticAssets::fetch_v1"]
-    ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["StaticAssets::fetch_v1"]
+    ; infix_names = []
+    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+    ; return_type = TResult
+    ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DStr deploy_hash; DStr file] ->
@@ -138,14 +138,15 @@ UTF-8 safe"))
                     (Dval.dstr_of_string_exn "Response was not UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::fetchBytes"]
-    ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
-    ; r = TResult
-    ; d = "Return the bytes of the specified file from the deploy_hash"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["StaticAssets::fetchBytes"]
+    ; infix_names = []
+    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+    ; return_type = TResult
+    ; description =
+        "Return the bytes of the specified file from the deploy_hash"
+    ; func =
         InProcess
           (function
           | state, [DStr deploy_hash; DStr file] ->
@@ -167,15 +168,15 @@ UTF-8 safe"))
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::fetchLatest"]
-    ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["StaticAssets::fetchLatest"]
+    ; infix_names = []
+    ; parameters = [par "file" TStr]
+    ; return_type = TResult
+    ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DStr file] ->
@@ -201,15 +202,15 @@ UTF-8 safe"))
               )
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["StaticAssets::fetchLatest_v1"]
-    ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["StaticAssets::fetchLatest_v1"]
+    ; infix_names = []
+    ; parameters = [par "file" TStr]
+    ; return_type = TResult
+    ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DStr file] ->
@@ -233,14 +234,15 @@ UTF-8 safe"))
 UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::fetchLatestBytes"]
-    ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TResult
-    ; d = "Return the bytes of the specified file from the latest deploy"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["StaticAssets::fetchLatestBytes"]
+    ; infix_names = []
+    ; parameters = [par "file" TStr]
+    ; return_type = TResult
+    ; description =
+        "Return the bytes of the specified file from the latest deploy"
+    ; func =
         InProcess
           (function
           | state, [DStr file] ->
@@ -262,15 +264,15 @@ UTF-8 safe") )
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::serve"]
-    ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["StaticAssets::serve"]
+    ; infix_names = []
+    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+    ; return_type = TResult
+    ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DStr deploy_hash; DStr file] ->
@@ -281,7 +283,7 @@ UTF-8 safe") )
                   `Short
                   (Unicode_string.to_string file)
               in
-              let body, code, headers, _error =
+              let body, code, headers, _erroreturn_type =
                 Httpclient.http_call_with_code url [] Httpclient.GET [] ""
               in
               let headers =
@@ -316,14 +318,14 @@ UTF-8 safe") )
               )
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["StaticAssets::serve_v1"]
-    ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
-    ; r = TResult
-    ; d = "Return the specified file from the latest deploy"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["StaticAssets::serve_v1"]
+    ; infix_names = []
+    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+    ; return_type = TResult
+    ; description = "Return the specified file from the latest deploy"
+    ; func =
         InProcess
           (function
           | state, [DStr deploy_hash; DStr file] ->
@@ -334,7 +336,7 @@ UTF-8 safe") )
                   `Short
                   (Unicode_string.to_string file)
               in
-              let body, code, headers, _error =
+              let body, code, headers, _erroreturn_type =
                 Httpclient.http_call_with_code
                   ~raw_bytes:true
                   url
@@ -371,15 +373,15 @@ UTF-8 safe") )
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::serveLatest"]
-    ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["StaticAssets::serveLatest"]
+    ; infix_names = []
+    ; parameters = [par "file" TStr]
+    ; return_type = TResult
+    ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DStr file] ->
@@ -390,7 +392,7 @@ UTF-8 safe") )
                   `Short
                   (Unicode_string.to_string file)
               in
-              let body, code, headers, _error =
+              let body, code, headers, _erroreturn_type =
                 Httpclient.http_call_with_code
                   ~raw_bytes:true
                   url
@@ -427,14 +429,14 @@ UTF-8 safe") )
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["StaticAssets::serveLatest_v1"]
-    ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TResult
-    ; d = "Return the specified file from the latest deploy"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["StaticAssets::serveLatest_v1"]
+    ; infix_names = []
+    ; parameters = [par "file" TStr]
+    ; return_type = TResult
+    ; description = "Return the specified file from the latest deploy"
+    ; func =
         InProcess
           (function
           | state, [DStr file] ->
@@ -445,7 +447,7 @@ UTF-8 safe") )
                   `Short
                   (Unicode_string.to_string file)
               in
-              let body, code, headers, _error =
+              let body, code, headers, _erroreturn_type =
                 Httpclient.http_call_with_code
                   ~raw_bytes:true
                   url
@@ -482,5 +484,5 @@ UTF-8 safe") )
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
               Libexecution.Lib.fail args)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_safety = Unsafe
+    ; deprecated = false } ]

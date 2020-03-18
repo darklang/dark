@@ -46,7 +46,7 @@ let sampleFunctions : function_ list =
                  ; paramOptional = false
                  ; paramDescription = "" })
          ; fnReturnTipe
-         ; fnPreviewExecutionSafe = false
+         ; fnPreviewSafety = Unsafe
          ; fnDescription = ""
          ; fnInfix = true
          ; fnDeprecated = fnName = "Some::deprecated" })

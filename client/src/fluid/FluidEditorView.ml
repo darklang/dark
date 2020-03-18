@@ -23,8 +23,8 @@ let stateToFnExecutionState (s : state) : ViewFnExecution.state =
 
 let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
   match ViewUtils.fnForToken s.fluidState ti.token with
-  | Some fn when not fn.fnPreviewExecutionSafe ->
-      (* Looking these up can be slow, so the fnPreviewExecutionSafe check
+  | Some ({fnPreviewSafety = Unsafe; _} as fn) ->
+      (* Looking these up can be slow, so the fnPreviewSafety check
        * above is very important *)
       let allExprs = AST.getArguments (FluidToken.tid ti.token) s.ast in
       let argIDs = List.map ~f:FluidExpression.toID allExprs in
@@ -45,7 +45,7 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
             argIDs
       | _ ->
           Vdom.noNode )
-  | Some _ | None ->
+  | Some {fnPreviewSafety = Safe; _} | None ->
       Vdom.noNode
 
 

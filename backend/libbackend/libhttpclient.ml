@@ -135,410 +135,418 @@ let call_no_body verb json_fn =
         fail args)
 
 
-let fns : shortfn list =
-  [ { pns = ["HttpClient::post"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
-    ; f =
+let fns : fn list =
+  [ { prefix_names = ["HttpClient::post"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description =
+        "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.POST
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::put"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::put"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description =
+        "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PUT
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::get"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::get"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description =
+        "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.GET
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::delete"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::delete"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description =
+        "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.DELETE
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::options"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::options"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description =
+        "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.OPTIONS
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::head"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::head"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description =
+        "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.HEAD
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::patch"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::patch"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description =
+        "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PATCH
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::post_v1"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP POST call to `uri`"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::post_v1"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description = "Make blocking HTTP POST call to `uri`"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::put_v1"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP PUT call to `uri`"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::put_v1"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description = "Make blocking HTTP PUT call to `uri`"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::get_v1"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TObj
-    ; d = "Make blocking HTTP GET call to `uri`"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::get_v1"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TObj
+    ; description = "Make blocking HTTP GET call to `uri`"
+    ; func =
         Legacy.LibhttpclientV0.call_no_body
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::delete_v1"]
-    ; ins =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::delete_v1"]
+    ; infix_names =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
-    ; p = params_no_body
-    ; r = TObj
-    ; d = "Make blocking HTTP DELETE call to `uri`"
-    ; f =
+    ; parameters = params_no_body
+    ; return_type = TObj
+    ; description = "Make blocking HTTP DELETE call to `uri`"
+    ; func =
         Legacy.LibhttpclientV0.call_no_body
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::options_v1"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TObj
-    ; d = "Make blocking HTTP OPTIONS call to `uri`"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::options_v1"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TObj
+    ; description = "Make blocking HTTP OPTIONS call to `uri`"
+    ; func =
         Legacy.LibhttpclientV0.call_no_body
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::head_v1"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TObj
-    ; d = "Make blocking HTTP HEAD call to `uri`"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::head_v1"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TObj
+    ; description = "Make blocking HTTP HEAD call to `uri`"
+    ; func =
         Legacy.LibhttpclientV0.call_no_body
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::patch_v1"]
-    ; ins = []
-    ; p = params
-    ; r = TObj
-    ; d = "Make blocking HTTP PATCH call to `uri`"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::patch_v1"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TObj
+    ; description = "Make blocking HTTP PATCH call to `uri`"
+    ; func =
         Legacy.LibhttpclientV0.call
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::post_v2"]
-    ; ins = []
-    ; p = params
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::post_v2"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV0.wrapped_call
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::put_v2"]
-    ; ins = []
-    ; p = params
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::put_v2"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV0.wrapped_call
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::get_v2"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::get_v2"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV0.wrapped_call_no_body
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::delete_v2"]
-    ; ins =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::delete_v2"]
+    ; infix_names =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV0.wrapped_call_no_body
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::options_v2"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::options_v2"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV0.wrapped_call_no_body
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::head_v2"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::head_v2"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV0.wrapped_call_no_body
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::patch_v2"]
-    ; ins = []
-    ; p = params
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::patch_v2"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV0.wrapped_call
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::post_v3"]
-    ; ins = []
-    ; p = params
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::post_v3"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV1.call
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::put_v3"]
-    ; ins = []
-    ; p = params
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::put_v3"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV1.call
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::get_v3"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::get_v3"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV1.call_no_body
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::delete_v3"]
-    ; ins =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::delete_v3"]
+    ; infix_names =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV1.call_no_body
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::options_v3"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::options_v3"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV1.call_no_body
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::head_v3"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::head_v3"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV1.call_no_body
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::patch_v3"]
-    ; ins = []
-    ; p = params
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::patch_v3"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f =
+    ; func =
         Legacy.LibhttpclientV1.call
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["HttpClient::post_v4"]
-    ; ins = []
-    ; p = params
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::post_v4"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f = call Httpclient.POST Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["HttpClient::put_v4"]
-    ; ins = []
-    ; p = params
-    ; r = TResult
-    ; d =
+    ; func = call Httpclient.POST Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::put_v4"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f = call Httpclient.PUT Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["HttpClient::get_v4"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; func = call Httpclient.PUT Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::get_v4"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f = call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["HttpClient::delete_v4"]
-    ; ins =
+    ; func = call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::delete_v4"]
+    ; infix_names =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f = call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["HttpClient::options_v4"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; func = call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::options_v4"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f = call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["HttpClient::head_v4"]
-    ; ins = []
-    ; p = params_no_body
-    ; r = TResult
-    ; d =
+    ; func = call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::head_v4"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f = call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["HttpClient::patch_v4"]
-    ; ins = []
-    ; p = params
-    ; r = TResult
-    ; d =
+    ; func = call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::patch_v4"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; f = call Httpclient.PATCH Dval.to_pretty_machine_json_v1
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["HttpClient::basicAuth"]
-    ; ins = []
-    ; p = [par "username" TStr; par "password" TStr]
-    ; r = TObj
-    ; d = "Returns an object with 'Authorization' created using HTTP basic auth"
-    ; f =
+    ; func = call Httpclient.PATCH Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::basicAuth"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr; par "password" TStr]
+    ; return_type = TObj
+    ; description =
+        "Returns an object with 'Authorization' created using HTTP basic auth"
+    ; func =
         InProcess
           (function
           | _, [DStr u; DStr p] ->
@@ -548,5 +556,5 @@ let fns : shortfn list =
                    (DStr (encode_basic_auth u p)))
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_safety = Unsafe
+    ; deprecated = false } ]

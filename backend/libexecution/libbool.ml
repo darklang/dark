@@ -3,78 +3,76 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : Lib.shortfn list =
-  [ { pns = ["Bool::not"]
-    ; ins = []
-    ; p = [par "b" TBool]
-    ; r = TBool
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["Bool::not"]
+    ; infix_names = []
+    ; parameters = [par "b" TBool]
+    ; return_type = TBool
+    ; description =
         "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
-    ; f =
+    ; func =
         InProcess (function _, [DBool b] -> DBool (not b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Bool::and"]
-    ; ins = ["&&"]
-    ; p = [par "a" TBool; par "b" TBool]
-    ; r = TBool
-    ; d =
-        "Returns `true` if both `a` and `b` are true. Returns `false` otherwise."
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Bool::and"]
+    ; infix_names = ["&&"]
+    ; parameters = [par "a" TBool; par "b" TBool]
+    ; return_type = TBool
+    ; description = "Returns true if both a and b are true"
+    ; func =
         InProcess
           (function
           | _, [DBool a; DBool b] -> DBool (a && b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Bool::or"]
-    ; ins = ["||"]
-    ; p = [par "a" TBool; par "b" TBool]
-    ; r = TBool
-    ; d =
-        "Returns `true` if `a`, `b`, or both are `true`. Returns `false` otherwise."
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Bool::or"]
+    ; infix_names = ["||"]
+    ; parameters = [par "a" TBool; par "b" TBool]
+    ; return_type = TBool
+    ; description = "Returns true if either a is true or b is true"
+    ; func =
         InProcess
           (function
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Bool::xor"]
-    ; ins = []
-    ; p = [par "a" TBool; par "b" TBool]
-    ; r = TBool
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Bool::xor"]
+    ; infix_names = []
+    ; parameters = [par "a" TBool; par "b" TBool]
+    ; return_type = TBool
+    ; description =
         "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DBool a; DBool b] -> DBool (a <> b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Bool::isNull"]
-    ; ins = []
-    ; p = [par "check" TAny]
-    ; r = TBool
-    ; d = "Returns `true` if the `check` parameter is `null`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Bool::isNull"]
+    ; infix_names = []
+    ; parameters = [par "check" TAny]
+    ; return_type = TBool
+    ; description = "Returns true if the `check` parameter is null"
+    ; func =
         InProcess
           (function
           | _, [value] ->
             (match value with DNull -> DBool true | _ -> DBool false)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Bool::isError"]
-    ; ins = []
-    ; p = [par "check" TAny]
-    ; r = TBool
-    ; d = "Returns `true` if the `check` parameter is some `Error msg`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Bool::isError"]
+    ; infix_names = []
+    ; parameters = [par "check" TAny]
+    ; return_type = TBool
+    ; description = "Returns `true` if the `check` parameter is an error"
+    ; func =
         InProcess
           (function
           | _, [value] ->
             (match value with DError _ -> DBool true | _ -> DBool false)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true } ]
+    ; preview_safety = Safe
+    ; deprecated = true } ]

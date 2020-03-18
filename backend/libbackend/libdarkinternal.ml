@@ -50,23 +50,23 @@ let modify_schedule fn =
           fail args)
 
 
-let fns : Lib.shortfn list =
-  [ { pns = ["DarkInternal::checkAccess"]
-    ; ins = []
-    ; p = []
-    ; r = TNull
-    ; d = "TODO"
-    ; f = internal_fn (fun _ -> DNull)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::endUsers"]
-    ; ins = []
-    ; p = []
-    ; r = TList
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["DarkInternal::checkAccess"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TNull
+    ; description = "TODO"
+    ; func = internal_fn (fun _ -> DNull)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::endUsers"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TList
+    ; description =
         "Return a list of all user email addresses for non-admins and not in
 @darklang.com or @example.com"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [] ->
                 Db.fetch
@@ -83,65 +83,65 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 |> DList
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::checkAllCanvases"]
-    ; ins = []
-    ; p = []
-    ; r = TNull
-    ; d = "TODO"
-    ; f = internal_fn (fun _ -> DNull)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DarkInternal::migrateAllCanvases"]
-    ; ins = []
-    ; p = []
-    ; r = TNull
-    ; d = "REMOVED"
-    ; f = internal_fn (fun _ -> DNull)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DarkInternal::cleanupOldTraces"]
-    ; ins = []
-    ; p = []
-    ; r = TNull
-    ; d = "Deprecated, use v1"
-    ; f = internal_fn (fun _ -> DNull)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DarkInternal::cleanupOldTraces_v1"]
-    ; ins = []
-    ; p = []
-    ; r = TFloat
-    ; d = "Cleanup the old traces from a canvas"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::checkAllCanvases"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TNull
+    ; description = "TODO"
+    ; func = internal_fn (fun _ -> DNull)
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DarkInternal::migrateAllCanvases"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TNull
+    ; description = "REMOVED"
+    ; func = internal_fn (fun _ -> DNull)
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DarkInternal::cleanupOldTraces"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TNull
+    ; description = "Deprecated, use v1"
+    ; func = internal_fn (fun _ -> DNull)
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DarkInternal::cleanupOldTraces_v1"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TFloat
+    ; description = "Cleanup the old traces from a canvas"
+    ; func =
         internal_fn (function
             | state, [] ->
                 DFloat (Canvas.cleanup_old_traces ())
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::cleanupOldTracesForCanvas_v1"]
-    ; ins = []
-    ; p = [par "canvas_id" TUuid]
-    ; r = TFloat
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::cleanupOldTracesForCanvas_v1"]
+    ; infix_names = []
+    ; parameters = [par "canvas_id" TUuid]
+    ; return_type = TFloat
+    ; description =
         "Cleanup the old traces for a specific canvas. Returns elapsed time in ms."
-    ; f =
+    ; func =
         internal_fn (function
             | state, [DUuid canvas_id] ->
                 DFloat (Canvas.cleanup_old_traces_for_canvas canvas_id)
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::checkCanvas"]
-    ; ins = []
-    ; p = [par "host" TStr]
-    ; r = TBool
-    ; d = "Validate the canvas' opcodes"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::checkCanvas"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr]
+    ; return_type = TBool
+    ; description = "Validate the canvas' opcodes"
+    ; func =
         internal_fn (function
             | state, [DStr host] ->
                 let open Prelude.Result in
@@ -152,14 +152,14 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DBool false )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::migrateCanvas"]
-    ; ins = []
-    ; p = [par "host" TStr]
-    ; r = TResult
-    ; d = "Migrate a canvas' opcodes"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::migrateCanvas"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr]
+    ; return_type = TResult
+    ; description = "Migrate a canvas' opcodes"
+    ; func =
         internal_fn (function
             | state, [DStr host] ->
                 let open Prelude.Result in
@@ -170,15 +170,15 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::upsertUser"]
-    ; ins = []
-    ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
-    ; r = TStr
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::upsertUser"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr; par "email" TStr; par "name" TStr]
+    ; return_type = TStr
+    ; description =
         "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name] ->
                 let username = Unicode_string.to_string username in
@@ -192,17 +192,17 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     Exception.code msg )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DarkInternal::insertUser_v1"]
-    ; ins = []
-    ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DarkInternal::insertUser_v1"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr; par "email" TStr; par "name" TStr]
+    ; return_type = TResult
+    ; description =
         "Add a user. Returns a result containing the password for the user,
 which was randomly generated. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name] ->
                 let username = Unicode_string.to_string username in
@@ -221,21 +221,21 @@ that's already taken, returns an error."
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DarkInternal::insertUser_v2"]
-    ; ins = []
-    ; p =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DarkInternal::insertUser_v2"]
+    ; infix_names = []
+    ; parameters =
         [ par "username" TStr
         ; par "email" TStr
         ; par "name" TStr
         ; par "segment_metadata" TObj ]
-    ; r = TResult
-    ; d =
+    ; return_type = TResult
+    ; description =
         "Add a user. Returns a result containing the password for the user,
 which was randomly generated. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name; DObj segment_metadata]
               ->
@@ -260,15 +260,15 @@ that's already taken, returns an error."
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::upsertUser_v1"]
-    ; ins = []
-    ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::upsertUser_v1"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr; par "email" TStr; par "name" TStr]
+    ; return_type = TResult
+    ; description =
         "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name] ->
                 let username = Unicode_string.to_string username in
@@ -287,14 +287,15 @@ that's already taken, returns an error."
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::getUser"]
-    ; ins = []
-    ; p = [par "username" TStr]
-    ; r = TOption
-    ; d = "Return a user for the username. Does not include passwords."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::getUser"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr]
+    ; return_type = TOption
+    ; description =
+        "Return a user for the username. Does not include passwords."
+    ; func =
         internal_fn (function
             | _, [DStr username] ->
                 let info =
@@ -312,14 +313,15 @@ that's already taken, returns an error."
                             ; ("email", Dval.dstr_of_string_exn email) ])) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DarkInternal::getUser_v1"]
-    ; ins = []
-    ; p = [par "username" TStr]
-    ; r = TOption
-    ; d = "Return a user for the username. Does not include passwords."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DarkInternal::getUser_v1"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr]
+    ; return_type = TOption
+    ; description =
+        "Return a user for the username. Does not include passwords."
+    ; func =
         internal_fn (function
             | _, [DStr username] ->
                 let info =
@@ -338,14 +340,14 @@ that's already taken, returns an error."
                             ; ("admin", DBool admin) ])) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::getUserByEmail"]
-    ; ins = []
-    ; p = [par "email" TStr]
-    ; r = TOption
-    ; d = "Return a user for the email. Does not include passwords."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::getUserByEmail"]
+    ; infix_names = []
+    ; parameters = [par "email" TStr]
+    ; return_type = TOption
+    ; description = "Return a user for the email. Does not include passwords."
+    ; func =
         internal_fn (function
             | _, [DStr email] ->
                 let info =
@@ -364,14 +366,14 @@ that's already taken, returns an error."
                             ; ("admin", DBool admin) ])) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::setAdmin"]
-    ; ins = []
-    ; p = [par "username" TStr; par "admin" TBool]
-    ; r = TNull
-    ; d = "Set whether a user is an admin. Returns null."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::setAdmin"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr; par "admin" TBool]
+    ; return_type = TNull
+    ; description = "Set whether a user is an admin. Returns null."
+    ; func =
         internal_fn (function
             | _, [DStr username; DBool admin] ->
                 let username = Unicode_string.to_string username in
@@ -380,14 +382,14 @@ that's already taken, returns an error."
                 DNull
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::getUsers"]
-    ; ins = []
-    ; p = []
-    ; r = TList
-    ; d = "Return a list of username of all the accounts in Dark."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::getUsers"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TList
+    ; description = "Return a list of username of all the accounts in Dark."
+    ; func =
         internal_fn (function
             | _, [] ->
                 Account.get_users ()
@@ -395,27 +397,27 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::getAllCanvases"]
-    ; ins = []
-    ; p = []
-    ; r = TList
-    ; d = "TODO"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::getAllCanvases"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TList
+    ; description = "TODO"
+    ; func =
         internal_fn (fun _ ->
             Serialize.current_hosts ()
             |> List.map ~f:Dval.dstr_of_string_exn
             |> DList)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::canvasesFor"]
-    ; ins = []
-    ; p = [par "account" TStr]
-    ; r = TList
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::canvasesFor"]
+    ; infix_names = []
+    ; parameters = [par "account" TStr]
+    ; return_type = TList
+    ; description =
         "Returns a list of all canvases owned by a particular account (user OR org)"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr account] ->
                 Serialize.hosts_for (Unicode_string.to_string account)
@@ -423,14 +425,14 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::schema"]
-    ; ins = []
-    ; p = [par "host" TStr; par "dbid" TStr]
-    ; r = TObj
-    ; d = "Return a schema for the db"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::schema"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr; par "dbid" TStr]
+    ; return_type = TObj
+    ; description = "Return a schema for the db"
+    ; func =
         internal_fn (function
             | _, [DStr canvas_name; DStr tlid] ->
                 let tlid = Unicode_string.to_string tlid in
@@ -465,28 +467,28 @@ that's already taken, returns an error."
                     Dval.to_dobj_exn [] )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::canvasAsText"]
-    ; ins = []
-    ; p = [par "host" TStr]
-    ; r = TStr
-    ; d = "TODO"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::canvasAsText"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr]
+    ; return_type = TStr
+    ; description = "TODO"
+    ; func =
         internal_fn (function
             | _, [DStr host] ->
                 Dval.dstr_of_string_exn
                   (Canvas.to_string (Unicode_string.to_string host))
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::handlers"]
-    ; ins = []
-    ; p = [par "host" TStr]
-    ; r = TList
-    ; d = "Returns a list of toplevel ids of handlers in `host`"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::handlers"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr]
+    ; return_type = TList
+    ; description = "Returns a list of toplevel ids of handlers in `host`"
+    ; func =
         internal_fn (function
             | _, [DStr host] ->
                 let c =
@@ -503,14 +505,14 @@ that's already taken, returns an error."
                 |> fun l -> DList l
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::functions"]
-    ; ins = []
-    ; p = [par "host" TStr]
-    ; r = TList
-    ; d = "Returns a list of toplevel ids of the functions in `host`"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::functions"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr]
+    ; return_type = TList
+    ; description = "Returns a list of toplevel ids of the functions in `host`"
+    ; func =
         internal_fn (function
             | _, [DStr host] ->
                 let c =
@@ -526,15 +528,15 @@ that's already taken, returns an error."
                 |> fun l -> DList l
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::canLoadTraces"]
-    ; ins = []
-    ; p = [par "host" TStr; par "tlid" TStr]
-    ; r = TBool
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::canLoadTraces"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr; par "tlid" TStr]
+    ; return_type = TBool
+    ; description =
         "Takes a `host` and a `tlid` and returns true iff. we can load+parse traces for the handler identified by `tlid`, and false otherwise"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr host; DStr tlid] ->
               ( try
@@ -564,15 +566,15 @@ that's already taken, returns an error."
                 with _ -> DBool false )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::getCORSSetting"]
-    ; ins = []
-    ; p = [par "canvas" TStr]
-    ; r = TOption
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::getCORSSetting"]
+    ; infix_names = []
+    ; parameters = [par "canvas" TStr]
+    ; return_type = TOption
+    ; description =
         "Given the full canvas name (including the username), get that canvas' global CORS setting."
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr host] ->
                 let cors_setting_to_dval (setting : Canvas.cors_setting option)
@@ -597,15 +599,15 @@ that's already taken, returns an error."
                 !canvas.cors_setting |> cors_setting_to_dval
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::setCORSSetting"]
-    ; ins = []
-    ; p = [par "canvas" TStr; par "origins" TOption]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::setCORSSetting"]
+    ; infix_names = []
+    ; parameters = [par "canvas" TStr; par "origins" TOption]
+    ; return_type = TResult
+    ; description =
         "Given the full canvas name (including the username) and an Option of either \"*\" or a list of string origins, set that value to that canvas' global CORS setting, so that it will be used in Access-Control-Allow-Origin response headers. Returns true if it worked and false if it didn't (likely meaning: the Dark value you passed in was invalid)."
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr host; DOption s] ->
                 let cors_setting (opt : optionT) :
@@ -645,14 +647,14 @@ that's already taken, returns an error."
                     s |> DOption |> ResOk |> DResult )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::dbs"]
-    ; ins = []
-    ; p = [par "host" TStr]
-    ; r = TList
-    ; d = "Returns a list of toplevel ids of dbs in `host`"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::dbs"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr]
+    ; return_type = TList
+    ; description = "Returns a list of toplevel ids of dbs in `host`"
+    ; func =
         internal_fn (function
             | _, [DStr host] ->
                 let db_tlids =
@@ -660,7 +662,7 @@ that's already taken, returns an error."
                     ~name:"dbs_in_canvas"
                     "SELECT tlid
                      FROM toplevel_oplists
-                     JOIN canvases ON canvases.id = canvas_id
+                     JOIN canvases ON canvases.idescription = canvas_id
                      WHERE canvases.name = $1 AND tipe = 'db'"
                     ~params:[String (Unicode_string.to_string host)]
                   |> List.fold ~init:[] ~f:(fun acc e -> e @ acc)
@@ -670,15 +672,15 @@ that's already taken, returns an error."
                 |> fun l -> DList l
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::oplistInfo"]
-    ; ins = []
-    ; p = [par "host" TStr; par "tlid" TStr]
-    ; r = TObj
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::oplistInfo"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr; par "tlid" TStr]
+    ; return_type = TObj
+    ; description =
         "Returns the information from the toplevel_oplists table for the (host, tlid)"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr host; DStr tlid_str] ->
                 let account =
@@ -733,15 +735,15 @@ that's already taken, returns an error."
                 |> fun o -> DObj o
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::storedEvents"]
-    ; ins = []
-    ; p = [par "host" TStr; par "tlid" TStr]
-    ; r = TOption
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::storedEvents"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr; par "tlid" TStr]
+    ; return_type = TOption
+    ; description =
         "Returns Just most recent stored events for the tlid if it is a handleror Nothing if it is not"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr host; DStr tlid_str] ->
                 let tlid =
@@ -782,14 +784,14 @@ that's already taken, returns an error."
                     DOption (OptJust event_list) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::pushStrollerEvent"]
-    ; ins = []
-    ; p = [par "canvas_id" TStr; par "event" TStr; par "payload" TObj]
-    ; r = TResult
-    ; d = "Pushes an event to Stroller"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::pushStrollerEvent"]
+    ; infix_names = []
+    ; parameters = [par "canvas_id" TStr; par "event" TStr; par "payload" TObj]
+    ; return_type = TResult
+    ; description = "Pushes an event to Stroller"
+    ; func =
         internal_fn (function
             | exec_state, [DStr canvas_id; DStr event; DObj payload] ->
               ( try
@@ -809,14 +811,14 @@ that's already taken, returns an error."
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DarkInternal::pushStrollerEvent_v1"]
-    ; ins = []
-    ; p = [par "canvas_id" TStr; par "event" TStr; par "payload" TAny]
-    ; r = TResult
-    ; d = "Pushes an event to Stroller"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DarkInternal::pushStrollerEvent_v1"]
+    ; infix_names = []
+    ; parameters = [par "canvas_id" TStr; par "event" TStr; par "payload" TAny]
+    ; return_type = TResult
+    ; description = "Pushes an event to Stroller"
+    ; func =
         internal_fn (function
             | exec_state, [DStr canvas_id; DStr event; payload] ->
               ( try
@@ -836,14 +838,14 @@ that's already taken, returns an error."
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::sessionKeyToUsername"]
-    ; ins = []
-    ; p = [par "sessionKey" TStr]
-    ; r = TOption
-    ; d = "Looks up the username for a session_key"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::sessionKeyToUsername"]
+    ; infix_names = []
+    ; parameters = [par "sessionKey" TStr]
+    ; return_type = TOption
+    ; description = "Looks up the username for a session_key"
+    ; func =
         internal_fn (function
             | _, [DStr sessionKey] ->
                 let sessionKey = sessionKey |> Unicode_string.to_string in
@@ -856,14 +858,14 @@ that's already taken, returns an error."
                     DResult (ResOk (Dval.dstr_of_string_exn username)) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::canvasIdOfCanvasName"]
-    ; ins = []
-    ; p = [par "host" TStr]
-    ; r = TOption
-    ; d = "Gives canvasId for a canvasName/host"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::canvasIdOfCanvasName"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr]
+    ; return_type = TOption
+    ; description = "Gives canvasId for a canvasName/host"
+    ; func =
         internal_fn (function
             | _, [DStr host] ->
                 let host = Unicode_string.to_string host in
@@ -878,14 +880,15 @@ that's already taken, returns an error."
                     DOption OptNothing)
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::usernameToUserInfo"]
-    ; ins = []
-    ; p = [par "username" TStr]
-    ; r = TOption
-    ; d = "Gives userinfo {username, name, admin, email} for a username"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::usernameToUserInfo"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr]
+    ; return_type = TOption
+    ; description =
+        "Gives userinfo {username, name, admin, email} for a username"
+    ; func =
         internal_fn (function
             | _, [DStr username] ->
                 let username = Unicode_string.to_string username in
@@ -903,14 +906,14 @@ that's already taken, returns an error."
                     |> DOption )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::grant"]
-    ; ins = []
-    ; p = [par "username" TStr; par "org" TStr; par "permission" TStr]
-    ; r = TResult
-    ; d = "Set a user's permissions for a particular auth_domain."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::grant"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr; par "org" TStr; par "permission" TStr]
+    ; return_type = TResult
+    ; description = "Set a user's permissions for a particular auth_domain."
+    ; func =
         internal_fn (function
             | _, [DStr username; DStr org; DStr permission] ->
                 let result_to_dval r =
@@ -952,15 +955,15 @@ that's already taken, returns an error."
                 |> result_to_dval
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::grantsFor"]
-    ; ins = []
-    ; p = [par "org" TStr]
-    ; r = TObj
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::grantsFor"]
+    ; infix_names = []
+    ; parameters = [par "org" TStr]
+    ; return_type = TObj
+    ; description =
         "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr org] ->
                 let grants =
@@ -979,15 +982,15 @@ that's already taken, returns an error."
                 |> fun obj -> DObj obj
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::orgsFor"]
-    ; ins = []
-    ; p = [par "username" TStr]
-    ; r = TObj
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::orgsFor"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr]
+    ; return_type = TObj
+    ; description =
         "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr username] ->
                 let orgs =
@@ -1006,14 +1009,14 @@ that's already taken, returns an error."
                 |> fun obj -> DObj obj
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::checkPermission"]
-    ; ins = []
-    ; p = [par "username" TStr; par "canvas" TStr]
-    ; r = TBool
-    ; d = "Check a user's permissions for a particular canvas."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::checkPermission"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr; par "canvas" TStr]
+    ; return_type = TBool
+    ; description = "Check a user's permissions for a particular canvas."
+    ; func =
         internal_fn (function
             | _, [DStr username; DStr canvas] ->
                 let auth_domain =
@@ -1028,15 +1031,15 @@ that's already taken, returns an error."
                 |> Dval.dstr_of_string_exn
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::log"]
-    ; ins = []
-    ; p = [par "level" TStr; par "name" TStr; par "log" TObj]
-    ; r = TObj
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::log"]
+    ; infix_names = []
+    ; parameters = [par "level" TStr; par "name" TStr; par "log" TObj]
+    ; return_type = TObj
+    ; description =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr level; DStr name; DObj log] ->
                 let name = name |> Unicode_string.to_string in
@@ -1086,15 +1089,15 @@ that's already taken, returns an error."
                 DObj log
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::fnsUsed"]
-    ; ins = []
-    ; p = [par "host" TStr; par "tlid" TStr]
-    ; r = TList
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::fnsUsed"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr; par "tlid" TStr]
+    ; return_type = TList
+    ; description =
         "Iterates through all ops of the AST, returning for each op a list of the functions used in that op. The last value will be the functions currently used."
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr host; DStr tlid] ->
                 let host = Unicode_string.to_string host in
@@ -1117,15 +1120,15 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::fieldNamesUsed"]
-    ; ins = []
-    ; p = [par "host" TStr; par "tlid" TStr]
-    ; r = TList
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::fieldNamesUsed"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr; par "tlid" TStr]
+    ; return_type = TList
+    ; description =
         "Iterates through all ops of the AST, returning for each op a list of the field names used in that op. The last value will be the fieldnames in the current code."
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr host; DStr tlid] ->
                 let host = Unicode_string.to_string host in
@@ -1148,14 +1151,15 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::fnMetadata"]
-    ; ins = []
-    ; p = [par "name" TStr]
-    ; r = TResult
-    ; d = "Returns an object with the metadata of the built-in function name"
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::fnMetadata"]
+    ; infix_names = []
+    ; parameters = [par "name" TStr]
+    ; return_type = TResult
+    ; description =
+        "Returns an object with the metadata of the built-in function name"
+    ; func =
         internal_fn (function
             | _, [DStr fnname] ->
                 let fnname = Unicode_string.to_string fnname in
@@ -1176,15 +1180,15 @@ that's already taken, returns an error."
                 )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::allFunctions"]
-    ; ins = []
-    ; p = []
-    ; r = TList
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::allFunctions"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TList
+    ; description =
         "Returns a list of objects, representing the functions available in the standard library. Does not return DarkInternal functions"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [] ->
                 let fns =
@@ -1221,15 +1225,15 @@ that's already taken, returns an error."
                 DList fns
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::clearStaticAssets"]
-    ; ins = []
-    ; p = [par "host" TStr]
-    ; r = TNull
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::clearStaticAssets"]
+    ; infix_names = []
+    ; parameters = [par "host" TStr]
+    ; return_type = TNull
+    ; description =
         "Deletes our record of static assets for a handler. Does not delete the data from the bucket. This is a hack for making Ellen's demo easier and should not be used for other uses in this form."
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DStr host] ->
                 let host = Unicode_string.to_string host in
@@ -1239,14 +1243,14 @@ that's already taken, returns an error."
                 DNull
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::getAllSchedulingRules"]
-    ; ins = []
-    ; p = []
-    ; r = TList
-    ; d = "Returns a list of all queue scheduling rules."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::getAllSchedulingRules"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TList
+    ; description = "Returns a list of all queue scheduling rules."
+    ; func =
         internal_fn (function
             | _, [] ->
                 Event_queue.get_all_scheduling_rules ()
@@ -1254,15 +1258,15 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::getSchedulingRulesForCanvas"]
-    ; ins = []
-    ; p = [par "canvas_id" TUuid]
-    ; r = TList
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::getSchedulingRulesForCanvas"]
+    ; infix_names = []
+    ; parameters = [par "canvas_id" TUuid]
+    ; return_type = TList
+    ; description =
         "Returns a list of all queue scheduling rules for the specified canvas_id"
-    ; f =
+    ; func =
         internal_fn (function
             | _, [DUuid canvas_id] ->
                 Event_queue.get_scheduling_rules_for_canvas canvas_id
@@ -1270,33 +1274,33 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::addWorkerSchedulingBlock"]
-    ; ins = []
-    ; p = [par "canvas_id" TUuid; par "handler_name" TStr]
-    ; r = TNull
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::addWorkerSchedulingBlock"]
+    ; infix_names = []
+    ; parameters = [par "canvas_id" TUuid; par "handler_name" TStr]
+    ; return_type = TNull
+    ; description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-    ; f = modify_schedule Event_queue.block_worker
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::removeWorkerSchedulingBlock"]
-    ; ins = []
-    ; p = [par "canvas_id" TUuid; par "handler_name" TStr]
-    ; r = TNull
-    ; d =
+    ; func = modify_schedule Event_queue.block_worker
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::removeWorkerSchedulingBlock"]
+    ; infix_names = []
+    ; parameters = [par "canvas_id" TUuid; par "handler_name" TStr]
+    ; return_type = TNull
+    ; description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-    ; f = modify_schedule Event_queue.unblock_worker
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::newSessionForUsername"]
-    ; ins = []
-    ; p = [par "username" TStr]
-    ; r = TResult
-    ; d =
+    ; func = modify_schedule Event_queue.unblock_worker
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::newSessionForUsername"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr]
+    ; return_type = TResult
+    ; description =
         "If username is an existing user, puts a new session in the DB and returns the new sessionKey."
-    ; f =
+    ; func =
         internal_fn (function
             | exec_state, [DStr username] ->
                 let username = Unicode_string.to_string username in
@@ -1342,16 +1346,16 @@ that's already taken, returns an error."
                                 "Failed to create session")) ) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["DarkInternal::newSessionForUsername_v1"]
-    ; ins = []
-    ; p = [par "username" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DarkInternal::newSessionForUsername_v1"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr]
+    ; return_type = TResult
+    ; description =
         (* We need the csrf token for dark-cli to use *)
         "If username is an existing user, puts a new session in the DB and returns the new sessionKey and csrfToken."
-    ; f =
+    ; func =
         internal_fn (function
             | exec_state, [DStr username] ->
                 let username = Unicode_string.to_string username in
@@ -1405,14 +1409,15 @@ that's already taken, returns an error."
                                 "Failed to create session")) ) )
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["DarkInternal::deleteSession"]
-    ; ins = []
-    ; p = [par "session_key" TStr]
-    ; r = TInt
-    ; d = "Delete session by session_key; return number of sessions deleted."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::deleteSession"]
+    ; infix_names = []
+    ; parameters = [par "session_key" TStr]
+    ; return_type = TInt
+    ; description =
+        "Delete session by session_key; return number of sessions deleted."
+    ; func =
         internal_fn (function
             | exec_state, [DStr session_key] ->
                 let session_key = Unicode_string.to_string session_key in
@@ -1424,5 +1429,5 @@ that's already taken, returns an error."
                 |> Dval.dint
             | args ->
                 fail args)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_safety = Unsafe
+    ; deprecated = false } ]

@@ -16,23 +16,24 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 
 let ( >>| ) = Result.( >>| )
 
-let fns : Lib.shortfn list =
-  [ { pns = ["String::foreach"]
-    ; ins = []
-    ; p = [par "s" TStr; func ["char"]]
-    ; r = TStr
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["String::foreach"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr; func ["char"]]
+    ; return_type = TStr
+    ; description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
-    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::foreach_v1"]
-    ; ins = []
-    ; p = [par "s" TStr; func ["character"]]
-    ; r = TStr
-    ; d =
+    ; func =
+        InProcess (fun _ -> Exception.code "This function no longer exists.")
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::foreach_v1"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr; func ["character"]]
+    ; return_type = TStr
+    ; description =
         "Iterate over each character (EGC, not byte) in the string, performing the operation in the block on each one"
-    ; f =
+    ; func =
         InProcess
           (function
           | state, [DStr s; DBlock b] ->
@@ -67,58 +68,63 @@ let fns : Lib.shortfn list =
                   |> Result.ok_exn )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::newline"]
-    ; ins = []
-    ; p = []
-    ; r = TStr
-    ; d = "Returns a string containing a single '\n'"
-    ; f = InProcess (function _ -> DStr (Unicode_string.of_string_exn "\n"))
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::toList"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TList
-    ; d = "Returns the list of characters (byte, not EGC) in the string"
-    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::toList_v1"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TList
-    ; d = "Returns the list of characters (EGC, not byte) in the string"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::newline"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TStr
+    ; description = "Returns a string containing a single '\n'"
+    ; func =
+        InProcess (function _ -> DStr (Unicode_string.of_string_exn "\n"))
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::toList"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TList
+    ; description =
+        "Returns the list of characters (byte, not EGC) in the string"
+    ; func =
+        InProcess (fun _ -> Exception.code "This function no longer exists.")
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::toList_v1"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TList
+    ; description =
+        "Returns the list of characters (EGC, not byte) in the string"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
               DList (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::replaceAll"]
-    ; ins = []
-    ; p = [par "s" TStr; par "searchFor" TStr; par "replaceWith" TStr]
-    ; r = TStr
-    ; d = "Replace all instances on `searchFor` in `s` with `replaceWith`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::replaceAll"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr; par "searchFor" TStr; par "replaceWith" TStr]
+    ; return_type = TStr
+    ; description =
+        "Replace all instances on `searchFor` in `s` with `replaceWith`"
+    ; func =
         InProcess
           (function
           | _, [DStr s; DStr search; DStr replace] ->
               DStr (Unicode_string.replace ~search ~replace s)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::toInt"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TInt
-    ; d = "Returns the int value of the string"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::toInt"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TInt
+    ; description = "Returns the int value of the string"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -131,15 +137,15 @@ let fns : Lib.shortfn list =
                     "Expected a string with only numbers" )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::toInt_v1"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::toInt_v1"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TResult
+    ; description =
         "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -150,14 +156,14 @@ let fns : Lib.shortfn list =
                     ("Expected a string with only numbers, got " ^ utf8) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::toFloat"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TFloat
-    ; d = "Returns the float value of the string"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::toFloat"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TFloat
+    ; description = "Returns the float value of the string"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -169,14 +175,14 @@ let fns : Lib.shortfn list =
                     "Expected a string representation of an IEEE float" )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::toFloat_v1"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TResult
-    ; d = "Returns the float value of the string"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::toFloat_v1"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TResult
+    ; description = "Returns the float value of the string"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -187,14 +193,14 @@ let fns : Lib.shortfn list =
                     "Expected a string representation of an IEEE float" )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::toUppercase"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d = "Returns the string, uppercased"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::toUppercase"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description = "Returns the string, uppercased"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -202,25 +208,25 @@ let fns : Lib.shortfn list =
                 (String.uppercase (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::toUppercase_v1"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d = "Returns the string, uppercased"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::toUppercase_v1"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description = "Returns the string, uppercased"
+    ; func =
         InProcess
           (function
           | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::toLowercase"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d = "Returns the string, lowercased"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::toLowercase"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description = "Returns the string, lowercased"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -228,67 +234,67 @@ let fns : Lib.shortfn list =
                 (String.lowercase (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::toLowercase_v1"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d = "Returns the string, lowercased"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::toLowercase_v1"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description = "Returns the string, lowercased"
+    ; func =
         InProcess
           (function
           | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::length"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TInt
-    ; d = "Returns the length of the string"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::length"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TInt
+    ; description = "Returns the length of the string"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
               Dval.dint (String.length (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::length_v1"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TInt
-    ; d = "Returns the length of the string"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::length_v1"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TInt
+    ; description = "Returns the length of the string"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
               Dval.dint (Unicode_string.length s)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::append"]
-    ; ins = ["++"]
-    ; p = [par "s1" TStr; par "s2" TStr]
-    ; r = TStr
-    ; d = "Concatenates the two strings and returns the joined string"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::append"]
+    ; infix_names = ["++"]
+    ; parameters = [par "s1" TStr; par "s2" TStr]
+    ; return_type = TStr
+    ; description = "Concatenates the two strings and returns the joined string"
+    ; func =
         InProcess
           (function
           | _, [DStr s1; DStr s2] ->
               DStr (Unicode_string.append s1 s2)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::slugify"]
-    ; ins = []
-    ; p = [par "string" TStr]
-    ; r = TStr
-    ; d = "Turns a string into a slug"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::slugify"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr]
+    ; return_type = TStr
+    ; description = "Turns a string into a slug"
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -310,26 +316,26 @@ let fns : Lib.shortfn list =
               |> fun s -> DStr s
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::reverse"]
-    ; ins = []
-    ; p = [par "string" TStr]
-    ; r = TStr
-    ; d = "Reverses `string`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::reverse"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr]
+    ; return_type = TStr
+    ; description = "Reverses `string`"
+    ; func =
         InProcess
           (function
           | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::split"]
-    ; ins = []
-    ; p = [par "s" TStr; par "separator" TStr]
-    ; r = TList
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::split"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr; par "separator" TStr]
+    ; return_type = TList
+    ; description =
         "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s; DStr sep] ->
@@ -339,14 +345,14 @@ let fns : Lib.shortfn list =
               |> DList
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::join"]
-    ; ins = []
-    ; p = [par "l" TList; par "separator" TStr]
-    ; r = TStr
-    ; d = "Combines a list of strings with the provided separator"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::join"]
+    ; infix_names = []
+    ; parameters = [par "l" TList; par "separator" TStr]
+    ; return_type = TStr
+    ; description = "Combines a list of strings with the provided separator"
+    ; func =
         InProcess
           (function
           | _, [DList l; DStr sep] ->
@@ -363,22 +369,23 @@ let fns : Lib.shortfn list =
               DStr (Unicode_string.concat ~sep s)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::fromList"]
-    ; ins = []
-    ; p = [par "l" TList]
-    ; r = TStr
-    ; d = "Returns the list of characters as a string"
-    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::fromList_v1"]
-    ; ins = []
-    ; p = [par "l" TList]
-    ; r = TStr
-    ; d = "Returns the list of characters as a string"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::fromList"]
+    ; infix_names = []
+    ; parameters = [par "l" TList]
+    ; return_type = TStr
+    ; description = "Returns the list of characters as a string"
+    ; func =
+        InProcess (fun _ -> Exception.code "This function no longer exists.")
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::fromList_v1"]
+    ; infix_names = []
+    ; parameters = [par "l" TList]
+    ; return_type = TStr
+    ; description = "Returns the list of characters as a string"
+    ; func =
         InProcess
           (function
           | _, [DList l] ->
@@ -392,37 +399,38 @@ let fns : Lib.shortfn list =
                 |> Unicode_string.of_characters )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::fromChar"]
-    ; ins = []
-    ; p = [par "c" TCharacter]
-    ; r = TCharacter
-    ; d = "Converts a char to a string"
-    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::fromChar_v1"]
-    ; ins = []
-    ; p = [par "c" TCharacter]
-    ; r = TStr
-    ; d = "Converts a char to a string"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::fromChar"]
+    ; infix_names = []
+    ; parameters = [par "c" TCharacter]
+    ; return_type = TCharacter
+    ; description = "Converts a char to a string"
+    ; func =
+        InProcess (fun _ -> Exception.code "This function no longer exists.")
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::fromChar_v1"]
+    ; infix_names = []
+    ; parameters = [par "c" TCharacter]
+    ; return_type = TStr
+    ; description = "Converts a char to a string"
+    ; func =
         InProcess
           (function
           | _, [DCharacter c] ->
               DStr (Unicode_string.of_character c)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::base64Encode"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::base64Encode"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description =
         "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -433,15 +441,15 @@ let fns : Lib.shortfn list =
                    (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::base64Decode"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::base64Decode"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description =
         "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -463,16 +471,16 @@ let fns : Lib.shortfn list =
                       "Not a valid base64 string" ) )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::digest"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::digest"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description =
         "Take a string and hash it to a cryptographically-secure digest.
   Don't rely on either the size or the algorithm."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -480,15 +488,15 @@ let fns : Lib.shortfn list =
                 (Libtarget.digest384 (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::sha384"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::sha384"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description =
         "Take a string and hash it using SHA384. Please use Crypto::sha384 instead."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -496,15 +504,15 @@ let fns : Lib.shortfn list =
                 (Libtarget.digest384 (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::sha256"]
-    ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TStr
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::sha256"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TStr
+    ; description =
         "Take a string and hash it using SHA256. Please use Crypto::sha256 instead."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -512,14 +520,15 @@ let fns : Lib.shortfn list =
                 (Libtarget.digest256 (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::random"]
-    ; ins = []
-    ; p = [par "length" TInt]
-    ; r = TStr
-    ; d = "Generate a string of length `length` from random characters."
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::random"]
+    ; infix_names = []
+    ; parameters = [par "length" TInt]
+    ; return_type = TStr
+    ; description =
+        "Generate a string of length `length` from random characters."
+    ; func =
         InProcess
           (function
           | _, [DInt l] ->
@@ -529,14 +538,15 @@ let fns : Lib.shortfn list =
                 Dval.dstr_of_string_exn (Util.random_string (Dint.to_int_exn l))
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["String::random_v1"]
-    ; ins = []
-    ; p = [par "length" TInt]
-    ; r = TResult
-    ; d = "Generate a string of length `length` from random characters."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["String::random_v1"]
+    ; infix_names = []
+    ; parameters = [par "length" TInt]
+    ; return_type = TResult
+    ; description =
+        "Generate a string of length `length` from random characters."
+    ; func =
         InProcess
           (function
           | _, [DInt l] ->
@@ -549,14 +559,15 @@ let fns : Lib.shortfn list =
                         (Util.random_string (Dint.to_int_exn l))))
           | args ->
               fail args)
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["String::random_v2"]
-    ; ins = []
-    ; p = [par "length" TInt]
-    ; r = TResult
-    ; d = "Generate a string of length `length` from random characters."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["String::random_v2"]
+    ; infix_names = []
+    ; parameters = [par "length" TInt]
+    ; return_type = TResult
+    ; description =
+        "Generate a string of length `length` from random characters."
+    ; func =
         InProcess
           (function
           | _, [DInt l] ->
@@ -568,15 +579,15 @@ let fns : Lib.shortfn list =
                      (Util.random_string (Dint.to_int_exn l)))
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["String::htmlEscape"]
-    ; ins = []
-    ; p = [par "html" TStr]
-    ; r = TStr
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["String::htmlEscape"]
+    ; infix_names = []
+    ; parameters = [par "html" TStr]
+    ; return_type = TStr
+    ; description =
         "Escape an untrusted string in order to include it safely in HTML output."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -584,15 +595,15 @@ let fns : Lib.shortfn list =
                 (Util.html_escape (Unicode_string.to_string s))
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["String::toUUID"]
-    ; ins = []
-    ; p = [par "uuid" TStr]
-    ; r = TUuid
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["String::toUUID"]
+    ; infix_names = []
+    ; parameters = [par "uuid" TStr]
+    ; return_type = TUuid
+    ; description =
         "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -605,15 +616,15 @@ let fns : Lib.shortfn list =
             )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::toUUID_v1"]
-    ; ins = []
-    ; p = [par "uuid" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::toUUID_v1"]
+    ; infix_names = []
+    ; parameters = [par "uuid" TStr]
+    ; return_type = TResult
+    ; description =
         "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -626,57 +637,58 @@ let fns : Lib.shortfn list =
             )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::isSubstring"]
-    ; ins = []
-    ; p = [par "searchingFor" TStr; par "lookingIn" TStr]
-    ; r = TBool
-    ; d = "Checks if `lookingIn` contains `searchingFor`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::isSubstring"]
+    ; infix_names = []
+    ; parameters = [par "searchingFor" TStr; par "lookingIn" TStr]
+    ; return_type = TBool
+    ; description = "Checks if `lookingIn` contains `searchingFor`"
+    ; func =
         InProcess
           (function
           | _, [DStr needle; DStr haystack] ->
               DBool (Unicode_string.is_substring ~substring:needle haystack)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["String::isSubstring_v1"]
-    ; ins = []
-    ; p = [par "lookingIn" TStr; par "searchingFor" TStr]
-    ; r = TBool
-    ; d = "Checks if `lookingIn` contains `searchingFor`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::isSubstring_v1"]
+    ; infix_names = []
+    ; parameters = [par "lookingIn" TStr; par "searchingFor" TStr]
+    ; return_type = TBool
+    ; description = "Checks if `lookingIn` contains `searchingFor`"
+    ; func =
         InProcess
           (function
           | _, [DStr haystack; DStr needle] ->
               DBool (Unicode_string.is_substring ~substring:needle haystack)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::trim"]
-    ; ins = []
-    ; p = [par "str" TStr]
-    ; r = TStr
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::trim"]
+    ; infix_names = []
+    ; parameters = [par "str" TStr]
+    ; return_type = TStr
+    ; description =
         "Trims leading and trailing whitespace from `str`. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr to_trim] ->
               DStr (Unicode_string.trim to_trim)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::toBytes"]
-    ; ins = []
-    ; p = [par "str" TStr]
-    ; r = TBytes
-    ; d = "Converts the given unicode string to a utf8-encoded byte sequence."
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::toBytes"]
+    ; infix_names = []
+    ; parameters = [par "str" TStr]
+    ; return_type = TBytes
+    ; description =
+        "Converts the given unicode string to a utf8-encoded byte sequence."
+    ; func =
         InProcess
           (function
           | _, [DStr str] ->
@@ -684,33 +696,33 @@ let fns : Lib.shortfn list =
               DBytes theBytes
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::startsWith"]
-    ; ins = []
-    ; p = [par "subject" TStr; par "prefix" TStr]
-    ; r = TBool
-    ; d = "Checks if `subject` starts with `prefix`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::startsWith"]
+    ; infix_names = []
+    ; parameters = [par "subject" TStr; par "prefix" TStr]
+    ; return_type = TBool
+    ; description = "Checks if `subject` starts with `prefix`"
+    ; func =
         InProcess
           (function
           | _, [DStr subject; DStr prefix] ->
               DBool (Unicode_string.starts_with ~prefix subject)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["String::endsWith"]
-    ; ins = []
-    ; p = [par "subject" TStr; par "suffix" TStr]
-    ; r = TBool
-    ; d = "Checks if `subject` ends with `suffix`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::endsWith"]
+    ; infix_names = []
+    ; parameters = [par "subject" TStr; par "suffix" TStr]
+    ; return_type = TBool
+    ; description = "Checks if `subject` ends with `suffix`"
+    ; func =
         InProcess
           (function
           | _, [DStr subject; DStr suffix] ->
               DBool (Unicode_string.ends_with ~suffix subject)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_safety = Safe
+    ; deprecated = false } ]
