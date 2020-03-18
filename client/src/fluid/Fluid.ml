@@ -5271,9 +5271,7 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
-        let ast, s = pasteOverSelection ~state:s ~ast data in
-        let s = updateAutocomplete m tlid ast s in
-        (ast, s)
+        pasteOverSelection ~state:s ~ast data
     (* handle selection with direction key cases *)
     (* moving/selecting over expressions or tokens with shift-/alt-direction
      * or shift-/ctrl-direction *)
