@@ -212,14 +212,14 @@ $prodColor: black;
               left: 0;
             }
 
-            object,
+            i.da,
             i.fa {
               filter: $yellowFilter;
               cursor: pointer;
             }
           }
 
-          &.empty object,
+          &.empty i.di,
           &.empty i.fa {
             filter: none;
             opacity: 0.2;
@@ -229,12 +229,12 @@ $prodColor: black;
             }
           }
 
-          i.fa {
+          i.fa, i.di {
             color: white;
             font-size: 2.16em;
           }
 
-          object,
+          i.di,
           i.fa {
             width: 100%;
             height: 100%;
@@ -513,7 +513,7 @@ $prodColor: black;
           margin-right: 5px;
           filter: $yellowFilter;
 
-          i.fa {
+          i.fa, i.di {
             color: white;
           }
         }

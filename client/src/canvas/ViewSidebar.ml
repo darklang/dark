@@ -58,32 +58,33 @@ let buttonLink ~(key : string) (content : msg Html.html) (handler : msg) :
 
 
 let categoryIcon (name : string) : msg Html.html list =
-  let svg = ViewUtils.svg in
+  (* let svg = ViewUtils.svg in *)
+  let darkIcon = ViewUtils.darkIcon in
   match String.toLower name with
   | "http" ->
-      [svg "icons/http.svg"]
+      [darkIcon "http"]
   | "dbs" ->
-      [svg "icons/db.svg"]
+      [darkIcon "db"]
   | "fns" ->
-      [svg "icons/fn-white.svg"]
+      [darkIcon "fn"]
   | "deleted" ->
-      [svg "icons/deleted.svg"]
+      [darkIcon "deleted"]
   | "static" ->
       [fontAwesome "file"]
   | "types" ->
-      [svg "icons/types-white.svg"]
+      [darkIcon "types"]
   | "cron" ->
-      [svg "icons/cron.svg"]
+      [darkIcon "cron"]
   | "repl" ->
       [fontAwesome "terminal"]
   | "worker" ->
       [fontAwesome "wrench"]
   | "fof" ->
-      [svg "icons/fof.svg"]
+      [darkIcon "fof"]
   | "group" ->
       [fontAwesome "object-group"]
   | _ ->
-      [svg "icons/undefined.svg"]
+      [darkIcon "undefinedvg"]
 
 
 let handlerCategory
