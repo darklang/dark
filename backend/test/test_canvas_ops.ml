@@ -269,11 +269,7 @@ let t_load_all_dbs_from_cache () =
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
-  AT.check
-    AT.bool
-    "dbs are loaded from cache"
-    true
-    (!c2.ops = []) ;
+  AT.check AT.bool "dbs are loaded from cache" true (!c2.ops = []) ;
   AT.check
     (AT.list testable_id)
     "Loaded only undeleted dbs"
