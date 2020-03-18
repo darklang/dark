@@ -1578,7 +1578,7 @@ and avatarModelMessage =
 and model =
   { error : Error.t
   ; lastMsg : msg
-  ; lastMods : string list
+  ; lastMods : modification list
   ; tests : variantTest list
   ; complete : autocomplete
   ; builtInFunctions : function_ list
