@@ -32,6 +32,6 @@ let fn_of_packageFn (pkgFn : packageFn) : function_ =
   ; fnParameters = pkgFn.parameters |> List.map ~f:paramOfPkgFnParam
   ; fnDescription = pkgFn.description
   ; fnReturnTipe = pkgFn.return_type
-  ; fnPreviewExecutionSafe = false
+  ; fnPreviewSafety = Unsafe
   ; fnDeprecated = pkgFn.deprecated
   ; fnInfix = false }

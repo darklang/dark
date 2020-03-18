@@ -3,19 +3,19 @@ open Libexecution.Lib
 open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
 
-let fns : Libexecution.Lib.shortfn list =
-  [ { pns = ["Twilio::sendText"]
-    ; ins = []
-    ; p =
+let fns : fn list =
+  [ { prefix_names = ["Twilio::sendText"]
+    ; infix_names = []
+    ; parameters =
         [ par "accountSID" TStr
         ; par "authToken" TStr
         ; par "fromNumber" TStr
         ; par "toNumber" TStr
         ; par "body" TStr ]
-    ; r = TObj
-    ; d =
+    ; return_type = TObj
+    ; description =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
-    ; f =
+    ; func =
         InProcess
           (function
           | ( s
@@ -61,5 +61,5 @@ let fns : Libexecution.Lib.shortfn list =
                 headers
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_safety = Unsafe
+    ; deprecated = false } ]

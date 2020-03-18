@@ -13,18 +13,18 @@ let digest_to_bytes (digest : Nocrypto.Hash.digest) :
   bytes
 
 
-let fns : Lib.shortfn list =
+let fns : fn list =
   [ (* ====================================== *)
     (* Password *)
     (* ====================================== *)
-    { pns = ["Password::hash"]
-    ; ins = []
-    ; p = [par "pw" TStr]
-    ; r = TPassword
-    ; d =
+    { prefix_names = ["Password::hash"]
+    ; infix_names = []
+    ; parameters = [par "pw" TStr]
+    ; return_type = TPassword
+    ; description =
         "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2.
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr s] ->
@@ -54,16 +54,16 @@ let fns : Lib.shortfn list =
               |> DPassword
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["Password::check"]
-    ; ins = []
-    ; p = [par "existingpwr" TPassword; par "rawpw" TStr]
-    ; r = TBool
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Password::check"]
+    ; infix_names = []
+    ; parameters = [par "existingpwr" TPassword; par "rawpw" TStr]
+    ; return_type = TBool
+    ; description =
         "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2.
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DPassword existingpw; DStr rawpw] ->
@@ -75,14 +75,14 @@ let fns : Lib.shortfn list =
               |> DBool
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["Crypto::sha256"]
-    ; ins = []
-    ; p = [par "data" TBytes]
-    ; r = TBytes
-    ; d = "Computes the SHA-256 digest of the given `data`."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Crypto::sha256"]
+    ; infix_names = []
+    ; parameters = [par "data" TBytes]
+    ; return_type = TBytes
+    ; description = "Computes the SHA-256 digest of the given `data`."
+    ; func =
         InProcess
           (function
           | _, [DBytes data] ->
@@ -92,14 +92,14 @@ let fns : Lib.shortfn list =
               |> DBytes
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["Crypto::sha384"]
-    ; ins = []
-    ; p = [par "data" TBytes]
-    ; r = TBytes
-    ; d = "Computes the SHA-384 digest of the given `data`."
-    ; f =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Crypto::sha384"]
+    ; infix_names = []
+    ; parameters = [par "data" TBytes]
+    ; return_type = TBytes
+    ; description = "Computes the SHA-384 digest of the given `data`."
+    ; func =
         InProcess
           (function
           | _, [DBytes data] ->
@@ -109,15 +109,15 @@ let fns : Lib.shortfn list =
               |> DBytes
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["Crypto::sha256hmac"]
-    ; ins = []
-    ; p = [par "key" TBytes; par "data" TBytes]
-    ; r = TBytes
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Crypto::sha256hmac"]
+    ; infix_names = []
+    ; parameters = [par "key" TBytes; par "data" TBytes]
+    ; return_type = TBytes
+    ; description =
         "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given `key` and `data`."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DBytes key; DBytes data] ->
@@ -126,15 +126,15 @@ let fns : Lib.shortfn list =
               Nocrypto.Hash.SHA256.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["Crypto::sha1hmac"]
-    ; ins = []
-    ; p = [par "key" TBytes; par "data" TBytes]
-    ; r = TBytes
-    ; d =
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["Crypto::sha1hmac"]
+    ; infix_names = []
+    ; parameters = [par "key" TBytes; par "data" TBytes]
+    ; return_type = TBytes
+    ; description =
         "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given `key` and `data`."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DBytes key; DBytes data] ->
@@ -143,5 +143,5 @@ let fns : Lib.shortfn list =
               Nocrypto.Hash.SHA1.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
               fail args)
-    ; ps = false
-    ; dep = false } ]
+    ; preview_safety = Unsafe
+    ; deprecated = false } ]

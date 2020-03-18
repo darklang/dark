@@ -126,11 +126,12 @@ let fns =
          api.operations
          |> List.head
          |> Option.map ~f:(fun (op : Swagger.operation) ->
-                { pns = ["Twitter::" ^ twurl2name api.path]
-                ; ins = []
-                ; r = TAny
-                ; f = API (call api.path op.httpMethod)
-                ; p = auth_param :: List.map ~f:param2param op.parameters
-                ; d = Base.Option.value ~default:"" op.summary
-                ; ps = false
-                ; dep = false }))
+                { prefix_names = ["Twitter::" ^ twurl2name api.path]
+                ; infix_names = []
+                ; return_type = TAny
+                ; func = API (call api.path op.httpMethod)
+                ; parameters =
+                    auth_param :: List.map ~f:param2param op.parameters
+                ; description = Base.Option.value ~default:"" op.summary
+                ; preview_safety = Unsafe
+                ; deprecated = false }))

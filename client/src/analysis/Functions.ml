@@ -11,6 +11,6 @@ let findByNameInList (name : string) (functions : function_ list) : function_ =
          ; fnParameters = []
          ; fnDescription = "default, fn error"
          ; fnReturnTipe = TError
-         ; fnPreviewExecutionSafe = true
+         ; fnPreviewSafety = Safe
          ; fnInfix = false
          ; fnDeprecated = false }

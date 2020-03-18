@@ -10,17 +10,6 @@ let func ?(d : string = "") ?(name : string = "f") args : param =
   par name TBlock ~args ~d
 
 
-(* Shorthand - see Libs.ml's add_short_fn for expansions *)
-type shortfn =
-  { pns : string list
-  ; ins : string list
-  ; p : param list
-  ; r : tipe
-  ; f : funcimpl
-  ; d : string
-  ; ps : bool
-  ; dep : bool }
-
 let fail_fn (fnname : string) (fn : fn) (args : dval list) ?msg () : dval =
   let bt = Exception.get_backtrace () in
   let all = List.zip_exn fn.parameters args in

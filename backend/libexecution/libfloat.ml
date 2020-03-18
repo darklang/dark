@@ -14,203 +14,204 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
 
 let ( >>| ) = Result.( >>| )
 
-let fns : Lib.shortfn list =
-  [ { pns = ["Float::ceiling"; "Float::roundUp"]
-    ; ins = []
-    ; p = [par "a" TFloat]
-    ; r = TInt
-    ; d = "Round up to an integer value"
-    ; f =
+let fns : fn list =
+  [ { prefix_names = ["Float::ceiling"; "Float::roundUp"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TInt
+    ; description = "Round up to an integer value"
+    ; func =
         InProcess
           (function
           | _, [DFloat a] ->
               DInt (Float.round_up a |> Dint.of_float)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::floor"; "Float::roundDown"]
-    ; ins = []
-    ; p = [par "a" TFloat]
-    ; r = TInt
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::floor"; "Float::roundDown"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TInt
+    ; description =
         "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DFloat a] ->
               DInt (Float.round_down a |> Dint.of_float)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::round"]
-    ; ins = []
-    ; p = [par "a" TFloat]
-    ; r = TInt
-    ; d = "Round to the nearest integer value"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::round"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TInt
+    ; description = "Round to the nearest integer value"
+    ; func =
         InProcess
           (function
           | _, [DFloat a] ->
               DInt (Float.round a |> Dint.of_float)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::truncate"; "Float::roundTowardsZero"]
-    ; ins = []
-    ; p = [par "a" TFloat]
-    ; r = TInt
-    ; d = "Discard the fractional portion of the float, rounding towards zero."
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::truncate"; "Float::roundTowardsZero"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TInt
+    ; description =
+        "Discard the fractional portion of the float, rounding towards zero."
+    ; func =
         InProcess
           (function
           | _, [DFloat a] ->
               DInt (Float.round_towards_zero a |> Dint.of_float)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::absoluteValue"]
-    ; ins = []
-    ; p = [par "a" TFloat]
-    ; r = TFloat
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::absoluteValue"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TFloat
+    ; description =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
-    ; f =
+    ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.abs a) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::negate"]
-    ; ins = []
-    ; p = [par "a" TFloat]
-    ; r = TFloat
-    ; d = "Returns the negation of `a`, `-a`."
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::negate"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TFloat
+    ; description = "Returns the negation of `a`, `-a`."
+    ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.neg a) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::sqrt"]
-    ; ins = []
-    ; p = [par "a" TFloat]
-    ; r = TFloat
-    ; d = "Get the square root of a float"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::sqrt"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat]
+    ; return_type = TFloat
+    ; description = "Get the square root of a float"
+    ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::power"]
-    ; ins = []
-    ; p = [par "base" TFloat; par "exponent" TFloat]
-    ; r = TFloat
-    ; d = "Returns `base` raised to the power of `exponent`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::power"]
+    ; infix_names = []
+    ; parameters = [par "base" TFloat; par "exponent" TFloat]
+    ; return_type = TFloat
+    ; description = "Returns `base` raised to the power of `exponent`"
+    ; func =
         InProcess
           (function
           | _, [DFloat base; DFloat exp] ->
               DFloat (base ** exp)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::divide"]
-    ; ins = ["/"]
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TFloat
-    ; d = "Divide float `a` by float `b`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::divide"]
+    ; infix_names = ["/"]
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TFloat
+    ; description = "Divide float `a` by float `b`"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::add"]
-    ; ins = []
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TFloat
-    ; d = "Add float `a` to float `b`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::add"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TFloat
+    ; description = "Add float `a` to float `b`"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::multiply"]
-    ; ins = []
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TFloat
-    ; d = "Multiply float `a` by float `b`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::multiply"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TFloat
+    ; description = "Multiply float `a` by float `b`"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::subtract"]
-    ; ins = []
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TFloat
-    ; d = "Subtract float `b` from float `a`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::subtract"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TFloat
+    ; description = "Subtract float `b` from float `a`"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::greaterThan"]
-    ; ins = []
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TBool
-    ; d = "Returns true if a is greater than b"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::greaterThan"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TBool
+    ; description = "Returns true if a is greater than b"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::greaterThanOrEqualTo"]
-    ; ins = []
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TBool
-    ; d = "Returns true if a is greater than b"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::greaterThanOrEqualTo"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TBool
+    ; description = "Returns true if a is greater than b"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::lessThan"]
-    ; ins = []
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TBool
-    ; d = "Returns true if a is less than b"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::lessThan"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TBool
+    ; description = "Returns true if a is less than b"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::lessThanOrEqualTo"]
-    ; ins = []
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TBool
-    ; d = "Returns true if a is less than b"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::lessThanOrEqualTo"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TBool
+    ; description = "Returns true if a is less than b"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::sum"]
-    ; ins = []
-    ; p = [par "a" TList]
-    ; r = TFloat
-    ; d = "Returns the sum of all the floats in the list"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::sum"]
+    ; infix_names = []
+    ; parameters = [par "a" TList]
+    ; return_type = TFloat
+    ; description = "Returns the sum of all the floats in the list"
+    ; func =
         InProcess
           (function
           | _, [DList l] ->
@@ -232,33 +233,33 @@ let fns : Lib.shortfn list =
               |> Result.ok_exn
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::min"]
-    ; ins = []
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TFloat
-    ; d = "Returns the lesser of float `a` and float `b`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::min"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TFloat
+    ; description = "Returns the lesser of float `a` and float `b`"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] ->
               DFloat (Float.min a b)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false }
-  ; { pns = ["Float::max"]
-    ; ins = []
-    ; p = [par "a" TFloat; par "b" TFloat]
-    ; r = TFloat
-    ; d = "Returns the greater of float `a` and float `b`"
-    ; f =
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::max"]
+    ; infix_names = []
+    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; return_type = TFloat
+    ; description = "Returns the greater of float `a` and float `b`"
+    ; func =
         InProcess
           (function
           | _, [DFloat a; DFloat b] ->
               DFloat (Float.max a b)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_safety = Safe
+    ; deprecated = false } ]

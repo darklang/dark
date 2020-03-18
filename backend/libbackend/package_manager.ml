@@ -424,7 +424,7 @@ let runtime_fn_of_package_fn (fn : fn) : RuntimeT.fn =
     ; return_type = fn.return_type
     ; description = fn.description
     ; func = PackageFunction fn.body
-    ; preview_execution_safe = false
+    ; preview_safety = Unsafe
     ; deprecated = fn.deprecated }
     : RuntimeT.fn )
 

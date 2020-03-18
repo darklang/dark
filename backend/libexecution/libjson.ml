@@ -3,14 +3,14 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : Lib.shortfn list =
-  [ { pns = ["JSON::read"]
-    ; ins = []
-    ; p = [par "json" TStr]
-    ; r = TAny
-    ; d =
+let fns : fn list =
+  [ { prefix_names = ["JSON::read"]
+    ; infix_names = []
+    ; parameters = [par "json" TStr]
+    ; return_type = TAny
+    ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr json] ->
@@ -18,45 +18,45 @@ let fns : Lib.shortfn list =
               with _ -> DNull )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["JSON::read_v1"]
-    ; ins = []
-    ; p = [par "json" TStr]
-    ; r = TAny
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["JSON::read_v1"]
+    ; infix_names = []
+    ; parameters = [par "json" TStr]
+    ; return_type = TAny
+    ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr json] ->
               Dval.of_unknown_json_v1 (Unicode_string.to_string json)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["JSON::parse_v0"]
-    ; ins = []
-    ; p = [par "json" TStr]
-    ; r = TAny
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["JSON::parse_v0"]
+    ; infix_names = []
+    ; parameters = [par "json" TStr]
+    ; return_type = TAny
+    ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr json] ->
               Dval.of_unknown_json_v1 (Unicode_string.to_string json)
           | args ->
               fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["JSON::parse_v1"]
-    ; ins = []
-    ; p = [par "json" TStr]
-    ; r = TResult
-    ; d =
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["JSON::parse_v1"]
+    ; infix_names = []
+    ; parameters = [par "json" TStr]
+    ; return_type = TResult
+    ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
-    ; f =
+    ; func =
         InProcess
           (function
           | _, [DStr json] ->
@@ -72,5 +72,5 @@ let fns : Lib.shortfn list =
             )
           | args ->
               fail args)
-    ; ps = true
-    ; dep = false } ]
+    ; preview_safety = Safe
+    ; deprecated = false } ]
