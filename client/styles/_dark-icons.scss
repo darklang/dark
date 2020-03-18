@@ -1,0 +1,67 @@
+/* Dark Icons Font */
+@font-face {
+  font-family: 'Dark Icons';
+  src: url('/dark-icons-font-v0/Dark-Icons.eot');
+  src: url('/dark-icons-font-v0/Dark-Icons.eot?#iefix') format('embedded-opentype'),
+       url('/dark-icons-font-v0/Dark-Icons.woff') format('woff'),
+       url('/dark-icons-font-v0/Dark-Icons.ttf') format('truetype'),
+       url('/dark-icons-font-v0/Dark-Icons.svg#Dark-Icons') format('svg');
+}
+
+.dark-icon-font {
+  font-family: "Dark Icons";
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@mixin dark-icon($content) {
+  @extend .dark-icon-font;
+  content: $content;
+}
+
+$dark-icon-static-assets:'\0041';
+$dark-icon-db:'\0042';
+$dark-icon-cron:'\0043';
+$dark-icon-deleted:'\0044';
+$dark-icon-result-error:'\0045';
+$dark-icon-fn:'\0046';
+$dark-icon-fof:'\0047';
+$dark-icon-http:'\0048';
+$dark-icon-option-just:'\004a';
+$dark-icon-option-nothing:'\004e';
+$dark-icon-result-ok:'\004f';
+$dark-icon-types:'\0054';
+$dark-icon-undefined:'\0055';
+
+i.di {
+  &.di-http::before {
+    @include dark-icon($dark-icon-http);
+  }
+  &.di-static-assets::before {
+    @include dark-icon($dark-icon-static-assets);
+  }
+  &.di-db::before {
+    @include dark-icon($dark-icon-db);
+  }
+  &.di-cron::before {
+    @include dark-icon($dark-icon-cron);
+  }
+  &.di-deleted::before {
+    @include dark-icon($dark-icon-deleted);
+  }
+  &.di-fn::before {
+    @include dark-icon($dark-icon-fn);
+  }
+  &.di-fof::before {
+    @include dark-icon($dark-icon-fof);
+  }
+  &.di-types::before {
+    @include dark-icon($dark-icon-types);
+  }
+  &.di-undefined::before {
+    @include dark-icon($dark-icon-undefined);
+  }
+}

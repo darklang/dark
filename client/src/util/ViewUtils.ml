@@ -152,6 +152,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
 let fontAwesome (name : string) : msg Html.html =
   Html.i [Html.class' ("fa fa-" ^ name)] []
 
+let darkIcon (name : string) : msg Html.html =
+    Html.i [Html.class' ("di di-" ^ name)] []
 
 let decodeTransEvent (fn : string -> 'a) j : 'a =
   let open Json.Decode in
