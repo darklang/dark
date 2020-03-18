@@ -127,7 +127,8 @@ let t_option_stdlibs_work () =
 
 
 let t_result_stdlibs_work () =
-  let test_string = Dval.dstr_of_string_exn "test" in
+  let dstr = Dval.dstr_of_string_exn in
+  let test_string = dstr "test" in
   check_dval
     "map ok"
     (exec_ast "(Result::map (Ok 4) (\\x -> (Int::divide x 2)))")
@@ -148,6 +149,42 @@ let t_result_stdlibs_work () =
     "map v1 incomplete"
     (exec_ast "(Result::map_v1 _ (\\x -> (Int::divide x 2)))")
     (DIncomplete SourceNone) ;
+  check_dval
+    "Result::map2 works (Ok, Ok)"
+    (DResult (ResOk (Dval.dint (10 - 1))))
+    (exec_ast'
+       (fn
+          "Result::map2"
+          [ resultOkConstructor (int 10)
+          ; resultOkConstructor (int 1)
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Result::map2 works (Ok, Error)"
+    (DResult (ResError (dstr "error2")))
+    (exec_ast'
+       (fn
+          "Result::map2"
+          [ resultOkConstructor (int 10)
+          ; resultErrorConstructor (str "error2")
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Result::map2 works (Error, Ok)"
+    (DResult (ResError (dstr "error1")))
+    (exec_ast'
+       (fn
+          "Result::map2"
+          [ resultErrorConstructor (str "error1")
+          ; resultOkConstructor (int 1)
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Result::map2 works (Error, Error)"
+    (DResult (ResError (dstr "error1")))
+    (exec_ast'
+       (fn
+          "Result::map2"
+          [ resultErrorConstructor (str "error1")
+          ; resultErrorConstructor (str "error2")
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "maperror ok"
     (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
