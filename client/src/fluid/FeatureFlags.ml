@@ -44,9 +44,43 @@ let wrap (ast : FluidAST.t) (id : ID.t) : FluidAST.t =
 (** [wrapCmd m tl id] returns a [modification] that calls [wrap] with the
     [tl]'s AST. *)
 let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
-  Toplevel.getAST tl
-  |> Option.map ~f:(fun ast -> wrap ast id |> Toplevel.setASTMod tl)
-  |> Option.withDefault ~default:NoChange
+  let ast = Toplevel.getAST tl in
+  (* Disable creating FF there is an existing FF in the AST.
+   *
+   * Note this is intended to be a _temporary_ measue as we figure out
+   * the UX/UI around feature flags.
+   *
+   * See:
+   *   https://www.notion.so/darklang/FF8-Quirks-6bbeba3ee9114781a5f321b167d72f56
+   *   https://www.notion.so/darklang/Feature-Flags-v2-8fc5580cce9e491b9ee5767f54917434
+   * *)
+  let hasExistingFF =
+    match ast with
+    | Some ast ->
+        ast
+        |> FluidAST.filter ~f:(function E.EFeatureFlag _ -> true | _ -> false)
+        |> List.length
+        |> ( <> ) 0
+    | None ->
+        false
+  in
+  if hasExistingFF
+  then
+    (* Show a toast, because this is unexpected *)
+    ReplaceAllModificationsWithThisOne
+      (fun m ->
+        ( { m with
+            toast =
+              { m.toast with
+                toastMessage =
+                  Some
+                    "Only one Feature Flag per-handler/function is supported at this time"
+              } }
+        , Tea.Cmd.none ))
+  else
+    ast
+    |> Option.map ~f:(fun ast -> wrap ast id |> Toplevel.setASTMod tl)
+    |> Option.withDefault ~default:NoChange
 
 
 (** [unwrap keep ast id] finds the expression having [id] and unwraps it,
