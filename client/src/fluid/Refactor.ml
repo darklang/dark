@@ -542,14 +542,19 @@ let createAndInsertNewFunction
         Model.updateErrorMod
           (Error.set ("Function named " ^ newFnName ^ " already exists"))
       else
-        Many
-          [ ReplaceAllModificationsWithThisOne
-              (fun m ->
-                ( ( TL.withAST m tlid newAST
-                  |> fun m -> UserFunctions.upsert m newFn )
-                , Tea.Cmd.none ))
-          ; (* Both ops in a single transaction *)
-            TL.setASTMod ~ops:[op] tl newAST
-          ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ]
+        let isValid = Autocomplete.validateFunctionName newFnName in
+        ( match isValid with
+        | Some msg ->
+            Model.updateErrorMod (Error.set msg)
+        | None ->
+            Many
+              [ ReplaceAllModificationsWithThisOne
+                  (fun m ->
+                    ( ( TL.withAST m tlid newAST
+                      |> fun m -> UserFunctions.upsert m newFn )
+                    , Tea.Cmd.none ))
+              ; (* Both ops in a single transaction *)
+                TL.setASTMod ~ops:[op] tl newAST
+              ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ] )
   | None ->
       NoChange
