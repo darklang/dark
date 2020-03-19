@@ -442,7 +442,7 @@ let t_list_stdlibs_work () =
   check_dval
     "List::filterMap works (empty)"
     (DList [])
-    (exec_ast' (fn "List::filterMap" [list []; lambda ["item"] (nothing ())])) ;
+    (exec_ast' (fn "List::filterMap" [list []; lambda ["item"] (int 0)])) ;
   check_dval
     "List::filterMap works (double)"
     (DList [Dval.dint 2; Dval.dint 6])
