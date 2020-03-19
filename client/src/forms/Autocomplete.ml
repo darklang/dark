@@ -284,6 +284,13 @@ let assertValid pattern value : string =
   value
 
 
+let validateFunctionName (fnName : string) : string option =
+  let pattern = fnNameValidator in
+  if Regex.exactly ~re:pattern fnName
+  then None
+  else Some ("Function name must match /" ^ pattern ^ "/")
+
+
 let validateHttpNameValidVarnames (httpName : string) =
   let route_variables (route : string) : string list =
     route
