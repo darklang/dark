@@ -439,6 +439,48 @@ let t_list_stdlibs_work () =
        (fn
           "List::zipShortest"
           [list [int 10; int 20; int 30]; list [int 1; int 2; int 3]])) ;
+  check_dval
+    "List::filterMap works (empty)"
+    (DList [])
+    (exec_ast' (fn "List::filterMap" [list []; lambda ["item"] (nothing ())])) ;
+  check_dval
+    "List::filterMap works (double)"
+    (DList [Dval.dint 2; Dval.dint 6])
+    (exec_ast'
+       (fn
+          "List::filterMap"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (if'
+                 (binop "==" (var "item") (int 2))
+                 (nothing ())
+                 (just (binop "*" (var "item") (int 2)))) ])) ;
+  check_incomplete
+    "List::filterMap works (returns incomplete)"
+    (exec_ast'
+       (fn
+          "List::filterMap"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (if'
+                 (binop "==" (var "item") (int 2))
+                 (blank ())
+                 (just (binop "*" (var "item") (int 2)))) ])) ;
+  check_error_contains
+    "List::filterMap works (wrong return type)"
+    (exec_ast'
+       (fn
+          "List::filterMap"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (if'
+                 (binop "==" (var "item") (int 2))
+                 (bool false)
+                 (just (binop "*" (var "item") (int 2)))) ]))
+    "Expected the argument `f` passed to `List::filterMap` to return `Just` or `Nothing` for every item in `list`" ;
   ()
 
 
