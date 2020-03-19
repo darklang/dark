@@ -4837,6 +4837,14 @@ let run () =
         aBlankField
         shiftTab
         "obj.~***" ;
+      t
+        "tab at end of line, wraps to beginging"
+        ~wrap:false
+        ~brokenInFF:true
+        aFnCall
+        ~pos:11
+        (key K.Tab)
+        "~Int::add 5 _________" ;
       ()) ;
   (* Disable string escaping for now *)
   (* describe "String escaping" (fun () -> ()) ; *)
