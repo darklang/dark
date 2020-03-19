@@ -546,17 +546,14 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> getNextBlankPos pos
   |> setPosition ~resetUD:true s
 
-
-(* Finds first editable token after the current caret position.
- * If it gets to the end of the token list without finding a token,
- * it checks if we have checked all the tokens or not. If not, we wrap
- * back to the first position to check before the current position. *)
-let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
-    T.tokenInfo option =
+let rec getNextEditable ?(wrap = false) (pos : int) (tokens : T.tokenInfo list)
+    : T.tokenInfo option =
   tokens
-  |> List.find ~f:(fun ti -> T.isTextToken ti.token && ti.startPos > pos)
+  |> List.find ~f:(fun ti ->
+         T.isTextToken ti.token
+         && (ti.startPos > pos || (ti.startPos >= pos && wrap)))
   |> Option.orElseLazy (fun () ->
-         if pos = 0 then None else getNextEditable 0 tokens)
+         if pos = 0 then None else getNextEditable 0 tokens ~wrap:true)
 
 
 let getNextEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
