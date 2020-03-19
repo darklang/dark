@@ -58,7 +58,6 @@ let buttonLink ~(key : string) (content : msg Html.html) (handler : msg) :
 
 
 let categoryIcon (name : string) : msg Html.html list =
-  (* let svg = ViewUtils.svg in *)
   let darkIcon = ViewUtils.darkIcon in
   match String.toLower name with
   | "http" ->
@@ -831,7 +830,7 @@ let viewSidebar_ (m : model) : msg Html.html =
     | _ ->
         Html.noNode
   in
-  (* Because the sidebar consists of a lot of nested elements with SVG icons,
+  (* Because the sidebar consists of a lot of nested elements with icons,
    * it's inefficient to fully reconstruct the sidebar div each time it's
    * expanded / collapsed. Instead, we build /both/ versions of the sidebar,
    * then toggle the visibility with CSS *)
