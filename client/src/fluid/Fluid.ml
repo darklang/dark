@@ -575,16 +575,26 @@ let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
-(** [getPrevEditable pos tokens] returns the closest editable token before the [pos] in 
- * [tokens], wrapped in an option. If no such token exists, check if [tokens] only has one token, 
- * returning None if so, if not, return the last token in [tokens] *)
-let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
-    =
+(** [getPrevEditable ?wrap pos tokens] returns the closest editable token before the [pos] in 
+ * [tokens], wrapped in an option. If no such token exists, wrap around passing [?wrap=true], 
+ * to check if the new [pos] is editable. Return the closest editable token in 
+ * [tokens], or None if none exists. *)
+let rec getPrevEditable ?(wrap = false) (pos : int) (tokens : T.tokenInfo list)
+    : T.tokenInfo option =
   tokens
-  |> List.filter ~f:(fun ti -> T.isTextToken ti.token && ti.endPos < pos)
-  |> List.last
+  |> List.reverse
+  |> List.find ~f:(fun ti ->
+         T.isTextToken ti.token
+         && (ti.endPos < pos || (ti.endPos <= pos && wrap)))
   |> Option.orElseLazy (fun () ->
-         if List.length tokens = 1 then None else List.last tokens)
+         let lastPos =
+           List.last tokens
+           |> Option.map ~f:(fun ti -> ti.endPos)
+           |> Option.withDefault ~default:0
+         in
+         if List.length tokens = 1 || wrap
+         then None
+         else getPrevEditable ~wrap:true lastPos tokens)
 
 
 let getPrevEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
