@@ -584,13 +584,20 @@ since they are essentially both commands just acting upon different things. */
     }
 
     &.Option {
-      background-image: url("/icons/option_just.svg");
+      &::before {
+        @include dark-icon($dark-icon-option-just);
+        color: $grey3;
+      }
+
       &:hover:after {
         content: ":take-function-off-rail (x -> Just x)";
       }
 
       &.ErrorRail {
-        background-image: url("/icons/option_nothing.svg");
+        &::before {
+          @include dark-icon($dark-icon-option-nothing);
+          color: lighten($red, 10%);
+        }
 
         &:hover:after {
           content: ":take-function-off-rail ((/) -> Nothing)";
@@ -599,14 +606,20 @@ since they are essentially both commands just acting upon different things. */
     }
 
     &.Result {
-      background-image: url("/icons/result_ok.svg");
+      &::before {
+        @include dark-icon($dark-icon-result-ok);
+        color: $grey3;
+      }
 
       &:hover:after {
         content: ":take-function-off-rail (x -> Ok x)";
       }
 
       &.ErrorRail {
-        background-image: url("/icons/result_error.svg");
+        &::before {
+          @include dark-icon($dark-icon-result-error);
+          color: lighten($red, 10%);
+        }
 
         &:hover:after {
           content: ":take-function-off-rail ((!) -> Error msg)";
