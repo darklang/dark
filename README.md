@@ -384,3 +384,6 @@ the preprocessed version.
 - [docs/oplist-serialization.md](docs/oplist-serialization.md)
 
 lol pushing to master
+
+## Adding Vector Graphics
+Recently all our SVG icons are converted into a [Dark Icons](https://www.notion.so/darklang/Dark-Icons-7e2c6dbfd47c4ccab86379ecc4007870) font set.
