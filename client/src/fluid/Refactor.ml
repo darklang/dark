@@ -354,7 +354,7 @@ let calculateUnsafeUserFunctions
   let worklist =
     builtins
     |> List.filterMap ~f:(fun f ->
-           if f.fnPreviewSafety = Safe then Some f.fnName else None)
+           if f.fnPreviewSafety = Unsafe then Some f.fnName else None)
     |> ref
   in
   (* The result set *)
