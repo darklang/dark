@@ -547,6 +547,10 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
+(* Finds first editable token after the current caret position.
+ * If it gets to the end of the token list without finding a token,
+ * it checks if we have checked all the tokens or not. If not, we wrap
+ * back to the first position to check before the current position. *)
 let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
   tokens
@@ -569,20 +573,16 @@ let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
-let rec getPrevEditable (pos : int) (tokens : T.tokenInfo list) :
-    T.tokenInfo option =
+(* Finds the closest editable token before the current caret position.
+ * If no editable tokens are found before the current caret position, 
+ * then check if the handler is blank, if not, we should wrap to the last token position. *)
+let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
+    =
   tokens
   |> List.filter ~f:(fun ti -> T.isTextToken ti.token && ti.endPos < pos)
   |> List.last
   |> Option.orElseLazy (fun () ->
-         let lastPos =
-           List.last tokens
-           |> Option.map ~f:(fun ti -> ti.startPos)
-           |> Option.withDefault ~default:0
-         in
-         if pos < lastPos
-         then List.last tokens
-         else getPrevEditable lastPos tokens)
+         if List.length tokens = 1 then None else List.last tokens)
 
 
 let getPrevEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
