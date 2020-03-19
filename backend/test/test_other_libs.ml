@@ -21,10 +21,6 @@ let t_stdlib_works () =
           "List::uniqueBy"
           [list [int 1; int 2; int 3; int 4]; lambda ["x"] (var "x")]))
     (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3; Dval.dint 4]) ;
-  check_error_contains
-    "base64decode"
-    (exec_ast' (fn "String::base64Decode" [str "random string"]))
-    "Not a valid base64 string" ;
   check_dval
     "getAt1"
     (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 0]))
@@ -236,49 +232,57 @@ let t_dict_stdlibs_work () =
   let dint i = DInt (Dint.of_int i) in
   check_dval
     "dict keys"
-    (exec_ast "(Dict::keys (obj (key1 'val1')))")
-    (DList [dstr "key1"]) ;
+    (DList [dstr "key1"])
+    (exec_ast "(Dict::keys (obj (key1 'val1')))") ;
   check_dval
     "dict values"
-    (exec_ast "(Dict::values (obj (key1 'val1')))")
-    (DList [dstr "val1"]) ;
+    (DList [dstr "val1"])
+    (exec_ast "(Dict::values (obj (key1 'val1')))") ;
   check_dval
     "dict get"
-    (exec_ast "(Dict::get_v1 (obj (key1 'val1')) 'key1')")
-    (DOption (OptJust (dstr "val1"))) ;
+    (DOption (OptJust (dstr "val1")))
+    (exec_ast "(Dict::get_v1 (obj (key1 'val1')) 'key1')") ;
   check_dval
     "dict foreach"
-    (exec_ast
-       "(Dict::foreach (obj (key1 'val1') (key2 'val2')) (\\x -> (++ x '_append')))")
     (DObj
        (DvalMap.from_list
-          [("key1", dstr "val1_append"); ("key2", dstr "val2_append")])) ;
+          [("key1", dstr "val1_append"); ("key2", dstr "val2_append")]))
+    (exec_ast
+       "(Dict::foreach (obj (key1 'val1') (key2 'val2')) (\\x -> (++ x '_append')))") ;
   check_dval
     "dict map"
-    (exec_ast
-       "(Dict::map (obj (key1 'val1') (key2 'val2')) (\\k x -> (++ k x)))")
     (DObj
        (DvalMap.from_list
-          [("key1", dstr "key1val1"); ("key2", dstr "key2val2")])) ;
-  check_dval "dict empty" (exec_ast "(Dict::empty)") (DObj DvalMap.empty) ;
+          [("key1", dstr "key1val1"); ("key2", dstr "key2val2")]))
+    (exec_ast
+       "(Dict::map (obj (key1 'val1') (key2 'val2')) (\\k x -> (++ k x)))") ;
+  check_dval "dict empty" (DObj DvalMap.empty) (exec_ast "(Dict::empty)") ;
+  check_dval
+    "Dict::isEmpty works (empty)"
+    (DBool true)
+    (exec_ast' (fn "Dict::isEmpty" [record []])) ;
+  check_dval
+    "Dict::isEmpty works (full)"
+    (DBool false)
+    (exec_ast' (fn "Dict::isEmpty" [record [("a", int 1)]])) ;
   check_dval
     "dict merge"
-    (exec_ast "(Dict::merge (obj (key1 'val1')) (obj (key2 'val2')))")
-    (DObj (DvalMap.from_list [("key1", dstr "val1"); ("key2", dstr "val2")])) ;
+    (DObj (DvalMap.from_list [("key1", dstr "val1"); ("key2", dstr "val2")]))
+    (exec_ast "(Dict::merge (obj (key1 'val1')) (obj (key2 'val2')))") ;
   check_dval
     "dict toJSON"
-    (exec_ast "(Dict::toJSON (obj (key1 'val1') (key2 'val2')))")
-    (dstr "{ \"key1\": \"val1\", \"key2\": \"val2\" }") ;
+    (dstr "{ \"key1\": \"val1\", \"key2\": \"val2\" }")
+    (exec_ast "(Dict::toJSON (obj (key1 'val1') (key2 'val2')))") ;
   check_dval
     "dict filter keeps val"
+    (DObj (DvalMap.from_list [("key1", dstr "val1")]))
     (exec_ast
-       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== v 'val1')))")
-    (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
+       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== v 'val1')))") ;
   check_dval
     "dict filter keeps key"
+    (DObj (DvalMap.from_list [("key1", dstr "val1")]))
     (exec_ast
-       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))")
-    (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
+       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))") ;
   check_incomplete
     "dict filter propagates incomplete from lambda"
     (exec_ast
@@ -288,6 +292,22 @@ let t_dict_stdlibs_work () =
     (DObj (DvalMap.from_list [("key1", dint 1); ("key3", dint 3)]))
     (exec_ast
        "(Dict::filter_v1 (obj (key1 1) (key2 _) (key3 3)) (\\k v -> (> v 0)))") ;
+  ()
+
+
+let t_string_stdlibs_work () =
+  check_dval
+    "String::isEmpty works (empty)"
+    (DBool true)
+    (exec_ast' (fn "String::isEmpty" [str ""])) ;
+  check_dval
+    "String::isEmpty works (full)"
+    (DBool false)
+    (exec_ast' (fn "String::isEmpty" [str "a"])) ;
+  check_error_contains
+    "String::base64decode errors on non-base64"
+    (exec_ast' (fn "String::base64Decode" [str "random string"]))
+    "Not a valid base64 string" ;
   ()
 
 
@@ -792,6 +812,7 @@ let suite =
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
   ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work)
+  ; ("String stdlibs work", `Quick, t_string_stdlibs_work)
   ; ( "End-user password hashing and checking works"
     , `Quick
     , t_password_hashing_and_checking_works )

@@ -17,7 +17,21 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
-  [ { prefix_names = ["String::foreach"]
+  [ { prefix_names = ["String::isEmpty"]
+    ; infix_names = []
+    ; parameters = [par "s" TStr]
+    ; return_type = TBool
+    ; description = "Returns `true` if `s` is the empty string \"\"."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              DBool (Unicode_string.length s = 0)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::foreach"]
     ; infix_names = []
     ; parameters = [par "s" TStr; func ["char"]]
     ; return_type = TStr
