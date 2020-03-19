@@ -111,8 +111,7 @@ let fnView
     (params : userFunctionParameter list)
     (direction : string) : msg Html.html =
   let header =
-    [ ViewUtils.darkIcon "fn"
-    ; Html.span [Html.class' "fnname"] [Html.text name] ]
+    [ViewUtils.darkIcon "fn"; Html.span [Html.class' "fnname"] [Html.text name]]
   in
   Html.div
     ( [ Html.class' ("ref-block fn " ^ direction)
