@@ -473,6 +473,14 @@ let t_date_functions_work () =
     (exec_ast
        "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::day d)))") ;
   check_dval
+    "Date::weekday works"
+    (DResult (ResOk (Dval.dint 7)))
+    (exec_ast'
+       (fn
+          "Result::map"
+          [ fn "Date::parse_v1" [str "2019-07-28T22:42:00Z"]
+          ; lambda ["d"] (fn "Date::weekday" [var "d"]) ])) ;
+  check_dval
     "Date::hour works"
     (DResult (ResOk (Dval.dint 22)))
     (exec_ast
