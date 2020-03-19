@@ -42,8 +42,25 @@ let fnExecutionStatus
     | Some _ ->
         true
   in
+  let fnIsComplete id =
+    match Analysis.getLiveValue' s.analysisStore id with
+    | (Some (DIncomplete (SourceId incID)) | Some (DError (SourceId incID, _)))
+      when incID = id ->
+        (* this means the live value is an error/incomplete created by this
+         * function, so the function is incomplete because it's unplayed. *)
+        false
+    | None | Some (DError _) | Some (DIncomplete _) ->
+        (* this means the live value is an error/incomplete that was not
+         * created by the current function (which means this function is not
+         * responsible for it, hence this function is complete. Note that the
+         * Stored_function_result DB drops the SourceId from DIncompletes and
+         * DErrors, which is why this specific implementation was necessary. *)
+        true
+    | Some _ ->
+        true
+  in
   let paramsComplete = List.all ~f:isComplete args in
-  let resultHasValue = isComplete id in
+  let resultHasValue = fnIsComplete id in
   let name = fn.fnName in
   if s.permission <> Some ReadWrite
   then NoPermission
