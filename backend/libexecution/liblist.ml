@@ -475,10 +475,12 @@ let fns =
     ; deprecated = true }
   ; { prefix_names = ["List::filter_v1"]
     ; infix_names = []
-    ; parameters = [par "l" TList; func ["val"]]
+    ; parameters = [par "list" TList; func ["item"]]
     ; return_type = TList
     ; description =
-        "Returns a list of every value in `l` for which `f` returns true."
+        "Calls `f` on every `item` in `list`, returning a list of only those items for which `f item` returns `true`.
+        Preserves the order of items that were not dropped.
+        Consider `List::filterMap` if you also want to transform the items."
     ; func =
         InProcess
           (function
@@ -499,6 +501,53 @@ let fns =
               in
               let result = List.filter ~f l in
               (match !fakecf with None -> DList result | Some v -> v)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::filterMap"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; func ["item"]]
+    ; return_type = TList
+    ; description =
+        "Calls `f` on every `item` in `list`, returning a new list that drops some items (filter) and transforms others (map).
+      If `f item` returns `Nothing`, drops `item` from the list.
+      If `f item` returns `Just value`, replaces `item` with `value`.
+      Preserves the order of items that were not dropped.
+      This function combines `List::filter` and `List::map`."
+    ; func =
+        InProcess
+          (function
+          | state, [DList l; DBlock b] ->
+              let abortReason = ref None in
+              let f (dv : dval) : dval option =
+                if !abortReason = None
+                then (
+                  match Ast.execute_dblock ~state b [dv] with
+                  | DOption (OptJust o) ->
+                      Some o
+                  | DOption OptNothing ->
+                      None
+                  | (DIncomplete _ | DErrorRail _) as dv ->
+                      abortReason := Some dv ;
+                      None
+                  | v ->
+                      abortReason :=
+                        Some
+                          (DError
+                             ( SourceNone
+                             , "Expected the argument `f` passed to `"
+                               ^ state.executing_fnname
+                               ^ "` to return `Just` or `Nothing` for every item in `list`. However, it returned `"
+                               ^ Dval.to_developer_repr_v0 v
+                               ^ "` for the input `"
+                               ^ Dval.to_developer_repr_v0 dv
+                               ^ "`." )) ;
+                      None )
+                else None
+              in
+              let result = List.filter_map ~f l in
+              (match !abortReason with None -> DList result | Some v -> v)
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -550,11 +599,11 @@ let fns =
     ; deprecated = true }
   ; { prefix_names = ["List::map"]
     ; infix_names = []
-    ; parameters = [par "l" TList; func ["val"]]
+    ; parameters = [par "list" TList; func ["item"]]
     ; return_type = TList
     ; description =
-        "Call `f` on every item in the list, returning a list of the results of
-  those calls"
+        "Calls `f` on every `item` in `list`, returning a list of the results of those calls.
+        Consider `List::filterMap` if you also want to drop some of the items."
     ; func =
         InProcess
           (function
@@ -672,7 +721,7 @@ let fns =
     ; parameters = [par "l" TList; par "index" TInt]
     ; return_type = TOption
     ; description =
-        "Returns `Just item` at `index` in list `l` if `index` is less than the length of the list. Otherwise returns `Nothing`"
+        "Returns `Just item` at `index` in list `l` if `index` is less than the length of the list. Otherwise returns `Nothing`."
     ; func =
         InProcess
           (function
