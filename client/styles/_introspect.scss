@@ -72,6 +72,10 @@ $arrow-height: 24px;
     display: flex;
     width: 100%;
     align-items: center;
+    
+    i.di {
+      color: $blue;
+    }
   }
 
   .fnicon,
