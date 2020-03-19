@@ -365,6 +365,49 @@ let t_dict_stdlibs_work () =
     (DObj (DvalMap.from_list [("key1", dint 1); ("key3", dint 3)]))
     (exec_ast
        "(Dict::filter_v1 (obj (key1 1) (key2 _) (key3 3)) (\\k v -> (> v 0)))") ;
+  check_dval
+    "Dict::filterMap works (empty)"
+    (DObj (DvalMap.from_list []))
+    (exec_ast'
+       (fn "Dict::filterMap" [record []; lambda ["key"; "value"] (int 0)])) ;
+  check_dval
+    "Dict::filterMap works (concat)"
+    (DObj (DvalMap.from_list [("a", dstr "ax"); ("c", dstr "cz")]))
+    (exec_ast'
+       (fn
+          "Dict::filterMap"
+          [ record [("a", str "x"); ("b", str "y"); ("c", str "z")]
+          ; lambda
+              ["key"; "value"]
+              (if'
+                 (binop "==" (var "value") (str "y"))
+                 (nothing ())
+                 (just (binop "++" (var "key") (var "value")))) ])) ;
+  check_incomplete
+    "Dict::filterMap works (returns incomplete)"
+    (exec_ast'
+       (fn
+          "Dict::filterMap"
+          [ record [("a", str "x"); ("b", str "y"); ("c", str "z")]
+          ; lambda
+              ["key"; "value"]
+              (if'
+                 (binop "==" (var "value") (str "y"))
+                 (blank ())
+                 (just (binop "++" (var "key") (var "value")))) ])) ;
+  check_error_contains
+    "Dict::filterMap works (wrong return type)"
+    (exec_ast'
+       (fn
+          "Dict::filterMap"
+          [ record [("a", str "x"); ("b", str "y"); ("c", str "z")]
+          ; lambda
+              ["key"; "value"]
+              (if'
+                 (binop "==" (var "value") (str "y"))
+                 (bool false)
+                 (just (binop "++" (var "key") (var "value")))) ]))
+    "Expected the argument `f` passed to `Dict::filterMap` to return `Just` or `Nothing` for every entry in `dict`" ;
   ()
 
 
