@@ -83,7 +83,7 @@ let categoryIcon (name : string) : msg Html.html list =
   | "group" ->
       [fontAwesome "object-group"]
   | _ ->
-      [darkIcon "undefinedvg"]
+      [darkIcon "undefined"]
 
 
 let handlerCategory

@@ -251,8 +251,6 @@ let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 
 let widthInCh (w : int) : msg Vdom.property = w |> inCh |> Html.style "width"
 
-let staticHost = lazy (Native.Ext.staticHost ())
-
 let createHandlerProp (hs : handler list) : handlerProp TD.t =
   hs
   |> List.map ~f:(fun h -> (h.hTLID, Defaults.defaultHandlerProp))
