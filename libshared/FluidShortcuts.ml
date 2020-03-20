@@ -71,6 +71,14 @@ let constructor ?(id = gid ()) (name : string) (args : t list) : t =
   EConstructor (id, name, args)
 
 
+let just ?(id = gid ()) (arg : t) : t = EConstructor (id, "Just", [arg])
+
+let nothing ?(id = gid ()) () : t = EConstructor (id, "Nothing", [])
+
+let error ?(id = gid ()) (arg : t) : t = EConstructor (id, "Error", [arg])
+
+let ok ?(id = gid ()) (arg : t) : t = EConstructor (id, "Ok", [arg])
+
 let match' ?(id = gid ()) (cond : t) (matches : (FluidPattern.t * t) list) : t =
   EMatch (id, cond, matches)
 

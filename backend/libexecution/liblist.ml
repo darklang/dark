@@ -141,7 +141,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TList
-    ; description = "Reverses `list`"
+    ; description = "Returns a reversed copy of `list`."
     ; func =
         InProcess
           (function _, [DList l] -> DList (List.rev l) | args -> fail args)
@@ -192,7 +192,7 @@ let fns =
     ; parameters = [par "l" TList; func ["val"]]
     ; return_type = TOption
     ; description =
-        "Find the first element of the list, for which `f` returns true. Returns Nothing if none return true"
+        "Returns `Just firstMatch` where `firstMatch` is the first element of the list for which `f` returns `true`. Returns `Nothing` if no such element exists."
     ; func =
         InProcess
           (function
@@ -213,7 +213,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "l" TList; par "val" TAny]
     ; return_type = TBool
-    ; description = "Returns if the value is in the list"
+    ; description = "Returns `true` if the value is in the list."
     ; func =
         InProcess
           (function
@@ -227,7 +227,7 @@ let fns =
     ; infix_names = []
     ; parameters = [par "times" TInt; par "val" TAny]
     ; return_type = TList
-    ; description = "Returns a list containing `val` repeated `count` times"
+    ; description = "Returns a list containing `val` repeated `count` times."
     ; func =
         InProcess
           (function
@@ -251,11 +251,11 @@ let fns =
   ; { prefix_names = ["List::range"]
     ; infix_names = []
     ; parameters =
-        [ par "start" TInt ~d:"First number in the range, will be included"
-        ; par "stop" TInt ~d:"Last number in the range, is included" ]
+        [ par "lowest" TInt ~d:"First, smallest number in the list"
+        ; par "highest" TInt ~d:"Last, largest number in the list" ]
     ; return_type = TList
     ; description =
-        "Return a list of increasing integers from `start` to `stop`, inclusive"
+        "Returns a list of numbers where each element is 1 larger than the previous. You provide the `lowest` and `highest` numbers in the list. If `lowest` is greater than `highest`, returns the empty list."
     ; func =
         InProcess
           (function
@@ -478,7 +478,7 @@ let fns =
     ; parameters = [par "l" TList; func ["val"]]
     ; return_type = TList
     ; description =
-        "Return only values in `l` which meet the function's criteria"
+        "Returns a list of every value in `l` for which `f` returns true."
     ; func =
         InProcess
           (function
@@ -561,6 +561,58 @@ let fns =
           | state, [DList l; DBlock b] ->
               let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
               Dval.to_list (List.map ~f l)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::map2shortest"]
+    ; infix_names = []
+    ; parameters =
+        [par "as" TList; par "bs" TList; func ["list1Item"; "list2Item"]]
+    ; return_type = TList
+    ; description =
+        {|Maps `f` over `as` and `bs` in parallel, calling `f a b` on every pair of items from `as` and `bs`.
+        If the lists differ in length, items from the longer list are dropped.
+        For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y")]`.
+        Use `List::map2` if you want to enforce equivalent lengths for `as` and `bs`.|}
+    ; func =
+        InProcess
+          (function
+          | state, [DList l1; DList l2; DBlock b] ->
+              (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
+              let len = min (List.length l1) (List.length l2) in
+              let l1 = List.take l1 len in
+              let l2 = List.take l2 len in
+              let f (l1Item : dval) (l2Item : dval) : dval =
+                Ast.execute_dblock ~state b [l1Item; l2Item]
+              in
+              Dval.to_list (List.map2_exn ~f l1 l2)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::map2"]
+    ; infix_names = []
+    ; parameters = [par "as" TList; par "bs" TList; func ["a"; "b"]]
+    ; return_type = TOption
+    ; description =
+        {|If the lists are the same length, returns `Just list` formed by mapping `f` over `as` and `bs` in parallel,
+         calling `f a b` on every pair of items from `as` and `bs`.
+         For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y"), (f 3 "z")]`.
+         If the lists differ in length, returns `Nothing` (consider `List::map2shortest` if you want to drop items from the longer list instead).|}
+    ; func =
+        InProcess
+          (function
+          | state, [DList l1; DList l2; DBlock b] ->
+              let f (l1Item : dval) (l2Item : dval) : dval =
+                Ast.execute_dblock ~state b [l1Item; l2Item]
+              in
+              DOption
+                ( match List.map2 ~f l1 l2 with
+                | Ok res ->
+                    OptJust (Dval.to_list res)
+                | Unequal_lengths ->
+                    OptNothing )
           | args ->
               fail args)
     ; preview_safety = Safe
