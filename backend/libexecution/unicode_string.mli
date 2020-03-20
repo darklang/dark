@@ -106,6 +106,16 @@ val trim : t -> t
  *)
 val slice : t -> first:int -> last:int -> t
 
+(** [pad_start str pad_with des_gc_count] pads the start of [str] with repeated copies of [pad_with] while
+ * the number of grapheme clusters in the result is less than [des_gc_count].
+ *)
+val pad_start : t -> pad_with:t -> int -> t
+
+(** [pad_end str pad_with des_gc_count] pads the end of [str] with repeated copies of [pad_with] while
+ * the number of grapheme clusters in the result is less than [des_gc_count].
+ *)
+val pad_end : t -> pad_with:t -> int -> t
+
 val compare : t -> t -> int
 
 val equal : t -> t -> bool
