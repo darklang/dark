@@ -388,20 +388,20 @@ let t_list_stdlibs_work () =
           ; list [int 1; int 2; int 3]
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
-    "List::map2DroppingExtra works (length mismatch)"
+    "List::map2shortest works (length mismatch)"
     (DList [Dval.dint 9; Dval.dint 18])
     (exec_ast'
        (fn
-          "List::map2DroppingExtra"
+          "List::map2shortest"
           [ list [int 10; int 20]
           ; list [int 1; int 2; int 3]
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
-    "List::map2DroppingExtra works (length match)"
+    "List::map2shortest works (length match)"
     (DList [Dval.dint 9; Dval.dint 18; Dval.dint 27])
     (exec_ast'
        (fn
-          "List::map2DroppingExtra"
+          "List::map2shortest"
           [ list [int 10; int 20; int 30]
           ; list [int 1; int 2; int 3]
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;

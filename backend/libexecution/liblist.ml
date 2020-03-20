@@ -565,7 +565,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::map2DroppingExtra"]
+  ; { prefix_names = ["List::map2shortest"]
     ; infix_names = []
     ; parameters =
         [par "as" TList; par "bs" TList; func ["list1Item"; "list2Item"]]
