@@ -20,27 +20,34 @@ let viewWelcomeToDark (username : string) : msg Html.html =
     ViewUtils.eventNoPropagation ~key:"close-welcome-modal" "click" (fun _ ->
         CloseWelcomeModal)
   in
-  let vidSrc = "//" ^ Native.Ext.staticHost () ^ "/gif/helloworld.gif" in
-  let gif =
-    [ Html.img
-        [ Html.src vidSrc
-        ; Vdom.prop "alt" "Gif showing how to create a hello world handler" ]
-        [] ]
-  in
   Html.div
     [Html.class' "welcome"]
     [ Html.h1 [Html.class' "title"] [Html.text ("Hello, " ^ username ^ "!")]
     ; Html.p
         [Html.class' "subtext"]
         [ Html.text
-            "Dark was created to reduce accidental complexity - look how easy it is to build Hello World!"
-        ]
-    ; Html.div [Html.class' "gif"] gif
+            "Welcome to Dark - we're excited to help you get started.  We've created a sample canvas for you to explore, with supporting documentation available here: "
+        ; Html.a
+            [Html.class' "doc-link"; Html.href "https://darklang.com/docs"]
+            [Html.text "https://darklang.com/docs"] ]
+    ; Html.p
+        [Html.class' "subtext"]
+        [ Html.span
+            []
+            [ Html.text
+                "If you'd like to create a blank canvas, just change the \"getting-started\" part of this URL to something else, and a new canvas will be created for you."
+            ] ]
     ; Html.div
         [Html.class' "btn-wrap"]
-        [ Html.div
-            [Html.class' "btn"; btnEvent]
-            [Html.p [Html.class' "txt"] [Html.text "Get Started"]] ] ]
+        [ Html.a
+            [ Html.href
+                (Printf.sprintf
+                   "https://darklang.com/a/%s-getting-started"
+                   username)
+            ; btnEvent ]
+            [ Html.div
+                [Html.class' "btn"]
+                [Html.p [Html.class' "txt"] [Html.text "Get Started"]] ] ] ]
 
 
 let html (m : model) : msg Html.html =

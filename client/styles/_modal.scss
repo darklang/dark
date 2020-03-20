@@ -42,6 +42,10 @@ $light-grey: $grey2;
         }
       }
     }
+    a.doc-link {
+      color: $white3;
+      display: inline;
+    }
     .close-btn {
       position: relative;
       align-self: flex-start;
@@ -63,6 +67,9 @@ $light-grey: $grey2;
       text-align: center;
     }
     .btn-wrap {
+      a {
+        text-decoration: none;
+      }
       display: flex;
       align-items: center;
       justify-content: center;
