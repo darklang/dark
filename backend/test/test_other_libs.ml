@@ -571,6 +571,7 @@ let t_list_stdlibs_work () =
 
 
 let t_string_stdlibs_work () =
+  let dstr = Dval.dstr_of_string_exn in
   check_dval
     "String::isEmpty works (empty)"
     (DBool true)
@@ -583,6 +584,38 @@ let t_string_stdlibs_work () =
     "String::base64decode errors on non-base64"
     (exec_ast' (fn "String::base64Decode" [str "random string"]))
     "Not a valid base64 string" ;
+  check_dval
+    "String::slice works (pos, pos)"
+    (dstr "c")
+    (exec_ast' (fn "String::slice" [str "abcd"; int 2; int 3])) ;
+  check_dval
+    "String::slice works (pos, > len)"
+    (dstr "cd")
+    (exec_ast' (fn "String::slice" [str "abcd"; int 2; int 6])) ;
+  check_dval
+    "String::slice works (> len, > len)"
+    (dstr "")
+    (exec_ast' (fn "String::slice" [str "abcd"; int 5; int 6])) ;
+  check_dval
+    "String::slice works (pos, neg)"
+    (dstr "abc")
+    (exec_ast' (fn "String::slice" [str "abcd"; int 0; int (-1)])) ;
+  check_dval
+    "String::slice works (neg, neg)"
+    (dstr "cd")
+    (exec_ast' (fn "String::slice" [str "abcd"; int (-2); int 4])) ;
+  check_dval
+    "String::slice works (<-len, pos)"
+    (dstr "a")
+    (exec_ast' (fn "String::slice" [str "abcd"; int (-5); int 1])) ;
+  check_dval
+    "String::slice works (<-len, <-len)"
+    (dstr "")
+    (exec_ast' (fn "String::slice" [str "abcd"; int (-5); int (-6)])) ;
+  check_dval
+    "String::slice works (swapped)"
+    (dstr "")
+    (exec_ast' (fn "String::slice" [str "abcd"; int 3; int 2])) ;
   ()
 
 
