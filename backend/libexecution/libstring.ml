@@ -699,6 +699,42 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["String::padLeft"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns a copy of `string` starting with repeated copies of `padWith`. The result will not 
+        exceed `goalLength` grapheme clusters in length unless `string` is already longer.
+        This function will never add partial copies of `padWith`."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DStr pad_with; DInt l] ->
+              let l = Dint.to_int_exn l in
+              DStr (Unicode_string.pad_start s ~pad_with l)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::padRight"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns a copy of `string` ending with repeated copies of `padWith`. The result will not 
+        exceed `goalLength` grapheme clusters in length unless `string` is already longer.
+        This function will never add partial copies of `padWith`."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DStr pad_with; DInt l] ->
+              let l = Dint.to_int_exn l in
+              DStr (Unicode_string.pad_end s ~pad_with l)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["String::trim"]
     ; infix_names = []
     ; parameters = [par "str" TStr]
