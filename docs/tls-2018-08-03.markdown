@@ -62,7 +62,7 @@ this:
 
 ```
 /.well-known/pki-validation/3DDCB20FE60956090A312AA36B1A9E0E.txt HTTP GET
-Http::respondWithHtml
+Http::responseWithHtml
 "82EF68C568D5B84C00FE816EFED8F86A371CB21C79ED340AFC0C6144F06E55A8
 comodoca.com"
 200
