@@ -30,13 +30,6 @@ let viewWelcomeToDark (username : string) : msg Html.html =
         ; Html.a
             [Html.class' "doc-link"; Html.href "https://darklang.com/docs"]
             [Html.text "https://darklang.com/docs"] ]
-    ; Html.p
-        [Html.class' "subtext"]
-        [ Html.span
-            []
-            [ Html.text
-                "If you'd like to create a blank canvas, just change the \"getting-started\" part of this URL to something else, and a new canvas will be created for you."
-            ] ]
     ; Html.div
         [Html.class' "btn-wrap"]
         [ Html.a
@@ -47,7 +40,14 @@ let viewWelcomeToDark (username : string) : msg Html.html =
             ; btnEvent ]
             [ Html.div
                 [Html.class' "btn"]
-                [Html.p [Html.class' "txt"] [Html.text "Get Started"]] ] ] ]
+                [Html.p [Html.class' "txt"] [Html.text "Get Started"]] ] ]
+    ; Html.p
+        [Html.class' "subtext"]
+        [ Html.span
+            []
+            [ Html.text
+                "If you'd like to create a blank canvas, just change the \"getting-started\" part of this URL to something else, and a new canvas will be created for you."
+            ] ] ]
 
 
 let html (m : model) : msg Html.html =
