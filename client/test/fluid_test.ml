@@ -4861,6 +4861,21 @@ let run () =
         ~pos:6
         (key K.Tab)
         "[~56,78]" ;
+      t
+        "tab does not go to middle of multiline string"
+        mlStrWSpace
+        ~wrap:false
+        ~pos:0
+        (key K.Tab)
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
+      t
+        "tab does not stop on function version"
+        aFnCallWithVersion
+        ~pos:0
+        (key K.Tab)
+        "DB::getAllv1 ~___________________" ;
       ()) ;
   (* Disable string escaping for now *)
   (* describe "String escaping" (fun () -> ()) ; *)
