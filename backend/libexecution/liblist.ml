@@ -617,7 +617,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::zipDroppingExtra"]
+  ; { prefix_names = ["List::zipShortest"]
     ; infix_names = []
     ; parameters = [par "list1" TList; par "list2" TList]
     ; return_type = TList
