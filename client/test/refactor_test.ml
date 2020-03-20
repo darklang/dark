@@ -46,7 +46,7 @@ let sampleFunctions =
     ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
     ; fnDescription = ""
     ; fnReturnTipe = TObj
-    ; fnPreviewSafety = Safe
+    ; fnPreviewSafety = Unsafe
     ; fnDeprecated = false
     ; fnInfix = false } ]
 
@@ -59,6 +59,17 @@ let defaultHandler =
   ; ast = FluidAST.ofExpr (EBlank (gid ()))
   ; spec =
       {space = B.newF "HTTP"; name = B.newF "/src"; modifier = B.newF "POST"} }
+
+
+let aFn name expr : userFunction =
+  { ufTLID = gtlid ()
+  ; ufMetadata =
+      { ufmName = F (gid (), name)
+      ; ufmParameters = []
+      ; ufmDescription = ""
+      ; ufmReturnTipe = F (gid (), TAny)
+      ; ufmInfix = false }
+  ; ufAST = FluidAST.ofExpr expr }
 
 
 let run () =
@@ -387,4 +398,19 @@ let run () =
           expect
             (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidPrinter.eToTestString)
           |> toEqual "1\n|>other1\n|>other2\n|>\\x -> myFn 2 x 3\n|>other3\n") ;
-      ())
+      ()) ;
+  describe "calculateUserUnsafeFunctions" (fun () ->
+      let userfns =
+        [ aFn "callsUnsafeBuiltin" (fn "DB::set_v1" [])
+        ; aFn "callsSafeBuiltin" (fn "List::getAt_v1" [])
+        ; aFn "callsSafeUserfn" (fn "callsSafeBuiltin" [])
+        ; aFn "callsUnsafeUserfn" (fn "callsUnsafeBuiltin" []) ]
+      in
+      test "simple example" (fun () ->
+          expect
+            ( Refactor.calculateUnsafeUserFunctions sampleFunctions userfns
+            |> StrSet.toList
+            |> List.sortWith compare )
+          |> toEqual ["callsUnsafeBuiltin"; "callsUnsafeUserfn"]) ;
+      ()) ;
+  ()
