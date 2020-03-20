@@ -542,8 +542,8 @@ let createAndInsertNewFunction
         Model.updateErrorMod
           (Error.set ("Function named " ^ newFnName ^ " already exists"))
       else
-        let isValid = Autocomplete.validateFunctionName newFnName in
-        ( match isValid with
+        let invalidMessage = Autocomplete.validateFunctionName newFnName in
+        ( match invalidMessage with
         | Some msg ->
             Model.updateErrorMod (Error.set msg)
         | None ->
