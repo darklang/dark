@@ -1320,6 +1320,7 @@ and variantTest =
   | GroupVariant
   | FeatureFlagVariant
   | NgrokVariant
+  | ForceWelcomeModalVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
