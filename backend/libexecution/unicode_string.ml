@@ -168,6 +168,28 @@ let uppercase = cmap_utf_8 Uucp.Case.Map.to_upper
 
 let lowercase = cmap_utf_8 Uucp.Case.Map.to_lower
 
+let slice s ~first ~last =
+  let clamp_unchecked t ~min ~max =
+    if t < min then min else if t <= max then t else max
+  in
+  let len = length s in
+  let min = 0 in
+  let max = len + 1 in
+  let first =
+    if first >= 0 then first else len + first |> clamp_unchecked ~min ~max
+  in
+  let last =
+    if last >= 0 then last else len + last |> clamp_unchecked ~min ~max
+  in
+  let b = Buffer.create (String.length s) in
+  let slicer_func acc seg =
+    if acc >= first && acc < last then Buffer.add_string b seg else () ;
+    1 + acc
+  in
+  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster slicer_func 0 in
+  Buffer.contents b
+
+
 let trim_left s =
   let b = Buffer.create (String.length s) in
   let seen_non_ws = ref false in
