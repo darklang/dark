@@ -619,13 +619,13 @@ let fns =
     ; deprecated = false }
   ; { prefix_names = ["List::zipShortest"]
     ; infix_names = []
-    ; parameters = [par "list1" TList; par "list2" TList]
+    ; parameters = [par "as" TList; par "bs" TList]
     ; return_type = TList
     ; description =
-        "Returns a list of pairs of values from `list1` and `list2`,
-         where each pair uses values from the same index in both lists.
-         If the lists differ in length, items from the longer list are dropped.
-         Use `List::zip` if you want to enforce equivalent lengths."
+        {|Returns a list of parallel pairs from `as` and `bs`.
+        If the lists differ in length, items from the longer list are dropped.
+        For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"]]`.
+        Use `List::zip` if you want to enforce equivalent lengths for `as` and `bs`.|}
     ; func =
         InProcess
           (function
@@ -644,12 +644,12 @@ let fns =
     ; deprecated = false }
   ; { prefix_names = ["List::zip"]
     ; infix_names = []
-    ; parameters = [par "list1" TList; par "list2" TList]
+    ; parameters = [par "as" TList; par "bs" TList]
     ; return_type = TOption
     ; description =
-        "If the lists differ in length, returns `Nothing` (consider `List::zipDroppingExtra` if you want to drop items from the longer list instead).
-         If the lists have the same length, returns `Just list` formed from parallel pairs in `list1` and `list2`,
-         where each pair is a 2-item list using values from the same index in `list1` and `list2`."
+        {|If the lists have the same length, returns `Just list` formed from parallel pairs in `as` and `bs`.
+        For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"], [3,"z"]]`.
+        If the lists differ in length, returns `Nothing` (consider `List::zipShortest` if you want to drop items from the longer list instead).|}
     ; func =
         InProcess
           (function
