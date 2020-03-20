@@ -548,12 +548,20 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
 
 
 (** [getNextEditable pos tokens] returns the first editable token after [pos] in 
- * [tokens], wrapped in an option. If no such token exists, wrap around, returning the first editable token in 
- * [tokens], or None if none exists. *)
+ * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in 
+ * [tokens], or None if no editable token exists. *)
 let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
   tokens
-  |> List.find ~f:(fun ti -> T.isTextToken ti.token && ti.startPos > pos)
+  |> List.find ~f:(fun ti ->
+         let isEditable =
+           match ti.token with
+           | TStringMLEnd _ | TStringMLMiddle _ | TFnVersion _ ->
+               false
+           | _ ->
+               T.isTextToken ti.token
+         in
+         isEditable && ti.startPos > pos)
   |> Option.orElseLazy (fun () ->
          if pos = 0 then None else getNextEditable (-1) tokens)
 
