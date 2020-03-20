@@ -582,7 +582,7 @@ let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
 
 (** [getPrevEditable pos tokens] returns the closest editable token before [pos] in 
 * [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in 
-* [tokens], or None if none exists. *)
+* [tokens], or None if no editable exists. *)
 let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
     =
   let revTokens = List.reverse tokens in
