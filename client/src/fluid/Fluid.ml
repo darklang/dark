@@ -588,14 +588,18 @@ let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
   let revTokens = List.reverse tokens in
   let rec findEditable (pos : int) : T.tokenInfo option =
     revTokens
-    |> List.find ~f:(fun ti -> T.isTextToken ti.token && ti.startPos < pos)
+    |> List.find ~f:(fun ti ->
+           let isEditable =
+             match ti.token with
+             | TStringMLStart _ | TStringMLMiddle _ | TFnName _ ->
+                 false
+             | _ ->
+                 T.isTextToken ti.token
+           in
+           isEditable && ti.endPos < pos)
     |> Option.orElseLazy (fun () ->
            let lastPos =
-             match List.head revTokens with
-             | Some tok ->
-                 tok.startPos
-             | None ->
-                 0
+             match List.head revTokens with Some tok -> tok.endPos | None -> 0
            in
            if pos = lastPos then None else findEditable (lastPos + 1))
   in
@@ -605,7 +609,8 @@ let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
 let getPrevEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
   tokens
   |> getPrevEditable pos
-  |> Option.map ~f:(fun ti -> ti.startPos)
+  |> Option.map ~f:(fun ti ->
+         if T.isBlank ti.token then ti.startPos else ti.endPos)
   |> Option.withDefault ~default:pos
 
 
