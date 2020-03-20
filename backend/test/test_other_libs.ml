@@ -53,6 +53,42 @@ let t_option_stdlibs_work () =
     "map just incomplete"
     (exec_ast "(Option::map_v1 _ (\\x -> (x)))") ;
   check_dval
+    "Option::map2 works (Just, Just)"
+    (DOption (OptJust (Dval.dint 9)))
+    (exec_ast'
+       (fn
+          "Option::map2"
+          [ just (int 10)
+          ; just (int 1)
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Option::map2 works (Just, Nothing)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn
+          "Option::map2"
+          [ just (int 10)
+          ; nothing ()
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Option::map2 works (Nothing, Just)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn
+          "Option::map2"
+          [ nothing ()
+          ; just (int 1)
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Option::map2 works (Nothing, Nothing)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn
+          "Option::map2"
+          [ nothing ()
+          ; nothing ()
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
     "withDefault just"
     (exec_ast "(Option::withDefault (Just 6) 5)")
     (Dval.dint 6) ;
@@ -91,7 +127,8 @@ let t_option_stdlibs_work () =
 
 
 let t_result_stdlibs_work () =
-  let test_string = Dval.dstr_of_string_exn "test" in
+  let dstr = Dval.dstr_of_string_exn in
+  let test_string = dstr "test" in
   check_dval
     "map ok"
     (exec_ast "(Result::map (Ok 4) (\\x -> (Int::divide x 2)))")
@@ -112,6 +149,42 @@ let t_result_stdlibs_work () =
     "map v1 incomplete"
     (exec_ast "(Result::map_v1 _ (\\x -> (Int::divide x 2)))")
     (DIncomplete SourceNone) ;
+  check_dval
+    "Result::map2 works (Ok, Ok)"
+    (DResult (ResOk (Dval.dint 9)))
+    (exec_ast'
+       (fn
+          "Result::map2"
+          [ ok (int 10)
+          ; ok (int 1)
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Result::map2 works (Ok, Error)"
+    (DResult (ResError (dstr "error2")))
+    (exec_ast'
+       (fn
+          "Result::map2"
+          [ ok (int 10)
+          ; error (str "error2")
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Result::map2 works (Error, Ok)"
+    (DResult (ResError (dstr "error1")))
+    (exec_ast'
+       (fn
+          "Result::map2"
+          [ error (str "error1")
+          ; ok (int 1)
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "Result::map2 works (Error, Error)"
+    (DResult (ResError (dstr "error1")))
+    (exec_ast'
+       (fn
+          "Result::map2"
+          [ error (str "error1")
+          ; error (str "error2")
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "maperror ok"
     (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
@@ -292,6 +365,46 @@ let t_dict_stdlibs_work () =
     (DObj (DvalMap.from_list [("key1", dint 1); ("key3", dint 3)]))
     (exec_ast
        "(Dict::filter_v1 (obj (key1 1) (key2 _) (key3 3)) (\\k v -> (> v 0)))") ;
+  ()
+
+
+let t_list_stdlibs_work () =
+  check_dval
+    "List::map2 works (length mismatch)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn
+          "List::map2"
+          [ list [int 10; int 20]
+          ; list [int 1; int 2; int 3]
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "List::map2 works (length match)"
+    (DOption (OptJust (DList [Dval.dint 9; Dval.dint 18; Dval.dint 27])))
+    (exec_ast'
+       (fn
+          "List::map2"
+          [ list [int 10; int 20; int 30]
+          ; list [int 1; int 2; int 3]
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "List::map2shortest works (length mismatch)"
+    (DList [Dval.dint 9; Dval.dint 18])
+    (exec_ast'
+       (fn
+          "List::map2shortest"
+          [ list [int 10; int 20]
+          ; list [int 1; int 2; int 3]
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "List::map2shortest works (length match)"
+    (DList [Dval.dint 9; Dval.dint 18; Dval.dint 27])
+    (exec_ast'
+       (fn
+          "List::map2shortest"
+          [ list [int 10; int 20; int 30]
+          ; list [int 1; int 2; int 3]
+          ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   ()
 
 
@@ -820,6 +933,7 @@ let suite =
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
   ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work)
+  ; ("List stdlibs work", `Quick, t_list_stdlibs_work)
   ; ("String stdlibs work", `Quick, t_string_stdlibs_work)
   ; ( "End-user password hashing and checking works"
     , `Quick
