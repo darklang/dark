@@ -585,7 +585,7 @@ since they are essentially both commands just acting upon different things. */
 
     &.Option {
       &::before {
-        @include dark-icon($dark-icon-option-just);
+        @include dark-icon($da-option-just);
         color: $grey3;
       }
 
@@ -595,7 +595,7 @@ since they are essentially both commands just acting upon different things. */
 
       &.ErrorRail {
         &::before {
-          @include dark-icon($dark-icon-option-nothing);
+          @include dark-icon($da-option-nothing);
           color: lighten($red, 10%);
         }
 
@@ -607,7 +607,7 @@ since they are essentially both commands just acting upon different things. */
 
     &.Result {
       &::before {
-        @include dark-icon($dark-icon-result-ok);
+        @include dark-icon($da-result-ok);
         color: $grey3;
       }
 
@@ -617,7 +617,7 @@ since they are essentially both commands just acting upon different things. */
 
       &.ErrorRail {
         &::before {
-          @include dark-icon($dark-icon-result-error);
+          @include dark-icon($da-result-error);
           color: lighten($red, 10%);
         }
 
