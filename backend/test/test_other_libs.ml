@@ -616,6 +616,46 @@ let t_string_stdlibs_work () =
     "String::slice works (swapped)"
     (dstr "")
     (exec_ast' (fn "String::slice" [str "abcd"; int 3; int 2])) ;
+  check_dval
+    "String::padLeft works (empty string)"
+    (dstr "123")
+    (exec_ast' (fn "String::padLeft" [str "123"; str ""; int 10])) ;
+  check_dval
+    "String::padRight works (empty string)"
+    (dstr "123")
+    (exec_ast' (fn "String::padRight" [str "123"; str ""; int 10])) ;
+  check_dval
+    "String::padLeft works (single cluster)"
+    (dstr "000123")
+    (exec_ast' (fn "String::padLeft" [str "123"; str "0"; int 6])) ;
+  check_dval
+    "String::padRight works (single cluster)"
+    (dstr "123000")
+    (exec_ast' (fn "String::padRight" [str "123"; str "0"; int 6])) ;
+  check_dval
+    "String::padLeft works (single cluster; length too short)"
+    (dstr "123")
+    (exec_ast' (fn "String::padLeft" [str "123"; str "0"; int 3])) ;
+  check_dval
+    "String::padRight works (single cluster; length too short)"
+    (dstr "123")
+    (exec_ast' (fn "String::padRight" [str "123"; str "0"; int 3])) ;
+  check_dval
+    "String::padLeft works (length too short)"
+    (dstr "123")
+    (exec_ast' (fn "String::padLeft" [str "123"; str "_-"; int 4])) ;
+  check_dval
+    "String::padRight works (length too short)"
+    (dstr "123")
+    (exec_ast' (fn "String::padRight" [str "123"; str "_-"; int 4])) ;
+  check_dval
+    "String::padLeft works (round down)"
+    (dstr "_-_-123")
+    (exec_ast' (fn "String::padLeft" [str "123"; str "_-"; int 8])) ;
+  check_dval
+    "String::padRight works (round down)"
+    (dstr "123_-_-")
+    (exec_ast' (fn "String::padRight" [str "123"; str "_-"; int 8])) ;
   ()
 
 
