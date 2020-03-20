@@ -573,7 +573,8 @@ let fns =
     ; description =
         {|Maps `f` over `as` and `bs` in parallel, calling `f a b` on every pair of items from `as` and `bs`.
         If the lists differ in length, items from the longer list are dropped.
-        For example, if `as` is `[1,2]` and `bs` is `["x","y"]`, returns `[(f 1 "x"), (f 2 "y")]`.|}
+        For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y")]`.
+        Use `List::map2` if you want to enforce equivalent lengths for `as` and `bs`.|}
     ; func =
         InProcess
           (function
@@ -595,11 +596,10 @@ let fns =
     ; parameters = [par "as" TList; par "bs" TList; func ["a"; "b"]]
     ; return_type = TOption
     ; description =
-        {|If the lists differ in length, returns `Nothing`.
-        Otherwise, returns `Just list` formed by mapping `f` over `as` and `bs` in parallel,
+        {|If the lists are the same length, returns `Just list` formed by mapping `f` over `as` and `bs` in parallel,
          calling `f a b` on every pair of items from `as` and `bs`.
-         For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`,
-         returns `[(f 1 "x"), (f 2 "y"), (f 3 "z")]`.|}
+         For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y"), (f 3 "z")]`.
+         If the lists differ in length, returns `Nothing` (consider `List::map2shortest` if you want to drop items from the longer list instead).|}
     ; func =
         InProcess
           (function
