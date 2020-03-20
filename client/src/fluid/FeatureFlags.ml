@@ -59,8 +59,8 @@ let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
     | Some ast ->
         ast
         |> FluidAST.filter ~f:(function E.EFeatureFlag _ -> true | _ -> false)
-        |> List.length
-        |> ( <> ) 0
+        |> List.isEmpty
+        |> not
     | None ->
         false
   in
