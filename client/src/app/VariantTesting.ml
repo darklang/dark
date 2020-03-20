@@ -22,6 +22,8 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some FeatureFlagVariant
     | "localhost-assets" ->
         Some NgrokVariant
+    | "force-welcome-modal" ->
+        Some ForceWelcomeModalVariant
     | _ ->
         None )
 
@@ -37,6 +39,8 @@ let toCSSClass (vt : variantTest) : string =
         "ff"
     | NgrokVariant ->
         "ngrok"
+    | ForceWelcomeModalVariant ->
+        "force-welcome-modal"
   in
   test ^ "-variant"
 
