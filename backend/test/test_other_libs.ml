@@ -405,6 +405,40 @@ let t_list_stdlibs_work () =
           [ list [int 10; int 20; int 30]
           ; list [int 1; int 2; int 3]
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
+  check_dval
+    "List::zip works (length mismatch)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn "List::zip" [list [int 10; int 20]; list [int 1; int 2; int 3]])) ;
+  check_dval
+    "List::zip works (length match)"
+    (DOption
+       (OptJust
+          (DList
+             [ DList [Dval.dint 10; Dval.dint 1]
+             ; DList [Dval.dint 20; Dval.dint 2]
+             ; DList [Dval.dint 30; Dval.dint 3] ])))
+    (exec_ast'
+       (fn
+          "List::zip"
+          [list [int 10; int 20; int 30]; list [int 1; int 2; int 3]])) ;
+  check_dval
+    "List::zipShortest works (length mismatch)"
+    (DList [DList [Dval.dint 10; Dval.dint 1]; DList [Dval.dint 20; Dval.dint 2]])
+    (exec_ast'
+       (fn
+          "List::zipShortest"
+          [list [int 10; int 20]; list [int 1; int 2; int 3]])) ;
+  check_dval
+    "List::zipShortest works (length match)"
+    (DList
+       [ DList [Dval.dint 10; Dval.dint 1]
+       ; DList [Dval.dint 20; Dval.dint 2]
+       ; DList [Dval.dint 30; Dval.dint 3] ])
+    (exec_ast'
+       (fn
+          "List::zipShortest"
+          [list [int 10; int 20; int 30]; list [int 1; int 2; int 3]])) ;
   ()
 
 
