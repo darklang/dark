@@ -101,6 +101,11 @@ val length : t -> int
  * *)
 val trim : t -> t
 
+(** [slice str first last] returns a substring between [first] (inclusive) and [last] (exclusive) indices.
+ * Indices represent grapheme clusters. Negative indices start counting from the end of the [str].
+ *)
+val slice : t -> first:int -> last:int -> t
+
 val compare : t -> t -> int
 
 val equal : t -> t -> bool
