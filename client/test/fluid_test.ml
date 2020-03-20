@@ -4838,6 +4838,14 @@ let run () =
         shiftTab
         "obj.~***" ;
       t
+        "shift tab at beg of line, wraps to end"
+        ~wrap:false
+        ~brokenInFF:true
+        longList
+        ~pos:1
+        shiftTab
+        "[56,78,56,78,56,~78]" ;
+      t
         "tab at end of line, wraps to beginging"
         ~wrap:false
         ~brokenInFF:true
@@ -4845,6 +4853,14 @@ let run () =
         ~pos:11
         (key K.Tab)
         "~Int::add 5 _________" ;
+      t
+        "tab at end of line, wraps to beginging"
+        ~wrap:false
+        ~brokenInFF:true
+        multi
+        ~pos:6
+        (key K.Tab)
+        "[~56,78]" ;
       ()) ;
   (* Disable string escaping for now *)
   (* describe "String escaping" (fun () -> ()) ; *)
