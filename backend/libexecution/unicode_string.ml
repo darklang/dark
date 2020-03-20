@@ -190,6 +190,40 @@ let slice s ~first ~last =
   Buffer.contents b
 
 
+let pad_start s ~pad_with des_gc_count =
+  let max a b = if a > b then a else b in
+  let pad_size = String.length pad_with in
+  let pad_gcs = length pad_with in
+  let s_size = String.length s in
+  let s_gcs = length s in
+  let req_gcs = des_gc_count - s_gcs in
+  let req_pads = max 0 (if pad_gcs = 0 then 0 else req_gcs / pad_gcs) in
+  let req_size = s_size + (req_pads * pad_size) in
+  let b = Buffer.create req_size in
+  for i = 1 to req_pads do
+    Buffer.add_string b pad_with
+  done ;
+  Buffer.add_string b s ;
+  Buffer.contents b
+
+
+let pad_end s ~pad_with des_gc_count =
+  let max a b = if a > b then a else b in
+  let pad_size = String.length pad_with in
+  let pad_gcs = length pad_with in
+  let s_size = String.length s in
+  let s_gcs = length s in
+  let req_gcs = des_gc_count - s_gcs in
+  let req_pads = max 0 (if pad_gcs = 0 then 0 else req_gcs / pad_gcs) in
+  let req_size = s_size + (req_pads * pad_size) in
+  let b = Buffer.create req_size in
+  Buffer.add_string b s ;
+  for i = 1 to req_pads do
+    Buffer.add_string b pad_with
+  done ;
+  Buffer.contents b
+
+
 let trim_left s =
   let b = Buffer.create (String.length s) in
   let seen_non_ws = ref false in
