@@ -699,7 +699,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["String::padLeft"]
+  ; { prefix_names = ["String::padStart"]
     ; infix_names = []
     ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
     ; return_type = TStr
@@ -717,7 +717,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["String::padRight"]
+  ; { prefix_names = ["String::padEnd"]
     ; infix_names = []
     ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
     ; return_type = TStr
