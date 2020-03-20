@@ -351,19 +351,18 @@ let calculateUnsafeUserFunctions
                    Some [caller]))
   in
   (* Get the initial set of unsafe functions *)
-  let worklist =
+  let unsafeBuiltins =
     builtins
     |> List.filterMap ~f:(fun f ->
            if f.fnPreviewSafety = Unsafe then Some f.fnName else None)
-    |> ref
   in
+  let worklist = ref unsafeBuiltins in
   (* The result set *)
   let unsafeFns = ref StrSet.empty in
   (* The worklist algorithm:
    *
    * Go through worklist of unsafe functions, starting with known-unsafe builtins:
-   * - find their callers
-   * - mark the callers unsafe
+   * - mark this function unsafe
    * - add the callers to the worklist
    *)
   while !worklist <> [] do
@@ -372,19 +371,18 @@ let calculateUnsafeUserFunctions
         (* already processed *)
         if StrSet.has ~value:callee !unsafeFns
         then worklist := rest
-        else
+        else (
+          unsafeFns := StrSet.add ~value:callee !unsafeFns ;
+          (* add callers to be processed *)
           let callers =
             StrDict.get ~key:callee dependencyTree
             |> Option.withDefault ~default:[]
           in
-          (* all callers are unsafe *)
-          unsafeFns := StrSet.union !unsafeFns (StrSet.ofList callers) ;
-          (* add callers to be processed *)
-          worklist := rest @ callers
+          worklist := rest @ callers )
     | _ ->
         ()
   done ;
-  !unsafeFns
+  StrSet.removeMany ~values:unsafeBuiltins !unsafeFns
 
 
 let updateUsageCounts (m : model) : model =
