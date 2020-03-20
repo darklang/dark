@@ -4782,8 +4782,11 @@ let run () =
         "let *** = ~___\n5" ;
       t
         "tab wraps second block in a let"
-        ~wrap:false
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
         ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         emptyLet
         ~pos:15
         (key K.Tab)
@@ -4814,16 +4817,22 @@ let run () =
         "let *** = ~___\n___" ;
       t
         "shift tab wraps from start of let"
-        ~wrap:false
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
         ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         emptyLet
         ~pos:4
         shiftTab
-        "let *** = ___\n~5" ;
+        "let *** = ___\n5~" ;
       t
         "shift tab goes to last blank in editor"
-        ~wrap:false
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
         ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         nonEmptyLetWithBlankEnd
         ~pos:4
         shiftTab
@@ -4832,31 +4841,43 @@ let run () =
       t "can tab to lambda blank" aLambda (key K.Tab) "\\~*** -> ___" ;
       t
         "can shift tab to field blank"
-        ~wrap:false
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
         ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         aBlankField
         shiftTab
         "obj.~***" ;
       t
         "shift tab at beg of line, wraps to end"
-        ~wrap:false
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
         ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         longList
         ~pos:1
         shiftTab
-        "[56,78,56,78,56,~78]" ;
+        "[56,78,56,78,56,78~]" ;
       t
         "tab at end of line, wraps to beginging"
-        ~wrap:false
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
         ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         aFnCall
         ~pos:11
         (key K.Tab)
         "~Int::add 5 _________" ;
       t
         "tab at end of line, wraps to beginging"
-        ~wrap:false
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
         ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         multi
         ~pos:6
         (key K.Tab)
@@ -4864,7 +4885,9 @@ let run () =
       t
         "tab does not go to middle of multiline string"
         mlStrWSpace
-        ~wrap:false
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
         ~pos:0
         (key K.Tab)
         ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
@@ -4875,6 +4898,28 @@ let run () =
         aFnCallWithVersion
         ~pos:0
         (key K.Tab)
+        "DB::getAllv1 ~___________________" ;
+      t
+        "shift tab does not go to middle of multiline string"
+        mlStrWSpace
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
+        shiftTab
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"~" ) ;
+      t
+        "shift tab does not stop on function version"
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
+        aFnCallWithVersion
+        shiftTab
         "DB::getAllv1 ~___________________" ;
       ()) ;
   (* Disable string escaping for now *)
