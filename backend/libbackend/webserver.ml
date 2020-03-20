@@ -144,6 +144,7 @@ let should_use_https uri =
   | [_; "builtwithdark"; "com"]
   (* Customers - do not remove the marker below *)
   (* ACD-should_use_https-MARKER *)
+  | ["api"; "venu"; "fm"]
   | ["chat"; "lee"; "af"]
   | ["api"; "fiasco"; "club"]
   | ["api"; "polotek"; "app"]
@@ -1851,6 +1852,8 @@ let route_host req =
       Some (Canvas "darksingleinstance")
   (* Customers - do not remove the marker below *)
   (* ACD-route_host-MARKER *)
+  | ["api"; "venu"; "fm"] ->
+      Some (Canvas "kian-venufm")
   | ["chat"; "lee"; "af"] ->
       Some (Canvas "lee-roulette")
   | ["api"; "fiasco"; "club"] ->
