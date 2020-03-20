@@ -49,9 +49,9 @@ let asName (aci : autocompleteItem) : string =
     | NewFunction maybeName ->
       ( match maybeName with
       | Some name ->
-          "New function named " ^ name
+          "New Function named " ^ name
       | None ->
-          "New function" )
+          "New Function" )
     | NewHTTPHandler maybeName ->
       ( match maybeName with
       | Some name ->
