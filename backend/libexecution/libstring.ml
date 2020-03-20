@@ -681,6 +681,24 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["String::slice"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "from" TInt; par "to" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns the substring of `string` between the `from` and `to` indices.
+                     Negative indices start counting from the end of `string`.
+                     Indices represent grapheme clusters."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt f; DInt l] ->
+              let first, last = (Dint.to_int_exn f, Dint.to_int_exn l) in
+              DStr (Unicode_string.slice s ~first ~last)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["String::trim"]
     ; infix_names = []
     ; parameters = [par "str" TStr]
