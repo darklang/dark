@@ -25,19 +25,19 @@
   This is our Dark Icon's analogous to the Font Awesome variables defined in _variables.scss
 */
 /* v0 icon definitions */
-$da-static-assets: "\0041";
-$da-db: "\0042";
-$da-cron: "\0043";
-$da-deleted: "\0044";
-$da-fn: "\0046";
-$da-fof: "\0047";
-$da-http: "\0048";
-$da-option-just: "\004a";
-$da-option-nothing: "\004e";
-$da-result-ok: "\004f";
-$da-result-error: "\0045";
-$da-types: "\0054";
-$da-undefined: "\0055";
+$di-static-assets: "\0041";
+$di-db: "\0042";
+$di-cron: "\0043";
+$di-deleted: "\0044";
+$di-fn: "\0046";
+$di-fof: "\0047";
+$di-http: "\0048";
+$di-option-just: "\004a";
+$di-option-nothing: "\004e";
+$di-result-ok: "\004f";
+$di-result-error: "\0045";
+$di-types: "\0054";
+$di-undefined: "\0055";
 
 /* Helper function so you can easily attach an icon to the before/after elements
     Usage: div.edit-request::after { @include dark-icon($di-http); color:$pink; }
@@ -53,30 +53,42 @@ $da-undefined: "\0055";
 */
 i.di {
   &.di-http::before {
-    @include dark-icon($da-http);
+    @include dark-icon($di-http);
   }
   &.di-static-assets::before {
-    @include dark-icon($da-static-assets);
+    @include dark-icon($di-static-assets);
   }
   &.di-db::before {
-    @include dark-icon($da-db);
+    @include dark-icon($di-db);
   }
   &.di-cron::before {
-    @include dark-icon($da-cron);
+    @include dark-icon($di-cron);
   }
   &.di-deleted::before {
-    @include dark-icon($da-deleted);
+    @include dark-icon($di-deleted);
   }
   &.di-fn::before {
-    @include dark-icon($da-fn);
+    @include dark-icon($di-fn);
   }
   &.di-fof::before {
-    @include dark-icon($da-fof);
+    @include dark-icon($di-fof);
   }
   &.di-types::before {
-    @include dark-icon($da-types);
+    @include dark-icon($di-types);
   }
   &.di-undefined::before {
-    @include dark-icon($da-undefined);
+    @include dark-icon($di-undefined);
+  }
+  &.di-option-just::before {
+    @include dark-icon($di-option-just);
+  }
+  &.di-option-nothing::before {
+    @include dark-icon($di-option-nothing);
+  }
+  &.di-result-ok::before {
+    @include dark-icon($di-result-ok);
+  }
+  &.di-result-error::before {
+    @include dark-icon($di-result-error);
   }
 }

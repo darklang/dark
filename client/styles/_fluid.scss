@@ -565,71 +565,49 @@ since they are essentially both commands just acting upon different things. */
 
     width: 12px;
     height: 12px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    opacity: 0.8;
 
-    &:hover {
-      opacity: 1;
-      // We disabled clicking for now, so hide the pointer too.
-      // cursor: pointer;
-    }
+    i.di {
+      font-size: 12px;
+      opacity: 0.8;
 
-    &:hover:after {
-      @extend .tooltip;
-
-      position: absolute;
-      left: 25px;
-      top: -2px;
-    }
-
-    &.Option {
-      &::before {
-        @include dark-icon($da-option-just);
+      &.di-option-just,
+      &.di-result-ok {
         color: $grey3;
       }
 
-      &:hover:after {
+      &.di-option-nothing,
+      &.di-result-error {
+        color: lighten($red, 10%);
+      }
+
+      &:hover {
+        opacity: 1;
+
+        &:after {
+          @extend .tooltip;
+
+          position: absolute;
+          left: 25px;
+          top: 2px;
+          font-family: "Fira Mono";
+        }
+      }
+
+      &.di-option-just:hover:after {
         content: ":take-function-off-rail (x -> Just x)";
       }
 
-      &.ErrorRail {
-        &::before {
-          @include dark-icon($da-option-nothing);
-          color: lighten($red, 10%);
-        }
-
-        &:hover:after {
-          content: ":take-function-off-rail ((/) -> Nothing)";
-        }
-      }
-    }
-
-    &.Result {
-      &::before {
-        @include dark-icon($da-result-ok);
-        color: $grey3;
+      &.di-option-nothing:hover:after {
+        content: ":take-function-off-rail (ErrorRail<Nothing> -> Nothing)";
       }
 
-      &:hover:after {
+      &.di-result-ok:hover:after {
         content: ":take-function-off-rail (x -> Ok x)";
       }
 
-      &.ErrorRail {
-        &::before {
-          @include dark-icon($da-result-error);
-          color: lighten($red, 10%);
-        }
-
-        &:hover:after {
-          content: ":take-function-off-rail ((!) -> Error msg)";
-        }
+      &.di-result-error:hover:after {
+        content: ":take-function-off-rail (ErrorRail<Error msg> -> Error msg)";
       }
-    }
-
-    &.Result.EvalFail,
-    &.Option.EvalFail {
-      background-image: none;
     }
   }
 }
