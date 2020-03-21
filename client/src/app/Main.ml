@@ -1844,7 +1844,13 @@ let update_ (msg : msg) (m : model) : modification =
         in
         ( match Toplevel.selected m with
         | Some tl when Toplevel.isDB tl ->
-            Many [UpdateDBStatsAPICall (TL.id tl); getUnlockedDBs]
+            Many
+              [ (* DB stats can be very slow, which makes users unsure of whether
+                 * it's working at all. Commenting this out is enough to disable
+                 * it, as the UI does not appear if the DB stats API call isn't
+                 * run. *)
+                (* UpdateDBStatsAPICall (TL.id tl); *)
+                getUnlockedDBs ]
         | Some tl when Toplevel.isWorkerHandler tl ->
             Many [GetWorkerStatsAPICall (TL.id tl); getUnlockedDBs]
         | _ ->
