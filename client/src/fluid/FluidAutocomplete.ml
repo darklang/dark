@@ -425,7 +425,11 @@ let generatePatterns ti a queryString : item list =
       []
 
 
-let generateCommands name tlid id = [FACCreateFunction (name, tlid, id)]
+let generateCommands _name _tlid _id =
+  (* Disable for now, this is really annoying *)
+  (* [FACCreateFunction (name, tlid, id)] *)
+  []
+
 
 let generateFields fieldList = List.map ~f:(fun x -> FACField x) fieldList
 
