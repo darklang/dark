@@ -320,23 +320,34 @@ let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
     Types.msg Html.html =
   let returnTipe (name : string) =
     let fn = Functions.findByNameInList name s.fluidState.ac.functions in
-    Runtime.tipe2str fn.fnReturnTipe
+    fn.fnReturnTipe
   in
-  let sentToRail (id : ID.t) =
-    let dv = Analysis.getLiveValue' s.analysisStore id in
+  let analyzeVal (id : ID.t) = Analysis.getLiveValue' s.analysisStore id in
+  let isEvalSuccess dv =
     match dv with
-    | Some (DErrorRail (DResult (ResError _)))
-    | Some (DErrorRail (DOption OptNothing)) ->
-        "ErrorRail"
     | Some (DIncomplete _) | Some (DError _) ->
-        "EvalFail"
+        false
+    | Some _ ->
+        true
     | _ ->
-        ""
+        false
   in
   match ti.token with
   | TFnName (id, _, _, fnName, Rail) ->
       let offset = string_of_int ti.startRow ^ "rem" in
-      let cls = ["error-indicator"; returnTipe fnName; sentToRail id] in
+      let icon =
+        match (returnTipe fnName, analyzeVal id) with
+        | TResult, Some (DErrorRail (DResult (ResError _))) ->
+            ViewUtils.darkIcon "result-error"
+        | TResult, v when isEvalSuccess v ->
+            ViewUtils.darkIcon "result-ok"
+        | TOption, Some (DErrorRail (DOption OptNothing)) ->
+            ViewUtils.darkIcon "option-nothing"
+        | TOption, v when isEvalSuccess v ->
+            ViewUtils.darkIcon "option-just"
+        | _ ->
+            Vdom.noNode
+      in
       let event =
         Vdom.noProp
         (* TEMPORARY DISABLE
@@ -346,10 +357,8 @@ let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
             (fun _ -> TakeOffErrorRail (tlid, id)) *)
       in
       Html.div
-        [ Html.class' (String.join ~sep:" " cls)
-        ; Html.styles [("top", offset)]
-        ; event ]
-        []
+        [Html.class' "error-indicator"; Html.styles [("top", offset)]; event]
+        [icon]
   | _ ->
       Vdom.noNode
 
