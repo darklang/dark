@@ -4059,10 +4059,9 @@ let run () =
       t
         "dont allow key to start with a number, pt 3"
         emptyRowRecord
-        ~pos:6
+        ~pos:4
         (ins "5")
-        (* TODO: looks wrong *)
-        "{\n  **~* : ___\n}" ;
+        "{\n  ~*** : ___\n}" ;
       t
         "hyphens are allowed in records"
         emptyRowRecord
