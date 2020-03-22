@@ -725,15 +725,16 @@ test("autocomplete_visible_height", async t => {
     .ok();
 });
 
-test("create_new_function_from_autocomplete", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#active-editor", "myFunctionName")
-    .expect(fluidAcHighlightedText())
-    .eql("Create new function: myFunctionName")
-    .pressKey("enter");
-});
-
+// Disabled the feature for now
+// test("create_new_function_from_autocomplete", async t => {
+//   await createRepl(t);
+//   await t
+//     .typeText("#active-editor", "myFunctionName")
+//     .expect(fluidAcHighlightedText())
+//     .eql("Create new function: myFunctionName")
+//     .pressKey("enter");
+// });
+//
 test("load_with_unnamed_function", async t => {
   await t
     .pressKey("enter")
