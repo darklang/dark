@@ -3859,7 +3859,7 @@ let run () =
         render
         "~let a = [56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78]\n___" ;
       ()) ;
-  describe "Record" (fun () ->
+  describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;
       t
         "inserting before the record does nothing"
@@ -4063,6 +4063,12 @@ let run () =
         (ins "5")
         (* TODO: looks wrong *)
         "{\n  **~* : ___\n}" ;
+      t
+        "hyphens are allowed in records"
+        emptyRowRecord
+        ~pos:4
+        (insMany ["x"; "-"])
+        "{\n  x-~ : ___\n}" ;
       t
         "ctrl+left at beg of value movese to beg of key"
         multiRowRecord
