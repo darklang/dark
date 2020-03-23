@@ -152,9 +152,10 @@ let fnExecutionButton
   let name = fn.fnName in
   let status = fnExecutionStatus s fn id args in
   match fn.fnPreviewSafety with
-  | Safe ->
+  (* UserFunctions always need play buttons to add the arguments to the trace *)
+  | Safe when fn.fnOrigin <> UserFunction ->
       Vdom.noNode
-  | Unsafe ->
+  | _ ->
       let class_ = executionClass status in
       let title = executionTitle status in
       let icon = executionIcon status in
