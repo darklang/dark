@@ -5368,8 +5368,23 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.undo_redo m false
   | FluidInputEvent (Keypress {key = K.Redo; _}) ->
       KeyPress.undo_redo m true
-  | FluidInputEvent (Keypress {key = K.CommandPalette; _}) ->
-      maybeOpenCmd m
+  | FluidInputEvent (Keypress {key = K.CommandPalette heritage; _}) ->
+      let maybeOpen = maybeOpenCmd m in
+      let showToast =
+        ReplaceAllModificationsWithThisOne
+          (fun m ->
+            ( { m with
+                toast =
+                  { toastMessage =
+                      Some "Command Palette has been moved to Ctrl-\\."
+                  ; toastPos = None } }
+            , Tea.Cmd.none ))
+      in
+      ( match heritage with
+      | K.LegacyShortcut ->
+          showToast
+      | K.CurrentShortcut ->
+          maybeOpen )
   | FluidInputEvent (Keypress {key = K.Omnibox; _}) ->
       KeyPress.openOmnibox m
   | FluidInputEvent (Keypress ke) when FluidCommands.isOpened m.fluidState.cp ->

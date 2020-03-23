@@ -751,7 +751,7 @@ test("extract_from_function", async t => {
     .ok()
     .click(exprElem)
     .selectText(exprElem, 0, 1)
-    .pressKey("alt+x")
+    .pressKey("ctrl+\\")
     .typeText("#cmd-filter", "extract-function")
     .pressKey("enter");
 });
@@ -1129,7 +1129,7 @@ test("use_pkg_fn", async t => {
 test("fluid_show_docs_for_command_on_selected_code", async t => {
   await createRepl(t);
   await gotoAST(t);
-  await t.typeText("#active-editor", "1999").pressKey("alt+x");
+  await t.typeText("#active-editor", "1999").pressKey("ctrl+\\");
 
   await t.expect(Selector("#cmd-filter").exists).ok();
   await t.expect(Selector(".documentation-box").exists).ok();
