@@ -27,28 +27,32 @@ let sampleFunctions =
     ; fnReturnTipe = TInt
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "List::getAt_v1"
     ; fnParameters = [par "list" TList; par "index" TInt]
     ; fnDescription = ""
     ; fnReturnTipe = TOption
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "Dict::map"
     ; fnParameters = [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
     ; fnDescription = ""
     ; fnReturnTipe = TObj
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "DB::set_v1"
     ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
     ; fnDescription = ""
     ; fnReturnTipe = TObj
     ; fnPreviewSafety = Unsafe
     ; fnDeprecated = false
-    ; fnInfix = false } ]
+    ; fnInfix = false
+    ; fnOrigin = Builtin } ]
 
 
 let defaultTLID = TLID.fromString "handler1"
@@ -82,7 +86,8 @@ let run () =
         ; fnReturnTipe = TResult
         ; fnPreviewSafety = Safe
         ; fnDeprecated = false
-        ; fnInfix = false }
+        ; fnInfix = false
+        ; fnOrigin = Builtin }
       in
       let f2 =
         { fnName = "Int::notResulty"
@@ -91,7 +96,8 @@ let run () =
         ; fnReturnTipe = TInt
         ; fnPreviewSafety = Safe
         ; fnDeprecated = false
-        ; fnInfix = false }
+        ; fnInfix = false
+        ; fnOrigin = Builtin }
       in
       let model hs =
         { D.defaultModel with

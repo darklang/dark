@@ -13,4 +13,8 @@ let findByNameInList (name : string) (functions : function_ list) : function_ =
          ; fnReturnTipe = TError
          ; fnPreviewSafety = Safe
          ; fnInfix = false
-         ; fnDeprecated = false }
+         ; fnDeprecated = false
+         ; fnOrigin =
+             (* whenever this happens it's almost certainly a user
+              * function *)
+             UserFunction }
