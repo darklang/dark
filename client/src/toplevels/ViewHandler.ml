@@ -1,8 +1,5 @@
 open Prelude
 
-(* Tea *)
-module Svg = Tea.Svg
-
 (* Dark *)
 module B = BlankOr
 
