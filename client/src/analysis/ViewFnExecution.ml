@@ -157,7 +157,7 @@ let fnExecutionButton
   (* UserFunctions always need play buttons to add the arguments to the trace *)
   | Safe when fn.fnOrigin <> UserFunction ->
       Vdom.noNode
-  | _ ->
+  | Safe | Unsafe ->
       let class_ = executionClass status in
       let title = executionTitle status in
       let icon = executionIcon status in
