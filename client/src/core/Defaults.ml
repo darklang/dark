@@ -84,7 +84,6 @@ let defaultFnSpace : fnProps =
 let defaultModel : model =
   { error = Error.default
   ; lastMsg = IgnoreMsg
-  ; lastMods = []
   ; opCtrs = StrDict.empty
   ; clientOpCtrId = ""
   ; complete =
