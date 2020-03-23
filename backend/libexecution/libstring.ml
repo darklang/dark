@@ -298,6 +298,21 @@ let fns : fn list =
         InProcess
           (function
           | _, [DStr s1; DStr s2] ->
+              DStr (Unicode_string.append_broken s1 s2)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::append_v1"]
+    ; infix_names = ["++_v1"]
+    ; parameters = [par "s1" TStr; par "s2" TStr]
+    ; return_type = TStr
+    ; description =
+        "Concatenates the two strings and returns the joined string."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s1; DStr s2] ->
               DStr (Unicode_string.append s1 s2)
           | args ->
               fail args)
