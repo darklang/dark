@@ -1595,6 +1595,12 @@ let run () =
         (ins "$")
         "obj.f~ield" ;
       t
+        "cant insert invalid chars fieldname - hyphen"
+        aField
+        ~pos:5
+        (ins "-")
+        "obj.f~ield" ;
+      t
         ~expectsPartial:true
         "del middle of fieldname"
         aField
