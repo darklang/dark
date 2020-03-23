@@ -322,7 +322,7 @@ let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
     let fn = Functions.findByNameInList name s.fluidState.ac.functions in
     fn.fnReturnTipe
   in
-  let analyzeVal (id : ID.t) = Analysis.getLiveValue' s.analysisStore id in
+  let liveValue (id : ID.t) = Analysis.getLiveValue' s.analysisStore id in
   let isEvalSuccess dv =
     match dv with
     | Some (DIncomplete _) | Some (DError _) ->
@@ -336,7 +336,7 @@ let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
   | TFnName (id, _, _, fnName, Rail) ->
       let offset = string_of_int ti.startRow ^ "rem" in
       let icon =
-        match (returnTipe fnName, analyzeVal id) with
+        match (returnTipe fnName, liveValue id) with
         | TResult, Some (DErrorRail (DResult (ResError _))) ->
             ViewUtils.darkIcon "result-error"
         | TResult, v when isEvalSuccess v ->
