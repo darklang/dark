@@ -285,6 +285,6 @@ let fnForToken (state : fluidState) token : function_ option =
   | TBinOp (_, fnName)
   | TFnVersion (_, _, _, fnName)
   | TFnName (_, _, _, fnName, _) ->
-      Some (Functions.findByNameInList fnName state.ac.functions)
+      Functions.findByNameInList fnName state.ac.functions
   | _ ->
       None

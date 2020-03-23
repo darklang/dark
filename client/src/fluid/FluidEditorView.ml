@@ -322,8 +322,9 @@ let tokensView (s : state) : Types.msg Html.html =
 let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
     Types.msg Html.html =
   let returnTipe (name : string) =
-    let fn = Functions.findByNameInList name s.fluidState.ac.functions in
-    fn.fnReturnTipe
+    Functions.findByNameInList name s.fluidState.ac.functions
+    |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
+    |> Option.withDefault ~default:TAny
   in
   let liveValue (id : ID.t) = Analysis.getLiveValue' s.analysisStore id in
   let isEvalSuccess dv =
