@@ -1,5 +1,4 @@
 open Prelude
-module Svg = Tea.Svg
 module Regex = Util.Regex
 module TL = Toplevel
 module TD = TLIDDict
@@ -153,6 +152,10 @@ let fontAwesome (name : string) : msg Html.html =
   Html.i [Html.class' ("fa fa-" ^ name)] []
 
 
+let darkIcon (name : string) : msg Html.html =
+  Html.i [Html.class' ("di di-" ^ name)] []
+
+
 let decodeTransEvent (fn : string -> 'a) j : 'a =
   let open Json.Decode in
   fn (field "propertyName" string j)
@@ -247,17 +250,6 @@ let placeHtml (pos : pos) (classes : 'a list) (html : msg Html.html list) :
 let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
 
 let widthInCh (w : int) : msg Vdom.property = w |> inCh |> Html.style "width"
-
-let staticHost = lazy (Native.Ext.staticHost ())
-
-(* Inserts a htmlObject with an svg from staticHost *)
-let svg (src : string) =
-  let src = "//" ^ Lazy.force staticHost ^ "/" ^ src in
-  Html.node
-    "object"
-    [Vdom.attribute "" "data" src; Html.type' "image/svg+xml"]
-    []
-
 
 let createHandlerProp (hs : handler list) : handlerProp TD.t =
   hs
