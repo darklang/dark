@@ -233,6 +233,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
   let on_execution_path = state.on_execution_path in
   let ctx = state.context in
   let exe st expr = exec ~state st expr in
+  let sourceId id = SourceId (state.tlid, id) in
   let preview st expr : unit =
     if ctx = Preview
     then
@@ -268,7 +269,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               (* This should never happen, but the user should be allowed to
                * recover so this shouldn't be an exception *)
               DError
-                ( SourceId id
+                ( sourceId id
                 , "Internal type error: lambda did not produce a block" ) )
       | Filled (id, (FnCall (name, exprs) as fncall))
       | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
@@ -289,9 +290,9 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
   let value _ =
     match expr with
     | Blank id ->
-        DIncomplete (SourceId id)
+        DIncomplete (sourceId id)
     | Partial (id, _) ->
-        DIncomplete (SourceId id)
+        DIncomplete (sourceId id)
     | Filled (_, FluidPartial (_, expr))
     | Filled (_, FluidRightPartial (_, expr)) ->
         exe st expr
@@ -311,7 +312,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
             exe bound body )
     | Filled (id, Value s) ->
         Dval.parse_literal s
-        |> Option.value ~default:(DError (SourceId id, "Unparsable value"))
+        |> Option.value ~default:(DError (sourceId id, "Unparsable value"))
     | Filled (_, ListLiteral exprs) ->
         (* We ignore incompletes but not error rail. Other places that lists
      are created propagate incompletes instead of ignoring *)
@@ -346,9 +347,9 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
            * we guarantee to users that variables they can lookup have been
            * bound. However, we shouldn't crash out here when running analysis
            * because it gives a horrible user experience *)
-          DIncomplete (SourceId id)
+          DIncomplete (sourceId id)
       | None, Real ->
-          DError (SourceId id, "There is no variable named: " ^ name)
+          DError (sourceId id, "There is no variable named: " ^ name)
       | Some other, _ ->
           other )
     | Filled (id, FnCallSendToRail (name, exprs)) ->
@@ -457,10 +458,10 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               | _ ->
                   result)
       | [] ->
-          DIncomplete (SourceId id) )
+          DIncomplete (sourceId id) )
     | Filled (id, Match (matchExpr, cases)) ->
         let hasMatched = ref false in
-        let matchResult = ref (DIncomplete (SourceId id)) in
+        let matchResult = ref (DIncomplete (sourceId id)) in
         let executeMatch
             (new_defs : (string * dval) list)
             (traces : (id * dval) list)
@@ -484,7 +485,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
             hasMatched := true ;
             matchResult := exe newSt expr )
         in
-        let incomplete id = DIncomplete (SourceId id) in
+        let incomplete id = DIncomplete (sourceId id) in
         let traceIncompletes traces =
           List.iter traces ~f:(fun (id, _) ->
               trace ~on_execution_path:false id (incomplete id))
@@ -540,7 +541,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
                        ~value:name
                        ["Just"; "Ok"; "Error"; "Nothing"]
                   then incomplete pid
-                  else DError (SourceId pid, "Invalid constructor")
+                  else DError (sourceId pid, "Invalid constructor")
                 in
                 traceNonMatch st expr builtUpTraces pid error ;
                 (* Trace each argument too. TODO: recurse *)
@@ -560,7 +561,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
           | DObj o ->
             ( match field with
             | Partial (id, _) | Blank id ->
-                DIncomplete (SourceId id)
+                DIncomplete (sourceId id)
             | Filled (_, f) ->
               (match Map.find o f with Some v -> v | None -> DNull) )
           | DIncomplete _ as i ->
@@ -569,7 +570,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               obj
           | x ->
               DError
-                ( SourceId id
+                ( sourceId id
                 , "Attempting to access of a field of something that isn't an object but is a "
                   ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)
                   ^ "" )
@@ -586,7 +587,7 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
       | Filled (_, "Error"), [arg] ->
           Dval.to_res_err (exe st arg)
       | _ ->
-          DError (SourceId id, "Invalid construction option") )
+          DError (sourceId id, "Invalid construction option") )
   in
   let execed_value = value () in
   trace ~on_execution_path (blank_to_id expr) execed_value ;
@@ -601,6 +602,7 @@ and call_fn
     (id : id)
     (argvals : dval list)
     (send_to_rail : bool) : dval =
+  let sourceId id = SourceId (state.tlid, id) in
   let fn =
     Libs.get_fn state.user_fns name
     |> function
@@ -654,7 +656,7 @@ and call_fn
             | Some (result, _ts) ->
                 result
             | _ ->
-                DIncomplete (SourceId id) )
+                DIncomplete (sourceId id) )
         | Some fn ->
             (* equalize length *)
             let expected_length = List.length fn.parameters in
@@ -669,7 +671,7 @@ and call_fn
               exec_fn ~state name id fn args
             else
               DError
-                ( SourceId id
+                ( sourceId id
                 , name
                   ^ " has "
                   ^ string_of_int expected_length
@@ -702,6 +704,7 @@ and exec_fn
     (fn : fn)
     (args : dval_map) : dval =
   let state = {state with executing_fnname = fnname} in
+  let sourceId id = SourceId (state.tlid, id) in
   let arglist =
     fn.parameters
     |> List.map ~f:(fun (p : param) -> p.name)
@@ -744,7 +747,7 @@ and exec_fn
           | Some (result, _ts) ->
               result
           | inc ->
-              DIncomplete (SourceId id)
+              DIncomplete (sourceId id)
         else
           let state =
             {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
@@ -756,7 +759,7 @@ and exec_fn
             * usercode problems. Non user-code problems should use different
             * exception types.
             *)
-                Dval.exception_to_dval e (SourceId id)
+                Dval.exception_to_dval e (sourceId id)
             | e ->
                 (* After the rethrow, this gets eventually caught then shown to the
             * user as a Dark Internal Exception. It's an internal exception
@@ -778,7 +781,7 @@ and exec_fn
             | Preview, Some (result, _ts) ->
                 Dval.unwrap_from_errorrail result
             | Preview, None when fn.preview_safety <> Safe ->
-                DIncomplete (SourceId id)
+                DIncomplete (sourceId id)
             | _ ->
                 (* It's okay to execute user functions in both Preview and Real contexts,
                   * But in Preview we might not have all the data we need *)
@@ -801,7 +804,7 @@ and exec_fn
             |> String.concat ~sep:", "
           in
           DError
-            (SourceId id, "Type error(s) in function parameters: " ^ error_msgs)
+            (sourceId id, "Type error(s) in function parameters: " ^ error_msgs)
       )
     | UserCreated (tlid, body) ->
       ( match
@@ -828,7 +831,7 @@ and exec_fn
             |> String.concat ~sep:", "
           in
           DError
-            (SourceId id, "Type error(s) in function parameters: " ^ error_msgs)
+            (sourceId id, "Type error(s) in function parameters: " ^ error_msgs)
       )
     | API f ->
         f args )

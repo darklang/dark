@@ -1008,8 +1008,8 @@ let rec show dv =
       "<Error: " ^ msg ^ ">"
   | DIncomplete SourceNone ->
       "<Incomplete>"
-  | DIncomplete (SourceId id) ->
-      Printf.sprintf "<Incomplete[%s]>" (string_of_id id)
+  | DIncomplete (SourceId (tlid, id)) ->
+      Printf.sprintf "<Incomplete[%s,%s]>" (string_of_id tlid) (string_of_id id)
   | DBlock _ ->
       (* See docs/dblock-serialization.ml *)
       "<Block>"

@@ -5389,15 +5389,15 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       FluidCommands.updateCmds m ke
   | FluidClearErrorDvSrc ->
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
-  | FluidFocusOnToken id ->
+  | FluidFocusOnToken (tlid, id) ->
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
-      CursorState.tlidOf m.cursorState
-      |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
+      tlid
+      |> TL.get m
       |> Option.thenAlso ~f:TL.getAST
       |> Option.map ~f:(fun (tl, ast) ->
              let fluidState =
                let fs = moveToEndOfTarget ast s id in
-               {fs with errorDvSrc = SourceId id}
+               {fs with errorDvSrc = SourceId (tlid, id)}
              in
              let moveMod =
                match Viewport.moveToToken id tl with

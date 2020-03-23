@@ -44,8 +44,10 @@ let fnExecutionStatus
   in
   let fnIsComplete id =
     match Analysis.getLiveValue' s.analysisStore id with
-    | (Some (DIncomplete (SourceId incID)) | Some (DError (SourceId incID, _)))
-      when incID = id ->
+    | Some (DIncomplete (SourceId (srcTlid, srcId)))
+    | Some (DError (SourceId (srcTlid, srcId), _))
+    (* assume tlids are the same if the ids are *)
+      when (srcTlid, srcId) = (s.tlid, id) ->
         (* this means the live value is an error/incomplete created by this
          * function, so the function is incomplete because it's unplayed. *)
         false
