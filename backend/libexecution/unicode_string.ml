@@ -60,7 +60,7 @@ module Character = struct
   let of_yojson j = match j with `String s -> Ok s | _ -> Error "Not bytes"
 end
 
-let normalize_utf_8 (s : string) = Uunf_string.normalize_utf_8 `NFC s
+let normalize_utf_8 (s : string) : t = Uunf_string.normalize_utf_8 `NFC s
 
 (* This validates that the passed string is UTF-8 encoded, and also normalizes
  * it to a common normalization form (NFC). It does this in two passes. It's
@@ -118,8 +118,17 @@ let to_utf8_encoded_string t = t
 
 let to_string = to_utf8_encoded_string
 
-(* validity/normalization is closed over appending *)
-let append l r = l ^ r
+(* validity/normalization is NOT closed over appending
+ * but String::append (deprecated) depends on this. *)
+let append_broken l r = l ^ r
+
+(* We have to renormalize because concatenation can often break normalization
+ * (http://www.unicode.org/faq/normalization.html#5).
+ * Note that there is an opportunity for optimization
+ * "because at most a few characters in the immediate area of the adjoined strings need processing"
+ *)
+let append l r = 
+  (l ^ r) |> normalize_utf_8
 
 let concat ~sep xs = String.concat ~sep xs
 
