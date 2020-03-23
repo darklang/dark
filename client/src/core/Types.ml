@@ -816,6 +816,11 @@ and previewSafety =
   | Safe
   | Unsafe
 
+and fnOrigin =
+  | UserFunction
+  | PackageManager
+  | Builtin
+
 and function_ =
   { fnName : string
   ; fnParameters : parameter list
@@ -823,7 +828,11 @@ and function_ =
   ; fnReturnTipe : tipe
   ; fnPreviewSafety : previewSafety
   ; fnDeprecated : bool
-  ; fnInfix : bool }
+  ; fnInfix : bool
+  ; fnOrigin :
+      (* This is a client-side only field to be able to give different UX to
+       * different functions *)
+      fnOrigin }
 
 (* autocomplete items *)
 and literal = string

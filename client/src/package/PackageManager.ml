@@ -34,4 +34,5 @@ let fn_of_packageFn (pkgFn : packageFn) : function_ =
   ; fnReturnTipe = pkgFn.return_type
   ; fnPreviewSafety = Unsafe
   ; fnDeprecated = pkgFn.deprecated
-  ; fnInfix = false }
+  ; fnInfix = false
+  ; fnOrigin = PackageManager }

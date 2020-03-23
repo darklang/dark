@@ -531,7 +531,8 @@ let defaultTestFunctions =
     ; fnDescription = "Some infix function"
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = true }
+    ; fnInfix = true
+    ; fnOrigin = Builtin }
   in
   [ infixFn "<" TInt TBool
   ; infixFn "+" TInt TInt
@@ -545,14 +546,16 @@ let defaultTestFunctions =
     ; fnDescription = "Add two ints"
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "Int::sqrt"
     ; fnParameters = [fnParam "a" TInt false]
     ; fnReturnTipe = TInt
     ; fnDescription = "Get the square root of an Int"
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "HttpClient::post_v4"
     ; fnParameters =
         [ fnParam "url" TStr false
@@ -563,7 +566,8 @@ let defaultTestFunctions =
     ; fnDescription = "Make blocking HTTP POST call to `uri`."
     ; fnPreviewSafety = Unsafe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "HttpClient::get_v3"
     ; fnParameters =
         [ fnParam "url" TStr false
@@ -573,14 +577,16 @@ let defaultTestFunctions =
     ; fnDescription = "Make blocking HTTP GET call to `uri`."
     ; fnPreviewSafety = Unsafe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "DB::getAll_v1"
     ; fnParameters = [fnParam "table" TDB false]
     ; fnReturnTipe = TList
     ; fnDescription = "get all"
     ; fnPreviewSafety = Unsafe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "Dict::map"
     ; fnParameters =
         [ fnParam "dict" TObj false
@@ -590,21 +596,24 @@ let defaultTestFunctions =
         "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "List::append"
     ; fnParameters = [fnParam "l1" TList false; fnParam "l2" TList false]
     ; fnReturnTipe = TList
     ; fnDescription = "append list"
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "List::empty"
     ; fnParameters = []
     ; fnReturnTipe = TList
     ; fnDescription = "empty list"
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false } ]
+    ; fnInfix = false
+    ; fnOrigin = Builtin } ]
 
 
 let defaultTestState =
