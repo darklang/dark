@@ -547,6 +547,82 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
+(** [getNextEditable pos tokens] returns the first editable token after [pos] in 
+ * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in 
+ * [tokens], or None if no editable token exists. *)
+let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
+    T.tokenInfo option =
+  tokens
+  |> List.find ~f:(fun ti ->
+         let isEditable =
+           (* Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination *)
+           match ti.token with
+           | TStringMLEnd _ | TStringMLMiddle _ | TFnVersion _ ->
+               false
+           | _ ->
+               T.isTextToken ti.token
+         in
+         isEditable && ti.startPos > pos)
+  |> Option.orElseLazy (fun () ->
+         if pos = 0 then None else getNextEditable (-1) tokens)
+
+
+let getNextEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
+  tokens
+  |> getNextEditable pos
+  |> Option.map ~f:(fun ti -> ti.startPos)
+  |> Option.withDefault ~default:pos
+
+
+let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
+  recordAction ~pos "moveToNextEditable" s
+  |> tokensForActiveEditor ast
+  |> getNextEditablePos pos
+  |> setPosition ~resetUD:true s
+
+
+(** [getPrevEditable pos tokens] returns the closest editable token before [pos] in 
+* [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in 
+* [tokens], or None if no editable exists. *)
+let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
+    =
+  let revTokens = List.reverse tokens in
+  let rec findEditable (pos : int) : T.tokenInfo option =
+    revTokens
+    |> List.find ~f:(fun ti ->
+           let isEditable =
+             (* Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination *)
+             match ti.token with
+             | TStringMLStart _ | TStringMLMiddle _ | TFnName _ ->
+                 false
+             | _ ->
+                 T.isTextToken ti.token
+           in
+           isEditable && ti.endPos < pos)
+    |> Option.orElseLazy (fun () ->
+           let lastPos =
+             match List.head revTokens with Some tok -> tok.endPos | None -> 0
+           in
+           if pos = lastPos then None else findEditable (lastPos + 1))
+  in
+  findEditable pos
+
+
+let getPrevEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
+  tokens
+  |> getPrevEditable pos
+  |> Option.map ~f:(fun ti ->
+         if T.isBlank ti.token then ti.startPos else ti.endPos)
+  |> Option.withDefault ~default:pos
+
+
+let moveToPrevEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
+  recordAction ~pos "moveToPrevBlank" s
+  |> tokensForActiveEditor ast
+  |> getPrevEditablePos pos
+  |> setPosition ~resetUD:true s
+
+
 let rec getPrevBlank (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
   tokens
@@ -4026,10 +4102,10 @@ let rec updateKey
     (* Tab to next blank *)
     | Keypress {key = K.Tab; _}, _, R (_, _)
     | Keypress {key = K.Tab; _}, L (_, _), _ ->
-        (ast, moveToNextBlank ~pos ast s)
+        (ast, moveToNextEditable ~pos ast s)
     | Keypress {key = K.ShiftTab; _}, _, R (_, _)
     | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
-        (ast, moveToPrevBlank ~pos ast s)
+        (ast, moveToPrevEditable ~pos ast s)
     (* Left/Right movement *)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ ->
