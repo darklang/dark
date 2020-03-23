@@ -5395,6 +5395,11 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       |> TL.get m
       |> Option.thenAlso ~f:TL.getAST
       |> Option.map ~f:(fun (tl, ast) ->
+             let pageMod =
+               if CursorState.tlidOf m.cursorState <> Some tlid
+               then SetPage (TL.asPage tl true)
+               else NoChange
+             in
              let fluidState =
                let fs = moveToEndOfTarget ast s id in
                {fs with errorDvSrc = SourceId (tlid, id)}
@@ -5412,9 +5417,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                | None, None ->
                    NoChange
              in
-             if moveMod = NoChange
+             if moveMod = NoChange && pageMod = NoChange
              then FluidSetState fluidState
-             else Many [moveMod; FluidSetState fluidState])
+             else Many [pageMod; moveMod; FluidSetState fluidState])
       |> Option.withDefault ~default:NoChange
   | FluidCloseCmdPalette ->
       FluidCommandsClose
