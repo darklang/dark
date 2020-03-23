@@ -151,8 +151,14 @@ let fromKeyboardEvent
       Escape
   | " " ->
       Space
+  | "\\" when ctrl ->
+      CommandPalette
   (*~*~*~*~ HERE BE DRAGONS ~*~*~*~*
    * alt-x opens command palatte.
+   *
+   * TODO: delete this: we've switched to Ctrl-\ for command palette,
+   * as Alt-something was unreliable on different keyboard layouts.
+   * We keep this in temporarily (Mar 23, 2020) to allow a transition.
    *
    * On macOS, is key = '≈', which we have to hack in with bucklescript JS
    * literals because OCaml is terrible.
