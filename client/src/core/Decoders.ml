@@ -381,7 +381,7 @@ let rec dval j : dval =
   let srcT =
     variants
       [ ("SourceNone", dv0 SourceNone)
-      ; ("SourceId", dv1 (fun x -> SourceId x) id) ]
+      ; ("SourceId", dv2 (fun x y -> SourceId (x, y)) tlid id) ]
   in
   let dblock_args j =
     { params = field "params" (list (pair id string)) j

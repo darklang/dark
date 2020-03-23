@@ -234,6 +234,7 @@ let t_match_evaluation () =
   let er x = ExecutedResult x in
   let ner x = NonExecutedResult x in
   let dstr x = Dval.dstr_of_string_exn x in
+  let inc id = DIncomplete (SourceId (id_of_int 7, id)) in
   check_match
     "int match"
     (int 5)
@@ -252,17 +253,15 @@ let t_match_evaluation () =
     ; (boolRhsId, "bool rhs", ner (dstr "bool"))
     ; (pNullId, "null", ner DNull)
     ; (nullRhsId, "null rhs", ner (dstr "null"))
-    ; (pOkVarOkId, "ok pat", ner (DIncomplete (SourceId pOkVarOkId)))
-    ; (pOkVarVarId, "var pat", ner (DIncomplete (SourceId pOkVarVarId)))
-    ; (okVarRhsId, "ok rhs", ner (DIncomplete (SourceId okVarRhsVarId)))
-    ; (okVarRhsVarId, "ok rhs var", ner (DIncomplete (SourceId okVarRhsVarId)))
+    ; (pOkVarOkId, "ok pat", ner (inc pOkVarOkId))
+    ; (pOkVarVarId, "var pat", ner (inc pOkVarVarId))
+    ; (okVarRhsId, "ok rhs", ner (inc okVarRhsVarId))
+    ; (okVarRhsVarId, "ok rhs var", ner (inc okVarRhsVarId))
     ; (okVarRhsStrId, "ok rhs str", ner (dstr "ok: "))
     ; (pNothingId, "ok pat", ner (DOption OptNothing))
     ; (nothingRhsId, "rhs", ner (dstr "constructor nothing"))
-    ; (pOkBlankOkId, "ok pat", ner (DIncomplete (SourceId pOkBlankOkId)))
-    ; ( pOkBlankBlankId
-      , "blank pat"
-      , ner (DIncomplete (SourceId pOkBlankBlankId)) )
+    ; (pOkBlankOkId, "ok pat", ner (inc pOkBlankOkId))
+    ; (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
     ; (okBlankRhsId, "rhs", ner (dstr "ok blank"))
     ; (pVarId, "catch all pat", er (Dval.dint 6))
     ; (varRhsId, "catch all rhs", er (Dval.dint 6)) ] ;
@@ -281,10 +280,8 @@ let t_match_evaluation () =
   check_match
     "ok: y"
     (constructor "Ok" [str "y"])
-    [ (pOkBlankOkId, "ok pat", ner (DIncomplete (SourceId pOkBlankOkId)))
-    ; ( pOkBlankBlankId
-      , "blank pat"
-      , ner (DIncomplete (SourceId pOkBlankBlankId)) )
+    [ (pOkBlankOkId, "ok pat", ner (inc pOkBlankOkId))
+    ; (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
     ; (okBlankRhsId, "rhs", ner (dstr "ok blank"))
     ; (pOkVarOkId, "ok pat", er (DResult (ResOk (dstr "y"))))
     ; (pOkVarVarId, "var pat", er (dstr "y"))
@@ -294,15 +291,13 @@ let t_match_evaluation () =
   check_match
     "ok: blank"
     (constructor "Ok" [EBlank (gid ())])
-    [ (pOkBlankOkId, "blank pat", ner (DIncomplete (SourceId pOkBlankOkId)))
-    ; ( pOkBlankBlankId
-      , "blank pat"
-      , ner (DIncomplete (SourceId pOkBlankBlankId)) )
+    [ (pOkBlankOkId, "blank pat", ner (inc pOkBlankOkId))
+    ; (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
     ; (okBlankRhsId, "blank rhs", ner (dstr "ok blank"))
-    ; (pOkVarOkId, "ok pat", ner (DIncomplete (SourceId pOkVarOkId)))
-    ; (pOkVarVarId, "var pat", ner (DIncomplete (SourceId pOkVarVarId)))
-    ; (okVarRhsId, "rhs", ner (DIncomplete (SourceId okVarRhsVarId)))
-    ; (okVarRhsVarId, "rhs var", ner (DIncomplete (SourceId okVarRhsVarId)))
+    ; (pOkVarOkId, "ok pat", ner (inc pOkVarOkId))
+    ; (pOkVarVarId, "var pat", ner (inc pOkVarVarId))
+    ; (okVarRhsId, "rhs", ner (inc okVarRhsVarId))
+    ; (okVarRhsVarId, "rhs var", ner (inc okVarRhsVarId))
     ; (okVarRhsStrId, "str", ner (dstr "ok: ")) ] ;
   check_match
     "nothing"

@@ -323,7 +323,7 @@ and resultT =
 
 and dval_source =
   | SourceNone
-  | SourceId of ID.t
+  | SourceId of TLID.t * ID.t
 
 and dblock_args =
   { symtable : dval StrDict.t
@@ -1174,7 +1174,7 @@ and fluidMsg =
   | FluidMouseUp of fluidMouseUp
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
-  | FluidFocusOnToken of ID.t
+  | FluidFocusOnToken of TLID.t * ID.t
   | FluidClearErrorDvSrc
   | FluidUpdateAutocomplete
   (* Index of the dropdown(autocomplete or command palette) item *)

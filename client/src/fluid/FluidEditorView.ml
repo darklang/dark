@@ -63,10 +63,10 @@ let toHtml (s : state) : Types.msg Html.html list =
     then
       (* Only highlight incompletes and errors on executed paths *)
       match Analysis.getLiveValueLoadable s.analysisStore id with
-      | LoadableSuccess (ExecutedResult (DIncomplete (SourceId id))) ->
-          (Some id, "dark-incomplete")
-      | LoadableSuccess (ExecutedResult (DError (SourceId id, _))) ->
-          (Some id, "dark-error")
+      | LoadableSuccess (ExecutedResult (DIncomplete (SourceId (tlid, id)))) ->
+          (Some (tlid, id), "dark-incomplete")
+      | LoadableSuccess (ExecutedResult (DError (SourceId (tlid, id), _))) ->
+          (Some (tlid, id), "dark-error")
       | _ ->
           (None, "")
     else (None, "")
@@ -188,7 +188,7 @@ let toHtml (s : state) : Types.msg Html.html list =
             && (* This expression is the source of its own incompleteness. We
             only draw underlines under sources of incompletes, not all
             propagated occurrences. *)
-            sourceId = Some analysisId
+            sourceId = Some (s.tlid, analysisId)
           in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
@@ -201,13 +201,13 @@ let toHtml (s : state) : Types.msg Html.html list =
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
              * into another, where the cursor is currently on *)
-            ("is-origin", sourceOfCurrentToken ti = Some analysisId)
+            ("is-origin", sourceOfCurrentToken ti = Some (s.tlid, analysisId))
           ; ( "jumped-to"
             , match s.fluidState.errorDvSrc with
               | SourceNone ->
                   false
-              | SourceId id ->
-                  id = tokenId )
+              | SourceId (tlid, id) ->
+                  id = tokenId && s.tlid = tlid )
           ; ("selected", isSelected ti.startPos ti.endPos) ]
         in
         let innerNode =
