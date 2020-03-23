@@ -798,7 +798,7 @@ let t_string_stdlibs_work () =
     "String::append_v1 works (multicharacter)"
     (dstr "hello world")
     (exec_ast' (fn "String::append_v1" [str "hello"; str " world"])) ;
-(*   check_dval
+  (*   check_dval
     "String::append_v1 works (normalizes)"
     (dstr "â")
     (exec_ast' (fn "String::append_v1" [str "a"; str "\u{25CC}\u{0302}"])) ; *)
@@ -810,7 +810,7 @@ let t_string_stdlibs_work () =
     "String::append_v1 works (normalizes 2)"
     (dstr "각")
     (exec_ast' (fn "String::append_v1" [str "ᄀ"; str "ᅡ ᆨ"])) ;
-  (* This is broken, hence String::append is deprecated *) 
+  (* This is broken, hence String::append is deprecated *)
   (* check_dval
     "String::append works (normalizes)"
     (dstr "â")

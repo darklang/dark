@@ -127,8 +127,7 @@ let append_broken l r = l ^ r
  * Note that there is an opportunity for optimization
  * "because at most a few characters in the immediate area of the adjoined strings need processing"
  *)
-let append l r = 
-  (l ^ r) |> normalize_utf_8
+let append l r = l ^ r |> normalize_utf_8
 
 let concat ~sep xs = String.concat ~sep xs
 
