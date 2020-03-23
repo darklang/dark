@@ -93,6 +93,16 @@ let isValidIdentifier (str : string) : bool =
   Js.Re.test_ [%re "/^[_a-zA-Z]+[_a-zA-Z0-9]*$/"] str
 
 
+(* Checks if this is allowed as a fieldName in a record literal. Note
+ * that there is a difference between what we allow in record
+ * literals and field accesses: we decided to allow '-' in record
+ * field definitions since they are used for HTTP headers a lot.
+ * However, typing '-' in a field access can conflict with the infix
+ * '-', so this function should not be used for field access. *)
+let isValidRecordLiteralFieldName (str : string) : bool =
+  Js.Re.test_ [%re "/^[_a-zA-Z]+[-_a-zA-Z0-9]*$/"] str
+
+
 let isFnNameChar str =
   Js.Re.test_ [%re "/[_:a-zA-Z0-9]/"] str && String.length str = 1
 
