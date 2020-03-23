@@ -555,6 +555,7 @@ let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
   tokens
   |> List.find ~f:(fun ti ->
          let isEditable =
+           (* Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination *)
            match ti.token with
            | TStringMLEnd _ | TStringMLMiddle _ | TFnVersion _ ->
                false
@@ -590,6 +591,7 @@ let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
     revTokens
     |> List.find ~f:(fun ti ->
            let isEditable =
+             (* Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination *)
              match ti.token with
              | TStringMLStart _ | TStringMLMiddle _ | TFnName _ ->
                  false
