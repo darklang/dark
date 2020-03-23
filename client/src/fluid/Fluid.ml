@@ -3327,7 +3327,7 @@ let doExplicitInsert
         List.getAt ~index nameValPairs
         |> Option.andThen ~f:(fun (name, _) ->
                let newName = mutation name in
-               if FluidUtil.isValidIdentifier newName
+               if FluidUtil.isValidRecordLiteralFieldName newName
                then
                  let nameValPairs =
                    List.updateAt nameValPairs ~index ~f:(fun (_, expr) ->

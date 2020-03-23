@@ -1595,6 +1595,12 @@ let run () =
         (ins "$")
         "obj.f~ield" ;
       t
+        "cant insert invalid chars fieldname - hyphen"
+        aField
+        ~pos:5
+        (ins "-")
+        "obj.f~ield" ;
+      t
         ~expectsPartial:true
         "del middle of fieldname"
         aField
@@ -3859,7 +3865,7 @@ let run () =
         render
         "~let a = [56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78]\n___" ;
       ()) ;
-  describe "Record" (fun () ->
+  describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;
       t
         "inserting before the record does nothing"
@@ -4059,10 +4065,15 @@ let run () =
       t
         "dont allow key to start with a number, pt 3"
         emptyRowRecord
-        ~pos:6
+        ~pos:4
         (ins "5")
-        (* TODO: looks wrong *)
-        "{\n  **~* : ___\n}" ;
+        "{\n  ~*** : ___\n}" ;
+      t
+        "hyphens are allowed in records"
+        emptyRowRecord
+        ~pos:4
+        (insMany ["x"; "-"])
+        "{\n  x-~ : ___\n}" ;
       t
         "ctrl+left at beg of value movese to beg of key"
         multiRowRecord
