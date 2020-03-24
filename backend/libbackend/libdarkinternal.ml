@@ -253,15 +253,17 @@ that's already taken, returns an error."
                          Stroller.segment_identify_user username ;
                          r)
                   |> Result.bind ~f:(fun () ->
-                         let to_canvas =
+                         let to_canvas_name =
                            username
                            ^ "-"
                            ^ Libservice.Config.getting_started_canvas_name
                          in
-                         let from_canvas =
+                         let from_canvas_name =
                            Libservice.Config.getting_started_canvas_source
                          in
-                         Canvas.Clone.clone_canvas from_canvas to_canvas)
+                         Canvas.Clone.clone_canvas
+                           ~from_canvas_name
+                           ~to_canvas_name)
                 in
                 ( match result with
                 | Ok () ->

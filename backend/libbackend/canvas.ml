@@ -1264,7 +1264,7 @@ unexpected ast-containing op."
    *   refer to the new one (see update_hosts_in_op)
    * - runs in a DB transaction, so this should be all-or-nothing
    * *)
-  let clone_canvas from_canvas_name to_canvas_name : (unit, string) result =
+  let clone_canvas ~from_canvas_name ~to_canvas_name : (unit, string) result =
     (* Ensure we can copy from and to - from_canvas must exist, to_canvas must
      * not. Yes, this is potentially racy, if to_canvas gets created by user
      * before we finish this function. I think this is unlikely enough as to be

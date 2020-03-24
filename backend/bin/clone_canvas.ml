@@ -13,9 +13,9 @@ let usage () : unit =
 
 
 let () =
-  let clone_canvas_or_fail (from_canvas_name : string) (to_canvas_name : string)
-      : unit =
-    match Canvas.Clone.clone_canvas from_canvas_name to_canvas_name with
+  let clone_canvas_or_fail
+      ~(from_canvas_name : string) ~(to_canvas_name : string) : unit =
+    match Canvas.Clone.clone_canvas ~from_canvas_name ~to_canvas_name with
     | Ok _ ->
         ()
     | Error e ->
@@ -25,7 +25,7 @@ let () =
   match Array.to_list Sys.argv with
   | [_; from_canvas_name; to_canvas_name] ->
       if Account.auth_domain_for from_canvas_name = "sample"
-      then clone_canvas_or_fail from_canvas_name to_canvas_name
+      then clone_canvas_or_fail ~from_canvas_name ~to_canvas_name
       else (
         Caml.print_endline
           ( "You're trying to
@@ -34,6 +34,6 @@ copy from "
           ^ "; copying from a non-sample canvas requires the --force flag" ) ;
         exit 1 )
   | [_; "--force"; from_canvas_name; to_canvas_name] ->
-      clone_canvas_or_fail from_canvas_name to_canvas_name
+      clone_canvas_or_fail ~from_canvas_name ~to_canvas_name
   | [_; "-h"] | [_; "--help"] | _ ->
       usage ()
