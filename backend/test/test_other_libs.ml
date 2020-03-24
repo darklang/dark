@@ -413,6 +413,48 @@ let t_dict_stdlibs_work () =
 
 let t_list_stdlibs_work () =
   check_dval
+    "List::filter_v2 works (empty)"
+    (DList [])
+    (exec_ast' (fn "List::filter_v2" [list []; lambda ["item"] (bool true)])) ;
+  check_dval
+    "List::filter_v2 works (match)"
+    (DList [Dval.dint 1; Dval.dint 3])
+    (exec_ast'
+       (fn
+          "List::filter_v2"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (match'
+                 (var "item")
+                 [(pInt 1, bool true); (pInt 2, bool false); (pInt 3, bool true)])
+          ])) ;
+  check_incomplete
+    "List::filter_v2 works (returns incomplete)"
+    (exec_ast'
+       (fn
+          "List::filter_v2"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (match'
+                 (var "item")
+                 [(pInt 1, bool true); (pInt 2, blank ()); (pInt 3, bool true)])
+          ])) ;
+  check_error_contains
+    "List::filter_v2 works (wrong return type)"
+    (exec_ast'
+       (fn
+          "List::filter_v2"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (match'
+                 (var "item")
+                 [(pInt 1, nothing ()); (pInt 2, bool false); (pInt 3, bool true)])
+          ]))
+    "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`" ;
+  check_dval
     "List::map2 works (length mismatch)"
     (DOption OptNothing)
     (exec_ast'
