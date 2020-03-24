@@ -1150,6 +1150,28 @@ module Clone = struct
   let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string)
       : Op.op =
     (* It might be nice if expr had an equivalent of FluidExpression.walk *)
+    let rec update_hosts_in_pattern (pattern : Types.RuntimeT.pattern) :
+        Types.RuntimeT.pattern =
+      let host canvas : string =
+        Printf.sprintf "://%s.%s" canvas Config.user_content_host
+      in
+      match pattern with
+      | Blank _ | Partial _ ->
+          pattern
+      | Filled (id, npattern) ->
+          Filled
+            ( id
+            , match npattern with
+              | PVariable varname as v ->
+                  v
+              | PLiteral str ->
+                  PLiteral
+                    (str |> Util.string_replace (host old_host) (host new_host))
+              | PConstructor (constructor_name, patterns) ->
+                  PConstructor
+                    ( constructor_name
+                    , patterns |> List.map ~f:update_hosts_in_pattern ) )
+    in
     let rec update_hosts_in_expr
         (expr : Types.RuntimeT.expr) ~(old_host : string) ~(new_host : string) :
         Types.RuntimeT.expr =
@@ -1198,7 +1220,12 @@ module Clone = struct
                 | FnCallSendToRail (fnname, exprs) ->
                     FnCallSendToRail (fnname, exprs |> List.map ~f)
                 | Match (expr, arms) ->
-                    Match (expr, arms |> List.map ~f:(fun (k, v) -> (k, v |> f)))
+                    Match
+                      ( expr |> f
+                      , arms
+                        |> List.map ~f:(fun (pattern, expr) ->
+                               (pattern |> update_hosts_in_pattern, expr |> f))
+                      )
                 | Constructor (name, exprs) ->
                     Constructor (name, exprs |> List.map ~f)
                 | FluidPartial (str, expr) ->
