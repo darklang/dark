@@ -35,7 +35,7 @@ let viewWelcomeToDark (username : string) : msg Html.html =
         [ Html.a
             [ Html.href
                 (Printf.sprintf
-                   "https://darklang.com/a/%s-getting-started"
+                   "https://darklang.com/a/%s-gettingstarted"
                    username)
             ; btnEvent ]
             [ Html.div
@@ -46,7 +46,7 @@ let viewWelcomeToDark (username : string) : msg Html.html =
         [ Html.span
             []
             [ Html.text
-                "If you'd like to create a blank canvas, just change the \"getting-started\" part of this URL to something else, and a new canvas will be created for you."
+                "If you'd like to create a blank canvas, just change the \"gettingstarted\" part of this URL to something else, and a new canvas will be created for you."
             ] ] ]
 
 
