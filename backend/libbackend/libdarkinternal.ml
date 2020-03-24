@@ -267,7 +267,8 @@ that's already taken, returns an error."
                              (* Don't preserve history here, it isn't useful and
                               * we don't currently have visibility into canvas
                               * history, so we'd rather not share unknown sample-
-                              * history with users *)
+                              * history with users in case it contains
+                              * sensitive information like access keys. *)
                            ~preserve_history:false)
                 in
                 ( match result with
