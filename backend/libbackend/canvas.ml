@@ -1199,8 +1199,8 @@ module Clone = struct
                     FnCallSendToRail (fnname, exprs |> List.map ~f)
                 | Match (expr, arms) ->
                     Match (expr, arms |> List.map ~f:(fun (k, v) -> (k, v |> f)))
-                | Constructor (string_or, exprs) ->
-                    Constructor (string_or, exprs |> List.map ~f)
+                | Constructor (name, exprs) ->
+                    Constructor (name, exprs |> List.map ~f)
                 | FluidPartial (str, expr) ->
                     FluidPartial (str, expr |> f)
                 | FluidRightPartial (str, expr) ->
