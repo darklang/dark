@@ -374,7 +374,7 @@ let fns =
     ; deprecated = false }
   ; { prefix_names = ["List::sortByComparator"]
     ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+    ; parameters = [par "list" TList; func ["a"; "b"]]
     ; return_type = TResult
     ; description =
         "Returns a copy of `list`, sorted using `f a b`.
