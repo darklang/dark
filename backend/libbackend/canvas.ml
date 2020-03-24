@@ -374,7 +374,9 @@ let id_for_name_option (name : string) : Uuidm.t option =
     ~name:"fetch_canvas_id"
     "SELECT id FROM canvases WHERE name = $1"
     ~params:[Db.String name]
-  |> Option.map ~f:(fun row -> row |> List.hd_exn)
+  (* If List.hd_exn exn's, it means that `SELECT id` returned a record with more
+   * than one field..  Can't happen. *)
+  |> Option.map ~f:List.hd_exn
   |> Option.bind ~f:Uuidm.of_string
 
 
