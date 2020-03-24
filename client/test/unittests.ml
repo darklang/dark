@@ -42,6 +42,7 @@ let () =
   describe "Feature Flag test" Feature_flag_test.run ;
   describe "Fluid_ac_test" Fluid_ac_test.run ;
   describe "Fluid_clipboard_test" Fluid_clipboard_test.run ;
+  describe "Fluid_expression_test" Fluid_expression_test.run ;
   describe "Fluid_pattern_test" Fluid_pattern_test.run ;
   describe "Fluid_selection_test" Fluid_selection_test.run ;
   describe "Fluid_test" Fluid_test.run ;
