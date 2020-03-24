@@ -13,7 +13,8 @@ let usage () : unit =
 
 
 let () =
-  let clone_canvas_or_fail from_canvas_name to_canvas_name : unit =
+  let clone_canvas_or_fail (from_canvas_name : string) (to_canvas_name : string)
+      : unit =
     match Canvas.Clone.clone_canvas from_canvas_name to_canvas_name with
     | Ok _ ->
         ()
