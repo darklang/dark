@@ -66,6 +66,25 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["List::tail"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TOption
+    ; description =
+        "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
+    ; func =
+        InProcess
+          (function
+          | _, [DList l] ->
+            ( match List.tl l with
+            | Some dv ->
+                DList dv |> Dval.to_opt_just
+            | None ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["List::empty"]
     ; infix_names = []
     ; parameters = []
