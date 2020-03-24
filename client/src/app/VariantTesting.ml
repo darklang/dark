@@ -1,11 +1,7 @@
 open Prelude
 
 let variantIsActive (m : model) (vt : variantTest) : bool =
-  match vt with
-  | FeatureFlagVariant ->
-      m.isAdmin || List.member ~value:vt m.tests
-  | _ ->
-      List.member ~value:vt m.tests
+  List.member ~value:vt m.tests
 
 
 let toVariantTest (s : string * bool) : variantTest option =
@@ -18,8 +14,6 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some StubVariant
     | "groups" ->
         Some GroupVariant
-    | "ff" ->
-        Some FeatureFlagVariant
     | "localhost-assets" ->
         Some NgrokVariant
     | _ ->
@@ -33,8 +27,6 @@ let toCSSClass (vt : variantTest) : string =
         "stub"
     | GroupVariant ->
         "grouping"
-    | FeatureFlagVariant ->
-        "ff"
     | NgrokVariant ->
         "ngrok"
   in

@@ -7,21 +7,7 @@ module Regex = Util.Regex
 
 let filterInputID : string = "cmd-filter"
 
-let fluidCommands (m : model) =
-  (* Commands.commands contains /all/ valid commands, so we filter out things
-   * if the variant is not enabled *)
-  if VariantTesting.variantIsActive m FeatureFlagVariant
-  then Commands.commands
-  else
-    Commands.commands
-    |> List.filter ~f:(function
-           | {commandName = "add-feature-flag"; _}
-           | {commandName = "discard-feature-flag"; _}
-           | {commandName = "commit-feature-flag"; _} ->
-               false
-           | _ ->
-               true)
-
+let fluidCommands (_m : model) = Commands.commands
 
 let reset (m : model) : fluidCommandState =
   {index = 0; commands = fluidCommands m; location = None; filter = None}
