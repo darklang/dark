@@ -1121,10 +1121,11 @@ let to_string (host : string) : string =
 
 
 module Clone = struct
-  (** When we clone a canvas, we sometimes want to only copy over ops since the last
-   * TLSavepoint - this erases history, which is invisible and we don't really
-   * know at clone-time what's in there, because we don't have any UI
-   * for inspecting history, nor do we store timestamps or edited-by-user for ops
+  (** [only_ops_since_last_savepoint ops] When we clone a canvas, we sometimes
+   * want to only copy over ops since the last TLSavepoint - this erases
+   * history, which is invisible and we don't really know at clone-time what's
+   * in there, because we don't have any UI for inspecting history, nor do we
+   * store timestamps or edited-by-user for ops
    * ("git blame"). *)
   let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
     ops
@@ -1143,12 +1144,12 @@ module Clone = struct
     |> fun (_, ops) -> ops
 
 
-  (** Given an op, and an old_host and a new_host, update string literals from
+  (** [update_hosts_in_op ojp ~old_host ~new_host] Given an [op], and an
+   * [old_host] and a [new_host], update string literals from
    * the old to the new host. Say your canvas contains a string literal that is
-   * (or contains) a url pointing to the old host
-   * ("://oldhost.builtwithdark.com/stuff", or
-   * its localhost equivalent), the op will be transformed to refer to the
-   * new_host *)
+   * (or contains) a url pointing to the [old_host]
+   * ("://oldhost.builtwithdark.com/stuff", or its localhost equivalent), the
+   * [op] will be transformed to refer to the [new_host] *)
   let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string)
       : Op.op =
     (* It might be nice if expr had an equivalent of FluidExpression.walk *)
