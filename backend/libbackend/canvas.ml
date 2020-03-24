@@ -1132,12 +1132,14 @@ module Clone = struct
      * which point we're done - we
      * throw out that op and everything after it in the
      * list (before it in history) *)
-    |> List.fold_right ~init:(false, []) ~f:(fun e (finished, ops) ->
-           match (finished, ops, (e : Op.op)) with
+    |> List.fold_right
+         ~init:(false, [])
+         ~f:(fun currOp (found_tlsavepoint, ops) ->
+           match (found_tlsavepoint, ops, (currOp : Op.op)) with
            | true, ops, _ | false, ops, TLSavepoint _ ->
                (true, ops)
-           | false, ops, e ->
-               (false, e :: ops))
+           | false, ops, currOp ->
+               (false, currOp :: ops))
     |> fun (_, ops) -> ops
 
 
