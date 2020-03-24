@@ -1135,12 +1135,12 @@ module Clone = struct
      * list (before it in history) *)
     |> List.fold_right
          ~init:(false, [])
-         ~f:(fun currOp (found_tlsavepoint, ops) ->
-           match (found_tlsavepoint, ops, (currOp : Op.op)) with
+         ~f:(fun curr_op (found_tlsavepoint, ops) ->
+           match (found_tlsavepoint, ops, (curr_op : Op.op)) with
            | true, ops, _ | false, ops, TLSavepoint _ ->
                (true, ops)
-           | false, ops, currOp ->
-               (false, currOp :: ops))
+           | false, ops, curr_op ->
+               (false, curr_op :: ops))
     |> fun (_, ops) -> ops
 
 
