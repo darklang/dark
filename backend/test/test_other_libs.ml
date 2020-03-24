@@ -451,8 +451,9 @@ let t_list_stdlibs_work () =
               ["item"]
               (match'
                  (var "item")
-                 [(pInt 1, nothing ()); (pInt 2, bool false); (pInt 3, bool true)])
-          ]))
+                 [ (pInt 1, nothing ())
+                 ; (pInt 2, bool false)
+                 ; (pInt 3, bool true) ]) ]))
     "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`" ;
   check_dval
     "List::map2 works (length mismatch)"
