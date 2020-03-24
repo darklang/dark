@@ -202,7 +202,7 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
         [ SettingsViewUpdate msg
         ; ReplaceAllModificationsWithThisOne (fun m -> submitForm m) ]
   | _ ->
-      [SettingsViewUpdate msg; NoChange]
+      [SettingsViewUpdate msg]
 
 
 (* View functions *)
