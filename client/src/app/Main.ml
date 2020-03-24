@@ -2100,7 +2100,7 @@ let update_ (msg : msg) (m : model) : modification =
       TLMenuUpdate (tlid, CloseMenu)
   | SettingsViewMsg msg ->
       let mods = SettingsView.getModifications m msg in
-      Many [mods; SettingsViewUpdate msg]
+      Many mods
   | FnParamMsg msg ->
       FnParams.update m msg
   | UploadFnAPICallback (_, Error err) ->
