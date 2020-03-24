@@ -408,6 +408,15 @@ let t_dict_stdlibs_work () =
                  (bool false)
                  (just (binop "++" (var "key") (var "value")))) ]))
     "Expected the argument `f` passed to `Dict::filterMap` to return `Just` or `Nothing` for every entry in `dict`" ;
+  check_dval
+    "Dict::size works (empty)"
+    (Dval.dint 0)
+    (exec_ast' (fn "Dict::size" [record []])) ;
+  check_dval
+    "Dict::size works (3)"
+    (Dval.dint 3)
+    (exec_ast'
+       (fn "Dict::size" [record [("a", int 3); ("b", int 1); ("c", int 1)]])) ;
   ()
 
 
