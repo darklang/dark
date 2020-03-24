@@ -4,7 +4,22 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns =
-  [ { prefix_names = ["Dict::keys"]
+  [ { prefix_names = ["Dict::size"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj]
+    ; return_type = TInt
+    ; description =
+        "Returns the number of entries in `dict` (the number of key-value pairs)."
+    ; func =
+        InProcess
+          (function
+          | _, [DObj o] ->
+              o |> DvalMap.keys |> List.length |> Dval.dint
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::keys"]
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TList
