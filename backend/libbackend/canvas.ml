@@ -1267,7 +1267,10 @@ unexpected ast-containing op."
   let clone_canvas from_canvas_name to_canvas_name : (unit, string) result =
     (* Ensure we can copy from and to - from_canvas must exist, to_canvas must
      * not. Yes, this is potentially racy, if to_canvas gets created by user
-     * before we finish this function. Acceptable risk. *)
+     * before we finish this function. I think this is unlikely enough as to be
+     * an acceptable risk - users would have to get their welcome to dark email,
+     * reset their password, and log in, before we finish running clone_canvas.
+     * *)
     ( match
         (id_for_name_option from_canvas_name, id_for_name_option to_canvas_name)
       with
