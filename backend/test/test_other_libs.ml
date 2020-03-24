@@ -365,10 +365,96 @@ let t_dict_stdlibs_work () =
     (DObj (DvalMap.from_list [("key1", dint 1); ("key3", dint 3)]))
     (exec_ast
        "(Dict::filter_v1 (obj (key1 1) (key2 _) (key3 3)) (\\k v -> (> v 0)))") ;
+  check_dval
+    "Dict::filterMap works (empty)"
+    (DObj (DvalMap.from_list []))
+    (exec_ast'
+       (fn "Dict::filterMap" [record []; lambda ["key"; "value"] (int 0)])) ;
+  check_dval
+    "Dict::filterMap works (concat)"
+    (DObj (DvalMap.from_list [("a", dstr "ax"); ("c", dstr "cz")]))
+    (exec_ast'
+       (fn
+          "Dict::filterMap"
+          [ record [("a", str "x"); ("b", str "y"); ("c", str "z")]
+          ; lambda
+              ["key"; "value"]
+              (if'
+                 (binop "==" (var "value") (str "y"))
+                 (nothing ())
+                 (just (binop "++" (var "key") (var "value")))) ])) ;
+  check_incomplete
+    "Dict::filterMap works (returns incomplete)"
+    (exec_ast'
+       (fn
+          "Dict::filterMap"
+          [ record [("a", str "x"); ("b", str "y"); ("c", str "z")]
+          ; lambda
+              ["key"; "value"]
+              (if'
+                 (binop "==" (var "value") (str "y"))
+                 (blank ())
+                 (just (binop "++" (var "key") (var "value")))) ])) ;
+  check_error_contains
+    "Dict::filterMap works (wrong return type)"
+    (exec_ast'
+       (fn
+          "Dict::filterMap"
+          [ record [("a", str "x"); ("b", str "y"); ("c", str "z")]
+          ; lambda
+              ["key"; "value"]
+              (if'
+                 (binop "==" (var "value") (str "y"))
+                 (bool false)
+                 (just (binop "++" (var "key") (var "value")))) ]))
+    "Expected the argument `f` passed to `Dict::filterMap` to return `Just` or `Nothing` for every entry in `dict`" ;
   ()
 
 
 let t_list_stdlibs_work () =
+  check_dval
+    "List::filter_v2 works (empty)"
+    (DList [])
+    (exec_ast' (fn "List::filter_v2" [list []; lambda ["item"] (bool true)])) ;
+  check_dval
+    "List::filter_v2 works (match)"
+    (DList [Dval.dint 1; Dval.dint 3])
+    (exec_ast'
+       (fn
+          "List::filter_v2"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (match'
+                 (var "item")
+                 [(pInt 1, bool true); (pInt 2, bool false); (pInt 3, bool true)])
+          ])) ;
+  check_incomplete
+    "List::filter_v2 works (returns incomplete)"
+    (exec_ast'
+       (fn
+          "List::filter_v2"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (match'
+                 (var "item")
+                 [(pInt 1, bool true); (pInt 2, blank ()); (pInt 3, bool true)])
+          ])) ;
+  check_error_contains
+    "List::filter_v2 works (wrong return type)"
+    (exec_ast'
+       (fn
+          "List::filter_v2"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (match'
+                 (var "item")
+                 [ (pInt 1, nothing ())
+                 ; (pInt 2, bool false)
+                 ; (pInt 3, bool true) ]) ]))
+    "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`" ;
   check_dval
     "List::map2 works (length mismatch)"
     (DOption OptNothing)
@@ -439,6 +525,48 @@ let t_list_stdlibs_work () =
        (fn
           "List::zipShortest"
           [list [int 10; int 20; int 30]; list [int 1; int 2; int 3]])) ;
+  check_dval
+    "List::filterMap works (empty)"
+    (DList [])
+    (exec_ast' (fn "List::filterMap" [list []; lambda ["item"] (int 0)])) ;
+  check_dval
+    "List::filterMap works (double)"
+    (DList [Dval.dint 2; Dval.dint 6])
+    (exec_ast'
+       (fn
+          "List::filterMap"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (if'
+                 (binop "==" (var "item") (int 2))
+                 (nothing ())
+                 (just (binop "*" (var "item") (int 2)))) ])) ;
+  check_incomplete
+    "List::filterMap works (returns incomplete)"
+    (exec_ast'
+       (fn
+          "List::filterMap"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (if'
+                 (binop "==" (var "item") (int 2))
+                 (blank ())
+                 (just (binop "*" (var "item") (int 2)))) ])) ;
+  check_error_contains
+    "List::filterMap works (wrong return type)"
+    (exec_ast'
+       (fn
+          "List::filterMap"
+          [ list [int 1; int 2; int 3]
+          ; lambda
+              ["item"]
+              (if'
+                 (binop "==" (var "item") (int 2))
+                 (bool false)
+                 (just (binop "*" (var "item") (int 2)))) ]))
+    "Expected the argument `f` passed to `List::filterMap` to return `Just` or `Nothing` for every value in `list`" ;
   ()
 
 
