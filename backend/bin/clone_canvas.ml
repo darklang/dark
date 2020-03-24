@@ -22,8 +22,8 @@ let () =
         Caml.print_endline e ;
         exit 1
   in
-  match (Array.length Sys.argv, Array.to_list Sys.argv) with
-  | 3, [_; from_canvas_name; to_canvas_name] ->
+  match Array.to_list Sys.argv with
+  | [_; from_canvas_name; to_canvas_name] ->
       if Account.auth_domain_for from_canvas_name = "sample"
       then clone_canvas_or_fail from_canvas_name to_canvas_name
       else (
@@ -33,7 +33,7 @@ copy from "
           ^ from_canvas_name
           ^ "; copying from a non-sample canvas requires the --force flag" ) ;
         exit 1 )
-  | 4, [_; "--force"; from_canvas_name; to_canvas_name] ->
+  | [_; "--force"; from_canvas_name; to_canvas_name] ->
       clone_canvas_or_fail from_canvas_name to_canvas_name
-  | 2, [_; "-h"] | 2, [_; "--help"] | _ ->
+  | [_; "-h"] | [_; "--help"] | _ ->
       usage ()
