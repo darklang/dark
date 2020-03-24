@@ -208,10 +208,10 @@ let fns =
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
-        "Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
-      If `f key value` returns `Nothing`, drops `key` and its value from the dictionary.
-      If `f key value` returns `Just newValue`, sets `key` to `newValue` in the dictionary.
-      This function combines `Dict::filter` and `Dict::map`."
+        {|Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
+        If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
+        If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
+        This function combines `Dict::filter` and `Dict::map`.|}
     ; func =
         InProcess
           (function
