@@ -51,12 +51,13 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
           ~key:("run-fun" ^ "-" ^ TLID.toString fn.ufTLID ^ "-" ^ traceID)
           "click"
           (fun _ ->
-            ExecuteFunctionFromWithin
-              { efpTLID = fn.ufTLID
-              ; efpCallerID = FluidAST.toID fn.ufAST
-              ; efpTraceID = traceID
-              ; efpFnName = fnName
-              ; efpArgs = args })
+            FunctionExecutionMsg
+              (FunctionExecutionExecuteFunction
+                 { efpTLID = fn.ufTLID
+                 ; efpCallerID = FluidAST.toID fn.ufAST
+                 ; efpTraceID = traceID
+                 ; efpFnName = fnName
+                 ; efpArgs = args }))
     | _ ->
         Vdom.noProp
   in

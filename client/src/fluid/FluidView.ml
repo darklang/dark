@@ -199,6 +199,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   in
   let editorState =
     { FluidEditorView.analysisStore = vs.analysisStore
+    ; selectedTraceID = vs.selectedTraceID
     ; ast = vs.ast
     ; executingFunctions = vs.executingFunctions
     ; editor = MainEditor
@@ -249,6 +250,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                let tokens = FluidPrinter.tokensForEditor e vs.ast in
                let editorState =
                  { FluidEditorView.analysisStore = vs.analysisStore
+                 ; selectedTraceID = vs.selectedTraceID
                  ; ast = vs.ast
                  ; executingFunctions = vs.executingFunctions
                  ; editor = e

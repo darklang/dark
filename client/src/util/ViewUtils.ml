@@ -16,6 +16,7 @@ type viewState =
   ; showEntry : bool
   ; showLivevalue : bool
   ; dbLocked : bool
+  ; selectedTraceID : traceID option
   ; analysisStore : analysisStore (* for current selected trace *)
   ; traces : trace list
   ; dbStats : dbStatsStore
@@ -82,10 +83,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
       |> Option.withDefault ~default:LoadableNotInitialized
   ; traces = Analysis.getTraces m tlid
   ; dbStats = m.dbStats
-  ; executingFunctions =
-      List.filter ~f:(fun (tlid_, _) -> tlid_ = tlid) m.executingFunctions
-      |> List.map ~f:(fun (_, id) -> id)
+  ; executingFunctions = FunctionExecution.withinTLID tlid m.functionExecution
   ; tlTraceIDs = m.tlTraceIDs
+  ; selectedTraceID = traceID
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
   ; handlerProp = hp
@@ -139,7 +139,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
       (* Converge can execute for functions & handlers *)
       ( match tl with
       | TLFunc _ ->
-          List.any ~f:(fun (fTLID, _) -> fTLID = tlid) m.executingFunctions
+          FunctionExecution.withinTLID tlid m.functionExecution
+          |> List.isEmpty
+          |> not
       | TLHandler _ ->
         (* Doing explicit match here just to be safe, even though we can probably assume you can't have handlerProp without it being a handler from code above. *)
         (match hp with Some p -> p.execution = Executing | _ -> false)
