@@ -6,7 +6,15 @@ module RT = Runtime
 let list_repeat = Util.list_repeat
 
 let fns =
-  [ { prefix_names = ["List::head"]
+  [ { prefix_names = ["List::singleton"]
+    ; infix_names = []
+    ; parameters = [par "val" TAny]
+    ; return_type = TList
+    ; description = "Returns a one-element list containing the given `val`."
+    ; func = InProcess (function _, [v] -> DList [v] | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::head"]
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TAny
