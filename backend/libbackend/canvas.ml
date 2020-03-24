@@ -1143,8 +1143,8 @@ module Clone = struct
 
   (** Given an op, and an old_host and a new_host, update string literals from
    * the old to the new host. Say your canvas contains a string literal that is
-   * exactly "old_host" (say, a user_fn called thisCanvasName) or one containing
-   * a url pointing to the old host ("://oldhost.builtwithdark.com/stuff", or
+   * (or contains) a url pointing to the old host
+   * ("://oldhost.builtwithdark.com/stuff", or
    * its localhost equivalent), the op will be transformed to refer to the
    * new_host *)
   let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string)
@@ -1155,13 +1155,6 @@ module Clone = struct
         Types.RuntimeT.expr =
       (* Helper function; its only purpose is to not have to pass ~old_host and
        * ~new_host around anymore *)
-      let update_host (instr : string) ~(old_host : string) ~(new_host : string)
-          : string =
-        let host canvas : string =
-          Printf.sprintf "://%s.%s" canvas Config.user_content_host
-        in
-        instr |> Util.string_replace (host old_host) (host new_host)
-      in
       let rec f (expr : Types.RuntimeT.expr) : Types.RuntimeT.expr =
         match expr with
         | Blank _ | Partial _ ->
@@ -1170,15 +1163,17 @@ module Clone = struct
             Filled
               ( id
               , match nexpr with
-                | Value str when str = Printf.sprintf "\"%s\"" old_host ->
-                    (* This match covers string literals containing _exactly_
-                     * '"old_host"' (a string literal containing your
-                     * canvas' name) *)
-                    Value (Printf.sprintf "\"%s\"" new_host)
                 | Value str ->
                     (* This match covers string literals containing
-                     * ://foo.builtwithdark.com/stuff (or the localhost equivalent) *)
-                    Value (str |> update_host ~old_host ~new_host)
+                     * ://old_host.builtwithdark.com/stuff (or the localhost
+                     * equivalent), and replaces them with
+                     * ://new_host.builtwithdark.com. *)
+                    let host canvas : string =
+                      Printf.sprintf "://%s.%s" canvas Config.user_content_host
+                    in
+                    Value
+                      ( str
+                      |> Util.string_replace (host old_host) (host new_host) )
                 | If (e1, e2, e3) ->
                     If (e1 |> f, e2 |> f, e3 |> f)
                 | Thread exprs ->
@@ -1265,7 +1260,7 @@ unexpected ast-containing op."
    * - returns an error if from_canvas doesn't exist, or if to_canvas does
    *   ("don't clobber an existing canvas")
    * - removes history - only copies ops since the last TLSavepoint (per TL)
-   * - if there are string literals referring to the old canvas, rewrite them to
+   * - if there are string literals referring to the old canvas' url, rewrite them to
    *   refer to the new one (see update_hosts_in_op)
    * - runs in a DB transaction, so this should be all-or-nothing
    * *)
