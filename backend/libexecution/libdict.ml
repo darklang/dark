@@ -109,7 +109,8 @@ let fns =
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
-        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair."
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
+        Consider `Dict::filterMap` if you also want to drop some of the entries."
     ; func =
         InProcess
           (function
@@ -127,7 +128,8 @@ let fns =
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
-        "Return only values in `dict` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
+        "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
+        Consider `Dict::filterMap` if you also want to transform the entries."
     ; func =
         InProcess
           (function
@@ -197,6 +199,59 @@ let fns =
                   ~f:filter_propagating_errors
               in
               (match filtered_result with Ok o -> DObj o | Error dv -> dv)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::filterMap"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; func ["key"; "value"]]
+    ; return_type = TObj
+    ; description =
+        {|Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
+        If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
+        If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
+        This function combines `Dict::filter` and `Dict::map`.|}
+    ; func =
+        InProcess
+          (function
+          | state, [DObj o; DBlock b] ->
+              let abortReason = ref None in
+              let f ~key ~(data : dval) : dval option =
+                if !abortReason = None
+                then (
+                  match
+                    Ast.execute_dblock
+                      ~state
+                      b
+                      [Dval.dstr_of_string_exn key; data]
+                  with
+                  | DOption (OptJust o) ->
+                      Some o
+                  | DOption OptNothing ->
+                      None
+                  | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                      abortReason := Some dv ;
+                      None
+                  | v ->
+                      abortReason :=
+                        Some
+                          (DError
+                             ( SourceNone
+                             , "Expected the argument `f` passed to `"
+                               ^ state.executing_fnname
+                               ^ "` to return `Just` or `Nothing` for every entry in `dict`. However, it returned `"
+                               ^ Dval.to_developer_repr_v0 v
+                               ^ "` for the entry `"
+                               ^ key
+                               ^ " : "
+                               ^ Dval.to_developer_repr_v0 data
+                               ^ "`." )) ;
+                      None )
+                else None
+              in
+              let result = Map.filter_mapi ~f o in
+              (match !abortReason with None -> DObj result | Some v -> v)
           | args ->
               fail args)
     ; preview_safety = Safe
