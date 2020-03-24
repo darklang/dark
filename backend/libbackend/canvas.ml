@@ -1226,8 +1226,38 @@ module Clone = struct
                SetExpr (tlid, id, new_ast)
            | SetHandler (tlid, id, handler) ->
                SetHandler (tlid, id, {handler with ast = new_ast})
-           | _ ->
-               op)
+           | CreateDB (_, _, _)
+           | AddDBCol (_, _, _)
+           | SetDBColName (_, _, _)
+           | SetDBColType (_, _, _)
+           | DeleteTL _
+           | MoveTL (_, _)
+           | TLSavepoint _
+           | UndoTL _
+           | RedoTL _
+           | DeleteFunction _
+           | ChangeDBColName (_, _, _)
+           | ChangeDBColType (_, _, _)
+           | DeprecatedInitDbm (_, _, _, _, _)
+           | CreateDBMigration (_, _, _, _)
+           | AddDBColToDBMigration (_, _, _)
+           | SetDBColNameInDBMigration (_, _, _)
+           | SetDBColTypeInDBMigration (_, _, _)
+           | DeleteColInDBMigration (_, _)
+           | AbandonDBMigration _
+           | DeleteDBCol (_, _)
+           | RenameDBname (_, _)
+           | CreateDBWithBlankOr (_, _, _, _)
+           | DeleteTLForever _
+           | DeleteFunctionForever _
+           | SetType _
+           | DeleteType _
+           | DeleteTypeForever _ ->
+               Exception.internal
+                 (Printf.sprintf
+                    "Can't copy canvas %s, got an
+unexpected ast-containing op."
+                    old_host))
     |> Option.value ~default:op
 
 
