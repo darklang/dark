@@ -1121,7 +1121,7 @@ let to_string (host : string) : string =
 
 
 module Clone = struct
-  (* When we clone a canvas, we want to only copy over ops since the last
+  (** When we clone a canvas, we want to only copy over ops since the last
    * TLSavepoint - this erases history, which is invisible and we don't really
    * know at clone-time what's in there *)
   let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
@@ -1139,7 +1139,7 @@ module Clone = struct
     |> fun (_, ops) -> ops
 
 
-  (* Given an op, and an old_host and a new_host, update string literals from
+  (** Given an op, and an old_host and a new_host, update string literals from
    * the old to the new host. Say your canvas contains a string literal that is
    * exactly "old_host" (say, a user_fn called thisCanvasName) or one containing
    * a url pointing to the old host ("://oldhost.builtwithdark.com/stuff", or
@@ -1229,7 +1229,7 @@ module Clone = struct
     |> Option.value ~default:op
 
 
-  (* Given two canvas names, clone TLs from one to the other.
+  (** Given two canvas names, clone TLs from one to the other.
    * - returns an error if from_canvas doesn't exist, or if to_canvas does
    *   ("don't clobber an existing canvas")
    * - removes history - only copies ops since the last TLSavepoint (per TL)
