@@ -430,6 +430,14 @@ let t_list_stdlibs_work () =
     (DList [Dval.dint 1])
     (exec_ast' (fn "List::singleton" [int 1])) ;
   check_dval
+    "List::tail works (empty)"
+    (DOption OptNothing)
+    (exec_ast' (fn "List::tail" [list []])) ;
+  check_dval
+    "List::tail works (full)"
+    (DOption (OptJust (DList [Dval.dint 2; Dval.dint 3])))
+    (exec_ast' (fn "List::tail" [list [int 1; int 2; int 3]])) ;
+  check_dval
     "List::filter_v2 works (empty)"
     (DList [])
     (exec_ast' (fn "List::filter_v2" [list []; lambda ["item"] (bool true)])) ;
