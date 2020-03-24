@@ -534,7 +534,7 @@ let fns =
                       Some o
                   | DOption OptNothing ->
                       None
-                  | (DIncomplete _ | DErrorRail _) as dv ->
+                  | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
                       abortReason := Some dv ;
                       None
                   | v ->
