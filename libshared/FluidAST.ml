@@ -43,3 +43,6 @@ let ancestors (target : Shared.id) (ast : t) : E.t list =
 
 
 let clone = map ~f:E.clone
+
+let equalIgnoringIds (a : t) (b : t) : bool =
+  E.equalIgnoringIds (toExpr a) (toExpr b)

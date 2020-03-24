@@ -133,3 +133,7 @@ val updateVariableUses : string -> f:(t -> t) -> t -> t
 val clone : t -> t
 
 val ancestors : Shared.id -> t -> t list
+
+(** [equalIgnoringIds a b] compares the structure and values of two ASTs,
+ * ignoring the actual IDs of the expressions. *)
+val equalIgnoringIds : t -> t -> bool
