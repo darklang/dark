@@ -304,6 +304,10 @@ let t_dict_stdlibs_work () =
   let dstr = Dval.dstr_of_string_exn in
   let dint i = DInt (Dint.of_int i) in
   check_dval
+    "Dict::singleton works"
+    (DObj (DvalMap.from_list [("one", Dval.dint 1)]))
+    (exec_ast' (fn "Dict::singleton" [str "one"; int 1])) ;
+  check_dval
     "dict keys"
     (DList [dstr "key1"])
     (exec_ast "(Dict::keys (obj (key1 'val1')))") ;
@@ -421,6 +425,10 @@ let t_dict_stdlibs_work () =
 
 
 let t_list_stdlibs_work () =
+  check_dval
+    "List::singleton works"
+    (DList [Dval.dint 1])
+    (exec_ast' (fn "List::singleton" [int 1])) ;
   check_dval
     "List::filter_v2 works (empty)"
     (DList [])
