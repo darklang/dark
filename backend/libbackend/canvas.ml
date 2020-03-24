@@ -1121,9 +1121,11 @@ let to_string (host : string) : string =
 
 
 module Clone = struct
-  (** When we clone a canvas, we want to only copy over ops since the last
+  (** When we clone a canvas, we sometimes want to only copy over ops since the last
    * TLSavepoint - this erases history, which is invisible and we don't really
-   * know at clone-time what's in there *)
+   * know at clone-time what's in there, because we don't have any UI
+   * for inspecting history, nor do we store timestamps or edited-by-user for ops
+   * ("git blame"). *)
   let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
     ops
     (* Accumulate ops until we get to a TLSavepoint, at
