@@ -1259,12 +1259,13 @@ unexpected ast-containing op."
   (** Given two canvas names, clone TLs from one to the other.
    * - returns an error if from_canvas doesn't exist, or if to_canvas does
    *   ("don't clobber an existing canvas")
-   * - removes history - only copies ops since the last TLSavepoint (per TL)
+   * - optionally removes history - only copies ops since the last TLSavepoint (per TL)
    * - if there are string literals referring to the old canvas' url, rewrite them to
    *   refer to the new one (see update_hosts_in_op)
    * - runs in a DB transaction, so this should be all-or-nothing
    * *)
-  let clone_canvas ~from_canvas_name ~to_canvas_name : (unit, string) result =
+  let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool)
+      : (unit, string) result =
     (* Ensure we can copy from and to - from_canvas must exist, to_canvas must
      * not. Yes, this is potentially racy, if to_canvas gets created by user
      * before we finish this function. I think this is unlikely enough as to be
@@ -1296,7 +1297,9 @@ unexpected ast-containing op."
            let to_ops =
              !from_canvas.ops
              |> List.map ~f:(fun (tlid, ops) ->
-                    (tlid, ops |> only_ops_since_last_savepoint))
+                    if preserve_history
+                    then (tlid, ops)
+                    else (tlid, ops |> only_ops_since_last_savepoint))
              |> List.map ~f:(fun (tlid, ops) ->
                     let new_ops =
                       ops

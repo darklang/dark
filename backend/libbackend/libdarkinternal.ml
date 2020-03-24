@@ -263,7 +263,12 @@ that's already taken, returns an error."
                          in
                          Canvas.Clone.clone_canvas
                            ~from_canvas_name
-                           ~to_canvas_name)
+                           ~to_canvas_name
+                           (* Don't preserve history here, it isn't useful and
+                            * we don't currently have visibility into canvas
+                            * history, so we'd rather not share unknown sample-
+                            * history with users *)
+                           ~preserve_history:false)
                 in
                 ( match result with
                 | Ok () ->
