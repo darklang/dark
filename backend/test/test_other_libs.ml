@@ -523,7 +523,7 @@ let t_list_stdlibs_work () =
                  (binop "==" (var "item") (int 2))
                  (bool false)
                  (just (binop "*" (var "item") (int 2)))) ]))
-    "Expected the argument `f` passed to `List::filterMap` to return `Just` or `Nothing` for every item in `list`" ;
+    "Expected the argument `f` passed to `List::filterMap` to return `Just` or `Nothing` for every value in `list`" ;
   ()
 
 
