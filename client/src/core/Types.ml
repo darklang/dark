@@ -1050,7 +1050,6 @@ and modification =
   | HandleAPIError of apiError
   | GetUnlockedDBsAPICall
   | GetWorkerStatsAPICall of TLID.t
-  | ExecutingFunctionAPICall of TLID.t * ID.t * string
   | TriggerHandlerAPICall of TLID.t
   | UpdateDBStatsAPICall of TLID.t
   (* End API Calls *)
@@ -1086,8 +1085,6 @@ and modification =
   | EndIntegrationTest
   | SetPage of page
   | SetTLTraceID of TLID.t * traceID
-  | ExecutingFunctionBegan of TLID.t * ID.t
-  | ExecutingFunctionComplete of (TLID.t * ID.t) list
   | MoveCanvasTo of pos * isTransitionAnimated
   | UpdateTraces of traces
   | OverrideTraces of traces
@@ -1179,9 +1176,18 @@ and segmentTrack =
   | MarkCanvasAsShipped of string
   | MarkCanvasAsInDevelopment of string
 
+and functionExecutionMsg =
+  | FunctionExecutionExecuteFunction
+      (* Executes the function on the server. *) of
+      executeFunctionAPIParams
+  | FunctionExecutionAPICallback of
+      executeFunctionAPIParams
+      * (httpError, executeFunctionAPIResult) Tc.Result.t
+
 and msg =
   | IgnoreMsg
   | FluidMsg of fluidMsg
+  | FunctionExecutionMsg of functionExecutionMsg
   | AppMouseDown of mouseEvent
   | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]
   | AppMouseUp of mouseEvent
@@ -1217,10 +1223,6 @@ and msg =
       [@printer opaque "InitialLoadAPICallback"]
   | FetchAllTracesAPICallback of (allTracesAPIResult, httpError) Tea.Result.t
       [@printer opaque "FetchAllTracesAPICallback"]
-  | ExecuteFunctionAPICallback of
-      executeFunctionAPIParams
-      * (executeFunctionAPIResult, httpError) Tea.Result.t
-      [@printer opaque "ExecuteFunctionAPICallback"]
   | UploadFnAPICallback of
       uploadFnAPIParams * (uploadFnAPIResult, httpError) Tea.Result.t
       [@printer opaque "UploadFunctionAPICallback"]
@@ -1237,8 +1239,6 @@ and msg =
   | FinishIntegrationTest
   | SaveTestButton
   | ToggleEditorSetting of (editorSettings -> editorSettings)
-  | ExecuteFunctionButton of TLID.t * ID.t * string
-  | ExecuteFunctionFromWithin of executeFunctionAPIParams
   | CreateHandlerFrom404 of fourOhFour
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string
@@ -1575,6 +1575,8 @@ and avatarModelMessage =
   ; canvasName : string
   ; timestamp : float }
 
+and functionExecution = (* same as FunctionExecution.t *) (TLID.t * ID.t) list
+
 and model =
   { error : Error.t
   ; lastMsg : msg
@@ -1605,7 +1607,7 @@ and model =
       integrationTestState
   ; visibility : PageVisibility.visibility
   ; syncState : syncState
-  ; executingFunctions : (TLID.t * ID.t) list
+  ; functionExecution : functionExecution
   ; tlTraceIDs : tlTraceIDs (* This is TLID ID.t *to traceID map *)
   ; featureFlags : flagsVS
   ; canvasProps : canvasProps

@@ -56,6 +56,26 @@ let apiCall
   Tea.Http.send callback request
 
 
+let apiCallDirect
+    (m : model)
+    ~(body : Js.Json.t)
+    ~(callback : (Js.Json.t, string Tea.Http.error) Tea.Result.t -> msg)
+    (endpoint : string) : msg Tea.Cmd.t =
+  let request =
+    Tea.Http.request
+      { method' = "POST"
+      ; headers =
+          [ Header ("Content-type", "application/json")
+          ; Header ("X-CSRF-Token", m.csrfToken) ]
+      ; url = "/api/" ^ Tea.Http.encodeUri m.canvasName ^ endpoint
+      ; body = Web.XMLHttpRequest.StringBody (Json.stringify body)
+      ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect identity)
+      ; timeout = None
+      ; withCredentials = false }
+  in
+  Tea.Http.send callback request
+
+
 let opsParams (ops : op list) (opCtr : int) (clientOpCtrId : string) :
     addOpAPIParams =
   {ops; opCtr; clientOpCtrId}
@@ -74,17 +94,6 @@ let addOp (m : model) (focus : focus) (params : addOpAPIParams) : msg Tea.Cmd.t
     ~encoder:Encoders.addOpAPIParams
     ~params
     ~callback:(fun x -> AddOpsAPICallback (focus, params, x))
-
-
-let executeFunction (m : model) (params : executeFunctionAPIParams) :
-    msg Tea.Cmd.t =
-  apiCall
-    m
-    "/execute_function"
-    ~decoder:Decoders.executeFunctionAPIResult
-    ~encoder:Encoders.executeFunctionAPIParams
-    ~params
-    ~callback:(fun x -> ExecuteFunctionAPICallback (params, x))
 
 
 let uploadFn (m : model) (params : uploadFnAPIParams) : msg Tea.Cmd.t =

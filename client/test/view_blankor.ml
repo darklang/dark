@@ -39,6 +39,7 @@ let run () =
             ; showEntry = false
             ; showLivevalue = false
             ; dbLocked = false
+            ; selectedTraceID = None
             ; analysisStore = LoadableSuccess StrDict.empty
             ; traces = []
             ; fns = []

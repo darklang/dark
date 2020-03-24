@@ -10,9 +10,9 @@ let fontAwesome = ViewUtils.fontAwesome
 type fnExecutionStatus =
   | Unsafe
   | IncompleteArgs
-  | Ready
   | Executing
-  | Replayable
+  | Ready of traceID * dval list
+  | Replayable of traceID * dval list
   | NoPermission
 
 type state =
@@ -20,42 +20,53 @@ type state =
   ; ast : FluidAST.t
   ; executingFunctions : ID.t list
   ; permission : permission option
-  ; tlid : TLID.t }
+  ; tlid : TLID.t
+  ; traceID : traceID option }
 
 let stateFromViewState (s : ViewUtils.viewState) : state =
   { analysisStore = s.analysisStore
   ; ast = s.ast
   ; executingFunctions = s.executingFunctions
   ; permission = s.permission
-  ; tlid = s.tlid }
+  ; tlid = s.tlid
+  ; traceID = s.selectedTraceID }
 
 
 let fnExecutionStatus
-    (s : state) (fn : function_) (id : ID.t) (args : ID.t list) =
-  let functionIsExecuting (fid : ID.t) : bool =
-    List.member ~value:fid s.executingFunctions
-  in
-  let isComplete id =
-    match Analysis.getLiveValue' s.analysisStore id with
-    | None | Some (DError _) | Some (DIncomplete _) ->
-        false
-    | Some _ ->
-        true
-  in
-  let paramsComplete = List.all ~f:isComplete args in
-  let resultHasValue = isComplete id in
-  let name = fn.fnName in
-  if s.permission <> Some ReadWrite
-  then NoPermission
-  else if name = "Password::check" || name = "Password::hash"
-  then Unsafe
-  else if not paramsComplete
-  then IncompleteArgs
-  else if functionIsExecuting id
-  then Executing
-  else if resultHasValue
-  then Replayable
-  else Ready
+    (s : state) (fn : function_) (callerID : ID.t) (argIDs : ID.t list) =
+  match s.traceID with
+  | None ->
+      IncompleteArgs
+  | Some traceID ->
+      let functionIsExecuting (fid : ID.t) : bool =
+        List.member ~value:fid s.executingFunctions
+      in
+      let args =
+        List.map argIDs ~f:(fun id ->
+            Analysis.getLiveValue' s.analysisStore id
+            |> Option.withDefault ~default:(DIncomplete SourceNone))
+      in
+      let isComplete arg =
+        match arg with DError _ | DIncomplete _ -> false | _ -> true
+      in
+      let paramsComplete = List.all ~f:isComplete args in
+      let resultHasValue =
+        Analysis.getLiveValue' s.analysisStore callerID
+        |> Option.map ~f:isComplete
+        |> Option.withDefault ~default:false
+      in
+      let name = fn.fnName in
+      if s.permission <> Some ReadWrite
+      then NoPermission
+      else if name = "Password::check" || name = "Password::hash"
+      then Unsafe
+      else if not paramsComplete
+      then IncompleteArgs
+      else if functionIsExecuting callerID
+      then Executing
+      else if resultHasValue
+      then Replayable (traceID, args)
+      else Ready (traceID, args)
 
 
 let executionClass status =
@@ -64,11 +75,11 @@ let executionClass status =
       "execution-button-unsafe"
   | IncompleteArgs ->
       "execution-button-unavailable"
-  | Ready ->
+  | Ready _ ->
       "execution-button-needed"
   | Executing ->
       "execution-button-needed is-executing"
-  | Replayable ->
+  | Replayable _ ->
       "execution-button-repeat"
   | NoPermission ->
       "execution-button-unavailable"
@@ -80,11 +91,11 @@ let executionTitle status =
       "Cannot run interactively for security reasons"
   | IncompleteArgs ->
       "Cannot run: some parameters are incomplete"
-  | Ready ->
+  | Ready _ ->
       "Click to execute function"
   | Executing ->
       "Function is executing"
-  | Replayable ->
+  | Replayable _ ->
       "Click to execute function again"
   | NoPermission ->
       "You do not have permission to execute this function"
@@ -96,11 +107,11 @@ let executionError status =
       "Cannot run interactively for security reasons"
   | IncompleteArgs ->
       "Cannot run: some parameters are incomplete"
-  | Ready ->
+  | Ready _ ->
       "Click Play to execute function"
   | Executing ->
       "Function is executing"
-  | Replayable ->
+  | Replayable _ ->
       "Click to execute function again"
   | NoPermission ->
       "You do not have permission to execute this function"
@@ -110,30 +121,44 @@ let executionIcon status =
   match status with
   | Unsafe | NoPermission ->
       "times"
-  | IncompleteArgs | Ready | Executing ->
+  | IncompleteArgs | Ready _ | Executing ->
       "play"
-  | Replayable ->
+  | Replayable _ ->
       "redo"
 
 
-let executionEvents status tlid id name =
+let executionEvents status tlid callerID fnName =
   match status with
   | Unsafe | Executing | IncompleteArgs | NoPermission ->
       [Html.noProp; Html.noProp; Html.noProp; Html.noProp]
-  | Ready | Replayable ->
+  | Ready (traceID, args) | Replayable (traceID, args) ->
+      (* TODO: add traceid/args to key *)
       [ ViewUtils.eventNoPropagation
-          ~key:("efb-" ^ TLID.toString tlid ^ "-" ^ ID.toString id ^ "-" ^ name)
+          ~key:
+            ( "efb-"
+            ^ TLID.toString tlid
+            ^ "-"
+            ^ ID.toString callerID
+            ^ "-"
+            ^ fnName )
           "click"
-          (fun _ -> ExecuteFunctionButton (tlid, id, name))
+          (fun _ ->
+            FunctionExecutionMsg
+              (FunctionExecutionExecuteFunction
+                 { efpTLID = tlid
+                 ; efpTraceID = traceID
+                 ; efpCallerID = callerID
+                 ; efpArgs = args
+                 ; efpFnName = fnName }))
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.nothingMouseEvent "dblclick" ]
 
 
 let fnExecutionButton
-    (s : state) (fn : function_) (id : ID.t) (args : ID.t list) =
+    (s : state) (fn : function_) (id : ID.t) (argIDs : ID.t list) =
   let name = fn.fnName in
-  let status = fnExecutionStatus s fn id args in
+  let status = fnExecutionStatus s fn id argIDs in
   match fn.fnPreviewSafety with
   | Safe ->
       Vdom.noNode

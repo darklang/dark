@@ -2,6 +2,7 @@ open Prelude
 
 type state =
   { analysisStore : analysisStore
+  ; selectedTraceID : traceID option
   ; ast : FluidAST.t
   ; executingFunctions : ID.t list
   ; editor : fluidEditor
@@ -18,7 +19,8 @@ let stateToFnExecutionState (s : state) : ViewFnExecution.state =
   ; ast = s.ast
   ; executingFunctions = s.executingFunctions
   ; permission = s.permission
-  ; tlid = s.tlid }
+  ; tlid = s.tlid
+  ; traceID = s.selectedTraceID }
 
 
 let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
