@@ -819,44 +819,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             cursorState =
               PanningCanvas {viewportStart; viewportCurr; prevCursorState} }
         , Cmd.none )
-    | ExecutingFunctionBegan (tlid, id) ->
-        let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
-        ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
-    | ExecutingFunctionAPICall (tlid, id, name) ->
-      ( match TL.get m tlid with
-      | Some tl ->
-          let traceID = Analysis.getSelectedTraceID m tlid in
-          ( match Option.andThen traceID ~f:(Analysis.getTrace m tlid) with
-          | Some (traceID, _) ->
-            ( match Analysis.getArguments m tl id traceID with
-            | Some args ->
-                let params =
-                  { efpTLID = tlid
-                  ; efpCallerID = id
-                  ; efpTraceID = traceID
-                  ; efpFnName = name
-                  ; efpArgs = args }
-                in
-                (m, API.executeFunction m params)
-            | None ->
-                (m, Cmd.none)
-                |> Model.updateError
-                     (Error.set "Traces are not loaded for this handler")
-                |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
-          | None ->
-              (m, Cmd.none)
-              |> Model.updateError
-                   (Error.set "Traces are not loaded for this handler")
-              |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
-      | None ->
-          (* Attempted to execute a function in a toplevel that we just deleted! *)
-          (m, Cmd.none) |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
-    | ExecutingFunctionComplete targets ->
-        let isComplete target = not <| List.member ~value:target targets in
-        let nexecutingFunctions =
-          List.filter ~f:isComplete m.executingFunctions
-        in
-        ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | MoveCanvasTo (offset, panAnimation) ->
         let newCanvasProps =
           { m.canvasProps with
@@ -974,6 +936,37 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     Fluid.cleanUp newm mTLID
   in
   match modi with NoChange -> (newm, cmds) | _ -> updateMod modi (newm, cmds)
+
+
+(* A cross-component message is a message that a component sends to another
+ * component after it has updated. This is a replacement for (the one valid use
+ * case of) modifications, and deals with the lack of ability of components to
+ * see each others interfaces, because OCaml *)
+let runCrossComponentMsgs (m : model) (ccms : msg CrossComponentMsg.t list) :
+    model * msg Cmd.t =
+  let open CrossComponentMsg in
+  List.foldl ccms ~init:(m, Cmd.none) ~f:(fun ccm (m, cmd) ->
+      match ccm with
+      | CCMTraceOverrideTraces traces ->
+          updateMod (OverrideTraces traces) (m, cmd)
+      | CCMUnlockedDBsSetUnlocked unlockedDBs ->
+          updateMod (SetUnlockedDBs unlockedDBs) (m, cmd)
+      | CCMHandleAPIError apiError ->
+          updateMod (HandleAPIError apiError) (m, cmd)
+      | CCMMakeAPICall {body; endpoint; callback} ->
+          let apiCmd = API.apiCallDirect m ~body ~callback endpoint in
+          (m, Cmd.batch [cmd; apiCmd])
+      | CCMTraceUpdateFunctionResult traceData ->
+          updateMod
+            (UpdateTraceFunctionResult
+               ( traceData.tlid
+               , traceData.traceID
+               , traceData.callerID
+               , traceData.fnName
+               , traceData.hash
+               , traceData.hashVersion
+               , traceData.dval ))
+            (m, cmd))
 
 
 let update_ (msg : msg) (m : model) : modification =
@@ -1257,24 +1250,28 @@ let update_ (msg : msg) (m : model) : modification =
         Native.OffsetEstimator.estimateClickOffset (ID.toString targetID) event
       in
       Selection.dblclick m targetExnID targetID offset
-  | ExecuteFunctionButton (tlid, id, name) ->
-      let selectionTarget : tlidSelectTarget =
-        (* Note that the intent here is to make the live value visible, which
-         * is a side-effect of placing the caret right after the function name
-         * in the handler where the function is being called.  We're relying on
-         * the length of the function name representing the offset into the
-         * tokenized function call node corresponding to this location. Eg:
-         * foo|v1 a b *)
-        STCaret {astRef = ARFnCall id; offset = String.length name}
-      in
-      Many
-        [ ExecutingFunctionBegan (tlid, id)
-        ; ExecutingFunctionAPICall (tlid, id, name)
-        ; Select (tlid, selectionTarget) ]
-  | ExecuteFunctionFromWithin p ->
-      Many
-        [ ExecutingFunctionBegan (p.efpTLID, p.efpCallerID)
-        ; MakeCmd (API.executeFunction m p) ]
+  | FunctionExecutionMsg feMsg ->
+      let open CrossComponentMsg in
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let functionExecution, ccms =
+            FunctionExecution.update feMsg m.functionExecution
+          in
+          let ccms =
+            List.map ccms ~f:(fun ccm ->
+                match ccm with
+                | CCMMakeAPICall {body; callback; endpoint} ->
+                    CCMMakeAPICall
+                      { body
+                      ; endpoint
+                      ; callback =
+                          (fun result -> FunctionExecutionMsg (callback result))
+                      }
+                | _ ->
+                    Obj.magic ccm)
+          in
+          let m = {m with functionExecution} in
+          runCrossComponentMsgs m ccms)
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | DraggingTL (_, _, _, origCursorState) ->
@@ -1546,26 +1543,6 @@ let update_ (msg : msg) (m : model) : modification =
         ; InitASTCache (r.handlers, r.userFunctions) ]
   | SaveTestAPICallback (Ok msg) ->
       Model.updateErrorMod (Error.set ("Success! " ^ msg))
-  | ExecuteFunctionAPICallback
-      (params, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
-      let traces =
-        List.map
-          ~f:(fun tlid ->
-            (TLID.toString tlid, [(params.efpTraceID, Error NoneYet)]))
-          tlids
-      in
-      Many
-        [ UpdateTraceFunctionResult
-            ( params.efpTLID
-            , params.efpTraceID
-            , params.efpCallerID
-            , params.efpFnName
-            , hash
-            , hashVersion
-            , dval )
-        ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
-        ; OverrideTraces (StrDict.fromList traces)
-        ; SetUnlockedDBs unlockedDBs ]
   | TriggerHandlerAPICallback (params, Ok tlids) ->
       let (traces : Prelude.traces) =
         List.map
@@ -1797,14 +1774,6 @@ let update_ (msg : msg) (m : model) : modification =
   | SaveTestAPICallback (Error err) ->
       Model.updateErrorMod
         (Error.set ("Error: " ^ Tea_http.string_of_error err))
-  | ExecuteFunctionAPICallback (params, Error err) ->
-      HandleAPIError
-        (APIError.make
-           ~context:"ExecuteFunction"
-           ~importance:ImportantError
-           ~requestParams:(Encoders.executeFunctionAPIParams params)
-           ~reload:false
-           err)
   | TriggerHandlerAPICallback (_, Error err) ->
       HandleAPIError
         (APIError.make
