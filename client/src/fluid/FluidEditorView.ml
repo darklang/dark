@@ -132,21 +132,35 @@ let toHtml (s : state) : Types.msg Html.html list =
         |> List.foldl ~init:ID.Set.empty ~f:(fun e acc ->
                match e with
                | FluidExpression.EFeatureFlag (_, _, _, oldCode, _) ->
-                   let values =
-                     FluidExpression.children oldCode
-                     |> List.map ~f:FluidExpression.toID
-                   in
-                   ID.Set.add ~value:(FluidExpression.toID oldCode) acc
-                   |> ID.Set.addMany ~values
+                   ID.Set.addMany
+                     acc
+                     ~values:(FluidExpression.decendants oldCode)
                | _ ->
                    acc)
   in
+  (* We want to highlight all tokens that are in the old-code of a feature
+   * flag. to do this, we highlight any token with an ID in idsInAFlag, which
+   * has the ID of every expression within that old code. But we also need to
+   * highlight the indents, which don't have an ID.
+   *
+   * So, we toggle this flag on the first time we see a token within the flag
+   * IDs above, then toggle it off as soon as we see a non-whitespace token
+   * that's not contained in the set. *)
+  let withinFlag = ref false in
   List.map s.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = FluidToken.tid ti.token in
         let idStr = ID.toString tokenId in
         let content = FluidToken.toText ti.token in
         let analysisId = FluidToken.analysisID ti.token in
+        (* Toggle withinFlag if we've crossed a flag boundary.
+         * See above comment where withinFlag is defined *)
+        if (not !withinFlag) && ID.Set.member idsInAFlag ~value:tokenId
+        then withinFlag := true
+        else if FluidToken.validID tokenId
+                && !withinFlag
+                && not (ID.Set.member idsInAFlag ~value:tokenId)
+        then withinFlag := false ;
         (* Apply CSS classes to token *)
         let tokenClasses = FluidToken.toCssClasses ti.token in
         let backingNestingClass, innerNestingClass =
@@ -192,7 +206,7 @@ let toHtml (s : state) : Types.msg Html.html list =
           in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
-          ; ("in-flag", ID.Set.member idsInAFlag ~value:tokenId)
+          ; ("in-flag", !withinFlag)
           ; ("fluid-error", isError)
           ; ( "fluid-executed"
             , wasExecuted tokenId |> Option.withDefault ~default:false )
