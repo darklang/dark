@@ -82,7 +82,9 @@ let fns =
     ; parameters = [par "entries" TList]
     ; return_type = TObj
     ; description =
-        "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`. This function is the opposite of `Dict::toList`."
+        "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+        If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary.
+        This function is the opposite of `Dict::toList`."
     ; func =
         InProcess
           (function
