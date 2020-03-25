@@ -4,7 +4,34 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns =
-  [ { prefix_names = ["Dict::keys"]
+  [ { prefix_names = ["Dict::singleton"]
+    ; infix_names = []
+    ; parameters = [par "key" TStr; par "value" TAny]
+    ; return_type = TObj
+    ; description =
+        "Returns a new dictionary with a single entry `key`: `value`."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr k; v] ->
+              DObj (DvalMap.singleton (Unicode_string.to_string k) v)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::size"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj]
+    ; return_type = TInt
+    ; description =
+        "Returns the number of entries in `dict` (the number of key-value pairs)."
+    ; func =
+        InProcess
+          (function
+          | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::keys"]
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TList
