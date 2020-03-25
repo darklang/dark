@@ -938,44 +938,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   match modi with NoChange -> (newm, cmds) | _ -> updateMod modi (newm, cmds)
 
 
-(* A cross-component message is a message that a component sends to another
- * component after it has updated. This is a replacement for (the one valid use
- * case of) modifications, and deals with the lack of ability of components to
- * see each others interfaces, because OCaml *)
-let rec runCrossComponentMsg
-    (m : model) (cmd : msg Cmd.t) (ccm : msg CrossComponentMsg.t) :
-    model * msg Cmd.t =
-  let open CrossComponentMsg in
-  match ccm with
-  | CCMTraceOverrideTraces traces ->
-      updateMod (OverrideTraces traces) (m, cmd)
-  | CCMUnlockedDBsSetUnlocked unlockedDBs ->
-      updateMod (SetUnlockedDBs unlockedDBs) (m, cmd)
-  | CCMHandleAPIError apiError ->
-      updateMod (HandleAPIError apiError) (m, cmd)
-  | CCMMakeAPICall {body; endpoint; callback} ->
-      (m, Cmd.batch [cmd; API.apiCallDirect m ~body ~callback endpoint])
-  | CCMMany msgs ->
-      List.foldl msgs ~init:(m, cmd) ~f:(fun ccm (m, cmd) ->
-          let newM, newCmd = runCrossComponentMsg m cmd ccm in
-          (newM, newCmd))
-  | CCMTraceUpdateFunctionResult traceData ->
-      updateMod
-        (UpdateTraceFunctionResult
-           ( traceData.tlid
-           , traceData.traceID
-           , traceData.callerID
-           , traceData.fnName
-           , traceData.hash
-           , traceData.hashVersion
-           , traceData.dval ))
-        (m, cmd)
-  | CCMSelect (tlid, target) ->
-      updateMod (Select (tlid, target)) (m, cmd)
-  | CCMNothing ->
-      (m, cmd)
-
-
 let update_ (msg : msg) (m : model) : modification =
   if m.integrationTestState <> NoIntegrationTest
   then Debug.loG "msg update" (show_msg msg) ;
@@ -1258,17 +1220,13 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Selection.dblclick m targetExnID targetID offset
   | FunctionExecutionMsg feMsg ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          let functionExecution, ccm =
-            FunctionExecution.update feMsg m.functionExecution
-          in
-          let m = {m with functionExecution} in
-          let ccm =
-            CrossComponentMsg.map ccm ~f:(fun feMsg ->
-                FunctionExecutionMsg feMsg)
-          in
-          runCrossComponentMsg m Cmd.none ccm)
+      let functionExecution, mods =
+        FunctionExecution.update feMsg m.functionExecution
+      in
+      Many
+        [ ReplaceAllModificationsWithThisOne
+            (fun m -> ({m with functionExecution}, Cmd.none))
+        ; mods ]
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | DraggingTL (_, _, _, origCursorState) ->

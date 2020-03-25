@@ -1055,7 +1055,8 @@ module FunctionExecutionT = struct
     | ExecuteFunction of
         (* Executes the function on the server. *)
         apiParams * moveToCaller
-    | APICallback of apiParams * (httpError, apiResult) Tc.Result.t
+    | APICallback of apiParams * (apiResult, httpError) Tea.Result.t
+        [@printer opaque "FunctionExecution.APICallback"]
   [@@deriving show {with_path = false}]
 end
 

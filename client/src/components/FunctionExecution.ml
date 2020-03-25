@@ -12,7 +12,15 @@ let recordExecutionStart tlid id t =
   t |> recordExecutionEnd tlid id |> ( @ ) [(tlid, id)]
 
 
-let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
+let teaResult2TcResult (r : ('a, 'b) Tea.Result.t) : ('b, 'a) Tc.Result.t =
+  match r with Ok v -> Ok v | Error e -> Error e
+
+
+let tcResult2TeaResult (r : ('a, 'b) Tc.Result.t) : ('b, 'a) Tea.Result.t =
+  match r with Ok v -> Ok v | Error e -> Error e
+
+
+let update (msg : msg) (t : t) : t * modification =
   match msg with
   | ExecuteFunction (p, moveToCaller) ->
       let selectionTarget : tlidSelectTarget =
@@ -26,23 +34,25 @@ let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
       in
       let select =
         if moveToCaller = MoveToCaller
-        then CrossComponentMsg.CCMSelect (p.tlid, selectionTarget)
-        else CCMNothing
+        then Select (p.tlid, selectionTarget)
+        else NoChange
       in
       ( recordExecutionStart p.tlid p.callerID t
-      , CCMMany
-          [ CCMMakeAPICall
-              { endpoint = "/execute_function"
-              ; body = Encoders.executeFunctionAPIParams p
-              ; callback =
-                  (fun result ->
-                    APICallback
-                      ( p
-                      , match result with
-                        | Ok js ->
-                            Ok (Decoders.executeFunctionAPIResult js)
-                        | Error v ->
-                            Error v )) }
+      , Many
+          [ ReplaceAllModificationsWithThisOne
+              (fun m ->
+                let body = Encoders.executeFunctionAPIParams p in
+                let endpoint = "/execute_function" in
+                let callback result =
+                  FunctionExecutionMsg
+                    (APICallback
+                       ( p
+                       , result
+                         |> teaResult2TcResult
+                         |> Tc.Result.map Decoders.executeFunctionAPIResult
+                         |> tcResult2TeaResult ))
+                in
+                (m, API.apiCallDirect m ~body ~callback endpoint))
           ; select ] )
   | APICallback (p, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
@@ -51,20 +61,14 @@ let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
           tlids
       in
       ( recordExecutionEnd p.tlid p.callerID t
-      , CCMMany
-          [ CrossComponentMsg.CCMTraceUpdateFunctionResult
-              { tlid = p.tlid
-              ; traceID = p.traceID
-              ; callerID = p.callerID
-              ; fnName = p.fnName
-              ; hash
-              ; hashVersion
-              ; dval }
-          ; CCMTraceOverrideTraces (StrDict.fromList traces)
-          ; CCMUnlockedDBsSetUnlocked unlockedDBs ] )
+      , Many
+          [ UpdateTraceFunctionResult
+              (p.tlid, p.traceID, p.callerID, p.fnName, hash, hashVersion, dval)
+          ; OverrideTraces (StrDict.fromList traces)
+          ; SetUnlockedDBs unlockedDBs ] )
   | APICallback (p, Error err) ->
       ( recordExecutionEnd p.tlid p.callerID t
-      , CCMHandleAPIError
+      , HandleAPIError
           { context = "ExecuteFunction"
           ; importance = ImportantError
           ; requestParams = Some (Encoders.executeFunctionAPIParams p)

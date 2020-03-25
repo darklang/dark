@@ -9,4 +9,4 @@ type msg = Types.FunctionExecutionT.msg [@@deriving show]
 (* Returns the ids being executed within [tlid] *)
 val withinTLID : TLID.t -> t -> ID.t list
 
-val update : msg -> t -> t * msg CrossComponentMsg.t
+val update : msg -> t -> t * Types.modification
