@@ -942,22 +942,23 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
  * component after it has updated. This is a replacement for (the one valid use
  * case of) modifications, and deals with the lack of ability of components to
  * see each others interfaces, because OCaml *)
-let rec runCrossComponentMsg (m : model) (ccm : msg CrossComponentMsg.t) :
+let rec runCrossComponentMsg
+    (m : model) (cmd : msg Cmd.t) (ccm : msg CrossComponentMsg.t) :
     model * msg Cmd.t =
   let open CrossComponentMsg in
   match ccm with
   | CCMTraceOverrideTraces traces ->
-      updateMod (OverrideTraces traces) (m, Cmd.none)
+      updateMod (OverrideTraces traces) (m, cmd)
   | CCMUnlockedDBsSetUnlocked unlockedDBs ->
-      updateMod (SetUnlockedDBs unlockedDBs) (m, Cmd.none)
+      updateMod (SetUnlockedDBs unlockedDBs) (m, cmd)
   | CCMHandleAPIError apiError ->
-      updateMod (HandleAPIError apiError) (m, Cmd.none)
+      updateMod (HandleAPIError apiError) (m, cmd)
   | CCMMakeAPICall {body; endpoint; callback} ->
-      (m, API.apiCallDirect m ~body ~callback endpoint)
+      (m, Cmd.batch [cmd; API.apiCallDirect m ~body ~callback endpoint])
   | CCMMany msgs ->
-      List.foldl msgs ~init:(m, Cmd.none) ~f:(fun ccm (m, cmd) ->
-          let newM, newCmd = runCrossComponentMsg m ccm in
-          (newM, Cmd.batch [cmd; newCmd]))
+      List.foldl msgs ~init:(m, cmd) ~f:(fun ccm (m, cmd) ->
+          let newM, newCmd = runCrossComponentMsg m cmd ccm in
+          (newM, newCmd))
   | CCMTraceUpdateFunctionResult traceData ->
       updateMod
         (UpdateTraceFunctionResult
@@ -968,11 +969,11 @@ let rec runCrossComponentMsg (m : model) (ccm : msg CrossComponentMsg.t) :
            , traceData.hash
            , traceData.hashVersion
            , traceData.dval ))
-        (m, Cmd.none)
+        (m, cmd)
   | CCMSelect (tlid, target) ->
-      updateMod (Select (tlid, target)) (m, Cmd.none)
+      updateMod (Select (tlid, target)) (m, cmd)
   | CCMNothing ->
-      (m, Cmd.none)
+      (m, cmd)
 
 
 let update_ (msg : msg) (m : model) : modification =
@@ -1267,7 +1268,7 @@ let update_ (msg : msg) (m : model) : modification =
             CrossComponentMsg.map ccm ~f:(fun feMsg ->
                 FunctionExecutionMsg feMsg)
           in
-          runCrossComponentMsg m ccm)
+          runCrossComponentMsg m Cmd.none ccm)
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | DraggingTL (_, _, _, origCursorState) ->
