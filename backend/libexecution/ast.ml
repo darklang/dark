@@ -55,8 +55,9 @@ let rec pattern2expr p : expr =
 (* AST traversal *)
 (* -------------------- *)
 
-(* Co-recursive. See example below. *)
-let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
+(* Dangerous, deprecated. Do not use. Use post-traverse instead.
+ * Co-recursive. See example below. *)
+let rec deprecated_traverse ~(f : expr -> expr) (expr : expr) : expr =
   match expr with
   | Partial _ | Blank _ ->
       expr
@@ -98,13 +99,13 @@ let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
               FluidRightPartial (name, f old_val) )
 
 
-(* Example usage of traverse. See also AST.ml *)
+(* Example usage of deprecated_traverse. See also AST.ml *)
 let rec example_traversal expr =
   match expr with
   | Partial _ | Blank _ ->
       Filled (Util.create_id (), Value "\"example\"")
   | expr ->
-      traverse ~f:example_traversal expr
+      deprecated_traverse ~f:example_traversal expr
 
 
 (** [post_travere f ast] walks the entire AST from bottom to top, calling f on
@@ -159,16 +160,18 @@ let rec post_traverse ~(f : expr -> expr) (expr : expr) : expr =
 
 let rec set_expr ~(search : id) ~(replacement : expr) (expr : expr) : expr =
   let replace = set_expr ~search ~replacement in
-  if search = blank_to_id expr then replacement else traverse ~f:replace expr
+  if search = blank_to_id expr
+  then replacement
+  else deprecated_traverse ~f:replace expr
 
 
 let rec iter ~(f : expr -> unit) (expr : expr) : unit =
   let rec recurse e =
     f e ;
-    traverse ~f:recurse e
+    deprecated_traverse ~f:recurse e
   in
   f expr ;
-  traverse ~f:recurse expr |> ignore ;
+  deprecated_traverse ~f:recurse expr |> ignore ;
   ()
 
 
