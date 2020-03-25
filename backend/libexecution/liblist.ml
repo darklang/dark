@@ -6,7 +6,15 @@ module RT = Runtime
 let list_repeat = Util.list_repeat
 
 let fns =
-  [ { prefix_names = ["List::head"]
+  [ { prefix_names = ["List::singleton"]
+    ; infix_names = []
+    ; parameters = [par "val" TAny]
+    ; return_type = TList
+    ; description = "Returns a one-element list containing the given `val`."
+    ; func = InProcess (function _, [v] -> DList [v] | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::head"]
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TAny
@@ -52,6 +60,28 @@ let fns =
             ( match List.hd l with
             | Some dv ->
                 Dval.to_opt_just dv
+            | None ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::tail"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TOption
+    ; description =
+        "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
+    ; func =
+        (* This matches Elm's implementation, with the added benefit that the error rail
+         * means you don't need to handle unwrapping the option
+         * unless the passed list is truly empty (which shouldn't happen in most practical uses). *)
+        InProcess
+          (function
+          | _, [DList l] ->
+            ( match List.tl l with
+            | Some dv ->
+                DList dv |> Dval.to_opt_just
             | None ->
                 DOption OptNothing )
           | args ->

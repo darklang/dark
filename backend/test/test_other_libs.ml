@@ -304,6 +304,10 @@ let t_dict_stdlibs_work () =
   let dstr = Dval.dstr_of_string_exn in
   let dint i = DInt (Dint.of_int i) in
   check_dval
+    "Dict::singleton works"
+    (DObj (DvalMap.from_list [("one", Dval.dint 1)]))
+    (exec_ast' (fn "Dict::singleton" [str "one"; int 1])) ;
+  check_dval
     "dict keys"
     (DList [dstr "key1"])
     (exec_ast "(Dict::keys (obj (key1 'val1')))") ;
@@ -408,10 +412,34 @@ let t_dict_stdlibs_work () =
                  (bool false)
                  (just (binop "++" (var "key") (var "value")))) ]))
     "Expected the argument `f` passed to `Dict::filterMap` to return `Just` or `Nothing` for every entry in `dict`" ;
+  check_dval
+    "Dict::size works (empty)"
+    (Dval.dint 0)
+    (exec_ast' (fn "Dict::size" [record []])) ;
+  check_dval
+    "Dict::size works (3)"
+    (Dval.dint 3)
+    (exec_ast'
+       (fn "Dict::size" [record [("a", int 3); ("b", int 1); ("c", int 1)]])) ;
   ()
 
 
 let t_list_stdlibs_work () =
+  check_dval
+    "List::singleton works"
+    (DList [Dval.dint 1])
+    (exec_ast' (fn "List::singleton" [int 1])) ;
+  check_incomplete
+    "List::singleton works (incomplete)"
+    (exec_ast' (fn "List::singleton" [blank ()])) ;
+  check_dval
+    "List::tail works (empty)"
+    (DOption OptNothing)
+    (exec_ast' (fn "List::tail" [list []])) ;
+  check_dval
+    "List::tail works (full)"
+    (DOption (OptJust (DList [Dval.dint 2; Dval.dint 3])))
+    (exec_ast' (fn "List::tail" [list [int 1; int 2; int 3]])) ;
   check_dval
     "List::filter_v2 works (empty)"
     (DList [])
