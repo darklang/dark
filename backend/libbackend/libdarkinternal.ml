@@ -249,9 +249,8 @@ that's already taken, returns an error."
                     ~name
                     ~segment_metadata
                     ()
-                  |> Result.map ~f:(fun r ->
-                         Stroller.segment_identify_user username ;
-                         r)
+                  |> Result.map ~f:(fun () ->
+                         Stroller.segment_identify_user username)
                   |> Result.bind ~f:(fun () ->
                          let to_canvas_name =
                            username
