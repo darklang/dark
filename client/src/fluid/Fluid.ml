@@ -5347,9 +5347,7 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
-        let ast, s = pasteOverSelection ~state:s ~ast data in
-        let s = updateAutocomplete m tlid ast s in
-        (ast, s)
+        pasteOverSelection ~state:s ~ast data
     (* handle selection with direction key cases *)
     (* moving/selecting over expressions or tokens with shift-/alt-direction
      * or shift-/ctrl-direction *)
@@ -5467,15 +5465,20 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       FluidCommands.updateCmds m ke
   | FluidClearErrorDvSrc ->
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
-  | FluidFocusOnToken id ->
+  | FluidFocusOnToken (tlid, id) ->
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
-      CursorState.tlidOf m.cursorState
-      |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
+      tlid
+      |> TL.get m
       |> Option.thenAlso ~f:TL.getAST
       |> Option.map ~f:(fun (tl, ast) ->
+             let pageMod =
+               if CursorState.tlidOf m.cursorState <> Some tlid
+               then SetPage (TL.asPage tl true)
+               else NoChange
+             in
              let fluidState =
                let fs = moveToEndOfTarget ast s id in
-               {fs with errorDvSrc = SourceId id}
+               {fs with errorDvSrc = SourceId (tlid, id)}
              in
              let moveMod =
                match Viewport.moveToToken id tl with
@@ -5490,9 +5493,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                | None, None ->
                    NoChange
              in
-             if moveMod = NoChange
+             if moveMod = NoChange && pageMod = NoChange
              then FluidSetState fluidState
-             else Many [moveMod; FluidSetState fluidState])
+             else Many [pageMod; moveMod; FluidSetState fluidState])
       |> Option.withDefault ~default:NoChange
   | FluidCloseCmdPalette ->
       FluidCommandsClose

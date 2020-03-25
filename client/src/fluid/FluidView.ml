@@ -84,17 +84,19 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
     | LoadableSuccess (ExecutedResult (DIncomplete _))
       when Option.isSome fnLoading ->
         [Html.text (Option.withDefault ~default:"" fnLoading)]
-    | LoadableSuccess (ExecutedResult (DIncomplete (SourceId srcId) as dv))
-    | LoadableSuccess (ExecutedResult (DError (SourceId srcId, _) as dv))
-      when srcId <> id ->
+    | LoadableSuccess
+        (ExecutedResult (DIncomplete (SourceId (srcTlid, srcId)) as dv))
+    | LoadableSuccess
+        (ExecutedResult (DError (SourceId (srcTlid, srcId), _) as dv))
+      when srcId <> id || srcTlid <> vs.tlid ->
         let errType = dv |> Runtime.typeOf |> Runtime.tipe2str in
         let msg = "<" ^ errType ^ ">" in
         [ viewArrow id srcId
         ; Html.div
             [ ViewUtils.eventNoPropagation
-                ~key:("lv-src-" ^ ID.toString srcId)
+                ~key:("lv-src-" ^ ID.toString srcId ^ TLID.toString srcTlid)
                 "click"
-                (fun _ -> FluidMsg (FluidFocusOnToken srcId))
+                (fun _ -> FluidMsg (FluidFocusOnToken (srcTlid, srcId)))
             ; Html.class' "jump-src"
             ; Html.title ("Click here to go to the source of " ^ errType) ]
             [Html.text msg; ViewUtils.fontAwesome "arrow-alt-circle-up"] ]
