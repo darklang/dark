@@ -375,6 +375,23 @@ let run
   |> ignore
 
 
+(** [tranasction] takes a function that (presumably) contains DB queries and wraps it in a
+ * try and transaction - any exn raised will roll back the transaction, and
+ * then the exn will be re-raised.
+ *
+ * Note: We can't just make this a wrapper around [run], because the reason you
+ * want a transaction is to make _multiple_ DB queries atomic.
+ * *)
+let transaction ~(name : string) (f : unit -> unit) : unit =
+  try
+    Db.run ~name:(name ^ " begin") "BEGIN" ~params:[] ;
+    f () ;
+    Db.run ~name:(name ^ " commit") "COMMIT" ~params:[]
+  with e ->
+    Db.run ~name:(name ^ " rollback") "ROLLBACK" ~params:[] ;
+    raise e
+
+
 let delete
     ~(params : param list)
     ?(result = TextResult)
