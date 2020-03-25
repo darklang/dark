@@ -73,6 +73,9 @@ let fns =
     ; description =
         "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
     ; func =
+        (* This matches Elm's implementation, with the added benefit that the error rail
+         * means you don't need to handle unwrapping the option
+         * unless the passed list is truly empty (which shouldn't happen in most practical uses). *)
         InProcess
           (function
           | _, [DList l] ->
