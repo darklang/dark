@@ -14,7 +14,7 @@ module FF = FeatureFlags
  * example, to wrap a simple string:
  *   (fun id -> str ~id "a")
  *
- * The [expected] value is compared with equalIgnoringIds, so should be
+ * The [expected] value is compared with testEqualIgnoringIds, so should be
  * constructed with FluidShortcuts helpers.
  *
  * [testUnwrap] works the same way, but has two expectations: the result when
@@ -28,7 +28,7 @@ let testWrap
       let ast = FluidAST.ofExpr (exprFn id) in
       let newAST = FF.wrap ast id |> FluidAST.toExpr in
       expect newAST
-      |> withEquality FluidExpression.equalIgnoringIds
+      |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual expected)
 
 
@@ -42,12 +42,12 @@ let testUnwrap
   test (name ^ "- KeepOld") (fun () ->
       let actualOld = FF.unwrap FF.KeepOld ast id |> FluidAST.toExpr in
       expect actualOld
-      |> withEquality FluidExpression.equalIgnoringIds
+      |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual keepOld) ;
   test (name ^ "- KeepNew") (fun () ->
       let actualNew = FF.unwrap FF.KeepNew ast id |> FluidAST.toExpr in
       expect actualNew
-      |> withEquality FluidExpression.equalIgnoringIds
+      |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual keepNew)
 
 

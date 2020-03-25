@@ -590,9 +590,9 @@ let ancestors (id : id) (expr : t) : t list =
   rec_ancestors id [] expr
 
 
-let rec equalIgnoringIds (a : t) (b : t) : bool =
+let rec testEqualIgnoringIds (a : t) (b : t) : bool =
   (* helpers for recursive calls *)
-  let eq = equalIgnoringIds in
+  let eq = testEqualIgnoringIds in
   let eq2 (e, e') (f, f') = eq e e' && eq f f' in
   let eq3 (e, e') (f, f') (g, g') = eq e e' && eq f f' && eq g g' in
   let eqList l1 l2 =

@@ -5,10 +5,10 @@ module E = FluidExpression
 let gid = Shared.gid
 
 let run () =
-  describe "equalIgnoringIds" (fun () ->
+  describe "testEqualIgnoringIds" (fun () ->
       let t (expected : bool) (name : string) (e1 : E.t) (e2 : E.t) : unit =
         test name (fun () ->
-            expect (E.equalIgnoringIds e1 e2) |> toEqual expected)
+            expect (E.testEqualIgnoringIds e1 e2) |> toEqual expected)
       in
       let eq = t true in
       let neq = t false in
