@@ -15,5 +15,8 @@ type 'msg t =
       { body : Js.Json.t
       ; callback : (Js.Json.t, string Tea.Http.error) Tea.Result.t -> 'msg
       ; endpoint : string }
+  | CCMSelect of TLID.t * Types.tlidSelectTarget
+  | CCMNothing
 
+(* Convert a [t] of one message type into a Types.msg *)
 val map : f:('msg -> Types.msg) -> 'msg t -> Types.msg t
