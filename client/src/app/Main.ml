@@ -942,31 +942,33 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
  * component after it has updated. This is a replacement for (the one valid use
  * case of) modifications, and deals with the lack of ability of components to
  * see each others interfaces, because OCaml *)
-let runCrossComponentMsgs (m : model) (ccms : msg CrossComponentMsg.t list) :
+let rec runCrossComponentMsg (m : model) (ccm : msg CrossComponentMsg.t) :
     model * msg Cmd.t =
   let open CrossComponentMsg in
-  List.foldl ccms ~init:(m, Cmd.none) ~f:(fun ccm (m, cmd) ->
-      match ccm with
-      | CCMTraceOverrideTraces traces ->
-          updateMod (OverrideTraces traces) (m, cmd)
-      | CCMUnlockedDBsSetUnlocked unlockedDBs ->
-          updateMod (SetUnlockedDBs unlockedDBs) (m, cmd)
-      | CCMHandleAPIError apiError ->
-          updateMod (HandleAPIError apiError) (m, cmd)
-      | CCMMakeAPICall {body; endpoint; callback} ->
-          let apiCmd = API.apiCallDirect m ~body ~callback endpoint in
-          (m, Cmd.batch [cmd; apiCmd])
-      | CCMTraceUpdateFunctionResult traceData ->
-          updateMod
-            (UpdateTraceFunctionResult
-               ( traceData.tlid
-               , traceData.traceID
-               , traceData.callerID
-               , traceData.fnName
-               , traceData.hash
-               , traceData.hashVersion
-               , traceData.dval ))
-            (m, cmd))
+  match ccm with
+  | CCMTraceOverrideTraces traces ->
+      updateMod (OverrideTraces traces) (m, Cmd.none)
+  | CCMUnlockedDBsSetUnlocked unlockedDBs ->
+      updateMod (SetUnlockedDBs unlockedDBs) (m, Cmd.none)
+  | CCMHandleAPIError apiError ->
+      updateMod (HandleAPIError apiError) (m, Cmd.none)
+  | CCMMakeAPICall {body; endpoint; callback} ->
+      (m, API.apiCallDirect m ~body ~callback endpoint)
+  | CCMMany msgs ->
+      List.foldl msgs ~init:(m, Cmd.none) ~f:(fun ccm (m, cmd) ->
+          let newM, newCmd = runCrossComponentMsg m ccm in
+          (newM, Cmd.batch [cmd; newCmd]))
+  | CCMTraceUpdateFunctionResult traceData ->
+      updateMod
+        (UpdateTraceFunctionResult
+           ( traceData.tlid
+           , traceData.traceID
+           , traceData.callerID
+           , traceData.fnName
+           , traceData.hash
+           , traceData.hashVersion
+           , traceData.dval ))
+        (m, Cmd.none)
 
 
 let update_ (msg : msg) (m : model) : modification =
@@ -1251,27 +1253,17 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Selection.dblclick m targetExnID targetID offset
   | FunctionExecutionMsg feMsg ->
-      let open CrossComponentMsg in
       ReplaceAllModificationsWithThisOne
         (fun m ->
-          let functionExecution, ccms =
+          let functionExecution, ccm =
             FunctionExecution.update feMsg m.functionExecution
           in
-          let ccms =
-            List.map ccms ~f:(fun ccm ->
-                match ccm with
-                | CCMMakeAPICall {body; callback; endpoint} ->
-                    CCMMakeAPICall
-                      { body
-                      ; endpoint
-                      ; callback =
-                          (fun result -> FunctionExecutionMsg (callback result))
-                      }
-                | _ ->
-                    Obj.magic ccm)
-          in
           let m = {m with functionExecution} in
-          runCrossComponentMsgs m ccms)
+          let ccm =
+            CrossComponentMsg.map ccm ~f:(fun feMsg ->
+                FunctionExecutionMsg feMsg)
+          in
+          runCrossComponentMsg m ccm)
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | DraggingTL (_, _, _, origCursorState) ->
