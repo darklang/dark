@@ -20,7 +20,9 @@ module Private = struct
 
   let runningTest : string ref = ref ""
 
-  type 'a expectation = Expect of 'a
+  type 'a expectation =
+    { actual : 'a
+    ; equalityFn : 'a -> 'a -> bool }
 end
 
 (* ------------------ *)
@@ -160,11 +162,11 @@ let testAll (name : string) (items : 'a list) (testFn : 'a -> Private.t) : unit
 (* ------------------ *)
 (* Framework - test evaluation functions *)
 (* ------------------ *)
-let expect (value : 'a) = Private.Expect value
+let expect (actual : 'a) = {Private.actual; equalityFn = ( = )}
 
-let toEqual (expected : 'a) (Expect actual : 'a Private.expectation) =
+let toEqual (expected : 'a) (e : 'a Private.expectation) =
   let open Private in
-  if actual = expected
+  if e.equalityFn e.actual expected
   then
     { categories = !categories
     ; name = !runningTest
@@ -175,11 +177,22 @@ let toEqual (expected : 'a) (Expect actual : 'a Private.expectation) =
     { categories = !categories
     ; name = !runningTest
     ; success = Failed
-    ; actual = Js.Json.stringifyAny actual
+    ; actual = Js.Json.stringifyAny e.actual
     ; expected = Js.Json.stringifyAny expected }
 
 
-let toBe = toEqual
+(** withEquality replaces the equality function used for comparing the expected
+ * and actual values with the given equalityFn (it defaults to ( = )).
+ *
+ * Eg:
+      expect actualExpr
+      |> withEquality FluidExpression.testEqualIgnoringIds
+      |> toEqual expectedExpr
+ *)
+let withEquality (equalityFn : 'a -> 'a -> bool) (e : 'a Private.expectation) :
+    'a Private.expectation =
+  {e with equalityFn}
+
 
 let pass () : Private.t =
   let open Private in

@@ -30,10 +30,12 @@ let run () =
       test "do not update canvasProps if center=false" (fun () ->
           let page = FocusedHandler (defaultTLID, false) in
           let newM = Page.calculatePanOffset m tl page in
-          expect (m.canvasProps.offset = newM.canvasProps.offset) |> toBe true) ;
+          expect (m.canvasProps.offset = newM.canvasProps.offset)
+          |> toEqual true) ;
       test "update canvasProps if center=true" (fun () ->
           let page = FocusedHandler (defaultTLID, true) in
           let newM = Page.calculatePanOffset m tl page in
-          expect (m.canvasProps.offset = newM.canvasProps.offset) |> toBe false) ;
+          expect (m.canvasProps.offset = newM.canvasProps.offset)
+          |> toEqual false) ;
       ()) ;
   ()
