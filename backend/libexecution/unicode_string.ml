@@ -47,6 +47,8 @@ module Character = struct
   let of_yojson j = match j with `String s -> Ok s | _ -> Error "Not bytes"
 end
 
+let normalize_utf_8 (s : string) = Uunf_string.normalize_utf_8 `NFC s
+
 (* This validates that the passed string is UTF-8 encoded, and also normalizes
  * it to a common normalization form (NFC). It does this in two passes. It's
  * possible to do this in a single pass via a much less ergonic normalization
@@ -71,7 +73,7 @@ let of_utf8_encoded_string (s : string) : t option =
   | `Ok ->
       (* Note, this changes the byte representation such that the input string and the
        * Unicode_string.t no longer match *)
-      Some (Uunf_string.normalize_utf_8 `NFC s)
+      Some (normalize_utf_8 s)
   | `Err ->
       None
 
@@ -175,6 +177,9 @@ let slice s ~first ~last =
   let len = length s in
   let min = 0 in
   let max = len + 1 in
+  (* If we get negative indices, we need to treat them as indices from the end
+   * which means that we need to add len to them. We clamp the result to
+   * a value within range of the actual string. *)
   let first =
     if first >= 0 then first else len + first |> clamp_unchecked ~min ~max
   in
@@ -182,46 +187,63 @@ let slice s ~first ~last =
     if last >= 0 then last else len + last |> clamp_unchecked ~min ~max
   in
   let b = Buffer.create (String.length s) in
+  (* To slice, we iterate through every EGC, adding it to the buffer
+   * if it is within the specified index range. *)
   let slicer_func acc seg =
     if acc >= first && acc < last then Buffer.add_string b seg else () ;
     1 + acc
   in
   let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster slicer_func 0 in
+  (* We don't need to renormalize because slicing by GCs may not break normalization: *)
   Buffer.contents b
 
 
 let pad_start s ~pad_with des_gc_count =
   let max a b = if a > b then a else b in
+  (* Compute the size in bytes and # of required gcs for s and pad_with: *)
   let pad_size = String.length pad_with in
   let pad_gcs = length pad_with in
   let s_size = String.length s in
   let s_gcs = length s in
+  (* Compute how many copies of pad_with we need,
+   * accounting for the string longer than des_gc_count: *)
   let req_gcs = des_gc_count - s_gcs in
   let req_pads = max 0 (if pad_gcs = 0 then 0 else req_gcs / pad_gcs) in
+  (* Create a buffer large enough to hold the padded result: *)
   let req_size = s_size + (req_pads * pad_size) in
   let b = Buffer.create req_size in
+  (* Fill with the required number of pads: *)
   for i = 1 to req_pads do
     Buffer.add_string b pad_with
   done ;
+  (* Finish by filling with the string: *)
   Buffer.add_string b s ;
-  Buffer.contents b
+  (* Renormalize because concatenation may break normalization: *)
+  Buffer.contents b |> normalize_utf_8
 
 
 let pad_end s ~pad_with des_gc_count =
   let max a b = if a > b then a else b in
+  (* Compute the size in bytes and # of required gcs for s and pad_with: *)
   let pad_size = String.length pad_with in
   let pad_gcs = length pad_with in
   let s_size = String.length s in
   let s_gcs = length s in
+  (* Compute how many copies of pad_with we need,
+   * accounting for the string longer than des_gc_count: *)
   let req_gcs = des_gc_count - s_gcs in
   let req_pads = max 0 (if pad_gcs = 0 then 0 else req_gcs / pad_gcs) in
+  (* Create a buffer large enough to hold the padded result: *)
   let req_size = s_size + (req_pads * pad_size) in
   let b = Buffer.create req_size in
+  (* Start the buffer with the string: *)
   Buffer.add_string b s ;
+  (* Finish by filling with the required number of pads: *)
   for i = 1 to req_pads do
     Buffer.add_string b pad_with
   done ;
-  Buffer.contents b
+  (* Renormalize because concatenation may break normalization: *)
+  Buffer.contents b |> normalize_utf_8
 
 
 let trim_left s =
