@@ -429,6 +429,9 @@ let t_list_stdlibs_work () =
     "List::singleton works"
     (DList [Dval.dint 1])
     (exec_ast' (fn "List::singleton" [int 1])) ;
+  check_incomplete
+    "List::singleton works (incomplete)"
+    (exec_ast' (fn "List::singleton" [blank ()])) ;
   check_dval
     "List::tail works (empty)"
     (DOption OptNothing)
