@@ -179,7 +179,6 @@ let toEqual (expected : 'a) (Expect actual : 'a Private.expectation) =
     ; expected = Js.Json.stringifyAny expected }
 
 
-let toBe = toEqual
 
 let pass () : Private.t =
   let open Private in

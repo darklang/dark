@@ -300,7 +300,7 @@ let run () =
               |> toEqual 1) ;
           test "scrolling backward works if we haven't searched yet" (fun () ->
               expect (acForDB () |> selectUp |> selectUp |> fun x -> x.index)
-              |> toBe 14) ;
+              |> toEqual 14) ;
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( acForDB ()

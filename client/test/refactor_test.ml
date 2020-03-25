@@ -234,7 +234,7 @@ let run () =
                 false
             | Error _ ->
                 true )
-          |> toBe true) ;
+          |> toEqual true) ;
       test "with Some non-DObj input" (fun () ->
           expect
             ( match R.generateUserType (Some (DStr "foo")) with
@@ -242,7 +242,7 @@ let run () =
                 false
             | Error _ ->
                 true )
-          |> toBe true) ;
+          |> toEqual true) ;
       test "with Some DObj input" (fun () ->
           let dobj =
             DObj
