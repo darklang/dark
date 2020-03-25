@@ -6,6 +6,9 @@ $blanks: lighten($toplevel-background, 5%);
 
 /* The amount of nestings before repeat is defined in toHtml of Fluid.ml */
 $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
+
+$ff-color: adjust-hue($purple, -40deg);
+
 @mixin precedence($depth) {
   .precedence-#{$depth} {
     background-color: nth($prec-colors, $depth);
@@ -271,7 +274,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   }
 
   .in-flag {
-    background-color: rgba(255, 0, 255, 0.3);
+    background-color: darken($ff-color, 40%);
   }
 
   .fluid-category-string,
@@ -527,7 +530,7 @@ since they are essentially both commands just acting upon different things. */
 }
 
 .fluid-secondary-editor {
-  background-color: #2d2d2d;
+  background-color: $toplevel-background;
   box-shadow: 1px 2px 2px 0 #181818;
   position: absolute;
   left: calc(100% + 20px);
@@ -536,13 +539,13 @@ since they are essentially both commands just acting upon different things. */
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  min-width: 20em;
+  min-width: 16em;
   width: max-content;
   padding: 4px;
 
   .ff-icon {
     position: absolute;
-    color: magenta;
+    color: $ff-color;
     top: -10px;
     left: -5px;
   }
