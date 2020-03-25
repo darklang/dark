@@ -31,7 +31,7 @@ let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
   |> fun (_, ops) -> ops
 
 
-(** [update_hosts_in_op ojp ~old_host ~new_host] Given an [op], and an
+(** [update_hosts_in_op op ~old_host ~new_host] Given an [op], and an
    * [old_host] and a [new_host], update string literals from
    * the old to the new host. Say your canvas contains a string literal that is
    * (or contains) a url pointing to the [old_host]
