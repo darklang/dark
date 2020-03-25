@@ -1,4 +1,5 @@
 type 'msg t =
+  | CCMMany of 'msg t list
   | CCMTraceUpdateFunctionResult of
       { tlid : TLID.t
       ; traceID : Types.traceID
@@ -14,3 +15,19 @@ type 'msg t =
       { body : Js.Json.t
       ; callback : (Js.Json.t, string Tea.Http.error) Tea.Result.t -> 'msg
       ; endpoint : string }
+
+let rec map ~(f : 'msg -> Types.msg) (msg : 'msg t) : Types.msg t =
+  match msg with
+  | CCMMakeAPICall {body; callback; endpoint} ->
+      CCMMakeAPICall
+        {body; endpoint; callback = (fun result -> f (callback result))}
+  | CCMMany msgs ->
+      CCMMany (Tc.List.map ~f:(fun msg -> map ~f msg) msgs)
+  | CCMTraceUpdateFunctionResult x ->
+      CCMTraceUpdateFunctionResult x
+  | CCMHandleAPIError apiError ->
+      CCMHandleAPIError apiError
+  | CCMTraceOverrideTraces x ->
+      CCMTraceOverrideTraces x
+  | CCMUnlockedDBsSetUnlocked x ->
+      CCMUnlockedDBsSetUnlocked x
