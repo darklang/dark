@@ -1327,7 +1327,6 @@ and variantTest =
      * if we're not testing anything else *)
       StubVariant
   | GroupVariant
-  | FeatureFlagVariant
   | NgrokVariant
 
 (* ----------------------------- *)
