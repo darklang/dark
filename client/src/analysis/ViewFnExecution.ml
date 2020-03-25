@@ -164,12 +164,7 @@ let executionEvents status tlid callerID fnName =
           (fun _ ->
             FunctionExecutionMsg
               (ExecuteFunction
-                 ( { efpTLID = tlid
-                   ; efpTraceID = traceID
-                   ; efpCallerID = callerID
-                   ; efpArgs = args
-                   ; efpFnName = fnName }
-                 , MoveToCaller )))
+                 ({tlid; traceID; callerID; args; fnName}, MoveToCaller)))
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.nothingMouseEvent "dblclick" ]

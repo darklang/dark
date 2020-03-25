@@ -53,11 +53,11 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
           (fun _ ->
             FunctionExecutionMsg
               (ExecuteFunction
-                 ( { efpTLID = fn.ufTLID
-                   ; efpCallerID = FluidAST.toID fn.ufAST
-                   ; efpTraceID = traceID
-                   ; efpFnName = fnName
-                   ; efpArgs = args }
+                 ( { tlid = fn.ufTLID
+                   ; callerID = FluidAST.toID fn.ufAST
+                   ; traceID
+                   ; fnName
+                   ; args }
                  , DontMove )))
     | _ ->
         Vdom.noProp
