@@ -46,7 +46,7 @@ let fns : fn list =
     ; parameters = [par "s" TStr; func ["character"]]
     ; return_type = TStr
     ; description =
-        "Iterate over each character (EGC, not byte) in the string, performing the operation in the block on each one"
+        "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
     ; func =
         InProcess
           (function
@@ -108,7 +108,7 @@ let fns : fn list =
     ; parameters = [par "s" TStr]
     ; return_type = TList
     ; description =
-        "Returns the list of characters (EGC, not byte) in the string"
+        "Returns the list of Characters (EGC, not byte) in the string"
     ; func =
         InProcess
           (function
@@ -677,6 +677,84 @@ let fns : fn list =
           (function
           | _, [DStr haystack; DStr needle] ->
               DBool (Unicode_string.is_substring ~substring:needle haystack)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::slice"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "from" TInt; par "to" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns the substring of `string` between the `from` and `to` indices.
+         Negative indices start counting from the end of `string`.
+         Indices represent Characters."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt f; DInt l] ->
+              let first, last = (Dint.to_int_exn f, Dint.to_int_exn l) in
+              DStr (Unicode_string.slice s ~first ~last)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::padStart"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
+    ; return_type = TStr
+    ; description =
+        "If `string` is shorter than `goalLength` Characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
+        If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
+    ; func =
+        InProcess
+          (function
+          | state, [DStr s; DStr pad_with; DInt l] ->
+              let padLen = Unicode_string.length pad_with in
+              if padLen = 1
+              then
+                let l = Dint.to_int_exn l in
+                DStr (Unicode_string.pad_start s ~pad_with l)
+              else
+                DError
+                  ( SourceNone
+                  , "Expected the argument `padWith` passed to `"
+                    ^ state.executing_fnname
+                    ^ "` to be one Character long. However, `"
+                    ^ Dval.to_developer_repr_v0 (DStr pad_with)
+                    ^ "` is "
+                    ^ Int.to_string padLen
+                    ^ " Characters long." )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::padEnd"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
+    ; return_type = TStr
+    ; description =
+        "If `string` is shorter than `goalLength` Characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
+        If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
+    ; func =
+        InProcess
+          (function
+          | state, [DStr s; DStr pad_with; DInt l] ->
+              let padLen = Unicode_string.length pad_with in
+              if padLen = 1
+              then
+                let l = Dint.to_int_exn l in
+                DStr (Unicode_string.pad_end s ~pad_with l)
+              else
+                DError
+                  ( SourceNone
+                  , "Expected the argument `padWith` passed to `"
+                    ^ state.executing_fnname
+                    ^ "` to be one Character long. However, `"
+                    ^ Dval.to_developer_repr_v0 (DStr pad_with)
+                    ^ "` is "
+                    ^ Int.to_string padLen
+                    ^ " Characters long." )
           | args ->
               fail args)
     ; preview_safety = Safe
