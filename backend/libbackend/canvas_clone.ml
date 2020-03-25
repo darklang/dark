@@ -37,6 +37,9 @@ let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string) :
   (* It might be nice if expr had an equivalent of FluidExpression.walk *)
   let rec update_hosts_in_pattern (pattern : Types.RuntimeT.pattern) :
       Types.RuntimeT.pattern =
+    let literal_is_dstr s : bool =
+      match Dval.parse_literal s with Some (DStr _) -> true | _ -> false
+    in
     let host canvas : string =
       Printf.sprintf "://%s.%s" canvas Config.user_content_host
     in
@@ -49,9 +52,11 @@ let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string) :
           , match npattern with
             | PVariable varname as v ->
                 v
-            | PLiteral str ->
+            | PLiteral str when literal_is_dstr str ->
                 PLiteral
                   (str |> Util.string_replace (host old_host) (host new_host))
+            | PLiteral str ->
+                PLiteral str
             | PConstructor (constructor_name, patterns) ->
                 PConstructor
                   ( constructor_name
@@ -63,6 +68,9 @@ let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string) :
     (* Helper function; its only purpose is to not have to pass ~old_host and
      * ~new_host around anymore *)
     let rec f (expr : Types.RuntimeT.expr) : Types.RuntimeT.expr =
+      let literal_is_dstr s : bool =
+        match Dval.parse_literal s with Some (DStr _) -> true | _ -> false
+      in
       match expr with
       | Blank _ | Partial _ ->
           expr
@@ -70,7 +78,7 @@ let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string) :
           Filled
             ( id
             , match nexpr with
-              | Value str ->
+              | Value str when literal_is_dstr str ->
                   (* This match covers string literals containing
                    * ://old_host.builtwithdark.com/stuff (or the localhost
                    * equivalent), and replaces them with
@@ -80,6 +88,9 @@ let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string) :
                   in
                   Value
                     (str |> Util.string_replace (host old_host) (host new_host))
+              | Value str ->
+                  (* Non-string-literal value *)
+                  Value str
               | If (e1, e2, e3) ->
                   If (e1 |> f, e2 |> f, e3 |> f)
               | Thread exprs ->
