@@ -318,61 +318,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ReplaceAllModificationsWithThisOne f ->
         f m
     | HandleAPIError apiError ->
-        let now = Js.Date.now () |> Js.Date.fromFloat in
-        let shouldReload =
-          let buildHashMismatch =
-            APIError.serverVersionOf apiError
-            |> Option.map ~f:(fun hash -> hash <> m.buildHash)
-            |> Option.withDefault ~default:false
-          in
-          let reloadAllowed =
-            match m.lastReload with
-            | Some time ->
-                (* if 60 seconds have elapsed *)
-                Js.Date.getTime time +. 60000.0 > Js.Date.getTime now
-            | None ->
-                true
-          in
-          (* Reload if it's an auth failure or the frontend is out of date *)
-          APIError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
-        in
-        let ignore =
-          (* Ignore when using Ngrok *)
-          let usingNgrok = VariantTesting.variantIsActive m NgrokVariant in
-          (* This message is deep in the server code and hard to pull
-              * out, so just ignore for now *)
-          Js.log "Already at latest redo - ignoring server error" ;
-          let redoError =
-            String.contains
-              (APIError.msg apiError)
-              ~substring:"(client): Already at latest redo"
-          in
-          redoError || usingNgrok
-        in
-        let cmd =
-          if shouldReload
-          then
-            let m = {m with lastReload = Some now} in
-            (* Previously, this was two calls to Tea_task.nativeBinding. But
-             * only the first got called, unclear why. *)
-            Cmd.call (fun _ ->
-                SavedSettings.save m ;
-                SavedUserSettings.save m ;
-                Native.Location.reload true)
-          else if (not ignore) && APIError.shouldRollbar apiError
-          then Cmd.call (fun _ -> Rollbar.sendAPIError m apiError)
-          else Cmd.none
-        in
-        let newM =
-          let error =
-            if APIError.shouldDisplayToUser apiError && not ignore
-            then Error.set (APIError.msg apiError) m.error
-            else m.error
-          in
-          let lastReload = if shouldReload then Some now else m.lastReload in
-          {m with error; lastReload}
-        in
-        (newM, cmd)
+        APIError.handle m apiError
     | AddOps (ops, focus) ->
         handleAPI (API.opsParams ops ((m |> opCtr) + 1) m.clientOpCtrId) focus
     | GetUnlockedDBsAPICall ->
@@ -954,9 +900,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with fluidState}, Cmd.none)
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
-    | SettingsViewUpdate msg ->
-        let settingsView = SettingsView.update m.settingsView msg in
-        ({m with settingsView}, cmd)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1515,14 +1458,13 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ ReplaceAllModificationsWithThisOne
             (fun m ->
-              let settingsView =
+              let m, _ =
                 SettingsView.update
-                  m.settingsView
+                  m
                   (SetSettingsView
                      (m.canvasName, r.canvasList, r.orgList, r.creationDate))
               in
-              ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
-              , Cmd.none ))
+              ({m with opCtrs = r.opCtrs; account = r.account}, Cmd.none))
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
@@ -2105,8 +2047,8 @@ let update_ (msg : msg) (m : model) : modification =
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
   | SettingsViewMsg msg ->
-      let mods = SettingsView.getModifications m msg in
-      Many mods
+      let m, cmd = SettingsView.update m msg in
+      ReplaceAllModificationsWithThisOne (fun _ -> (m, cmd))
   | FnParamMsg msg ->
       FnParams.update m msg
   | UploadFnAPICallback (_, Error err) ->
