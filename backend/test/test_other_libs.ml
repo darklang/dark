@@ -5,33 +5,6 @@ open Prelude
 open Utils
 open Libshared.FluidShortcuts
 
-let t_stdlib_works () =
-  check_dval
-    "uniqueBy1"
-    (exec_ast'
-       (fn
-          "List::uniqueBy"
-          [ list [int 1; int 2; int 3; int 4]
-          ; lambda ["x"] (fn "Int::divide" [var "x"; int 2]) ]))
-    (DList [Dval.dint 1; Dval.dint 3; Dval.dint 4]) ;
-  check_dval
-    "uniqueBy2"
-    (exec_ast'
-       (fn
-          "List::uniqueBy"
-          [list [int 1; int 2; int 3; int 4]; lambda ["x"] (var "x")]))
-    (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3; Dval.dint 4]) ;
-  check_dval
-    "getAt1"
-    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 0]))
-    (DOption (OptJust (Dval.dint 1))) ;
-  check_dval
-    "getAt2"
-    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 4]))
-    (DOption OptNothing) ;
-  ()
-
-
 let t_option_stdlibs_work () =
   check_dval
     "map just"
@@ -440,6 +413,29 @@ let t_list_stdlibs_work () =
     "List::tail works (full)"
     (DOption (OptJust (DList [Dval.dint 2; Dval.dint 3])))
     (exec_ast' (fn "List::tail" [list [int 1; int 2; int 3]])) ;
+  check_dval
+    "List::uniqueBy works (different evaluation for some)"
+    (exec_ast'
+       (fn
+          "List::uniqueBy"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["x"] (fn "Int::divide" [var "x"; int 2]) ]))
+    (DList [Dval.dint 1; Dval.dint 3; Dval.dint 4]) ;
+  check_dval
+    "List::uniqueBy works (different evaluation for all)"
+    (exec_ast'
+       (fn
+          "List::uniqueBy"
+          [list [int 1; int 2; int 3; int 4]; lambda ["x"] (var "x")]))
+    (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3; Dval.dint 4]) ;
+  check_dval
+    "List::getAt works (in range)"
+    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 0]))
+    (DOption (OptJust (Dval.dint 1))) ;
+  check_dval
+    "List::getAt works (index == length)"
+    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 4]))
+    (DOption OptNothing) ;
   check_dval
     "List::filter_v2 works (empty)"
     (DList [])
@@ -1184,8 +1180,7 @@ let t_liblist_sort_by_comparator_works () =
 
 
 let suite =
-  [ ("Stdlib fns work", `Quick, t_stdlib_works)
-  ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
+  [ ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
   ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work)
   ; ("List stdlibs work", `Quick, t_list_stdlibs_work)
