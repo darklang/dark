@@ -23,9 +23,16 @@ let stateToFnExecutionState (s : state) : ViewFnExecution.state =
 
 let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
   match ViewUtils.fnForToken s.fluidState ti.token with
+  | Some ({fnOrigin = UserFunction; _} as fn)
+  (* HACK: UserFunctions need to be executable so that the user can get a value
+   * into the trace. Otherwise, when they edit the function they won't have any
+   * live values. *)
   | Some ({fnPreviewSafety = Unsafe; _} as fn) ->
       (* Looking these up can be slow, so the fnPreviewSafety check
-       * above is very important *)
+       * above is very important.
+       *
+       * Note that fnPreviewSafety is calculated dynamically by
+       * FluidAutocomplete. *)
       let allExprs = AST.getArguments (FluidToken.tid ti.token) s.ast in
       let argIDs = List.map ~f:FluidExpression.toID allExprs in
       ( match ti.token with
@@ -56,10 +63,10 @@ let toHtml (s : state) : Types.msg Html.html list =
     then
       (* Only highlight incompletes and errors on executed paths *)
       match Analysis.getLiveValueLoadable s.analysisStore id with
-      | LoadableSuccess (ExecutedResult (DIncomplete (SourceId id))) ->
-          (Some id, "dark-incomplete")
-      | LoadableSuccess (ExecutedResult (DError (SourceId id, _))) ->
-          (Some id, "dark-error")
+      | LoadableSuccess (ExecutedResult (DIncomplete (SourceId (tlid, id)))) ->
+          (Some (tlid, id), "dark-incomplete")
+      | LoadableSuccess (ExecutedResult (DError (SourceId (tlid, id), _))) ->
+          (Some (tlid, id), "dark-error")
       | _ ->
           (None, "")
     else (None, "")
@@ -181,7 +188,7 @@ let toHtml (s : state) : Types.msg Html.html list =
             && (* This expression is the source of its own incompleteness. We
             only draw underlines under sources of incompletes, not all
             propagated occurrences. *)
-            sourceId = Some analysisId
+            sourceId = Some (s.tlid, analysisId)
           in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
@@ -194,13 +201,13 @@ let toHtml (s : state) : Types.msg Html.html list =
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
              * into another, where the cursor is currently on *)
-            ("is-origin", sourceOfCurrentToken ti = Some analysisId)
+            ("is-origin", sourceOfCurrentToken ti = Some (s.tlid, analysisId))
           ; ( "jumped-to"
             , match s.fluidState.errorDvSrc with
               | SourceNone ->
                   false
-              | SourceId id ->
-                  id = tokenId )
+              | SourceId (tlid, id) ->
+                  id = tokenId && s.tlid = tlid )
           ; ("selected", isSelected ti.startPos ti.endPos) ]
         in
         let innerNode =
@@ -319,8 +326,9 @@ let tokensView (s : state) : Types.msg Html.html =
 let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
     Types.msg Html.html =
   let returnTipe (name : string) =
-    let fn = Functions.findByNameInList name s.fluidState.ac.functions in
-    fn.fnReturnTipe
+    Functions.findByNameInList name s.fluidState.ac.functions
+    |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
+    |> Option.withDefault ~default:TAny
   in
   let liveValue (id : ID.t) = Analysis.getLiveValue' s.analysisStore id in
   let isEvalSuccess dv =

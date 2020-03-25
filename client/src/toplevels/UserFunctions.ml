@@ -54,7 +54,8 @@ let ufmToF (ufm : userFunctionMetadata) : function_ option =
       ; fnReturnTipe = tipe
       ; fnInfix = ufm.ufmInfix
       ; fnPreviewSafety = Unsafe
-      ; fnDeprecated = false }
+      ; fnDeprecated = false
+      ; fnOrigin = UserFunction }
       |> fun x -> Some x
   | _ ->
       None

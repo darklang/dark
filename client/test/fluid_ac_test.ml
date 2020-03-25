@@ -49,7 +49,8 @@ let sampleFunctions : function_ list =
          ; fnPreviewSafety = Unsafe
          ; fnDescription = ""
          ; fnInfix = true
-         ; fnDeprecated = fnName = "Some::deprecated" })
+         ; fnDeprecated = fnName = "Some::deprecated"
+         ; fnOrigin = Builtin })
 
 
 let defaultTLID = TLID.fromString "7"

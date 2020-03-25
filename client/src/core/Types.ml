@@ -323,7 +323,7 @@ and resultT =
 
 and dval_source =
   | SourceNone
-  | SourceId of ID.t
+  | SourceId of TLID.t * ID.t
 
 and dblock_args =
   { symtable : dval StrDict.t
@@ -816,6 +816,11 @@ and previewSafety =
   | Safe
   | Unsafe
 
+and fnOrigin =
+  | UserFunction
+  | PackageManager
+  | Builtin
+
 and function_ =
   { fnName : string
   ; fnParameters : parameter list
@@ -823,7 +828,11 @@ and function_ =
   ; fnReturnTipe : tipe
   ; fnPreviewSafety : previewSafety
   ; fnDeprecated : bool
-  ; fnInfix : bool }
+  ; fnInfix : bool
+  ; fnOrigin :
+      (* This is a client-side only field to be able to give different UX to
+       * different functions *)
+      fnOrigin }
 
 (* autocomplete items *)
 and literal = string
@@ -1165,7 +1174,7 @@ and fluidMsg =
   | FluidMouseUp of fluidMouseUp
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
-  | FluidFocusOnToken of ID.t
+  | FluidFocusOnToken of TLID.t * ID.t
   | FluidClearErrorDvSrc
   | FluidUpdateAutocomplete
   (* Index of the dropdown(autocomplete or command palette) item *)
@@ -1578,7 +1587,6 @@ and avatarModelMessage =
 and model =
   { error : Error.t
   ; lastMsg : msg
-  ; lastMods : string list
   ; tests : variantTest list
   ; complete : autocomplete
   ; builtInFunctions : function_ list
@@ -1618,6 +1626,7 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
+  ; previewUnsafeUserFunctions : StrSet.t
   ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys : staticDeploy list
         (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
