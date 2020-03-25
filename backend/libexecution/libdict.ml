@@ -92,7 +92,7 @@ let fns =
               let abortReason = ref None in
               let debug_idx_from_rev_idx (rev_idx : int) (l : 'a list) : string
                   =
-                1 + List.length l - rev_idx |> Int.to_string
+                List.length l - 1 - rev_idx |> Int.to_string
               in
               let f (rev_idx : int) (acc : dval DvalMap.t) (dv : dval) :
                   dval DvalMap.t =
@@ -146,7 +146,9 @@ let fns =
                       DvalMap.empty )
                 else DvalMap.empty
               in
-              let result = List.foldi ~init:DvalMap.empty ~f (List.rev l) in
+              (* We reverse here so that the fold accumulates in the correct direction.
+               * It does mean that the index passed by foldi is counting from the end *)
+              let result = l |> List.rev |> List.foldi ~init:DvalMap.empty ~f in
               (match !abortReason with None -> DObj result | Some v -> v)
           | args ->
               fail args)
