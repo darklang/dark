@@ -78,30 +78,56 @@ let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
   API.sendCanvasInfo m msg
 
 
-let update (settingsView : settingsViewState) (msg : settingsMsg) :
-    settingsViewState =
+(* Ideally, this should only need a settingsViewState, but we need
+ * to mutate some shared state (toast, cursorState, canvasProps, errors)
+ * that aren't currently componentized *)
+let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
+    =
   match msg with
   | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
-      { settingsView with
-        canvasList
-      ; orgList
-      ; canvasInformation =
-          { settingsView.canvasInformation with
-            canvasName
-          ; createdAt = Some creationDate } }
+      let settingsView =
+        { m.settingsView with
+          canvasList
+        ; orgList
+        ; canvasInformation =
+            { m.settingsView.canvasInformation with
+              canvasName
+            ; createdAt = Some creationDate } }
+      in
+      ({m with settingsView}, Cmd.none)
   | OpenSettingsView tab ->
-      {settingsView with opened = true; tab; loading = false}
-  | CloseSettingsView _ ->
-      {settingsView with opened = false; loading = false}
+      (* Ideally, cross-component msg so we didn't need access to the model *)
+      let settingsView =
+        {m.settingsView with opened = true; tab; loading = false}
+      in
+      let m1 = {m with settingsView} in
+      let m2, cmd = CursorState.setCursorState Deselected m1 in
+      (m2, cmd)
+  | CloseSettingsView tab ->
+      (* Ideally, cross-component msg so we didn't need access to the model *)
+      let settingsView =
+        {m.settingsView with opened = false; loading = false}
+      in
+      let m1 = {m with settingsView} in
+      let m2 = {m1 with canvasProps = {m.canvasProps with enablePan = true}} in
+      let cmd =
+        match tab with CanvasInfo -> sendCanvasInformation m | _ -> Cmd.none
+      in
+      (m2, cmd)
   | SwitchSettingsTabs tab ->
-      {settingsView with tab; loading = false}
+      let settingsView = {m.settingsView with tab; loading = false} in
+      ({m with settingsView}, Cmd.none)
   | UpdateInviteForm value ->
       let form = {email = {value; error = None}} in
-      {settingsView with tab = InviteUser form}
+      let settingsView = {m.settingsView with tab = InviteUser form} in
+      ({m with settingsView}, Cmd.none)
   | UpdateCanvasDescription value ->
-      { settingsView with
-        canvasInformation =
-          {settingsView.canvasInformation with canvasDescription = value} }
+      let settingsView =
+        { m.settingsView with
+          canvasInformation =
+            {m.settingsView.canvasInformation with canvasDescription = value} }
+      in
+      ({m with settingsView}, Cmd.none)
   | SetCanvasDeployStatus ship ->
       let shippedDate =
         let rawDate = Js.Date.now () |> Js.Date.fromFloat in
@@ -114,95 +140,87 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
           Entry.sendSegmentMessage (MarkCanvasAsInDevelopment formattedDate) ;
           None )
       in
-      { settingsView with
-        canvasInformation = {settingsView.canvasInformation with shippedDate} }
+      let settingsView =
+        { m.settingsView with
+          canvasInformation = {m.settingsView.canvasInformation with shippedDate}
+        }
+      in
+      ({m with settingsView}, Cmd.none)
   | TriggerSendInviteCallback (Ok _) ->
-      {settingsView with tab = InviteUser defaultInviteFields; loading = false}
-  | TriggerSendInviteCallback (Error _) ->
-      {settingsView with tab = InviteUser defaultInviteFields; loading = false}
+      let settingsView =
+        { m.settingsView with
+          tab = InviteUser defaultInviteFields
+        ; loading = false }
+      in
+      let m1 = {m with settingsView} in
+      (* Ideally, cross-component msg so we didn't need access to the model *)
+      let m2 =
+        {m1 with toast = {toastMessage = Some "Sent!"; toastPos = None}}
+      in
+      (m2, Cmd.none)
+  | TriggerSendInviteCallback (Error err) ->
+      let settingsView =
+        { m.settingsView with
+          tab = InviteUser defaultInviteFields
+        ; loading = false }
+      in
+      let m1 = {m with settingsView} in
+      (* Ideally, cross-component msg so we didn't need access to the model *)
+      let apiError =
+        APIError.make
+          ~context:"TriggerSendInviteCallback"
+          ~importance:IgnorableError
+          ~reload:false
+          err
+      in
+      let m2, cmd = APIError.handle m1 apiError in
+      (m2, cmd)
   | TriggerGetCanvasInfoCallback (Ok data) ->
       let shippedDate =
         if String.length data.shippedDate == 0
         then None
         else Some (Js.Date.fromString data.shippedDate)
       in
-      { settingsView with
-        canvasInformation =
-          { settingsView.canvasInformation with
-            canvasDescription = data.canvasDescription
-          ; shippedDate } }
-  | SubmitForm
-  | TriggerUpdateCanvasInfoCallback _
-  | TriggerGetCanvasInfoCallback (Error _) ->
-      settingsView
-
-
-let getModifications (m : Types.model) (msg : settingsMsg) :
-    Types.modification list =
-  match msg with
-  | TriggerSendInviteCallback (Error err) ->
-      [ SettingsViewUpdate msg
-      ; HandleAPIError
-          (APIError.make
-             ~context:"TriggerSendInviteCallback"
-             ~importance:IgnorableError
-             ~reload:false
-             err) ]
-  | TriggerUpdateCanvasInfoCallback (Error err) ->
-      [ HandleAPIError
-          (APIError.make
-             ~context:"TriggerUpdateCanvasInfoCallback"
-             ~importance:IgnorableError
-             ~reload:false
-             err) ]
-  | TriggerGetCanvasInfoCallback (Error err) ->
-      [ HandleAPIError
-          (APIError.make
-             ~context:"TriggerGetCanvasInfoCallback"
-             ~importance:IgnorableError
-             ~reload:false
-             err) ]
-  | OpenSettingsView _ ->
-      [ SettingsViewUpdate msg
-      ; ReplaceAllModificationsWithThisOne
-          (fun m -> CursorState.setCursorState Deselected m) ]
-  | TriggerUpdateCanvasInfoCallback (Ok _) ->
-      [ SettingsViewUpdate msg
-      ; ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( { m with
-                toast =
-                  {toastMessage = Some "Canvas Info saved!"; toastPos = None} }
-            , Cmd.none )) ]
-  | TriggerSendInviteCallback (Ok _) ->
-      [ SettingsViewUpdate msg
-      ; ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( {m with toast = {toastMessage = Some "Sent!"; toastPos = None}}
-            , Cmd.none )) ]
-  | CloseSettingsView tab ->
-      let cmd =
-        match tab with CanvasInfo -> sendCanvasInformation m | _ -> Cmd.none
+      let settingsView =
+        { m.settingsView with
+          canvasInformation =
+            { m.settingsView.canvasInformation with
+              canvasDescription = data.canvasDescription
+            ; shippedDate } }
       in
-      [ SettingsViewUpdate msg
-      ; ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ({m with canvasProps = {m.canvasProps with enablePan = true}}, cmd))
-      ]
+      ({m with settingsView}, Cmd.none)
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
       if isInvalid
-      then
-        [ SettingsViewUpdate msg
-        ; ReplaceAllModificationsWithThisOne
-            (fun m ->
-              ( {m with settingsView = {m.settingsView with tab = newTab}}
-              , Cmd.none )) ]
-      else
-        [ SettingsViewUpdate msg
-        ; ReplaceAllModificationsWithThisOne (fun m -> submitForm m) ]
-  | _ ->
-      [SettingsViewUpdate msg]
+      then ({m with settingsView = {m.settingsView with tab = newTab}}, Cmd.none)
+      else submitForm m
+  | TriggerUpdateCanvasInfoCallback (Ok _) ->
+      (* Ideally, cross-component msg so we didn't need access to the model *)
+      ( { m with
+          toast = {toastMessage = Some "Canvas Info saved!"; toastPos = None} }
+      , Cmd.none )
+  | TriggerUpdateCanvasInfoCallback (Error err) ->
+      (* Ideally, cross-component msg so we didn't need access to the model *)
+      let apiError =
+        APIError.make
+          ~context:"TriggerUpdateCanvasInfoCallback"
+          ~importance:IgnorableError
+          ~reload:false
+          err
+      in
+      let m, cmd = APIError.handle m apiError in
+      (m, cmd)
+  | TriggerGetCanvasInfoCallback (Error err) ->
+      (* Ideally, cross-component msg so we didn't need access to the model *)
+      let apiError =
+        APIError.make
+          ~context:"TriggerGetCanvasInfoCallback"
+          ~importance:IgnorableError
+          ~reload:false
+          err
+      in
+      let m, cmd = APIError.handle m apiError in
+      (m, cmd)
 
 
 (* View functions *)

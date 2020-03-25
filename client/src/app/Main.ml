@@ -900,9 +900,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with fluidState}, Cmd.none)
     | TLMenuUpdate (tlid, msg) ->
         (TLMenu.update m tlid msg, Cmd.none)
-    | SettingsViewUpdate msg ->
-        let settingsView = SettingsView.update m.settingsView msg in
-        ({m with settingsView}, cmd)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1461,14 +1458,13 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ ReplaceAllModificationsWithThisOne
             (fun m ->
-              let settingsView =
+              let m, _ =
                 SettingsView.update
-                  m.settingsView
+                  m
                   (SetSettingsView
                      (m.canvasName, r.canvasList, r.orgList, r.creationDate))
               in
-              ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
-              , Cmd.none ))
+              ({m with opCtrs = r.opCtrs; account = r.account}, Cmd.none))
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
@@ -2051,8 +2047,8 @@ let update_ (msg : msg) (m : model) : modification =
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
   | SettingsViewMsg msg ->
-      let mods = SettingsView.getModifications m msg in
-      Many mods
+      let m, cmd = SettingsView.update m msg in
+      ReplaceAllModificationsWithThisOne (fun _ -> (m, cmd))
   | FnParamMsg msg ->
       FnParams.update m msg
   | UploadFnAPICallback (_, Error err) ->

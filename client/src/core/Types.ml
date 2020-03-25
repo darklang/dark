@@ -1136,7 +1136,6 @@ and modification =
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
   | TLMenuUpdate of TLID.t * menuMsg
-  | SettingsViewUpdate of SettingsViewTypes.settingsMsg
 
 (* ------------------- *)
 (* Msgs *)
