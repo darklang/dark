@@ -507,26 +507,23 @@ let t
         |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
 
 
-(** [tStruct name ast pos inputs expectedStructure]
-* tests if applying [inputs] to the [ast] with a
-* non-selecting state derived from [pos] produces a structure
-* that matches the [expectedStructure] string.
-* The format of that string must match that produced by Printer.eToTestcase.
-* [name] is the name of the test.
-*)
+(** [tStruct name ast pos inputs expected] tests if applying [inputs] to the
+ * [ast] with a non-selecting state derived from [pos] produces a structure
+ * that matches the [expected] structure. *)
 let tStruct
     (name : string)
     (ast : fluidExpr)
     ~(pos : int)
     (inputs : fluidInputEvent list)
-    (expectedStructure : string) =
+    (expected : FluidExpression.t) =
   test name (fun () ->
       let s =
         {defaultTestState with oldPos = pos; newPos = pos; selectionStart = None}
       in
       let newAST, _newState = processMsg inputs s ast in
-      expect (Printer.eToTestcase (FluidAST.toExpr newAST))
-      |> toEqual expectedStructure)
+      expect (FluidAST.toExpr newAST)
+      |> withEquality FluidExpression.equalIgnoringIds
+      |> toEqual expected)
 
 
 let run () =
@@ -2312,7 +2309,7 @@ let run () =
         (binop "+" (int 1) (int 2))
         ~pos:0
         [keypress ~shiftHeld:false K.Enter]
-        "(let' \"\" (b) (binop \"+\" (int 1) (int 2)))" ;
+        (let' "" (blank ()) (binop "+" (int 1) (int 2))) ;
       t
         ~expectsPartial:true
         "adding binop in `if` works"
@@ -3236,7 +3233,13 @@ let run () =
         aPipe
         ~pos:0
         [keypress ~shiftHeld:false K.Enter]
-        "(let' \"\" (b) (pipe (list []) [(fn \"List::append\" [(pipeTarget);(list [(int 5)])]);(fn \"List::append\" [(pipeTarget);(list [(int 5)])])]))" ;
+        (let'
+           ""
+           (blank ())
+           (pipe
+              (list [])
+              [ fn "List::append" [pipeTarget; list [int 5]]
+              ; fn "List::append" [pipeTarget; list [int 5]] ])) ;
       t
         "wrapping a pipe in a let with enter places caret correctly"
         aPipe
