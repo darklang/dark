@@ -683,13 +683,6 @@ and addOpAPIParams =
   ; opCtr : int
   ; clientOpCtrId : string }
 
-and executeFunctionAPIParams =
-  { efpTLID : TLID.t
-  ; efpTraceID : traceID
-  ; efpCallerID : ID.t
-  ; efpArgs : dval list
-  ; efpFnName : string }
-
 and uploadFnAPIParams = {uplFn : userFunction}
 
 and triggerHandlerAPIParams =
@@ -785,9 +778,6 @@ and addOpStrollerMsg =
   ; params : addOpAPIParams }
 
 and dvalArgsHash = string
-
-and executeFunctionAPIResult =
-  dval * dvalArgsHash * int * TLID.t list * unlockedDBs
 
 and uploadFnAPIResult = unit
 
@@ -1042,6 +1032,33 @@ and editorSettings =
   ; runTimers : bool }
 [@@deriving show {with_path = false}]
 
+module FunctionExecutionT = struct
+  type t = (TLID.t * ID.t) list [@@deriving show {with_path = false}]
+
+  type moveToCaller =
+    | MoveToCaller
+    | DontMove
+  [@@deriving show {with_path = false}]
+
+  type apiParams =
+    { efpTLID : TLID.t
+    ; efpTraceID : traceID
+    ; efpCallerID : ID.t
+    ; efpArgs : dval list
+    ; efpFnName : string }
+  [@@deriving show {with_path = false}]
+
+  type apiResult = dval * dvalArgsHash * int * TLID.t list * unlockedDBs
+  [@@deriving show {with_path = false}]
+
+  type msg =
+    | ExecuteFunction of
+        (* Executes the function on the server. *)
+        apiParams * moveToCaller
+    | APICallback of apiParams * (httpError, apiResult) Tc.Result.t
+  [@@deriving show {with_path = false}]
+end
+
 (* tlidSelectTarget represents a target insID.t *e a TLID for use
    by the `Select` modification.
 
@@ -1208,22 +1225,10 @@ and segmentTrack =
   | MarkCanvasAsShipped of string
   | MarkCanvasAsInDevelopment of string
 
-and functionExecutionMoveToCaller =
-  | MoveToCaller
-  | DontMove
-
-and functionExecutionMsg =
-  | FunctionExecutionExecuteFunction
-      (* Executes the function on the server. *) of
-      executeFunctionAPIParams * functionExecutionMoveToCaller
-  | FunctionExecutionAPICallback of
-      executeFunctionAPIParams
-      * (httpError, executeFunctionAPIResult) Tc.Result.t
-
 and msg =
   | IgnoreMsg
   | FluidMsg of fluidMsg
-  | FunctionExecutionMsg of functionExecutionMsg
+  | FunctionExecutionMsg of FunctionExecutionT.msg
   | AppMouseDown of mouseEvent
   | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]
   | AppMouseUp of mouseEvent
@@ -1594,8 +1599,6 @@ and fluidState =
       dval_source
   ; activeEditor : fluidEditor }
 
-and functionExecution = (* same as FunctionExecution.t *) (TLID.t * ID.t) list
-
 and model =
   { error : Error.t
   ; lastMsg : msg
@@ -1626,7 +1629,7 @@ and model =
       integrationTestState
   ; visibility : PageVisibility.visibility
   ; syncState : syncState
-  ; functionExecution : functionExecution
+  ; functionExecution : FunctionExecutionT.t
   ; tlTraceIDs : tlTraceIDs (* This is TLID ID.t *to traceID map *)
   ; featureFlags : flagsVS
   ; canvasProps : canvasProps
