@@ -1041,11 +1041,11 @@ module FunctionExecutionT = struct
   [@@deriving show {with_path = false}]
 
   type apiParams =
-    { efpTLID : TLID.t
-    ; efpTraceID : traceID
-    ; efpCallerID : ID.t
-    ; efpArgs : dval list
-    ; efpFnName : string }
+    { tlid : TLID.t
+    ; traceID : traceID
+    ; callerID : ID.t
+    ; args : dval list
+    ; fnName : string }
   [@@deriving show {with_path = false}]
 
   type apiResult = dval * dvalArgsHash * int * TLID.t list * unlockedDBs
