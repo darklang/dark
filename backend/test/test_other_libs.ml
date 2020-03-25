@@ -322,7 +322,17 @@ let t_dict_stdlibs_work () =
           "Dict::fromList"
           [list [list [str "a"; int 3]; list [str "b"; int 2]]])) ;
   check_error_contains
-    "Dict::fromList works (wrong length)"
+    "Dict::fromList works (wrong length - identifies index)"
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "c"; int 3; int 3] ] ]))
+    "Expected every value within the `entries` argument passed to `Dict::fromList` to be a `[key, value]` list. However, that is not the case for the value at index 2" ;
+  check_error_contains
+    "Dict::fromList works (wrong length - identifies length)"
     (exec_ast'
        (fn
           "Dict::fromList"
