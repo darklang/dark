@@ -52,7 +52,7 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
           "click"
           (fun _ ->
             FunctionExecutionMsg
-              (FunctionExecutionExecuteFunction
+              (ExecuteFunction
                  ( { efpTLID = fn.ufTLID
                    ; efpCallerID = FluidAST.toID fn.ufAST
                    ; efpTraceID = traceID

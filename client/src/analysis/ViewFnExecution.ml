@@ -163,7 +163,7 @@ let executionEvents status tlid callerID fnName =
           "click"
           (fun _ ->
             FunctionExecutionMsg
-              (FunctionExecutionExecuteFunction
+              (ExecuteFunction
                  ( { efpTLID = tlid
                    ; efpTraceID = traceID
                    ; efpCallerID = callerID
