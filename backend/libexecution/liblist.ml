@@ -751,7 +751,8 @@ let fns =
         {|Returns a list of parallel pairs from `as` and `bs`.
         If the lists differ in length, values from the longer list are dropped.
         For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"]]`.
-        Use `List::zip` if you want to enforce equivalent lengths for `as` and `bs`.|}
+        Use `List::zip` if you want to enforce equivalent lengths for `as` and `bs`.
+        See `List::unzip` if you want to deconstruct the result into `as` and `bs` again.|}
     ; func =
         InProcess
           (function
@@ -775,6 +776,7 @@ let fns =
     ; description =
         {|If the lists have the same length, returns `Just list` formed from parallel pairs in `as` and `bs`.
         For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"], [3,"z"]]`.
+        See `List::unzip` if you want to deconstruct `list` into `as` and `bs` again.
         If the lists differ in length, returns `Nothing` (consider `List::zipShortest` if you want to drop values from the longer list instead).|}
     ; func =
         InProcess
@@ -789,6 +791,57 @@ let fns =
                     OptJust (Dval.to_list res)
                 | Unequal_lengths ->
                     OptNothing )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::unzip"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TList
+    ; description =
+        {|Given a `list` of lists with two values each (such as those constructed by `List::zip` or `List::zipShortest`), returns a list of two lists,
+        one with every first value, and one with every second value. For example, if `list` is `[[1,"x"], [2,"y"], [3,"z"]]`, returns `[[1,2,3], ["x","y","z"]]`.|}
+    ; func =
+        (* We should deprecate this once we have tuples and homogenous lists *)
+        InProcess
+          (function
+          | state, [DList l] ->
+              let abortReason = ref None in
+              let f
+                  (idx : int)
+                  ((acc_a, acc_b) : dval list * dval list)
+                  (dv : dval) : dval list * dval list =
+                if !abortReason = None
+                then (
+                  match dv with
+                  | DList [a; b] ->
+                      (* this will result in reversed lists, so we have to reverse them at the end *)
+                      (a :: acc_a, b :: acc_b)
+                  | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                      abortReason := Some dv ;
+                      ([], [])
+                  | v ->
+                      abortReason :=
+                        Some
+                          (DError
+                             ( SourceNone
+                             , "Expected every value within the `list` argument passed to `"
+                               ^ state.executing_fnname
+                               ^ "` to be a list with exactly two values. However, that is not the case for the value at index "
+                               ^ Int.to_string idx
+                               ^ ": `"
+                               ^ Dval.to_developer_repr_v0 v
+                               ^ "`." )) ;
+                      ([], []) )
+                else ([], [])
+              in
+              let rev_res_a, rev_res_b = List.foldi ~init:([], []) ~f l in
+              ( match !abortReason with
+              | None ->
+                  DList [DList (List.rev rev_res_a); DList (List.rev rev_res_b)]
+              | Some v ->
+                  v )
           | args ->
               fail args)
     ; preview_safety = Safe
