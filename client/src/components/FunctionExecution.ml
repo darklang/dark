@@ -21,26 +21,42 @@ let recordExecutionStart tlid id t =
 
 let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
   match msg with
-  | FunctionExecutionExecuteFunction p ->
+  | FunctionExecutionExecuteFunction (p, moveToCaller) ->
+      let selectionTarget : tlidSelectTarget =
+        (* Note that the intent here is to make the live value visible, which
+         * is a side-effect of placing the caret right after the function name
+         * in the handler where the function is being called.  We're relying on
+         * the length of the function name representing the offset into the
+         * tokenized function call node corresponding to this location. Eg:
+         * foo|v1 a b *)
+        STCaret
+          {astRef = ARFnCall p.efpCallerID; offset = String.length p.efpFnName}
+      in
+      let select =
+        if moveToCaller = MoveToCaller
+        then CrossComponentMsg.CCMSelect (p.efpTLID, selectionTarget)
+        else CCMNothing
+      in
       ( recordExecutionStart p.efpTLID p.efpCallerID t
-      , CCMMakeAPICall
-          { endpoint = "/execute_function"
-          ; body = Encoders.executeFunctionAPIParams p
-          ; callback =
-              (fun result ->
-                Types.FunctionExecutionAPICallback
-                  ( p
-                  , match result with
-                    | Ok js ->
-                        Ok (Decoders.executeFunctionAPIResult js)
-                    | Error v ->
-                        Error v )) } )
+      , CCMMany
+          [ CCMMakeAPICall
+              { endpoint = "/execute_function"
+              ; body = Encoders.executeFunctionAPIParams p
+              ; callback =
+                  (fun result ->
+                    FunctionExecutionAPICallback
+                      ( p
+                      , match result with
+                        | Ok js ->
+                            Ok (Decoders.executeFunctionAPIResult js)
+                        | Error v ->
+                            Error v )) }
+          ; select ] )
   | FunctionExecutionAPICallback
       (p, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
         List.map
-          ~f:(fun tlid ->
-            (TLID.toString tlid, [(p.efpTraceID, Error Types.NoneYet)]))
+          ~f:(fun tlid -> (TLID.toString tlid, [(p.efpTraceID, Error NoneYet)]))
           tlids
       in
       ( recordExecutionEnd p.efpTLID p.efpCallerID t

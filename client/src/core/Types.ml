@@ -1176,10 +1176,14 @@ and segmentTrack =
   | MarkCanvasAsShipped of string
   | MarkCanvasAsInDevelopment of string
 
+and functionExecutionMoveToCaller =
+  | MoveToCaller
+  | DontMove
+
 and functionExecutionMsg =
   | FunctionExecutionExecuteFunction
       (* Executes the function on the server. *) of
-      executeFunctionAPIParams
+      executeFunctionAPIParams * functionExecutionMoveToCaller
   | FunctionExecutionAPICallback of
       executeFunctionAPIParams
       * (httpError, executeFunctionAPIResult) Tc.Result.t
