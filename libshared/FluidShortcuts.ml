@@ -120,5 +120,5 @@ let pNull ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t = FPNull (mid, id)
 
 let pBlank ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t = FPBlank (mid, id)
 
-let flag ?(id = gid ()) cond oldCode newCode =
-  EFeatureFlag (id, "flag-name", cond, oldCode, newCode)
+let flag ?(id = gid ()) ?(name = "flag-1") cond oldCode newCode =
+  EFeatureFlag (id, name, cond, oldCode, newCode)
