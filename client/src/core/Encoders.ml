@@ -409,7 +409,7 @@ and addOpAPIParams (params : Types.addOpAPIParams) : Js.Json.t =
     ; ("clientOpCtrId", string params.clientOpCtrId) ]
 
 
-and executeFunctionAPIParams (params : Types.executeFunctionAPIParams) :
+and executeFunctionAPIParams (params : Types.FunctionExecutionT.apiParams) :
     Js.Json.t =
   object_
     [ ("tlid", tlid params.efpTLID)

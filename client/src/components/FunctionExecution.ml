@@ -1,12 +1,5 @@
 open Prelude
-
-type t = Types.functionExecution [@@deriving show]
-
-type apiParams = Types.executeFunctionAPIParams [@@deriving show]
-
-type apiResult = Types.executeFunctionAPIResult [@@deriving show]
-
-type msg = Types.functionExecutionMsg [@@deriving show]
+include Types.FunctionExecutionT
 
 let withinTLID tlid t =
   List.filterMap t ~f:(fun (tlid_, id) ->
@@ -21,7 +14,7 @@ let recordExecutionStart tlid id t =
 
 let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
   match msg with
-  | FunctionExecutionExecuteFunction (p, moveToCaller) ->
+  | ExecuteFunction (p, moveToCaller) ->
       let selectionTarget : tlidSelectTarget =
         (* Note that the intent here is to make the live value visible, which
          * is a side-effect of placing the caret right after the function name
@@ -44,7 +37,7 @@ let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
               ; body = Encoders.executeFunctionAPIParams p
               ; callback =
                   (fun result ->
-                    FunctionExecutionAPICallback
+                    APICallback
                       ( p
                       , match result with
                         | Ok js ->
@@ -52,8 +45,7 @@ let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
                         | Error v ->
                             Error v )) }
           ; select ] )
-  | FunctionExecutionAPICallback
-      (p, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
+  | APICallback (p, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
         List.map
           ~f:(fun tlid -> (TLID.toString tlid, [(p.efpTraceID, Error NoneYet)]))
@@ -71,7 +63,7 @@ let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
               ; dval }
           ; CCMTraceOverrideTraces (StrDict.fromList traces)
           ; CCMUnlockedDBsSetUnlocked unlockedDBs ] )
-  | FunctionExecutionAPICallback (p, Error err) ->
+  | APICallback (p, Error err) ->
       ( recordExecutionEnd p.efpTLID p.efpCallerID t
       , CCMHandleAPIError
           { context = "ExecuteFunction"

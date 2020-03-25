@@ -929,7 +929,7 @@ let allTracesResult j : allTracesAPIResult =
   {traces = field "traces" (list (pair tlid traceID)) j}
 
 
-let executeFunctionAPIResult j : executeFunctionAPIResult =
+let executeFunctionAPIResult j : FunctionExecutionT.apiResult =
   ( field "result" dval j
   , field "hash" string j
   , field "hashVersion" int j
