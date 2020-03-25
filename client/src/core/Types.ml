@@ -90,6 +90,10 @@ and box = pos * size
 (* ---------------------- *)
 (* Types *)
 (* ---------------------- *)
+and permission =
+  | Read
+  | ReadWrite
+
 and tipe =
   | TInt
   | TStr
@@ -666,6 +670,23 @@ and op =
 (* ------------------- *)
 (* APIs *)
 (* ------------------- *)
+(* Avatars *)
+and avatar =
+  { canvasId : string
+  ; canvasName : string
+  ; serverTime : Js.Date.t [@opaque]
+  ; tlid : string option
+  ; username : string
+  ; email : string
+  ; fullname : string option
+  ; browserId : string }
+
+and avatarModelMessage =
+  { browserId : string
+  ; tlid : TLID.t option
+  ; canvasName : string
+  ; timestamp : float }
+
 (* params *)
 and sendPresenceParams = avatarModelMessage
 
@@ -857,10 +878,15 @@ and keyword =
   | KMatch
   | KPipe
 
-and command =
-  { commandName : string
-  ; action : model -> toplevel -> ID.t -> modification
-  ; doc : string }
+and centerPage = bool
+
+and page =
+  | Architecture
+  | FocusedFn of TLID.t
+  | FocusedHandler of TLID.t * centerPage
+  | FocusedDB of TLID.t * centerPage
+  | FocusedType of TLID.t
+  | FocusedGroup of TLID.t * centerPage
 
 and omniAction =
   | NewDB of dbName option
@@ -943,13 +969,14 @@ and clipboardContents =
    * string wasn't a FluidExpression.t *)
   (string * Js.Json.t option
   [@opaque])
+[@@deriving show {with_path = false}]
 
 (* --------------- *)
 (* Component Types *)
 (* --------------- *)
 
 (* TLMenu *)
-and menuState = {isOpen : bool}
+type menuState = {isOpen : bool}
 
 and menuMsg =
   | OpenMenu
@@ -972,16 +999,6 @@ and fnpMsg =
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
-and centerPage = bool
-
-and page =
-  | Architecture
-  | FocusedFn of TLID.t
-  | FocusedHandler of TLID.t * centerPage
-  | FocusedDB of TLID.t * centerPage
-  | FocusedType of TLID.t
-  | FocusedGroup of TLID.t * centerPage
-
 and focus =
   | FocusNothing
   | FocusExact of TLID.t * ID.t
@@ -1139,6 +1156,10 @@ and modification =
 (* ------------------- *)
 (* Msgs *)
 (* ------------------- *)
+and command =
+  { commandName : string
+  ; action : model -> toplevel -> ID.t -> modification
+  ; doc : string }
 
 (* https://rawgit.com/w3c/input-events/v1/index.html#interface-InputEvent-Attributes *)
 and fluidInputEvent =
@@ -1571,23 +1592,6 @@ and fluidState =
       dval_source
   ; activeEditor : fluidEditor }
 
-(* Avatars *)
-and avatar =
-  { canvasId : string
-  ; canvasName : string
-  ; serverTime : Js.Date.t [@opaque]
-  ; tlid : string option
-  ; username : string
-  ; email : string
-  ; fullname : string option
-  ; browserId : string }
-
-and avatarModelMessage =
-  { browserId : string
-  ; tlid : TLID.t option
-  ; canvasName : string
-  ; timestamp : float }
-
 and functionExecution = (* same as FunctionExecution.t *) (TLID.t * ID.t) list
 
 and model =
@@ -1689,9 +1693,4 @@ and savedSettings =
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarOpen : bool
   ; showTopbar : bool }
-[@@deriving show {with_path = false}]
-
-and permission =
-  | Read
-  | ReadWrite
-[@@deriving show eq ord]
+[@@deriving show {with_path = false}] [@@deriving show eq ord]
