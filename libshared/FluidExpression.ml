@@ -397,6 +397,15 @@ let filter ~(f : t -> bool) (expr : t) : t list =
   filterMap ~f:(fun t -> if f t then Some t else None) expr
 
 
+let decendants (expr : t) : Shared.id list =
+  let res = ref [] in
+  preTraversal expr ~f:(fun e ->
+      res := toID e :: !res ;
+      e)
+  |> ignore ;
+  !res
+
+
 let update ?(failIfMissing = true) ~(f : t -> t) (target : id) (ast : t) : t =
   let found = ref false in
   let rec run e =
