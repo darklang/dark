@@ -384,11 +384,11 @@ let run
  * *)
 let transaction ~(name : string) (f : unit -> unit) : unit =
   try
-    Db.run ~name:(name ^ " begin") "BEGIN" ~params:[] ;
+    run ~name:(name ^ " begin") "BEGIN" ~params:[] ;
     f () ;
-    Db.run ~name:(name ^ " commit") "COMMIT" ~params:[]
+    run ~name:(name ^ " commit") "COMMIT" ~params:[]
   with e ->
-    Db.run ~name:(name ^ " rollback") "ROLLBACK" ~params:[] ;
+    run ~name:(name ^ " rollback") "ROLLBACK" ~params:[] ;
     raise e
 
 
