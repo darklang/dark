@@ -46,7 +46,7 @@ let fns : fn list =
     ; parameters = [par "s" TStr; func ["character"]]
     ; return_type = TStr
     ; description =
-        "Iterate over each character (EGC, not byte) in the string, performing the operation in the block on each one"
+        "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
     ; func =
         InProcess
           (function
@@ -108,7 +108,7 @@ let fns : fn list =
     ; parameters = [par "s" TStr]
     ; return_type = TList
     ; description =
-        "Returns the list of characters (EGC, not byte) in the string"
+        "Returns the list of Characters (EGC, not byte) in the string"
     ; func =
         InProcess
           (function
@@ -687,8 +687,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Returns the substring of `string` between the `from` and `to` indices.
-                     Negative indices start counting from the end of `string`.
-                     Indices represent grapheme clusters."
+         Negative indices start counting from the end of `string`.
+         Indices represent Characters."
     ; func =
         InProcess
           (function
@@ -704,15 +704,27 @@ let fns : fn list =
     ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
     ; return_type = TStr
     ; description =
-        "Returns a copy of `string` starting with repeated copies of `padWith`. The result will not 
-        exceed `goalLength` grapheme clusters in length unless `string` is already longer.
-        This function will never add partial copies of `padWith`."
+        "If `string` is shorter than `goalLength` Characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
+        If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
     ; func =
         InProcess
           (function
-          | _, [DStr s; DStr pad_with; DInt l] ->
-              let l = Dint.to_int_exn l in
-              DStr (Unicode_string.pad_start s ~pad_with l)
+          | state, [DStr s; DStr pad_with; DInt l] ->
+              let padLen = Unicode_string.length pad_with in
+              if padLen = 1
+              then
+                let l = Dint.to_int_exn l in
+                DStr (Unicode_string.pad_start s ~pad_with l)
+              else
+                DError
+                  ( SourceNone
+                  , "Expected the argument `padWith` passed to `"
+                    ^ state.executing_fnname
+                    ^ "` to be one Character long. However, `"
+                    ^ Dval.to_developer_repr_v0 (DStr pad_with)
+                    ^ "` is "
+                    ^ Int.to_string padLen
+                    ^ " Characters long." )
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -722,15 +734,27 @@ let fns : fn list =
     ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
     ; return_type = TStr
     ; description =
-        "Returns a copy of `string` ending with repeated copies of `padWith`. The result will not 
-        exceed `goalLength` grapheme clusters in length unless `string` is already longer.
-        This function will never add partial copies of `padWith`."
+        "If `string` is shorter than `goalLength` Characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
+        If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
     ; func =
         InProcess
           (function
-          | _, [DStr s; DStr pad_with; DInt l] ->
-              let l = Dint.to_int_exn l in
-              DStr (Unicode_string.pad_end s ~pad_with l)
+          | state, [DStr s; DStr pad_with; DInt l] ->
+              let padLen = Unicode_string.length pad_with in
+              if padLen = 1
+              then
+                let l = Dint.to_int_exn l in
+                DStr (Unicode_string.pad_end s ~pad_with l)
+              else
+                DError
+                  ( SourceNone
+                  , "Expected the argument `padWith` passed to `"
+                    ^ state.executing_fnname
+                    ^ "` to be one Character long. However, `"
+                    ^ Dval.to_developer_repr_v0 (DStr pad_with)
+                    ^ "` is "
+                    ^ Int.to_string padLen
+                    ^ " Characters long." )
           | args ->
               fail args)
     ; preview_safety = Safe
