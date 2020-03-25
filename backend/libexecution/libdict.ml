@@ -59,6 +59,97 @@ let fns =
           | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Dict::toList"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj]
+    ; return_type = TList
+    ; description =
+        "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
+    ; func =
+        InProcess
+          (function
+          | _, [DObj o] ->
+              DvalMap.to_list o
+              |> List.map ~f:(fun (k, v) ->
+                     DList [Dval.dstr_of_string_exn k; v])
+              |> Dval.to_list
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::fromList"]
+    ; infix_names = []
+    ; parameters = [par "entries" TList]
+    ; return_type = TObj
+    ; description =
+        "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`. This function is the opposite of `Dict::toList`."
+    ; func =
+        InProcess
+          (function
+          | state, [DList l] ->
+              let abortReason = ref None in
+              let debug_idx_from_rev_idx (rev_idx : int) (l : 'a list) : string
+                  =
+                1 + List.length l - rev_idx |> Int.to_string
+              in
+              let f (rev_idx : int) (acc : dval DvalMap.t) (dv : dval) :
+                  dval DvalMap.t =
+                if !abortReason = None
+                then (
+                  match dv with
+                  | DList [DStr k; value] ->
+                      acc
+                      |> DvalMap.insert ~key:(Unicode_string.to_string k) ~value
+                  | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                      abortReason := Some dv ;
+                      DvalMap.empty
+                  | v ->
+                      let err_details =
+                        match v with
+                        | DList [k; _] ->
+                            let tipe =
+                              k
+                              |> Dval.tipe_of
+                              |> Dval.tipe_to_developer_repr_v0
+                            in
+                            "Keys must be `String`s but the type of `"
+                            ^ Dval.to_developer_repr_v0 k
+                            ^ "` is `"
+                            ^ tipe
+                            ^ "`."
+                        | DList l ->
+                            "It has length "
+                            ^ (List.length l |> Int.to_string)
+                            ^ " but must have length 2."
+                        | non_list ->
+                            let tipe =
+                              non_list
+                              |> Dval.tipe_of
+                              |> Dval.tipe_to_developer_repr_v0
+                            in
+                            "It is of type `" ^ tipe ^ "` instead of `List`."
+                      in
+                      abortReason :=
+                        Some
+                          (DError
+                             ( SourceNone
+                             , "Expected every value within the `entries` argument passed to `"
+                               ^ state.executing_fnname
+                               ^ "` to be a `[key, value]` list. However, that is not the case for the value at index "
+                               ^ debug_idx_from_rev_idx rev_idx l
+                               ^ ": `"
+                               ^ Dval.to_developer_repr_v0 v
+                               ^ "`. "
+                               ^ err_details )) ;
+                      DvalMap.empty )
+                else DvalMap.empty
+              in
+              let result = List.foldi ~init:DvalMap.empty ~f (List.rev l) in
+              (match !abortReason with None -> DObj result | Some v -> v)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Dict::get"]
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
