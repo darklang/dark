@@ -522,7 +522,7 @@ let tStruct
       in
       let newAST, _newState = processMsg inputs s ast in
       expect (FluidAST.toExpr newAST)
-      |> withEquality FluidExpression.equalIgnoringIds
+      |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual expected)
 
 

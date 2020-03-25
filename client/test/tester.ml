@@ -181,6 +181,14 @@ let toEqual (expected : 'a) (e : 'a Private.expectation) =
     ; expected = Js.Json.stringifyAny expected }
 
 
+(** withEquality replaces the equality function used for comparing the expected
+ * and actual values with the given equalityFn (it defaults to ( = )).
+ *
+ * Eg:
+      expect actualExpr
+      |> withEquality FluidExpression.testEqualIgnoringIds
+      |> toEqual expectedExpr
+ *)
 let withEquality (equalityFn : 'a -> 'a -> bool) (e : 'a Private.expectation) :
     'a Private.expectation =
   {e with equalityFn}

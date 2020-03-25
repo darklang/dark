@@ -134,6 +134,9 @@ val clone : t -> t
 
 val ancestors : Shared.id -> t -> t list
 
-(** [equalIgnoringIds a b] compares the structure and values of two ASTs,
- * ignoring the actual IDs of the expressions. *)
-val equalIgnoringIds : t -> t -> bool
+(** [testEqualIgnoringIds a b] compares the structure and values of two ASTs,
+  * ignoring the actual IDs of the expressions.
+  *
+  * NB: Only usable for tests right now. If you want to use for non-tests,
+  * you'll need to complete the implementation and add tests *)
+val testEqualIgnoringIds : t -> t -> bool

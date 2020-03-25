@@ -100,6 +100,8 @@ val ancestors : Shared.id -> t -> FluidExpression.t list
   * See FluidExpression.clone *)
 val clone : t -> t
 
-(** [equalIgnoringIds a b] compares the structure and values of two ASTs,
- * ignoring the actual IDs of the expressions. *)
-val equalIgnoringIds : t -> t -> bool
+(** [testEqualIgnoringIds a b] compares the structure and values of two ASTs,
+  * ignoring the actual IDs of the expressions.
+  *
+  * Find the implementation in the FluidExpression function of the same name. *)
+val testEqualIgnoringIds : t -> t -> bool
