@@ -314,6 +314,13 @@ let t_dict_stdlibs_work () =
               [ list [str "a"; int 1]
               ; list [str "b"; int 2]
               ; list [str "c"; int 3] ] ])) ;
+  check_dval
+    "Dict::fromList works (overwrites duplicates correctly)"
+    (DObj (DvalMap.from_list [("a", dint 1); ("b", dint 2); ("a", dint 3)]))
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [list [list [str "a"; int 3]; list [str "b"; int 2]]])) ;
   check_error_contains
     "Dict::fromList works (wrong length)"
     (exec_ast'
