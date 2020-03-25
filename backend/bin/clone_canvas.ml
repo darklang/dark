@@ -30,7 +30,7 @@ let () =
       ~(to_canvas_name : string)
       ~(preserve_history : bool) : unit =
     match
-      Canvas.Clone.clone_canvas
+      Canvas_clone.clone_canvas
         ~from_canvas_name
         ~to_canvas_name
         ~preserve_history

@@ -261,7 +261,7 @@ that's already taken, returns an error."
                          let from_canvas_name =
                            Libservice.Config.getting_started_canvas_source
                          in
-                         Canvas.Clone.clone_canvas
+                         Canvas_clone.clone_canvas
                            ~from_canvas_name
                            ~to_canvas_name
                              (* Don't preserve history here, it isn't useful and
