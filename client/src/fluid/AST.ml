@@ -298,10 +298,10 @@ let removePartials (ast : E.t) : E.t =
     match expr with
     | EPartial (_, _, e) | ERightPartial (_, _, e) ->
         (* if partial walk down underying expression to look for other partials inside *)
-        E.walk ~f:remove e
+        E.deprecatedWalk ~f:remove e
     | e ->
         (* else walk down the path to find partials *)
-        E.walk ~f:remove e
+        E.deprecatedWalk ~f:remove e
   in
   remove ast
 
@@ -347,6 +347,6 @@ let rec reorderFnCallArgs
         in
         EPipe (id, newFirst :: newRest)
     | e ->
-        E.walk ~f:replaceArgs e
+        E.deprecatedWalk ~f:replaceArgs e
   in
   replaceArgs ast
