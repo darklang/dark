@@ -318,61 +318,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ReplaceAllModificationsWithThisOne f ->
         f m
     | HandleAPIError apiError ->
-        let now = Js.Date.now () |> Js.Date.fromFloat in
-        let shouldReload =
-          let buildHashMismatch =
-            APIError.serverVersionOf apiError
-            |> Option.map ~f:(fun hash -> hash <> m.buildHash)
-            |> Option.withDefault ~default:false
-          in
-          let reloadAllowed =
-            match m.lastReload with
-            | Some time ->
-                (* if 60 seconds have elapsed *)
-                Js.Date.getTime time +. 60000.0 > Js.Date.getTime now
-            | None ->
-                true
-          in
-          (* Reload if it's an auth failure or the frontend is out of date *)
-          APIError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
-        in
-        let ignore =
-          (* Ignore when using Ngrok *)
-          let usingNgrok = VariantTesting.variantIsActive m NgrokVariant in
-          (* This message is deep in the server code and hard to pull
-              * out, so just ignore for now *)
-          Js.log "Already at latest redo - ignoring server error" ;
-          let redoError =
-            String.contains
-              (APIError.msg apiError)
-              ~substring:"(client): Already at latest redo"
-          in
-          redoError || usingNgrok
-        in
-        let cmd =
-          if shouldReload
-          then
-            let m = {m with lastReload = Some now} in
-            (* Previously, this was two calls to Tea_task.nativeBinding. But
-             * only the first got called, unclear why. *)
-            Cmd.call (fun _ ->
-                SavedSettings.save m ;
-                SavedUserSettings.save m ;
-                Native.Location.reload true)
-          else if (not ignore) && APIError.shouldRollbar apiError
-          then Cmd.call (fun _ -> Rollbar.sendAPIError m apiError)
-          else Cmd.none
-        in
-        let newM =
-          let error =
-            if APIError.shouldDisplayToUser apiError && not ignore
-            then Error.set (APIError.msg apiError) m.error
-            else m.error
-          in
-          let lastReload = if shouldReload then Some now else m.lastReload in
-          {m with error; lastReload}
-        in
-        (newM, cmd)
+        APIError.handle m apiError
     | AddOps (ops, focus) ->
         handleAPI (API.opsParams ops ((m |> opCtr) + 1) m.clientOpCtrId) focus
     | GetUnlockedDBsAPICall ->
