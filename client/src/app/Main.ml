@@ -1519,7 +1519,12 @@ let update_ (msg : msg) (m : model) : modification =
                 SettingsView.update
                   m.settingsView
                   (SetSettingsView
-                     (m.canvasName, r.canvasList, r.orgList, r.creationDate))
+                     ( m.canvasName
+                     , r.canvasList
+                     , m.username
+                     , r.orgs
+                     , r.orgList
+                     , r.creationDate ))
               in
               ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
               , Cmd.none ))

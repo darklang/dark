@@ -362,6 +362,7 @@ type initial_load_rpc_result =
   ; permission : Authorization.permission option
   ; account : Account.user_info
   ; canvas_list : string list
+  ; orgs : string list
   ; org_list : string list
   ; worker_schedules : Event_queue.Worker_states.t
   ; creation_date : time }
@@ -376,6 +377,7 @@ let to_initial_load_rpc_result
     (assets : SA.static_deploy list)
     (account : Account.user_info)
     (canvas_list : string list)
+    (orgs : string list)
     (org_list : string list)
     (worker_schedules : Event_queue.Worker_states.t) : string =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
@@ -391,6 +393,7 @@ let to_initial_load_rpc_result
   ; permission
   ; account
   ; canvas_list
+  ; orgs
   ; org_list
   ; worker_schedules
   ; creation_date = c.creation_date }

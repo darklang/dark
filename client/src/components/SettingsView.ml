@@ -81,9 +81,12 @@ let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
 let update (settingsView : settingsViewState) (msg : settingsMsg) :
     settingsViewState =
   match msg with
-  | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
+  | SetSettingsView
+      (canvasName, canvasList, username, orgs, orgList, creationDate) ->
       { settingsView with
         canvasList
+      ; username
+      ; orgs
       ; orgList
       ; canvasInformation =
           { settingsView.canvasInformation with
@@ -200,6 +203,8 @@ let getModifications (m : Types.model) (msg : settingsMsg) : Types.modification
 
 let settingsTabToText (tab : settingsTab) : string =
   match tab with
+  | NewCanvas ->
+      "NewCanvas"
   | CanvasInfo ->
       "About"
   | UserSettings ->
@@ -292,6 +297,27 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
   introText @ inviteform
 
 
+let viewNewCanvas (svs : settingsViewState) : Types.msg Html.html list =
+  let text =
+    Printf.sprintf
+      "Create a new canvas (or go to it if it already exists) by visiting /a/%s-canvasname"
+      svs.username
+  in
+  let text =
+    if List.isEmpty svs.orgs
+    then text ^ "."
+    else
+      text
+      ^ Printf.sprintf
+          " or /a/orgname-canvasname, where orgname may be any of (%s)."
+          (svs.orgs |> String.join ~sep:", ")
+  in
+  let introText =
+    [Html.h2 [] [Html.text "New Canvas"]; Html.p [] [Html.text text]]
+  in
+  introText
+
+
 let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   let shipped, shippedText =
     match canvas.shippedDate with
@@ -345,6 +371,8 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
+  | NewCanvas ->
+      viewNewCanvas svs
   | CanvasInfo ->
       viewCanvasInfo svs.canvasInformation
   | UserSettings ->
