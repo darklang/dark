@@ -147,3 +147,73 @@ let msg (e : apiError) : string =
 
 let make ?requestParams ~reload ~context ~importance originalError =
   {requestParams; importance; originalError; context; reload}
+
+
+let customContext (e : apiError) (state : cursorState) : Js.Json.t =
+  let parameters = Option.withDefault ~default:Js.Json.null e.requestParams in
+  Json_encode_extended.object_
+    [ ("httpResponse", Encoders.httpError e.originalError)
+    ; ("parameters", parameters)
+    ; ("cursorState", Encoders.cursorState state) ]
+
+
+let rollbar (m : model) (e : apiError) : unit =
+  Rollbar.send (msg e) (urlOf e) (customContext e m.cursorState)
+
+
+let handle (m : model) (apiError : apiError) : model * msg Cmd.t =
+  let now = Js.Date.now () |> Js.Date.fromFloat in
+  let shouldReload =
+    let buildHashMismatch =
+      serverVersionOf apiError
+      |> Option.map ~f:(fun hash -> hash <> m.buildHash)
+      |> Option.withDefault ~default:false
+    in
+    let reloadAllowed =
+      match m.lastReload with
+      | Some time ->
+          (* if 60 seconds have elapsed *)
+          Js.Date.getTime time +. 60000.0 > Js.Date.getTime now
+      | None ->
+          true
+    in
+    (* Reload if it's an auth failure or the frontend is out of date *)
+    isBadAuth apiError || (buildHashMismatch && reloadAllowed)
+  in
+  let ignore =
+    (* Ignore when using Ngrok *)
+    let usingNgrok = VariantTesting.variantIsActive m NgrokVariant in
+    (* This message is deep in the server code and hard to pull
+          * out, so just ignore for now *)
+    Js.log "Already at latest redo - ignoring server error" ;
+    let redoError =
+      String.contains
+        (msg apiError)
+        ~substring:"(client): Already at latest redo"
+    in
+    redoError || usingNgrok
+  in
+  let cmd =
+    if shouldReload
+    then
+      let m = {m with lastReload = Some now} in
+      (* Previously, this was two calls to Tea_task.nativeBinding. But
+          * only the first got called, unclear why. *)
+      Cmd.call (fun _ ->
+          SavedSettings.save m ;
+          SavedUserSettings.save m ;
+          Native.Location.reload true)
+    else if (not ignore) && shouldRollbar apiError
+    then Cmd.call (fun _ -> rollbar m apiError)
+    else Cmd.none
+  in
+  let newM =
+    let error =
+      if shouldDisplayToUser apiError && not ignore
+      then Error.set (msg apiError) m.error
+      else m.error
+    in
+    let lastReload = if shouldReload then Some now else m.lastReload in
+    {m with error; lastReload}
+  in
+  (newM, cmd)
