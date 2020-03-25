@@ -536,6 +536,7 @@ since they are essentially both commands just acting upon different things. */
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  min-width: 20em;
   width: max-content;
   padding: 4px;
 
