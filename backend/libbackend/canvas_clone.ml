@@ -2,6 +2,13 @@ open Core_kernel
 open Libexecution
 open Util
 open Canvas
+open Tc
+
+(* Tablecloth is missing this *)
+let tc_map_error (f : 'err1 -> 'err2) (r : ('err1, 'ok) Tc.Result.t) :
+    ('err2, 'ok) Tc.Result.t =
+  Base.Result.map_error ~f r
+
 
 (** [only_ops_since_last_savepoint ops] When we clone a canvas, we sometimes
    * want to only copy over ops since the last TLSavepoint - this erases
@@ -15,9 +22,7 @@ let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
    * which point we're done - we
    * throw out that op and everything after it in the
    * list (before it in history) *)
-  |> List.fold_right
-       ~init:(false, [])
-       ~f:(fun currOp (found_tlsavepoint, ops) ->
+  |> List.foldr ~init:(false, []) ~f:(fun currOp (found_tlsavepoint, ops) ->
          match (found_tlsavepoint, ops, (currOp : Op.op)) with
          | true, ops, _ | false, ops, TLSavepoint _ ->
              (true, ops)
@@ -173,7 +178,7 @@ let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string) :
                   "Can't copy canvas %s, got an
 unexpected ast-containing op."
                   old_host))
-  |> Option.value ~default:op
+  |> Option.with_default ~default:op
 
 
 (** Given two canvas names, clone TLs from one to the other.
@@ -207,11 +212,11 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
            to_canvas_name)
   | Some _, None ->
       Ok (from_canvas_name, to_canvas_name) )
-  |> Result.bind ~f:(fun (from_canvas_name, _) ->
+  |> Result.and_then ~f:(fun (from_canvas_name, _) ->
          (* Load from_canvas *)
          let from_canvas = load_all from_canvas_name [] in
-         from_canvas |> Result.map_error ~f:(String.concat ~sep:", "))
-  |> Result.map ~f:(fun (from_canvas : canvas ref) ->
+         from_canvas |> tc_map_error (String.join ~sep:", "))
+  |> Result.map (fun (from_canvas : canvas ref) ->
          (* Transform the ops - remove pre-savepoint ops and update hosts
           * (canvas names) in string literals *)
          let to_ops =
