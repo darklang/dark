@@ -15,6 +15,8 @@ type 'msg t =
       { body : Js.Json.t
       ; callback : (Js.Json.t, string Tea.Http.error) Tea.Result.t -> 'msg
       ; endpoint : string }
+  | CCMSelect of TLID.t * Types.tlidSelectTarget
+  | CCMNothing
 
 let rec map ~(f : 'msg -> Types.msg) (msg : 'msg t) : Types.msg t =
   match msg with
@@ -31,3 +33,7 @@ let rec map ~(f : 'msg -> Types.msg) (msg : 'msg t) : Types.msg t =
       CCMTraceOverrideTraces x
   | CCMUnlockedDBsSetUnlocked x ->
       CCMUnlockedDBsSetUnlocked x
+  | CCMSelect (tlid, target) ->
+      CCMSelect (tlid, target)
+  | CCMNothing ->
+      CCMNothing

@@ -969,6 +969,10 @@ let rec runCrossComponentMsg (m : model) (ccm : msg CrossComponentMsg.t) :
            , traceData.hashVersion
            , traceData.dval ))
         (m, Cmd.none)
+  | CCMSelect (tlid, target) ->
+      updateMod (Select (tlid, target)) (m, Cmd.none)
+  | CCMNothing ->
+      (m, Cmd.none)
 
 
 let update_ (msg : msg) (m : model) : modification =
