@@ -631,7 +631,7 @@ let t_list_stdlibs_work () =
               [list [int 1; int 10]; list [int 2; int 20]; list [int 3; int 30]]
           ])) ;
   check_error_contains
-    "List::unzip errors (incorrect length)"
+    "List::unzip errors (incorrect length - identifies index)"
     (exec_ast'
        (fn
           "List::unzip"
@@ -639,14 +639,24 @@ let t_list_stdlibs_work () =
               [ list [int 1; int 10]
               ; list [int 2; int 20]
               ; list [int 3; int 30; int 40] ] ]))
-    "Expected every value within the `list` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index 2" ;
+    "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index 2" ;
+  check_error_contains
+    "List::unzip errors (incorrect length - identifies length)"
+    (exec_ast'
+       (fn
+          "List::unzip"
+          [ list
+              [ list [int 1; int 10]
+              ; list [int 2; int 20]
+              ; list [int 3; int 30; int 40] ] ]))
+    "It has length 3 but must have length 2" ;
   check_error_contains
     "List::unzip errors (incorrect type)"
     (exec_ast'
        (fn
           "List::unzip"
           [list [list [int 10; int 20]; int 10; list [int 3; int 30]]]))
-    "Expected every value within the `list` argument passed to `List::unzip` to be a list with exactly two values" ;
+    "It is of type `Int` instead of `List`." ;
   check_dval
     "List::filterMap works (empty)"
     (DList [])

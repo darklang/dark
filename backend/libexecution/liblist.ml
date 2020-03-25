@@ -797,49 +797,71 @@ let fns =
     ; deprecated = false }
   ; { prefix_names = ["List::unzip"]
     ; infix_names = []
-    ; parameters = [par "list" TList]
+    ; parameters = [par "pairs" TList]
     ; return_type = TList
     ; description =
-        {|Given a `list` of lists with two values each (such as those constructed by `List::zip` or `List::zipShortest`), returns a list of two lists,
-        one with every first value, and one with every second value. For example, if `list` is `[[1,"x"], [2,"y"], [3,"z"]]`, returns `[[1,2,3], ["x","y","z"]]`.|}
+        {|Given a `pairs` list where each value is a list of two values (such lists are constructed by `List::zip` and `List::zipShortest`), returns a list of two lists,
+        one with every first value, and one with every second value. For example, if `pairs` is `[[1,"x"], [2,"y"], [3,"z"]]`, returns `[[1,2,3], ["x","y","z"]]`.|}
     ; func =
         (* We should deprecate this once we have tuples and homogenous lists *)
         InProcess
           (function
           | state, [DList l] ->
               let abortReason = ref None in
+              let debug_idx_from_rev_idx (rev_idx : int) (l : 'a list) : string
+                  =
+                List.length l - 1 - rev_idx |> Int.to_string
+              in
               let f
-                  (idx : int)
+                  (rev_idx : int)
                   ((acc_a, acc_b) : dval list * dval list)
                   (dv : dval) : dval list * dval list =
                 if !abortReason = None
                 then (
                   match dv with
                   | DList [a; b] ->
-                      (* this will result in reversed lists, so we have to reverse them at the end *)
                       (a :: acc_a, b :: acc_b)
                   | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
                       abortReason := Some dv ;
                       ([], [])
                   | v ->
+                      let err_details =
+                        match v with
+                        | DList l ->
+                            "It has length "
+                            ^ (List.length l |> Int.to_string)
+                            ^ " but must have length 2."
+                        | non_list ->
+                            let tipe =
+                              non_list
+                              |> Dval.tipe_of
+                              |> Dval.tipe_to_developer_repr_v0
+                            in
+                            "It is of type `" ^ tipe ^ "` instead of `List`."
+                      in
                       abortReason :=
                         Some
                           (DError
                              ( SourceNone
-                             , "Expected every value within the `list` argument passed to `"
+                             , "Expected every value within the `pairs` argument passed to `"
                                ^ state.executing_fnname
                                ^ "` to be a list with exactly two values. However, that is not the case for the value at index "
-                               ^ Int.to_string idx
+                               ^ debug_idx_from_rev_idx rev_idx l
                                ^ ": `"
                                ^ Dval.to_developer_repr_v0 v
-                               ^ "`." )) ;
+                               ^ "`. "
+                               ^ err_details )) ;
                       ([], []) )
                 else ([], [])
               in
-              let rev_res_a, rev_res_b = List.foldi ~init:([], []) ~f l in
+              let res_a, res_b =
+                (* We reverse here so that the fold accumulates in the correct direction.
+                * It does mean that the index passed by foldi is counting from the end *)
+                l |> List.rev |> List.foldi ~init:([], []) ~f
+              in
               ( match !abortReason with
               | None ->
-                  DList [DList (List.rev rev_res_a); DList (List.rev rev_res_b)]
+                  DList [DList res_a; DList res_b]
               | Some v ->
                   v )
           | args ->
