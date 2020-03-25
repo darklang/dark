@@ -166,4 +166,10 @@ module StrDict = struct
 
   let mapi ~(f : key:key -> value:'value -> 'a) (dict : 'value t) : 'value t =
     Base.Map.mapi ~f:(fun ~key ~data -> f ~key ~value:data) dict
+
+
+  (** [size dict] returns the number of key-value pairs in [dict]. O(1) *)
+  let size (dict : 'value t) : int =
+    (* Base.Map.length is O(1) per https://ocaml.janestreet.com/ocaml-core/latest/doc/base/Base/Map/ *)
+    Base.Map.length dict
 end

@@ -28,10 +28,7 @@ let fns =
     ; func =
         InProcess
           (function
-          | _, [DObj o] ->
-              o |> DvalMap.keys |> List.length |> Dval.dint
-          | args ->
-              fail args)
+          | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::keys"]
