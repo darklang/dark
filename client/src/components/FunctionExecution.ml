@@ -22,15 +22,14 @@ let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
          * the length of the function name representing the offset into the
          * tokenized function call node corresponding to this location. Eg:
          * foo|v1 a b *)
-        STCaret
-          {astRef = ARFnCall p.efpCallerID; offset = String.length p.efpFnName}
+        STCaret {astRef = ARFnCall p.callerID; offset = String.length p.fnName}
       in
       let select =
         if moveToCaller = MoveToCaller
-        then CrossComponentMsg.CCMSelect (p.efpTLID, selectionTarget)
+        then CrossComponentMsg.CCMSelect (p.tlid, selectionTarget)
         else CCMNothing
       in
-      ( recordExecutionStart p.efpTLID p.efpCallerID t
+      ( recordExecutionStart p.tlid p.callerID t
       , CCMMany
           [ CCMMakeAPICall
               { endpoint = "/execute_function"
@@ -48,23 +47,23 @@ let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
   | APICallback (p, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
         List.map
-          ~f:(fun tlid -> (TLID.toString tlid, [(p.efpTraceID, Error NoneYet)]))
+          ~f:(fun tlid -> (TLID.toString tlid, [(p.traceID, Error NoneYet)]))
           tlids
       in
-      ( recordExecutionEnd p.efpTLID p.efpCallerID t
+      ( recordExecutionEnd p.tlid p.callerID t
       , CCMMany
           [ CrossComponentMsg.CCMTraceUpdateFunctionResult
-              { tlid = p.efpTLID
-              ; traceID = p.efpTraceID
-              ; callerID = p.efpCallerID
-              ; fnName = p.efpFnName
+              { tlid = p.tlid
+              ; traceID = p.traceID
+              ; callerID = p.callerID
+              ; fnName = p.fnName
               ; hash
               ; hashVersion
               ; dval }
           ; CCMTraceOverrideTraces (StrDict.fromList traces)
           ; CCMUnlockedDBsSetUnlocked unlockedDBs ] )
   | APICallback (p, Error err) ->
-      ( recordExecutionEnd p.efpTLID p.efpCallerID t
+      ( recordExecutionEnd p.tlid p.callerID t
       , CCMHandleAPIError
           { context = "ExecuteFunction"
           ; importance = ImportantError

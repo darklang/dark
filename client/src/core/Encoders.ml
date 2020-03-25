@@ -412,11 +412,11 @@ and addOpAPIParams (params : Types.addOpAPIParams) : Js.Json.t =
 and executeFunctionAPIParams (params : Types.FunctionExecutionT.apiParams) :
     Js.Json.t =
   object_
-    [ ("tlid", tlid params.efpTLID)
-    ; ("trace_id", string params.efpTraceID)
-    ; ("caller_id", id params.efpCallerID)
-    ; ("args", list dval params.efpArgs)
-    ; ("fnname", string params.efpFnName) ]
+    [ ("tlid", tlid params.tlid)
+    ; ("trace_id", string params.traceID)
+    ; ("caller_id", id params.callerID)
+    ; ("args", list dval params.args)
+    ; ("fnname", string params.fnName) ]
 
 
 and packageFnParameter (pfp : Types.packageFnParameter) : Js.Json.t =
