@@ -289,6 +289,59 @@ let t_dict_stdlibs_work () =
     (DList [dstr "val1"])
     (exec_ast "(Dict::values (obj (key1 'val1')))") ;
   check_dval
+    "Dict::toList works (empty)"
+    (DList [])
+    (exec_ast' (fn "Dict::toList" [record []])) ;
+  check_dval
+    "Dict::toList works (full)"
+    (DList
+       [ DList [dstr "a"; dint 1]
+       ; DList [dstr "b"; dint 2]
+       ; DList [dstr "c"; dint 3] ])
+    (exec_ast'
+       (fn "Dict::toList" [record [("a", int 1); ("b", int 2); ("c", int 3)]])) ;
+  check_dval
+    "Dict::fromList works (empty)"
+    (DObj (DvalMap.from_list []))
+    (exec_ast' (fn "Dict::fromList" [list []])) ;
+  check_dval
+    "Dict::fromList works (key-value pairs)"
+    (DObj (DvalMap.from_list [("a", dint 1); ("b", dint 2); ("c", dint 3)]))
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "c"; int 3] ] ])) ;
+  check_error_contains
+    "Dict::fromList works (wrong length)"
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2; int 3]
+              ; list [str "c"; int 3] ] ]))
+    "It has length 3 but must have length 2" ;
+  check_error_contains
+    "Dict::fromList works (wrong key type)"
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [ list
+              [ list [int 1; int 5]
+              ; list [int 2; int 5; int 3]
+              ; list [int 3; int 5] ] ]))
+    "Keys must be `String`s" ;
+  check_error_contains
+    "Dict::fromList works (wrong key-value type)"
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [list [list [str "a"; int 1]; int 2; list [str "c"; int 3]]]))
+    "It is of type `Int` instead of `List`" ;
+  check_dval
     "dict get"
     (DOption (OptJust (dstr "val1")))
     (exec_ast "(Dict::get_v1 (obj (key1 'val1')) 'key1')") ;
