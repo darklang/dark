@@ -242,17 +242,16 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
            |> Option.value_exn
          in
          (* In a transaction, save the new ops into to_canvas *)
-         Db.transaction ~name:"clone_canvas" (fun () -> 
-           (* fetch_canvas_id is what actually creates the canvas record,
-            * which must preceed save_all *)
-           let to_id = Serialize.fetch_canvas_id owner to_canvas_name in
-           let to_canvas : canvas ref =
-             ref
-               { !from_canvas with
-                 host = to_canvas_name
-               ; owner
-               ; ops = to_ops
-               ; id = to_id }
-           in
-           save_all !to_canvas 
-    )
+         Db.transaction ~name:"clone_canvas" (fun () ->
+             (* fetch_canvas_id is what actually creates the canvas record,
+              * which must preceed save_all *)
+             let to_id = Serialize.fetch_canvas_id owner to_canvas_name in
+             let to_canvas : canvas ref =
+               ref
+                 { !from_canvas with
+                   host = to_canvas_name
+                 ; owner
+                 ; ops = to_ops
+                 ; id = to_id }
+             in
+             save_all !to_canvas))

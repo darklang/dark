@@ -206,11 +206,19 @@ let add_function (fn : fn) : unit =
         then fn.version
         else existing_version
   in
+<<<<<<< HEAD
   Db.run ~name:"add_package_management_function begin" "BEGIN" ~params:[] ;
   (* After insert, also auto-deprecate any previous versions of fn *)
   Db.run
     ~name:"add_package_management_function insert"
     "INSERT INTO packages_v0 (tlid, user_id, package, module, fnname, version,
+=======
+  Db.transaction ~name:"add_package_management_function begin" (fun () ->
+      (* After insert, also auto-deprecate any previous versions of fn *)
+      Db.run
+        ~name:"add_package_management_function insert"
+        "INSERT INTO packages_v0 (tlid, user_id, package, module, fnname, version,
+>>>>>>> 376e0cf7d... fixup! abstraction for Db.run_in_transaction
                               description, body, return_type, parameters, author_id, deprecated)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
             $10::jsonb, $11, $12)"
