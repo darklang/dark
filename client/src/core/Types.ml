@@ -496,18 +496,19 @@ type mouseEvent =
   ; shiftKey : bool
   ; detail : int }
 
-and isLeftButton = bool
+and isLeftButton = bool [@@deriving show {with_path = false}]
 
 (* ----------------------------- *)
 (* CursorState *)
 (* ----------------------------- *)
-and entryCursor =
+type entryCursor =
   | Creating of pos option (* If we know the position the user wants the handler to be at (presumably because they clicked there to get the omnibox), then use it. Otherwise, if there's no position, we'll pick one for them later *)
   | Filling of TLID.t * ID.t
+[@@deriving show {with_path = false}]
 
-and hasMoved = bool
+type hasMoved = bool [@@deriving show {with_path = false}]
 
-and cursorState =
+type cursorState =
   | Selecting of TLID.t * ID.t option
   | Entering of entryCursor
   | FluidEntering of TLID.t
@@ -517,28 +518,32 @@ and cursorState =
       ; viewportCurr : vPos
       ; prevCursorState : cursorState }
   | Deselected
+[@@deriving show {with_path = false}]
 
 (* ------------------- *)
 (* Analysis *)
 (* ------------------- *)
-and timerAction =
+type timerAction =
   | RefreshAnalysis
   | RefreshAvatars
   | CheckUrlHashPosition
+[@@deriving show {with_path = false}]
 
-and 'result loadable =
+type 'result loadable =
   | LoadableSuccess of 'result
   | LoadableNotInitialized
   | LoadableLoading of 'result option
   | LoadableError of string
+[@@deriving show {with_path = false}]
 
-and dvalDict = dval StrDict.t
+type dvalDict = dval StrDict.t [@@deriving show {with_path = false}]
 
-and executionResult =
+type executionResult =
   | ExecutedResult of dval
   | NonExecutedResult of dval
+[@@deriving show {with_path = false}]
 
-and intermediateResultStore = executionResult StrDict.t
+type intermediateResultStore = executionResult StrDict.t
 
 (* map from expression ids to symbol table, which maps from varname strings to
  * the ids of the expressions that represent their values *)
@@ -556,29 +561,6 @@ and functionResult =
   ; argHash : string
   ; argHashVersion : int
   ; value : dval }
-
-and fetchRequest =
-  | TraceFetch of getTraceDataAPIParams
-  | DbStatsFetch of dbStatsAPIParams
-  | WorkerStatsFetch of workerStatsAPIParams
-
-(* traces/db_stats fetching *)
-and fetchResult =
-  | TraceFetchSuccess of getTraceDataAPIParams * getTraceDataAPIResult
-  | TraceFetchFailure of getTraceDataAPIParams * string * string
-  | TraceFetchMissing of getTraceDataAPIParams
-  | DbStatsFetchSuccess of dbStatsAPIParams * dbStatsAPIResult
-  | DbStatsFetchFailure of dbStatsAPIParams * string * string
-  | DbStatsFetchMissing of dbStatsAPIParams
-  | WorkerStatsFetchSuccess of workerStatsAPIParams * workerStatsAPIResult
-  | WorkerStatsFetchFailure of workerStatsAPIParams * string * string
-  | WorkerStatsFetchMissing of workerStatsAPIParams
-
-and fetchContext =
-  { canvasName : string
-  ; csrfToken : string
-  ; origin : string
-  ; prefix : string }
 
 and traceID = string
 
@@ -626,15 +608,16 @@ and dbStatsStore = dbStats StrDict.t
 and workerStats =
   { count : int
   ; schedule : string option }
+[@@deriving show {with_path = false}]
 
 (* ------------------- *)
 (* ops *)
 (* ------------------- *)
-and rollbackID = ID.t
+type rollbackID = ID.t [@@deriving show {with_path = false}]
 
-and rollforwardID = ID.t
+type rollforwardID = ID.t [@@deriving show {with_path = false}]
 
-and op =
+type op =
   | SetHandler of TLID.t * pos * handler
   | CreateDB of TLID.t * pos * dbName
   | AddDBCol of TLID.t * ID.t * ID.t
@@ -666,12 +649,13 @@ and op =
   | SetType of userTipe
   | DeleteType of TLID.t
   | DeleteTypeForever of TLID.t
+[@@deriving show {with_path = false}]
 
 (* ------------------- *)
 (* APIs *)
 (* ------------------- *)
 (* Avatars *)
-and avatar =
+type avatar =
   { canvasId : string
   ; canvasName : string
   ; serverTime : Js.Date.t [@opaque]
@@ -680,15 +664,17 @@ and avatar =
   ; email : string
   ; fullname : string option
   ; browserId : string }
+[@@deriving show {with_path = false}]
 
-and avatarModelMessage =
+type avatarModelMessage =
   { browserId : string
   ; tlid : TLID.t option
   ; canvasName : string
   ; timestamp : float }
+[@@deriving show {with_path = false}]
 
 (* params *)
-and sendPresenceParams = avatarModelMessage
+type sendPresenceParams = avatarModelMessage
 
 and sendInviteParams = SettingsViewTypes.inviteFormMessage
 
@@ -752,6 +738,29 @@ and analysisError =
 and performAnalysisResult = (analysisError, analysisEnvelope) Tc.Result.t
 
 and delete404APIParams = fourOhFour
+
+and fetchRequest =
+  | TraceFetch of getTraceDataAPIParams
+  | DbStatsFetch of dbStatsAPIParams
+  | WorkerStatsFetch of workerStatsAPIParams
+
+(* traces/db_stats fetching *)
+and fetchResult =
+  | TraceFetchSuccess of getTraceDataAPIParams * getTraceDataAPIResult
+  | TraceFetchFailure of getTraceDataAPIParams * string * string
+  | TraceFetchMissing of getTraceDataAPIParams
+  | DbStatsFetchSuccess of dbStatsAPIParams * dbStatsAPIResult
+  | DbStatsFetchFailure of dbStatsAPIParams * string * string
+  | DbStatsFetchMissing of dbStatsAPIParams
+  | WorkerStatsFetchSuccess of workerStatsAPIParams * workerStatsAPIResult
+  | WorkerStatsFetchFailure of workerStatsAPIParams * string * string
+  | WorkerStatsFetchMissing of workerStatsAPIParams
+
+and fetchContext =
+  { canvasName : string
+  ; csrfToken : string
+  ; origin : string
+  ; prefix : string }
 
 and account =
   { name : string
@@ -821,13 +830,13 @@ and initialLoadAPIResult =
   ; workerSchedules : string StrDict.t
   ; creationDate : Js.Date.t [@opaque] }
 
-and saveTestAPIResult = string
+and saveTestAPIResult = string [@@deriving show {with_path = false}]
 
 (* ------------------- *)
 (* Autocomplete / entry *)
 (* ------------------- *)
 (* functions *)
-and parameter =
+type parameter =
   { paramName : string
   ; paramTipe : tipe
   ; paramBlock_args : string list
@@ -995,11 +1004,12 @@ and fnpMsg =
   | ParamLeavesSpace
   | ParamDropIntoSpace of int
   | Reset
+[@@deriving show {with_path = false}]
 
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
-and focus =
+type focus =
   | FocusNothing
   | FocusExact of TLID.t * ID.t
   | FocusNext of TLID.t * ID.t option
@@ -1040,6 +1050,7 @@ and apiError =
 and editorSettings =
   { showFluidDebugger : bool
   ; runTimers : bool }
+[@@deriving show {with_path = false}]
 
 (* tlidSelectTarget represents a target insID.t *e a TLID for use
    by the `Select` modification.
@@ -1056,7 +1067,7 @@ and editorSettings =
    places where we do this as a fallback when we expected to find
    an id but couldn't (they used to use Some(id) with an implicit
    fallback to None). *)
-and tlidSelectTarget =
+type tlidSelectTarget =
   | STCaret of caretTarget
   | STID of ID.t
   | STTopLevelRoot
