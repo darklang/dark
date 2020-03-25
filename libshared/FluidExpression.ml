@@ -634,9 +634,9 @@ let rec equalIgnoringIds (a : t) (b : t) : bool =
       eq e e' && f = f'
   | EPipe (_, l), EPipe (_, l') ->
       eqList l l'
-  | ( EFeatureFlag (_, name, cond, old, knew)
-    , EFeatureFlag (_, name', cond', old', knew') ) ->
-      name = name' && eq3 (cond, cond') (old, old') (knew, knew')
+  | EFeatureFlag (_, _, cond, old, knew), EFeatureFlag (_, _, cond', old', knew')
+    ->
+      eq3 (cond, cond') (old, old') (knew, knew')
   | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
       s = s' && eqList ts ts'
   | ELambda _, ELambda _

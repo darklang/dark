@@ -120,7 +120,7 @@ let run () =
         "flag with same values"
         (flag (bool true) (int 1) (int 2))
         (flag (bool true) (int 1) (int 2)) ;
-      neq
+      eq (* we don't care about flag names right now *)
         "flag with diff names"
         (flag ~name:"flag-1" (bool true) (int 1) (int 2))
         (flag ~name:"flag-2" (bool true) (int 1) (int 2)) ;
