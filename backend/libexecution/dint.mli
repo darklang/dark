@@ -36,6 +36,9 @@ val max : t -> t -> t
 
 val min : t -> t -> t
 
+(** [clamp value ~min ~max] returns the result of clamping [value] between [min] and [max]. *)
+val clamp : t -> min:t -> max:t -> t Base__.Or_error.t
+
 val pow : t -> t -> t
 
 val abs : t -> t

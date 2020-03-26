@@ -436,7 +436,7 @@ let fns : fn list =
   ; { prefix_names = ["Int::max"]
     ; infix_names = []
     ; parameters = [par "a" TInt; par "b" TInt]
-    ; return_type = TBool
+    ; return_type = TInt
     ; description = "Returns the higher of a and b"
     ; func =
         InProcess
@@ -447,11 +447,31 @@ let fns : fn list =
   ; { prefix_names = ["Int::min"]
     ; infix_names = []
     ; parameters = [par "a" TInt; par "b" TInt]
-    ; return_type = TBool
+    ; return_type = TInt
     ; description = "Returns the lower of `a` and `b`"
     ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Int::clamp"]
+    ; infix_names = []
+    ; parameters = [par "value" TInt; par "minimum" TInt; par "maximum" TInt]
+    ; return_type = TOption
+    ; description =
+        "If `minimum <= maximum`, returns `Just clamped`, where `clamped` is the result of constraining `value` within the range specified by `minimum` and `maximum`.
+      Otherwise, returns `Nothing`."
+    ; func =
+        InProcess
+          (function
+          | _, [DInt v; DInt min; DInt max] ->
+            ( match Dint.clamp v ~min ~max with
+            | Ok clamped ->
+                DOption (OptJust (DInt clamped))
+            | Error _ ->
+                DOption OptNothing )
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false } ]

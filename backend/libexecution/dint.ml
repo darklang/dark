@@ -46,6 +46,8 @@ let max = Int63.max
 
 let min = Int63.min
 
+let clamp = Int63.clamp
+
 let init () =
   (* TODO: init random *)
   ()
