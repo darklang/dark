@@ -43,7 +43,7 @@ type settingsViewState =
   ; canvasList : string list
   ; username : string
   ; orgs : string list
-  ; orgList : string list (* This is org canvases, not orgs themselves *)
+  ; orgCanvasList : string list (* This is org canvases, not orgs themselves *)
   ; loading : bool
   ; canvasInformation : canvasInformation }
 [@@deriving show]

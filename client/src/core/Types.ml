@@ -796,7 +796,7 @@ and initialLoadAPIResult =
   ; account : account
   ; canvasList : string list
   ; orgs : string list
-  ; orgList : string list
+  ; orgCanvasList : string list
   ; workerSchedules : string StrDict.t
   ; creationDate : Js.Date.t [@opaque] }
 
