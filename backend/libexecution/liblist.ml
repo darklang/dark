@@ -826,9 +826,8 @@ let fns =
         InProcess
           (function
           | state, [DList l] ->
-              let debug_idx_from_rev_idx (rev_idx : int) (l : 'a list) : string
-                  =
-                List.length l - 1 - rev_idx |> Int.to_string
+              let idx_from_rev_idx (rev_idx : int) (l : 'a list) : int =
+                List.length l - 1 - rev_idx
               in
               let fold_fn
                   (rev_idx : int)
@@ -845,28 +844,28 @@ let fns =
                         let err_details =
                           match v with
                           | DList l ->
-                              "It has length "
-                              ^ (List.length l |> Int.to_string)
-                              ^ " but must have length 2."
+                              Printf.sprintf
+                                "It has length %i but must have length 2."
+                                (List.length l)
                           | non_list ->
                               let tipe =
                                 non_list
                                 |> Dval.tipe_of
                                 |> Dval.tipe_to_developer_repr_v0
                               in
-                              "It is of type `" ^ tipe ^ "` instead of `List`."
+                              Printf.sprintf
+                                "It is of type `%s` instead of `List`."
+                                tipe
                         in
                         Error
                           (DError
                              ( SourceNone
-                             , "Expected every value within the `pairs` argument passed to `"
-                               ^ state.executing_fnname
-                               ^ "` to be a list with exactly two values. However, that is not the case for the value at index "
-                               ^ debug_idx_from_rev_idx rev_idx l
-                               ^ ": `"
-                               ^ Dval.to_developer_repr_v0 v
-                               ^ "`. "
-                               ^ err_details )))
+                             , Printf.sprintf
+                                 "Expected every value within the `pairs` argument passed to `%s` to be a list with exactly two values. However, that is not the case for the value at index %i: %s. %s"
+                                 state.executing_fnname
+                                 (idx_from_rev_idx rev_idx l)
+                                 (Dval.to_developer_repr_v0 v)
+                                 err_details )))
               in
               let result =
                 (* We reverse here so that the [foldi] consing happens in the correct order.
