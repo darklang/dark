@@ -855,8 +855,8 @@ let fns =
                 else ([], [])
               in
               let res_a, res_b =
-                (* We reverse here so that the fold accumulates in the correct direction.
-                * It does mean that the index passed by foldi is counting from the end *)
+                (* We reverse here so that the [foldi] consing happens in the correct order.
+                * It does mean that the index passed by [foldi] counts from the end *)
                 l |> List.rev |> List.foldi ~init:([], []) ~f
               in
               ( match !abortReason with
