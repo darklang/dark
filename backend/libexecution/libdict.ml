@@ -148,6 +148,90 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Dict::fromListUnique"]
+    ; infix_names = []
+    ; parameters = [par "entries" TList]
+    ; return_type = TObj
+    ; description =
+        "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+        If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
+        Otherwise, returns `Nothing` (use `Dict::fromList` if you want to overwrite duplicate keys)."
+    ; func =
+        InProcess
+          (function
+          | state, [DList l] ->
+              let abortReason = ref None in
+              let f (idx : int) (acc : dval DvalMap.t option) (dv : dval) :
+                  dval DvalMap.t option =
+                (* Note that if [!abortReason <> None], [acc] is already [None].
+                * Consequently, we don't try to insert once we have an [abortReason]. *)
+                Option.bind acc ~f:(fun acc ->
+                    match dv with
+                    | DList [DStr k; value] ->
+                      ( match
+                          DvalMap.insert_fail_override
+                            ~key:(Unicode_string.to_string k)
+                            ~value
+                            acc
+                        with
+                      | `Ok dict ->
+                          Some dict
+                      | `Duplicate ->
+                          None )
+                    | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                        abortReason := Some dv ;
+                        None
+                    | v ->
+                        let err_details =
+                          match v with
+                          | DList [k; _] ->
+                              let tipe =
+                                k
+                                |> Dval.tipe_of
+                                |> Dval.tipe_to_developer_repr_v0
+                              in
+                              "Keys must be `String`s but the type of `"
+                              ^ Dval.to_developer_repr_v0 k
+                              ^ "` is `"
+                              ^ tipe
+                              ^ "`."
+                          | DList l ->
+                              "It has length "
+                              ^ (List.length l |> Int.to_string)
+                              ^ " but must have length 2."
+                          | non_list ->
+                              let tipe =
+                                non_list
+                                |> Dval.tipe_of
+                                |> Dval.tipe_to_developer_repr_v0
+                              in
+                              "It is of type `" ^ tipe ^ "` instead of `List`."
+                        in
+                        abortReason :=
+                          Some
+                            (DError
+                               ( SourceNone
+                               , "Expected every value within the `entries` argument passed to `"
+                                 ^ state.executing_fnname
+                                 ^ "` to be a `[key, value]` list. However, that is not the case for the value at index "
+                                 ^ Int.to_string idx
+                                 ^ ": `"
+                                 ^ Dval.to_developer_repr_v0 v
+                                 ^ "`. "
+                                 ^ err_details )) ;
+                        None)
+              in
+              let result =
+                l
+                |> List.foldi ~init:(Some DvalMap.empty) ~f
+                |> Option.map ~f:(fun o -> DOption (OptJust (DObj o)))
+                |> Option.value ~default:(DOption OptNothing)
+              in
+              (match !abortReason with None -> result | Some v -> v)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Dict::get"]
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
