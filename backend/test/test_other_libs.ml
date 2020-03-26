@@ -301,12 +301,76 @@ let t_dict_stdlibs_work () =
     (exec_ast'
        (fn "Dict::toList" [record [("a", int 1); ("b", int 2); ("c", int 3)]])) ;
   check_dval
-    "Dict::fromList works (empty)"
+    "Dict::fromListOverwitingDuplicates works (empty)"
     (DObj (DvalMap.from_list []))
+    (exec_ast' (fn "Dict::fromListOverwritingDuplicates" [list []])) ;
+  check_dval
+    "Dict::fromListOverwitingDuplicates works (key-value pairs)"
+    (DObj (DvalMap.from_list [("a", dint 1); ("b", dint 2); ("c", dint 3)]))
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "c"; int 3] ] ])) ;
+  check_dval
+    "Dict::fromListOverwitingDuplicates works (overwrites duplicates correctly)"
+    (DObj (DvalMap.from_list [("a", dint 3); ("b", dint 2)]))
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "a"; int 3] ] ])) ;
+  check_error_contains
+    "Dict::fromListOverwitingDuplicates works (wrong length - identifies index)"
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "c"; int 3; int 3] ] ]))
+    "Expected every value within the `entries` argument passed to `Dict::fromListOverwritingDuplicates` to be a `[key, value]` list. However, that is not the case for the value at index 2" ;
+  check_error_contains
+    "Dict::fromListOverwitingDuplicates works (wrong length - identifies length)"
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2; int 3]
+              ; list [str "c"; int 3] ] ]))
+    "It has length 3 but must have length 2" ;
+  check_error_contains
+    "Dict::fromListOverwitingDuplicates works (wrong key type)"
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [int 1; int 5]
+              ; list [int 2; int 5; int 3]
+              ; list [int 3; int 5] ] ]))
+    "Keys must be `String`s" ;
+  check_error_contains
+    "Dict::fromListOverwitingDuplicates works (wrong key-value type)"
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [list [list [str "a"; int 1]; int 2; list [str "c"; int 3]]]))
+    "It is of type `Int` instead of `List`" ;
+  check_dval
+    "Dict::fromList works (empty)"
+    (DOption (OptJust (DObj (DvalMap.from_list []))))
     (exec_ast' (fn "Dict::fromList" [list []])) ;
   check_dval
     "Dict::fromList works (key-value pairs)"
-    (DObj (DvalMap.from_list [("a", dint 1); ("b", dint 2); ("c", dint 3)]))
+    (DOption
+       (OptJust
+          (DObj
+             (DvalMap.from_list [("a", dint 1); ("b", dint 2); ("c", dint 3)]))))
     (exec_ast'
        (fn
           "Dict::fromList"
@@ -315,8 +379,8 @@ let t_dict_stdlibs_work () =
               ; list [str "b"; int 2]
               ; list [str "c"; int 3] ] ])) ;
   check_dval
-    "Dict::fromList works (overwrites duplicates correctly)"
-    (DObj (DvalMap.from_list [("a", dint 3); ("b", dint 2)]))
+    "Dict::fromList works (duplicate key)"
+    (DOption OptNothing)
     (exec_ast'
        (fn
           "Dict::fromList"
@@ -359,70 +423,6 @@ let t_dict_stdlibs_work () =
     (exec_ast'
        (fn
           "Dict::fromList"
-          [list [list [str "a"; int 1]; int 2; list [str "c"; int 3]]]))
-    "It is of type `Int` instead of `List`" ;
-  check_dval
-    "Dict::fromListUnique works (empty)"
-    (DOption (OptJust (DObj (DvalMap.from_list []))))
-    (exec_ast' (fn "Dict::fromListUnique" [list []])) ;
-  check_dval
-    "Dict::fromListUnique works (key-value pairs)"
-    (DOption
-       (OptJust
-          (DObj
-             (DvalMap.from_list [("a", dint 1); ("b", dint 2); ("c", dint 3)]))))
-    (exec_ast'
-       (fn
-          "Dict::fromListUnique"
-          [ list
-              [ list [str "a"; int 1]
-              ; list [str "b"; int 2]
-              ; list [str "c"; int 3] ] ])) ;
-  check_dval
-    "Dict::fromListUnique works (duplicate key)"
-    (DOption OptNothing)
-    (exec_ast'
-       (fn
-          "Dict::fromListUnique"
-          [ list
-              [ list [str "a"; int 1]
-              ; list [str "b"; int 2]
-              ; list [str "a"; int 3] ] ])) ;
-  check_error_contains
-    "Dict::fromListUnique works (wrong length - identifies index)"
-    (exec_ast'
-       (fn
-          "Dict::fromListUnique"
-          [ list
-              [ list [str "a"; int 1]
-              ; list [str "b"; int 2]
-              ; list [str "c"; int 3; int 3] ] ]))
-    "Expected every value within the `entries` argument passed to `Dict::fromListUnique` to be a `[key, value]` list. However, that is not the case for the value at index 2" ;
-  check_error_contains
-    "Dict::fromListUnique works (wrong length - identifies length)"
-    (exec_ast'
-       (fn
-          "Dict::fromListUnique"
-          [ list
-              [ list [str "a"; int 1]
-              ; list [str "b"; int 2; int 3]
-              ; list [str "c"; int 3] ] ]))
-    "It has length 3 but must have length 2" ;
-  check_error_contains
-    "Dict::fromListUnique works (wrong key type)"
-    (exec_ast'
-       (fn
-          "Dict::fromListUnique"
-          [ list
-              [ list [int 1; int 5]
-              ; list [int 2; int 5; int 3]
-              ; list [int 3; int 5] ] ]))
-    "Keys must be `String`s" ;
-  check_error_contains
-    "Dict::fromListUnique works (wrong key-value type)"
-    (exec_ast'
-       (fn
-          "Dict::fromListUnique"
           [list [list [str "a"; int 1]; int 2; list [str "c"; int 3]]]))
     "It is of type `Int` instead of `List`" ;
   check_dval
