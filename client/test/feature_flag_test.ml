@@ -26,8 +26,8 @@ let testWrap
   test name (fun () ->
       let id = Shared.gid () in
       let ast = FluidAST.ofExpr (exprFn id) in
-      let newAST = FF.wrap ast id |> FluidAST.toExpr in
-      expect newAST
+      let _flagId, newAST = FF.wrap ast id in
+      expect (FluidAST.toExpr newAST)
       |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual expected)
 
@@ -40,13 +40,13 @@ let testUnwrap
   let id = Shared.gid () in
   let ast = FluidAST.ofExpr (exprFn id) in
   test (name ^ "- KeepOld") (fun () ->
-      let actualOld = FF.unwrap FF.KeepOld ast id |> FluidAST.toExpr in
-      expect actualOld
+      let actualOld, _ = FF.unwrap FF.KeepOld ast id in
+      expect (FluidAST.toExpr actualOld)
       |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual keepOld) ;
   test (name ^ "- KeepNew") (fun () ->
-      let actualNew = FF.unwrap FF.KeepNew ast id |> FluidAST.toExpr in
-      expect actualNew
+      let actualNew, _ = FF.unwrap FF.KeepNew ast id in
+      expect (FluidAST.toExpr actualNew)
       |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual keepNew)
 
