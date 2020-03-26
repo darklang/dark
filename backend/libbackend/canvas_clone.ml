@@ -4,12 +4,6 @@ open Util
 open Canvas
 open Tc
 
-(* Tablecloth is missing this *)
-let tc_map_error (f : 'err1 -> 'err2) (r : ('err1, 'ok) Tc.Result.t) :
-    ('err2, 'ok) Tc.Result.t =
-  Base.Result.map_error ~f r
-
-
 (** [only_ops_since_last_savepoint ops] When we clone a canvas, we sometimes
    * want to only copy over ops since the last TLSavepoint - this erases
    * history, which is invisible and we don't really know at clone-time what's
@@ -215,7 +209,7 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
   |> Result.and_then ~f:(fun (from_canvas_name, _) ->
          (* Load from_canvas *)
          let from_canvas = load_all from_canvas_name [] in
-         from_canvas |> tc_map_error (String.join ~sep:", "))
+         from_canvas |> Result.map_error (String.join ~sep:", "))
   |> Result.map (fun (from_canvas : canvas ref) ->
          (* Transform the ops - remove pre-savepoint ops and update hosts
           * (canvas names) in string literals *)
