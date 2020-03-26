@@ -795,7 +795,8 @@ and initialLoadAPIResult =
   ; deletedGroups : group list
   ; account : account
   ; canvasList : string list
-  ; orgList : string list
+  ; orgs : string list
+  ; orgCanvasList : string list
   ; workerSchedules : string StrDict.t
   ; creationDate : Js.Date.t [@opaque] }
 
