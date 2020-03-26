@@ -751,7 +751,8 @@ let fns =
         {|Returns a list of parallel pairs from `as` and `bs`.
         If the lists differ in length, values from the longer list are dropped.
         For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"]]`.
-        Use `List::zip` if you want to enforce equivalent lengths for `as` and `bs`.|}
+        Use `List::zip` if you want to enforce equivalent lengths for `as` and `bs`.
+        See `List::unzip` if you want to deconstruct the result into `as` and `bs` again.|}
     ; func =
         InProcess
           (function
@@ -775,6 +776,7 @@ let fns =
     ; description =
         {|If the lists have the same length, returns `Just list` formed from parallel pairs in `as` and `bs`.
         For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"], [3,"z"]]`.
+        See `List::unzip` if you want to deconstruct `list` into `as` and `bs` again.
         If the lists differ in length, returns `Nothing` (consider `List::zipShortest` if you want to drop values from the longer list instead).|}
     ; func =
         InProcess
@@ -789,6 +791,74 @@ let fns =
                     OptJust (Dval.to_list res)
                 | Unequal_lengths ->
                     OptNothing )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::unzip"]
+    ; infix_names = []
+    ; parameters = [par "pairs" TList]
+    ; return_type = TList
+    ; description =
+        {|Given a `pairs` list where each value is a list of two values (such lists are constructed by `List::zip` and `List::zipShortest`), returns a list of two lists,
+        one with every first value, and one with every second value. For example, if `pairs` is `[[1,"x"], [2,"y"], [3,"z"]]`, returns `[[1,2,3], ["x","y","z"]]`.|}
+    ; func =
+        (* We should deprecate this once we have tuples and homogenous lists *)
+        InProcess
+          (function
+          | state, [DList l] ->
+              let debug_idx_from_rev_idx (rev_idx : int) (l : 'a list) : string
+                  =
+                List.length l - 1 - rev_idx |> Int.to_string
+              in
+              let fold_fn
+                  (rev_idx : int)
+                  (acc : (dval list * dval list, dval (* type error *)) result)
+                  (dv : dval) :
+                  (dval list * dval list, dval (* type error *)) result =
+                Result.bind acc ~f:(fun (acc_a, acc_b) ->
+                    match dv with
+                    | DList [a; b] ->
+                        Ok (a :: acc_a, b :: acc_b)
+                    | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                        Error dv
+                    | v ->
+                        let err_details =
+                          match v with
+                          | DList l ->
+                              "It has length "
+                              ^ (List.length l |> Int.to_string)
+                              ^ " but must have length 2."
+                          | non_list ->
+                              let tipe =
+                                non_list
+                                |> Dval.tipe_of
+                                |> Dval.tipe_to_developer_repr_v0
+                              in
+                              "It is of type `" ^ tipe ^ "` instead of `List`."
+                        in
+                        Error
+                          (DError
+                             ( SourceNone
+                             , "Expected every value within the `pairs` argument passed to `"
+                               ^ state.executing_fnname
+                               ^ "` to be a list with exactly two values. However, that is not the case for the value at index "
+                               ^ debug_idx_from_rev_idx rev_idx l
+                               ^ ": `"
+                               ^ Dval.to_developer_repr_v0 v
+                               ^ "`. "
+                               ^ err_details )))
+              in
+              let result =
+                (* We reverse here so that the [foldi] consing happens in the correct order.
+                * It does mean that the index passed by [foldi] counts from the end *)
+                l |> List.rev |> List.foldi ~init:(Ok ([], [])) ~f:fold_fn
+              in
+              ( match result with
+              | Ok (res_a, res_b) ->
+                  DList [DList res_a; DList res_b]
+              | Error v ->
+                  v )
           | args ->
               fail args)
     ; preview_safety = Safe

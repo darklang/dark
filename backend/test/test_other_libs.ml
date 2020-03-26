@@ -5,33 +5,6 @@ open Prelude
 open Utils
 open Libshared.FluidShortcuts
 
-let t_stdlib_works () =
-  check_dval
-    "uniqueBy1"
-    (exec_ast'
-       (fn
-          "List::uniqueBy"
-          [ list [int 1; int 2; int 3; int 4]
-          ; lambda ["x"] (fn "Int::divide" [var "x"; int 2]) ]))
-    (DList [Dval.dint 1; Dval.dint 3; Dval.dint 4]) ;
-  check_dval
-    "uniqueBy2"
-    (exec_ast'
-       (fn
-          "List::uniqueBy"
-          [list [int 1; int 2; int 3; int 4]; lambda ["x"] (var "x")]))
-    (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3; Dval.dint 4]) ;
-  check_dval
-    "getAt1"
-    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 0]))
-    (DOption (OptJust (Dval.dint 1))) ;
-  check_dval
-    "getAt2"
-    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 4]))
-    (DOption OptNothing) ;
-  ()
-
-
 let t_option_stdlibs_work () =
   check_dval
     "map just"
@@ -316,6 +289,143 @@ let t_dict_stdlibs_work () =
     (DList [dstr "val1"])
     (exec_ast "(Dict::values (obj (key1 'val1')))") ;
   check_dval
+    "Dict::toList works (empty)"
+    (DList [])
+    (exec_ast' (fn "Dict::toList" [record []])) ;
+  check_dval
+    "Dict::toList works (full)"
+    (DList
+       [ DList [dstr "a"; dint 1]
+       ; DList [dstr "b"; dint 2]
+       ; DList [dstr "c"; dint 3] ])
+    (exec_ast'
+       (fn "Dict::toList" [record [("a", int 1); ("b", int 2); ("c", int 3)]])) ;
+  check_dval
+    "Dict::fromListOverwitingDuplicates works (empty)"
+    (DObj (DvalMap.from_list []))
+    (exec_ast' (fn "Dict::fromListOverwritingDuplicates" [list []])) ;
+  check_dval
+    "Dict::fromListOverwitingDuplicates works (key-value pairs)"
+    (DObj (DvalMap.from_list [("a", dint 1); ("b", dint 2); ("c", dint 3)]))
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "c"; int 3] ] ])) ;
+  check_dval
+    "Dict::fromListOverwitingDuplicates works (overwrites duplicates correctly)"
+    (DObj (DvalMap.from_list [("a", dint 3); ("b", dint 2)]))
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "a"; int 3] ] ])) ;
+  check_error_contains
+    "Dict::fromListOverwitingDuplicates works (wrong length - identifies index)"
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "c"; int 3; int 3] ] ]))
+    "Expected every value within the `entries` argument passed to `Dict::fromListOverwritingDuplicates` to be a `[key, value]` list. However, that is not the case for the value at index 2" ;
+  check_error_contains
+    "Dict::fromListOverwitingDuplicates works (wrong length - identifies length)"
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2; int 3]
+              ; list [str "c"; int 3] ] ]))
+    "It has length 3 but must have length 2" ;
+  check_error_contains
+    "Dict::fromListOverwitingDuplicates works (wrong key type)"
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [ list
+              [ list [int 1; int 5]
+              ; list [int 2; int 5; int 3]
+              ; list [int 3; int 5] ] ]))
+    "Keys must be `String`s" ;
+  check_error_contains
+    "Dict::fromListOverwitingDuplicates works (wrong key-value type)"
+    (exec_ast'
+       (fn
+          "Dict::fromListOverwritingDuplicates"
+          [list [list [str "a"; int 1]; int 2; list [str "c"; int 3]]]))
+    "It is of type `Int` instead of `List`" ;
+  check_dval
+    "Dict::fromList works (empty)"
+    (DOption (OptJust (DObj (DvalMap.from_list []))))
+    (exec_ast' (fn "Dict::fromList" [list []])) ;
+  check_dval
+    "Dict::fromList works (key-value pairs)"
+    (DOption
+       (OptJust
+          (DObj
+             (DvalMap.from_list [("a", dint 1); ("b", dint 2); ("c", dint 3)]))))
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "c"; int 3] ] ])) ;
+  check_dval
+    "Dict::fromList works (duplicate key)"
+    (DOption OptNothing)
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "a"; int 3] ] ])) ;
+  check_error_contains
+    "Dict::fromList works (wrong length - identifies index)"
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2]
+              ; list [str "c"; int 3; int 3] ] ]))
+    "Expected every value within the `entries` argument passed to `Dict::fromList` to be a `[key, value]` list. However, that is not the case for the value at index 2" ;
+  check_error_contains
+    "Dict::fromList works (wrong length - identifies length)"
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [ list
+              [ list [str "a"; int 1]
+              ; list [str "b"; int 2; int 3]
+              ; list [str "c"; int 3] ] ]))
+    "It has length 3 but must have length 2" ;
+  check_error_contains
+    "Dict::fromList works (wrong key type)"
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [ list
+              [ list [int 1; int 5]
+              ; list [int 2; int 5; int 3]
+              ; list [int 3; int 5] ] ]))
+    "Keys must be `String`s" ;
+  check_error_contains
+    "Dict::fromList works (wrong key-value type)"
+    (exec_ast'
+       (fn
+          "Dict::fromList"
+          [list [list [str "a"; int 1]; int 2; list [str "c"; int 3]]]))
+    "It is of type `Int` instead of `List`" ;
+  check_dval
     "dict get"
     (DOption (OptJust (dstr "val1")))
     (exec_ast "(Dict::get_v1 (obj (key1 'val1')) 'key1')") ;
@@ -441,6 +551,29 @@ let t_list_stdlibs_work () =
     (DOption (OptJust (DList [Dval.dint 2; Dval.dint 3])))
     (exec_ast' (fn "List::tail" [list [int 1; int 2; int 3]])) ;
   check_dval
+    "List::uniqueBy works (different evaluation for some)"
+    (exec_ast'
+       (fn
+          "List::uniqueBy"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["x"] (fn "Int::divide" [var "x"; int 2]) ]))
+    (DList [Dval.dint 1; Dval.dint 3; Dval.dint 4]) ;
+  check_dval
+    "List::uniqueBy works (different evaluation for all)"
+    (exec_ast'
+       (fn
+          "List::uniqueBy"
+          [list [int 1; int 2; int 3; int 4]; lambda ["x"] (var "x")]))
+    (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3; Dval.dint 4]) ;
+  check_dval
+    "List::getAt works (in range)"
+    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 0]))
+    (DOption (OptJust (Dval.dint 1))) ;
+  check_dval
+    "List::getAt works (index == length)"
+    (exec_ast' (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 4]))
+    (DOption OptNothing) ;
+  check_dval
     "List::filter_v2 works (empty)"
     (DList [])
     (exec_ast' (fn "List::filter_v2" [list []; lambda ["item"] (bool true)])) ;
@@ -553,6 +686,44 @@ let t_list_stdlibs_work () =
        (fn
           "List::zipShortest"
           [list [int 10; int 20; int 30]; list [int 1; int 2; int 3]])) ;
+  check_dval
+    "List::unzip works (length match)"
+    (DList
+       [ DList [Dval.dint 1; Dval.dint 2; Dval.dint 3]
+       ; DList [Dval.dint 10; Dval.dint 20; Dval.dint 30] ])
+    (exec_ast'
+       (fn
+          "List::unzip"
+          [ list
+              [list [int 1; int 10]; list [int 2; int 20]; list [int 3; int 30]]
+          ])) ;
+  check_error_contains
+    "List::unzip errors (incorrect length - identifies index)"
+    (exec_ast'
+       (fn
+          "List::unzip"
+          [ list
+              [ list [int 1; int 10]
+              ; list [int 2; int 20]
+              ; list [int 3; int 30; int 40] ] ]))
+    "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index 2" ;
+  check_error_contains
+    "List::unzip errors (incorrect length - identifies length)"
+    (exec_ast'
+       (fn
+          "List::unzip"
+          [ list
+              [ list [int 1; int 10]
+              ; list [int 2; int 20]
+              ; list [int 3; int 30; int 40] ] ]))
+    "It has length 3 but must have length 2" ;
+  check_error_contains
+    "List::unzip errors (incorrect type)"
+    (exec_ast'
+       (fn
+          "List::unzip"
+          [list [list [int 10; int 20]; int 10; list [int 3; int 30]]]))
+    "It is of type `Int` instead of `List`." ;
   check_dval
     "List::filterMap works (empty)"
     (DList [])
@@ -1184,8 +1355,7 @@ let t_liblist_sort_by_comparator_works () =
 
 
 let suite =
-  [ ("Stdlib fns work", `Quick, t_stdlib_works)
-  ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
+  [ ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
   ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work)
   ; ("List stdlibs work", `Quick, t_list_stdlibs_work)
