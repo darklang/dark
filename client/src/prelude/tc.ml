@@ -342,6 +342,9 @@ module StrSet = struct
 
   let removeMany ~(values : string list) (set : t) : t =
     Belt.Set.String.removeMany set (Array.fromList values)
+
+
+  let eq = Belt.Set.String.eq
 end
 
 module Set (K : Key) = struct
@@ -386,4 +389,6 @@ module Set (K : Key) = struct
   let empty = StrSet.empty
 
   let pp = StrSet.pp
+
+  let eq = StrSet.eq
 end

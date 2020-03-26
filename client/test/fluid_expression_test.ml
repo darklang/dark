@@ -5,6 +5,43 @@ module E = FluidExpression
 let gid = Shared.gid
 
 let run () =
+  describe "decendants" (fun () ->
+      (* [t f] helps test the decendants function
+      *
+      * It expects a single function [f], which should return the expression on
+      * which [decendants] is called.
+      *
+      * [f] is passed a function (unit -> ID.t) that should be called to
+      * generate an ID for each decendant expression that is expected in the
+      * result. Each time this generator function is called, the generated ID
+      * is tracked. The test assertion is that all generated IDs appear in the
+      * expression's [decendants] list. *)
+      let t (name : string) (f : (unit -> ID.t) -> E.t) =
+        let generatedIDs = ref ID.Set.empty in
+        let idGenerator () =
+          let id = gid () in
+          generatedIDs := ID.Set.add !generatedIDs ~value:id ;
+          id
+        in
+        let expr = f idGenerator in
+        let decendantIDs = E.decendants expr |> ID.Set.fromList in
+        test name (fun () ->
+            expect decendantIDs
+            |> withEquality ID.Set.eq
+            |> toEqual !generatedIDs)
+      in
+      t "simple expression" (fun gid -> int ~id:(gid ()) 5) ;
+      t "complex expression" (fun gid ->
+          binop ~id:(gid ()) "+" (int ~id:(gid ()) 2) (int ~id:(gid ()) 3)) ;
+      t "let record" (fun gid ->
+          let'
+            ~id:(gid ())
+            "r"
+            (record
+               ~id:(gid ())
+               [("one", int ~id:(gid ()) 1); ("two", int ~id:(gid ()) 2)])
+            (var ~id:(gid ()) "r")) ;
+      ()) ;
   describe "testEqualIgnoringIds" (fun () ->
       let t (expected : bool) (name : string) (e1 : E.t) (e2 : E.t) : unit =
         test name (fun () ->

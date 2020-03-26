@@ -111,8 +111,14 @@ val blanks : t -> t list
 (** [ids e] returns the id of [e] and all its children *)
 val ids : t -> Shared.id list
 
-(** [children e] returns a list of all the children of [e] *)
+(** [children e] returns a list of all the direct children of [e] *)
 val children : t -> t list
+
+(** [decendants e] returns a list of the IDs of all decendants (children,
+ * grandchildren, etc) of [e] in an unspecified order *)
+val decendants : t -> Shared.id list
+
+val ancestors : Shared.id -> t -> t list
 
 (** [update f target ast] recursively searches [ast] for an expression e
     having an Shared.id of [target].
@@ -131,8 +137,6 @@ val renameVariableUses : oldName:string -> newName:string -> t -> t
 val updateVariableUses : string -> f:(t -> t) -> t -> t
 
 val clone : t -> t
-
-val ancestors : Shared.id -> t -> t list
 
 (** [testEqualIgnoringIds a b] compares the structure and values of two ASTs,
   * ignoring the actual IDs of the expressions.
