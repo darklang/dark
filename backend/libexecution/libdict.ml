@@ -90,11 +90,7 @@ let fns =
           (function
           | state, [DList l] ->
               let abortReason = ref None in
-              let debug_idx_from_rev_idx (rev_idx : int) (l : 'a list) : string
-                  =
-                List.length l - 1 - rev_idx |> Int.to_string
-              in
-              let f (rev_idx : int) (acc : dval DvalMap.t) (dv : dval) :
+              let f (idx : int) (acc : dval DvalMap.t) (dv : dval) :
                   dval DvalMap.t =
                 if !abortReason = None
                 then (
@@ -138,7 +134,7 @@ let fns =
                              , "Expected every value within the `entries` argument passed to `"
                                ^ state.executing_fnname
                                ^ "` to be a `[key, value]` list. However, that is not the case for the value at index "
-                               ^ debug_idx_from_rev_idx rev_idx l
+                               ^ Int.to_string idx
                                ^ ": `"
                                ^ Dval.to_developer_repr_v0 v
                                ^ "`. "
@@ -146,9 +142,7 @@ let fns =
                       DvalMap.empty )
                 else DvalMap.empty
               in
-              (* We reverse here so that the fold accumulates in the correct direction.
-               * It does mean that the index passed by foldi is counting from the end *)
-              let result = l |> List.rev |> List.foldi ~init:DvalMap.empty ~f in
+              let result = l |> List.foldi ~init:DvalMap.empty ~f in
               (match !abortReason with None -> DObj result | Some v -> v)
           | args ->
               fail args)
