@@ -89,7 +89,7 @@ let fns =
         InProcess
           (function
           | state, [DList l] ->
-              let f
+              let fold_fn
                   (idx : int)
                   (acc : (dval DvalMap.t, dval (* type error *)) result)
                   (dv : dval) : (dval DvalMap.t, dval (* type error *)) result =
@@ -141,7 +141,9 @@ let fns =
                                ^ "`. "
                                ^ err_details )))
               in
-              let result = l |> List.foldi ~init:(Ok DvalMap.empty) ~f in
+              let result =
+                l |> List.foldi ~init:(Ok DvalMap.empty) ~f:fold_fn
+              in
               (match result with Ok res -> DObj res | Error v -> v)
           | args ->
               fail args)
@@ -159,7 +161,7 @@ let fns =
         InProcess
           (function
           | state, [DList l] ->
-              let f
+              let fold_fn
                   (idx : int) (acc : (dval DvalMap.t, dval) result) (dv : dval)
                   : (dval DvalMap.t, dval) result =
                 (* The dval for the result error could either be [Error DError] (in case of a type error)
@@ -219,7 +221,7 @@ let fns =
               in
               let result =
                 l
-                |> List.foldi ~init:(Ok DvalMap.empty) ~f
+                |> List.foldi ~init:(Ok DvalMap.empty) ~f:fold_fn
                 |> Result.map ~f:(fun o -> DOption (OptJust (DObj o)))
               in
               (match result with Ok res -> res | Error v -> v)

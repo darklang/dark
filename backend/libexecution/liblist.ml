@@ -814,7 +814,8 @@ let fns =
               let fold_fn
                   (rev_idx : int)
                   (acc : (dval list * dval list, dval (* type error *)) result)
-                  (dv : dval) : (dval list * dval list, dval (* type error *)) result =
+                  (dv : dval) :
+                  (dval list * dval list, dval (* type error *)) result =
                 Result.bind acc ~f:(fun (acc_a, acc_b) ->
                     match dv with
                     | DList [a; b] ->
