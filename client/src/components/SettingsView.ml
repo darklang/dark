@@ -81,10 +81,13 @@ let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
 let update (settingsView : settingsViewState) (msg : settingsMsg) :
     settingsViewState =
   match msg with
-  | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
+  | SetSettingsView
+      (canvasName, canvasList, username, orgs, orgCanvasList, creationDate) ->
       { settingsView with
         canvasList
-      ; orgList
+      ; username
+      ; orgs
+      ; orgCanvasList
       ; canvasInformation =
           { settingsView.canvasInformation with
             canvasName
@@ -209,6 +212,8 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
 
 let settingsTabToText (tab : settingsTab) : string =
   match tab with
+  | NewCanvas ->
+      "NewCanvas"
   | CanvasInfo ->
       "About"
   | UserSettings ->
@@ -234,9 +239,9 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p [] [Html.text "Create a new canvas by navigating to the URL"] ]
   in
-  let orgs = List.map acc.orgList ~f:canvasLink |> Html.ul [] in
+  let orgs = List.map acc.orgCanvasList ~f:canvasLink |> Html.ul [] in
   let orgView =
-    if List.length acc.orgList > 0
+    if List.length acc.orgCanvasList > 0
     then
       [ Html.p [Html.class' "canvas-list-title"] [Html.text "Shared canvases:"]
       ; Html.div [Html.class' "canvas-list"] [orgs] ]
@@ -301,6 +306,27 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
   introText @ inviteform
 
 
+let viewNewCanvas (svs : settingsViewState) : Types.msg Html.html list =
+  let text =
+    Printf.sprintf
+      "Create a new canvas (or go to it if it already exists) by visiting /a/%s-canvasname"
+      svs.username
+  in
+  let text =
+    if List.isEmpty svs.orgs
+    then text ^ "."
+    else
+      text
+      ^ Printf.sprintf
+          " or /a/orgname-canvasname, where orgname may be any of (%s)."
+          (svs.orgs |> String.join ~sep:", ")
+  in
+  let introText =
+    [Html.h2 [] [Html.text "New Canvas"]; Html.p [] [Html.text text]]
+  in
+  introText
+
+
 let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   let shipped, shippedText =
     match canvas.shippedDate with
@@ -354,6 +380,8 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
+  | NewCanvas ->
+      viewNewCanvas svs
   | CanvasInfo ->
       viewCanvasInfo svs.canvasInformation
   | UserSettings ->

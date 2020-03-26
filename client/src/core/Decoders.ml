@@ -919,7 +919,8 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
   ; canvasList = field "canvas_list" (list string) j
-  ; orgList = field "org_list" (list string) j
+  ; orgs = field "orgs" (list string) j
+  ; orgCanvasList = field "org_canvas_list" (list string) j
   ; workerSchedules = field "worker_schedules" (strDict string) j
   ; creationDate = field "creation_date" jsDate j }
 
