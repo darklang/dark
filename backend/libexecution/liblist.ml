@@ -807,40 +807,36 @@ let fns =
         InProcess
           (function
           | state, [DList l] ->
-              let abortReason = ref None in
               let debug_idx_from_rev_idx (rev_idx : int) (l : 'a list) : string
                   =
                 List.length l - 1 - rev_idx |> Int.to_string
               in
-              let f
+              let fold_fn
                   (rev_idx : int)
-                  ((acc_a, acc_b) : dval list * dval list)
-                  (dv : dval) : dval list * dval list =
-                if !abortReason = None
-                then (
-                  match dv with
-                  | DList [a; b] ->
-                      (a :: acc_a, b :: acc_b)
-                  | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
-                      abortReason := Some dv ;
-                      ([], [])
-                  | v ->
-                      let err_details =
-                        match v with
-                        | DList l ->
-                            "It has length "
-                            ^ (List.length l |> Int.to_string)
-                            ^ " but must have length 2."
-                        | non_list ->
-                            let tipe =
-                              non_list
-                              |> Dval.tipe_of
-                              |> Dval.tipe_to_developer_repr_v0
-                            in
-                            "It is of type `" ^ tipe ^ "` instead of `List`."
-                      in
-                      abortReason :=
-                        Some
+                  (acc : (dval list * dval list, dval (* type error *)) result)
+                  (dv : dval) : (dval list * dval list, dval (* type error *)) result =
+                Result.bind acc ~f:(fun (acc_a, acc_b) ->
+                    match dv with
+                    | DList [a; b] ->
+                        Ok (a :: acc_a, b :: acc_b)
+                    | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                        Error dv
+                    | v ->
+                        let err_details =
+                          match v with
+                          | DList l ->
+                              "It has length "
+                              ^ (List.length l |> Int.to_string)
+                              ^ " but must have length 2."
+                          | non_list ->
+                              let tipe =
+                                non_list
+                                |> Dval.tipe_of
+                                |> Dval.tipe_to_developer_repr_v0
+                              in
+                              "It is of type `" ^ tipe ^ "` instead of `List`."
+                        in
+                        Error
                           (DError
                              ( SourceNone
                              , "Expected every value within the `pairs` argument passed to `"
@@ -850,19 +846,17 @@ let fns =
                                ^ ": `"
                                ^ Dval.to_developer_repr_v0 v
                                ^ "`. "
-                               ^ err_details )) ;
-                      ([], []) )
-                else ([], [])
+                               ^ err_details )))
               in
-              let res_a, res_b =
+              let result =
                 (* We reverse here so that the [foldi] consing happens in the correct order.
                 * It does mean that the index passed by [foldi] counts from the end *)
-                l |> List.rev |> List.foldi ~init:([], []) ~f
+                l |> List.rev |> List.foldi ~init:(Ok ([], [])) ~f:fold_fn
               in
-              ( match !abortReason with
-              | None ->
+              ( match result with
+              | Ok (res_a, res_b) ->
                   DList [DList res_a; DList res_b]
-              | Some v ->
+              | Error v ->
                   v )
           | args ->
               fail args)
