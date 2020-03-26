@@ -1354,6 +1354,56 @@ let t_float_stdlibs () =
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.infinity)
     (exec_ast "(Float::max Infinity 1.0)") ;
+  check_dval
+    "Float::clamp works (in bounds)"
+    (DOption (OptJust (DFloat (-2.0))))
+    (exec_ast' (fn "Float::clamp" [float' (-2) 0; float' (-5) 0; float' 5 0])) ;
+  check_dval
+    "Float::clamp works (below min)"
+    (DOption (OptJust (DFloat (-2.0))))
+    (exec_ast' (fn "Float::clamp" [float' (-3) 0; float' (-2) 0; float' 1 0])) ;
+  check_dval
+    "Float::clamp works (above max)"
+    (DOption (OptJust (DFloat 2.0)))
+    (exec_ast' (fn "Float::clamp" [float' 3 0; float' 0 0; float' 2 0])) ;
+  check_dval
+    "Float::clamp works (max = min)"
+    (DOption (OptJust (DFloat 1.0)))
+    (exec_ast' (fn "Float::clamp" [float' (-5) 0; float' 1 0; float' 1 0])) ;
+  check_dval
+    "Float::clamp works (min > max)"
+    (DOption OptNothing)
+    (exec_ast' (fn "Float::clamp" [float' 1 0; float' 2 0; float' 1 0])) ;
+  check_dval
+    "Float::clamp works (val = infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DOption (OptJust (DFloat 0.5)))
+    (exec_ast "(Float::clamp Infinity -1.0 0.5)") ;
+  check_dval
+    "Float::clamp works (min = -infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DOption (OptJust (DFloat 0.5)))
+    (exec_ast "(Float::clamp 0.5 -Infinity 1.0)") ;
+  check_dval
+    "Float::clamp works (val = infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DOption (OptJust (DFloat 0.5)))
+    (exec_ast "(Float::clamp Infinity -1.0 0.5)") ;
+  check_dval
+    "Float::clamp works (min = nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DOption OptNothing)
+    (exec_ast "(Float::clamp 0.5 NaN 1.0)") ;
+  check_dval
+    "Float::clamp works (max = nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DOption OptNothing)
+    (exec_ast "(Float::clamp 0.5 1.0 NaN)") ;
+  check_dval
+    "Float::clamp works (val = nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DOption (OptJust (DFloat Float.nan)))
+    (exec_ast "(Float::clamp NaN -1.0 1.0)") ;
   check_dval "Float::sqrt works" (DFloat 5.0) (exec_ast "(Float::sqrt 25.0)") ;
   check_dval
     "Float::power works"
@@ -1449,6 +1499,26 @@ let t_int_stdlibs () =
     "Int::absoluteValue works (pos)"
     (Dval.dint 5)
     (exec_ast' (fn "Int::absoluteValue" [int 5])) ;
+  check_dval
+    "Int::clamp works (in bounds)"
+    (DOption (OptJust (Dval.dint (-2))))
+    (exec_ast' (fn "Int::clamp" [int (-2); int (-5); int 5])) ;
+  check_dval
+    "Int::clamp works (below min)"
+    (DOption (OptJust (Dval.dint (-2))))
+    (exec_ast' (fn "Int::clamp" [int (-3); int (-2); int 1])) ;
+  check_dval
+    "Int::clamp works (above max)"
+    (DOption (OptJust (Dval.dint 2)))
+    (exec_ast' (fn "Int::clamp" [int 3; int 0; int 2])) ;
+  check_dval
+    "Int::clamp works (max = min)"
+    (DOption (OptJust (Dval.dint 1)))
+    (exec_ast' (fn "Int::clamp" [int (-5); int 1; int 1])) ;
+  check_dval
+    "Int::clamp works (min > max)"
+    (DOption OptNothing)
+    (exec_ast' (fn "Int::clamp" [int 1; int 2; int 1])) ;
   check_dval
     "Int::negate works (neg)"
     (Dval.dint 5)
