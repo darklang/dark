@@ -262,4 +262,25 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::clamp"]
+    ; infix_names = []
+    ; parameters =
+        [par "value" TFloat; par "minimum" TFloat; par "maximum" TFloat]
+    ; return_type = TOption
+    ; description =
+        "If `minimum <= maximum`, returns `Just clamped`, where `clamped` is the result of constraining `value` within the range specified by `minimum` and `maximum`.
+       Otherwise, returns `Nothing`."
+    ; func =
+        InProcess
+          (function
+          | _, [DFloat v; DFloat min; DFloat max] ->
+            ( match Float.clamp v ~min ~max with
+            | Ok clamped ->
+                DOption (OptJust (DFloat clamped))
+            | Error _ ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false } ]
