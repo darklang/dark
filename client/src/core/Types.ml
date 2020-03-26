@@ -990,10 +990,6 @@ and focus =
   (* unchanged *)
   | FocusNoChange
 
-and toast =
-  { toastMessage : string option
-  ; toastPos : vPos option }
-
 and isTransitionAnimated =
   | AnimateTransition
   | DontAnimateTransition
@@ -1130,7 +1126,6 @@ and modification =
   | AddToGroup of TLID.t * TLID.t
   | UndoGroupDelete of TLID.t * group
   | MoveMemberToNewGroup of TLID.t * TLID.t * model
-  | ShowSaveToast
   | SetClipboardContents of clipboardContents * clipboardEvent
   | UpdateASTCache of TLID.t * string
   | InitASTCache of handler list * userFunction list
@@ -1300,7 +1295,7 @@ and msg =
   | SetHandlerExeIdle of TLID.t
   | CopyCurl of TLID.t * vPos
   | TLMenuMsg of TLID.t * menuMsg
-  | ResetToast
+  | ToastMessage of Toast.msg
   | UpdateMinimap of string option
   | GoToArchitecturalView
   | DeleteGroup of TLID.t
@@ -1656,7 +1651,7 @@ and model =
   ; clientOpCtrId : string
   ; permission : permission option
   ; showTopbar : bool
-  ; toast : toast
+  ; toast : Toast.State.t
   ; username : string
   ; account : account
   ; workerSchedules : string StrDict.t

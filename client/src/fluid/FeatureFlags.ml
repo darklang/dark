@@ -69,14 +69,7 @@ let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
     (* Show a toast, because this is unexpected *)
     ReplaceAllModificationsWithThisOne
       (fun m ->
-        ( { m with
-            toast =
-              { m.toast with
-                toastMessage =
-                  Some
-                    "Only one Feature Flag per-handler/function is supported at this time"
-              } }
-        , Tea.Cmd.none ))
+        ({m with toast = Toast.show ErrorOnlyOneFeatureFlag}, Tea.Cmd.none))
   else
     ast
     |> Option.map ~f:(fun ast -> wrap ast id |> Toplevel.setASTMod tl)

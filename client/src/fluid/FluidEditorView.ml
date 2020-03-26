@@ -371,7 +371,7 @@ let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
       Vdom.noNode
 
 
-let errorRailView (s : state) : Types.msg Html.html =
+let errorRailView (s : state) : 'msg Html.html =
   let indicators = List.map s.tokens ~f:(viewErrorIndicator s) in
   let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
   Html.div

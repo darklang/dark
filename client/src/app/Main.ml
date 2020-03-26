@@ -795,13 +795,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | MoveMemberToNewGroup (gTLID, tlid, newMod) ->
         let newMod, newCmd = Groups.addToGroup newMod gTLID tlid in
         (newMod, newCmd)
-    | ShowSaveToast ->
-        (* This shows the user that they dont need to hit cmd + s to save. *)
-        ( { m with
-            toast =
-              {toastMessage = Some "Dark saves automatically!"; toastPos = None}
-          }
-        , Cmd.none )
     | SetTLTraceID (tlid, traceID) ->
         let m = Analysis.setSelectedTraceID m tlid traceID in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -1952,9 +1945,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ClipboardCopyEvent e ->
       let toast =
         ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( {m with toast = {m.toast with toastMessage = Some "Copied!"}}
-            , Cmd.none ))
+          (fun m -> ({m with toast = Toast.show DidCopy}, Cmd.none))
       in
       let clipboardData = Fluid.getCopySelection m in
       Many [SetClipboardContents (clipboardData, e); toast]
@@ -1964,9 +1955,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ClipboardCutEvent e ->
       let toast =
         ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( {m with toast = {m.toast with toastMessage = Some "Copied!"}}
-            , Cmd.none ))
+          (fun m -> ({m with toast = Toast.show DidCopy}, Cmd.none))
       in
       let copyData, mod_ =
         (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
@@ -1976,8 +1965,8 @@ let update_ (msg : msg) (m : model) : modification =
       Native.Clipboard.copyToClipboard lv ;
       ReplaceAllModificationsWithThisOne
         (fun m ->
-          ( {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
-          , Cmd.none ))
+          let pos = {Toast.x = pos.vx; Toast.y = pos.vy} in
+          ({m with toast = Toast.show ~pos DidCopy}, Cmd.none))
   | EventDecoderError (name, key, error) ->
       (* Consider rollbar'ing here, but consider the following before doing so:
        *    - old clients after a deploy
@@ -2064,9 +2053,9 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidMsg msg ->
       (* Handle all other messages *)
       Fluid.update m msg
-  | ResetToast ->
+  | ToastMessage msg ->
       ReplaceAllModificationsWithThisOne
-        (fun m -> ({m with toast = Defaults.defaultToast}, Cmd.none))
+        (fun m -> ({m with toast = Toast.update msg}, Cmd.none))
   | UpdateMinimap data ->
       ReplaceAllModificationsWithThisOne
         (fun m ->

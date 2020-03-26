@@ -547,8 +547,8 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
-(** [getNextEditable pos tokens] returns the first editable token after [pos] in 
- * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in 
+(** [getNextEditable pos tokens] returns the first editable token after [pos] in
+ * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in
  * [tokens], or None if no editable token exists. *)
 let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
@@ -581,8 +581,8 @@ let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
-(** [getPrevEditable pos tokens] returns the closest editable token before [pos] in 
-* [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in 
+(** [getPrevEditable pos tokens] returns the closest editable token before [pos] in
+* [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in
 * [tokens], or None if no editable exists. *)
 let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
     =
@@ -5446,13 +5446,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       let maybeOpen = maybeOpenCmd m in
       let showToast =
         ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( { m with
-                toast =
-                  { toastMessage =
-                      Some "Command Palette has been moved to Ctrl-\\."
-                  ; toastPos = None } }
-            , Tea.Cmd.none ))
+          (fun m -> ({m with toast = Toast.show CmdPaletteMoved}, Tea.Cmd.none))
       in
       ( match heritage with
       | K.LegacyShortcut ->

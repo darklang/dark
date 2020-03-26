@@ -65,7 +65,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
   else if (not isMac) && event.ctrlKey && event.keyCode = Key.Y
   then undo_redo m true
   else if osCmdKeyHeld && event.keyCode = Key.S
-  then ShowSaveToast
+  then
+    ReplaceAllModificationsWithThisOne
+      (fun m -> ({m with toast = Toast.show DidAutosave}, Cmd.none))
   else
     match m.cursorState with
     | Selecting (tlid, mId) ->

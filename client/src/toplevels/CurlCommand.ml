@@ -275,8 +275,11 @@ let copyCurlMod (m : model) (tlid : TLID.t) (pos : vPos) : modification =
       ReplaceAllModificationsWithThisOne
         (fun m ->
           let m = TLMenu.update m tlid CloseMenu in
-          ( {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
-          , Tea.Cmd.none ))
+          let m =
+            let pos = {Toast.x = pos.vx; y = pos.vy} in
+            {m with toast = Toast.show ~pos Toast.DidCopy}
+          in
+          (m, Tea.Cmd.none))
   | None ->
       ReplaceAllModificationsWithThisOne
         (fun m -> (TLMenu.update m tlid CloseMenu, Tea.Cmd.none))

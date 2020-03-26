@@ -98,13 +98,10 @@ let commands : command list =
             match data with
             | Some data ->
                 Native.Clipboard.copyToClipboard data ;
-                Some "Copied!"
+                Toast.DidCopy
             | None ->
-                Some "Could not copy, try again after clicking this handler."
+                Toast.FailedCopy
           in
           ReplaceAllModificationsWithThisOne
-            (fun m ->
-              (* TODO: toastPos is a vPos, how do we get a vPos without a
-               * mouseEvent? *)
-              ({m with toast = {toastMessage; toastPos = None}}, Tea.Cmd.none)))
+            (fun m -> ({m with toast = Toast.show toastMessage}, Tea.Cmd.none)))
     ; doc = "Copy request as curl command" } ]

@@ -169,17 +169,12 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
   | TriggerUpdateCanvasInfoCallback (Ok _) ->
       [ SettingsViewUpdate msg
       ; ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( { m with
-                toast =
-                  {toastMessage = Some "Canvas Info saved!"; toastPos = None} }
-            , Cmd.none )) ]
+          (fun m -> ({m with toast = Toast.show DidSaveCanvasInfo}, Cmd.none))
+      ]
   | TriggerSendInviteCallback (Ok _) ->
       [ SettingsViewUpdate msg
       ; ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( {m with toast = {toastMessage = Some "Sent!"; toastPos = None}}
-            , Cmd.none )) ]
+          (fun m -> ({m with toast = Toast.show DidSendInvite}, Cmd.none)) ]
   | CloseSettingsView tab ->
       let cmd =
         match tab with CanvasInfo -> sendCanvasInformation m | _ -> Cmd.none

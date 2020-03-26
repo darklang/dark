@@ -370,27 +370,6 @@ let viewMinimap (data : string option) : msg Html.html =
       Vdom.noNode
 
 
-let viewToast (t : toast) : msg Html.html =
-  let msg = Option.withDefault ~default:"" t.toastMessage in
-  let classes =
-    if Option.isSome t.toastMessage then "toast show" else "toast"
-  in
-  let styleOverrides =
-    match t.toastPos with
-    | Some {vx; vy} ->
-        Html.styles
-          [ ("top", string_of_int (vy - 10) ^ "px")
-          ; ("left", string_of_int (vx + 10) ^ "px") ]
-    | None ->
-        Vdom.noProp
-  in
-  Html.div
-    [ Html.class' classes
-    ; ViewUtils.onAnimationEnd ~key:"toast" ~listener:(fun _ -> ResetToast)
-    ; styleOverrides ]
-    [Html.text msg]
-
-
 let accountView (m : model) : msg Html.html =
   let logout =
     Html.a
@@ -500,7 +479,7 @@ let view (m : model) : msg Html.html =
       ; body
       ; activeAvatars
       ; accountView m
-      ; viewToast m.toast
+      ; Html.map (fun m -> ToastMessage m) (Toast.view m.toast)
       ; entry
       ; modal
       ; settingsModal ]

@@ -69,8 +69,6 @@ let defaultHandlerProp : handlerProp =
   ; execution = Idle }
 
 
-let defaultToast : toast = {toastMessage = None; toastPos = None}
-
 let defaultAccount : account = {name = ""; email = ""; username = ""}
 
 let defaultWorkerStats : workerStats = {count = 0; schedule = None}
@@ -149,7 +147,7 @@ let defaultModel : model =
   ; lastReload = None
   ; permission = None
   ; showTopbar = true
-  ; toast = defaultToast
+  ; toast = Toast.State.empty
   ; account = defaultAccount
   ; workerSchedules = StrDict.empty
   ; searchCache = TLIDDict.empty
