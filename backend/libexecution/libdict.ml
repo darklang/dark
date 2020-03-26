@@ -112,34 +112,33 @@ let fns =
                                 |> Dval.tipe_of
                                 |> Dval.tipe_to_developer_repr_v0
                               in
-                              "Keys must be `String`s but the type of `"
-                              ^ Dval.to_developer_repr_v0 k
-                              ^ "` is `"
-                              ^ tipe
-                              ^ "`."
+                              Printf.sprintf
+                                "Keys must be `String`s but the type of `%s` is `%s`."
+                                (Dval.to_developer_repr_v0 k)
+                                tipe
                           | DList l ->
-                              "It has length "
-                              ^ (List.length l |> Int.to_string)
-                              ^ " but must have length 2."
+                              Printf.sprintf
+                                "It has length %i but must have length 2."
+                                (List.length l)
                           | non_list ->
                               let tipe =
                                 non_list
                                 |> Dval.tipe_of
                                 |> Dval.tipe_to_developer_repr_v0
                               in
-                              "It is of type `" ^ tipe ^ "` instead of `List`."
+                              Printf.sprintf
+                                "It is of type `%s` instead of `List`."
+                                tipe
                         in
                         Error
                           (DError
                              ( SourceNone
-                             , "Expected every value within the `entries` argument passed to `"
-                               ^ state.executing_fnname
-                               ^ "` to be a `[key, value]` list. However, that is not the case for the value at index "
-                               ^ Int.to_string idx
-                               ^ ": `"
-                               ^ Dval.to_developer_repr_v0 v
-                               ^ "`. "
-                               ^ err_details )))
+                             , Printf.sprintf
+                                 "Expected every value within the `entries` argument passed to `%s` to be a `[key, value]` list. However, that is not the case for the value at index %i: `%s`. %s"
+                                 state.executing_fnname
+                                 idx
+                                 (Dval.to_developer_repr_v0 v)
+                                 err_details )))
               in
               let result =
                 l |> List.foldi ~init:(Ok DvalMap.empty) ~f:fold_fn
@@ -190,34 +189,33 @@ let fns =
                                 |> Dval.tipe_of
                                 |> Dval.tipe_to_developer_repr_v0
                               in
-                              "Keys must be `String`s but the type of `"
-                              ^ Dval.to_developer_repr_v0 k
-                              ^ "` is `"
-                              ^ tipe
-                              ^ "`."
+                              Printf.sprintf
+                                "Keys must be `String`s but the type of `%s` `%s`."
+                                (Dval.to_developer_repr_v0 k)
+                                tipe
                           | DList l ->
-                              "It has length "
-                              ^ (List.length l |> Int.to_string)
-                              ^ " but must have length 2."
+                              Printf.sprintf
+                                "It has length %i but must have length 2."
+                                (List.length l)
                           | non_list ->
                               let tipe =
                                 non_list
                                 |> Dval.tipe_of
                                 |> Dval.tipe_to_developer_repr_v0
                               in
-                              "It is of type `" ^ tipe ^ "` instead of `List`."
+                              Printf.sprintf
+                                "It is of type `%s` instead of `List`."
+                                tipe
                         in
                         Error
                           (DError
                              ( SourceNone
-                             , "Expected every value within the `entries` argument passed to `"
-                               ^ state.executing_fnname
-                               ^ "` to be a `[key, value]` list. However, that is not the case for the value at index "
-                               ^ Int.to_string idx
-                               ^ ": `"
-                               ^ Dval.to_developer_repr_v0 v
-                               ^ "`. "
-                               ^ err_details )))
+                             , Printf.sprintf
+                                 "Expected every value within the `entries` argument passed to `%s` to be a `[key, value]` list. However, that is not the case for the value at index %i: `%s`. %s"
+                                 state.executing_fnname
+                                 idx
+                                 (Dval.to_developer_repr_v0 v)
+                                 err_details )))
               in
               let result =
                 l
