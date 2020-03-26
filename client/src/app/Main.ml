@@ -1523,7 +1523,7 @@ let update_ (msg : msg) (m : model) : modification =
                      , r.canvasList
                      , m.username
                      , r.orgs
-                     , r.orgList
+                     , r.orgCanvasList
                      , r.creationDate ))
               in
               ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}

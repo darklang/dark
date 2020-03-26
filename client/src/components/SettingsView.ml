@@ -82,12 +82,12 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
     settingsViewState =
   match msg with
   | SetSettingsView
-      (canvasName, canvasList, username, orgs, orgList, creationDate) ->
+      (canvasName, canvasList, username, orgs, orgCanvasList, creationDate) ->
       { settingsView with
         canvasList
       ; username
       ; orgs
-      ; orgList
+      ; orgCanvasList
       ; canvasInformation =
           { settingsView.canvasInformation with
             canvasName
@@ -230,9 +230,9 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p [] [Html.text "Create a new canvas by navigating to the URL"] ]
   in
-  let orgs = List.map acc.orgList ~f:canvasLink |> Html.ul [] in
+  let orgs = List.map acc.orgCanvasList ~f:canvasLink |> Html.ul [] in
   let orgView =
-    if List.length acc.orgList > 0
+    if List.length acc.orgCanvasList > 0
     then
       [ Html.p [Html.class' "canvas-list-title"] [Html.text "Shared canvases:"]
       ; Html.div [Html.class' "canvas-list"] [orgs] ]
