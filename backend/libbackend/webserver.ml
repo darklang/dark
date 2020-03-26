@@ -897,7 +897,7 @@ let initial_load
     let t6, canvas_list =
       time "6-canvas-list" (fun _ -> Serialize.hosts_for username)
     in
-    let t7, org_list =
+    let t7, org_canvas_list =
       time "7-org-list" (fun _ -> Serialize.orgs_for username)
     in
     let t8, orgs = time "8-orgs" (fun _ -> Serialize.orgs username) in
@@ -917,7 +917,7 @@ let initial_load
             account
             canvas_list
             orgs
-            org_list
+            org_canvas_list
             worker_schedules)
     in
     respond
