@@ -73,6 +73,63 @@ let rec tipe_to_string t : string =
       Exception.internal "Deprecated type"
 
 
+let rec tipe_to_developer_repr_v0 t : string =
+  match t with
+  | TAny ->
+      "Any"
+  | TInt ->
+      "Int"
+  | TFloat ->
+      "Float"
+  | TBool ->
+      "Bool"
+  | TNull ->
+      "Null"
+  | TCharacter ->
+      "Character"
+  | TStr ->
+      "String"
+  | TList ->
+      "List"
+  | TObj ->
+      "Dict"
+  | TBlock ->
+      "Block"
+  | TIncomplete ->
+      "Incomplete"
+  | TError ->
+      "Error"
+  | TResp ->
+      "Response"
+  | TDB ->
+      "Datastore"
+  | TDate ->
+      "Date"
+  | TDbList tipe ->
+      "[" ^ tipe_to_developer_repr_v0 tipe ^ "]"
+  | TPassword ->
+      "Password"
+  | TUuid ->
+      "UUID"
+  | TOption ->
+      "Option"
+  | TErrorRail ->
+      "ErrorRail"
+  | TResult ->
+      "Result"
+  | TUserType (name, _) ->
+      name
+  | TBytes ->
+      "Bytes"
+  | TDeprecated1
+  | TDeprecated2
+  | TDeprecated3
+  | TDeprecated4 _
+  | TDeprecated5 _
+  | TDeprecated6 ->
+      Exception.internal "Deprecated type"
+
+
 let rec tipe_of_string str : tipe =
   match String.lowercase str with
   | "any" ->

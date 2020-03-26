@@ -154,6 +154,11 @@ module StrDict = struct
         if old = None then Some value else old)
 
 
+  let insert_fail_override ~(key : key) ~(value : 'value) (dict : 'value t) :
+      [> `Duplicate | `Ok of 'value t] =
+    Base.Map.add dict ~key ~data:value
+
+
   let singleton k v = from_list [(k, v)]
 
   let is_empty = Base.Map.is_empty

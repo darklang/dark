@@ -92,6 +92,10 @@ val to_enduser_readable_html_v0 : Types.RuntimeT.dval -> string
  * passwords. Customers should not come to rely on this format. *)
 val to_developer_repr_v0 : Types.RuntimeT.dval -> string
 
+(* For printing types for the developer to read, in live-values, error
+ * messages, etc. Customers should not come to rely on this format. *)
+val tipe_to_developer_repr_v0 : Types.tipe_ -> string
+
 (* For passing to Dark functions that operate on JSON, such as the JWT fns.
  * This turns Option and Result into plain values, or null/error. String-like
  * values are rendered as string. Redacts passwords. *)
