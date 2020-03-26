@@ -77,13 +77,13 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::fromList"]
+  ; { prefix_names = ["Dict::fromListOverwritingDuplicates"]
     ; infix_names = []
     ; parameters = [par "entries" TList]
     ; return_type = TObj
     ; description =
         "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
-        If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary.
+        If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary (use `Dict::fromList` if you want to enforce unique keys).
         This function is the opposite of `Dict::toList`."
     ; func =
         InProcess
@@ -148,14 +148,14 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::fromListUnique"]
+  ; { prefix_names = ["Dict::fromList"]
     ; infix_names = []
     ; parameters = [par "entries" TList]
-    ; return_type = TObj
+    ; return_type = TOption
     ; description =
         "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
         If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
-        Otherwise, returns `Nothing` (use `Dict::fromList` if you want to overwrite duplicate keys)."
+        Otherwise, returns `Nothing` (use `Dict::fromListOverwritingDuplicates` if you want to overwrite duplicate keys)."
     ; func =
         InProcess
           (function
