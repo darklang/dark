@@ -61,29 +61,22 @@ let div
   let classAttr = Html.class' (String.join ~sep:" " allClasses) in
   let tlid = TL.id vs.tl in
   let events =
-    let clickAs = if enterable then Some id else None in
-    match clickAs with
-    | Some id ->
-        [ ViewUtils.eventNoPropagation
-            "click"
-            ~key:("bcc-" ^ TLID.toString tlid ^ "-" ^ ID.toString id)
-            (fun x -> BlankOrClick (tlid, id, x))
-        ; ViewUtils.eventNoPropagation
-            "dblclick"
-            ~key:("bcdc-" ^ TLID.toString tlid ^ "-" ^ ID.toString id)
-            (fun x -> BlankOrDoubleClick (tlid, id, x))
-        ; ViewUtils.eventNoPropagation
-            "mouseenter"
-            ~key:("me-" ^ TLID.toString tlid ^ "-" ^ ID.toString id)
-            (fun x -> BlankOrMouseEnter (tlid, id, x))
-        ; ViewUtils.eventNoPropagation
-            "mouseleave"
-            ~key:("ml-" ^ TLID.toString tlid ^ "-" ^ ID.toString id)
-            (fun x -> BlankOrMouseLeave (tlid, id, x)) ]
-    | _ ->
-        (* Rather than relying on property lengths changing, we should use
-         * noProp to indicate that the property at idx N has changed. *)
-        [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
+    if enterable
+    then
+      let keyStr = TLID.toString tlid ^ "-" ^ ID.toString id in
+      let event = ViewUtils.eventNoPropagation in
+      [ event "click" ~key:("bcc-" ^ keyStr) (fun x ->
+            BlankOrClick (tlid, id, x))
+      ; event "dblclick" ~key:("bcdc-" ^ keyStr) (fun x ->
+            BlankOrDoubleClick (tlid, id, x))
+      ; event "mouseenter" ~key:("me-" ^ keyStr) (fun x ->
+            BlankOrMouseEnter (tlid, id, x))
+      ; event "mouseleave" ~key:("ml-" ^ keyStr) (fun x ->
+            BlankOrMouseLeave (tlid, id, x)) ]
+    else
+      (* Rather than relying on property lengths changing, we should use
+       * noProp to indicate that the property at idx N has changed. *)
+      [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
   let leftSideHtml = showParamName in
   let idAttr = Html.id (ID.toString id) in
