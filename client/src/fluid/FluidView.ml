@@ -237,7 +237,9 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                  (Html.div [] [])
            | FeatureFlagEditor expressionId ->
                let flagIcon =
-                 Html.div [Html.class' "ff-icon"] [ViewUtils.fontAwesome "flag"]
+                 Html.div
+                   [Html.class' "ff-icon"; Html.title "feature flag"]
+                   [ViewUtils.fontAwesome "flag"]
                in
                let rowOffset =
                  expressionId
