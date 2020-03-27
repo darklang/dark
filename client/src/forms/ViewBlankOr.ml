@@ -31,14 +31,13 @@ let viewParamName (name : string) : msg Html.html =
 (* Create a Html.div for this ID, incorporating all ID-related data, *)
 (* such as whether it's selected, appropriate events, mouseover, etc. *)
 let div
+    ~(id : ID.t)
     (vs : ViewUtils.viewState)
     (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
   let getFirst fn = configs |> List.filterMap ~f:fn |> List.head in
   (* Extract config *)
-  let thisID =
-    getFirst (fun a -> match a with WithID id -> Some id | _ -> None)
-  in
+  let thisID = Some id in
   let clickAs =
     getFirst (fun a -> match a with ClickSelect -> thisID | _ -> None)
   in
@@ -166,13 +165,15 @@ let viewBlankOr
     (vs : ViewUtils.viewState)
     (configs : htmlConfig list)
     (bo : 'a blankOr) : msg Html.html =
-  let configs = WithID (B.toID bo) :: configs in
+  let id = B.toID bo in
+  let configs = WithID id :: configs in
   let thisText =
     match bo with
     | F (_, fill) ->
-        div vs configs [htmlFn fill]
+        div ~id vs configs [htmlFn fill]
     | Blank _ ->
         div
+          ~id
           vs
           ([WithClass "blank"] @ configs)
           [ Html.div
@@ -187,7 +188,7 @@ let viewBlankOr
         if vs.showEntry
         then
           let placeholder = placeHolderFor vs pt in
-          div vs configs [ViewEntry.normalEntryHtml placeholder vs.ac]
+          div ~id vs configs [ViewEntry.normalEntryHtml placeholder vs.ac]
         else Html.text vs.ac.value
       else thisText
   | _ ->
