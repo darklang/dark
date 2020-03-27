@@ -309,6 +309,8 @@ let aBinOp = EBinOp (gid (), "==", b, b, NoRail)
 
 let aFullBinOp = binop "||" (var "myvar") five
 
+let aRailFnCall = EFnCall (gid (), "String::random", [five], Rail)
+
 (* ---------------- *)
 (* Constructors *)
 (* ---------------- *)
