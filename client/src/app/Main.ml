@@ -1927,9 +1927,8 @@ let update_ (msg : msg) (m : model) : modification =
                 then StrSet.add ~value:key m.routingTableOpenDetails
                 else StrSet.remove ~value:key m.routingTableOpenDetails ) }
           , Cmd.none ))
-  | ToggleSideBar ->
-      ReplaceAllModificationsWithThisOne
-        (fun m -> ({m with sidebarOpen = not m.sidebarOpen}, Cmd.none))
+  | SidebarMsg msg ->
+      ViewSidebar.update msg
   | CreateRouteHandler action ->
       let center = Viewport.findNewPos m in
       Entry.submitOmniAction m center action
@@ -1951,9 +1950,7 @@ let update_ (msg : msg) (m : model) : modification =
       ReplaceAllModificationsWithThisOne
         (fun m -> (Handlers.setHandlerLock tlid locked m, Cmd.none))
   | EnablePanning pan ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ({m with canvasProps = {m.canvasProps with enablePan = pan}}, Cmd.none))
+      ReplaceAllModificationsWithThisOne (Viewport.enablePan pan)
   | ClipboardCopyEvent e ->
       let toast =
         ReplaceAllModificationsWithThisOne

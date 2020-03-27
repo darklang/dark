@@ -20,6 +20,8 @@ let unsetCSRF : string = "UNSET_CSRF"
 
 let defaultUserSettings : savedUserSettings = {showUserWelcomeModal = true}
 
+let defaultSidebar : sidebarState = {mode = DetailedMode; onCategory = None}
+
 let defaultSavedSettings : savedSettings =
   { editorSettings =
       {runTimers = true; showHandlerASTs = false; showFluidDebugger = false}
@@ -30,7 +32,7 @@ let defaultSavedSettings : savedSettings =
   ; handlerProps = TLIDDict.empty
   ; canvasPos = origin
   ; lastReload = None
-  ; sidebarOpen = true
+  ; sidebarState = defaultSidebar
   ; showTopbar = false }
 
 
@@ -143,7 +145,7 @@ let defaultModel : model =
   ; workerStats = StrDict.empty
   ; avatarsList = []
   ; browserId = ""
-  ; sidebarOpen = true
+  ; sidebarState = defaultSidebar
   ; isAdmin = false
   ; buildHash = ""
   ; username = "defaultUsername"
