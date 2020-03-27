@@ -229,18 +229,4 @@ let http_call
   (resp_body, resp_headers, code)
 
 
-let call
-    ?(raw_bytes = false)
-    (url : string)
-    (verb : verb)
-    (headers : (string * string) list)
-    (body : string) : string =
-  Log.debuG
-    "HTTP"
-    ~params:[("verb", show_verb verb); ("url", url)]
-    ~jsonparams:[("body", `Int (body |> String.length))] ;
-  let results, _, _ = http_call ~raw_bytes url [] verb headers body in
-  results
-
-
 let init () : unit = C.global_init C.CURLINIT_GLOBALALL
