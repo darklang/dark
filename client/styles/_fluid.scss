@@ -539,7 +539,6 @@ since they are essentially both commands just acting upon different things. */
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  min-width: 16em;
   width: max-content;
   padding: 4px;
 
@@ -548,6 +547,10 @@ since they are essentially both commands just acting upon different things. */
     color: $ff-color;
     top: -10px;
     left: -5px;
+  }
+
+  .fluid-tokens {
+    min-width: 16em;
   }
 }
 
