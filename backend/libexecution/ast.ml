@@ -55,8 +55,9 @@ let rec pattern2expr p : expr =
 (* AST traversal *)
 (* -------------------- *)
 
-(* Dangerous, deprecated. Do not use. Use post-traverse instead.
- * Co-recursive. See example below. *)
+(* Dangerous and deprecated, do not use: this function is co-recursive which
+ * means you have to use it perfectly which is very hard to do. The example
+ * below demonstrates, but you should use post_traverse instead. *)
 let rec deprecated_traverse ~(f : expr -> expr) (expr : expr) : expr =
   match expr with
   | Partial _ | Blank _ ->

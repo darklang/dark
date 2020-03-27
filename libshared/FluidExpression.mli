@@ -50,8 +50,8 @@ val toID : t -> Shared.id
 (** Generate a new EBlank *)
 val newB : unit -> t
 
-(** Deprecated, this is difficult to use correctly. Use preTraversal or
-    postTraversal instead.
+(** Deprecated, this is difficult to use correctly (you have to call back to
+    deprecatedWalk from within [f]). Use preTraversal or postTraversal instead.
     [walk f ast] is a helper for recursively walking an expression tree. It
     returns a new ast with every subexpression e replaced by [f e]. To use
     effectively, [f] must call [walk]. *)
