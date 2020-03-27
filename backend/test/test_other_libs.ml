@@ -1483,6 +1483,76 @@ let t_float_stdlibs () =
 
 
 let t_int_stdlibs () =
+  let dstr = Dval.dstr_of_string_exn in
+  check_dval
+    "Int::mod_v1 works (sweep, pos)"
+    (DList
+       [ DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1))
+       ; DResult (ResOk (Dval.dint 2))
+       ; DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1))
+       ; DResult (ResOk (Dval.dint 2))
+       ; DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1)) ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (fn "Int::mod_v1" [var "v"; int 4]) ])) ;
+  check_dval
+    "Int::mod_v1 errors (_, 0)"
+    (DResult (ResError (dstr "`modulus` must be positive but was 0")))
+    (exec_ast' (fn "Int::mod_v1" [int 5; int 0])) ;
+  check_dval
+    "Int::mod_v1 errors (_, neg)"
+    (DResult (ResError (dstr "`modulus` must be positive but was -5")))
+    (exec_ast' (fn "Int::mod_v1" [int 5; int (-5)])) ;
+  check_dval
+    "Int::remainder works (sweep, pos)"
+    (DList
+       [ DResult (ResOk (Dval.dint (-1)))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint (-3)))
+       ; DResult (ResOk (Dval.dint (-2)))
+       ; DResult (ResOk (Dval.dint (-1)))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1))
+       ; DResult (ResOk (Dval.dint 2))
+       ; DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1)) ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (fn "Int::remainder" [var "v"; int 4]) ])) ;
+  check_dval
+    "Int::remainder works (sweep, neg)"
+    (DList
+       [ DResult (ResOk (Dval.dint (-1)))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint (-3)))
+       ; DResult (ResOk (Dval.dint (-2)))
+       ; DResult (ResOk (Dval.dint (-1)))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1))
+       ; DResult (ResOk (Dval.dint 2))
+       ; DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1)) ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (fn "Int::remainder" [var "v"; int (-4)]) ])) ;
+  check_dval
+    "Int::remainder errors (0)"
+    (DResult (ResError (dstr "`divisor` must be non-zero")))
+    (exec_ast' (fn "Int::remainder" [int 5; int 0])) ;
   check_dval
     "Int::max works"
     (Dval.dint 6)
