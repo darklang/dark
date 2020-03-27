@@ -22,7 +22,7 @@ type htmlConfig =
 
 let wc (s : string) : htmlConfig = WithClass s
 
-let idConfigs : htmlConfig list = [ClickSelect; Mouseover]
+let enterableConfigs : htmlConfig list = [Enterable; ClickSelect; Mouseover]
 
 let viewParamName (name : string) : msg Html.html =
   let leftOffset = String.length name + 1 in

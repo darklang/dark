@@ -10,11 +10,9 @@ type domEventList = ViewUtils.domEventList
 
 type htmlConfig = ViewBlankOr.htmlConfig
 
-let idConfigs = ViewBlankOr.idConfigs
-
 let fontAwesome = ViewUtils.fontAwesome
 
-let enterable = ViewBlankOr.Enterable
+let enterableConfigs = ViewBlankOr.enterableConfigs
 
 let wc = ViewBlankOr.wc
 
@@ -30,7 +28,7 @@ let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
       [Html.class' "group-name"]
       [Html.p [] [Html.text (blankOr2String g.gName)]]
   else
-    let c = (enterable :: idConfigs) @ [wc ""] in
+    let c = enterableConfigs @ [wc ""] in
     let nameField = ViewBlankOr.viewText GroupName vs c g.gName in
     Html.div [Html.class' "group-name form"] [nameField]
 
