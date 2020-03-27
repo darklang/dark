@@ -78,10 +78,14 @@ let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
   API.sendCanvasInfo m msg
 
 
+type t = settingsViewState
+
+type message = ToastShow of string
+
 (* Ideally, this should only need a settingsViewState, but we need
  * to mutate some shared state (toast, cursorState, canvasProps, errors)
  * that aren't currently componentized *)
-let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
+let update (t : t) (msg : settingsMsg) : t * message
     =
   match msg with
   | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
@@ -148,16 +152,11 @@ let update (m : Types.model) (msg : settingsMsg) : Types.model * Types.msg Cmd.t
       ({m with settingsView}, Cmd.none)
   | TriggerSendInviteCallback (Ok _) ->
       let settingsView =
-        { m.settingsView with
+        { t with
           tab = InviteUser defaultInviteFields
         ; loading = false }
       in
-      let m1 = {m with settingsView} in
-      (* Ideally, cross-component msg so we didn't need access to the model *)
-      let m2 =
-        {m1 with toast = {toastMessage = Some "Sent!"; toastPos = None}}
-      in
-      (m2, Cmd.none)
+      (t, ToastEffect (Toast.show "Sent"))
   | TriggerSendInviteCallback (Error err) ->
       let settingsView =
         { m.settingsView with

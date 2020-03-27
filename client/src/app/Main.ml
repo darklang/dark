@@ -2047,8 +2047,26 @@ let update_ (msg : msg) (m : model) : modification =
       Native.Window.openUrl url "_blank" ;
       TLMenuUpdate (tlid, CloseMenu)
   | SettingsViewMsg msg ->
-      let m, cmd = SettingsView.update m msg in
-      ReplaceAllModificationsWithThisOne (fun _ -> (m, cmd))
+      let t, effects = SettingsView.update t msg in
+      let m2, cmd =
+        let f eff =
+          match effect with
+          | ToastEffect teff ->
+              (* Should `toast.show` _always_ return t * toastEffect, or t *)
+              let toast = teff m.toast with
+              ({m with toast}, Cmd.none))
+          | APIError err ->
+              let m1, cmd = APIError.handle m apiError in
+              (m1, cmd)
+        in
+        List.fold
+          ~init:(m, Cmd.none)
+          ~f:(fun (m, cmd) eff ->
+              let newM, newCmd = f eff in
+              (newM, Cmd.batch [cmd, newCmd]))
+          effects
+      in
+      NewComponentModificationDoNotWrapInMany (fun _ -> (m2, cmd))
   | FnParamMsg msg ->
       FnParams.update m msg
   | UploadFnAPICallback (_, Error err) ->
