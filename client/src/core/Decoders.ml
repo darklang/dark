@@ -457,6 +457,18 @@ and savedUserSettings (j : Js.Json.t) : savedUserSettings =
         j }
 
 
+and sidebarVariant (j : Js.Json.t) : sidebarVariant =
+  j
+  |> variants
+       [ ("DetailedMode", variant0 DetailedMode)
+       ; ("AbridgedMode", variant0 AbridgedMode) ]
+
+
+and sidebarState (j : Js.Json.t) : sidebarState =
+  { mode = field "mode" sidebarVariant j
+  ; onCategory = field "onCategory" (optional string) j }
+
+
 and savedSettings (j : Js.Json.t) : savedSettings =
   (* always use withDefault or optional because the field might be missing due
    * to old editors or new fields. *)
@@ -484,11 +496,8 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault StrDict.empty (field "handlerProps" (strDict handlerProp)) j
   ; canvasPos = withDefault Defaults.origin (field "canvasPos" pos) j
   ; lastReload = optional (field "lastReload" jsDate) j
-  ; sidebarOpen =
-      withDefault
-        Defaults.defaultSavedSettings.sidebarOpen
-        (field "sidebarOpen" bool)
-        j
+  ; sidebarState =
+      withDefault Defaults.defaultSidebar (field "sidebarState" sidebarState) j
   ; showTopbar =
       withDefault
         Defaults.defaultSavedSettings.showTopbar

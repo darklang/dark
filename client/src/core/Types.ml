@@ -970,6 +970,20 @@ and fnpMsg =
   | ParamDropIntoSpace of int
   | Reset
 
+(* Sidebar state *)
+and sidebarVariant =
+  | DetailedMode
+  | AbridgedMode
+
+and sidebarState =
+  { mode : sidebarVariant
+  ; onCategory : string option }
+
+and sidebarMsg =
+  | ToggleSidebarMode
+  | SetOnCategory of string
+  | ResetSidebar
+
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
@@ -1269,7 +1283,7 @@ and msg =
   | TraceMouseLeave of TLID.t * traceID * mouseEvent
   | TriggerHandler of TLID.t
   | CreateRouteHandler of omniAction
-  | ToggleSideBar
+  | SidebarMsg of sidebarMsg
   | CreateFunction
   | ExtractFunction
   | CreateType
@@ -1653,7 +1667,7 @@ and model =
   ; workerStats : workerStats TLIDDict.t
   ; avatarsList : avatar list
   ; browserId : string
-  ; sidebarOpen : bool
+  ; sidebarState : sidebarState
   ; isAdmin : bool
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
@@ -1685,7 +1699,7 @@ and savedSettings =
   ; handlerProps : handlerProp TLIDDict.t
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
-  ; sidebarOpen : bool
+  ; sidebarState : sidebarState
   ; showTopbar : bool }
 [@@deriving show {with_path = false}]
 
