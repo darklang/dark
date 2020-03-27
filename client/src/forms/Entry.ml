@@ -507,7 +507,7 @@ let submitACItem
           | PEventName _, ACCronName value, _
           | PEventName _, ACReplName value, _
           | PEventName _, ACWorkerName value, _ ->
-              replace (PEventName (B.newF value))
+              replace (PEventName (F (id, value)))
           | PEventName _, ACHTTPRoute value, TLHandler h ->
               (* Check if the ACHTTPRoute value is a 404 path *)
               let f404s =
@@ -530,15 +530,15 @@ let submitACItem
                     [ saveH {h with spec = specInfo} (PEventName new_)
                     ; Delete404 f404 ]
               | None ->
-                  replace (PEventName (B.newF value)) )
+                  replace (PEventName (F (id, value))) )
           (* allow arbitrary HTTP modifiers *)
           | PEventModifier _, ACHTTPModifier value, _
           | PEventModifier _, ACCronTiming value, _
           | PEventModifier _, ACEventModifier value, _ ->
-              replace (PEventModifier (B.newF value))
+              replace (PEventModifier (F (id, value)))
           (* allow arbitrary eventspaces *)
           | PEventSpace space, ACEventSpace value, TLHandler h ->
-              let new_ = B.newF value in
+              let new_ = F (id, value) in
               let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
               let replacedModifier =
                 match (replacement.space, space) with
@@ -606,33 +606,34 @@ let submitACItem
                 Model.updateErrorMod
                   (Error.set ("There is already a Function named " ^ value))
               else
-                let newPD = PFnName (B.newF value) in
+                let newPD = PFnName (F (id, value)) in
                 let new_ =
                   { old with
-                    ufMetadata = {old.ufMetadata with ufmName = B.newF value} }
+                    ufMetadata = {old.ufMetadata with ufmName = F (id, value)}
+                  }
                 in
                 let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
           | PParamName _, ACParamName value, _ ->
-              replace (PParamName (B.newF value))
+              replace (PParamName (F (id, value)))
           | PParamTipe _, ACParamTipe tipe, _ ->
-              replace (PParamTipe (B.newF tipe))
+              replace (PParamTipe (F (id, tipe)))
           | PTypeName _, ACTypeName value, TLTipe old ->
               if List.member ~value (UserTypes.allNames m.userTipes)
               then
                 Model.updateErrorMod
                   (Error.set ("There is already a Type named " ^ value))
               else
-                let newPD = PTypeName (B.newF value) in
+                let newPD = PTypeName (F (id, value)) in
                 let new_ = UserTypes.replace pd newPD old in
                 let changedNames = Refactor.renameUserTipe m old new_ in
                 wrapNew (SetType new_ :: changedNames) newPD
           | PTypeFieldName _, ACTypeFieldName value, _ ->
-              replace (PTypeFieldName (B.newF value))
+              replace (PTypeFieldName (F (id, value)))
           | PTypeFieldTipe _, ACTypeFieldTipe tipe, _ ->
-              replace (PTypeFieldTipe (B.newF tipe))
+              replace (PTypeFieldTipe (F (id, tipe)))
           | PGroupName _, ACGroupName name, _ ->
-              replace (PGroupName (B.newF name))
+              replace (PGroupName (F (id, name)))
           | pd, item, _ ->
               ReplaceAllModificationsWithThisOne
                 (fun m ->
