@@ -44,10 +44,8 @@ let div
            match a with WithParamName v -> Some (viewParamName v) | _ -> None)
   in
   let mouseoverClass =
-    let mouseoverAs = if enterable then Some id else None in
     let targetted =
-      mouseoverAs = Option.map ~f:Tuple2.second vs.hovering
-      && Option.isSome mouseoverAs
+      enterable && Some id = Option.map ~f:Tuple2.second vs.hovering
     in
     if targetted then ["mouseovered-selectable"] else []
   in
