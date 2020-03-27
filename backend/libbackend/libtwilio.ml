@@ -52,7 +52,7 @@ let fns : fn list =
                 ^ Libexecution.Unicode_string.to_string accountSID
                 ^ "/Messages.json"
               in
-              Libhttpclient.send_request
+              Legacy.LibhttpclientV2.send_request
                 twilio_uri
                 Httpclient.POST
                 Libexecution.Dval.to_pretty_machine_json_v1
