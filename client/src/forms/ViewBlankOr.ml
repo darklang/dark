@@ -116,16 +116,6 @@ let div
     (leftSideHtml @ content)
 
 
-let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) :
-    msg Html.html =
-  div vs c [Html.text str]
-
-
-let tipe (vs : ViewUtils.viewState) (c : htmlConfig list) (t : tipe) :
-    msg Html.html =
-  text vs c (Runtime.tipe2str t)
-
-
 let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
   match pt with
   | EventName ->
@@ -214,7 +204,8 @@ let viewText
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (str : string blankOr) : msg Html.html =
-  viewBlankOr text pt vs c str
+  let fn vs c str = div vs c [Html.text str] in
+  viewBlankOr fn pt vs c str
 
 
 let viewTipe
@@ -222,4 +213,5 @@ let viewTipe
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (str : tipe blankOr) : msg Html.html =
-  viewBlankOr tipe pt vs c str
+  let fn vs c t = div vs c [Html.text (Runtime.tipe2str t)] in
+  viewBlankOr fn pt vs c str

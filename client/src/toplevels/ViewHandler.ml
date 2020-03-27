@@ -15,8 +15,6 @@ let viewText = ViewBlankOr.viewText
 
 let wc = ViewBlankOr.wc
 
-let text = ViewBlankOr.text
-
 let enterableConfigs = ViewBlankOr.enterableConfigs
 
 let handlerIsExeComplete (vs : viewState) : bool =
