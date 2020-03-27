@@ -26,8 +26,6 @@ let div
     (vs : ViewUtils.viewState)
     (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
-  let clickAs = if enterable then Some id else None in
-  let mouseoverAs = if enterable then Some id else None in
   let classes =
     configs
     |> List.filterMap ~f:(fun a ->
@@ -46,6 +44,7 @@ let div
            match a with WithParamName v -> Some (viewParamName v) | _ -> None)
   in
   let mouseoverClass =
+    let mouseoverAs = if enterable then Some id else None in
     let targetted =
       mouseoverAs = Option.map ~f:Tuple2.second vs.hovering
       && Option.isSome mouseoverAs
@@ -62,6 +61,7 @@ let div
   let classAttr = Html.class' (String.join ~sep:" " allClasses) in
   let tlid = TL.id vs.tl in
   let events =
+    let clickAs = if enterable then Some id else None in
     match clickAs with
     | Some id ->
         [ ViewUtils.eventNoPropagation
