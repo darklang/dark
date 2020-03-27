@@ -3,7 +3,6 @@ module TL = Toplevel
 module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module K = FluidKeyboard
-module Regex = Util.Regex
 
 let filterInputID : string = "cmd-filter"
 
@@ -14,33 +13,7 @@ let reset (m : model) : fluidCommandState =
 
 
 let commandsFor (m : model) (expr : fluidExpr) : command list =
-  (* NB: do not structurally compare entire Command.command records here, as
-   * they contain functions, which BS cannot compare.*)
-  let noPutOn c = c.commandName <> Commands.putFunctionOnRail.commandName in
-  let noTakeOff c = c.commandName <> Commands.takeFunctionOffRail.commandName in
-  let railFilters =
-    match expr with
-    | EFnCall (_, _, _, Rail) ->
-        noPutOn
-    | EFnCall (_, _, _, NoRail) ->
-        noTakeOff
-    | _ ->
-        fun c -> noTakeOff c && noPutOn c
-  in
-  let httpClientRegex =
-    Regex.regex "HttpClient::(delete|get|head|options|patch|post|put)"
-  in
-  let httpClientRequestFilter =
-    match expr with
-    | EFnCall (_, fluidName, _, _)
-      when Regex.contains ~re:httpClientRegex fluidName ->
-        fun _ -> true
-    | _ ->
-        fun c -> c.commandName <> "copy-request-as-curl"
-  in
-  fluidCommands m
-  |> List.filter ~f:railFilters
-  |> List.filter ~f:httpClientRequestFilter
+  fluidCommands m |> List.filter ~f:(fun cmd -> cmd.shouldShow expr)
 
 
 let show (m : model) (tlid : TLID.t) (id : ID.t) : model =

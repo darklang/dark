@@ -860,7 +860,8 @@ and keyword =
 and command =
   { commandName : string
   ; action : model -> toplevel -> ID.t -> modification
-  ; doc : string }
+  ; doc : string
+  ; shouldShow : FluidExpression.t -> bool }
 
 and omniAction =
   | NewDB of dbName option
