@@ -8,10 +8,8 @@ type htmlConfig =
   (* Add this class (can be done multiple times) *)
   | WithClass of string
   (* when you click this node, select this pointer *)
-  | ClickSelectAs of ID.t
   | ClickSelect
   (* highlight this node as if it were ID *)
-  | MouseoverAs of ID.t
   | Mouseover
   (* use this as ID for Mouseover, ClickSelect *)
   | WithID of ID.t
@@ -42,24 +40,10 @@ let div
     getFirst (fun a -> match a with WithID id -> Some id | _ -> None)
   in
   let clickAs =
-    getFirst (fun a ->
-        match a with
-        | ClickSelectAs id ->
-            Some id
-        | ClickSelect ->
-            thisID
-        | _ ->
-            None)
+    getFirst (fun a -> match a with ClickSelect -> thisID | _ -> None)
   in
   let mouseoverAs =
-    getFirst (fun a ->
-        match a with
-        | MouseoverAs id ->
-            Some id
-        | Mouseover ->
-            thisID
-        | _ ->
-            None)
+    getFirst (fun a -> match a with Mouseover -> thisID | _ -> None)
   in
   let classes =
     configs
