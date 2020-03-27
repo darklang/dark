@@ -11,12 +11,14 @@ let run () =
       in
       let expectCmd name expr = expect (hasCmd name expr) |> toEqual true in
       let expectNoCmd name expr = expect (hasCmd name expr) |> toEqual false in
-      test "has put on rail for NoRail function" (fun () ->
-          expectCmd "put-function-on-rail" aFnCall) ;
+      test "has put on rail for railable NoRail function" (fun () ->
+          expectCmd "put-function-on-rail" aRailableFnCall) ;
+      test "no put on rail for non-railable NoRail function" (fun () ->
+          expectNoCmd "put-function-on-rail" aFnCall) ;
       test "has take off rail for Rail function" (fun () ->
-          expectCmd "take-function-off-rail" aRailFnCall) ;
+          expectCmd "take-function-off-rail" aOnRailFnCall) ;
       test "no put on rail for Rail function" (fun () ->
-          expectNoCmd "put-function-on-rail" aRailFnCall) ;
+          expectNoCmd "put-function-on-rail" aOnRailFnCall) ;
       test "no take off rail for NoRail function" (fun () ->
           expectNoCmd "take-function-off-rail" aFnCall) ;
       test "no copy as curl for normal function" (fun () ->

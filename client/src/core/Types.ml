@@ -861,7 +861,7 @@ and command =
   { commandName : string
   ; action : model -> toplevel -> ID.t -> modification
   ; doc : string
-  ; shouldShow : FluidExpression.t -> bool }
+  ; shouldShow : model -> FluidExpression.t -> bool }
 
 and omniAction =
   | NewDB of dbName option

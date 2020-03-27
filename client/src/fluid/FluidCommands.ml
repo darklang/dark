@@ -13,7 +13,7 @@ let reset (m : model) : fluidCommandState =
 
 
 let commandsFor (m : model) (expr : fluidExpr) : command list =
-  fluidCommands m |> List.filter ~f:(fun cmd -> cmd.shouldShow expr)
+  fluidCommands m |> List.filter ~f:(fun cmd -> cmd.shouldShow m expr)
 
 
 let show (m : model) (tlid : TLID.t) (id : ID.t) : model =

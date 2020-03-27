@@ -309,7 +309,9 @@ let aBinOp = EBinOp (gid (), "==", b, b, NoRail)
 
 let aFullBinOp = binop "||" (var "myvar") five
 
-let aRailFnCall = EFnCall (gid (), "String::random", [five], Rail)
+let aOnRailFnCall = EFnCall (gid (), "HttpClient::get_v3", [b; b; b], Rail)
+
+let aRailableFnCall = EFnCall (gid (), "HttpClient::get_v3", [b; b; b], NoRail)
 
 (* ---------------- *)
 (* Constructors *)
