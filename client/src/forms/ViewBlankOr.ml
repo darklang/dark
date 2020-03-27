@@ -164,18 +164,17 @@ let viewBlankOr
     (htmlFn : 'a -> msg Html.html)
     (pt : blankOrType)
     (vs : ViewUtils.viewState)
-    (c : htmlConfig list)
+    (configs : htmlConfig list)
     (bo : 'a blankOr) : msg Html.html =
-  let wID id = [WithID id] in
+  let configs = WithID (B.toID bo) :: configs in
   let thisText =
     match bo with
-    | F (id, fill) ->
-        let configs = wID id @ c in
+    | F (_, fill) ->
         div vs configs [htmlFn fill]
-    | Blank id ->
+    | Blank _ ->
         div
           vs
-          ([WithClass "blank"] @ c @ wID id)
+          ([WithClass "blank"] @ configs)
           [ Html.div
               [Html.class' "blank-entry"]
               [Html.text (placeHolderFor vs pt)] ]
@@ -188,7 +187,7 @@ let viewBlankOr
         if vs.showEntry
         then
           let placeholder = placeHolderFor vs pt in
-          div vs (c @ wID id) [ViewEntry.normalEntryHtml placeholder vs.ac]
+          div vs configs [ViewEntry.normalEntryHtml placeholder vs.ac]
         else Html.text vs.ac.value
       else thisText
   | _ ->
