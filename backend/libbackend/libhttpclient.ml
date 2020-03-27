@@ -485,7 +485,7 @@ let fns : fn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = true }
   ; { prefix_names = ["HttpClient::put_v4"]
     ; infix_names = []
     ; parameters = params
@@ -497,7 +497,7 @@ let fns : fn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = true }
   ; { prefix_names = ["HttpClient::get_v4"]
     ; infix_names = []
     ; parameters = params_no_body
@@ -509,7 +509,7 @@ let fns : fn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = true }
   ; { prefix_names = ["HttpClient::delete_v4"]
     ; infix_names =
         []
@@ -524,7 +524,7 @@ let fns : fn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = true }
   ; { prefix_names = ["HttpClient::options_v4"]
     ; infix_names = []
     ; parameters = params_no_body
@@ -536,7 +536,7 @@ let fns : fn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = true }
   ; { prefix_names = ["HttpClient::head_v4"]
     ; infix_names = []
     ; parameters = params_no_body
@@ -548,7 +548,7 @@ let fns : fn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = true }
   ; { prefix_names = ["HttpClient::patch_v4"]
     ; infix_names = []
     ; parameters = params
@@ -559,6 +559,72 @@ let fns : fn list =
         Legacy.LibhttpclientV2.call
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["HttpClient::post_v5"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
+        "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; func = call Httpclient.POST Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::put_v5"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
+        "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; func = call Httpclient.PUT Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::get_v5"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
+        "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; func = call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::delete_v5"]
+    ; infix_names =
+        []
+        (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+         * the spec says it may have a body *)
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
+        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; func = call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::options_v5"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
+        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; func = call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::head_v5"]
+    ; infix_names = []
+    ; parameters = params_no_body
+    ; return_type = TResult
+    ; description =
+        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; func = call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["HttpClient::patch_v5"]
+    ; infix_names = []
+    ; parameters = params
+    ; return_type = TResult
+    ; description =
+        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; func = call Httpclient.PATCH Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::basicAuth"]
