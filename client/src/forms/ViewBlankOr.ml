@@ -167,22 +167,18 @@ let viewBlankOr
     (c : htmlConfig list)
     (bo : 'a blankOr) : msg Html.html =
   let wID id = [WithID id] in
-  let drawBlank id =
-    div
-      vs
-      ([WithClass "blank"] @ c @ wID id)
-      [Html.div [Html.class' "blank-entry"] [Html.text (placeHolderFor vs pt)]]
-  in
-  let drawFilled id fill =
-    let configs = wID id @ c in
-    div vs configs [htmlFn fill]
-  in
   let thisText =
     match bo with
     | F (id, fill) ->
-        drawFilled id fill
+        let configs = wID id @ c in
+        div vs configs [htmlFn fill]
     | Blank id ->
-        drawBlank id
+        div
+          vs
+          ([WithClass "blank"] @ c @ wID id)
+          [ Html.div
+              [Html.class' "blank-entry"]
+              [Html.text (placeHolderFor vs pt)] ]
   in
   match vs.cursorState with
   | Entering (Filling (_, thisID)) ->
