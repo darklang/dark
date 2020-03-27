@@ -13,8 +13,6 @@ let viewText = ViewBlankOr.viewText
 
 let wc = ViewBlankOr.wc
 
-let enterableConfigs = ViewBlankOr.enterableConfigs
-
 let onEvent = ViewUtils.onEvent
 
 type exeFunction =
@@ -24,7 +22,7 @@ type exeFunction =
 
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  viewText FnName vs (enterableConfigs @ c) v
+  viewText ~enterable:true FnName vs c v
 
 
 let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =

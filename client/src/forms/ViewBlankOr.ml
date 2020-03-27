@@ -7,18 +7,10 @@ module TL = Toplevel
 type htmlConfig =
   (* Add this class (can be done multiple times) *)
   | WithClass of string
-  (* when you click this node, select this pointer *)
-  | ClickSelect
-  (* highlight this node as if it were ID *)
-  | Mouseover
-  (* editable *)
-  | Enterable
   (* Adds param name to the left *)
   | WithParamName of string
 
 let wc (s : string) : htmlConfig = WithClass s
-
-let enterableConfigs : htmlConfig list = [Enterable; ClickSelect; Mouseover]
 
 let viewParamName (name : string) : msg Html.html =
   let leftOffset = String.length name + 1 in
@@ -30,27 +22,24 @@ let viewParamName (name : string) : msg Html.html =
 (* such as whether it's selected, appropriate events, mouseover, etc. *)
 let div
     ~(id : ID.t)
+    ~(enterable : bool)
     (vs : ViewUtils.viewState)
     (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
-  let getFirst fn = configs |> List.filterMap ~f:fn |> List.head in
-  (* Extract config *)
-  let thisID = Some id in
-  let clickAs =
-    getFirst (fun a -> match a with ClickSelect -> thisID | _ -> None)
-  in
-  let mouseoverAs =
-    getFirst (fun a -> match a with Mouseover -> thisID | _ -> None)
-  in
+  let clickAs = if enterable then Some id else None in
+  let mouseoverAs = if enterable then Some id else None in
   let classes =
     configs
     |> List.filterMap ~f:(fun a ->
            match a with WithClass c -> Some c | _ -> None)
   in
-  let selectedID =
-    match vs.cursorState with Selecting (_, Some id) -> Some id | _ -> None
+  let selected =
+    match vs.cursorState with
+    | Selecting (_, Some selectingID) ->
+        id = selectingID
+    | _ ->
+        false
   in
-  let selected = thisID = selectedID && Option.isSome thisID in
   let showParamName =
     configs
     |> List.filterMap ~f:(fun a ->
@@ -63,9 +52,7 @@ let div
     in
     if targetted then ["mouseovered-selectable"] else []
   in
-  let idClasses =
-    match thisID with Some id -> ["blankOr"; "id-" ^ ID.toString id] | _ -> []
-  in
+  let idClasses = ["blankOr"; "id-" ^ ID.toString id] in
   let allClasses =
     classes
     @ idClasses
@@ -99,16 +86,13 @@ let div
         [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
   let leftSideHtml = showParamName in
-  let idAttr =
-    match thisID with Some i -> Html.id (ID.toString i) | _ -> Vdom.noProp
-  in
+  let idAttr = Html.id (ID.toString id) in
   let attrs = idAttr :: classAttr :: events in
   Html.div
   (* if the id of the blank_or changes, this whole node should be redrawn
      * without any further diffing. there's no good reason for the Vdom/Dom node
      * to be re-used for a different blank_or *)
-    ~unique:
-      (thisID |> Option.map ~f:ID.toString |> Option.withDefault ~default:"")
+    ~unique:(ID.toString id)
     attrs
     (leftSideHtml @ content)
 
@@ -158,6 +142,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
 
 
 let viewBlankOr
+    ~(enterable : bool)
     (htmlFn : 'a -> msg Html.html)
     (pt : blankOrType)
     (vs : ViewUtils.viewState)
@@ -167,10 +152,11 @@ let viewBlankOr
   let thisText =
     match bo with
     | F (_, fill) ->
-        div ~id vs configs [htmlFn fill]
+        div ~id ~enterable vs configs [htmlFn fill]
     | Blank _ ->
         div
           ~id
+          ~enterable
           vs
           ([WithClass "blank"] @ configs)
           [ Html.div
@@ -185,7 +171,12 @@ let viewBlankOr
         if vs.showEntry
         then
           let placeholder = placeHolderFor vs pt in
-          div ~id vs configs [ViewEntry.normalEntryHtml placeholder vs.ac]
+          div
+            ~id
+            ~enterable
+            vs
+            configs
+            [ViewEntry.normalEntryHtml placeholder vs.ac]
         else Html.text vs.ac.value
       else thisText
   | _ ->
@@ -193,17 +184,19 @@ let viewBlankOr
 
 
 let viewText
+    ~(enterable : bool)
     (pt : blankOrType)
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (str : string blankOr) : msg Html.html =
-  viewBlankOr Html.text pt vs c str
+  viewBlankOr ~enterable Html.text pt vs c str
 
 
 let viewTipe
+    ~(enterable : bool)
     (pt : blankOrType)
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (str : tipe blankOr) : msg Html.html =
   let fn t = Html.text (Runtime.tipe2str t) in
-  viewBlankOr fn pt vs c str
+  viewBlankOr ~enterable fn pt vs c str

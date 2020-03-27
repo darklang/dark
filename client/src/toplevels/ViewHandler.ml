@@ -15,8 +15,6 @@ let viewText = ViewBlankOr.viewText
 
 let wc = ViewBlankOr.wc
 
-let enterableConfigs = ViewBlankOr.enterableConfigs
-
 let handlerIsExeComplete (vs : viewState) : bool =
   match vs.handlerProp with Some hp -> hp.execution = Complete | None -> false
 
@@ -154,16 +152,15 @@ let viewEventSpec
     (vs : viewState) (spec : handlerSpec) (dragEvents : domEventList) :
     msg Html.html =
   let viewEventName =
-    let configs = enterableConfigs @ [wc "toplevel-name"] in
-    viewText EventName vs configs spec.name
+    viewText ~enterable:true EventName vs [wc "toplevel-name"] spec.name
   in
   let viewEventSpace =
-    let configs = enterableConfigs @ [wc "space"] in
-    viewText EventSpace vs configs spec.space
+    viewText ~enterable:true EventSpace vs [wc "space"] spec.space
   in
   let viewEventModifier =
-    let configs = enterableConfigs @ [wc "modifier"] in
-    let viewMod = viewText EventModifier vs configs spec.modifier in
+    let viewMod =
+      viewText ~enterable:true EventModifier vs [wc "modifier"] spec.modifier
+    in
     match (spec.space, spec.modifier, spec.name) with
     | F (_, "HTTP"), _, _ | F (_, "CRON"), _, _ ->
         Html.div [Html.class' "modifier"] [viewMod]

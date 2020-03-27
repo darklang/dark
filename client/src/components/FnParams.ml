@@ -11,8 +11,6 @@ type htmlConfig = ViewBlankOr.htmlConfig
 
 let viewText = ViewBlankOr.viewText
 
-let enterableConfigs = ViewBlankOr.enterableConfigs
-
 let wc = ViewBlankOr.wc
 
 let moveParams (fn : userFunction) (oldPos : int) (newPos : int) : userFunction
@@ -113,12 +111,12 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
 
 let viewParamName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  viewText ParamName vs (enterableConfigs @ c) v
+  viewText ~enterable:true ParamName vs c v
 
 
 let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
     msg Html.html =
-  ViewBlankOr.viewTipe ParamTipe vs (enterableConfigs @ c) v
+  ViewBlankOr.viewTipe ~enterable:true ParamTipe vs c v
 
 
 let jsDragStart : Web.Node.event -> unit =

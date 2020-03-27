@@ -12,8 +12,6 @@ type htmlConfig = ViewBlankOr.htmlConfig
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let enterableConfigs = ViewBlankOr.enterableConfigs
-
 let wc = ViewBlankOr.wc
 
 (* Spec for group views: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.isw58ukngvvf *)
@@ -28,8 +26,9 @@ let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
       [Html.class' "group-name"]
       [Html.p [] [Html.text (blankOr2String g.gName)]]
   else
-    let c = enterableConfigs @ [wc ""] in
-    let nameField = ViewBlankOr.viewText GroupName vs c g.gName in
+    let nameField =
+      ViewBlankOr.viewText ~enterable:true GroupName vs [] g.gName
+    in
     Html.div [Html.class' "group-name form"] [nameField]
 
 
