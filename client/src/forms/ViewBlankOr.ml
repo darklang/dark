@@ -7,8 +7,6 @@ module TL = Toplevel
 type htmlConfig =
   (* Add this class (can be done multiple times) *)
   | WithClass of string
-  (* Adds param name to the left *)
-  | WithParamName of string
 
 let wc (s : string) : htmlConfig = WithClass s
 
@@ -27,9 +25,7 @@ let div
     (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
   let classes =
-    configs
-    |> List.filterMap ~f:(fun a ->
-           match a with WithClass c -> Some c | _ -> None)
+    configs |> List.filterMap ~f:(fun a -> match a with WithClass c -> Some c)
   in
   let selected =
     match vs.cursorState with
@@ -37,11 +33,6 @@ let div
         id = selectingID
     | _ ->
         false
-  in
-  let showParamName =
-    configs
-    |> List.filterMap ~f:(fun a ->
-           match a with WithParamName v -> Some (viewParamName v) | _ -> None)
   in
   let mouseoverClass =
     let targetted =
@@ -76,7 +67,6 @@ let div
        * noProp to indicate that the property at idx N has changed. *)
       [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
-  let leftSideHtml = showParamName in
   let idAttr = Html.id (ID.toString id) in
   let attrs = idAttr :: classAttr :: events in
   Html.div
@@ -85,7 +75,7 @@ let div
      * to be re-used for a different blank_or *)
     ~unique:(ID.toString id)
     attrs
-    (leftSideHtml @ content)
+    content
 
 
 let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
