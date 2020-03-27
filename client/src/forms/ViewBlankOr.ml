@@ -4,23 +4,14 @@ open Prelude
 module B = BlankOr
 module TL = Toplevel
 
-type htmlConfig =
-  (* Add this class (can be done multiple times) *)
-  | WithClass of string
-
-let wc (s : string) : htmlConfig = WithClass s
-
 (* Create a Html.div for this ID, incorporating all ID-related data, *)
 (* such as whether it's selected, appropriate events, mouseover, etc. *)
 let div
     ~(id : ID.t)
     ~(enterable : bool)
+    ~(classes : string list)
     (vs : ViewUtils.viewState)
-    (configs : htmlConfig list)
     (content : msg Html.html list) : msg Html.html =
-  let classes =
-    configs |> List.filterMap ~f:(fun a -> match a with WithClass c -> Some c)
-  in
   let selected =
     match vs.cursorState with
     | Selecting (_, Some selectingID) ->
@@ -118,22 +109,22 @@ let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
 
 let viewBlankOr
     ~(enterable : bool)
+    ~(classes : string list)
     (htmlFn : 'a -> msg Html.html)
     (pt : blankOrType)
     (vs : ViewUtils.viewState)
-    (configs : htmlConfig list)
     (bo : 'a blankOr) : msg Html.html =
   let id = B.toID bo in
   let thisText =
     match bo with
     | F (_, fill) ->
-        div ~id ~enterable vs configs [htmlFn fill]
+        div ~id ~enterable ~classes vs [htmlFn fill]
     | Blank _ ->
         div
           ~id
           ~enterable
+          ~classes:("blank" :: classes)
           vs
-          ([WithClass "blank"] @ configs)
           [ Html.div
               [Html.class' "blank-entry"]
               [Html.text (placeHolderFor vs pt)] ]
@@ -149,8 +140,8 @@ let viewBlankOr
           div
             ~id
             ~enterable
+            ~classes
             vs
-            configs
             [ViewEntry.normalEntryHtml placeholder vs.ac]
         else Html.text vs.ac.value
       else thisText
@@ -160,18 +151,18 @@ let viewBlankOr
 
 let viewText
     ~(enterable : bool)
+    ~(classes : string list)
     (pt : blankOrType)
     (vs : ViewUtils.viewState)
-    (c : htmlConfig list)
     (str : string blankOr) : msg Html.html =
-  viewBlankOr ~enterable Html.text pt vs c str
+  viewBlankOr ~enterable ~classes Html.text pt vs str
 
 
 let viewTipe
     ~(enterable : bool)
+    ~(classes : string list)
     (pt : blankOrType)
     (vs : ViewUtils.viewState)
-    (c : htmlConfig list)
     (str : tipe blankOr) : msg Html.html =
   let fn t = Html.text (Runtime.tipe2str t) in
-  viewBlankOr ~enterable fn pt vs c str
+  viewBlankOr ~enterable ~classes fn pt vs str

@@ -5,13 +5,7 @@ module B = BlankOr
 
 type viewState = ViewUtils.viewState
 
-type htmlConfig = ViewBlankOr.htmlConfig
-
 let fontAwesome = ViewUtils.fontAwesome
-
-let viewText = ViewBlankOr.viewText
-
-let wc = ViewBlankOr.wc
 
 let onEvent = ViewUtils.onEvent
 
@@ -20,9 +14,10 @@ type exeFunction =
   | CannotExecute of string
   | IsExecuting
 
-let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+let viewUserFnName
+    ~(classes : string list) (vs : viewState) (v : string blankOr) :
     msg Html.html =
-  viewText ~enterable:true FnName vs c v
+  ViewBlankOr.viewText ~classes ~enterable:true FnName vs v
 
 
 let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
@@ -137,7 +132,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
     Html.div
       [Html.class' "spec-header"]
       [ ViewUtils.darkIcon "fn"
-      ; viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName
+      ; viewUserFnName vs ~classes:["fn-name-content"] fn.ufMetadata.ufmName
       ; Html.div [Html.class' "fn-actions"] [viewExecuteBtn vs fn; menuView] ]
   in
   let paramRows =
