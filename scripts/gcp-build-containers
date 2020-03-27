@@ -50,6 +50,8 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
   # there in an env with access to production postgres
   cp -f _build/default/backend/bin/emergency_login_script.exe "$DIR/bin/"
 
+  cp -f _build/default/backend/bin/clone_canvas.exe "$DIR/bin/"
+
   mkdir -p "$DIR/webroot"
   cp -Rf backend/static "$DIR/webroot/"
 
