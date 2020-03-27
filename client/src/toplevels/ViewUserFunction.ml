@@ -7,15 +7,13 @@ type viewState = ViewUtils.viewState
 
 type htmlConfig = ViewBlankOr.htmlConfig
 
-let idConfigs = ViewBlankOr.idConfigs
-
 let fontAwesome = ViewUtils.fontAwesome
 
 let viewText = ViewBlankOr.viewText
 
 let wc = ViewBlankOr.wc
 
-let enterable = ViewBlankOr.Enterable
+let enterableConfigs = ViewBlankOr.enterableConfigs
 
 let onEvent = ViewUtils.onEvent
 
@@ -26,7 +24,7 @@ type exeFunction =
 
 let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  viewText FnName vs ((enterable :: idConfigs) @ c) v
+  viewText FnName vs (enterableConfigs @ c) v
 
 
 let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
