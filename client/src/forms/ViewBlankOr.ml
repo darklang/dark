@@ -161,7 +161,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
 
 
 let viewBlankOr
-    (htmlFn : ViewUtils.viewState -> htmlConfig list -> 'a -> msg Html.html)
+    (htmlFn : 'a -> msg Html.html)
     (pt : blankOrType)
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
@@ -175,7 +175,7 @@ let viewBlankOr
   in
   let drawFilled id fill =
     let configs = wID id @ c in
-    htmlFn vs configs fill
+    div vs configs [htmlFn fill]
   in
   let thisText =
     match bo with
@@ -204,8 +204,7 @@ let viewText
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (str : string blankOr) : msg Html.html =
-  let fn vs c str = div vs c [Html.text str] in
-  viewBlankOr fn pt vs c str
+  viewBlankOr Html.text pt vs c str
 
 
 let viewTipe
@@ -213,5 +212,5 @@ let viewTipe
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (str : tipe blankOr) : msg Html.html =
-  let fn vs c t = div vs c [Html.text (Runtime.tipe2str t)] in
+  let fn t = Html.text (Runtime.tipe2str t) in
   viewBlankOr fn pt vs c str
