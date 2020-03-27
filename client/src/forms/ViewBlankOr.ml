@@ -11,8 +11,6 @@ type htmlConfig =
   | ClickSelect
   (* highlight this node as if it were ID *)
   | Mouseover
-  (* use this as ID for Mouseover, ClickSelect *)
-  | WithID of ID.t
   (* editable *)
   | Enterable
   (* Adds param name to the left *)
@@ -166,7 +164,6 @@ let viewBlankOr
     (configs : htmlConfig list)
     (bo : 'a blankOr) : msg Html.html =
   let id = B.toID bo in
-  let configs = WithID id :: configs in
   let thisText =
     match bo with
     | F (_, fill) ->
