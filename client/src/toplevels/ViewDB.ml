@@ -13,8 +13,6 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let wc = ViewBlankOr.wc
 
-let enterableConfigs = ViewBlankOr.enterableConfigs
-
 let dbName2String (name : dbName blankOr) : dbName = B.valueWithDefault "" name
 
 let viewDbCount (stats : dbStats) : msg Html.html =
@@ -69,8 +67,7 @@ let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
       if vs.dbLocked
       then Html.text (dbName2String db.dbName)
       else
-        let c = enterableConfigs @ [wc "dbname"] in
-        ViewBlankOr.viewText DBName vs c db.dbName
+        ViewBlankOr.viewText ~enterable:true DBName vs [wc "dbname"] db.dbName
     in
     Html.span
       [Html.class' "toplevel-name"]
@@ -99,20 +96,18 @@ let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
   [typeView; titleView; menuView]
 
 
-let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+let viewDBColName
+    (vs : viewState) (configs : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs =
-    if B.isBlank v || not vs.dbLocked then enterableConfigs @ c else c
-  in
-  ViewBlankOr.viewText DBColName vs configs v
+  let enterable = B.isBlank v || not vs.dbLocked in
+  ViewBlankOr.viewText ~enterable DBColName vs configs v
 
 
-let viewDBColType (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+let viewDBColType
+    (vs : viewState) (configs : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs =
-    if B.isBlank v || not vs.dbLocked then enterableConfigs @ c else c
-  in
-  ViewBlankOr.viewText DBColType vs configs v
+  let enterable = B.isBlank v || not vs.dbLocked in
+  ViewBlankOr.viewText ~enterable DBColType vs configs v
 
 
 let viewDBCol

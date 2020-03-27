@@ -9,30 +9,26 @@ type viewState = ViewUtils.viewState
 
 type htmlConfig = ViewBlankOr.htmlConfig
 
-let enterableConfigs = ViewBlankOr.enterableConfigs
-
 let wc = ViewBlankOr.wc
-
-let enterable = ViewBlankOr.Enterable
 
 let viewTipeName (vs : viewState) (t : userTipe) : msg Html.html =
   let nameField =
-    let c = enterableConfigs @ [wc "ut-name"] in
-    ViewBlankOr.viewText TypeName vs c t.utName
+    let c = [wc "ut-name"] in
+    ViewBlankOr.viewText ~enterable:true TypeName vs c t.utName
   in
   Html.div [Html.class' "typetitle"] [nameField]
 
 
-let viewFieldName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+let viewFieldName
+    (vs : viewState) (configs : htmlConfig list) (v : string blankOr) :
     msg Html.html =
-  let configs = enterableConfigs @ c in
-  ViewBlankOr.viewText TypeFieldName vs configs v
+  ViewBlankOr.viewText ~enterable:true TypeFieldName vs configs v
 
 
-let viewFieldType (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
+let viewFieldType
+    (vs : viewState) (configs : htmlConfig list) (v : tipe blankOr) :
     msg Html.html =
-  let configs = enterableConfigs @ c in
-  ViewBlankOr.viewTipe TypeFieldTipe vs configs v
+  ViewBlankOr.viewTipe ~enterable:true TypeFieldTipe vs configs v
 
 
 let viewKillFieldBtn (t : userTipe) (field : userRecordField) : msg Html.html =
