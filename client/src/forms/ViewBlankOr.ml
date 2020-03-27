@@ -10,12 +10,6 @@ type htmlConfig =
 
 let wc (s : string) : htmlConfig = WithClass s
 
-let viewParamName (name : string) : msg Html.html =
-  let leftOffset = String.length name + 1 in
-  let styles = [("margin-left", "-" ^ string_of_int leftOffset ^ "ch")] in
-  Html.div [Html.class' "param-name"; Vdom.styles styles] [Html.text name]
-
-
 (* Create a Html.div for this ID, incorporating all ID-related data, *)
 (* such as whether it's selected, appropriate events, mouseover, etc. *)
 let div
@@ -48,10 +42,10 @@ let div
     @ mouseoverClass
   in
   let classAttr = Html.class' (String.join ~sep:" " allClasses) in
-  let tlid = TL.id vs.tl in
   let events =
     if enterable
     then
+      let tlid = TL.id vs.tl in
       let keyStr = TLID.toString tlid ^ "-" ^ ID.toString id in
       let event = ViewUtils.eventNoPropagation in
       [ event "click" ~key:("bcc-" ^ keyStr) (fun x ->
