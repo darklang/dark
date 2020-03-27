@@ -16,15 +16,71 @@ let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
   [ { prefix_names = ["Int::mod"]
-    ; infix_names = ["%"]
+    ; infix_names = [ (* "%" *) ]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
     ; description =
         "Return `a` % `b`, the modulus of a and b. This is the integer remainder left when `a` is divided by `b`. For example, `15 % 6 = 3`."
     ; func =
+        (* This used to use Dint.(%), which is now gone because it was too confusing. It's now called Dint.modulo.
+         * The functionality was ok but the docstring was a lie.
+         *
+         * This is deprecated in favor of a version that returns a result. It should still be ok to use `%` for the new
+         * version because old uses will just go to the error rail instead of raising an exception to rollbar.
+         *)
         InProcess
           (function
-          | _, [DInt a; DInt b] -> DInt (Dint.( % ) a b) | args -> fail args)
+          | _, [DInt a; DInt b] -> DInt (Dint.modulo a b) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Int::mod_v1"]
+    ; infix_names = ["%"]
+    ; parameters = [par "value" TInt; par "modulus" TInt]
+    ; return_type = TResult
+    ; description =
+        "Performs modular arithmetic. If `modulus` is positive, returns `Ok res` where `res` is the result of wrapping `value` around so that `0 <= res < modulus`.
+        Returns an `Error` if `modulus` is 0 or negative. Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
+    ; func =
+        InProcess
+          (function
+          | _, [DInt v; DInt m] ->
+            ( try DResult (ResOk (DInt (Dint.modulo v m)))
+              with e ->
+                if m <= Dint.of_int 0
+                then
+                  DResult
+                    (ResError
+                       (Dval.dstr_of_string_exn
+                          ( "`modulus` must be positive but was "
+                          ^ Dval.to_developer_repr_v0 (DInt m) )))
+                else (* In case there's another failure mode, rollbar *)
+                  raise e )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Int::remainder"]
+    ; infix_names = []
+    ; parameters = [par "value" TInt; par "divisor" TInt]
+    ; return_type = TResult
+    ; description =
+        "If `divisor` is not 0, returns `Ok integerRemainder` left over after dividing `value` by `divisor`. For example, `Int::remainder 15 6 == 3`.
+        Returns an `Error` if `divisor` is 0."
+    ; func =
+        InProcess
+          (function
+          | _, [DInt v; DInt d] ->
+            ( try DResult (ResOk (DInt (Dint.rem v d)))
+              with e ->
+                if d = Dint.of_int 0
+                then
+                  DResult
+                    (ResError
+                       (Dval.dstr_of_string_exn "`divisor` must be non-zero"))
+                else (* In case there's another failure mode, rollbar *)
+                  raise e )
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::add"]

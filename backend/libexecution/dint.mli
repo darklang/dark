@@ -22,13 +22,17 @@ val random : t -> t
 
 val init : unit -> unit
 
-val ( % ) : t -> t -> t
-
 val ( + ) : t -> t -> t
 
 val ( - ) : t -> t -> t
 
 val ( / ) : t -> t -> t
+
+(** [modulo value modulus] performs modular arithmetic. [modulus] must be positive or will throw an exception. *)
+val modulo : t -> t -> t
+
+(** [rem value divisor] returns the remainder after dividing [value] by [divisor]. Throws an exception if [divisor] is [0]. *)
+val rem : t -> t -> t
 
 val ( * ) : t -> t -> t
 
