@@ -13,8 +13,6 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let viewText = ViewBlankOr.viewText
 
-let wc = ViewBlankOr.wc
-
 let handlerIsExeComplete (vs : viewState) : bool =
   match vs.handlerProp with Some hp -> hp.execution = Complete | None -> false
 
@@ -152,14 +150,19 @@ let viewEventSpec
     (vs : viewState) (spec : handlerSpec) (dragEvents : domEventList) :
     msg Html.html =
   let viewEventName =
-    viewText ~enterable:true EventName vs [wc "toplevel-name"] spec.name
+    viewText ~enterable:true ~classes:["toplevel-name"] EventName vs spec.name
   in
   let viewEventSpace =
-    viewText ~enterable:true EventSpace vs [wc "space"] spec.space
+    viewText ~enterable:true ~classes:["space"] EventSpace vs spec.space
   in
   let viewEventModifier =
     let viewMod =
-      viewText ~enterable:true EventModifier vs [wc "modifier"] spec.modifier
+      viewText
+        ~enterable:true
+        ~classes:["modifier"]
+        EventModifier
+        vs
+        spec.modifier
     in
     match (spec.space, spec.modifier, spec.name) with
     | F (_, "HTTP"), _, _ | F (_, "CRON"), _, _ ->
