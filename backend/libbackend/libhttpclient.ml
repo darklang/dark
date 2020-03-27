@@ -28,21 +28,36 @@ let has_json_header (headers : headers) : bool =
          |> String.is_substring ~substring:"application/json")
 
 
+let has_plaintext_header (headers : headers) : bool =
+  List.exists headers ~f:(fun (k, v) ->
+      String.lowercase k = "content-type"
+      && v |> String.lowercase |> String.is_substring ~substring:"text/plain")
+
+
 let send_request
     (uri : string)
     (verb : Httpclient.verb)
     (json_fn : dval -> string)
-    (body : dval)
+    (body : dval option)
     (query : dval)
     (headers : dval) : dval =
   let query = Dval.dval_to_query query in
   let headers = Dval.to_string_pairs_exn headers in
   let body =
-    match body with
-    | DObj obj when has_form_header headers ->
-        Dval.to_form_encoding body
-    | _ ->
-        json_fn body
+    body
+    |> Option.map ~f:(function
+           | DObj _ as dv when has_form_header headers ->
+               Dval.to_form_encoding dv
+           | DStr s ->
+               (* Do nothing to strings, ever. *)
+               Unicode_string.to_string s
+           | dv when has_plaintext_header headers ->
+               Dval.to_enduser_readable_text_v0 dv
+           | dv ->
+               (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed *)
+               json_fn dv)
+    |> Option.bind ~f:(fun body ->
+           if String.length body <> 0 then Some body else None)
   in
   let result, headers, code =
     Httpclient.http_call uri query verb headers body
@@ -113,7 +128,7 @@ let call verb json_fn =
           (Unicode_string.to_string uri)
           verb
           json_fn
-          body
+          (Some body)
           query
           headers
     | args ->
@@ -128,7 +143,7 @@ let call_no_body verb json_fn =
           (Unicode_string.to_string uri)
           verb
           json_fn
-          (Dval.dstr_of_string_exn "")
+          None
           query
           headers
     | args ->

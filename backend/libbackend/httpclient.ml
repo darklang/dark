@@ -90,7 +90,7 @@ let http_call_with_code
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string) : string * int * (string * string) list * string =
+    (body : string option) : string * int * (string * string) list * string =
   let query_params =
     url |> Uri.of_string |> Uri.query |> List.append query_params
   in
@@ -163,17 +163,35 @@ let http_call_with_code
         Config.curl_tunnel_url ;
       ( match verb with
       | PUT ->
-          C.set_postfields c body ;
-          C.set_postfieldsize c (String.length body) ;
-          C.set_customrequest c "PUT"
+        ( match body with
+        | Some body ->
+            C.set_postfields c body ;
+            C.set_postfieldsize c (String.length body) ;
+            C.set_customrequest c "PUT"
+        | None ->
+            C.set_postfields c "" ;
+            C.set_postfieldsize c 0 ;
+            C.set_customrequest c "PUT" )
       | POST ->
-          C.set_post c true ;
-          C.set_postfields c body ;
-          C.set_postfieldsize c (String.length body)
+        ( match body with
+        | Some body ->
+            C.set_post c true ;
+            C.set_postfields c body ;
+            C.set_postfieldsize c (String.length body)
+        | None ->
+            C.set_postfields c "" ;
+            C.set_postfieldsize c 0 ;
+            C.set_customrequest c "POST" )
       | PATCH ->
-          C.set_postfields c body ;
-          C.set_postfieldsize c (String.length body) ;
-          C.set_customrequest c "PATCH"
+        ( match body with
+        | Some body ->
+            C.set_postfields c body ;
+            C.set_postfieldsize c (String.length body) ;
+            C.set_customrequest c "PATCH"
+        | None ->
+            C.set_postfields c "" ;
+            C.set_postfieldsize c 0 ;
+            C.set_customrequest c "PATCH" )
       | DELETE ->
           C.set_followlocation c false ;
           C.set_customrequest c "DELETE"
@@ -222,7 +240,7 @@ let http_call
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string) : string * (string * string) list * int =
+    (body : string option) : string * (string * string) list * int =
   let resp_body, code, resp_headers, _ =
     http_call_with_code ~raw_bytes url query_params verb headers body
   in
