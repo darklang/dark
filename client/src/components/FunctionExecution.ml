@@ -1,6 +1,24 @@
 open Prelude
 include Types.FunctionExecutionT
 
+type effect =
+  | TraceUpdateFunctionResult of
+      { tlid : TLID.t
+      ; traceID : Types.traceID
+      ; callerID : ID.t
+      ; fnName : string
+      ; hash : string
+      ; hashVersion : int
+      ; dval : Types.dval }
+  | OverrideTraces of Types.traces
+  | SetUnlockedDBs of Tc.StrSet.t
+  | HandleAPIError of Types.apiError
+  | MakeAPICall of
+      { body : Js.Json.t
+      ; callback : (Js.Json.t, string Tea.Http.error) Tea.Result.t -> Types.msg
+      ; endpoint : string }
+  | Select of TLID.t * Types.tlidSelectTarget
+
 let withinTLID tlid t =
   List.filterMap t ~f:(fun (tlid_, id) ->
       if tlid_ = tlid then Some id else None)
@@ -12,7 +30,7 @@ let recordExecutionStart tlid id t =
   t |> recordExecutionEnd tlid id |> ( @ ) [(tlid, id)]
 
 
-let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
+let update (msg : msg) (t : t) : t * effect list =
   match msg with
   | ExecuteFunction (p, moveToCaller) ->
       let selectionTarget : tlidSelectTarget =
@@ -26,24 +44,24 @@ let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
       in
       let select =
         if moveToCaller = MoveToCaller
-        then CrossComponentMsg.CCMSelect (p.tlid, selectionTarget)
-        else CCMNothing
+        then [Select (p.tlid, selectionTarget)]
+        else []
       in
       ( recordExecutionStart p.tlid p.callerID t
-      , CCMMany
-          [ CCMMakeAPICall
-              { endpoint = "/execute_function"
-              ; body = Encoders.executeFunctionAPIParams p
-              ; callback =
-                  (fun result ->
-                    APICallback
-                      ( p
-                      , match result with
-                        | Ok js ->
-                            Ok (Decoders.executeFunctionAPIResult js)
-                        | Error v ->
-                            Error v )) }
-          ; select ] )
+      , [ MakeAPICall
+            { endpoint = "/execute_function"
+            ; body = Encoders.executeFunctionAPIParams p
+            ; callback =
+                (fun result ->
+                  FunctionExecutionMsg
+                    (APICallback
+                       ( p
+                       , match result with
+                         | Ok js ->
+                             Ok (Decoders.executeFunctionAPIResult js)
+                         | Error v ->
+                             Error v ))) } ]
+        @ select )
   | APICallback (p, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
         List.map
@@ -51,22 +69,21 @@ let update (msg : msg) (t : t) : t * msg CrossComponentMsg.t =
           tlids
       in
       ( recordExecutionEnd p.tlid p.callerID t
-      , CCMMany
-          [ CrossComponentMsg.CCMTraceUpdateFunctionResult
-              { tlid = p.tlid
-              ; traceID = p.traceID
-              ; callerID = p.callerID
-              ; fnName = p.fnName
-              ; hash
-              ; hashVersion
-              ; dval }
-          ; CCMTraceOverrideTraces (StrDict.fromList traces)
-          ; CCMUnlockedDBsSetUnlocked unlockedDBs ] )
+      , [ TraceUpdateFunctionResult
+            { tlid = p.tlid
+            ; traceID = p.traceID
+            ; callerID = p.callerID
+            ; fnName = p.fnName
+            ; hash
+            ; hashVersion
+            ; dval }
+        ; OverrideTraces (StrDict.fromList traces)
+        ; SetUnlockedDBs unlockedDBs ] )
   | APICallback (p, Error err) ->
       ( recordExecutionEnd p.tlid p.callerID t
-      , CCMHandleAPIError
-          { context = "ExecuteFunction"
-          ; importance = ImportantError
-          ; requestParams = Some (Encoders.executeFunctionAPIParams p)
-          ; reload = false
-          ; originalError = err } )
+      , [ HandleAPIError
+            { context = "ExecuteFunction"
+            ; importance = ImportantError
+            ; requestParams = Some (Encoders.executeFunctionAPIParams p)
+            ; reload = false
+            ; originalError = err } ] )
