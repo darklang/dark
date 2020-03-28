@@ -336,7 +336,7 @@ let rec postTraversal ~(f : t -> t) (expr : t) : t =
   f result
 
 
-let walk ~(f : t -> t) (expr : t) : t =
+let deprecatedWalk ~(f : t -> t) (expr : t) : t =
   match expr with
   | EInteger _
   | EBlank _
@@ -387,7 +387,7 @@ let filterMap ~(f : t -> 'a option) (expr : t) : 'a list =
         ()
     | None ->
         () ) ;
-    walk ~f:myWalk e
+    deprecatedWalk ~f:myWalk e
   in
   ignore (myWalk expr) ;
   List.reverse !results
@@ -413,7 +413,7 @@ let update ?(failIfMissing = true) ~(f : t -> t) (target : id) (ast : t) : t =
     then (
       found := true ;
       f e )
-    else walk ~f:run e
+    else deprecatedWalk ~f:run e
   in
   let finished = run ast in
   if failIfMissing
@@ -474,7 +474,7 @@ let rec updateVariableUses (oldVarName : string) ~(f : t -> t) (ast : t) : t =
       in
       EMatch (id, u cond, pairs)
   | _ ->
-      walk ~f:u ast
+      deprecatedWalk ~f:u ast
 
 
 let renameVariableUses ~(oldName : string) ~(newName : string) (ast : t) : t =

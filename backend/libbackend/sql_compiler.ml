@@ -140,7 +140,7 @@ let rec canonicalize expr =
                 "Currently, only function calls are supported in Pipes"
                 (show_expr expr))
   | _ ->
-      Ast.traverse ~f:canonicalize expr
+      Ast.deprecated_traverse ~f:canonicalize expr
 
 
 let dval_to_sql (dval : dval) : string =
@@ -270,7 +270,7 @@ let rec inline
          * later *)
         expr )
   | _ ->
-      Ast.traverse ~f:(inline paramName symtable) expr
+      Ast.deprecated_traverse ~f:(inline paramName symtable) expr
 
 
 (* Generate SQL from an Expr. This expects that all the hard stuff has been
