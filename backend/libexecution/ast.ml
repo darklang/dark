@@ -109,7 +109,7 @@ let rec example_traversal expr =
       deprecated_traverse ~f:example_traversal expr
 
 
-(** [post_travere f ast] walks the entire AST from bottom to top, calling f on
+(** [post_traverse f ast] walks the entire AST from bottom to top, calling f on
  * each function. It returns a new AST with every subexpression e replaced by
  * [f e]. Unlike traverse, it does not require you to call traverse again (this
  * is not corecursive).  After calling [f], the result is NOT recursed into. *)
