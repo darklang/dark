@@ -9,17 +9,9 @@ type domEventList = ViewUtils.domEventList
 
 let inUnit = ViewUtils.intAsUnit
 
-let idConfigs = ViewBlankOr.idConfigs
-
 let fontAwesome = ViewUtils.fontAwesome
 
 let viewText = ViewBlankOr.viewText
-
-let wc = ViewBlankOr.wc
-
-let text = ViewBlankOr.text
-
-let enterable = ViewBlankOr.Enterable
 
 let handlerIsExeComplete (vs : viewState) : bool =
   match vs.handlerProp with Some hp -> hp.execution = Complete | None -> false
@@ -158,16 +150,20 @@ let viewEventSpec
     (vs : viewState) (spec : handlerSpec) (dragEvents : domEventList) :
     msg Html.html =
   let viewEventName =
-    let configs = (enterable :: idConfigs) @ [wc "toplevel-name"] in
-    viewText EventName vs configs spec.name
+    viewText ~enterable:true ~classes:["toplevel-name"] EventName vs spec.name
   in
   let viewEventSpace =
-    let configs = (enterable :: idConfigs) @ [wc "space"] in
-    viewText EventSpace vs configs spec.space
+    viewText ~enterable:true ~classes:["space"] EventSpace vs spec.space
   in
   let viewEventModifier =
-    let configs = (enterable :: idConfigs) @ [wc "modifier"] in
-    let viewMod = viewText EventModifier vs configs spec.modifier in
+    let viewMod =
+      viewText
+        ~enterable:true
+        ~classes:["modifier"]
+        EventModifier
+        vs
+        spec.modifier
+    in
     match (spec.space, spec.modifier, spec.name) with
     | F (_, "HTTP"), _, _ | F (_, "CRON"), _, _ ->
         Html.div [Html.class' "modifier"] [viewMod]

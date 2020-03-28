@@ -89,7 +89,7 @@ let preorderWalkUntil ~(f : Dom.Node.t -> bool) (node : Dom.Node.t) : unit =
   * then [begin] == [end].
   *
   * This function works by first finding the fluid-editor div that the
-  * selection starts in, then iterating through all it's children nodes until
+  * selection starts in, then iterating through all its children nodes until
   * it finds both the selection start and finish nodes (anchor and focus,
   * respectively). Each non-matching node that is passed by increments a
   * cursor, which is used to calculate the absolute 0-based index from the

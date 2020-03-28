@@ -7,15 +7,7 @@ type viewState = ViewUtils.viewState
 
 type domEventList = ViewUtils.domEventList
 
-type htmlConfig = ViewBlankOr.htmlConfig
-
-let idConfigs = ViewBlankOr.idConfigs
-
 let fontAwesome = ViewUtils.fontAwesome
-
-let wc = ViewBlankOr.wc
-
-let enterable = ViewBlankOr.Enterable
 
 let dbName2String (name : dbName blankOr) : dbName = B.valueWithDefault "" name
 
@@ -71,8 +63,12 @@ let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
       if vs.dbLocked
       then Html.text (dbName2String db.dbName)
       else
-        let c = (enterable :: idConfigs) @ [wc "dbname"] in
-        ViewBlankOr.viewText DBName vs c db.dbName
+        ViewBlankOr.viewText
+          ~enterable:true
+          ~classes:["dbname"]
+          DBName
+          vs
+          db.dbName
     in
     Html.span
       [Html.class' "toplevel-name"]
@@ -101,20 +97,16 @@ let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
   [typeView; titleView; menuView]
 
 
-let viewDBColName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  let configs =
-    if B.isBlank v || not vs.dbLocked then (enterable :: idConfigs) @ c else c
-  in
-  ViewBlankOr.viewText DBColName vs configs v
+let viewDBColName ~(classes : string list) (vs : viewState) (v : string blankOr)
+    : msg Html.html =
+  let enterable = B.isBlank v || not vs.dbLocked in
+  ViewBlankOr.viewText ~enterable ~classes DBColName vs v
 
 
-let viewDBColType (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  let configs =
-    if B.isBlank v || not vs.dbLocked then (enterable :: idConfigs) @ c else c
-  in
-  ViewBlankOr.viewText DBColType vs configs v
+let viewDBColType ~(classes : string list) (vs : viewState) (v : string blankOr)
+    : msg Html.html =
+  let enterable = B.isBlank v || not vs.dbLocked in
+  ViewBlankOr.viewText ~enterable ~classes DBColType vs v
 
 
 let viewDBCol
@@ -138,7 +130,9 @@ let viewDBCol
         [fontAwesome "minus-circle"]
     else Vdom.noNode
   in
-  let row = [viewDBColName vs [wc "name"] n; viewDBColType vs [wc "type"] t] in
+  let row =
+    [viewDBColName vs ~classes:["name"] n; viewDBColType vs ~classes:["type"] t]
+  in
   Html.div
     [Html.classList [("col", true); ("has-empty", deleteButton = Vdom.noNode)]]
     (deleteButton :: row)
