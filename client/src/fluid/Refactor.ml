@@ -28,7 +28,7 @@ let transformFnCalls
         when Some name = BlankOr.toOption uf.ufMetadata.ufmName ->
           f e
       | other ->
-          E.walk ~f:run other
+          E.deprecatedWalk ~f:run other
     in
     FluidAST.map ast ~f:run
   in
