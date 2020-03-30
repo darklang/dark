@@ -135,6 +135,11 @@ $icSize: 1em;
 }
 
 // Category summary
+
+.sidebar-on-abridged-icon {
+  font-size: 2em;
+}
+
 .category-summary {
   outline: none;
   display: flex;
@@ -188,8 +193,12 @@ $icSize: 1em;
       transition: 0.2s font-size;
 
       &:hover {
-        font-size: 2em;
+        @extend .sidebar-on-abridged-icon;
       }
+    }
+
+    @at-root .abridged .sidebar-category[open] & {
+      @extend .sidebar-on-abridged-icon;
     }
   }
 
