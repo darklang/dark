@@ -30,7 +30,10 @@ let fns : fn list =
          *)
         InProcess
           (function
-          | _, [DInt a; DInt b] -> DInt (Dint.modulo a b) | args -> fail args)
+          | _, [DInt a; DInt b] ->
+              DInt (Dint.modulo_exn a b)
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Int::mod_v1"]
@@ -44,7 +47,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DInt v; DInt m] ->
-            ( try DResult (ResOk (DInt (Dint.modulo v m)))
+            ( try DResult (ResOk (DInt (Dint.modulo_exn v m)))
               with e ->
                 if m <= Dint.of_int 0
                 then
@@ -70,7 +73,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DInt v; DInt d] ->
-            ( try DResult (ResOk (DInt (Dint.rem v d)))
+            ( try DResult (ResOk (DInt (Dint.rem_exn v d)))
               with e ->
                 if d = Dint.of_int 0
                 then
