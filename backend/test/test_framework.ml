@@ -297,6 +297,73 @@ let t_curl_file_urls () =
         None )
 
 
+let t_encode_request_body () =
+  clear_test_data () ;
+  let () =
+    let headers = [] in
+    let body =
+      Some
+        (Dval.to_dobj_exn
+           [("hello", DStr (Unicode_string.of_string_exn "world"))])
+    in
+    AT.check
+      (AT.option AT.string)
+      "jsonifies by default"
+      (Libhttpclient.encode_request_body headers body)
+      (Some "{ \"hello\": \"world\" }")
+  in
+  let () =
+    let headers = [("Content-Type", "text/plain")] in
+    let body = Some (DOption OptNothing) in
+    AT.check
+      (AT.option AT.string)
+      "Uses our plaintext format if passed text/plain"
+      (Libhttpclient.encode_request_body headers body)
+      (Some "Nothing")
+  in
+  let () =
+    let headers = [("Content-Type", "application/x-www-form-urlencoded")] in
+    let body =
+      Some
+        (Dval.to_dobj_exn
+           [("hello", DStr (Unicode_string.of_string_exn "world"))])
+    in
+    AT.check
+      (AT.option AT.string)
+      "Uses form encoding if passed application/x-www-form-urlencoded"
+      (Libhttpclient.encode_request_body headers body)
+      (Some "hello=world")
+  in
+  let () =
+    let headers = [] in
+    let body = Some (Dval.dstr_of_string_exn "") in
+    AT.check
+      (AT.option AT.string)
+      "Empty string is morphed to no body"
+      (Libhttpclient.encode_request_body headers body)
+      None
+  in
+  let () =
+    let headers = [] in
+    let body = None in
+    AT.check
+      (AT.option AT.string)
+      "No body is transparently passed thru"
+      (Libhttpclient.encode_request_body headers body)
+      None
+  in
+  let () =
+    let headers = [] in
+    let body = Some (Dval.dstr_of_string_exn "hello, world!") in
+    AT.check
+      (AT.option AT.string)
+      "Strings are transparently passed through with no extra quotations, in utf-8"
+      (Libhttpclient.encode_request_body headers body)
+      (Some "hello, world!")
+  in
+  ()
+
+
 (* ------------------- *)
 (* functions *)
 (* ------------------- *)
@@ -341,4 +408,6 @@ let suite =
   ; ("Cron should run sanity", `Quick, t_cron_sanity)
   ; ("Cron just ran", `Quick, t_cron_just_ran)
   ; ("Dark code can't curl file:// urls", `Quick, t_curl_file_urls)
-  ; ("Function traces are stored", `Quick, t_function_traces_are_stored) ]
+  ; ("Function traces are stored", `Quick, t_function_traces_are_stored)
+  ; ("Httpclient encodes request bodies per spec", `Quick, t_encode_request_body)
+  ]
