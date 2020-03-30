@@ -404,9 +404,16 @@ let deletedCategory (m : model) : category =
 
 
 let viewEmptyCategory (c : category) : msg Html.html =
-  Html.div
-    [Html.class' "simple-item empty"]
-    [Html.text ("No " ^ c.name ^ " entries")]
+  let name =
+    if c.classname = "http"
+    then "HTTP handlers"
+    else if c.classname = "cron" || c.classname = "worker"
+    then c.name ^ " jobs"
+    else if c.classname = "repl"
+    then "REPLs"
+    else c.name
+  in
+  Html.div [Html.class' "simple-item empty"] [Html.text ("No " ^ name)]
 
 
 let viewEntry (m : model) (e : entry) : msg Html.html =
@@ -516,9 +523,6 @@ let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
 let viewDeployStats (m : model) : msg Html.html =
   let entries = m.staticDeploys in
   let count = List.length entries in
-  let isDetailed =
-    match m.sidebarState.mode with DetailedMode -> true | _ -> false
-  in
   let openEventHandler, openAttr = categoryOpenCloseHelpers m "deploys" count in
   let openAttr =
     if m.sidebarState.mode = AbridgedMode
@@ -551,12 +555,12 @@ let viewDeployStats (m : model) : msg Html.html =
       (header :: deployLatest)
   in
   let deploys =
-    if isDetailed
-    then
-      if count > 1
-      then entries |> List.drop ~count:1 |> List.map ~f:viewDeploy
-      else []
-    else entries |> List.map ~f:viewDeploy
+    if List.length entries > 0
+    then entries |> List.map ~f:viewDeploy
+    else
+      [ Html.div
+          [Html.class' "simple-item empty"]
+          [Html.text "No Static deploys"] ]
   in
   let content =
     Html.div
@@ -632,7 +636,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
   in
   let content =
     let entries =
-      if List.length c.entries > 0
+      if c.count > 0
       then List.map ~f:(viewItem m) c.entries
       else [viewEmptyCategory c]
     in
