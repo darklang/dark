@@ -78,14 +78,21 @@ let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
   API.sendCanvasInfo m msg
 
 
-type t = settingsViewState
+type t = { opened : bool
+        ; tab : settingsTab
+        ; canvasList : string list
+        ; orgList : string list
+        ; loading : bool
+        ; canvasInformation : canvasInformation }
 
-type message = ToastShow of string
+type effect = ToastEffect of (Toast.t -> Toast.t)
+            | NewCursor of cursorState
+            | APIError of apiError
 
 (* Ideally, this should only need a settingsViewState, but we need
  * to mutate some shared state (toast, cursorState, canvasProps, errors)
  * that aren't currently componentized *)
-let update (t : t) (msg : settingsMsg) : t * message
+let update (t : t) (msg : settingsMsg) : t * effect list
     =
   match msg with
   | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
@@ -98,15 +105,13 @@ let update (t : t) (msg : settingsMsg) : t * message
               canvasName
             ; createdAt = Some creationDate } }
       in
-      ({m with settingsView}, Cmd.none)
+      (settingsView, [])
   | OpenSettingsView tab ->
       (* Ideally, cross-component msg so we didn't need access to the model *)
       let settingsView =
         {m.settingsView with opened = true; tab; loading = false}
       in
-      let m1 = {m with settingsView} in
-      let m2, cmd = CursorState.setCursorState Deselected m1 in
-      (m2, cmd)
+      (settingsView, [NewCursor Deselected])
   | CloseSettingsView tab ->
       (* Ideally, cross-component msg so we didn't need access to the model *)
       let settingsView =
