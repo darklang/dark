@@ -1,4 +1,3 @@
-open SettingsViewTypes
 open Tc
 
 (* Dark *)
@@ -8,9 +7,76 @@ module Events = Tea.Html2.Events
 module K = FluidKeyboard
 module Html = Tea_html_extended
 
-let fontAwesome = ViewUtils.fontAwesome
+type formField =
+  { value : string
+  ; error : string option }
+[@@deriving show]
+
+type inviteFields = {email : formField}
 
 let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
+
+type settingsTab =
+  | CanvasInfo
+  | UserSettings
+  | InviteUser of inviteFields
+[@@deriving show]
+
+type inviteFormMessage =
+  { email : string
+  ; inviterUsername : string
+  ; inviterName : string }
+[@@deriving show]
+
+type updateCanvasInfoPayload =
+  { canvasName : string
+  ; canvasDescription : string
+  ; canvasShipped : string
+  ; canvasCreation : string }
+[@@deriving show]
+
+type canvasInformation =
+  { canvasName : string
+  ; canvasDescription : string
+  ; shippedDate : Js.Date.t option [@opaque]
+  ; createdAt : Js.Date.t option [@opaque] }
+[@@deriving show]
+
+type t =
+  { opened : bool
+  ; tab : settingsTab
+  ; canvasList : string list
+  ; orgList : string list
+  ; loading : bool
+  ; canvasInformation : canvasInformation }
+[@@deriving show]
+
+type msg =
+  | CloseSettingsView of settingsTab
+  | SetSettingsView of
+      ((string * string list * string list * Js.Date.t)[@opaque])
+  | OpenSettingsView of settingsTab
+  | SwitchSettingsTabs of settingsTab
+  | UpdateInviteForm of string
+  | UpdateCanvasDescription of string
+  | SetCanvasDeployStatus of bool
+  | SubmitForm
+  | TriggerSendInviteCallback of
+      (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
+  | TriggerUpdateCanvasInfoCallback of
+      (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
+  | TriggerGetCanvasInfoCallback of
+      (loadCanvasInfoAPIResult, (string Tea.Http.error[@opaque])) Tea.Result.t
+[@@deriving show]
+
+type effect = ToastShow of string
+            | NewCursor of cursorState
+            | APIError of apiError
+            | EnablePan
+            | SendCanvasInfo
+            | SendSegmentMessage
+
+let fontAwesome = ViewUtils.fontAwesome
 
 let allTabs = [CanvasInfo; UserSettings; InviteUser defaultInviteFields]
 
@@ -54,50 +120,36 @@ let submitForm (m : Types.model) : Types.model * Types.msg Cmd.t =
       (m, Cmd.none)
 
 
-let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
-  let msg =
-    let canvasShipped =
-      match m.settingsView.canvasInformation.shippedDate with
-      | Some date ->
-          date |> Js.Date.toUTCString
-      | None ->
-          ""
-    in
-    let canvasCreation =
-      match m.settingsView.canvasInformation.createdAt with
-      | Some date ->
-          date |> Js.Date.toUTCString
-      | None ->
-          ""
-    in
-    { canvasName = m.settingsView.canvasInformation.canvasName
-    ; canvasDescription = m.settingsView.canvasInformation.canvasDescription
-    ; canvasShipped
-    ; canvasCreation }
+let toUpdateCanvasInfoPayload t : updateCanvasInfoPayload
+  let canvasShipped =
+    match t.canvasInformation.shippedDate with
+    | Some date ->
+        date |> Js.Date.toUTCString
+    | None ->
+        ""
   in
-  API.sendCanvasInfo m msg
+  let canvasCreation =
+    match t.canvasInformation.createdAt with
+    | Some date ->
+        date |> Js.Date.toUTCString
+    | None ->
+        ""
+  in
+  { canvasName = t.canvasInformation.canvasName
+  ; canvasDescription = t.canvasInformation.canvasDescription
+  ; canvasShipped
+  ; canvasCreation }
 
-
-type t = { opened : bool
-        ; tab : settingsTab
-        ; canvasList : string list
-        ; orgList : string list
-        ; loading : bool
-        ; canvasInformation : canvasInformation }
-
-type effect = ToastEffect of (Toast.t -> Toast.t)
-            | NewCursor of cursorState
-            | APIError of apiError
 
 (* Ideally, this should only need a settingsViewState, but we need
  * to mutate some shared state (toast, cursorState, canvasProps, errors)
  * that aren't currently componentized *)
-let update (t : t) (msg : settingsMsg) : t * effect list
+let update (t : t) (msg : msg) : t * effect list
     =
   match msg with
   | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
       let settingsView =
-        { m.settingsView with
+        { t with
           canvasList
         ; orgList
         ; canvasInformation =
@@ -109,34 +161,35 @@ let update (t : t) (msg : settingsMsg) : t * effect list
   | OpenSettingsView tab ->
       (* Ideally, cross-component msg so we didn't need access to the model *)
       let settingsView =
-        {m.settingsView with opened = true; tab; loading = false}
+        {t with opened = true; tab; loading = false}
       in
       (settingsView, [NewCursor Deselected])
   | CloseSettingsView tab ->
       (* Ideally, cross-component msg so we didn't need access to the model *)
       let settingsView =
-        {m.settingsView with opened = false; loading = false}
+        {t with opened = false; loading = false}
       in
-      let m1 = {m with settingsView} in
-      let m2 = {m1 with canvasProps = {m.canvasProps with enablePan = true}} in
-      let cmd =
-        match tab with CanvasInfo -> sendCanvasInformation m | _ -> Cmd.none
+      let effects =
+        let sendCanvasInfo =
+          (match tab with CanvasInfo -> [SendCanvasInfo] | _ -> [])
+        in
+        EnablePan :: sendCanvasInfo
       in
-      (m2, cmd)
+      (t, effects)
   | SwitchSettingsTabs tab ->
-      let settingsView = {m.settingsView with tab; loading = false} in
-      ({m with settingsView}, Cmd.none)
+      let settingsView = {t with tab; loading = false} in
+      (t, [])
   | UpdateInviteForm value ->
       let form = {email = {value; error = None}} in
-      let settingsView = {m.settingsView with tab = InviteUser form} in
-      ({m with settingsView}, Cmd.none)
+      let settingsView = {t with tab = InviteUser form} in
+      (t, [])
   | UpdateCanvasDescription value ->
       let settingsView =
-        { m.settingsView with
+        { t with
           canvasInformation =
-            {m.settingsView.canvasInformation with canvasDescription = value} }
+            {t.canvasInformation with canvasDescription = value} }
       in
-      ({m with settingsView}, Cmd.none)
+      (t, [])
   | SetCanvasDeployStatus ship ->
       let shippedDate =
         let rawDate = Js.Date.now () |> Js.Date.fromFloat in
@@ -228,7 +281,6 @@ let update (t : t) (msg : settingsMsg) : t * effect list
 
 
 (* View functions *)
-
 let settingsTabToText (tab : settingsTab) : string =
   match tab with
   | CanvasInfo ->
@@ -240,8 +292,7 @@ let settingsTabToText (tab : settingsTab) : string =
 
 
 (* View code *)
-
-let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
+let viewUserCanvases (acc : t) : Types.msg Html.html list =
   let canvasLink c =
     let url = "/a/" ^ c in
     Html.li ~unique:c [] [Html.a [Html.href url] [Html.text url]]
@@ -267,7 +318,7 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
   orgView @ canvasView
 
 
-let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
+let viewInviteUserToDark (svs : t) : Types.msg Html.html list =
   let introText =
     [ Html.h2 [] [Html.text "Share Dark with a friend or colleague"]
     ; Html.p
@@ -373,7 +424,7 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
       ; Html.p [Html.class' "created-text"] [Html.text create_at_text] ] ]
 
 
-let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
+let settingsTabToHtml (svs : t) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
   | CanvasInfo ->
@@ -410,14 +461,14 @@ let onKeydown (evt : Web.Node.event) : Types.msg option =
              None)
 
 
-let settingViewWrapper (acc : settingsViewState) : Types.msg Html.html =
+let settingViewWrapper (acc : t) : Types.msg Html.html =
   let tabView = settingsTabToHtml acc in
   Html.div
     [Html.class' "settings-tab-wrapper"]
     ([Html.h1 [] [Html.text "Account"]; tabTitleView acc.tab] @ tabView)
 
 
-let html (m : Types.model) : Types.msg Html.html =
+let view (t : t) : Types.msg Html.html =
   let closingBtn =
     Html.div
       [ Html.class' "close-btn"
@@ -425,7 +476,7 @@ let html (m : Types.model) : Types.msg Html.html =
           ~key:"close-settings-modal"
           "click"
           (fun _ ->
-            Types.SettingsViewMsg (CloseSettingsView m.settingsView.tab)) ]
+            Types.SettingsViewMsg (CloseSettingsView t.tab)) ]
       [fontAwesome "times"]
   in
   Html.div
@@ -433,7 +484,7 @@ let html (m : Types.model) : Types.msg Html.html =
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          Types.SettingsViewMsg (CloseSettingsView m.settingsView.tab)) ]
+          Types.SettingsViewMsg (CloseSettingsView t.tab)) ]
     [ Html.div
         [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"
@@ -442,4 +493,4 @@ let html (m : Types.model) : Types.msg Html.html =
         ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
               EnablePanning true)
         ; Html.onCB "keydown" "keydown" onKeydown ]
-        [settingViewWrapper m.settingsView; closingBtn] ]
+        [settingViewWrapper t; closingBtn] ]

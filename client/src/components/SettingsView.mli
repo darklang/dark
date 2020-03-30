@@ -1,27 +1,55 @@
 type t
 
-type msg = Foo | Bar
+type formField =
+  { value : string
+  ; error : string option }
+[@@deriving show]
 
-(* `msg` is just for browser events (timers, callbacks etc.) and user interaction *)
+type inviteFields = {email : formField}
 
-(* The whole point of redefining effects, and not using say, `Toast.msg` is to
- * prevent this components coupling/depending on each other *)
-type effect1 = ToastShow of string
-             | APIError of err
+type settingsTab =
+  | CanvasInfo
+  | UserSettings
+  | InviteUser of inviteFields
+[@@deriving show]
 
-type effect2 = ToastEffect of (Toast.t -> Toast.t)
-             | APIError of err
+type loadCanvasInfoAPIResult =
+  { canvasDescription : string
+  ; shippedDate : string }
+[@@deriving show]
 
-val update2 : t -> msg -> t * effect list
+type msg =
+  | CloseSettingsView of settingsTab
+  | SetSettingsView of
+      ((string * string list * string list * Js.Date.t)[@opaque])
+  | OpenSettingsView of settingsTab
+  | SwitchSettingsTabs of settingsTab
+  | UpdateInviteForm of string
+  | UpdateCanvasDescription of string
+  | SetCanvasDeployStatus of bool
+  | SubmitForm
+  | TriggerSendInviteCallback of
+      (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
+  | TriggerUpdateCanvasInfoCallback of
+      (unit, (string Tea.Http.error[@opaque])) Tea.Result.t
+  | TriggerGetCanvasInfoCallback of
+      (loadCanvasInfoAPIResult, (string Tea.Http.error[@opaque])) Tea.Result.t
+[@@deriving show]
 
 
+type effect = ToastShow of string
+            | NewCursor of cursorState
+            | APIError of apiError
 
-(* toast.mli)
- *)
+val update : t -> msg -> t * effect list
 
+type updateCanvasInfoPayload =
+  { canvasName : string
+  ; canvasDescription : string
+  ; canvasShipped : string
+  ; canvasCreation : string }
+[@@deriving show]
 
-module Toast : sig
-  type t
-  val show : string -> t -> t
+val toUpdateCanvasInfoPayload : t -> updateCanvasInfoPayload
 
-end
+val view : t -> msg Html.t
