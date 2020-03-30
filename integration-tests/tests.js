@@ -955,7 +955,7 @@ test("sha256hmac_for_aws", async t => {
     .click(Selector("div.handler-trigger"));
   await t
     .expect(Selector(".return-value").innerText)
-    .eql('"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"');
+    .contains('"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"');
 });
 
 test("fluid_fn_pg_change", async t => {
@@ -1113,7 +1113,7 @@ test("use_pkg_fn", async t => {
   await t
     .click(".execution-button")
     .expect(Selector(".return-value", { timeout: 3000 }).textContent)
-    .eql("0");
+    .contains("0");
 
   // check if we can get a result from the bwd endpoint
   const callBackend = ClientFunction(function(url) {
