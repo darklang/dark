@@ -12,18 +12,19 @@ let reset (m : model) : fluidCommandState =
   {index = 0; commands = fluidCommands m; location = None; filter = None}
 
 
-let commandsFor (m : model) (expr : fluidExpr) : command list =
-  fluidCommands m |> List.filter ~f:(fun cmd -> cmd.shouldShow m expr)
+let commandsFor (m : model) (tl : toplevel) (expr : fluidExpr) : command list =
+  fluidCommands m |> List.filter ~f:(fun cmd -> cmd.shouldShow m tl expr)
 
 
 let show (m : model) (tlid : TLID.t) (id : ID.t) : model =
-  TL.get m tlid
+  let tl = TL.get m tlid in
+  tl
   |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(FluidAST.find id)
-  |> Option.map ~f:(fun expr ->
+  |> Option.map2 tl ~f:(fun tl expr ->
          let cp =
            { index = 0
-           ; commands = commandsFor m expr
+           ; commands = commandsFor m tl expr
            ; location = Some (tlid, id)
            ; filter = None }
          in
@@ -105,12 +106,13 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
   let allCmds =
     match cp.location with
     | Some (tlid, id) ->
-        TL.get m tlid
+        let tl = TL.get m tlid in
+        tl
         |> Option.andThen ~f:TL.getAST
-        |> Option.map ~f:(fun ast ->
+        |> Option.map2 tl ~f:(fun tl ast ->
                ast
                |> FluidAST.find id
-               |> function Some expr -> commandsFor m expr | None -> [])
+               |> function Some expr -> commandsFor m tl expr | None -> [])
         |> recoverOpt "no tl for location" ~default:[]
     | _ ->
         fluidCommands m
