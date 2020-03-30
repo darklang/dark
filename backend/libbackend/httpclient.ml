@@ -84,6 +84,14 @@ let recode_latin1 (src : string) =
   Buffer.contents recodebuf
 
 
+(* The [body] parameter is optional to force us to actually treat its
+ * presence/non-presence correctly between different requests. Naively using
+ * the empty string to stand-in for "no body" was a pattern that bubbled up
+ * too far and lead to us passing `""` to a function that then JSON encoded
+ * the empty string, leading to the string `"\"\""` being passed here. By
+ * making this an `option` here, and bubbling this optionality the whole way
+ * up the callstack, we hopefully make it clear that a request has an optional
+ * body *)
 let http_call_with_code
     ?(raw_bytes = false)
     (url : string)
