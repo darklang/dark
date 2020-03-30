@@ -23,9 +23,9 @@ let of_float = Int63.of_float
 let random i = Int63.random i
 
 (* This is NOT the same as Javascript's % *)
-let modulo = Int63.( % )
+let modulo_exn = Int63.( % )
 
-let rem = Int63.rem
+let rem_exn = Int63.rem
 
 let ( + ) = Int63.( + )
 
