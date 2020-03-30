@@ -33,16 +33,7 @@ let has_plaintext_header (headers : headers) : bool =
       String.lowercase k = "content-type"
       && v |> String.lowercase |> String.is_substring ~substring:"text/plain")
 
-
-let send_request
-    (uri : string)
-    (verb : Httpclient.verb)
-    (body : dval option)
-    (query : dval)
-    (headers : dval) : dval =
-  let query = Dval.dval_to_query query in
-  let headers = Dval.to_string_pairs_exn headers in
-  let body =
+let encode_request_body (headers : headers) (body : dval option) : string option =
     body
     |> Option.map ~f:(function
            | DObj _ as dv when has_form_header headers ->
@@ -57,8 +48,17 @@ let send_request
                Dval.to_pretty_machine_json_v1 dv)
     |> Option.bind ~f:(fun body ->
            if String.length body <> 0 then Some body else None)
-  in
+
+let send_request
+    (uri : string)
+    (verb : Httpclient.verb)
+    (body : dval option)
+    (query : dval)
+    (headers : dval) : dval =
   let result, headers, code =
+    let query = Dval.dval_to_query query in
+    let headers = Dval.to_string_pairs_exn headers in
+    let body = encode_request_body headers body in
     Httpclient.http_call uri query verb headers body
   in
   let parsed_result =
