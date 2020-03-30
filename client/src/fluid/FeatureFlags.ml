@@ -61,22 +61,9 @@ let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
    *   https://www.notion.so/darklang/Feature-Flags-v2-8fc5580cce9e491b9ee5767f54917434
    * *)
   match Toplevel.getAST tl with
-  | Some ast ->
-      if hasFlag ast
-      then
-        (* Show a toast, because this is unexpected *)
-        ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( { m with
-                toast =
-                  { m.toast with
-                    toastMessage =
-                      Some
-                        "Only one Feature Flag per-handler/function is supported at this time"
-                  } }
-            , Tea.Cmd.none ))
-      else wrap ast id |> Toplevel.setASTMod tl
-  | None ->
+  | Some ast when not (hasFlag ast) ->
+      wrap ast id |> Toplevel.setASTMod tl
+  | Some _ | None ->
       NoChange
 
 
