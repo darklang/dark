@@ -203,6 +203,9 @@ const getBwdResponse = ClientFunction(function(url) {
   return xhttp.responseText;
 });
 
+const getElementSelectionStart = ClientFunction(selector => selector().selectionStart);
+const getElementSelectionEnd = ClientFunction(selector => selector().selectionEnd);
+
 // ------------------------
 // Tests below here. Don't forget to update client/src/IntegrationTest.ml
 // ------------------------
@@ -1142,4 +1145,27 @@ test("fluid-bytes-response", async t => {
   const url = "/";
   const resp = await getBwdResponse(user_content_url(t, url));
   await t.expect(resp).eql("foo");
+});
+
+test("double_clicking_blankor_selects_it", async t => {
+  // This is part of fixing double-click behaviour in HTTP headers and other
+  // blank-ors. When you clicked on the HTTP header, the caret did not stay in
+  // the header. This checks that it does.
+  //
+  // I managed to fix it by determining that the doubleclick handler was
+  // failing, and fixing that. However, it didn't give it the ideal behaviour,
+  // where the word double-clicked on would be highlighted.
+  //
+  // So this test is not for the ideal behaviour, but for the
+  // non-obviously-broken behaviour.
+  let selector = Selector(".toplevel-name");
+  await t.doubleClick(selector).ok();
+
+  // Selected text is /hello
+  await t
+    .expect(await getElementSelectionStart(selector))
+    .eql(1)
+    .expect(await getElementSelectionEnd(selector))
+    .eql(6)
+    .ok();
 });
