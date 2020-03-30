@@ -33,49 +33,59 @@ let has_plaintext_header (headers : headers) : bool =
       String.lowercase k = "content-type"
       && v |> String.lowercase |> String.is_substring ~substring:"text/plain")
 
-let encode_request_body (headers : headers) (body : dval option) : string option =
-    body
-    |> Option.map ~f:(function
-           | DObj _ as dv when has_form_header headers ->
-               Dval.to_form_encoding dv
-           | DStr s ->
-               (* Do nothing to strings, ever. *)
-               Unicode_string.to_string s
-           | dv when has_plaintext_header headers ->
-               Dval.to_enduser_readable_text_v0 dv
-           | dv ->
-               (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed *)
-               Dval.to_pretty_machine_json_v1 dv)
-    |> Option.bind ~f:(fun body ->
-           if String.length body <> 0 then Some body else None)
+
+let encode_request_body (headers : headers) (body : dval option) : string option
+    =
+  body
+  |> Option.map ~f:(function
+         | DObj _ as dv when has_form_header headers ->
+             Dval.to_form_encoding dv
+         | DStr s ->
+             (* Do nothing to strings, ever. *)
+             Unicode_string.to_string s
+         | dv when has_plaintext_header headers ->
+             Dval.to_enduser_readable_text_v0 dv
+         | dv ->
+             (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed *)
+             Dval.to_pretty_machine_json_v1 dv)
+  |> Option.bind ~f:(fun body ->
+         if String.length body <> 0 then Some body else None)
+
 
 let send_request
     (uri : string)
     (verb : Httpclient.verb)
-    (body : dval option)
+    (request_body : dval option)
     (query : dval)
-    (headers : dval) : dval =
-  let result, headers, code =
-    let query = Dval.dval_to_query query in
-    let headers = Dval.to_string_pairs_exn headers in
-    let body = encode_request_body headers body in
-    Httpclient.http_call uri query verb headers body
+    (request_headers : dval) : dval =
+  let raw_response_body, raw_response_headers, response_code =
+    let encoded_query = Dval.dval_to_query query in
+    let encoded_request_headers = Dval.to_string_pairs_exn request_headers in
+    let encoded_request_body =
+      encode_request_body encoded_request_headers request_body
+    in
+    Httpclient.http_call
+      uri
+      encoded_query
+      verb
+      encoded_request_headers
+      encoded_request_body
   in
-  let parsed_result =
-    if has_form_header headers
+  let parsed_response_body =
+    if has_form_header raw_response_headers
     then
-      try Dval.of_form_encoding result
+      try Dval.of_form_encoding raw_response_body
       with _ -> Dval.dstr_of_string_exn "form decoding error"
-    else if has_json_header headers
+    else if has_json_header raw_response_headers
     then
-      try Dval.of_unknown_json_v0 result
+      try Dval.of_unknown_json_v0 raw_response_body
       with _ -> Dval.dstr_of_string_exn "json decoding error"
     else
-      try Dval.dstr_of_string_exn result
+      try Dval.dstr_of_string_exn raw_response_body
       with _ -> Dval.dstr_of_string_exn "utf-8 decoding error"
   in
-  let parsed_headers =
-    headers
+  let parsed_response_headers =
+    raw_response_headers
     |> List.map ~f:(fun (k, v) ->
            (String.strip k, Dval.dstr_of_string_exn (String.strip v)))
     |> List.filter ~f:(fun (k, _) -> String.length k > 0)
@@ -84,16 +94,16 @@ let send_request
   in
   let obj =
     Dval.to_dobj_exn
-      [ ("body", parsed_result)
-      ; ("headers", parsed_headers)
+      [ ("body", parsed_response_body)
+      ; ("headers", parsed_response_headers)
       ; ( "raw"
-        , result
+        , raw_response_body
           |> Dval.dstr_of_string
           |> Option.value
                ~default:(Dval.dstr_of_string_exn "utf-8 decoding error") )
-      ; ("code", DInt (Dint.of_int code)) ]
+      ; ("code", DInt (Dint.of_int response_code)) ]
   in
-  if code >= 200 && code <= 299
+  if response_code >= 200 && response_code <= 299
   then DResult (ResOk obj)
   else DResult (ResError obj)
 
@@ -137,12 +147,7 @@ let call_no_body verb =
   InProcess
     (function
     | _, [DStr uri; query; headers] ->
-        send_request
-          (Unicode_string.to_string uri)
-          verb
-          None
-          query
-          headers
+        send_request (Unicode_string.to_string uri) verb None query headers
     | args ->
         fail args)
 
