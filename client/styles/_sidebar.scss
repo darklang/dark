@@ -48,7 +48,7 @@ $icSize: 1em;
 }
 
 // Category block
-.sidebar-section {
+.sidebar-category {
   margin-bottom: $sectionSpace;
   padding: 0 $hSpace;
   position: relative;
@@ -135,7 +135,7 @@ $icSize: 1em;
 }
 
 // Category summary
-.section-summary {
+.category-summary {
   outline: none;
   display: flex;
 
@@ -218,12 +218,12 @@ $icSize: 1em;
 }
 
 // Wrapper for categories' content
-.section-content {
+.category-content {
   @at-root .detailed & > .category-name {
     display: none;
   }
 
-  @at-root .abridged > .sidebar-section > & {
+  @at-root .abridged > .sidebar-category > & {
     background-color: $sidebarBgColor;
     width: $sidebarFullWidth;
     max-height: 400px;
@@ -324,22 +324,22 @@ $icSize: 1em;
 }
 
 // Special cases: Deleted & 404s
-.detailed .sidebar-section {
-  &.fof .section-content {
+.detailed .sidebar-category {
+  &.fof .category-content {
     margin-left: 0.5em;
   }
 
-  .sidebar-section {
+  .sidebar-category {
     padding-right: 0;
   }
 
-  .section-content .section-content {
+  .category-content .category-content {
     margin-left: 1.5em;
   }
 }
 
-.abridged .sidebar-section .section-content {
-  .section-summary {
+.abridged .sidebar-category .category-content {
+  .category-summary {
     width: 100%;
     align-items: center;
 
@@ -353,13 +353,13 @@ $icSize: 1em;
     }
   }
 
-  .section-content .category-name {
+  .category-content .category-name {
     display: none;
   }
 }
 
-.sidebar-section.deleted,
-.sidebar-section.fof {
+.sidebar-category.deleted,
+.sidebar-category.fof {
   .simple-item {
     display: flex;
     justify-content: flex-end;
@@ -383,7 +383,7 @@ $icSize: 1em;
 }
 
 /* Special Case: Static Assets */
-.sidebar-section.deploys {
+.sidebar-category.deploys {
   .simple-item {
     display: flex;
     flex-wrap: wrap;
@@ -432,7 +432,7 @@ $icSize: 1em;
     }
   }
 
-  .section-summary {
+  .category-summary {
     display: block;
     .category-header {
       display: inline-block;
@@ -453,7 +453,7 @@ $icSize: 1em;
     }
   }
 
-  .section-content {
+  .category-content {
     @at-root .detailed & {
       margin-left: $icSize;
     }
@@ -465,10 +465,10 @@ $icSize: 1em;
 }
 
 // Special Case : Admin
-.abridged .sidebar-section.admin {
+.abridged .sidebar-category.admin {
   padding: 0;
 
-  .section-summary {
+  .category-summary {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -499,11 +499,11 @@ $icSize: 1em;
     }
   }
 
-  .section-content {
+  .category-content {
     display: none;
   }
 
-  &:hover .section-content {
+  &:hover .category-content {
     display: block;
 
     a {

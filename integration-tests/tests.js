@@ -647,8 +647,8 @@ test("cant_delete_locked_col", async t => {
 });
 
 test("select_route", async t => {
-  const categoryHeader = ".sidebar-section.http .section-summary";
-  const httpVerbLink = ".sidebar-section.http .section-content a.toplevel-link";
+  const categoryHeader = ".sidebar-category.http .category-summary";
+  const httpVerbLink = ".sidebar-category.http .category-content a.toplevel-link";
   const toplevelElement = ".node .toplevel";
 
   await t.click(Selector(categoryHeader));
@@ -929,12 +929,12 @@ test("max_callstack_bug", async t => {
 
 test("sidebar_opens_function", async t => {
   await t
-    .expect(available(".sidebar-section.fns .section-summary"))
+    .expect(available(".sidebar-category.fns .category-summary"))
     .ok()
-    .click(Selector(".sidebar-section.fns .section-summary"))
-    .expect(available(".sidebar-section.fns a[href='#fn=1352039682']"))
+    .click(Selector(".sidebar-category.fns .category-summary"))
+    .expect(available(".sidebar-category.fns a[href='#fn=1352039682']"))
     .ok()
-    .click(Selector(".sidebar-section.fns a[href='#fn=1352039682']"))
+    .click(Selector(".sidebar-category.fns a[href='#fn=1352039682']"))
     .expect(getPageUrl())
     .match(/.+#fn=1352039682$/, "Url is incorrect");
 });

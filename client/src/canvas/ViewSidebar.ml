@@ -541,7 +541,7 @@ let viewDeployStats (m : model) : msg Html.html =
       else []
     in
     Html.summary
-      [openEventHandler; Html.class' "section-summary"]
+      [openEventHandler; Html.class' "category-summary"]
       (header :: deployLatest)
   in
   let deploys =
@@ -554,14 +554,14 @@ let viewDeployStats (m : model) : msg Html.html =
   in
   let content =
     Html.div
-      [ Html.class' "section-content"
+      [ Html.class' "category-content"
       ; eventNoPropagation ~key:"cat-close-deploy" "mouseleave" (fun _ ->
             SidebarMsg ResetSidebar) ]
       (title :: deploys)
   in
   let classes =
     Html.classList
-      [("sidebar-section", true); ("deploys", true); ("empty", count = 0)]
+      [("sidebar-category", true); ("deploys", true); ("empty", count = 0)]
   in
   Html.details [classes; openAttr] [summary; content]
 
@@ -621,13 +621,13 @@ and viewCategory (m : model) (c : category) : msg Html.html =
     in
     let header = Html.div [Html.class' "category-header"] [catIcon; title] in
     Html.summary
-      [Html.class' "section-summary"; openEventHandler]
+      [Html.class' "category-summary"; openEventHandler]
       [header; plusButton]
   in
   let content =
     let entries = List.map ~f:(viewItem m) c.entries in
     Html.div
-      [ Html.class' "section-content"
+      [ Html.class' "category-content"
       ; eventNoPropagation
           ~key:("cat-close-" ^ c.classname)
           "mouseleave"
@@ -637,7 +637,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
   in
   let classes =
     Html.classList
-      [("sidebar-section", true); (c.classname, true); ("empty", c.count = 0)]
+      [("sidebar-category", true); (c.classname, true); ("empty", c.count = 0)]
   in
   Html.details [classes; openAttr] [summary; content]
 
@@ -773,9 +773,9 @@ let adminDebuggerView (m : model) : msg Html.html =
       [fontAwesome "cog"]
   in
   let sectionIcon =
-    Html.div [Html.class' "section-summary"] [icon; environment]
+    Html.div [Html.class' "category-summary"] [icon; environment]
   in
-  Html.div [Html.class' "sidebar-section admin"] [sectionIcon; hoverView]
+  Html.div [Html.class' "sidebar-category admin"] [sectionIcon; hoverView]
 
 
 let update (msg : sidebarMsg) : modification =
