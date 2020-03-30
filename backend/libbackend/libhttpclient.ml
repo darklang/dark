@@ -37,7 +37,6 @@ let has_plaintext_header (headers : headers) : bool =
 let send_request
     (uri : string)
     (verb : Httpclient.verb)
-    (json_fn : dval -> string)
     (body : dval option)
     (query : dval)
     (headers : dval) : dval =
@@ -55,7 +54,7 @@ let send_request
                Dval.to_enduser_readable_text_v0 dv
            | dv ->
                (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed *)
-               json_fn dv)
+               Dval.to_pretty_machine_json_v1 dv)
     |> Option.bind ~f:(fun body ->
            if String.length body <> 0 then Some body else None)
   in
@@ -120,14 +119,13 @@ let encode_basic_auth u p =
   Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
 
 
-let call verb json_fn =
+let call verb =
   InProcess
     (function
     | _, [DStr uri; body; query; headers] ->
         send_request
           (Unicode_string.to_string uri)
           verb
-          json_fn
           (Some body)
           query
           headers
@@ -135,14 +133,13 @@ let call verb json_fn =
         fail args)
 
 
-let call_no_body verb json_fn =
+let call_no_body verb =
   InProcess
     (function
     | _, [DStr uri; query; headers] ->
         send_request
           (Unicode_string.to_string uri)
           verb
-          json_fn
           None
           query
           headers
@@ -582,7 +579,7 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; func = call Httpclient.POST Dval.to_pretty_machine_json_v1
+    ; func = call Httpclient.POST
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::put_v5"]
@@ -591,7 +588,7 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; func = call Httpclient.PUT Dval.to_pretty_machine_json_v1
+    ; func = call Httpclient.PUT
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::get_v5"]
@@ -600,7 +597,7 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; func = call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1
+    ; func = call_no_body Httpclient.GET
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::delete_v5"]
@@ -612,7 +609,7 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; func = call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
+    ; func = call_no_body Httpclient.DELETE
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::options_v5"]
@@ -621,7 +618,7 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; func = call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
+    ; func = call_no_body Httpclient.OPTIONS
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::head_v5"]
@@ -630,7 +627,7 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; func = call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
+    ; func = call_no_body Httpclient.HEAD
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::patch_v5"]
@@ -639,7 +636,7 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-    ; func = call Httpclient.PATCH Dval.to_pretty_machine_json_v1
+    ; func = call Httpclient.PATCH
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::basicAuth"]
