@@ -306,20 +306,36 @@ let t_encode_request_body () =
         (Dval.to_dobj_exn
            [("hello", DStr (Unicode_string.of_string_exn "world"))])
     in
+    let encoded_body, munged_headers =
+      Libhttpclient.encode_request_body headers body
+    in
     AT.check
       (AT.option AT.string)
       "jsonifies by default"
-      (Libhttpclient.encode_request_body headers body)
-      (Some "{ \"hello\": \"world\" }")
+      encoded_body
+      (Some "{ \"hello\": \"world\" }") ;
+    AT.check
+      (AT.list (AT.pair AT.string AT.string))
+      "Adds default application/json header"
+      munged_headers
+      [("Content-Type", "application/json")]
   in
   let () =
     let headers = [("Content-Type", "text/plain")] in
     let body = Some (DOption OptNothing) in
+    let encoded_body, munged_headers =
+      Libhttpclient.encode_request_body headers body
+    in
     AT.check
       (AT.option AT.string)
       "Uses our plaintext format if passed text/plain"
-      (Libhttpclient.encode_request_body headers body)
-      (Some "Nothing")
+      encoded_body
+      (Some "Nothing") ;
+    AT.check
+      (AT.list (AT.pair AT.string AT.string))
+      "Passes text/plain thru transparently"
+      munged_headers
+      [("Content-Type", "text/plain")]
   in
   let () =
     let headers = [("Content-Type", "application/x-www-form-urlencoded")] in
@@ -328,38 +344,70 @@ let t_encode_request_body () =
         (Dval.to_dobj_exn
            [("hello", DStr (Unicode_string.of_string_exn "world"))])
     in
+    let encoded_body, munged_headers =
+      Libhttpclient.encode_request_body headers body
+    in
     AT.check
       (AT.option AT.string)
       "Uses form encoding if passed application/x-www-form-urlencoded"
-      (Libhttpclient.encode_request_body headers body)
-      (Some "hello=world")
+      encoded_body
+      (Some "hello=world") ;
+    AT.check
+      (AT.list (AT.pair AT.string AT.string))
+      "Passes application/x-www-form-urlencoded through transparently"
+      munged_headers
+      [("Content-Type", "application/x-www-form-urlencoded")]
   in
   let () =
     let headers = [] in
     let body = Some (Dval.dstr_of_string_exn "") in
+    let encoded_body, munged_headers =
+      Libhttpclient.encode_request_body headers body
+    in
     AT.check
       (AT.option AT.string)
       "Empty string is morphed to no body"
-      (Libhttpclient.encode_request_body headers body)
-      None
+      encoded_body
+      None ;
+    AT.check
+      (AT.list (AT.pair AT.string AT.string))
+      "Adds text/plain to empty String bodies #1"
+      munged_headers
+      [("Content-Type", "text/plain")]
   in
   let () =
     let headers = [] in
     let body = None in
+    let encoded_body, munged_headers =
+      Libhttpclient.encode_request_body headers body
+    in
     AT.check
       (AT.option AT.string)
       "No body is transparently passed thru"
-      (Libhttpclient.encode_request_body headers body)
-      None
+      encoded_body
+      None ;
+    AT.check
+      (AT.list (AT.pair AT.string AT.string))
+      "Adds text/plain to empty bodies #2"
+      munged_headers
+      [("Content-Type", "text/plain")]
   in
   let () =
     let headers = [] in
     let body = Some (Dval.dstr_of_string_exn "hello, world!") in
+    let encoded_body, munged_headers =
+      Libhttpclient.encode_request_body headers body
+    in
     AT.check
       (AT.option AT.string)
       "Strings are transparently passed through with no extra quotations, in utf-8"
-      (Libhttpclient.encode_request_body headers body)
-      (Some "hello, world!")
+      encoded_body
+      (Some "hello, world!") ;
+    AT.check
+      (AT.list (AT.pair AT.string AT.string))
+      "Strings are considered text/plain"
+      munged_headers
+      [("Content-Type", "text/plain")]
   in
   ()
 

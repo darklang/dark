@@ -34,33 +34,53 @@ let has_plaintext_header (headers : headers) : bool =
       && v |> String.lowercase |> String.is_substring ~substring:"text/plain")
 
 
-let encode_request_body (headers : headers) (body : dval option) : string option
-    =
-  body
-  |> Option.map ~f:(function
-         | DObj _ as dv when has_form_header headers ->
-             Dval.to_form_encoding dv
-         | DStr s ->
-             (* Do nothing to strings, ever. The reasoning here is that users do not expect any
-              * magic to happen to their raw strings. It's also the only real way (barring Bytes) to support
-              * users doing their _own_ encoding (say, jsonifying themselves and passing the Content-Type header
-              * manually).
-              *
-              * See: https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9 for
-              * more information. *)
-             Unicode_string.to_string s
-         | dv when has_plaintext_header headers ->
-             Dval.to_enduser_readable_text_v0 dv
-         | dv ->
-             (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed. This makes a little more
-              * sense than you might think on first glance, due to interaction with the `DStr` case. If a user actually
-              * _wants_ to use a different Content-Type than the form/plain-text magic provided, they're responsible for
-              * encoding the value to a String first and not just giving us a random dval. *)
-             Dval.to_pretty_machine_json_v1 dv)
-  |> Option.bind ~f:(fun body ->
-         (* Explicitly convert the empty String to `None`, to ensure downstream we set the right bits on the outgoing
-          * cURL request. *)
-         if String.length body <> 0 then Some body else None)
+(* Adds a default Content-Type header if one is not provided *)
+let with_default_content_type ~(ct : string) (headers : headers) : headers =
+  if List.Assoc.mem headers ~equal:String.Caseless.equal "Content-Type"
+  then headers
+  else ("Content-Type", ct) :: headers
+
+
+(* Encodes [body] as a UTF-8 buffer/OCaml string, safe for sending across the internet! Uses
+ * the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
+ * how to encode said body. Returns a tuple of the encoded body, and the passed headers that
+ * have potentially had a Content-Type added to them based on the magic decision we've made. *)
+let encode_request_body (headers : headers) (body : dval option) :
+    string option * headers =
+  match body with
+  | Some dv ->
+      let encoded_body, munged_headers =
+        match dv with
+        | DObj _ as dv when has_form_header headers ->
+            (Dval.to_form_encoding dv, headers)
+        | DStr s ->
+            (* Do nothing to strings, ever. The reasoning here is that users do not expect any
+            * magic to happen to their raw strings. It's also the only real way (barring Bytes) to support
+            * users doing their _own_ encoding (say, jsonifying themselves and passing the Content-Type header
+            * manually).
+            *
+            * See: https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9 for
+            * more information. *)
+            ( Unicode_string.to_string s
+            , with_default_content_type ~ct:"text/plain" headers )
+        | dv when has_plaintext_header headers ->
+            (Dval.to_enduser_readable_text_v0 dv, headers)
+        | dv ->
+            (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed. This makes a little more
+            * sense than you might think on first glance, due to interaction with the `DStr` case. If a user actually
+            * _wants_ to use a different Content-Type than the form/plain-text magic provided, they're responsible for
+            * encoding the value to a String first and not just giving us a random dval. *)
+            ( Dval.to_pretty_machine_json_v1 dv
+            , with_default_content_type ~ct:"application/json" headers )
+      in
+      (* Explicitly convert the empty String to `None`, to ensure downstream we set the right bits on the outgoing cURL request. *)
+      if String.length encoded_body = 0
+      then (None, munged_headers)
+      else (Some encoded_body, munged_headers)
+  (* If we were passed an empty body, we need to ensure a Content-Type was set, or else helpful intermediary load balancers will set
+   * the Content-Type to something they've plucked out of the ether, which is distinctfully non-helpful and also non-deterministic *)
+  | None ->
+      (None, with_default_content_type ~ct:"text/plain" headers)
 
 
 let send_request
@@ -72,16 +92,20 @@ let send_request
   let raw_response_body, raw_response_headers, response_code =
     let encoded_query = Dval.dval_to_query query in
     let encoded_request_headers = Dval.to_string_pairs_exn request_headers in
-    let encoded_request_body =
+    let encoded_request_body, munged_encoded_request_headers =
       (* We use the user-provided Content-Type headers to make ~magic~ decisions
-       * about how to encode the the outgoing request *)
+       * about how to encode the the outgoing request
+       *
+       * We also _munge_ the headers, specifically to add a Content-Type if none
+       * was provided. This is to ensure we're being good HTTP citizens.
+       * *)
       encode_request_body encoded_request_headers request_body
     in
     Httpclient.http_call
       uri
       encoded_query
       verb
-      encoded_request_headers
+      munged_encoded_request_headers
       encoded_request_body
   in
   let parsed_response_body =
