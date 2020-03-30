@@ -494,6 +494,10 @@ $icSize: 1em;
   @at-root .detailed &.empty .category-summary {
     margin-left: 1em;
   }
+
+  @at-root .detailed & .simple-item:first-child {
+    display: none;
+  }
 }
 
 // Special Case : Admin
