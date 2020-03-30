@@ -283,6 +283,22 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Dict::containsKey"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; par "key" TStr]
+    ; return_type = TBool
+    ; description =
+        "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
+    ; func =
+        InProcess
+          (function
+          | _, [DObj o; DStr s] ->
+              let key = Unicode_string.to_string s in
+              DBool (DvalMap.contains_key o ~key)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Dict::foreach"]
     ; infix_names = []
     ; parameters = [par "dict" TObj; func ["val"]]
