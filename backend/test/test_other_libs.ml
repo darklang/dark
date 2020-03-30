@@ -281,6 +281,22 @@ let t_dict_stdlibs_work () =
     (DObj (DvalMap.from_list [("one", Dval.dint 1)]))
     (exec_ast' (fn "Dict::singleton" [str "one"; int 1])) ;
   check_dval
+    "Dict::containsKey works (not present)"
+    (DBool false)
+    (exec_ast'
+       (fn
+          "Dict::containsKey"
+          [ ( record [("otherKey", int 5)] ;
+              str "someKey" ) ])) ;
+  check_dval
+    "Dict::containsKey works (present)"
+    (DBool true)
+    (exec_ast'
+       (fn
+          "Dict::containsKey"
+          [ ( record [("otherKey", int 5); ("someKey", int 5)] ;
+              str "someKey" ) ])) ;
+  check_dval
     "dict keys"
     (DList [dstr "key1"])
     (exec_ast "(Dict::keys (obj (key1 'val1')))") ;
