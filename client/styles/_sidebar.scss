@@ -60,6 +60,10 @@ $icSize: 1em;
     }
   }
 
+  @at-root .abridged &.repl {
+    margin-bottom: $sectionSpace + 5px; // add extra spacing for icon balance
+  }
+
   &.empty summary::-webkit-details-marker {
     display: none;
   }
@@ -75,17 +79,16 @@ $icSize: 1em;
   color: $secondaryColor;
   cursor: pointer;
   margin-right: 0.25em;
+  margin-bottom: $sectionSpace;
 
   .label {
     margin-right: $hSpace;
   }
 
-  .icon {
-    .fa {
-      font-size: 1em;
-      &:nth-child(2) {
-        margin-left: -5px;
-      }
+  .icon .fa {
+    font-size: 1em;
+    &:nth-child(2) {
+      margin-left: -5px;
     }
   }
 
@@ -124,10 +127,6 @@ $icSize: 1em;
       animation-timing-function: ease-in-out;
     }
 
-    .icon .fa {
-      font-size: 0.8em;
-    }
-
     .label {
       display: none;
     }
@@ -152,6 +151,7 @@ $icSize: 1em;
       color: $secondaryColor;
       &:hover {
         color: $hoverColor;
+        cursor: pointer;
       }
     }
   }
@@ -182,7 +182,7 @@ $icSize: 1em;
 
   .category-icon {
     @at-root .detailed & {
-      margin-right: $hSpace;
+      margin-right: 0.8em;
       color: $primaryColor;
     }
 
@@ -194,6 +194,7 @@ $icSize: 1em;
 
       &:hover {
         @extend .sidebar-on-abridged-icon;
+        cursor: pointer;
       }
     }
 
@@ -218,6 +219,7 @@ $icSize: 1em;
     font-size: 1.2em;
     &:hover {
       color: $hoverColor;
+      cursor: pointer;
     }
 
     @at-root .abridged & {
@@ -308,6 +310,11 @@ $icSize: 1em;
       &.selected .path::before {
         color: $hoverColor;
       }
+
+      &.selected:hover .path::before {
+        color: $orange;
+        font-weight: 900;
+      }
     }
 
     .verb {
@@ -333,6 +340,10 @@ $icSize: 1em;
         color: $http-options;
       }
     }
+  }
+
+  @at-root .detailed & {
+    margin-left: 0.5em;
   }
 }
 
@@ -376,6 +387,10 @@ $icSize: 1em;
   .simple-item {
     display: flex;
     justify-content: flex-end;
+
+    &.empty {
+      justify-content: flex-start;
+    }
 
     .toplevel-name {
       width: calc(100% - #{3 * $icSize});
@@ -474,6 +489,10 @@ $icSize: 1em;
     .simple-item {
       margin-top: $icSize;
     }
+  }
+
+  @at-root .detailed &.empty .category-summary {
+    margin-left: 1em;
   }
 }
 

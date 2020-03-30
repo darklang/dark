@@ -101,7 +101,7 @@ let categoryButton ?(props = []) (name : string) (description : string) :
     msg Html.html =
   Html.div
     ( [ Html.class' "category-icon"
-      ; Html.title name
+      ; Html.title description
       ; Vdom.attribute "" "role" "img"
       ; Vdom.attribute "" "alt" description ]
     @ props )
@@ -667,9 +667,8 @@ let viewToggleBtn (isDetailed : bool) : msg Html.html =
     if isDetailed then view' "chevron-left" else view' "chevron-right"
   in
   let label = Html.span [Html.class' "label"] [Html.text description] in
-  Html.div
-    [event; Html.class' "toggle-sidebar-btn"; Html.title description]
-    [label; icon]
+  let alt = if isDetailed then Vdom.noProp else Html.title description in
+  Html.div [event; Html.class' "toggle-sidebar-btn"; alt] [label; icon]
 
 
 let stateInfoTohtml (key : string) (value : msg Html.html) : msg Html.html =
