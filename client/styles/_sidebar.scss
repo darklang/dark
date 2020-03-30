@@ -188,9 +188,12 @@ $icSize: 1em;
 
     @at-root .abridged & {
       margin-right: 0;
-      font-size: 1.2em;
       color: darken($primaryColor, 30%);
+      font-size: 1.25em;
       transition: 0.2s font-size;
+      width: 36px;
+      height: 36px;
+      text-align: center;
 
       &:hover {
         @extend .sidebar-on-abridged-icon;
@@ -520,6 +523,7 @@ $icSize: 1em;
       font-size: 0.4em;
       border-radius: 2px;
       padding: 2px;
+      margin-top: -10px;
 
       &.dev {
         color: $blue;
