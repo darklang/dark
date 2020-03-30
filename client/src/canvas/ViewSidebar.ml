@@ -403,6 +403,12 @@ let deletedCategory (m : model) : category =
   ; entries = List.map cats ~f:(fun c -> Category c) }
 
 
+let viewEmptyCategory (c : category) : msg Html.html =
+  Html.div
+    [Html.class' "simple-item empty"]
+    [Html.text ("No " ^ c.name ^ " entries")]
+
+
 let viewEntry (m : model) (e : entry) : msg Html.html =
   let name = e.name in
   let isSelected =
@@ -625,7 +631,11 @@ and viewCategory (m : model) (c : category) : msg Html.html =
       [header; plusButton]
   in
   let content =
-    let entries = List.map ~f:(viewItem m) c.entries in
+    let entries =
+      if List.length c.entries > 0
+      then List.map ~f:(viewItem m) c.entries
+      else [viewEmptyCategory c]
+    in
     Html.div
       [ Html.class' "category-content"
       ; eventNoPropagation

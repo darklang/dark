@@ -261,6 +261,10 @@ $icSize: 1em;
 
 // Category items
 .simple-item {
+  &.empty {
+    color: $secondaryColor;
+  }
+
   div {
     display: inline-block;
   }
