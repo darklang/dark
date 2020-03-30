@@ -647,8 +647,8 @@ test("cant_delete_locked_col", async t => {
 });
 
 test("select_route", async t => {
-  const categoryHeader = "summary.headerSummary";
-  const httpVerbLink = ".active a.verb.verb-link";
+  const categoryHeader = ".sidebar-section.http .section-summary";
+  const httpVerbLink = ".sidebar-section.http .section-content a.toplevel-link";
   const toplevelElement = ".node .toplevel";
 
   await t.click(Selector(categoryHeader));
@@ -929,9 +929,9 @@ test("max_callstack_bug", async t => {
 
 test("sidebar_opens_function", async t => {
   await t
-    .expect(available(".sidebar-section.fns .headerSummary"))
+    .expect(available(".sidebar-section.fns .section-summary"))
     .ok()
-    .click(Selector(".sidebar-section.fns .headerSummary"))
+    .click(Selector(".sidebar-section.fns .section-summary"))
     .expect(available(".sidebar-section.fns a[href='#fn=1352039682']"))
     .ok()
     .click(Selector(".sidebar-section.fns a[href='#fn=1352039682']"))
