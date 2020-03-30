@@ -41,14 +41,25 @@ let encode_request_body (headers : headers) (body : dval option) : string option
          | DObj _ as dv when has_form_header headers ->
              Dval.to_form_encoding dv
          | DStr s ->
-             (* Do nothing to strings, ever. *)
+             (* Do nothing to strings, ever. The reasoning here is that users do not expect any
+              * magic to happen to their raw strings. It's also the only real way (barring Bytes) to support
+              * users doing their _own_ encoding (say, jsonifying themselves and passing the Content-Type header
+              * manually).
+              *
+              * See: https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9 for
+              * more information. *)
              Unicode_string.to_string s
          | dv when has_plaintext_header headers ->
              Dval.to_enduser_readable_text_v0 dv
          | dv ->
-             (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed *)
+             (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed. This makes a little more
+              * sense than you might think on first glance, due to interaction with the `DStr` case. If a user actually
+              * _wants_ to use a different Content-Type than the form/plain-text magic provided, they're responsible for
+              * encoding the value to a String first and not just giving us a random dval. *)
              Dval.to_pretty_machine_json_v1 dv)
   |> Option.bind ~f:(fun body ->
+         (* Explicitly convert the empty String to `None`, to ensure downstream we set the right bits on the outgoing
+          * cURL request. *)
          if String.length body <> 0 then Some body else None)
 
 
@@ -62,6 +73,8 @@ let send_request
     let encoded_query = Dval.dval_to_query query in
     let encoded_request_headers = Dval.to_string_pairs_exn request_headers in
     let encoded_request_body =
+      (* We use the user-provided Content-Type headers to make ~magic~ decisions
+       * about how to encode the the outgoing request *)
       encode_request_body encoded_request_headers request_body
     in
     Httpclient.http_call
