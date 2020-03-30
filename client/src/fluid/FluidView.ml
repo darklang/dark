@@ -185,7 +185,9 @@ let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
               [ ("return-value", true)
               ; ("refreshed", isRefreshed)
               ; ("incomplete", isIncomplete) ] ]
-          (viewDval vs.tlid dval ~canCopy:true @ auxText)
+          ( Html.text "This trace returns: "
+            :: viewDval vs.tlid dval ~canCopy:true
+          @ auxText )
     | _ ->
         Vdom.noNode
   else Vdom.noNode
