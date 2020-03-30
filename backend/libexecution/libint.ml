@@ -16,13 +16,17 @@ let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
   [ { prefix_names = ["Int::mod"]
-    ; infix_names = [ (* "%" *) ]
+    ; infix_names =
+        (* This used to provide the infix op %. Since we don't support versioned infix ops yet,
+         * and the replacement function is identical other than returning Result rather than
+         * crashing the editor, we've removed it from here and moved it to the infix for Int::mod_v1 *)
+        []
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
     ; description =
         "Return `a` % `b`, the modulus of a and b. This is the integer remainder left when `a` is divided by `b`. For example, `15 % 6 = 3`."
     ; func =
-        (* This used to use Dint.(%), which is now gone because it was too confusing. It's now called Dint.modulo.
+        (* This used to use Dint.(%), which is now gone because it was too confusing. It's now called Dint.modulo_exn.
          * The functionality was ok but the docstring was a lie.
          *
          * This is deprecated in favor of a version that returns a result. It should still be ok to use `%` for the new
