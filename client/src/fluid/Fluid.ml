@@ -547,8 +547,8 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
-(** [getNextEditable pos tokens] returns the first editable token after [pos] in 
- * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in 
+(** [getNextEditable pos tokens] returns the first editable token after [pos] in
+ * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in
  * [tokens], or None if no editable token exists. *)
 let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
@@ -581,8 +581,8 @@ let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
-(** [getPrevEditable pos tokens] returns the closest editable token before [pos] in 
-* [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in 
+(** [getPrevEditable pos tokens] returns the closest editable token before [pos] in
+* [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in
 * [tokens], or None if no editable exists. *)
 let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
     =
@@ -2467,6 +2467,11 @@ let updateFromACItem
         let replacement = EBinOp (bID, name, EPipeTarget (gid ()), rhs, str) in
         let newAST = FluidAST.replace ~replacement id ast in
         (newAST, caretTargetForEndOfExpr' replacement)
+    | TPartial _, Some oldExpr, Some (EPipe (_, head :: _)), Expr newExpr
+      when oldExpr = head ->
+        (* special case of next match arm:
+          * when we are the first thing in the pipe, no pipe target required *)
+        replacePartialWithArguments ~newExpr id s ast
     | ( TPartial _
       , Some _
       , Some (EPipe _)
