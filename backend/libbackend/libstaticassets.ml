@@ -284,7 +284,12 @@ UTF-8 safe") )
                   (Unicode_string.to_string file)
               in
               let body, code, headers, _erroreturn_type =
-                Httpclient.http_call_with_code url [] Httpclient.GET [] ""
+                Legacy.HttpclientV2.http_call_with_code
+                  url
+                  []
+                  Httpclient.GET
+                  []
+                  ""
               in
               let headers =
                 headers
@@ -337,7 +342,7 @@ UTF-8 safe") )
                   (Unicode_string.to_string file)
               in
               let body, code, headers, _erroreturn_type =
-                Httpclient.http_call_with_code
+                Legacy.HttpclientV2.http_call_with_code
                   ~raw_bytes:true
                   url
                   []
@@ -393,7 +398,7 @@ UTF-8 safe") )
                   (Unicode_string.to_string file)
               in
               let body, code, headers, _erroreturn_type =
-                Httpclient.http_call_with_code
+                Legacy.HttpclientV2.http_call_with_code
                   ~raw_bytes:true
                   url
                   []
@@ -448,7 +453,7 @@ UTF-8 safe") )
                   (Unicode_string.to_string file)
               in
               let body, code, headers, _erroreturn_type =
-                Httpclient.http_call_with_code
+                Legacy.HttpclientV2.http_call_with_code
                   ~raw_bytes:true
                   url
                   []
