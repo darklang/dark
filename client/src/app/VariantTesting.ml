@@ -16,6 +16,8 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some GroupVariant
     | "localhost-assets" ->
         Some NgrokVariant
+    | "exe" ->
+        Some ExeCodeVariant
     | _ ->
         None )
 
@@ -29,6 +31,8 @@ let toCSSClass (vt : variantTest) : string =
         "grouping"
     | NgrokVariant ->
         "ngrok"
+    | ExeCodeVariant ->
+        "exe"
   in
   test ^ "-variant"
 

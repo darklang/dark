@@ -1330,6 +1330,7 @@ and variantTest =
       StubVariant
   | GroupVariant
   | NgrokVariant
+  | ExeCodeVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
