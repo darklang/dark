@@ -443,6 +443,10 @@ $hoverColor: lighten($yellow, 10%);
       &.PATCH span {
         color: $http-patch;
       }
+      &.OPTIONS a,
+      &.OPTIONS span {
+        color: $http-options;
+      }
     }
   }
 

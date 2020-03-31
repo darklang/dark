@@ -622,7 +622,8 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; ACHTTPModifier "POST"
             ; ACHTTPModifier "PUT"
             ; ACHTTPModifier "DELETE"
-            ; ACHTTPModifier "PATCH" ]
+            ; ACHTTPModifier "PATCH"
+            ; ACHTTPModifier "OPTIONS" ]
         | Some HSCron ->
             [ ACCronTiming "Daily"
             ; ACCronTiming "Weekly"

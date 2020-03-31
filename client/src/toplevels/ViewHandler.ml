@@ -183,6 +183,8 @@ let viewEventSpec
         baseClass ^ " http-delete"
     | F (_, "HTTP"), F (_, "PATCH") ->
         baseClass ^ " http-patch"
+    | F (_, "HTTP"), F (_, "OPTIONS") ->
+        baseClass ^ " http-options"
     | F (_, "CRON"), _ ->
         baseClass ^ " cron"
     | F (_, "WORKER"), _ ->
