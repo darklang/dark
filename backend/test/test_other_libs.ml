@@ -1354,6 +1354,116 @@ let t_liblist_sort_by_comparator_works () =
   ()
 
 
+let t_math_stdlibs () =
+  check_dval "PI works" (DFloat 3.141592653589793) (exec_ast' (fn "PI" [])) ;
+  check_dval "TAU works" (DFloat 6.283185307179586) (exec_ast' (fn "TAU" [])) ;
+  check_dval
+    "Angle::degreesToRadians works (pos)"
+    (DFloat 6.283185307179586 (* tau *))
+    (exec_ast' (fn "Angle::degreesToRadians" [float' 360 0])) ;
+  check_dval
+    "Angle::degreesToRadians works (neg)"
+    (DFloat (-3.141592653589793) (* -pi *))
+    (exec_ast' (fn "Angle::degreesToRadians" [float' (-180) 0])) ;
+  check_dval
+    "Angle::turnsToRadians works (pos)"
+    (DFloat 6.283185307179586 (* tau *))
+    (exec_ast' (fn "Angle::turnsToRadians" [float' 1 0])) ;
+  check_dval
+    "Angle::turnsToRadians works (neg)"
+    (DFloat (-3.141592653589793) (* -pi *))
+    (exec_ast' (fn "Angle::turnsToRadians" [fn "Float::negate" [float' 0 5]])) ;
+  check_dval
+    "Trig::cos works (0)"
+    (DFloat 1.0)
+    (exec_ast' (fn "Trig::cos" [float' 0 0])) ;
+  check_dval
+    "Trig::cos works (pi)"
+    (DFloat (-1.0))
+    (exec_ast' (fn "Trig::cos" [fn "PI" []])) ;
+  check_dval
+    "Trig::sin works (0)"
+    (DFloat 0.0)
+    (exec_ast' (fn "Trig::sin" [float' 0 0])) ;
+  check_dval
+    "Trig::sin works (pi/2)"
+    (DFloat 1.0)
+    (exec_ast' (fn "Trig::sin" [fn "/" [fn "PI" []; float' 2 0]])) ;
+  check_dval
+    "Trig::tan works (0)"
+    (DFloat 0.0)
+    (exec_ast' (fn "Trig::tan" [float' 0 0])) ;
+  check_dval
+    "Trig::tan works (pi/4)"
+    (DFloat 0.9999999999999999 (* ~1.0 *))
+    (exec_ast' (fn "Trig::tan" [fn "/" [fn "PI" []; float' 4 0]])) ;
+  check_dval
+    "Trig::acos works in range (1)"
+    (DOption (OptJust (DFloat 0.0)))
+    (exec_ast' (fn "Trig::acos" [float' 1 0])) ;
+  check_dval
+    "Trig::acos works in range (-1)"
+    (DOption (OptJust (DFloat 3.141592653589793 (* pi *))))
+    (exec_ast' (fn "Trig::acos" [float' (-1) 0])) ;
+  check_dval
+    "Trig::acos works (out of range)"
+    (DOption OptNothing)
+    (exec_ast' (fn "Trig::acos" [float' 5 0])) ;
+  check_dval
+    "Trig::asin works (in range - 0)"
+    (DOption (OptJust (DFloat 0.0)))
+    (exec_ast' (fn "Trig::asin" [float' 0 0])) ;
+  check_dval
+    "Trig::asin works (in range - 1)"
+    (DOption (OptJust (DFloat 1.5707963267948966 (* pi/2 *))))
+    (exec_ast' (fn "Trig::asin" [float' 1 0])) ;
+  check_dval
+    "Trig::asin works (out of range)"
+    (DOption OptNothing)
+    (exec_ast' (fn "Trig::asin" [float' 5 0])) ;
+  check_dval
+    "Trig::atan works (0)"
+    (DFloat 0.0)
+    (exec_ast' (fn "Trig::atan" [float' 0 0])) ;
+  check_dval
+    "Trig::atan works (1)"
+    (DFloat 0.7853981633974483 (* pi/4 *))
+    (exec_ast' (fn "Trig::atan" [float' 1 0])) ;
+  check_dval
+    "Trig::atan2 works (0/1)"
+    (DFloat 0.0)
+    (exec_ast' (fn "Trig::atan2" [float' 0 0; float' 1 0])) ;
+  check_dval
+    "Trig::atan2 works (1/1)"
+    (DFloat 0.7853981633974483 (* pi/4 *))
+    (exec_ast' (fn "Trig::atan2" [float' 1 0; float' 1 0])) ;
+  check_dval
+    "Trig::atan2 works (-1/1)"
+    (DFloat (-0.7853981633974483) (* -pi/4 *))
+    (exec_ast' (fn "Trig::atan2" [float' (-1) 0; float' 1 0])) ;
+  check_dval
+    "Trig::atan2 works (1/-1)"
+    (DFloat 2.356194490192345 (* 3/4 pi *))
+    (exec_ast' (fn "Trig::atan2" [float' 1 0; float' (-1) 0])) ;
+  check_dval
+    "Trig::atan2 works (-1/-1)"
+    (DFloat (-2.356194490192345) (* -3/4 pi *))
+    (exec_ast' (fn "Trig::atan2" [float' (-1) 0; float' (-1) 0])) ;
+  check_dval
+    "Hyperbolic::cosh works (0)"
+    (DFloat 1.0)
+    (exec_ast' (fn "Hyperbolic::cosh" [float' 0 0])) ;
+  check_dval
+    "Hyperbolic::sinh works (0)"
+    (DFloat 0.0)
+    (exec_ast' (fn "Hyperbolic::sinh" [float' 0 0])) ;
+  check_dval
+    "Hyperbolic::tanh works (0)"
+    (DFloat 0.0)
+    (exec_ast' (fn "Hyperbolic::tanh" [float' 0 0])) ;
+  ()
+
+
 let suite =
   [ ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
@@ -1375,4 +1485,4 @@ let suite =
   ; ("Bool stdlibs work", `Quick, t_bool_stdlibs)
   ; ("Bytes stdlibs work", `Quick, t_libbytes)
   ; ("List::sortByComparator works", `Quick, t_liblist_sort_by_comparator_works)
-  ]
+  ; ("Math stdlibs work", `Quick, t_math_stdlibs) ]
