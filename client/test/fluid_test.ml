@@ -4363,8 +4363,7 @@ let run () =
                  m
                  tlid
                  h.ast
-                 (FluidMouseUp
-                    {tlid; editor = MainEditor; selection = Some (18, 18)})
+                 (FluidMouseUp {tlid; editor = MainEditor; position = Some 18})
                  m.fluidState
              in
              newState.ac.index)
