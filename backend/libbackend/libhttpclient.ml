@@ -53,6 +53,7 @@ let encode_request_body (headers : headers) (body : dval option) :
         match dv with
         | DObj _ as dv when has_form_header headers ->
             (Dval.to_form_encoding dv, headers)
+        (* TODO: DBytes? *)
         | DStr s ->
             (* Do nothing to strings, ever. The reasoning here is that users do not expect any
             * magic to happen to their raw strings. It's also the only real way (barring Bytes) to support
@@ -67,9 +68,14 @@ let encode_request_body (headers : headers) (body : dval option) :
             (Dval.to_enduser_readable_text_v0 dv, headers)
         | dv ->
             (* Otherwise, jsonify (this is the 'easy' API afterall), regardless of headers passed. This makes a little more
-            * sense than you might think on first glance, due to interaction with the `DStr` case. If a user actually
-            * _wants_ to use a different Content-Type than the form/plain-text magic provided, they're responsible for
-            * encoding the value to a String first and not just giving us a random dval. *)
+            * sense than you might think on first glance, due to the interaction with the above `DStr` case. Note that this handles
+            * all non-DStr dvals.
+            *
+            * If a user actually _wants_ to use a different Content-Type than the form/plain-text magic provided, they're responsible for
+            * encoding the value to a String first (ie. using the above DStr case) and not just giving us a random dval.
+            *
+            * TODO: Better feedback for user who explicitly provides a Content-Type expecting magic from us
+            * but we don't support it. *)
             ( Dval.to_pretty_machine_json_v1 dv
             , with_default_content_type ~ct:"application/json" headers )
       in
