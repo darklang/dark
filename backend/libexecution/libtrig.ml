@@ -158,7 +158,10 @@ let fns : fn list =
     ; func =
         InProcess
           (function
-          | _, [DFloat a] -> DFloat (Float.atan a) | args -> fail args)
+          | _, [DFloat y; DFloat x] ->
+              DFloat (Float.atan2 y x)
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Hyperbolic::cosh"]
