@@ -754,6 +754,17 @@ let adminDebuggerView (m : model) : msg Html.html =
           []
       ; Html.p [] [Html.text "Show Fluid Debugger"] ]
   in
+  let toggleASTDebugger =
+    Html.div
+      [ ViewUtils.eventNoPropagation ~key:"tgast" "mouseup" (fun _ ->
+            ToggleEditorSetting
+              (fun es -> {es with showASTDebugger = not es.showASTDebugger}))
+      ; Html.class' "checkbox-row" ]
+      [ Html.input'
+          [Html.type' "checkbox"; Html.checked m.editorSettings.showASTDebugger]
+          []
+      ; Html.p [] [Html.text "Show AST Debugger"] ]
+  in
   let debugger =
     Html.a
       [ Html.href (ViewScaffold.debuggerLinkLoc m)
@@ -773,8 +784,12 @@ let adminDebuggerView (m : model) : msg Html.html =
   let hoverView =
     [ Html.div
         [Html.class' "hover admin-state"]
-        [stateInfo; toggleTimer; toggleFluidDebugger; debugger; saveTestButton]
-    ]
+        [ stateInfo
+        ; toggleTimer
+        ; toggleFluidDebugger
+        ; toggleASTDebugger
+        ; debugger
+        ; saveTestButton ] ]
   in
   let icon =
     Html.div

@@ -21,7 +21,8 @@ let unsetCSRF : string = "UNSET_CSRF"
 let defaultUserSettings : savedUserSettings = {showUserWelcomeModal = true}
 
 let defaultSavedSettings : savedSettings =
-  { editorSettings = {runTimers = true; showFluidDebugger = false}
+  { editorSettings =
+      {runTimers = true; showASTDebugger = false; showFluidDebugger = false}
   ; cursorState = Deselected
   ; routingTableOpenDetails = StrSet.empty
   ; tlTraceIDs = TLIDDict.empty
@@ -153,7 +154,8 @@ let defaultModel : model =
   ; account = defaultAccount
   ; workerSchedules = StrDict.empty
   ; searchCache = TLIDDict.empty
-  ; editorSettings = {showFluidDebugger = false; runTimers = true}
+  ; editorSettings =
+      {showFluidDebugger = false; showASTDebugger = false; runTimers = true}
   ; teaDebuggerEnabled = false
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty
