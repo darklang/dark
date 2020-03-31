@@ -210,6 +210,14 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   in
   let mainEditor = FluidEditorView.view editorState in
   let returnValue = viewReturnValue vs in
+  let debugAST =
+    if vs.showASTDebugger
+    then
+      Html.div
+        [Html.class' "debug-ast"]
+        [Html.text (FluidPrinter.toPrettySexp (FluidAST.toExpr vs.ast))]
+    else Vdom.noNode
+  in
   let secondaryEditors =
     let findRowOffestOfMainTokenWithId (flagID : ID.t) : int option =
       (* FIXME(ds) this is a giant hack to find the row offset of the corresponding
@@ -263,7 +271,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                  ; Html.styles [("top", string_of_int rowOffset ^ ".5rem")] ]
                  [flagIcon; FluidEditorView.view editorState])
   in
-  mainEditor :: liveValue :: returnValue :: secondaryEditors
+  mainEditor :: liveValue :: returnValue :: debugAST :: secondaryEditors
 
 
 let view (vs : ViewUtils.viewState) =
