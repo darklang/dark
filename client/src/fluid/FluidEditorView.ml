@@ -206,7 +206,7 @@ let toHtml (s : state) : Types.msg Html.html list =
             sourceId = Some (s.tlid, analysisId)
           in
           let notExecuted =
-            if not (wasExecuted tokenId |> Option.withDefault ~default:true)
+            if not (wasExecuted analysisId |> Option.withDefault ~default:true)
             then
               (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
               caretRow != Some ti.startRow
@@ -217,7 +217,7 @@ let toHtml (s : state) : Types.msg Html.html list =
           ; ("in-flag", !withinFlag)
           ; ("fluid-error", isError)
           ; ( "fluid-executed"
-            , wasExecuted tokenId |> Option.withDefault ~default:false )
+            , wasExecuted analysisId |> Option.withDefault ~default:false )
           ; ("fluid-not-executed", notExecuted)
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
