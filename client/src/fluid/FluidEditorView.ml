@@ -81,6 +81,7 @@ let toHtml (s : state) : Types.msg Html.html list =
         None
   in
   let currentTokenInfo = Fluid.getToken s.ast s.fluidState in
+  let caretRow = currentTokenInfo |> Option.map ~f:(fun ti -> ti.startRow) in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -204,14 +205,20 @@ let toHtml (s : state) : Types.msg Html.html list =
             propagated occurrences. *)
             sourceId = Some (s.tlid, analysisId)
           in
+          let notExecuted =
+            if not (wasExecuted tokenId |> Option.withDefault ~default:true)
+            then
+              (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
+              caretRow != Some ti.startRow
+            else false
+          in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
           ; ("in-flag", !withinFlag)
           ; ("fluid-error", isError)
           ; ( "fluid-executed"
             , wasExecuted tokenId |> Option.withDefault ~default:false )
-          ; ( "fluid-not-executed"
-            , not (wasExecuted tokenId |> Option.withDefault ~default:true) )
+          ; ("fluid-not-executed", notExecuted)
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
              * into another, where the cursor is currently on *)

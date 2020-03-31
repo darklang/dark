@@ -701,9 +701,5 @@ $error-color: saturate($red, 10%);
 #app.exe-variant .fluid-editor {
   .fluid-not-executed {
     filter: brightness(60%);
-
-    &.cursor-on {
-      filter: none;
-    }
   }
 }
