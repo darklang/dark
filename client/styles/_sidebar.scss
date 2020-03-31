@@ -33,6 +33,7 @@ $icSize: 1em;
   top: 0;
   left: 0;
   box-sizing: border-box;
+  transition: width 0.2s;
 
   &.detailed {
     width: $sidebarFullWidth;
