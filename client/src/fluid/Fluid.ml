@@ -5318,6 +5318,18 @@ let updateMouseDoubleClick
   | selBegin, selEnd when selBegin = selEnd ->
       updateMouseClick selBegin ast s
   | selBegin, selEnd ->
+      let tokens = tokensForActiveEditor ast s in
+      let token = getToken' {s with newPos = selBegin} tokens in
+      (* If we doubleclick on a function, the browser will send us positions
+       * for a subpart of it (usually before or after the "::"), so expand it
+       * out *)
+      let selBegin, selEnd =
+        match token with
+        | Some {token = TFnName (_, displayName, _, _, _); startPos; _} ->
+            (startPos, startPos + String.length displayName)
+        | _ ->
+            (selBegin, selEnd)
+      in
       ( ast
       , { s with
           selectionStart = Some selBegin
