@@ -3,7 +3,7 @@
 set -euo pipefail
 
 echo "Fetching credentials"
-gcloud container clusters get-credentials "$(< current-cluster)" --zone=us-west1
+gcloud container clusters get-credentials "$(< current-cluster)" --zone=us-west1 --project=balmy-ground-195100
 
 echo "Force restarting all pods"
 kubectl get pods | grep bwd-deployment | awk '{print $1}' | xargs -i sh -c 'kubectl delete pod -o name {} && sleep 4'
