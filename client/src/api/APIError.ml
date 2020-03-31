@@ -74,8 +74,21 @@ let parseResponse (body : Http.responseBody) : string =
     | RawResponse (str, _) ->
         str
   in
+  let open Json.Decode in
+  let exception_ j : exception_ =
+    { short = field "short" string j
+    ; long = field "long" (optional string) j
+    ; exceptionTipe = field "tipe" string j
+    ; actual = field "actual" (optional string) j
+    ; actualType = field "actual_tipe" (optional string) j
+    ; expected = field "expected" (optional string) j
+    ; result = field "result" (optional string) j
+    ; resultType = field "result_tipe" (optional string) j
+    ; info = field "info" (strDict string) j
+    ; workarounds = field "workarounds" (list string) j }
+  in
   str
-  |> Json.Decode.decodeString Decoders.exception_
+  |> decodeString exception_
   |> Result.toOption
   |> Option.map
        ~f:(fun { short
