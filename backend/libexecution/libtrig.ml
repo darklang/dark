@@ -61,7 +61,7 @@ let fns : fn list =
     ; return_type = TFloat
     ; description =
         "Returns the cosine of the given `angleInRadians`.
-     One interpretation of the result relates to a right triangle: the cosine is the ratio of the lengths of the side adjacent to the angle and the hypotenuse."
+         One interpretation of the result relates to a right triangle: the cosine is the ratio of the lengths of the side adjacent to the angle and the hypotenuse."
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.cos a) | args -> fail args)
@@ -73,7 +73,7 @@ let fns : fn list =
     ; return_type = TFloat
     ; description =
         "Returns the sine of the given `angleInRadians`.
-     One interpretation of the result relates to a right triangle: the sine is the ratio of the lengths of the side opposite the angle and the hypotenuse."
+         One interpretation of the result relates to a right triangle: the sine is the ratio of the lengths of the side opposite the angle and the hypotenuse."
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.sin a) | args -> fail args)
@@ -85,7 +85,7 @@ let fns : fn list =
     ; return_type = TFloat
     ; description =
         "Returns the tangent of the given `angleInRadians`.
-     One interpretation of the result relates to a right triangle: the tangent is the ratio of the lengths of the side opposite the angle and the side adjacent to the angle."
+         One interpretation of the result relates to a right triangle: the tangent is the ratio of the lengths of the side opposite the angle and the side adjacent to the angle."
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.tan a) | args -> fail args)
@@ -97,18 +97,17 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns the arc cosine of `ratio`, as an Option.
-     If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
-     `Just result` where `result` is in radians and is between 0.0 and PI. Otherwise, returns `Nothing`.
-     This function is the inverse of `Trig::cos`."
+         If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
+         `Just result` where `result` is in radians and is between 0.0 and PI. Otherwise, returns `Nothing`.
+         This function is the inverse of `Trig::cos`."
     ; func =
         InProcess
           (function
           | _, [DFloat r] ->
-            let res = (Float.acos r) in
-            if Float.is_nan res then
-                DOption OptNothing
-            else
-                DOption (OptJust (DFloat (res)))
+              let res = Float.acos r in
+              if Float.is_nan res
+              then DOption OptNothing
+              else DOption (OptJust (DFloat res))
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -119,18 +118,17 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns the arc sine of `ratio`, as an Option.
-     If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
-     `Just result` where `result` is in radians and is between -PI/2 and PI/2. Otherwise, returns `Nothing`.
-     This function is the inverse of `Trig::sin`."
+         If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
+         `Just result` where `result` is in radians and is between -PI/2 and PI/2. Otherwise, returns `Nothing`.
+         This function is the inverse of `Trig::sin`."
     ; func =
         InProcess
           (function
           | _, [DFloat r] ->
-            let res = (Float.asin r) in
-            if Float.is_nan res then
-                DOption OptNothing
-            else
-                DOption (OptJust (DFloat (res)))
+              let res = Float.asin r in
+              if Float.is_nan res
+              then DOption OptNothing
+              else DOption (OptJust (DFloat res))
           | args ->
               fail args)
     ; preview_safety = Safe
