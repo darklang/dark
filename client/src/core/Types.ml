@@ -1160,11 +1160,15 @@ and fluidMouseUp =
   { tlid : TLID.t
   ; editor : fluidEditor
         (** fluidEditor is either MainEditor or a FeatureFlagEditor *)
-  ; selection : (int * int) option
+  ; position : int option }
+
+and fluidMouseDoubleClick =
+  { tlid : TLID.t
+  ; editor : fluidEditor
+        (** fluidEditor is either MainEditor or a FeatureFlagEditor *)
+  ; selection : int * int
         (** selection is the beginning + end of the browser selection on
-          * mouseup. The selection may be left->right or right->left. If the
-          * selection is None, the selection will be read from the browser
-          * rather than the browser's selection being set. *)
+          * mouseup. The selection may be left->right or right->left. *)
   }
 
 and fluidMsg =
@@ -1174,6 +1178,7 @@ and fluidMsg =
   | FluidPaste of clipboardContents
   | FluidMouseDown of TLID.t
   | FluidMouseUp of fluidMouseUp
+  | FluidMouseDoubleClick of fluidMouseDoubleClick
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
   | FluidFocusOnToken of TLID.t * ID.t

@@ -281,40 +281,38 @@ let tokensView (s : state) : Types.msg Html.html =
         ~key:("fluid-selection-dbl-click" ^ tlidStr)
         "dblclick"
         (fun ev ->
-          match Entry.getFluidCaretPos () with
-          | Some pos ->
-              let fstate =
-                {s.fluidState with newPos = pos; oldPos = s.fluidState.newPos}
-              in
-              ( match ev with
-              | {detail = 2; altKey = true; _} ->
-                  FluidMsg
-                    (FluidMouseUp
-                       { tlid = s.tlid
-                       ; editor = s.editor
-                       ; selection =
-                           Fluid.getExpressionRangeAtCaret s.ast fstate })
-              | {detail = 2; altKey = false; _} ->
-                  FluidMsg
-                    (FluidMouseUp
-                       { tlid = s.tlid
-                       ; editor = s.editor
-                       ; selection = Fluid.getTokenRangeAtCaret s.ast fstate })
-              | _ ->
-                  recover
-                    "detail was not 2 in the doubleclick event"
-                    ~debug:ev
-                    (FluidMsg
-                       (FluidMouseUp
-                          {tlid = s.tlid; editor = s.editor; selection = None}))
-              )
+          match Entry.getFluidSelectionRange () with
+          | Some (startPos, endPos) ->
+            ( match ev with
+            | {altKey = true; _} ->
+                let exprSelection =
+                  Fluid.getExpressionRangeAtCaret
+                    s.ast
+                    { s.fluidState with
+                      newPos = endPos
+                    ; oldPos = s.fluidState.newPos }
+                  |> recoverOpt
+                       ~default:(0, 0)
+                       "no expression range found at caret"
+                in
+                FluidMsg
+                  (FluidMouseDoubleClick
+                     { tlid = s.tlid
+                     ; editor = s.editor
+                     ; selection = exprSelection })
+            | {altKey = false; _} ->
+                FluidMsg
+                  (FluidMouseDoubleClick
+                     { tlid = s.tlid
+                     ; editor = s.editor
+                     ; selection = (startPos, endPos) }) )
           | None ->
               recover
-                "found no caret pos in the doubleclick handler"
+                "XX: found no caret pos in the doubleclick handler"
                 ~debug:ev
                 (FluidMsg
                    (FluidMouseUp
-                      {tlid = s.tlid; editor = s.editor; selection = None})))
+                      {tlid = s.tlid; editor = s.editor; position = None})))
     ; ViewUtils.eventNoPropagation
         ~key:("fluid-selection-mousedown" ^ tlidStr)
         "mousedown"
@@ -324,7 +322,7 @@ let tokensView (s : state) : Types.msg Html.html =
         "mouseup"
         (fun _ ->
           FluidMsg
-            (FluidMouseUp {tlid = s.tlid; editor = s.editor; selection = None}))
+            (FluidMouseUp {tlid = s.tlid; editor = s.editor; position = None}))
     ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ tlidStr) ~listener:(fun msg ->
           if msg = "flashError" || msg = "flashIncomplete"
           then FluidMsg FluidClearErrorDvSrc

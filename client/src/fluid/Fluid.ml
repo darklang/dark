@@ -5307,25 +5307,36 @@ let buildFeatureFlagEditors (ast : FluidAST.t) : fluidEditor list =
   |> List.map ~f:(fun e -> FeatureFlagEditor (E.toID e))
 
 
-let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
+let updateMouseDoubleClick
+    (m : model) (ast : FluidAST.t) (eventData : fluidMouseDoubleClick) :
     FluidAST.t * fluidState =
   let s =
     {m.fluidState with midClick = false; activeEditor = eventData.editor}
   in
-  let selection =
-    eventData.selection |> Option.orElseLazy Entry.getFluidSelectionRange
-  in
-  match selection with
+  match eventData.selection with
   (* if range width is 0, just change pos *)
-  | Some (selBegin, selEnd) when selBegin = selEnd ->
+  | selBegin, selEnd when selBegin = selEnd ->
       updateMouseClick selBegin ast s
-  | Some (selBegin, selEnd) ->
+  | selBegin, selEnd ->
       ( ast
       , { s with
           selectionStart = Some selBegin
         ; oldPos = s.newPos
         ; newPos = selEnd }
         |> acClear )
+
+
+let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
+    FluidAST.t * fluidState =
+  let s =
+    {m.fluidState with midClick = false; activeEditor = eventData.editor}
+  in
+  let position =
+    eventData.position |> Option.orElseLazy (fun _ -> Entry.getFluidCaretPos ())
+  in
+  match position with
+  | Some pos ->
+      updateMouseClick pos ast s
   | None ->
       (* We reset the fluidState to prevent the selection and/or cursor
    position from persisting when a user switched handlers *)
@@ -5344,6 +5355,8 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
         (ast, s)
     | FluidMouseUp eventData ->
         updateMouseUp m ast eventData
+    | FluidMouseDoubleClick eventData ->
+        updateMouseDoubleClick m ast eventData
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
@@ -5520,6 +5533,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidCommandsClick _
   | FluidAutocompleteClick _
   | FluidUpdateAutocomplete
+  | FluidMouseDoubleClick _
   | FluidMouseUp _ ->
       let tlid =
         match msg with
