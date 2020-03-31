@@ -63,7 +63,8 @@ let encode_request_body (headers : headers) (body : dval option) :
             * See: https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9 for
             * more information. *)
             ( Unicode_string.to_string s
-            , with_default_content_type ~ct:"text/plain" headers )
+            , with_default_content_type ~ct:"text/plain; charset=utf-8" headers
+            )
         | dv when has_plaintext_header headers ->
             (Dval.to_enduser_readable_text_v0 dv, headers)
         | dv ->
@@ -77,7 +78,9 @@ let encode_request_body (headers : headers) (body : dval option) :
             * TODO: Better feedback for user who explicitly provides a Content-Type expecting magic from us
             * but we don't support it. *)
             ( Dval.to_pretty_machine_json_v1 dv
-            , with_default_content_type ~ct:"application/json" headers )
+            , with_default_content_type
+                ~ct:"application/json; charset=utf-8"
+                headers )
       in
       (* Explicitly convert the empty String to `None`, to ensure downstream we set the right bits on the outgoing cURL request. *)
       if String.length encoded_body = 0
@@ -86,7 +89,7 @@ let encode_request_body (headers : headers) (body : dval option) :
   (* If we were passed an empty body, we need to ensure a Content-Type was set, or else helpful intermediary load balancers will set
    * the Content-Type to something they've plucked out of the ether, which is distinctfully non-helpful and also non-deterministic *)
   | None ->
-      (None, with_default_content_type ~ct:"text/plain" headers)
+      (None, with_default_content_type ~ct:"text/plain; charset=utf-8" headers)
 
 
 let send_request
