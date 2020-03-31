@@ -318,10 +318,10 @@ let t_encode_request_body () =
       (AT.list (AT.pair AT.string AT.string))
       "Adds default application/json header"
       munged_headers
-      [("Content-Type", "application/json")]
+      [("Content-Type", "application/json; charset=utf-8")]
   in
   let () =
-    let headers = [("Content-Type", "text/plain")] in
+    let headers = [("Content-Type", "text/plain; charset=utf-8")] in
     let body = Some (DOption OptNothing) in
     let encoded_body, munged_headers =
       Libhttpclient.encode_request_body headers body
@@ -335,7 +335,7 @@ let t_encode_request_body () =
       (AT.list (AT.pair AT.string AT.string))
       "Passes text/plain thru transparently"
       munged_headers
-      [("Content-Type", "text/plain")]
+      [("Content-Type", "text/plain; charset=utf-8")]
   in
   let () =
     let headers = [("Content-Type", "application/x-www-form-urlencoded")] in
@@ -373,7 +373,7 @@ let t_encode_request_body () =
       (AT.list (AT.pair AT.string AT.string))
       "Adds text/plain to empty String bodies #1"
       munged_headers
-      [("Content-Type", "text/plain")]
+      [("Content-Type", "text/plain; charset=utf-8")]
   in
   let () =
     let headers = [] in
@@ -390,7 +390,7 @@ let t_encode_request_body () =
       (AT.list (AT.pair AT.string AT.string))
       "Adds text/plain to empty bodies #2"
       munged_headers
-      [("Content-Type", "text/plain")]
+      [("Content-Type", "text/plain; charset=utf-8")]
   in
   let () =
     let headers = [] in
@@ -407,7 +407,7 @@ let t_encode_request_body () =
       (AT.list (AT.pair AT.string AT.string))
       "Strings are considered text/plain"
       munged_headers
-      [("Content-Type", "text/plain")]
+      [("Content-Type", "text/plain; charset=utf-8")]
   in
   ()
 
