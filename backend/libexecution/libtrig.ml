@@ -13,7 +13,7 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TFloat
     ; description =
-        "Returns the mathematical constant π, the ratio of a circle's circumference to its diameter."
+        "Returns an approximation for the mathematical constant π, the ratio of a circle's circumference to its diameter."
     ; func = InProcess (function _, [] -> DFloat pi | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
@@ -22,7 +22,7 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TFloat
     ; description =
-        "Returns the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply PI 2`."
+        "Returns an approximation for the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply PI 2`."
     ; func = InProcess (function _, [] -> DFloat tau | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
