@@ -483,7 +483,7 @@ $icSize: 1em;
     }
 
     .simple-item {
-      margin-left: $icSize;
+      margin-left: 1.5em;
       margin-right: $hSpace;
       margin-top: 5px;
 
@@ -494,12 +494,16 @@ $icSize: 1em;
   }
 
   .category-content {
-    @at-root .detailed & {
-      margin-left: $icSize;
-    }
-
     .simple-item {
       margin-top: $icSize;
+    }
+
+    @at-root .detailed & {
+      margin-left: $icSize;
+
+      .simple-item:first-of-type {
+        display: none;
+      }
     }
   }
 
