@@ -1,3 +1,4 @@
+open Tc
 open Tester
 open FluidShortcuts
 module FF = FeatureFlags
@@ -40,12 +41,12 @@ let testUnwrap
   let id = Shared.gid () in
   let ast = FluidAST.ofExpr (exprFn id) in
   test (name ^ "- KeepOld") (fun () ->
-      let actualOld, _ = FF.unwrap FF.KeepOld ast id in
+      let actualOld = FF.unwrap FF.KeepOld ast id |> Option.valueExn in
       expect (FluidAST.toExpr actualOld)
       |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual keepOld) ;
   test (name ^ "- KeepNew") (fun () ->
-      let actualNew, _ = FF.unwrap FF.KeepNew ast id in
+      let actualNew = FF.unwrap FF.KeepNew ast id |> Option.valueExn in
       expect (FluidAST.toExpr actualNew)
       |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual keepNew)
