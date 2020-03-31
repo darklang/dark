@@ -195,7 +195,7 @@ fi
 
 # get creds
 gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
-  "projects/${DARK_PROJECT}/zones/${DARK_REGION}/clusters/${DARK_CLUSTER}"
+  "--project=${DARK_PROJECT}" "${DARK_CLUSTER}"
 
 # env vars (replace existing configmap or make a new one)
 (kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}  -o yaml --dry-run | kubectl replace -f -) \

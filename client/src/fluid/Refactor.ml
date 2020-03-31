@@ -28,7 +28,7 @@ let transformFnCalls
         when Some name = BlankOr.toOption uf.ufMetadata.ufmName ->
           f e
       | other ->
-          E.walk ~f:run other
+          E.deprecatedWalk ~f:run other
     in
     FluidAST.map ast ~f:run
   in
@@ -113,27 +113,28 @@ let takeOffRail (_m : model) (tl : toplevel) (id : ID.t) : modification =
   |> Option.withDefault ~default:NoChange
 
 
+let isRailable (m : model) (name : string) =
+  (* We don't want to use m.complete.functions as the autocomplete
+   * filters out deprecated functions *)
+  let allFunctions =
+    let ufs =
+      m.userFunctions
+      |> TD.mapValues ~f:(fun uf -> uf.ufMetadata)
+      |> List.filterMap ~f:UserFunctions.ufmToF
+    in
+    m.builtInFunctions @ ufs
+  in
+  List.find ~f:(fun fn -> fn.fnName = name) allFunctions
+  |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
+  |> Option.map ~f:(fun t -> t = TOption || t = TResult)
+  |> Option.withDefault ~default:false
+
+
 let putOnRail (m : model) (tl : toplevel) (id : ID.t) : modification =
   (* Only toggle onto rail iff. return tipe is TOption or TResult *)
-  let isRailable name =
-    (* We don't want to use m.complete.functions as the autocomplete
-     * filters out deprecated functions *)
-    let allFunctions =
-      let ufs =
-        m.userFunctions
-        |> TD.mapValues ~f:(fun uf -> uf.ufMetadata)
-        |> List.filterMap ~f:UserFunctions.ufmToF
-      in
-      m.builtInFunctions @ ufs
-    in
-    List.find ~f:(fun fn -> fn.fnName = name) allFunctions
-    |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
-    |> Option.map ~f:(fun t -> t = TOption || t = TResult)
-    |> Option.withDefault ~default:false
-  in
   TL.modifyASTMod tl ~f:(fun ast ->
       FluidAST.update id ast ~f:(function
-          | EFnCall (_, name, exprs, NoRail) when isRailable name ->
+          | EFnCall (_, name, exprs, NoRail) when isRailable m name ->
               EFnCall (id, name, exprs, Rail)
           | e ->
               e))

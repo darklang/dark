@@ -19,7 +19,7 @@ Google helpfully have a web-based shell that you can use anywhere for incident r
 * Run the following command to finish setup
 
 ```
-$ gcloud container clusters get-credentials "$(< current-cluster)" --zone=us-west1
+$ gcloud container clusters get-credentials "$(< current-cluster)" --zone=us-west1 --project=balmy-ground-195100
 ```
 
 #### Checking on the Kubernetes pods:

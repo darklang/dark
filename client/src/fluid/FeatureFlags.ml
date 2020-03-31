@@ -48,65 +48,39 @@ let wrap (ast : FluidAST.t) (id : ID.t) : ID.t option * FluidAST.t =
       (Some flagID, ast)
 
 
+let hasFlag (ast : FluidAST.t) : bool =
+  ast
+  |> FluidAST.filter ~f:(function E.EFeatureFlag _ -> true | _ -> false)
+  |> List.isEmpty
+  |> not
+
+
 (** [wrapCmd m tl id] returns a [modification] that calls [wrap] with the
     [tl]'s AST. *)
 let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
-  let ast = Toplevel.getAST tl in
-  (* Disable creating FF there is an existing FF in the AST.
-   *
-   * Note this is intended to be a _temporary_ measue as we figure out
-   * the UX/UI around feature flags.
-   *
-   * See:
-   *   https://www.notion.so/darklang/FF8-Quirks-6bbeba3ee9114781a5f321b167d72f56
-   *   https://www.notion.so/darklang/Feature-Flags-v2-8fc5580cce9e491b9ee5767f54917434
-   * *)
-  let hasExistingFF =
-    match ast with
-    | Some ast ->
-        ast
-        |> FluidAST.filter ~f:(function E.EFeatureFlag _ -> true | _ -> false)
-        |> List.isEmpty
-        |> not
-    | None ->
-        false
-  in
-  if hasExistingFF
-  then
-    (* Show a toast, because this is unexpected *)
-    ReplaceAllModificationsWithThisOne
-      (fun m ->
-        ( { m with
-            toast =
-              { m.toast with
-                toastMessage =
-                  Some
-                    "Only one Feature Flag per-handler/function is supported at this time"
-              } }
-        , Tea.Cmd.none ))
-  else
-    ast
-    |> Option.map ~f:(fun ast ->
-           let maybeId, ast = wrap ast id in
-           let setAST = Toplevel.setASTMod tl ast in
-           match maybeId with
-           | Some flagId ->
-               Many
-                 [ setAST
-                   (* This is bad, but we can't use Fluid.ml here due to
-                    * dependency cycle issues D: *)
-                 ; ReplaceAllModificationsWithThisOne
-                     (fun m ->
-                       ( { m with
-                           fluidState =
-                             { m.fluidState with
-                               newPos = 5 (* pos 5 is the blank after "when" *)
-                             ; upDownCol = None
-                             ; activeEditor = FeatureFlagEditor flagId } }
-                       , Tea.Cmd.none )) ]
-           | None ->
-               setAST)
-    |> Option.withDefault ~default:NoChange
+  match Toplevel.getAST tl with
+  | Some ast when not (hasFlag ast) ->
+      let maybeId, ast = wrap ast id in
+      let setAST = Toplevel.setASTMod tl ast in
+      ( match maybeId with
+      | Some flagId ->
+          Many
+            [ setAST
+              (* This is bad, but we can't use Fluid.ml here due to
+               * dependency cycle issues D: *)
+            ; ReplaceAllModificationsWithThisOne
+                (fun m ->
+                  ( { m with
+                      fluidState =
+                        { m.fluidState with
+                          newPos = 5 (* pos 5 is the blank after "when" *)
+                        ; upDownCol = None
+                        ; activeEditor = FeatureFlagEditor flagId } }
+                  , Tea.Cmd.none )) ]
+      | None ->
+          setAST )
+  | Some _ | None ->
+      NoChange
 
 
 (** [unwrap keep ast id] finds the expression having [id] and unwraps it,
@@ -160,3 +134,23 @@ let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
                    , Tea.Cmd.none )) ]
          else Toplevel.setASTMod tl ast)
   |> Option.withDefault ~default:NoChange
+
+
+(** shouldShowAddFlagCmd shows the add flag command as long as there is no
+ * other feature flag in the AST *)
+let shouldShowAddFlagCmd (_ : model) (tl : toplevel) (_ : E.t) : bool =
+  Toplevel.getAST tl
+  |> Option.map ~f:(hasFlag >> not)
+  |> Option.withDefault ~default:false
+
+
+(** shouldShowRemoveFlagCmds shows the flag removal commands when the
+ * expression or one of it's ancestors is a feature flag *)
+let shouldShowRemoveFlagCmds (_ : model) (tl : toplevel) (e : E.t) : bool =
+  match e with
+  | EFeatureFlag _ ->
+      true
+  | _ ->
+      Toplevel.getAST tl
+      |> Option.map ~f:(fun ast -> ancestorFlag ast (E.toID e) |> Option.isSome)
+      |> Option.withDefault ~default:false

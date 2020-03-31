@@ -173,19 +173,27 @@ let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
         let auxText =
           if isIncomplete
           then
-            [ Html.span
-                [Html.class' "msg"]
-                [ Html.text
-                    "Your code needs to return a value in the last expression"
-                ] ]
-          else [Vdom.noNode]
+            Html.span
+              [Html.class' "msg"]
+              [ Html.text
+                  "Your code needs to return a value in the last expression" ]
+          else Vdom.noNode
+        in
+        let dvalString = Runtime.toRepr dval in
+        let newLine =
+          if String.contains ~substring:"\n" dvalString
+          then Html.br []
+          else Vdom.noNode
         in
         Html.div
           [ Html.classList
               [ ("return-value", true)
               ; ("refreshed", isRefreshed)
               ; ("incomplete", isIncomplete) ] ]
-          (viewDval vs.tlid dval ~canCopy:true @ auxText)
+          [ Html.text "This trace returns: "
+          ; newLine
+          ; Html.text dvalString
+          ; auxText ]
     | _ ->
         Vdom.noNode
   else Vdom.noNode
@@ -237,7 +245,9 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                  (Html.div [] [])
            | FeatureFlagEditor expressionId ->
                let flagIcon =
-                 Html.div [Html.class' "ff-icon"] [ViewUtils.fontAwesome "flag"]
+                 Html.div
+                   [Html.class' "ff-icon"; Html.title "feature flag"]
+                   [ViewUtils.fontAwesome "flag"]
                in
                let rowOffset =
                  expressionId

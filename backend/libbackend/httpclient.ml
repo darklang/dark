@@ -84,13 +84,21 @@ let recode_latin1 (src : string) =
   Buffer.contents recodebuf
 
 
+(* The [body] parameter is optional to force us to actually treat its
+ * presence/non-presence correctly between different requests. Naively using
+ * the empty string to stand-in for "no body" was a pattern that bubbled up
+ * too far and lead to us passing `""` to a function that then JSON encoded
+ * the empty string, leading to the string `"\"\""` being passed here. By
+ * making this an `option` here, and bubbling this optionality the whole way
+ * up the callstack, we hopefully make it clear that a request has an optional
+ * body *)
 let http_call_with_code
     ?(raw_bytes = false)
     (url : string)
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string) : string * int * (string * string) list * string =
+    (body : string option) : string * int * (string * string) list * string =
   let query_params =
     url |> Uri.of_string |> Uri.query |> List.append query_params
   in
@@ -163,17 +171,35 @@ let http_call_with_code
         Config.curl_tunnel_url ;
       ( match verb with
       | PUT ->
-          C.set_postfields c body ;
-          C.set_postfieldsize c (String.length body) ;
-          C.set_customrequest c "PUT"
+        ( match body with
+        | Some body ->
+            C.set_postfields c body ;
+            C.set_postfieldsize c (String.length body) ;
+            C.set_customrequest c "PUT"
+        | None ->
+            C.set_postfields c "" ;
+            C.set_postfieldsize c 0 ;
+            C.set_customrequest c "PUT" )
       | POST ->
-          C.set_post c true ;
-          C.set_postfields c body ;
-          C.set_postfieldsize c (String.length body)
+        ( match body with
+        | Some body ->
+            C.set_post c true ;
+            C.set_postfields c body ;
+            C.set_postfieldsize c (String.length body)
+        | None ->
+            C.set_postfields c "" ;
+            C.set_postfieldsize c 0 ;
+            C.set_customrequest c "POST" )
       | PATCH ->
-          C.set_postfields c body ;
-          C.set_postfieldsize c (String.length body) ;
-          C.set_customrequest c "PATCH"
+        ( match body with
+        | Some body ->
+            C.set_postfields c body ;
+            C.set_postfieldsize c (String.length body) ;
+            C.set_customrequest c "PATCH"
+        | None ->
+            C.set_postfields c "" ;
+            C.set_postfieldsize c 0 ;
+            C.set_customrequest c "PATCH" )
       | DELETE ->
           C.set_followlocation c false ;
           C.set_customrequest c "DELETE"
@@ -222,25 +248,11 @@ let http_call
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string) : string * (string * string) list * int =
+    (body : string option) : string * (string * string) list * int =
   let resp_body, code, resp_headers, _ =
     http_call_with_code ~raw_bytes url query_params verb headers body
   in
   (resp_body, resp_headers, code)
-
-
-let call
-    ?(raw_bytes = false)
-    (url : string)
-    (verb : verb)
-    (headers : (string * string) list)
-    (body : string) : string =
-  Log.debuG
-    "HTTP"
-    ~params:[("verb", show_verb verb); ("url", url)]
-    ~jsonparams:[("body", `Int (body |> String.length))] ;
-  let results, _, _ = http_call ~raw_bytes url [] verb headers body in
-  results
 
 
 let init () : unit = C.global_init C.CURLINIT_GLOBALALL
