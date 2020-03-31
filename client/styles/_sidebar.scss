@@ -348,6 +348,10 @@ $icSize: 1em;
         color: $http-options;
       }
     }
+
+    @at-root .abridged & {
+      width: 100%;
+    }
   }
 
   @at-root .detailed & {
