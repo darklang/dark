@@ -266,6 +266,8 @@ $icSize: 1em;
 
 // Category items
 .simple-item {
+  margin-top: 5px;
+
   &.empty {
     color: $secondaryColor;
   }
