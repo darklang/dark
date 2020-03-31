@@ -14,7 +14,7 @@ val blank_map : f:('a -> 'b) -> 'a Types.or_blank -> 'b Types.or_blank
 
 val blank_to_string : string Types.or_blank -> string
 
-val traverse :
+val deprecated_traverse :
      f:(Types.RuntimeT.expr -> Types.RuntimeT.expr)
   -> Types.RuntimeT.expr
   -> Types.RuntimeT.expr

@@ -147,7 +147,7 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = true }
   ; { prefix_names = ["AWS::urlencode"]
     ; infix_names = []
     ; parameters = [par "str" TStr]

@@ -7,32 +7,26 @@ let fontAwesome = ViewUtils.fontAwesome
 
 type viewState = ViewUtils.viewState
 
-type htmlConfig = ViewBlankOr.htmlConfig
-
-let idConfigs = ViewBlankOr.idConfigs
-
-let wc = ViewBlankOr.wc
-
-let enterable = ViewBlankOr.Enterable
-
 let viewTipeName (vs : viewState) (t : userTipe) : msg Html.html =
   let nameField =
-    let c = (enterable :: idConfigs) @ [wc "ut-name"] in
-    ViewBlankOr.viewText TypeName vs c t.utName
+    ViewBlankOr.viewText
+      ~enterable:true
+      ~classes:["ut-name"]
+      TypeName
+      vs
+      t.utName
   in
   Html.div [Html.class' "typetitle"] [nameField]
 
 
-let viewFieldName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  let configs = (enterable :: idConfigs) @ c in
-  ViewBlankOr.viewText TypeFieldName vs configs v
+let viewFieldName ~(classes : string list) (vs : viewState) (v : string blankOr)
+    : msg Html.html =
+  ViewBlankOr.viewText ~enterable:true ~classes TypeFieldName vs v
 
 
-let viewFieldType (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
+let viewFieldType ~(classes : string list) (vs : viewState) (v : tipe blankOr) :
     msg Html.html =
-  let configs = (enterable :: idConfigs) @ c in
-  ViewBlankOr.viewTipe TypeFieldTipe vs configs v
+  ViewBlankOr.viewTipe ~enterable:true ~classes TypeFieldTipe vs v
 
 
 let viewKillFieldBtn (t : userTipe) (field : userRecordField) : msg Html.html =
@@ -58,8 +52,8 @@ let viewTipeField
     else Vdom.noNode
   in
   let row =
-    [ viewFieldName vs [wc "name"] field.urfName
-    ; viewFieldType vs [wc "type"] field.urfTipe
+    [ viewFieldName vs ~classes:["name"] field.urfName
+    ; viewFieldType vs ~classes:["type"] field.urfTipe
     ; button ]
   in
   Html.div [Html.class' "field"] row
