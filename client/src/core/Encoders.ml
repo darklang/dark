@@ -832,6 +832,7 @@ let handlerProp (p : Types.handlerProp) : Js.Json.t =
 let editorSettings (es : Types.editorSettings) : Js.Json.t =
   object_
     [ ("runTimers", bool es.runTimers)
+    ; ("showASTDebugger", bool es.showASTDebugger)
     ; ("showFluidDebugger", bool es.showFluidDebugger) ]
 
 
