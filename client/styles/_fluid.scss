@@ -696,3 +696,10 @@ $error-color: saturate($red, 10%);
     content: "The Error came from here";
   }
 }
+
+/* Executed Code Variant */
+#app.exe-variant .fluid-editor {
+  .fluid-not-executed {
+    filter: brightness(60%);
+  }
+}
