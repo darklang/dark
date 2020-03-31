@@ -87,9 +87,9 @@ let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
  * removing any feature flag in its ancestry and replacing it with either the
  * old or new code, based on [keep].
  *
- * Returns the new AST and a bool indicating successful removal. *)
+ * Returns the new AST if the flag was successfuly removed. *)
 let unwrap (keep : unwrapKeep) (ast : FluidAST.t) (id : ID.t) :
-    FluidAST.t * bool =
+    FluidAST.t option =
   (* Either the given ID is a FF or it's somewhere in the ancestor chain. Find
      it (hopefully). *)
   FluidAST.find id ast
@@ -97,15 +97,11 @@ let unwrap (keep : unwrapKeep) (ast : FluidAST.t) (id : ID.t) :
   |> Option.orElseLazy (fun _ -> ancestorFlag ast id)
   |> Option.map ~f:(fun flag ->
          (* once we've found the flag, remove it, keeping the correct thing *)
-         let ast =
-           FluidAST.update (E.toID flag) ast ~f:(function
-               | E.EFeatureFlag (_id, _name, _cond, oldCode, newCode) ->
-                 (match keep with KeepOld -> oldCode | KeepNew -> newCode)
-               | e ->
-                   recover "updating flag found non-flag expression" e)
-         in
-         (ast, true))
-  |> Option.withDefault ~default:(ast, false)
+         FluidAST.update (E.toID flag) ast ~f:(function
+             | E.EFeatureFlag (_id, _name, _cond, oldCode, newCode) ->
+               (match keep with KeepOld -> oldCode | KeepNew -> newCode)
+             | e ->
+                 recover "updating flag found non-flag expression" e))
 
 
 (** [unwrapCmd keep m tl id] returns a [modification] that calls [unwrap] with
@@ -113,26 +109,22 @@ let unwrap (keep : unwrapKeep) (ast : FluidAST.t) (id : ID.t) :
 let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
     modification =
   Toplevel.getAST tl
+  |> Option.andThen ~f:(fun ast -> unwrap keep ast id)
   |> Option.map ~f:(fun ast ->
-         let ast, success = unwrap keep ast id in
-         if success
-         then
-           Many
-             [ Toplevel.setASTMod tl ast
-             ; ReplaceAllModificationsWithThisOne
-                 (fun m ->
-                   ( { m with
-                       fluidState =
-                         { m.fluidState with
-                           newPos =
-                             0
-                             (* should probably be the last place
-                               the caret was in the main editor, but we don't
-                               store that *)
-                         ; upDownCol = None
-                         ; activeEditor = MainEditor } }
-                   , Tea.Cmd.none )) ]
-         else Toplevel.setASTMod tl ast)
+         Many
+           [ Toplevel.setASTMod tl ast
+           ; ReplaceAllModificationsWithThisOne
+               (fun m ->
+                 ( { m with
+                     fluidState =
+                       { m.fluidState with
+                         newPos =
+                           0
+                           (* should probably be the last place the caret was
+                            * in the main editor, but we don't store that *)
+                       ; upDownCol = None
+                       ; activeEditor = MainEditor } }
+                 , Tea.Cmd.none )) ])
   |> Option.withDefault ~default:NoChange
 
 
