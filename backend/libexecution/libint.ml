@@ -16,11 +16,7 @@ let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
   [ { prefix_names = ["Int::mod"]
-    ; infix_names =
-        (* This used to provide the infix op %. Since we don't support versioned infix ops yet,
-         * and the replacement function is identical other than returning Result rather than
-         * crashing the editor, we've removed it from here and moved it to the infix for Int::mod_v1 *)
-        []
+    ; infix_names = ["%"]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
     ; description =
@@ -29,8 +25,9 @@ let fns : fn list =
         (* This used to use Dint.(%), which is now gone because it was too confusing. It's now called Dint.modulo_exn.
          * The functionality was ok but the docstring was a lie.
          *
-         * This is deprecated in favor of a version that returns a result. It should still be ok to use `%` for the new
-         * version because old uses will just go to the error rail instead of raising an exception to rollbar.
+         * This is deprecated in favor of a version that returns a result.
+         * We couldn't move the infix "%" over because infix ops don't support the error rail and,
+         * in general, functions that switch to a result version are not on the rail.
          *)
         InProcess
           (function
@@ -41,7 +38,7 @@ let fns : fn list =
     ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["Int::mod_v1"]
-    ; infix_names = ["%"]
+    ; infix_names = []
     ; parameters = [par "value" TInt; par "modulus" TInt]
     ; return_type = TResult
     ; description =
@@ -49,6 +46,7 @@ let fns : fn list =
          If `modulus` is positive, returns `Ok res`. Returns an `Error` if `modulus` is 0 or negative.
          Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
     ; func =
+        (* TODO: A future version should support all non-zero modulus values and should include the infix "%" *)
         InProcess
           (function
           | _, [DInt v; DInt m] ->
