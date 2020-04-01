@@ -740,7 +740,7 @@ let adminDebuggerView (m : model) : msg Html.html =
       [ Html.input'
           [Html.type' "checkbox"; Html.checked m.editorSettings.runTimers]
           []
-      ; Html.p [] [Html.text "Run Timers"] ]
+      ; Html.label [] [Html.text "Run Timers"] ]
   in
   let toggleFluidDebugger =
     Html.div
@@ -752,7 +752,7 @@ let adminDebuggerView (m : model) : msg Html.html =
           [ Html.type' "checkbox"
           ; Html.checked m.editorSettings.showFluidDebugger ]
           []
-      ; Html.p [] [Html.text "Show Fluid Debugger"] ]
+      ; Html.label [] [Html.text "Show Fluid Debugger"] ]
   in
   let toggleASTDebugger =
     Html.div
@@ -763,7 +763,7 @@ let adminDebuggerView (m : model) : msg Html.html =
       [ Html.input'
           [Html.type' "checkbox"; Html.checked m.editorSettings.showASTDebugger]
           []
-      ; Html.p [] [Html.text "Show AST Debugger"] ]
+      ; Html.label [] [Html.text "Show AST Debugger"] ]
   in
   let debugger =
     Html.a
