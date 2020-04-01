@@ -11,18 +11,48 @@ open Tc
    * store timestamps or edited-by-user for ops
    * ("git blame"). *)
 let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
-  ops
-  (* Accumulate ops until we get to a TLSavepoint, at
-   * which point we're done - we
-   * throw out that op and everything after it in the
-   * list (before it in history) *)
-  |> List.foldr ~init:(false, []) ~f:(fun currOp (found_tlsavepoint, ops) ->
-         match (found_tlsavepoint, ops, (currOp : Op.op)) with
-         | true, ops, _ | false, ops, TLSavepoint _ ->
-             (true, ops)
-         | false, ops, currOp ->
-             (false, currOp :: ops))
-  |> fun (_, ops) -> ops
+  let iter ops =
+    let accumulatingOps : Op.op list ref = ref [] in
+    let done_because_we_found_a_tl_savepoint = ref false in
+    ops
+    |> List.reverse
+    |> List.iter ~f:(fun op ->
+           if !done_because_we_found_a_tl_savepoint
+           then ()
+           else
+             ( match (op : Op.op) with
+             | TLSavepoint _ ->
+                 done_because_we_found_a_tl_savepoint := true ;
+                 ()
+             | _ ->
+                 accumulatingOps := !accumulatingOps @ [op] ;
+                 () )
+             |> ignore) ;
+    !accumulatingOps |> List.reverse
+  in
+  let foldr ops =
+    ops
+    (* Accumulate ops until we get to a TLSavepoint, at
+     * which point we're done - we
+     * throw out that op and everything after it in the
+     * list (before it in history) *)
+    |> List.foldr ~init:(false, []) ~f:(fun currOp (found_tlsavepoint, ops) ->
+           match (found_tlsavepoint, ops, (currOp : Op.op)) with
+           | true, ops, _ | false, ops, TLSavepoint _ ->
+               (true, ops)
+           | false, ops, currOp ->
+               (false, currOp :: ops))
+    |> fun (_, ops) -> ops
+  in
+  (* From the end of the list, take ops until you hit the first savepoint *)
+  let take_while (ops : Op.op list) =
+    ops
+    |> List.reverse
+    |> List.take_while ~f:(function Op.TLSavepoint _ -> false | _ -> true)
+    |> List.reverse
+  in
+  let _ = (iter, foldr, take_while) in
+  iter ops
 
 
 (** [update_hosts_in_op op ~old_host ~new_host] Given an [op], and an
