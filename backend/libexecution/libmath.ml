@@ -61,6 +61,18 @@ let fns : fn list =
           | _, [DFloat turns] -> DFloat (tau *. turns) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Math::radians"]
+    ; infix_names = []
+    ; parameters = [par "angleInRadians" TFloat]
+    ; return_type = TFloat
+    ; description =
+        "Returns `angleInRadians` in radians, the unit used by all of Dark's trigonometry functions.
+        There are `Float::multiply 2 Math::pi` radians in a circle."
+    ; func =
+        InProcess
+          (function _, [DFloat rads] -> DFloat rads | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Math::cos"]
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]

@@ -1380,6 +1380,15 @@ let t_math_stdlibs () =
     (DFloat (-3.141592653589793) (* -pi *))
     (exec_ast' (fn "Math::turns" [fn "Float::negate" [float' 0 5]])) ;
   check_dval
+    "Math::radians works (pos)"
+    (DFloat 6.283185307179586 (* tau *))
+    (exec_ast' (fn "Math::radians" [float' 6 283185307179586])) ;
+  check_dval
+    "Math::radians works (neg)"
+    (DFloat (-3.141592653589793) (* -pi *))
+    (exec_ast'
+       (fn "Math::radians" [fn "Float::negate" [float' 3 141592653589793]])) ;
+  check_dval
     "Math::cos works (0)"
     (DFloat 1.0)
     (exec_ast' (fn "Math::cos" [float' 0 0])) ;
