@@ -573,7 +573,7 @@ let viewDeployStats (m : model) : msg Html.html =
     Html.classList
       [("sidebar-category", true); ("deploys", true); ("empty", count = 0)]
   in
-  Html.details [classes; openAttr] [summary; content]
+  Html.details ~unique:"deploys" [classes; openAttr] [summary; content]
 
 
 let rec viewItem (m : model) (s : item) : msg Html.html =
@@ -653,7 +653,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
     Html.classList
       [("sidebar-category", true); (c.classname, true); ("empty", c.count = 0)]
   in
-  Html.details [classes; openAttr] [summary; content]
+  Html.details ~unique:c.classname [classes; openAttr] [summary; content]
 
 
 let viewToggleBtn (isDetailed : bool) : msg Html.html =
