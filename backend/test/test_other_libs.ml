@@ -1355,8 +1355,14 @@ let t_liblist_sort_by_comparator_works () =
 
 
 let t_math_stdlibs () =
-  check_dval "Math::pi works" (DFloat 3.141592653589793) (exec_ast' (fn "Math::pi" [])) ;
-  check_dval "Math::tau works" (DFloat 6.283185307179586) (exec_ast' (fn "Math::tau" [])) ;
+  check_dval
+    "Math::pi works"
+    (DFloat 3.141592653589793)
+    (exec_ast' (fn "Math::pi" [])) ;
+  check_dval
+    "Math::tau works"
+    (DFloat 6.283185307179586)
+    (exec_ast' (fn "Math::tau" [])) ;
   check_dval
     "Math::degreesToRadians works (pos)"
     (DFloat 6.283185307179586 (* tau *))
