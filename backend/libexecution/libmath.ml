@@ -14,7 +14,7 @@ let tau =
 
 
 let fns : fn list =
-  [ { prefix_names = ["PI"]
+  [ { prefix_names = ["Math::pi"]
     ; infix_names = []
     ; parameters = []
     ; return_type = TFloat
@@ -23,12 +23,12 @@ let fns : fn list =
     ; func = InProcess (function _, [] -> DFloat pi | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["TAU"]
+  ; { prefix_names = ["Math::tau"]
     ; infix_names = []
     ; parameters = []
     ; return_type = TFloat
     ; description =
-        "Returns an approximation for the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply PI 2`."
+        "Returns an approximation for the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply Math::pi 2`."
     ; func = InProcess (function _, [] -> DFloat tau | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
@@ -104,7 +104,7 @@ let fns : fn list =
     ; description =
         "Returns the arc cosine of `ratio`, as an Option.
          If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
-         `Just result` where `result` is in radians and is between `0.0` and `PI`. Otherwise, returns `Nothing`.
+         `Just result` where `result` is in radians and is between `0.0` and `Math::pi`. Otherwise, returns `Nothing`.
          This function is the inverse of `Math::cos`."
     ; func =
         InProcess
@@ -125,7 +125,7 @@ let fns : fn list =
     ; description =
         "Returns the arc sine of `ratio`, as an Option.
          If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
-         `Just result` where `result` is in radians and is between `-PI/2` and `PI/2`. Otherwise, returns `Nothing`.
+         `Just result` where `result` is in radians and is between `-Math::pi/2` and `Math::pi/2`. Otherwise, returns `Nothing`.
          This function is the inverse of `Math::sin`."
     ; func =
         InProcess
@@ -144,7 +144,7 @@ let fns : fn list =
     ; parameters = [par "ratio" TFloat]
     ; return_type = TFloat
     ; description =
-        "Returns the arc tangent of `ratio`. The result is in radians and is between `-PI/2` and `PI/2`.
+        "Returns the arc tangent of `ratio`. The result is in radians and is between `-Math::pi/2` and `Math::pi/2`.
          This function is the inverse of `Math::tan`. Use `Math::atan2` to expand the output range, if you know the numerator and denominator of `ratio`."
     ; func =
         InProcess
@@ -158,7 +158,7 @@ let fns : fn list =
     ; return_type = TFloat
     ; description =
         "Returns the arc tangent of `y / x`, using the signs of `y` and `x` to determine the quadrant of the result.
-         The result is in radians and is between `-PI` and `PI`. Consider `Math::atan` if you know the value of `y / x` but not the individual values `x` and `y`."
+         The result is in radians and is between `-Math::pi` and `Math::pi`. Consider `Math::atan` if you know the value of `y / x` but not the individual values `x` and `y`."
     ; func =
         InProcess
           (function

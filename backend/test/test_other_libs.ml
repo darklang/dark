@@ -1355,8 +1355,8 @@ let t_liblist_sort_by_comparator_works () =
 
 
 let t_math_stdlibs () =
-  check_dval "PI works" (DFloat 3.141592653589793) (exec_ast' (fn "PI" [])) ;
-  check_dval "TAU works" (DFloat 6.283185307179586) (exec_ast' (fn "TAU" [])) ;
+  check_dval "Math::pi works" (DFloat 3.141592653589793) (exec_ast' (fn "Math::pi" [])) ;
+  check_dval "Math::tau works" (DFloat 6.283185307179586) (exec_ast' (fn "Math::tau" [])) ;
   check_dval
     "Math::degreesToRadians works (pos)"
     (DFloat 6.283185307179586 (* tau *))
@@ -1380,7 +1380,7 @@ let t_math_stdlibs () =
   check_dval
     "Math::cos works (pi)"
     (DFloat (-1.0))
-    (exec_ast' (fn "Math::cos" [fn "PI" []])) ;
+    (exec_ast' (fn "Math::cos" [fn "Math::pi" []])) ;
   check_dval
     "Math::sin works (0)"
     (DFloat 0.0)
@@ -1388,7 +1388,7 @@ let t_math_stdlibs () =
   check_dval
     "Math::sin works (pi/2)"
     (DFloat 1.0)
-    (exec_ast' (fn "Math::sin" [fn "/" [fn "PI" []; float' 2 0]])) ;
+    (exec_ast' (fn "Math::sin" [fn "/" [fn "Math::pi" []; float' 2 0]])) ;
   check_dval
     "Math::tan works (0)"
     (DFloat 0.0)
@@ -1396,7 +1396,7 @@ let t_math_stdlibs () =
   check_dval
     "Math::tan works (pi/4)"
     (DFloat 0.9999999999999999 (* ~1.0 *))
-    (exec_ast' (fn "Math::tan" [fn "/" [fn "PI" []; float' 4 0]])) ;
+    (exec_ast' (fn "Math::tan" [fn "/" [fn "Math::pi" []; float' 4 0]])) ;
   check_dval
     "Math::acos works in range (1)"
     (DOption (OptJust (DFloat 0.0)))
