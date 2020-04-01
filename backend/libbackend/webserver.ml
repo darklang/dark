@@ -134,6 +134,23 @@ let respond
   respond_or_redirect (Respond {resp_headers; execution_id; status; body})
 
 
+type host_route =
+  | Canvas of string
+  | Static
+  | Admin
+
+let canvas_from_db_opt (host_parts : string list) : host_route option =
+  let host = String.concat host_parts ~sep:"." in
+  Db.fetch_one_option
+    ~name:"get_custom_domain"
+    ~subject:host
+    "SELECT canvas
+       FROM custom_domains WHERE host = $1"
+    ~params:[Db.String host]
+  (* List.hd_exn because the list in question is a list of fields; we should never
+   * get the wrong shape back from a query *)
+  |> Option.map ~f:(fun canvas_name -> Canvas (canvas_name |> List.hd_exn))
+
 let should_use_https uri =
   let parts =
     uri |> Uri.host |> Option.value ~default:"" |> fun h -> String.split h '.'
@@ -159,8 +176,11 @@ let should_use_https uri =
   | ["www"; "kiksht"; "com"]
   | ["food"; "placeofthin"; "gs"] ->
       true
-  | _ ->
-      false
+  | parts ->
+      (* If we've set up a custom domain, we should force https. If we haven't,
+       * and we've fallen all the way through (this is not a known host), then we
+       * should not, because it is likely a healthcheck or other k8s endpoint *)
+      parts |> canvas_from_db_opt |> Option.is_some
 
 
 let redirect_to uri =
@@ -1820,11 +1840,6 @@ let static_handler uri =
     ()
 
 
-type host_route =
-  | Canvas of string
-  | Static
-  | Admin
-
 let route_host req =
   match
     req
@@ -1888,9 +1903,10 @@ let route_host req =
   | ["darklang"; "lvh"; "me"]
   | ["dark_dev"; "com"] ->
       Some Admin
-  (* Not a match... *)
-  | _ ->
-      None
+  (* No match in the above hard-coded parts; let's try the db (though that may
+   * still return None) *)
+  | parts ->
+      canvas_from_db_opt parts
 
 
 let db_conn_readiness_check () : string option =
