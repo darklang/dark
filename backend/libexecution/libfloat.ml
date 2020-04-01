@@ -269,8 +269,8 @@ let fns : fn list =
         [par "value" TFloat; par "minimum" TFloat; par "maximum" TFloat]
     ; return_type = TOption
     ; description =
-        "If `minimum <= maximum`, returns `Just clamped`, where `clamped` is the result of constraining `value` within the range specified by `minimum` and `maximum`.
-       Otherwise, returns `Nothing`."
+        "Returns the result of constraining `value` within the range specified by `minimum` and `maximum`, as an Option.
+         If `minimum <= maximum`, returns `Just clamped`. Otherwise, returns `Nothing`."
     ; func =
         InProcess
           (function

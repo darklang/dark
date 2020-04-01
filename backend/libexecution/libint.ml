@@ -45,8 +45,9 @@ let fns : fn list =
     ; parameters = [par "value" TInt; par "modulus" TInt]
     ; return_type = TResult
     ; description =
-        "Performs modular arithmetic. If `modulus` is positive, returns `Ok res` where `res` is the result of wrapping `value` around so that `0 <= res < modulus`.
-        Returns an `Error` if `modulus` is 0 or negative. Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
+        "Returns the result of wrapping `value` around so that `0 <= res < modulus`, as a Result.
+         If `modulus` is positive, returns `Ok res`. Returns an `Error` if `modulus` is 0 or negative.
+         Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
     ; func =
         InProcess
           (function
@@ -71,7 +72,9 @@ let fns : fn list =
     ; parameters = [par "value" TInt; par "divisor" TInt]
     ; return_type = TResult
     ; description =
-        "If `divisor` is not 0, returns `Ok integerRemainder` left over after dividing `value` by `divisor`. For example, `Int::remainder 15 6 == 3`.
+        "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
+        For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
+        The sign of `divisor` doesn't influence the outcome.
         Returns an `Error` if `divisor` is 0."
     ; func =
         InProcess
@@ -523,8 +526,8 @@ let fns : fn list =
     ; parameters = [par "value" TInt; par "minimum" TInt; par "maximum" TInt]
     ; return_type = TOption
     ; description =
-        "If `minimum <= maximum`, returns `Just clamped`, where `clamped` is the result of constraining `value` within the range specified by `minimum` and `maximum`.
-      Otherwise, returns `Nothing`."
+        "Returns the result of constraining `value` within the range specified by `minimum` and `maximum`, as an Option.
+         If `minimum <= maximum`, returns `Just clamped`. Otherwise, returns `Nothing`."
     ; func =
         InProcess
           (function
