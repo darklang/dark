@@ -11,18 +11,11 @@ open Tc
    * store timestamps or edited-by-user for ops
    * ("git blame"). *)
 let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
+  (* From the end of the list, take ops until you hit the first savepoint *)
   ops
-  (* Accumulate ops until we get to a TLSavepoint, at
-   * which point we're done - we
-   * throw out that op and everything after it in the
-   * list (before it in history) *)
-  |> List.foldr ~init:(false, []) ~f:(fun currOp (found_tlsavepoint, ops) ->
-         match (found_tlsavepoint, ops, (currOp : Op.op)) with
-         | true, ops, _ | false, ops, TLSavepoint _ ->
-             (true, ops)
-         | false, ops, currOp ->
-             (false, currOp :: ops))
-  |> fun (_, ops) -> ops
+  |> List.reverse
+  |> List.take_while ~f:(function Op.TLSavepoint _ -> false | _ -> true)
+  |> List.reverse
 
 
 (** [update_hosts_in_op op ~old_host ~new_host] Given an [op], and an
