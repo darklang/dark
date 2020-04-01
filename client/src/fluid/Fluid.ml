@@ -5316,16 +5316,14 @@ let updateMouseDoubleClick
           {m.fluidState with newPos = pos; oldPos = m.fluidState.newPos}
         |> recoverOpt ~default:(0, 0) "no expression range found at caret"
     | SelectTokenAt pos ->
-        let tokens = tokensForActiveEditor ast s in
-        let token = getToken' {s with newPos = pos} tokens in
-        ( match token with
-        | Some {token = TFnName (_, displayName, _, _, _); startPos; _} ->
-            (* Highlight the full function name *)
-            (startPos, startPos + String.length displayName)
-        | Some {startPos; endPos; _} ->
-            (startPos, endPos)
-        | None ->
-            (pos, pos) )
+      ( match getToken ast {s with newPos = pos} with
+      | Some {token = TFnName (_, displayName, _, _, _); startPos; _} ->
+          (* Highlight the full function name *)
+          (startPos, startPos + String.length displayName)
+      | Some {startPos; endPos; _} ->
+          (startPos, endPos)
+      | None ->
+          (pos, pos) )
   in
   ( ast
   , {s with selectionStart = Some selStart; oldPos = s.newPos; newPos = selEnd}
