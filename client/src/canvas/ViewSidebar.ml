@@ -863,9 +863,9 @@ let viewSidebar_ (m : model) : msg Html.html =
     [ Html.id "sidebar-left"
       (* Block opening the omnibox here by preventing canvas pan start *)
     ; nothingMouseEvent "mousedown"
-    ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
+    ; ViewUtils.eventNoPropagation ~key:"ept" "mouseover" (fun _ ->
           EnablePanning false)
-    ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
+    ; ViewUtils.eventNoPropagation ~key:"epf" "mouseout" (fun _ ->
           SidebarMsg ResetSidebar) ]
     [content]
 
