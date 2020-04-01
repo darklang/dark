@@ -1657,10 +1657,10 @@ let run () =
       t
         ~expectsPartial:true
         "add dot after field"
-        aField
-        ~pos:9
+        (let' "obj" emptyRecord aField)
+        ~pos:22
         (ins ".")
-        "obj.field.~***" ;
+        "let obj = {}\nobj.field.~***" ;
       t "insert space in blank " aBlankField ~pos:4 space "obj.~***" ;
       t
         "ctrl+left in name moves to beg of name"
