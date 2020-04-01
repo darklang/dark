@@ -802,7 +802,7 @@ test("fluid_click_2x_in_function_places_cursor", async t => {
     .click(Selector(".id-96908617.fluid-category-string"), { caretPos: 2 });
 });
 
-test("fluid_double_click_selects_token", async t => {
+test("fluid_doubleclick_selects_token", async t => {
   await t
     .navigateTo("#handler=123")
     .expect(available(".tl-123"))
@@ -812,7 +812,27 @@ test("fluid_double_click_selects_token", async t => {
     .doubleClick(Selector(".fluid-match-keyword"), { caretPos: 3 });
 });
 
-test("fluid_double_click_with_alt_selects_expression", async t => {
+test("fluid_doubleclick_selects_word_in_string", async t => {
+  await t
+    .navigateTo("#handler=123")
+    .expect(available(".tl-123"))
+    .ok()
+    .expect(available(".selected #active-editor"))
+    .ok()
+    .doubleClick(Selector(".fluid-string"), { caretPos: 15 });
+});
+
+test("fluid_doubleclick_selects_entire_fnname", async t => {
+  await t
+    .navigateTo("#handler=123")
+    .expect(available(".tl-123"))
+    .ok()
+    .expect(available(".selected #active-editor"))
+    .ok()
+    .doubleClick(Selector(".fluid-fn-name"), { caretPos: 8 });
+});
+
+test("fluid_doubleclick_with_alt_selects_expression", async t => {
   await t
     .navigateTo("#handler=123")
     .expect(available(".tl-123"))

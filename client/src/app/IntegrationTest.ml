@@ -452,9 +452,54 @@ let fluidGetSelectionRange (s : fluidState) : (int * int) option =
       None
 
 
-let fluid_double_click_selects_token (m : model) : testResult =
+let fluid_doubleclick_selects_token (m : model) : testResult =
   match fluidGetSelectionRange m.fluidState with
   | Some (34, 40) ->
+      pass
+  | Some (a, b) ->
+      fail
+        ( "incorrect selection range for token: ("
+        ^ string_of_int a
+        ^ ", "
+        ^ string_of_int b
+        ^ ")" )
+  | None ->
+      fail "no selection range"
+
+
+let fluid_doubleclick_with_alt_selects_expression (m : model) : testResult =
+  match fluidGetSelectionRange m.fluidState with
+  | Some (34, 965) ->
+      pass
+  | Some (a, b) ->
+      fail
+        ( "incorrect selection range for expression: ("
+        ^ string_of_int a
+        ^ ", "
+        ^ string_of_int b
+        ^ ")" )
+  | None ->
+      fail "no selection range"
+
+
+let fluid_doubleclick_selects_word_in_string (m : model) : testResult =
+  match fluidGetSelectionRange m.fluidState with
+  | Some (13, 22) ->
+      pass
+  | Some (a, b) ->
+      fail
+        ( "incorrect selection range for token: ("
+        ^ string_of_int a
+        ^ ", "
+        ^ string_of_int b
+        ^ ")" )
+  | None ->
+      fail "no selection range"
+
+
+let fluid_doubleclick_selects_entire_fnname (m : model) : testResult =
+  match fluidGetSelectionRange m.fluidState with
+  | Some (0, 14) ->
       pass
   | Some (a, b) ->
       fail
@@ -532,21 +577,6 @@ let fluid_click_2x_in_function_places_cursor (m : model) : testResult =
   in
   Result.combine [focusedPass; browserCursorPass; cursorPass]
   |> Result.map (fun _ -> ())
-
-
-let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
-  match fluidGetSelectionRange m.fluidState with
-  | Some (34, 965) ->
-      pass
-  | Some (a, b) ->
-      fail
-        ( "incorrect selection range for expression: ("
-        ^ string_of_int a
-        ^ ", "
-        ^ string_of_int b
-        ^ ")" )
-  | None ->
-      fail "no selection range"
 
 
 let fluid_shift_right_selects_chars_in_front (m : model) : testResult =
@@ -794,10 +824,14 @@ let trigger (test_name : string) : integrationTestState =
         fluid_click_2x_on_token_places_cursor
     | "fluid_click_2x_in_function_places_cursor" ->
         fluid_click_2x_in_function_places_cursor
-    | "fluid_double_click_selects_token" ->
-        fluid_double_click_selects_token
-    | "fluid_double_click_with_alt_selects_expression" ->
-        fluid_double_click_with_alt_selects_expression
+    | "fluid_doubleclick_selects_token" ->
+        fluid_doubleclick_selects_token
+    | "fluid_doubleclick_selects_word_in_string" ->
+        fluid_doubleclick_selects_word_in_string
+    | "fluid_doubleclick_with_alt_selects_expression" ->
+        fluid_doubleclick_with_alt_selects_expression
+    | "fluid_doubleclick_selects_entire_fnname" ->
+        fluid_doubleclick_selects_entire_fnname
     | "fluid_shift_right_selects_chars_in_front" ->
         fluid_shift_right_selects_chars_in_front
     | "fluid_shift_left_selects_chars_at_back" ->
