@@ -1164,7 +1164,10 @@ and fluidMouseUp =
 
 and fluidMouseDoubleClickType =
   | SelectExpressionAt of int
-  | SelectTokenAt of int
+  (* [selectTokenAt start end]: the two ints represent the selection when the
+   * double click happened, which might represent a token or a part of the
+   * token (in the case of strings, a word sometimes) *)
+  | SelectTokenAt of int * int
 
 and fluidMouseDoubleClick =
   { tlid : TLID.t

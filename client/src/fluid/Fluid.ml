@@ -5315,15 +5315,18 @@ let updateMouseDoubleClick
           ast
           {m.fluidState with newPos = pos; oldPos = m.fluidState.newPos}
         |> recoverOpt ~default:(0, 0) "no expression range found at caret"
-    | SelectTokenAt pos ->
-      ( match getToken ast {s with newPos = pos} with
+    | SelectTokenAt (selectionStart, selectionEnd) ->
+      ( match getToken ast {s with newPos = selectionStart} with
       | Some {token = TFnName (_, displayName, _, _, _); startPos; _} ->
           (* Highlight the full function name *)
           (startPos, startPos + String.length displayName)
+      | Some _ when selectionStart <> selectionEnd ->
+          (* there's an actual selection here, use it *)
+          (selectionStart, selectionEnd)
       | Some {startPos; endPos; _} ->
           (startPos, endPos)
       | None ->
-          (pos, pos) )
+          (selectionStart, selectionEnd) )
   in
   ( ast
   , {s with selectionStart = Some selStart; oldPos = s.newPos; newPos = selEnd}

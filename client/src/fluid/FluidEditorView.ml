@@ -282,11 +282,11 @@ let tokensView (s : state) : Types.msg Html.html =
         "dblclick"
         (fun {altKey; _} ->
           match Entry.getFluidSelectionRange () with
-          | Some (startPos, _) ->
+          | Some (startPos, endPos) ->
               let selection =
                 if altKey
                 then SelectExpressionAt startPos
-                else SelectTokenAt startPos
+                else SelectTokenAt (startPos, endPos)
               in
               FluidMsg
                 (FluidMouseDoubleClick
