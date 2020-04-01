@@ -337,7 +337,6 @@ let t_canvas_verification_undo_rename_duped_name () =
 
 
 let t_canvas_clone () =
-  let check_result = AT.check (AT.result AT.unit AT.string) in
   Canvas.load_and_resave_from_test_file "sample-gettingstarted" ;
   Account.insert_user
     ~username:"clone"
