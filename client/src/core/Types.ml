@@ -982,6 +982,7 @@ and sidebarState =
 and sidebarMsg =
   | ToggleSidebarMode
   | SetOnCategory of string
+  | UnfoucsSidebar
   | ResetSidebar
 
 (* ------------------- *)
