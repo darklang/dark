@@ -625,7 +625,7 @@ let t_list_stdlibs_work () =
           [list []; lambda ["i"; "v"] (binop "-" (var "v") (var "i"))])) ;
   check_dval
     "List::indexedMap works (full)"
-    (DList [Dval.dint 3; Dval.dint 1; Dval.dint (-2)])
+    (DList [Dval.dint 3; Dval.dint 1; Dval.dint (-1)])
     (exec_ast'
        (fn
           "List::indexedMap"
