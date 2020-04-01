@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -eou pipefail
+
+PATH=~/.local/bin:$PATH
+
+HELP="$(cat <<EOF
+Usage: $0 DOMAIN
+
+Sets up DOMAIN with a letsencrypt cert - note, you must have CNAME'd domain ->
+<some_canvas>.darkcustomdomain.com. Check this with 'dig domain', as Let's
+Encrypt can't verify ownership of the domain without the CNAME in place!
+EOF
+)"
+
+if [[ $# -ne 1 || "$1" == '--help' ]]; then
+    echo "$HELP"
+    exit 1
+fi
+
+DOMAIN=$1
+
+echo "Checking if $DOMAIN has a CNAME pointing at <something>.darkcustomdomain.com..."
+dig_cname="$(dig "$DOMAIN" +short CNAME | head -n 1 | sed 's/.$//')"
+
+if [[ "${dig_cname}" =~ \.darkcustomdomain\.com$ ]]; then
+    echo "CNAME verified: ${DOMAIN} -> ${dig_cname}"
+elif [[ "${dig_cname}" == "" ]]; then
+    echo "No CNAME found for ${DOMAIN}; can't continue until this is done."
+    exit 1
+else
+    echo "Expected a <something>.darkcustomdomain.com. CNAME, but got ${dig_cname}, can't continue until this is fixed."
+    exit 1
+fi
+
+echo "Requesting a cert for $DOMAIN..."
+PATCH=$(cat <<-PATCH
+[
+  {
+    "op": "add",
+    "path": "/spec/rules/-",
+    "value": {
+      "host": "${DOMAIN}",
+      "http": {
+        "paths": [
+          {
+            "backend": {
+              "serviceName": "bwd-nodeport",
+              "servicePort": 80
+            },
+            "path": "/"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/spec/tls/-",
+    "value": {
+      "hosts": [
+        "${DOMAIN}"
+      ],
+      "secretName": "${DOMAIN}-tls"
+    }
+  }
+]
+PATCH
+)
+
+# DANGER HERE - running this twice will make k8s sad: Warning  BadConfig          9s                 cert-manager              Duplicate TLS entry for secretName "dark-002.metaforgotten.org-tls"
+
+# TODO ismith to check if this breaks anything; it may not. If not, we should at
+# least figure out if we can have a cleanup script of some kind?
+kubectl patch ingress darkcustomdomain-l4-ingress --type=json -p "${PATCH}"
+
+
+echo "Waiting for cert to become ready - we'll wait up to 60s, if this goes
+beyond that, something is probably wrong, check events in kubernetes for the
+certificate resource".
+# shellcheck disable=SC2034
+for i in {1..6}; do
+    cert_ready=$(kubectl get certs | awk "\$1 == \"${DOMAIN}-tls\" { print \$2 }")
+    if [[ "$cert_ready" == "True" ]]; then
+        break;
+    else
+        echo -n .
+        sleep 10s
+    fi
+done
+
+if [[ "$cert_ready" == "True" ]]; then
+    echo # In case our previous output above was 'echo -n .' with no newline
+    echo "Cert is ready!"
+else
+    echo "Cert is still not ready. You should check the events at"
+    echo "kubectl describe certificate ${DOMAIN}-tls"
+    echo "or possibly on the ingress"
+    echo "kubectl describe ingress darkcustomdomain-l4-ingress"
+fi
