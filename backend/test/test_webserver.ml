@@ -13,6 +13,12 @@ module Code = Cohttp.Code
 module AT = Alcotest
 
 let t_should_use_https () =
+  let custom_domain = "https.customdomain.com" in
+  let canvas = "test" in
+  Db.run
+    ~name:"insert test custom_domain"
+    "INSERT INTO custom_domains(host,canvas) VALUES ($1, $2)"
+    ~params:[Db.String custom_domain; Db.String canvas] ;
   AT.check
     (AT.list AT.bool)
     "should_use_https works"
@@ -21,8 +27,37 @@ let t_should_use_https () =
        [ "http://builtwithdark.com"
        ; "http://test.builtwithdark.com"
        ; "http://localhost"
-       ; "http://test.localhost" ])
-    [true; true; false; false]
+       ; "http://test.localhost"
+       ; "http://" ^ custom_domain ])
+    [true; true; false; false; true]
+
+
+let t_route_host () =
+  let custom_domain = "route_host.customdomain.com" in
+  let canvas = "test" in
+  let open Libbackend.Webserver in
+  Db.run
+    ~name:"insert test custom_domain"
+    "INSERT INTO custom_domains(host,canvas) VALUES ($1, $2)"
+    ~params:[Db.String custom_domain; Db.String canvas] ;
+  AT.check
+    (AT.list AT.string)
+    "route_host works"
+    (* kian-venufm is the legacy hardcoded-in-webserver.ml case; foo checks
+     * *.builtwithdark.com;  custom_domain checks routing via the db's
+     * custom_domains table *)
+    ["kian-venufm"; "foo"; custom_domain]
+    ( [ "http://api.venu.fm"
+      ; "http://foo.builtwithdark.com"
+      ; "http://" ^ custom_domain ]
+    |> List.map ~f:Uri.of_string
+    |> List.map ~f:CRequest.make
+    |> List.map ~f:route_host
+    |> List.map ~f:(function
+           | None | Some Static | Some Admin ->
+               "failure"
+           | Some (Canvas canvas) ->
+               canvas) )
 
 
 let t_redirect_to () =
@@ -479,4 +514,7 @@ let suite =
     , t_head_and_get_requests_are_coalesced )
   ; ("canonicalizing requests works", `Quick, t_canonicalize_maintains_schemes)
   ; ("http requests redirect", `Quick, t_http_request_redirects)
-  ; ("canvas name validator works", `Quick, t_is_canvas_name_valid) ]
+  ; ("canvas name validator works", `Quick, t_is_canvas_name_valid)
+  ; ("route_host
+works for hosts hardcoded or in the db", `Quick, t_route_host)
+  ]
