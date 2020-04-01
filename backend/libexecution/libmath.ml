@@ -32,12 +32,12 @@ let fns : fn list =
     ; func = InProcess (function _, [] -> DFloat tau | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Angle::degreesToRadians"]
+  ; { prefix_names = ["Math::degreesToRadians"]
     ; infix_names = []
     ; parameters = [par "angleInDegrees" TFloat]
     ; return_type = TFloat
     ; description =
-        "Returns the equivalent of `angleInDegrees` in radians, the unit used by all of Dark's Trig:: functions.
+        "Returns the equivalent of `angleInDegrees` in radians, the unit used by all of Dark's trigonometry functions.
          There are 360 degrees in a circle."
     ; func =
         InProcess
@@ -48,12 +48,12 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Angle::turnsToRadians"]
+  ; { prefix_names = ["Math::turnsToRadians"]
     ; infix_names = []
     ; parameters = [par "angleInTurns" TFloat]
     ; return_type = TFloat
     ; description =
-        "Returns the equivalent of `angleInTurns` in radians, the unit used by all of Dark's Trig:: functions.
+        "Returns the equivalent of `angleInTurns` in radians, the unit used by all of Dark's trigonometry functions.
          There is 1 turn in a circle."
     ; func =
         InProcess
@@ -61,7 +61,7 @@ let fns : fn list =
           | _, [DFloat turns] -> DFloat (tau *. turns) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Trig::cos"]
+  ; { prefix_names = ["Math::cos"]
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -73,7 +73,7 @@ let fns : fn list =
           (function _, [DFloat a] -> DFloat (Float.cos a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Trig::sin"]
+  ; { prefix_names = ["Math::sin"]
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -85,7 +85,7 @@ let fns : fn list =
           (function _, [DFloat a] -> DFloat (Float.sin a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Trig::tan"]
+  ; { prefix_names = ["Math::tan"]
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -97,15 +97,15 @@ let fns : fn list =
           (function _, [DFloat a] -> DFloat (Float.tan a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Trig::acos"]
+  ; { prefix_names = ["Math::acos"]
     ; infix_names = []
     ; parameters = [par "ratio" TFloat]
     ; return_type = TOption
     ; description =
         "Returns the arc cosine of `ratio`, as an Option.
          If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
-         `Just result` where `result` is in radians and is between 0.0 and PI. Otherwise, returns `Nothing`.
-         This function is the inverse of `Trig::cos`."
+         `Just result` where `result` is in radians and is between `0.0` and `PI`. Otherwise, returns `Nothing`.
+         This function is the inverse of `Math::cos`."
     ; func =
         InProcess
           (function
@@ -118,15 +118,15 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Trig::asin"]
+  ; { prefix_names = ["Math::asin"]
     ; infix_names = []
     ; parameters = [par "ratio" TFloat]
     ; return_type = TOption
     ; description =
         "Returns the arc sine of `ratio`, as an Option.
          If `ratio` is in the inclusive range `[-1.0, 1.0]`, returns
-         `Just result` where `result` is in radians and is between -PI/2 and PI/2. Otherwise, returns `Nothing`.
-         This function is the inverse of `Trig::sin`."
+         `Just result` where `result` is in radians and is between `-PI/2` and `PI/2`. Otherwise, returns `Nothing`.
+         This function is the inverse of `Math::sin`."
     ; func =
         InProcess
           (function
@@ -139,26 +139,26 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Trig::atan"]
+  ; { prefix_names = ["Math::atan"]
     ; infix_names = []
     ; parameters = [par "ratio" TFloat]
     ; return_type = TFloat
     ; description =
-        "Returns the arc tangent of `ratio`. The result is in radians and is between -PI/2 and PI/2.
-         This function is the inverse of `Trig::tan`. Use `Trig::atan2` to expand the output range, if you know the numerator and denominator of `ratio`."
+        "Returns the arc tangent of `ratio`. The result is in radians and is between `-PI/2` and `PI/2`.
+         This function is the inverse of `Math::tan`. Use `Math::atan2` to expand the output range, if you know the numerator and denominator of `ratio`."
     ; func =
         InProcess
           (function
           | _, [DFloat a] -> DFloat (Float.atan a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Trig::atan2"]
+  ; { prefix_names = ["Math::atan2"]
     ; infix_names = []
     ; parameters = [par "y" TFloat; par "x" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns the arc tangent of `y / x`, using the signs of `y` and `x` to determine the quadrant of the result.
-         The result is in radians and is between -PI and PI. Consider `Trig::atan` if you know the value of `y / x` but not the individual values `x` and `y`."
+         The result is in radians and is between `-PI` and `PI`. Consider `Math::atan` if you know the value of `y / x` but not the individual values `x` and `y`."
     ; func =
         InProcess
           (function
@@ -168,7 +168,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Hyperbolic::cosh"]
+  ; { prefix_names = ["Math::cosh"]
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -179,7 +179,7 @@ let fns : fn list =
           | _, [DFloat a] -> DFloat (Float.cosh a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Hyperbolic::sinh"]
+  ; { prefix_names = ["Math::sinh"]
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -190,7 +190,7 @@ let fns : fn list =
           | _, [DFloat a] -> DFloat (Float.sinh a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Hyperbolic::tanh"]
+  ; { prefix_names = ["Math::tanh"]
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
