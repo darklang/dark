@@ -754,16 +754,16 @@ let adminDebuggerView (m : model) : msg Html.html =
           []
       ; Html.label [] [Html.text "Show Fluid Debugger"] ]
   in
-  let toggleASTDebugger =
+  let toggleHandlerASTs =
     Html.div
       [ ViewUtils.eventNoPropagation ~key:"tgast" "mouseup" (fun _ ->
             ToggleEditorSetting
-              (fun es -> {es with showASTDebugger = not es.showASTDebugger}))
+              (fun es -> {es with showHandlerASTs = not es.showHandlerASTs}))
       ; Html.class' "checkbox-row" ]
       [ Html.input'
-          [Html.type' "checkbox"; Html.checked m.editorSettings.showASTDebugger]
+          [Html.type' "checkbox"; Html.checked m.editorSettings.showHandlerASTs]
           []
-      ; Html.label [] [Html.text "Show AST Debugger"] ]
+      ; Html.label [] [Html.text "Show Handler ASTs"] ]
   in
   let debugger =
     Html.a
@@ -787,7 +787,7 @@ let adminDebuggerView (m : model) : msg Html.html =
         [ stateInfo
         ; toggleTimer
         ; toggleFluidDebugger
-        ; toggleASTDebugger
+        ; toggleHandlerASTs
         ; debugger
         ; saveTestButton ] ]
   in

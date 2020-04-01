@@ -234,7 +234,7 @@ let tlCacheKey (m : model) tl =
       , props
       , menuIsOpen
       , workerSchedule
-      , m.editorSettings.showASTDebugger )
+      , m.editorSettings.showHandlerASTs )
 
 
 let tlCacheKeyDB (m : model) tl =

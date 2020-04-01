@@ -22,7 +22,7 @@ let defaultUserSettings : savedUserSettings = {showUserWelcomeModal = true}
 
 let defaultSavedSettings : savedSettings =
   { editorSettings =
-      {runTimers = true; showASTDebugger = false; showFluidDebugger = false}
+      {runTimers = true; showHandlerASTs = false; showFluidDebugger = false}
   ; cursorState = Deselected
   ; routingTableOpenDetails = StrSet.empty
   ; tlTraceIDs = TLIDDict.empty
@@ -155,7 +155,7 @@ let defaultModel : model =
   ; workerSchedules = StrDict.empty
   ; searchCache = TLIDDict.empty
   ; editorSettings =
-      {showFluidDebugger = false; showASTDebugger = false; runTimers = true}
+      {showFluidDebugger = false; showHandlerASTs = false; runTimers = true}
   ; teaDebuggerEnabled = false
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty

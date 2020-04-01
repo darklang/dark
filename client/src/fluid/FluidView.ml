@@ -211,7 +211,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   let mainEditor = FluidEditorView.view editorState in
   let returnValue = viewReturnValue vs in
   let debugAST =
-    if vs.showASTDebugger
+    if vs.showHandlerASTs
     then
       Html.div
         [Html.class' "debug-ast"]

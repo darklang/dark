@@ -1023,7 +1023,7 @@ and apiError =
 (* Editor settings are global settings on the editor. Initially, these are only things that admins use for debugging - in the future they could be extended to editor settings *)
 and editorSettings =
   { showFluidDebugger : bool
-  ; showASTDebugger : bool
+  ; showHandlerASTs : bool
   ; runTimers : bool }
 
 (* tlidSelectTarget represents a target insID.t *e a TLID for use
