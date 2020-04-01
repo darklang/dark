@@ -216,7 +216,11 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
          let to_ops =
            !from_canvas.ops
            |> List.map ~f:(fun (tlid, ops) ->
+                  (* We always "preserve history" for DBs because their ops are
+                   * cumulative *)
                   if preserve_history
+                     || Map.mem !from_canvas.dbs tlid
+                     || Map.mem !from_canvas.deleted_dbs tlid
                   then (tlid, ops)
                   else (tlid, ops |> only_ops_since_last_savepoint))
            |> List.map ~f:(fun (tlid, ops) ->
