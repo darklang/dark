@@ -290,3 +290,25 @@ let fnForToken (functions : Functions.t) token : function_ option =
       Functions.find fnName functions
   | _ ->
       None
+
+module DocStrRender = struct
+  let tagEx = "^(.*)\\<(\\w+)\\s(.+)\\>(.*)$"
+  let consEx ="^(.*)\\{(.+)\\}(.*)$"
+  
+  let rec convert (s: string) : msg Html.html list=
+    if s = ""
+    then []
+    else
+      match Regex.captures ~re:(Regex.regex consEx) s with
+      | [_; before; inside; after] -> 
+       (convert before) @ (Html.span [Html.class' "cons"] (convert inside) :: convert after)
+      | _ ->
+      (match Regex.captures ~re:(Regex.regex tagEx) s with
+      | [_;before; tagType; tagData;after] ->
+        let tagNode =
+            Html.span [Html.class' tagType] (convert tagData)
+        in
+        (convert before) @ (tagNode :: convert after)
+      | _ -> [Html.text s])
+
+end
