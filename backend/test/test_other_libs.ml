@@ -617,6 +617,21 @@ let t_list_stdlibs_work () =
                  ; (pInt 3, bool true) ]) ]))
     "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`" ;
   check_dval
+    "List::indexedMap works (empty)"
+    (DList [])
+    (exec_ast'
+       (fn
+          "List::indexedMap"
+          [list []; lambda ["i"; "v"] (binop "-" (var "v") (var "i"))])) ;
+  check_dval
+    "List::indexedMap works (full)"
+    (DList [Dval.dint 3; Dval.dint 1; Dval.dint (-2)])
+    (exec_ast'
+       (fn
+          "List::indexedMap"
+          [ list [int 3; int 2; int 1]
+          ; lambda ["i"; "v"] (binop "-" (var "v") (var "i")) ])) ;
+  check_dval
     "List::map2 works (length mismatch)"
     (DOption OptNothing)
     (exec_ast'
