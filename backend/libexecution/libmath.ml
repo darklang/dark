@@ -32,7 +32,7 @@ let fns : fn list =
     ; func = InProcess (function _, [] -> DFloat tau | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::degreesToRadians"]
+  ; { prefix_names = ["Math::degrees"]
     ; infix_names = []
     ; parameters = [par "angleInDegrees" TFloat]
     ; return_type = TFloat
@@ -48,7 +48,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::turnsToRadians"]
+  ; { prefix_names = ["Math::turns"]
     ; infix_names = []
     ; parameters = [par "angleInTurns" TFloat]
     ; return_type = TFloat
