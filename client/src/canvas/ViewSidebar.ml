@@ -811,6 +811,8 @@ let update (msg : sidebarMsg) : modification =
           ( { m with
               sidebarState = {m.sidebarState with onCategory = Some catName} }
           , Cmd.none ))
+  | UnfoucsSidebar ->
+      ReplaceAllModificationsWithThisOne (Viewport.enablePan true)
   | ResetSidebar ->
       Many
         [ ReplaceAllModificationsWithThisOne (Viewport.enablePan true)
@@ -866,7 +868,7 @@ let viewSidebar_ (m : model) : msg Html.html =
     ; ViewUtils.eventNoPropagation ~key:"ept" "mouseover" (fun _ ->
           EnablePanning false)
     ; ViewUtils.eventNoPropagation ~key:"epf" "mouseout" (fun _ ->
-          SidebarMsg ResetSidebar) ]
+          SidebarMsg UnfoucsSidebar) ]
     [content]
 
 
