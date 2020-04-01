@@ -3,9 +3,15 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let pi = 3.141592653589793
+let pi =
+  (* approximation of π, as a double-precision float, which is what DFloat stores *)
+  3.141592653589793
 
-let tau = 6.283185307179586
+
+let tau =
+  (* approximation of τ, as a double-precision float, which is what DFloat stores *)
+  6.283185307179586
+
 
 let fns : fn list =
   [ { prefix_names = ["PI"]
