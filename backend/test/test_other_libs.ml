@@ -1364,21 +1364,21 @@ let t_math_stdlibs () =
     (DFloat 6.283185307179586)
     (exec_ast' (fn "Math::tau" [])) ;
   check_dval
-    "Math::degreesToRadians works (pos)"
+    "Math::degrees works (pos)"
     (DFloat 6.283185307179586 (* tau *))
-    (exec_ast' (fn "Math::degreesToRadians" [float' 360 0])) ;
+    (exec_ast' (fn "Math::degrees" [float' 360 0])) ;
   check_dval
-    "Math::degreesToRadians works (neg)"
+    "Math::degrees works (neg)"
     (DFloat (-3.141592653589793) (* -pi *))
-    (exec_ast' (fn "Math::degreesToRadians" [float' (-180) 0])) ;
+    (exec_ast' (fn "Math::degrees" [float' (-180) 0])) ;
   check_dval
-    "Math::turnsToRadians works (pos)"
+    "Math::turns works (pos)"
     (DFloat 6.283185307179586 (* tau *))
-    (exec_ast' (fn "Math::turnsToRadians" [float' 1 0])) ;
+    (exec_ast' (fn "Math::turns" [float' 1 0])) ;
   check_dval
-    "Math::turnsToRadians works (neg)"
+    "Math::turns works (neg)"
     (DFloat (-3.141592653589793) (* -pi *))
-    (exec_ast' (fn "Math::turnsToRadians" [fn "Float::negate" [float' 0 5]])) ;
+    (exec_ast' (fn "Math::turns" [fn "Float::negate" [float' 0 5]])) ;
   check_dval
     "Math::cos works (0)"
     (DFloat 1.0)
