@@ -102,6 +102,18 @@ module Regex = struct
 
   let exactly ~(re : string) (s : string) : bool =
     contains ~re:(regex ("^" ^ re ^ "$")) s
+
+
+  (* Returns a list of matches if the string is matched by the expression.
+  The list head is the whole match, and tail are all the matched capture groups
+  *)
+  let captures ~(re : Js.Re.t) (s : string) : string list =
+    Js.Re.exec_ re s
+    |> Option.map ~f:(fun m ->
+           Js.Re.captures m
+           |> Array.toList
+           |> List.filterMap ~f:(fun group -> Js.Nullable.toOption group))
+    |> Option.withDefault ~default:[]
 end
 
 module Namer = struct
