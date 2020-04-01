@@ -215,7 +215,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
     then
       Html.div
         [Html.class' "debug-ast"]
-        [Html.text (FluidPrinter.toPrettySexp (FluidAST.toExpr vs.ast))]
+        [Html.text (E.toHumanReadable (FluidAST.toExpr vs.ast))]
     else Vdom.noNode
   in
   let secondaryEditors =
