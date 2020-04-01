@@ -368,23 +368,25 @@ let t_canvas_clone () =
     "fewer ops means we removed old history"
     true
     (canvas_ops_length !cloned_canvas < canvas_ops_length !sample_canvas) ;
-  (* We can do this with DBs but not handlers b/c we change the url-string in
-   * handlers *)
   AT.check
     AT.bool
     "Same DBs"
     true
     (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas.dbs) ;
   AT.check
-    AT.bool
-    "String with url got properly munged from sample-gettingstarted... to clone-gettingstarted..."
-    true
-    ( !cloned_canvas.handlers
+    AT.string
+    "Same handlers, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
+    ( !sample_canvas.handlers
     |> Toplevel.toplevels_to_yojson
     |> Yojson.Safe.to_string
-    |> String.is_substring
-         ~substring:
-           "http://clone-gettingstarted.builtwithdark.localhost:8000/foo" )
+    |> fun s ->
+    Libexecution.Util.string_replace
+      "http://sample-gettingstarted.builtwithdark.localhost"
+      "http://clone-gettingstarted.builtwithdark.localhost"
+      s )
+    ( !cloned_canvas.handlers
+    |> Toplevel.toplevels_to_yojson
+    |> Yojson.Safe.to_string )
 
 
 let suite =
