@@ -88,6 +88,19 @@ let run () =
             |> StrDict.get ~key:"lastBlankid"
             |> Option.andThen ~f:(fun d -> StrDict.get ~key:"a" d) )
           |> toEqual (Some a2ID)) ;
+      test "variablesIn correctly gets the id of a pattern variable" (fun () ->
+          let id1 = gid () in
+          let targetID = gid () in
+          let b1 = blank () in
+          let target = EBlank targetID in
+          let ast =
+            match' b1 [(pConstructor "Just" [pVar ~id:id1 "myvar"], target)]
+          in
+          expect
+            ( variablesIn ast
+            |> StrDict.get ~key:(ID.toString targetID)
+            |> Option.andThen ~f:(fun d -> StrDict.get ~key:"myvar" d) )
+          |> toEqual (Some id1)) ;
       ()) ;
   describe "removePartials" (fun () ->
       let b () = EBlank (gid ()) in

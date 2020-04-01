@@ -259,8 +259,8 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
           | FPBool _
           | FPBlank _ ->
               []
-          | FPVariable (id, _, v) ->
-              [(id, v)]
+          | FPVariable (_, patternID, v) ->
+              [(patternID, v)]
           | FPConstructor (_, _, _, inner) ->
               inner |> List.map ~f:variablesInPattern |> List.concat
         in
