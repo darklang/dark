@@ -1162,14 +1162,15 @@ and fluidMouseUp =
         (** fluidEditor is either MainEditor or a FeatureFlagEditor *)
   ; position : int option }
 
+and fluidMouseDoubleClickType =
+  | SelectExpressionAt of int
+  | SelectTokenAt of int
+
 and fluidMouseDoubleClick =
   { tlid : TLID.t
   ; editor : fluidEditor
         (** fluidEditor is either MainEditor or a FeatureFlagEditor *)
-  ; selection : int * int
-        (** selection is the beginning + end of the browser selection on
-          * mouseup. The selection may be left->right or right->left. *)
-  }
+  ; selection : fluidMouseDoubleClickType }
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem

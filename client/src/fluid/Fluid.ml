@@ -4774,11 +4774,6 @@ let expressionRange (ast : FluidAST.t) (s : fluidState) (exprID : ID.t) :
       None
 
 
-let getTokenRangeAtCaret (ast : FluidAST.t) (s : fluidState) :
-    (int * int) option =
-  getToken ast s |> Option.map ~f:(fun t -> (t.startPos, t.endPos))
-
-
 let getExpressionRangeAtCaret (ast : FluidAST.t) (s : fluidState) :
     (int * int) option =
   getToken ast s
@@ -5313,29 +5308,28 @@ let updateMouseDoubleClick
   let s =
     {m.fluidState with midClick = false; activeEditor = eventData.editor}
   in
-  match eventData.selection with
-  (* if range width is 0, just change pos *)
-  | selBegin, selEnd when selBegin = selEnd ->
-      updateMouseClick selBegin ast s
-  | selBegin, selEnd ->
-      let tokens = tokensForActiveEditor ast s in
-      let token = getToken' {s with newPos = selBegin} tokens in
-      (* If we doubleclick on a function, the browser will send us positions
-       * for a subpart of it (usually before or after the "::"), so expand it
-       * out *)
-      let selBegin, selEnd =
-        match token with
+  let selStart, selEnd =
+    match eventData.selection with
+    | SelectExpressionAt pos ->
+        getExpressionRangeAtCaret
+          ast
+          {m.fluidState with newPos = pos; oldPos = m.fluidState.newPos}
+        |> recoverOpt ~default:(0, 0) "no expression range found at caret"
+    | SelectTokenAt pos ->
+        let tokens = tokensForActiveEditor ast s in
+        let token = getToken' {s with newPos = pos} tokens in
+        ( match token with
         | Some {token = TFnName (_, displayName, _, _, _); startPos; _} ->
+            (* Highlight the full function name *)
             (startPos, startPos + String.length displayName)
-        | _ ->
-            (selBegin, selEnd)
-      in
-      ( ast
-      , { s with
-          selectionStart = Some selBegin
-        ; oldPos = s.newPos
-        ; newPos = selEnd }
-        |> acClear )
+        | Some {startPos; endPos; _} ->
+            (startPos, endPos)
+        | None ->
+            (pos, pos) )
+  in
+  ( ast
+  , {s with selectionStart = Some selStart; oldPos = s.newPos; newPos = selEnd}
+    |> acClear )
 
 
 let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
