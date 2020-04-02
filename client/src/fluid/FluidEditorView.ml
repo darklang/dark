@@ -311,7 +311,10 @@ let tokensView (s : state) : Types.msg Html.html =
               FluidMsg
                 (FluidMouseUp {tlid = s.tlid; editor = s.editor; selection})
           | None ->
-              IgnoreMsg)
+              (* Select the handler, if not selected *)
+              FluidMsg
+                (FluidMouseUp
+                   {tlid = s.tlid; editor = s.editor; selection = ClickAt 0}))
     ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ tlidStr) ~listener:(fun msg ->
           if msg = "flashError" || msg = "flashIncomplete"
           then FluidMsg FluidClearErrorDvSrc
