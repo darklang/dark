@@ -547,8 +547,8 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
-(** [getNextEditable pos tokens] returns the first editable token after [pos] in 
- * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in 
+(** [getNextEditable pos tokens] returns the first editable token after [pos] in
+ * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in
  * [tokens], or None if no editable token exists. *)
 let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
@@ -581,8 +581,8 @@ let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
-(** [getPrevEditable pos tokens] returns the closest editable token before [pos] in 
-* [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in 
+(** [getPrevEditable pos tokens] returns the closest editable token before [pos] in
+* [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in
 * [tokens], or None if no editable exists. *)
 let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
     =
@@ -4307,6 +4307,23 @@ let rec updateKey
           |> Option.withDefault ~default:(ast, s)
         else doInsert ~pos "," ti ast s
     (* Field access *)
+    | InsertText ".", L (TFieldPartial (id, _, _, _), _), _ ->
+        (* When pressing . in a field access partial, commit the partial *)
+        let newPartialID = gid () in
+        let ast =
+          FluidAST.update id ast ~f:(function
+              | EPartial (_, name, EFieldAccess (faid, expr, _)) ->
+                  let committedAccess = E.EFieldAccess (faid, expr, name) in
+                  EPartial
+                    ( newPartialID
+                    , ""
+                    , EFieldAccess (gid (), committedAccess, "") )
+              | e ->
+                  recover ("updateKey insert . - unexpected expr " ^ E.show e) e)
+        in
+        let ct = {astRef = ARPartial newPartialID; offset = 0} in
+        let s = moveToCaretTarget s ast ct in
+        (ast, s)
     | InsertText ".", L (TVariable (id, _), toTheLeft), _
     | InsertText ".", L (TFieldName (id, _, _), toTheLeft), _
       when onEdge && pos = toTheLeft.endPos ->
