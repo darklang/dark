@@ -1220,7 +1220,7 @@ and segmentTrack =
   | MarkCanvasAsInDevelopment of string
 
 and msg =
-  | IgnoreMsg
+  | IgnoreMsg of (* debug string so you know where it came from *) string
   | FluidMsg of fluidMsg
   | AppMouseDown of mouseEvent
   | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]

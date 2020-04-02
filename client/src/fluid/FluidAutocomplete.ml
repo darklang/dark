@@ -13,7 +13,7 @@ type tokenInfo = fluidTokenInfo [@@deriving show]
 
 let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
-    (fun _ -> IgnoreMsg)
+    (fun _ -> IgnoreMsg "fluid-autocomplete-focus")
     (Tea_task.nativeBinding (fun _ ->
          let open Webapi.Dom in
          let open Native.Ext in
