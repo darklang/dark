@@ -126,8 +126,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           | Some (fn, sendToRail) ->
               Some
                 (viewDoc
-                   ( ViewUtils.PrettyDocs.convert fn.fnDescription @
-                   [ ViewErrorRailDoc.hintForFunction fn (Some sendToRail)]) )
+                   ( ViewUtils.PrettyDocs.convert fn.fnDescription
+                   @ [ViewErrorRailDoc.hintForFunction fn (Some sendToRail)] ))
           | None ->
               None
         in

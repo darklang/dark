@@ -579,34 +579,32 @@ let typeErrorDoc ({item; validity} : data) : msg Vdom.t =
             [Html.text " takes no arguments."]
         | Some tipeStr ->
             [ Html.text " takes a "
-            ; Html.span [Html.class' "type-name"] [Html.text tipeStr]
+            ; Html.span [Html.class' "type"] [Html.text tipeStr]
             ; Html.text " as its first argument." ]
       in
       Html.div
         []
-        ( [ Html.span [Html.class' "type-error"] [Html.text "Type error: "]
+        ( [ Html.span [Html.class' "err"] [Html.text "Type error: "]
           ; Html.text "A value of type "
-          ; Html.span [Html.class' "type-name"] [Html.text (RT.tipe2str tipe)]
+          ; Html.span [Html.class' "type"] [Html.text (RT.tipe2str tipe)]
           ; Html.text " is being piped into this function call, but "
-          ; Html.span [Html.class' "function-name"] [Html.text acFunction] ]
+          ; Html.span [Html.class' "fn"] [Html.text acFunction] ]
         @ typeInfo )
   | FACItemInvalidReturnType {fnName; paramName; returnType} ->
       let acFunction = asName item in
       let acReturnType = asTypeStrings item |> Tuple2.second in
       Html.div
         []
-        [ Html.span [Html.class' "type-error"] [Html.text "Type error: "]
-        ; Html.span [Html.class' "function-name"] [Html.text fnName]
+        [ Html.span [Html.class' "err"] [Html.text "Type error: "]
+        ; Html.span [Html.class' "fn"] [Html.text fnName]
         ; Html.text " expects "
-        ; Html.span [Html.class' "parameter-name"] [Html.text paramName]
+        ; Html.span [Html.class' "param"] [Html.text paramName]
         ; Html.text " to be a "
-        ; Html.span
-            [Html.class' "type-name"]
-            [Html.text (RT.tipe2str returnType)]
+        ; Html.span [Html.class' "type"] [Html.text (RT.tipe2str returnType)]
         ; Html.text ", but "
-        ; Html.span [Html.class' "function-name"] [Html.text acFunction]
+        ; Html.span [Html.class' "fn"] [Html.text acFunction]
         ; Html.text " returns a "
-        ; Html.span [Html.class' "type-name"] [Html.text acReturnType] ]
+        ; Html.span [Html.class' "type"] [Html.text acReturnType] ]
 
 
 let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
@@ -623,7 +621,7 @@ let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
       in
       let desc = ViewUtils.PrettyDocs.convert desc in
       let desc = if f.fnDeprecated then deprecated :: desc else desc in
-      Some (desc @[ViewErrorRailDoc.hintForFunction f None; typeDoc])
+      Some (desc @ [ViewErrorRailDoc.hintForFunction f None; typeDoc])
   | FACConstructorName ("Just", _) ->
       simpleDoc "An Option containing a value"
   | FACConstructorName ("Nothing", _) ->
