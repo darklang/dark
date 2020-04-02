@@ -2467,8 +2467,8 @@ let updateFromACItem
         let replacement = EBinOp (bID, name, EPipeTarget (gid ()), rhs, str) in
         let newAST = FluidAST.replace ~replacement id ast in
         (newAST, caretTargetForEndOfExpr' replacement)
-    | TPartial _, Some oldExpr, Some (EPipe (_, head :: _)), Expr newExpr
-      when oldExpr = head ->
+    | TPartial _, Some oldExpr, Some (EPipe (_, firstExpr :: _)), Expr newExpr
+      when oldExpr = firstExpr ->
         (* special case of next match arm:
           * when we are the first thing in the pipe, no pipe target required *)
         replacePartialWithArguments ~newExpr id s ast
