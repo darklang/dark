@@ -16,27 +16,48 @@ let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
   [ { prefix_names = ["Int::mod"]
-    ; infix_names = ["%"]
-    ; parameters = [par "a" TInt; par "b" TInt]
+    ; infix_names = []
+    ; parameters = [par "value" TInt; par "modulus" TInt]
     ; return_type = TInt
     ; description =
-        "Return `a` % `b`, the modulus of a and b. This is the integer remainder left when `a` is divided by `b`. For example, `15 % 6 = 3`."
+        "Returns the result of wrapping `value` around so that `0 <= res < modulus`.
+         Does not work if `modulus` is 0 or negative.
+         Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
     ; func =
-        (* This used to use Dint.(%), which is now gone because it was too confusing. It's now called Dint.modulo_exn.
-         * The functionality was ok but the docstring was a lie.
-         *
-         * This is deprecated in favor of a version that returns a result.
-         * We couldn't move the infix "%" over because infix ops don't support the error rail and,
-         * in general, functions that switch to a result version are not on the rail.
-         *)
         InProcess
           (function
           | _, [DInt a; DInt b] ->
               DInt (Dint.modulo_exn a b)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; preview_safety =
+        Safe
+        (*
+         * This is deprecated in favor of a version that returns a Result; this one raises an exception (and rollbars) on negative [modulus].
+         *)
     ; deprecated = true }
+  ; { prefix_names = []
+    ; infix_names = ["%"]
+    ; parameters = [par "a" TInt; par "b" TInt]
+    ; return_type = TInt
+    ; description =
+        "Returns the result of wrapping `a` around so that `0 <= res < b`.
+         Does not work if `b` is 0 or negative.
+         Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
+    ; func =
+        InProcess
+          (function
+          | _, [DInt a; DInt b] ->
+              DInt (Dint.modulo_exn a b)
+          | args ->
+              fail args)
+    ; preview_safety =
+        Safe
+        (* 
+         * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types. 
+         * The current function raises an exception (and rollbars) on negative `b`.
+         *)
+    ; deprecated = false }
   ; { prefix_names = ["Int::mod_v1"]
     ; infix_names = []
     ; parameters = [par "value" TInt; par "modulus" TInt]
