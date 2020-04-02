@@ -134,6 +134,38 @@ let respond
   respond_or_redirect (Respond {resp_headers; execution_id; status; body})
 
 
+type host_route =
+  | Canvas of string
+  | Static
+  | Admin
+
+(* NB: canvas in the DB is a string, not a uuid, because we do routing by canvas
+ * name, not canvas_id (see the host_route type above).
+ *
+ * In addition:
+ * - there are other place we use canvas_name as an fk; it's not great, but it's
+ *   tech debt we can't solve today (for instance, iirc event queues do this)
+ * - the external id will be part of a CNAME target - that is,
+ *   some.customdomain.com -> ismith-foo.darkcustomdomain.com. Thus, if you were
+ *   able to change your canvas' name (see previous bullet, you currently cannot),
+ *   and we used canvas_id, now you'd have a CNAME pointing at the old
+ *   canvas_name, but the custom_domains record would point to the new
+ *   canvas_name (via JOIN canvases as c ON c.id = canvas_id). So that's not
+ *   awesome either!
+ *)
+let canvas_from_db_opt (host_parts : string list) : host_route option =
+  let host = String.concat host_parts ~sep:"." in
+  Db.fetch_one_option
+    ~name:"get_custom_domain"
+    ~subject:host
+    "SELECT canvas
+       FROM custom_domains WHERE host = $1"
+    ~params:[Db.String host]
+  (* List.hd_exn because the list in question is a list of fields; we should never
+   * get the wrong shape back from a query *)
+  |> Option.map ~f:(fun canvas_name -> Canvas (canvas_name |> List.hd_exn))
+
+
 let should_use_https uri =
   let parts =
     uri |> Uri.host |> Option.value ~default:"" |> fun h -> String.split h '.'
@@ -159,8 +191,11 @@ let should_use_https uri =
   | ["www"; "kiksht"; "com"]
   | ["food"; "placeofthin"; "gs"] ->
       true
-  | _ ->
-      false
+  | parts ->
+      (* If we've set up a custom domain, we should force https. If we haven't,
+       * and we've fallen all the way through (this is not a known host), then we
+       * should not, because it is likely a healthcheck or other k8s endpoint *)
+      parts |> canvas_from_db_opt |> Option.is_some
 
 
 let redirect_to uri =
@@ -1820,11 +1855,6 @@ let static_handler uri =
     ()
 
 
-type host_route =
-  | Canvas of string
-  | Static
-  | Admin
-
 let route_host req =
   match
     req
@@ -1888,9 +1918,10 @@ let route_host req =
   | ["darklang"; "lvh"; "me"]
   | ["dark_dev"; "com"] ->
       Some Admin
-  (* Not a match... *)
-  | _ ->
-      None
+  (* No match in the above hard-coded parts; let's try the db (though that may
+   * still return None) *)
+  | parts ->
+      canvas_from_db_opt parts
 
 
 let db_conn_readiness_check () : string option =
