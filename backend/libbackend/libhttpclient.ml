@@ -154,6 +154,30 @@ let send_request
   else DResult (ResError obj)
 
 
+(* This is deprecated in favor of [encode_basic_auth u p]
+* due to using Unicode_string.append_broken.
+*)
+let encode_basic_auth_broken u p =
+  let input =
+    if Unicode_string.is_substring
+         ~substring:(Unicode_string.of_string_exn "-")
+         u
+    then error "Username cannot contain a colon"
+    else
+      Unicode_string.append_broken
+        (Unicode_string.append_broken u (Unicode_string.of_string_exn ":"))
+        p
+  in
+  let encoded =
+    Unicode_string.of_string_exn
+      (B64.encode
+         ~alphabet:B64.default_alphabet
+         ~pad:true
+         (Unicode_string.to_string input))
+  in
+  Unicode_string.append_broken (Unicode_string.of_string_exn "Basic ") encoded
+
+
 let encode_basic_auth u p =
   let input =
     if Unicode_string.is_substring
@@ -691,6 +715,25 @@ let fns : fn list =
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["HttpClient::basicAuth"]
+    ; infix_names = []
+    ; parameters = [par "username" TStr; par "password" TStr]
+    ; return_type = TObj
+    ; description =
+        "Returns an object with 'Authorization' created using HTTP basic auth"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr u; DStr p] ->
+              DObj
+                (DvalMap.singleton
+                   "Authorization"
+                   (DStr (encode_basic_auth_broken u p)))
+          | args ->
+              fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = true (* Deprecated due to using encode_basic_auth_broken *)
+    }
+  ; { prefix_names = ["HttpClient::basicAuth_v1"]
     ; infix_names = []
     ; parameters = [par "username" TStr; par "password" TStr]
     ; return_type = TObj
