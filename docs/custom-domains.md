@@ -1,11 +1,7 @@
-Managed SSL Certificates
+Custom Domains (with certs via Let's Encrypt)
 ========================
 
-GCP can do most of the hard work of setting up a Let's Encrypt cert for you.
-CAVEAT: a GCP load balancer can have no more than 15 certs. We currently have
-two for us (bwd-tls, darklang-tls - note that bwd-ingress serves both bwd.com
-and darklang.com, I believe) and one for birb (www.hellobirb.com-tls) that are
-_not_ managed certificates.
+Our former constraint of <= 15 certs is no longer applicable! Yay.
 
 ## Customer requirements
 - You need to set up a CNAME from your desired domain to
@@ -23,16 +19,12 @@ _not_ managed certificates.
   again, for redirects, not SSL certs.
 
 ## Dark ops instructions
-- Create a new branch
-- Run `scripts/add-custom-domain`; it will generate the necessary code changes.
+- Run `scripts/add-custom-domain` and provide the domain; we'll get the canvas
+  name from the CNAME, which also verifies that the CNAME DNS record is in
+place.
   Make sure to supply the DOMAIN without the `https://` prefix and the raw CANVAS name without `builtwithdark`.
-- It will also instruct you in the necessary manual steps to run _after_ the
-  CNAME is ready, but _before_ merging the script's changes.
-  - If the domain is not a www domain that we want to redirect, you will need to manually remove several of the generated changes.
-  - The CNAME must exist before the below is done because Let's Encrypt (and
-    thus Google) uses DNS to verify that "we" (the user) control the domain
-    before issuing a cert.
-  - (Provisioning a cert also requires that the ingress have the
-    `kubernetes.io/ingress.global-static-ip-name` annotation set; that's already
-    in there for `www.kiksht.com-cert`, so this is no longer necessary for the
-    bwd-ingress.)
+- The CNAME must exist before the below is done because Let's Encrypt uses an
+  HTTP request to verify that "we" (the user) control the domain before issuing
+a cert.
+- There are no longer any manual steps to run, nor deploys needed, to provision
+  a custom domain.
