@@ -80,6 +80,15 @@ let blankOr (encoder : 'a -> Js.Json.t) (v : 'a Types.blankOr) =
       variant "Blank" [id i]
 
 
+let dval_source (s : Types.dval_source) : Js.Json.t =
+  let ev = variant in
+  match s with
+  | SourceNone ->
+      ev "SourceNone" []
+  | SourceId (t, i) ->
+      ev "SourceId" [tlid t; id i]
+
+
 let rec dval (dv : Types.dval) : Js.Json.t =
   let ev = variant in
   let dhttp h =
@@ -117,17 +126,13 @@ let rec dval (dv : Types.dval) : Js.Json.t =
           ; ("body", body |> OldExpr.fromFluidExpr |> expr) ]
       in
       ev "DBlock" [dblock_args]
-  | DIncomplete SourceNone ->
-      ev "DIncomplete" [ev "SourceNone" []]
-  | DIncomplete (SourceId i) ->
-      ev "DIncomplete" [ev "SourceId" [id i]]
+  | DIncomplete ds ->
+      ev "DIncomplete" [dval_source ds]
   (* user-ish types *)
   | DCharacter c ->
       ev "DCharacter" [string c]
-  | DError (SourceNone, msg) ->
-      ev "DError" [pair (ev "SourceNone") string ([], msg)]
-  | DError (SourceId i, msg) ->
-      ev "DError" [pair (ev "SourceId") string ([id i], msg)]
+  | DError (ds, msg) ->
+      ev "DError" [pair dval_source string (ds, msg)]
   | DResp (h, hdv) ->
       ev "DResp" [tuple2 dhttp dval (h, hdv)]
   | DDB name ->

@@ -64,6 +64,6 @@ let run () =
                 ; dragOverSpaceIndex = None
                 ; justMovedParam = None } }
           in
-          expect (placeHolderFor vs ParamName) |> toBe "param name") ;
+          expect (placeHolderFor vs ParamName) |> toEqual "param name") ;
       ()) ;
   ()

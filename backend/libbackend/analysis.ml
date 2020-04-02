@@ -362,7 +362,8 @@ type initial_load_rpc_result =
   ; permission : Authorization.permission option
   ; account : Account.user_info
   ; canvas_list : string list
-  ; org_list : string list
+  ; orgs : string list
+  ; org_canvas_list : string list
   ; worker_schedules : Event_queue.Worker_states.t
   ; creation_date : time }
 [@@deriving to_yojson]
@@ -376,7 +377,8 @@ let to_initial_load_rpc_result
     (assets : SA.static_deploy list)
     (account : Account.user_info)
     (canvas_list : string list)
-    (org_list : string list)
+    (orgs : string list)
+    (org_canvas_list : string list)
     (worker_schedules : Event_queue.Worker_states.t) : string =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
@@ -391,7 +393,8 @@ let to_initial_load_rpc_result
   ; permission
   ; account
   ; canvas_list
-  ; org_list
+  ; orgs
+  ; org_canvas_list
   ; worker_schedules
   ; creation_date = c.creation_date }
   |> initial_load_rpc_result_to_yojson

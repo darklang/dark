@@ -28,7 +28,7 @@ let transformFnCalls
         when Some name = BlankOr.toOption uf.ufMetadata.ufmName ->
           f e
       | other ->
-          E.walk ~f:run other
+          E.deprecatedWalk ~f:run other
     in
     FluidAST.map ast ~f:run
   in
@@ -113,27 +113,28 @@ let takeOffRail (_m : model) (tl : toplevel) (id : ID.t) : modification =
   |> Option.withDefault ~default:NoChange
 
 
+let isRailable (m : model) (name : string) =
+  (* We don't want to use m.complete.functions as the autocomplete
+   * filters out deprecated functions *)
+  let allFunctions =
+    let ufs =
+      m.userFunctions
+      |> TD.mapValues ~f:(fun uf -> uf.ufMetadata)
+      |> List.filterMap ~f:UserFunctions.ufmToF
+    in
+    m.builtInFunctions @ ufs
+  in
+  List.find ~f:(fun fn -> fn.fnName = name) allFunctions
+  |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
+  |> Option.map ~f:(fun t -> t = TOption || t = TResult)
+  |> Option.withDefault ~default:false
+
+
 let putOnRail (m : model) (tl : toplevel) (id : ID.t) : modification =
   (* Only toggle onto rail iff. return tipe is TOption or TResult *)
-  let isRailable name =
-    (* We don't want to use m.complete.functions as the autocomplete
-     * filters out deprecated functions *)
-    let allFunctions =
-      let ufs =
-        m.userFunctions
-        |> TD.mapValues ~f:(fun uf -> uf.ufMetadata)
-        |> List.filterMap ~f:UserFunctions.ufmToF
-      in
-      m.builtInFunctions @ ufs
-    in
-    List.find ~f:(fun fn -> fn.fnName = name) allFunctions
-    |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
-    |> Option.map ~f:(fun t -> t = TOption || t = TResult)
-    |> Option.withDefault ~default:false
-  in
   TL.modifyASTMod tl ~f:(fun ast ->
       FluidAST.update id ast ~f:(function
-          | EFnCall (_, name, exprs, NoRail) when isRailable name ->
+          | EFnCall (_, name, exprs, NoRail) when isRailable m name ->
               EFnCall (id, name, exprs, Rail)
           | e ->
               e))
@@ -309,6 +310,82 @@ let dbUseCount (m : model) (name : string) : int =
   StrDict.get m.usedDBs ~key:name |> Option.withDefault ~default:0
 
 
+(* Return a set containing names of previewUnsafe user functions.
+ *
+ * A userfunction is unsafe if it calls an unsafe function (and so is also
+ * unsafe if any of its callees (the functions it calls) itself calls an unsafe
+ * function. The functions that we know are unsafe are the builtin functions
+ * that are marked as unsafe.
+ *
+ * You can think of this as a callgraph. The bottom of the callgraph are
+ * functions that dont call any more functions (and thus are safe) or are
+ * builtins (and thus have a flag to tell us if they are safe).
+ *
+ * So to figure out the complete set of unsafe userfunctions, we start at the
+ * bottom of the callgraph, from the unsafe builtins. Then we go up the tree,
+ * and mark any callers of those functions as unsafe. And that's the whole
+ * algorithm. *)
+let calculateUnsafeUserFunctions
+    (builtins : function_ list) (ufs : userFunction list) : StrSet.t =
+  (* Construct a dependency tree (which is a reverse callgraph) so that we get
+   * from a callee to a caller *)
+  let dependencyTree =
+    ufs
+    |> List.map ~f:(fun uf ->
+           uf.ufMetadata.ufmName
+           |> B.toOption
+           |> Option.map ~f:(fun caller ->
+                  E.filterMap (FluidAST.toExpr uf.ufAST) ~f:(function
+                      | EBinOp (_, callee, _, _, _) ->
+                          Some (callee, caller)
+                      | EFnCall (_, callee, _, _) ->
+                          Some (callee, caller)
+                      | _ ->
+                          None))
+           |> Option.withDefault ~default:[])
+    |> List.concat
+    |> List.foldl ~init:StrDict.empty ~f:(fun (callee, caller) dict ->
+           StrDict.update ~key:callee dict ~f:(function
+               | Some callers ->
+                   Some (caller :: callers)
+               | None ->
+                   Some [caller]))
+  in
+  (* Get the initial set of unsafe functions *)
+  let unsafeBuiltins =
+    builtins
+    |> List.filterMap ~f:(fun f ->
+           if f.fnPreviewSafety = Unsafe then Some f.fnName else None)
+  in
+  let worklist = ref unsafeBuiltins in
+  (* The result set *)
+  let unsafeFns = ref StrSet.empty in
+  (* The worklist algorithm:
+   *
+   * Go through worklist of unsafe functions, starting with known-unsafe builtins:
+   * - mark this function unsafe
+   * - add the callers to the worklist
+   *)
+  while !worklist <> [] do
+    match !worklist with
+    | callee :: rest ->
+        (* already processed *)
+        if StrSet.has ~value:callee !unsafeFns
+        then worklist := rest
+        else (
+          unsafeFns := StrSet.add ~value:callee !unsafeFns ;
+          (* add callers to be processed *)
+          let callers =
+            StrDict.get ~key:callee dependencyTree
+            |> Option.withDefault ~default:[]
+          in
+          worklist := rest @ callers )
+    | _ ->
+        ()
+  done ;
+  StrSet.removeMany ~values:unsafeBuiltins !unsafeFns
+
+
 let updateUsageCounts (m : model) : model =
   let open FluidExpression in
   let countFromList names =
@@ -345,6 +422,11 @@ let updateUsageCounts (m : model) : model =
                None)
     |> countFromList
   in
+  let previewUnsafeUserFunctions =
+    calculateUnsafeUserFunctions
+      m.builtInFunctions
+      (TLIDDict.values m.userFunctions)
+  in
   let usedTipes =
     m.userFunctions
     |> TD.mapValues ~f:UserFunctions.allParamData
@@ -357,7 +439,7 @@ let updateUsageCounts (m : model) : model =
                None)
     |> countFromList
   in
-  {m with usedDBs; usedFns; usedTipes}
+  {m with usedDBs; usedFns; usedTipes; previewUnsafeUserFunctions}
 
 
 let removeFunctionParameter
@@ -542,14 +624,19 @@ let createAndInsertNewFunction
         Model.updateErrorMod
           (Error.set ("Function named " ^ newFnName ^ " already exists"))
       else
-        Many
-          [ ReplaceAllModificationsWithThisOne
-              (fun m ->
-                ( ( TL.withAST m tlid newAST
-                  |> fun m -> UserFunctions.upsert m newFn )
-                , Tea.Cmd.none ))
-          ; (* Both ops in a single transaction *)
-            TL.setASTMod ~ops:[op] tl newAST
-          ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ]
+        let invalidMessage = Autocomplete.validateFunctionName newFnName in
+        ( match invalidMessage with
+        | Some msg ->
+            Model.updateErrorMod (Error.set msg)
+        | None ->
+            Many
+              [ ReplaceAllModificationsWithThisOne
+                  (fun m ->
+                    ( ( TL.withAST m tlid newAST
+                      |> fun m -> UserFunctions.upsert m newFn )
+                    , Tea.Cmd.none ))
+              ; (* Both ops in a single transaction *)
+                TL.setASTMod ~ops:[op] tl newAST
+              ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ] )
   | None ->
       NoChange

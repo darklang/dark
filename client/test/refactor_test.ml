@@ -27,28 +27,32 @@ let sampleFunctions =
     ; fnReturnTipe = TInt
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "List::getAt_v1"
     ; fnParameters = [par "list" TList; par "index" TInt]
     ; fnDescription = ""
     ; fnReturnTipe = TOption
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "Dict::map"
     ; fnParameters = [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
     ; fnDescription = ""
     ; fnReturnTipe = TObj
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
-    ; fnInfix = false }
+    ; fnInfix = false
+    ; fnOrigin = Builtin }
   ; { fnName = "DB::set_v1"
     ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
     ; fnDescription = ""
     ; fnReturnTipe = TObj
-    ; fnPreviewSafety = Safe
+    ; fnPreviewSafety = Unsafe
     ; fnDeprecated = false
-    ; fnInfix = false } ]
+    ; fnInfix = false
+    ; fnOrigin = Builtin } ]
 
 
 let defaultTLID = TLID.fromString "handler1"
@@ -61,6 +65,17 @@ let defaultHandler =
       {space = B.newF "HTTP"; name = B.newF "/src"; modifier = B.newF "POST"} }
 
 
+let aFn name expr : userFunction =
+  { ufTLID = gtlid ()
+  ; ufMetadata =
+      { ufmName = F (gid (), name)
+      ; ufmParameters = []
+      ; ufmDescription = ""
+      ; ufmReturnTipe = F (gid (), TAny)
+      ; ufmInfix = false }
+  ; ufAST = FluidAST.ofExpr expr }
+
+
 let run () =
   OldExpr.functions := sampleFunctions ;
   describe "takeOffRail & putOnRail" (fun () ->
@@ -71,7 +86,8 @@ let run () =
         ; fnReturnTipe = TResult
         ; fnPreviewSafety = Safe
         ; fnDeprecated = false
-        ; fnInfix = false }
+        ; fnInfix = false
+        ; fnOrigin = Builtin }
       in
       let f2 =
         { fnName = "Int::notResulty"
@@ -80,7 +96,8 @@ let run () =
         ; fnReturnTipe = TInt
         ; fnPreviewSafety = Safe
         ; fnDeprecated = false
-        ; fnInfix = false }
+        ; fnInfix = false
+        ; fnOrigin = Builtin }
       in
       let model hs =
         { D.defaultModel with
@@ -234,7 +251,7 @@ let run () =
                 false
             | Error _ ->
                 true )
-          |> toBe true) ;
+          |> toEqual true) ;
       test "with Some non-DObj input" (fun () ->
           expect
             ( match R.generateUserType (Some (DStr "foo")) with
@@ -242,7 +259,7 @@ let run () =
                 false
             | Error _ ->
                 true )
-          |> toBe true) ;
+          |> toEqual true) ;
       test "with Some DObj input" (fun () ->
           let dobj =
             DObj
@@ -387,4 +404,19 @@ let run () =
           expect
             (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidPrinter.eToTestString)
           |> toEqual "1\n|>other1\n|>other2\n|>\\x -> myFn 2 x 3\n|>other3\n") ;
-      ())
+      ()) ;
+  describe "calculateUserUnsafeFunctions" (fun () ->
+      let userfns =
+        [ aFn "callsUnsafeBuiltin" (fn "DB::set_v1" [])
+        ; aFn "callsSafeBuiltin" (fn "List::getAt_v1" [])
+        ; aFn "callsSafeUserfn" (fn "callsSafeBuiltin" [])
+        ; aFn "callsUnsafeUserfn" (fn "callsUnsafeBuiltin" []) ]
+      in
+      test "simple example" (fun () ->
+          expect
+            ( Refactor.calculateUnsafeUserFunctions sampleFunctions userfns
+            |> StrSet.toList
+            |> List.sortWith compare )
+          |> toEqual ["callsUnsafeBuiltin"; "callsUnsafeUserfn"]) ;
+      ()) ;
+  ()

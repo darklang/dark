@@ -344,6 +344,25 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Date::weekday"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TInt
+    ; description =
+        "Returns the weekday of `date` as an int. Monday = 1, Tuesday = 2, ... Sunday = 7 (in accordance with ISO 8601)."
+    ; func =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_date ~zone:Time.Zone.utc
+              |> Date.day_of_week
+              |> Day_of_week.iso_8601_weekday_number
+              |> Dval.dint
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Date::hour"]
     ; infix_names = []
     ; parameters = [par "date" TDate]

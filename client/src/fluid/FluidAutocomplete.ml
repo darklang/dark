@@ -181,6 +181,12 @@ let allFunctions (m : model) : function_ list =
     m.userFunctions
     |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
     |> List.filterMap ~f:UserFunctions.ufmToF
+    |> List.map ~f:(fun f ->
+           { f with
+             fnPreviewSafety =
+               ( if StrSet.has m.previewUnsafeUserFunctions ~value:f.fnName
+               then Unsafe
+               else Safe ) })
   in
   let functions = m.builtInFunctions |> filterAndSort in
   let packageFunctions =
@@ -283,14 +289,11 @@ let findExpectedType
 let typeCheck
     (pipedType : tipe option)
     (expectedReturnType : TypeInformation.t)
-    (item : item) : (data, data) Either.t =
-  let open Either in
-  let valid = Left {item; validity = FACItemValid} in
-  let invalidFirstArg tipe =
-    Right {item; validity = FACItemInvalidPipedArg tipe}
-  in
+    (item : item) : data =
+  let valid = {item; validity = FACItemValid} in
+  let invalidFirstArg tipe = {item; validity = FACItemInvalidPipedArg tipe} in
   let invalidReturnType =
-    Right {item; validity = FACItemInvalidReturnType expectedReturnType}
+    {item; validity = FACItemInvalidReturnType expectedReturnType}
   in
   let expectedReturnType = expectedReturnType.returnType in
   match item with
@@ -425,7 +428,11 @@ let generatePatterns ti a queryString : item list =
       []
 
 
-let generateCommands name tlid id = [FACCreateFunction (name, tlid, id)]
+let generateCommands _name _tlid _id =
+  (* Disable for now, this is really annoying *)
+  (* [FACCreateFunction (name, tlid, id)] *)
+  []
+
 
 let generateFields fieldList = List.map ~f:(fun x -> FACField x) fieldList
 
@@ -485,10 +492,7 @@ let filter
   (* Now split list by type validity *)
   let pipedType = Option.map ~f:RT.typeOf query.pipedDval in
   let expectedTypeInfo = findExpectedType functions query.tl query.ti in
-  let valid, invalid =
-    List.partitionMap allMatches ~f:(typeCheck pipedType expectedTypeInfo)
-  in
-  valid @ invalid
+  List.map allMatches ~f:(typeCheck pipedType expectedTypeInfo)
 
 
 let refilter (query : fullQuery) (old : t) (items : item list) : t =

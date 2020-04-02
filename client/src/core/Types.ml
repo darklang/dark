@@ -323,7 +323,7 @@ and resultT =
 
 and dval_source =
   | SourceNone
-  | SourceId of ID.t
+  | SourceId of TLID.t * ID.t
 
 and dblock_args =
   { symtable : dval StrDict.t
@@ -795,7 +795,8 @@ and initialLoadAPIResult =
   ; deletedGroups : group list
   ; account : account
   ; canvasList : string list
-  ; orgList : string list
+  ; orgs : string list
+  ; orgCanvasList : string list
   ; workerSchedules : string StrDict.t
   ; creationDate : Js.Date.t [@opaque] }
 
@@ -816,6 +817,11 @@ and previewSafety =
   | Safe
   | Unsafe
 
+and fnOrigin =
+  | UserFunction
+  | PackageManager
+  | Builtin
+
 and function_ =
   { fnName : string
   ; fnParameters : parameter list
@@ -823,7 +829,11 @@ and function_ =
   ; fnReturnTipe : tipe
   ; fnPreviewSafety : previewSafety
   ; fnDeprecated : bool
-  ; fnInfix : bool }
+  ; fnInfix : bool
+  ; fnOrigin :
+      (* This is a client-side only field to be able to give different UX to
+       * different functions *)
+      fnOrigin }
 
 (* autocomplete items *)
 and literal = string
@@ -850,7 +860,8 @@ and keyword =
 and command =
   { commandName : string
   ; action : model -> toplevel -> ID.t -> modification
-  ; doc : string }
+  ; doc : string
+  ; shouldShow : model -> toplevel -> FluidExpression.t -> bool }
 
 and omniAction =
   | NewDB of dbName option
@@ -1165,7 +1176,7 @@ and fluidMsg =
   | FluidMouseUp of fluidMouseUp
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
-  | FluidFocusOnToken of ID.t
+  | FluidFocusOnToken of TLID.t * ID.t
   | FluidClearErrorDvSrc
   | FluidUpdateAutocomplete
   (* Index of the dropdown(autocomplete or command palette) item *)
@@ -1318,9 +1329,9 @@ and variantTest =
      * if we're not testing anything else *)
       StubVariant
   | GroupVariant
-  | FeatureFlagVariant
   | NgrokVariant
   | ForceWelcomeModalVariant
+  | ExeCodeVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1579,7 +1590,6 @@ and avatarModelMessage =
 and model =
   { error : Error.t
   ; lastMsg : msg
-  ; lastMods : string list
   ; tests : variantTest list
   ; complete : autocomplete
   ; builtInFunctions : function_ list
@@ -1619,6 +1629,7 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
+  ; previewUnsafeUserFunctions : StrSet.t
   ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys : staticDeploy list
         (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg

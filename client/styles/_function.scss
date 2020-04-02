@@ -10,9 +10,9 @@
     border-bottom: none;
     cursor: default;
 
-    .fnicon {
-      width: 16px;
-      height: 16px;
+    .di-fn {
+      font-size: 12px;
+      color: $cyan;
     }
     .entry {
       form {

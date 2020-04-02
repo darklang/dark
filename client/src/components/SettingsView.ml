@@ -81,10 +81,13 @@ let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
 let update (settingsView : settingsViewState) (msg : settingsMsg) :
     settingsViewState =
   match msg with
-  | SetSettingsView (canvasName, canvasList, orgList, creationDate) ->
+  | SetSettingsView
+      (canvasName, canvasList, username, orgs, orgCanvasList, creationDate) ->
       { settingsView with
         canvasList
-      ; orgList
+      ; username
+      ; orgs
+      ; orgCanvasList
       ; canvasInformation =
           { settingsView.canvasInformation with
             canvasName
@@ -137,69 +140,80 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
       settingsView
 
 
-let getModifications (m : Types.model) (msg : settingsMsg) : Types.modification
-    =
+let getModifications (m : Types.model) (msg : settingsMsg) :
+    Types.modification list =
   match msg with
   | TriggerSendInviteCallback (Error err) ->
-      HandleAPIError
-        (APIError.make
-           ~context:"TriggerSendInviteCallback"
-           ~importance:IgnorableError
-           ~reload:false
-           err)
+      [ SettingsViewUpdate msg
+      ; HandleAPIError
+          (APIError.make
+             ~context:"TriggerSendInviteCallback"
+             ~importance:IgnorableError
+             ~reload:false
+             err) ]
   | TriggerUpdateCanvasInfoCallback (Error err) ->
-      HandleAPIError
-        (APIError.make
-           ~context:"TriggerUpdateCanvasInfoCallback"
-           ~importance:IgnorableError
-           ~reload:false
-           err)
+      [ HandleAPIError
+          (APIError.make
+             ~context:"TriggerUpdateCanvasInfoCallback"
+             ~importance:IgnorableError
+             ~reload:false
+             err) ]
   | TriggerGetCanvasInfoCallback (Error err) ->
-      HandleAPIError
-        (APIError.make
-           ~context:"TriggerGetCanvasInfoCallback"
-           ~importance:IgnorableError
-           ~reload:false
-           err)
+      [ HandleAPIError
+          (APIError.make
+             ~context:"TriggerGetCanvasInfoCallback"
+             ~importance:IgnorableError
+             ~reload:false
+             err) ]
   | OpenSettingsView _ ->
-      ReplaceAllModificationsWithThisOne
-        (fun m -> CursorState.setCursorState Deselected m)
+      [ SettingsViewUpdate msg
+      ; ReplaceAllModificationsWithThisOne
+          (fun m -> CursorState.setCursorState Deselected m) ]
   | TriggerUpdateCanvasInfoCallback (Ok _) ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ( { m with
-              toast = {toastMessage = Some "Canvas Info saved!"; toastPos = None}
-            }
-          , Cmd.none ))
+      [ SettingsViewUpdate msg
+      ; ReplaceAllModificationsWithThisOne
+          (fun m ->
+            ( { m with
+                toast =
+                  {toastMessage = Some "Canvas Info saved!"; toastPos = None} }
+            , Cmd.none )) ]
   | TriggerSendInviteCallback (Ok _) ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ( {m with toast = {toastMessage = Some "Sent!"; toastPos = None}}
-          , Cmd.none ))
+      [ SettingsViewUpdate msg
+      ; ReplaceAllModificationsWithThisOne
+          (fun m ->
+            ( {m with toast = {toastMessage = Some "Sent!"; toastPos = None}}
+            , Cmd.none )) ]
   | CloseSettingsView tab ->
       let cmd =
         match tab with CanvasInfo -> sendCanvasInformation m | _ -> Cmd.none
       in
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ({m with canvasProps = {m.canvasProps with enablePan = true}}, cmd))
+      [ SettingsViewUpdate msg
+      ; ReplaceAllModificationsWithThisOne
+          (fun m ->
+            ({m with canvasProps = {m.canvasProps with enablePan = true}}, cmd))
+      ]
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
       if isInvalid
       then
-        ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( {m with settingsView = {m.settingsView with tab = newTab}}
-            , Cmd.none ))
-      else ReplaceAllModificationsWithThisOne (fun m -> submitForm m)
+        [ SettingsViewUpdate msg
+        ; ReplaceAllModificationsWithThisOne
+            (fun m ->
+              ( {m with settingsView = {m.settingsView with tab = newTab}}
+              , Cmd.none )) ]
+      else
+        [ SettingsViewUpdate msg
+        ; ReplaceAllModificationsWithThisOne (fun m -> submitForm m) ]
   | _ ->
-      NoChange
+      [SettingsViewUpdate msg]
 
 
 (* View functions *)
 
 let settingsTabToText (tab : settingsTab) : string =
   match tab with
+  | NewCanvas ->
+      "NewCanvas"
   | CanvasInfo ->
       "About"
   | UserSettings ->
@@ -225,9 +239,9 @@ let viewUserCanvases (acc : settingsViewState) : Types.msg Html.html list =
     ; Html.div [Html.class' "canvas-list"] [canvases]
     ; Html.p [] [Html.text "Create a new canvas by navigating to the URL"] ]
   in
-  let orgs = List.map acc.orgList ~f:canvasLink |> Html.ul [] in
+  let orgs = List.map acc.orgCanvasList ~f:canvasLink |> Html.ul [] in
   let orgView =
-    if List.length acc.orgList > 0
+    if List.length acc.orgCanvasList > 0
     then
       [ Html.p [Html.class' "canvas-list-title"] [Html.text "Shared canvases:"]
       ; Html.div [Html.class' "canvas-list"] [orgs] ]
@@ -292,6 +306,27 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
   introText @ inviteform
 
 
+let viewNewCanvas (svs : settingsViewState) : Types.msg Html.html list =
+  let text =
+    Printf.sprintf
+      "Create a new canvas (or go to it if it already exists) by visiting /a/%s-canvasname"
+      svs.username
+  in
+  let text =
+    if List.isEmpty svs.orgs
+    then text ^ "."
+    else
+      text
+      ^ Printf.sprintf
+          " or /a/orgname-canvasname, where orgname may be any of (%s)."
+          (svs.orgs |> String.join ~sep:", ")
+  in
+  let introText =
+    [Html.h2 [] [Html.text "New Canvas"]; Html.p [] [Html.text text]]
+  in
+  introText
+
+
 let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
   let shipped, shippedText =
     match canvas.shippedDate with
@@ -345,6 +380,8 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
+  | NewCanvas ->
+      viewNewCanvas svs
   | CanvasInfo ->
       viewCanvasInfo svs.canvasInformation
   | UserSettings ->

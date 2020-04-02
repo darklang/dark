@@ -4,7 +4,34 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns =
-  [ { prefix_names = ["Dict::keys"]
+  [ { prefix_names = ["Dict::singleton"]
+    ; infix_names = []
+    ; parameters = [par "key" TStr; par "value" TAny]
+    ; return_type = TObj
+    ; description =
+        "Returns a new dictionary with a single entry `key`: `value`."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr k; v] ->
+              DObj (DvalMap.singleton (Unicode_string.to_string k) v)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::size"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj]
+    ; return_type = TInt
+    ; description =
+        "Returns the number of entries in `dict` (the number of key-value pairs)."
+    ; func =
+        InProcess
+          (function
+          | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::keys"]
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TList
@@ -30,6 +57,174 @@ let fns =
         InProcess
           (function
           | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::toList"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj]
+    ; return_type = TList
+    ; description =
+        "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
+    ; func =
+        InProcess
+          (function
+          | _, [DObj o] ->
+              DvalMap.to_list o
+              |> List.map ~f:(fun (k, v) ->
+                     DList [Dval.dstr_of_string_exn k; v])
+              |> Dval.to_list
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::fromListOverwritingDuplicates"]
+    ; infix_names = []
+    ; parameters = [par "entries" TList]
+    ; return_type = TObj
+    ; description =
+        "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+        If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary (use `Dict::fromList` if you want to enforce unique keys).
+        This function is the opposite of `Dict::toList`."
+    ; func =
+        InProcess
+          (function
+          | state, [DList l] ->
+              let fold_fn
+                  (idx : int)
+                  (acc : (dval DvalMap.t, dval (* type error *)) result)
+                  (dv : dval) : (dval DvalMap.t, dval (* type error *)) result =
+                Result.bind acc ~f:(fun acc ->
+                    match dv with
+                    | DList [DStr k; value] ->
+                        Ok
+                          ( acc
+                          |> DvalMap.insert
+                               ~key:(Unicode_string.to_string k)
+                               ~value )
+                    | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                        Error dv
+                    | v ->
+                        let err_details =
+                          match v with
+                          | DList [k; _] ->
+                              let tipe =
+                                k
+                                |> Dval.tipe_of
+                                |> Dval.tipe_to_developer_repr_v0
+                              in
+                              Printf.sprintf
+                                "Keys must be `String`s but the type of `%s` is `%s`."
+                                (Dval.to_developer_repr_v0 k)
+                                tipe
+                          | DList l ->
+                              Printf.sprintf
+                                "It has length %i but must have length 2."
+                                (List.length l)
+                          | non_list ->
+                              let tipe =
+                                non_list
+                                |> Dval.tipe_of
+                                |> Dval.tipe_to_developer_repr_v0
+                              in
+                              Printf.sprintf
+                                "It is of type `%s` instead of `List`."
+                                tipe
+                        in
+                        Error
+                          (DError
+                             ( SourceNone
+                             , Printf.sprintf
+                                 "Expected every value within the `entries` argument passed to `%s` to be a `[key, value]` list. However, that is not the case for the value at index %i: `%s`. %s"
+                                 state.executing_fnname
+                                 idx
+                                 (Dval.to_developer_repr_v0 v)
+                                 err_details )))
+              in
+              let result =
+                l |> List.foldi ~init:(Ok DvalMap.empty) ~f:fold_fn
+              in
+              (match result with Ok res -> DObj res | Error v -> v)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::fromList"]
+    ; infix_names = []
+    ; parameters = [par "entries" TList]
+    ; return_type = TOption
+    ; description =
+        "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+        If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
+        Otherwise, returns `Nothing` (use `Dict::fromListOverwritingDuplicates` if you want to overwrite duplicate keys)."
+    ; func =
+        InProcess
+          (function
+          | state, [DList l] ->
+              let fold_fn
+                  (idx : int) (acc : (dval DvalMap.t, dval) result) (dv : dval)
+                  : (dval DvalMap.t, dval) result =
+                (* The dval for the result error could either be [Error DError] (in case of a type error)
+                 * or an [Error (DOption OptNothing)] (in case there is a duplicate) *)
+                Result.bind acc ~f:(fun acc ->
+                    match dv with
+                    | DList [DStr k; value] ->
+                      ( match
+                          DvalMap.insert_fail_override
+                            ~key:(Unicode_string.to_string k)
+                            ~value
+                            acc
+                        with
+                      | `Ok dict ->
+                          Ok dict
+                      | `Duplicate ->
+                          Error (DOption OptNothing) )
+                    | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                        Error dv
+                    | v ->
+                        let err_details =
+                          match v with
+                          | DList [k; _] ->
+                              let tipe =
+                                k
+                                |> Dval.tipe_of
+                                |> Dval.tipe_to_developer_repr_v0
+                              in
+                              Printf.sprintf
+                                "Keys must be `String`s but the type of `%s` `%s`."
+                                (Dval.to_developer_repr_v0 k)
+                                tipe
+                          | DList l ->
+                              Printf.sprintf
+                                "It has length %i but must have length 2."
+                                (List.length l)
+                          | non_list ->
+                              let tipe =
+                                non_list
+                                |> Dval.tipe_of
+                                |> Dval.tipe_to_developer_repr_v0
+                              in
+                              Printf.sprintf
+                                "It is of type `%s` instead of `List`."
+                                tipe
+                        in
+                        Error
+                          (DError
+                             ( SourceNone
+                             , Printf.sprintf
+                                 "Expected every value within the `entries` argument passed to `%s` to be a `[key, value]` list. However, that is not the case for the value at index %i: `%s`. %s"
+                                 state.executing_fnname
+                                 idx
+                                 (Dval.to_developer_repr_v0 v)
+                                 err_details )))
+              in
+              let result =
+                l
+                |> List.foldi ~init:(Ok DvalMap.empty) ~f:fold_fn
+                |> Result.map ~f:(fun o -> DOption (OptJust (DObj o)))
+              in
+              (match result with Ok res -> res | Error v -> v)
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Dict::get"]
@@ -109,7 +304,8 @@ let fns =
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
-        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair."
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
+        Consider `Dict::filterMap` if you also want to drop some of the entries."
     ; func =
         InProcess
           (function
@@ -127,7 +323,8 @@ let fns =
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
-        "Return only values in `dict` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
+        "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
+        Consider `Dict::filterMap` if you also want to transform the entries."
     ; func =
         InProcess
           (function
@@ -197,6 +394,59 @@ let fns =
                   ~f:filter_propagating_errors
               in
               (match filtered_result with Ok o -> DObj o | Error dv -> dv)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Dict::filterMap"]
+    ; infix_names = []
+    ; parameters = [par "dict" TObj; func ["key"; "value"]]
+    ; return_type = TObj
+    ; description =
+        {|Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
+        If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
+        If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
+        This function combines `Dict::filter` and `Dict::map`.|}
+    ; func =
+        InProcess
+          (function
+          | state, [DObj o; DBlock b] ->
+              let abortReason = ref None in
+              let f ~key ~(data : dval) : dval option =
+                if !abortReason = None
+                then (
+                  match
+                    Ast.execute_dblock
+                      ~state
+                      b
+                      [Dval.dstr_of_string_exn key; data]
+                  with
+                  | DOption (OptJust o) ->
+                      Some o
+                  | DOption OptNothing ->
+                      None
+                  | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                      abortReason := Some dv ;
+                      None
+                  | v ->
+                      abortReason :=
+                        Some
+                          (DError
+                             ( SourceNone
+                             , "Expected the argument `f` passed to `"
+                               ^ state.executing_fnname
+                               ^ "` to return `Just` or `Nothing` for every entry in `dict`. However, it returned `"
+                               ^ Dval.to_developer_repr_v0 v
+                               ^ "` for the entry `"
+                               ^ key
+                               ^ " : "
+                               ^ Dval.to_developer_repr_v0 data
+                               ^ "`." )) ;
+                      None )
+                else None
+              in
+              let result = Map.filter_mapi ~f o in
+              (match !abortReason with None -> DObj result | Some v -> v)
           | args ->
               fail args)
     ; preview_safety = Safe

@@ -142,6 +142,10 @@ body #app * {
     // skip fontawesome
     font-family: "Fira Mono", monospace;
   }
+
+  i.di {
+    @extend .dark-icon-font;
+  }
 }
 
 #canvas {

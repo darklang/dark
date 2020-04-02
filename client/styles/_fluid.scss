@@ -6,6 +6,9 @@ $blanks: lighten($toplevel-background, 5%);
 
 /* The amount of nestings before repeat is defined in toHtml of Fluid.ml */
 $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
+
+$ff-color: adjust-hue($purple, -40deg);
+
 @mixin precedence($depth) {
   .precedence-#{$depth} {
     background-color: nth($prec-colors, $depth);
@@ -271,7 +274,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   }
 
   .in-flag {
-    background-color: rgba(255, 0, 255, 0.3);
+    background-color: darken($ff-color, 40%);
   }
 
   .fluid-category-string,
@@ -527,7 +530,7 @@ since they are essentially both commands just acting upon different things. */
 }
 
 .fluid-secondary-editor {
-  background-color: #2d2d2d;
+  background-color: $toplevel-background;
   box-shadow: 1px 2px 2px 0 #181818;
   position: absolute;
   left: calc(100% + 20px);
@@ -541,9 +544,13 @@ since they are essentially both commands just acting upon different things. */
 
   .ff-icon {
     position: absolute;
-    color: magenta;
+    color: $ff-color;
     top: -10px;
     left: -5px;
+  }
+
+  .fluid-tokens {
+    min-width: 16em;
   }
 }
 
@@ -565,58 +572,49 @@ since they are essentially both commands just acting upon different things. */
 
     width: 12px;
     height: 12px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    opacity: 0.8;
 
-    &:hover {
-      opacity: 1;
-      // We disabled clicking for now, so hide the pointer too.
-      // cursor: pointer;
-    }
+    i.di {
+      font-size: 12px;
+      opacity: 0.8;
 
-    &:hover:after {
-      @extend .tooltip;
+      &.di-option-just,
+      &.di-result-ok {
+        color: $grey3;
+      }
 
-      position: absolute;
-      left: 25px;
-      top: -2px;
-    }
+      &.di-option-nothing,
+      &.di-result-error {
+        color: lighten($red, 10%);
+      }
 
-    &.Option {
-      background-image: url("/icons/option_just.svg");
-      &:hover:after {
+      &:hover {
+        opacity: 1;
+
+        &:after {
+          @extend .tooltip;
+
+          position: absolute;
+          left: 25px;
+          top: 2px;
+          font-family: "Fira Mono";
+        }
+      }
+
+      &.di-option-just:hover:after {
         content: ":take-function-off-rail (x -> Just x)";
       }
 
-      &.ErrorRail {
-        background-image: url("/icons/option_nothing.svg");
-
-        &:hover:after {
-          content: ":take-function-off-rail ((/) -> Nothing)";
-        }
+      &.di-option-nothing:hover:after {
+        content: ":take-function-off-rail (ErrorRail<Nothing> -> Nothing)";
       }
-    }
 
-    &.Result {
-      background-image: url("/icons/result_ok.svg");
-
-      &:hover:after {
+      &.di-result-ok:hover:after {
         content: ":take-function-off-rail (x -> Ok x)";
       }
 
-      &.ErrorRail {
-        background-image: url("/icons/result_error.svg");
-
-        &:hover:after {
-          content: ":take-function-off-rail ((!) -> Error msg)";
-        }
+      &.di-result-error:hover:after {
+        content: ":take-function-off-rail (ErrorRail<Error msg> -> Error msg)";
       }
-    }
-
-    &.Result.EvalFail,
-    &.Option.EvalFail {
-      background-image: none;
     }
   }
 }
@@ -696,5 +694,12 @@ $error-color: saturate($red, 10%);
   /* Tooltip message for sources of the error */
   &.dark-error.is-origin:not(.cursor-on):hover:after {
     content: "The Error came from here";
+  }
+}
+
+/* Executed Code Variant */
+#app.exe-variant .fluid-editor {
+  .fluid-not-executed {
+    filter: brightness(60%);
   }
 }

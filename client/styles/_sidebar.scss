@@ -1,12 +1,12 @@
 $sidebarClosedWidth: 3.5em;
 $sidebarFullWidth: 20em;
-$yellowFilter: invert(0.08) sepia(1) saturate(4) hue-rotate(316.8deg) brightness(0.96);
-$greyFilter: invert(0.06) sepia(0) saturate(1) hue-rotate(0deg) brightness(0.7);
 $sidebard-preview-shadow: 2px 2px 2px 0 $black1;
 
 $devColor: $blue;
 $prodcloneColor: $magenta;
 $prodColor: black;
+
+$hoverColor: lighten($yellow, 10%);
 
 #sidebar-left {
   width: max-content;
@@ -182,7 +182,7 @@ $prodColor: black;
           padding-right: 2px;
           &:hover {
             cursor: pointer;
-            color: lighten($yellow, 10%);
+            color: $hoverColor;
           }
         }
 
@@ -200,8 +200,7 @@ $prodColor: black;
               text-align: center;
 
               background-color: $black2;
-              color: lighten($yellow, 10%);
-              // color: $white2;
+              color: $hoverColor;
 
               width: 100%;
               padding: 2px;
@@ -212,50 +211,38 @@ $prodColor: black;
               left: 0;
             }
 
-            object,
+            i.di,
             i.fa {
-              filter: $yellowFilter;
+              color: $hoverColor;
               cursor: pointer;
             }
           }
 
-          &.empty object,
+          &.empty i.di,
           &.empty i.fa {
-            filter: none;
             opacity: 0.2;
-
-            &:hover {
-              filter: none;
-            }
           }
 
-          i.fa {
-            color: white;
-            font-size: 2.16em;
-          }
-
-          object,
-          i.fa {
+          i.fa,
+          i.di {
             width: 100%;
             height: 100%;
-            filter: $greyFilter;
+            color: $grey3;
+            font-size: 2.16em;
           }
         }
 
         &.dev .environment,
         &.dev .header-icon {
           color: $devColor;
-          filter: none;
         }
         &.prodclone .environment,
         &.prodclone .header-icon {
           color: $prodcloneColor;
-          filter: none;
         }
         &.prod .environment,
         &.prod .header-icon {
           color: $prodColor;
-          filter: none;
         }
       }
 
@@ -433,7 +420,7 @@ $prodColor: black;
       }
 
       a:hover {
-        color: $yellow;
+        color: $hoverColor;
       }
 
       &.GET a,
@@ -482,7 +469,7 @@ $prodColor: black;
       }
       &::-webkit-details-marker {
         margin: 2px;
-        color: lighten($yellow, 10%);
+        color: $hoverColor;
       }
       .header {
         padding: 2px 5px;
@@ -490,7 +477,7 @@ $prodColor: black;
         align-items: center;
         flex-direction: row;
         justify-content: space-between;
-        color: lighten($yellow, 10%);
+        color: $hoverColor;
         width: 100%;
 
         .title {
@@ -511,10 +498,10 @@ $prodColor: black;
           height: 20px;
           width: 20px;
           margin-right: 5px;
-          filter: $yellowFilter;
 
-          i.fa {
-            color: white;
+          i.fa,
+          i.di {
+            color: $hoverColor;
           }
         }
       }
@@ -552,7 +539,7 @@ $prodColor: black;
       }
 
       &:hover {
-        color: $yellow;
+        color: $hoverColor;
       }
     }
   }
@@ -574,7 +561,7 @@ $prodColor: black;
       }
 
       &:hover {
-        color: $yellow;
+        color: $hoverColor;
       }
     }
 
@@ -635,7 +622,7 @@ $prodColor: black;
       color: $grey3;
 
       &:hover {
-        color: $yellow;
+        color: $hoverColor;
       }
     }
 

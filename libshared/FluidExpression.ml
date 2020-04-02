@@ -336,7 +336,7 @@ let rec postTraversal ~(f : t -> t) (expr : t) : t =
   f result
 
 
-let walk ~(f : t -> t) (expr : t) : t =
+let deprecatedWalk ~(f : t -> t) (expr : t) : t =
   match expr with
   | EInteger _
   | EBlank _
@@ -387,7 +387,7 @@ let filterMap ~(f : t -> 'a option) (expr : t) : 'a list =
         ()
     | None ->
         () ) ;
-    walk ~f:myWalk e
+    deprecatedWalk ~f:myWalk e
   in
   ignore (myWalk expr) ;
   List.reverse !results
@@ -397,6 +397,15 @@ let filter ~(f : t -> bool) (expr : t) : t list =
   filterMap ~f:(fun t -> if f t then Some t else None) expr
 
 
+let decendants (expr : t) : Shared.id list =
+  let res = ref [] in
+  preTraversal expr ~f:(fun e ->
+      res := toID e :: !res ;
+      e)
+  |> ignore ;
+  !res
+
+
 let update ?(failIfMissing = true) ~(f : t -> t) (target : id) (ast : t) : t =
   let found = ref false in
   let rec run e =
@@ -404,7 +413,7 @@ let update ?(failIfMissing = true) ~(f : t -> t) (target : id) (ast : t) : t =
     then (
       found := true ;
       f e )
-    else walk ~f:run e
+    else deprecatedWalk ~f:run e
   in
   let finished = run ast in
   if failIfMissing
@@ -465,7 +474,7 @@ let rec updateVariableUses (oldVarName : string) ~(f : t -> t) (ast : t) : t =
       in
       EMatch (id, u cond, pairs)
   | _ ->
-      walk ~f:u ast
+      deprecatedWalk ~f:u ast
 
 
 let renameVariableUses ~(oldName : string) ~(newName : string) (ast : t) : t =
@@ -588,3 +597,61 @@ let ancestors (id : id) (expr : t) : t list =
           rec_ id exp walk oldExpr
   in
   rec_ancestors id [] expr
+
+
+let rec testEqualIgnoringIds (a : t) (b : t) : bool =
+  (* helpers for recursive calls *)
+  let eq = testEqualIgnoringIds in
+  let eq2 (e, e') (f, f') = eq e e' && eq f f' in
+  let eq3 (e, e') (f, f') (g, g') = eq e e' && eq f f' && eq g g' in
+  let eqList l1 l2 =
+    List.length l1 = List.length l2
+    && List.map2 ~f:eq l1 l2 |> List.all ~f:identity
+  in
+  match (a, b) with
+  (* expressions with no values *)
+  | ENull _, ENull _ | EBlank _, EBlank _ | EPipeTarget _, EPipeTarget _ ->
+      true
+  (* expressions with single string values *)
+  | EInteger (_, v), EInteger (_, v')
+  | EString (_, v), EString (_, v')
+  | EVariable (_, v), EVariable (_, v') ->
+      v = v'
+  | EBool (_, v), EBool (_, v') ->
+      v = v'
+  | EFloat (_, whole, frac), EFloat (_, whole', frac') ->
+      whole = whole' && frac = frac'
+  | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
+      lhs = lhs' && eq2 (rhs, rhs') (body, body')
+  | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
+      eq3 (con, con') (thn, thn') (els, els')
+  | EList (_, l), EList (_, l') ->
+      eqList l l'
+  | EFnCall (_, name, args, toRail), EFnCall (_, name', args', toRail') ->
+      name = name' && eqList args args' && toRail = toRail'
+  | EBinOp (_, name, lhs, rhs, toRail), EBinOp (_, name', lhs', rhs', toRail')
+    ->
+      name = name' && eq2 (lhs, lhs') (rhs, rhs') && toRail = toRail'
+  | ERecord (_, pairs), ERecord (_, pairs') ->
+      let sort = List.sortBy ~f:(fun (k, _) -> k) in
+      List.map2
+        ~f:(fun (k, v) (k', v') -> k = k' && eq v v')
+        (sort pairs)
+        (sort pairs')
+      |> List.all ~f:identity
+  | EFieldAccess (_, e, f), EFieldAccess (_, e', f') ->
+      eq e e' && f = f'
+  | EPipe (_, l), EPipe (_, l') ->
+      eqList l l'
+  | EFeatureFlag (_, _, cond, old, knew), EFeatureFlag (_, _, cond', old', knew')
+    ->
+      eq3 (cond, cond') (old, old') (knew, knew')
+  | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
+      s = s' && eqList ts ts'
+  | ELambda _, ELambda _
+  | EPartial _, EPartial _
+  | ERightPartial _, ERightPartial _
+  | EMatch _, EMatch _ ->
+      failwith "TODO"
+  | _ ->
+      false

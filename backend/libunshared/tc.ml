@@ -158,6 +158,11 @@ module StrDict = struct
         if old = None then Some value else old)
 
 
+  let insert_fail_override ~(key : key) ~(value : 'value) (dict : 'value t) :
+      [> `Duplicate | `Ok of 'value t] =
+    Base.Map.add dict ~key ~data:value
+
+
   let singleton k v = from_list [(k, v)]
 
   let is_empty = Base.Map.is_empty
@@ -170,4 +175,10 @@ module StrDict = struct
 
   let mapi ~(f : key:key -> value:'value -> 'a) (dict : 'value t) : 'value t =
     Base.Map.mapi ~f:(fun ~key ~data -> f ~key ~value:data) dict
+
+
+  (** [size dict] returns the number of key-value pairs in [dict]. O(1) *)
+  let size (dict : 'value t) : int =
+    (* Base.Map.length is O(1) per https://ocaml.janestreet.com/ocaml-core/latest/doc/base/Base/Map/ *)
+    Base.Map.length dict
 end
