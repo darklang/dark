@@ -245,4 +245,14 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
                  ; ops = to_ops
                  ; id = to_id }
              in
-             save_all !to_canvas))
+             save_all !to_canvas ;
+             (* Bust old cache on new canvas *)
+             Db.run
+               ~name:"bust cache on cloned canvas"
+               ~subject:to_canvas_name
+               "UPDATE toplevel_oplists
+                SET rendered_oplist_cache = NULL,
+                    deleted = NULL,
+                    pos = NULL
+                WHERE canvas_id = $1"
+               ~params:[Db.Uuid to_id]))
