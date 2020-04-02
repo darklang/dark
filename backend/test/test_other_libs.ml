@@ -804,7 +804,7 @@ let t_string_stdlibs_work () =
     (dstr "\xC3\xA2") (* â *)
     (exec_ast' (fn "String::append" [str "\x61"; str "\xCC\x82"])) ; *)
   check_dval
-    "String::append_v1 works (normalizes 3)"
+    "String::append_v1 works (normalizes â)"
     (dstr "\xC3\xA2") (* â *)
     (exec_ast' (fn "String::append_v1" [str "\x61"; str "\xCC\x82"])) ;
   check_dval
@@ -812,6 +812,18 @@ let t_string_stdlibs_work () =
     (dstr "\xea\xb0\x81") (* 각 *)
     (exec_ast'
        (fn "String::append_v1" [str "\u{1100}"; str "\u{1161}\u{11A8}"])) ;
+  check_dval
+    "++ works (multicharacter)"
+    (dstr "hello world")
+    (exec_ast' (binop "++" [str "hello"; str " world"])) ;
+  check_dval
+    "++ works (normalizes â)"
+    (dstr "\xC3\xA2") (* â *)
+    (exec_ast' (binop "++" (str "\x61") (str "\xCC\x82"))) ;
+  check_dval
+    "++ works (normalizes hangul)"
+    (dstr "\xea\xb0\x81") (* 각 *)
+    (exec_ast' (binop "++" (str "\u{1100}") (str "\u{1161}\u{11A8}"))) ;
   check_error_contains
     "String::base64decode errors on non-base64"
     (exec_ast' (fn "String::base64Decode" [str "random string"]))
