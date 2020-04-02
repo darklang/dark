@@ -295,7 +295,7 @@ let fnForToken (functions : Functions.t) token : function_ option =
 module PrettyDocs = struct
   let tagEx = "(.*)\\<(\\w+)\\s(.+)\\>(.*)"
 
-  let consEx = "(.*)\\{(.+)\\}(.*)"
+  let codeEx = "(.*)\\{(.+)\\}(.*)"
 
   let txt (s : string) : msg Html.html = Html.text s
 
@@ -307,7 +307,7 @@ module PrettyDocs = struct
     if s = ""
     then []
     else
-      match Regex.captures ~re:(Regex.regex consEx) s with
+      match Regex.captures ~re:(Regex.regex codeEx) s with
       | [_; before; inside; after] ->
           convert before @ (tag "code" (convert inside) :: convert after)
       | _ ->

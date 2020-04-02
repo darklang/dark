@@ -8,11 +8,13 @@
   color: $white1;
   width: calc(#{"100% - 20px"});
   overflow-wrap: break-word;
+
+  /* Styles define: https://www.notion.so/darklang/Rich-Text-Docstrings-1358553ec49d4ba0b52d04995014152c#88f58cc69bb347929049b342db876db5 */
   a {
     color: $blue;
     text-decoration: underline;
     &:hover {
-      color: $purple;
+      color: $white3;
     }
   }
 
@@ -31,6 +33,7 @@
   .err {
     color: lighten(saturate($red, 25%), 30%);
   }
+
   .cmd {
     color: lighten($pink, 5%);
     white-space: nowrap;
