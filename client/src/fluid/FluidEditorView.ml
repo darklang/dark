@@ -301,8 +301,17 @@ let tokensView (s : state) : Types.msg Html.html =
         ~key:("fluid-selection-mouseup" ^ tlidStr)
         "mouseup"
         (fun _ ->
-          FluidMsg
-            (FluidMouseUp {tlid = s.tlid; editor = s.editor; position = None}))
+          match Entry.getFluidSelectionRange () with
+          | Some (startPos, endPos) ->
+              let selection =
+                if startPos = endPos
+                then ClickAt startPos
+                else SelectText (startPos, endPos)
+              in
+              FluidMsg
+                (FluidMouseUp {tlid = s.tlid; editor = s.editor; selection})
+          | None ->
+              IgnoreMsg)
     ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ tlidStr) ~listener:(fun msg ->
           if msg = "flashError" || msg = "flashIncomplete"
           then FluidMsg FluidClearErrorDvSrc

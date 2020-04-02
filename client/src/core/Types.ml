@@ -1156,11 +1156,15 @@ and fluidInputEvent =
   | DeleteSoftLineForward
   | ReplaceText of string
 
+and fluidMouseUpClickType =
+  | SelectText of int * int (* selection read from the DOM *)
+  | ClickAt of int
+
 and fluidMouseUp =
   { tlid : TLID.t
   ; editor : fluidEditor
         (** fluidEditor is either MainEditor or a FeatureFlagEditor *)
-  ; position : int option }
+  ; selection : fluidMouseUpClickType }
 
 and fluidMouseDoubleClickType =
   | SelectExpressionAt of int

@@ -5333,21 +5333,21 @@ let updateMouseDoubleClick
     |> acClear )
 
 
+(* Handle either a click or the end of a selection drag *)
 let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
     FluidAST.t * fluidState =
   let s =
     {m.fluidState with midClick = false; activeEditor = eventData.editor}
   in
-  let position =
-    eventData.position |> Option.orElseLazy (fun _ -> Entry.getFluidCaretPos ())
-  in
-  match position with
-  | Some pos ->
+  match eventData.selection with
+  | ClickAt pos ->
       updateMouseClick pos ast s
-  | None ->
-      (* We reset the fluidState to prevent the selection and/or cursor
-   position from persisting when a user switched handlers *)
-      (ast, {s with selectionStart = None} |> acClear)
+  | SelectText (beginSel, endSel) ->
+      ( ast
+      , { s with
+          selectionStart = Some beginSel
+        ; newPos = endSel
+        ; oldPos = s.newPos } )
 
 
 let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
