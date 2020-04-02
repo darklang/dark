@@ -139,6 +139,20 @@ type host_route =
   | Static
   | Admin
 
+(* NB: canvas in the DB is a string, not a uuid, because we do routing by canvas
+ * name, not canvas_id (see the host_route type above).
+ *
+ * In addition:
+ * - there are other place we use canvas_name as an fk; it's not great, but it's
+ *   tech debt we can't solve today (for instance, iirc event queues do this)
+ * - the external id will be part of a CNAME target - that is,
+ *   some.customdomain.com -> ismith-foo.darkcustomdomain.com. Thus, if you were
+ *   able to change your canvas' name (see previous bullet, you currently cannot),
+ *   and we used canvas_id, now you'd have a CNAME pointing at the old
+ *   canvas_name, but the custom_domains record would point to the new
+ *   canvas_name (via JOIN canvases as c ON c.id = canvas_id). So that's not
+ *   awesome either!
+ *)
 let canvas_from_db_opt (host_parts : string list) : host_route option =
   let host = String.concat host_parts ~sep:"." in
   Db.fetch_one_option
