@@ -23,9 +23,16 @@ let stateToFnExecutionState (s : state) : ViewFnExecution.state =
 
 let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
   match ViewUtils.fnForToken s.fluidState ti.token with
+  | Some ({fnOrigin = UserFunction; _} as fn)
+  (* HACK: UserFunctions need to be executable so that the user can get a value
+   * into the trace. Otherwise, when they edit the function they won't have any
+   * live values. *)
   | Some ({fnPreviewSafety = Unsafe; _} as fn) ->
       (* Looking these up can be slow, so the fnPreviewSafety check
-       * above is very important *)
+       * above is very important.
+       *
+       * Note that fnPreviewSafety is calculated dynamically by
+       * FluidAutocomplete. *)
       let allExprs = AST.getArguments (FluidToken.tid ti.token) s.ast in
       let argIDs = List.map ~f:FluidExpression.toID allExprs in
       ( match ti.token with
@@ -49,6 +56,11 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
       Vdom.noNode
 
 
+type executionFlow =
+  | CodeExecuted
+  | CodeNotExecuted
+  | UnknownExecution
+
 let toHtml (s : state) : Types.msg Html.html list =
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
@@ -56,24 +68,25 @@ let toHtml (s : state) : Types.msg Html.html list =
     then
       (* Only highlight incompletes and errors on executed paths *)
       match Analysis.getLiveValueLoadable s.analysisStore id with
-      | LoadableSuccess (ExecutedResult (DIncomplete (SourceId id))) ->
-          (Some id, "dark-incomplete")
-      | LoadableSuccess (ExecutedResult (DError (SourceId id, _))) ->
-          (Some id, "dark-error")
+      | LoadableSuccess (ExecutedResult (DIncomplete (SourceId (tlid, id)))) ->
+          (Some (tlid, id), "dark-incomplete")
+      | LoadableSuccess (ExecutedResult (DError (SourceId (tlid, id), _))) ->
+          (Some (tlid, id), "dark-error")
       | _ ->
           (None, "")
     else (None, "")
   in
-  let wasExecuted id : bool option =
+  let wasExecuted id : executionFlow =
     match Analysis.getLiveValueLoadable s.analysisStore id with
     | LoadableSuccess (ExecutedResult _) ->
-        Some true
+        CodeExecuted
     | LoadableSuccess (NonExecutedResult _) ->
-        Some false
+        CodeNotExecuted
     | _ ->
-        None
+        UnknownExecution
   in
   let currentTokenInfo = Fluid.getToken s.ast s.fluidState in
+  let caretRow = currentTokenInfo |> Option.map ~f:(fun ti -> ti.startRow) in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -125,21 +138,35 @@ let toHtml (s : state) : Types.msg Html.html list =
         |> List.foldl ~init:ID.Set.empty ~f:(fun e acc ->
                match e with
                | FluidExpression.EFeatureFlag (_, _, _, oldCode, _) ->
-                   let values =
-                     FluidExpression.children oldCode
-                     |> List.map ~f:FluidExpression.toID
-                   in
-                   ID.Set.add ~value:(FluidExpression.toID oldCode) acc
-                   |> ID.Set.addMany ~values
+                   ID.Set.addMany
+                     acc
+                     ~values:(FluidExpression.decendants oldCode)
                | _ ->
                    acc)
   in
+  (* We want to highlight all tokens that are in the old-code of a feature
+   * flag. to do this, we highlight any token with an ID in idsInAFlag, which
+   * has the ID of every expression within that old code. But we also need to
+   * highlight the indents, which don't have an ID.
+   *
+   * So, we toggle this flag on the first time we see a token within the flag
+   * IDs above, then toggle it off as soon as we see a non-whitespace token
+   * that's not contained in the set. *)
+  let withinFlag = ref false in
   List.map s.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = FluidToken.tid ti.token in
         let idStr = ID.toString tokenId in
         let content = FluidToken.toText ti.token in
         let analysisId = FluidToken.analysisID ti.token in
+        (* Toggle withinFlag if we've crossed a flag boundary.
+         * See above comment where withinFlag is defined *)
+        if (not !withinFlag) && ID.Set.member idsInAFlag ~value:tokenId
+        then withinFlag := true
+        else if FluidToken.validID tokenId
+                && !withinFlag
+                && not (ID.Set.member idsInAFlag ~value:tokenId)
+        then withinFlag := false ;
         (* Apply CSS classes to token *)
         let tokenClasses = FluidToken.toCssClasses ti.token in
         let backingNestingClass, innerNestingClass =
@@ -181,26 +208,31 @@ let toHtml (s : state) : Types.msg Html.html list =
             && (* This expression is the source of its own incompleteness. We
             only draw underlines under sources of incompletes, not all
             propagated occurrences. *)
-            sourceId = Some analysisId
+            sourceId = Some (s.tlid, analysisId)
+          in
+          let notExecuted =
+            if wasExecuted analysisId = CodeNotExecuted
+            then
+              (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
+              caretRow != Some ti.startRow
+            else false
           in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
-          ; ("in-flag", ID.Set.member idsInAFlag ~value:tokenId)
+          ; ("in-flag", !withinFlag)
           ; ("fluid-error", isError)
-          ; ( "fluid-executed"
-            , wasExecuted tokenId |> Option.withDefault ~default:false )
-          ; ( "fluid-not-executed"
-            , not (wasExecuted tokenId |> Option.withDefault ~default:true) )
+          ; ("fluid-executed", wasExecuted analysisId = CodeExecuted)
+          ; ("fluid-not-executed", notExecuted)
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
              * into another, where the cursor is currently on *)
-            ("is-origin", sourceOfCurrentToken ti = Some analysisId)
+            ("is-origin", sourceOfCurrentToken ti = Some (s.tlid, analysisId))
           ; ( "jumped-to"
             , match s.fluidState.errorDvSrc with
               | SourceNone ->
                   false
-              | SourceId id ->
-                  id = tokenId )
+              | SourceId (tlid, id) ->
+                  id = tokenId && s.tlid = tlid )
           ; ("selected", isSelected ti.startPos ti.endPos) ]
         in
         let innerNode =
@@ -319,24 +351,36 @@ let tokensView (s : state) : Types.msg Html.html =
 let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
     Types.msg Html.html =
   let returnTipe (name : string) =
-    let fn = Functions.findByNameInList name s.fluidState.ac.functions in
-    Runtime.tipe2str fn.fnReturnTipe
+    Functions.findByNameInList name s.fluidState.ac.functions
+    |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
+    |> Option.withDefault ~default:TAny
   in
-  let sentToRail (id : ID.t) =
-    let dv = Analysis.getLiveValue' s.analysisStore id in
+  let liveValue (id : ID.t) = Analysis.getLiveValue' s.analysisStore id in
+  let isEvalSuccess dv =
     match dv with
-    | Some (DErrorRail (DResult (ResError _)))
-    | Some (DErrorRail (DOption OptNothing)) ->
-        "ErrorRail"
     | Some (DIncomplete _) | Some (DError _) ->
-        "EvalFail"
+        false
+    | Some _ ->
+        true
     | _ ->
-        ""
+        false
   in
   match ti.token with
   | TFnName (id, _, _, fnName, Rail) ->
       let offset = string_of_int ti.startRow ^ "rem" in
-      let cls = ["error-indicator"; returnTipe fnName; sentToRail id] in
+      let icon =
+        match (returnTipe fnName, liveValue id) with
+        | TResult, Some (DErrorRail (DResult (ResError _))) ->
+            ViewUtils.darkIcon "result-error"
+        | TResult, v when isEvalSuccess v ->
+            ViewUtils.darkIcon "result-ok"
+        | TOption, Some (DErrorRail (DOption OptNothing)) ->
+            ViewUtils.darkIcon "option-nothing"
+        | TOption, v when isEvalSuccess v ->
+            ViewUtils.darkIcon "option-just"
+        | _ ->
+            Vdom.noNode
+      in
       let event =
         Vdom.noProp
         (* TEMPORARY DISABLE
@@ -346,10 +390,8 @@ let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
             (fun _ -> TakeOffErrorRail (tlid, id)) *)
       in
       Html.div
-        [ Html.class' (String.join ~sep:" " cls)
-        ; Html.styles [("top", offset)]
-        ; event ]
-        []
+        [Html.class' "error-indicator"; Html.styles [("top", offset)]; event]
+        [icon]
   | _ ->
       Vdom.noNode
 

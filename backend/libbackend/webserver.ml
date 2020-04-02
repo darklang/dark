@@ -134,6 +134,38 @@ let respond
   respond_or_redirect (Respond {resp_headers; execution_id; status; body})
 
 
+type host_route =
+  | Canvas of string
+  | Static
+  | Admin
+
+(* NB: canvas in the DB is a string, not a uuid, because we do routing by canvas
+ * name, not canvas_id (see the host_route type above).
+ *
+ * In addition:
+ * - there are other place we use canvas_name as an fk; it's not great, but it's
+ *   tech debt we can't solve today (for instance, iirc event queues do this)
+ * - the external id will be part of a CNAME target - that is,
+ *   some.customdomain.com -> ismith-foo.darkcustomdomain.com. Thus, if you were
+ *   able to change your canvas' name (see previous bullet, you currently cannot),
+ *   and we used canvas_id, now you'd have a CNAME pointing at the old
+ *   canvas_name, but the custom_domains record would point to the new
+ *   canvas_name (via JOIN canvases as c ON c.id = canvas_id). So that's not
+ *   awesome either!
+ *)
+let canvas_from_db_opt (host_parts : string list) : host_route option =
+  let host = String.concat host_parts ~sep:"." in
+  Db.fetch_one_option
+    ~name:"get_custom_domain"
+    ~subject:host
+    "SELECT canvas
+       FROM custom_domains WHERE host = $1"
+    ~params:[Db.String host]
+  (* List.hd_exn because the list in question is a list of fields; we should never
+   * get the wrong shape back from a query *)
+  |> Option.map ~f:(fun canvas_name -> Canvas (canvas_name |> List.hd_exn))
+
+
 let should_use_https uri =
   let parts =
     uri |> Uri.host |> Option.value ~default:"" |> fun h -> String.split h '.'
@@ -144,6 +176,7 @@ let should_use_https uri =
   | [_; "builtwithdark"; "com"]
   (* Customers - do not remove the marker below *)
   (* ACD-should_use_https-MARKER *)
+  | ["api"; "venu"; "fm"]
   | ["chat"; "lee"; "af"]
   | ["api"; "fiasco"; "club"]
   | ["api"; "polotek"; "app"]
@@ -158,8 +191,11 @@ let should_use_https uri =
   | ["www"; "kiksht"; "com"]
   | ["food"; "placeofthin"; "gs"] ->
       true
-  | _ ->
-      false
+  | parts ->
+      (* If we've set up a custom domain, we should force https. If we haven't,
+       * and we've fallen all the way through (this is not a known host), then we
+       * should not, because it is likely a healthcheck or other k8s endpoint *)
+      parts |> canvas_from_db_opt |> Option.is_some
 
 
 let redirect_to uri =
@@ -896,15 +932,16 @@ let initial_load
     let t6, canvas_list =
       time "6-canvas-list" (fun _ -> Serialize.hosts_for username)
     in
-    let t7, org_list =
+    let t7, org_canvas_list =
       time "7-org-list" (fun _ -> Serialize.orgs_for username)
     in
-    let t8, worker_schedules =
-      time "8-worker-schedules" (fun _ ->
+    let t8, orgs = time "8-orgs" (fun _ -> Serialize.orgs username) in
+    let t9, worker_schedules =
+      time "9-worker-schedules" (fun _ ->
           Event_queue.get_worker_schedules_for_canvas !c.id)
     in
-    let t9, result =
-      time "9-to-frontend" (fun _ ->
+    let t10, result =
+      time "10-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
@@ -914,12 +951,13 @@ let initial_load
             assets
             account
             canvas_list
-            org_list
+            orgs
+            org_canvas_list
             worker_schedules)
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9])
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10])
       `OK
       result
   with e -> Libexecution.Exception.reraise_as_pageable e
@@ -1817,11 +1855,6 @@ let static_handler uri =
     ()
 
 
-type host_route =
-  | Canvas of string
-  | Static
-  | Admin
-
 let route_host req =
   match
     req
@@ -1851,6 +1884,8 @@ let route_host req =
       Some (Canvas "darksingleinstance")
   (* Customers - do not remove the marker below *)
   (* ACD-route_host-MARKER *)
+  | ["api"; "venu"; "fm"] ->
+      Some (Canvas "kian-venufm")
   | ["chat"; "lee"; "af"] ->
       Some (Canvas "lee-roulette")
   | ["api"; "fiasco"; "club"] ->
@@ -1883,9 +1918,10 @@ let route_host req =
   | ["darklang"; "lvh"; "me"]
   | ["dark_dev"; "com"] ->
       Some Admin
-  (* Not a match... *)
-  | _ ->
-      None
+  (* No match in the above hard-coded parts; let's try the db (though that may
+   * still return None) *)
+  | parts ->
+      canvas_from_db_opt parts
 
 
 let db_conn_readiness_check () : string option =

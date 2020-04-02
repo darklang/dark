@@ -7,16 +7,6 @@ let onEvent = ViewUtils.onEvent
 
 type viewState = ViewUtils.viewState
 
-type htmlConfig = ViewBlankOr.htmlConfig
-
-let viewText = ViewBlankOr.viewText
-
-let enterable = ViewBlankOr.Enterable
-
-let idConfigs = ViewBlankOr.idConfigs
-
-let wc = ViewBlankOr.wc
-
 let moveParams (fn : userFunction) (oldPos : int) (newPos : int) : userFunction
     =
   let ufmParameters =
@@ -113,14 +103,14 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
       buttonContent true
 
 
-let viewParamName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
-    msg Html.html =
-  viewText ParamName vs ((enterable :: idConfigs) @ c) v
+let viewParamName ~(classes : string list) (vs : viewState) (v : string blankOr)
+    : msg Html.html =
+  ViewBlankOr.viewText ~enterable:true ~classes ParamName vs v
 
 
-let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
+let viewParamTipe ~(classes : string list) (vs : viewState) (v : tipe blankOr) :
     msg Html.html =
-  ViewBlankOr.viewTipe ParamTipe vs ((enterable :: idConfigs) @ c) v
+  ViewBlankOr.viewTipe ~classes ~enterable:true ParamTipe vs v
 
 
 let jsDragStart : Web.Node.event -> unit =
@@ -201,8 +191,8 @@ let viewParam
       [ ( if vs.permission = Some ReadWrite
         then viewKillParameterBtn fn p
         else Vdom.noNode )
-      ; viewParamName vs [wc "name"] p.ufpName
-      ; viewParamTipe vs [wc "type"] p.ufpTipe
+      ; viewParamName vs ~classes:["name"] p.ufpName
+      ; viewParamTipe vs ~classes:["type"] p.ufpTipe
       ; fontAwesome "grip-lines" ]
   in
   let space = viewParamSpace index vs.fnProps in

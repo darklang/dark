@@ -22,7 +22,8 @@ let function_ j : function_ =
   ; fnReturnTipe = field "return_type" (string >> Runtime.str2tipe) j
   ; fnPreviewSafety = field "preview_safety" previewSafetyVariants j
   ; fnDeprecated = field "deprecated" bool j
-  ; fnInfix = field "infix" bool j }
+  ; fnInfix = field "infix" bool j
+  ; fnOrigin = Builtin }
 
 
 type t =

@@ -203,6 +203,9 @@ const getBwdResponse = ClientFunction(function(url) {
   return xhttp.responseText;
 });
 
+const getElementSelectionStart = ClientFunction(selector => selector().selectionStart);
+const getElementSelectionEnd = ClientFunction(selector => selector().selectionEnd);
+
 // ------------------------
 // Tests below here. Don't forget to update client/src/IntegrationTest.ml
 // ------------------------
@@ -410,7 +413,7 @@ test("tabbing_through_let", async t => {
     .pressKey("tab tab")
     .typeText("#active-editor", "5")
     // fill in the var
-    .pressKey("tab")
+    .pressKey("tab tab")
     .typeText("#active-editor", "myvar");
 });
 
@@ -725,15 +728,16 @@ test("autocomplete_visible_height", async t => {
     .ok();
 });
 
-test("create_new_function_from_autocomplete", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#active-editor", "myFunctionName")
-    .expect(fluidAcHighlightedText())
-    .eql("Create new function: myFunctionName")
-    .pressKey("enter");
-});
-
+// Disabled the feature for now
+// test("create_new_function_from_autocomplete", async t => {
+//   await createRepl(t);
+//   await t
+//     .typeText("#active-editor", "myFunctionName")
+//     .expect(fluidAcHighlightedText())
+//     .eql("Create new function: myFunctionName")
+//     .pressKey("enter");
+// });
+//
 test("load_with_unnamed_function", async t => {
   await t
     .pressKey("enter")
@@ -750,7 +754,7 @@ test("extract_from_function", async t => {
     .ok()
     .click(exprElem)
     .selectText(exprElem, 0, 1)
-    .pressKey("alt+x")
+    .pressKey("ctrl+\\")
     .typeText("#cmd-filter", "extract-function")
     .pressKey("enter");
 });
@@ -954,7 +958,7 @@ test("sha256hmac_for_aws", async t => {
     .click(Selector("div.handler-trigger"));
   await t
     .expect(Selector(".return-value").innerText)
-    .eql('"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"');
+    .contains('"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"');
 });
 
 test("fluid_fn_pg_change", async t => {
@@ -1112,7 +1116,7 @@ test("use_pkg_fn", async t => {
   await t
     .click(".execution-button")
     .expect(Selector(".return-value", { timeout: 3000 }).textContent)
-    .eql("0");
+    .contains("0");
 
   // check if we can get a result from the bwd endpoint
   const callBackend = ClientFunction(function(url) {
@@ -1128,7 +1132,7 @@ test("use_pkg_fn", async t => {
 test("fluid_show_docs_for_command_on_selected_code", async t => {
   await createRepl(t);
   await gotoAST(t);
-  await t.typeText("#active-editor", "1999").pressKey("alt+x");
+  await t.typeText("#active-editor", "1999").pressKey("ctrl+\\");
 
   await t.expect(Selector("#cmd-filter").exists).ok();
   await t.expect(Selector(".documentation-box").exists).ok();
@@ -1141,4 +1145,25 @@ test("fluid-bytes-response", async t => {
   const url = "/";
   const resp = await getBwdResponse(user_content_url(t, url));
   await t.expect(resp).eql("foo");
+});
+
+test("double_clicking_blankor_selects_it", async t => {
+  // This is part of fixing double-click behaviour in HTTP headers and other
+  // blank-ors. When you clicked on the HTTP header, the caret did not stay in
+  // the header. This checks that it does.
+  //
+  // I managed to fix it by determining that the doubleclick handler was
+  // failing, and fixing that. However, it didn't give it the ideal behaviour,
+  // where the word double-clicked on would be highlighted.
+  //
+  // So this test is not for the ideal behaviour, but for the
+  // non-obviously-broken behaviour.
+  let selector = Selector(".toplevel-name");
+  await t.expect(selector.exists).ok();
+  await t.doubleClick(selector);
+
+  // Selected text is /hello
+  selector = Selector(".toplevel-name #entry-box");
+  await t.expect(selector.exists).ok();
+  await t.expect(await getElementSelectionStart(selector)).typeOf("number");
 });

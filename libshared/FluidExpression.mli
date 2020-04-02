@@ -50,10 +50,12 @@ val toID : t -> Shared.id
 (** Generate a new EBlank *)
 val newB : unit -> t
 
-(** [walk f ast] is a helper for recursively walking an expression tree. It
+(** Deprecated, this is difficult to use correctly (you have to call back to
+    deprecatedWalk from within [f]). Use preTraversal or postTraversal instead.
+    [walk f ast] is a helper for recursively walking an expression tree. It
     returns a new ast with every subexpression e replaced by [f e]. To use
     effectively, [f] must call [walk]. *)
-val walk : f:(t -> t) -> t -> t
+val deprecatedWalk : f:(t -> t) -> t -> t
 
 (** [preTraversal f ast] walks the entire AST from top to bottom, calling f on
  * each expression. It returns a new AST with every subexpression e replaced by
@@ -111,8 +113,14 @@ val blanks : t -> t list
 (** [ids e] returns the id of [e] and all its children *)
 val ids : t -> Shared.id list
 
-(** [children e] returns a list of all the children of [e] *)
+(** [children e] returns a list of all the direct children of [e] *)
 val children : t -> t list
+
+(** [decendants e] returns a list of the IDs of all decendants (children,
+ * grandchildren, etc) of [e] in an unspecified order *)
+val decendants : t -> Shared.id list
+
+val ancestors : Shared.id -> t -> t list
 
 (** [update f target ast] recursively searches [ast] for an expression e
     having an Shared.id of [target].
@@ -132,4 +140,9 @@ val updateVariableUses : string -> f:(t -> t) -> t -> t
 
 val clone : t -> t
 
-val ancestors : Shared.id -> t -> t list
+(** [testEqualIgnoringIds a b] compares the structure and values of two ASTs,
+  * ignoring the actual IDs of the expressions.
+  *
+  * NB: Only usable for tests right now. If you want to use for non-tests,
+  * you'll need to complete the implementation and add tests *)
+val testEqualIgnoringIds : t -> t -> bool

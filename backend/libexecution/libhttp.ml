@@ -17,12 +17,43 @@ let fns : Types.RuntimeT.fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Http::response"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "code" TInt]
+    ; return_type = TResp
+    ; description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
+    ; func =
+        InProcess
+          (function
+          | _, [dv; DInt code] ->
+              DResp (Response (Dint.to_int_exn code, []), dv)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false }
-  ; (* TODO(ian): merge Http::respond with Http::respond_with_headers
+    (* TODO(ian): merge Http::respond with Http::respond_with_headers
    * -- need to figure out how to deprecate functions w/o breaking
    * user code
    *)
-    { prefix_names = ["Http::respondWithHeaders"]
+  ; { prefix_names = ["Http::respondWithHeaders"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "headers" TObj; par "code" TInt]
+    ; return_type = TResp
+    ; description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
+    ; func =
+        InProcess
+          (function
+          | _, [dv; (DObj _ as obj); DInt code] ->
+              let pairs = Dval.to_string_pairs_exn obj in
+              DResp (Response (Dint.to_int_exn code, pairs), dv)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Http::responseWithHeaders"]
     ; infix_names = []
     ; parameters = [par "response" TAny; par "headers" TObj; par "code" TInt]
     ; return_type = TResp
@@ -67,6 +98,24 @@ let fns : Types.RuntimeT.fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Http::responseWithHtml"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "code" TInt]
+    ; return_type = TResp
+    ; description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
+    ; func =
+        InProcess
+          (function
+          | _, [dv; DInt code] ->
+              DResp
+                ( Response
+                    (Dint.to_int_exn code, [("Content-Type", "text/html")])
+                , dv )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::respondWithText"]
     ; infix_names = []
@@ -85,8 +134,45 @@ let fns : Types.RuntimeT.fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Http::responseWithText"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "code" TInt]
+    ; return_type = TResp
+    ; description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
+    ; func =
+        InProcess
+          (function
+          | _, [dv; DInt code] ->
+              DResp
+                ( Response
+                    (Dint.to_int_exn code, [("Content-Type", "text/plain")])
+                , dv )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Http::respondWithJson"]
+    ; infix_names = []
+    ; parameters = [par "response" TAny; par "code" TInt]
+    ; return_type = TResp
+    ; description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
+    ; func =
+        InProcess
+          (function
+          | _, [dv; DInt code] ->
+              DResp
+                ( Response
+                    ( Dint.to_int_exn code
+                    , [("Content-Type", "application/json")] )
+                , dv )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["Http::responseWithJson"]
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
     ; return_type = TResp
@@ -176,7 +262,7 @@ let fns : Types.RuntimeT.fn list =
     ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
     ; return_type = TObj
     ; description =
-        "Generate an HTTP Set-Cookie header Object suitable for Http::respondWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
+        "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
     ; func =
         InProcess
           (function
@@ -222,7 +308,7 @@ let fns : Types.RuntimeT.fn list =
     ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
     ; return_type = TObj
     ; description =
-        "Generate an HTTP Set-Cookie header Object suitable for Http::respondWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
+        "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
     ; func =
         InProcess
           (function

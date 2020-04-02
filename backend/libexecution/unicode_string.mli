@@ -101,6 +101,21 @@ val length : t -> int
  * *)
 val trim : t -> t
 
+(** [slice str first last] returns a substring between [first] (inclusive) and [last] (exclusive) indices.
+ * Indices represent EGCs. Negative indices start counting from the end of the [str].
+ *)
+val slice : t -> first:int -> last:int -> t
+
+(** [pad_start str pad_with target_egcs] pads the start of [str] with repeated copies of [pad_with] while
+ * the number of EGCs in the result is less than [target_egcs].
+ *)
+val pad_start : t -> pad_with:t -> int -> t
+
+(** [pad_end str pad_with target_egcs] pads the end of [str] with repeated copies of [pad_with] while
+ * the number of EGCs in the result is less than [target_egcs].
+ *)
+val pad_end : t -> pad_with:t -> int -> t
+
 val compare : t -> t -> int
 
 val equal : t -> t -> bool

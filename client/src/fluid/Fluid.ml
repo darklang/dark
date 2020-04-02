@@ -547,6 +547,82 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
+(** [getNextEditable pos tokens] returns the first editable token after [pos] in 
+ * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in 
+ * [tokens], or None if no editable token exists. *)
+let rec getNextEditable (pos : int) (tokens : T.tokenInfo list) :
+    T.tokenInfo option =
+  tokens
+  |> List.find ~f:(fun ti ->
+         let isEditable =
+           (* Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination *)
+           match ti.token with
+           | TStringMLEnd _ | TStringMLMiddle _ | TFnVersion _ ->
+               false
+           | _ ->
+               T.isTextToken ti.token
+         in
+         isEditable && ti.startPos > pos)
+  |> Option.orElseLazy (fun () ->
+         if pos = 0 then None else getNextEditable (-1) tokens)
+
+
+let getNextEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
+  tokens
+  |> getNextEditable pos
+  |> Option.map ~f:(fun ti -> ti.startPos)
+  |> Option.withDefault ~default:pos
+
+
+let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
+  recordAction ~pos "moveToNextEditable" s
+  |> tokensForActiveEditor ast
+  |> getNextEditablePos pos
+  |> setPosition ~resetUD:true s
+
+
+(** [getPrevEditable pos tokens] returns the closest editable token before [pos] in 
+* [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in 
+* [tokens], or None if no editable exists. *)
+let getPrevEditable (pos : int) (tokens : T.tokenInfo list) : T.tokenInfo option
+    =
+  let revTokens = List.reverse tokens in
+  let rec findEditable (pos : int) : T.tokenInfo option =
+    revTokens
+    |> List.find ~f:(fun ti ->
+           let isEditable =
+             (* Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination *)
+             match ti.token with
+             | TStringMLStart _ | TStringMLMiddle _ | TFnName _ ->
+                 false
+             | _ ->
+                 T.isTextToken ti.token
+           in
+           isEditable && ti.endPos < pos)
+    |> Option.orElseLazy (fun () ->
+           let lastPos =
+             match List.head revTokens with Some tok -> tok.endPos | None -> 0
+           in
+           if pos = lastPos then None else findEditable (lastPos + 1))
+  in
+  findEditable pos
+
+
+let getPrevEditablePos (pos : int) (tokens : T.tokenInfo list) : int =
+  tokens
+  |> getPrevEditable pos
+  |> Option.map ~f:(fun ti ->
+         if T.isBlank ti.token then ti.startPos else ti.endPos)
+  |> Option.withDefault ~default:pos
+
+
+let moveToPrevEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
+  recordAction ~pos "moveToPrevBlank" s
+  |> tokensForActiveEditor ast
+  |> getPrevEditablePos pos
+  |> setPosition ~resetUD:true s
+
+
 let rec getPrevBlank (pos : int) (tokens : T.tokenInfo list) :
     T.tokenInfo option =
   tokens
@@ -3327,7 +3403,7 @@ let doExplicitInsert
         List.getAt ~index nameValPairs
         |> Option.andThen ~f:(fun (name, _) ->
                let newName = mutation name in
-               if FluidUtil.isValidIdentifier newName
+               if FluidUtil.isValidRecordLiteralFieldName newName
                then
                  let nameValPairs =
                    List.updateAt nameValPairs ~index ~f:(fun (_, expr) ->
@@ -4026,10 +4102,10 @@ let rec updateKey
     (* Tab to next blank *)
     | Keypress {key = K.Tab; _}, _, R (_, _)
     | Keypress {key = K.Tab; _}, L (_, _), _ ->
-        (ast, moveToNextBlank ~pos ast s)
+        (ast, moveToNextEditable ~pos ast s)
     | Keypress {key = K.ShiftTab; _}, _, R (_, _)
     | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
-        (ast, moveToPrevBlank ~pos ast s)
+        (ast, moveToPrevEditable ~pos ast s)
     (* Left/Right movement *)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti)
     | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ ->
@@ -5271,9 +5347,7 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
-        let ast, s = pasteOverSelection ~state:s ~ast data in
-        let s = updateAutocomplete m tlid ast s in
-        (ast, s)
+        pasteOverSelection ~state:s ~ast data
     (* handle selection with direction key cases *)
     (* moving/selecting over expressions or tokens with shift-/alt-direction
      * or shift-/ctrl-direction *)
@@ -5368,23 +5442,43 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.undo_redo m false
   | FluidInputEvent (Keypress {key = K.Redo; _}) ->
       KeyPress.undo_redo m true
-  | FluidInputEvent (Keypress {key = K.CommandPalette; _}) ->
-      maybeOpenCmd m
+  | FluidInputEvent (Keypress {key = K.CommandPalette heritage; _}) ->
+      let maybeOpen = maybeOpenCmd m in
+      let showToast =
+        ReplaceAllModificationsWithThisOne
+          (fun m ->
+            ( { m with
+                toast =
+                  { toastMessage =
+                      Some "Command Palette has been moved to Ctrl-\\."
+                  ; toastPos = None } }
+            , Tea.Cmd.none ))
+      in
+      ( match heritage with
+      | K.LegacyShortcut ->
+          showToast
+      | K.CurrentShortcut ->
+          maybeOpen )
   | FluidInputEvent (Keypress {key = K.Omnibox; _}) ->
       KeyPress.openOmnibox m
   | FluidInputEvent (Keypress ke) when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
   | FluidClearErrorDvSrc ->
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
-  | FluidFocusOnToken id ->
+  | FluidFocusOnToken (tlid, id) ->
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
-      CursorState.tlidOf m.cursorState
-      |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
+      tlid
+      |> TL.get m
       |> Option.thenAlso ~f:TL.getAST
       |> Option.map ~f:(fun (tl, ast) ->
+             let pageMod =
+               if CursorState.tlidOf m.cursorState <> Some tlid
+               then SetPage (TL.asPage tl true)
+               else NoChange
+             in
              let fluidState =
                let fs = moveToEndOfTarget ast s id in
-               {fs with errorDvSrc = SourceId id}
+               {fs with errorDvSrc = SourceId (tlid, id)}
              in
              let moveMod =
                match Viewport.moveToToken id tl with
@@ -5399,9 +5493,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                | None, None ->
                    NoChange
              in
-             if moveMod = NoChange
+             if moveMod = NoChange && pageMod = NoChange
              then FluidSetState fluidState
-             else Many [moveMod; FluidSetState fluidState])
+             else Many [pageMod; moveMod; FluidSetState fluidState])
       |> Option.withDefault ~default:NoChange
   | FluidCloseCmdPalette ->
       FluidCommandsClose

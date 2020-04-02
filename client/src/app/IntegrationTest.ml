@@ -712,6 +712,8 @@ let fluid_show_docs_for_command_on_selected_code (_m : model) : testResult =
 
 let fluid_bytes_response (_m : model) : testResult = pass
 
+let double_clicking_blankor_selects_it (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -842,5 +844,7 @@ let trigger (test_name : string) : integrationTestState =
         fluid_show_docs_for_command_on_selected_code
     | "fluid-bytes-response" ->
         fluid_bytes_response
+    | "double_clicking_blankor_selects_it" ->
+        double_clicking_blankor_selects_it
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

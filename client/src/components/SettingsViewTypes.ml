@@ -11,6 +11,7 @@ type formField =
 type inviteFields = {email : formField}
 
 and settingsTab =
+  | NewCanvas
   | CanvasInfo
   | UserSettings
   | InviteUser of inviteFields
@@ -40,7 +41,9 @@ type settingsViewState =
   { opened : bool
   ; tab : settingsTab
   ; canvasList : string list
-  ; orgList : string list
+  ; username : string
+  ; orgs : string list
+  ; orgCanvasList : string list (* This is org canvases, not orgs themselves *)
   ; loading : bool
   ; canvasInformation : canvasInformation }
 [@@deriving show]
@@ -53,7 +56,8 @@ type loadCanvasInfoAPIResult =
 type settingsMsg =
   | CloseSettingsView of settingsTab
   | SetSettingsView of
-      ((string * string list * string list * Js.Date.t)[@opaque])
+      ((string * string list * string * string list * string list * Js.Date.t)
+      [@opaque])
   | OpenSettingsView of settingsTab
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string

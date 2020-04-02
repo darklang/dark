@@ -43,15 +43,15 @@ let asName (aci : autocompleteItem) : string =
     | NewWorkerHandler maybeName ->
       ( match maybeName with
       | Some name ->
-          "New WORKER handler named " ^ name
+          "New Worker named " ^ name
       | None ->
-          "New WORKER handler" )
+          "New Worker " )
     | NewFunction maybeName ->
       ( match maybeName with
       | Some name ->
-          "New function named " ^ name
+          "New Function named " ^ name
       | None ->
-          "New function" )
+          "New Function" )
     | NewHTTPHandler maybeName ->
       ( match maybeName with
       | Some name ->
@@ -61,21 +61,21 @@ let asName (aci : autocompleteItem) : string =
     | NewCronHandler maybeName ->
       ( match maybeName with
       | Some name ->
-          "New CRON handler named " ^ name
+          "New Cron named " ^ name
       | None ->
-          "New CRON handler" )
+          "New Cron" )
     | NewReplHandler maybeName ->
       ( match maybeName with
       | Some name ->
           "New REPL named " ^ name
       | None ->
-          "New REPL handler" )
+          "New REPL" )
     | NewGroup maybeName ->
       ( match maybeName with
       | Some name ->
-          "New group named " ^ name
+          "New Group named " ^ name
       | None ->
-          "New group" )
+          "New Group" )
     | Goto (_, _, desc, _) ->
         desc )
   | ACHTTPModifier name ->
@@ -282,6 +282,13 @@ let assertValid pattern value : string =
     (Regex.exactly ~re:pattern value)
     ~debug:(pattern, value) ;
   value
+
+
+let validateFunctionName (fnName : string) : string option =
+  let pattern = fnNameValidator in
+  if Regex.exactly ~re:pattern fnName
+  then None
+  else Some ("Function name must match /" ^ pattern ^ "/")
 
 
 let validateHttpNameValidVarnames (httpName : string) =

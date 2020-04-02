@@ -507,26 +507,23 @@ let t
         |> toEqual (expectedStr, expectsPartial, expectsFnOnRail))
 
 
-(** [tStruct name ast pos inputs expectedStructure]
-* tests if applying [inputs] to the [ast] with a
-* non-selecting state derived from [pos] produces a structure
-* that matches the [expectedStructure] string.
-* The format of that string must match that produced by Printer.eToTestcase.
-* [name] is the name of the test.
-*)
+(** [tStruct name ast pos inputs expected] tests if applying [inputs] to the
+ * [ast] with a non-selecting state derived from [pos] produces a structure
+ * that matches the [expected] structure. *)
 let tStruct
     (name : string)
     (ast : fluidExpr)
     ~(pos : int)
     (inputs : fluidInputEvent list)
-    (expectedStructure : string) =
+    (expected : FluidExpression.t) =
   test name (fun () ->
       let s =
         {defaultTestState with oldPos = pos; newPos = pos; selectionStart = None}
       in
       let newAST, _newState = processMsg inputs s ast in
-      expect (Printer.eToTestcase (FluidAST.toExpr newAST))
-      |> toEqual expectedStructure)
+      expect (FluidAST.toExpr newAST)
+      |> withEquality FluidExpression.testEqualIgnoringIds
+      |> toEqual expected)
 
 
 let run () =
@@ -1595,6 +1592,12 @@ let run () =
         (ins "$")
         "obj.f~ield" ;
       t
+        "cant insert invalid chars fieldname - hyphen"
+        aField
+        ~pos:5
+        (ins "-")
+        "obj.f~ield" ;
+      t
         ~expectsPartial:true
         "del middle of fieldname"
         aField
@@ -2312,7 +2315,7 @@ let run () =
         (binop "+" (int 1) (int 2))
         ~pos:0
         [keypress ~shiftHeld:false K.Enter]
-        "(let' \"\" (b) (binop \"+\" (int 1) (int 2)))" ;
+        (let' "" (blank ()) (binop "+" (int 1) (int 2))) ;
       t
         ~expectsPartial:true
         "adding binop in `if` works"
@@ -3236,7 +3239,13 @@ let run () =
         aPipe
         ~pos:0
         [keypress ~shiftHeld:false K.Enter]
-        "(let' \"\" (b) (pipe (list []) [(fn \"List::append\" [(pipeTarget);(list [(int 5)])]);(fn \"List::append\" [(pipeTarget);(list [(int 5)])])]))" ;
+        (let'
+           ""
+           (blank ())
+           (pipe
+              (list [])
+              [ fn "List::append" [pipeTarget; list [int 5]]
+              ; fn "List::append" [pipeTarget; list [int 5]] ])) ;
       t
         "wrapping a pipe in a let with enter places caret correctly"
         aPipe
@@ -3859,7 +3868,7 @@ let run () =
         render
         "~let a = [56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78]\n___" ;
       ()) ;
-  describe "Record" (fun () ->
+  describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;
       t
         "inserting before the record does nothing"
@@ -4059,10 +4068,15 @@ let run () =
       t
         "dont allow key to start with a number, pt 3"
         emptyRowRecord
-        ~pos:6
+        ~pos:4
         (ins "5")
-        (* TODO: looks wrong *)
-        "{\n  **~* : ___\n}" ;
+        "{\n  ~*** : ___\n}" ;
+      t
+        "hyphens are allowed in records"
+        emptyRowRecord
+        ~pos:4
+        (insMany ["x"; "-"])
+        "{\n  x-~ : ___\n}" ;
       t
         "ctrl+left at beg of value movese to beg of key"
         multiRowRecord
@@ -4782,6 +4796,11 @@ let run () =
         "let *** = ~___\n5" ;
       t
         "tab wraps second block in a let"
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         emptyLet
         ~pos:15
         (key K.Tab)
@@ -4812,20 +4831,110 @@ let run () =
         "let *** = ~___\n___" ;
       t
         "shift tab wraps from start of let"
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         emptyLet
         ~pos:4
         shiftTab
-        "let *** = ~___\n5" ;
+        "let *** = ___\n5~" ;
       t
         "shift tab goes to last blank in editor"
-        ~wrap:false
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
         nonEmptyLetWithBlankEnd
         ~pos:4
         shiftTab
         "let *** = 6\n~___" ;
-      t "cant tab to filled letLHS" letWithLhs (key K.Tab) "~let n = 6\n5" ;
+      t "cant tab to filled letLHS" letWithLhs (key K.Tab) "let ~n = 6\n5" ;
       t "can tab to lambda blank" aLambda (key K.Tab) "\\~*** -> ___" ;
-      t "can shift tab to field blank" aBlankField shiftTab "obj.~***" ;
+      t
+        "can shift tab to field blank"
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
+        aBlankField
+        shiftTab
+        "obj.~***" ;
+      t
+        "shift tab at beg of line, wraps to end"
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
+        longList
+        ~pos:1
+        shiftTab
+        "[56,78,56,78,56,78~]" ;
+      t
+        "tab at end of line, wraps to beginging"
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
+        aFnCall
+        ~pos:11
+        (key K.Tab)
+        "~Int::add 5 _________" ;
+      t
+        "tab at end of line, wraps to beginging"
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
+        multi
+        ~pos:6
+        (key K.Tab)
+        "[~56,78]" ;
+      t
+        "tab does not go to middle of multiline string"
+        mlStrWSpace
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~pos:0
+        (key K.Tab)
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
+      t
+        "tab does not stop on function version"
+        aFnCallWithVersion
+        ~pos:0
+        (key K.Tab)
+        "DB::getAllv1 ~___________________" ;
+      t
+        "shift tab does not go to middle of multiline string"
+        mlStrWSpace
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
+        shiftTab
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"~" ) ;
+      t
+        "shift tab does not stop on function version"
+        ~wrap:
+          false
+          (* wrap false because else we move the cursor into the wrapper *)
+        ~brokenInFF:true
+        (* brokenInFF false because else we move the cursor into the ff condition*)
+        aFnCallWithVersion
+        shiftTab
+        "DB::getAllv1 ~___________________" ;
       ()) ;
   (* Disable string escaping for now *)
   (* describe "String escaping" (fun () -> ()) ; *)

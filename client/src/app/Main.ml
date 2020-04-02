@@ -1519,7 +1519,12 @@ let update_ (msg : msg) (m : model) : modification =
                 SettingsView.update
                   m.settingsView
                   (SetSettingsView
-                     (m.canvasName, r.canvasList, r.orgList, r.creationDate))
+                     ( m.canvasName
+                     , r.canvasList
+                     , m.username
+                     , r.orgs
+                     , r.orgCanvasList
+                     , r.creationDate ))
               in
               ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
               , Cmd.none ))
@@ -1844,7 +1849,13 @@ let update_ (msg : msg) (m : model) : modification =
         in
         ( match Toplevel.selected m with
         | Some tl when Toplevel.isDB tl ->
-            Many [UpdateDBStatsAPICall (TL.id tl); getUnlockedDBs]
+            Many
+              [ (* DB stats can be very slow, which makes users unsure of whether
+                 * it's working at all. Commenting this out is enough to disable
+                 * it, as the UI does not appear if the DB stats API call isn't
+                 * run. *)
+                (* UpdateDBStatsAPICall (TL.id tl); *)
+                getUnlockedDBs ]
         | Some tl when Toplevel.isWorkerHandler tl ->
             Many [GetWorkerStatsAPICall (TL.id tl); getUnlockedDBs]
         | _ ->
@@ -2100,7 +2111,7 @@ let update_ (msg : msg) (m : model) : modification =
       TLMenuUpdate (tlid, CloseMenu)
   | SettingsViewMsg msg ->
       let mods = SettingsView.getModifications m msg in
-      Many [mods; SettingsViewUpdate msg]
+      Many mods
   | FnParamMsg msg ->
       FnParams.update m msg
   | UploadFnAPICallback (_, Error err) ->
@@ -2132,15 +2143,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
   let newm, newc = updateMod mods (m, Cmd.none) in
   SavedSettings.save m ;
   SavedUserSettings.save m ;
-  let lastMods =
-    (* ARGH List.take returns empty if count > length *)
-    let newMods = show_modification mods :: m.lastMods in
-    let maxLen = 10 in
-    if List.length newMods > maxLen
-    then List.take newMods ~count:maxLen
-    else newMods
-  in
-  ({newm with lastMsg = msg; lastMods}, newc)
+  ({newm with lastMsg = msg}, newc)
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =
