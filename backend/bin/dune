@@ -80,4 +80,3 @@
   (deps (file ../jsanalysis/jsanalysis.bc.js) (universe))
   (action (system "cp ../jsanalysis/jsanalysis.bc.js ../../../../backend/static/analysis.js"))
 )
-

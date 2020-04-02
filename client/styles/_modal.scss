@@ -31,16 +31,10 @@ $light-grey: $grey2;
       .subtext {
         width: 85%;
       }
-      .gif {
-        width: 60%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        img,
-        video {
-          width: 100%;
-        }
-      }
+    }
+    a.doc-link {
+      color: $white3;
+      display: inline;
     }
     .close-btn {
       position: relative;
@@ -63,6 +57,9 @@ $light-grey: $grey2;
       text-align: center;
     }
     .btn-wrap {
+      a {
+        text-decoration: none;
+      }
       display: flex;
       align-items: center;
       justify-content: center;

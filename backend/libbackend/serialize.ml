@@ -430,62 +430,60 @@ let transactionally_migrate_oplist
     ~(user_tipe_f : RTT.user_tipe -> RTT.user_tipe)
     () : (string, unit) Tc.Result.t =
   Log.inspecT "migrating oplists for" (host, tlid) ;
-  Db.run ~name:"start oplist migration" "BEGIN;" ~params:[] ;
   try
-    let oplist, rendered =
-      Db.fetch
-        ~name:"load_all_from_db"
-        (* SELECT FOR UPDATE locks row! *)
-        "SELECT data, rendered_oplist_cache FROM toplevel_oplists
+    Db.transaction ~name:"oplist migration" (fun () ->
+        let oplist, rendered =
+          Db.fetch
+            ~name:"load_all_from_db"
+            (* SELECT FOR UPDATE locks row! *)
+            "SELECT data, rendered_oplist_cache FROM toplevel_oplists
          WHERE canvas_id = $1
          AND tlid = $2
          FOR UPDATE"
-        ~params:[Uuid canvas_id; ID tlid]
-        ~result:BinaryResult
-      |> List.hd_exn
-      |> function
-      | [data; rendered_oplist_cache] ->
-          (Op.oplist_of_string data, rendered_oplist_cache)
-      | _ ->
-          Exception.internal "invalid oplists"
-    in
-    let try_convert f () = try Some (f rendered) with _ -> None in
-    let rendered =
-      if rendered = ""
-      then Db.Null
-      else
-        try_convert (translate_handler_as_binary_string ~f:handler_f) ()
-        |> Tc.Option.or_else_lazy
-             (try_convert (translate_db_as_binary_string ~f:db_f))
-        |> Tc.Option.or_else_lazy
-             (try_convert
-                (translate_user_function_as_binary_string ~f:user_fn_f))
-        |> Tc.Option.or_else_lazy
-             (try_convert (translate_user_tipe_as_binary_string ~f:user_tipe_f))
-        |> Tc.Option.map ~f:(fun str -> Db.Binary str)
-        |> Tc.Option.or_else_lazy (fun () ->
-               Exception.internal "none of the decoders worked on the cache")
-        |> Tc.Option.withDefault ~default:Db.Null
-    in
-    Db.run
-      ~name:"save per tlid oplist"
-      "UPDATE toplevel_oplists
+            ~params:[Uuid canvas_id; ID tlid]
+            ~result:BinaryResult
+          |> List.hd_exn
+          |> function
+          | [data; rendered_oplist_cache] ->
+              (Op.oplist_of_string data, rendered_oplist_cache)
+          | _ ->
+              Exception.internal "invalid oplists"
+        in
+        let try_convert f () = try Some (f rendered) with _ -> None in
+        let rendered =
+          if rendered = ""
+          then Db.Null
+          else
+            try_convert (translate_handler_as_binary_string ~f:handler_f) ()
+            |> Tc.Option.or_else_lazy
+                 (try_convert (translate_db_as_binary_string ~f:db_f))
+            |> Tc.Option.or_else_lazy
+                 (try_convert
+                    (translate_user_function_as_binary_string ~f:user_fn_f))
+            |> Tc.Option.or_else_lazy
+                 (try_convert
+                    (translate_user_tipe_as_binary_string ~f:user_tipe_f))
+            |> Tc.Option.map ~f:(fun str -> Db.Binary str)
+            |> Tc.Option.or_else_lazy (fun () ->
+                   Exception.internal "none of the decoders worked on the cache")
+            |> Tc.Option.withDefault ~default:Db.Null
+        in
+        Db.run
+          ~name:"save per tlid oplist"
+          "UPDATE toplevel_oplists
        SET data = $1,
            digest = $2,
            rendered_oplist_cache = $3
        WHERE canvas_id = $4
          AND tlid = $5"
-      ~params:
-        [ Binary (Op.oplist_to_string (oplist_f oplist))
-        ; String digest
-        ; rendered
-        ; Uuid canvas_id
-        ; ID tlid ] ;
-    Db.run ~name:"commit oplist migration" "COMMIT;" ~params:[] ;
+          ~params:
+            [ Binary (Op.oplist_to_string (oplist_f oplist))
+            ; String digest
+            ; rendered
+            ; Uuid canvas_id
+            ; ID tlid ]) ;
     Ok ()
-  with e ->
-    Db.run ~name:"rollback oplist migration" "ROLLBACK" ~params:[] ;
-    Error (Exception.to_string e)
+  with e -> Error (Exception.to_string e)
 
 
 let save_toplevel_oplist

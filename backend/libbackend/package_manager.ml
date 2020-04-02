@@ -206,36 +206,35 @@ let add_function (fn : fn) : unit =
         then fn.version
         else existing_version
   in
-  Db.run ~name:"add_package_management_function begin" "BEGIN" ~params:[] ;
-  (* After insert, also auto-deprecate any previous versions of fn *)
-  Db.run
-    ~name:"add_package_management_function insert"
-    "INSERT INTO packages_v0 (tlid, user_id, package, module, fnname, version,
-                              description, body, return_type, parameters, author_id, deprecated)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-            $10::jsonb, $11, $12)"
-    ~subject:(function_name fn)
-    ~params:
-      [ Db.Int63 fn.tlid
-      ; Db.Uuid user
-      ; Db.String fn.package
-      ; Db.String fn.module_
-      ; Db.String fn.fnname
-      ; Db.Int version
-      ; Db.String fn.description
-      ; Db.Binary (expr_to_string fn.tlid fn.body)
-      ; Db.String (Dval.tipe_to_string fn.return_type)
-      ; Db.String
-          (fn.parameters |> parameters_to_yojson |> Yojson.Safe.to_string)
-      ; Db.Uuid author
-      ; Db.Bool fn.deprecated ]
-    ~result:TextResult ;
-  (* Note: 'AND deprecated = false' is kind of a no-op, but it's slightly more
-   * elegant in that the rows-affected count is more meaningful, not that we use
-   * that currently *)
-  Db.run
-    ~name:"add_package_management_function deprecate old versions"
-    "UPDATE packages_v0
+  Db.transaction ~name:"add_package_management_function begin" (fun () ->
+      (* After insert, also auto-deprecate any previous versions of fn *)
+      Db.run
+        ~name:"add_package_management_function insert"
+        "INSERT INTO packages_v0 (tlid, user_id, package, module, fnname, version,
+                                  description, body, return_type, parameters, author_id, deprecated)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)"
+        ~subject:(function_name fn)
+        ~params:
+          [ Db.Int63 fn.tlid
+          ; Db.Uuid user
+          ; Db.String fn.package
+          ; Db.String fn.module_
+          ; Db.String fn.fnname
+          ; Db.Int version
+          ; Db.String fn.description
+          ; Db.Binary (expr_to_string fn.tlid fn.body)
+          ; Db.String (Dval.tipe_to_string fn.return_type)
+          ; Db.String
+              (fn.parameters |> parameters_to_yojson |> Yojson.Safe.to_string)
+          ; Db.Uuid author
+          ; Db.Bool fn.deprecated ]
+        ~result:TextResult ;
+      (* Note: 'AND deprecated = false' is kind of a no-op, but it's slightly more
+       * elegant in that the rows-affected count is more meaningful, not that we use
+       * that currently *)
+      Db.run
+        ~name:"add_package_management_function deprecate old versions"
+        "UPDATE packages_v0
      SET deprecated = true
      WHERE user_id = $1
      AND package = $2
@@ -243,16 +242,14 @@ let add_function (fn : fn) : unit =
      AND fnname = $4
      AND version < $5
      AND deprecated = false"
-    ~subject:(function_name fn)
-    ~params:
-      [ Db.Uuid user
-      ; Db.String fn.package
-      ; Db.String fn.module_
-      ; Db.String fn.fnname
-      ; Db.Int fn.version ]
-    ~result:TextResult ;
-  Db.run ~name:"add_package_management_function commit" "COMMIT" ~params:[] ;
-  ()
+        ~subject:(function_name fn)
+        ~params:
+          [ Db.Uuid user
+          ; Db.String fn.package
+          ; Db.String fn.module_
+          ; Db.String fn.fnname
+          ; Db.Int fn.version ]
+        ~result:TextResult)
 
 
 let save (author : string) (fn : RuntimeT.user_fn) : (unit, string) Result.t =
