@@ -2469,7 +2469,7 @@ let updateFromACItem
         (newAST, caretTargetForEndOfExpr' replacement)
     | TPartial _, Some oldExpr, Some (EPipe (_, firstExpr :: _)), Expr newExpr
       when oldExpr = firstExpr ->
-        (* special case of next match arm:
+        (* special case of the generic TPartial in EPipe case just below this:
           * when we are the first thing in the pipe, no pipe target required *)
         replacePartialWithArguments ~newExpr id s ast
     | ( TPartial _
