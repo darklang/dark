@@ -437,6 +437,10 @@ kubectl create clusterrolebinding circleci-admin-binding \
 --clusterrole=cluster-admin \
 --user=circleci-deployer@${DARK_CLUSTER_PROJECT}.iam.gserviceaccount.com
 
+kubectl create clusterrolebinding cert-manager-admin-binding \
+--clusterrole=cluster-admin \
+--user=cert-manager@${DARK_CLUSTER_PROJECT}.iam.gserviceaccount.com
+
 print_step "deploying code and containers"
 
 ./scripts/gke-deploy \
