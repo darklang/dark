@@ -165,7 +165,6 @@ let update (t : t) (msg : msg) : t * effect list
       in
       (settingsView, [NewCursor Deselected])
   | CloseSettingsView tab ->
-      (* Ideally, cross-component msg so we didn't need access to the model *)
       let settingsView =
         {t with opened = false; loading = false}
       in

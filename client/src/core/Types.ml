@@ -1316,7 +1316,7 @@ and msg =
   | CloseWelcomeModal
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
-  | SettingsViewMsg of SettingsViewTypes.settingsMsg
+  | SettingsViewMsg of SettingsView.msg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1666,7 +1666,7 @@ and model =
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
   ; currentUserFn : fnProps
-  ; settingsView : SettingsViewTypes.settingsViewState }
+  ; settingsView : SettingsView.t }
 
 and savedUserSettings = {showUserWelcomeModal : bool}
 

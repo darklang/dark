@@ -7,11 +7,11 @@ type formField =
 
 type inviteFields = {email : formField}
 
-type settingsTab =
-  | CanvasInfo
-  | UserSettings
-  | InviteUser of inviteFields
-[@@deriving show]
+(* type settingsTab = *)
+(*   | CanvasInfo *)
+(*   | UserSettings *)
+(*   | InviteUser of inviteFields *)
+(* [@@deriving show] *)
 
 type loadCanvasInfoAPIResult =
   { canvasDescription : string
@@ -36,10 +36,11 @@ type msg =
       (loadCanvasInfoAPIResult, (string Tea.Http.error[@opaque])) Tea.Result.t
 [@@deriving show]
 
-
-type effect = ToastShow of string
-            | NewCursor of cursorState
-            | APIError of apiError
+(* ToastEffect of (Toast.t -> Toast.t) *)
+type effect =
+  | ToastShow of string
+  | NewCursor of cursorState
+  | APIError of apiError
 
 val update : t -> msg -> t * effect list
 
