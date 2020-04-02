@@ -178,4 +178,16 @@ let run () =
       eq "nested same constructors" (ok (just (int 1))) (ok (just (int 1))) ;
       neq "diff constructors" (nothing ()) (just (int 1)) ;
       neq "constructor diff justs" (just (int 1)) (just (int 2)) ;
+      eq
+        "partials with same values"
+        (partial "List::" (fn "List::empty" []))
+        (partial "List::" (fn "List::empty" [])) ;
+      neq
+        "partials with diff strings"
+        (partial "List::" (fn "List::empty" []))
+        (partial "Dict::" (fn "List::empty" [])) ;
+      neq
+        "partials with diff exprs"
+        (partial "List::" (fn "List::empty" []))
+        (partial "Dict::" (fn "List::singleton" [int 1])) ;
       ())
