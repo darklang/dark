@@ -151,6 +151,7 @@ let canvas_from_db_opt (host_parts : string list) : host_route option =
    * get the wrong shape back from a query *)
   |> Option.map ~f:(fun canvas_name -> Canvas (canvas_name |> List.hd_exn))
 
+
 let should_use_https uri =
   let parts =
     uri |> Uri.host |> Option.value ~default:"" |> fun h -> String.split h '.'
