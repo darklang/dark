@@ -1165,7 +1165,5 @@ test("double_clicking_blankor_selects_it", async t => {
   // Selected text is /hello
   selector = Selector(".toplevel-name #entry-box");
   await t.expect(selector.exists).ok();
-  await t
-    .expect(await getElementSelectionStart(selector))
-    .typeOf('number');
+  await t.expect(await getElementSelectionStart(selector)).typeOf("number");
 });
