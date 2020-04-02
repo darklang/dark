@@ -3600,6 +3600,16 @@ let run () =
         ~pos:0
         (inputs [keypress K.SelectAll; DeleteContentBackward])
         "~___" ;
+      t
+        "replacing piped blank with fn does not insert pipe target"
+        aPipe
+        ~pos:2
+        (inputs
+           [ DeleteContentBackward
+           ; DeleteContentBackward
+           ; InsertText "List::append"
+           ; keypress K.Enter ])
+        "List::append ~___________ ___________\n|>List::append [5]\n|>List::append [5]\n" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
       (* TODO: test for deleting pipeed prefix fns *)
