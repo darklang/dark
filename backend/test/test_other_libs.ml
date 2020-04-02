@@ -1485,6 +1485,61 @@ let t_float_stdlibs () =
 let t_int_stdlibs () =
   let dstr = Dval.dstr_of_string_exn in
   check_dval
+    "Int::mod works (sweep, pos)"
+    (DList
+       [ Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1
+       ; Dval.dint 2
+       ; Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1
+       ; Dval.dint 2
+       ; Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1 ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (fn "Int::mod" [var "v"; int 4]) ])) ;
+  check_error_contains
+    "Int::mod errors (_, 0)"
+    (exec_ast' (fn "Int::mod" [int 5; int 0]))
+    "Expected the argument `b` argument passed to `Int::mod` to be positive, but it was `0`." ;
+  check_error_contains
+    "Int::mod errors (_, neg)"
+    (exec_ast' (fn "Int::mod" [int 5; int (-5)]))
+    "Expected the argument `b` argument passed to `Int::mod` to be positive, but it was `-5`." ;
+  check_dval
+    "% works (sweep, pos)"
+    (DList
+       [ Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1
+       ; Dval.dint 2
+       ; Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1
+       ; Dval.dint 2
+       ; Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1 ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (binop "%" (var "v") (int 4)) ])) ;
+  check_error_contains
+    "% errors (_, 0)"
+    (exec_ast' (binop "%" (int 5) (int 0)))
+    "Expected the argument `b` argument passed to `%` to be positive, but it was `0`." ;
+  check_error_contains
+    "% errors (_, neg)"
+    (exec_ast' (binop "%" (int 5) (int (-5))))
+    "Expected the argument `b` argument passed to `%` to be positive, but it was `-5`." ;
+  (*  (* Int::mod_v1 is not yet available; see implementation for why *)  
+  check_dval
     "Int::mod_v1 works (sweep, pos)"
     (DList
        [ DResult (ResOk (Dval.dint 3))
@@ -1510,7 +1565,7 @@ let t_int_stdlibs () =
   check_dval
     "Int::mod_v1 errors (_, neg)"
     (DResult (ResError (dstr "`modulus` must be positive but was -5")))
-    (exec_ast' (fn "Int::mod_v1" [int 5; int (-5)])) ;
+    (exec_ast' (fn "Int::mod_v1" [int 5; int (-5)])) ; *)
   check_dval
     "Int::remainder works (sweep, pos)"
     (DList
