@@ -73,7 +73,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   let variants = VariantTesting.enabledVariantTests () in
   let variants =
     (* TODO(alice) take out when we remove the variant *)
-    if isAdmin && not (List.member ~value:ExeCodeVariant variants)
+    if isAdmin
     then ExeCodeVariant :: variants
     else variants
   in
