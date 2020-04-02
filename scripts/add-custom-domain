@@ -43,7 +43,7 @@ echo "Adding (host,canvas)=(${DOMAIN},${CANVAS}) to custom_domains to configure 
 # another command (... | ./scripts/gcp-psql | grep ...)
 tmpfile=$(mktemp /tmp/custom_domain.XXXXXX)
 insert_query="INSERT INTO custom_domains (host, canvas) VALUES ('${DOMAIN}', '${CANVAS}')"
-echo "\\copy (${insert_query}) returning (host, canvas) TO ${tmpfile}" \
+echo "\\copy (${insert_query} returning (host, canvas)) TO ${tmpfile}" \
     | ./scripts/gcp-psql
 if ( grep . < "${tmpfile}" > /dev/null ); then
     echo "Added (${DOMAIN}, ${CANVAS}) to custom_domains table."
