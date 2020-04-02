@@ -740,7 +740,7 @@ let adminDebuggerView (m : model) : msg Html.html =
       [ Html.input'
           [Html.type' "checkbox"; Html.checked m.editorSettings.runTimers]
           []
-      ; Html.p [] [Html.text "Run Timers"] ]
+      ; Html.label [] [Html.text "Run Timers"] ]
   in
   let toggleFluidDebugger =
     Html.div
@@ -752,7 +752,18 @@ let adminDebuggerView (m : model) : msg Html.html =
           [ Html.type' "checkbox"
           ; Html.checked m.editorSettings.showFluidDebugger ]
           []
-      ; Html.p [] [Html.text "Show Fluid Debugger"] ]
+      ; Html.label [] [Html.text "Show Fluid Debugger"] ]
+  in
+  let toggleHandlerASTs =
+    Html.div
+      [ ViewUtils.eventNoPropagation ~key:"tgast" "mouseup" (fun _ ->
+            ToggleEditorSetting
+              (fun es -> {es with showHandlerASTs = not es.showHandlerASTs}))
+      ; Html.class' "checkbox-row" ]
+      [ Html.input'
+          [Html.type' "checkbox"; Html.checked m.editorSettings.showHandlerASTs]
+          []
+      ; Html.label [] [Html.text "Show Handler ASTs"] ]
   in
   let debugger =
     Html.a
@@ -773,8 +784,12 @@ let adminDebuggerView (m : model) : msg Html.html =
   let hoverView =
     [ Html.div
         [Html.class' "hover admin-state"]
-        [stateInfo; toggleTimer; toggleFluidDebugger; debugger; saveTestButton]
-    ]
+        [ stateInfo
+        ; toggleTimer
+        ; toggleFluidDebugger
+        ; toggleHandlerASTs
+        ; debugger
+        ; saveTestButton ] ]
   in
   let icon =
     Html.div

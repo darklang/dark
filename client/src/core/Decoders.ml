@@ -463,6 +463,11 @@ and savedSettings (j : Js.Json.t) : savedSettings =
   { editorSettings =
       { runTimers =
           withDefault true (field "editorSettings" (field "runTimers" bool)) j
+      ; showHandlerASTs =
+          withDefault
+            false
+            (field "editorSettings" (field "showHandlerASTs" bool))
+            j
       ; showFluidDebugger =
           withDefault
             false

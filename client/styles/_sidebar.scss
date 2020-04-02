@@ -283,12 +283,13 @@ $hoverColor: lighten($yellow, 10%);
               display: flex;
               align-items: center;
               height: 20px;
+              margin-left: 17px;
               cursor: pointer;
               input {
                 cursor: pointer;
               }
-              p {
-                margin-left: 5px;
+              label {
+                margin-left: 8px;
               }
             }
             .state-info {
