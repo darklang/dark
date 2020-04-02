@@ -37,7 +37,8 @@ type viewState =
   ; workerStats : workerStats option
   ; menuState : menuState
   ; isExecuting : bool
-  ; fnProps : fnProps }
+  ; fnProps : fnProps
+  ; showHandlerASTs : bool }
 
 (* ----------------------------- *)
 (* Events *)
@@ -145,7 +146,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
         (match hp with Some p -> p.execution = Executing | _ -> false)
       | TLDB _ | TLTipe _ | TLGroup _ ->
           false )
-  ; fnProps = m.currentUserFn }
+  ; fnProps = m.currentUserFn
+  ; showHandlerASTs = m.editorSettings.showHandlerASTs }
 
 
 let fontAwesome (name : string) : msg Html.html =

@@ -146,3 +146,13 @@ val clone : t -> t
   * NB: Only usable for tests right now. If you want to use for non-tests,
   * you'll need to complete the implementation and add tests *)
 val testEqualIgnoringIds : t -> t -> bool
+
+(** toHumanReadable returns a string of the expression tokenized into a
+ * human-readable S-exp-like formatting that contains newlines and truncated
+ * strings, which is meant to closely mirror the actual AST and aid in
+ * debugging.
+ *
+ * Do not attempt to parse this or use it in comparisons of any sort, as its
+ * format is not considered stable. Again, it is only for debugging with your
+ * squishy human eyes. *)
+val toHumanReadable : t -> string

@@ -655,3 +655,110 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
       failwith "TODO"
   | _ ->
       false
+
+
+let toHumanReadable (expr : t) : string =
+  let rec recurse ~(indent : int) (expr : t) : string =
+    let iStr = String.repeat ~count:indent " " in
+    let r = recurse ~indent in
+    let rin = recurse ~indent:(indent + 2) in
+    let newlineList exprs = exprs |> List.map ~f:rin |> String.join ~sep:"\n" in
+    let eStr =
+      match expr with
+      | EBlank _ ->
+          "(blank)"
+      | EString (_, str) ->
+          ( if String.length str > 20
+          then String.slice ~from:0 ~to_:20 str ^ "..."
+          else str )
+          |> Printf.sprintf {|(str "%s")|}
+      | EBool (_, true) ->
+          "(true)"
+      | EBool (_, false) ->
+          "(false)"
+      | EFloat (_, whole, fractional) ->
+          Printf.sprintf {|(%s.%s)|} whole fractional
+      | EInteger (_, i) ->
+          Printf.sprintf {|(%s)|} i
+      | ENull _ ->
+          "(null)"
+      | EPipeTarget _ ->
+          "(pt)"
+      | EPartial (_, str, e) ->
+          Printf.sprintf {|(partial "%s" %s)|} str (r e)
+      | ERightPartial (_, str, e) ->
+          Printf.sprintf {|(rpartial "%s" %s)|} str (r e)
+      | EFnCall (_, name, [], _) ->
+          Printf.sprintf "(fn \"%s\")" name
+      | EFnCall (_, name, exprs, _) ->
+          Printf.sprintf "(fn \"%s\"\n%s)" name (newlineList exprs)
+      | EBinOp (_, name, lhs, rhs, _) ->
+          Printf.sprintf "(binop \"%s\"\n%s\n%s)" name (r lhs) (r rhs)
+      | EVariable (_, name) ->
+          Printf.sprintf {|(%s)|} name
+      | EFieldAccess (_, e, name) ->
+          Printf.sprintf "(fieldAccess \"%s\"\n%s)" name (r e)
+      | EMatch (_, cond, matches) ->
+          let rec pToTestcase (p : FluidPattern.t) : string =
+            let quoted str = "\"" ^ str ^ "\"" in
+            let listed elems = "[" ^ String.join ~sep:";" elems ^ "]" in
+            let spaced elems = String.join ~sep:" " elems in
+            match p with
+            | FPBlank _ ->
+                "pBlank"
+            | FPString {str; _} ->
+                spaced ["pString"; quoted str]
+            | FPBool (_, _, true) ->
+                spaced ["pBool true"]
+            | FPBool (_, _, false) ->
+                spaced ["pBool false"]
+            | FPFloat (_, _, whole, fractional) ->
+                spaced ["pFloat'"; whole; fractional]
+            | FPInteger (_, _, int) ->
+                spaced ["pInt"; int]
+            | FPNull _ ->
+                "pNull"
+            | FPVariable (_, _, name) ->
+                spaced ["pVar"; quoted name]
+            | FPConstructor (_, _, name, args) ->
+                spaced
+                  [ "pConstructor"
+                  ; quoted name
+                  ; listed (List.map args ~f:pToTestcase) ]
+          in
+          let matchStrs =
+            List.map matches ~f:(fun (p, e) ->
+                "(" ^ pToTestcase p ^ ", " ^ r e ^ ")")
+          in
+          Printf.sprintf
+            {|(match\n%s\n%s)|}
+            (r cond)
+            (String.join ~sep:"\n" matchStrs)
+      | ERecord (_, []) ->
+          "(record)"
+      | ERecord (_, pairs) ->
+          let pairStrs =
+            List.map pairs ~f:(fun (k, v) ->
+                Printf.sprintf {|%s("%s" %s)|} iStr k (String.trim (r v)))
+          in
+          Printf.sprintf "(record\n%s)" (String.join ~sep:"\n" pairStrs)
+      | EList (_, []) ->
+          "(list)"
+      | EList (_, exprs) ->
+          Printf.sprintf "(list\n%s)" (newlineList exprs)
+      | EPipe (_, exprs) ->
+          Printf.sprintf "(pipe\n%s)" (newlineList exprs)
+      | EConstructor (_, name, exprs) ->
+          Printf.sprintf "(constructor \"%s\"\n%s)" name (newlineList exprs)
+      | EIf (_, cond, then', else') ->
+          Printf.sprintf "(if %s\n%s\n%s)" (r cond) (rin then') (rin else')
+      | ELet (_, lhs, rhs, body) ->
+          Printf.sprintf "(let %s\n%s\n%s)" lhs (rin rhs) (r body)
+      | ELambda (_, _names, body) ->
+          Printf.sprintf "(lambda \n%s)" (r body)
+      | EFeatureFlag (_, _, cond, old, new') ->
+          Printf.sprintf "(flag %s\n%s\n%s)" (rin cond) (rin old) (rin new')
+    in
+    iStr ^ eStr
+  in
+  recurse ~indent:0 expr

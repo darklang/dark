@@ -62,7 +62,8 @@ let run () =
             ; fnProps =
                 { draggingParamIndex = None
                 ; dragOverSpaceIndex = None
-                ; justMovedParam = None } }
+                ; justMovedParam = None }
+            ; showHandlerASTs = false }
           in
           expect (placeHolderFor vs ParamName) |> toEqual "param name") ;
       ()) ;
