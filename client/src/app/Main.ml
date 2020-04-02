@@ -987,8 +987,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
 
 
 let update_ (msg : msg) (m : model) : modification =
-  if m.integrationTestState <> NoIntegrationTest
-  then Debug.loG "msg update" (show_msg msg) ;
+  (* if m.integrationTestState <> NoIntegrationTest *)
+  (* then *)
+  Debug.loG "msg update" (show_msg msg) ;
   match msg with
   | GlobalKeyPress event ->
       KeyPress.handler event m
@@ -1124,6 +1125,8 @@ let update_ (msg : msg) (m : model) : modification =
           Fluid.update m FluidMouseUpExternal
       | _ ->
           NoChange )
+  | IgnoreMouseUp ->
+      Fluid.update m FluidMouseUpExternal
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
   | BlankOrMouseLeave (tlid, id, _) ->
