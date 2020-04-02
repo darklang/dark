@@ -1120,6 +1120,8 @@ let update_ (msg : msg) (m : model) : modification =
         | None ->
             ReplaceAllModificationsWithThisOne
               (CursorState.setCursorState origCursorState) )
+      | FluidEntering _ ->
+          Fluid.update m FluidMouseUpExternal
       | _ ->
           NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
