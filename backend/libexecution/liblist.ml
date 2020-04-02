@@ -692,6 +692,25 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["List::indexedMap"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; func ["index"; "val"]]
+    ; return_type = TList
+    ; description =
+        "Calls `f` on every `val` and its `index` in `list`, returning a list of the results of those calls.
+        Consider `List::map` if you don't need the index."
+    ; func =
+        InProcess
+          (function
+          | state, [DList l; DBlock b] ->
+              let f (idx : int) (dv : dval) : dval =
+                Ast.execute_dblock ~state b [Dval.dint idx; dv]
+              in
+              Dval.to_list (List.mapi ~f l)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["List::map2shortest"]
     ; infix_names = []
     ; parameters = [par "as" TList; par "bs" TList; func ["a"; "b"]]
