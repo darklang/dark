@@ -71,6 +71,16 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     InitialParameters.fromString encodedParamString
   in
   let variants = VariantTesting.enabledVariantTests () in
+  let variants =
+    (* TODO(alice) take out when we remove the variant *)
+    (* Check user didn't manually disable this variant *)
+    if isAdmin
+       && not
+            ( Url.queryParams ()
+            |> List.any ~f:(fun (prop, on) -> prop = "exe" && on = false) )
+    then ExeCodeVariant :: variants
+    else variants
+  in
   let m = SavedSettings.load canvasName |> SavedSettings.toModel in
   let m = SavedUserSettings.load username |> SavedUserSettings.toModel m in
   let page =
