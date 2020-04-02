@@ -291,9 +291,9 @@ let fnForToken (functions : Functions.t) token : function_ option =
   | _ ->
       None
 
-module DocStrRender = struct
-  let tagEx = "^(.*)\\<(\\w+)\\s(.+)\\>(.*)$"
-  let consEx ="^(.*)\\{(.+)\\}(.*)$"
+module PrettyDocs = struct
+  let tagEx = "(.*)\\<(\\w+)\\s(.+)\\>(.*)"
+  let consEx ="(.*)\\{(.+)\\}(.*)"
   
   let rec convert (s: string) : msg Html.html list=
     if s = ""
@@ -301,7 +301,7 @@ module DocStrRender = struct
     else
       match Regex.captures ~re:(Regex.regex consEx) s with
       | [_; before; inside; after] -> 
-       (convert before) @ (Html.span [Html.class' "cons"] (convert inside) :: convert after)
+       (convert before) @ (Html.span [Html.class' "code"] (convert inside) :: convert after)
       | _ ->
       (match Regex.captures ~re:(Regex.regex tagEx) s with
       | [_;before; tagType; tagData;after] ->
