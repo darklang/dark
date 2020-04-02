@@ -4319,7 +4319,7 @@ let rec updateKey
                     , ""
                     , EFieldAccess (gid (), committedAccess, "") )
               | e ->
-                  recover ("found unexpected expr " ^ E.show e) e)
+                  recover ("updateKey insert . - unexpected expr " ^ E.show e) e)
         in
         let ct = {astRef = ARPartial newPartialID; offset = 0} in
         let s = moveToCaretTarget s ast ct in
