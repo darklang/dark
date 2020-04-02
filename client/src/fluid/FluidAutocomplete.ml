@@ -613,6 +613,7 @@ let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
   let p (text : string) = Html.p [] [Html.text text] in
   let typeDoc = typeErrorDoc {item; validity} in
   let simpleDoc (text : string) = Some [p text; typeDoc] in
+  let deprecated = Html.span [Html.class' "err"] [Html.text "DEPRECATED: "] in
   match item with
   | FACFunction f ->
       let desc =
@@ -620,8 +621,9 @@ let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
         then f.fnDescription
         else "Function call with no description"
       in
-      let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
-      Some [p desc; ViewErrorRailDoc.hintForFunction f None; typeDoc]
+      let desc = ViewUtils.PrettyDocs.convert desc in
+      let desc = if f.fnDeprecated then deprecated :: desc else desc in
+      Some (desc @[ViewErrorRailDoc.hintForFunction f None; typeDoc])
   | FACConstructorName ("Just", _) ->
       simpleDoc "An Option containing a value"
   | FACConstructorName ("Nothing", _) ->

@@ -10,10 +10,13 @@
   overflow-wrap: break-word;
   a {
     color: $blue;
+    text-decoration: underline;
     &:hover {
       color: $purple;
     }
   }
+  
+  /* TODO(alice) rename these */
   .type-error {
     color: lighten(saturate($red, 25%), 30%);
   }
@@ -24,5 +27,20 @@
   }
   .type-name {
     color: $green;
+  }
+  
+
+.param, .fn, .var {
+  color: lighten($purple, 10%);
+}
+
+.type { color:$green; }
+.return {color: lighten($orange, 15%); }
+.err { color: lighten(saturate($red, 25%), 30%); }
+
+.code {
+	  background-color: $grey1;
+    padding: 0 0.5em;
+	  white-space: nowrap;
   }
 }

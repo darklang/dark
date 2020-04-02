@@ -19,24 +19,24 @@ let run () =
       ()) ;
 
   (* TODO(alice) mv to it's own test file *)
- describe "DocStrRender" (fun () ->
+ describe "PrettyDocs" (fun () ->
     let span c t = Html.span [Html.class' c] [Html.text t] in
     test "converts tagged string" (fun ()->
-      expect (DocStrRender.convert "takes in <type Option>") |> toEqual 
+      expect (PrettyDocs.convert "takes in <type Option>") |> toEqual 
       [Html.text "takes in "; Html.span [Html.class' "type"][Html.text "Option"]]
     );
     test "converts normal string" (fun ()->
-      expect (DocStrRender.convert "Bye") |> toEqual [Html.text "Bye"]
+      expect (PrettyDocs.convert "Bye") |> toEqual [Html.text "Bye"]
     );
     test "converts constructors" (fun () ->
-      expect (DocStrRender.convert "{Ok <var value>}")
+      expect (PrettyDocs.convert "{Ok <var value>}")
       |> toEqual [Html.span [Html.class' "cons"] [
           Html.text "Ok "
         ; Html.span [Html.class' "var"] [Html.text "value"]
       ]]
     );
     test "converts string with multiple tags and a constructor" (fun () ->
-      expect (DocStrRender.convert "<return Returns> an <type Result>. If it is {Error <var message>}, then it will go to error rail")
+      expect (PrettyDocs.convert "<return Returns> an <type Result>. If it is {Error <var message>}, then it will go to error rail")
       |> toEqual 
         [ span "return" "Returns"
         ; Html.text " an "
@@ -44,6 +44,15 @@ let run () =
         ; Html.text ". If it is "
         ; Html.span [Html.class' "cons"] [Html.text "Error "; span "var" "message"]
         ; Html.text ", then it will go to error rail"
+        ]
+    );
+    test "Dark Internal" (fun () ->
+      let str = "<return Return> a <type list> of all user email addresses for non-admins and not in @darklang.com or @example.com" in
+      expect(PrettyDocs.convert str) |> toEqual
+        [ span "return" "Return"
+        ; Html.text " a "
+        ; span "type" "list"
+        ; Html.text " of all user email addresses for non-admins and not in @darklang.com or @example.com"
         ]
     );
     ());
