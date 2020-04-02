@@ -4,6 +4,7 @@ let fns =
   @ Libdate.fns
   @ Libdict.fns
   @ Libfloat.fns
+  @ Libmath.fns
   @ Libhttp.fns
   @ Libhttpclient.fns
   @ Libint.fns
