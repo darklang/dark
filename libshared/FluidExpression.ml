@@ -648,10 +648,10 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
       eq3 (cond, cond') (old, old') (knew, knew')
   | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
       s = s' && eqList ts ts'
-  | ELambda _, ELambda _
-  | EPartial _, EPartial _
-  | ERightPartial _, ERightPartial _
-  | EMatch _, EMatch _ ->
+  | EPartial (_, str, e), EPartial (_, str', e') ->
+      str = str' && eq e e'
+  | ELambda _, ELambda _ | ERightPartial _, ERightPartial _ | EMatch _, EMatch _
+    ->
       failwith "TODO"
   | _ ->
       false
