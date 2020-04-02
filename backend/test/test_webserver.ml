@@ -34,7 +34,7 @@ let t_should_use_https () =
 
 let t_route_host () =
   let custom_domain = "route_host.customdomain.com" in
-  let canvas = "test" in
+  let canvas = "test-route_host" in
   let open Libbackend.Webserver in
   Db.run
     ~name:"insert test custom_domain"
@@ -46,7 +46,7 @@ let t_route_host () =
     (* kian-venufm is the legacy hardcoded-in-webserver.ml case; foo checks
      * *.builtwithdark.com;  custom_domain checks routing via the db's
      * custom_domains table *)
-    ["kian-venufm"; "foo"; custom_domain]
+    ["kian-venufm"; "foo"; "test-route_host"]
     ( [ "http://api.venu.fm"
       ; "http://foo.builtwithdark.com"
       ; "http://" ^ custom_domain ]
