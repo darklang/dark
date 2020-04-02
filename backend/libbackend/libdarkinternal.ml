@@ -551,7 +551,7 @@ that's already taken, returns an error."
     ; parameters = [par "host" TStr; par "tlid" TStr]
     ; return_type = TBool
     ; description =
-        "Takes a `host` and a `tlid` and returns true iff. we can load+parse traces for the handler identified by `tlid`, and false otherwise"
+        "Takes a <var host> and a <var tlid> and <return returns> {true} iff we can load and parse traces for the handler identified by <var tlid>, and {false} otherwise."
     ; func =
         internal_fn (function
             | _, [DStr host; DStr tlid] ->
