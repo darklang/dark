@@ -185,15 +185,13 @@ let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
           then Html.br []
           else Vdom.noNode
         in
+        let viewDval = viewDval vs.tlid dval ~canCopy:true in
         Html.div
           [ Html.classList
               [ ("return-value", true)
               ; ("refreshed", isRefreshed)
               ; ("incomplete", isIncomplete) ] ]
-          [ Html.text "This trace returns: "
-          ; newLine
-          ; Html.text dvalString
-          ; auxText ]
+          ([Html.text "This trace returns: "; newLine] @ viewDval @ [auxText])
     | _ ->
         Vdom.noNode
   else Vdom.noNode
