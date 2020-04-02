@@ -1224,6 +1224,7 @@ and segmentTrack =
 
 and msg =
   | IgnoreMsg of (* debug string so you know where it came from *) string
+  | IgnoreMouseUp (* for nothingMouseEvent *)
   | FluidMsg of fluidMsg
   | AppMouseDown of mouseEvent
   | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]
