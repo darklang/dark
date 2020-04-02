@@ -289,8 +289,14 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["String::append"]
-    ; infix_names = ["++"]
+  ; { prefix_names =
+        ["String::append"]
+        (* This used to provide "++" as an infix op.
+         * It was moved to [String::append_v1] instead,
+         * because we do not yet support versioning infix operators.
+         * We decided this was safe under the assumption that no one should be
+         * (and very likely no one is) relying on broken normalization. *)
+    ; infix_names = []
     ; parameters = [par "s1" TStr; par "s2" TStr]
     ; return_type = TStr
     ; description = "Concatenates the two strings and returns the joined string"
@@ -298,13 +304,16 @@ let fns : fn list =
         InProcess
           (function
           | _, [DStr s1; DStr s2] ->
+              (* This implementation does not normalize post-concatenation.
+              * This is a problem because it breaks our guarantees about strings always being normalized;
+              * concatenating two normalized strings does not always result in a normalized string. *)
               DStr (Unicode_string.append_broken s1 s2)
           | args ->
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::append_v1"]
-    ; infix_names = ["++_v1"]
+    ; infix_names = ["++"]
     ; parameters = [par "s1" TStr; par "s2" TStr]
     ; return_type = TStr
     ; description =
