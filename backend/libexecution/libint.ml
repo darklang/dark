@@ -16,50 +16,41 @@ let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
   [ { prefix_names = ["Int::mod"]
-    ; infix_names = []
-    ; parameters = [par "value" TInt; par "modulus" TInt]
-    ; return_type = TInt
-    ; description =
-        "Returns the result of wrapping `value` around so that `0 <= res < modulus`.
-         Does not work if `modulus` is 0 or negative.
-         Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
-    ; func =
-        InProcess
-          (function
-          | _, [DInt a; DInt b] ->
-              DInt (Dint.modulo_exn a b)
-          | args ->
-              fail args)
-    ; preview_safety =
-        Safe
-        (*
-         * This is deprecated in favor of a version that returns a Result; this one raises an exception (and rollbars) on negative [modulus].
-         *)
-    ; deprecated = true }
-  ; { prefix_names = []
     ; infix_names = ["%"]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
     ; description =
         "Returns the result of wrapping `a` around so that `0 <= res < b`.
-         Does not work if `b` is 0 or negative.
+         The modulus `b` must be 0 or negative.
          Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
     ; func =
         InProcess
           (function
-          | _, [DInt a; DInt b] ->
-              DInt (Dint.modulo_exn a b)
+          | state, [DInt v; DInt m] ->
+            ( try DInt (Dint.modulo_exn v m)
+              with e ->
+                if m <= Dint.of_int 0
+                then
+                  DError
+                    ( SourceNone
+                    , Printf.sprintf
+                        "Expected the argument `b` argument passed to `%s` to be positive, but it was `%s`."
+                        state.executing_fnname
+                        (Dval.to_developer_repr_v0 (DInt m)) )
+                else (* In case there's another failure mode, rollbar *)
+                  raise e )
           | args ->
               fail args)
     ; preview_safety =
         Safe
         (* 
          * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types. 
-         * The current function raises an exception (and rollbars) on negative `b`.
+         * The current function returns DError (it used to rollbar) on negative `b`.
          *)
-    ; deprecated = false }
+    ; deprecated = true }
+    (*  (* See above for when to uncomment this *)
   ; { prefix_names = ["Int::mod_v1"]
-    ; infix_names = []
+    ; infix_names = ["%_v1"]
     ; parameters = [par "value" TInt; par "modulus" TInt]
     ; return_type = TResult
     ; description =
@@ -85,7 +76,7 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = false } *)
   ; { prefix_names = ["Int::remainder"]
     ; infix_names = []
     ; parameters = [par "value" TInt; par "divisor" TInt]
