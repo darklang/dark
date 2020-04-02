@@ -1202,6 +1202,9 @@ and fluidMsg =
   | FluidPaste of clipboardContents
   | FluidMouseDown of TLID.t
   | FluidMouseUp of fluidMouseUp
+  | (* A mouse click has happened elsewhere that might have started in fluid, so
+     * let fluid know *)
+      FluidMouseUpExternal
   | FluidMouseDoubleClick of fluidMouseDoubleClick
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
