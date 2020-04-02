@@ -774,8 +774,13 @@ let adminDebuggerView (m : model) : msg Html.html =
   in
   let hoverView =
     Html.div
-      [Html.class' "section-content"]
-      [stateInfo; toggleTimer; toggleFluidDebugger; toggleHandlerASTs; debugger; saveTestButton]
+      [Html.class' "category-content"]
+      [ stateInfo
+      ; toggleTimer
+      ; toggleFluidDebugger
+      ; toggleHandlerASTs
+      ; debugger
+      ; saveTestButton ]
   in
   let icon =
     Html.div
