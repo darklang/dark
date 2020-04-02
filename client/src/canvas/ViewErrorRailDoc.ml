@@ -40,9 +40,8 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                ; txt " and returns the unwrapped "
                ; tag "var" [txt "value"]
                ; txt " in "
-                ; tag "code" [txt "Just "; tag "var" [txt "value"]]
-                ; txt " otherwise."
-               ])
+               ; tag "code" [txt "Just "; tag "var" [txt "value"]]
+               ; txt " otherwise." ])
       | TResult ->
           Some
             (Html.p
@@ -54,9 +53,8 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                ; txt " and returns the unwrapped "
                ; tag "var" [txt "value"]
                ; txt " in "
-               ; tag "code" [txt "Ok ";tag "var" [txt "value"]]
-               ; txt " otherwise."
-               ])
+               ; tag "code" [txt "Ok "; tag "var" [txt "value"]]
+               ; txt " otherwise." ])
       | _ ->
           None )
     | Some sendToRail ->
@@ -78,8 +76,7 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                ; tag "cmd" [txt "take-function-off-rail"]
                ; txt " to handle the "
                ; tag "code" [txt "Nothing"]
-               ; txt " case manually."
-               ])
+               ; txt " case manually." ])
       | TOption, NoRail ->
           Some
             (Html.p
@@ -101,7 +98,7 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                [ txt "This function goes to the "
                ; errorRail
                ; txt " on "
-               ; tag "code" [txt "Error " ; tag "var" [txt "message"]]
+               ; tag "code" [txt "Error "; tag "var" [txt "message"]]
                ; txt " and returns the unwrapped "
                ; tag "var" [txt "value"]
                ; txt " in "
@@ -109,9 +106,8 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                ; txt " otherwise. Use the command "
                ; tag "cmd" [txt "take-function-off-rail"]
                ; txt " to handle the "
-                ; tag "code" [txt "Error "; tag "var" [txt "message"]]
-                ; txt " case."
-                ])
+               ; tag "code" [txt "Error "; tag "var" [txt "message"]]
+               ; txt " case." ])
       | TResult, NoRail ->
           Some
             (Html.p
@@ -119,7 +115,7 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                [ txt "This function is not on the "
                ; errorRail
                ; txt ", so you need to handle "
-               ; tag "code" [txt "Error " ; tag "var" [txt "message"]]
+               ; tag "code" [txt "Error "; tag "var" [txt "message"]]
                ; txt " and "
                ; tag "code" [txt "Ok "; tag "var" [txt "value"]]
                ; txt " manually. Alternatively, use "

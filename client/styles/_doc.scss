@@ -15,35 +15,29 @@
       color: $purple;
     }
   }
-  
-  /* TODO(alice) rename these */
-  .type-error {
-    color: lighten(saturate($red, 25%), 30%);
-  }
 
-  .function-name,
-  .parameter-name {
+  .param,
+  .fn,
+  .var {
     color: lighten($purple, 10%);
   }
-  .type-name {
+
+  .type {
     color: $green;
   }
-  
+  .return {
+    color: lighten($orange, 15%);
+  }
+  .err {
+    color: lighten(saturate($red, 25%), 30%);
+  }
+  .cmd {
+    color: lighten($pink, 5%);
+    white-space: nowrap;
+  }
 
-.param, .fn, .var {
-  color: lighten($purple, 10%);
-}
-
-.type { color:$green; }
-.return {color: lighten($orange, 15%); }
-.err { color: lighten(saturate($red, 25%), 30%); }
-.cmd {
-  color: lighten($pink, 5%);
-  white-space: nowrap;
-}
-
-.code {
-	  background-color: $grey1;
+  .code {
+    background-color: $grey1;
     padding: 0 0.5em;
     white-space: nowrap;
   }

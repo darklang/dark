@@ -291,30 +291,30 @@ let fnForToken (functions : Functions.t) token : function_ option =
   | _ ->
       None
 
+
 module PrettyDocs = struct
   let tagEx = "(.*)\\<(\\w+)\\s(.+)\\>(.*)"
-  let consEx ="(.*)\\{(.+)\\}(.*)"
 
-  let txt (s: string) : msg Html.html =
-    Html.text s
-  
-  let tag (cls: string) (content: msg Html.html list) : msg Html.html =
+  let consEx = "(.*)\\{(.+)\\}(.*)"
+
+  let txt (s : string) : msg Html.html = Html.text s
+
+  let tag (cls : string) (content : msg Html.html list) : msg Html.html =
     Html.span [Html.class' cls] content
-  
-  let rec convert (s: string) : msg Html.html list=
+
+
+  let rec convert (s : string) : msg Html.html list =
     if s = ""
     then []
     else
       match Regex.captures ~re:(Regex.regex consEx) s with
-      | [_; before; inside; after] -> 
-       (convert before) @ (tag "code" (convert inside) :: convert after)
+      | [_; before; inside; after] ->
+          convert before @ (tag "code" (convert inside) :: convert after)
       | _ ->
-      (match Regex.captures ~re:(Regex.regex tagEx) s with
-      | [_;before; tagType; tagData;after] ->
-        let tagNode =
-            tag tagType (convert tagData)
-        in
-        (convert before) @ (tagNode :: convert after)
-      | _ -> [txt s])
-
+        ( match Regex.captures ~re:(Regex.regex tagEx) s with
+        | [_; before; tagType; tagData; after] ->
+            let tagNode = tag tagType (convert tagData) in
+            convert before @ (tagNode :: convert after)
+        | _ ->
+            [txt s] )
 end
