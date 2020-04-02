@@ -495,7 +495,9 @@ let view (m : model) : msg Html.html =
   let modal =
     (* Temporarily disabling modal || m.showUserWelcomeModal *)
     if (not (m.integrationTestState <> NoIntegrationTest))
-       && (m.unsupportedBrowser || m.showUserWelcomeModal)
+       && ( m.unsupportedBrowser
+          || m.showUserWelcomeModal
+          || VariantTesting.variantIsActive m ForceWelcomeModalVariant )
     then ViewModal.html m
     else Vdom.noNode
   in

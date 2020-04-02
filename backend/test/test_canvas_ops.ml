@@ -336,6 +336,59 @@ let t_canvas_verification_undo_rename_duped_name () =
   AT.check AT.bool "should then fail to verify" false (Result.is_ok c2)
 
 
+let t_canvas_clone () =
+  Canvas.load_and_resave_from_test_file "sample-gettingstarted" ;
+  Account.insert_user
+    ~username:"clone"
+    ~email:"clone@example.com"
+    ~name:"clone"
+    ()
+  |> Result.ok_or_failwith ;
+  Canvas_clone.clone_canvas
+    ~from_canvas_name:"sample-gettingstarted"
+    ~to_canvas_name:"clone-gettingstarted"
+    ~preserve_history:false
+  |> Result.ok_or_failwith ;
+  let sample_canvas =
+    Canvas.load_all "sample-gettingstarted" []
+    |> Tc.Result.map_error (String.concat ~sep:", ")
+    |> Result.ok_or_failwith
+  in
+  let cloned_canvas : Canvas.canvas ref =
+    Canvas.load_all "clone-gettingstarted" []
+    |> Tc.Result.map_error (String.concat ~sep:", ")
+    |> Result.ok_or_failwith
+  in
+  (* canvas.ops is not [op list], it is [(tlid, op list) list] *)
+  let canvas_ops_length (c : Canvas.canvas) =
+    c.ops |> List.map ~f:snd |> List.join |> List.length
+  in
+  AT.check
+    AT.bool
+    "fewer ops means we removed old history"
+    true
+    (canvas_ops_length !cloned_canvas < canvas_ops_length !sample_canvas) ;
+  AT.check
+    AT.bool
+    "Same DBs"
+    true
+    (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas.dbs) ;
+  AT.check
+    AT.string
+    "Same handlers, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
+    ( !sample_canvas.handlers
+    |> Toplevel.toplevels_to_yojson
+    |> Yojson.Safe.to_string
+    |> fun s ->
+    Libexecution.Util.string_replace
+      "http://sample-gettingstarted.builtwithdark.localhost"
+      "http://clone-gettingstarted.builtwithdark.localhost"
+      s )
+    ( !cloned_canvas.handlers
+    |> Toplevel.toplevels_to_yojson
+    |> Yojson.Safe.to_string )
+
+
 let suite =
   [ ("undo", `Quick, t_undo)
   ; ("undo_fns", `Quick, t_undo_fns)
@@ -369,4 +422,5 @@ let suite =
     , t_load_all_dbs_from_cache )
   ; ( "Adding a DB with a duplicate name fails to verify"
     , `Quick
-    , t_canvas_verification_duplicate_creation_off_disk ) ]
+    , t_canvas_verification_duplicate_creation_off_disk )
+  ; ("Check canvas_clone", `Quick, t_canvas_clone) ]

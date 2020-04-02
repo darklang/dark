@@ -17,3 +17,7 @@ type postgres_config =
   ; password : string }
 
 val postgres_settings : postgres_config
+
+val getting_started_canvas_name : string
+
+val getting_started_canvas_source : string

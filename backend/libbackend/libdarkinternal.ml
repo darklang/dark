@@ -249,9 +249,26 @@ that's already taken, returns an error."
                     ~name
                     ~segment_metadata
                     ()
-                  |> Result.map ~f:(fun r ->
-                         Stroller.segment_identify_user username ;
-                         r)
+                  |> Result.map ~f:(fun () ->
+                         Stroller.segment_identify_user username)
+                  |> Result.bind ~f:(fun () ->
+                         let to_canvas_name =
+                           username
+                           ^ "-"
+                           ^ Libservice.Config.getting_started_canvas_name
+                         in
+                         let from_canvas_name =
+                           Libservice.Config.getting_started_canvas_source
+                         in
+                         Canvas_clone.clone_canvas
+                           ~from_canvas_name
+                           ~to_canvas_name
+                             (* Don't preserve history here, it isn't useful and
+                              * we don't currently have visibility into canvas
+                              * history, so we'd rather not share unknown sample-
+                              * history with users in case it contains
+                              * sensitive information like access keys. *)
+                           ~preserve_history:false)
                 in
                 ( match result with
                 | Ok () ->

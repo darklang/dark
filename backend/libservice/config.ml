@@ -36,3 +36,11 @@ let pgpassword = password "DARK_CONFIG_DB_PASSWORD"
 
 let postgres_settings : postgres_config =
   {host = pghost; dbname = pgdbname; user = pguser; password = pgpassword}
+
+
+let getting_started_canvas_name =
+  string "DARK_CONFIG_GETTING_STARTED_CANVAS_NAME"
+
+
+let getting_started_canvas_source =
+  string "DARK_CONFIG_GETTING_STARTED_CANVAS_SOURCE"

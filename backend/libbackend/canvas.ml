@@ -369,14 +369,19 @@ let name_for_id (id : Uuidm.t) : string =
   |> List.hd_exn
 
 
-let id_for_name (name : string) : Uuidm.t =
-  Db.fetch_one
+let id_for_name_option (name : string) : Uuidm.t option =
+  Db.fetch_one_option
     ~name:"fetch_canvas_id"
     "SELECT id FROM canvases WHERE name = $1"
-    ~params:[String name]
-  |> List.hd_exn
-  |> Uuidm.of_string
-  |> Option.value_exn
+    ~params:[Db.String name]
+  (* If List.hd_exn exn's, it means that `SELECT id` returned a record with more
+   * than one field..  Can't happen. *)
+  |> Option.map ~f:List.hd_exn
+  |> Option.bind ~f:Uuidm.of_string
+
+
+let id_for_name (name : string) : Uuidm.t =
+  name |> id_for_name_option |> Option.value_exn
 
 
 let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit

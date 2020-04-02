@@ -285,7 +285,33 @@ let ast_of (op : op) : Types.RuntimeT.expr option =
   match op with
   | SetFunction {ast; _} | SetExpr (_, _, ast) | SetHandler (_, _, {ast; _}) ->
       Some ast
-  | _ ->
+  | CreateDB (_, _, _)
+  | AddDBCol (_, _, _)
+  | SetDBColName (_, _, _)
+  | SetDBColType (_, _, _)
+  | DeleteTL _
+  | MoveTL (_, _)
+  | TLSavepoint _
+  | UndoTL _
+  | RedoTL _
+  | DeleteFunction _
+  | ChangeDBColName (_, _, _)
+  | ChangeDBColType (_, _, _)
+  | DeprecatedInitDbm (_, _, _, _, _)
+  | CreateDBMigration (_, _, _, _)
+  | AddDBColToDBMigration (_, _, _)
+  | SetDBColNameInDBMigration (_, _, _)
+  | SetDBColTypeInDBMigration (_, _, _)
+  | DeleteColInDBMigration (_, _)
+  | AbandonDBMigration _
+  | DeleteDBCol (_, _)
+  | RenameDBname (_, _)
+  | CreateDBWithBlankOr (_, _, _, _)
+  | DeleteTLForever _
+  | DeleteFunctionForever _
+  | SetType _
+  | DeleteType _
+  | DeleteTypeForever _ ->
       None
 
 

@@ -1331,6 +1331,7 @@ and variantTest =
       StubVariant
   | GroupVariant
   | NgrokVariant
+  | ForceWelcomeModalVariant
   | ExeCodeVariant
 
 (* ----------------------------- *)

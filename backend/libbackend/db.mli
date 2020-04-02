@@ -34,7 +34,7 @@ type result =
 (* unparsed binary data *)
 
 (* NOTE: run is not allowed to receive multiple commands. If you
- * want multiple statements, put a BEGIN/END around them. *)
+ * want multiple statements, use [transaction] *)
 val run :
      params:param list
   -> ?result:result
@@ -42,6 +42,8 @@ val run :
   -> ?subject:string
   -> string
   -> unit
+
+val transaction : name:string -> (unit -> unit) -> unit
 
 val delete :
      params:param list

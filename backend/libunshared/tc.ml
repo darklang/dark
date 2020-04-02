@@ -41,6 +41,10 @@ module Result = struct
         Error a
     | Error a, Error _ ->
         Error a
+
+
+  let map_error (f : 'err1 -> 'err2) (r : ('err1, 'ok) t) : ('err2, 'ok) t =
+    Base.Result.map_error ~f r
 end
 
 module List = struct
