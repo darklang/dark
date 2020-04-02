@@ -266,6 +266,17 @@ kubectl apply -f scripts/support/kubernetes/tunnel/isolate-tunnel.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-service.yaml
 kubectl apply -f scripts/support/kubernetes/postgres-honeytail-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/reloader.yaml
+kubectl apply -f scripts/support/kubernetes/certs/cert-manager.yaml
+
+# THIS IS DELIBERATELY create AND NOT apply!
+#
+# This ingress is `kubectl patch`'d to add new custom domains; `kubectl
+# apply`ing the file over that would lose us those custom domains, so we don't
+# want to do that.
+#
+# Expected output if this is not the first time the cluster is being created:
+# Error from server (AlreadyExists): error when creating "scripts/support/kubernetes/certs/darkcustomdomain-ingress.yaml": ingresses.extensions "darkcustomdomain-l4-ingress" already exists
+kubectl create -f scripts/support/kubernetes/certs/darkcustomdomain-ingress.yaml || true
 
 #########################
 # Tell everyone else what's going on
