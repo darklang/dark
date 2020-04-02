@@ -28,7 +28,7 @@ let html (_m : model) =
             ; ViewUtils.eventNoPropagation
                 ~key:"toggle-topbar"
                 "mouseup"
-                (fun _ -> IgnoreMsg) ]
+                (fun _ -> IgnoreMsg "topbar") ]
             [Html.text "Fill in message here"]
         ; msgLink ~key:"hide-topbar" (Html.text "(hide)") HideTopbar ] ]
   else []

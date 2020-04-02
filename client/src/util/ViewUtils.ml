@@ -237,7 +237,7 @@ let onAnimationEnd ~(key : string) ~(listener : string -> msg) :
 
 
 let nothingMouseEvent (name : string) : msg Vdom.property =
-  eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg)
+  eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg "nothing-mouse-event")
 
 
 let placeHtml (pos : pos) (classes : 'a list) (html : msg Html.html list) :

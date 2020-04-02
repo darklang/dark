@@ -23,7 +23,7 @@ let defaultPasteHandler =
     ~key:"paste"
     "paste"
     {stopPropagation = true; preventDefault = false}
-    (Decoders.wrapDecoder (fun _ -> IgnoreMsg))
+    (Decoders.wrapDecoder (fun _ -> IgnoreMsg "default-paste-handler"))
 
 
 let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html =

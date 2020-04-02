@@ -69,7 +69,7 @@ let moveDown (s : fluidCommandState) : fluidCommandState =
 
 let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
-    (fun _ -> IgnoreMsg)
+    (fun _ -> IgnoreMsg "fluid-commands-focus")
     (Tea_task.nativeBinding (fun _ ->
          let open Webapi.Dom in
          let open Native.Ext in
