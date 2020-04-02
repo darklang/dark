@@ -142,6 +142,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   @include handler-type(http-put, $http-put);
   @include handler-type(http-delete, $http-delete);
   @include handler-type(http-patch, $http-patch);
+  @include handler-type(http-options, $http-options);
   @include handler-type(cron, $cron-color);
   @include handler-type(worker, $queue-color);
   @include handler-type(repl, $repl-color);
