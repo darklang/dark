@@ -1656,11 +1656,36 @@ let run () =
         "request.~***" ;
       t
         ~expectsPartial:true
-        "add dot after field"
-        (let' "obj" emptyRecord aField)
-        ~pos:22
+        "add dot after field in object commits and adds faccess"
+        (let'
+           "obj"
+           (record [("f1", int 1)])
+           (partial "f1" (fieldAccess (var "obj") "")))
+        ~pos:49
         (ins ".")
-        "let obj = {}\nobj.field.~***" ;
+        "let obj = {\n            f1 : 1\n          }\nobj.f1.~***" ;
+      t
+        ~expectsPartial:true
+        "add dot after field not in object commits and adds faccess"
+        (let'
+           "obj"
+           (record [("f1", int 1)])
+           (partial "f2" (fieldAccess (var "obj") "")))
+        ~pos:49
+        (ins ".")
+        "let obj = {\n            f1 : 1\n          }\nobj.f2.~***" ;
+      tStruct
+        "add dot after field not in object commits and adds faccess"
+        (let'
+           "obj"
+           (record [("f1", int 1)])
+           (partial "f2" (fieldAccess (var "obj") "")))
+        ~pos:49
+        [InsertText "."]
+        (let'
+           "obj"
+           (record [("f1", int 1)])
+           (partial "" (fieldAccess (fieldAccess (var "obj") "f2") ""))) ;
       t "insert space in blank " aBlankField ~pos:4 space "obj.~***" ;
       t
         "ctrl+left in name moves to beg of name"
