@@ -815,7 +815,7 @@ let t_string_stdlibs_work () =
   check_dval
     "++ works (multicharacter)"
     (dstr "hello world")
-    (exec_ast' (binop "++" [str "hello"; str " world"])) ;
+    (exec_ast' (binop "++" (str "hello") (str " world"))) ;
   check_dval
     "++ works (normalizes â)"
     (dstr "\xC3\xA2") (* â *)
