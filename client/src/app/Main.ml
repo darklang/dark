@@ -1120,8 +1120,12 @@ let update_ (msg : msg) (m : model) : modification =
         | None ->
             ReplaceAllModificationsWithThisOne
               (CursorState.setCursorState origCursorState) )
+      | FluidEntering _ ->
+          Fluid.update m FluidMouseUpExternal
       | _ ->
           NoChange )
+  | IgnoreMouseUp ->
+      Fluid.update m FluidMouseUpExternal
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
   | BlankOrMouseLeave (tlid, id, _) ->
@@ -1874,7 +1878,7 @@ let update_ (msg : msg) (m : model) : modification =
         ExpireAvatars
     | _ ->
         NoChange )
-  | IgnoreMsg ->
+  | IgnoreMsg _ ->
       (* Many times we have to receive a Msg and we don't actually do anything.
        * To lower to conceptual load, we send an IgnoreMsg, rather than a
        * different msg each time that we have to understand. *)

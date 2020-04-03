@@ -292,7 +292,7 @@ let tokensView (s : state) : Types.msg Html.html =
                 (FluidMouseDoubleClick
                    {tlid = s.tlid; editor = s.editor; selection})
           | None ->
-              IgnoreMsg)
+              IgnoreMsg "fluid-dblclick-noselection")
     ; ViewUtils.eventNoPropagation
         ~key:("fluid-selection-mousedown" ^ tlidStr)
         "mousedown"
@@ -318,7 +318,7 @@ let tokensView (s : state) : Types.msg Html.html =
     ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ tlidStr) ~listener:(fun msg ->
           if msg = "flashError" || msg = "flashIncomplete"
           then FluidMsg FluidClearErrorDvSrc
-          else IgnoreMsg) ]
+          else IgnoreMsg "fluid-animation-end") ]
   in
   let idAttr =
     if s.fluidState.activeEditor = s.editor

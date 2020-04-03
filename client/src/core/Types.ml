@@ -1202,6 +1202,9 @@ and fluidMsg =
   | FluidPaste of clipboardContents
   | FluidMouseDown of TLID.t
   | FluidMouseUp of fluidMouseUp
+  | (* A mouse click has happened elsewhere that might have started in fluid, so
+     * let fluid know *)
+      FluidMouseUpExternal
   | FluidMouseDoubleClick of fluidMouseDoubleClick
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
@@ -1220,7 +1223,8 @@ and segmentTrack =
   | MarkCanvasAsInDevelopment of string
 
 and msg =
-  | IgnoreMsg
+  | IgnoreMsg of (* debug string so you know where it came from *) string
+  | IgnoreMouseUp (* for nothingMouseEvent *)
   | FluidMsg of fluidMsg
   | AppMouseDown of mouseEvent
   | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]

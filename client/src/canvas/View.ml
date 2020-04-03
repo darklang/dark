@@ -354,7 +354,9 @@ let viewCanvas (m : model) : msg Html.html =
     ; Html.class' ("canvas " ^ pageClass)
     ; Html.styles styles
     ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
-          if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg) ]
+          if prop = "transform"
+          then CanvasPanAnimationEnd
+          else IgnoreMsg "canvas-pan-end") ]
     (overlay :: allDivs)
 
 
