@@ -24,6 +24,16 @@ $icSize: 1em;
   top: 0;
   left: 0;
   padding: 0;
+
+  ::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 7px;
+    height: 7px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 7px;
+  }
 }
 
 .viewing-table {
@@ -38,6 +48,9 @@ $icSize: 1em;
   &.detailed {
     width: $sidebarFullWidth;
     overflow-y: scroll;
+    &::-webkit-scrollbar-corner {
+      background-color: transparent;
+    }
   }
 
   &.abridged {
@@ -244,6 +257,7 @@ $icSize: 1em;
   @at-root .abridged > .sidebar-category > & {
     background-color: $sidebarBgColor;
     min-width: $sidebarFullWidth;
+    max-width: 2 * $sidebarFullWidth;
     max-height: 400px;
     padding: $hSpace;
     margin-top: 2 * $hSpace;
@@ -256,6 +270,10 @@ $icSize: 1em;
     position: absolute;
     left: $sidebarClosedWidth;
     top: -1.25em;
+
+    &::-webkit-scrollbar-corner {
+      background-color: transparent;
+    }
 
     .category-name {
       width: 100%;
@@ -326,6 +344,7 @@ $icSize: 1em;
 
     .verb {
       color: $white2;
+      margin-left: 1em;
 
       &.GET {
         color: $http-get;
