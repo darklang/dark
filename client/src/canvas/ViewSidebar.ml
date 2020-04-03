@@ -538,7 +538,7 @@ let viewDeployStats (m : model) : msg Html.html =
       [ eventNoPropagation ~key:"cat-open-deploys" "mouseenter" (fun _ ->
             if m.sidebarState.mode = AbridgedMode
             then SidebarMsg (SetOnCategory "deploys")
-            else IgnoreMsg) ]
+            else IgnoreMsg "view-deploy-stats") ]
     in
     let header =
       Html.div
@@ -621,11 +621,16 @@ and viewCategory (m : model) (c : category) : msg Html.html =
             (fun _ ->
               if m.sidebarState.mode = AbridgedMode && not isSubCat
               then SidebarMsg (SetOnCategory c.classname)
-              else IgnoreMsg)
+              else IgnoreMsg "sidebar-category-open")
         ; eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
               if m.sidebarState.mode = AbridgedMode && not isSubCat
-              then match c.iconAction with Some ev -> ev | None -> IgnoreMsg
-              else IgnoreMsg) ]
+              then
+                match c.iconAction with
+                | Some ev ->
+                    ev
+                | None ->
+                    IgnoreMsg "sidebar-return-to-arch"
+              else IgnoreMsg "sidebar-return-to-arch") ]
       in
       categoryButton c.classname c.name ~props
     in
@@ -645,8 +650,10 @@ and viewCategory (m : model) (c : category) : msg Html.html =
       ; eventNoPropagation
           ~key:("cat-close-" ^ c.classname)
           "mouseleave"
-          (fun _ -> if not isSubCat then SidebarMsg ResetSidebar else IgnoreMsg)
-      ]
+          (fun _ ->
+            if not isSubCat
+            then SidebarMsg ResetSidebar
+            else IgnoreMsg "sidebar-category-close") ]
       (categoryName c.name :: entries)
   in
   let classes =

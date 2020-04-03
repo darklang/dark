@@ -125,7 +125,7 @@ let jsDragOver : Web.Node.event -> unit =
 let viewParamSpace (index : int) (fs : fnProps) : msg Html.html =
   let dragOver e =
     jsDragOver e ;
-    IgnoreMsg
+    IgnoreMsg "view-param-space"
   in
   let dragEnter _ = FnParamMsg (ParamEntersSpace index) in
   let dragLeave _ = FnParamMsg ParamLeavesSpace in
@@ -166,7 +166,9 @@ let viewParam
   in
   let dragEnd _ = FnParamMsg ParamDragDone in
   let flashFade str =
-    if str = "blinkGlow" then FnParamMsg Reset else IgnoreMsg
+    if str = "blinkGlow"
+    then FnParamMsg Reset
+    else IgnoreMsg "viewparam-flash-fade"
   in
   let conditionalClasses =
     [ ( "dragging"

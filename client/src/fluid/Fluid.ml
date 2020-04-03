@@ -5372,6 +5372,24 @@ let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
         ; oldPos = s.newPos } )
 
 
+(* We completed a click outside: figure out how to complete it *)
+let updateMouseUpExternal (m : model) (tlid : TLID.t) (ast : FluidAST.t) :
+    FluidAST.t * fluidState =
+  match Entry.getFluidSelectionRange () with
+  | Some (startPos, endPos) ->
+      let selection =
+        if startPos = endPos
+        then ClickAt startPos
+        else SelectText (startPos, endPos)
+      in
+      let eventData : fluidMouseUp =
+        {tlid; editor = m.fluidState.activeEditor; selection}
+      in
+      updateMouseUp m ast eventData
+  | None ->
+      (ast, m.fluidState)
+
+
 let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     : FluidAST.t * fluidState =
   (* TODO: The state should be updated from the last request, and so this
@@ -5382,6 +5400,8 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     | FluidCloseCmdPalette | FluidUpdateAutocomplete ->
         (* updateAutocomplete has already been run, so nothing more to do *)
         (ast, s)
+    | FluidMouseUpExternal ->
+        updateMouseUpExternal m tlid ast
     | FluidMouseUp eventData ->
         updateMouseUp m ast eventData
     | FluidMouseDoubleClick eventData ->
@@ -5563,6 +5583,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidAutocompleteClick _
   | FluidUpdateAutocomplete
   | FluidMouseDoubleClick _
+  | FluidMouseUpExternal
   | FluidMouseUp _ ->
       let tlid =
         match msg with

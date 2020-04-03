@@ -79,7 +79,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
                 ~listener:(fun name ->
                   if name = "fadeIn"
                   then SetHandlerExeIdle vs.tlid
-                  else IgnoreMsg) ]
+                  else IgnoreMsg "trigger-animation-end") ]
           else
             [ Html.title "Need input data to replay execution"
             ; Html.noProp
@@ -223,7 +223,7 @@ let handlerAttrs (tlid : TLID.t) (state : handlerState) : msg Vdom.property list
       ; ViewUtils.onTransitionEnd ~key:("hdlexp-" ^ sid) ~listener:(fun prop ->
             if prop = "opacity"
             then UpdateHandlerState (tlid, HandlerExpanded)
-            else IgnoreMsg) ]
+            else IgnoreMsg "handler-expanding") ]
   | HandlerExpanded ->
       [ Html.class' "handler-body expand"
       ; Html.style "height" "auto"
@@ -235,7 +235,7 @@ let handlerAttrs (tlid : TLID.t) (state : handlerState) : msg Vdom.property list
       ; ViewUtils.onTransitionEnd ~key:("hdlpcol-" ^ sid) ~listener:(fun prop ->
             if prop = "opacity"
             then UpdateHandlerState (tlid, HandlerCollapsing)
-            else IgnoreMsg) ]
+            else IgnoreMsg "handler-prep-collapse") ]
   | HandlerCollapsing ->
       [ Html.class' "handler-body"
       ; Html.style "height" "0"
@@ -244,7 +244,7 @@ let handlerAttrs (tlid : TLID.t) (state : handlerState) : msg Vdom.property list
           ~listener:(fun prop ->
             if prop = "height"
             then UpdateHandlerState (tlid, HandlerCollapsed)
-            else IgnoreMsg) ]
+            else IgnoreMsg "handler-collapsing") ]
   | HandlerCollapsed ->
       [Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp]
 
