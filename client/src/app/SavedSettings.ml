@@ -30,7 +30,7 @@ let toModel (e : savedSettings) : model =
   ; handlerProps = e.handlerProps |> canonicalizeHandlerProps
   ; canvasProps = {m.canvasProps with offset = e.canvasPos}
   ; lastReload = e.lastReload
-  ; sidebarOpen = e.sidebarOpen
+  ; sidebarState = e.sidebarState
   ; showTopbar = e.showTopbar }
 
 
@@ -47,7 +47,7 @@ let model2editor (m : model) : savedSettings =
   ; handlerProps = m.handlerProps
   ; canvasPos = m.canvasProps.offset
   ; lastReload = m.lastReload
-  ; sidebarOpen = m.sidebarOpen
+  ; sidebarState = m.sidebarState
   ; showTopbar = m.showTopbar }
 
 

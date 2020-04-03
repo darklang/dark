@@ -1,5 +1,6 @@
 open Prelude
 module TL = Toplevel
+module Cmd = Tea.Cmd
 
 let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
 
@@ -129,5 +130,16 @@ let findNewPos (m : model) : pos =
       (* if the sidebar is open, the users can't see the livevalues, which
       * confused new users. Given we can't get z-index to work, moving it to the
       * side a little seems the best solution for now. *)
-      let offset = {x = (if m.sidebarOpen then 320 else 0); y = 0} in
+      let wideSidebar =
+        match m.sidebarState.mode with
+        | DetailedMode ->
+            true
+        | AbridgedMode ->
+            false
+      in
+      let offset = {x = (if wideSidebar then 320 else 0); y = 0} in
       addPos Defaults.centerPos offset
+
+
+let enablePan (enablePan : bool) (m : model) : model * msg Cmd.t =
+  ({m with canvasProps = {m.canvasProps with enablePan}}, Cmd.none)

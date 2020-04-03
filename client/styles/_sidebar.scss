@@ -6,7 +6,16 @@ $devColor: $blue;
 $prodcloneColor: $magenta;
 $prodColor: black;
 
+$sidebarBgColor: darken($canvas-background, 10%);
+
 $hoverColor: lighten($yellow, 10%);
+
+$primaryColor: $white1;
+$secondaryColor: $grey2;
+
+$sectionSpace: 20px;
+$hSpace: 5px;
+$icSize: 1em;
 
 #sidebar-left {
   width: max-content;
@@ -14,434 +23,326 @@ $hoverColor: lighten($yellow, 10%);
   position: fixed;
   top: 0;
   left: 0;
+  padding: 0;
 }
 
 .viewing-table {
-  $toggleSpace: 60px;
-  background-color: darken($canvas-background, 10%);
+  background-color: $sidebarBgColor;
   height: 100%;
   position: relative;
-  width: $sidebarFullWidth;
+  top: 0;
+  left: 0;
   box-sizing: border-box;
-  padding: 5px 0px;
-  display: none;
+  transition: width 0.2s;
 
-  &::-webkit-scrollbar {
-    width: 0px; /* Remove scrollbar space */
-  }
-
-  &.active {
-    display: block;
-  }
-
-  &.isClosed {
-    width: $sidebarClosedWidth;
-    min-width: initial;
-    .toggle-container {
-      justify-content: center;
-      padding-right: 0px;
-      &:last-child {
-        display: flex;
-      }
-      p {
-        display: none;
-      }
-    }
-  }
-
-  .error-status {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    height: 110px;
-    align-items: flex-end;
-    &.opened {
-      a {
-        margin-bottom: 50px;
-      }
-    }
-    &.error {
-      font-size: 12px;
-      text-align: center;
-      a {
-        text-decoration: none;
-        color: $grey3;
-        outline: none;
-      }
-    }
-  }
-
-  .groups {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
+  &.detailed {
+    width: $sidebarFullWidth;
     overflow-y: scroll;
-    width: 100%;
-    &.groups-closed {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      overflow: hidden;
+  }
+
+  &.abridged {
+    width: $sidebarClosedWidth;
+    &::-webkit-scrollbar {
+      width: 0; // Remove scrollbar space
     }
+  }
+}
 
-    .collapsed {
-      $itemHeight: 30px;
-      height: $itemHeight;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: 15px 5px;
-      color: $grey2;
-      width: 100%;
+// toggle button to change between detailed & abridge modes
+.toggle-sidebar-btn {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: $hSpace;
+  color: $secondaryColor;
+  cursor: pointer;
+  margin-right: 0.25em;
+  margin-bottom: $sectionSpace;
 
-      &.deleted.empty {
-        // Dont show trash can if it's empty
-        display: none;
-      }
+  .label {
+    margin-right: $hSpace;
+  }
 
-      &:hover {
-        .hover {
-          display: flex;
-          flex-direction: column;
-
-          position: absolute;
-          left: $sidebarClosedWidth;
-
-          width: 300px;
-          max-height: 400px;
-          padding: 10px;
-          margin-top: 10px;
-
-          overflow-y: scroll;
-
-          background-color: darken($canvas-background, 10%);
-          box-shadow: $sidebard-preview-shadow;
-
-          .header-icon {
-            display: none;
-          }
-
-          .GET a.external {
-            font-size: 12px;
-          }
-        }
-      }
-
-      .hover {
-        display: none;
-      }
-
-      &.settings {
-        margin-top: 0;
-      }
-
-      &.settings .collapsed-icon {
-        margin-left: 5px;
-
-        .header-icon {
-          margin-top: 0;
-          margin-left: 0;
-        }
-      }
-
-      &.settings.is-admin > .collapsed-icon > .environment {
-        display: flex;
-      }
-
-      .collapsed-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 10px 0px;
-        width: 80%;
-        height: auto;
-        .environment {
-          height: max-content;
-          display: flex;
-          left: 10%;
-          position: absolute;
-          z-index: 2;
-          margin-top: -10px;
-          background: #fff;
-          font-size: 8px;
-          border-radius: 2px;
-          padding: 0px 2px;
-        }
-
-        .button-link {
-          cursor: pointer;
-          margin-top: 5px;
-          display: flex;
-          justify-content: flex-end;
-          align-self: flex-end;
-          position: absolute;
-          color: $white1;
-          font-size: 15px;
-          left: 10;
-          right: 0;
-          padding-right: 2px;
-          &:hover {
-            cursor: pointer;
-            color: $hoverColor;
-          }
-        }
-
-        .header-icon {
-          display: flex;
-          position: relative;
-          cursor: pointer;
-          object {
-            pointer-events: none;
-          }
-          &:hover {
-            &:before {
-              content: attr(alt);
-              font-size: 0.55rem;
-              text-align: center;
-
-              background-color: $black2;
-              color: $hoverColor;
-
-              width: 100%;
-              padding: 2px;
-              z-index: 60;
-
-              position: absolute;
-              top: -4px;
-              left: 0;
-            }
-
-            i.di,
-            i.fa {
-              color: $hoverColor;
-              cursor: pointer;
-            }
-          }
-
-          &.empty i.di,
-          &.empty i.fa {
-            opacity: 0.2;
-          }
-
-          i.fa,
-          i.di {
-            width: 100%;
-            height: 100%;
-            color: $grey3;
-            font-size: 2.16em;
-          }
-        }
-
-        &.dev .environment,
-        &.dev .header-icon {
-          color: $devColor;
-        }
-        &.prodclone .environment,
-        &.prodclone .header-icon {
-          color: $prodcloneColor;
-        }
-        &.prod .environment,
-        &.prod .header-icon {
-          color: $prodColor;
-        }
-      }
-
-      &:hover {
-        .hover {
-          display: flex;
-          flex-direction: column;
-
-          position: absolute;
-          left: $sidebarClosedWidth;
-
-          width: 300px;
-          max-height: 400px;
-          padding: 10px;
-          margin-top: 10px;
-
-          overflow-y: scroll;
-
-          background-color: darken($canvas-background, 10%);
-          box-shadow: $sidebard-preview-shadow;
-
-          .header-icon {
-            display: none;
-          }
-
-          .GET a.external {
-            font-size: 12px;
-          }
-
-          &.admin-state {
-            padding: 5px 0px;
-            color: $grey3;
-            font-size: 13px;
-            a {
-              color: $grey3;
-            }
-            .checkbox-row {
-              display: flex;
-              align-items: center;
-              height: 20px;
-              margin-left: 17px;
-              cursor: pointer;
-              input {
-                cursor: pointer;
-              }
-              label {
-                margin-left: 8px;
-              }
-            }
-            .state-info {
-              display: flex;
-              flex-direction: column;
-              margin-bottom: 10px;
-              .state-info-row {
-                margin-top: 0px;
-                margin-bottom: 0px;
-              }
-            }
-            .state-info-row {
-              display: flex;
-              height: 20px;
-              align-items: center;
-              justify-content: flex-start;
-              margin: 5px;
-              margin-left: 17px;
-
-              &.debugger:hover {
-                color: $white3;
-              }
-
-              &.save-state {
-                border: 1px solid;
-                border-radius: 2px;
-                padding: 4px 8px;
-                height: 10px;
-                margin-bottom: 20px;
-                width: fit-content;
-                cursor: pointer;
-
-                &:hover {
-                  background: $grey3;
-                  color: darken($canvas-background, 10%);
-                }
-              }
-
-              .key {
-              }
-              .sep {
-                width: 15px;
-              }
-              .value {
-                white-space: nowrap;
-                max-width: 210px;
-              }
-            }
-          }
-        }
-      }
-      .hover {
-        display: none;
-      }
+  .icon .fa {
+    font-size: 1em;
+    &:nth-child(2) {
+      margin-left: -5px;
     }
   }
 
-  .toggle-container {
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    margin-bottom: 5px;
-    color: $grey2;
-    cursor: pointer;
+  @at-root .detailed > & {
     padding-right: 5px;
-    .toggle-button {
-      display: flex;
-      .fa {
-        font-size: 20px;
-        &:nth-child(2) {
-          margin-left: -5px;
-        }
-      }
-    }
+    transition: padding-right 0.15s;
 
     &:hover {
-      color: $white1;
+      color: $primaryColor;
+      padding-right: 8px;
+
+      animation-name: bounceLeft;
+      animation-duration: 0.3s;
+      animation-delay: 0.15s;
+      animation-iteration-count: infinite;
+      animation-direction: alternate;
+      animation-timing-function: ease-in-out;
+    }
+  }
+
+  @at-root .abridged > & {
+    justify-content: center;
+    padding-right: 0;
+    padding-left: 0;
+    margin-right: 0;
+    transition: padding-left 0.1s;
+
+    &:hover {
+      padding-left: 4px;
+
+      animation-name: bounceRight;
+      animation-duration: 0.3s;
+      animation-delay: 0.1s;
+      animation-iteration-count: infinite;
+      animation-direction: alternate;
+      animation-timing-function: ease-in-out;
     }
 
-    p {
-      margin: 0px 10px;
-    }
-    &:last-child {
+    .label {
       display: none;
     }
   }
-  .simple-item.handler {
-    display: flex;
-    width: 100%;
-    margin: 5px 0px;
-    .name {
-      color: $white3;
-      width: 70%;
+}
+
+// Category block
+.sidebar-category {
+  margin-bottom: $sectionSpace;
+  padding: 0 $hSpace;
+  position: relative;
+
+  @at-root .detailed & {
+    &.fof > summary,
+    &.deleted > summary {
+      margin-left: -1 * $icSize;
+    }
+  }
+
+  @at-root .abridged &.repl {
+    margin-bottom: $sectionSpace + 5px; // add extra spacing for icon balance
+  }
+
+  &.empty summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+// Category summary
+.sidebar-on-abridged-icon {
+  font-size: 2em;
+}
+
+.category-summary {
+  outline: none;
+  display: flex;
+
+  @at-root .detailed & {
+    justify-content: flex-end;
+    align-items: center;
+
+    &::-webkit-details-marker {
+      color: $secondaryColor;
+      &:hover {
+        color: $hoverColor;
+        cursor: pointer;
+      }
+    }
+  }
+
+  @at-root .abridged & {
+    justify-content: flex-start;
+    align-items: flex-end;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+
+  div {
+    display: inline-block;
+  }
+
+  .category-header {
+    @at-root .detailed & {
+      width: calc(100% - #{2 * $icSize});
+    }
+
+    @at-root .abridged & {
+      width: 80%;
+      text-align: center;
+    }
+  }
+
+  .category-icon {
+    @at-root .detailed & {
+      margin-right: 0.8em;
+      color: $primaryColor;
+    }
+
+    @at-root .abridged & {
+      margin-right: 0;
+      color: darken($primaryColor, 30%);
+      font-size: 1.5em;
+      transition: 0.2s font-size;
+      width: 36px;
+      height: 36px;
+      text-align: center;
+
+      &:hover {
+        @extend .sidebar-on-abridged-icon;
+        cursor: pointer;
+      }
+    }
+
+    @at-root .abridged .sidebar-category[open] & {
+      @extend .sidebar-on-abridged-icon;
+    }
+  }
+
+  .category-name {
+    color: $grey3;
+    font-size: 1.1em;
+    font-weight: bold;
+    letter-spacing: 0.02em;
+    margin-top: 0;
+
+    @at-root .abridged & {
+      display: none;
+    }
+  }
+
+  .create-tl-icon {
+    font-size: 1.2em;
+    &:hover {
+      color: $hoverColor;
+      cursor: pointer;
+    }
+
+    @at-root .abridged & {
+      font-size: 0.8em;
+    }
+  }
+}
+
+// Wrapper for categories' content
+.category-content {
+  @at-root .detailed & > .category-name {
+    display: none;
+  }
+
+  @at-root .detailed > .sidebar-category.empty > & {
+    display: none;
+  }
+
+  @at-root .abridged > .sidebar-category > & {
+    background-color: $sidebarBgColor;
+    width: $sidebarFullWidth;
+    max-height: 400px;
+    padding: $hSpace;
+    margin-top: 2 * $hSpace;
+    padding-bottom: $hSpace * 2;
+
+    overflow-y: scroll;
+    box-shadow: $sidebard-preview-shadow;
+
+    z-index: 1;
+    position: absolute;
+    left: $sidebarClosedWidth;
+    top: -1.25em;
+
+    .category-name {
+      width: 100%;
+      text-align: center;
       display: block;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      overflow: hidden;
     }
-    .delete {
-      display: flex;
-      width: 10%;
-      align-items: center;
-      justify-content: center;
-      .button-link {
-        color: $grey2;
-        &:hover {
-          color: $grey3;
-        }
-      }
+
+    .category-icon {
+      display: none;
     }
-    .aux {
+  }
+}
+
+// Category items
+.simple-item {
+  margin-top: 5px;
+
+  &.empty {
+    color: $secondaryColor;
+  }
+
+  div {
+    display: inline-block;
+  }
+
+  .icon-spacer {
+    display: inline-block;
+    width: $icSize;
+    height: $icSize;
+
+    @at-root .abridged & {
+      display: none;
+    }
+  }
+
+  .toplevel-name {
+    width: calc(100% - #{2 * $icSize});
+    display: inline-block;
+
+    a.toplevel-link {
       display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      // 25% ensures that all of the method "OPTIONS" is visible on HTTP handlers
-      width: 25%;
-      overflow: hidden;
-      .verb {
-        font-size: 14px;
-        text-decoration: none;
-        margin-right: 1ch;
+      justify-content: space-between;
+      color: $primaryColor;
+      text-decoration: none;
+      outline: none;
+
+      .path::before {
+        @include font-awesome("\f111");
+        color: transparent;
+        font-size: 0.5em;
+        width: 20px;
+        vertical-align: middle;
+        display: inline-block;
+        text-align: center;
       }
 
-      a,
-      a:visited,
-      a:active {
-        color: $white2;
+      &:hover .path::before {
+        color: $hoverColor;
+        font-weight: 500;
       }
 
-      a:hover {
+      &.selected .path::before {
         color: $hoverColor;
       }
 
-      &.GET a,
-      &.GET span {
+      &.selected:hover .path::before {
+        color: $orange;
+        font-weight: 900;
+      }
+    }
+
+    .verb {
+      color: $white2;
+
+      &.GET {
         color: $http-get;
       }
-      &.POST a,
-      &.POST span {
+      &.POST {
         color: $http-post;
       }
-      &.DELETE a,
-      &.DELETE span {
+      &.DELETE {
         color: $http-delete;
       }
-      &.PUT a,
-      &.PUT span {
+      &.PUT {
         color: $http-put;
       }
-      &.PATCH a,
-      &.PATCH span {
+      &.PATCH {
         color: $http-patch;
       }
       &.OPTIONS a,
@@ -449,203 +350,280 @@ $hoverColor: lighten($yellow, 10%);
         color: $http-options;
       }
     }
-  }
 
-  .deleted {
-    .header-icon {
-      display: none;
+    @at-root .abridged & {
+      width: 100%;
     }
   }
 
-  .sidebar-section {
-    margin: 5px;
-    width: calc(#{"100% - 5px"});
-    &:first-child {
-      margin-top: 0px;
-    }
-    summary {
-      outline: none;
-      display: flex;
-      height: 24px;
-      align-items: center;
-      justify-content: center;
-      &.headerSummary {
-        cursor: pointer;
-      }
-      &::-webkit-details-marker {
-        margin: 2px;
-        color: $hoverColor;
-      }
-      .header {
-        padding: 2px 5px;
-        display: flex;
-        align-items: center;
-        flex-direction: row;
-        justify-content: space-between;
-        color: $hoverColor;
-        width: 100%;
-
-        .title {
-          width: calc(#{"100% - 32px"});
-          display: flex;
-          .count {
-            font-weight: bold;
-          }
-        }
-
-        .verb-link,
-        .button-link {
-          float: right;
-          color: $grey3;
-        }
-
-        .header-icon {
-          height: 20px;
-          width: 20px;
-          margin-right: 5px;
-
-          i.fa,
-          i.di {
-            color: $hoverColor;
-          }
-        }
-      }
-    }
-
-    &.empty {
-      .headerSummary {
-        cursor: default;
-      }
-      .header-icon {
-        margin-left: 16px;
-      }
-    }
-    &.deleted > .sidebar-section {
-      margin-left: 10px;
-    }
-
-    &.deleted.empty div {
-      display: none;
-    }
-
-    .button-link,
-    .external {
-      @extend .default-link;
-
-      display: inline-block;
-      width: 16px;
-      margin: 0 2px;
-      cursor: pointer;
-      color: $grey3;
-
-      &:link,
-      &:visited {
-        color: $grey3;
-      }
-
-      &:hover {
-        color: $hoverColor;
-      }
-    }
-  }
-
-  .sidebar-section.http .simple-route.handler,
-  .sidebar-section.fof .simple-route.handler,
-  .sidebar-section.deleted-http .simple-route.handler {
-    .verb {
-      width: 60px;
-      display: inline-block;
-      text-align: right;
-      margin-right: 4px;
-      vertical-align: middle;
-      &:not(.no-ext) {
-        width: 30px;
-      }
-      &.verb-link {
-        text-decoration: none;
-      }
-
-      &:hover {
-        color: $hoverColor;
-      }
-    }
-
-    .external {
-      font-size: 12px;
-    }
-  }
-
-  .default-link.unused {
-    color: $grey2;
-  }
-
-  .default-link.selected-entry {
-    color: $blue;
-  }
-
-  .default-link.selected-entry:hover {
-    color: saturate($blue, 30%);
+  @at-root .detailed & {
+    margin-left: 0.5em;
   }
 }
 
-.sidebar-section.deploys,
-.simple-route.deploy,
-.simple-item.deploy {
-  color: $grey3;
-  align-self: flex-start;
-  summary {
-    height: inherit;
+// Special cases: Deleted & 404s
+.detailed .sidebar-category {
+  &.deleted > .category-summary {
+    margin-bottom: $hSpace;
+  }
+
+  &.fof .category-content {
+    margin-left: 0.5em;
+  }
+
+  .sidebar-category {
+    padding-right: 0;
+  }
+
+  .category-content .category-content {
+    margin-left: 1.5em;
+  }
+}
+
+.abridged .sidebar-category .category-content {
+  .category-summary {
+    width: 100%;
+    align-items: center;
+
     &::-webkit-details-marker {
-      display: none;
+      display: inline-block;
     }
-    .header {
-      padding-left: 0px;
-      margin: 0px 5px 0px 10px;
-      background: none;
-      display: flex;
-      flex-direction: column;
+
+    .category-name {
+      text-align: left;
+      font-size: 1em;
     }
   }
 
-  &.empty {
-    .header-icon {
-      margin-left: 0px;
-    }
+  .category-content .category-name {
+    display: none;
   }
-  .title {
-    align-self: flex-start;
-    .title {
-      border-bottom: none;
-    }
-  }
+}
 
-  .deploy-status {
-    margin-top: 5px;
+.sidebar-category.deleted,
+.sidebar-category.fof {
+  .simple-item {
     display: flex;
-    justify-content: space-between;
-    a.hash {
-      color: $grey3;
+    justify-content: flex-end;
 
-      &:hover {
-        color: $hoverColor;
+    &.empty {
+      justify-content: flex-start;
+    }
+
+    .toplevel-name {
+      width: calc(100% - #{3 * $icSize});
+
+      .verb {
+        float: right;
       }
     }
+    .delete-button {
+      margin-right: $hSpace;
+      color: $secondaryColor;
+    }
 
+    .add-button {
+      margin-left: $hSpace;
+    }
+  }
+}
+
+/* Special Case: Static Assets */
+.sidebar-category.deploys {
+  .simple-item {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+
+    .hash {
+      position: relative;
+      display: inline-block;
+      border: 1px solid $secondaryColor;
+      padding: 2px;
+      border-radius: 2px;
+      a {
+        text-decoration: none;
+        font-size: 0.7em;
+        color: $primaryColor;
+        &:hover {
+          color: $hoverColor;
+        }
+      }
+
+      .copy-hash {
+        font-size: 12px;
+        position: absolute;
+        top: -8px;
+        right: -6px;
+
+        &:hover {
+          color: $hoverColor;
+        }
+      }
+    }
     .status {
-      color: $white1;
-
+      color: $secondaryColor;
+      display: inline-block;
       &.success {
         color: $green;
       }
     }
-  }
-  .datetime {
-    font-size: 12px;
-    margin-left: 5px;
+
+    .timestamp {
+      display: block;
+      width: 100%;
+      font-size: 0.7em;
+      text-align: right;
+    }
   }
 
-  .datetime,
-  .hash {
-    margin-right: 2ch;
+  .category-summary {
+    display: block;
+    .category-header {
+      display: inline-block;
+
+      @at-root .detailed {
+        width: max-content;
+      }
+    }
+
+    .simple-item {
+      margin-left: 1.5em;
+      margin-right: $hSpace;
+      margin-top: 5px;
+
+      @at-root .abridged & {
+        display: none;
+      }
+    }
+  }
+
+  .category-content {
+    .simple-item {
+      margin-top: $icSize;
+    }
+
+    @at-root .detailed & {
+      margin-left: $icSize;
+
+      .simple-item:first-of-type {
+        display: none;
+      }
+    }
+  }
+
+  @at-root .detailed &.empty .category-summary {
+    margin-left: 1em;
+  }
+
+  @at-root .detailed & .simple-item:first-child {
+    display: none;
+  }
+}
+
+// Special Case : Admin
+.abridged .sidebar-category.admin {
+  padding: 0;
+
+  .category-summary {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    margin-left: -0.5em;
+
+    div {
+      display: block;
+    }
+
+    .environment {
+      background: $white1;
+      font-size: 0.4em;
+      border-radius: 2px;
+      padding: 2px;
+      margin-top: -10px;
+
+      &.dev {
+        color: $blue;
+      }
+
+      &.clone {
+        color: magenta;
+      }
+
+      &.production {
+        color: $black3;
+      }
+    }
+  }
+
+  .category-content {
+    display: none;
+  }
+
+  &:hover .category-content {
+    display: block;
+
+    a {
+      color: $grey3;
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      height: 20px;
+      margin-left: 17px;
+      cursor: pointer;
+      input {
+        cursor: pointer;
+      }
+      label {
+        margin-left: 8px;
+      }
+    }
+    .state-info {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 10px;
+      .state-info-row {
+        margin-top: 0px;
+        margin-bottom: 0px;
+      }
+    }
+    .state-info-row {
+      display: flex;
+      height: 20px;
+      align-items: center;
+      justify-content: flex-start;
+      margin: 5px;
+      margin-left: 17px;
+
+      &.debugger:hover {
+        color: $white3;
+      }
+
+      &.save-state {
+        border: 1px solid;
+        border-radius: 2px;
+        padding: 4px;
+        height: 10px;
+        margin-bottom: 20px;
+        width: fit-content;
+        font-size: 0.5em;
+        cursor: pointer;
+
+        &:hover {
+          background: $grey3;
+          color: darken($canvas-background, 10%);
+        }
+      }
+      .sep {
+        width: 15px;
+      }
+      .value {
+        white-space: nowrap;
+        max-width: 210px;
+      }
+    }
   }
 }
