@@ -265,21 +265,22 @@ let fns : fn list =
     ; deprecated = false }
   ; { prefix_names = ["Float::clamp"]
     ; infix_names = []
-    ; parameters =
-        [par "value" TFloat; par "minimum" TFloat; par "maximum" TFloat]
-    ; return_type = TOption
+    ; parameters = [par "value" TFloat; par "limitA" TFloat; par "limitB" TFloat]
+    ; return_type = TFloat
     ; description =
-        "Returns the result of constraining `value` within the range specified by `minimum` and `maximum`, as an Option.
-         If `minimum <= maximum`, returns `Just clamped`. Otherwise, returns `Nothing`."
+        "Returns the result of constraining `value` to fall within the range specified by `limitA` and `limitB`.
+        `limitA` and `limitB` can be provided in any order."
     ; func =
         InProcess
           (function
-          | _, [DFloat v; DFloat min; DFloat max] ->
-            ( match Float.clamp v ~min ~max with
-            | Ok clamped ->
-                DOption (OptJust (DFloat clamped))
-            | Error _ ->
-                DOption OptNothing )
+          | _, [DFloat v; DFloat a; DFloat b] ->
+              let min, max = if a < b then (a, b) else (b, a) in
+              ( match Float.clamp v ~min ~max with
+              | Ok clamped ->
+                  DFloat clamped
+              | Error _ ->
+                  (* Since min and max are pre-sorted, this can only happen if min or max are NaN *)
+                  DFloat Float.nan )
           | args ->
               fail args)
     ; preview_safety = Safe
