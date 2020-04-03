@@ -206,7 +206,7 @@ let slice s ~first ~last =
     if acc >= first && acc < last then Buffer.add_string b seg else () ;
     1 + acc
   in
-  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster slicer_func 0 in
+  ignore (s |> Uuseg_string.fold_utf_8 `Grapheme_cluster slicer_func 0) ;
   (* We don't need to renormalize because all normalization forms are closed
    * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
   Buffer.contents b
@@ -220,7 +220,7 @@ let first_n s num_egcs =
     if idx < num_egcs then Buffer.add_string b seg else () ;
     1 + idx
   in
-  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster first_func 0 in
+  ignore (s |> Uuseg_string.fold_utf_8 `Grapheme_cluster first_func 0) ;
   (* We don't need to renormalize because all normalization forms are closed
    * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
   Buffer.contents b
@@ -234,7 +234,7 @@ let drop_first_n s num_egcs =
     if idx >= num_egcs then Buffer.add_string b seg else () ;
     1 + idx
   in
-  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster first_func 0 in
+  ignore (s |> Uuseg_string.fold_utf_8 `Grapheme_cluster first_func 0) ;
   (* We don't need to renormalize because all normalization forms are closed
    * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
   Buffer.contents b
@@ -253,7 +253,7 @@ let last_n s num_egcs =
     if idx >= start_idx then Buffer.add_string b seg else () ;
     1 + idx
   in
-  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster last_func 0 in
+  ignore (s |> Uuseg_string.fold_utf_8 `Grapheme_cluster last_func 0) ;
   (* We don't need to renormalize because all normalization forms are closed
    * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
   Buffer.contents b
@@ -270,7 +270,7 @@ let drop_last_n s num_egcs =
     if idx < start_idx then Buffer.add_string b seg else () ;
     1 + idx
   in
-  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster last_func 0 in
+  ignore (s |> Uuseg_string.fold_utf_8 `Grapheme_cluster last_func 0) ;
   (* We don't need to renormalize because all normalization forms are closed
    * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
   Buffer.contents b
