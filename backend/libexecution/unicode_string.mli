@@ -95,11 +95,23 @@ val rev : t -> t
 (** Returns the number of user-perceived Characters in `t` **)
 val length : t -> int
 
-(** Removes whitespace from the front and end of a string.
+(** [trim str] removes whitespace from the start and end of a [str].
  * 'Whitespace' is defined according to the terms of the Unicode Derived Core Property White_Space
  * https://en.wikipedia.org/wiki/Unicode_character_property#Whitespace
  * *)
 val trim : t -> t
+
+(** [trim_start str] removes whitespace from the start of [str].
+ * 'Whitespace' is defined according to the terms of the Unicode Derived Core Property White_Space
+ * https://en.wikipedia.org/wiki/Unicode_character_property#Whitespace
+ * *)
+val trim_start : t -> t
+
+(** [trim_end str] removes whitespace from the end of [str].
+ * 'Whitespace' is defined according to the terms of the Unicode Derived Core Property White_Space
+ * https://en.wikipedia.org/wiki/Unicode_character_property#Whitespace
+ * *)
+val trim_end : t -> t
 
 (** [slice str first last] returns a substring between [first] (inclusive) and [last] (exclusive) indices.
  * Indices represent EGCs. Negative indices start counting from the end of the [str].
