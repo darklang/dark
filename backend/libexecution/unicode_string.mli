@@ -63,8 +63,11 @@ val uppercase : t -> t
  ** some characters become multiple characters ** when their case is changed **)
 val lowercase : t -> t
 
-(** `append a b` returns the concatenation of `a` and `b` **)
+(** [append a b] returns the concatenation of [a] and [b] and ensures the result is normalized. *)
 val append : t -> t -> t
+
+(** [append_broken a b] is deprecated. It returns the non-normalized concatenation of [a] and [b]. *)
+val append_broken : t -> t -> t
 
 (** Returns a list of the user-perceived Characters in the Unicode_string.t **)
 val characters : t -> Character.t list

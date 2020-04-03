@@ -84,6 +84,27 @@ let fns : fn list =
           (function
           | _, [DStr token] ->
               let auth_string =
+                Unicode_string.append_broken
+                  (Unicode_string.of_string_exn "Bearer ")
+                  token
+              in
+              DObj (DvalMap.singleton "Authorization" (DStr auth_string))
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated =
+        true (* Deprecated due to using Unicode_string.append_broken *) }
+  ; { prefix_names = ["HttpClient::bearerToken_v1"]
+    ; infix_names = []
+    ; parameters = [par "token" TStr]
+    ; return_type = TObj
+    ; description =
+        "Returns an object with 'Authorization' set to the passed token"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr token] ->
+              let auth_string =
                 Unicode_string.append
                   (Unicode_string.of_string_exn "Bearer ")
                   token

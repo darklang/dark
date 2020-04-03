@@ -941,8 +941,8 @@ module LibhttpclientV1 = struct
            u
       then error "Username cannot contain a colon"
       else
-        Unicode_string.append
-          (Unicode_string.append u (Unicode_string.of_string_exn ":"))
+        Unicode_string.append_broken
+          (Unicode_string.append_broken u (Unicode_string.of_string_exn ":"))
           p
     in
     let encoded =
@@ -952,7 +952,7 @@ module LibhttpclientV1 = struct
            ~pad:true
            (Unicode_string.to_string input))
     in
-    Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
+    Unicode_string.append_broken (Unicode_string.of_string_exn "Basic ") encoded
 
 
   let call verb json_fn =
@@ -1071,8 +1071,8 @@ module LibhttpclientV2 = struct
            u
       then error "Username cannot contain a colon"
       else
-        Unicode_string.append
-          (Unicode_string.append u (Unicode_string.of_string_exn ":"))
+        Unicode_string.append_broken
+          (Unicode_string.append_broken u (Unicode_string.of_string_exn ":"))
           p
     in
     let encoded =
@@ -1082,7 +1082,7 @@ module LibhttpclientV2 = struct
            ~pad:true
            (Unicode_string.to_string input))
     in
-    Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
+    Unicode_string.append_broken (Unicode_string.of_string_exn "Basic ") encoded
 
 
   let call verb json_fn =
