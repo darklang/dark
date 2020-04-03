@@ -830,6 +830,54 @@ let t_string_stdlibs_work () =
     "String::slice works (swapped)"
     (dstr "")
     (exec_ast' (fn "String::slice" [str "abcd"; int 3; int 2])) ;
+  check_dval
+    "String::first works (pos)"
+    (dstr "abc")
+    (exec_ast' (fn "String::first" [str "abcd"; int 3])) ;
+  check_dval
+    "String::first works (0)"
+    (dstr "")
+    (exec_ast' (fn "String::first" [str "abcd"; int 0])) ;
+  check_dval
+    "String::first works (neg)"
+    (dstr "")
+    (exec_ast' (fn "String::first" [str "abcd"; int (-3)])) ;
+  check_dval
+    "String::last works (pos)"
+    (dstr "bcd")
+    (exec_ast' (fn "String::last" [str "abcd"; int 3])) ;
+  check_dval
+    "String::last works (0)"
+    (dstr "")
+    (exec_ast' (fn "String::last" [str "abcd"; int 0])) ;
+  check_dval
+    "String::last works (neg)"
+    (dstr "")
+    (exec_ast' (fn "String::last" [str "abcd"; int (-3)])) ;
+  check_dval
+    "String::dropFirst works (pos)"
+    (dstr "d")
+    (exec_ast' (fn "String::dropFirst" [str "abcd"; int 3])) ;
+  check_dval
+    "String::dropFirst works (0)"
+    (dstr "abcd")
+    (exec_ast' (fn "String::dropFirst" [str "abcd"; int 0])) ;
+  check_dval
+    "String::dropFirst works (neg)"
+    (dstr "abcd")
+    (exec_ast' (fn "String::dropFirst" [str "abcd"; int (-3)])) ;
+  check_dval
+    "String::dropLast works (pos)"
+    (dstr "a")
+    (exec_ast' (fn "String::dropLast" [str "abcd"; int 3])) ;
+  check_dval
+    "String::dropLast works (0)"
+    (dstr "abcd")
+    (exec_ast' (fn "String::dropLast" [str "abcd"; int 0])) ;
+  check_dval
+    "String::dropLast works (neg)"
+    (dstr "abcd")
+    (exec_ast' (fn "String::dropLast" [str "abcd"; int (-3)])) ;
   check_error_contains
     "String::padStart works (errors on empty string)"
     (exec_ast' (fn "String::padStart" [str "123"; str ""; int 10]))
