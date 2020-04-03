@@ -533,20 +533,22 @@ let fns : fn list =
     ; deprecated = false }
   ; { prefix_names = ["Int::clamp"]
     ; infix_names = []
-    ; parameters = [par "value" TInt; par "minimum" TInt; par "maximum" TInt]
-    ; return_type = TOption
+    ; parameters = [par "value" TInt; par "limitA" TInt; par "limitB" TInt]
+    ; return_type = TInt
     ; description =
-        "Returns the result of constraining `value` within the range specified by `minimum` and `maximum`, as an Option.
-         If `minimum <= maximum`, returns `Just clamped`. Otherwise, returns `Nothing`."
+        "Returns the result of constraining `value` to fall within the range specified by `limitA` and `limitB`.
+        `limitA` and `limitB` can be provided in any order."
     ; func =
         InProcess
           (function
-          | _, [DInt v; DInt min; DInt max] ->
-            ( match Dint.clamp v ~min ~max with
-            | Ok clamped ->
-                DOption (OptJust (DInt clamped))
-            | Error _ ->
-                DOption OptNothing )
+          | _, [DInt v; DInt a; DInt b] ->
+              let min, max = if a < b then (a, b) else (b, a) in
+              ( match Dint.clamp v ~min ~max with
+              | Ok clamped ->
+                  DInt clamped
+              | Error _ ->
+                  (* Since min and max are pre-sorted, this can't happen *)
+                  assert false )
           | args ->
               fail args)
     ; preview_safety = Safe
