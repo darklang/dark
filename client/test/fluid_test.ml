@@ -4404,6 +4404,33 @@ let run () =
              in
              newState.ac.index)
           |> toEqual (Some 0)) ;
+      test
+        "Backspace over binop resets upDownCol but not autocomplete"
+        (fun () ->
+          let ast = binop "+" aShortInt b in
+          let h = Fluid_utils.h ast in
+          let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+          let tlid = h.hTLID in
+          expect
+            (let newState = m.fluidState |> moveTo 3 in
+             let _, newState =
+               updateMsg
+                 m
+                 tlid
+                 h.ast
+                 (FluidInputEvent DeleteContentBackward)
+                 newState
+             in
+             let _, newState =
+               updateMsg
+                 m
+                 tlid
+                 h.ast
+                 (FluidInputEvent (InsertText "+"))
+                 newState
+             in
+             (newState.ac.index, newState.upDownCol))
+          |> toEqual (Some 0, None)) ;
       test "backspace on partial will open AC if query matches" (fun () ->
           let ast = FluidAST.ofExpr (let' "request" aShortInt aPartialVar) in
           let s = defaultTestState |> moveTo 19 in
