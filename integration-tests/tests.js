@@ -1158,12 +1158,12 @@ test("double_clicking_blankor_selects_it", async t => {
   //
   // So this test is not for the ideal behaviour, but for the
   // non-obviously-broken behaviour.
-  let selector = Selector(".toplevel-name");
+  let selector = Selector(".toplevel .spec-header .toplevel-name");
   await t.expect(selector.exists).ok();
   await t.doubleClick(selector);
 
   // Selected text is /hello
-  selector = Selector(".toplevel-name #entry-box");
+  selector = Selector(".toplevel .spec-header .toplevel-name #entry-box");
   await t.expect(selector.exists).ok();
   await t.expect(await getElementSelectionStart(selector)).typeOf("number");
 });
