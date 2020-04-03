@@ -1172,16 +1172,28 @@ and fluidInputEvent =
   | DeleteSoftLineForward
   | ReplaceText of string
 
+and fluidMouseUpClickType =
+  | SelectText of int * int (* selection read from the DOM *)
+  | ClickAt of int
+
 and fluidMouseUp =
   { tlid : TLID.t
   ; editor : fluidEditor
         (** fluidEditor is either MainEditor or a FeatureFlagEditor *)
-  ; selection : (int * int) option
-        (** selection is the beginning + end of the browser selection on
-          * mouseup. The selection may be left->right or right->left. If the
-          * selection is None, the selection will be read from the browser
-          * rather than the browser's selection being set. *)
-  }
+  ; selection : fluidMouseUpClickType }
+
+and fluidMouseDoubleClickType =
+  | SelectExpressionAt of int
+  (* [selectTokenAt start end]: the two ints represent the selection when the
+   * double click happened, which might represent a token or a part of the
+   * token (in the case of strings, a word sometimes) *)
+  | SelectTokenAt of int * int
+
+and fluidMouseDoubleClick =
+  { tlid : TLID.t
+  ; editor : fluidEditor
+        (** fluidEditor is either MainEditor or a FeatureFlagEditor *)
+  ; selection : fluidMouseDoubleClickType }
 
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
@@ -1190,6 +1202,7 @@ and fluidMsg =
   | FluidPaste of clipboardContents
   | FluidMouseDown of TLID.t
   | FluidMouseUp of fluidMouseUp
+  | FluidMouseDoubleClick of fluidMouseDoubleClick
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
   | FluidFocusOnToken of TLID.t * ID.t

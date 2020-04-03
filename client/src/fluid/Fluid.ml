@@ -4796,11 +4796,6 @@ let expressionRange (ast : FluidAST.t) (s : fluidState) (exprID : ID.t) :
       None
 
 
-let getTokenRangeAtCaret (ast : FluidAST.t) (s : fluidState) :
-    (int * int) option =
-  getToken ast s |> Option.map ~f:(fun t -> (t.startPos, t.endPos))
-
-
 let getExpressionRangeAtCaret (ast : FluidAST.t) (s : fluidState) :
     (int * int) option =
   getToken ast s
@@ -5329,29 +5324,52 @@ let buildFeatureFlagEditors (ast : FluidAST.t) : fluidEditor list =
   |> List.map ~f:(fun e -> FeatureFlagEditor (E.toID e))
 
 
+let updateMouseDoubleClick
+    (m : model) (ast : FluidAST.t) (eventData : fluidMouseDoubleClick) :
+    FluidAST.t * fluidState =
+  let s =
+    {m.fluidState with midClick = false; activeEditor = eventData.editor}
+  in
+  let selStart, selEnd =
+    match eventData.selection with
+    | SelectExpressionAt pos ->
+        getExpressionRangeAtCaret
+          ast
+          {m.fluidState with newPos = pos; oldPos = m.fluidState.newPos}
+        |> recoverOpt ~default:(0, 0) "no expression range found at caret"
+    | SelectTokenAt (selectionStart, selectionEnd) ->
+      ( match getToken ast {s with newPos = selectionStart} with
+      | Some {token = TFnName (_, displayName, _, _, _); startPos; _} ->
+          (* Highlight the full function name *)
+          (startPos, startPos + String.length displayName)
+      | Some _ when selectionStart <> selectionEnd ->
+          (* there's an actual selection here, use it *)
+          (selectionStart, selectionEnd)
+      | Some {startPos; endPos; _} ->
+          (startPos, endPos)
+      | None ->
+          (selectionStart, selectionEnd) )
+  in
+  ( ast
+  , {s with selectionStart = Some selStart; oldPos = s.newPos; newPos = selEnd}
+    |> acClear )
+
+
+(* Handle either a click or the end of a selection drag *)
 let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
     FluidAST.t * fluidState =
   let s =
     {m.fluidState with midClick = false; activeEditor = eventData.editor}
   in
-  let selection =
-    eventData.selection |> Option.orElseLazy Entry.getFluidSelectionRange
-  in
-  match selection with
-  (* if range width is 0, just change pos *)
-  | Some (selBegin, selEnd) when selBegin = selEnd ->
-      updateMouseClick selBegin ast s
-  | Some (selBegin, selEnd) ->
+  match eventData.selection with
+  | ClickAt pos ->
+      updateMouseClick pos ast s
+  | SelectText (beginSel, endSel) ->
       ( ast
       , { s with
-          selectionStart = Some selBegin
-        ; oldPos = s.newPos
-        ; newPos = selEnd }
-        |> acClear )
-  | None ->
-      (* We reset the fluidState to prevent the selection and/or cursor
-   position from persisting when a user switched handlers *)
-      (ast, {s with selectionStart = None} |> acClear)
+          selectionStart = Some beginSel
+        ; newPos = endSel
+        ; oldPos = s.newPos } )
 
 
 let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
@@ -5366,6 +5384,8 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
         (ast, s)
     | FluidMouseUp eventData ->
         updateMouseUp m ast eventData
+    | FluidMouseDoubleClick eventData ->
+        updateMouseDoubleClick m ast eventData
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
@@ -5542,6 +5562,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidCommandsClick _
   | FluidAutocompleteClick _
   | FluidUpdateAutocomplete
+  | FluidMouseDoubleClick _
   | FluidMouseUp _ ->
       let tlid =
         match msg with
