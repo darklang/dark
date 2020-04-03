@@ -87,3 +87,21 @@ i.fa-spinner {
     box-shadow: $cyan 0 0 0 0;
   }
 }
+
+@keyframes bounceLeft {
+  from {
+    padding-right: 8px;
+  }
+  to {
+    padding-right: 16px;
+  }
+}
+
+@keyframes bounceRight {
+  from {
+    padding-left: 4px;
+  }
+  to {
+    padding-left: 12px;
+  }
+}

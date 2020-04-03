@@ -647,8 +647,8 @@ test("cant_delete_locked_col", async t => {
 });
 
 test("select_route", async t => {
-  const categoryHeader = "summary.headerSummary";
-  const httpVerbLink = ".active a.verb.verb-link";
+  const categoryHeader = ".sidebar-category.http .category-summary";
+  const httpVerbLink = ".sidebar-category.http .category-content a.toplevel-link";
   const toplevelElement = ".node .toplevel";
 
   await t.click(Selector(categoryHeader));
@@ -929,12 +929,12 @@ test("max_callstack_bug", async t => {
 
 test("sidebar_opens_function", async t => {
   await t
-    .expect(available(".sidebar-section.fns .headerSummary"))
+    .expect(available(".sidebar-category.fns .category-summary"))
     .ok()
-    .click(Selector(".sidebar-section.fns .headerSummary"))
-    .expect(available(".sidebar-section.fns a[href='#fn=1352039682']"))
+    .click(Selector(".sidebar-category.fns .category-summary"))
+    .expect(available(".sidebar-category.fns a[href='#fn=1352039682']"))
     .ok()
-    .click(Selector(".sidebar-section.fns a[href='#fn=1352039682']"))
+    .click(Selector(".sidebar-category.fns a[href='#fn=1352039682']"))
     .expect(getPageUrl())
     .match(/.+#fn=1352039682$/, "Url is incorrect");
 });
@@ -1158,12 +1158,12 @@ test("double_clicking_blankor_selects_it", async t => {
   //
   // So this test is not for the ideal behaviour, but for the
   // non-obviously-broken behaviour.
-  let selector = Selector(".toplevel-name");
+  let selector = Selector(".toplevel .spec-header .toplevel-name");
   await t.expect(selector.exists).ok();
   await t.doubleClick(selector);
 
   // Selected text is /hello
-  selector = Selector(".toplevel-name #entry-box");
+  selector = Selector(".toplevel .spec-header .toplevel-name #entry-box");
   await t.expect(selector.exists).ok();
   await t.expect(await getElementSelectionStart(selector)).typeOf("number");
 });
