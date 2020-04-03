@@ -212,6 +212,70 @@ let slice s ~first ~last =
   Buffer.contents b
 
 
+let first_n s num_egcs =
+  let b = Buffer.create (String.length s) in
+  (* We iterate through every EGC, adding it to the buffer
+   * if its index < num_egcs: *)
+  let first_func idx seg =
+    if idx < num_egcs then Buffer.add_string b seg else () ;
+    1 + idx
+  in
+  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster first_func 0 in
+  (* We don't need to renormalize because all normalization forms are closed
+   * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+  Buffer.contents b
+
+
+let drop_first_n s num_egcs =
+  let b = Buffer.create (String.length s) in
+  (* We iterate through every EGC, adding it to the buffer
+   * if its index >= num_egcs. This works by the inverse of the logic for [first_n]: *)
+  let first_func idx seg =
+    if idx >= num_egcs then Buffer.add_string b seg else () ;
+    1 + idx
+  in
+  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster first_func 0 in
+  (* We don't need to renormalize because all normalization forms are closed
+   * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+  Buffer.contents b
+
+
+let last_n s num_egcs =
+  let b = Buffer.create (String.length s) in
+  (* We iterate through every EGC, adding it to the buffer
+   * if its [idx] >= ([s_egc_count] - [num_egcs]).
+   * Consider if the string is "abcde" and [num_egcs] = 2, 
+   * [s_egc_count] = 5; 5-2 = 3. The index of "d" is 3 and
+   * we want to keep it and everything after it so we end up with "de". *)
+  let s_egc_count = length s in
+  let start_idx = s_egc_count - num_egcs in
+  let last_func idx seg =
+    if idx >= start_idx then Buffer.add_string b seg else () ;
+    1 + idx
+  in
+  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster last_func 0 in
+  (* We don't need to renormalize because all normalization forms are closed
+   * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+  Buffer.contents b
+
+
+let drop_last_n s num_egcs =
+  let b = Buffer.create (String.length s) in
+  (* We iterate through every EGC, adding it to the buffer
+   * if its [idx] < ([s_egc_count] - [num_egcs]).
+   * This works by the inverse of the logic for [last_n]. *)
+  let s_egc_count = length s in
+  let start_idx = s_egc_count - num_egcs in
+  let last_func idx seg =
+    if idx < start_idx then Buffer.add_string b seg else () ;
+    1 + idx
+  in
+  let _ = s |> Uuseg_string.fold_utf_8 `Grapheme_cluster last_func 0 in
+  (* We don't need to renormalize because all normalization forms are closed
+   * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+  Buffer.contents b
+
+
 let pad_start s ~pad_with target_egcs =
   let max a b = if a > b then a else b in
   (* Compute the size in bytes and # of required EGCs for s and pad_with: *)
