@@ -243,7 +243,7 @@ $icSize: 1em;
 
   @at-root .abridged > .sidebar-category > & {
     background-color: $sidebarBgColor;
-    width: $sidebarFullWidth;
+    min-width: $sidebarFullWidth;
     max-height: 400px;
     padding: $hSpace;
     margin-top: 2 * $hSpace;
@@ -303,13 +303,10 @@ $icSize: 1em;
       outline: none;
 
       .path::before {
-        @include font-awesome("\f111");
+        @include font-awesome("\f111 \00a0");
         color: transparent;
         font-size: 0.5em;
-        width: 20px;
-        vertical-align: middle;
-        display: inline-block;
-        text-align: center;
+        display: inline;
       }
 
       &:hover .path::before {
