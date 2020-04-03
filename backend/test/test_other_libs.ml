@@ -881,11 +881,11 @@ let t_string_stdlibs_work () =
   check_error_contains
     "String::padStart works (errors on empty string)"
     (exec_ast' (fn "String::padStart" [str "123"; str ""; int 10]))
-    "Expected the argument `padWith` passed to `String::padStart` to be one Character long. However, `\"\"` is 0 Characters long." ;
+    "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"\"` is 0 characters long." ;
   check_error_contains
     "String::padEnd works (errors on empty string)"
     (exec_ast' (fn "String::padEnd" [str "123"; str ""; int 10]))
-    "Expected the argument `padWith` passed to `String::padEnd` to be one Character long. However, `\"\"` is 0 Characters long." ;
+    "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"\"` is 0 characters long." ;
   check_dval
     "String::padStart works (1 EGC)"
     (dstr "000123")
@@ -905,11 +905,11 @@ let t_string_stdlibs_work () =
   check_error_contains
     "String::padStart works (> 1 EGC errors)"
     (exec_ast' (fn "String::padStart" [str "123"; str "_-"; int 4]))
-    "Expected the argument `padWith` passed to `String::padStart` to be one Character long. However, `\"_-\"` is 2 Characters long." ;
+    "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"_-\"` is 2 characters long." ;
   check_error_contains
     "String::padEnd works (> 1 EGC errors)"
     (exec_ast' (fn "String::padEnd" [str "123"; str "_-"; int 4]))
-    "Expected the argument `padWith` passed to `String::padEnd` to be one Character long. However, `\"_-\"` is 2 Characters long." ;
+    "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"_-\"` is 2 characters long." ;
   check_dval
     "String::trimStart works (Noop)"
     (exec_ast' (fn "String::trimStart" [str "foo"]))
