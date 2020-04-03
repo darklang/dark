@@ -828,12 +828,42 @@ let fns : fn list =
     ; parameters = [par "str" TStr]
     ; return_type = TStr
     ; description =
-        "Trims leading and trailing whitespace from `str`. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+        "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
     ; func =
         InProcess
           (function
           | _, [DStr to_trim] ->
               DStr (Unicode_string.trim to_trim)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::trimStart"]
+    ; infix_names = []
+    ; parameters = [par "str" TStr]
+    ; return_type = TStr
+    ; description =
+        "Returns a copy of `str` with all leading whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr to_trim] ->
+              DStr (Unicode_string.trim_start to_trim)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::trimEnd"]
+    ; infix_names = []
+    ; parameters = [par "str" TStr]
+    ; return_type = TStr
+    ; description =
+        "Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr to_trim] ->
+              DStr (Unicode_string.trim_end to_trim)
           | args ->
               fail args)
     ; preview_safety = Safe

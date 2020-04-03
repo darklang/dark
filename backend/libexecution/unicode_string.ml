@@ -326,7 +326,7 @@ let pad_end s ~pad_with target_egcs =
   Buffer.contents b |> normalize_utf_8
 
 
-let trim_left s =
+let trim_start s =
   let b = Buffer.create (String.length s) in
   let seen_non_ws = ref false in
   let trimmer_func _ _ u =
@@ -346,9 +346,9 @@ let trim_left s =
 
 
 (* This implementation is terrible but I don't have time to do the index matches *)
-let trim_right t = t |> rev |> trim_left |> rev
+let trim_end t = t |> rev |> trim_start |> rev
 
-let trim t = t |> trim_left |> trim_right
+let trim t = t |> trim_start |> trim_end
 
 (* Structual equality is okay because the byte-structure of normalized strings is stable *)
 let equal a b = a = b
