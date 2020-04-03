@@ -699,6 +699,70 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["String::first"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "characterCount" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns the first `characterCount` Characters of `string`, as a String."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt n] ->
+              let n = Dint.to_int_exn n in
+              DStr (Unicode_string.first_n s n)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::last"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "characterCount" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns the last `characterCount` Characters of `string`, as a String."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt n] ->
+              let n = Dint.to_int_exn n in
+              DStr (Unicode_string.last_n s n)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::dropLast"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "characterCount" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns all but the last `characterCount` Characters of `string`, as a String."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt n] ->
+              let n = Dint.to_int_exn n in
+              DStr (Unicode_string.drop_last_n s n)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::dropFirst"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "characterCount" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns all but the first `characterCount` Characters of `string`, as a String."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt n] ->
+              let n = Dint.to_int_exn n in
+              DStr (Unicode_string.drop_first_n s n)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["String::padStart"]
     ; infix_names = []
     ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]

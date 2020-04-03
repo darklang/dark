@@ -106,6 +106,18 @@ val trim : t -> t
  *)
 val slice : t -> first:int -> last:int -> t
 
+(** [first_n str num_egcs] returns a substring formed of the first [num_egcs] EGCs of [str]. *)
+val first_n : t -> int -> t
+
+(** [drop_first_n str num_egcs] returns a substring formed of all but the first [num_egcs] EGCs of [str]. *)
+val drop_first_n : t -> int -> t
+
+(** [last_n str num_egcs] returns a substring formed of the last [num_egcs] EGCs of [str]. *)
+val last_n : t -> int -> t
+
+(** [drop_last_n str num_egcs] returns a substring formed of all but the last [num_egcs] EGCs of [str]. *)
+val drop_last_n : t -> int -> t
+
 (** [pad_start str pad_with target_egcs] pads the start of [str] with repeated copies of [pad_with] while
  * the number of EGCs in the result is less than [target_egcs].
  *)
