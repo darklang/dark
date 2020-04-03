@@ -236,13 +236,11 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
          Db.transaction ~name:"clone_canvas" (fun () ->
              (* fetch_canvas_id is what actually creates the canvas record,
               * which must preceed save_all *)
-             let to_id = Serialize.fetch_canvas_id owner to_canvas_name in
+             Serialize.fetch_canvas_id owner to_canvas_name |> ignore ;
              let to_canvas : canvas ref =
-               ref
-                 { !from_canvas with
-                   host = to_canvas_name
-                 ; owner
-                 ; ops = to_ops
-                 ; id = to_id }
+               Canvas.init to_canvas_name (to_ops |> Op.tlid_oplists2oplist)
+               |> Core_kernel__Result.map_error
+                    ~f:(Core_kernel__.String.concat ~sep:", ")
+               |> Core_kernel__Result.ok_or_failwith
              in
              save_all !to_canvas))
