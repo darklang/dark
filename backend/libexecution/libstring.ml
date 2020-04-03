@@ -704,7 +704,9 @@ let fns : fn list =
     ; parameters = [par "string" TStr; par "characterCount" TInt]
     ; return_type = TStr
     ; description =
-        "Returns the first `characterCount` Characters of `string`, as a String."
+        "Returns the first `characterCount` Characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns `string`.
+        If `characterCount` is negative, returns the empty string."
     ; func =
         InProcess
           (function
@@ -720,7 +722,9 @@ let fns : fn list =
     ; parameters = [par "string" TStr; par "characterCount" TInt]
     ; return_type = TStr
     ; description =
-        "Returns the last `characterCount` Characters of `string`, as a String."
+        "Returns the last `characterCount` Characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns `string`.
+        If `characterCount` is negative, returns the empty string."
     ; func =
         InProcess
           (function
@@ -736,7 +740,9 @@ let fns : fn list =
     ; parameters = [par "string" TStr; par "characterCount" TInt]
     ; return_type = TStr
     ; description =
-        "Returns all but the last `characterCount` Characters of `string`, as a String."
+        "Returns all but the last `characterCount` Characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns the empty string.
+        If `characterCount` is negative, returns `string`."
     ; func =
         InProcess
           (function
@@ -752,7 +758,9 @@ let fns : fn list =
     ; parameters = [par "string" TStr; par "characterCount" TInt]
     ; return_type = TStr
     ; description =
-        "Returns all but the first `characterCount` Characters of `string`, as a String."
+        "Returns all but the first `characterCount` Characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns the empty string.
+        If `characterCount` is negative, returns `string`."
     ; func =
         InProcess
           (function
