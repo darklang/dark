@@ -61,7 +61,7 @@ let run () =
     let pos = pos + extra in
     let s =
       { Fluid_test_data.defaultTestState with
-        ac = AC.reset m
+        ac = AC.reset
       ; oldPos = pos
       ; newPos = pos }
     in

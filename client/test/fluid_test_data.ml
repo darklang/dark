@@ -620,14 +620,14 @@ let defaultTestFunctions =
     ; fnOrigin = Builtin } ]
 
 
-let defaultTestState =
-  let s = Defaults.defaultFluidState in
-  {s with ac = {s.ac with functions = defaultTestFunctions}}
+let defaultTestState = Defaults.defaultFluidState
 
+let defaultTestProps = {functions = defaultTestFunctions}
 
 let defaultTestModel =
   { Defaults.defaultModel with
-    analyses =
+    functions = defaultTestFunctions
+  ; analyses =
       StrDict.singleton (* The default traceID for TLID 7 *)
         ~key:"94167980-f909-527e-a4af-bc3155f586d3"
         ~value:

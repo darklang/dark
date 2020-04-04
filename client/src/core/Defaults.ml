@@ -49,7 +49,7 @@ let defaultFluidState : fluidState =
         ; altKey = false
         ; metaKey = false
         ; ctrlKey = false }
-  ; ac = {functions = []; index = None; query = None; completions = []}
+  ; ac = {index = None; query = None; completions = []}
   ; cp = {index = 0; commands = []; location = None; filter = None}
   ; selectionStart = None
   ; errorDvSrc = SourceNone
@@ -86,6 +86,7 @@ let defaultFnSpace : fnProps =
 
 let defaultModel : model =
   { error = Error.default
+  ; functions = []
   ; lastMsg = IgnoreMsg "default"
   ; opCtrs = StrDict.empty
   ; clientOpCtrId = ""

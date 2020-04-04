@@ -119,7 +119,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                    | _ ->
                        None)
             |> Option.andThen ~f:(fun (name, sendToRail) ->
-                   m.fluidState.ac.functions
+                   m.functions
                    |> List.findMap ~f:(fun f ->
                           if name = f.fnName then Some (f, sendToRail) else None))
           in
@@ -138,7 +138,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             |> Option.andThen ~f:TL.getAST
             |> Option.andThen ~f:(AST.getParamIndex id)
             |> Option.andThen ~f:(fun (name, index) ->
-                   m.fluidState.ac.functions
+                   m.functions
                    |> List.find ~f:(fun f -> name = f.fnName)
                    |> Option.map ~f:(fun x -> x.fnParameters)
                    |> Option.andThen ~f:(List.getAt ~index))

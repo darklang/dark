@@ -6,8 +6,7 @@ let debugState s =
       (* remove the things that take a lot of space and provide little value. *)
       ac =
         { s.ac with
-          functions = []
-        ; completions = (if s.ac.index = None then [] else s.ac.completions) }
+          completions = (if s.ac.index = None then [] else s.ac.completions) }
     }
 
 

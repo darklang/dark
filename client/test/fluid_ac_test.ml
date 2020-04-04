@@ -154,11 +154,9 @@ let defaultModel
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState = FluidEntering tlid
   ; builtInFunctions = sampleFunctions
-  ; fluidState =
-      { default.fluidState with
-        ac = {default.fluidState.ac with functions = sampleFunctions} }
   ; analyses =
       StrDict.singleton ~key:defaultTraceID ~value:(LoadableSuccess analyses) }
+  |> Functions.updateFunctions
 
 
 (* AC targeting a tlid and pointer *)
@@ -170,12 +168,13 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.t =
            Fluid.getToken ast {m.fluidState with newPos = pos})
     |> Option.withDefault ~default:defaultTokenInfo
   in
-  AC.regenerate m (AC.init m) (tlid, ti)
+  AC.regenerate m AC.init (tlid, ti)
 
 
 let setQuery (q : string) (a : AC.t) : AC.t =
   let fullQ = defaultFullQuery a q in
-  AC.refilter fullQ a (List.map ~f:(fun {item; _} -> item) a.completions)
+  let props = defaultTestProps in
+  AC.refilter props fullQ a (List.map ~f:(fun {item; _} -> item) a.completions)
 
 
 let filterValid (a : AC.t) : AC.item list =

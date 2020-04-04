@@ -4407,7 +4407,7 @@ let run () =
       test "backspace on partial will open AC if query matches" (fun () ->
           let ast = FluidAST.ofExpr (let' "request" aShortInt aPartialVar) in
           let s = defaultTestState |> moveTo 19 in
-          let ast, s = updateKey (keypress K.Down) ast s in
+          let ast, s = updateKey (keypress K.Down) defaultTestProps ast s in
           let ast, s =
             ast |> FluidAST.toExpr |> processMsg [DeleteContentBackward] s
           in
@@ -4427,6 +4427,7 @@ let run () =
       ()) ;
   describe "Movement" (fun () ->
       let s = defaultTestState in
+      let props = defaultTestProps in
       let tokens = Printer.tokenize complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr |> FluidAST.ofExpr in
@@ -4516,17 +4517,17 @@ let run () =
       test "up goes through the autocomplete" (fun () ->
           expect
             ( moveTo 143 s
-            |> (fun s -> updateKey (keypress K.Up) ast s)
-            |> (fun (ast, s) -> updateKey (keypress K.Up) ast s)
-            |> (fun (ast, s) -> updateKey (keypress K.Up) ast s)
+            |> (fun s -> updateKey (keypress K.Up) props ast s)
+            |> (fun (ast, s) -> updateKey (keypress K.Up) props ast s)
+            |> (fun (ast, s) -> updateKey (keypress K.Up) props ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 13) ;
       test "down goes through the autocomplete" (fun () ->
           expect
             ( moveTo 14 s
-            |> (fun s -> updateKey (keypress K.Down) ast s)
-            |> (fun (ast, s) -> updateKey (keypress K.Down) ast s)
-            |> (fun (ast, s) -> updateKey (keypress K.Down) ast s)
+            |> (fun s -> updateKey (keypress K.Down) props ast s)
+            |> (fun (ast, s) -> updateKey (keypress K.Down) props ast s)
+            |> (fun (ast, s) -> updateKey (keypress K.Down) props ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 144) ;
       test "clicking away from autocomplete commits" (fun () ->
@@ -4539,7 +4540,7 @@ let run () =
                     {defaultTestModel with handlers = Handlers.fromList [h]}
                   in
                   updateAutocomplete m h.hTLID h.ast s)
-             |> (fun s -> updateMouseClick 0 (FluidAST.ofExpr ast) s)
+             |> (fun s -> updateMouseClick 0 props (FluidAST.ofExpr ast) s)
              |> fun (ast, _) ->
              match FluidAST.toExpr ast with
              | ELet (_, _, EBool (_, false), _) ->
@@ -4577,16 +4578,18 @@ let run () =
           expect
             (let ast = b in
              moveTo 0 s
-             |> (fun s -> updateKey (InsertText "r") (FluidAST.ofExpr ast) s)
-             |> (fun (ast, s) -> updateKey (keypress K.Escape) ast s)
+             |> (fun s ->
+                  updateKey (InsertText "r") props (FluidAST.ofExpr ast) s)
+             |> (fun (ast, s) -> updateKey (keypress K.Escape) props ast s)
              |> fun (_, s) -> s.ac.index)
           |> toEqual None) ;
       test "right/left brings back autocomplete" (fun () ->
           expect
             (let ast = b in
              moveTo 0 s
-             |> (fun s -> updateKey (InsertText "r") (FluidAST.ofExpr ast) s)
-             |> (fun (ast, s) -> updateKey (keypress K.Escape) ast s)
+             |> (fun s ->
+                  updateKey (InsertText "r") props (FluidAST.ofExpr ast) s)
+             |> (fun (ast, s) -> updateKey (keypress K.Escape) props ast s)
              |> fun (_, s) -> s.ac.index)
           |> toEqual None) ;
       ()) ;
