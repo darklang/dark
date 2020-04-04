@@ -131,7 +131,7 @@ let bytes_from_base64url (b64 : string) : Bytes.t =
  * client serializes them to strings, so they could actually be either.
  *
  * This is actually a really important path for responsiveness of the client.
- * In th e past we used tried one decoder, then the other, using an exception.
+ * In the past we used tried one decoder, then the other, using an exception.
  * This is very very slow. It's possible that testing it isn't the fastest
  * approach, but it no longer appears in profiles, so it's at least good
  * enough.
