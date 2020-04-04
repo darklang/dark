@@ -127,10 +127,20 @@ let bytes_from_base64url (b64 : string) : Bytes.t =
   |> _bytes_from_uint8Array
 
 
-(* identifiers are strings to the bucklescript client -- it knows nothing
- * about them being parseable as ints. if it doesn't look like a string
- * to bs-json we'll just json stringify it and use that *)
-let wireIdentifier j = try string j with _ -> int j |> string_of_int
+(* IDs are strings in the client. The server serializes IDs to ints, while the
+ * client serializes them to strings, so they could actually be either.
+ *
+ * This is actually a really important path for responsiveness of the client.
+ * In th e past we used tried one decoder, then the other, using an exception.
+ * This is very very slow. It's possible that testing it isn't the fastest
+ * approach, but it no longer appears in profiles, so it's at least good
+ * enough.
+ *
+ * Would probably be good to fix this so that we always know what we're
+ * getting. *)
+let wireIdentifier j =
+  if Js.Json.test j Js.Json.Number then int j |> string_of_int else string j
+
 
 let id = ID.fromString << wireIdentifier
 
