@@ -1559,8 +1559,7 @@ and fluidAutocompleteState =
   { (* ------------------------------- *)
     (* state *)
     (* ------------------------------- *)
-    functions : function_ list
-  ; index : int option
+    index : int option
   ; query :
       (* We need to refer back to the previous one *)
       (TLID.t * fluidTokenInfo) option
@@ -1603,6 +1602,8 @@ and fluidState =
       dval_source
   ; activeEditor : fluidEditor }
 
+and fluidProps = {functions : function_ list}
+
 (* Avatars *)
 and avatar =
   { canvasId : string
@@ -1624,6 +1625,8 @@ and model =
   { error : Error.t
   ; lastMsg : msg
   ; tests : variantTest list
+  ; (* A cache of all functions, both built-in and user functions. *)
+    functions : function_ list
   ; complete : autocomplete
   ; builtInFunctions : function_ list
   ; cursorState : cursorState

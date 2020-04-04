@@ -328,8 +328,7 @@ let run () =
         let m =
           { m with
             fluidState =
-              {Defaults.defaultFluidState with ac = FluidAutocomplete.reset m}
-          }
+              {Defaults.defaultFluidState with ac = FluidAutocomplete.reset} }
         in
         (m, TLHandler tl)
       in

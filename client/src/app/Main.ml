@@ -122,7 +122,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; tlid = None
     ; timestamp = timeStamp }
   in
-  let m = {m with fluidState = Fluid.initAC m.fluidState m} in
+  let m = {m with fluidState = Fluid.initAC m.fluidState} in
   if Url.isIntegrationTest ()
   then (m, Cmd.batch [API.integration m m.canvasName; API.loadPackages m])
   else
@@ -706,13 +706,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               |> TD.removeMany ~tlids:(List.map ~f:UserFunctions.toID userFuncs)
           }
         in
-        (* Update the functions variable for use in FluidPrinter for fn params *)
-        OldExpr.functions := FluidAutocomplete.allFunctions m ;
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
         let m = if updateCurrent then m else bringBackCurrentTL oldM m in
         let m = Refactor.updateUsageCounts m in
-        let m = FluidAutocomplete.updateFunctions m in
+        let m =
+          if userFuncs <> [] || deletedUserFuncs <> []
+          then Functions.updateFunctions m
+          else m
+        in
+        OldExpr.functions := m.functions ;
         processAutocompleteMods m [ACRegenerate]
     | SetTypes (userTipes, deletedUserTipes, updateCurrent) ->
         let m2 =
