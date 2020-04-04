@@ -48,15 +48,15 @@ let variant5 constructor d1 d2 d3 d4 d5 =
 
 
 let variants decoders =
-  let constructors =
-    decoders |> List.map ~f:Tuple2.first |> String.join ~sep:", "
-  in
   index 0 string
   |> andThen (fun str_constructor ->
          match Belt.List.getAssoc decoders str_constructor ( = ) with
          | Some decode ->
              decode
          | None ->
+             let constructors =
+               decoders |> List.map ~f:Tuple2.first |> String.join ~sep:", "
+             in
              raise
              @@ DecodeError
                   ( "Got "
