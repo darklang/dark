@@ -691,32 +691,32 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd; reExeCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
-        (* TODO: note: this updates existing, despite not being called update *)
-        let oldM = m in
-        let m =
-          { m with
-            userFunctions =
-              TD.mergeRight m.userFunctions (UserFunctions.fromList userFuncs)
-              |> TD.removeMany
-                   ~tlids:(List.map ~f:UserFunctions.toID deletedUserFuncs)
-          ; deletedUserFunctions =
-              TD.mergeRight
-                m.deletedUserFunctions
-                (UserFunctions.fromList deletedUserFuncs)
-              |> TD.removeMany ~tlids:(List.map ~f:UserFunctions.toID userFuncs)
-          }
-        in
-        (* Bring back the TL being edited, so we don't lose work done since the
+        if userFuncs = [] && deletedUserFuncs = []
+        then (* no need to do this if nothing changed *)
+          (m, Cmd.none)
+        else
+          (* TODO: note: this updates existing, despite not being called update *)
+          let oldM = m in
+          let m =
+            { m with
+              userFunctions =
+                TD.mergeRight m.userFunctions (UserFunctions.fromList userFuncs)
+                |> TD.removeMany
+                     ~tlids:(List.map ~f:UserFunctions.toID deletedUserFuncs)
+            ; deletedUserFunctions =
+                TD.mergeRight
+                  m.deletedUserFunctions
+                  (UserFunctions.fromList deletedUserFuncs)
+                |> TD.removeMany
+                     ~tlids:(List.map ~f:UserFunctions.toID userFuncs) }
+          in
+          (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
-        let m = if updateCurrent then m else bringBackCurrentTL oldM m in
-        let m = Refactor.updateUsageCounts m in
-        let m =
-          if userFuncs <> [] || deletedUserFuncs <> []
-          then Functions.updateFunctions m
-          else m
-        in
-        OldExpr.functions := m.functions ;
-        processAutocompleteMods m [ACRegenerate]
+          let m = if updateCurrent then m else bringBackCurrentTL oldM m in
+          let m = Refactor.updateUsageCounts m in
+          let m = Functions.updateFunctions m in
+          OldExpr.functions := m.functions ;
+          processAutocompleteMods m [ACRegenerate]
     | SetTypes (userTipes, deletedUserTipes, updateCurrent) ->
         let m2 =
           { m with
