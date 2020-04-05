@@ -33,7 +33,6 @@ let updateFunctions (m : model) : model =
                then Unsafe
                else Safe ) })
   in
-  let builtin = m.builtInFunctions |> filterAndSort in
   let packageFunctions =
     m.packageFns
     |> TLIDDict.values
@@ -41,4 +40,5 @@ let updateFunctions (m : model) : model =
   in
   { m with
     functions =
-      builtin @ userFunctionMetadata @ packageFunctions |> filterAndSort }
+      m.builtInFunctions @ userFunctionMetadata @ packageFunctions
+      |> filterAndSort }
