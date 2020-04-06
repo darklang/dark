@@ -508,11 +508,16 @@ let categoryName (name : string) : msg Html.html =
 let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
     msg Vdom.property * msg Vdom.property =
   let isOpen = StrSet.has m.routingTableOpenDetails ~value:classname in
+  let isDetailed = m.sidebarState.mode = DetailedMode in
+  let isSubCat = String.contains ~substring:delPrefix classname in
   let openEventHandler =
-    ViewUtils.eventNoPropagation
-      ~key:((if isOpen then "cheh-true-" else "cheh-false-") ^ classname)
-      "click"
-      (fun _ -> MarkRoutingTableOpen (not isOpen, classname))
+    if isDetailed || isSubCat
+    then
+      ViewUtils.eventNoPropagation
+        ~key:((if isOpen then "cheh-true-" else "cheh-false-") ^ classname)
+        "click"
+        (fun _ -> MarkRoutingTableOpen (not isOpen, classname))
+    else Vdom.noProp
   in
   let openAttr =
     if isOpen && count <> 0 then Vdom.attribute "" "open" "" else Vdom.noProp
