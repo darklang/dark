@@ -660,6 +660,8 @@ and nExpr (nexpr : OldExpr.nExpr) : Js.Json.t =
       ev "FluidPartial" [string name; e oldExpr]
   | FluidRightPartial (name, oldExpr) ->
       ev "FluidRightPartial" [string name; e oldExpr]
+  | FluidPrefixPartial (name, oldExpr) ->
+      ev "FluidPrefixPartial" [string name; e oldExpr]
 
 
 and pattern (p : OldExpr.pattern) : Js.Json.t = blankOr nPattern p
@@ -751,6 +753,8 @@ and fluidExpr (expr : FluidExpression.t) : Js.Json.t =
       ev "EPartial" [id id'; string str; fe oldExpr]
   | ERightPartial (id', str, oldExpr) ->
       ev "ERightPartial" [id id'; string str; fe oldExpr]
+  | EPrefixPartial (id', str, oldExpr) ->
+      ev "EPrefixPartial" [id id'; string str; fe oldExpr]
   | EPipeTarget id' ->
       ev "EPipeTarget" [id id']
 

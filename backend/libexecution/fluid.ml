@@ -175,6 +175,8 @@ and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
         Filled (id, FluidPartial (str, fromFluidExpr ~inPipe oldVal))
     | ERightPartial (id, str, oldVal) ->
         Filled (id, FluidRightPartial (str, fromFluidExpr ~inPipe oldVal))
+    | EPrefixPartial (id, str, oldVal) ->
+        Filled (id, FluidPrefixPartial (str, fromFluidExpr ~inPipe oldVal))
     | EList (id, exprs) ->
         Filled (id, ListLiteral (List.map ~f:r exprs))
     | ERecord (id, pairs) ->
@@ -342,6 +344,8 @@ let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) :
           , toFluidExpr ~inPipe caseb )
     | FluidPartial (str, oldExpr) ->
         EPartial (id, str, toFluidExpr ~inPipe oldExpr)
+    | FluidPrefixPartial (str, oldExpr) ->
+        EPrefixPartial (id, str, toFluidExpr ~inPipe oldExpr)
     | FluidRightPartial (str, oldExpr) ->
         ERightPartial (id, str, toFluidExpr ~inPipe oldExpr) )
 

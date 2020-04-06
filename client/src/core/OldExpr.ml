@@ -39,6 +39,7 @@ and nExpr =
   | Constructor of string Types.blankOr * expr list
   | FluidPartial of string * expr
   | FluidRightPartial of string * expr
+  | FluidPrefixPartial of string * expr
 
 (* ----------------- *)
 (* Expressions *)
@@ -122,7 +123,9 @@ let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
     | FluidPartial (str, oldExpr) ->
         EPartial (id, str, toFluidExpr' ~inPipe oldExpr)
     | FluidRightPartial (str, oldExpr) ->
-        ERightPartial (id, str, toFluidExpr' ~inPipe oldExpr) )
+        ERightPartial (id, str, toFluidExpr' ~inPipe oldExpr)
+    | FluidPrefixPartial (str, oldExpr) ->
+        EPrefixPartial (id, str, toFluidExpr' ~inPipe oldExpr) )
 
 
 and toFluidExpr (expr : expr) : FluidExpression.t = toFluidExpr' expr
@@ -224,6 +227,8 @@ and fromFluidExpr (expr : FluidExpression.t) : expr =
         F (id, FluidPartial (str, fromFluidExpr ~inPipe oldVal))
     | ERightPartial (id, str, oldVal) ->
         F (id, FluidRightPartial (str, fromFluidExpr ~inPipe oldVal))
+    | EPrefixPartial (id, str, oldVal) ->
+        F (id, FluidPrefixPartial (str, fromFluidExpr ~inPipe oldVal))
     | EList (id, exprs) ->
         F (id, ListLiteral (List.map ~f:r exprs))
     | ERecord (id, pairs) ->

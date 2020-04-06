@@ -1,3 +1,5 @@
+[%%debugger.chrome]
+
 (* Specs:
  * Pressing enter
    * https://trello.com/c/nyf3SyA4/1513-handle-pressing-enter-at-the-end-of-a-line
@@ -1188,6 +1190,9 @@ let rec caretTargetForEndOfExpr' : fluidExpr -> caretTarget = function
   | ERightPartial (id, str, _) ->
       (* Intentionally using the thing that was typed; not the existing expr *)
       {astRef = ARRightPartial id; offset = String.length str}
+  | EPrefixPartial (id, str, _) ->
+      (* Intentionally using the thing that was typed; not the existing expr *)
+      {astRef = ARPartial id; offset = String.length str}
   | EList (id, _) ->
       {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
   | ERecord (id, _) ->
@@ -1270,6 +1275,8 @@ let rec caretTargetForStartOfExpr' : fluidExpr -> caretTarget = function
       {astRef = ARPartial id; offset = 0}
   | ERightPartial (id, _, _) ->
       {astRef = ARRightPartial id; offset = 0}
+  | EPrefixPartial (id, _, _) ->
+      {astRef = ARPartial id; offset = 0}
   | EList (id, _) ->
       {astRef = ARList (id, LPOpen); offset = 0}
   | ERecord (id, _) ->
@@ -2090,7 +2097,7 @@ let rec findAppropriateParentToWrap
     | EBinOp _ | EFnCall _ | EList _ | EConstructor _ | EFieldAccess _ ->
         findAppropriateParentToWrap parent ast
     (* These are wrappers of the current expr. *)
-    | EPartial _ | ERightPartial _ ->
+    | EPartial _ | ERightPartial _ | EPrefixPartial _ ->
         findAppropriateParentToWrap parent ast )
   | None ->
       (* If we get to the root *)
@@ -2461,6 +2468,22 @@ let updateFromACItem
             let replacement = EPipe (gid (), [expr; blank]) in
             ( FluidAST.replace (E.toID expr) ast ~replacement
             , caretTargetForEndOfExpr' blank ) )
+    | ( TPartial _
+      , Some (EPrefixPartial (pID, _, expr))
+      , _
+      , Expr (EIf (ifID, _, _, _)) ) ->
+        (* when committing `if` in front of another expression, put the expr into the if condition *)
+        let replacement = EIf (ifID, expr, E.newB (), E.newB ()) in
+        let newAST = FluidAST.replace ~replacement pID ast in
+        (newAST, caretTargetForStartOfExpr' expr)
+    | ( TPartial _
+      , Some (EPrefixPartial (pID, _, expr))
+      , _
+      , Expr (EMatch (mID, _, pats)) ) ->
+        (* when committing `match` in front of another expression, put the expr into the match condition *)
+        let replacement = EMatch (mID, expr, pats) in
+        let newAST = FluidAST.replace ~replacement pID ast in
+        (newAST, caretTargetForStartOfExpr' expr)
     | TPartial _, _, Some (EPipe _), Expr (EBinOp (bID, name, _, rhs, str)) ->
         let replacement = EBinOp (bID, name, EPipeTarget (gid ()), rhs, str) in
         let newAST = FluidAST.replace ~replacement id ast in
@@ -2906,6 +2929,11 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
             ( Expr (EString (newID, String.slice ~from:1 ~to_:(-1) str))
             , CT.forARStringText newID (currOffset - 1) )
         else Some (Expr (EPartial (id, str, oldExpr)), currCTMinusOne)
+    | ARPartial _, EPrefixPartial (id, oldStr, oldValue) ->
+        let str = oldStr |> mutation |> String.trim in
+        if str = ""
+        then Some (Expr oldValue, caretTargetForStartOfExpr' oldValue)
+        else Some (Expr (EPrefixPartial (id, str, oldValue)), currCTMinusOne)
     | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
         let str = oldStr |> mutation |> String.trim in
         if str = ""
@@ -3383,6 +3411,9 @@ let doExplicitInsert
     | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
         let str = oldStr |> mutation |> String.trim in
         Some (ERightPartial (id, str, oldValue), currCTPlusLen)
+    | ARPartial _, EPrefixPartial (id, str, expr) ->
+        let str = str |> mutation |> String.trim in
+        Some (EPrefixPartial (id, str, expr), currCTPlusLen)
     | ARBinOp _, (EBinOp (_, op, _, _, _) as oldExpr) ->
         let str = op |> FluidUtil.partialName |> mutation |> String.trim in
         mkPartial str oldExpr
@@ -3456,7 +3487,12 @@ let doExplicitInsert
     (*
      * Things you can't edit but probably should be able to edit
      *)
-    | ARFnCall _, EFnCall _ | ARConstructor _, EConstructor _ ->
+    | ARFnCall _, (EFnCall _ as fn) ->
+        let id = gid () in
+        Some
+          ( EPrefixPartial (id, extendedGraphemeCluster, fn)
+          , {astRef = ARPartial id; offset = currOffset + caretDelta} )
+    | ARConstructor _, EConstructor _ ->
         None
     (*
      * Immutable keywords and symbols
@@ -3507,7 +3543,7 @@ let doExplicitInsert
     | ARPattern _, _
     | ARInvalid, _ ->
         recover
-          "doExplicitBackspace - unexpected expr"
+          "doExplicitInsert - unexpected expr"
           ~debug:(show_astRef currAstRef)
           None
   in
@@ -5133,7 +5169,7 @@ let reconstructExprFromRange
           findTokenValue tokens eID "partial" |> Option.withDefault ~default:""
         in
         Some (EPartial (id, newName, expr))
-    | ERightPartial (eID, _, expr) ->
+    | ERightPartial (eID, _, expr) | EPrefixPartial (eID, _, expr) ->
         let expr = reconstructExpr expr |> orDefaultExpr in
         let newName =
           findTokenValue tokens eID "partial-right"
