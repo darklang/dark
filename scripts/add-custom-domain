@@ -48,7 +48,7 @@ echo "\\copy (${insert_query} returning (host, canvas)) TO ${tmpfile}" \
 if ( grep . < "${tmpfile}" > /dev/null ); then
     echo "Added (${DOMAIN}, ${CANVAS}) to custom_domains table."
 else
-    echo "Failed to add (${DOMAIN}, ${CANVAS}) to custom_domains table - possibly there's already an entry for ${DOMAIN}?"
+    echo "Failed to add (${DOMAIN}, ${CANVAS}) to custom_domains table - possibly there's already an entry for ${DOMAIN}, or you lack db creds?"
     exit 1
 fi
 
