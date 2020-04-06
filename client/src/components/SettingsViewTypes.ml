@@ -74,3 +74,15 @@ type settingsMsg =
       (loadCanvasInfoAPIResult, (string Tea.Http.error[@opaque])) Tea.Result.t
       [@printer opaque "LoadPackagesAPICallback"]
 [@@deriving show]
+
+let settingsTabToText (tab : settingsTab) : string =
+  match tab with
+  | NewCanvas ->
+      "NewCanvas"
+  | CanvasInfo ->
+      "About"
+  | UserSettings ->
+      "Canvases"
+  | InviteUser _ ->
+      "Share"
+  [@@deriving show]

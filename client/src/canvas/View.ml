@@ -168,7 +168,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let pos =
     match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+    | Architecture
+    | FocusedHandler _
+    | FocusedDB _
+    | FocusedGroup _
+    | SettingsModel _ ->
         TL.pos tl
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
@@ -279,7 +283,11 @@ let viewTL m tl =
 let viewCanvas (m : model) : msg Html.html =
   let allDivs =
     match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+    | Architecture
+    | FocusedHandler _
+    | FocusedDB _
+    | FocusedGroup _
+    | SettingsModel _ ->
         m
         |> TL.structural
         |> TD.values
@@ -335,7 +343,7 @@ let viewCanvas (m : model) : msg Html.html =
   in
   let pageClass =
     match m.currentPage with
-    | Architecture ->
+    | SettingsModel _ | Architecture ->
         "arch"
     | FocusedHandler _ ->
         "focused-handler"

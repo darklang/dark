@@ -45,6 +45,9 @@ let openOmnibox (m : model) : modification =
       Many [Deselect; Entry.openOmnibox ()]
   | FocusedFn _ | FocusedType _ ->
       Entry.openOmnibox ()
+  | SettingsModel _ ->
+      (* Shouldnt be able to open the omnibox from the settings modal *)
+      NoChange
 
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
