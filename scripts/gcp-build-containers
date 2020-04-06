@@ -122,6 +122,7 @@ if [[ "${SKIP_STROLLER}" == "" ]]; then
   ## stroller
   #################################
   if [[ "${CI}" == "" ]]; then
+      # If not in CI, we may not have a release build yet - build it
       scripts/support/build-rust-release stroller
   fi
 
@@ -141,6 +142,7 @@ fi
 #################################
 if [[ "${SKIP_QUEUE_SCHEDULER}" == "" ]]; then
   if [[ "${CI}" == "" ]]; then
+      # If not in CI, we may not have a release build yet - build it
       scripts/support/build-rust-release queue-scheduler
   fi
 
