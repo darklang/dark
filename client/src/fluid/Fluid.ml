@@ -3851,7 +3851,15 @@ let doInfixInsert
              None)
   |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
          let newAST = FluidAST.replace replaceID ~replacement:newExpr ast in
-         (newAST, moveToCaretTarget s newAST newCaretTarget))
+         let newState = moveToCaretTarget s newAST newCaretTarget in
+         let newState =
+           match getToken newAST newState with
+           | Some ti ->
+               acMaybeShow ti newState
+           | None ->
+               newState
+         in
+         (newAST, newState))
   |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti ast s))
   |> recoverOpt
        "updateKey - can't return None due to lazy Some"
