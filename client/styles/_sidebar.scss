@@ -214,7 +214,7 @@ $icSize: 1em;
       }
     }
 
-    @at-root .abridged .sidebar-category[open] & {
+    @at-root .abridged .sidebar-category:hover & {
       @extend .sidebar-on-abridged-icon;
     }
   }
@@ -271,6 +271,8 @@ $icSize: 1em;
     left: $sidebarClosedWidth;
     top: -1.25em;
 
+    display: none;
+
     &::-webkit-scrollbar-corner {
       background-color: transparent;
     }
@@ -284,6 +286,10 @@ $icSize: 1em;
     .category-icon {
       display: none;
     }
+  }
+
+  @at-root .abridged > .sidebar-category:hover > & {
+    display: block;
   }
 }
 

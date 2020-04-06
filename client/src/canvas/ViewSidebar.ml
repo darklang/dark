@@ -595,10 +595,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
   in
   let openAttr =
     if m.sidebarState.mode = AbridgedMode
-    then
-      if m.sidebarState.onCategory = Some c.classname
-      then Vdom.attribute "" "open" ""
-      else Vdom.noProp
+    then Vdom.attribute "" "open" ""
     else openAttr
   in
   let isSubCat = String.contains ~substring:delPrefix c.classname in
