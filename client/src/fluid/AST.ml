@@ -73,6 +73,8 @@ let rec uses (var : string) (expr : E.t) : E.t list =
         u oldExpr
     | ERightPartial (_, _, oldExpr) ->
         u oldExpr
+    | EPrefixPartial (_, _, oldExpr) ->
+        u oldExpr
 
 
 (* ------------------------- *)
@@ -280,6 +282,8 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
     | EPartial (_, _, oldExpr) ->
         sexe st oldExpr
     | ERightPartial (_, _, oldExpr) ->
+        sexe st oldExpr
+    | EPrefixPartial (_, _, oldExpr) ->
         sexe st oldExpr ) ;
   trace expr st
 
