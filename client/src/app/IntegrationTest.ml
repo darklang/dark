@@ -744,7 +744,11 @@ let fluid_bytes_response (_m : model) : testResult = pass
 
 let double_clicking_blankor_selects_it (_m : model) : testResult = pass
 
-let abridged_sidebar (_m : model) : testResult = pass
+let abridged_sidebar_content_visible_on_hover (_m : model) : testResult = pass
+
+let abridged_sidebar_category_icon_click_disabled (_m : model) : testResult =
+  pass
+
 
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
@@ -882,7 +886,9 @@ let trigger (test_name : string) : integrationTestState =
         fluid_bytes_response
     | "double_clicking_blankor_selects_it" ->
         double_clicking_blankor_selects_it
-    | "abridged_sidebar" ->
-      abridged_sidebar
+    | "abridged_sidebar_content_visible_on_hover" ->
+        abridged_sidebar_content_visible_on_hover
+    | "abridged_sidebar_category_icon_click_disabled" ->
+        abridged_sidebar_category_icon_click_disabled
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
