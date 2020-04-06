@@ -540,10 +540,8 @@ let viewDeployStats (m : model) : msg Html.html =
   let title = categoryName "Static Assets" in
   let summary =
     let props =
-      [ eventNoPropagation ~key:"cat-open-deploys" "mouseenter" (fun _ ->
-            if m.sidebarState.mode = AbridgedMode
-            then SidebarMsg (SetOnCategory "deploys")
-            else IgnoreMsg "view-deploy-stats") ]
+      [ eventPreventDefault ~key:"disable-sa-click" "click" (fun _ ->
+            IgnoreMsg "static asset icon click") ]
     in
     let header =
       Html.div
@@ -617,14 +615,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
     in
     let catIcon =
       let props =
-        [ eventNoPropagation
-            ~key:("cat-open-" ^ c.classname)
-            "mouseenter"
-            (fun _ ->
-              if m.sidebarState.mode = AbridgedMode && not isSubCat
-              then SidebarMsg (SetOnCategory c.classname)
-              else IgnoreMsg "sidebar-category-open")
-        ; eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
+        [ eventNeither ~key:"return-to-arch" "click" (fun _ ->
               if m.sidebarState.mode = AbridgedMode && not isSubCat
               then
                 match c.iconAction with
