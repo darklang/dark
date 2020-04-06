@@ -1,5 +1,6 @@
 # See doc at https://cert-manager.io/docs/configuration/acme/; ACME is the Let's
 # Encrypt client protocol
+# See docs/custom-domains.md for more detail.
 apiVersion: cert-manager.io/v1alpha2
 kind: Issuer
 metadata:

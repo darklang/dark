@@ -28,3 +28,23 @@ place.
 a cert.
 - There are no longer any manual steps to run, nor deploys needed, to provision
   a custom domain.
+
+## Implementation details
+See `scripts/add-custom-domain.md` for a high level overview.
+
+If you're wondering about the `cert-manager-*` yamls in
+`scripts/support/kubernetes/certs`, see the [cert-manager
+docs](https://cert-manager.io/docs/); these files were taken directly fromthe
+[cert-manager Kubernetes installation
+instructions](https://cert-manager.io/docs/installation/kubernetes/), see
+"installing with regular manifests" since we don't use Helm. The [cert-manager
+Concepts doc](https://cert-manager.io/docs/concepts/) may also be useful.
+
+tl;dr: adding a tls host to the `darkcustomdomain-l4-ingress` resource causes
+Cert Manager to request a cert from Let's Encrypt and launch a pod to respond to
+[Let's Encrypt/ACME's HTTP-01 challenge](https://letsencrypt.org/docs/challenge-types/).
+
+If you're interested in `darkcustomdomain-ingress.yaml`,
+`nginx-ingress-controller.yaml`, or `darkcustomdomain-ip-svc.yaml`, those are
+derived from the [kubernetes/ingress-nginx static-ip
+example](https://github.com/kubernetes/ingress-nginx/tree/master/docs/examples/static-ip).

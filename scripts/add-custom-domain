@@ -12,6 +12,15 @@ Usage: $0 DOMAIN
 Sets up DOMAIN with a letsencrypt cert - note, you must have CNAME'd domain ->
 <some_canvas>.darkcustomdomain.com. We'll confirm (using dig) that the CNAME is
 in place, and extract the desired canvas name from it.
+
+Once that's done, we:
+- add a record to the db that webserver.ml will use to route domain->canvas
+- add annotations (rules.hosts[] and tls[]) to the darkcustomdomain-l4-ingress,
+  that cert-manager notices and sets up a cert for (talks to Let's Encrypt and
+stores the provisioned cert in a k8s secret)
+
+For more docs, see docs/custom-domains.md and the spec at
+https://www.notion.so/darklang/Custom-domains-take-2-c9f04210ec94422695f91bc870bf117e
 EOF
 )"
 
