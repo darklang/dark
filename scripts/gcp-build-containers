@@ -121,6 +121,10 @@ if [[ "${SKIP_STROLLER}" == "" ]]; then
   #################################
   ## stroller
   #################################
+  if [[ "${CI}" == "" ]]; then
+      scripts/support/build-rust-release stroller
+  fi
+
   SDIR=$(mktemp -d --suffix _gcp-stroller-builddir)
 
   cp scripts/support/gcp-stroller-Dockerfile "$SDIR/Dockerfile"
@@ -136,6 +140,10 @@ fi
 ## queue scheduler
 #################################
 if [[ "${SKIP_QUEUE_SCHEDULER}" == "" ]]; then
+  if [[ "${CI}" == "" ]]; then
+      scripts/support/build-rust-release queue-scheduler
+  fi
+
   SDIR=$(mktemp -d --suffix _gcp-scheduler-builddir)
 
   cp scripts/support/gcp-queue-scheduler-Dockerfile "$SDIR/Dockerfile"

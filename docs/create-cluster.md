@@ -16,8 +16,6 @@ will tell you what versions _are_ currently supported.
 Once this is done, you can build containers locally and deploy them to the
 cluster:
 ```
-# You'll want to run `cargo build --release` in both the `stroller` and
-# `queue-scheduler` directories first
 ./scripts/gcp-build-containers
 ./scripts/gcp-push-images-to-gcr
 ./scripts/gke-deploy --cluster=darkcluster1570566003 --skip-rollbar
