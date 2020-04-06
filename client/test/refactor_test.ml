@@ -103,6 +103,7 @@ let run () =
         { D.defaultModel with
           builtInFunctions = [f1; f2]
         ; handlers = Handlers.fromList hs }
+        |> Functions.updateFunctions
       in
       let handlerWithPointer fnName fnRail =
         let id = ID.fromString "ast1" in

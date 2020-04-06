@@ -114,19 +114,10 @@ let takeOffRail (_m : model) (tl : toplevel) (id : ID.t) : modification =
 
 
 let isRailable (m : model) (name : string) =
-  (* We don't want to use m.complete.functions as the autocomplete
-   * filters out deprecated functions *)
-  let allFunctions =
-    let ufs =
-      m.userFunctions
-      |> TD.mapValues ~f:(fun uf -> uf.ufMetadata)
-      |> List.filterMap ~f:UserFunctions.ufmToF
-    in
-    m.builtInFunctions @ ufs
-  in
-  List.find ~f:(fun fn -> fn.fnName = name) allFunctions
-  |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
-  |> Option.map ~f:(fun t -> t = TOption || t = TResult)
+  m.functions
+  |> List.find ~f:(fun fn -> fn.fnName = name)
+  |> Option.map ~f:(fun fn ->
+         fn.fnReturnTipe = TOption || fn.fnReturnTipe = TResult)
   |> Option.withDefault ~default:false
 
 
