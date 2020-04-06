@@ -1870,6 +1870,8 @@ let route_host req =
       Some Static
   (* Dark canvases *)
   | [a; "builtwithdark"; "com"]
+  (* Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
+   * just another load balancer *)
   | [a; "darkcustomdomain"; "com"]
   | [a; "builtwithdark"; "localhost"]
   | [a; "builtwithdark"; "lvh"; "me"]
