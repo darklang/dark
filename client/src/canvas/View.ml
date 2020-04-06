@@ -444,8 +444,8 @@ let accountView (m : model) : msg Html.html =
       [ Html.class' "account-action-btn invite"
       ; ViewUtils.eventNoPropagation ~key:"open-invite" "click" (fun _ ->
             SettingsViewMsg
-              (OpenSettingsView (InviteUser SettingsView.defaultInviteFields)))
-      ]
+              (OpenSettingsView
+                 (InviteUser SettingsViewTypes.defaultInviteFields))) ]
       [Html.text "Share Dark"]
   in
   Html.div

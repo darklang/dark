@@ -210,7 +210,11 @@ let processFocus (m : model) (focus : focus) : modification =
             ; ReplaceAllModificationsWithThisOne (CursorState.setCursorState cs)
             ; AutocompleteMod (ACSetQuery "") ]
       | _, _ ->
-          NoChange )
+        ( match page with
+        | SettingsModel tab ->
+            Many (SettingsView.getModifications m (OpenSettingsView tab))
+        | _ ->
+            NoChange ) )
   | FocusNothing ->
       Deselect
   (* used instead of focussame when we've already done the focus *)
