@@ -1,3 +1,5 @@
+open Tc
+
 let opaque msg fmt _ =
   Format.pp_print_string fmt ("<opaque:" ^ msg ^ ">") ;
   ()
@@ -85,4 +87,17 @@ let settingsTabToText (tab : settingsTab) : string =
       "Canvases"
   | InviteUser _ ->
       "Share"
-  [@@deriving show]
+
+
+let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
+
+let settingsTabFromText (tab : string) : settingsTab =
+  match String.toLower tab with
+  | "newcanvas" ->
+      NewCanvas
+  | "canvases" ->
+      UserSettings
+  | "share" ->
+      InviteUser defaultInviteFields
+  | "about" | _ ->
+      CanvasInfo

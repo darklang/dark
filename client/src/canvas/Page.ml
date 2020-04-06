@@ -152,7 +152,12 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
         currentPage = newPage
       ; canvasProps =
           {m.canvasProps with offset; lastOffset = None; minimap = None} }
-  | _, SettingsModel _ | _, Architecture ->
+  | _, SettingsModel tab ->
+      let settingsView =
+        SettingsView.update m.settingsView (OpenSettingsView tab)
+      in
+      {m with settingsView}
+  | _, Architecture ->
       (* Anything else to Architecture
     * Stay where you are, Deselect
     *)

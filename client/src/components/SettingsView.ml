@@ -10,8 +10,6 @@ module Html = Tea_html_extended
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
-
 let allTabs = [CanvasInfo; UserSettings; InviteUser defaultInviteFields]
 
 let validateEmail (email : formField) : formField =
