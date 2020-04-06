@@ -5,7 +5,9 @@ set -euo pipefail
 
 # Despite the name, this launches either pgcli (interactive mode) or psql (allowing piped input) - see comment at the bottom
 
-./scripts/gcp-authorize-kubectl
+# Don't call this for the user - if their kubectl context is set to another
+# cluster, this will break that.
+# ./scripts/gcp-authorize-kubectl
 
 # cloud_sql_proxy notes:
 # 1) `cloud_sql_proxy` is a google thing
@@ -28,6 +30,9 @@ cloud_sql_proxy \
     -verbose=false \
     -dir /tmp \
     -instances "${DARK_CONFIG_GCP_PSQL_MY_PROJECT}:${DARK_CONFIG_GCP_PSQL_REGION}:${DARK_CONFIG_GCP_PSQL_DB_INSTANCE}=unix:cloud_sql_proxy" &
+
+# Make sure it has time to come up before we try to connect to it
+sleep 1s
 
 PGPASSWORD=$(kubectl get secrets cloudsql-db-credentials -o json |  jq -r '.data.password' | base64 -d)
 export PGPASSWORD
