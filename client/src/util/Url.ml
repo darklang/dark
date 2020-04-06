@@ -27,6 +27,8 @@ let urlFor (page : page) : string =
         [("type", TLID.toString tlid)]
     | FocusedGroup (tlid, _) ->
         [("group", TLID.toString tlid)]
+    | SettingsModel tab ->
+        [("settings", SettingsViewTypes.settingsTabToText tab)]
   in
   hashUrlParams args
 

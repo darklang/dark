@@ -701,6 +701,10 @@ let adminDebuggerView (m : model) : msg Html.html =
         Printf.sprintf "Type (TLID %s)" (TLID.toString tlid)
     | FocusedGroup (tlid, _) ->
         Printf.sprintf "Group (TLID %s)" (TLID.toString tlid)
+    | SettingsModel tab ->
+        Printf.sprintf
+          "SettingsModel (tab %s)"
+          (SettingsViewTypes.settingsTabToText tab)
   in
   let flagText =
     "["

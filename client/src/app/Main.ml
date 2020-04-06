@@ -1073,6 +1073,9 @@ let update_ (msg : msg) (m : model) : modification =
               | _ ->
                   [defaultBehaviour]
             else []
+        | SettingsModel _ ->
+            (* Click handled in component *)
+            []
       in
       ( match m.cursorState with
       | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
