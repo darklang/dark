@@ -2329,7 +2329,7 @@ let acClear (s : state) : state =
 let acMaybeShow (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
   if T.isAutocompletable ti.token && s.ac.index = None
-  then {s with ac = {s.ac with index = Some 0}}
+  then {s with ac = {s.ac with index = Some 0}; upDownCol = None}
   else s
 
 
