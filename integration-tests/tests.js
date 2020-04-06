@@ -1188,3 +1188,7 @@ test("double_clicking_blankor_selects_it", async t => {
   await t.expect(selector.exists).ok();
   await t.expect(await getElementSelectionStart(selector)).typeOf("number");
 });
+
+test("abridged_sidebar", async t => {
+  
+});

@@ -744,6 +744,8 @@ let fluid_bytes_response (_m : model) : testResult = pass
 
 let double_clicking_blankor_selects_it (_m : model) : testResult = pass
 
+let abridged_sidebar (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -880,5 +882,7 @@ let trigger (test_name : string) : integrationTestState =
         fluid_bytes_response
     | "double_clicking_blankor_selects_it" ->
         double_clicking_blankor_selects_it
+    | "abridged_sidebar" ->
+      abridged_sidebar
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
