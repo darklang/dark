@@ -4,14 +4,18 @@ open ViewUtils.PrettyDocs
 
 let run () =
   describe "Regex" (fun () ->
-      let tagEx = "^\\<(\\w+)\\s(.+)\\>$" in
       test "exactly" (fun () ->
           expect (Regex.exactly ~re:"ok" "ok") |> toEqual true) ;
       test "captures has no matches" (fun () ->
           expect (Regex.captures ~re:(Regex.regex tagEx) "Hello") |> toEqual []) ;
       test "captures has matches" (fun () ->
           expect (Regex.captures ~re:(Regex.regex tagEx) "<type Option>")
-          |> toEqual ["<type Option>"; "type"; "Option"]) ;
+          |> toEqual ["<type Option>"; ""; "type"; "Option"; ""]) ;
+      test "captures {code block}" (fun () ->
+          expect
+            (Regex.captures ~re:(Regex.regex codeEx) "for example: {let a = 1}")
+          |> toEqual
+               ["for example: {let a = 1}"; "for example: "; "let a = 1"; ""]) ;
       ()) ;
   describe "PrettyDocs" (fun () ->
       test "converts tagged string" (fun () ->
