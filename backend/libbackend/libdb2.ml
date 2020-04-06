@@ -734,6 +734,30 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DB::queryOne_v4"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; return_type = TOption
+    ; description =
+        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+    ; func =
+        InProcess
+          (function
+          | state, [DDB dbname; DBlock b] ->
+            ( try
+                let db = find_db state.dbs dbname in
+                let results = User_db.query ~state db b in
+                match results with
+                | [(_, v)] ->
+                    Dval.to_opt_just v
+                | _ ->
+                    DOption OptNothing
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
+          | args ->
+              fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::queryOneWithKey_v3"]
     ; infix_names = []
