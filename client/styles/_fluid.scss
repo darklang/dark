@@ -568,7 +568,7 @@ since they are essentially both commands just acting upon different things. */
   display: none;
   position: relative;
   width: 20px;
-  margin: 4px 0 0 8px;
+  margin: 0 8px;
 
   border-left: 1px dotted lighten($black3, 20%);
 
@@ -578,7 +578,7 @@ since they are essentially both commands just acting upon different things. */
 
   .error-indicator {
     position: absolute;
-    left: 6px;
+    left: 8px;
 
     width: 12px;
     height: 12px;
