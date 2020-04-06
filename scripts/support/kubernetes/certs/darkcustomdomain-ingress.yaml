@@ -19,16 +19,16 @@ spec:
   tls:
   # This entry is a placeholder, to ensure we have a .spec.tls array to append
   # to using kubectl patch
-  - secretName: 'ismith-foo.darkcustomdomain.com'
+  - secretName: 'ops-placeholder.darkcustomdomain.com'
     hosts:
-    - 'ismith-foo.darkcustomdomain.com'
+    - 'ops-placeholder.darkcustomdomain.com'
   backend:
     serviceName: bwd-nodeport
     servicePort: 80
   rules:
   # This entry is a placeholder, to ensure we have a .spec.rules array to
   # append to using kubectl patch
-  - host: ismith-foo.darkcustomdomain.com
+  - host: ops-placeholder.darkcustomdomain.com
     http:
       paths:
       - path: /
