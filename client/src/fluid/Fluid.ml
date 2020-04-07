@@ -5260,8 +5260,11 @@ let reconstructExprFromRange
   reconstruct ~topmostID (startPos, endPos)
 
 
-let pasteOverSelection props ~state ~(ast : FluidAST.t) data :
-    FluidAST.t * state =
+let pasteOverSelection
+    (props : props)
+    ~(state : state)
+    ~(ast : FluidAST.t)
+    (data : clipboardContents) : FluidAST.t * state =
   let ast, state = deleteSelection props ~state ~ast in
   let mTi = getToken ast state in
   let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
