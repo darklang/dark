@@ -1,7 +1,7 @@
 # Writing docstrings that will appear in the editor
 
 ## Tagging your string
-To highlight key points a user may be looking for as the skim the text, we are allowing descriptions of Dark functions to be tagged.
+To highlight key points a user may be looking for as they skim the text, we are allowing Dark functions' docstrings to be rich text.
 
 ### Tags
 
