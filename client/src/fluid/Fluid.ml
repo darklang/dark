@@ -64,7 +64,7 @@ let astAndStateFromTLID (m : model) (tlid : TLID.t) :
    * make `fromExpr` accept only the info it needs, and differentiate between
    * handler-specific and global fluid state. *)
   let removeHandlerTransientState m =
-    {m with fluidState = {m.fluidState with ac = AC.reset}}
+    {m with fluidState = {m.fluidState with ac = AC.init}}
   in
   TL.get m tlid
   |> Option.andThen ~f:TL.getAST
