@@ -991,14 +991,10 @@ and sidebarVariant =
   | DetailedMode
   | AbridgedMode
 
-and sidebarState =
-  { mode : sidebarVariant
-  ; onCategory : string option }
+and sidebarState = {mode : sidebarVariant}
 
 and sidebarMsg =
   | ToggleSidebarMode
-  | SetOnCategory of string
-  | UnfoucsSidebar
   | ResetSidebar
 
 (* ------------------- *)
