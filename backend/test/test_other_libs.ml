@@ -1390,20 +1390,20 @@ let t_float_stdlibs () =
     (DFloat 0.5)
     (exec_ast "(Float::clamp Infinity -1.0 0.5)") ;
   check_dval
-    "Float::clamp works (limitA = nan)"
-    (* TODO: figure out the nan/infinity situation for floats *)
-    (DFloat Float.nan)
-    (exec_ast "(Float::clamp 0.5 NaN 1.0)") ;
-  check_dval
-    "Float::clamp works (limitB = nan)"
-    (* TODO: figure out the nan/infinity situation for floats *)
-    (DFloat Float.nan)
-    (exec_ast "(Float::clamp 0.5 1.0 NaN)") ;
-  check_dval
     "Float::clamp works (val = nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.nan)
     (exec_ast "(Float::clamp NaN -1.0 1.0)") ;
+  check_error_contains
+    "Float::clamp errors (limitA = nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (exec_ast "(Float::clamp 0.5 NaN 1.0)")
+    "Internal Float.clamp exception" ;
+  check_error_contains
+    "Float::clamp errors (limitB = nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (exec_ast "(Float::clamp 0.5 1.0 NaN)")
+    "Internal Float.clamp exception" ;
   check_dval "Float::sqrt works" (DFloat 5.0) (exec_ast "(Float::sqrt 25.0)") ;
   check_dval
     "Float::power works"
