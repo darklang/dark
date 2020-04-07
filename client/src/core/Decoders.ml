@@ -201,61 +201,6 @@ and nPattern j : OldExpr.nPattern =
     j
 
 
-let rec expr j : OldExpr.expr =
-  let blankOrExpr =
-    variants
-      [ ("Filled", variant2 (fun id v -> F (id, v)) id nExpr)
-      ; ("Blank", variant1 (fun id -> Blank id) id) (* We're phasing this out *)
-      ; ( "Partial"
-        , variant2
-            (fun id name ->
-              F (id, OldExpr.FluidPartial (name, BlankOr.new_ ())))
-            id
-            string ) ]
-  in
-  match blankOrExpr j with
-  | F (ID id, FnCall (F (ID "fncall", name), exprs, rail)) ->
-      F (ID id, FnCall (F (ID (id ^ "_name"), name), exprs, rail))
-  | other ->
-      other
-
-
-and nExpr j : OldExpr.nExpr =
-  let open OldExpr in
-  let de = expr in
-  let dv4 = variant4 in
-  let dv3 = variant3 in
-  let dv2 = variant2 in
-  let dv1 = variant1 in
-  variants
-    [ ("Let", dv3 (fun a b c -> Let (a, b, c)) (blankOr string) de de)
-    ; ("Value", dv1 (fun x -> Value x) string)
-    ; ("If", dv3 (fun a b c -> If (a, b, c)) de de de)
-    ; ( "FnCall"
-      , dv2 (fun a b -> FnCall (F (ID "fncall", a), b, NoRail)) string (list de)
-      )
-    ; ( "FnCallSendToRail"
-      , dv2 (fun a b -> FnCall (F (ID "fncall", a), b, Rail)) string (list de)
-      )
-    ; ("Lambda", dv2 (fun a b -> Lambda (a, b)) (list (blankOr string)) de)
-    ; ("Variable", dv1 (fun x -> Variable x) string)
-    ; ("Thread", dv1 (fun x -> Thread x) (list de))
-    ; ("FieldAccess", dv2 (fun a b -> FieldAccess (a, b)) de (blankOr string))
-    ; ("ListLiteral", dv1 (fun x -> ListLiteral x) (list de))
-    ; ( "ObjectLiteral"
-      , dv1 (fun x -> ObjectLiteral x) (list (tuple2 (blankOr string) de)) )
-    ; ( "FeatureFlag"
-      , dv4 (fun a b c d -> FeatureFlag (a, b, c, d)) (blankOr string) de de de
-      )
-    ; ("Match", dv2 (fun a b -> Match (a, b)) de (list (tuple2 pattern de)))
-    ; ( "Constructor"
-      , dv2 (fun a b -> Constructor (a, b)) (blankOr string) (list de) )
-    ; ("FluidPartial", dv2 (fun a b -> FluidPartial (a, b)) string de)
-    ; ("FluidRightPartial", dv2 (fun a b -> FluidRightPartial (a, b)) string de)
-    ]
-    j
-
-
 let sendToRail j =
   let dv0 = variant0 in
   variants
@@ -367,6 +312,70 @@ let blankOrData j : blankOrData =
     j
 
 
+(* Try fluid, and then try oldExpr *)
+let oneOrOtherExpr j : fluidExpr =
+  let rec expr j : OldExpr.expr =
+    let blankOrExpr =
+      variants
+        [ ("Filled", variant2 (fun id v -> F (id, v)) id nExpr)
+        ; ("Blank", variant1 (fun id -> Blank id) id)
+          (* We're phasing this out *)
+        ; ( "Partial"
+          , variant2
+              (fun id name ->
+                F (id, OldExpr.FluidPartial (name, BlankOr.new_ ())))
+              id
+              string ) ]
+    in
+    match blankOrExpr j with
+    | F (ID id, FnCall (F (ID "fncall", name), exprs, rail)) ->
+        F (ID id, FnCall (F (ID (id ^ "_name"), name), exprs, rail))
+    | other ->
+        other
+  and nExpr j : OldExpr.nExpr =
+    let open OldExpr in
+    let de = expr in
+    let dv4 = variant4 in
+    let dv3 = variant3 in
+    let dv2 = variant2 in
+    let dv1 = variant1 in
+    variants
+      [ ("Let", dv3 (fun a b c -> Let (a, b, c)) (blankOr string) de de)
+      ; ("Value", dv1 (fun x -> Value x) string)
+      ; ("If", dv3 (fun a b c -> If (a, b, c)) de de de)
+      ; ( "FnCall"
+        , dv2
+            (fun a b -> FnCall (F (ID "fncall", a), b, NoRail))
+            string
+            (list de) )
+      ; ( "FnCallSendToRail"
+        , dv2 (fun a b -> FnCall (F (ID "fncall", a), b, Rail)) string (list de)
+        )
+      ; ("Lambda", dv2 (fun a b -> Lambda (a, b)) (list (blankOr string)) de)
+      ; ("Variable", dv1 (fun x -> Variable x) string)
+      ; ("Thread", dv1 (fun x -> Thread x) (list de))
+      ; ("FieldAccess", dv2 (fun a b -> FieldAccess (a, b)) de (blankOr string))
+      ; ("ListLiteral", dv1 (fun x -> ListLiteral x) (list de))
+      ; ( "ObjectLiteral"
+        , dv1 (fun x -> ObjectLiteral x) (list (tuple2 (blankOr string) de)) )
+      ; ( "FeatureFlag"
+        , dv4
+            (fun a b c d -> FeatureFlag (a, b, c, d))
+            (blankOr string)
+            de
+            de
+            de )
+      ; ("Match", dv2 (fun a b -> Match (a, b)) de (list (tuple2 pattern de)))
+      ; ( "Constructor"
+        , dv2 (fun a b -> Constructor (a, b)) (blankOr string) (list de) )
+      ; ("FluidPartial", dv2 (fun a b -> FluidPartial (a, b)) string de)
+      ; ( "FluidRightPartial"
+        , dv2 (fun a b -> FluidRightPartial (a, b)) string de ) ]
+      j
+  in
+  tryDecode2 fluidExpr (fun j -> expr j |> OldExpr.toFluidExpr) j
+
+
 let rec dval j : dval =
   let dv0 = variant0 in
   let dv1 = variant1 in
@@ -395,7 +404,7 @@ let rec dval j : dval =
   in
   let dblock_args j =
     { params = field "params" (list (pair id string)) j
-    ; body = field "body" (fun j -> expr j |> OldExpr.toFluidExpr) j
+    ; body = field "body" oneOrOtherExpr j
     ; symtable = field "symtable" (strDict dval) j }
   in
   variants
@@ -591,8 +600,7 @@ let handlerSpec j : handlerSpec =
 
 
 let handler pos j : handler =
-  { ast =
-      field "ast" (fun j -> expr j |> OldExpr.toFluidExpr |> FluidAST.ofExpr) j
+  { ast = field "ast" (fun j -> oneOrOtherExpr j |> FluidAST.ofExpr) j
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
   ; pos }
@@ -621,8 +629,8 @@ let dbMigration j : dbMigration =
   ; version = field "version" int j
   ; state = field "state" dbMigrationState j
   ; cols = field "cols" dbColList j
-  ; rollforward = field "rollforward" (fun j -> expr j |> OldExpr.toFluidExpr) j
-  ; rollback = field "rollback" (fun j -> expr j |> OldExpr.toFluidExpr) j }
+  ; rollforward = field "rollforward" oneOrOtherExpr j
+  ; rollback = field "rollback" oneOrOtherExpr j }
 
 
 let db pos j : db =
@@ -664,7 +672,7 @@ let userFunctionMetadata j : userFunctionMetadata =
 let userFunction j : userFunction =
   { ufTLID = field "tlid" tlid j
   ; ufMetadata = field "metadata" userFunctionMetadata j
-  ; ufAST = field "ast" expr j |> OldExpr.toFluidExpr |> FluidAST.ofExpr }
+  ; ufAST = field "ast" oneOrOtherExpr j |> FluidAST.ofExpr }
 
 
 let packageFnParameter (j : Js.Json.t) : Types.packageFnParameter =
@@ -679,7 +687,7 @@ let packageFn (j : Js.Json.t) : Types.packageFn =
   ; module_ = field "module" string j
   ; fnname = field "fnname" string j
   ; version = field "version" int j
-  ; body = OldExpr.toFluidExpr (field "body" expr j)
+  ; body = field "body" oneOrOtherExpr j
   ; parameters = field "parameters" (list packageFnParameter) j
   ; return_type = field "return_type" tipe j
   ; description = field "description" string j
@@ -837,11 +845,7 @@ let op j : op =
     ; ("SetFunction", variant1 (fun uf -> SetFunction uf) userFunction)
     ; ("DeleteFunction", variant1 (fun t -> DeleteFunction t) tlid)
     ; ( "SetExpr"
-      , variant3
-          (fun t i e -> SetExpr (t, i, OldExpr.toFluidExpr e))
-          tlid
-          id
-          expr )
+      , variant3 (fun t i e -> SetExpr (t, i, e)) tlid id oneOrOtherExpr )
     ; ( "RenameDBname"
       , variant2 (fun t name -> RenameDBname (t, name)) tlid string )
     ; ( "CreateDBWithBlankOr"
