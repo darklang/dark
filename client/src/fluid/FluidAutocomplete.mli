@@ -28,8 +28,6 @@ val highlightedWithValidity : t -> data option
 
 val highlighted : t -> item option
 
-val reset : t
-
 val init : t
 
 val regenerate : Types.model -> t -> TLID.t * Types.fluidTokenInfo -> t

@@ -328,7 +328,7 @@ let run () =
               |> Functions.setBuiltins sampleFunctions defaultFunctionsProps
           ; handlers = [(hTLID, tl)] |> TLIDDict.fromList
           ; fluidState =
-              {Defaults.defaultFluidState with ac = FluidAutocomplete.reset} }
+              {Defaults.defaultFluidState with ac = FluidAutocomplete.init} }
         in
         (m, TLHandler tl)
       in

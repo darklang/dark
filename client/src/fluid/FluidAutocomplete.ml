@@ -318,9 +318,7 @@ let toQueryString (ti : tokenInfo) : string =
 (* ---------------------------- *)
 (* Autocomplete state *)
 (* ---------------------------- *)
-let reset : t = Defaults.defaultModel.fluidState.ac
-
-let init = reset
+let init : t = Defaults.defaultModel.fluidState.ac
 
 (* ------------------------------------ *)
 (* Create the list *)
@@ -525,7 +523,7 @@ let refilter (props : props) (query : fullQuery) (old : t) (items : item list) :
 let regenerate (m : model) (a : t) ((tlid, ti) : query) : t =
   match TL.get m tlid with
   | None ->
-      reset
+      init
   | Some tl ->
       let props = {functions = m.functions} in
       let queryString = toQueryString ti in
@@ -679,6 +677,6 @@ let updateAutocompleteVisibility (m : model) : model =
   let newTlid = CursorState.tlidOf m.cursorState in
   if isOpened m.fluidState.ac && oldTlid <> newTlid
   then
-    let newAc = reset in
+    let newAc = init in
     {m with fluidState = {m.fluidState with ac = newAc}}
   else m
