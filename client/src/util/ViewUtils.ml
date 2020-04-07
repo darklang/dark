@@ -293,9 +293,11 @@ let fnForToken (functions : Functions.t) token : function_ option =
 
 
 module PrettyDocs = struct
-  let tagEx = "(.*)\\<(\\w+)\\s(.+)\\>(.*)"
+  let tagEx = "^(.*)\\<(\\w+)\\s(.+)\\>(.*)$"
 
-  let codeEx = "(.*)\\{(.+)\\}(.*)"
+  let codeEx = "^(.*)\\{(.+)\\}(.*)$"
+
+  let codeClass = "code"
 
   let txt (s : string) : msg Html.html = Html.text s
 
@@ -303,18 +305,31 @@ module PrettyDocs = struct
     Html.span [Html.class' cls] content
 
 
+  let validate (s : string) : bool =
+    let nestedTag = Regex.regex "\\<\\w+\\s[^\\>]*<\\w+\\s[^\\<]*\\>.*\\>" in
+    let nestedCodeBlock =
+      Regex.regex "\\{\\w+\\s[^\\}]*{\\w+\\s[^\\{]*\\}.*\\}"
+    in
+    not (Regex.contains ~re:nestedTag s || Regex.contains ~re:nestedCodeBlock s)
+
+
   let rec convert (s : string) : msg Html.html list =
     if s = ""
     then []
-    else
-      match Regex.captures ~re:(Regex.regex codeEx) s with
+    else if validate s
+    then
+      match Regex.captures ~re:(Regex.regex ~flags:"" codeEx) s with
       | [_; before; inside; after] ->
-          convert before @ (tag "code" (convert inside) :: convert after)
+          convert before @ (tag codeClass (convert inside) :: convert after)
       | _ ->
-        ( match Regex.captures ~re:(Regex.regex tagEx) s with
+        ( match Regex.captures ~re:(Regex.regex ~flags:"" tagEx) s with
+        | [_; before; tagType; tagData; after] when tagType = codeClass ->
+            let tagNode = txt tagData in
+            convert before @ (tagNode :: convert after)
         | [_; before; tagType; tagData; after] ->
             let tagNode = tag tagType (convert tagData) in
             convert before @ (tagNode :: convert after)
         | _ ->
             [txt s] )
+    else [txt s]
 end
