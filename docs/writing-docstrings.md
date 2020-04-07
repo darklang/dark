@@ -25,7 +25,7 @@ Code blocks can contain tags, such as `{Just <var value>}`. But a code block can
 
 How the tags will be styled are defined in [the spec](https://www.notion.so/darklang/Rich-Text-Docstrings-1358553ec49d4ba0b52d04995014152c)
 
-To get a string to render as rich text use PrettyDocs.convert, which checks to see if there's any tags or code blocks in the `docstring`, and returns a list of DOM elements from the transformed string. If the string just plain-text it returns `[Html.text docstring]`.
+To get a string to render as rich text use PrettyDocs.convert, which takes a `docstring`, and returns a list of DOM elements from the transformed string. If the string just plain-text it returns `[Html.text docstring]`.
 
 ## New Tag types
 
