@@ -546,9 +546,15 @@ let fns : fn list =
               ( match Dint.clamp v ~min ~max with
               | Ok clamped ->
                   DInt clamped
-              | Error _ ->
-                  (* Since min and max are pre-sorted, this can't happen *)
-                  assert false )
+              | Error e ->
+                  (* Since min and max are pre-sorted, this shouldn't be possible *)
+                  let info =
+                    [("a", Dint.to_string a); ("b", Dint.to_string b)]
+                  in
+                  Exception.code
+                    ~info
+                    ("Internal Dint.clamp exception: " ^ Error.to_string_hum e)
+              )
           | args ->
               fail args)
     ; preview_safety = Safe
