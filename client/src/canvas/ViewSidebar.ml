@@ -405,13 +405,13 @@ let deletedCategory (m : model) : category =
 
 let viewEmptyCategory (c : category) : msg Html.html =
   let name =
-    if c.classname = "http"
-    then "HTTP handlers"
-    else if c.classname = "cron" || c.classname = "worker"
-    then c.name ^ " jobs"
-    else if c.classname = "repl"
-    then "REPLs"
-    else c.name
+    match c.classname with
+    | "http" ->
+        "HTTP handlers"
+    | "cron" | "worker" | "repl" ->
+        c.name ^ "s"
+    | _ ->
+        c.name
   in
   Html.div [Html.class' "simple-item empty"] [Html.text ("No " ^ name)]
 
