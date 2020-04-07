@@ -712,7 +712,7 @@ let fns : fn list =
     ; description =
         "Returns the substring of `string` between the `from` and `to` indices.
          Negative indices start counting from the end of `string`.
-         Indices represent Characters."
+         Indices represent characters."
     ; func =
         InProcess
           (function
@@ -723,12 +723,84 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["String::first"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "characterCount" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns the first `characterCount` characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns `string`.
+        If `characterCount` is negative, returns the empty string."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt n] ->
+              let n = Dint.to_int_exn n in
+              DStr (Unicode_string.first_n s n)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::last"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "characterCount" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns the last `characterCount` characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns `string`.
+        If `characterCount` is negative, returns the empty string."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt n] ->
+              let n = Dint.to_int_exn n in
+              DStr (Unicode_string.last_n s n)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::dropLast"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "characterCount" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns all but the last `characterCount` characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns the empty string.
+        If `characterCount` is negative, returns `string`."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt n] ->
+              let n = Dint.to_int_exn n in
+              DStr (Unicode_string.drop_last_n s n)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::dropFirst"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr; par "characterCount" TInt]
+    ; return_type = TStr
+    ; description =
+        "Returns all but the first `characterCount` characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns the empty string.
+        If `characterCount` is negative, returns `string`."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s; DInt n] ->
+              let n = Dint.to_int_exn n in
+              DStr (Unicode_string.drop_first_n s n)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["String::padStart"]
     ; infix_names = []
     ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
     ; return_type = TStr
     ; description =
-        "If `string` is shorter than `goalLength` Characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
+        "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
         If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
     ; func =
         InProcess
@@ -744,11 +816,11 @@ let fns : fn list =
                   ( SourceNone
                   , "Expected the argument `padWith` passed to `"
                     ^ state.executing_fnname
-                    ^ "` to be one Character long. However, `"
+                    ^ "` to be one character long. However, `"
                     ^ Dval.to_developer_repr_v0 (DStr pad_with)
                     ^ "` is "
                     ^ Int.to_string padLen
-                    ^ " Characters long." )
+                    ^ " characters long." )
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -758,7 +830,7 @@ let fns : fn list =
     ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
     ; return_type = TStr
     ; description =
-        "If `string` is shorter than `goalLength` Characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
+        "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
         If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
     ; func =
         InProcess
@@ -774,11 +846,11 @@ let fns : fn list =
                   ( SourceNone
                   , "Expected the argument `padWith` passed to `"
                     ^ state.executing_fnname
-                    ^ "` to be one Character long. However, `"
+                    ^ "` to be one character long. However, `"
                     ^ Dval.to_developer_repr_v0 (DStr pad_with)
                     ^ "` is "
                     ^ Int.to_string padLen
-                    ^ " Characters long." )
+                    ^ " characters long." )
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -788,12 +860,42 @@ let fns : fn list =
     ; parameters = [par "str" TStr]
     ; return_type = TStr
     ; description =
-        "Trims leading and trailing whitespace from `str`. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+        "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
     ; func =
         InProcess
           (function
           | _, [DStr to_trim] ->
               DStr (Unicode_string.trim to_trim)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::trimStart"]
+    ; infix_names = []
+    ; parameters = [par "str" TStr]
+    ; return_type = TStr
+    ; description =
+        "Returns a copy of `str` with all leading whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr to_trim] ->
+              DStr (Unicode_string.trim_start to_trim)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::trimEnd"]
+    ; infix_names = []
+    ; parameters = [par "str" TStr]
+    ; return_type = TStr
+    ; description =
+        "Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr to_trim] ->
+              DStr (Unicode_string.trim_end to_trim)
           | args ->
               fail args)
     ; preview_safety = Safe
