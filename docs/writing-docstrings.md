@@ -8,7 +8,7 @@ To highlight key points a user may be looking for as they skim the text, we are 
 You can mark your text with tags, which will pretty print upon render. For example `this function takes in <type Option>`.
 The word Option will be transformed into `this function takes in <span class="type">Option</span>`.
 
-Tags follow the form of: `<{TYPE} {CONTENT}>`. The tag types are a single world, after the space everthing else will considered to be content of the tag.
+Tags follow the form of: `<{TYPE} {CONTENT}>`. The tag types are a single word, after which everything else will considered to be content of the tag.
 
 Currently valid tag types are: *param*, *fn*, *var*, *type*, *return*, *err*, *cmd*. If you want to add a new tag type, see guidelines below.
 We try to keep the tag types short and simple to make it easy for us to remember and type.
