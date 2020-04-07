@@ -27,7 +27,7 @@ let urlFor (page : page) : string =
         [("type", TLID.toString tlid)]
     | FocusedGroup (tlid, _) ->
         [("group", TLID.toString tlid)]
-    | SettingsModel tab ->
+    | SettingsModal tab ->
         [("settings", SettingsViewTypes.settingsTabToText tab)]
   in
   hashUrlParams args
@@ -60,7 +60,7 @@ let parseLocation (loc : Web.Location.location) : page option =
   let settingModal () =
     match StrDict.get ~key:"settings" unstructured with
     | Some tab ->
-        Some (SettingsModel (SettingsViewTypes.settingsTabFromText tab))
+        Some (SettingsModal (SettingsViewTypes.settingsTabFromText tab))
     | _ ->
         None
   in

@@ -1013,7 +1013,7 @@ and page =
   | FocusedDB of TLID.t * centerPage
   | FocusedType of TLID.t
   | FocusedGroup of TLID.t * centerPage
-  | SettingsModel of SettingsViewTypes.settingsTab
+  | SettingsModal of SettingsViewTypes.settingsTab
 
 and focus =
   | FocusNothing

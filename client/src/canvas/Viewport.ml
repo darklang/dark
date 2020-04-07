@@ -120,7 +120,7 @@ let findNewPos (m : model) : pos =
   | FocusedHandler _
   | FocusedDB _
   | FocusedGroup _
-  | SettingsModel _ ->
+  | SettingsModal _ ->
       let o = m.canvasProps.offset in
       (* We add padding to the viewport range, to ensure we don't have new handlers too far from eachother. *)
       let padRight = 400 in

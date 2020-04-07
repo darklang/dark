@@ -211,7 +211,7 @@ let processFocus (m : model) (focus : focus) : modification =
             ; AutocompleteMod (ACSetQuery "") ]
       | _, _ ->
         ( match page with
-        | SettingsModel tab ->
+        | SettingsModal tab ->
             Many (SettingsView.getModifications m (OpenSettingsView tab))
         | _ ->
             NoChange ) )
@@ -1077,7 +1077,7 @@ let update_ (msg : msg) (m : model) : modification =
               | _ ->
                   [defaultBehaviour]
             else []
-        | SettingsModel _ ->
+        | SettingsModal _ ->
             (* Click handled in component *)
             []
       in

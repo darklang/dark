@@ -45,7 +45,7 @@ let openOmnibox (m : model) : modification =
       Many [Deselect; Entry.openOmnibox ()]
   | FocusedFn _ | FocusedType _ ->
       Entry.openOmnibox ()
-  | SettingsModel _ ->
+  | SettingsModal _ ->
       (* Shouldnt be able to open the omnibox from the settings modal *)
       NoChange
 
