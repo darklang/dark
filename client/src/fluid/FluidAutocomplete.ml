@@ -520,6 +520,8 @@ let refilter (props : props) (query : fullQuery) (old : t) (items : item list) :
   {index; query = Some (TL.id query.tl, query.ti); completions = newCompletions}
 
 
+(* Regenerate calls generate, except that it adapts the result using the
+ * existing state (mostly putting the index in the right place. *)
 let regenerate (m : model) (a : t) ((tlid, ti) : query) : t =
   match TL.get m tlid with
   | None ->
