@@ -536,8 +536,9 @@ let fns : fn list =
     ; parameters = [par "value" TInt; par "limitA" TInt; par "limitB" TInt]
     ; return_type = TInt
     ; description =
-        "Returns the result of constraining `value` to fall within the range specified by `limitA` and `limitB`.
-        `limitA` and `limitB` can be provided in any order."
+        "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
+         If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
+         `limitA` and `limitB` can be provided in any order."
     ; func =
         InProcess
           (function
