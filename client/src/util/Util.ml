@@ -85,7 +85,7 @@ module Regex = struct
 
   type result = Js.Re.result
 
-  let regex s : Js.Re.t = Js.Re.fromStringWithFlags ~flags:"g" s
+  let regex ?(flags = "g") s : Js.Re.t = Js.Re.fromStringWithFlags ~flags s
 
   let contains ~(re : Js.Re.t) (s : string) : bool = Js.Re.test_ re s
 
