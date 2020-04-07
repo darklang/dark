@@ -349,7 +349,7 @@ let t_db_queryOne_supports_Date_comparison () =
                ; lambda
                    ["middle"]
                    (fn
-                      "DB::queryOne_v3"
+                      "DB::queryOne_v4"
                       [ var "MyDB"
                       ; lambda
                           ["value"]
@@ -898,13 +898,13 @@ let t_db_query_works () =
   check_dval
     "queryOne - multiple"
     (DOption OptNothing)
-    ( fn "DB::queryOne_v3" [var "Person"; lambda ["v"] (field "v" "human")]
+    ( fn "DB::queryOne_v4" [var "Person"; lambda ["v"] (field "v" "human")]
     |> exec ) ;
   check_dval
     "queryOne - none"
     (DOption OptNothing)
     ( fn
-        "DB::queryOne_v3"
+        "DB::queryOne_v4"
         [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
     |> exec ) ;
   check_dval
@@ -912,7 +912,7 @@ let t_db_query_works () =
     (DOption (OptJust (Dval.dint 65)))
     ( pipe
         (fn
-           "DB::queryOne_v3"
+           "DB::queryOne_v4"
            [ var "Person"
            ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
         [fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "height")]]
@@ -1070,7 +1070,7 @@ let suite =
     , t_db_queryWithKey_works_with_many )
   ; ("DB::get_v1 returns Nothing if not found", `Quick, t_db_get_returns_nothing)
   ; ("DB::queryOne returns Some obj if found", `Quick, t_db_queryOne_works)
-  ; ( "DB::queryOne_v3 supports Date:: comparison"
+  ; ( "DB::queryOne_v4 supports Date:: comparison"
     , `Quick
     , t_db_queryOne_supports_Date_comparison )
   ; ( "DB::queryOne returns Nothing if not found"
