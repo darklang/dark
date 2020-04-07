@@ -860,14 +860,62 @@ let t_string_stdlibs_work () =
     "String::slice works (swapped)"
     (dstr "")
     (exec_ast' (fn "String::slice" [str "abcd"; int 3; int 2])) ;
+  check_dval
+    "String::first works (pos)"
+    (dstr "abc")
+    (exec_ast' (fn "String::first" [str "abcd"; int 3])) ;
+  check_dval
+    "String::first works (0)"
+    (dstr "")
+    (exec_ast' (fn "String::first" [str "abcd"; int 0])) ;
+  check_dval
+    "String::first works (neg)"
+    (dstr "")
+    (exec_ast' (fn "String::first" [str "abcd"; int (-3)])) ;
+  check_dval
+    "String::last works (pos)"
+    (dstr "bcd")
+    (exec_ast' (fn "String::last" [str "abcd"; int 3])) ;
+  check_dval
+    "String::last works (0)"
+    (dstr "")
+    (exec_ast' (fn "String::last" [str "abcd"; int 0])) ;
+  check_dval
+    "String::last works (neg)"
+    (dstr "")
+    (exec_ast' (fn "String::last" [str "abcd"; int (-3)])) ;
+  check_dval
+    "String::dropFirst works (pos)"
+    (dstr "d")
+    (exec_ast' (fn "String::dropFirst" [str "abcd"; int 3])) ;
+  check_dval
+    "String::dropFirst works (0)"
+    (dstr "abcd")
+    (exec_ast' (fn "String::dropFirst" [str "abcd"; int 0])) ;
+  check_dval
+    "String::dropFirst works (neg)"
+    (dstr "abcd")
+    (exec_ast' (fn "String::dropFirst" [str "abcd"; int (-3)])) ;
+  check_dval
+    "String::dropLast works (pos)"
+    (dstr "a")
+    (exec_ast' (fn "String::dropLast" [str "abcd"; int 3])) ;
+  check_dval
+    "String::dropLast works (0)"
+    (dstr "abcd")
+    (exec_ast' (fn "String::dropLast" [str "abcd"; int 0])) ;
+  check_dval
+    "String::dropLast works (neg)"
+    (dstr "abcd")
+    (exec_ast' (fn "String::dropLast" [str "abcd"; int (-3)])) ;
   check_error_contains
     "String::padStart works (errors on empty string)"
     (exec_ast' (fn "String::padStart" [str "123"; str ""; int 10]))
-    "Expected the argument `padWith` passed to `String::padStart` to be one Character long. However, `\"\"` is 0 Characters long." ;
+    "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"\"` is 0 characters long." ;
   check_error_contains
     "String::padEnd works (errors on empty string)"
     (exec_ast' (fn "String::padEnd" [str "123"; str ""; int 10]))
-    "Expected the argument `padWith` passed to `String::padEnd` to be one Character long. However, `\"\"` is 0 Characters long." ;
+    "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"\"` is 0 characters long." ;
   check_dval
     "String::padStart works (1 EGC)"
     (dstr "000123")
@@ -887,11 +935,85 @@ let t_string_stdlibs_work () =
   check_error_contains
     "String::padStart works (> 1 EGC errors)"
     (exec_ast' (fn "String::padStart" [str "123"; str "_-"; int 4]))
-    "Expected the argument `padWith` passed to `String::padStart` to be one Character long. However, `\"_-\"` is 2 Characters long." ;
+    "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"_-\"` is 2 characters long." ;
   check_error_contains
     "String::padEnd works (> 1 EGC errors)"
     (exec_ast' (fn "String::padEnd" [str "123"; str "_-"; int 4]))
-    "Expected the argument `padWith` passed to `String::padEnd` to be one Character long. However, `\"_-\"` is 2 Characters long." ;
+    "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"_-\"` is 2 characters long." ;
+  check_dval
+    "String::trimStart works (Noop)"
+    (exec_ast' (fn "String::trimStart" [str "foo"]))
+    (dstr "foo") ;
+  check_dval
+    "String::trimEnd works (Noop)"
+    (exec_ast' (fn "String::trimEnd" [str "foo"]))
+    (dstr "foo") ;
+  check_dval
+    "String::trimStart works (Start Trivial)"
+    (exec_ast' (fn "String::trimStart" [str "  foo"]))
+    (dstr "foo") ;
+  check_dval
+    "String::trimEnd works (Start Trivial)"
+    (exec_ast' (fn "String::trimEnd" [str "  foo"]))
+    (dstr "  foo") ;
+  check_dval
+    "String::trimStart works (End Trivial)"
+    (exec_ast' (fn "String::trimStart" [str "foo  "]))
+    (dstr "foo  ") ;
+  check_dval
+    "String::trimEnd works (End Trivial)"
+    (exec_ast' (fn "String::trimEnd" [str "foo  "]))
+    (dstr "foo") ;
+  check_dval
+    "String::trimStart works (Both Trivial)"
+    (exec_ast' (fn "String::trimStart" [str "  foo  "]))
+    (dstr "foo  ") ;
+  check_dval
+    "String::trimEnd works (Both Trivial)"
+    (exec_ast' (fn "String::trimEnd" [str "  foo  "]))
+    (dstr "  foo") ;
+  check_dval
+    "String::trimStart works (BothNotInner Trivial)"
+    (exec_ast' (fn "String::trimStart" [str "  foo bar  "]))
+    (dstr "foo bar  ") ;
+  check_dval
+    "String::trimEnd works (BothNotInner Trivial)"
+    (exec_ast' (fn "String::trimEnd" [str "  foo bar  "]))
+    (dstr "  foo bar") ;
+  check_dval
+    "String::trimStart works (Both Unicode)"
+    (* Leading em-space, inner thin space, trailing space *)
+    (exec_ast'
+       (fn
+          "String::trimStart"
+          [str " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "]))
+    (dstr "foo\xe2\x80\x83bar\xe2\x80\x83 ") ;
+  check_dval
+    "String::trimEnd works (Both Unicode)"
+    (* Leading em-space, inner thin space, trailing space *)
+    (exec_ast'
+       (fn
+          "String::trimEnd"
+          [str " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "]))
+    (dstr " \xe2\x80\x83foo\xe2\x80\x83bar") ;
+  check_dval
+    "String::trimStart works (All)"
+    (exec_ast' (fn "String::trimStart" [str "      "]))
+    (dstr "") ;
+  check_dval
+    "String::trimEnd works (All)"
+    (exec_ast' (fn "String::trimEnd" [str "      "]))
+    (dstr "") ;
+  check_dval
+    "String::trimStart works (PreservesEmoji)"
+    (exec_ast'
+       (fn "String::trimStart" [str " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "]))
+    (dstr "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 ") ;
+  check_dval
+    "String::trimEnd works (PreservesEmoji)"
+    (exec_ast'
+       (fn "String::trimEnd" [str " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "]))
+    (dstr " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84") ;
   ()
 
 
