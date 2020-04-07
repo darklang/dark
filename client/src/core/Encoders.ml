@@ -838,7 +838,9 @@ let sidebarMode (s : Types.sidebarMode) : Js.Json.t =
 
 
 let sidebarState (s : Types.sidebarState) : Js.Json.t =
-  object_ [("mode", sidebarMode s.mode)]
+  object_
+    [ ("mode", sidebarMode s.mode)
+    ; ("openedCategories", tcStrSet s.openedCategories) ]
 
 
 let editorSettings (es : Types.editorSettings) : Js.Json.t =
@@ -856,7 +858,6 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
   object_
     [ ("editorSettings", editorSettings se.editorSettings)
     ; ("cursorState", cursorState se.cursorState)
-    ; ("routingTableOpenDetails", tcStrSet se.routingTableOpenDetails)
     ; ("tlTraceIDs", tcStrDict traceID se.tlTraceIDs)
     ; ("featureFlags", tcStrDict bool se.featureFlags)
     ; ("handlerProps", tcStrDict handlerProp se.handlerProps)

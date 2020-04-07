@@ -505,10 +505,11 @@ let categoryName (name : string) : msg Html.html =
   Html.span [Html.class' "category-name"] [Html.text name]
 
 
-let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
+let categoryOpenCloseHelpers
+    (s : sidebarState) (classname : string) (count : int) :
     msg Vdom.property * msg Vdom.property =
-  let isOpen = StrSet.has m.routingTableOpenDetails ~value:classname in
-  let isDetailed = m.sidebarState.mode = DetailedMode in
+  let isOpen = StrSet.has s.openedCategories ~value:classname in
+  let isDetailed = s.mode = DetailedMode in
   let isSubCat = String.contains ~substring:delPrefix classname in
   let openEventHandler =
     if isDetailed || isSubCat
@@ -516,7 +517,7 @@ let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
       ViewUtils.eventNoPropagation
         ~key:((if isOpen then "cheh-true-" else "cheh-false-") ^ classname)
         "click"
-        (fun _ -> MarkRoutingTableOpen (not isOpen, classname))
+        (fun _ -> SidebarMsg (MarkCategoryOpen (not isOpen, classname)))
     else Vdom.noProp
   in
   let openAttr =
@@ -528,7 +529,9 @@ let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
 let viewDeployStats (m : model) : msg Html.html =
   let entries = m.staticDeploys in
   let count = List.length entries in
-  let openEventHandler, openAttr = categoryOpenCloseHelpers m "deploys" count in
+  let openEventHandler, openAttr =
+    categoryOpenCloseHelpers m.sidebarState "deploys" count
+  in
   let openAttr =
     if m.sidebarState.mode = AbridgedMode
     then Vdom.attribute "" "open" ""
@@ -586,7 +589,7 @@ let rec viewItem (m : model) (s : item) : msg Html.html =
 
 and viewCategory (m : model) (c : category) : msg Html.html =
   let openEventHandler, openAttr =
-    categoryOpenCloseHelpers m c.classname c.count
+    categoryOpenCloseHelpers m.sidebarState c.classname c.count
   in
   let openAttr =
     if m.sidebarState.mode = AbridgedMode
@@ -805,9 +808,19 @@ let update (msg : sidebarMsg) : modification =
             | AbridgedMode ->
                 DetailedMode
           in
-          ({m with sidebarState = {mode}}, Cmd.none))
+          ({m with sidebarState = {m.sidebarState with mode}}, Cmd.none))
   | ResetSidebar ->
       ReplaceAllModificationsWithThisOne (Viewport.enablePan true)
+  | MarkCategoryOpen (shouldOpen, key) ->
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let openedCategories =
+            if shouldOpen
+            then StrSet.add ~value:key m.sidebarState.openedCategories
+            else StrSet.remove ~value:key m.sidebarState.openedCategories
+          in
+          ( {m with sidebarState = {m.sidebarState with openedCategories}}
+          , Cmd.none ))
 
 
 let viewSidebar_ (m : model) : msg Html.html =
@@ -874,7 +887,6 @@ let rtCacheKey m =
     |> TD.mapValues ~f:(fun (db : db) -> (db.pos, TL.sortkey (TLDB db)))
   , m.deletedUserFunctions |> TD.mapValues ~f:(fun f -> f.ufMetadata.ufmName)
   , m.deletedUserTipes |> TD.mapValues ~f:(fun t -> t.utName)
-  , m.routingTableOpenDetails
   , m.staticDeploys
   , m.unlockedDBs
   , m.usedDBs
