@@ -34,7 +34,8 @@
     "rollbar": "2.15.0",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "0.0.6",
-    "validator": "^13.0.0"
+    "validator": "^13.0.0",
+    "minimist": ">=1.2.3"
   },
   "scripts": {
     "clean": "./scripts/bsb-wrapper.sh -clean-world",
