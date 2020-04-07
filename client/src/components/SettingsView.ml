@@ -167,8 +167,8 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
       [ SettingsViewUpdate msg
       ; ReplaceAllModificationsWithThisOne
           (fun m ->
-            let cmd = Url.navigateTo (SettingsModel tab) in
-            ( {m with cursorState = Deselected; currentPage = SettingsModel tab}
+            let cmd = Url.navigateTo (SettingsModal tab) in
+            ( {m with cursorState = Deselected; currentPage = SettingsModal tab}
             , cmd )) ]
   | TriggerUpdateCanvasInfoCallback (Ok _) ->
       [ SettingsViewUpdate msg
@@ -198,8 +198,8 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
       [ SettingsViewUpdate msg
       ; ReplaceAllModificationsWithThisOne
           (fun m ->
-            let cmd = Url.navigateTo (SettingsModel tab) in
-            ({m with currentPage = SettingsModel tab}, cmd)) ]
+            let cmd = Url.navigateTo (SettingsModal tab) in
+            ({m with currentPage = SettingsModal tab}, cmd)) ]
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
       if isInvalid

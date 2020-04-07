@@ -172,7 +172,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | FocusedHandler _
     | FocusedDB _
     | FocusedGroup _
-    | SettingsModel _ ->
+    | SettingsModal _ ->
         TL.pos tl
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
@@ -287,7 +287,7 @@ let viewCanvas (m : model) : msg Html.html =
     | FocusedHandler _
     | FocusedDB _
     | FocusedGroup _
-    | SettingsModel _ ->
+    | SettingsModal _ ->
         m
         |> TL.structural
         |> TD.values
@@ -343,7 +343,7 @@ let viewCanvas (m : model) : msg Html.html =
   in
   let pageClass =
     match m.currentPage with
-    | SettingsModel _ | Architecture ->
+    | SettingsModal _ | Architecture ->
         "arch"
     | FocusedHandler _ ->
         "focused-handler"

@@ -701,9 +701,9 @@ let adminDebuggerView (m : model) : msg Html.html =
         Printf.sprintf "Type (TLID %s)" (TLID.toString tlid)
     | FocusedGroup (tlid, _) ->
         Printf.sprintf "Group (TLID %s)" (TLID.toString tlid)
-    | SettingsModel tab ->
+    | SettingsModal tab ->
         Printf.sprintf
-          "SettingsModel (tab %s)"
+          "SettingsModal (tab %s)"
           (SettingsViewTypes.settingsTabToText tab)
   in
   let flagText =
