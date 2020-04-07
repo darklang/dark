@@ -13,8 +13,6 @@ type key = string Types.blankOr
 
 type lambdaParameter = string Types.blankOr
 
-let functions = ref []
-
 type nPattern =
   | PVariable of string
   | PLiteral of string
@@ -46,7 +44,7 @@ and nExpr =
 (* Expressions *)
 (* ----------------- *)
 let rec toFluidExpr' ?(inPipe = false) (expr : expr) : FluidExpression.t =
-  let fns = !functions in
+  let fns = Functions.asFunctions (Functions.global ()) in
   let f = toFluidExpr' ~inPipe:false in
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   match expr with

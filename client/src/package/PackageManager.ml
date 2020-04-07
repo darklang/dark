@@ -1,13 +1,5 @@
 open Prelude
 
-let loadPackages (packages : packageFns) (loadedPackages : packageFn list) :
-    packageFns =
-  loadedPackages
-  |> List.map ~f:(fun pf -> (pf.pfTLID, pf))
-  |> TLIDDict.fromList
-  |> TLIDDict.mergeRight packages
-
-
 let fn_of_packageFn (pkgFn : packageFn) : function_ =
   let paramOfPkgFnParam (pkgFnParam : packageFnParameter) : parameter =
     { paramName = pkgFnParam.name

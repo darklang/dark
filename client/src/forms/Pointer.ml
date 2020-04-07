@@ -175,7 +175,7 @@ let toContent (pd : blankOrData) : string =
   | PParamTipe d ->
       d
       |> B.toOption
-      |> Option.map ~f:Runtime.tipe2str
+      |> Option.map ~f:Prelude.tipe2str
       |> Option.withDefault ~default:""
   | PTypeName d ->
       bs2s d
@@ -184,7 +184,7 @@ let toContent (pd : blankOrData) : string =
   | PTypeFieldTipe d ->
       d
       |> B.toOption
-      |> Option.map ~f:Runtime.tipe2str
+      |> Option.map ~f:Prelude.tipe2str
       |> Option.withDefault ~default:""
   | PGroupName g ->
       bs2s g

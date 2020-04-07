@@ -7,6 +7,7 @@ module E = FluidExpression
 type viewState =
   { tl : toplevel
   ; ast : FluidAST.t
+  ; functions : Functions.t
   ; tokens : FluidToken.tokenInfo list
   ; cursorState : cursorState
   ; tlid : TLID.t
@@ -19,8 +20,6 @@ type viewState =
   ; analysisStore : analysisStore (* for current selected trace *)
   ; traces : trace list
   ; dbStats : dbStatsStore
-  ; ufns : userFunction list
-  ; fns : function_ list
   ; executingFunctions : ID.t list
   ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
@@ -76,8 +75,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; showLivevalue = false
   ; isAdmin = m.isAdmin
   ; dbLocked = DB.isLocked m tlid
-  ; ufns = m.userFunctions |> TLIDDict.values
-  ; fns = m.builtInFunctions
+  ; functions = m.functions
   ; analysisStore =
       Option.map traceID ~f:(Analysis.getStoredAnalysis m)
       |> Option.withDefault ~default:LoadableNotInitialized
@@ -284,11 +282,11 @@ let isHoverOverTL (vs : viewState) : bool =
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
 
-let fnForToken (state : fluidState) token : function_ option =
+let fnForToken (functions : Functions.t) token : function_ option =
   match token with
   | TBinOp (_, fnName)
   | TFnVersion (_, _, _, fnName)
   | TFnName (_, _, _, fnName, _) ->
-      Functions.findByNameInList fnName state.ac.functions
+      Functions.find fnName functions
   | _ ->
       None

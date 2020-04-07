@@ -11,6 +11,8 @@ type data = fluidAutocompleteData [@@deriving show]
 
 type tokenInfo = fluidTokenInfo [@@deriving show]
 
+type props = fluidProps [@@deriving show]
+
 let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
     (fun _ -> IgnoreMsg "fluid-autocomplete-focus")
@@ -164,39 +166,6 @@ let item (data : data) : item = data.item
 (* External: utils *)
 (* ---------------------------- *)
 
-let allFunctions (m : model) : function_ list =
-  (* We hide functions that are deprecated unless they are in use *)
-  let filterAndSort (fns : Prelude.function_ list) : Prelude.function_ list =
-    let isUsedOrIsNotDeprecated (f : Prelude.function_) : bool =
-      (not f.fnDeprecated) || Refactor.usedFn m f.fnName
-    in
-    fns
-    |> List.filter ~f:isUsedOrIsNotDeprecated
-    |> List.sortBy ~f:(fun f ->
-           (* don't call List.head here - if we have DB::getAll_v1 and
-            * DB::getAll_v2, we want those to sort accordingly! *)
-           f.fnName |> String.to_lower |> String.split ~on:"_v")
-  in
-  let userFunctionMetadata =
-    m.userFunctions
-    |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
-    |> List.filterMap ~f:UserFunctions.ufmToF
-    |> List.map ~f:(fun f ->
-           { f with
-             fnPreviewSafety =
-               ( if StrSet.has m.previewUnsafeUserFunctions ~value:f.fnName
-               then Unsafe
-               else Safe ) })
-  in
-  let functions = m.builtInFunctions |> filterAndSort in
-  let packageFunctions =
-    m.packageFns
-    |> TLIDDict.values
-    |> List.map ~f:PackageManager.fn_of_packageFn
-  in
-  functions @ userFunctionMetadata @ packageFunctions |> filterAndSort
-
-
 (* Return the item that is highlighted (at a.index position in the
  * list), along with whether that it is a valid autocomplete option right now. *)
 let highlightedWithValidity (a : t) : data option =
@@ -349,18 +318,16 @@ let toQueryString (ti : tokenInfo) : string =
 (* ---------------------------- *)
 (* Autocomplete state *)
 (* ---------------------------- *)
-let reset (m : model) : t =
-  let functions = allFunctions m in
-  {Defaults.defaultModel.fluidState.ac with functions}
-
-
-let init m = reset m
+let init : t = Defaults.defaultModel.fluidState.ac
 
 (* ------------------------------------ *)
 (* Create the list *)
 (* ------------------------------------ *)
-let generateExprs m (tl : toplevel) a ti =
-  let functions = List.map ~f:(fun x -> FACFunction x) a.functions in
+let generateExprs (m : model) (props : props) (tl : toplevel) ti =
+  let functions =
+    Functions.asFunctions props.functions
+    |> List.map ~f:(fun x -> FACFunction x)
+  in
   let constructors =
     [ FACConstructorName ("Just", 1)
     ; FACConstructorName ("Nothing", 0)
@@ -436,7 +403,8 @@ let generateCommands _name _tlid _id =
 
 let generateFields fieldList = List.map ~f:(fun x -> FACField x) fieldList
 
-let generate (m : model) (a : t) (query : fullQuery) : item list =
+let generate (m : model) (props : props) (a : t) (query : fullQuery) : item list
+    =
   let tlid = TL.id query.tl in
   match query.ti.token with
   | TPatternBlank _ | TPatternVariable _ ->
@@ -444,9 +412,9 @@ let generate (m : model) (a : t) (query : fullQuery) : item list =
   | TFieldName _ | TFieldPartial _ ->
       generateFields query.fieldList
   | TPartial (id, name) ->
-      generateExprs m query.tl a query.ti @ generateCommands name tlid id
+      generateExprs m props query.tl query.ti @ generateCommands name tlid id
   | _ ->
-      generateExprs m query.tl a query.ti
+      generateExprs m props query.tl query.ti
 
 
 let filter
@@ -495,9 +463,12 @@ let filter
   List.map allMatches ~f:(typeCheck pipedType expectedTypeInfo)
 
 
-let refilter (query : fullQuery) (old : t) (items : item list) : t =
+let refilter (props : props) (query : fullQuery) (old : t) (items : item list) :
+    t =
   (* add or replace the literal the user is typing to the completions *)
-  let newCompletions = filter old.functions items query in
+  let newCompletions =
+    filter (Functions.asFunctions props.functions) items query
+  in
   let oldHighlight = highlighted old in
   let newCount = List.length newCompletions in
   let oldHighlightNewIndex =
@@ -546,34 +517,28 @@ let refilter (query : fullQuery) (old : t) (items : item list) : t =
     else (* If an entry vanishes, highlight 0 *)
       Some 0
   in
-  { old with
-    index
-  ; query = Some (TL.id query.tl, query.ti)
-  ; completions = newCompletions }
+  {index; query = Some (TL.id query.tl, query.ti); completions = newCompletions}
 
 
+(* Regenerate calls generate, except that it adapts the result using the
+ * existing state (mostly putting the index in the right place. *)
 let regenerate (m : model) (a : t) ((tlid, ti) : query) : t =
   match TL.get m tlid with
   | None ->
-      reset m
+      init
   | Some tl ->
+      let props = {functions = m.functions} in
       let queryString = toQueryString ti in
       let fieldList = findFields m tl ti in
       let pipedDval = findPipedDval m tl ti in
       let query = {tl; ti; fieldList; pipedDval; queryString} in
-      let items = generate m a query in
-      refilter query a items
+      let items = generate m props a query in
+      refilter props query a items
 
 
 (* ---------------------------- *)
 (* Autocomplete state *)
 (* ---------------------------- *)
-let updateFunctions m : model =
-  { m with
-    fluidState =
-      {m.fluidState with ac = {m.fluidState.ac with functions = allFunctions m}}
-  }
-
 
 let numCompletions (a : t) : int = List.length a.completions
 
@@ -714,6 +679,6 @@ let updateAutocompleteVisibility (m : model) : model =
   let newTlid = CursorState.tlidOf m.cursorState in
   if isOpened m.fluidState.ac && oldTlid <> newTlid
   then
-    let newAc = reset m in
+    let newAc = init in
     {m with fluidState = {m.fluidState with ac = newAc}}
   else m

@@ -32,6 +32,8 @@ type token = T.t
 
 type state = Types.fluidState
 
+type props = Types.fluidProps
+
 let deselectFluidEditor (s : fluidState) : fluidState =
   {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = MainEditor}
 
@@ -62,7 +64,7 @@ let astAndStateFromTLID (m : model) (tlid : TLID.t) :
    * make `fromExpr` accept only the info it needs, and differentiate between
    * handler-specific and global fluid state. *)
   let removeHandlerTransientState m =
-    {m with fluidState = {m.fluidState with ac = AC.reset m}}
+    {m with fluidState = {m.fluidState with ac = AC.init}}
   in
   TL.get m tlid
   |> Option.andThen ~f:TL.getAST
@@ -1559,7 +1561,7 @@ let insertInPlaceholderExpr
     ~(placeholder : placeholder)
     ~(ins : string)
     (ast : FluidAST.t)
-    (functions : function_ list) : E.t * caretTarget =
+    (props : props) : E.t * caretTarget =
   let newID = gid () in
   let lambdaArgs () =
     let fnname =
@@ -1569,8 +1571,8 @@ let insertInPlaceholderExpr
       | _ ->
           None
     in
-    functions
-    |> List.find ~f:(fun f -> Some f.fnName = fnname)
+    fnname
+    |> Option.andThen ~f:(fun name -> Functions.find name props.functions)
     |> Option.andThen ~f:(fun fn ->
            List.find
              ~f:(fun {paramName; _} -> paramName = placeholder.name)
@@ -1861,19 +1863,13 @@ let rec mergeExprs (e1 : fluidExpr) (e2 : fluidExpr) : fluidExpr * caretTarget =
 
 
 let replacePartialWithArguments
-    ~(newExpr : E.t) (id : ID.t) (s : state) (ast : FluidAST.t) :
+    (props : fluidProps) ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) :
     FluidAST.t * caretTarget =
   let open FluidExpression in
-  let fns =
-    assertFn
-      ~f:(( <> ) [])
-      "empty functions passed to replacePartialWithArguments"
-      s.ac.functions
-  in
   let getFunctionParams fnname count varExprs =
     List.map (List.range 0 count) ~f:(fun index ->
-        fns
-        |> List.find ~f:(fun f -> f.fnName = fnname)
+        props.functions
+        |> Functions.find fnname
         |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
         |> Option.map ~f:(fun p ->
                ( p.paramName
@@ -1914,8 +1910,8 @@ let replacePartialWithArguments
           NoRail
     in
     let oldAllowed =
-      s.ac.functions
-      |> List.find ~f:(fun fn -> fn.fnName = oldName)
+      props.functions
+      |> Functions.find oldName
       |> Option.map ~f:(fun fn ->
              if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
              then Rail
@@ -2306,7 +2302,7 @@ let acToPatternOrExpr (entry : Types.fluidAutocompleteItem) :
        ~default:(E.Expr (E.newB ()), {astRef = ARInvalid; offset = 0})
 
 
-let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
+let initAC (s : state) : state = {s with ac = AC.init}
 
 let isAutocompleting (ti : T.tokenInfo) (s : state) : bool =
   T.isAutocompletable ti.token
@@ -2413,6 +2409,7 @@ let acMoveBasedOnKey
 let updateFromACItem
     (entry : fluidAutocompleteItem)
     (ti : T.tokenInfo)
+    (props : props)
     (ast : FluidAST.t)
     (s : state)
     (key : K.key) : FluidAST.t * state =
@@ -2471,7 +2468,7 @@ let updateFromACItem
       when oldExpr = firstExpr ->
         (* special case of the generic TPartial in EPipe case just below this:
           * when we are the first thing in the pipe, no pipe target required *)
-        replacePartialWithArguments ~newExpr id s ast
+        replacePartialWithArguments props ~newExpr id ast
     | ( TPartial _
       , Some _
       , Some (EPipe _)
@@ -2479,7 +2476,7 @@ let updateFromACItem
         let newExpr = EFnCall (fnID, name, EPipeTarget (gid ()) :: args, str) in
         (* We can't use the newTarget because it might point to eg a blank
          * replaced with an argument *)
-        replacePartialWithArguments ~newExpr id s ast
+        replacePartialWithArguments props ~newExpr id ast
     | ( TPartial _
       , Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
       , _
@@ -2490,7 +2487,7 @@ let updateFromACItem
     | TPartial _, _, _, Expr newExpr ->
         (* We can't use the newTarget because it might point to eg a blank
          * replaced with an argument *)
-        replacePartialWithArguments ~newExpr id s ast
+        replacePartialWithArguments props ~newExpr id ast
     | ( TRightPartial _
       , Some (ERightPartial (_, _, oldExpr))
       , _
@@ -2520,8 +2517,12 @@ let updateFromACItem
   (newAST, acMoveBasedOnKey key target s newAST)
 
 
-let acEnter (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) (key : K.key) :
-    FluidAST.t * state =
+let acEnter
+    (ti : T.tokenInfo)
+    (props : props)
+    (ast : FluidAST.t)
+    (s : state)
+    (key : K.key) : FluidAST.t * state =
   let s = recordAction ~ti "acEnter" s in
   match AC.highlighted s.ac with
   | None ->
@@ -2540,22 +2541,26 @@ let acEnter (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) (key : K.key) :
   | Some (FACCreateFunction _) ->
       recover "FACNewfunction should be dealt with outside fluid.ml" (ast, s)
   | Some entry ->
-      updateFromACItem entry ti ast s key
+      updateFromACItem entry ti props ast s key
 
 
 let acClick
     (entry : fluidAutocompleteItem)
     (ti : T.tokenInfo)
+    (props : props)
     (ast : FluidAST.t)
     (s : state) =
-  updateFromACItem entry ti ast s K.Enter
+  updateFromACItem entry ti props ast s K.Enter
 
 
 (* If `newPos` is outside `ti`, and `ti` matches the current autocomplete entry
  * perfectly, then select and commit that autocomplete entry *)
 let commitIfValid
-    (newPos : int) (ti : T.tokenInfo) (ast : FluidAST.t) (s : fluidState) :
-    FluidAST.t =
+    (newPos : int)
+    (ti : T.tokenInfo)
+    (props : props)
+    (ast : FluidAST.t)
+    (s : fluidState) : FluidAST.t =
   let highlightedText = s.ac |> AC.highlighted |> Option.map ~f:AC.asName in
   let isInside = newPos >= ti.startPos && newPos <= ti.endPos in
   (* TODO: if we can't move off because it's the start/end etc of the ast, we
@@ -2563,29 +2568,31 @@ let commitIfValid
   if (not isInside)
      && (Some (T.toText ti.token) = highlightedText || T.isFieldPartial ti.token)
   then
-    let newAST, _ = acEnter ti ast s K.Enter in
+    let newAST, _ = acEnter ti props ast s K.Enter in
     newAST
   else ast
 
 
-let acMaybeCommit (newPos : int) (ast : FluidAST.t) (s : fluidState) :
+let acMaybeCommit
+    (newPos : int) (props : props) (ast : FluidAST.t) (s : fluidState) :
     FluidAST.t =
   match s.ac.query with
   | Some (_, ti) ->
-      commitIfValid newPos ti ast s
+      commitIfValid newPos ti props ast s
   | None ->
       ast
 
 
 (* Convert the expr ti into a FieldAccess, using the currently
  * selected Autocomplete value *)
-let acStartField (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) :
+let acStartField
+    (ti : T.tokenInfo) (props : props) (ast : FluidAST.t) (s : state) :
     FluidAST.t * state =
   let s = recordAction ~ti "acStartField" s in
   match (AC.highlighted s.ac, ti.token) with
   | Some (FACField _ as entry), TFieldName (faID, _, _)
   | Some (FACField _ as entry), TFieldPartial (_, faID, _, _) ->
-      let ast, s = updateFromACItem entry ti ast s K.Enter in
+      let ast, s = updateFromACItem entry ti props ast s K.Enter in
       let newAST, target =
         exprToFieldAccess faID ~partialID:(gid ()) ~fieldID:(gid ()) ast
       in
@@ -3980,6 +3987,7 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
 let rec updateKey
     ?(recursing = false)
     (inputEvent : fluidInputEvent)
+    (props : props)
     (ast : FluidAST.t)
     (s : fluidState) : FluidAST.t * state =
   let pos = s.newPos in
@@ -4052,16 +4060,16 @@ let rec updateKey
     | Keypress {key; _}, L (_, ti), _
       when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
-        acEnter ti ast s key
+        acEnter ti props ast s key
     | Keypress {key; _}, _, R (_, ti)
       when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
-        acEnter ti ast s key
+        acEnter ti props ast s key
     (* When we type a letter/number after an infix operator, complete and
      * then enter the number/letter. *)
     | InsertText txt, L (TRightPartial (_, _), ti), _
       when onEdge && Util.isIdentifierChar txt ->
-        let ast, s = acEnter ti ast s K.Tab in
+        let ast, s = acEnter ti props ast s K.Tab in
         let tokens = tokensForActiveEditor ast s in
         getLeftTokenAt s.newPos (List.reverse tokens)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
@@ -4089,18 +4097,18 @@ let rec updateKey
         ( match left with
         | (L (TPartial _, ti) | L (TFieldPartial _, ti))
           when Option.is_some (AC.highlighted s.ac) ->
-            let ast, s = acEnter ti ast s K.Enter in
+            let ast, s = acEnter ti props ast s K.Enter in
             doPipeline ast s
         | _ ->
             doPipeline ast s )
     (* press dot while in a variable entry *)
     | InsertText ".", L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
-        acStartField ti ast s
+        acStartField ti props ast s
     | InsertText ".", L (TFieldPartial _, ti), _
     | InsertText ".", _, R (TFieldPartial _, ti)
       when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
-        acStartField ti ast s
+        acStartField ti props ast s
     (********************)
     (* CARET NAVIGATION *)
     (********************)
@@ -4149,14 +4157,14 @@ let rec updateKey
     (* OVERWRITE *)
     (*************)
     | ReplaceText txt, _, _ ->
-        replaceText ~ast ~state:s txt
+        replaceText props ~ast ~state:s txt
     (*************)
     (* DELETION  *)
     (*************)
     (* Delete selection *)
     | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
       when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
+        deleteSelection props ~state:s ~ast
     (* Special-case hack for deleting rows of a match or record *)
     | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti)
     | DeleteContentBackward, L (TNewline _, _), R (TPatternBlank _, ti) ->
@@ -4173,9 +4181,10 @@ let rec updateKey
            K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. *)
       ( match getOptionalSelectionRange s with
       | Some selRange ->
-          deleteCaretRange ~state:s ~ast selRange
+          deleteCaretRange props ~state:s ~ast selRange
       | None ->
           deleteCaretRange
+            props
             ~state:s
             ~ast
             (s.newPos, getStartOfLineCaretPos ast s ti) )
@@ -4187,20 +4196,21 @@ let rec updateKey
            This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
       ( match getOptionalSelectionRange s with
       | Some selRange ->
-          deleteCaretRange ~state:s ~ast selRange
+          deleteCaretRange props ~state:s ~ast selRange
       | None ->
           deleteCaretRange
+            props
             ~state:s
             ~ast
             (s.newPos, getEndOfLineCaretPos ast s ti) )
     | DeleteWordForward, _, R (_, ti) ->
       ( match getOptionalSelectionRange s with
       | Some selRange ->
-          deleteCaretRange ~state:s ~ast selRange
+          deleteCaretRange props ~state:s ~ast selRange
       | None ->
           let movedState = goToEndOfWord ~pos ast ti s in
           let newAst, newState =
-            deleteCaretRange ~state:s ~ast (pos, movedState.newPos)
+            deleteCaretRange props ~state:s ~ast (pos, movedState.newPos)
           in
           if newAst = ast && newState.newPos = pos
           then (newAst, movedState)
@@ -4208,14 +4218,14 @@ let rec updateKey
     | DeleteWordBackward, L (_, ti), _ ->
       ( match getOptionalSelectionRange s with
       | Some selRange ->
-          deleteCaretRange ~state:s ~ast selRange
+          deleteCaretRange props ~state:s ~ast selRange
       | None ->
           let rangeStart =
             if T.isStringToken ti.token && pos != ti.startPos
             then getBegOfWordInStrCaretPos ~pos ti
             else ti.startPos
           in
-          deleteCaretRange ~state:s ~ast (rangeStart, pos) )
+          deleteCaretRange props ~state:s ~ast (rangeStart, pos) )
     (****************************************)
     (* SKIPPING OVER SYMBOLS BY TYPING THEM *)
     (****************************************)
@@ -4368,7 +4378,7 @@ let rec updateKey
          * doInsert handling, reconstructing the difference between placeholders
          * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
         let newExpr, newTarget =
-          insertInPlaceholderExpr ~fnID ~placeholder ~ins ast s.ac.functions
+          insertInPlaceholderExpr ~fnID ~placeholder ~ins ast props
         in
         let newAST = FluidAST.replace blankID ~replacement:newExpr ast in
         (newAST, moveToCaretTarget s newAST newTarget)
@@ -4642,10 +4652,11 @@ let rec updateKey
         then
           (* Use the new position as we may want to commit if we've moved, but
            * use the old AST so as not to double-commit *)
-          let committedAST = commitIfValid newState.newPos ti ast s in
+          let committedAST = commitIfValid newState.newPos ti props ast s in
           updateKey
             ~recursing:true
             inputEvent
+            props
             committedAST
             (* keep the actions for debugging *)
             {s with actions = newState.actions}
@@ -4663,7 +4674,8 @@ let rec updateKey
  * XXX(JULIAN): This actually moves the caret to the larger side of the range
  * and backspaces until the beginning, which means this hijacks the caret in
   * the state. *)
-and deleteCaretRange ~state ~(ast : FluidAST.t) (caretRange : int * int) :
+and deleteCaretRange
+    (props : props) ~state ~(ast : FluidAST.t) (caretRange : int * int) :
     FluidAST.t * fluidState =
   let rangeStart, rangeEnd = orderRangeFromSmallToBig caretRange in
   let state =
@@ -4673,7 +4685,7 @@ and deleteCaretRange ~state ~(ast : FluidAST.t) (caretRange : int * int) :
   let nothingChanged = ref false in
   while (not !nothingChanged) && !currState.newPos > rangeStart do
     let newAst, newState =
-      updateKey DeleteContentBackward !currAst !currState
+      updateKey DeleteContentBackward props !currAst !currState
     in
     if newState.newPos = !currState.newPos && newAst = !currAst
     then
@@ -4688,16 +4700,18 @@ and deleteCaretRange ~state ~(ast : FluidAST.t) (caretRange : int * int) :
 
 (* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
    forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
-and deleteSelection ~state ~(ast : FluidAST.t) : FluidAST.t * fluidState =
-  getSelectionRange state |> deleteCaretRange ~state ~ast
+and deleteSelection (props : props) ~(state : fluidState) ~(ast : FluidAST.t) :
+    FluidAST.t * fluidState =
+  getSelectionRange state |> deleteCaretRange props ~state ~ast
 
 
-and replaceText ~(ast : FluidAST.t) ~state (str : string) :
+and replaceText
+    (props : props) ~(ast : FluidAST.t) ~(state : fluidState) (str : string) :
     FluidAST.t * fluidState =
   let newAST, newState =
-    getSelectionRange state |> deleteCaretRange ~state ~ast
+    getSelectionRange state |> deleteCaretRange props ~state ~ast
   in
-  updateKey (InsertText str) newAST newState
+  updateKey (InsertText str) props newAST newState
 
 
 let updateAutocomplete
@@ -4712,7 +4726,8 @@ let updateAutocomplete
       s
 
 
-let updateMouseClick (newPos : int) (ast : FluidAST.t) (s : fluidState) :
+let updateMouseClick
+    (newPos : int) (props : props) (ast : FluidAST.t) (s : fluidState) :
     FluidAST.t * fluidState =
   let tokens = tokensForActiveEditor ast s in
   let lastPos =
@@ -4732,7 +4747,7 @@ let updateMouseClick (newPos : int) (ast : FluidAST.t) (s : fluidState) :
     | _ ->
         newPos
   in
-  let ast = acMaybeCommit newPos ast s in
+  let ast = acMaybeCommit newPos props ast s in
   let s = updatePosAndAC ast newPos s in
   (ast, s)
 
@@ -5245,8 +5260,12 @@ let reconstructExprFromRange
   reconstruct ~topmostID (startPos, endPos)
 
 
-let pasteOverSelection ~state ~(ast : FluidAST.t) data : FluidAST.t * state =
-  let ast, state = deleteSelection ~state ~ast in
+let pasteOverSelection
+    (props : props)
+    ~(state : state)
+    ~(ast : FluidAST.t)
+    (data : clipboardContents) : FluidAST.t * state =
+  let ast, state = deleteSelection props ~state ~ast in
   let mTi = getToken ast state in
   let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> FluidAST.find id ast) in
@@ -5288,7 +5307,7 @@ let pasteOverSelection ~state ~(ast : FluidAST.t) data : FluidAST.t * state =
                  then Keypress enter
                  else InsertText str
                in
-               updateKey action newAST s) )
+               updateKey action props newAST s) )
   | _ ->
       recover "pasting over non-existant handler" (ast, state)
 
@@ -5325,17 +5344,13 @@ let buildFeatureFlagEditors (ast : FluidAST.t) : fluidEditor list =
 
 
 let updateMouseDoubleClick
-    (m : model) (ast : FluidAST.t) (eventData : fluidMouseDoubleClick) :
+    (s : fluidState) (ast : FluidAST.t) (eventData : fluidMouseDoubleClick) :
     FluidAST.t * fluidState =
-  let s =
-    {m.fluidState with midClick = false; activeEditor = eventData.editor}
-  in
+  let s = {s with midClick = false; activeEditor = eventData.editor} in
   let selStart, selEnd =
     match eventData.selection with
     | SelectExpressionAt pos ->
-        getExpressionRangeAtCaret
-          ast
-          {m.fluidState with newPos = pos; oldPos = m.fluidState.newPos}
+        getExpressionRangeAtCaret ast {s with newPos = pos; oldPos = s.newPos}
         |> recoverOpt ~default:(0, 0) "no expression range found at caret"
     | SelectTokenAt (selectionStart, selectionEnd) ->
       ( match getToken ast {s with newPos = selectionStart} with
@@ -5356,14 +5371,15 @@ let updateMouseDoubleClick
 
 
 (* Handle either a click or the end of a selection drag *)
-let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
-    FluidAST.t * fluidState =
-  let s =
-    {m.fluidState with midClick = false; activeEditor = eventData.editor}
-  in
+let updateMouseUp
+    (props : props)
+    (s : fluidState)
+    (ast : FluidAST.t)
+    (eventData : fluidMouseUp) : FluidAST.t * fluidState =
+  let s = {s with midClick = false; activeEditor = eventData.editor} in
   match eventData.selection with
   | ClickAt pos ->
-      updateMouseClick pos ast s
+      updateMouseClick pos props ast s
   | SelectText (beginSel, endSel) ->
       ( ast
       , { s with
@@ -5373,7 +5389,8 @@ let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
 
 
 (* We completed a click outside: figure out how to complete it *)
-let updateMouseUpExternal (m : model) (tlid : TLID.t) (ast : FluidAST.t) :
+let updateMouseUpExternal
+    (tlid : TLID.t) (props : props) (s : fluidState) (ast : FluidAST.t) :
     FluidAST.t * fluidState =
   match Entry.getFluidSelectionRange () with
   | Some (startPos, endPos) ->
@@ -5383,17 +5400,18 @@ let updateMouseUpExternal (m : model) (tlid : TLID.t) (ast : FluidAST.t) :
         else SelectText (startPos, endPos)
       in
       let eventData : fluidMouseUp =
-        {tlid; editor = m.fluidState.activeEditor; selection}
+        {tlid; editor = s.activeEditor; selection}
       in
-      updateMouseUp m ast eventData
+      updateMouseUp props s ast eventData
   | None ->
-      (ast, m.fluidState)
+      (ast, s)
 
 
 let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     : FluidAST.t * fluidState =
   (* TODO: The state should be updated from the last request, and so this
    * shouldn't be necessary, but the tests don't work without it *)
+  let props = {functions = m.functions} in
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
@@ -5401,15 +5419,15 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
         (* updateAutocomplete has already been run, so nothing more to do *)
         (ast, s)
     | FluidMouseUpExternal ->
-        updateMouseUpExternal m tlid ast
+        updateMouseUpExternal tlid props s ast
     | FluidMouseUp eventData ->
-        updateMouseUp m ast eventData
+        updateMouseUp props s ast eventData
     | FluidMouseDoubleClick eventData ->
-        updateMouseDoubleClick m ast eventData
+        updateMouseDoubleClick s ast eventData
     | FluidCut ->
-        deleteSelection ~state:s ~ast
+        deleteSelection props ~state:s ~ast
     | FluidPaste data ->
-        pasteOverSelection ~state:s ~ast data
+        pasteOverSelection props ~state:s ~ast data
     (* handle selection with direction key cases *)
     (* moving/selecting over expressions or tokens with shift-/alt-direction
      * or shift-/ctrl-direction *)
@@ -5428,7 +5446,7 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
          *
          * XXX(JULIAN): We need to be able to use alt and ctrl and meta to
          * change selection! *)
-        let ast, newS = updateKey ievt ast s in
+        let ast, newS = updateKey ievt props ast s in
         ( match s.selectionStart with
         | None ->
             ( ast
@@ -5455,7 +5473,7 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
         (ast, s)
     | FluidInputEvent (Keypress {key; shiftKey; _} as ievt) ->
         let s = {s with lastInput = ievt} in
-        let newAST, newState = updateKey ievt ast s in
+        let newAST, newState = updateKey ievt props ast s in
         let selectionStart =
           if shouldSelect key
           then newState.selectionStart
@@ -5468,11 +5486,11 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     | FluidInputEvent (InsertText str as ievt)
       when Option.is_some s.selectionStart ->
         let s = {s with lastInput = ievt} in
-        updateKey (ReplaceText str) ast s
+        updateKey (ReplaceText str) props ast s
     | FluidInputEvent ievt ->
-        updateKey ievt ast s
+        updateKey ievt props ast s
     | FluidAutocompleteClick entry ->
-        Option.map (getToken ast s) ~f:(fun ti -> acClick entry ti ast s)
+        Option.map (getToken ast s) ~f:(fun ti -> acClick entry ti props ast s)
         |> Option.withDefault ~default:(ast, s)
     | FluidClearErrorDvSrc
     | FluidMouseDown _
@@ -5710,13 +5728,15 @@ let renderCallback (m : model) : unit =
 
 let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
   let state = m.fluidState in
+  let props = {functions = m.functions} in
   let rmPartialsMod =
     tlid
     |> Option.andThen ~f:(TL.get m)
     |> Option.thenAlso ~f:TL.getAST
     |> Option.andThen ~f:(fun (tl, ast) ->
            let newAST =
-             acMaybeCommit 0 ast state |> FluidAST.map ~f:AST.removePartials
+             acMaybeCommit 0 props ast state
+             |> FluidAST.map ~f:AST.removePartials
            in
            if newAST <> ast then Some (TL.setASTMod tl newAST) else None)
     |> Option.withDefault ~default:NoChange

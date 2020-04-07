@@ -134,12 +134,12 @@ let bytes_from_base64url (b64 : string) : Bytes.t =
  * In the past we used tried one decoder, then the other, using an exception.
  * This is very very slow. It's possible that testing it isn't the fastest
  * approach, but it no longer appears in profiles, so it's at least good
- * enough.
+ * enough. If you change this, profile the changes (expression decoding) to
+ * ensure it's still fast.
  *
- * Would probably be good to fix this so that we always know what we're
- * getting. *)
-let wireIdentifier j =
-  if Js.Json.test j Js.Json.Number then int j |> string_of_int else string j
+ * We should change the formats so that we always know what we're getting. *)
+let wireIdentifier (j : Js.Json.t) =
+  if Js.typeof j = "string" then string j else string_of_int (Obj.magic j : int)
 
 
 let id = ID.fromString << wireIdentifier

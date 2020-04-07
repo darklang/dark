@@ -925,6 +925,22 @@ and autocompleteMod =
   | ACSetVisible of bool
 
 (* ------------------- *)
+(* Functions.ml *)
+(* ------------------- *)
+and functionsType =
+  { builtinFunctions : function_ list
+  ; packageFunctions : packageFns
+  ; previewUnsafeFunctions :
+      (* We do analysis to determine which functions are safe and which are not.
+       * This stores the result *)
+      StrSet.t
+  ; allowedFunctions : function_ list }
+
+and functionsProps =
+  { usedFns : int StrDict.t
+  ; userFunctions : userFunction TLIDDict.t }
+
+(* ------------------- *)
 (* Clipboard *)
 (* ------------------- *)
 and clipboardData =
@@ -1559,8 +1575,7 @@ and fluidAutocompleteState =
   { (* ------------------------------- *)
     (* state *)
     (* ------------------------------- *)
-    functions : function_ list
-  ; index : int option
+    index : int option
   ; query :
       (* We need to refer back to the previous one *)
       (TLID.t * fluidTokenInfo) option
@@ -1603,6 +1618,8 @@ and fluidState =
       dval_source
   ; activeEditor : fluidEditor }
 
+and fluidProps = {functions : functionsType}
+
 (* Avatars *)
 and avatar =
   { canvasId : string
@@ -1624,8 +1641,8 @@ and model =
   { error : Error.t
   ; lastMsg : msg
   ; tests : variantTest list
+  ; functions : functionsType
   ; complete : autocomplete
-  ; builtInFunctions : function_ list
   ; cursorState : cursorState
   ; currentPage : page
   ; hovering : (TLID.t * ID.t) list
@@ -1639,7 +1656,6 @@ and model =
   ; userTipes : userTipe TLIDDict.t
   ; deletedUserTipes : userTipe TLIDDict.t
   ; deletedGroups : group TLIDDict.t
-  ; packageFns : packageFns
   ; traces : traces
   ; analyses : analyses
   ; f404s : fourOhFour list
@@ -1659,10 +1675,9 @@ and model =
   ; environment : string
   ; csrfToken : string
   ; routingTableOpenDetails : StrSet.t
-  ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
+  ; usedDBs : int StrDict.t
   ; usedTipes : int StrDict.t
-  ; previewUnsafeUserFunctions : StrSet.t
   ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys : staticDeploy list
         (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
