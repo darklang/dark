@@ -25,11 +25,11 @@ spec:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "200Mi"
-              cpu: "150m"
+              memory: "600Mi"
+              cpu: "250m"
             limits:
-              memory: "400Mi"
-              cpu: "300m"
+              memory: "1200Mi"
+              cpu: "400m"
           envFrom:
             - configMapRef:
                 name: gke-dark-prod
