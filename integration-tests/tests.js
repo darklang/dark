@@ -1188,3 +1188,35 @@ test("double_clicking_blankor_selects_it", async t => {
   await t.expect(selector.exists).ok();
   await t.expect(await getElementSelectionStart(selector)).typeOf("number");
 });
+
+test("abridged_sidebar_content_visible_on_hover", async t => {
+  // collapse sidebar to abridged mode
+  await t.click(".toggle-sidebar-btn");
+  await Selector(".viewing-table.abridged", { timeout: 5000 })();
+  await t.expect(Selector(".viewing-table.abridged").exists).ok();
+
+  const httpCatSelector = ".sidebar-category.http";
+
+  // hovering over a category makes its contents visible
+  await t.expect(Selector(httpCatSelector + " .category-content").visible).notOk();
+
+  await t
+    .hover(httpCatSelector)
+    .expect(Selector(httpCatSelector + " .category-content").visible)
+    .ok();
+});
+
+test("abridged_sidebar_category_icon_click_disabled", async t => {
+  // collapse sidebar to abridged mode
+  await t.click(".toggle-sidebar-btn");
+  await Selector(".viewing-table.abridged", { timeout: 5000 })();
+  await t.expect(Selector(".viewing-table.abridged").exists).ok();
+
+  const httpCatSelector = ".sidebar-category.http";
+  const dbCatSelector = ".sidebar-category.dbs";
+
+  // clicking on a category icon does not keep it open if you mouse elsewhere
+  await t.click(httpCatSelector + " .category-icon");
+  await t.click(dbCatSelector + " .category-icon");
+  await t.expect(Selector(httpCatSelector + " .category-content").visible).notOk();
+});

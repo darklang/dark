@@ -508,11 +508,16 @@ let categoryName (name : string) : msg Html.html =
 let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
     msg Vdom.property * msg Vdom.property =
   let isOpen = StrSet.has m.routingTableOpenDetails ~value:classname in
+  let isDetailed = m.sidebarState.mode = DetailedMode in
+  let isSubCat = String.contains ~substring:delPrefix classname in
   let openEventHandler =
-    ViewUtils.eventNoPropagation
-      ~key:((if isOpen then "cheh-true-" else "cheh-false-") ^ classname)
-      "click"
-      (fun _ -> MarkRoutingTableOpen (not isOpen, classname))
+    if isDetailed || isSubCat
+    then
+      ViewUtils.eventNoPropagation
+        ~key:((if isOpen then "cheh-true-" else "cheh-false-") ^ classname)
+        "click"
+        (fun _ -> MarkRoutingTableOpen (not isOpen, classname))
+    else Vdom.noProp
   in
   let openAttr =
     if isOpen && count <> 0 then Vdom.attribute "" "open" "" else Vdom.noProp
@@ -535,10 +540,8 @@ let viewDeployStats (m : model) : msg Html.html =
   let title = categoryName "Static Assets" in
   let summary =
     let props =
-      [ eventNoPropagation ~key:"cat-open-deploys" "mouseenter" (fun _ ->
-            if m.sidebarState.mode = AbridgedMode
-            then SidebarMsg (SetOnCategory "deploys")
-            else IgnoreMsg "view-deploy-stats") ]
+      [ eventPreventDefault ~key:"disable-sa-click" "click" (fun _ ->
+            IgnoreMsg "static asset icon click") ]
     in
     let header =
       Html.div
@@ -590,10 +593,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
   in
   let openAttr =
     if m.sidebarState.mode = AbridgedMode
-    then
-      if m.sidebarState.onCategory = Some c.classname
-      then Vdom.attribute "" "open" ""
-      else Vdom.noProp
+    then Vdom.attribute "" "open" ""
     else openAttr
   in
   let isSubCat = String.contains ~substring:delPrefix c.classname in
@@ -615,14 +615,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
     in
     let catIcon =
       let props =
-        [ eventNoPropagation
-            ~key:("cat-open-" ^ c.classname)
-            "mouseenter"
-            (fun _ ->
-              if m.sidebarState.mode = AbridgedMode && not isSubCat
-              then SidebarMsg (SetOnCategory c.classname)
-              else IgnoreMsg "sidebar-category-open")
-        ; eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
+        [ eventNeither ~key:"return-to-arch" "click" (fun _ ->
               if m.sidebarState.mode = AbridgedMode && not isSubCat
               then
                 match c.iconAction with
