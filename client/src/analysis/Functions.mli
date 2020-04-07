@@ -23,9 +23,7 @@ val setBuiltins : Types.function_ list -> props -> t -> t
 val setPackages : Types.packageFns -> props -> t -> t
 
 (* Update the cached function data; should be called anytime the functions
- * change. Needs isSafe and isUsed, functions which take the name of a function
- * and return whether it is execution safe or used by other functions (use
- * Refactor.usedFn and m.previewUnsafeUserFunctions *)
+ * change. *)
 val update : props -> t -> t
 
 (* For testing *)
