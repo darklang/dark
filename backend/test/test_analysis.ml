@@ -72,7 +72,7 @@ let t_other_db_query_functions_have_analysis () =
     let ast =
       f
         (FnCall
-           ( "DB::queryOne_v3"
+           ( "DB::queryOne_v4"
            , [ Filled (dbID, Variable "MyDB")
              ; Filled
                  ( lambdaID
