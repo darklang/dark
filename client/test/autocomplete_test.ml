@@ -34,8 +34,7 @@ let defaultModel
   ; userFunctions = UserFunctions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
-  ; fluidState = Defaults.defaultFluidState
-  ; builtInFunctions = [] }
+  ; fluidState = Defaults.defaultFluidState }
 
 
 let aHandler

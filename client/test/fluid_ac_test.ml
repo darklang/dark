@@ -153,10 +153,9 @@ let defaultModel
   ; userFunctions = UserFunctions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState = FluidEntering tlid
-  ; builtInFunctions = sampleFunctions
-  ; fluidState =
-      { default.fluidState with
-        ac = {default.fluidState.ac with functions = sampleFunctions} }
+  ; functions =
+      {Functions.empty with builtinFunctions = sampleFunctions}
+      |> Functions.update defaultFunctionsProps
   ; analyses =
       StrDict.singleton ~key:defaultTraceID ~value:(LoadableSuccess analyses) }
 
@@ -170,12 +169,13 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.t =
            Fluid.getToken ast {m.fluidState with newPos = pos})
     |> Option.withDefault ~default:defaultTokenInfo
   in
-  AC.regenerate m (AC.init m) (tlid, ti)
+  AC.regenerate m AC.init (tlid, ti)
 
 
 let setQuery (q : string) (a : AC.t) : AC.t =
   let fullQ = defaultFullQuery a q in
-  AC.refilter fullQ a (List.map ~f:(fun {item; _} -> item) a.completions)
+  let props = defaultTestProps in
+  AC.refilter props fullQ a (List.map ~f:(fun {item; _} -> item) a.completions)
 
 
 let filterValid (a : AC.t) : AC.item list =
@@ -503,7 +503,7 @@ let run () =
               let expr = match' b [(pattern, b)] in
               let m =
                 defaultModel ~handlers:[aHandler ~tlid ~expr ()] ()
-                |> fun m -> {m with builtInFunctions = []}
+                |> fun m -> {m with functions = Functions.empty}
               in
               expect
                 (acFor ~tlid ~pos:13 m |> filterValid |> List.map ~f:AC.asName)

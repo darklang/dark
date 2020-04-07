@@ -89,15 +89,17 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   in
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
-  let functions = complete in
-  OldExpr.functions := functions ;
   let m =
     { m with
       cursorState =
         Deselected
         (* deselect for now as the selected blank isn't available yet *)
     ; currentPage = Architecture
-    ; builtInFunctions = functions
+    ; functions =
+        Functions.empty
+        |> Functions.setBuiltins
+             complete
+             {usedFns = m.usedFns; userFunctions = m.userFunctions}
     ; complete = AC.init m
     ; tests = variants
     ; handlers = TLIDDict.empty
@@ -113,7 +115,8 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; buildHash
     ; username
     ; teaDebuggerEnabled = Url.isDebugging ()
-    ; unsupportedBrowser = Entry.unsupportedBrowser () }
+    ; unsupportedBrowser = Entry.unsupportedBrowser ()
+    ; fluidState = Fluid.initAC m.fluidState }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
@@ -122,7 +125,6 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; tlid = None
     ; timestamp = timeStamp }
   in
-  let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest ()
   then (m, Cmd.batch [API.integration m m.canvasName; API.loadPackages m])
   else
@@ -691,29 +693,31 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd; reExeCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
-        (* TODO: note: this updates existing, despite not being called update *)
-        let oldM = m in
-        let m =
-          { m with
-            userFunctions =
-              TD.mergeRight m.userFunctions (UserFunctions.fromList userFuncs)
-              |> TD.removeMany
-                   ~tlids:(List.map ~f:UserFunctions.toID deletedUserFuncs)
-          ; deletedUserFunctions =
-              TD.mergeRight
-                m.deletedUserFunctions
-                (UserFunctions.fromList deletedUserFuncs)
-              |> TD.removeMany ~tlids:(List.map ~f:UserFunctions.toID userFuncs)
-          }
-        in
-        (* Update the functions variable for use in FluidPrinter for fn params *)
-        OldExpr.functions := FluidAutocomplete.allFunctions m ;
-        (* Bring back the TL being edited, so we don't lose work done since the
+        if userFuncs = [] && deletedUserFuncs = []
+        then (* no need to do this if nothing changed *)
+          (m, Cmd.none)
+        else
+          let oldM = m in
+          let m =
+            { m with
+              userFunctions =
+                TD.mergeRight m.userFunctions (UserFunctions.fromList userFuncs)
+                |> TD.removeMany
+                     ~tlids:(List.map ~f:UserFunctions.toID deletedUserFuncs)
+            ; deletedUserFunctions =
+                TD.mergeRight
+                  m.deletedUserFunctions
+                  (UserFunctions.fromList deletedUserFuncs)
+                |> TD.removeMany
+                     ~tlids:(List.map ~f:UserFunctions.toID userFuncs) }
+          in
+          (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
-        let m = if updateCurrent then m else bringBackCurrentTL oldM m in
-        let m = Refactor.updateUsageCounts m in
-        let m = FluidAutocomplete.updateFunctions m in
-        processAutocompleteMods m [ACRegenerate]
+          let m = if updateCurrent then m else bringBackCurrentTL oldM m in
+          let m = Refactor.updateUsageCounts m in
+          let props = {usedFns = m.usedFns; userFunctions = m.userFunctions} in
+          let m = {m with functions = Functions.update props m.functions} in
+          processAutocompleteMods m [ACRegenerate]
     | SetTypes (userTipes, deletedUserTipes, updateCurrent) ->
         let m2 =
           { m with
@@ -1604,9 +1608,13 @@ let update_ (msg : msg) (m : model) : modification =
   | LoadPackagesAPICallback (Ok loadedPackages) ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
-          ( { m with
-              packageFns =
-                PackageManager.loadPackages m.packageFns loadedPackages }
+          let pkgs =
+            loadedPackages
+            |> List.map ~f:(fun pkg -> (pkg.pfTLID, pkg))
+            |> TLIDDict.fromList
+          in
+          let props = {usedFns = m.usedFns; userFunctions = m.userFunctions} in
+          ( {m with functions = Functions.setPackages pkgs props m.functions}
           , Cmd.none ))
   | NewTracePush (traceID, tlids) ->
       let traces =

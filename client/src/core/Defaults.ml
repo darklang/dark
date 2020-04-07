@@ -49,12 +49,19 @@ let defaultFluidState : fluidState =
         ; altKey = false
         ; metaKey = false
         ; ctrlKey = false }
-  ; ac = {functions = []; index = None; query = None; completions = []}
+  ; ac = {index = None; query = None; completions = []}
   ; cp = {index = 0; commands = []; location = None; filter = None}
   ; selectionStart = None
   ; errorDvSrc = SourceNone
   ; midClick = false
   ; activeEditor = MainEditor }
+
+
+let defaultFunctionsType =
+  { builtinFunctions = []
+  ; packageFunctions = TLIDDict.empty
+  ; allowedFunctions = []
+  ; previewUnsafeFunctions = StrSet.empty }
 
 
 let defaultCanvasProps : canvasProps =
@@ -86,6 +93,7 @@ let defaultFnSpace : fnProps =
 
 let defaultModel : model =
   { error = Error.default
+  ; functions = defaultFunctionsType
   ; lastMsg = IgnoreMsg "default"
   ; opCtrs = StrDict.empty
   ; clientOpCtrId = ""
@@ -99,7 +107,6 @@ let defaultModel : model =
       ; value = ""
       ; prevValue = ""
       ; visible = true }
-  ; builtInFunctions = []
   ; currentPage = Architecture
   ; hovering = []
   ; tests = []
@@ -113,7 +120,6 @@ let defaultModel : model =
   ; userTipes = TLIDDict.empty
   ; deletedUserTipes = TLIDDict.empty
   ; deletedGroups = TLIDDict.empty
-  ; packageFns = TLIDDict.empty
   ; analyses = StrDict.empty
   ; traces = StrDict.empty
   ; f404s = []
@@ -132,10 +138,9 @@ let defaultModel : model =
   ; environment = "none"
   ; csrfToken = unsetCSRF
   ; routingTableOpenDetails = StrSet.empty
-  ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
+  ; usedDBs = StrDict.empty
   ; usedTipes = TLIDDict.empty
-  ; previewUnsafeUserFunctions = StrSet.empty
   ; handlerProps = TLIDDict.empty
   ; staticDeploys = []
   ; tlRefersTo = TLIDDict.empty

@@ -65,7 +65,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
   let renderTokenLv token id =
     let fnLoading =
       (* If fn needs to be manually executed, check status *)
-      ViewUtils.fnForToken vs.fluidState token
+      ViewUtils.fnForToken vs.functions token
       |> Option.andThen ~f:(fun fn ->
              match fn.fnPreviewSafety with
              | Safe ->
@@ -206,6 +206,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   let editorState =
     { FluidEditorView.analysisStore = vs.analysisStore
     ; ast = vs.ast
+    ; props = {functions = vs.functions}
     ; executingFunctions = vs.executingFunctions
     ; editor = MainEditor
     ; hoveringRefs = vs.hoveringRefs
@@ -264,6 +265,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                let editorState =
                  { FluidEditorView.analysisStore = vs.analysisStore
                  ; ast = vs.ast
+                 ; props = {functions = vs.functions}
                  ; executingFunctions = vs.executingFunctions
                  ; editor = e
                  ; hoveringRefs = vs.hoveringRefs

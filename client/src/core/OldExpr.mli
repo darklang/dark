@@ -37,10 +37,6 @@ and nExpr =
   | FluidPartial of string * expr
   | FluidRightPartial of string * expr
 
-(** We use this to convert to the old Expr type, and also to convert to
- * tokens. *)
-val functions : Types.function_ list ref
-
 (** [toNExpr e] recursively converts [e] to the corresponding [nExpr Types.blankOr] *)
 val fromFluidExpr : FluidExpression.t -> expr
 

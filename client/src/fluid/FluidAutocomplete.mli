@@ -8,6 +8,8 @@ type data = Types.fluidAutocompleteData [@@deriving show]
 
 type query = TLID.t * Types.fluidTokenInfo [@@deriving show]
 
+type props = Types.fluidProps [@@deriving show]
+
 val asName : item -> string
 
 val asTypeStrings : item -> string list * string
@@ -22,19 +24,13 @@ val isCreateFn : item -> bool
 
 val item : data -> item
 
-val allFunctions : Types.model -> Types.function_ list
-
 val highlightedWithValidity : t -> data option
 
 val highlighted : t -> item option
 
-val reset : Types.model -> t
-
-val init : Types.model -> t
+val init : t
 
 val regenerate : Types.model -> t -> TLID.t * Types.fluidTokenInfo -> t
-
-val updateFunctions : Types.model -> Types.model
 
 val numCompletions : t -> int
 
@@ -57,4 +53,4 @@ type fullQuery =
   ; pipedDval : Types.dval option
   ; queryString : string }
 
-val refilter : fullQuery -> t -> item list -> t
+val refilter : props -> fullQuery -> t -> item list -> t
