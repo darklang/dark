@@ -987,11 +987,11 @@ and fnpMsg =
   | Reset
 
 (* Sidebar state *)
-and sidebarVariant =
+and sidebarMode =
   | DetailedMode
   | AbridgedMode
 
-and sidebarState = {mode : sidebarVariant}
+and sidebarState = {mode : sidebarMode}
 
 and sidebarMsg =
   | ToggleSidebarMode

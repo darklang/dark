@@ -467,7 +467,7 @@ and savedUserSettings (j : Js.Json.t) : savedUserSettings =
         j }
 
 
-and sidebarVariant (j : Js.Json.t) : sidebarVariant =
+and sidebarMode (j : Js.Json.t) : sidebarMode =
   j
   |> variants
        [ ("DetailedMode", variant0 DetailedMode)
@@ -475,7 +475,7 @@ and sidebarVariant (j : Js.Json.t) : sidebarVariant =
 
 
 and sidebarState (j : Js.Json.t) : sidebarState =
-  {mode = field "mode" sidebarVariant j}
+  {mode = field "mode" sidebarMode j}
 
 
 and savedSettings (j : Js.Json.t) : savedSettings =

@@ -829,7 +829,7 @@ let handlerProp (p : Types.handlerProp) : Js.Json.t =
     ; ("handlerState", handlerState p.handlerState) ]
 
 
-let sidebarVariant (s : Types.sidebarVariant) : Js.Json.t =
+let sidebarMode (s : Types.sidebarMode) : Js.Json.t =
   match s with
   | DetailedMode ->
       variant "DetailedMode" []
@@ -838,7 +838,7 @@ let sidebarVariant (s : Types.sidebarVariant) : Js.Json.t =
 
 
 let sidebarState (s : Types.sidebarState) : Js.Json.t =
-  object_ [("mode", sidebarVariant s.mode)]
+  object_ [("mode", sidebarMode s.mode)]
 
 
 let editorSettings (es : Types.editorSettings) : Js.Json.t =
