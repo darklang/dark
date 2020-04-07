@@ -531,10 +531,7 @@ let viewDeployStats (m : model) : msg Html.html =
   let openEventHandler, openAttr = categoryOpenCloseHelpers m "deploys" count in
   let openAttr =
     if m.sidebarState.mode = AbridgedMode
-    then
-      if m.sidebarState.onCategory = Some "deploys"
-      then Vdom.attribute "" "open" ""
-      else Vdom.noProp
+    then Vdom.attribute "" "open" ""
     else openAttr
   in
   let title = categoryName "Static Assets" in
@@ -808,23 +805,9 @@ let update (msg : sidebarMsg) : modification =
             | AbridgedMode ->
                 DetailedMode
           in
-          let onCategory = None in
-          ({m with sidebarState = {mode; onCategory}}, Cmd.none))
-  | SetOnCategory catName ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ( { m with
-              sidebarState = {m.sidebarState with onCategory = Some catName} }
-          , Cmd.none ))
-  | UnfoucsSidebar ->
-      ReplaceAllModificationsWithThisOne (Viewport.enablePan true)
+          ({m with sidebarState = {mode}}, Cmd.none))
   | ResetSidebar ->
-      Many
-        [ ReplaceAllModificationsWithThisOne (Viewport.enablePan true)
-        ; ReplaceAllModificationsWithThisOne
-            (fun m ->
-              ( {m with sidebarState = {m.sidebarState with onCategory = None}}
-              , Cmd.none )) ]
+      ReplaceAllModificationsWithThisOne (Viewport.enablePan true)
 
 
 let viewSidebar_ (m : model) : msg Html.html =
@@ -873,7 +856,7 @@ let viewSidebar_ (m : model) : msg Html.html =
     ; ViewUtils.eventNoPropagation ~key:"ept" "mouseover" (fun _ ->
           EnablePanning false)
     ; ViewUtils.eventNoPropagation ~key:"epf" "mouseout" (fun _ ->
-          SidebarMsg UnfoucsSidebar) ]
+          EnablePanning true) ]
     [content]
 
 

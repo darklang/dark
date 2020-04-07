@@ -20,7 +20,7 @@ let unsetCSRF : string = "UNSET_CSRF"
 
 let defaultUserSettings : savedUserSettings = {showUserWelcomeModal = true}
 
-let defaultSidebar : sidebarState = {mode = DetailedMode; onCategory = None}
+let defaultSidebar : sidebarState = {mode = DetailedMode}
 
 let defaultSavedSettings : savedSettings =
   { editorSettings =

@@ -838,9 +838,7 @@ let sidebarVariant (s : Types.sidebarVariant) : Js.Json.t =
 
 
 let sidebarState (s : Types.sidebarState) : Js.Json.t =
-  object_
-    [ ("mode", sidebarVariant s.mode)
-    ; ("onCategory", nullable string s.onCategory) ]
+  object_ [("mode", sidebarVariant s.mode)]
 
 
 let editorSettings (es : Types.editorSettings) : Js.Json.t =

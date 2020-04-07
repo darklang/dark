@@ -475,8 +475,7 @@ and sidebarVariant (j : Js.Json.t) : sidebarVariant =
 
 
 and sidebarState (j : Js.Json.t) : sidebarState =
-  { mode = field "mode" sidebarVariant j
-  ; onCategory = field "onCategory" (optional string) j }
+  {mode = field "mode" sidebarVariant j}
 
 
 and savedSettings (j : Js.Json.t) : savedSettings =
