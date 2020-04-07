@@ -342,7 +342,7 @@ let tokensView (s : state) : Types.msg Html.html =
 let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
     Types.msg Html.html =
   let returnTipe (name : string) =
-    Functions.findByNameInList name s.props.functions
+    Functions.find name s.props.functions
     |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
     |> Option.withDefault ~default:TAny
   in

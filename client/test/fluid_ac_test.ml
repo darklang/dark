@@ -153,10 +153,11 @@ let defaultModel
   ; userFunctions = UserFunctions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState = FluidEntering tlid
-  ; builtInFunctions = sampleFunctions
+  ; functions =
+      {Functions.empty with builtinFunctions = sampleFunctions}
+      |> Functions.update defaultFunctionsProps
   ; analyses =
       StrDict.singleton ~key:defaultTraceID ~value:(LoadableSuccess analyses) }
-  |> Functions.updateFunctions
 
 
 (* AC targeting a tlid and pointer *)
@@ -502,7 +503,7 @@ let run () =
               let expr = match' b [(pattern, b)] in
               let m =
                 defaultModel ~handlers:[aHandler ~tlid ~expr ()] ()
-                |> fun m -> {m with builtInFunctions = []}
+                |> fun m -> {m with functions = Functions.empty}
               in
               expect
                 (acFor ~tlid ~pos:13 m |> filterValid |> List.map ~f:AC.asName)

@@ -119,9 +119,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                    | _ ->
                        None)
             |> Option.andThen ~f:(fun (name, sendToRail) ->
-                   m.functions
-                   |> List.findMap ~f:(fun f ->
-                          if name = f.fnName then Some (f, sendToRail) else None))
+                   Functions.find name m.functions
+                   |> Option.map ~f:(fun f -> (f, sendToRail)))
           in
           match fnAndRail with
           | Some (fn, sendToRail) ->
@@ -139,7 +138,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
             |> Option.andThen ~f:(AST.getParamIndex id)
             |> Option.andThen ~f:(fun (name, index) ->
                    m.functions
-                   |> List.find ~f:(fun f -> name = f.fnName)
+                   |> Functions.find name
                    |> Option.map ~f:(fun x -> x.fnParameters)
                    |> Option.andThen ~f:(List.getAt ~index))
           in

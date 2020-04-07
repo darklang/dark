@@ -7,7 +7,7 @@ module E = FluidExpression
 type viewState =
   { tl : toplevel
   ; ast : FluidAST.t
-  ; functions (* all functions: built-in, user, package *) : function_ list
+  ; functions : Functions.t
   ; tokens : FluidToken.tokenInfo list
   ; cursorState : cursorState
   ; tlid : TLID.t
@@ -282,11 +282,11 @@ let isHoverOverTL (vs : viewState) : bool =
 
 let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
 
-let fnForToken (functions : function_ list) token : function_ option =
+let fnForToken (functions : Functions.t) token : function_ option =
   match token with
   | TBinOp (_, fnName)
   | TFnVersion (_, _, _, fnName)
   | TFnName (_, _, _, fnName, _) ->
-      Functions.findByNameInList fnName functions
+      Functions.find fnName functions
   | _ ->
       None

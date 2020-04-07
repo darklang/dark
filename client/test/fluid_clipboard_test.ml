@@ -66,7 +66,6 @@ let execute_roundtrip (ast : fluidExpr) =
 
 
 let run () =
-  OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   let insertCursor (str, pos) : string =
     str
     |> String.splitAt ~index:pos
@@ -83,6 +82,8 @@ let run () =
     let m =
       { defaultTestModel with
         handlers = Handlers.fromList [h]
+      ; functions =
+          Functions.update defaultFunctionsProps defaultTestModel.functions
       ; cursorState = FluidEntering h.hTLID
       ; fluidState =
           { defaultTestState with

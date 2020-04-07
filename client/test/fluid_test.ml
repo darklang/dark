@@ -527,7 +527,6 @@ let tStruct
 
 
 let run () =
-  OldExpr.functions := Fluid_test_data.defaultTestFunctions ;
   describe "Strings" (fun () ->
       t "insert mid string" aStr ~pos:3 (ins "c") "\"soc~me string\"" ;
       t "del mid string" aStr ~pos:3 del "\"so~e string\"" ;
