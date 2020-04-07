@@ -20,13 +20,14 @@ let unsetCSRF : string = "UNSET_CSRF"
 
 let defaultUserSettings : savedUserSettings = {showUserWelcomeModal = true}
 
-let defaultSidebar : sidebarState = {mode = DetailedMode}
+let defaultSidebar : sidebarState =
+  {mode = DetailedMode; openedCategories = StrSet.empty}
+
 
 let defaultSavedSettings : savedSettings =
   { editorSettings =
       {runTimers = true; showHandlerASTs = false; showFluidDebugger = false}
   ; cursorState = Deselected
-  ; routingTableOpenDetails = StrSet.empty
   ; tlTraceIDs = TLIDDict.empty
   ; featureFlags = StrDict.empty
   ; handlerProps = TLIDDict.empty
@@ -137,9 +138,8 @@ let defaultModel : model =
   ; origin = ""
   ; environment = "none"
   ; csrfToken = unsetCSRF
-  ; routingTableOpenDetails = StrSet.empty
-  ; usedFns = StrDict.empty
   ; usedDBs = StrDict.empty
+  ; usedFns = StrDict.empty
   ; usedTipes = TLIDDict.empty
   ; handlerProps = TLIDDict.empty
   ; staticDeploys = []

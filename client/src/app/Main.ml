@@ -1940,15 +1940,6 @@ let update_ (msg : msg) (m : model) : modification =
               ( [SetHandler (tlid, pos, aHandler)]
               , FocusExact (tlid, FluidExpression.toID ast) )
           ; Delete404 fof ] )
-  | MarkRoutingTableOpen (shouldOpen, key) ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ( { m with
-              routingTableOpenDetails =
-                ( if shouldOpen
-                then StrSet.add ~value:key m.routingTableOpenDetails
-                else StrSet.remove ~value:key m.routingTableOpenDetails ) }
-          , Cmd.none ))
   | SidebarMsg msg ->
       ViewSidebar.update msg
   | CreateRouteHandler action ->

@@ -24,7 +24,6 @@ let toModel (e : savedSettings) : model =
   { m with
     editorSettings = e.editorSettings
   ; cursorState = e.cursorState |> canonicalizeCursorState
-  ; routingTableOpenDetails = e.routingTableOpenDetails
   ; tlTraceIDs = e.tlTraceIDs
   ; featureFlags = e.featureFlags
   ; handlerProps = e.handlerProps |> canonicalizeHandlerProps
@@ -37,9 +36,6 @@ let toModel (e : savedSettings) : model =
 let model2editor (m : model) : savedSettings =
   { editorSettings = m.editorSettings
   ; cursorState = m.cursorState
-  ; routingTableOpenDetails =
-      (* state of the routing table *)
-      m.routingTableOpenDetails
   ; tlTraceIDs = (* what trace is selected *)
                  m.tlTraceIDs
   ; featureFlags = (* which flags are expanded *)
