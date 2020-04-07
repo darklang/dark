@@ -5341,17 +5341,13 @@ let buildFeatureFlagEditors (ast : FluidAST.t) : fluidEditor list =
 
 
 let updateMouseDoubleClick
-    (m : model) (ast : FluidAST.t) (eventData : fluidMouseDoubleClick) :
+    (s : fluidState) (ast : FluidAST.t) (eventData : fluidMouseDoubleClick) :
     FluidAST.t * fluidState =
-  let s =
-    {m.fluidState with midClick = false; activeEditor = eventData.editor}
-  in
+  let s = {s with midClick = false; activeEditor = eventData.editor} in
   let selStart, selEnd =
     match eventData.selection with
     | SelectExpressionAt pos ->
-        getExpressionRangeAtCaret
-          ast
-          {m.fluidState with newPos = pos; oldPos = m.fluidState.newPos}
+        getExpressionRangeAtCaret ast {s with newPos = pos; oldPos = s.newPos}
         |> recoverOpt ~default:(0, 0) "no expression range found at caret"
     | SelectTokenAt (selectionStart, selectionEnd) ->
       ( match getToken ast {s with newPos = selectionStart} with
@@ -5371,17 +5367,15 @@ let updateMouseDoubleClick
     |> acClear )
 
 
-let propsFromModel (m : model) : props = {functions = m.functions}
-
 (* Handle either a click or the end of a selection drag *)
-let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
-    FluidAST.t * fluidState =
-  let s =
-    {m.fluidState with midClick = false; activeEditor = eventData.editor}
-  in
+let updateMouseUp
+    (props : props)
+    (s : fluidState)
+    (ast : FluidAST.t)
+    (eventData : fluidMouseUp) : FluidAST.t * fluidState =
+  let s = {s with midClick = false; activeEditor = eventData.editor} in
   match eventData.selection with
   | ClickAt pos ->
-      let props = propsFromModel m in
       updateMouseClick pos props ast s
   | SelectText (beginSel, endSel) ->
       ( ast
@@ -5392,7 +5386,8 @@ let updateMouseUp (m : model) (ast : FluidAST.t) (eventData : fluidMouseUp) :
 
 
 (* We completed a click outside: figure out how to complete it *)
-let updateMouseUpExternal (m : model) (tlid : TLID.t) (ast : FluidAST.t) :
+let updateMouseUpExternal
+    (tlid : TLID.t) (props : props) (s : fluidState) (ast : FluidAST.t) :
     FluidAST.t * fluidState =
   match Entry.getFluidSelectionRange () with
   | Some (startPos, endPos) ->
@@ -5402,18 +5397,18 @@ let updateMouseUpExternal (m : model) (tlid : TLID.t) (ast : FluidAST.t) :
         else SelectText (startPos, endPos)
       in
       let eventData : fluidMouseUp =
-        {tlid; editor = m.fluidState.activeEditor; selection}
+        {tlid; editor = s.activeEditor; selection}
       in
-      updateMouseUp m ast eventData
+      updateMouseUp props s ast eventData
   | None ->
-      (ast, m.fluidState)
+      (ast, s)
 
 
 let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     : FluidAST.t * fluidState =
   (* TODO: The state should be updated from the last request, and so this
    * shouldn't be necessary, but the tests don't work without it *)
-  let props = propsFromModel m in
+  let props = {functions = m.functions} in
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
@@ -5421,11 +5416,11 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
         (* updateAutocomplete has already been run, so nothing more to do *)
         (ast, s)
     | FluidMouseUpExternal ->
-        updateMouseUpExternal m tlid ast
+        updateMouseUpExternal tlid props s ast
     | FluidMouseUp eventData ->
-        updateMouseUp m ast eventData
+        updateMouseUp props s ast eventData
     | FluidMouseDoubleClick eventData ->
-        updateMouseDoubleClick m ast eventData
+        updateMouseDoubleClick s ast eventData
     | FluidCut ->
         deleteSelection props ~state:s ~ast
     | FluidPaste data ->
@@ -5730,7 +5725,7 @@ let renderCallback (m : model) : unit =
 
 let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
   let state = m.fluidState in
-  let props = propsFromModel m in
+  let props = {functions = m.functions} in
   let rmPartialsMod =
     tlid
     |> Option.andThen ~f:(TL.get m)
