@@ -2310,6 +2310,7 @@ let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
 
 let isAutocompleting (ti : T.tokenInfo) (s : state) : bool =
   T.isAutocompletable ti.token
+  (* upDownCol shoud be None to prevent the autocomplete from opening when moving the cursor up and down *)
   && s.upDownCol = None
   && s.ac.index <> None
   && s.newPos <= ti.endPos
@@ -2330,7 +2331,7 @@ let acMaybeShow (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
   if T.isAutocompletable ti.token && s.ac.index = None
   then {s with ac = {s.ac with index = Some 0}; upDownCol = None}
-  else s
+  else {s with ac = {s.ac with query = None}}
 
 
 let acMoveUp (s : state) : state =
@@ -3768,6 +3769,7 @@ let doInsert
 let doInfixInsert
     ~pos (infixTxt : string) (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) :
     FluidAST.t * state =
+  let s = {s with upDownCol = None} in
   caretTargetFromTokenInfo pos ti
   |> Option.andThen ~f:(fun ct ->
          idOfASTRef ct.astRef
@@ -3851,15 +3853,7 @@ let doInfixInsert
              None)
   |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
          let newAST = FluidAST.replace replaceID ~replacement:newExpr ast in
-         let newState = moveToCaretTarget s newAST newCaretTarget in
-         let newState =
-           match getToken newAST newState with
-           | Some ti ->
-               acMaybeShow ti newState
-           | None ->
-               newState
-         in
-         (newAST, newState))
+         (newAST, moveToCaretTarget s newAST newCaretTarget))
   |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti ast s))
   |> recoverOpt
        "updateKey - can't return None due to lazy Some"
