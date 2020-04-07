@@ -29,4 +29,4 @@ To get a string to render as rich text use PrettyDocs.convert, which takes a `do
 
 ## New Tag types
 
-If you really feel the need to add a new tag. It needs to be a single word with only a-z characters, and remember to update _docs.scss with the styling for your new tag.
+If you really feel the need to add a new tag. It needs to be a single word with only a-z characters, and remember to update \_docs.scss with the styling for your new tag.
