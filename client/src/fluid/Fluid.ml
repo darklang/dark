@@ -4700,12 +4700,13 @@ and deleteCaretRange
 
 (* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
    forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
-and deleteSelection (props : props) ~state ~(ast : FluidAST.t) :
+and deleteSelection (props : props) ~(state : fluidState) ~(ast : FluidAST.t) :
     FluidAST.t * fluidState =
   getSelectionRange state |> deleteCaretRange props ~state ~ast
 
 
-and replaceText (props : props) ~(ast : FluidAST.t) ~state (str : string) :
+and replaceText
+    (props : props) ~(ast : FluidAST.t) ~(state : fluidState) (str : string) :
     FluidAST.t * fluidState =
   let newAST, newState =
     getSelectionRange state |> deleteCaretRange props ~state ~ast
