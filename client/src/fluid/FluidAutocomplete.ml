@@ -326,7 +326,10 @@ let init = reset
 (* Create the list *)
 (* ------------------------------------ *)
 let generateExprs (m : model) (props : props) (tl : toplevel) ti =
-  let functions = List.map ~f:(fun x -> FACFunction x) props.functions in
+  let functions =
+    Functions.asFunctions props.functions
+    |> List.map ~f:(fun x -> FACFunction x)
+  in
   let constructors =
     [ FACConstructorName ("Just", 1)
     ; FACConstructorName ("Nothing", 0)
@@ -465,7 +468,9 @@ let filter
 let refilter (props : props) (query : fullQuery) (old : t) (items : item list) :
     t =
   (* add or replace the literal the user is typing to the completions *)
-  let newCompletions = filter props.functions items query in
+  let newCompletions =
+    filter (Functions.asFunctions props.functions) items query
+  in
   let oldHighlight = highlighted old in
   let newCount = List.length newCompletions in
   let oldHighlightNewIndex =

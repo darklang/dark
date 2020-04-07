@@ -1571,8 +1571,8 @@ let insertInPlaceholderExpr
       | _ ->
           None
     in
-    props.functions
-    |> List.find ~f:(fun f -> Some f.fnName = fnname)
+    fnname
+    |> Option.andThen ~f:(fun name -> Functions.find name props.functions)
     |> Option.andThen ~f:(fun fn ->
            List.find
              ~f:(fun {paramName; _} -> paramName = placeholder.name)
@@ -1869,7 +1869,7 @@ let replacePartialWithArguments
   let getFunctionParams fnname count varExprs =
     List.map (List.range 0 count) ~f:(fun index ->
         props.functions
-        |> List.find ~f:(fun f -> f.fnName = fnname)
+        |> Functions.find fnname
         |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
         |> Option.map ~f:(fun p ->
                ( p.paramName
@@ -1911,7 +1911,7 @@ let replacePartialWithArguments
     in
     let oldAllowed =
       props.functions
-      |> List.find ~f:(fun fn -> fn.fnName = oldName)
+      |> Functions.find oldName
       |> Option.map ~f:(fun fn ->
              if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
              then Rail

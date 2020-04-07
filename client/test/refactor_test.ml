@@ -77,7 +77,6 @@ let aFn name expr : userFunction =
 
 
 let run () =
-  OldExpr.functions := sampleFunctions ;
   describe "takeOffRail & putOnRail" (fun () ->
       let f1 =
         { fnName = "Result::resulty"
@@ -101,9 +100,10 @@ let run () =
       in
       let model hs =
         { D.defaultModel with
-          builtInFunctions = [f1; f2]
+          functions =
+            Functions.empty
+            |> Functions.setBuiltins [f1; f2] defaultFunctionsProps
         ; handlers = Handlers.fromList hs }
-        |> Functions.updateFunctions
       in
       let handlerWithPointer fnName fnRail =
         let id = ID.fromString "ast1" in
@@ -323,12 +323,11 @@ let run () =
         in
         let m =
           { D.defaultModel with
-            builtInFunctions = sampleFunctions
-          ; handlers = [(hTLID, tl)] |> TLIDDict.fromList }
-        in
-        let m =
-          { m with
-            fluidState =
+            functions =
+              Functions.empty
+              |> Functions.setBuiltins sampleFunctions defaultFunctionsProps
+          ; handlers = [(hTLID, tl)] |> TLIDDict.fromList
+          ; fluidState =
               {Defaults.defaultFluidState with ac = FluidAutocomplete.reset} }
         in
         (m, TLHandler tl)
@@ -406,15 +405,20 @@ let run () =
           |> toEqual "1\n|>other1\n|>other2\n|>\\x -> myFn 2 x 3\n|>other3\n") ;
       ()) ;
   describe "calculateUserUnsafeFunctions" (fun () ->
-      let userfns =
+      let userFunctions =
         [ aFn "callsUnsafeBuiltin" (fn "DB::set_v1" [])
         ; aFn "callsSafeBuiltin" (fn "List::getAt_v1" [])
         ; aFn "callsSafeUserfn" (fn "callsSafeBuiltin" [])
         ; aFn "callsUnsafeUserfn" (fn "callsUnsafeBuiltin" []) ]
+        |> List.map ~f:(fun fn -> (fn.ufTLID, fn))
+        |> TLIDDict.fromList
       in
       test "simple example" (fun () ->
+          let props = {userFunctions; usedFns = StrDict.empty} in
           expect
-            ( Refactor.calculateUnsafeUserFunctions sampleFunctions userfns
+            ( Functions.empty
+            |> Functions.setBuiltins sampleFunctions props
+            |> Functions.testCalculateUnsafeUserFunctions props
             |> StrSet.toList
             |> List.sortWith compare )
           |> toEqual ["callsUnsafeBuiltin"; "callsUnsafeUserfn"]) ;

@@ -57,6 +57,13 @@ let defaultFluidState : fluidState =
   ; activeEditor = MainEditor }
 
 
+let defaultFunctionsType =
+  { builtinFunctions = []
+  ; packageFunctions = TLIDDict.empty
+  ; allowedFunctions = []
+  ; previewUnsafeFunctions = StrSet.empty }
+
+
 let defaultCanvasProps : canvasProps =
   { offset = origin
   ; enablePan = true
@@ -86,7 +93,7 @@ let defaultFnSpace : fnProps =
 
 let defaultModel : model =
   { error = Error.default
-  ; functions = []
+  ; functions = defaultFunctionsType
   ; lastMsg = IgnoreMsg "default"
   ; opCtrs = StrDict.empty
   ; clientOpCtrId = ""
@@ -100,7 +107,6 @@ let defaultModel : model =
       ; value = ""
       ; prevValue = ""
       ; visible = true }
-  ; builtInFunctions = []
   ; currentPage = Architecture
   ; hovering = []
   ; tests = []
@@ -114,7 +120,6 @@ let defaultModel : model =
   ; userTipes = TLIDDict.empty
   ; deletedUserTipes = TLIDDict.empty
   ; deletedGroups = TLIDDict.empty
-  ; packageFns = TLIDDict.empty
   ; analyses = StrDict.empty
   ; traces = StrDict.empty
   ; f404s = []
@@ -133,10 +138,9 @@ let defaultModel : model =
   ; environment = "none"
   ; csrfToken = unsetCSRF
   ; routingTableOpenDetails = StrSet.empty
-  ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
+  ; usedDBs = StrDict.empty
   ; usedTipes = TLIDDict.empty
-  ; previewUnsafeUserFunctions = StrSet.empty
   ; handlerProps = TLIDDict.empty
   ; staticDeploys = []
   ; tlRefersTo = TLIDDict.empty

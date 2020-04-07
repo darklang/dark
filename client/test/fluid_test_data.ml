@@ -622,11 +622,19 @@ let defaultTestFunctions =
 
 let defaultTestState = Defaults.defaultFluidState
 
-let defaultTestProps = {functions = defaultTestFunctions}
+let defaultFunctionsProps =
+  {usedFns = StrDict.empty; userFunctions = TLIDDict.empty}
+
+
+let defaultTestProps =
+  { functions =
+      Functions.empty
+      |> Functions.setBuiltins defaultTestFunctions defaultFunctionsProps }
+
 
 let defaultTestModel =
   { Defaults.defaultModel with
-    functions = defaultTestFunctions
+    functions = defaultTestProps.functions
   ; analyses =
       StrDict.singleton (* The default traceID for TLID 7 *)
         ~key:"94167980-f909-527e-a4af-bc3155f586d3"
@@ -646,5 +654,4 @@ let defaultTestModel =
                 ; ( "fake-acdata3"
                   , ExecutedResult (DObj (StrDict.fromList [("body", DInt 5)]))
                   ) ]))
-  ; builtInFunctions = defaultTestFunctions
   ; fluidState = defaultTestState }

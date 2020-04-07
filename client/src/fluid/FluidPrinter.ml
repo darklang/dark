@@ -174,8 +174,8 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       match (e, placeholderFor) with
       | EBlank id, Some (fnID, fnname, pos) ->
           let name =
-            !OldExpr.functions
-            |> List.find ~f:(fun f -> f.fnName = fnname)
+            Functions.global ()
+            |> Functions.find fnname
             |> Option.andThen ~f:(fun fn ->
                    List.getAt ~index:pos fn.fnParameters)
             |> Option.map ~f:(fun p ->
