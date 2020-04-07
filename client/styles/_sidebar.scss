@@ -379,7 +379,7 @@ $icSize: 1em;
   }
 
   @at-root .detailed & {
-    margin-left: 0.5em;
+    margin-left: 1em;
   }
 }
 
@@ -427,6 +427,7 @@ $icSize: 1em;
   .simple-item {
     display: flex;
     justify-content: flex-end;
+    margin-left: 0.5em;
 
     &.empty {
       justify-content: flex-start;
@@ -440,7 +441,7 @@ $icSize: 1em;
       }
     }
     .delete-button {
-      margin-right: $hSpace;
+      margin-right: 0.8em;
       color: $secondaryColor;
     }
 
