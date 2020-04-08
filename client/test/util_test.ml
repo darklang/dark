@@ -37,12 +37,5 @@ let run () =
                ; txt ". If it is "
                ; tag "code" [txt "Error "; tag "var" [txt "message"]]
                ; txt ", then it will go to error rail" ]) ;
-      test
-        "captures will not accept the tag-name code, and render it as plain text"
-        (fun () -> expect (convert "<code cookies>") |> toEqual [txt "cookies"]) ;
-      test "validates against nested tags" (fun () ->
-          expect (validate "<type some <var a>>") |> toEqual false) ;
-      test "validates against nested code blocks" (fun () ->
-          expect (validate "{some code {more code}}") |> toEqual false) ;
       ()) ;
   ()
