@@ -184,6 +184,20 @@ let run () =
               expect (Entry.validate tl pd value)
               |> toEqual
                    (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/"))) ;
+      describe "validate Worker names" (fun () ->
+          let space = Some "WORKER" in
+          let tl = TLHandler (aHandler ~space ()) in
+          let pd = PEventName (Types.F (ID "0", "foo")) in
+          test "foo is valid" (fun () ->
+              let value = "/foo/bar" in
+              expect (Entry.validate tl pd value) |> toEqual None) ;
+          test
+            "\"foo\" is not valid, no double quotes allowed in worker names"
+            (fun () ->
+              let value = "\"foo\"" in
+              expect (Entry.validate tl pd value)
+              |> toEqual
+                   (Some "event name must match /[-a-zA-Z0-9$_@.&!*'(),%/:]+/"))) ;
       describe "validate CRON intervals" (fun () ->
           let space = Some "CRON" in
           let tl = TLHandler (aHandler ~space ()) in
