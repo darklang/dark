@@ -395,23 +395,20 @@ $ff-color: adjust-hue($purple, -40deg);
     color: darken($grey3, 25%);
   }
 
-  // <Position autocomplete as a dropdown>
   .fluid-entry {
     position: relative;
-    // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
   }
 
   .fluid-binop,
   .fluid-pipe-symbol {
-    &:not(.fa) {
-      font-family: "Fira Code", monospace;
-    }
+    font-size: 90%;
+    font-family: "Fira Code", monospace;
   }
 
   .fluid-pipe-symbol {
     color: $blue;
     font-size: 10px;
-    padding: 3px 4px 1px 0px;
+    padding-right: 4px;
   }
 
   /* Will style more later. Cmd palette should look like a smaller version of omnibox
