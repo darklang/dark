@@ -18,6 +18,19 @@ let run () =
                ["for example: {let a = 1}"; "for example: "; "let a = 1"; ""]) ;
       ()) ;
   describe "PrettyDocs" (fun () ->
+      test "convert_ catches invalid tags" (fun () ->
+          expect (convert_ "<div contenteditable>")
+          |> toEqual
+               (ParseFail
+                  [("<div contenteditable>", "'div' is not a valid tag type")])) ;
+      test "convert_ catches nested tags" (fun () ->
+          expect (convert_ "<type <var bad bunny>>")
+          |> toEqual
+               (ParseFail [("<type <var bad bunny>>", "contains nested tags")])) ;
+      test "convert_ catches nested code blocks" (fun () ->
+          expect (convert_ "{Just {ok}}")
+          |> toEqual
+               (ParseFail [("{Just {ok}}", "contains nested code blocks")])) ;
       test "converts tagged string" (fun () ->
           expect (convert "takes in <type Option>")
           |> toEqual [txt "takes in "; tag "type" [txt "Option"]]) ;
