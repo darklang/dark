@@ -670,6 +670,7 @@ $error-color: saturate($red, 10%);
 
 .toplevel.selected .fluid-error {
   border-bottom: 1px dashed $error-color;
+  height: 15px;
   position: relative;
 
   /* Show tooltip on hover */
