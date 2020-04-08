@@ -343,7 +343,9 @@ let viewCanvas (m : model) : msg Html.html =
   in
   let pageClass =
     match m.currentPage with
-    | SettingsModal _ | Architecture ->
+    | SettingsModal _ ->
+        "settings-modal"
+    | Architecture ->
         "arch"
     | FocusedHandler _ ->
         "focused-handler"
