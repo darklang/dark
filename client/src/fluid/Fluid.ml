@@ -2310,7 +2310,7 @@ let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
 
 let isAutocompleting (ti : T.tokenInfo) (s : state) : bool =
   T.isAutocompletable ti.token
-  (* upDownCol shoud be None to prevent the autocomplete from opening when moving the cursor up and down *)
+  (* upDownCol should be None to prevent the autocomplete from opening when moving the cursor up and down *)
   && s.upDownCol = None
   && s.ac.index <> None
   && s.newPos <= ti.endPos
