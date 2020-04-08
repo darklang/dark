@@ -21,6 +21,13 @@ To mark a code block, simply wrap the text in `{ }`.
 
 Code blocks can contain tags, such as `{Just <var value>}`. But a code block cannot contain other code blocks.
 
+### Validating Syntax
+
+Once you updated your function's description save the file and re-compile. Run the integration test **function_docstrings_are_valid** to verify it passes the syntax checker. `./integration-tests/run.sh --pattern=function_docstrings_are_valid`
+
+Even though the syntax checker catches some typos and mistakes. It's always best to check it visually on the client to make sure it renders exactly how you want it to look.
+
+
 ## Rendering
 
 How the tags will be styled are defined in [the spec](https://www.notion.so/darklang/Rich-Text-Docstrings-1358553ec49d4ba0b52d04995014152c)
@@ -29,4 +36,6 @@ To get a string to render as rich text use PrettyDocs.convert, which takes a `do
 
 ## New Tag types
 
-If you really feel the need to add a new tag. It needs to be a single word with only a-z characters, and remember to update \_docs.scss with the styling for your new tag.
+If you really feel the need to add a new tag. It needs to be a single word with only a-z characters, and remember to:
+1. Update client/styles/_docs.scss with the styling for your new tag
+2. In client/src/ViewUtils.md, in the `PrettyDocs` module there's a `validTags` definition list. Add your new tag to that list.
