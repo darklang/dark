@@ -299,9 +299,11 @@ module PrettyDocs = struct
 
   let codeClass = "code"
 
-  let nestedTag = Regex.regex "\\<\\w+\\s[^\\>]*<\\w+\\s[^\\<]*\\>.*\\>"
+  let nestedTag = Regex.regex "\\<\\w+\\s[^>]*<\\w+\\s[^<]*\\>.*\\>"
 
-  let nestedCodeBlock = Regex.regex "\\{\\w+\\s[^\\}]*{\\w+\\s[^\\{]*\\}.*\\}"
+  let nestedCodeBlock = Regex.regex "\\{[^}]*\\{[^{]*\\}.*\\}"
+
+  let validTags = ["param"; "fn"; "var"; "type"; "return"; "err"; "cmd"]
 
   type parseResult =
     | ParseSuccess of msg Html.html list
@@ -343,7 +345,8 @@ module PrettyDocs = struct
             ParseFail errors )
       | _ ->
         ( match Regex.captures ~re:(Regex.regex ~flags:"" tagEx) s with
-        | [_; before; tagType; tagData; after] ->
+        | [_; before; tagType; tagData; after]
+          when List.member ~value:tagType validTags ->
             let tagNode = tag tagType [txt tagData] in
             ( match (convert_ before, convert_ after) with
             | ParseSuccess beforeNodes, ParseSuccess afterNodes ->
@@ -351,6 +354,10 @@ module PrettyDocs = struct
             | beforeRes, afterRes ->
                 let errors = [beforeRes; afterRes] |> justErrors in
                 ParseFail errors )
+        | [_; _; tagType; tagData; _] ->
+            ParseFail
+              [ ( "<" ^ tagType ^ " " ^ tagData ^ ">"
+                , "'" ^ tagType ^ "' is not a valid tag type" ) ]
         | _ ->
             (* Not a rich format just render as plain text *)
             ParseSuccess [txt s] )
