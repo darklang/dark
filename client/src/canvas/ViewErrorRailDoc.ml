@@ -89,7 +89,8 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                ; tag "code" [txt "Nothing"]
                ; txt " manually. Alternatively, use the command "
                ; tag "cmd" [txt "put-function-on-rail"]
-               ; txt " to let the ErrorRail handle the result of this function."
+               ; txt
+                   " to let the error rail handle the result of this function."
                ])
       | TResult, Rail ->
           Some
@@ -98,7 +99,7 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                [ txt "This function goes to the "
                ; errorRail
                ; txt " on "
-               ; tag "code" [txt "Error "; tag "var" [txt "message"]]
+               ; tag "code" [txt "Error _"]
                ; txt " and returns the unwrapped "
                ; tag "var" [txt "value"]
                ; txt " in "
@@ -106,7 +107,7 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                ; txt " otherwise. Use the command "
                ; tag "cmd" [txt "take-function-off-rail"]
                ; txt " to handle the "
-               ; tag "code" [txt "Error "; tag "var" [txt "message"]]
+               ; tag "code" [txt "Error "; tag "var" [txt "errorMessage"]]
                ; txt " case." ])
       | TResult, NoRail ->
           Some
@@ -115,7 +116,7 @@ let hintForFunction (fn : Prelude.function_) (sendToRail : E.sendToRail option)
                [ txt "This function is not on the "
                ; errorRail
                ; txt ", so you need to handle "
-               ; tag "code" [txt "Error "; tag "var" [txt "message"]]
+               ; tag "code" [txt "Error "; tag "var" [txt "errorMessage"]]
                ; txt " and "
                ; tag "code" [txt "Ok "; tag "var" [txt "value"]]
                ; txt " manually. Alternatively, use "
