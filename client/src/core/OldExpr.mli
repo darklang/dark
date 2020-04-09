@@ -36,7 +36,7 @@ and nExpr =
   | Constructor of string Types.blankOr * expr list
   | FluidPartial of string * expr
   | FluidRightPartial of string * expr
-  | FluidPrefixPartial of string * expr
+  | FluidLeftPartial of string * expr
 
 (** [toNExpr e] recursively converts [e] to the corresponding [nExpr Types.blankOr] *)
 val fromFluidExpr : FluidExpression.t -> expr

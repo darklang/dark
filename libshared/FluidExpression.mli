@@ -23,7 +23,7 @@ type t =
   | EFnCall of Shared.id * string * t list * sendToRail
   | EPartial of Shared.id * string * t
   | ERightPartial of Shared.id * string * t
-  | EPrefixPartial of Shared.id * string * t
+  | ELeftPartial of Shared.id * string * t
   | EList of Shared.id * t list
   (* The Shared.id in the list is extra for the fieldname *)
   | ERecord of Shared.id * (string * t) list

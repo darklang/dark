@@ -275,6 +275,7 @@ let rec fluidExpr (j : Js.Json.t) : FluidExpression.t =
           (list de)
           sendToRail )
     ; ("EPartial", dv3 (fun a b c -> E.EPartial (a, b, c)) id string de)
+    ; ("ELeftPartial", dv3 (fun a b c -> E.ELeftPartial (a, b, c)) id string de)
     ; ( "ERightPartial"
       , dv3 (fun a b c -> E.ERightPartial (a, b, c)) id string de )
     ; ("EList", dv2 (fun x y -> E.EList (x, y)) id (list de))
@@ -369,6 +370,7 @@ let oneOrOtherExpr j : fluidExpr =
       ; ( "Constructor"
         , dv2 (fun a b -> Constructor (a, b)) (blankOr string) (list de) )
       ; ("FluidPartial", dv2 (fun a b -> FluidPartial (a, b)) string de)
+      ; ("FluidLeftPartial", dv2 (fun a b -> FluidLeftPartial (a, b)) string de)
       ; ( "FluidRightPartial"
         , dv2 (fun a b -> FluidRightPartial (a, b)) string de ) ]
       j

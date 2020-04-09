@@ -51,17 +51,17 @@ type t =
    *
    * ERightPartial is rendered as the old expression followed by the string. *)
   | ERightPartial of id * string * t
-  (* EPrefixPartial allows typing to prepend a construct to an existing
+  (* ELeftPartial allows typing to prepend a construct to an existing
    * expression. The [string] holds the typed text, while the [t] holds the
    * existing expression to the right.
    *
    * Example:
    * On an existing line with `String::append "a" "b"` (a EFnCall), typing `if` at the beginning of the line
-   * will create a EPrefixPartial (id, "if", EFnCall _). Accepting autocomplete
+   * will create a ELeftPartial (id, "if", EFnCall _). Accepting autocomplete
    * of `if` would wrap the EFnCall into an EIf.
    *
-   * EPrefixPartial is rendered as the string followed by the normal rendering of the old expression. *)
-  | EPrefixPartial of Shared.id * string * t
+   * ELeftPartial is rendered as the string followed by the normal rendering of the old expression. *)
+  | ELeftPartial of Shared.id * string * t
   | EList of id * t list
   (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (string * t) list
@@ -102,7 +102,7 @@ let toID (expr : t) : id =
   | EIf (id, _, _, _)
   | EPartial (id, _, _)
   | ERightPartial (id, _, _)
-  | EPrefixPartial (id, _, _)
+  | ELeftPartial (id, _, _)
   | EList (id, _)
   | ERecord (id, _)
   | EPipe (id, _)
@@ -137,7 +137,7 @@ let rec findExprOrPat (target : id) (within : fluidPatOrExpr) :
       | EFieldAccess (id, e1, _)
       | EPartial (id, _, e1)
       | ERightPartial (id, _, e1)
-      | EPrefixPartial (id, _, e1) ->
+      | ELeftPartial (id, _, e1) ->
           (id, [Expr e1])
       | EFnCall (id, _, exprs, _)
       | EList (id, exprs)
@@ -208,7 +208,7 @@ let rec find (target : id) (expr : t) : t option =
         List.findMap ~f:fe exprs
     | EPartial (_, _, oldExpr)
     | ERightPartial (_, _, oldExpr)
-    | EPrefixPartial (_, _, oldExpr) ->
+    | ELeftPartial (_, _, oldExpr) ->
         fe oldExpr
     | EFeatureFlag (_, _, cond, casea, caseb) ->
         fe cond
@@ -231,7 +231,7 @@ let children (expr : t) : t list =
   (* One *)
   | EPartial (_, _, expr)
   | ERightPartial (_, _, expr)
-  | EPrefixPartial (_, _, expr)
+  | ELeftPartial (_, _, expr)
   | ELambda (_, _, expr)
   | EFieldAccess (_, expr, _) ->
       [expr]
@@ -327,8 +327,8 @@ let rec preTraversal ~(f : t -> t) (expr : t) : t =
       EPartial (id, str, r oldExpr)
   | ERightPartial (id, str, oldExpr) ->
       ERightPartial (id, str, r oldExpr)
-  | EPrefixPartial (id, str, oldExpr) ->
-      EPrefixPartial (id, str, r oldExpr)
+  | ELeftPartial (id, str, oldExpr) ->
+      ELeftPartial (id, str, r oldExpr)
   | EFeatureFlag (id, msg, cond, casea, caseb) ->
       EFeatureFlag (id, msg, r cond, r casea, r caseb)
 
@@ -373,8 +373,8 @@ let rec postTraversal ~(f : t -> t) (expr : t) : t =
         EPartial (id, str, r oldExpr)
     | ERightPartial (id, str, oldExpr) ->
         ERightPartial (id, str, r oldExpr)
-    | EPrefixPartial (id, str, oldExpr) ->
-        EPrefixPartial (id, str, r oldExpr)
+    | ELeftPartial (id, str, oldExpr) ->
+        ELeftPartial (id, str, r oldExpr)
     | EFeatureFlag (id, msg, cond, casea, caseb) ->
         EFeatureFlag (id, msg, r cond, r casea, r caseb)
   in
@@ -419,8 +419,8 @@ let deprecatedWalk ~(f : t -> t) (expr : t) : t =
       EPartial (id, str, f oldExpr)
   | ERightPartial (id, str, oldExpr) ->
       ERightPartial (id, str, f oldExpr)
-  | EPrefixPartial (id, str, oldExpr) ->
-      EPrefixPartial (id, str, f oldExpr)
+  | ELeftPartial (id, str, oldExpr) ->
+      ELeftPartial (id, str, f oldExpr)
   | EFeatureFlag (id, msg, cond, casea, caseb) ->
       EFeatureFlag (id, msg, f cond, f casea, f caseb)
 
@@ -586,8 +586,8 @@ let rec clone (expr : t) : t =
       EPartial (gid (), str, c oldExpr)
   | ERightPartial (_, str, oldExpr) ->
       ERightPartial (gid (), str, c oldExpr)
-  | EPrefixPartial (id, str, oldExpr) ->
-      EPrefixPartial (id, str, c oldExpr)
+  | ELeftPartial (id, str, oldExpr) ->
+      ELeftPartial (id, str, c oldExpr)
   | EPipeTarget _ ->
       EPipeTarget (gid ())
 
@@ -644,7 +644,7 @@ let ancestors (id : id) (expr : t) : t list =
           rec_ id exp walk oldExpr
       | ERightPartial (_, _, oldExpr) ->
           rec_ id exp walk oldExpr
-      | EPrefixPartial (_, _, oldExpr) ->
+      | ELeftPartial (_, _, oldExpr) ->
           rec_ id exp walk oldExpr
   in
   rec_ancestors id [] expr
@@ -733,7 +733,7 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
   | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
       s = s' && eqList ts ts'
   | ERightPartial (_, str, e), ERightPartial (_, str', e')
-  | EPrefixPartial (_, str, e), EPrefixPartial (_, str', e')
+  | ELeftPartial (_, str, e), ELeftPartial (_, str', e')
   | EPartial (_, str, e), EPartial (_, str', e') ->
       str = str' && eq e e'
   | ELambda (_, vars, e), ELambda (_, vars', e') ->
@@ -766,7 +766,7 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
   | EPipe _, _
   | EFeatureFlag _, _
   | EConstructor _, _
-  | EPrefixPartial _, _
+  | ELeftPartial _, _
   | ERightPartial _, _
   | EPartial _, _
   | ELambda _, _
@@ -806,7 +806,7 @@ let toHumanReadable (expr : t) : string =
           Printf.sprintf {|(partial "%s" %s)|} str (r e)
       | ERightPartial (_, str, e) ->
           Printf.sprintf {|(rpartial "%s" %s)|} str (r e)
-      | EPrefixPartial (_, str, e) ->
+      | ELeftPartial (_, str, e) ->
           Printf.sprintf {|(prefixPartial "%s" %s)|} str (r e)
       | EFnCall (_, name, [], _) ->
           Printf.sprintf "(fn \"%s\")" name

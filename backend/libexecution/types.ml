@@ -168,7 +168,7 @@ module RuntimeT = struct
      * even though it isn't a valid binop yet. The string is  the soon-to-be
      * binop, and expr is the soon-to-be lhs or the binop. *)
     | FluidRightPartial of string * expr
-    | FluidPrefixPartial of string * expr
+    | FluidLeftPartial of string * expr
 
   and expr = nexpr or_blank
   [@@deriving eq, ord, yojson, show {with_path = false}, bin_io]
