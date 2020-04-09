@@ -1,5 +1,3 @@
-[%%debugger.chrome]
-
 (* Specs:
  * Pressing enter
    * https://trello.com/c/nyf3SyA4/1513-handle-pressing-enter-at-the-end-of-a-line
