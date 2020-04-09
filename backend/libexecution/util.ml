@@ -62,7 +62,7 @@ end
 (* ------------------- *)
 (* random *)
 (* ------------------- *)
-let create_id () : Int63.t = Int63.random Int63.max_value
+let create_id () : Int63.t = Unshared.gid ()
 
 let create_uuid () : Uuidm.t = Uuidm.v `V4
 

@@ -29,6 +29,30 @@ type 'expr_type canvas =
   ; deleted_user_tipes : RTT.user_tipe IDMap.t }
 [@@deriving eq, show]
 
+(* --------------- *)
+(* Convert to fluid *)
+(* --------------- *)
+let to_fluid (c : RTT.expr canvas) : Types.fluid_expr canvas =
+  { host = c.host
+  ; owner = c.owner
+  ; id = c.id
+  ; creation_date = c.creation_date
+  ; cors_setting = c.cors_setting
+  ; package_fns = c.package_fns
+  ; ops =
+      List.map c.ops ~f:(fun (tlid, oplist) ->
+          (tlid, Op.oplist_to_fluid oplist))
+  ; handlers = IDMap.map ~f:Toplevel.to_fluid c.handlers
+  ; dbs = IDMap.map ~f:Toplevel.to_fluid c.dbs
+  ; user_functions = IDMap.map ~f:Toplevel.user_fn_to_fluid c.user_functions
+  ; user_tipes = c.user_tipes
+  ; deleted_handlers = IDMap.map ~f:Toplevel.to_fluid c.deleted_handlers
+  ; deleted_dbs = IDMap.map ~f:Toplevel.to_fluid c.deleted_dbs
+  ; deleted_user_functions =
+      IDMap.map ~f:Toplevel.user_fn_to_fluid c.deleted_user_functions
+  ; deleted_user_tipes = c.deleted_user_tipes }
+
+
 (* ------------------------- *)
 (* Toplevel *)
 (* ------------------------- *)

@@ -226,7 +226,7 @@ module RuntimeT = struct
 
     type 'expr_type handler =
       { tlid : tlid
-      ; ast : expr
+      ; ast : 'expr_type
       ; spec : spec }
     [@@deriving eq, show, yojson, bin_io]
 
