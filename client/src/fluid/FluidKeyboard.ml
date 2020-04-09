@@ -156,6 +156,8 @@ let fromKeyboardEvent
       Escape
   | " " ->
       Space
+  | "s" when ctrl ->
+      CommandPalette CurrentShortcut
   | "\\" when ctrl ->
       CommandPalette CurrentShortcut
   (*~*~*~*~ HERE BE DRAGONS ~*~*~*~*
