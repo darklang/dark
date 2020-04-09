@@ -316,8 +316,8 @@ let infer_cors_header
       Some "null"
 
 
-let options_handler ~(execution_id : Types.id) (c : C.canvas) (req : CRequest.t)
-    =
+let options_handler
+    ~(execution_id : Types.id) (c : 'expr_type C.canvas) (req : CRequest.t) =
   (* When javascript in a browser tries to make an unusual cross-origin
      request (for example, a POST with a weird content-type or something with
      weird headers), the browser first makes an OPTIONS request to the
@@ -360,7 +360,7 @@ let options_handler ~(execution_id : Types.id) (c : C.canvas) (req : CRequest.t)
 
 
 let result_to_response
-    ~(c : Canvas.canvas ref)
+    ~(c : RTT.expr Canvas.canvas ref)
     ~(execution_id : Types.id)
     ~(req : CRequest.t)
     (result : RTT.dval) =
@@ -744,7 +744,7 @@ let admin_add_op_handler
     time "1-read-api-ops" (fun _ ->
         let owner = Account.for_host_exn host in
         let canvas_id = Serialize.fetch_canvas_id owner host in
-        let params = Api.to_add_op_rpc_params body in
+        let params = Api.to_add_op_rpc_params ~f:RTT.expr_of_yojson body in
         if Op.is_latest_op_request params.clientOpCtrId params.opCtr canvas_id
         then (params, canvas_id)
         else
@@ -784,7 +784,7 @@ let admin_add_op_handler
             then (
               let strollerMsg =
                 {result; params}
-                |> Analysis.add_op_stroller_msg_to_yojson
+                |> Analysis.add_op_stroller_msg_to_yojson RTT.expr_to_yojson
                 |> Yojson.Safe.to_string
               in
               Stroller.push_new_event
@@ -830,7 +830,7 @@ let admin_add_op_handler
             (Option.value
                ~default:
                  ( {result = Analysis.empty_to_add_op_rpc_result; params}
-                 |> Analysis.add_op_stroller_msg_to_yojson
+                 |> Analysis.add_op_stroller_msg_to_yojson RTT.expr_to_yojson
                  |> Yojson.Safe.to_string )
                strollerMsg))
   | Error errs ->
@@ -1008,7 +1008,8 @@ let upload_function
     ~(execution_id : Types.id) (username : string) (body : string) :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, params =
-    time "1-read-api" (fun _ -> Api.to_upload_function_rpc_params body)
+    time "1-read-api" (fun _ ->
+        Api.to_upload_function_rpc_params ~f:RTT.expr_of_yojson body)
   in
   let t2, result =
     time "2-save" (fun _ -> Package_manager.save username params.fn)

@@ -83,8 +83,8 @@ let pairs_of_fn (fn : fn) : (string * string) list =
   ; ("fnname", fn.fnname) ]
 
 
-let process_canvas (canvas : Canvas.canvas ref) : fn list =
-  let handler_name (handler : handler) =
+let process_canvas (canvas : RTT.expr Canvas.canvas ref) : fn list =
+  let handler_name (handler : RuntimeT.expr handler) =
     let spec = handler.spec in
     String.concat
       ( [spec.module_; spec.name; spec.modifier]
@@ -93,7 +93,7 @@ let process_canvas (canvas : Canvas.canvas ref) : fn list =
       ~sep:"-"
   in
   let handlers =
-    !(canvas : Canvas.canvas ref).handlers
+    !(canvas : RuntimeT.expr Canvas.canvas ref).handlers
     |> IDMap.data
     |> List.filter_map ~f:Toplevel.as_handler
   in

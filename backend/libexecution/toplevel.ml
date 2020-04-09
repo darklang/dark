@@ -4,9 +4,9 @@ open Types
 open Types.RuntimeT
 open Types.RuntimeT.HandlerT
 
-type tldata =
-  | Handler of handler
-  | DB of RuntimeT.DbT.db
+type 'expr_type tldata =
+  | Handler of 'expr_type handler
+  | DB of 'expr_type RuntimeT.DbT.db
 [@@deriving eq, show, yojson]
 
 type tl_tipe =
@@ -42,35 +42,37 @@ let tl_tipe_of_string s =
       None
 
 
-type toplevel =
+type 'expr_type toplevel =
   { tlid : id
   ; pos : pos
-  ; data : tldata }
+  ; data : 'expr_type tldata }
 [@@deriving eq, show, yojson]
 
-type toplevels = toplevel IDMap.t [@@deriving eq, show, yojson]
+type 'expr_type toplevels = 'expr_type toplevel IDMap.t
+[@@deriving eq, show, yojson]
 
-let as_handler (tl : toplevel) : handler option =
+let as_handler (tl : 'expr_type toplevel) : 'expr_type handler option =
   match tl.data with Handler h -> Some h | _ -> None
 
 
-let as_db (tl : toplevel) : RuntimeT.DbT.db option =
+let as_db (tl : 'expr_type toplevel) : 'expr_type RuntimeT.DbT.db option =
   match tl.data with DB db -> Some db | _ -> None
 
 
-let handlers (tls : toplevels) : handler list =
+let handlers (tls : 'expr_type toplevels) : 'expr_type handler list =
   tls |> IDMap.data |> List.filter_map ~f:as_handler
 
 
-let http_handlers (tls : toplevels) : handler list =
+let http_handlers (tls : 'expr_type toplevels) : 'expr_type handler list =
   tls |> handlers |> List.filter ~f:Handler.is_http
 
 
-let dbs (tls : toplevels) : RuntimeT.DbT.db list =
+let dbs (tls : 'expr_type toplevels) : 'expr_type RuntimeT.DbT.db list =
   tls |> IDMap.data |> List.filter_map ~f:as_db
 
 
-let set_expr (id : id) (expr : RuntimeT.expr) (tl : toplevel) : toplevel =
+let set_expr (id : id) (expr : RuntimeT.expr) (tl : RuntimeT.expr toplevel) :
+    RuntimeT.expr toplevel =
   match tl.data with
   | DB db ->
       let newdb =
@@ -222,7 +224,7 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
   e |> Ast.blank_map ~f:(nexpr_to_string ~indent) |> bs
 
 
-let user_fn_to_string (uf : RuntimeT.user_fn) : string =
+let user_fn_to_string (uf : 'expr_type RuntimeT.user_fn) : string =
   let bs = Ast.blank_to_string in
   let params =
     uf.metadata.parameters
@@ -242,7 +244,7 @@ let user_fn_to_string (uf : RuntimeT.user_fn) : string =
   ^ expr_to_string ~indent:0 uf.ast
 
 
-let to_string (tl : toplevel) : string =
+let to_string (tl : RuntimeT.expr toplevel) : string =
   let bs = Ast.blank_to_string in
   let col_to_string (f, t) =
     bs f ^ ": " ^ bs (Ast.blank_map ~f:Dval.tipe_to_string t)

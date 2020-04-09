@@ -4,7 +4,7 @@ open Types.RuntimeT
 open Types.RuntimeT.HandlerT
 module Log = Libcommon.Log
 
-let last_ran_at (canvas_id : Uuidm.t) (h : handler) : Time.t option =
+let last_ran_at (canvas_id : Uuidm.t) (h : 'expr_type handler) : Time.t option =
   Db.fetch_one_option
     ~name:"last_ran_at"
     "SELECT ran_at
@@ -18,7 +18,7 @@ let last_ran_at (canvas_id : Uuidm.t) (h : handler) : Time.t option =
   |> Option.map ~f:Db.date_of_sqlstring
 
 
-let parse_interval (h : handler) : Time.Span.t option =
+let parse_interval (h : 'expr_type handler) : Time.Span.t option =
   let open Option in
   Handler.modifier_for h
   >>= fun modif ->
@@ -39,7 +39,8 @@ let parse_interval (h : handler) : Time.Span.t option =
       None
 
 
-let should_execute (canvas_id : Uuidm.t) (h : handler) execution_id : bool =
+let should_execute (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
+    bool =
   let open Option in
   match last_ran_at canvas_id h with
   | None ->
@@ -100,7 +101,7 @@ modifier>" ) ]
           now >= should_run_after )
 
 
-let record_execution (canvas_id : Uuidm.t) (h : handler) : unit =
+let record_execution (canvas_id : Uuidm.t) (h : 'expr_type handler) : unit =
   Db.run
     "INSERT INTO cron_records
     (tlid, canvas_id)

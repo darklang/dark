@@ -15,8 +15,9 @@ open Db
  *)
 let current_dark_version = 0
 
-let find_db (tables : db list) (table_name : string) : db option =
-  List.find tables ~f:(fun (d : db) ->
+let find_db (tables : 'expr_type db list) (table_name : string) :
+    'expr_type db option =
+  List.find tables ~f:(fun (d : 'expr_type db) ->
       Ast.blank_to_string d.name = String.capitalize table_name)
 
 
@@ -34,7 +35,7 @@ let type_error_msg col tipe dv : string =
 
 (* Turn db rows into list of string/type pairs - removes elements with
  * holes, as they won't have been put in the DB yet *)
-let cols_for (db : db) : (string * tipe) list =
+let cols_for (db : 'expr_type db) : (string * tipe) list =
   db.cols
   |> List.filter_map ~f:(fun c ->
          match c with
@@ -181,7 +182,8 @@ and type_check db (obj : dval_map) : dval_map =
           "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
 
 
-and set ~state ~upsert (db : db) (key : string) (vals : dval_map) : Uuidm.t =
+and set ~state ~upsert (db : 'expr_type db) (key : string) (vals : dval_map) :
+    Uuidm.t =
   let id = Util.create_uuid () in
   let merged = type_check db vals in
   let query =
@@ -210,7 +212,7 @@ and set ~state ~upsert (db : db) (key : string) (vals : dval_map) : Uuidm.t =
   id
 
 
-and get_option ~state (db : db) (key : string) : dval option =
+and get_option ~state (db : 'expr_type db) (key : string) : dval option =
   Db.fetch_one_option
     ~name:"get"
     "SELECT data
@@ -231,7 +233,8 @@ and get_option ~state (db : db) (key : string) : dval option =
   |> Option.map ~f:(to_obj db)
 
 
-and get_many ~state (db : db) (keys : string list) : (string * dval) list =
+and get_many ~state (db : 'expr_type db) (keys : string list) :
+    (string * dval) list =
   Db.fetch
     ~name:"get_many"
     "SELECT key, data
@@ -259,7 +262,7 @@ and get_many ~state (db : db) (keys : string list) : (string * dval) list =
              Exception.internal "bad format received in get_many")
 
 
-and get_many_with_keys ~state (db : db) (keys : string list) :
+and get_many_with_keys ~state (db : 'expr_type db) (keys : string list) :
     (string * dval) list =
   Db.fetch
     ~name:"get_many_with_keys"
@@ -288,7 +291,7 @@ and get_many_with_keys ~state (db : db) (keys : string list) :
              Exception.internal "bad format received in get_many_with_keys")
 
 
-let get_all ~state (db : db) : (string * dval) list =
+let get_all ~state (db : 'expr_type db) : (string * dval) list =
   Db.fetch
     ~name:"get_all"
     "SELECT key, data
@@ -313,7 +316,7 @@ let get_all ~state (db : db) : (string * dval) list =
              Exception.internal "bad format received in get_all")
 
 
-let get_db_fields (db : db) : (string * tipe_) list =
+let get_db_fields (db : 'expr_type db) : (string * tipe_) list =
   List.filter_map db.cols ~f:(function
       | Filled (_, field), Filled (_, tipe) ->
           Some (field, tipe)
@@ -321,7 +324,7 @@ let get_db_fields (db : db) : (string * tipe_) list =
           None)
 
 
-let query ~state (db : db) (b : dblock_args) : (string * dval) list =
+let query ~state (db : 'expr_type db) (b : dblock_args) : (string * dval) list =
   let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
   let param_name =
     match b.params with
@@ -367,7 +370,7 @@ let query ~state (db : db) (b : dblock_args) : (string * dval) list =
              Exception.internal "bad format received in get_all")
 
 
-let get_all_keys ~state (db : db) : string list =
+let get_all_keys ~state (db : 'expr_type db) : string list =
   Db.fetch
     ~name:"get_all_keys"
     "SELECT key
@@ -391,7 +394,7 @@ let get_all_keys ~state (db : db) : string list =
              Exception.internal "bad format received in get_all_keys")
 
 
-let count ~state (db : db) : int =
+let count ~state (db : 'expr_type db) : int =
   Db.fetch
     ~name:"count"
     "SELECT count(*)
@@ -412,7 +415,7 @@ let count ~state (db : db) : int =
   |> int_of_string
 
 
-let delete ~state (db : db) (key : string) =
+let delete ~state (db : 'expr_type db) (key : string) =
   (* covered by composite PK index *)
   Db.run
     ~name:"user_delete"
@@ -432,7 +435,7 @@ let delete ~state (db : db) (key : string) =
       ; Int current_dark_version ]
 
 
-let delete_all ~state (db : db) =
+let delete_all ~state (db : 'expr_type db) =
   (* covered by idx_user_data_current_data_for_tlid *)
   Db.run
     ~name:"user_delete_all"
@@ -453,7 +456,8 @@ let delete_all ~state (db : db) =
 (* ------------------------- *)
 (* stats/locked/unlocked (not _locking_) *)
 (* ------------------------- *)
-let stats_pluck ~account_id ~canvas_id (db : db) : (dval * string) option =
+let stats_pluck ~account_id ~canvas_id (db : 'expr_type db) :
+    (dval * string) option =
   let latest =
     Db.fetch
       ~name:"stats_pluck"
@@ -481,7 +485,7 @@ let stats_pluck ~account_id ~canvas_id (db : db) : (dval * string) option =
       None
 
 
-let stats_count ~account_id ~canvas_id (db : db) : int =
+let stats_count ~account_id ~canvas_id (db : 'expr_type db) : int =
   Db.fetch
     ~name:"stats_count"
     "SELECT count(*)
@@ -502,7 +506,8 @@ let stats_count ~account_id ~canvas_id (db : db) : int =
   |> int_of_string
 
 
-let unlocked canvas_id account_id (dbs : db list) : db list =
+let unlocked canvas_id account_id (dbs : 'expr_type db list) :
+    'expr_type db list =
   match dbs with
   | [] ->
       []
@@ -532,7 +537,7 @@ let unlocked canvas_id account_id (dbs : db list) : db list =
 (* DB schema *)
 (* ------------------------- *)
 
-let create (name : string) (id : tlid) : db =
+let create (name : string) (id : tlid) : 'expr_type db =
   { tlid = id
   ; name = Filled (id, name)
   ; cols = []
@@ -541,7 +546,7 @@ let create (name : string) (id : tlid) : db =
   ; active_migration = None }
 
 
-let create2 (name : string) (tlid : tlid) (name_id : id) : db =
+let create2 (name : string) (tlid : tlid) (name_id : id) : 'expr_type db =
   { tlid
   ; name = Filled (name_id, name)
   ; cols = []
@@ -550,14 +555,14 @@ let create2 (name : string) (tlid : tlid) (name_id : id) : db =
   ; active_migration = None }
 
 
-let rename_db (n : string) (db : db) : db =
+let rename_db (n : string) (db : 'expr_type db) : 'expr_type db =
   let id =
     match db.name with Partial (i, _) | Blank i -> i | Filled (i, _) -> i
   in
   {db with name = Filled (id, n)}
 
 
-let add_col colid typeid (db : db) =
+let add_col colid typeid (db : 'expr_type db) =
   {db with cols = db.cols @ [(Blank colid, Blank typeid)]}
 
 
