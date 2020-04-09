@@ -203,24 +203,11 @@ let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
 (* -------------------- *)
 (* Update fluid state *)
 (* -------------------- *)
-let tiSentinel : T.tokenInfo =
-  { token = TSep (ID "sentinel-token")
-  ; startPos = -1000
-  ; startRow = -1000
-  ; startCol = -1000
-  ; endPos = -1000
-  ; length = -1000 }
-
-
 (* Returns a new state with the arbitrary string "action" recorded for debugging.
  * If a ~pos or ~ti (token info) is passed, it will be added to the action. *)
-let recordAction ?(pos = -1000) ?(ti = tiSentinel) (action : string) (s : state)
-    : state =
+let recordAction ?(pos = -1000) (action : string) (s : state) : state =
   let action =
     if pos = -1000 then action else action ^ " " ^ string_of_int pos
-  in
-  let action =
-    if ti = tiSentinel then action else action ^ " " ^ show_fluidToken ti.token
   in
   {s with actions = s.actions @ [action]}
 
@@ -478,17 +465,17 @@ let goToEndOfWord ~(pos : int) (ast : FluidAST.t) (ti : T.tokenInfo) (s : state)
 
 
 let moveToEnd (ti : T.tokenInfo) (s : state) : state =
-  let s = recordAction ~ti "moveToEnd" s in
+  let s = recordAction "moveToEnd" s in
   setPosition ~resetUD:true s (ti.endPos - 1)
 
 
 let moveToStart (ti : T.tokenInfo) (s : state) : state =
-  let s = recordAction ~ti ~pos:ti.startPos "moveToStart" s in
+  let s = recordAction ~pos:ti.startPos "moveToStart" s in
   setPosition ~resetUD:true s ti.startPos
 
 
 let moveToAfter (ti : T.tokenInfo) (s : state) : state =
-  let s = recordAction ~ti ~pos:ti.endPos "moveToAfter" s in
+  let s = recordAction ~pos:ti.endPos "moveToAfter" s in
   setPosition ~resetUD:true s ti.endPos
 
 
@@ -654,7 +641,7 @@ let moveToPrevBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
 
 
 let doLeft ~(pos : int) (ti : T.tokenInfo) (s : state) : state =
-  let s = recordAction ~ti ~pos "doLeft" s in
+  let s = recordAction ~pos "doLeft" s in
   if T.isAtom ti.token
   then moveToStart ti s
   else moveOneLeft (min pos ti.endPos) s
@@ -674,7 +661,7 @@ let doRight
     ~(next : T.tokenInfo option)
     (current : T.tokenInfo)
     (s : state) : state =
-  let s = recordAction ~ti:current ~pos "doRight" s in
+  let s = recordAction ~pos "doRight" s in
   if T.isAtom current.token
   then
     match next with
@@ -2524,7 +2511,7 @@ let acEnter
     (ast : FluidAST.t)
     (s : state)
     (key : K.key) : FluidAST.t * state =
-  let s = recordAction ~ti "acEnter" s in
+  let s = recordAction "acEnter" s in
   match AC.highlighted s.ac with
   | None ->
     ( match ti.token with
@@ -2589,7 +2576,7 @@ let acMaybeCommit
 let acStartField
     (ti : T.tokenInfo) (props : props) (ast : FluidAST.t) (s : state) :
     FluidAST.t * state =
-  let s = recordAction ~ti "acStartField" s in
+  let s = recordAction "acStartField" s in
   match (AC.highlighted s.ac, ti.token) with
   | Some (FACField _ as entry), TFieldName (faID, _, _)
   | Some (FACField _ as entry), TFieldPartial (_, faID, _, _) ->
@@ -3234,7 +3221,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
 let doBackspace
     ~(pos : int) (ti : T.tokenInfo) (ast : FluidAST.t) (s : fluidState) :
     FluidAST.t * fluidState =
-  let s = recordAction ~pos ~ti "doBackspace" s in
+  let s = recordAction ~pos "doBackspace" s in
   let newAST, newPosition =
     match caretTargetFromTokenInfo pos ti with
     | Some ct ->
@@ -3260,7 +3247,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) :
    *
    * See https://www.notion.so/darklang/Keyboard-and-Input-Handling-44eeedc4953846159e96af1e979004ad.
    *)
-  let s = recordAction ~pos ~ti "doDelete" s in
+  let s = recordAction ~pos "doDelete" s in
   let newAST, newPosition =
     match caretTargetFromTokenInfo pos ti with
     | Some ct ->
@@ -3748,7 +3735,7 @@ let doExplicitInsert
 let doInsert
     ~pos (letter : string) (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) :
     FluidAST.t * state =
-  let s = recordAction ~ti ~pos "doInsert" s in
+  let s = recordAction ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
   let newAST, newPosition =
     match caretTargetFromTokenInfo pos ti with
