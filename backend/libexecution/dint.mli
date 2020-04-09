@@ -1,4 +1,4 @@
-type t
+type t [@@deriving ord, eq, yojson, show]
 
 val of_int : int -> t
 
@@ -52,13 +52,3 @@ val negate : t -> t
 val one : t
 
 val zero : t
-
-val compare : t -> t -> int
-
-val pp : Format.formatter -> t -> unit
-
-val equal : t -> t -> bool
-
-val to_yojson : t -> Yojson.Safe.t
-
-val of_yojson : Yojson.Safe.t -> (t, string) result

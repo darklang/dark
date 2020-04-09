@@ -1,6 +1,6 @@
 module Int63 = Prelude.Int63
 
-type t = Int63.t [@@deriving compare, eq, yojson, show]
+type t = Int63.t [@@deriving ord, eq, yojson, show]
 
 let of_int = Int63.of_int
 
