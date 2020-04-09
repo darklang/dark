@@ -198,7 +198,7 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
     match nexpr with
     | FluidPartial (_, expr)
     | FluidRightPartial (_, expr)
-    | FluidPrefixPartial (_, expr) ->
+    | FluidLeftPartial (_, expr) ->
         es expr
     | Value v ->
         v

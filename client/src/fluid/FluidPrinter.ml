@@ -470,7 +470,7 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
       b
       |> addNested ~f:(toTokens' expr)
       |> addMany [TSep id; TRightPartial (id, newOp)]
-  | EPrefixPartial (id, str, expr) ->
+  | ELeftPartial (id, str, expr) ->
       b |> add (TPartial (id, str)) |> addNested ~f:(toTokens' expr)
   | EFeatureFlag (id, _name, cond, disabled, enabled) ->
     (* Feature flag tokens are displayed in two different editor panels, so
@@ -643,7 +643,7 @@ let rec eToTestcase (e : E.t) : string =
         spaced ["partial"; quoted str; r e]
     | ERightPartial (_, str, e) ->
         spaced ["rightPartial"; quoted str; r e]
-    | EPrefixPartial (_, str, e) ->
+    | ELeftPartial (_, str, e) ->
         spaced ["prefixPartial"; quoted str; r e]
     | EFnCall (_, name, exprs, _) ->
         spaced ["fn"; quoted name; listed (List.map ~f:r exprs)]

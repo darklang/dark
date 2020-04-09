@@ -1092,8 +1092,8 @@ let rec migrate_expr (expr : RuntimeT.expr) =
               FluidPartial (name, f old_val)
           | FluidRightPartial (name, old_val) ->
               FluidRightPartial (name, f old_val)
-          | FluidPrefixPartial (name, old_val) ->
-              FluidPrefixPartial (name, f old_val) )
+          | FluidLeftPartial (name, old_val) ->
+              FluidLeftPartial (name, f old_val) )
 
 
 let migrate_handler (h : 'expr_type RuntimeT.HandlerT.handler) :
