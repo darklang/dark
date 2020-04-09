@@ -4387,6 +4387,12 @@ let run () =
         ~pos:77
         (key K.Tab)
         "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;
+      t
+        "Deleting then re-entering an infix op still alows you to select from ac"
+        (binop "+" (int 4) b)
+        ~pos:3
+        (inputs [DeleteContentBackward; InsertText "+"; keypress K.Enter])
+        "4 + ~_________" ;
       test "click into partial opens autocomplete" (fun () ->
           let ast = let' "request" aShortInt aPartialVar in
           let h = Fluid_utils.h ast in
