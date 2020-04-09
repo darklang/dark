@@ -401,6 +401,8 @@ $ff-color: adjust-hue($purple, -40deg);
 
   .fluid-binop,
   .fluid-pipe-symbol {
+    /* Fira Code renders slightly larger than Mono in some circumstances, and
+     * we don't want our symbols to be taller than our text. */
     font-size: 90%;
     font-family: "Fira Code", monospace;
   }
