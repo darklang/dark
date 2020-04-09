@@ -10,7 +10,8 @@ open Tc
    * in there, because we don't have any UI for inspecting history, nor do we
    * store timestamps or edited-by-user for ops
    * ("git blame"). *)
-let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
+let only_ops_since_last_savepoint (ops : 'expr_type Op.op list) :
+    'expr_type Op.op list =
   (* From the end of the list, take ops until you hit the first savepoint *)
   ops
   |> List.reverse
@@ -24,8 +25,9 @@ let only_ops_since_last_savepoint (ops : Op.op list) : Op.op list =
    * (or contains) a url pointing to the [old_host]
    * ("://oldhost.builtwithdark.com/stuff", or its localhost equivalent), the
    * [op] will be transformed to refer to the [new_host] *)
-let update_hosts_in_op (op : Op.op) ~(old_host : string) ~(new_host : string) :
-    Op.op =
+let update_hosts_in_op
+    (op : 'expr_type Op.op) ~(old_host : string) ~(new_host : string) :
+    'expr_type Op.op =
   (* It might be nice if expr had an equivalent of FluidExpression.walk *)
   let rec update_hosts_in_pattern (pattern : Types.RuntimeT.pattern) :
       Types.RuntimeT.pattern =
@@ -203,7 +205,7 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
          (* Load from_canvas *)
          let from_canvas = load_all from_canvas_name [] in
          from_canvas |> Result.map_error (String.join ~sep:", "))
-  |> Result.map (fun (from_canvas : canvas ref) ->
+  |> Result.map (fun (from_canvas : 'expr_type canvas ref) ->
          (* Transform the ops - remove pre-savepoint ops and update hosts
           * (canvas names) in string literals *)
          let to_ops =
@@ -237,7 +239,7 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
              (* fetch_canvas_id is what actually creates the canvas record,
               * which must preceed save_all *)
              Serialize.fetch_canvas_id owner to_canvas_name |> ignore ;
-             let to_canvas : canvas ref =
+             let to_canvas : 'expr_type canvas ref =
                Canvas.init to_canvas_name (to_ops |> Op.tlid_oplists2oplist)
                |> Core_kernel__Result.map_error
                     ~f:(Core_kernel__.String.concat ~sep:", ")

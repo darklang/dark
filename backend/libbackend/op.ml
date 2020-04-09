@@ -3,21 +3,21 @@ open Libexecution
 open Types
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-type op =
-  | SetHandler of tlid * pos * RuntimeT.HandlerT.handler
+type 'expr_type op =
+  | SetHandler of tlid * pos * 'expr_type RuntimeT.HandlerT.handler
   | CreateDB of tlid * pos * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
   | DeleteTL of tlid
   | MoveTL of tlid * pos
-  | SetFunction of RuntimeT.user_fn
+  | SetFunction of 'expr_type RuntimeT.user_fn
   | ChangeDBColName of tlid * id * string
   | ChangeDBColType of tlid * id * string
   | UndoTL of tlid
   | RedoTL of tlid
   | DeprecatedInitDbm of tlid * id * id * id * RuntimeT.DbT.migration_kind
-  | SetExpr of tlid * id * RuntimeT.expr
+  | SetExpr of tlid * id * 'expr_type
   | TLSavepoint of tlid
   | DeleteFunction of tlid
   | CreateDBMigration of
@@ -37,7 +37,7 @@ type op =
   | DeleteTypeForever of tlid
 [@@deriving eq, yojson, show, bin_io]
 
-let event_name_of_op (op : op) : string =
+let event_name_of_op (op : 'expr_type op) : string =
   match op with
   | SetHandler _ ->
       "SetHandler"
@@ -112,7 +112,7 @@ type required_context =
 (* Returns the 'context', ie. the other stuff on the canvas, that
  * you need to also load in order validate that this op could be added
  * to the oplist/canvas correctly *)
-let required_context_to_validate (op : op) : required_context =
+let required_context_to_validate (op : 'expr_type op) : required_context =
   match op with
   | SetHandler _ ->
       NoContext
@@ -178,26 +178,27 @@ let required_context_to_validate (op : op) : required_context =
       NoContext
 
 
-type oplist = op list [@@deriving eq, yojson, show, bin_io]
+type 'expr_type oplist = 'expr_type op list
+[@@deriving eq, yojson, show, bin_io]
 
-let required_context_to_validate_oplist (oplist : oplist) : required_context =
+let required_context_to_validate_oplist (oplist : 'expr_type oplist) :
+    required_context =
   oplist
   |> List.map ~f:required_context_to_validate
   |> List.max_elt ~compare:compare_required_context
   |> Option.value ~default:NoContext
 
 
-type tlid_oplists = (tlid * oplist) list [@@deriving eq, yojson, show, bin_io]
+type 'expr_type tlid_oplists = (tlid * 'expr_type oplist) list
+[@@deriving eq, yojson, show, bin_io]
 
-type expr = RuntimeT.expr
+let is_deprecated (op : 'expr_type op) : bool = false
 
-let is_deprecated (op : op) : bool = false
-
-let has_effect (op : op) : bool =
+let has_effect (op : 'expr_type op) : bool =
   match op with TLSavepoint _ -> false | _ -> true
 
 
-let tlidOf (op : op) : tlid =
+let tlidOf (op : 'expr_type op) : tlid =
   match op with
   | SetHandler (tlid, _, _) ->
       tlid
@@ -261,15 +262,22 @@ let tlidOf (op : op) : tlid =
       tlid
 
 
-let oplist_to_string (ops : op list) : string =
-  ops |> Core_extended.Bin_io_utils.to_line bin_oplist |> Bigstring.to_string
+(* [f] is something like RuntimeT.bin_expr *)
+let oplist_to_string
+    ~(f : 'expr_type Bin_prot.Type_class.t) (ops : 'expr_type op list) : string
+    =
+  ops
+  |> Core_extended.Bin_io_utils.to_line (bin_oplist f)
+  |> Bigstring.to_string
 
 
-let oplist_of_string (str : string) : op list =
-  Core_extended.Bin_io_utils.of_line str bin_oplist
+(* [f] is something like RuntimeT.bin_expr *)
+let oplist_of_string ~(f : 'expr_type Bin_prot.Type_class.t) (str : string) :
+    'expr_type op list =
+  Core_extended.Bin_io_utils.of_line str (bin_oplist f)
 
 
-let oplist2tlid_oplists (oplist : oplist) : tlid_oplists =
+let oplist2tlid_oplists (oplist : 'expr_type oplist) : 'expr_type tlid_oplists =
   oplist
   |> List.map ~f:tlidOf
   |> List.stable_dedup
@@ -277,11 +285,11 @@ let oplist2tlid_oplists (oplist : oplist) : tlid_oplists =
          (tlid, List.filter oplist ~f:(fun op -> tlidOf op = tlid)))
 
 
-let tlid_oplists2oplist (tos : tlid_oplists) : oplist =
+let tlid_oplists2oplist (tos : 'expr_type tlid_oplists) : 'expr_type oplist =
   tos |> List.unzip |> Tuple.T2.get2 |> List.concat
 
 
-let ast_of (op : op) : Types.RuntimeT.expr option =
+let ast_of (op : 'expr_type op) : 'expr_type option =
   match op with
   | SetFunction {ast; _} | SetExpr (_, _, ast) | SetHandler (_, _, {ast; _}) ->
       Some ast
@@ -347,12 +355,13 @@ let is_latest_op_request client_op_ctr_id op_ctr canvas_id : bool =
 
 
 (* filter down to only those ops which can be applied out of order
-             * without overwriting previous ops' state - eg, if we have
-             * SetHandler1 setting a handler's value to "aaa", and then
-             * SetHandler2's value is "aa", applying them out of order (SH2,
-             * SH1) will result in SH2's update being overwritten *)
+ * without overwriting previous ops' state - eg, if we have
+ * SetHandler1 setting a handler's value to "aaa", and then
+ * SetHandler2's value is "aa", applying them out of order (SH2,
+ * SH1) will result in SH2's update being overwritten *)
 (* NOTE: DO NOT UPDATE WITHOUT UPDATING THE CLIENT-SIDE LIST *)
-let filter_ops_received_out_of_order (ops : op list) : op list =
+let filter_ops_received_out_of_order (ops : 'expr_type op list) :
+    'expr_type op list =
   ops
   |> List.filter ~f:(fun op ->
          match op with

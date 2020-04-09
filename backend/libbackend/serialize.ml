@@ -4,31 +4,34 @@ open Libexecution
 open Types
 module RTT = RuntimeT
 
-let handler_of_binary_string (str : string) : RTT.HandlerT.handler =
-  Core_extended.Bin_io_utils.of_line str RTT.HandlerT.bin_handler
+let handler_of_binary_string (str : string) : RuntimeT.expr RTT.HandlerT.handler
+    =
+  Core_extended.Bin_io_utils.of_line str (RTT.HandlerT.bin_handler RTT.bin_expr)
 
 
-let handler_to_binary_string (h : RTT.HandlerT.handler) : string =
+let handler_to_binary_string (h : RuntimeT.expr RTT.HandlerT.handler) : string =
   h
-  |> Core_extended.Bin_io_utils.to_line RTT.HandlerT.bin_handler
+  |> Core_extended.Bin_io_utils.to_line (RTT.HandlerT.bin_handler RTT.bin_expr)
   |> Bigstring.to_string
 
 
-let db_of_binary_string (str : string) : RTT.DbT.db =
-  Core_extended.Bin_io_utils.of_line str RTT.DbT.bin_db
+let db_of_binary_string (str : string) : RuntimeT.expr RTT.DbT.db =
+  Core_extended.Bin_io_utils.of_line str (RTT.DbT.bin_db RTT.bin_expr)
 
 
-let db_to_binary_string (db : RTT.DbT.db) : string =
-  db |> Core_extended.Bin_io_utils.to_line RTT.DbT.bin_db |> Bigstring.to_string
+let db_to_binary_string (db : RuntimeT.expr RTT.DbT.db) : string =
+  db
+  |> Core_extended.Bin_io_utils.to_line (RTT.DbT.bin_db RTT.bin_expr)
+  |> Bigstring.to_string
 
 
-let user_fn_of_binary_string (str : string) : RTT.user_fn =
-  Core_extended.Bin_io_utils.of_line str RTT.bin_user_fn
+let user_fn_of_binary_string (str : string) : RuntimeT.expr RTT.user_fn =
+  Core_extended.Bin_io_utils.of_line str (RTT.bin_user_fn RTT.bin_expr)
 
 
-let user_fn_to_binary_string (ufn : RTT.user_fn) : string =
+let user_fn_to_binary_string (ufn : RuntimeT.expr RTT.user_fn) : string =
   ufn
-  |> Core_extended.Bin_io_utils.to_line RTT.bin_user_fn
+  |> Core_extended.Bin_io_utils.to_line (RTT.bin_user_fn RTT.bin_expr)
   |> Bigstring.to_string
 
 
@@ -43,18 +46,22 @@ let user_tipe_to_binary_string (ut : RTT.user_tipe) : string =
 
 
 let translate_handler_as_binary_string
-    (str : string) ~(f : RTT.HandlerT.handler -> RTT.HandlerT.handler) : string
-    =
+    (str : string)
+    ~(f :
+       RuntimeT.expr RTT.HandlerT.handler -> RuntimeT.expr RTT.HandlerT.handler)
+    : string =
   str |> handler_of_binary_string |> f |> handler_to_binary_string
 
 
-let translate_db_as_binary_string (str : string) ~(f : RTT.DbT.db -> RTT.DbT.db)
-    : string =
+let translate_db_as_binary_string
+    (str : string) ~(f : RuntimeT.expr RTT.DbT.db -> RuntimeT.expr RTT.DbT.db) :
+    string =
   str |> db_of_binary_string |> f |> db_to_binary_string
 
 
 let translate_user_function_as_binary_string
-    (str : string) ~(f : RTT.user_fn -> RTT.user_fn) : string =
+    (str : string) ~(f : RuntimeT.expr RTT.user_fn -> RuntimeT.expr RTT.user_fn)
+    : string =
   str |> user_fn_of_binary_string |> f |> user_fn_to_binary_string
 
 
@@ -87,13 +94,16 @@ let translate_user_tipe_as_binary_string
  * Write the code to do the migration in Canvas.check_all_hosts.
  *)
 
-let digest = Op.bin_shape_oplist |> Bin_prot.Shape.eval_to_digest_string
+let digest =
+  Op.bin_shape_oplist RuntimeT.bin_shape_expr
+  |> Bin_prot.Shape.eval_to_digest_string
+
 
 let write_shape_data () =
   if Config.should_write_shape_data
   then
     let shape_string =
-      Op.bin_shape_oplist
+      Op.bin_shape_oplist RuntimeT.bin_shape_expr
       |> Bin_prot.Shape.eval
       |> Bin_prot.Shape.Canonical.to_string_hum
     in
@@ -136,7 +146,7 @@ let try_multiple ~(fs : (string * ('a -> 'b)) list) (value : 'a) : 'b =
 (* ------------------------- *)
 (* oplists *)
 (* ------------------------- *)
-let strs2tlid_oplists strs : Op.tlid_oplists =
+let strs2tlid_oplists strs : RuntimeT.expr Op.tlid_oplists =
   strs
   |> List.map ~f:(fun results ->
          match results with
@@ -145,8 +155,10 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
          | _ ->
              Exception.internal "Shape of per_tlid oplists")
   |> List.map ~f:(fun str ->
-         let ops : Op.oplist =
-           try_multiple str ~fs:[("oplist", Op.oplist_of_string)]
+         let ops : RuntimeT.expr Op.oplist =
+           try_multiple
+             str
+             ~fs:[("oplist", Op.oplist_of_string ~f:RuntimeT.bin_expr)]
          in
          (* there must be at least one op *)
          let tlid = ops |> List.hd_exn |> Op.tlidOf in
@@ -154,9 +166,9 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
 
 
 type rendered_oplist_cache_query_result =
-  (RTT.HandlerT.handler * Types.pos) IDMap.t
-  * (RTT.DbT.db * Types.pos) IDMap.t
-  * RTT.user_fn IDMap.t
+  (RuntimeT.expr RTT.HandlerT.handler * Types.pos) IDMap.t
+  * (RuntimeT.expr RTT.DbT.db * Types.pos) IDMap.t
+  * RuntimeT.expr RTT.user_fn IDMap.t
   * RTT.user_tipe IDMap.t
 
 let strs2rendered_oplist_cache_query_result strs :
@@ -233,7 +245,8 @@ let strs2rendered_oplist_cache_query_result strs :
                    (handlers, dbs, user_fns, user_tipes) ) ) ))
 
 
-let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
+let load_all_from_db ~host ~(canvas_id : Uuidm.t) () :
+    RuntimeT.expr Op.tlid_oplists =
   Db.fetch
     ~name:"load_all_from_db"
     "SELECT data FROM toplevel_oplists
@@ -244,7 +257,7 @@ let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
 
 
 let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
-    Op.tlid_oplists =
+    RuntimeT.expr Op.tlid_oplists =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   Db.fetch
     ~name:"load_only_tlids"
@@ -257,8 +270,8 @@ let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
 
 
 let load_only_undeleted_tlids
-    ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () : Op.tlid_oplists
-    =
+    ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
+    RuntimeT.expr Op.tlid_oplists =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   Db.fetch
     ~name:"load_only_undeleted_tlids"
@@ -303,7 +316,7 @@ let load_only_rendered_tlids
 
 
 let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
-    Op.tlid_oplists =
+    RuntimeT.expr Op.tlid_oplists =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   Db.fetch
     ~name:"load_with_dbs"
@@ -423,10 +436,11 @@ let transactionally_migrate_oplist
     ~(canvas_id : Uuidm.t)
     ~host
     ~tlid
-    ~(oplist_f : Op.oplist -> Op.oplist)
-    ~(handler_f : RTT.HandlerT.handler -> RTT.HandlerT.handler)
-    ~(db_f : RTT.DbT.db -> RTT.DbT.db)
-    ~(user_fn_f : RTT.user_fn -> RTT.user_fn)
+    ~(oplist_f : RuntimeT.expr Op.oplist -> RuntimeT.expr Op.oplist)
+    ~(handler_f :
+       RuntimeT.expr RTT.HandlerT.handler -> RuntimeT.expr RTT.HandlerT.handler)
+    ~(db_f : RuntimeT.expr RTT.DbT.db -> RuntimeT.expr RTT.DbT.db)
+    ~(user_fn_f : RuntimeT.expr RTT.user_fn -> RuntimeT.expr RTT.user_fn)
     ~(user_tipe_f : RTT.user_tipe -> RTT.user_tipe)
     () : (string, unit) Tc.Result.t =
   Log.inspecT "migrating oplists for" (host, tlid) ;
@@ -445,7 +459,8 @@ let transactionally_migrate_oplist
           |> List.hd_exn
           |> function
           | [data; rendered_oplist_cache] ->
-              (Op.oplist_of_string data, rendered_oplist_cache)
+              ( Op.oplist_of_string ~f:RuntimeT.bin_expr data
+              , rendered_oplist_cache )
           | _ ->
               Exception.internal "invalid oplists"
         in
@@ -477,7 +492,7 @@ let transactionally_migrate_oplist
        WHERE canvas_id = $4
          AND tlid = $5"
           ~params:
-            [ Binary (Op.oplist_to_string (oplist_f oplist))
+            [ Binary (Op.oplist_to_string ~f:RTT.bin_expr (oplist_f oplist))
             ; String digest
             ; rendered
             ; Uuid canvas_id
@@ -497,7 +512,7 @@ let save_toplevel_oplist
     ~(name : string option)
     ~(module_ : string option)
     ~(modifier : string option)
-    (ops : Op.oplist) : unit =
+    (ops : RuntimeT.expr Op.oplist) : unit =
   let string_option o =
     match o with Some str -> Db.String str | None -> Db.Null
   in
@@ -541,7 +556,7 @@ let save_toplevel_oplist
       ; string_option name
       ; string_option module_
       ; string_option modifier
-      ; Binary (Op.oplist_to_string ops)
+      ; Binary (Op.oplist_to_string ~f:RTT.bin_expr ops)
       ; binary_option binary_repr
       ; bool_option deleted
       ; pos_option pos ]
@@ -552,7 +567,7 @@ let save_toplevel_oplist
 (* ------------------------- *)
 let load_json_from_disk
     ~root ?(preprocess = ident) ~(host : string) ~(canvas_id : Uuidm.t) () :
-    Op.tlid_oplists =
+    RuntimeT.expr Op.tlid_oplists =
   Log.infO
     "serialization"
     ~params:[("load", "disk"); ("format", "json"); ("host", host)] ;
@@ -560,19 +575,20 @@ let load_json_from_disk
   File.maybereadjsonfile
     ~root
     filename
-    ~conv:Op.oplist_of_yojson
+    ~conv:(Op.oplist_of_yojson RTT.expr_of_yojson)
     ~stringconv:preprocess
   |> Option.map ~f:Op.oplist2tlid_oplists
   |> Option.value ~default:[]
 
 
-let save_json_to_disk ~root (filename : string) (ops : Op.tlid_oplists) : unit =
+let save_json_to_disk
+    ~root (filename : string) (ops : RuntimeT.expr Op.tlid_oplists) : unit =
   Log.infO
     "serialization"
     ~params:[("save_to", "disk"); ("format", "json"); ("filename", filename)] ;
   ops
   |> Op.tlid_oplists2oplist
-  |> Op.oplist_to_yojson
+  |> Op.oplist_to_yojson RTT.expr_to_yojson
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> File.writefile ~root filename

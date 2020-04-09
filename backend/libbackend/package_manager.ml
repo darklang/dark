@@ -55,7 +55,7 @@ let to_name (fn : fn) : string =
 (* ------------------ *)
 exception InvalidFunction of string
 
-let extract_metadata (fn : RuntimeT.user_fn) :
+let extract_metadata (fn : 'expr_type RuntimeT.user_fn) :
     string * parameter list * tipe_ * string =
   let name =
     match fn.metadata.name with
@@ -252,7 +252,8 @@ let add_function (fn : fn) : unit =
         ~result:TextResult)
 
 
-let save (author : string) (fn : RuntimeT.user_fn) : (unit, string) Result.t =
+let save (author : string) (fn : RuntimeT.expr RuntimeT.user_fn) :
+    (unit, string) Result.t =
   (* First let's be very sure we have a correct function *)
   let metadata =
     try extract_metadata fn |> Result.return

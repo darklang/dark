@@ -187,7 +187,7 @@ module RuntimeT = struct
       | DBMigrationInitialized
     [@@deriving eq, ord, show, yojson, bin_io]
 
-    type 'expr_type db_migration' =
+    type 'expr_type db_migration =
       { starting_version : int
       ; version : int
       ; state : db_migration_state
@@ -196,24 +196,14 @@ module RuntimeT = struct
       ; cols : col list }
     [@@deriving eq, ord, show, yojson, bin_io]
 
-    type db_migration = expr db_migration'
-    [@@deriving eq, ord, show, yojson, bin_io]
-
-    type fluid_db_migration = fluid_expr db_migration'
-    [@@deriving eq, ord, show, yojson]
-
-    type 'expr_type db' =
+    type 'expr_type db =
       { tlid : tlid
       ; name : string or_blank
       ; cols : col list
       ; version : int
-      ; old_migrations : 'expr_type db_migration' list
-      ; active_migration : 'expr_type db_migration' option }
+      ; old_migrations : 'expr_type db_migration list
+      ; active_migration : 'expr_type db_migration option }
     [@@deriving eq, ord, show, yojson, bin_io]
-
-    type db = expr db' [@@deriving eq, show, yojson, bin_io]
-
-    type fluid_db = fluid_expr db' [@@deriving eq, show, yojson]
 
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
@@ -234,15 +224,11 @@ module RuntimeT = struct
       ; types : spec_types }
     [@@deriving eq, show, yojson, bin_io]
 
-    type 'expr_type handler' =
+    type 'expr_type handler =
       { tlid : tlid
       ; ast : expr
       ; spec : spec }
     [@@deriving eq, show, yojson, bin_io]
-
-    type handler = expr handler' [@@deriving eq, show, yojson, bin_io]
-
-    type fluid_handler = fluid_expr handler' [@@deriving eq, show, yojson]
 
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
@@ -503,24 +489,16 @@ module RuntimeT = struct
     ; infix : bool }
   [@@deriving eq, show, yojson, bin_io]
 
-  type 'expr_type user_fn' =
+  type 'expr_type user_fn =
     { tlid : tlid
     ; metadata : ufn_metadata
     ; ast : 'expr_type }
   [@@deriving eq, show, yojson, bin_io]
 
-  type user_fn = expr user_fn' [@@deriving eq, show, yojson, bin_io]
-
-  type fluid_user_fn = fluid_expr user_fn' [@@deriving eq, show, yojson]
-
-  type 'expr_type package_fn' =
+  type 'expr_type package_fn =
     { metadata : ufn_metadata
     ; ast : 'expr_type }
   [@@deriving eq, show, yojson, bin_io]
-
-  type package_fn = expr package_fn' [@@deriving eq, show, yojson, bin_io]
-
-  type fluid_package_fn = fluid_expr package_fn' [@@deriving eq, show, yojson]
 
   type user_record_field =
     { name : string or_blank
@@ -573,10 +551,10 @@ module RuntimeT = struct
     { tlid : tlid
     ; canvas_id : Uuidm.t
     ; account_id : Uuidm.t
-    ; user_fns : user_fn list
+    ; user_fns : expr user_fn list
     ; user_tipes : user_tipe list
     ; package_fns : fn list
-    ; dbs : DbT.db list
+    ; dbs : expr DbT.db list
     ; trace : on_execution_path:bool -> id -> dval -> unit
     ; trace_tlid : tlid -> unit
     ; context : context
@@ -630,7 +608,7 @@ module RuntimeT = struct
         None
 
 
-  let user_fn_to_fn (uf : user_fn) : fn option =
+  let user_fn_to_fn (uf : expr user_fn) : fn option =
     let name =
       match uf.metadata.name with Filled (_, n) -> Some n | _ -> None
     in
