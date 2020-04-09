@@ -667,6 +667,7 @@ $error-color: saturate($red, 10%);
 
 .toplevel.selected .fluid-error {
   border-bottom: 1px dashed $error-color;
+  /* decrease height by 1px from normal to account for 1px border */
   height: 15px;
   position: relative;
 
