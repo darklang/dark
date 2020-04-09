@@ -2484,6 +2484,15 @@ let updateFromACItem
         let replacement = EMatch (mID, expr, pats) in
         let newAST = FluidAST.replace ~replacement pID ast in
         (newAST, caretTargetForStartOfExpr' expr)
+    | ( TPartial _
+      , Some (EPrefixPartial (pID, _, expr))
+      , _
+      , Expr (ELet (letID, _, _, _)) ) ->
+        (* when committing `let` in front of another expression, put the expr into the RHS *)
+        let blank = E.newB () in
+        let replacement = ELet (letID, "", expr, E.newB ()) in
+        let newAST = FluidAST.replace ~replacement pID ast in
+        (newAST, caretTargetForStartOfExpr' blank)
     | TPartial _, _, Some (EPipe _), Expr (EBinOp (bID, name, _, rhs, str)) ->
         let replacement = EBinOp (bID, name, EPipeTarget (gid ()), rhs, str) in
         let newAST = FluidAST.replace ~replacement id ast in
