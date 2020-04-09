@@ -10,8 +10,6 @@ module Html = Tea_html_extended
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
-
 let allTabs = [CanvasInfo; UserSettings; InviteUser defaultInviteFields]
 
 let validateEmail (email : formField) : formField =
@@ -165,10 +163,13 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
              ~importance:IgnorableError
              ~reload:false
              err) ]
-  | OpenSettingsView _ ->
+  | OpenSettingsView tab ->
       [ SettingsViewUpdate msg
       ; ReplaceAllModificationsWithThisOne
-          (fun m -> CursorState.setCursorState Deselected m) ]
+          (fun m ->
+            let cmd = Url.navigateTo (SettingsModal tab) in
+            ( {m with cursorState = Deselected; currentPage = SettingsModal tab}
+            , cmd )) ]
   | TriggerUpdateCanvasInfoCallback (Ok _) ->
       [ SettingsViewUpdate msg
       ; ReplaceAllModificationsWithThisOne
@@ -191,7 +192,14 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
       ; ReplaceAllModificationsWithThisOne
           (fun m ->
             ({m with canvasProps = {m.canvasProps with enablePan = true}}, cmd))
-      ]
+      ; Deselect
+      ; MakeCmd (Url.navigateTo Architecture) ]
+  | SwitchSettingsTabs tab ->
+      [ SettingsViewUpdate msg
+      ; ReplaceAllModificationsWithThisOne
+          (fun m ->
+            let cmd = Url.navigateTo (SettingsModal tab) in
+            ({m with currentPage = SettingsModal tab}, cmd)) ]
   | SubmitForm ->
       let isInvalid, newTab = validateForm m.settingsView.tab in
       if isInvalid

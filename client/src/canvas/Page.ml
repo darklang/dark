@@ -5,7 +5,7 @@ module TL = Toplevel
 
 let tlidOf (page : page) : TLID.t option =
   match page with
-  | Architecture ->
+  | SettingsModal _ | Architecture ->
       None
   | FocusedFn tlid
   | FocusedHandler (tlid, _)
@@ -52,10 +52,12 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
 
 let setPage (m : model) (oldPage : page) (newPage : page) : model =
   match (oldPage, newPage) with
+  | SettingsModal _, FocusedFn tlid
   | Architecture, FocusedFn tlid
   | FocusedHandler _, FocusedFn tlid
   | FocusedDB _, FocusedFn tlid
   | FocusedGroup _, FocusedFn tlid
+  | SettingsModal _, FocusedType tlid
   | Architecture, FocusedType tlid
   | FocusedHandler _, FocusedType tlid
   | FocusedDB _, FocusedType tlid
@@ -104,6 +106,9 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       ; cursorState = Selecting (tlid, None)
       ; canvasProps =
           {m.canvasProps with offset; lastOffset = None; minimap = None} }
+  | SettingsModal _, FocusedHandler (tlid, _)
+  | SettingsModal _, FocusedDB (tlid, _)
+  | SettingsModal _, FocusedGroup (tlid, _)
   | Architecture, FocusedHandler (tlid, _)
   | Architecture, FocusedDB (tlid, _)
   | Architecture, FocusedGroup (tlid, _) ->
@@ -147,6 +152,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
         currentPage = newPage
       ; canvasProps =
           {m.canvasProps with offset; lastOffset = None; minimap = None} }
+  | _, SettingsModal tab ->
+      let settingsView =
+        SettingsView.update m.settingsView (OpenSettingsView tab)
+      in
+      {m with settingsView}
   | _, Architecture ->
       (* Anything else to Architecture
     * Stay where you are, Deselect

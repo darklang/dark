@@ -210,7 +210,11 @@ let processFocus (m : model) (focus : focus) : modification =
             ; ReplaceAllModificationsWithThisOne (CursorState.setCursorState cs)
             ; AutocompleteMod (ACSetQuery "") ]
       | _, _ ->
-          NoChange )
+        ( match page with
+        | SettingsModal tab ->
+            Many (SettingsView.getModifications m (OpenSettingsView tab))
+        | _ ->
+            NoChange ) )
   | FocusNothing ->
       Deselect
   (* used instead of focussame when we've already done the focus *)
@@ -1073,6 +1077,9 @@ let update_ (msg : msg) (m : model) : modification =
               | _ ->
                   [defaultBehaviour]
             else []
+        | SettingsModal _ ->
+            (* Click handled in component *)
+            []
       in
       ( match m.cursorState with
       | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->

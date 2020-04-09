@@ -1,3 +1,5 @@
+open Tc
+
 let opaque msg fmt _ =
   Format.pp_print_string fmt ("<opaque:" ^ msg ^ ">") ;
   ()
@@ -74,3 +76,28 @@ type settingsMsg =
       (loadCanvasInfoAPIResult, (string Tea.Http.error[@opaque])) Tea.Result.t
       [@printer opaque "LoadPackagesAPICallback"]
 [@@deriving show]
+
+let settingsTabToText (tab : settingsTab) : string =
+  match tab with
+  | NewCanvas ->
+      "new-canvas"
+  | CanvasInfo ->
+      "about"
+  | UserSettings ->
+      "canvases"
+  | InviteUser _ ->
+      "share"
+
+
+let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
+
+let settingsTabFromText (tab : string) : settingsTab =
+  match String.toLower tab with
+  | "new-canvas" ->
+      NewCanvas
+  | "canvases" ->
+      UserSettings
+  | "share" ->
+      InviteUser defaultInviteFields
+  | "about" | _ ->
+      CanvasInfo
