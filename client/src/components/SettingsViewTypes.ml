@@ -80,20 +80,20 @@ type settingsMsg =
 let settingsTabToText (tab : settingsTab) : string =
   match tab with
   | NewCanvas ->
-      "NewCanvas"
+      "new-canvas"
   | CanvasInfo ->
-      "About"
+      "about"
   | UserSettings ->
-      "Canvases"
+      "canvases"
   | InviteUser _ ->
-      "Share"
+      "share"
 
 
 let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
 
 let settingsTabFromText (tab : string) : settingsTab =
   match String.toLower tab with
-  | "newcanvas" ->
+  | "new-canvas" ->
       NewCanvas
   | "canvases" ->
       UserSettings
