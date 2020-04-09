@@ -6,9 +6,8 @@ type sendToRail =
   | NoRail
 [@@deriving show {with_path = false}, eq, ord, yojson {optional = true}]
 
+(* See .mli for comments/descriptions of fields *)
 type t =
-  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
-   * support *)
   | EInteger of id * string
   | EBool of id * bool
   | EString of id * string
@@ -18,64 +17,19 @@ type t =
   | ELet of id * string * t * t
   | EIf of id * t * t * t
   | EBinOp of id * string * t * t * sendToRail
-  (* the id in the varname list is the analysis ID, used to get a livevalue
-   * from the analysis engine *)
   | ELambda of id * (analysisID * string) list * t
   | EFieldAccess of id * t * string
   | EVariable of id * string
   | EFnCall of id * string * t list * sendToRail
-  (* An EPartial holds the intermediate state of user-input when changing from
-   * one expression to another. The [string] is the exact text that has been
-   * entered and the [t] is the old expression that is being changed.
-   *
-   * Examples:
-   * - When filling in an EBlank by typing `Str` an EPartial (id, "Str", EBlank (...)) is used.
-   * - When changing the EFnCall of "String::append" by deleting a character
-   *   from the end, an EPartial (id, "String::appen", EFnCall _) would
-   *   be created.
-   *
-   * EPartial is usually rendered as just the string part, but some
-   * variants of t will render other parts of the t.
-   * Eg, an EPartial wrapping an EFnCall will render the arguments of the old
-   * EFnCall expression after the string. *)
   | EPartial of id * string * t
-  (* An ERightPartial is used while in the process of adding an EBinOp,
-   * allowing for typing multiple characters as operators (eg, "++") after an
-   * expression. The [string] holds the typed characters while the [t] holds
-   * the LHS of the binop.
-   *
-   * Example:
-   * Typing `"foo" ++` creates ERightPartial (id, "++", EString (_, "foo"))
-   * until the autocomplete of "++" is accepted, transforming the ERightPartial
-   * into a proper EBinOp.
-   *
-   * ERightPartial is rendered as the old expression followed by the string. *)
   | ERightPartial of id * string * t
-  (* ELeftPartial allows typing to prepend a construct to an existing
-   * expression. The [string] holds the typed text, while the [t] holds the
-   * existing expression to the right.
-   *
-   * Example:
-   * On an existing line with `String::append "a" "b"` (a EFnCall), typing `if` at the beginning of the line
-   * will create a ELeftPartial (id, "if", EFnCall _). Accepting autocomplete
-   * of `if` would wrap the EFnCall into an EIf.
-   *
-   * ELeftPartial is rendered as the string followed by the normal rendering of the old expression. *)
   | ELeftPartial of Shared.id * string * t
   | EList of id * t list
-  (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (string * t) list
   | EPipe of id * t list
-  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
-   * expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
-   * or length 0 (for `Nothing`).
-   *)
   | EConstructor of id * string * t list
   | EMatch of id * t * (FluidPattern.t * t) list
-  (* Placeholder that indicates the target of the Thread. May be movable at
-   * some point *)
   | EPipeTarget of id
-  (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * t * t * t
 [@@deriving show {with_path = false}, eq, ord, yojson {optional = true}]
 
