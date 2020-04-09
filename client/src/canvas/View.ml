@@ -168,7 +168,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let pos =
     match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+    | Architecture
+    | FocusedHandler _
+    | FocusedDB _
+    | FocusedGroup _
+    | SettingsModal _ ->
         TL.pos tl
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
@@ -279,7 +283,11 @@ let viewTL m tl =
 let viewCanvas (m : model) : msg Html.html =
   let allDivs =
     match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+    | Architecture
+    | FocusedHandler _
+    | FocusedDB _
+    | FocusedGroup _
+    | SettingsModal _ ->
         m
         |> TL.structural
         |> TD.values
@@ -335,6 +343,8 @@ let viewCanvas (m : model) : msg Html.html =
   in
   let pageClass =
     match m.currentPage with
+    | SettingsModal _ ->
+        "settings-modal"
     | Architecture ->
         "arch"
     | FocusedHandler _ ->
@@ -436,8 +446,8 @@ let accountView (m : model) : msg Html.html =
       [ Html.class' "account-action-btn invite"
       ; ViewUtils.eventNoPropagation ~key:"open-invite" "click" (fun _ ->
             SettingsViewMsg
-              (OpenSettingsView (InviteUser SettingsView.defaultInviteFields)))
-      ]
+              (OpenSettingsView
+                 (InviteUser SettingsViewTypes.defaultInviteFields))) ]
       [Html.text "Share Dark"]
   in
   Html.div
