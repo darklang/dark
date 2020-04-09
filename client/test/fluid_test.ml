@@ -374,6 +374,9 @@ let processMsg
     (astExpr : FluidExpression.t) : FluidAST.t * fluidState =
   let h = Fluid_utils.h astExpr in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+  let s =
+    Fluid.updateAutocomplete m (TLID.fromString "7") (FluidAST.ofExpr astExpr) s
+  in
   List.foldl inputs ~init:(h.ast, s) ~f:(fun input (ast, s) ->
       updateMsg m h.hTLID ast (FluidInputEvent input) s)
 

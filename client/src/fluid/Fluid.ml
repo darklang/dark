@@ -5448,10 +5448,7 @@ let updateMouseUpExternal
 
 let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     : FluidAST.t * fluidState =
-  (* TODO: The state should be updated from the last request, and so this
-   * shouldn't be necessary, but the tests don't work without it *)
   let props = {functions = m.functions} in
-  let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
     | FluidCloseCmdPalette | FluidUpdateAutocomplete ->
