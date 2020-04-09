@@ -22,7 +22,10 @@ let of_float = Int63.of_float
 
 let random i = Int63.random i
 
-let ( % ) = Int63.( % )
+(* This is NOT the same as Javascript's % *)
+let modulo_exn = Int63.( % )
+
+let rem_exn = Int63.rem
 
 let ( + ) = Int63.( + )
 
@@ -45,6 +48,8 @@ let zero = Int63.zero
 let max = Int63.max
 
 let min = Int63.min
+
+let clamp = Int63.clamp
 
 let init () =
   (* TODO: init random *)

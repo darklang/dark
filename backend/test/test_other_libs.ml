@@ -1354,6 +1354,56 @@ let t_float_stdlibs () =
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.infinity)
     (exec_ast "(Float::max Infinity 1.0)") ;
+  check_dval
+    "Float::clamp works (in bounds)"
+    (DFloat (-2.0))
+    (exec_ast' (fn "Float::clamp" [float' (-2) 0; float' (-5) 0; float' 5 0])) ;
+  check_dval
+    "Float::clamp works (below min)"
+    (DFloat (-2.0))
+    (exec_ast' (fn "Float::clamp" [float' (-3) 0; float' (-2) 0; float' 1 0])) ;
+  check_dval
+    "Float::clamp works (above max)"
+    (DFloat 2.0)
+    (exec_ast' (fn "Float::clamp" [float' 3 0; float' 0 0; float' 2 0])) ;
+  check_dval
+    "Float::clamp works (limitA = limitB)"
+    (DFloat 1.0)
+    (exec_ast' (fn "Float::clamp" [float' (-5) 0; float' 1 0; float' 1 0])) ;
+  check_dval
+    "Float::clamp works (limitB > limitA)"
+    (DFloat 1.0)
+    (exec_ast' (fn "Float::clamp" [float' 1 0; float' 2 0; float' 1 0])) ;
+  check_dval
+    "Float::clamp works (val = infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat 0.5)
+    (exec_ast "(Float::clamp Infinity -1.0 0.5)") ;
+  check_dval
+    "Float::clamp works (min = -infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat 0.5)
+    (exec_ast "(Float::clamp 0.5 -Infinity 1.0)") ;
+  check_dval
+    "Float::clamp works (val = infinity)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat 0.5)
+    (exec_ast "(Float::clamp Infinity -1.0 0.5)") ;
+  check_dval
+    "Float::clamp works (val = nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (DFloat Float.nan)
+    (exec_ast "(Float::clamp NaN -1.0 1.0)") ;
+  check_error_contains
+    "Float::clamp errors (limitA = nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (exec_ast "(Float::clamp 0.5 NaN 1.0)")
+    "Internal Float.clamp exception" ;
+  check_error_contains
+    "Float::clamp errors (limitB = nan)"
+    (* TODO: figure out the nan/infinity situation for floats *)
+    (exec_ast "(Float::clamp 0.5 1.0 NaN)")
+    "Internal Float.clamp exception" ;
   check_dval "Float::sqrt works" (DFloat 5.0) (exec_ast "(Float::sqrt 25.0)") ;
   check_dval
     "Float::power works"
@@ -1433,6 +1483,131 @@ let t_float_stdlibs () =
 
 
 let t_int_stdlibs () =
+  let dstr = Dval.dstr_of_string_exn in
+  check_dval
+    "Int::mod works (sweep, pos)"
+    (DList
+       [ Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1
+       ; Dval.dint 2
+       ; Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1
+       ; Dval.dint 2
+       ; Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1 ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (fn "Int::mod" [var "v"; int 4]) ])) ;
+  check_error_contains
+    "Int::mod errors (_, 0)"
+    (exec_ast' (fn "Int::mod" [int 5; int 0]))
+    "Expected the argument `b` argument passed to `Int::mod` to be positive, but it was `0`." ;
+  check_error_contains
+    "Int::mod errors (_, neg)"
+    (exec_ast' (fn "Int::mod" [int 5; int (-5)]))
+    "Expected the argument `b` argument passed to `Int::mod` to be positive, but it was `-5`." ;
+  check_dval
+    "% works (sweep, pos)"
+    (DList
+       [ Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1
+       ; Dval.dint 2
+       ; Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1
+       ; Dval.dint 2
+       ; Dval.dint 3
+       ; Dval.dint 0
+       ; Dval.dint 1 ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (binop "%" (var "v") (int 4)) ])) ;
+  check_error_contains
+    "% errors (_, 0)"
+    (exec_ast' (binop "%" (int 5) (int 0)))
+    "Expected the argument `b` argument passed to `%` to be positive, but it was `0`." ;
+  check_error_contains
+    "% errors (_, neg)"
+    (exec_ast' (binop "%" (int 5) (int (-5))))
+    "Expected the argument `b` argument passed to `%` to be positive, but it was `-5`." ;
+  (*  (* Int::mod_v1 is not yet available; see implementation for why *)  
+  check_dval
+    "Int::mod_v1 works (sweep, pos)"
+    (DList
+       [ DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1))
+       ; DResult (ResOk (Dval.dint 2))
+       ; DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1))
+       ; DResult (ResOk (Dval.dint 2))
+       ; DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1)) ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (fn "Int::mod_v1" [var "v"; int 4]) ])) ;
+  check_dval
+    "Int::mod_v1 errors (_, 0)"
+    (DResult (ResError (dstr "`modulus` must be positive but was 0")))
+    (exec_ast' (fn "Int::mod_v1" [int 5; int 0])) ;
+  check_dval
+    "Int::mod_v1 errors (_, neg)"
+    (DResult (ResError (dstr "`modulus` must be positive but was -5")))
+    (exec_ast' (fn "Int::mod_v1" [int 5; int (-5)])) ; *)
+  check_dval
+    "Int::remainder works (sweep, pos)"
+    (DList
+       [ DResult (ResOk (Dval.dint (-1)))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint (-3)))
+       ; DResult (ResOk (Dval.dint (-2)))
+       ; DResult (ResOk (Dval.dint (-1)))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1))
+       ; DResult (ResOk (Dval.dint 2))
+       ; DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1)) ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (fn "Int::remainder" [var "v"; int 4]) ])) ;
+  check_dval
+    "Int::remainder works (sweep, neg)"
+    (DList
+       [ DResult (ResOk (Dval.dint (-1)))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint (-3)))
+       ; DResult (ResOk (Dval.dint (-2)))
+       ; DResult (ResOk (Dval.dint (-1)))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1))
+       ; DResult (ResOk (Dval.dint 2))
+       ; DResult (ResOk (Dval.dint 3))
+       ; DResult (ResOk (Dval.dint 0))
+       ; DResult (ResOk (Dval.dint 1)) ])
+    (exec_ast'
+       (fn
+          "List::map"
+          [ fn "List::range" [int (-5); int 5]
+          ; lambda ["v"] (fn "Int::remainder" [var "v"; int (-4)]) ])) ;
+  check_dval
+    "Int::remainder errors (0)"
+    (DResult (ResError (dstr "`divisor` must be non-zero")))
+    (exec_ast' (fn "Int::remainder" [int 5; int 0])) ;
   check_dval
     "Int::max works"
     (Dval.dint 6)
@@ -1449,6 +1624,26 @@ let t_int_stdlibs () =
     "Int::absoluteValue works (pos)"
     (Dval.dint 5)
     (exec_ast' (fn "Int::absoluteValue" [int 5])) ;
+  check_dval
+    "Int::clamp works (in bounds)"
+    (Dval.dint (-2))
+    (exec_ast' (fn "Int::clamp" [int (-2); int (-5); int 5])) ;
+  check_dval
+    "Int::clamp works (below min)"
+    (Dval.dint (-2))
+    (exec_ast' (fn "Int::clamp" [int (-3); int (-2); int 1])) ;
+  check_dval
+    "Int::clamp works (above max)"
+    (Dval.dint 2)
+    (exec_ast' (fn "Int::clamp" [int 3; int 0; int 2])) ;
+  check_dval
+    "Int::clamp works (limitA = limitB)"
+    (Dval.dint 1)
+    (exec_ast' (fn "Int::clamp" [int (-5); int 1; int 1])) ;
+  check_dval
+    "Int::clamp works (limitB > limitA)"
+    (Dval.dint 1)
+    (exec_ast' (fn "Int::clamp" [int 1; int 2; int 1])) ;
   check_dval
     "Int::negate works (neg)"
     (Dval.dint 5)

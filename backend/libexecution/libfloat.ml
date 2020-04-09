@@ -262,4 +262,36 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Float::clamp"]
+    ; infix_names = []
+    ; parameters = [par "value" TFloat; par "limitA" TFloat; par "limitB" TFloat]
+    ; return_type = TFloat
+    ; description =
+        "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
+         If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
+         `limitA` and `limitB` can be provided in any order."
+    ; func =
+        InProcess
+          (function
+          | _, [DFloat v; DFloat a; DFloat b] ->
+              let min, max = if a < b then (a, b) else (b, a) in
+              ( match Float.clamp v ~min ~max with
+              | Ok clamped ->
+                  DFloat clamped
+              | Error e ->
+                  (* Since min and max are pre-sorted, this can only happen if min or max are NaN.
+                   * TODO: eliminate NaNs so that this can't happen 
+                   * (at time of writing (f86edaa1c58c94e27186060ae4fe8745112dd0e5), NaNs can't be parsed,
+                   * so this can't happen in practice) *)
+                  let info =
+                    [("a", Float.to_string a); ("b", Float.to_string b)]
+                  in
+                  Exception.code
+                    ~info
+                    ("Internal Float.clamp exception: " ^ Error.to_string_hum e)
+              )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false } ]
