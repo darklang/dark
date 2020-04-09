@@ -20,11 +20,87 @@ let fns : fn list =
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
     ; description =
-        "Return `a` % `b`, the modulus of a and b. This is the integer remainder left when `a` is divided by `b`. For example, `15 % 6 = 3`."
+        "Returns the result of wrapping `a` around so that `0 <= res < b`.
+         The modulus `b` must be 0 or negative.
+         Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
     ; func =
         InProcess
           (function
-          | _, [DInt a; DInt b] -> DInt (Dint.( % ) a b) | args -> fail args)
+          | state, [DInt v; DInt m] ->
+            ( try DInt (Dint.modulo_exn v m)
+              with e ->
+                if m <= Dint.of_int 0
+                then
+                  DError
+                    ( SourceNone
+                    , Printf.sprintf
+                        "Expected the argument `b` argument passed to `%s` to be positive, but it was `%s`."
+                        state.executing_fnname
+                        (Dval.to_developer_repr_v0 (DInt m)) )
+                else (* In case there's another failure mode, rollbar *)
+                  raise e )
+          | args ->
+              fail args)
+    ; preview_safety =
+        Safe
+        (* 
+         * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types. 
+         * The current function returns DError (it used to rollbar) on negative `b`.
+         *)
+    ; deprecated = true }
+    (*  (* See above for when to uncomment this *)
+  ; { prefix_names = ["Int::mod_v1"]
+    ; infix_names = ["%_v1"]
+    ; parameters = [par "value" TInt; par "modulus" TInt]
+    ; return_type = TResult
+    ; description =
+        "Returns the result of wrapping `value` around so that `0 <= res < modulus`, as a Result.
+         If `modulus` is positive, returns `Ok res`. Returns an `Error` if `modulus` is 0 or negative.
+         Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
+    ; func =
+        (* TODO: A future version should support all non-zero modulus values and should include the infix "%" *)
+        InProcess
+          (function
+          | _, [DInt v; DInt m] ->
+            ( try DResult (ResOk (DInt (Dint.modulo_exn v m)))
+              with e ->
+                if m <= Dint.of_int 0
+                then
+                  DResult
+                    (ResError
+                       (Dval.dstr_of_string_exn
+                          ( "`modulus` must be positive but was "
+                          ^ Dval.to_developer_repr_v0 (DInt m) )))
+                else (* In case there's another failure mode, rollbar *)
+                  raise e )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false } *)
+  ; { prefix_names = ["Int::remainder"]
+    ; infix_names = []
+    ; parameters = [par "value" TInt; par "divisor" TInt]
+    ; return_type = TResult
+    ; description =
+        "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
+        For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
+        The sign of `divisor` doesn't influence the outcome.
+        Returns an `Error` if `divisor` is 0."
+    ; func =
+        InProcess
+          (function
+          | _, [DInt v; DInt d] ->
+            ( try DResult (ResOk (DInt (Dint.rem_exn v d)))
+              with e ->
+                if d = Dint.of_int 0
+                then
+                  DResult
+                    (ResError
+                       (Dval.dstr_of_string_exn "`divisor` must be non-zero"))
+                else (* In case there's another failure mode, rollbar *)
+                  raise e )
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["Int::add"]
@@ -436,7 +512,7 @@ let fns : fn list =
   ; { prefix_names = ["Int::max"]
     ; infix_names = []
     ; parameters = [par "a" TInt; par "b" TInt]
-    ; return_type = TBool
+    ; return_type = TInt
     ; description = "Returns the higher of a and b"
     ; func =
         InProcess
@@ -447,11 +523,40 @@ let fns : fn list =
   ; { prefix_names = ["Int::min"]
     ; infix_names = []
     ; parameters = [par "a" TInt; par "b" TInt]
-    ; return_type = TBool
+    ; return_type = TInt
     ; description = "Returns the lower of `a` and `b`"
     ; func =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Int::clamp"]
+    ; infix_names = []
+    ; parameters = [par "value" TInt; par "limitA" TInt; par "limitB" TInt]
+    ; return_type = TInt
+    ; description =
+        "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
+         If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
+         `limitA` and `limitB` can be provided in any order."
+    ; func =
+        InProcess
+          (function
+          | _, [DInt v; DInt a; DInt b] ->
+              let min, max = if a < b then (a, b) else (b, a) in
+              ( match Dint.clamp v ~min ~max with
+              | Ok clamped ->
+                  DInt clamped
+              | Error e ->
+                  (* Since min and max are pre-sorted, this shouldn't be possible *)
+                  let info =
+                    [("a", Dint.to_string a); ("b", Dint.to_string b)]
+                  in
+                  Exception.code
+                    ~info
+                    ("Internal Dint.clamp exception: " ^ Error.to_string_hum e)
+              )
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false } ]

@@ -22,19 +22,26 @@ val random : t -> t
 
 val init : unit -> unit
 
-val ( % ) : t -> t -> t
-
 val ( + ) : t -> t -> t
 
 val ( - ) : t -> t -> t
 
 val ( / ) : t -> t -> t
 
+(** [modulo value modulus] performs modular arithmetic. [modulus] must be positive or will throw an exception. *)
+val modulo_exn : t -> t -> t
+
+(** [rem value divisor] returns the remainder after dividing [value] by [divisor]. Throws an exception if [divisor] is [0]. *)
+val rem_exn : t -> t -> t
+
 val ( * ) : t -> t -> t
 
 val max : t -> t -> t
 
 val min : t -> t -> t
+
+(** [clamp value ~min ~max] returns the result of clamping [value] between [min] and [max]. *)
+val clamp : t -> min:t -> max:t -> t Base__.Or_error.t
 
 val pow : t -> t -> t
 
