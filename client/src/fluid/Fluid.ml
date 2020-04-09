@@ -160,7 +160,7 @@ let getNeighbours ~(pos : int) (tokens : tokens) :
   (toTheLeft, toTheRight, mNext)
 
 
-let getToken' (s : fluidState) (tokens : tokens) : T.tokenInfo option =
+let getToken' (tokens : tokens) (s : fluidState) : T.tokenInfo option =
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
   (* The algorithm that decides what token on when a certain key is pressed is
    * in updateKey. It's pretty complex and it tells us what token a keystroke
@@ -195,7 +195,7 @@ let getToken' (s : fluidState) (tokens : tokens) : T.tokenInfo option =
 
 
 let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
-  tokensForActiveEditor ast s |> getToken' s
+  getToken' (tokensForActiveEditor ast s) s
 
 
 (* -------------------- *)
@@ -4732,9 +4732,12 @@ and replaceText
 
 
 let updateAutocomplete
-    (m : model) (tlid : TLID.t) (ast : FluidAST.t) (s : fluidState) : fluidState
-    =
-  match getToken ast s with
+    (m : model)
+    (tlid : TLID.t)
+    (ast : FluidAST.t)
+    (tokens : tokens)
+    (s : fluidState) : fluidState =
+  match getToken' tokens s with
   | Some ti when T.isAutocompletable ti.token ->
       let m = TL.withAST m tlid ast in
       let newAC = AC.regenerate m s.ac (tlid, ti) in
@@ -5464,7 +5467,7 @@ let updateMouseUpExternal
 
 
 let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
-    : FluidAST.t * fluidState =
+    : FluidAST.t * fluidState * tokens =
   let props = {functions = m.functions} in
   let newAST, newState =
     match msg with
@@ -5553,10 +5556,11 @@ let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
     | FluidUpdateDropdownIndex _ ->
         (ast, s)
   in
-  let newState = updateAutocomplete m tlid newAST newState in
+  let tokens = tokensForActiveEditor newAST newState in
+  let newState = updateAutocomplete m tlid newAST tokens newState in
   (* Js.log2 "ast" (show_ast newAST) ; *)
   (* Js.log2 "tokens" (eToStructure s newAST) ; *)
-  (newAST, newState)
+  (newAST, newState, tokens)
 
 
 let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
@@ -5668,7 +5672,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       ( match (tl, ast) with
       | Some tl, Some ast ->
           let tlid = TL.id tl in
-          let newAST, newState = updateMsg m tlid ast msg s in
+          let newAST, newState, newTokens = updateMsg m tlid ast msg s in
           let eventSpecMod, newAST, newState =
             let isFluidEntering =
               (* Only fire Tab controls if the state is currently in
@@ -5737,8 +5741,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                     (fun m -> (TL.withAST m tlid newAST, Tea.Cmd.none))
                 ; Toplevel.setSelectedAST m newAST
                 ; requestAnalysis
-                ; UpdateASTCache
-                    (tlid, Printer.eToHumanString (FluidAST.toExpr newAST)) ]
+                ; UpdateASTCache (tlid, Printer.tokensToString newTokens) ]
             else Types.NoChange
           in
           Types.Many
