@@ -3962,6 +3962,7 @@ let getTopmostSelectionID
 
 let getSelectedExprID (ast : FluidAST.t) (s : fluidState) : ID.t option =
   getOptionalSelectionRange s
+  |> Option.map ~f:orderRangeFromSmallToBig
   |> Option.andThen ~f:(getTopmostSelectionID ast s |> Tuple2.uncurry)
 
 
