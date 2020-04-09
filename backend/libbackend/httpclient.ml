@@ -184,7 +184,6 @@ let http_call_with_code
       then None
       else
         line
-        |> String.strip
         |> String.lsplit2 ~on:':'
         (* If it's None, log and put the whole thing into the header side - this
          * shouldn't happen, but failsafe to avoid losing data *)
@@ -225,7 +224,7 @@ let http_call_with_code
     let request_line, request_headers = line_and_headers debugbuf_header_out in
     let response_line, response_headers = line_and_headers debugbuf_header_in in
     Log.infO
-      "curl request"
+      "libcurl"
       ~params:
         (* raw bodies are not useful to log - they may be large, or may contain
          * non-human-readable data (esp binary data, but minimized js, etc can
