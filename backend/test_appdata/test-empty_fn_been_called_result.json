@@ -1,0 +1,52 @@
+[
+  [ "TLSavepoint", 450203352 ],
+  [
+    "SetHandler",
+    450203352,
+    { "x": 458, "y": 130 },
+    {
+      "tlid": 450203352,
+      "ast": [
+        "Filled",
+        695848481,
+        [
+          "FnCall",
+          "fn_881219155",
+          [ [ "Filled", 1524522644, [ "Value", "5" ] ] ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Filled", 130346918, "REPL" ],
+        "name": [ "Filled", 892727734, "nighttimeKudu" ],
+        "modifier": [ "Filled", 1373889562, "_" ],
+        "types": {
+          "input": [ "Blank", 1212747727 ],
+          "output": [ "Blank", 2031171286 ]
+        }
+      }
+    }
+  ],
+  [ "TLSavepoint", 602952746 ],
+  [
+    "SetFunction",
+    {
+      "tlid": 602952746,
+      "metadata": {
+        "name": [ "Filled", 1559944598, "fn_881219155" ],
+        "parameters": [
+          {
+            "name": [ "Filled", 1698751239, "x" ],
+            "tipe": [ "Filled", 763760730, [ "TInt" ] ],
+            "block_args": [],
+            "optional": false,
+            "description": ""
+          }
+        ],
+        "return_type": [ "Filled", 1057196671, [ "TAny" ] ],
+        "description": "",
+        "infix": false
+      },
+      "ast": [ "Blank", 1276585567 ]
+    }
+  ]
+]

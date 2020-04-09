@@ -960,6 +960,26 @@ test("sidebar_opens_function", async t => {
     .match(/.+#fn=1352039682$/, "Url is incorrect");
 });
 
+test("empty_fn_never_called_result", async t => {
+  await t
+    .navigateTo("#fn=602952746")
+    .click("#id-1276585567")
+    .expect(available(".return-value .msg"))
+    .ok()
+    .expect(Selector(".return-value").innerText)
+    .contains("This function has not yet been called - please call this function");
+});
+
+test("test-empty_fn_been_called_result", async t => {
+  await t
+    .navigateTo("#fn=602952746")
+    .click("#id-1276585567")
+    .expect(available(".return-value .msg"))
+    .ok()
+    .expect(Selector(".return-value").innerText)
+    .contains("Your code needs to return a value in the last expression");
+});
+
 // This runs through
 // https://docs.aws.amazon.com/general/latest/gr/sigv4-add-signature-to-request.html
 // It duplicates backend/test/test_otherlibs.ml's "Crypto::sha256hmac works for
