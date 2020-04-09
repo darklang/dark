@@ -7,6 +7,8 @@ type pos =
   ; y : int }
 [@@deriving eq, ord, show, yojson, bin_io]
 
+type fluid_expr = Libshared.FluidExpression.t [@@deriving eq, ord, show, yojson]
+
 (* We choose int63 so that we get the same type in jsoo, instead of 31 bit. Our
  * client generated ids which are uint32, so we need to go bigger. *)
 type id = Int63.t [@@deriving eq, ord, show, bin_io, yojson]
@@ -185,23 +187,33 @@ module RuntimeT = struct
       | DBMigrationInitialized
     [@@deriving eq, ord, show, yojson, bin_io]
 
-    type db_migration =
+    type 'expr_type db_migration' =
       { starting_version : int
       ; version : int
       ; state : db_migration_state
-      ; rollforward : expr
-      ; rollback : expr
+      ; rollforward : 'expr_type
+      ; rollback : 'expr_type
       ; cols : col list }
     [@@deriving eq, ord, show, yojson, bin_io]
 
-    type db =
+    type db_migration = expr db_migration'
+    [@@deriving eq, ord, show, yojson, bin_io]
+
+    type fluid_db_migration = fluid_expr db_migration'
+    [@@deriving eq, ord, show, yojson]
+
+    type 'expr_type db' =
       { tlid : tlid
       ; name : string or_blank
       ; cols : col list
       ; version : int
-      ; old_migrations : db_migration list
-      ; active_migration : db_migration option }
+      ; old_migrations : 'expr_type db_migration' list
+      ; active_migration : 'expr_type db_migration' option }
     [@@deriving eq, ord, show, yojson, bin_io]
+
+    type db = expr db' [@@deriving eq, show, yojson, bin_io]
+
+    type fluid_db = fluid_expr db' [@@deriving eq, show, yojson]
 
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
@@ -222,27 +234,17 @@ module RuntimeT = struct
       ; types : spec_types }
     [@@deriving eq, show, yojson, bin_io]
 
-    type handler =
+    type 'expr_type handler' =
       { tlid : tlid
       ; ast : expr
       ; spec : spec }
     [@@deriving eq, show, yojson, bin_io]
 
+    type handler = expr handler' [@@deriving eq, show, yojson, bin_io]
+
+    type fluid_handler = fluid_expr handler' [@@deriving eq, show, yojson]
+
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
-  end
-
-  module HandlerF = struct
-    type spec =
-      { module_ : string or_blank [@key "module"]
-      ; name : string or_blank
-      ; modifier : string or_blank }
-    [@@deriving eq, show, yojson]
-
-    type handler =
-      { tlid : tlid
-      ; ast : Libshared.FluidExpression.t
-      ; spec : spec }
-    [@@deriving eq, show]
   end
 
   (* ------------------------ *)
@@ -387,26 +389,28 @@ module RuntimeT = struct
           Error "Expected an object"
   end
 
-  type dval_map = dval DvalMap.t
+  (* To support migrating to fluid, these take a type parameter, which is
+   * concretely defined to use `expr` at the bottom. *)
+  type 'expr_type dval_map' = 'expr_type dval' DvalMap.t
 
-  and optionT =
-    | OptJust of dval
+  and 'expr_type optionT' =
+    | OptJust of 'expr_type dval'
     | OptNothing
 
-  and resultT =
+  and 'expr_type resultT' =
     | ResOk of dval
-    | ResError of dval
+    | ResError of 'expr_type dval'
 
   and dval_source =
     | SourceNone
     | SourceId of tlid * id
 
-  and dblock_args =
-    { symtable : dval_map
+  and 'expr_type dblock_args' =
+    { symtable : 'expr_type dval_map'
     ; params : (id * string) list
-    ; body : expr }
+    ; body : 'expr_type }
 
-  and dval =
+  and 'expr_type dval' =
     (* basic types  *)
     | DInt of Dint.t
     | DFloat of float
@@ -414,26 +418,52 @@ module RuntimeT = struct
     | DNull
     | DStr of Unicode_string.t
     (* compound types *)
-    | DList of dval list
-    | DObj of dval_map
+    | DList of 'expr_type dval' list
+    | DObj of 'expr_type dval_map'
     (* special types - see notes above *)
     | DIncomplete of dval_source
     | DError of (dval_source * string)
-    | DBlock of dblock_args
-    | DErrorRail of dval
+    | DBlock of 'expr_type dblock_args'
+    | DErrorRail of 'expr_type dval'
     (* user types: awaiting a better type system *)
-    | DResp of (dhttp * dval)
+    | DResp of (dhttp * 'expr_type dval')
     | DDB of string
     | DDate of time
     | DPassword of PasswordBytes.t
     | DUuid of uuid
-    | DOption of optionT
+    | DOption of 'expr_type optionT'
     | DCharacter of Unicode_string.Character.t
-    | DResult of resultT
+    | DResult of 'expr_type resultT'
     | DBytes of RawBytes.t
-  [@@deriving show {with_path = false}, eq, ord, yojson]
 
-  type dval_list = dval list
+  and 'expr_type dval_list' = 'expr_type dval' list
+
+  (* Concrete definitions for expr *)
+  and dval = expr dval'
+
+  and dblock_args = expr dblock_args'
+
+  and dval_map = expr dval_map'
+
+  and optionT = expr optionT'
+
+  and resultT = expr resultT'
+
+  and dval_list = expr dval_list'
+
+  (* Concrete definitions for fluid *)
+  and fluid_dval = fluid_expr dval'
+
+  and fluid_dblock_args = fluid_expr dblock_args'
+
+  and fluid_dval_map = fluid_expr dval_map'
+
+  and fluid_optionT = fluid_expr optionT'
+
+  and fluid_resultT = fluid_expr resultT'
+
+  and fluid_dval_list = fluid_expr dval_list'
+  [@@deriving show {with_path = false}, eq, ord, yojson]
 
   (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type tipe = tipe_ [@@deriving eq, show, yojson, bin_io]
@@ -473,16 +503,24 @@ module RuntimeT = struct
     ; infix : bool }
   [@@deriving eq, show, yojson, bin_io]
 
-  type user_fn =
+  type 'expr_type user_fn' =
     { tlid : tlid
     ; metadata : ufn_metadata
-    ; ast : expr }
+    ; ast : 'expr_type }
   [@@deriving eq, show, yojson, bin_io]
 
-  type package_fn =
+  type user_fn = expr user_fn' [@@deriving eq, show, yojson, bin_io]
+
+  type fluid_user_fn = fluid_expr user_fn' [@@deriving eq, show, yojson]
+
+  type 'expr_type package_fn' =
     { metadata : ufn_metadata
-    ; ast : expr }
+    ; ast : 'expr_type }
   [@@deriving eq, show, yojson, bin_io]
+
+  type package_fn = expr package_fn' [@@deriving eq, show, yojson, bin_io]
+
+  type fluid_package_fn = fluid_expr package_fn' [@@deriving eq, show, yojson]
 
   type user_record_field =
     { name : string or_blank
