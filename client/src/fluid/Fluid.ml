@@ -2306,6 +2306,7 @@ let initAC (s : state) : state = {s with ac = AC.init}
 
 let isAutocompleting (ti : T.tokenInfo) (s : state) : bool =
   T.isAutocompletable ti.token
+  (* upDownCol should be None to prevent the autocomplete from opening when moving the cursor up and down *)
   && s.upDownCol = None
   && s.ac.index <> None
   && s.newPos <= ti.endPos
@@ -2325,8 +2326,8 @@ let acClear (s : state) : state =
 let acMaybeShow (ti : T.tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
   if T.isAutocompletable ti.token && s.ac.index = None
-  then {s with ac = {s.ac with index = Some 0}}
-  else s
+  then {s with ac = {s.ac with index = Some 0}; upDownCol = None}
+  else {s with ac = {s.ac with query = None}}
 
 
 let acMoveUp (s : state) : state =
@@ -3775,6 +3776,7 @@ let doInsert
 let doInfixInsert
     ~pos (infixTxt : string) (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) :
     FluidAST.t * state =
+  let s = {s with upDownCol = None} in
   caretTargetFromTokenInfo pos ti
   |> Option.andThen ~f:(fun ct ->
          idOfASTRef ct.astRef

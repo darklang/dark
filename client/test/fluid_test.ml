@@ -4386,6 +4386,12 @@ let run () =
         ~pos:77
         (key K.Tab)
         "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;
+      t
+        "Deleting then re-entering an infix op still alows you to select from ac"
+        (binop "+" (int 4) b)
+        ~pos:3
+        (inputs [DeleteContentBackward; InsertText "+"; keypress K.Enter])
+        "4 + ~_________" ;
       test "click into partial opens autocomplete" (fun () ->
           let ast = let' "request" aShortInt aPartialVar in
           let h = Fluid_utils.h ast in
@@ -4403,6 +4409,33 @@ let run () =
              in
              newState.ac.index)
           |> toEqual (Some 0)) ;
+      test
+        "Backspace over binop resets upDownCol but not autocomplete"
+        (fun () ->
+          let ast = binop "+" aShortInt b in
+          let h = Fluid_utils.h ast in
+          let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+          let tlid = h.hTLID in
+          expect
+            (let newState = m.fluidState |> moveTo 3 in
+             let _, newState =
+               updateMsg
+                 m
+                 tlid
+                 h.ast
+                 (FluidInputEvent DeleteContentBackward)
+                 newState
+             in
+             let _, newState =
+               updateMsg
+                 m
+                 tlid
+                 h.ast
+                 (FluidInputEvent (InsertText "+"))
+                 newState
+             in
+             (newState.ac.index, newState.upDownCol))
+          |> toEqual (Some 0, None)) ;
       test "backspace on partial will open AC if query matches" (fun () ->
           let ast = FluidAST.ofExpr (let' "request" aShortInt aPartialVar) in
           let s = defaultTestState |> moveTo 19 in
