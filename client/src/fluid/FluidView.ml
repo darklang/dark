@@ -122,7 +122,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  Fluid.getToken' vs.fluidState vs.tokens
+  Fluid.getToken' vs.tokens vs.fluidState
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
