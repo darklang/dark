@@ -15,15 +15,22 @@ module E = FluidExpression
 (* Analyses *)
 (* ---------------------- *)
 
+(** [defaultTraceIDForTL ~tlid] returns the id of the "default" trace
+ * for the top level with the given [tlid].
+ * 
+ * This default trace exists in order to eg populate the autocomplete
+ * with parameters of functions that haven't been called yet. *)
+let defaultTraceIDForTL ~(tlid : TLID.t) =
+  BsUuid.Uuid.V5.create
+    ~name:(TLID.toString tlid)
+    ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
+  |> BsUuid.Uuid.V5.toString
+
+
 let getTraces (m : model) (tlid : TLID.t) : trace list =
   StrDict.get ~key:(TLID.toString tlid) m.traces
   |> Option.withDefault
-       ~default:
-         [ ( BsUuid.Uuid.V5.create
-               ~name:(TLID.toString tlid)
-               ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
-             |> BsUuid.Uuid.V5.toString
-           , Result.fail NoneYet ) ]
+       ~default:[(defaultTraceIDForTL ~tlid, Result.fail NoneYet)]
 
 
 let getTrace (m : model) (tlid : TLID.t) (traceID : traceID) : trace option =
