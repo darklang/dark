@@ -1,7 +1,7 @@
-type int63t = Core_kernel.Int63.t [@@deriving show, eq, bin_io]
+type int63t = Core_kernel.Int63.t [@@deriving show, eq, ord, bin_io]
 
 module Int63 = struct
-  type t = int63t [@@deriving show, eq, bin_io]
+  type t = int63t [@@deriving show, eq, ord, bin_io]
 
   include (Core_kernel.Int63 : module type of Core_kernel.Int63 with type t := t)
 
@@ -19,6 +19,7 @@ module Int63 = struct
         Error "Int63.t of_yojson"
 end
 
-type id = Int63.t [@@deriving show {with_path = false}, eq, yojson, bin_io]
+type id = Int63.t [@@deriving show {with_path = false}, eq, ord, yojson, bin_io]
 
-type analysisID = id [@@deriving show {with_path = false}, eq, yojson, bin_io]
+type analysisID = id
+[@@deriving show {with_path = false}, eq, ord, yojson, bin_io]

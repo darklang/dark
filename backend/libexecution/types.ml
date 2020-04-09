@@ -5,11 +5,11 @@ module Int63 = Prelude.Int63
 type pos =
   { x : int
   ; y : int }
-[@@deriving eq, compare, show, yojson, bin_io]
+[@@deriving eq, ord, show, yojson, bin_io]
 
 (* We choose int63 so that we get the same type in jsoo, instead of 31 bit. Our
  * client generated ids which are uint32, so we need to go bigger. *)
-type id = Int63.t [@@deriving eq, compare, show, bin_io, yojson]
+type id = Int63.t [@@deriving eq, ord, show, bin_io, yojson]
 
 let id_of_int = Int63.of_int
 
@@ -65,9 +65,9 @@ module IDMap = struct
         Error "Expected an object"
 end
 
-type host = string [@@deriving eq, compare, show, bin_io]
+type host = string [@@deriving eq, ord, show, bin_io]
 
-type tlid = id [@@deriving eq, compare, show, yojson, bin_io]
+type tlid = id [@@deriving eq, ord, show, yojson, bin_io]
 
 module TLIDTable = IDTable
 
@@ -75,7 +75,7 @@ type 'a or_blank =
   | Blank of id
   | Filled of id * 'a
   | Partial of id * string
-[@@deriving eq, compare, show {with_path = false}, yojson, bin_io]
+[@@deriving eq, ord, show {with_path = false}, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
@@ -113,33 +113,32 @@ type tipe_ =
   (* name * version *)
   | TUserType of string * int
   | TBytes
-[@@deriving eq, compare, show, yojson, bin_io]
+[@@deriving eq, ord, show, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
 module RuntimeT = struct
   (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-  type fnname = string [@@deriving eq, compare, yojson, show, bin_io]
+  type fnname = string [@@deriving eq, ord, yojson, show, bin_io]
 
-  type fieldname = string [@@deriving eq, compare, yojson, show, bin_io]
+  type fieldname = string [@@deriving eq, ord, yojson, show, bin_io]
 
-  type varname = string [@@deriving eq, compare, yojson, show, bin_io]
+  type varname = string [@@deriving eq, ord, yojson, show, bin_io]
 
-  type keyname = string [@@deriving eq, compare, yojson, show, bin_io]
+  type keyname = string [@@deriving eq, ord, yojson, show, bin_io]
 
-  type varbinding = varname or_blank
-  [@@deriving eq, compare, yojson, show, bin_io]
+  type varbinding = varname or_blank [@@deriving eq, ord, yojson, show, bin_io]
 
-  type field = fieldname or_blank [@@deriving eq, compare, yojson, show, bin_io]
+  type field = fieldname or_blank [@@deriving eq, ord, yojson, show, bin_io]
 
-  type key = keyname or_blank [@@deriving eq, compare, yojson, show, bin_io]
+  type key = keyname or_blank [@@deriving eq, ord, yojson, show, bin_io]
 
   type npattern =
     | PVariable of varname
     | PLiteral of string
     | PConstructor of string * pattern list
 
-  and pattern = npattern or_blank [@@deriving eq, compare, yojson, show, bin_io]
+  and pattern = npattern or_blank [@@deriving eq, ord, yojson, show, bin_io]
 
   type nexpr =
     | If of expr * expr * expr
@@ -169,22 +168,22 @@ module RuntimeT = struct
     | FluidRightPartial of string * expr
 
   and expr = nexpr or_blank
-  [@@deriving eq, compare, yojson, show {with_path = false}, bin_io]
+  [@@deriving eq, ord, yojson, show {with_path = false}, bin_io]
 
   (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
   module DbT = struct
     (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
     type col = string or_blank * tipe_ or_blank
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, ord, show, yojson, bin_io]
 
     type migration_kind = DeprecatedMigrationKind
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, ord, show, yojson, bin_io]
 
     type db_migration_state =
       | DBMigrationAbandoned
       | DBMigrationInitialized
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, ord, show, yojson, bin_io]
 
     type db_migration =
       { starting_version : int
@@ -193,7 +192,7 @@ module RuntimeT = struct
       ; rollforward : expr
       ; rollback : expr
       ; cols : col list }
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, ord, show, yojson, bin_io]
 
     type db =
       { tlid : tlid
@@ -202,15 +201,14 @@ module RuntimeT = struct
       ; version : int
       ; old_migrations : db_migration list
       ; active_migration : db_migration option }
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, ord, show, yojson, bin_io]
 
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
 
   module HandlerT = struct
     (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-    type dtdeprecated = int or_blank
-    [@@deriving eq, compare, show, yojson, bin_io]
+    type dtdeprecated = int or_blank [@@deriving eq, ord, show, yojson, bin_io]
 
     type spec_types =
       { input : dtdeprecated
@@ -248,28 +246,15 @@ module RuntimeT = struct
   end
 
   (* ------------------------ *)
-  (* Dvals*)
+  (* Dvals *)
   (* ------------------------ *)
   type dhttp =
     | Redirect of string
     | Response of int * (string * string) list
-  [@@deriving show, eq, yojson, compare]
-
-  (* block *)
-  type 'a block = 'a list -> 'a [@@deriving show]
-
-  let equal_block _ _ _ = false
-
-  let compare_block _ _ _ = -1
-
-  (* These aren't used at the moment, I hope, so just pick anything that
-   * typechecks *)
-  let block_to_yojson f b = `Null
-
-  let block_of_yojson f _ = Ok (fun l -> List.hd_exn l)
+  [@@deriving show, eq, yojson, ord]
 
   (* uuid *)
-  type uuid = Uuidm.t [@@deriving show, eq, compare]
+  type uuid = Uuidm.t [@@deriving show, eq, ord]
 
   let uuid_to_yojson uuid = `String (Uuidm.to_string uuid)
 
@@ -293,7 +278,7 @@ module RuntimeT = struct
   let sexp_of_uuid u = Sexp.Atom (Uuidm.to_string u)
 
   (* time *)
-  type time = Time.Stable.With_utc_sexp.V2.t [@@deriving compare]
+  type time = Time.Stable.With_utc_sexp.V2.t [@@deriving ord]
 
   let pp_time f (t : time) = Format.fprintf f "%s" (Util.isostring_of_date t)
 
@@ -446,7 +431,7 @@ module RuntimeT = struct
     | DCharacter of Unicode_string.Character.t
     | DResult of resultT
     | DBytes of RawBytes.t
-  [@@deriving show {with_path = false}, eq, yojson, compare]
+  [@@deriving show {with_path = false}, eq, ord, yojson]
 
   type dval_list = dval list
 
