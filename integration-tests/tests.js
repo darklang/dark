@@ -968,10 +968,13 @@ test("empty_fn_never_called_result", async t => {
     .ok()
     .expect(Selector(".return-value").innerText)
     .contains("This function has not yet been called - please call this function");
-});
-
-test("test-empty_fn_been_called_result", async t => {
-  await t
+  });
+  
+  test("empty_fn_been_called_result", async t => {
+    await t
+    .expect(available(".execution-button"))
+    .ok()
+    .click(".execution-button")
     .navigateTo("#fn=602952746")
     .click(".id-1276585567")
     .expect(available(".return-value .msg"))
