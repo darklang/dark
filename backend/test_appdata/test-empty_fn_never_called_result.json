@@ -1,0 +1,25 @@
+[
+  [ "TLSavepoint", 602952746 ],
+  [
+    "SetFunction",
+    {
+      "tlid": 602952746,
+      "metadata": {
+        "name": [ "Filled", 1559944598, "fn_881219155" ],
+        "parameters": [
+          {
+            "name": [ "Filled", 1698751239, "x" ],
+            "tipe": [ "Filled", 763760730, [ "TInt" ] ],
+            "block_args": [],
+            "optional": false,
+            "description": ""
+          }
+        ],
+        "return_type": [ "Filled", 1057196671, [ "TAny" ] ],
+        "description": "",
+        "infix": false
+      },
+      "ast": [ "Blank", 1276585567 ]
+    }
+  ]
+]
