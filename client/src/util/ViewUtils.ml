@@ -295,13 +295,13 @@ let fnForToken (functions : Functions.t) token : function_ option =
 module PrettyDocs = struct
   let tagEx = "^(.*)\\<(\\w+)\\s(.+)\\>(.*)$"
 
-  let codeEx = "^(.*)\\{(.+)\\}(.*)$"
+  let codeEx = "^(.*)[{]{2}(.+)[}]{2}(.*)$"
 
   let codeClass = "code"
 
   let nestedTag = Regex.regex "\\<\\w+\\s[^>]*<\\w+\\s[^<]*\\>.*\\>"
 
-  let nestedCodeBlock = Regex.regex "\\{[^}]*\\{[^{]*\\}.*\\}"
+  let nestedCodeBlock = Regex.regex "[{]{2}.*[{]{2}.*[}]{2}.*[}]{2}"
 
   let validTags = ["param"; "fn"; "var"; "type"; "return"; "err"; "cmd"]
 
