@@ -163,9 +163,9 @@ let fromKeyboardEvent
   (*~*~*~*~ HERE BE DRAGONS ~*~*~*~*
    * alt-x opens command palatte.
    *
-   * TODO: delete this: we've switched to Ctrl-\ for command palette,
-   * as Alt-something was unreliable on different keyboard layouts.
-   * We keep this in temporarily (Mar 23, 2020) to allow a transition.
+   * Since Alt-something is unreliable on different keyboard layouts, We
+   * check for Alt-X, Ctrl-s and Ctrl-\ when opening the command palette.
+   * 
    *
    * On macOS, is key = '≈', which we have to hack in with bucklescript JS
    * literals because OCaml is terrible.
@@ -188,9 +188,11 @@ let fromKeyboardEvent
    * points to the fact that it may be easier to do shortcuts with Cmd/Ctrl
    * instead of Alt. *)
   | "x" when alt ->
-      CommandPalette LegacyShortcut
+      CommandPalette CurrentShortcut
   | _ when alt && String.length key = 1 ->
-      if key = {js|≈|js} then CommandPalette LegacyShortcut else Unhandled key
+      if key = {js|≈|js}
+      then CommandPalette CurrentShortcut
+      else Unhandled key
   | _ ->
       Unhandled key
 
