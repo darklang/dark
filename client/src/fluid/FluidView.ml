@@ -164,20 +164,37 @@ let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
           | _ ->
               false
         in
-        let isIncomplete =
-          (* Since HTTP and userFunctions are the case where Incomplete return is likely to case and error, we only want to highlight those cases.  *)
-          if Toplevel.isHTTPHandler vs.tl || Toplevel.isUserFunction vs.tl
-          then match dval with DIncomplete _ -> true | _ -> false
-          else false
+        let incompleteTxt =
+          (* Since HTTP and userFunctions are the case where Incomplete return is likely to case and error,
+           * we only want to highlight those cases. *)
+          match (dval, vs.tl) with
+          | DIncomplete _, TLHandler h ->
+            ( match SpecHeaders.spaceOf h.spec with
+            | HSHTTP ->
+                Some "Your code needs to return a value in the last expression"
+            | HSCron | HSWorker | HSRepl | HSDeprecatedOther ->
+                None )
+          | DIncomplete _, TLFunc f ->
+            ( match vs.traces with
+            | [(tid, _)] when tid = Analysis.defaultTraceIDForTL ~tlid:f.ufTLID
+              ->
+                Some
+                  "This function has not yet been called - please call this function"
+            | _ ->
+                Some "Your code needs to return a value in the last expression"
+            )
+          | _, TLFunc _
+          | _, TLHandler _
+          | _, TLDB _
+          | _, TLTipe _
+          | _, TLGroup _ ->
+              None
         in
         let auxText =
-          if isIncomplete
-          then
-            Html.span
-              [Html.class' "msg"]
-              [ Html.text
-                  "Your code needs to return a value in the last expression" ]
-          else Vdom.noNode
+          incompleteTxt
+          |> Option.map ~f:(fun txt ->
+                 Html.span [Html.class' "msg"] [Html.text txt])
+          |> Option.withDefault ~default:Vdom.noNode
         in
         let dvalString = Runtime.toRepr dval in
         let newLine =
@@ -190,7 +207,7 @@ let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
           [ Html.classList
               [ ("return-value", true)
               ; ("refreshed", isRefreshed)
-              ; ("incomplete", isIncomplete) ] ]
+              ; ("incomplete", incompleteTxt <> None) ] ]
           ([Html.text "This trace returns: "; newLine] @ viewDval @ [auxText])
     | _ ->
         Vdom.noNode

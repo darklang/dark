@@ -676,6 +676,16 @@ let sidebar_opens_function (_m : model) : testResult =
   pass
 
 
+let empty_fn_never_called_result (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
+let empty_fn_been_called_result (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let sha256hmac_for_aws (_m : model) : testResult =
   (* The test logic is in tests.js *)
   pass
@@ -860,6 +870,10 @@ let trigger (test_name : string) : integrationTestState =
         max_callstack_bug
     | "sidebar_opens_function" ->
         sidebar_opens_function
+    | "empty_fn_never_called_result" ->
+        empty_fn_never_called_result
+    | "empty_fn_been_called_result" ->
+        empty_fn_been_called_result
     | "sha256hmac_for_aws" ->
         sha256hmac_for_aws
     | "fluid_fn_pg_change" ->
