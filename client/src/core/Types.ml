@@ -987,19 +987,18 @@ and fnpMsg =
   | Reset
 
 (* Sidebar state *)
-and sidebarVariant =
+and sidebarMode =
   | DetailedMode
   | AbridgedMode
 
 and sidebarState =
-  { mode : sidebarVariant
-  ; onCategory : string option }
+  { mode : sidebarMode
+  ; openedCategories : StrSet.t }
 
 and sidebarMsg =
   | ToggleSidebarMode
-  | SetOnCategory of string
-  | UnfoucsSidebar
   | ResetSidebar
+  | MarkCategoryOpen of bool * string
 
 (* ------------------- *)
 (* Modifications *)
@@ -1335,7 +1334,6 @@ and msg =
   | StartMigration of TLID.t
   | AbandonMigration of TLID.t
   | DeleteColInDB of TLID.t * ID.t
-  | MarkRoutingTableOpen of bool * string
   | CreateDBTable
   | ClipboardCopyEvent of clipboardEvent
   | ClipboardCutEvent of clipboardEvent
@@ -1675,9 +1673,8 @@ and model =
   ; origin : string
   ; environment : string
   ; csrfToken : string
-  ; routingTableOpenDetails : StrSet.t
-  ; usedFns : int StrDict.t
   ; usedDBs : int StrDict.t
+  ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
   ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys : staticDeploy list
@@ -1727,7 +1724,6 @@ and savedUserSettings = {showUserWelcomeModal : bool}
 and savedSettings =
   { editorSettings : editorSettings
   ; cursorState : cursorState
-  ; routingTableOpenDetails : StrSet.t
   ; tlTraceIDs : tlTraceIDs
   ; featureFlags : flagsVS
   ; handlerProps : handlerProp TLIDDict.t
