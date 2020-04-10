@@ -103,6 +103,70 @@ let op_to_fluid_op (op : RuntimeT.expr op) : Types.fluid_expr op =
       DeleteTypeForever tlid
 
 
+let op_of_fluid_op (op : Types.fluid_expr op) : RuntimeT.expr op =
+  match op with
+  | SetHandler (tlid, pos, h) ->
+      SetHandler (tlid, pos, Toplevel.handler_of_fluid h)
+  | CreateDB (tlid, pos, str) ->
+      CreateDB (tlid, pos, str)
+  | AddDBCol (tlid, id1, id2) ->
+      AddDBCol (tlid, id1, id2)
+  | SetDBColName (tlid, id, str) ->
+      SetDBColName (tlid, id, str)
+  | ChangeDBColName (tlid, id, str) ->
+      ChangeDBColName (tlid, id, str)
+  | SetDBColType (tlid, id, str) ->
+      SetDBColType (tlid, id, str)
+  | ChangeDBColType (tlid, id, str) ->
+      ChangeDBColType (tlid, id, str)
+  | DeprecatedInitDbm (tlid, id1, id2, id3, kind) ->
+      DeprecatedInitDbm (tlid, id1, id2, id3, kind)
+  | SetExpr (tlid, id, expr) ->
+      SetExpr (tlid, id, Fluid.fromFluidExpr expr)
+  | TLSavepoint tlid ->
+      TLSavepoint tlid
+  | UndoTL tlid ->
+      UndoTL tlid
+  | RedoTL tlid ->
+      RedoTL tlid
+  | DeleteTL tlid ->
+      DeleteTL tlid
+  | MoveTL (tlid, pos) ->
+      MoveTL (tlid, pos)
+  | SetFunction f ->
+      SetFunction (Toplevel.user_fn_of_fluid f)
+  | DeleteFunction tlid ->
+      DeleteFunction tlid
+  | CreateDBMigration (tlid, id1, id2, l) ->
+      CreateDBMigration (tlid, id1, id2, l)
+  | AddDBColToDBMigration (tlid, id1, id2) ->
+      AddDBColToDBMigration (tlid, id1, id2)
+  | SetDBColNameInDBMigration (tlid, id, str) ->
+      SetDBColNameInDBMigration (tlid, id, str)
+  | SetDBColTypeInDBMigration (tlid, id, str) ->
+      SetDBColTypeInDBMigration (tlid, id, str)
+  | AbandonDBMigration tlid ->
+      AbandonDBMigration tlid
+  | DeleteColInDBMigration (tlid, id) ->
+      DeleteColInDBMigration (tlid, id)
+  | DeleteDBCol (tlid, id) ->
+      DeleteDBCol (tlid, id)
+  | RenameDBname (tlid, str) ->
+      RenameDBname (tlid, str)
+  | CreateDBWithBlankOr (tlid, pos, id, str) ->
+      CreateDBWithBlankOr (tlid, pos, id, str)
+  | DeleteTLForever tlid ->
+      DeleteTLForever tlid
+  | DeleteFunctionForever tlid ->
+      DeleteFunctionForever tlid
+  | SetType ut ->
+      SetType ut
+  | DeleteType tlid ->
+      DeleteType tlid
+  | DeleteTypeForever tlid ->
+      DeleteTypeForever tlid
+
+
 let event_name_of_op (op : 'expr_type op) : string =
   match op with
   | SetHandler _ ->
@@ -247,6 +311,10 @@ type 'expr_type oplist = 'expr_type op list
 
 let oplist_to_fluid (oplist : RuntimeT.expr oplist) : Types.fluid_expr oplist =
   List.map oplist ~f:op_to_fluid_op
+
+
+let oplist_of_fluid (oplist : Types.fluid_expr oplist) : RuntimeT.expr oplist =
+  List.map oplist ~f:op_of_fluid_op
 
 
 let required_context_to_validate_oplist (oplist : 'expr_type oplist) :
