@@ -11,11 +11,13 @@ let run () =
       test "captures has matches" (fun () ->
           expect (Regex.captures ~re:(Regex.regex tagEx) "<type Option>")
           |> toEqual ["<type Option>"; ""; "type"; "Option"; ""]) ;
-      test "captures {code block}" (fun () ->
+      test "captures code block" (fun () ->
           expect
-            (Regex.captures ~re:(Regex.regex codeEx) "for example: {let a = 1}")
+            (Regex.captures
+               ~re:(Regex.regex codeEx)
+               "for example: {{let a = 1}}")
           |> toEqual
-               ["for example: {let a = 1}"; "for example: "; "let a = 1"; ""]) ;
+               ["for example: {{let a = 1}}"; "for example: "; "let a = 1"; ""]) ;
       ()) ;
   describe "PrettyDocs" (fun () ->
       test "convert_ catches invalid tags" (fun () ->
@@ -28,21 +30,21 @@ let run () =
           |> toEqual
                (ParseFail [("<type <var bad bunny>>", "contains nested tags")])) ;
       test "convert_ catches nested code blocks" (fun () ->
-          expect (convert_ "{Just {ok}}")
+          expect (convert_ "{{Just {{ok}} }}")
           |> toEqual
-               (ParseFail [("{Just {ok}}", "contains nested code blocks")])) ;
+               (ParseFail [("{{Just {{ok}} }}", "contains nested code blocks")])) ;
       test "converts tagged string" (fun () ->
           expect (convert "takes in <type Option>")
           |> toEqual [txt "takes in "; tag "type" [txt "Option"]]) ;
       test "converts normal string" (fun () ->
           expect (convert "Bye") |> toEqual [txt "Bye"]) ;
       test "converts constructors" (fun () ->
-          expect (convert "{Ok <var value>}")
+          expect (convert "{{Ok <var value>}}")
           |> toEqual [tag "code" [txt "Ok "; tag "var" [txt "value"]]]) ;
       test "converts string with multiple tags and a constructor" (fun () ->
           expect
             (convert
-               "<return Returns> an <type Result>. If it is {Error <var message>}, then it will go to error rail")
+               "<return Returns> an <type Result>. If it is {{Error <var message>}}, then it will go to error rail")
           |> toEqual
                [ tag "return" [txt "Returns"]
                ; txt " an "
