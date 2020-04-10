@@ -3347,6 +3347,12 @@ let doExplicitInsert
         ( EPartial (newID, str, oldExpr)
         , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
     in
+    let mkLeftPartial (oldExpr : E.t) : (E.t * caretTarget) option =
+      let id = gid () in
+      Some
+        ( ELeftPartial (id, extendedGraphemeCluster, oldExpr)
+        , {astRef = ARPartial id; offset = currOffset + caretDelta} )
+    in
     match (currAstRef, expr) with
     | ARString (_, kind), EString (id, str) ->
         let len = String.length str in
@@ -3423,6 +3429,7 @@ let doExplicitInsert
         let str = oldStr |> mutation |> String.trim in
         Some (ERightPartial (id, str, oldValue), currCTPlusLen)
     | ARPartial _, ELeftPartial (id, str, expr) ->
+        (* appending to a left partial appends to the string part *)
         let str = str |> mutation |> String.trim in
         Some (ELeftPartial (id, str, expr), currCTPlusLen)
     | ARBinOp _, (EBinOp (_, op, _, _, _) as oldExpr) ->
@@ -3477,13 +3484,25 @@ let doExplicitInsert
           "doExplicitInsert - ARFieldAccess-FAPFieldOp is unhandled and doesn't seem to happen in practice"
           ~debug:old
           None
-    | ARVariable _, (E.EVariable (_, varName) as oldExpr) ->
-        mkPartial (mutation varName) oldExpr
-    | ARNull _, (E.ENull _ as oldExpr) ->
-        mkPartial (mutation "null") oldExpr
-    | ARBool _, (E.EBool (_, bool) as oldExpr) ->
+    | ARVariable _, E.EVariable _ when currCaretTarget.offset = 0 ->
+        (* inserting at the beginning of a variable turns it into a left partial *)
+        mkLeftPartial expr
+    | ARVariable _, E.EVariable (_, varName) ->
+        (* inserting in the middle or at the end of a variable turns it into a partial *)
+        mkPartial (mutation varName) expr
+    | ARNull _, E.ENull _ when currCaretTarget.offset = 0 ->
+        (* inserting at the beginning of null turns it into a left partial *)
+        mkLeftPartial expr
+    | ARNull _, E.ENull _ ->
+        (* inserting in the middle or at the end of null turns it into a partial *)
+        mkPartial (mutation "null") expr
+    | ARBool _, E.EBool _ when currCaretTarget.offset = 0 ->
+        (* inserting at the beginning of a bool turns it into a left partial *)
+        mkLeftPartial expr
+    | ARBool _, E.EBool (_, bool) ->
+        (* inserting in the middle or at the end of a bool turns it into a partial *)
         let str = if bool then "true" else "false" in
-        mkPartial (mutation str) oldExpr
+        mkPartial (mutation str) expr
     | ARLet (_, LPVarName), ELet (id, oldName, value, body) ->
         let newName = mutation oldName in
         if FluidUtil.isValidIdentifier newName
@@ -3495,11 +3514,12 @@ let doExplicitInsert
         else None
     | ARBlank _, _ ->
         maybeInsertInBlankExpr extendedGraphemeCluster
-    | ARFnCall _, (EFnCall _ as fn) ->
-        let id = gid () in
-        Some
-          ( ELeftPartial (id, extendedGraphemeCluster, fn)
-          , {astRef = ARPartial id; offset = currOffset + caretDelta} )
+    | ARFnCall _, EFnCall _ when currCaretTarget.offset = 0 ->
+        (* inserting at the beginning of a fn call creates a left partial *)
+        mkLeftPartial expr
+    | ARFnCall _, EFnCall (_, fnName, _, _) ->
+        (* inserting in the middle or at the end of a fn call creates a partial *)
+        mkPartial (mutation fnName) expr
     (*
      * Things you can't edit but probably should be able to edit
      *)

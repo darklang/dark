@@ -761,7 +761,7 @@ let toHumanReadable (expr : t) : string =
       | ERightPartial (_, str, e) ->
           Printf.sprintf {|(rpartial "%s" %s)|} str (r e)
       | ELeftPartial (_, str, e) ->
-          Printf.sprintf {|(prefixPartial "%s" %s)|} str (r e)
+          Printf.sprintf {|(lpartial "%s" %s)|} str (r e)
       | EFnCall (_, name, [], _) ->
           Printf.sprintf "(fn \"%s\")" name
       | EFnCall (_, name, exprs, _) ->
