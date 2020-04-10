@@ -880,6 +880,84 @@ let save_test (c : 'expr_type canvas) : string =
 
 
 (* --------------- *)
+(* Validate fluid *)
+(* --------------- *)
+(* Types for fluid validation which have an `equal` function that papers over
+ * superficial differences that occur as part of the conversion process (eg ids
+ * don't need to be equal). It's done this way so that we can inject the
+ * non-derived equality function, but use all the other derived equality
+ * functions. *)
+type id_insensitive_expr = RTT.expr [@@deriving show]
+
+let equal_id_insensitive_expr
+    (e1 : id_insensitive_expr) (e2 : id_insensitive_expr) =
+  Fluid.testExprEqualIgnoringIds e1 e2
+
+
+type id_insensitive_fluid_expr = fluid_expr [@@deriving show]
+
+let equal_id_insensitive_fluid_expr
+    (e1 : id_insensitive_fluid_expr) (e2 : id_insensitive_fluid_expr) =
+  Libshared.FluidExpression.testEqualIgnoringIds e1 e2
+
+
+type id_insensitive_expr_canvas = id_insensitive_expr canvas
+[@@deriving show, eq]
+
+type id_insensitive_fluid_expr_canvas = id_insensitive_fluid_expr canvas
+[@@deriving show, eq]
+
+type id_insensitive_expr_oplist = id_insensitive_expr Op.oplist
+[@@deriving show, eq]
+
+type id_insensitive_fluid_expr_oplist = id_insensitive_fluid_expr Op.oplist
+[@@deriving show, eq]
+
+let validate_roundtrip_to_fluid (c : RTT.expr canvas) : (unit, string) Result.t
+    =
+  (* fluid to expr creates new ids, but so does expr to fluid. Check
+   * structure of both identical, ignoring ids *)
+  let all_ops = c.ops |> Op.tlid_oplists2oplist in
+  let all_roundtripped_ops =
+    all_ops |> Op.oplist_to_fluid |> Op.oplist_of_fluid
+  in
+  let roundtrip_valid =
+    equal_id_insensitive_expr_oplist all_ops all_roundtripped_ops
+  in
+  if roundtrip_valid
+  then Ok ()
+  else
+    (* Log.inspecT "all_ops" ~f:show_expr_oplist all_ops ; *)
+    (* Log.inspecT *)
+    (*   "all_roundtripped_ops" *)
+    (*   ~f:show_expr_oplist *)
+    (*   all_roundtripped_ops ; *)
+    Error ("roundtrip not valid: " ^ c.host)
+
+
+let is_valid_roundtrip_of_fluid (c : Types.fluid_expr canvas) :
+    (unit, string) Result.t =
+  (* fluid to expr creates new ids, but so does expr to fluid. Check
+   * structure of both identical, ignoring ids *)
+  let all_ops = c.ops |> Op.tlid_oplists2oplist in
+  let all_roundtripped_ops =
+    all_ops |> Op.oplist_of_fluid |> Op.oplist_to_fluid
+  in
+  let roundtrip_valid =
+    equal_id_insensitive_fluid_expr_oplist all_ops all_roundtripped_ops
+  in
+  if roundtrip_valid
+  then Ok ()
+  else
+    (* Log.inspecT "all_ops" ~f:show_expr_oplist all_ops ; *)
+    (* Log.inspecT *)
+    (*   "all_roundtripped_ops" *)
+    (*   ~f:show_expr_oplist *)
+    (*   all_roundtripped_ops ; *)
+    Error ("fluid roundtrip not valid: " ^ c.host)
+
+
+(* --------------- *)
 (* Validate canvases *)
 (* --------------- *)
 
@@ -907,7 +985,11 @@ let validate_host host : (unit, string) Result.t =
     match load_all host [] with
     | Ok c ->
         let all_ops = !c.ops |> Op.tlid_oplists2oplist in
-        let ops_valid = Tc.List.all all_ops ~f:is_valid_op in
+        let ops_valid =
+          if Tc.List.all all_ops ~f:is_valid_op
+          then Ok ()
+          else Error "Ops are not valid"
+        in
         let cache_valid =
           try
             let tlids =
@@ -915,14 +997,17 @@ let validate_host host : (unit, string) Result.t =
               |> List.map ~f:Op.tlidOf
               |> List.dedup_and_sort ~compare:compare_tlid
             in
-            host |> load_tlids_from_cache ~tlids |> Result.is_ok
-          with _ -> false
+            load_tlids_from_cache ~tlids host
+            |> Tc.Result.map_error String.concat
+            |> Tc.Result.andThen ~f:(fun c ->
+                   let roundtripped = !c |> to_fluid |> of_fluid in
+                   if equal_id_insensitive_expr_canvas !c roundtripped
+                   then Ok ()
+                   else Error ("cache roundtrip not valid: " ^ host))
+          with e -> Error "couldn't load cache"
         in
-        if ops_valid && cache_valid
-        then Ok ()
-        else if not ops_valid
-        then Error ("Invalid ops in " ^ host)
-        else Error ("Invalid cache in " ^ host)
+        Tc.Result.combine [ops_valid; cache_valid]
+        |> Tc.Result.map (fun _ -> ())
     | Error errs ->
         Error ("can't load " ^ host ^ ":\n" ^ Tc.String.join ~sep:", " errs)
   with e -> Error ("Invalid canvas " ^ host ^ ":\n" ^ Exception.to_string e)
