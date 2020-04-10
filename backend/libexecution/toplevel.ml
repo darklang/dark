@@ -98,13 +98,49 @@ let handler_to_fluid (h : expr RuntimeT.HandlerT.handler) :
   {ast = Fluid.toFluidExpr h.ast; spec = h.spec; tlid = h.tlid}
 
 
+let handler_of_fluid (h : fluid_expr RuntimeT.HandlerT.handler) :
+    expr RuntimeT.HandlerT.handler =
+  {ast = Fluid.fromFluidExpr h.ast; spec = h.spec; tlid = h.tlid}
+
+
+let db_migration_to_fluid (dbm : expr RuntimeT.DbT.db_migration) :
+    fluid_expr RuntimeT.DbT.db_migration =
+  { starting_version = dbm.starting_version
+  ; version = dbm.version
+  ; state = dbm.state
+  ; rollforward = Fluid.toFluidExpr dbm.rollforward
+  ; rollback = Fluid.toFluidExpr dbm.rollback
+  ; cols = dbm.cols }
+
+
+let db_migration_of_fluid (dbm : fluid_expr RuntimeT.DbT.db_migration) :
+    expr RuntimeT.DbT.db_migration =
+  { starting_version = dbm.starting_version
+  ; version = dbm.version
+  ; state = dbm.state
+  ; rollforward = Fluid.fromFluidExpr dbm.rollforward
+  ; rollback = Fluid.fromFluidExpr dbm.rollback
+  ; cols = dbm.cols }
+
+
 let db_to_fluid (db : expr RuntimeT.DbT.db) : fluid_expr RuntimeT.DbT.db =
   { cols = db.cols
   ; name = db.name
   ; tlid = db.tlid
   ; version = db.version
-  ; old_migrations = []
-  ; active_migration = None }
+  ; old_migrations = List.map ~f:db_migration_to_fluid db.old_migrations
+  ; active_migration = Option.map ~f:db_migration_to_fluid db.active_migration
+  }
+
+
+let db_of_fluid (db : fluid_expr RuntimeT.DbT.db) : expr RuntimeT.DbT.db =
+  { cols = db.cols
+  ; name = db.name
+  ; tlid = db.tlid
+  ; version = db.version
+  ; old_migrations = List.map ~f:db_migration_of_fluid db.old_migrations
+  ; active_migration = Option.map ~f:db_migration_of_fluid db.active_migration
+  }
 
 
 let to_fluid (tl : expr toplevel) : fluid_expr toplevel =
@@ -118,8 +154,23 @@ let to_fluid (tl : expr toplevel) : fluid_expr toplevel =
   {tlid = tl.tlid; pos = tl.pos; data = fluid_data}
 
 
+let of_fluid (tl : fluid_expr toplevel) : expr toplevel =
+  let fluid_data =
+    match tl.data with
+    | Handler h ->
+        Handler (handler_of_fluid h)
+    | DB db ->
+        DB (db_of_fluid db)
+  in
+  {tlid = tl.tlid; pos = tl.pos; data = fluid_data}
+
+
 let user_fn_to_fluid (fn : expr user_fn) : fluid_expr user_fn =
   {tlid = fn.tlid; metadata = fn.metadata; ast = Fluid.toFluidExpr fn.ast}
+
+
+let user_fn_of_fluid (fn : fluid_expr user_fn) : expr user_fn =
+  {tlid = fn.tlid; metadata = fn.metadata; ast = Fluid.fromFluidExpr fn.ast}
 
 
 (* This has a clone on the frontend in AST.ml. Any changes to
