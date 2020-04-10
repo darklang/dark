@@ -525,28 +525,28 @@ let load_without_tls host : ('expr_type canvas ref, string list) Result.t =
   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
 
 
-let load_all host (newops : 'expr_type Op.op list) :
-    ('expr_type canvas ref, string list) Result.t =
+let load_all host (newops : RTT.expr Op.op list) :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_from_db host owner newops
 
 
-let load_only_tlids ~tlids host (newops : 'expr_type Op.op list) :
-    ('expr_type canvas ref, string list) Result.t =
+let load_only_tlids ~tlids host (newops : RTT.expr Op.op list) :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
 
 
 (* Same as `load_only_tlids` but filters out deleted tlids via
  * the denormalized `deleted` attributed on toplevel_oplists *)
-let load_only_undeleted_tlids ~tlids host (newops : 'expr_type Op.op list) :
-    ('expr_type canvas ref, string list) Result.t =
+let load_only_undeleted_tlids ~tlids host (newops : RTT.expr Op.op list) :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_undeleted_tlids ~tlids) host owner newops
 
 
-let load_with_dbs ~tlids host (newops : 'expr_type Op.op list) :
-    ('expr_type canvas ref, string list) Result.t =
+let load_with_dbs ~tlids host (newops : RTT.expr Op.op list) :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
 
@@ -565,7 +565,7 @@ let load_with_dbs ~tlids host (newops : 'expr_type Op.op list) :
  *)
 let load_from_cache
     ?(uncached_loader = load_only_undeleted_tlids) ~tlids host owner :
-    ('expr_type canvas ref, string list) Result.t =
+    (RTT.expr canvas ref, string list) Result.t =
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let ( fast_loaded_handlers
       , fast_loaded_dbs
@@ -623,7 +623,7 @@ let load_from_cache
          canvas)
 
 
-let load_all_from_cache host : ('expr_type canvas ref, string list) Result.t =
+let load_all_from_cache host : (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -636,7 +636,7 @@ let load_all_from_cache host : ('expr_type canvas ref, string list) Result.t =
 
 
 let load_http_from_cache ~verb ~path host :
-    ('expr_type canvas ref, string list) Result.t =
+    (RTT.expr canvas ref, string list) Result.t =
   (* Attempt to load all required toplvels via their
    * cached repr, and then go and fetch whatever we were missing*)
   let owner = Account.for_host_exn host in
@@ -649,13 +649,13 @@ let load_http_from_cache ~verb ~path host :
 
 
 let load_tlids_from_cache ~tlids host :
-    ('expr_type canvas ref, string list) Result.t =
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from_cache ~tlids host owner
 
 
 let load_tlids_with_context_from_cache ~tlids host :
-    ('expr_type canvas ref, string list) Result.t =
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let tlids =
@@ -668,7 +668,7 @@ let load_tlids_with_context_from_cache ~tlids host :
 
 
 let load_for_event_from_cache (event : Event_queue.t) :
-    ('expr_type canvas ref, string list) Result.t =
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn event.host in
   let canvas_id = Serialize.fetch_canvas_id owner event.host in
   load_from_cache
@@ -677,8 +677,7 @@ let load_for_event_from_cache (event : Event_queue.t) :
     owner
 
 
-let load_all_dbs_from_cache host : ('expr_type canvas ref, string list) Result.t
-    =
+let load_all_dbs_from_cache host : (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -688,7 +687,7 @@ let load_all_dbs_from_cache host : ('expr_type canvas ref, string list) Result.t
 
 
 let load_for_cron_checker_from_cache host :
-    ('expr_type canvas ref, string list) Result.t =
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -697,14 +696,14 @@ let load_for_cron_checker_from_cache host :
     owner
 
 
-let serialize_only (tlids : tlid list) (c : 'expr_type canvas) : unit =
+let serialize_only (tlids : tlid list) (c : RTT.expr canvas) : unit =
   try
     let munge_name module_ n =
       if Ast.blank_to_option module_ = Some "HTTP"
       then Http.route_to_postgres_pattern n
       else n
     in
-    let handler_metadata (h : 'expr_type RTT.HandlerT.handler) =
+    let handler_metadata (h : RTT.expr RTT.HandlerT.handler) =
       ( Ast.blank_to_option h.spec.name
         |> Option.map ~f:(munge_name h.spec.module_)
       , Ast.blank_to_option h.spec.module_
@@ -822,11 +821,11 @@ let serialize_only (tlids : tlid list) (c : 'expr_type canvas) : unit =
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
-let save_tlids (c : 'expr_type canvas) (tlids : tlid list) : unit =
+let save_tlids (c : RTT.expr canvas) (tlids : tlid list) : unit =
   serialize_only tlids c
 
 
-let save_all (c : 'expr_type canvas) : unit =
+let save_all (c : RTT.expr canvas) : unit =
   let tlids = List.map ~f:Tuple.T2.get1 c.ops in
   save_tlids c tlids
 
