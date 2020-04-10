@@ -53,6 +53,27 @@ let to_fluid (c : RTT.expr canvas) : Types.fluid_expr canvas =
   ; deleted_user_tipes = c.deleted_user_tipes }
 
 
+let of_fluid (c : Types.fluid_expr canvas) : RTT.expr canvas =
+  { host = c.host
+  ; owner = c.owner
+  ; id = c.id
+  ; creation_date = c.creation_date
+  ; cors_setting = c.cors_setting
+  ; package_fns = c.package_fns
+  ; ops =
+      List.map c.ops ~f:(fun (tlid, oplist) ->
+          (tlid, Op.oplist_of_fluid oplist))
+  ; handlers = IDMap.map ~f:Toplevel.of_fluid c.handlers
+  ; dbs = IDMap.map ~f:Toplevel.of_fluid c.dbs
+  ; user_functions = IDMap.map ~f:Toplevel.user_fn_of_fluid c.user_functions
+  ; user_tipes = c.user_tipes
+  ; deleted_handlers = IDMap.map ~f:Toplevel.of_fluid c.deleted_handlers
+  ; deleted_dbs = IDMap.map ~f:Toplevel.of_fluid c.deleted_dbs
+  ; deleted_user_functions =
+      IDMap.map ~f:Toplevel.user_fn_of_fluid c.deleted_user_functions
+  ; deleted_user_tipes = c.deleted_user_tipes }
+
+
 (* ------------------------- *)
 (* Toplevel *)
 (* ------------------------- *)
