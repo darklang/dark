@@ -22,7 +22,8 @@ module Private = struct
 
   type 'a expectation =
     { actual : 'a
-    ; equalityFn : 'a -> 'a -> bool }
+    ; equalityFn : 'a -> 'a -> bool
+    ; printer : 'a -> string }
 end
 
 (* ------------------ *)
@@ -162,7 +163,11 @@ let testAll (name : string) (items : 'a list) (testFn : 'a -> Private.t) : unit
 (* ------------------ *)
 (* Framework - test evaluation functions *)
 (* ------------------ *)
-let expect (actual : 'a) = {Private.actual; equalityFn = ( = )}
+let expect (actual : 'a) =
+  { Private.actual
+  ; equalityFn = ( = )
+  ; printer = Js.Json.stringifyAny >> Option.valueExn }
+
 
 let toEqual (expected : 'a) (e : 'a Private.expectation) =
   let open Private in
@@ -177,8 +182,8 @@ let toEqual (expected : 'a) (e : 'a Private.expectation) =
     { categories = !categories
     ; name = !runningTest
     ; success = Failed
-    ; actual = Js.Json.stringifyAny e.actual
-    ; expected = Js.Json.stringifyAny expected }
+    ; actual = Some (e.printer e.actual)
+    ; expected = Some (e.printer expected) }
 
 
 (** withEquality replaces the equality function used for comparing the expected
@@ -192,6 +197,11 @@ let toEqual (expected : 'a) (e : 'a Private.expectation) =
 let withEquality (equalityFn : 'a -> 'a -> bool) (e : 'a Private.expectation) :
     'a Private.expectation =
   {e with equalityFn}
+
+
+let withPrinter (printer : 'a -> string) (e : 'a Private.expectation) :
+    'a Private.expectation =
+  {e with printer}
 
 
 let pass () : Private.t =

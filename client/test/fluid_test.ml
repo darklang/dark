@@ -512,7 +512,7 @@ let t
  * that matches the [expected] structure. *)
 let tStruct
     (name : string)
-    (ast : fluidExpr)
+    (ast : FluidExpression.t)
     ~(pos : int)
     (inputs : fluidInputEvent list)
     (expected : FluidExpression.t) =
@@ -523,6 +523,7 @@ let tStruct
       let newAST, _newState = processMsg inputs s ast in
       expect (FluidAST.toExpr newAST)
       |> withEquality FluidExpression.testEqualIgnoringIds
+      |> withPrinter FluidExpression.toHumanReadable
       |> toEqual expected)
 
 
@@ -1333,7 +1334,13 @@ let run () =
         "14~6" ;
       ()) ;
   describe "Bools" (fun () ->
-      t ~expectsPartial:true "insert start of true" trueBool (ins "c") "c~true" ;
+      tStruct
+        "insert start of true creates left partial"
+        (bool true)
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" (bool true)) ;
+      (* t ~expectsPartial:true "insert start of true" trueBool (ins "c") "c~true" ; *)
       t ~expectsPartial:true "del start of true" trueBool del "~rue" ;
       t "bs start of true" trueBool bs "~true" ;
       t
@@ -1354,12 +1361,12 @@ let run () =
         "tr0~ue" ;
       t ~expectsPartial:true "del middle of true" trueBool ~pos:2 del "tr~e" ;
       t ~expectsPartial:true "bs middle of true" trueBool ~pos:2 bs "t~ue" ;
-      t
-        ~expectsPartial:true
-        "insert start of false"
-        falseBool
-        (ins "c")
-        "c~false" ;
+      tStruct
+        "insert start of false creates left partial"
+        (bool false)
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" (bool false)) ;
       t ~expectsPartial:true "del start of false" falseBool del "~alse" ;
       t "bs start of false" falseBool bs "~false" ;
       t
@@ -1851,6 +1858,19 @@ let run () =
         ~pos:7
         del
         "Int::ad~@ 5 _________" ;
+      t
+        ~expectsPartial:true
+        "inserting in middle of function creates a partial"
+        aFnCall
+        ~pos:1
+        (ins "x")
+        "Ix~nt::add 5 _________" ;
+      tStruct
+        "inserting at beginning of function creates left partial"
+        aFnCall
+        ~pos:0
+        [InsertText "i"]
+        (leftPartial "i" aFnCall) ;
       t
         ~expectsFnOnRail:true
         "change a function keeps it on the error rail"

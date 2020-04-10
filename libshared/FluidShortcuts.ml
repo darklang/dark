@@ -45,6 +45,10 @@ let rightPartial ?(id = gid ()) (str : string) (e : t) : t =
   ERightPartial (id, str, e)
 
 
+let leftPartial ?(id = gid ()) (str : string) (e : t) : t =
+  ELeftPartial (id, str, e)
+
+
 let var ?(id = gid ()) (name : string) : t = EVariable (id, name)
 
 let fieldAccess ?(id = gid ()) (expr : t) (fieldName : string) : t =

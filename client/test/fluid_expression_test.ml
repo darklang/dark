@@ -190,4 +190,28 @@ let run () =
         "partials with diff exprs"
         (partial "List::" (fn "List::empty" []))
         (partial "Dict::" (fn "List::singleton" [int 1])) ;
+      eq
+        "left partials with same values"
+        (leftPartial "List::" (fn "List::empty" []))
+        (leftPartial "List::" (fn "List::empty" [])) ;
+      neq
+        "left partials with diff strings"
+        (leftPartial "List::" (fn "List::empty" []))
+        (leftPartial "Dict::" (fn "List::empty" [])) ;
+      neq
+        "left partials with diff exprs"
+        (leftPartial "List::" (fn "List::empty" []))
+        (leftPartial "Dict::" (fn "List::singleton" [int 1])) ;
+      eq
+        "right partials with same values"
+        (rightPartial "++" (str "foo"))
+        (rightPartial "++" (str "foo")) ;
+      neq
+        "right partials with diff strings"
+        (rightPartial "=" (str "foo"))
+        (rightPartial "++" (str "foo")) ;
+      neq
+        "right partials with diff exprs"
+        (rightPartial "++" (str "foo"))
+        (rightPartial "++" (str "bar")) ;
       ())
