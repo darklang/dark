@@ -758,10 +758,12 @@ let abridged_sidebar_content_visible_on_hover (_m : model) : testResult = pass
 
 let abridged_sidebar_category_icon_click_disabled (_m : model) : testResult =
   pass
+
+
 let function_docstrings_are_valid (m : model) : testResult =
   let open ViewUtils.PrettyDocs in
   let failed =
-    m.builtInFunctions
+    m.functions.allowedFunctions
     |> List.filterMap ~f:(fun fn ->
            match convert_ fn.fnDescription with
            | ParseSuccess _ ->
