@@ -4424,7 +4424,7 @@ let run () =
           let tlid = h.hTLID in
           expect
             (let newState = m.fluidState |> moveTo 3 in
-             let _, newState =
+             let _, newState, _ =
                updateMsg
                  m
                  tlid
@@ -4432,7 +4432,7 @@ let run () =
                  (FluidInputEvent DeleteContentBackward)
                  newState
              in
-             let _, newState =
+             let _, newState, _ =
                updateMsg
                  m
                  tlid
