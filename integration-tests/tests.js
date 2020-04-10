@@ -963,7 +963,7 @@ test("sidebar_opens_function", async t => {
 test("empty_fn_never_called_result", async t => {
   await t
     .navigateTo("#fn=602952746")
-    .click("#id-1276585567")
+    .click(".id-1276585567")
     .expect(available(".return-value .msg"))
     .ok()
     .expect(Selector(".return-value").innerText)
@@ -973,7 +973,7 @@ test("empty_fn_never_called_result", async t => {
 test("test-empty_fn_been_called_result", async t => {
   await t
     .navigateTo("#fn=602952746")
-    .click("#id-1276585567")
+    .click(".id-1276585567")
     .expect(available(".return-value .msg"))
     .ok()
     .expect(Selector(".return-value").innerText)
