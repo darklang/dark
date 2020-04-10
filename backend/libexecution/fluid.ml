@@ -160,8 +160,8 @@ and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
     | EBlank id ->
         Blank id
     | ELet (id, lhs, rhs, body) ->
-        Filled
-          (id, Let (Filled (gid (), lhs), fromFluidExpr rhs, fromFluidExpr body))
+        let var = if lhs = "" then Blank (gid ()) else Filled (gid (), lhs) in
+        Filled (id, Let (var, fromFluidExpr rhs, fromFluidExpr body))
     | EIf (id, cond, thenExpr, elseExpr) ->
         Filled
           ( id
@@ -180,7 +180,7 @@ and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
           ( id
           , ObjectLiteral
               (List.map pairs ~f:(fun (k, v) ->
-                   (Types.Filled (gid (), k), fromFluidExpr v))) )
+                   (Filled (gid (), k), fromFluidExpr v))) )
     | EPipe (id, exprs) ->
       ( match exprs with
       | head :: tail ->
@@ -190,6 +190,8 @@ and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
             )
       | [] ->
           Blank id )
+    | EConstructor (id, "", exprs) ->
+        Filled (id, Constructor (Blank (gid ()), List.map ~f:r exprs))
     | EConstructor (id, name, exprs) ->
         Filled (id, Constructor (Filled (gid (), name), List.map ~f:r exprs))
     | EMatch (id, mexpr, pairs) ->
@@ -340,3 +342,108 @@ let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) :
         EPartial (id, str, toFluidExpr ~inPipe oldExpr)
     | FluidRightPartial (str, oldExpr) ->
         ERightPartial (id, str, toFluidExpr ~inPipe oldExpr) )
+
+
+(* included here as part of killing old exprs, based on
+ * FluidExpression.testEqualIgnoringIds *)
+let rec testExprEqualIgnoringIds
+    (a : Types.RuntimeT.expr) (b : Types.RuntimeT.expr) : bool =
+  let open Tc in
+  let boeq (a : string Types.or_blank) (b : string Types.or_blank) =
+    (* The old expr shouldn't have Filled "", but of course it does. *)
+    match (a, b) with
+    | (Blank _ | Partial _), (Blank _ | Partial _)
+    | Filled (_, ""), (Blank _ | Partial _)
+    | (Blank _ | Partial _), Filled (_, "") ->
+        true
+    | Filled _, (Blank _ | Partial _) ->
+        false
+    | (Blank _ | Partial _), Filled _ ->
+        false
+    | Filled (_, a), Filled (_, b) ->
+        a = b
+  in
+  let rec peq (a : Types.RuntimeT.pattern) (b : Types.RuntimeT.pattern) =
+    let peqList l1 l2 =
+      List.length l1 = List.length l2
+      && List.map2 ~f:peq l1 l2 |> List.all ~f:identity
+    in
+    match (a, b) with
+    | (Blank _ | Partial _), (Blank _ | Partial _) ->
+        true
+    | Filled _, (Blank _ | Partial _) ->
+        false
+    | (Blank _ | Partial _), Filled _ ->
+        false
+    | Filled (_, a), Filled (_, b) ->
+      ( match (a, b) with
+      | PVariable name, PVariable name' ->
+          name = name'
+      | PConstructor (name, patterns), PConstructor (name', patterns') ->
+          name = name' && peqList patterns patterns'
+      | PLiteral l, PLiteral l' ->
+          l = l'
+      | _ ->
+          false )
+  in
+  (* helpers for recursive calls *)
+  let eq = testExprEqualIgnoringIds in
+  let eq2 (e, e') (f, f') = eq e e' && eq f f' in
+  let eq3 (e, e') (f, f') (g, g') = eq e e' && eq f f' && eq g g' in
+  let eqList l1 l2 =
+    List.length l1 = List.length l2
+    && List.map2 ~f:eq l1 l2 |> List.all ~f:identity
+  in
+  match (a, b) with
+  | (Blank _ | Partial _), (Blank _ | Partial _) ->
+      true
+  | (Blank _, Filled (_, Value v) | Filled (_, Value v), Blank _)
+    when parseString v = `Unknown ->
+      (* there are some invalid strings which won't roundtrip *)
+      true
+  | Filled _, (Blank _ | Partial _) ->
+      false
+  | (Blank _ | Partial _), Filled _ ->
+      false
+  | Filled (_, a), Filled (_, b) ->
+    ( match (a, b) with
+    | Value v, Value v' ->
+        v = v'
+    | Variable v, Variable v' ->
+        v = v'
+    | Let (lhs, rhs, body), Let (lhs', rhs', body') ->
+        boeq lhs lhs' && eq2 (rhs, rhs') (body, body')
+    | If (con, thn, els), If (con', thn', els') ->
+        eq3 (con, con') (thn, thn') (els, els')
+    | ListLiteral l, ListLiteral l' ->
+        eqList l l'
+    | FnCall (name, args), FnCall (name', args') ->
+        name = name' && eqList args args'
+    | FnCallSendToRail (name, args), FnCallSendToRail (name', args') ->
+        name = name' && eqList args args'
+    | ObjectLiteral pairs, ObjectLiteral pairs' ->
+        List.map2 ~f:(fun (k, v) (k', v') -> boeq k k' && eq v v') pairs pairs'
+        |> List.all ~f:identity
+    | FieldAccess (e, f), FieldAccess (e', f') ->
+        eq e e' && boeq f f'
+    | Thread l, Thread l' ->
+        eqList l l'
+    | ( FeatureFlag (name, cond, old, knew)
+      , FeatureFlag (name', cond', old', knew') ) ->
+        boeq name name' && eq3 (cond, cond') (old, old') (knew, knew')
+    | Constructor (s, ts), Constructor (s', ts') ->
+        boeq s s' && eqList ts ts'
+    | FluidRightPartial (str, e), FluidRightPartial (str', e')
+    | FluidPartial (str, e), FluidPartial (str', e') ->
+        str = str' && eq e e'
+    | Lambda (vars, e), Lambda (vars', e') ->
+        eq e e' && List.all ~f:identity (List.map2 boeq vars vars')
+    | Match (e, branches), Match (e', branches') ->
+        eq e e'
+        && List.map2
+             ~f:(fun (p, v) (p', v') -> peq p p' && eq v v')
+             branches
+             branches'
+           |> List.all ~f:identity
+    | _ ->
+        failwith "impossible" )
