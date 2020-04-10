@@ -3943,6 +3943,7 @@ let tokensInRange
 let getTopmostSelectionID
     (ast : FluidAST.t) (s : fluidState) (startPos : int) (endPos : int) :
     ID.t option =
+  let startPos, endPos = orderRangeFromSmallToBig (startPos, endPos) in
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
   tokensInRange ast s startPos endPos
   |> List.filter ~f:(fun ti -> not (T.isNewline ti.token))
