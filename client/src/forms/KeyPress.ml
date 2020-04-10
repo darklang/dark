@@ -67,8 +67,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       See https://support.google.com/chrome/answer/157179?hl=en *)
   else if (not isMac) && event.ctrlKey && event.keyCode = Key.Y
   then undo_redo m true
-  else if osCmdKeyHeld && event.keyCode = Key.S
-  then ShowSaveToast
   else
     match m.cursorState with
     | Selecting (tlid, mId) ->
