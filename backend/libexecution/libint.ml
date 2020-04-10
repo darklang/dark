@@ -47,7 +47,7 @@ let fns : fn list =
          * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types. 
          * The current function returns DError (it used to rollbar) on negative `b`.
          *)
-    ; deprecated = true }
+    ; deprecated = false }
     (*  (* See above for when to uncomment this *)
   ; { prefix_names = ["Int::mod_v1"]
     ; infix_names = ["%_v1"]
