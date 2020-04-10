@@ -29,9 +29,11 @@ let parseString str :
   (* Only supports positive numbers for now, but we should change this once fluid supports negative numbers *)
   let is63BitInt (s : string) : bool =
     try
+      (* Use strings here as js_of_ocaml is not able to deal with int literals
+       * outside the 31-bit range *)
       let i = Int63.of_string s in
-      Int63.of_int (-4611686018427387903) <= i
-      && i <= Int63.of_int 4611686018427387903
+      Int63.of_string "-4611686018427387903" <= i
+      && i <= Int63.of_string "4611686018427387903"
     with _ -> false
   in
   let asBool =
