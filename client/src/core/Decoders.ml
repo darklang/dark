@@ -467,7 +467,7 @@ and savedUserSettings (j : Js.Json.t) : savedUserSettings =
         j }
 
 
-and sidebarVariant (j : Js.Json.t) : sidebarVariant =
+and sidebarMode (j : Js.Json.t) : sidebarMode =
   j
   |> variants
        [ ("DetailedMode", variant0 DetailedMode)
@@ -475,8 +475,9 @@ and sidebarVariant (j : Js.Json.t) : sidebarVariant =
 
 
 and sidebarState (j : Js.Json.t) : sidebarState =
-  { mode = field "mode" sidebarVariant j
-  ; onCategory = field "onCategory" (optional string) j }
+  { mode = field "mode" sidebarMode j
+  ; openedCategories =
+      withDefault StrSet.empty (field "openedCategories" strSet) j }
 
 
 and savedSettings (j : Js.Json.t) : savedSettings =
@@ -496,8 +497,6 @@ and savedSettings (j : Js.Json.t) : savedSettings =
             (field "editorSettings" (field "showFluidDebugger" bool))
             j }
   ; cursorState = withDefault Deselected (field "cursorState" cursorState) j
-  ; routingTableOpenDetails =
-      withDefault StrSet.empty (field "routingTableOpenDetails" strSet) j
   ; tlTraceIDs =
       withDefault TLIDDict.empty (field "tlTraceIDs" (strDict traceID)) j
   ; featureFlags =
