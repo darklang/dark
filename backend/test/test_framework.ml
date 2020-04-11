@@ -145,8 +145,8 @@ let t_route_variables_work_with_stored_events () =
   clear_test_data () ;
   let host = "test-route_variables_works" in
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
-  let c = ops2c_exn host oplist in
-  Canvas.serialize_only [tlid] !c ;
+  let c = ops2c_exn host oplist |> C.to_fluid_ref in
+  Canvas.serialize_only [tlid] (C.of_fluid !c) ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", http_request_path, "GET") in
   let route = ("HTTP", http_route, "GET") in
