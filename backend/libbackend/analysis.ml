@@ -381,7 +381,7 @@ type 'expr_type initial_load_rpc_result =
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
-    (c : RTT.expr canvas)
+    (c : Types.fluid_expr canvas)
     (op_ctrs : (string * int) list)
     (permission : Authorization.permission option)
     (fofs : SE.four_oh_four list)
@@ -409,7 +409,7 @@ let to_initial_load_rpc_result
   ; org_canvas_list
   ; worker_schedules
   ; creation_date = c.creation_date }
-  |> initial_load_rpc_result_to_yojson RTT.expr_to_yojson
+  |> initial_load_rpc_result_to_yojson Types.fluid_expr_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 

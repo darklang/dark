@@ -899,6 +899,7 @@ let initial_load
       time "1-load-saved-ops" (fun _ ->
           let c =
             C.load_all_from_cache canvas
+            |> Result.map ~f:(fun c -> ref (Canvas.to_fluid !c))
             |> Result.map_error ~f:(String.concat ~sep:", ")
             |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
           in
