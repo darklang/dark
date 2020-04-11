@@ -290,9 +290,7 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
 
 and handler (h : Types.handler) : Js.Json.t =
   object_
-    [ ("tlid", tlid h.hTLID)
-    ; ("spec", spec h.spec)
-    ; ("ast", h.ast |> FluidAST.toExpr |> fluidExpr) ]
+    [("tlid", tlid h.hTLID); ("spec", spec h.spec); ("ast", fluidAST h.ast)]
 
 
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
@@ -527,7 +525,7 @@ and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", uf.ufAST |> FluidAST.toExpr |> fluidExpr) ]
+    ; ("ast", fluidAST uf.ufAST) ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
@@ -708,6 +706,10 @@ and fluidPattern (pattern : FluidPattern.t) : Js.Json.t =
       ev "FPNull" [id id'; id mid]
   | FPBlank (id', mid) ->
       ev "FPBlank" [id id'; id mid]
+
+
+and fluidAST (ast : FluidAST.t) : Js.Json.t =
+  ast |> FluidAST.toExpr |> fluidExpr
 
 
 and fluidExpr (expr : FluidExpression.t) : Js.Json.t =
