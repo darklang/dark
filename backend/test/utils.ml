@@ -98,7 +98,9 @@ let check_execution_result = AT.check (AT.of_pp pp_execution_result)
 
 let check_dval_list = AT.check (AT.list at_dval)
 
-let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
+let check_tlid_oplists =
+  AT.check (AT.of_pp (Op.pp_tlid_oplists RuntimeT.pp_expr))
+
 
 let check_condition msg (v : 'a) ~(f : 'a -> bool) =
   AT.check AT.bool msg true (f v)
@@ -128,7 +130,9 @@ let check_incomplete msg dval =
   AT.check at_incomplete msg (DIncomplete SourceNone) dval
 
 
-let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
+let testable_handler =
+  AT.testable (HandlerT.pp_handler pp_expr) (HandlerT.equal_handler equal_expr)
+
 
 let testable_id = AT.testable pp_id equal_id
 
@@ -227,7 +231,7 @@ let execution_id = Int63.of_int 6542
 
 let ast_for = Expr_dsl.ast_for
 
-let handler ?(tlid = tlid) ast : HandlerT.handler =
+let handler ?(tlid = tlid) ast : 'expr_type HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -237,7 +241,7 @@ let handler ?(tlid = tlid) ast : HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
-let http_handler ?(tlid = tlid) ast : HandlerT.handler =
+let http_handler ?(tlid = tlid) ast : 'expr_type HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -252,7 +256,7 @@ let http_request_path = "/some/vars/and/such"
 let http_route = "/some/:vars/:and/such"
 
 let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
-    HandlerT.handler =
+    RuntimeT.expr HandlerT.handler =
   { tlid
   ; ast = f (Value "5")
   ; spec =
@@ -262,7 +266,7 @@ let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
       ; types = {input = b (); output = b ()} } }
 
 
-let daily_cron ast : HandlerT.handler =
+let daily_cron ast : 'expr_type HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -272,7 +276,7 @@ let daily_cron ast : HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
-let worker name ast : HandlerT.handler =
+let worker name ast : 'expr_type HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -284,7 +288,7 @@ let worker name ast : HandlerT.handler =
 
 let hop h = Op.SetHandler (tlid, pos, h)
 
-let user_fn ?(tlid = tlid) name params ast : user_fn =
+let user_fn ?(tlid = tlid) name params ast : 'expr_type user_fn =
   { tlid
   ; ast
   ; metadata =
@@ -314,12 +318,13 @@ let t4_get4th (_, _, _, x) = x
 (* ------------------- *)
 (* Execution *)
 (* ------------------- *)
-let ops2c (host : string) (ops : Op.op list) :
-    (C.canvas ref, string list) Result.t =
+let ops2c (host : string) (ops : 'expr_type Op.op list) :
+    ('expr_type C.canvas ref, string list) Result.t =
   C.init host ops
 
 
-let ops2c_exn (host : string) (ops : Op.op list) : C.canvas ref =
+let ops2c_exn (host : string) (ops : 'expr_type Op.op list) :
+    'expr_type C.canvas ref =
   C.init host ops
   |> Result.map_error ~f:(String.concat ~sep:", ")
   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
@@ -340,7 +345,7 @@ let load_test_fn_results (desc : function_desc) (args : dval list) :
 
 let test_execution_data
     ?(trace_id = Util.create_uuid ()) ?(canvas_name = "test") ops :
-    C.canvas ref * exec_state * input_vars =
+    'expr_type C.canvas ref * exec_state * input_vars =
   let c = ops2c_exn canvas_name ops in
   let vars = Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
   let canvas_id = !c.id in
@@ -372,8 +377,9 @@ let test_execution_data
 
 
 let execute_ops
-    ?(trace_id = Util.create_uuid ()) ?(canvas_name = "test") (ops : Op.op list)
-    : dval =
+    ?(trace_id = Util.create_uuid ())
+    ?(canvas_name = "test")
+    (ops : 'expr_type Op.op list) : dval =
   let ( c
       , { tlid
         ; load_fn_result

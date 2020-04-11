@@ -17,7 +17,9 @@ let t_undo_fns () =
   let n3 = hop (handler (ast_for "(- 3 _)")) in
   let n4 = hop (handler (ast_for "(- 3 4)")) in
   let u = Op.UndoTL tlid in
-  let ops (c : C.canvas ref) = !c.ops |> List.hd_exn |> Tuple.T2.get2 in
+  let ops (c : RuntimeT.expr C.canvas ref) =
+    !c.ops |> List.hd_exn |> Tuple.T2.get2
+  in
   AT.check
     AT.int
     "undocount"
@@ -354,18 +356,18 @@ let t_canvas_clone () =
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
-  let cloned_canvas : Canvas.canvas ref =
+  let cloned_canvas : RuntimeT.expr Canvas.canvas ref =
     Canvas.load_all "clone-gettingstarted" []
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
-  let cloned_canvas_from_cache : Canvas.canvas ref =
+  let cloned_canvas_from_cache : RuntimeT.expr Canvas.canvas ref =
     Canvas.load_all_from_cache "clone-gettingstarted"
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
   (* canvas.ops is not [op list], it is [(tlid, op list) list] *)
-  let canvas_ops_length (c : Canvas.canvas) =
+  let canvas_ops_length (c : RuntimeT.expr Canvas.canvas) =
     c.ops |> List.map ~f:snd |> List.join |> List.length
   in
   AT.check
@@ -377,12 +379,15 @@ let t_canvas_clone () =
     AT.bool
     "Same DBs when loading from db"
     true
-    (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas.dbs) ;
+    (Toplevel.equal_toplevels
+       RuntimeT.equal_expr
+       !sample_canvas.dbs
+       !cloned_canvas.dbs) ;
   AT.check
     AT.string
     "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
     ( !sample_canvas.handlers
-    |> Toplevel.toplevels_to_yojson
+    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
     |> Yojson.Safe.to_string
     |> fun s ->
     Libexecution.Util.string_replace
@@ -390,18 +395,21 @@ let t_canvas_clone () =
       "http://clone-gettingstarted.builtwithdark.localhost"
       s )
     ( !cloned_canvas.handlers
-    |> Toplevel.toplevels_to_yojson
+    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
     |> Yojson.Safe.to_string ) ;
   AT.check
     AT.bool
     "Same DBs when loading from cache"
     true
-    (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas_from_cache.dbs) ;
+    (Toplevel.equal_toplevels
+       RuntimeT.equal_expr
+       !sample_canvas.dbs
+       !cloned_canvas_from_cache.dbs) ;
   AT.check
     AT.string
     "Same handlers when loading from cache, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
     ( !sample_canvas.handlers
-    |> Toplevel.toplevels_to_yojson
+    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
     |> Yojson.Safe.to_string
     |> fun s ->
     Libexecution.Util.string_replace
@@ -409,7 +417,7 @@ let t_canvas_clone () =
       "http://clone-gettingstarted.builtwithdark.localhost"
       s )
     ( !cloned_canvas_from_cache.handlers
-    |> Toplevel.toplevels_to_yojson
+    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
     |> Yojson.Safe.to_string )
 
 

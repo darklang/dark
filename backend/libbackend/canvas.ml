@@ -11,23 +11,68 @@ type cors_setting =
   | Origins of string list
 [@@deriving eq, show]
 
-type canvas =
+type 'expr_type canvas =
   { host : string
   ; owner : Uuidm.t
   ; id : Uuidm.t
   ; creation_date : Time.t [@opaque]
-  ; ops : (tlid * Op.oplist) list
+  ; ops : (tlid * 'expr_type Op.oplist) list
   ; cors_setting : cors_setting option
-  ; handlers : TL.toplevels
-  ; dbs : TL.toplevels
-  ; user_functions : RTT.user_fn IDMap.t
+  ; handlers : 'expr_type TL.toplevels
+  ; dbs : 'expr_type TL.toplevels
+  ; user_functions : 'expr_type RTT.user_fn IDMap.t
   ; user_tipes : RTT.user_tipe IDMap.t
   ; package_fns : RTT.fn list [@opaque]
-  ; deleted_handlers : TL.toplevels
-  ; deleted_dbs : TL.toplevels
-  ; deleted_user_functions : RTT.user_fn IDMap.t
+  ; deleted_handlers : 'expr_type TL.toplevels
+  ; deleted_dbs : 'expr_type TL.toplevels
+  ; deleted_user_functions : 'expr_type RTT.user_fn IDMap.t
   ; deleted_user_tipes : RTT.user_tipe IDMap.t }
 [@@deriving eq, show]
+
+(* --------------- *)
+(* Convert to fluid *)
+(* --------------- *)
+let to_fluid (c : RTT.expr canvas) : Types.fluid_expr canvas =
+  { host = c.host
+  ; owner = c.owner
+  ; id = c.id
+  ; creation_date = c.creation_date
+  ; cors_setting = c.cors_setting
+  ; package_fns = c.package_fns
+  ; ops =
+      List.map c.ops ~f:(fun (tlid, oplist) ->
+          (tlid, Op.oplist_to_fluid oplist))
+  ; handlers = IDMap.map ~f:Toplevel.to_fluid c.handlers
+  ; dbs = IDMap.map ~f:Toplevel.to_fluid c.dbs
+  ; user_functions = IDMap.map ~f:Toplevel.user_fn_to_fluid c.user_functions
+  ; user_tipes = c.user_tipes
+  ; deleted_handlers = IDMap.map ~f:Toplevel.to_fluid c.deleted_handlers
+  ; deleted_dbs = IDMap.map ~f:Toplevel.to_fluid c.deleted_dbs
+  ; deleted_user_functions =
+      IDMap.map ~f:Toplevel.user_fn_to_fluid c.deleted_user_functions
+  ; deleted_user_tipes = c.deleted_user_tipes }
+
+
+let of_fluid (c : Types.fluid_expr canvas) : RTT.expr canvas =
+  { host = c.host
+  ; owner = c.owner
+  ; id = c.id
+  ; creation_date = c.creation_date
+  ; cors_setting = c.cors_setting
+  ; package_fns = c.package_fns
+  ; ops =
+      List.map c.ops ~f:(fun (tlid, oplist) ->
+          (tlid, Op.oplist_of_fluid oplist))
+  ; handlers = IDMap.map ~f:Toplevel.of_fluid c.handlers
+  ; dbs = IDMap.map ~f:Toplevel.of_fluid c.dbs
+  ; user_functions = IDMap.map ~f:Toplevel.user_fn_of_fluid c.user_functions
+  ; user_tipes = c.user_tipes
+  ; deleted_handlers = IDMap.map ~f:Toplevel.of_fluid c.deleted_handlers
+  ; deleted_dbs = IDMap.map ~f:Toplevel.of_fluid c.deleted_dbs
+  ; deleted_user_functions =
+      IDMap.map ~f:Toplevel.user_fn_of_fluid c.deleted_user_functions
+  ; deleted_user_tipes = c.deleted_user_tipes }
+
 
 (* ------------------------- *)
 (* Toplevel *)
@@ -49,7 +94,8 @@ let set_handler tlid pos data c =
   ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
 
 
-let set_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
+let set_function (user_fn : 'expr_type RuntimeT.user_fn) (c : 'expr_type canvas)
+    : 'expr_type canvas =
   (* if the fn had been deleted, remove it from the deleted set. This handles
    * a data race where a Set comes in after a Delete. *)
   { c with
@@ -58,7 +104,8 @@ let set_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
   }
 
 
-let set_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
+let set_tipe (user_tipe : RuntimeT.user_tipe) (c : 'expr_type canvas) :
+    'expr_type canvas =
   (* if the tipe had been deleted, remove it from the deleted set. This handles
    * a data race where a Set comes in after a Delete. *)
   { c with
@@ -66,7 +113,7 @@ let set_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
   ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes user_tipe.tlid }
 
 
-let delete_function (tlid : tlid) (c : canvas) : canvas =
+let delete_function (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas =
   match IDMap.find c.user_functions tlid with
   | None ->
       c
@@ -77,13 +124,14 @@ let delete_function (tlid : tlid) (c : canvas) : canvas =
       }
 
 
-let delete_function_forever (tlid : tlid) (c : canvas) : canvas =
+let delete_function_forever (tlid : tlid) (c : 'expr_type canvas) :
+    'expr_type canvas =
   { c with
     user_functions = IDMap.remove c.user_functions tlid
   ; deleted_user_functions = IDMap.remove c.deleted_user_functions tlid }
 
 
-let delete_tipe (tlid : tlid) (c : canvas) : canvas =
+let delete_tipe (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas =
   match IDMap.find c.user_tipes tlid with
   | None ->
       c
@@ -93,13 +141,15 @@ let delete_tipe (tlid : tlid) (c : canvas) : canvas =
       ; deleted_user_tipes = IDMap.set c.deleted_user_tipes tlid user_tipe }
 
 
-let delete_tipe_forever (tlid : tlid) (c : canvas) : canvas =
+let delete_tipe_forever (tlid : tlid) (c : 'expr_type canvas) :
+    'expr_type canvas =
   { c with
     user_tipes = IDMap.remove c.user_tipes tlid
   ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes tlid }
 
 
-let delete_tl_forever (tlid : tlid) (c : canvas) : canvas =
+let delete_tl_forever (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas
+    =
   { c with
     dbs = IDMap.remove c.dbs tlid
   ; handlers = IDMap.remove c.handlers tlid
@@ -107,7 +157,7 @@ let delete_tl_forever (tlid : tlid) (c : canvas) : canvas =
   ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
 
 
-let delete_toplevel (tlid : tlid) (c : canvas) : canvas =
+let delete_toplevel (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas =
   let db = IDMap.find c.dbs tlid in
   let handler = IDMap.find c.handlers tlid in
   { c with
@@ -119,20 +169,26 @@ let delete_toplevel (tlid : tlid) (c : canvas) : canvas =
 
 
 let apply_to_toplevel
-    ~(f : TL.toplevel -> TL.toplevel) (tlid : tlid) (tls : TL.toplevels) =
+    ~(f : 'expr_type TL.toplevel -> 'expr_type TL.toplevel)
+    (tlid : tlid)
+    (tls : 'expr_type TL.toplevels) =
   IDMap.change tls tlid ~f:(Option.map ~f)
 
 
 let apply_to_all_toplevels
-    ~(f : TL.toplevel -> TL.toplevel) (tlid : tlid) (c : canvas) : canvas =
+    ~(f : 'expr_type TL.toplevel -> 'expr_type TL.toplevel)
+    (tlid : tlid)
+    (c : 'expr_type canvas) : 'expr_type canvas =
   { c with
     handlers = apply_to_toplevel ~f tlid c.handlers
   ; dbs = apply_to_toplevel ~f tlid c.dbs }
 
 
-let apply_to_db ~(f : RTT.DbT.db -> RTT.DbT.db) (tlid : tlid) (c : canvas) :
-    canvas =
-  let tlf (tl : TL.toplevel) =
+let apply_to_db
+    ~(f : 'expr_type RTT.DbT.db -> 'expr_type RTT.DbT.db)
+    (tlid : tlid)
+    (c : 'expr_type canvas) : 'expr_type canvas =
+  let tlf (tl : 'expr_type TL.toplevel) =
     let data =
       match tl.data with
       | TL.DB db ->
@@ -145,7 +201,8 @@ let apply_to_db ~(f : RTT.DbT.db -> RTT.DbT.db) (tlid : tlid) (c : canvas) :
   {c with dbs = apply_to_toplevel tlid ~f:tlf c.dbs}
 
 
-let move_toplevel (tlid : tlid) (pos : pos) (c : canvas) : canvas =
+let move_toplevel (tlid : tlid) (pos : pos) (c : 'expr_type canvas) :
+    'expr_type canvas =
   apply_to_all_toplevels ~f:(fun tl -> {tl with pos}) tlid c
 
 
@@ -153,7 +210,8 @@ let move_toplevel (tlid : tlid) (pos : pos) (c : canvas) : canvas =
 (* Build *)
 (* ------------------------- *)
 
-let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
+let apply_op (is_new : bool) (op : 'expr_type Op.op) (c : 'expr_type canvas ref)
+    : unit =
   try
     c :=
       !c
@@ -221,7 +279,8 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
           ident
       | UndoTL _ | RedoTL _ ->
           Exception.internal
-            ("This should have been preprocessed out! " ^ Op.show_op op)
+            ( "This should have been preprocessed out! "
+            ^ Op.show_op (fun _ _ -> ()) op )
       | RenameDBname (tlid, name) ->
           apply_to_db ~f:(User_db.rename_db name) tlid
       | CreateDBWithBlankOr (tlid, pos, id, name) ->
@@ -243,7 +302,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
       "apply_op failure"
       ~params:
         [ ("host", !c.host)
-        ; ("op", Op.show_op op)
+        ; ("op", Op.show_op (fun _ _ -> ()) op)
         ; ("exn", Exception.to_string e) ] ;
     Exception.reraise e
 
@@ -256,7 +315,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
  * context to be loaded to appropriately verify.
  *
  * *)
-let verify (c : canvas ref) : (unit, string list) Result.t =
+let verify (c : 'expr_type canvas ref) : (unit, string list) Result.t =
   let duped_db_names =
     !c.dbs
     |> TL.dbs
@@ -278,8 +337,10 @@ let verify (c : canvas ref) : (unit, string list) Result.t =
   match duped_db_names with [] -> Ok () | dupes -> Error dupes
 
 
-let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
-    =
+let add_ops
+    (c : 'expr_type canvas ref)
+    (oldops : 'expr_type Op.op list)
+    (newops : 'expr_type Op.op list) : unit =
   let oldops = List.map ~f:(fun op -> (false, op)) oldops in
   let newops = List.map ~f:(fun op -> (true, op)) newops in
   let reduced_ops = Undo.preprocess (oldops @ newops) in
@@ -333,8 +394,8 @@ let canvas_creation_date canvas_id : Core_kernel.Time.t =
   |> Db.date_of_sqlstring
 
 
-let init (host : string) (ops : Op.op list) : (canvas ref, string list) Result.t
-    =
+let init (host : string) (ops : 'expr_type Op.op list) :
+    ('expr_type canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let creation_date = canvas_creation_date canvas_id in
@@ -384,8 +445,8 @@ let id_for_name (name : string) : Uuidm.t =
   name |> id_for_name_option |> Option.value_exn
 
 
-let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit
-    =
+let update_cors_setting
+    (c : 'expr_type canvas ref) (setting : cors_setting option) : unit =
   let cors_setting_to_db (setting : cors_setting option) : Db.param =
     match setting with
     | None ->
@@ -421,9 +482,10 @@ let url_for (id : Uuidm.t) : string =
 let load_from
     (host : string)
     (owner : Uuidm.t)
-    (newops : Op.op list)
-    ~(f : host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists) :
-    (canvas ref, string list) Result.t =
+    (newops : 'expr_type Op.op list)
+    ~(f :
+       host:string -> canvas_id:Uuidm.t -> unit -> 'expr_type Op.tlid_oplists) :
+    ('expr_type canvas ref, string list) Result.t =
   try
     let canvas_id = Serialize.fetch_canvas_id owner host in
     let cors = fetch_cors_setting canvas_id in
@@ -458,32 +520,33 @@ let load_from
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
-let load_without_tls host : (canvas ref, string list) Result.t =
+let load_without_tls host : ('expr_type canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
 
 
-let load_all host (newops : Op.op list) : (canvas ref, string list) Result.t =
+let load_all host (newops : RTT.expr Op.op list) :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_from_db host owner newops
 
 
-let load_only_tlids ~tlids host (newops : Op.op list) :
-    (canvas ref, string list) Result.t =
+let load_only_tlids ~tlids host (newops : RTT.expr Op.op list) :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
 
 
 (* Same as `load_only_tlids` but filters out deleted tlids via
  * the denormalized `deleted` attributed on toplevel_oplists *)
-let load_only_undeleted_tlids ~tlids host (newops : Op.op list) :
-    (canvas ref, string list) Result.t =
+let load_only_undeleted_tlids ~tlids host (newops : RTT.expr Op.op list) :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_undeleted_tlids ~tlids) host owner newops
 
 
-let load_with_dbs ~tlids host (newops : Op.op list) :
-    (canvas ref, string list) Result.t =
+let load_with_dbs ~tlids host (newops : RTT.expr Op.op list) :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
 
@@ -502,7 +565,7 @@ let load_with_dbs ~tlids host (newops : Op.op list) :
  *)
 let load_from_cache
     ?(uncached_loader = load_only_undeleted_tlids) ~tlids host owner :
-    (canvas ref, string list) Result.t =
+    (RTT.expr canvas ref, string list) Result.t =
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let ( fast_loaded_handlers
       , fast_loaded_dbs
@@ -560,7 +623,7 @@ let load_from_cache
          canvas)
 
 
-let load_all_from_cache host : (canvas ref, string list) Result.t =
+let load_all_from_cache host : (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -572,7 +635,8 @@ let load_all_from_cache host : (canvas ref, string list) Result.t =
     owner
 
 
-let load_http_from_cache ~verb ~path host : (canvas ref, string list) Result.t =
+let load_http_from_cache ~verb ~path host :
+    (RTT.expr canvas ref, string list) Result.t =
   (* Attempt to load all required toplvels via their
    * cached repr, and then go and fetch whatever we were missing*)
   let owner = Account.for_host_exn host in
@@ -584,13 +648,14 @@ let load_http_from_cache ~verb ~path host : (canvas ref, string list) Result.t =
     owner
 
 
-let load_tlids_from_cache ~tlids host : (canvas ref, string list) Result.t =
+let load_tlids_from_cache ~tlids host :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from_cache ~tlids host owner
 
 
 let load_tlids_with_context_from_cache ~tlids host :
-    (canvas ref, string list) Result.t =
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let tlids =
@@ -603,7 +668,7 @@ let load_tlids_with_context_from_cache ~tlids host :
 
 
 let load_for_event_from_cache (event : Event_queue.t) :
-    (canvas ref, string list) Result.t =
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn event.host in
   let canvas_id = Serialize.fetch_canvas_id owner event.host in
   load_from_cache
@@ -612,7 +677,7 @@ let load_for_event_from_cache (event : Event_queue.t) :
     owner
 
 
-let load_all_dbs_from_cache host : (canvas ref, string list) Result.t =
+let load_all_dbs_from_cache host : (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -621,7 +686,8 @@ let load_all_dbs_from_cache host : (canvas ref, string list) Result.t =
     owner
 
 
-let load_for_cron_checker_from_cache host : (canvas ref, string list) Result.t =
+let load_for_cron_checker_from_cache host :
+    (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -630,14 +696,14 @@ let load_for_cron_checker_from_cache host : (canvas ref, string list) Result.t =
     owner
 
 
-let serialize_only (tlids : tlid list) (c : canvas) : unit =
+let serialize_only (tlids : tlid list) (c : RTT.expr canvas) : unit =
   try
     let munge_name module_ n =
       if Ast.blank_to_option module_ = Some "HTTP"
       then Http.route_to_postgres_pattern n
       else n
     in
-    let handler_metadata (h : RTT.HandlerT.handler) =
+    let handler_metadata (h : RTT.expr RTT.HandlerT.handler) =
       ( Ast.blank_to_option h.spec.name
         |> Option.map ~f:(munge_name h.spec.module_)
       , Ast.blank_to_option h.spec.module_
@@ -755,9 +821,11 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
-let save_tlids (c : canvas) (tlids : tlid list) : unit = serialize_only tlids c
+let save_tlids (c : RTT.expr canvas) (tlids : tlid list) : unit =
+  serialize_only tlids c
 
-let save_all (c : canvas) : unit =
+
+let save_all (c : RTT.expr canvas) : unit =
   let tlids = List.map ~f:Tuple.T2.get1 c.ops in
   save_tlids c tlids
 
@@ -787,7 +855,7 @@ let load_and_resave_from_test_file (host : string) : unit =
   save_all !c
 
 
-let minimize (c : canvas) : canvas =
+let minimize (c : 'expr_type canvas) : 'expr_type canvas =
   (* TODO *)
   (* let ops = *)
   (*   c.ops *)
@@ -797,7 +865,7 @@ let minimize (c : canvas) : canvas =
   c
 
 
-let save_test (c : canvas) : string =
+let save_test (c : 'expr_type canvas) : string =
   let c = minimize c in
   let host = "test-" ^ c.host in
   let file = Serialize.json_filename host in
@@ -809,6 +877,84 @@ let save_test (c : canvas) : string =
   let file = Serialize.json_filename host in
   Serialize.save_json_to_disk ~root:Testdata file c.ops ;
   file
+
+
+(* --------------- *)
+(* Validate fluid *)
+(* --------------- *)
+(* Types for fluid validation which have an `equal` function that papers over
+ * superficial differences that occur as part of the conversion process (eg ids
+ * don't need to be equal). It's done this way so that we can inject the
+ * non-derived equality function, but use all the other derived equality
+ * functions. *)
+type id_insensitive_expr = RTT.expr [@@deriving show]
+
+let equal_id_insensitive_expr
+    (e1 : id_insensitive_expr) (e2 : id_insensitive_expr) =
+  Fluid.testExprEqualIgnoringIds e1 e2
+
+
+type id_insensitive_fluid_expr = fluid_expr [@@deriving show]
+
+let equal_id_insensitive_fluid_expr
+    (e1 : id_insensitive_fluid_expr) (e2 : id_insensitive_fluid_expr) =
+  Libshared.FluidExpression.testEqualIgnoringIds e1 e2
+
+
+type id_insensitive_expr_canvas = id_insensitive_expr canvas
+[@@deriving show, eq]
+
+type id_insensitive_fluid_expr_canvas = id_insensitive_fluid_expr canvas
+[@@deriving show, eq]
+
+type id_insensitive_expr_oplist = id_insensitive_expr Op.oplist
+[@@deriving show, eq]
+
+type id_insensitive_fluid_expr_oplist = id_insensitive_fluid_expr Op.oplist
+[@@deriving show, eq]
+
+let validate_roundtrip_to_fluid (c : RTT.expr canvas) : (unit, string) Result.t
+    =
+  (* fluid to expr creates new ids, but so does expr to fluid. Check
+   * structure of both identical, ignoring ids *)
+  let all_ops = c.ops |> Op.tlid_oplists2oplist in
+  let all_roundtripped_ops =
+    all_ops |> Op.oplist_to_fluid |> Op.oplist_of_fluid
+  in
+  let roundtrip_valid =
+    equal_id_insensitive_expr_oplist all_ops all_roundtripped_ops
+  in
+  if roundtrip_valid
+  then Ok ()
+  else
+    (* Log.inspecT "all_ops" ~f:show_expr_oplist all_ops ; *)
+    (* Log.inspecT *)
+    (*   "all_roundtripped_ops" *)
+    (*   ~f:show_expr_oplist *)
+    (*   all_roundtripped_ops ; *)
+    Error ("roundtrip not valid: " ^ c.host)
+
+
+let is_valid_roundtrip_of_fluid (c : Types.fluid_expr canvas) :
+    (unit, string) Result.t =
+  (* fluid to expr creates new ids, but so does expr to fluid. Check
+   * structure of both identical, ignoring ids *)
+  let all_ops = c.ops |> Op.tlid_oplists2oplist in
+  let all_roundtripped_ops =
+    all_ops |> Op.oplist_of_fluid |> Op.oplist_to_fluid
+  in
+  let roundtrip_valid =
+    equal_id_insensitive_fluid_expr_oplist all_ops all_roundtripped_ops
+  in
+  if roundtrip_valid
+  then Ok ()
+  else
+    (* Log.inspecT "all_ops" ~f:show_expr_oplist all_ops ; *)
+    (* Log.inspecT *)
+    (*   "all_roundtripped_ops" *)
+    (*   ~f:show_expr_oplist *)
+    (*   all_roundtripped_ops ; *)
+    Error ("fluid roundtrip not valid: " ^ c.host)
 
 
 (* --------------- *)
@@ -839,7 +985,11 @@ let validate_host host : (unit, string) Result.t =
     match load_all host [] with
     | Ok c ->
         let all_ops = !c.ops |> Op.tlid_oplists2oplist in
-        let ops_valid = Tc.List.all all_ops ~f:is_valid_op in
+        let ops_valid =
+          if Tc.List.all all_ops ~f:is_valid_op
+          then Ok ()
+          else Error "Ops are not valid"
+        in
         let cache_valid =
           try
             let tlids =
@@ -847,14 +997,17 @@ let validate_host host : (unit, string) Result.t =
               |> List.map ~f:Op.tlidOf
               |> List.dedup_and_sort ~compare:compare_tlid
             in
-            host |> load_tlids_from_cache ~tlids |> Result.is_ok
-          with _ -> false
+            load_tlids_from_cache ~tlids host
+            |> Tc.Result.map_error String.concat
+            |> Tc.Result.andThen ~f:(fun c ->
+                   let roundtripped = !c |> to_fluid |> of_fluid in
+                   if equal_id_insensitive_expr_canvas !c roundtripped
+                   then Ok ()
+                   else Error ("cache roundtrip not valid: " ^ host))
+          with e -> Error "couldn't load cache"
         in
-        if ops_valid && cache_valid
-        then Ok ()
-        else if not ops_valid
-        then Error ("Invalid ops in " ^ host)
-        else Error ("Invalid cache in " ^ host)
+        Tc.Result.combine [ops_valid; cache_valid]
+        |> Tc.Result.map (fun _ -> ())
     | Error errs ->
         Error ("can't load " ^ host ^ ":\n" ^ Tc.String.join ~sep:", " errs)
   with e -> Error ("Invalid canvas " ^ host ^ ":\n" ^ Exception.to_string e)
@@ -941,12 +1094,12 @@ let rec migrate_expr (expr : RuntimeT.expr) =
               FluidRightPartial (name, f old_val) )
 
 
-let migrate_handler (h : RuntimeT.HandlerT.handler) : RuntimeT.HandlerT.handler
-    =
+let migrate_handler (h : 'expr_type RuntimeT.HandlerT.handler) :
+    'expr_type RuntimeT.HandlerT.handler =
   {h with ast = migrate_expr h.ast}
 
 
-let migrate_user_function (fn : RuntimeT.user_fn) =
+let migrate_user_function (fn : 'expr_type RuntimeT.user_fn) =
   let migrate_bo_ufn_param (p : RuntimeT.ufn_param) : RuntimeT.ufn_param =
     {p with name = migrate_or_blank p.name; tipe = migrate_or_blank p.tipe}
   in
@@ -973,13 +1126,13 @@ let migrate_user_tipe (tipe : RuntimeT.user_tipe) : RuntimeT.user_tipe =
 
 let migrate_col (k, v) = (migrate_or_blank k, migrate_or_blank v)
 
-let migrate_db (db : RuntimeT.DbT.db) : RuntimeT.DbT.db =
+let migrate_db (db : 'expr_type RuntimeT.DbT.db) : 'expr_type RuntimeT.DbT.db =
   { db with
     cols = List.map ~f:migrate_col db.cols
   ; name = migrate_or_blank db.name }
 
 
-let migrate_op (op : Op.op) : Op.op =
+let migrate_op (op : 'expr_type Op.op) : 'expr_type Op.op =
   match op with
   | SetHandler (tlid, pos, handler) ->
       SetHandler (tlid, pos, migrate_handler handler)

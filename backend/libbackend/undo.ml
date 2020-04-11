@@ -6,9 +6,10 @@ open Types
 (* Undo *)
 (* ------------------------- *)
 (* Passthrough whether an op is new or not *)
-type op_with_newness = bool * Op.op
+type 'expr_type op_with_newness = bool * 'expr_type Op.op
 
-let preprocess (ops : op_with_newness list) : op_with_newness list =
+let preprocess (ops : 'expr_type op_with_newness list) :
+    'expr_type op_with_newness list =
   (* The client can add undopoints when it chooses. When we get an undo,
    * we go back to the previous undopoint for that TL. *)
 
@@ -77,5 +78,5 @@ let preprocess (ops : op_with_newness list) : op_with_newness list =
 
 (* previous step leaves the list reversed *)
 
-let undo_count (ops : Op.op list) (tlid : tlid) : int =
+let undo_count (ops : 'expr_type Op.op list) (tlid : tlid) : int =
   ops |> List.rev |> List.take_while ~f:(( = ) (Op.UndoTL tlid)) |> List.length

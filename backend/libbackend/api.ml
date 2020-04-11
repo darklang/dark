@@ -3,13 +3,13 @@ open Libexecution
 open Types
 open Analysis_types
 
-type oplist = Op.op list [@@deriving yojson]
+type 'expr_type oplist = 'expr_type Op.op list [@@deriving yojson]
 
-type add_op_rpc_params =
-  { ops : oplist
+type 'expr_type add_op_rpc_params =
+  { ops : 'expr_type oplist
   ; opCtr : int
-        (* option means that we can still deserialize if this field is null, as doc'd
-* at https://github.com/ocaml-ppx/ppx_deriving_yojson *)
+        (* option means that we can still deserialize if this field is null, as
+         * doc'd at https://github.com/ocaml-ppx/ppx_deriving_yojson *)
   ; clientOpCtrId : string option }
 [@@deriving yojson]
 
@@ -28,13 +28,15 @@ type execute_function_rpc_params =
   ; fnname : string }
 [@@deriving yojson]
 
-type upload_function_rpc_params = {fn : RuntimeT.user_fn} [@@deriving yojson]
+type 'expr_type upload_function_rpc_params = {fn : 'expr_type RuntimeT.user_fn}
+[@@deriving yojson]
 
-let to_upload_function_rpc_params (payload : string) :
-    upload_function_rpc_params =
+let to_upload_function_rpc_params
+    ~(f : Yojson.Safe.t -> ('expr_type, string) Result.t) (payload : string) :
+    'expr_type upload_function_rpc_params =
   payload
   |> Yojson.Safe.from_string
-  |> upload_function_rpc_params_of_yojson
+  |> upload_function_rpc_params_of_yojson f
   |> Result.ok_or_failwith
 
 
@@ -50,10 +52,12 @@ type route_params =
   ; modifier : string }
 [@@deriving yojson]
 
-let to_add_op_rpc_params (payload : string) : add_op_rpc_params =
+let to_add_op_rpc_params
+    ~(f : Yojson.Safe.t -> ('expr_type, string) Result.t) (payload : string) :
+    'expr_type add_op_rpc_params =
   payload
   |> Yojson.Safe.from_string
-  |> add_op_rpc_params_of_yojson
+  |> add_op_rpc_params_of_yojson f
   |> Result.ok_or_failwith
 
 
@@ -117,7 +121,7 @@ let to_route_params (payload : string) : route_params =
   |> Result.ok_or_failwith
 
 
-let causes_any_changes (ps : add_op_rpc_params) : bool =
+let causes_any_changes (ps : 'expr_type add_op_rpc_params) : bool =
   List.exists ~f:Op.has_effect ps.ops
 
 

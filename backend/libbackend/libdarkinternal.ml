@@ -766,7 +766,7 @@ that's already taken, returns an error."
                 let tlid =
                   Types.id_of_string (Unicode_string.to_string tlid_str)
                 in
-                let canvas : Canvas.canvas ref =
+                let canvas : RuntimeT.expr Canvas.canvas ref =
                   Canvas.load_only_tlids
                     ~tlids:[tlid]
                     (Unicode_string.to_string host)

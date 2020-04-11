@@ -145,7 +145,6 @@ let t_head_and_get_requests_are_coalesced () =
   let setup_canvas () =
     let n1 = hop (http_handler (ast_for "'test_body'")) in
     let canvas = ops2c_exn ("test-" ^ test_name) [n1] in
-    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
     C.save_all !canvas ;
     canvas
   in
@@ -387,7 +386,6 @@ let t_head_and_get_requests_are_coalesced () =
   let setup_canvas () =
     let n1 = hop (http_handler (ast_for "'test_body'")) in
     let canvas = ops2c_exn ("test-" ^ test_name) [n1] in
-    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
     C.save_all !canvas ;
     canvas
   in
@@ -442,7 +440,6 @@ let t_http_request_redirects () =
   let setup_canvas () =
     let n1 = hop (http_handler (ast_for "'test_body'")) in
     let canvas = ops2c_exn "test" [n1] in
-    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
     C.save_all !canvas ;
     canvas
   in
