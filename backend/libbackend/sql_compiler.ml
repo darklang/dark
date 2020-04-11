@@ -291,6 +291,13 @@ let rec lambda_to_sql
   | Filled (_, FnCall ("!=", [Filled (_, Value "null"); e]))
   | Filled (_, FnCall ("!=", [e; Filled (_, Value "null")])) ->
       "(" ^ lts TNull e ^ " is not null)"
+  | Filled (_, FnCall ("String::isSubstring_v1", [lookingIn; searchingFor])) ->
+      (* position returns indexed from 1; 0 means missing *)
+      "(position("
+      ^ lts TStr searchingFor
+      ^ " IN "
+      ^ lts TStr lookingIn
+      ^ ") > 0)"
   | Filled (_, FnCall (op, [l; r])) ->
       let ltipe, rtipe, result_tipe, opname = binop_to_sql op in
       typecheck op result_tipe expected_tipe ;
