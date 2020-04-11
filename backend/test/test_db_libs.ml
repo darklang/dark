@@ -998,6 +998,19 @@ let t_db_query_works () =
     (DList [Dval.dint 10; Dval.dint 65])
     ( queryv (binop ">" (fn "String::length" [field "v" "name"]) (int 5))
     |> execs ) ;
+  check_dval
+    "string::isSubstring_v1"
+    (DList [Dval.dint 65; Dval.dint 73])
+    (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "R"]) |> execs) ;
+  check_dval
+    "string::isSubstring_v1 when empty"
+    (DList [])
+    (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "ZZZ"]) |> execs) ;
+  check_dval
+    "string::isSubstring_v1 empty arg"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (* matches the ocaml version: "" is a substring of all strings *)
+    (queryv (fn "String::isSubstring_v1" [field "v" "name"; str ""]) |> execs) ;
   (* -------------- *)
   (* Test partial evaluation *)
   (* -------------- *)
