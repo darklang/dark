@@ -9,7 +9,7 @@ let init () =
   print_endline "libfrontend reporting in"
 
 
-type handler_list = RuntimeT.expr HandlerT.handler list [@@deriving yojson]
+type handler_list = fluid_expr HandlerT.handler list [@@deriving yojson]
 
 type input_vars = (string * dval) list (* list of vars *) [@@deriving of_yojson]
 
@@ -26,8 +26,8 @@ type our_db_migration =
   { starting_version : int
   ; version : int
   ; state : DbT.db_migration_state
-  ; rollforward : expr
-  ; rollback : expr
+  ; rollforward : fluid_expr
+  ; rollback : fluid_expr
   ; cols : our_col list }
 [@@deriving of_yojson]
 
@@ -42,7 +42,7 @@ type our_db =
 
 let convert_col ((name, tipe) : our_col) : DbT.col = (name, tipe)
 
-let convert_migration (m : our_db_migration) : RuntimeT.expr DbT.db_migration =
+let convert_migration (m : our_db_migration) : fluid_expr DbT.db_migration =
   { starting_version = m.starting_version
   ; version = m.version
   ; state = m.state
@@ -51,7 +51,7 @@ let convert_migration (m : our_db_migration) : RuntimeT.expr DbT.db_migration =
   ; cols = List.map ~f:convert_col m.cols }
 
 
-let convert_db (db : our_db) : RuntimeT.expr DbT.db =
+let convert_db (db : our_db) : fluid_expr DbT.db =
   { tlid = db.tlid
   ; name = db.name
   ; cols = List.map ~f:convert_col db.cols
@@ -61,22 +61,22 @@ let convert_db (db : our_db) : RuntimeT.expr DbT.db =
 
 
 type handler_analysis_param =
-  { handler : RuntimeT.expr HandlerT.handler
+  { handler : fluid_expr HandlerT.handler
   ; trace_id : Analysis_types.traceid
   ; trace_data : Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
-  ; user_fns : RuntimeT.expr user_fn list
+  ; user_fns : fluid_expr user_fn list
   ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
 type function_analysis_param =
-  { func : RuntimeT.expr user_fn
+  { func : fluid_expr user_fn
   ; trace_id : Analysis_types.traceid
   ; trace_data : Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
-  ; user_fns : RuntimeT.expr user_fn list
+  ; user_fns : fluid_expr user_fn list
   ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
@@ -106,12 +106,12 @@ let load_from_trace
 let perform_analysis
     ~(tlid : tlid)
     ~(dbs : our_db list)
-    ~(user_fns : RuntimeT.expr user_fn list)
+    ~(user_fns : fluid_expr user_fn list)
     ~(user_tipes : user_tipe list)
     ~(trace_id : RuntimeT.uuid)
     ~(trace_data : Analysis_types.trace_data)
     ast =
-  let dbs : RuntimeT.expr DbT.db list = List.map ~f:convert_db dbs in
+  let dbs : fluid_expr DbT.db list = List.map ~f:convert_db dbs in
   let execution_id = Types.id_of_int 1 in
   let input_vars = trace_data.input in
   Log.add_log_annotations
@@ -126,8 +126,8 @@ let perform_analysis
           ~account_id:(Util.create_uuid ())
           ~canvas_id:(Util.create_uuid ())
           ~input_vars
-          ~dbs
-          ~user_fns
+          ~dbs:(List.map ~f:Toplevel.db_of_fluid dbs)
+          ~user_fns:(List.map ~f:Toplevel.user_fn_of_fluid user_fns)
           ~user_tipes
           ~package_fns:[]
           ~load_fn_result:(load_from_trace trace_data.function_results)
@@ -150,7 +150,7 @@ let perform_handler_analysis (str : string) : string =
     ~user_tipes
     ~trace_id
     ~trace_data
-    handler.ast
+    (Fluid.fromFluidExpr handler.ast)
 
 
 let perform_function_analysis (str : string) : string =
@@ -167,7 +167,7 @@ let perform_function_analysis (str : string) : string =
     ~user_tipes
     ~trace_id
     ~trace_data
-    func.ast
+    (Fluid.fromFluidExpr func.ast)
 
 
 open Js_of_ocaml

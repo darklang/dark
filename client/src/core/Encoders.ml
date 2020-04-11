@@ -295,7 +295,7 @@ and handler (h : Types.handler) : Js.Json.t =
     ; ("ast", h.ast |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
 
 
-and fluid_handler (h : Types.handler) : Js.Json.t =
+and fluidHandler (h : Types.handler) : Js.Json.t =
   object_
     [ ("tlid", tlid h.hTLID)
     ; ("spec", spec h.spec)
@@ -330,6 +330,16 @@ and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("rollback", dbm.rollback |> OldExpr.fromFluidExpr |> expr) ]
 
 
+and fluidDBMigration (dbm : Types.dbMigration) : Js.Json.t =
+  object_
+    [ ("starting_version", int dbm.startingVersion)
+    ; ("version", int dbm.version)
+    ; ("state", dbMigrationState dbm.state)
+    ; ("cols", colList dbm.cols)
+    ; ("rollforward", dbm.rollforward |> fluidExpr)
+    ; ("rollback", dbm.rollback |> fluidExpr) ]
+
+
 and db (db : Types.db) : Js.Json.t =
   object_
     [ ("tlid", tlid db.dbTLID)
@@ -342,11 +352,23 @@ and db (db : Types.db) : Js.Json.t =
         |> Option.withDefault ~default:null ) ]
 
 
+and fluidDB (db : Types.db) : Js.Json.t =
+  object_
+    [ ("tlid", tlid db.dbTLID)
+    ; ("name", blankOr string db.dbName)
+    ; ("cols", colList db.cols)
+    ; ("version", int db.version)
+    ; ("old_migrations", list fluidDBMigration db.oldMigrations)
+    ; ( "active_migration"
+      , Option.map ~f:fluidDBMigration db.activeMigration
+        |> Option.withDefault ~default:null ) ]
+
+
 and op (call : Types.op) : Js.Json.t =
   let ev = variant in
   match call with
   | SetHandler (t, p, h) ->
-      ev "SetHandler" [tlid t; pos p; fluid_handler h]
+      ev "SetHandler" [tlid t; pos p; fluidHandler h]
   | CreateDB (t, p, name) ->
       ev "CreateDB" [tlid t; pos p; string name]
   | AddDBCol (t, cn, ct) ->
@@ -511,22 +533,22 @@ and updateWorkerScheduleAPIParams (params : Types.updateWorkerScheduleAPIParams)
 and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams) :
     Js.Json.t =
   object_
-    [ ("handler", handler params.handler)
+    [ ("handler", fluidHandler params.handler)
     ; ("trace_id", traceID params.traceID)
     ; ("trace_data", traceData params.traceData)
-    ; ("dbs", list db params.dbs)
-    ; ("user_fns", list userFunction params.userFns)
+    ; ("dbs", list fluidDB params.dbs)
+    ; ("user_fns", list fluidUserFunction params.userFns)
     ; ("user_tipes", list userTipe params.userTipes) ]
 
 
 and performFunctionAnalysisParams (params : Types.performFunctionAnalysisParams)
     : Js.Json.t =
   object_
-    [ ("func", userFunction params.func)
+    [ ("func", fluidUserFunction params.func)
     ; ("trace_id", traceID params.traceID)
     ; ("trace_data", traceData params.traceData)
-    ; ("dbs", list db params.dbs)
-    ; ("user_fns", list userFunction params.userFns)
+    ; ("dbs", list fluidDB params.dbs)
+    ; ("user_fns", list fluidUserFunction params.userFns)
     ; ("user_tipes", list userTipe params.userTipes) ]
 
 
