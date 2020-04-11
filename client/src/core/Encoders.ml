@@ -288,7 +288,7 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
           ; ("output", blankOr int (BlankOr.new_ ())) ] ) ]
 
 
-and fluidHandler (h : Types.handler) : Js.Json.t =
+and handler (h : Types.handler) : Js.Json.t =
   object_
     [ ("tlid", tlid h.hTLID)
     ; ("spec", spec h.spec)
@@ -313,7 +313,7 @@ and dbMigrationState (s : Types.dbMigrationState) : Js.Json.t =
       ev "DBMigrationInitialized" []
 
 
-and fluidDBMigration (dbm : Types.dbMigration) : Js.Json.t =
+and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
   object_
     [ ("starting_version", int dbm.startingVersion)
     ; ("version", int dbm.version)
@@ -323,15 +323,15 @@ and fluidDBMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("rollback", dbm.rollback |> fluidExpr) ]
 
 
-and fluidDB (db : Types.db) : Js.Json.t =
+and db (db : Types.db) : Js.Json.t =
   object_
     [ ("tlid", tlid db.dbTLID)
     ; ("name", blankOr string db.dbName)
     ; ("cols", colList db.cols)
     ; ("version", int db.version)
-    ; ("old_migrations", list fluidDBMigration db.oldMigrations)
+    ; ("old_migrations", list dbMigration db.oldMigrations)
     ; ( "active_migration"
-      , Option.map ~f:fluidDBMigration db.activeMigration
+      , Option.map ~f:dbMigration db.activeMigration
         |> Option.withDefault ~default:null ) ]
 
 
@@ -339,7 +339,7 @@ and op (call : Types.op) : Js.Json.t =
   let ev = variant in
   match call with
   | SetHandler (t, p, h) ->
-      ev "SetHandler" [tlid t; pos p; fluidHandler h]
+      ev "SetHandler" [tlid t; pos p; handler h]
   | CreateDB (t, p, name) ->
       ev "CreateDB" [tlid t; pos p; string name]
   | AddDBCol (t, cn, ct) ->
@@ -381,7 +381,7 @@ and op (call : Types.op) : Js.Json.t =
   | MoveTL (t, p) ->
       ev "MoveTL" [tlid t; pos p]
   | SetFunction uf ->
-      ev "SetFunction" [fluidUserFunction uf]
+      ev "SetFunction" [userFunction uf]
   | DeleteFunction t ->
       ev "DeleteFunction" [tlid t]
   | SetExpr (t, i, e) ->
@@ -443,7 +443,7 @@ and packageFn (pf : Types.packageFn) : Js.Json.t =
 
 
 and uploadFnAPIParams (params : Types.uploadFnAPIParams) : Js.Json.t =
-  object_ [("fn", fluidUserFunction params.uplFn)]
+  object_ [("fn", userFunction params.uplFn)]
 
 
 and triggerHandlerAPIParams (params : Types.triggerHandlerAPIParams) : Js.Json.t
@@ -504,26 +504,26 @@ and updateWorkerScheduleAPIParams (params : Types.updateWorkerScheduleAPIParams)
 and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams) :
     Js.Json.t =
   object_
-    [ ("handler", fluidHandler params.handler)
+    [ ("handler", handler params.handler)
     ; ("trace_id", traceID params.traceID)
     ; ("trace_data", traceData params.traceData)
-    ; ("dbs", list fluidDB params.dbs)
-    ; ("user_fns", list fluidUserFunction params.userFns)
+    ; ("dbs", list db params.dbs)
+    ; ("user_fns", list userFunction params.userFns)
     ; ("user_tipes", list userTipe params.userTipes) ]
 
 
 and performFunctionAnalysisParams (params : Types.performFunctionAnalysisParams)
     : Js.Json.t =
   object_
-    [ ("func", fluidUserFunction params.func)
+    [ ("func", userFunction params.func)
     ; ("trace_id", traceID params.traceID)
     ; ("trace_data", traceData params.traceData)
-    ; ("dbs", list fluidDB params.dbs)
-    ; ("user_fns", list fluidUserFunction params.userFns)
+    ; ("dbs", list db params.dbs)
+    ; ("user_fns", list userFunction params.userFns)
     ; ("user_tipes", list userTipe params.userTipes) ]
 
 
-and fluidUserFunction (uf : Types.userFunction) : Js.Json.t =
+and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
