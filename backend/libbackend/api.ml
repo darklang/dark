@@ -31,12 +31,13 @@ type execute_function_rpc_params =
 type 'expr_type upload_function_rpc_params = {fn : 'expr_type RuntimeT.user_fn}
 [@@deriving yojson]
 
-let to_upload_function_rpc_params
-    ~(f : Yojson.Safe.t -> ('expr_type, string) Result.t) (payload : string) :
-    'expr_type upload_function_rpc_params =
-  payload
-  |> Yojson.Safe.from_string
-  |> upload_function_rpc_params_of_yojson f
+let to_upload_function_rpc_params (payload : string) :
+    Types.fluid_expr upload_function_rpc_params =
+  let json = payload |> Yojson.Safe.from_string in
+  json
+  |> upload_function_rpc_params_of_yojson Fluid.expr_json_to_fluid
+  |> Tc.Result.or_else_lazy (fun () ->
+         upload_function_rpc_params_of_yojson Types.fluid_expr_of_yojson json)
   |> Result.ok_or_failwith
 
 
