@@ -1003,6 +1003,11 @@ let t_db_query_works () =
     (DList [Dval.dint 65; Dval.dint 73])
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "R"]) |> execs) ;
   check_dval
+    "string::isSubstring_v1 case-sensitive"
+    (DList [])
+    ( queryv (fn "String::isSubstring_v1" [field "v" "name"; str "ROSS"])
+    |> execs ) ;
+  check_dval
     "string::isSubstring_v1 when empty"
     (DList [])
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "ZZZ"]) |> execs) ;
