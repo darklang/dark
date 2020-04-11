@@ -4,7 +4,7 @@ open Shared
 type sendToRail =
   | Rail
   | NoRail
-[@@deriving show {with_path = false}, eq]
+[@@deriving show {with_path = false}, eq, ord, yojson {optional = true}]
 
 type t =
   (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
@@ -41,7 +41,7 @@ type t =
   | EPipeTarget of id
   (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * t * t * t
-[@@deriving show {with_path = false}, eq]
+[@@deriving show {with_path = false}, eq, ord, yojson {optional = true}]
 
 type fluidPatOrExpr =
   | Expr of t
@@ -608,6 +608,39 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
     List.length l1 = List.length l2
     && List.map2 ~f:eq l1 l2 |> List.all ~f:identity
   in
+  let rec peq (a : FluidPattern.t) (b : FluidPattern.t) =
+    let peqList l1 l2 =
+      List.length l1 = List.length l2
+      && Tc.List.map2 ~f:peq l1 l2 |> Tc.List.all ~f:Tc.identity
+    in
+    match (a, b) with
+    | FPVariable (_, _, name), FPVariable (_, _, name') ->
+        name = name'
+    | ( FPConstructor (_, _, name, patterns)
+      , FPConstructor (_, _, name', patterns') ) ->
+        name = name' && peqList patterns patterns'
+    | FPString {str; _}, FPString {str = str'; _} ->
+        str = str'
+    | FPInteger (_, _, l), FPInteger (_, _, l') ->
+        l = l'
+    | FPFloat (_, _, w, f), FPFloat (_, _, w', f') ->
+        (w, f) = (w', f')
+    | FPBool (_, _, l), FPBool (_, _, l') ->
+        l = l'
+    | FPNull (_, _), FPNull (_, _) ->
+        true
+    | FPBlank (_, _), FPBlank (_, _) ->
+        true
+    | FPVariable _, _
+    | FPConstructor _, _
+    | FPString _, _
+    | FPInteger _, _
+    | FPFloat _, _
+    | FPBool _, _
+    | FPNull _, _
+    | FPBlank _, _ ->
+        false
+  in
   match (a, b) with
   (* expressions with no values *)
   | ENull _, ENull _ | EBlank _, EBlank _ | EPipeTarget _, EPipeTarget _ ->
@@ -648,12 +681,44 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
       eq3 (cond, cond') (old, old') (knew, knew')
   | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
       s = s' && eqList ts ts'
+  | ERightPartial (_, str, e), ERightPartial (_, str', e')
   | EPartial (_, str, e), EPartial (_, str', e') ->
       str = str' && eq e e'
-  | ELambda _, ELambda _ | ERightPartial _, ERightPartial _ | EMatch _, EMatch _
-    ->
-      failwith "TODO"
-  | _ ->
+  | ELambda (_, vars, e), ELambda (_, vars', e') ->
+      eq e e'
+      && List.all
+           ~f:identity
+           (List.map2 vars vars' ~f:(fun (_, v) (_, v') -> v = v'))
+  | EMatch (_, e, branches), EMatch (_, e', branches') ->
+      eq e e'
+      && Tc.List.map2
+           ~f:(fun (p, v) (p', v') -> peq p p' && eq v v')
+           branches
+           branches'
+         |> Tc.List.all ~f:Tc.identity
+  | ENull _, _
+  | EBlank _, _
+  | EPipeTarget _, _
+  | EInteger _, _
+  | EString _, _
+  | EVariable _, _
+  | EBool _, _
+  | EFloat _, _
+  | ELet _, _
+  | EIf _, _
+  | EList _, _
+  | EFnCall _, _
+  | EBinOp _, _
+  | ERecord _, _
+  | EFieldAccess _, _
+  | EPipe _, _
+  | EFeatureFlag _, _
+  | EConstructor _, _
+  | ERightPartial _, _
+  | EPartial _, _
+  | ELambda _, _
+  | EMatch _, _ ->
+      (* exhaustiveness check *)
       false
 
 

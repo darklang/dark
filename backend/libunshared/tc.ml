@@ -126,6 +126,8 @@ module StrDict = struct
     Base.Map.compare_direct f dict1 dict2
 
 
+  let compare = Base.Map.compare_direct
+
   (* This is for when you believe there should never be duplicate
      * values, and want an exception to prove this invariant. *)
   let from_list_exn (l : (key * 'value) list) : 'value t =

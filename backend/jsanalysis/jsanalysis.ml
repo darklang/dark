@@ -9,7 +9,7 @@ let init () =
   print_endline "libfrontend reporting in"
 
 
-type handler_list = HandlerT.handler list [@@deriving yojson]
+type handler_list = RuntimeT.expr HandlerT.handler list [@@deriving yojson]
 
 type input_vars = (string * dval) list (* list of vars *) [@@deriving of_yojson]
 
@@ -42,7 +42,7 @@ type our_db =
 
 let convert_col ((name, tipe) : our_col) : DbT.col = (name, tipe)
 
-let convert_migration (m : our_db_migration) : DbT.db_migration =
+let convert_migration (m : our_db_migration) : RuntimeT.expr DbT.db_migration =
   { starting_version = m.starting_version
   ; version = m.version
   ; state = m.state
@@ -51,7 +51,7 @@ let convert_migration (m : our_db_migration) : DbT.db_migration =
   ; cols = List.map ~f:convert_col m.cols }
 
 
-let convert_db (db : our_db) : DbT.db =
+let convert_db (db : our_db) : RuntimeT.expr DbT.db =
   { tlid = db.tlid
   ; name = db.name
   ; cols = List.map ~f:convert_col db.cols
@@ -61,22 +61,22 @@ let convert_db (db : our_db) : DbT.db =
 
 
 type handler_analysis_param =
-  { handler : HandlerT.handler
+  { handler : RuntimeT.expr HandlerT.handler
   ; trace_id : Analysis_types.traceid
   ; trace_data : Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
-  ; user_fns : user_fn list
+  ; user_fns : RuntimeT.expr user_fn list
   ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
 type function_analysis_param =
-  { func : user_fn
+  { func : RuntimeT.expr user_fn
   ; trace_id : Analysis_types.traceid
   ; trace_data : Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
-  ; user_fns : user_fn list
+  ; user_fns : RuntimeT.expr user_fn list
   ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
@@ -106,12 +106,12 @@ let load_from_trace
 let perform_analysis
     ~(tlid : tlid)
     ~(dbs : our_db list)
-    ~(user_fns : user_fn list)
+    ~(user_fns : RuntimeT.expr user_fn list)
     ~(user_tipes : user_tipe list)
     ~(trace_id : RuntimeT.uuid)
     ~(trace_data : Analysis_types.trace_data)
     ast =
-  let dbs : DbT.db list = List.map ~f:convert_db dbs in
+  let dbs : RuntimeT.expr DbT.db list = List.map ~f:convert_db dbs in
   let execution_id = Types.id_of_int 1 in
   let input_vars = trace_data.input in
   Log.add_log_annotations

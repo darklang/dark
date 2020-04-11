@@ -23,7 +23,6 @@
 
   (libraries js_of_ocaml libtarget_js libexecution)
   (preprocess (pps js_of_ocaml-ppx
-                   ppx_compare
                    ppx_deriving.std
                    ppx_deriving_yojson
                    ppx_fields_conv

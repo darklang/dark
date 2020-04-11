@@ -5,11 +5,13 @@ module Int63 = Prelude.Int63
 type pos =
   { x : int
   ; y : int }
-[@@deriving eq, compare, show, yojson, bin_io]
+[@@deriving eq, ord, show, yojson, bin_io]
+
+type fluid_expr = Libshared.FluidExpression.t [@@deriving eq, ord, show, yojson]
 
 (* We choose int63 so that we get the same type in jsoo, instead of 31 bit. Our
  * client generated ids which are uint32, so we need to go bigger. *)
-type id = Int63.t [@@deriving eq, compare, show, bin_io, yojson]
+type id = Int63.t [@@deriving eq, ord, show, bin_io, yojson]
 
 let id_of_int = Int63.of_int
 
@@ -65,9 +67,9 @@ module IDMap = struct
         Error "Expected an object"
 end
 
-type host = string [@@deriving eq, compare, show, bin_io]
+type host = string [@@deriving eq, ord, show, bin_io]
 
-type tlid = id [@@deriving eq, compare, show, yojson, bin_io]
+type tlid = id [@@deriving eq, ord, show, yojson, bin_io]
 
 module TLIDTable = IDTable
 
@@ -75,7 +77,7 @@ type 'a or_blank =
   | Blank of id
   | Filled of id * 'a
   | Partial of id * string
-[@@deriving eq, compare, show {with_path = false}, yojson, bin_io]
+[@@deriving eq, ord, show {with_path = false}, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
@@ -113,33 +115,32 @@ type tipe_ =
   (* name * version *)
   | TUserType of string * int
   | TBytes
-[@@deriving eq, compare, show, yojson, bin_io]
+[@@deriving eq, ord, show, yojson, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
 module RuntimeT = struct
   (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-  type fnname = string [@@deriving eq, compare, yojson, show, bin_io]
+  type fnname = string [@@deriving eq, ord, yojson, show, bin_io]
 
-  type fieldname = string [@@deriving eq, compare, yojson, show, bin_io]
+  type fieldname = string [@@deriving eq, ord, yojson, show, bin_io]
 
-  type varname = string [@@deriving eq, compare, yojson, show, bin_io]
+  type varname = string [@@deriving eq, ord, yojson, show, bin_io]
 
-  type keyname = string [@@deriving eq, compare, yojson, show, bin_io]
+  type keyname = string [@@deriving eq, ord, yojson, show, bin_io]
 
-  type varbinding = varname or_blank
-  [@@deriving eq, compare, yojson, show, bin_io]
+  type varbinding = varname or_blank [@@deriving eq, ord, yojson, show, bin_io]
 
-  type field = fieldname or_blank [@@deriving eq, compare, yojson, show, bin_io]
+  type field = fieldname or_blank [@@deriving eq, ord, yojson, show, bin_io]
 
-  type key = keyname or_blank [@@deriving eq, compare, yojson, show, bin_io]
+  type key = keyname or_blank [@@deriving eq, ord, yojson, show, bin_io]
 
   type npattern =
     | PVariable of varname
     | PLiteral of string
     | PConstructor of string * pattern list
 
-  and pattern = npattern or_blank [@@deriving eq, compare, yojson, show, bin_io]
+  and pattern = npattern or_blank [@@deriving eq, ord, yojson, show, bin_io]
 
   type nexpr =
     | If of expr * expr * expr
@@ -169,48 +170,47 @@ module RuntimeT = struct
     | FluidRightPartial of string * expr
 
   and expr = nexpr or_blank
-  [@@deriving eq, compare, yojson, show {with_path = false}, bin_io]
+  [@@deriving eq, ord, yojson, show {with_path = false}, bin_io]
 
   (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
   module DbT = struct
     (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
     type col = string or_blank * tipe_ or_blank
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, ord, show, yojson, bin_io]
 
     type migration_kind = DeprecatedMigrationKind
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, ord, show, yojson, bin_io]
 
     type db_migration_state =
       | DBMigrationAbandoned
       | DBMigrationInitialized
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, ord, show, yojson, bin_io]
 
-    type db_migration =
+    type 'expr_type db_migration =
       { starting_version : int
       ; version : int
       ; state : db_migration_state
-      ; rollforward : expr
-      ; rollback : expr
+      ; rollforward : 'expr_type
+      ; rollback : 'expr_type
       ; cols : col list }
-    [@@deriving eq, compare, show, yojson, bin_io]
+    [@@deriving eq, ord, show, yojson, bin_io]
 
-    type db =
+    type 'expr_type db =
       { tlid : tlid
       ; name : string or_blank
       ; cols : col list
       ; version : int
-      ; old_migrations : db_migration list
-      ; active_migration : db_migration option }
-    [@@deriving eq, compare, show, yojson, bin_io]
+      ; old_migrations : 'expr_type db_migration list
+      ; active_migration : 'expr_type db_migration option }
+    [@@deriving eq, ord, show, yojson, bin_io]
 
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
 
   module HandlerT = struct
     (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-    type dtdeprecated = int or_blank
-    [@@deriving eq, compare, show, yojson, bin_io]
+    type dtdeprecated = int or_blank [@@deriving eq, ord, show, yojson, bin_io]
 
     type spec_types =
       { input : dtdeprecated
@@ -224,52 +224,25 @@ module RuntimeT = struct
       ; types : spec_types }
     [@@deriving eq, show, yojson, bin_io]
 
-    type handler =
+    type 'expr_type handler =
       { tlid : tlid
-      ; ast : expr
+      ; ast : 'expr_type
       ; spec : spec }
     [@@deriving eq, show, yojson, bin_io]
 
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
 
-  module HandlerF = struct
-    type spec =
-      { module_ : string or_blank [@key "module"]
-      ; name : string or_blank
-      ; modifier : string or_blank }
-    [@@deriving eq, show, yojson]
-
-    type handler =
-      { tlid : tlid
-      ; ast : Libshared.FluidExpression.t
-      ; spec : spec }
-    [@@deriving eq, show]
-  end
-
   (* ------------------------ *)
-  (* Dvals*)
+  (* Dvals *)
   (* ------------------------ *)
   type dhttp =
     | Redirect of string
     | Response of int * (string * string) list
-  [@@deriving show, eq, yojson, compare]
-
-  (* block *)
-  type 'a block = 'a list -> 'a [@@deriving show]
-
-  let equal_block _ _ _ = false
-
-  let compare_block _ _ _ = -1
-
-  (* These aren't used at the moment, I hope, so just pick anything that
-   * typechecks *)
-  let block_to_yojson f b = `Null
-
-  let block_of_yojson f _ = Ok (fun l -> List.hd_exn l)
+  [@@deriving show, eq, yojson, ord]
 
   (* uuid *)
-  type uuid = Uuidm.t [@@deriving show, eq, compare]
+  type uuid = Uuidm.t [@@deriving show, eq, ord]
 
   let uuid_to_yojson uuid = `String (Uuidm.to_string uuid)
 
@@ -293,7 +266,7 @@ module RuntimeT = struct
   let sexp_of_uuid u = Sexp.Atom (Uuidm.to_string u)
 
   (* time *)
-  type time = Time.Stable.With_utc_sexp.V2.t [@@deriving compare]
+  type time = Time.Stable.With_utc_sexp.V2.t [@@deriving ord]
 
   let pp_time f (t : time) = Format.fprintf f "%s" (Util.isostring_of_date t)
 
@@ -402,26 +375,28 @@ module RuntimeT = struct
           Error "Expected an object"
   end
 
-  type dval_map = dval DvalMap.t
+  (* To support migrating to fluid, these take a type parameter, which is
+   * concretely defined to use `expr` at the bottom. *)
+  type 'expr_type dval_map' = 'expr_type dval' DvalMap.t
 
-  and optionT =
-    | OptJust of dval
+  and 'expr_type optionT' =
+    | OptJust of 'expr_type dval'
     | OptNothing
 
-  and resultT =
+  and 'expr_type resultT' =
     | ResOk of dval
-    | ResError of dval
+    | ResError of 'expr_type dval'
 
   and dval_source =
     | SourceNone
     | SourceId of tlid * id
 
-  and dblock_args =
-    { symtable : dval_map
+  and 'expr_type dblock_args' =
+    { symtable : 'expr_type dval_map'
     ; params : (id * string) list
-    ; body : expr }
+    ; body : 'expr_type }
 
-  and dval =
+  and 'expr_type dval' =
     (* basic types  *)
     | DInt of Dint.t
     | DFloat of float
@@ -429,26 +404,52 @@ module RuntimeT = struct
     | DNull
     | DStr of Unicode_string.t
     (* compound types *)
-    | DList of dval list
-    | DObj of dval_map
+    | DList of 'expr_type dval' list
+    | DObj of 'expr_type dval_map'
     (* special types - see notes above *)
     | DIncomplete of dval_source
     | DError of (dval_source * string)
-    | DBlock of dblock_args
-    | DErrorRail of dval
+    | DBlock of 'expr_type dblock_args'
+    | DErrorRail of 'expr_type dval'
     (* user types: awaiting a better type system *)
-    | DResp of (dhttp * dval)
+    | DResp of (dhttp * 'expr_type dval')
     | DDB of string
     | DDate of time
     | DPassword of PasswordBytes.t
     | DUuid of uuid
-    | DOption of optionT
+    | DOption of 'expr_type optionT'
     | DCharacter of Unicode_string.Character.t
-    | DResult of resultT
+    | DResult of 'expr_type resultT'
     | DBytes of RawBytes.t
-  [@@deriving show {with_path = false}, eq, yojson, compare]
 
-  type dval_list = dval list
+  and 'expr_type dval_list' = 'expr_type dval' list
+
+  (* Concrete definitions for expr *)
+  and dval = expr dval'
+
+  and dblock_args = expr dblock_args'
+
+  and dval_map = expr dval_map'
+
+  and optionT = expr optionT'
+
+  and resultT = expr resultT'
+
+  and dval_list = expr dval_list'
+
+  (* Concrete definitions for fluid *)
+  and fluid_dval = fluid_expr dval'
+
+  and fluid_dblock_args = fluid_expr dblock_args'
+
+  and fluid_dval_map = fluid_expr dval_map'
+
+  and fluid_optionT = fluid_expr optionT'
+
+  and fluid_resultT = fluid_expr resultT'
+
+  and fluid_dval_list = fluid_expr dval_list'
+  [@@deriving show {with_path = false}, eq, ord, yojson]
 
   (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type tipe = tipe_ [@@deriving eq, show, yojson, bin_io]
@@ -488,15 +489,15 @@ module RuntimeT = struct
     ; infix : bool }
   [@@deriving eq, show, yojson, bin_io]
 
-  type user_fn =
+  type 'expr_type user_fn =
     { tlid : tlid
     ; metadata : ufn_metadata
-    ; ast : expr }
+    ; ast : 'expr_type }
   [@@deriving eq, show, yojson, bin_io]
 
-  type package_fn =
+  type 'expr_type package_fn =
     { metadata : ufn_metadata
-    ; ast : expr }
+    ; ast : 'expr_type }
   [@@deriving eq, show, yojson, bin_io]
 
   type user_record_field =
@@ -550,10 +551,10 @@ module RuntimeT = struct
     { tlid : tlid
     ; canvas_id : Uuidm.t
     ; account_id : Uuidm.t
-    ; user_fns : user_fn list
+    ; user_fns : expr user_fn list
     ; user_tipes : user_tipe list
     ; package_fns : fn list
-    ; dbs : DbT.db list
+    ; dbs : expr DbT.db list
     ; trace : on_execution_path:bool -> id -> dval -> unit
     ; trace_tlid : tlid -> unit
     ; context : context
@@ -607,7 +608,7 @@ module RuntimeT = struct
         None
 
 
-  let user_fn_to_fn (uf : user_fn) : fn option =
+  let user_fn_to_fn (uf : expr user_fn) : fn option =
     let name =
       match uf.metadata.name with Filled (_, n) -> Some n | _ -> None
     in

@@ -3,7 +3,6 @@
   (flags (-warn-error +A -w +9))
   (preprocess (pps lwt_ppx
                    ppx_bin_prot
-                   ppx_compare
                    ppx_deriving.std
                    ppx_deriving_yojson
                    ppx_pipebang

@@ -57,7 +57,7 @@ end
 open Error
 
 module TypeEnv = Map.Make (struct
-  type t = string * int [@@deriving sexp, compare]
+  type t = string * int [@@deriving sexp, ord]
 end)
 
 type type_env = user_tipe TypeEnv.t
