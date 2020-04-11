@@ -149,8 +149,8 @@ let saved_input_vars
 
 
 let handler_trace
-    (c : 'expr_type canvas)
-    (h : 'expr_type RTT.HandlerT.handler)
+    (c : Types.fluid_expr canvas)
+    (h : Types.fluid_expr RTT.HandlerT.handler)
     (trace_id : traceid) : trace =
   let event = SE.load_event_for_trace ~canvas_id:c.id trace_id in
   let ivs, timestamp =
@@ -253,7 +253,7 @@ type fofs = SE.four_oh_four list [@@deriving to_yojson]
 
 type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
 
-let to_get_trace_data_rpc_result (c : 'expr_type canvas) (trace : trace) :
+let to_get_trace_data_rpc_result (c : Types.fluid_expr canvas) (trace : trace) :
     string =
   {trace}
   |> get_trace_data_rpc_result_to_yojson
@@ -264,7 +264,7 @@ type get_unlocked_dbs_rpc_result = {unlocked_dbs : tlid list}
 [@@deriving to_yojson]
 
 let to_get_unlocked_dbs_rpc_result
-    (unlocked_dbs : tlid list) (c : 'expr_type canvas) : string =
+    (unlocked_dbs : tlid list) (c : Types.fluid_expr canvas) : string =
   {unlocked_dbs}
   |> get_unlocked_dbs_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
@@ -329,8 +329,8 @@ type add_op_stroller_msg =
   ; params : fluid_expr Api.add_op_rpc_params }
 [@@deriving to_yojson]
 
-let to_add_op_rpc_result (c : 'expr_type canvas) : 'expr_type add_op_rpc_result
-    =
+let to_add_op_rpc_result (c : Types.fluid_expr canvas) :
+    Types.fluid_expr add_op_rpc_result =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
   ; user_functions = IDMap.data c.user_functions
