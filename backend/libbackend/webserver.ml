@@ -899,7 +899,7 @@ let initial_load
       time "1-load-saved-ops" (fun _ ->
           let c =
             C.load_all_from_cache canvas
-            |> Result.map ~f:(fun c -> ref (Canvas.to_fluid !c))
+            |> Result.map ~f:C.to_fluid_ref
             |> Result.map_error ~f:(String.concat ~sep:", ")
             |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
           in
@@ -1114,6 +1114,7 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
   let t2, c =
     time "2-load-saved-ops" (fun _ ->
         C.load_tlids_from_cache ~tlids:[params.tlid] host
+        |> Result.map ~f:C.to_fluid_ref
         |> Result.map_error ~f:(String.concat ~sep:", "))
   in
   let t3, mht =
@@ -1228,6 +1229,7 @@ let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
     let t1, c =
       time "1-load-saved-ops" (fun _ ->
           C.load_all_dbs_from_cache host
+          |> Result.map ~f:C.to_fluid_ref
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
     in
