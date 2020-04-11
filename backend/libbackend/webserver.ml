@@ -744,14 +744,14 @@ let admin_add_op_handler
     time "1-read-api-ops" (fun _ ->
         let owner = Account.for_host_exn host in
         let canvas_id = Serialize.fetch_canvas_id owner host in
-        let params = Api.to_add_op_rpc_params ~f:RTT.expr_of_yojson body in
+        let params = Api.to_add_op_rpc_params body in
         if Op.is_latest_op_request params.clientOpCtrId params.opCtr canvas_id
         then (params, canvas_id)
         else
           ( {params with ops = params.ops |> Op.filter_ops_received_out_of_order}
           , canvas_id ))
   in
-  let ops = params.ops in
+  let ops = params.ops |> Op.oplist_of_fluid in
   let tlids = List.map ~f:Op.tlidOf ops in
   let t2, maybe_c =
     (* NOTE: Because we run canvas-wide validation logic, it's important
@@ -766,7 +766,7 @@ let admin_add_op_handler
             C.load_with_dbs ~tlids host ops)
   in
   let params : Types.fluid_expr Api.add_op_rpc_params =
-    { ops = Op.oplist_to_fluid params.ops
+    { ops = params.ops
     ; opCtr = params.opCtr
     ; clientOpCtrId = params.clientOpCtrId }
   in
