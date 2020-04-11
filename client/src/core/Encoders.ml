@@ -288,13 +288,6 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
           ; ("output", blankOr int (BlankOr.new_ ())) ] ) ]
 
 
-and handler (h : Types.handler) : Js.Json.t =
-  object_
-    [ ("tlid", tlid h.hTLID)
-    ; ("spec", spec h.spec)
-    ; ("ast", h.ast |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
-
-
 and fluidHandler (h : Types.handler) : Js.Json.t =
   object_
     [ ("tlid", tlid h.hTLID)
@@ -320,16 +313,6 @@ and dbMigrationState (s : Types.dbMigrationState) : Js.Json.t =
       ev "DBMigrationInitialized" []
 
 
-and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
-  object_
-    [ ("starting_version", int dbm.startingVersion)
-    ; ("version", int dbm.version)
-    ; ("state", dbMigrationState dbm.state)
-    ; ("cols", colList dbm.cols)
-    ; ("rollforward", dbm.rollforward |> OldExpr.fromFluidExpr |> expr)
-    ; ("rollback", dbm.rollback |> OldExpr.fromFluidExpr |> expr) ]
-
-
 and fluidDBMigration (dbm : Types.dbMigration) : Js.Json.t =
   object_
     [ ("starting_version", int dbm.startingVersion)
@@ -338,18 +321,6 @@ and fluidDBMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("cols", colList dbm.cols)
     ; ("rollforward", dbm.rollforward |> fluidExpr)
     ; ("rollback", dbm.rollback |> fluidExpr) ]
-
-
-and db (db : Types.db) : Js.Json.t =
-  object_
-    [ ("tlid", tlid db.dbTLID)
-    ; ("name", blankOr string db.dbName)
-    ; ("cols", colList db.cols)
-    ; ("version", int db.version)
-    ; ("old_migrations", list dbMigration db.oldMigrations)
-    ; ( "active_migration"
-      , Option.map ~f:dbMigration db.activeMigration
-        |> Option.withDefault ~default:null ) ]
 
 
 and fluidDB (db : Types.db) : Js.Json.t =
@@ -550,13 +521,6 @@ and performFunctionAnalysisParams (params : Types.performFunctionAnalysisParams)
     ; ("dbs", list fluidDB params.dbs)
     ; ("user_fns", list fluidUserFunction params.userFns)
     ; ("user_tipes", list userTipe params.userTipes) ]
-
-
-and userFunction (uf : Types.userFunction) : Js.Json.t =
-  object_
-    [ ("tlid", tlid uf.ufTLID)
-    ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", uf.ufAST |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
 
 
 and fluidUserFunction (uf : Types.userFunction) : Js.Json.t =
