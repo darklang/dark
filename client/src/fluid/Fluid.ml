@@ -5306,9 +5306,12 @@ let pasteOverSelection
         let last = List.drop oldKVs ~count:index in
         let newKVs = List.concat [first; pastedKVs; last] in
         let replacement = E.ERecord (id, newKVs) in
-        let newAST = FluidAST.replace ~replacement id ast in
-        let caretTarget = caretTargetForEndOfExpr' replacement in
-        (newAST, moveToCaretTarget state newAST caretTarget)
+        List.last pastedKVs
+        |> Option.map ~f:(fun (_, valueExpr) ->
+               let caretTarget = caretTargetForEndOfExpr' valueExpr in
+               let newAST = FluidAST.replace ~replacement id ast in
+               (newAST, moveToCaretTarget state newAST caretTarget))
+        |> Option.withDefault ~default:(ast, state)
     | ERecord _, Some _, Some {astRef = ARRecord (_, RPFieldname _); _} ->
         (* Block pasting arbitrary expr into a record fieldname
          * since keys can't contain exprs *)
