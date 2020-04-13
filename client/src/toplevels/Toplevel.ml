@@ -370,13 +370,13 @@ let allGloballyScopedVarnames (dbs : db TD.t) : string list = allDBNames dbs
 let asPage (tl : toplevel) (center : bool) : page =
   match tl with
   | TLHandler _ ->
-      FocusedHandler (id tl, center)
+      FocusedHandler (id tl, None, center)
   | TLDB _ ->
       FocusedDB (id tl, center)
   | TLGroup _ ->
       FocusedGroup (id tl, center)
   | TLFunc _ ->
-      FocusedFn (id tl)
+      FocusedFn (id tl, None)
   | TLTipe _ ->
       FocusedType (id tl)
 

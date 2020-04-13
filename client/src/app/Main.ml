@@ -1046,7 +1046,7 @@ let update_ (msg : msg) (m : model) : modification =
   | WindowMouseUp event | AppMouseUp event ->
       let clickBehavior =
         match m.currentPage with
-        | FocusedFn tlid | FocusedType tlid ->
+        | FocusedFn (tlid, _) | FocusedType tlid ->
             (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
             let defaultBehaviour = Select (tlid, STTopLevelRoot) in
             ( match CursorState.unwrap m.cursorState with

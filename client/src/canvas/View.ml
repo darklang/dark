@@ -299,7 +299,7 @@ let viewCanvas (m : model) : msg Html.html =
         (* Filter out toplevels that are not in a group *)
         |> List.filter ~f:(fun tl -> not (Groups.isInGroup (TL.id tl) m.groups))
         |> List.map ~f:(viewTL m)
-    | FocusedFn tlid ->
+    | FocusedFn (tlid, _) ->
       ( match TD.get ~tlid m.userFunctions with
       | Some func ->
           [viewTL m (TL.ufToTL func)]

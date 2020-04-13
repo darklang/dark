@@ -130,7 +130,7 @@ let handlerCategory
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; identifier = Tlid tlid
-            ; destination = Some (FocusedHandler (tlid, true))
+            ; destination = Some (FocusedHandler (tlid, None, true))
             ; minusButton = None
             ; killAction = Some (ToplevelDeleteForever tlid)
             ; plusButton = None
@@ -259,7 +259,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
               ; uses = Some (List.length usedIn)
               ; minusButton
               ; killAction = Some (DeleteUserFunctionForever tlid)
-              ; destination = Some (FocusedFn tlid)
+              ; destination = Some (FocusedFn (tlid, None))
               ; plusButton = None
               ; verb = None }))
   in
@@ -691,9 +691,10 @@ let adminDebuggerView (m : model) : msg Html.html =
     match pg with
     | Architecture ->
         "Architecture"
-    | FocusedFn tlid ->
+    | FocusedFn (tlid, _) ->
         Printf.sprintf "Fn (TLID %s)" (TLID.toString tlid)
-    | FocusedHandler (tlid, _) ->
+    | FocusedHandler (tlid, _, _) ->
+        (* Syd TODO -> trace id *)
         Printf.sprintf "Handler (TLID %s)" (TLID.toString tlid)
     | FocusedDB (tlid, _) ->
         Printf.sprintf "DB (TLID %s)" (TLID.toString tlid)
