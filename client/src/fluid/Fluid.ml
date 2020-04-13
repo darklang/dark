@@ -776,6 +776,7 @@ let posFromCaretTarget (ast : FluidAST.t) (s : fluidState) (ct : caretTarget) :
     | ARPartial id, TPartial (id', _)
     | ARPartial id, TFieldPartial (id', _, _, _)
     | ARRightPartial id, TRightPartial (id', _)
+    | ARLeftPartial id, TLeftPartial (id', _)
     | ARRecord (id, RPOpen), TRecordOpen id'
     | ARRecord (id, RPClose), TRecordClose id'
     | ARVariable id, TVariable (id', _)
@@ -914,6 +915,7 @@ let posFromCaretTarget (ast : FluidAST.t) (s : fluidState) (ct : caretTarget) :
     | ARNull _, _
     | ARPartial _, _
     | ARRightPartial _, _
+    | ARLeftPartial _, _
     | ARPipe (_, _), _
     | ARRecord (_, RPOpen), _
     | ARRecord (_, RPClose), _
@@ -1001,6 +1003,8 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARPartial id; offset}
   | TRightPartial (id, _) ->
       Some {astRef = ARRightPartial id; offset}
+  | TLeftPartial (id, _) ->
+      Some {astRef = ARLeftPartial id; offset}
   | TLetKeyword (id, _) ->
       Some {astRef = ARLet (id, LPKeyword); offset}
   | TLetVarName (id, _, _) ->
@@ -1190,7 +1194,7 @@ let rec caretTargetForEndOfExpr' : fluidExpr -> caretTarget = function
       {astRef = ARRightPartial id; offset = String.length str}
   | ELeftPartial (id, str, _) ->
       (* Intentionally using the thing that was typed; not the existing expr *)
-      {astRef = ARPartial id; offset = String.length str}
+      {astRef = ARLeftPartial id; offset = String.length str}
   | EList (id, _) ->
       {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
   | ERecord (id, _) ->
@@ -1274,7 +1278,7 @@ let rec caretTargetForStartOfExpr' : fluidExpr -> caretTarget = function
   | ERightPartial (id, _, _) ->
       {astRef = ARRightPartial id; offset = 0}
   | ELeftPartial (id, _, _) ->
-      {astRef = ARPartial id; offset = 0}
+      {astRef = ARLeftPartial id; offset = 0}
   | EList (id, _) ->
       {astRef = ARList (id, LPOpen); offset = 0}
   | ERecord (id, _) ->
@@ -2466,7 +2470,7 @@ let updateFromACItem
             let replacement = EPipe (gid (), [expr; blank]) in
             ( FluidAST.replace (E.toID expr) ast ~replacement
             , caretTargetForEndOfExpr' blank ) )
-    | ( TPartial _
+    | ( TLeftPartial _
       , Some (ELeftPartial (pID, _, expr))
       , _
       , Expr (EIf (ifID, _, _, _)) ) ->
@@ -2474,7 +2478,7 @@ let updateFromACItem
         let replacement = EIf (ifID, expr, E.newB (), E.newB ()) in
         let newAST = FluidAST.replace ~replacement pID ast in
         (newAST, caretTargetForStartOfExpr' expr)
-    | ( TPartial _
+    | ( TLeftPartial _
       , Some (ELeftPartial (pID, _, expr))
       , _
       , Expr (EMatch (mID, _, pats)) ) ->
@@ -2482,7 +2486,7 @@ let updateFromACItem
         let replacement = EMatch (mID, expr, pats) in
         let newAST = FluidAST.replace ~replacement pID ast in
         (newAST, caretTargetForStartOfExpr' expr)
-    | ( TPartial _
+    | ( TLeftPartial _
       , Some (ELeftPartial (pID, _, expr))
       , _
       , Expr (ELet (letID, _, _, _)) ) ->
@@ -2702,6 +2706,7 @@ let idOfASTRef (astRef : astRef) : ID.t option =
   | ARFnCall id
   | ARPartial id
   | ARRightPartial id
+  | ARLeftPartial id
   | ARList (id, _)
   | ARRecord (id, _)
   | ARPipe (id, _)
@@ -2936,7 +2941,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
             ( Expr (EString (newID, String.slice ~from:1 ~to_:(-1) str))
             , CT.forARStringText newID (currOffset - 1) )
         else Some (Expr (EPartial (id, str, oldExpr)), currCTMinusOne)
-    | ARPartial _, ELeftPartial (id, oldStr, oldValue) ->
+    | ARLeftPartial _, ELeftPartial (id, oldStr, oldValue) ->
         let str = oldStr |> mutation |> String.trim in
         (* Left partials are rendered in front of the expression they wrap,
          * so place the caret at the start of the old value when the partial is removed *)
@@ -3049,6 +3054,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
     | ARPipe (_, _), _
     | ARRecord (_, RPFieldname _), _
     | ARRightPartial _, _
+    | ARLeftPartial _, _
     | ARString (_, SPOpenQuote), _
     | ARVariable _, _
     (*
@@ -3221,6 +3227,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
     | ARPipe _, _
     | ARRecord _, _
     | ARRightPartial _, _
+    | ARLeftPartial _, _
     | ARString _, _
     | ARVariable _, _
     | ARFlag _, _
@@ -3351,7 +3358,7 @@ let doExplicitInsert
       let id = gid () in
       Some
         ( ELeftPartial (id, extendedGraphemeCluster, expr)
-        , {astRef = ARPartial id; offset = currOffset + caretDelta} )
+        , {astRef = ARLeftPartial id; offset = currOffset + caretDelta} )
     in
     let mkLeftPartialIfOnlyExprInLetBody : (E.t * caretTarget) option =
       (* mkLeftPartialIfOnlyExprInLetBody wraps the expression in a left
@@ -3441,7 +3448,7 @@ let doExplicitInsert
     | ARRightPartial _, ERightPartial (id, oldStr, oldValue) ->
         let str = oldStr |> mutation |> String.trim in
         Some (ERightPartial (id, str, oldValue), currCTPlusLen)
-    | ARPartial _, ELeftPartial (id, str, expr) ->
+    | ARLeftPartial _, ELeftPartial (id, str, expr) ->
         (* appending to a left partial appends to the string part *)
         let str = str |> mutation |> String.trim in
         Some (ELeftPartial (id, str, expr), currCTPlusLen)
@@ -3579,6 +3586,7 @@ let doExplicitInsert
     | ARPartial _, _
     | ARRecord (_, RPFieldname _), _
     | ARRightPartial _, _
+    | ARLeftPartial _, _
     | ARString (_, SPOpenQuote), _
     | ARVariable _, _
     (*
@@ -3772,6 +3780,7 @@ let doExplicitInsert
     | ARPipe _, _
     | ARRecord _, _
     | ARRightPartial _, _
+    | ARLeftPartial _, _
     | ARString _, _
     | ARVariable _, _
     | ARFlag _, _
@@ -3930,6 +3939,7 @@ let doInfixInsert
          | ARBinOp _, _
          | ARPartial _, _
          | ARRightPartial _, _
+         | ARLeftPartial _, _
          | ARConstructor _, _
          | ARMatch _, _
          | ARLambda _, _
@@ -5213,13 +5223,20 @@ let reconstructExprFromRange
           findTokenValue tokens eID "partial" |> Option.withDefault ~default:""
         in
         Some (EPartial (id, newName, expr))
-    | ERightPartial (eID, _, expr) | ELeftPartial (eID, _, expr) ->
+    | ERightPartial (eID, _, expr) ->
         let expr = reconstructExpr expr |> orDefaultExpr in
         let newName =
           findTokenValue tokens eID "partial-right"
           |> Option.withDefault ~default:""
         in
         Some (ERightPartial (id, newName, expr))
+    | ELeftPartial (eID, _, expr) ->
+        let expr = reconstructExpr expr |> orDefaultExpr in
+        let newName =
+          findTokenValue tokens eID "partial-left"
+          |> Option.withDefault ~default:""
+        in
+        Some (ELeftPartial (id, newName, expr))
     | EList (_, exprs) ->
         let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
         Some (EList (id, newExprs))

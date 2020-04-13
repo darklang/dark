@@ -437,7 +437,7 @@ type astFlagPart =
    string" without needing to know if it is a TString relative to a combination
    of TStringMLStart, TStringMLMiddle, TStringMLEnd.
 
-   The IDs below all refer to the AST node ID.t *
+   The IDs below all refer to the AST node id
 
    NOTE(JULIAN): We intentionally do not have any astRefs that include
    parts that refer to an part of the AST that contains nested expressions.
@@ -459,6 +459,7 @@ type astRef =
   | ARFnCall of ID.t (* Matches the fn name+version *)
   | ARPartial of ID.t
   | ARRightPartial of ID.t
+  | ARLeftPartial of ID.t
   | ARList of ID.t * astListPart
   | ARRecord of ID.t * astRecordPart
   | ARPipe of ID.t * int (* index of the pipe *)
@@ -1458,6 +1459,8 @@ and fluidToken =
   | TPartial of ID.t * string
   (* A partial that extends out to the right. Used to create binops. *)
   | TRightPartial of ID.t * string
+  (* A partial that preceeds an existing expression, used to wrap things in other things *)
+  | TLeftPartial of ID.t * string
   (* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way *)
   | TPartialGhost of ID.t * string
