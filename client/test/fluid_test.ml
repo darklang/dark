@@ -539,7 +539,17 @@ let run () =
       t "bs outside empty string" emptyStr ~pos:2 bs "\"~\"" ;
       t "bs near-empty string" oneCharStr ~pos:2 bs "\"~\"" ;
       t "del near-empty string" oneCharStr ~pos:1 del "\"~\"" ;
-      t "insert outside string" aStr (ins "c") "~\"some string\"" ;
+      t
+        "insert outside string in if/then wrapper"
+        aStr
+        (ins "c")
+        "~\"some string\"" ;
+      tStruct
+        "insert outside string at top-level"
+        aStr
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" aStr) ;
       t "del outside string" aStr del "~\"some string\"" ;
       t "bs outside string" aStr bs "~\"some string\"" ;
       t "insert start of string" aStr ~pos:1 (ins "c") "\"c~some string\"" ;
@@ -715,13 +725,19 @@ let run () =
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12~456789_\"" ) ;
       t
-        "insert outside string"
+        "insert outside string in if/then wrapper"
         mlStr
         ~pos:0
         (ins "c")
         ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
+      tStruct
+        "insert outside string at top-level"
+        mlStr
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" mlStr) ;
       t
         "del outside string"
         mlStr
@@ -1086,13 +1102,19 @@ let run () =
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins "0") "~12345" ;
       t "insert at end of short" aShortInt ~pos:1 (ins "2") "12~" ;
-      t "insert not a number" anInt (ins "c") "~12345" ;
       t "insert start of number" anInt (ins "5") "5~12345" ;
       t "del start of number" anInt del "~2345" ;
       t "bs start of number" anInt bs "~12345" ;
       t "insert end of number" anInt ~pos:5 (ins "0") "123450~" ;
       t "del end of number" anInt ~pos:5 del "12345~" ;
       t "bs end of number" anInt ~pos:5 bs "1234~" ;
+      t "insert non-number at start in if/then wrapper" anInt (ins "c") "~12345" ;
+      tStruct
+        "insert non-number without wrapper"
+        anInt
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" anInt) ;
       t
         "insert number at scale"
         aHugeInt
@@ -1205,6 +1227,12 @@ let run () =
       t "bs dot converts to int" aFloat ~pos:4 bs "123~456" ;
       t "bs dot converts to int, no fraction" aPartialFloat ~pos:2 bs "1~" ;
       t "continue after adding dot" aPartialFloat ~pos:2 (ins "2") "1.2~" ;
+      tStruct
+        "insert letter at beginning of float at top-level"
+        aFloat
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" aFloat) ;
       t
         "ctrl+left start of whole moves to beg"
         aFloat
@@ -3781,11 +3809,17 @@ let run () =
       t "create list" b ~pos:0 (ins "[") "[~]" ;
       t "insert into empty list inserts" emptyList ~pos:1 (ins "5") "[5~]" ;
       t
-        "inserting before the list does nothing"
+        "inserting before a list in if/then wrapper does nothing"
         emptyList
         ~pos:0
         (ins "5")
         "~[]" ;
+      tStruct
+        "inserting before a list at top-level creates left partial"
+        emptyList
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" emptyList) ;
       t "insert space into multi list" multi ~pos:6 (key K.Space) "[56,78~]" ;
       t "insert space into single list" single ~pos:3 (key K.Space) "[56~]" ;
       t "insert into existing list item" single ~pos:1 (ins "4") "[4~56]" ;
@@ -3948,11 +3982,17 @@ let run () =
   describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;
       t
-        "inserting before the record does nothing"
+        "inserting before a record in if/then wrapper does nothing"
         emptyRecord
         ~pos:0
         (ins "5")
         "~{}" ;
+      tStruct
+        "inserting before a record at top-level inserts left partial"
+        emptyRecord
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" emptyRecord) ;
       t
         "inserting space between empty record does nothing"
         emptyRecord

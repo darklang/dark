@@ -3360,11 +3360,11 @@ let doExplicitInsert
         ( ELeftPartial (id, extendedGraphemeCluster, expr)
         , {astRef = ARLeftPartial id; offset = currOffset + caretDelta} )
     in
-    let mkLeftPartialIfOnlyExprInLetBody : (E.t * caretTarget) option =
-      (* mkLeftPartialIfOnlyExprInLetBody wraps the expression in a left
-       * partial only if it is either 1) the top-level expression in the AST or
-       * 2) the first expression directly inside a let. This means it's on the
-       * "left edge" of the editor. *)
+    let maybeIntoLeftPartial : (E.t * caretTarget) option =
+      (* maybeIntoLeftPartial wraps the expression in a left partial only if it
+       * is either 1) the top-level expression in the AST or 2) the first
+       * expression directly inside a let. This means it's on the "left edge"
+       * of the editor. *)
       match FluidAST.findParent (E.toID expr) ast with
       | None ->
           mkLeftPartial
@@ -3374,6 +3374,23 @@ let doExplicitInsert
           Some (expr, currCaretTarget)
     in
     match (currAstRef, expr) with
+    (* inserting at the beginning of these expressions wraps the expr in a left
+     * partial under certain conditions (see maybeIntoLeftPartial)
+     *
+     * \p{L} is unicode letters, as we don't want symbols or numerics to create
+     * left partials *)
+    | ARVariable _, EVariable _
+    | ARNull _, ENull _
+    | ARBool _, EBool _
+    | ARInteger _, EInteger _
+    | ARFloat _, EFloat _
+    | ARFnCall _, EFnCall _
+    | ARString (_, SPOpenQuote), EString _
+    | ARList (_, LPOpen), EList _
+    | ARRecord (_, RPOpen), ERecord _
+      when currCaretTarget.offset = 0
+           && Js.Re.test_ [%re "/^\\p{L}+$/u"] extendedGraphemeCluster ->
+        maybeIntoLeftPartial
     | ARString (_, kind), EString (id, str) ->
         let len = String.length str in
         let strRelOffset = match kind with SPOpenQuote -> currOffset - 1 in
@@ -3504,21 +3521,12 @@ let doExplicitInsert
           "doExplicitInsert - ARFieldAccess-FAPFieldOp is unhandled and doesn't seem to happen in practice"
           ~debug:old
           None
-    | ARVariable _, E.EVariable _ when currCaretTarget.offset = 0 ->
-        (* inserting at the beginning of a variable turns it into a left partial *)
-        mkLeftPartialIfOnlyExprInLetBody
     | ARVariable _, E.EVariable (_, varName) ->
         (* inserting in the middle or at the end of a variable turns it into a partial *)
         mkPartial (mutation varName) expr
-    | ARNull _, E.ENull _ when currCaretTarget.offset = 0 ->
-        (* inserting at the beginning of null turns it into a left partial *)
-        mkLeftPartialIfOnlyExprInLetBody
     | ARNull _, E.ENull _ ->
         (* inserting in the middle or at the end of null turns it into a partial *)
         mkPartial (mutation "null") expr
-    | ARBool _, E.EBool _ when currCaretTarget.offset = 0 ->
-        (* inserting at the beginning of a bool turns it into a left partial *)
-        mkLeftPartialIfOnlyExprInLetBody
     | ARBool _, E.EBool (_, bool) ->
         (* inserting in the middle or at the end of a bool turns it into a partial *)
         let str = if bool then "true" else "false" in
@@ -3534,9 +3542,6 @@ let doExplicitInsert
         else None
     | ARBlank _, _ ->
         maybeInsertInBlankExpr extendedGraphemeCluster
-    | ARFnCall _, EFnCall _ when currCaretTarget.offset = 0 ->
-        (* inserting at the beginning of a fn call creates a left partial *)
-        mkLeftPartialIfOnlyExprInLetBody
     | ARFnCall _, EFnCall (_, fnName, _, _) ->
         (* inserting in the middle or at the end of a fn call creates a partial *)
         mkPartial (mutation fnName) expr
