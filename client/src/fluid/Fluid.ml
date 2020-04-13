@@ -5297,13 +5297,21 @@ let pasteOverSelection
           CT.forARStringOpenQuote id (offset + String.length text)
         in
         (newAST, moveToCaretTarget state newAST caretTarget)
-    | ( ERecord (id, _)
-      , Some cp
+    | ( ERecord (id, oldKVs)
+      , Some (ERecord (_, pastedKVs))
       , Some {astRef = ARRecord (_, RPFieldname index); _} ) ->
-        (* Paste into a record fieldname, because it can't contain arbitrary exprs *)
-        Debug.loG "ERecord - index" index ;
-        Debug.loG "ERecord - cp" cp ;
-        Debug.loG "ERecord - id" id ;
+        (* Since keys can't contain exprs, merge pasted record with existing record,
+         * keeping duplicate keys *)
+        let first = List.take oldKVs ~count:index in
+        let last = List.drop oldKVs ~count:index in
+        let newKVs = List.concat [first; pastedKVs; last] in
+        let replacement = E.ERecord (id, newKVs) in
+        let newAST = FluidAST.replace ~replacement id ast in
+        let caretTarget = caretTargetForEndOfExpr' replacement in
+        (newAST, moveToCaretTarget state newAST caretTarget)
+    | ERecord _, Some _, Some {astRef = ARRecord (_, RPFieldname _); _} ->
+        (* Block pasting arbitrary expr into a record fieldname
+         * since keys can't contain exprs *)
         (ast, state)
     | _ ->
         text
