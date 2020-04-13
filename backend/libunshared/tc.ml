@@ -31,14 +31,6 @@ module Result = struct
     match rb with Error _ -> ra | Ok _ -> rb
 
 
-  let orElseLazy (v : unit -> ('a, 'b) t) (v2 : ('a, 'b) t) : ('a, 'b) t =
-    match v2 with Ok v2 -> Ok v2 | Error _ -> v ()
-
-
-  let or_else = orElse
-
-  let or_else_lazy = orElseLazy
-
   let and_ (ra : ('a, 'b) t) (rb : ('a, 'b) t) : ('a, 'b) t =
     match (ra, rb) with
     | Ok a, Ok _ ->

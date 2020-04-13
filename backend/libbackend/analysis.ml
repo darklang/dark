@@ -9,11 +9,13 @@ module PReq = Parsed_request
 module SE = Stored_event
 module SA = Static_assets
 
+type 'expr_type canvas = 'expr_type Canvas.canvas
+
 (* ------------------------- *)
 (* Non-execution analysis *)
 (* ------------------------- *)
 
-let unlocked (c : 'expr_type Canvas.canvas) : tlid list =
+let unlocked (c : 'expr_type canvas) : tlid list =
   c.dbs
   |> TL.dbs
   |> User_db.unlocked c.id c.owner
@@ -27,7 +29,7 @@ type db_stat =
 
 type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]
 
-let db_stats (c : fluid_expr Canvas.canvas) (tlids : tlid list) : db_stat_map =
+let db_stats (c : 'expr_type canvas) (tlids : tlid list) : db_stat_map =
   List.fold
     ~init:IDMap.empty
     ~f:(fun map tlid ->
@@ -45,7 +47,7 @@ let db_stats (c : fluid_expr Canvas.canvas) (tlids : tlid list) : db_stat_map =
 
 type worker_stat = {count : int} [@@deriving show, yojson]
 
-let worker_stats (c : fluid_expr Canvas.canvas) (tlid : tlid) : worker_stat =
+let worker_stats (c : 'expr_type canvas) (tlid : tlid) : worker_stat =
   let count =
     Db.fetch_one
       ~name:"count_workers"
@@ -66,8 +68,8 @@ let worker_stats (c : fluid_expr Canvas.canvas) (tlid : tlid) : worker_stat =
   {count}
 
 
-let get_404s ~(since : RTT.time) (c : fluid_expr Canvas.canvas) :
-    SE.four_oh_four list =
+let get_404s ~(since : RTT.time) (c : 'expr_type canvas) : SE.four_oh_four list
+    =
   let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
   let handlers =
     Db.fetch
@@ -147,8 +149,8 @@ let saved_input_vars
 
 
 let handler_trace
-    (c : fluid_expr Canvas.canvas)
-    (h : Types.fluid_expr RTT.HandlerT.handler)
+    (c : 'expr_type canvas)
+    (h : 'expr_type RTT.HandlerT.handler)
     (trace_id : traceid) : trace =
   let event = SE.load_event_for_trace ~canvas_id:c.id trace_id in
   let ivs, timestamp =
@@ -165,9 +167,8 @@ let handler_trace
 
 
 let user_fn_trace
-    (c : fluid_expr Canvas.canvas)
-    (fn : 'expr_type RTT.user_fn)
-    (trace_id : traceid) : trace =
+    (c : 'expr_type canvas) (fn : 'expr_type RTT.user_fn) (trace_id : traceid) :
+    trace =
   let event =
     Stored_function_arguments.load_for_analysis ~canvas_id:c.id fn.tlid trace_id
   in
@@ -185,8 +186,8 @@ let user_fn_trace
 
 
 let traceids_for_handler
-    (c : fluid_expr Canvas.canvas) (h : 'expr_type RTT.HandlerT.handler) :
-    traceid list =
+    (c : 'expr_type canvas) (h : 'expr_type RTT.HandlerT.handler) : traceid list
+    =
   match Handler.event_desc_for h with
   | Some ((hmodule, _, _) as desc) ->
       let events = SE.load_event_ids ~canvas_id:c.id desc in
@@ -213,9 +214,8 @@ let traceids_for_handler
       [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
 
 
-let traceids_for_user_fn
-    (c : fluid_expr Canvas.canvas) (fn : 'expr_type RTT.user_fn) : traceid list
-    =
+let traceids_for_user_fn (c : 'expr_type canvas) (fn : 'expr_type RTT.user_fn) :
+    traceid list =
   Stored_function_arguments.load_traceids c.id fn.tlid
 
 
@@ -223,13 +223,8 @@ let traceids_for_user_fn
 (* function execution *)
 (* ------------------------- *)
 let execute_function
-    (c : RTT.expr Canvas.canvas)
-    ~execution_id
-    ~tlid
-    ~trace_id
-    ~caller_id
-    ~args
-    fnname =
+    (c : RTT.expr canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname
+    =
   Execution.execute_function
     ~tlid
     ~execution_id
@@ -258,8 +253,8 @@ type fofs = SE.four_oh_four list [@@deriving to_yojson]
 
 type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
 
-let to_get_trace_data_rpc_result (c : fluid_expr Canvas.canvas) (trace : trace)
-    : string =
+let to_get_trace_data_rpc_result (c : 'expr_type canvas) (trace : trace) :
+    string =
   {trace}
   |> get_trace_data_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
@@ -269,7 +264,7 @@ type get_unlocked_dbs_rpc_result = {unlocked_dbs : tlid list}
 [@@deriving to_yojson]
 
 let to_get_unlocked_dbs_rpc_result
-    (unlocked_dbs : tlid list) (c : fluid_expr Canvas.canvas) : string =
+    (unlocked_dbs : tlid list) (c : 'expr_type canvas) : string =
   {unlocked_dbs}
   |> get_unlocked_dbs_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
@@ -309,12 +304,12 @@ let to_worker_schedules_push (ws : Event_queue.Worker_states.t) : string =
  * appearing in toplevels again. *)
 
 (* A subset of responses to be merged in *)
-type add_op_rpc_result =
-  { toplevels : Types.fluid_expr TL.toplevel list (* replace *)
-  ; deleted_toplevels : Types.fluid_expr TL.toplevel list
+type 'expr_type add_op_rpc_result =
+  { toplevels : 'expr_type TL.toplevel list (* replace *)
+  ; deleted_toplevels : 'expr_type TL.toplevel list
         (* replace, see note above *)
-  ; user_functions : Types.fluid_expr RTT.user_fn list (* replace *)
-  ; deleted_user_functions : Types.fluid_expr RTT.user_fn list
+  ; user_functions : 'expr_type RTT.user_fn list (* replace *)
+  ; deleted_user_functions : 'expr_type RTT.user_fn list
   ; user_tipes : RTT.user_tipe list
   ; deleted_user_tipes : RTT.user_tipe list (* replace, see deleted_toplevels *)
   }
@@ -330,11 +325,12 @@ let empty_to_add_op_rpc_result =
 
 
 type add_op_stroller_msg =
-  { result : add_op_rpc_result
+  { result : fluid_expr add_op_rpc_result
   ; params : fluid_expr Api.add_op_rpc_params }
 [@@deriving to_yojson]
 
-let to_add_op_rpc_result (c : fluid_expr Canvas.canvas) : add_op_rpc_result =
+let to_add_op_rpc_result (c : 'expr_type canvas) : 'expr_type add_op_rpc_result
+    =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
   ; user_functions = IDMap.data c.user_functions
@@ -364,11 +360,11 @@ let time_to_yojson (time : time) : Yojson.Safe.t =
 
 
 (* Initial load *)
-type initial_load_rpc_result =
-  { toplevels : Types.fluid_expr TL.toplevel list
-  ; deleted_toplevels : Types.fluid_expr TL.toplevel list
-  ; user_functions : Types.fluid_expr RTT.user_fn list
-  ; deleted_user_functions : Types.fluid_expr RTT.user_fn list
+type 'expr_type initial_load_rpc_result =
+  { toplevels : 'expr_type TL.toplevel list
+  ; deleted_toplevels : 'expr_type TL.toplevel list
+  ; user_functions : 'expr_type RTT.user_fn list
+  ; deleted_user_functions : 'expr_type RTT.user_fn list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list
   ; assets : SA.static_deploy list
@@ -385,7 +381,7 @@ type initial_load_rpc_result =
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
-    (c : fluid_expr Canvas.canvas)
+    (c : RTT.expr canvas)
     (op_ctrs : (string * int) list)
     (permission : Authorization.permission option)
     (fofs : SE.four_oh_four list)
@@ -413,7 +409,7 @@ let to_initial_load_rpc_result
   ; org_canvas_list
   ; worker_schedules
   ; creation_date = c.creation_date }
-  |> initial_load_rpc_result_to_yojson
+  |> initial_load_rpc_result_to_yojson RTT.expr_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
