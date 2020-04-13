@@ -5302,6 +5302,10 @@ let pasteOverSelection
       , Some {astRef = ARRecord (_, RPFieldname index); _} ) ->
         (* Since keys can't contain exprs, merge pasted record with existing record,
          * keeping duplicate keys *)
+        let index =
+          index + 1
+          (* adding 1 to ensure pasting after the existing entry *)
+        in
         let first = List.take oldKVs ~count:index in
         let last = List.drop oldKVs ~count:index in
         let newKVs = List.concat [first; pastedKVs; last] in
