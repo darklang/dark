@@ -35,7 +35,7 @@ module Result = struct
     match v2 with Ok v2 -> Ok v2 | Error _ -> v ()
 
 
-  let or_else = orElseLazy
+  let or_else = orElse
 
   let or_else_lazy = orElseLazy
 
