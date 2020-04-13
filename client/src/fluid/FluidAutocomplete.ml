@@ -411,6 +411,9 @@ let generate (m : model) (props : props) (a : t) (query : fullQuery) : item list
       generatePatterns query.ti a query.queryString
   | TFieldName _ | TFieldPartial _ ->
       generateFields query.fieldList
+  | TLeftPartial _ ->
+      (* Left partials can ONLY be if/let/match for now *)
+      [FACKeyword KLet; FACKeyword KIf; FACKeyword KMatch]
   | TPartial (id, name) ->
       generateExprs m props query.tl query.ti @ generateCommands name tlid id
   | _ ->
