@@ -5270,32 +5270,38 @@ let pasteOverSelection
     (data : clipboardContents) : FluidAST.t * state =
   let ast, state = deleteSelection props ~state ~ast in
   let mTi = getToken ast state in
-  let tokAndInfo = mTi |> Option.map ~f:(fun ti -> (ti.token, ti)) in
   let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> FluidAST.find id ast) in
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
   let text = Clipboard.clipboardContentsToString data in
-  (* let ct = caretTargetFromTokenInfo state.newPos mTi in *)
+  let ct =
+    mTi
+    |> Option.andThen ~f:(fun ti -> caretTargetFromTokenInfo state.newPos ti)
+  in
   match expr with
   | Some expr ->
-    ( match (expr, clipboardExpr, tokAndInfo) with
+    ( match (expr, clipboardExpr, ct) with
     | EBlank id, Some cp, _ ->
         (* Paste into a blank *)
         let newAST = FluidAST.replace ~replacement:cp id ast in
         let caretTarget = caretTargetForEndOfExpr (E.toID cp) newAST in
         (newAST, moveToCaretTarget state newAST caretTarget)
-    | EString (id, str), _, Some (_, ti) ->
-        (* Paste into a string, to take care of newlines *)
-        let index = getStringIndex ti state.newPos in
+    | EString (id, str), _, Some {astRef = ARString (_, SPOpenQuote); offset} ->
+        (* Paste into a string, to take care of newlines.
+         * Note: the behavior of paste before an open quote is problematic. *)
         let replacement =
-          E.EString (id, String.insertAt ~insert:text ~index str)
+          E.EString (id, String.insertAt ~insert:text ~index:(offset - 1) str)
         in
         let newAST = FluidAST.replace ~replacement id ast in
-        let caretTarget = CT.forARStringText id (index + String.length text) in
+        let caretTarget =
+          CT.forARStringOpenQuote id (offset + String.length text)
+        in
         (newAST, moveToCaretTarget state newAST caretTarget)
-    | ERecord (id, _), Some cp, Some (TRecordFieldname {index; _}, _) ->
+    | ( ERecord (id, _)
+      , Some cp
+      , Some {astRef = ARRecord (_, RPFieldname index); _} ) ->
         (* Paste into a record fieldname, because it can't contain arbitrary exprs *)
-        Debug.loG "ERecord - index" (index) ;
+        Debug.loG "ERecord - index" index ;
         Debug.loG "ERecord - cp" cp ;
         Debug.loG "ERecord - id" id ;
         (ast, state)
