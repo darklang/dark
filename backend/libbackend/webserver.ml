@@ -765,10 +765,16 @@ let admin_add_op_handler
         | AllDatastores ->
             C.load_with_dbs ~tlids host ops)
   in
+  let params : Types.fluid_expr Api.add_op_rpc_params =
+    { ops = Op.oplist_to_fluid params.ops
+    ; opCtr = params.opCtr
+    ; clientOpCtrId = params.clientOpCtrId }
+  in
   match maybe_c with
   | Ok c ->
       let t3, result =
-        time "3-to-frontend" (fun _ -> Analysis.to_add_op_rpc_result !c)
+        time "3-to-frontend" (fun _ ->
+            !c |> Canvas.to_fluid |> Analysis.to_add_op_rpc_result)
       in
       let t4, _ =
         time "4-save-to-disk" (fun _ ->
@@ -784,7 +790,7 @@ let admin_add_op_handler
             then (
               let strollerMsg =
                 {result; params}
-                |> Analysis.add_op_stroller_msg_to_yojson RTT.expr_to_yojson
+                |> Analysis.add_op_stroller_msg_to_yojson
                 |> Yojson.Safe.to_string
               in
               Stroller.push_new_event
@@ -830,7 +836,7 @@ let admin_add_op_handler
             (Option.value
                ~default:
                  ( {result = Analysis.empty_to_add_op_rpc_result; params}
-                 |> Analysis.add_op_stroller_msg_to_yojson RTT.expr_to_yojson
+                 |> Analysis.add_op_stroller_msg_to_yojson
                  |> Yojson.Safe.to_string )
                strollerMsg))
   | Error errs ->

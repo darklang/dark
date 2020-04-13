@@ -324,9 +324,9 @@ let empty_to_add_op_rpc_result =
   ; deleted_user_tipes = [] }
 
 
-type 'expr_type add_op_stroller_msg =
-  { result : 'expr_type add_op_rpc_result
-  ; params : 'expr_type Api.add_op_rpc_params }
+type add_op_stroller_msg =
+  { result : fluid_expr add_op_rpc_result
+  ; params : fluid_expr Api.add_op_rpc_params }
 [@@deriving to_yojson]
 
 let to_add_op_rpc_result (c : 'expr_type canvas) : 'expr_type add_op_rpc_result
