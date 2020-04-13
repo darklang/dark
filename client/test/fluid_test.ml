@@ -1334,6 +1334,12 @@ let run () =
         "14~6" ;
       ()) ;
   describe "Bools" (fun () ->
+      t
+        "insert start of true within if/then wrapper is no-op"
+        ~pos:0
+        (bool true)
+        (ins "c")
+        "~true" ;
       tStruct
         "insert start of true creates left partial"
         (bool true)
@@ -1361,6 +1367,12 @@ let run () =
         "tr0~ue" ;
       t ~expectsPartial:true "del middle of true" trueBool ~pos:2 del "tr~e" ;
       t ~expectsPartial:true "bs middle of true" trueBool ~pos:2 bs "t~ue" ;
+      t
+        "insert start of false within if/then wrapper is no-op"
+        ~pos:0
+        (bool false)
+        (ins "c")
+        "~false" ;
       tStruct
         "insert start of false creates left partial"
         (bool false)
@@ -1483,13 +1495,18 @@ let run () =
         "fal~" ;
       ()) ;
   describe "Nulls" (fun () ->
+      tStruct
+        "insert start of null creates left partial"
+        aNull
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" aNull) ;
       t
-        ~expectsPartial:true
-        "insert start of null"
+        "insert start of null within if/then wrapper is no-op"
         aNull
         ~pos:0
         (ins "c")
-        "c~null" ;
+        "~null" ;
       t ~expectsPartial:true "del start of null" aNull ~pos:0 del "~ull" ;
       t "bs start of null" aNull ~pos:0 bs "~null" ;
       t "ctrl+left start of null doesnt move" aNull ~pos:0 ctrlLeft "~null" ;
@@ -1865,6 +1882,12 @@ let run () =
         ~pos:1
         (ins "x")
         "Ix~nt::add 5 _________" ;
+      t
+        "insert start of function within if/then wrapper is no-op"
+        ~pos:0
+        aFnCall
+        (ins "c")
+        "~Int::add 5 _________" ;
       tStruct
         "inserting at beginning of function creates left partial"
         aFnCall

@@ -3347,11 +3347,24 @@ let doExplicitInsert
         ( EPartial (newID, str, oldExpr)
         , {astRef = ARPartial newID; offset = currOffset + caretDelta} )
     in
-    let mkLeftPartial (oldExpr : E.t) : (E.t * caretTarget) option =
+    let mkLeftPartial : (E.t * caretTarget) option =
       let id = gid () in
       Some
-        ( ELeftPartial (id, extendedGraphemeCluster, oldExpr)
+        ( ELeftPartial (id, extendedGraphemeCluster, expr)
         , {astRef = ARPartial id; offset = currOffset + caretDelta} )
+    in
+    let mkLeftPartialIfOnlyExprInLetBody : (E.t * caretTarget) option =
+      (* mkLeftPartialIfOnlyExprInLetBody wraps the expression in a left
+       * partial only if it is either 1) the top-level expression in the AST or
+       * 2) the first expression directly inside a let. This means it's on the
+       * "left edge" of the editor. *)
+      match FluidAST.findParent (E.toID expr) ast with
+      | None ->
+          mkLeftPartial
+      | Some (ELet (_, _, _, body)) when expr = body ->
+          mkLeftPartial
+      | _ ->
+          Some (expr, currCaretTarget)
     in
     match (currAstRef, expr) with
     | ARString (_, kind), EString (id, str) ->
@@ -3486,19 +3499,19 @@ let doExplicitInsert
           None
     | ARVariable _, E.EVariable _ when currCaretTarget.offset = 0 ->
         (* inserting at the beginning of a variable turns it into a left partial *)
-        mkLeftPartial expr
+        mkLeftPartialIfOnlyExprInLetBody
     | ARVariable _, E.EVariable (_, varName) ->
         (* inserting in the middle or at the end of a variable turns it into a partial *)
         mkPartial (mutation varName) expr
     | ARNull _, E.ENull _ when currCaretTarget.offset = 0 ->
         (* inserting at the beginning of null turns it into a left partial *)
-        mkLeftPartial expr
+        mkLeftPartialIfOnlyExprInLetBody
     | ARNull _, E.ENull _ ->
         (* inserting in the middle or at the end of null turns it into a partial *)
         mkPartial (mutation "null") expr
     | ARBool _, E.EBool _ when currCaretTarget.offset = 0 ->
         (* inserting at the beginning of a bool turns it into a left partial *)
-        mkLeftPartial expr
+        mkLeftPartialIfOnlyExprInLetBody
     | ARBool _, E.EBool (_, bool) ->
         (* inserting in the middle or at the end of a bool turns it into a partial *)
         let str = if bool then "true" else "false" in
@@ -3516,7 +3529,7 @@ let doExplicitInsert
         maybeInsertInBlankExpr extendedGraphemeCluster
     | ARFnCall _, EFnCall _ when currCaretTarget.offset = 0 ->
         (* inserting at the beginning of a fn call creates a left partial *)
-        mkLeftPartial expr
+        mkLeftPartialIfOnlyExprInLetBody
     | ARFnCall _, EFnCall (_, fnName, _, _) ->
         (* inserting in the middle or at the end of a fn call creates a partial *)
         mkPartial (mutation fnName) expr
