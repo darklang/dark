@@ -19,6 +19,7 @@ let tid (t : t) : ID.t =
   | TPlaceholder {blankID = id; _}
   | TPartial (id, _)
   | TRightPartial (id, _)
+  | TLeftPartial (id, _)
   | TPartialGhost (id, _)
   | TLetKeyword (id, _)
   | TLetAssignment (id, _)
@@ -112,6 +113,7 @@ let isTextToken t : bool =
   | TPlaceholder _
   | TPartial _
   | TRightPartial _
+  | TLeftPartial _
   | TPartialGhost _
   | TRecordFieldname _
   | TString _
@@ -198,6 +200,7 @@ let isBlank t =
   | TLambdaVar (_, _, _, "")
   | TPartial (_, "")
   | TRightPartial (_, "")
+  | TLeftPartial (_, "")
   | TPatternBlank _ ->
       true
   | _ ->
@@ -241,6 +244,7 @@ let isAutocompletable (t : t) : bool =
   | TPartial _
   | TFieldPartial _
   | TRightPartial _
+  | TLeftPartial _
   | TPatternBlank _
   (* since patterns have no partial but commit as variables
    * automatically, allow intermediate variables to
@@ -297,6 +301,8 @@ let toText (t : t) : string =
   | TPartial (_, str) ->
       shouldntBeEmpty str
   | TRightPartial (_, str) ->
+      shouldntBeEmpty str
+  | TLeftPartial (_, str) ->
       shouldntBeEmpty str
   | TPartialGhost (_, str) ->
       shouldntBeEmpty str
@@ -504,6 +510,8 @@ let toTypeName (t : t) : string =
       "partial"
   | TRightPartial _ ->
       "partial-right"
+  | TLeftPartial _ ->
+      "partial-left"
   | TPartialGhost _ ->
       "partial-ghost"
   | TLetKeyword _ ->
@@ -608,7 +616,7 @@ let toCategoryName (t : t) : string =
       "string"
   | TVariable _ | TNewline _ | TSep _ | TBlank _ | TPlaceholder _ ->
       ""
-  | TPartial _ | TRightPartial _ | TPartialGhost _ ->
+  | TPartial _ | TRightPartial _ | TLeftPartial _ | TPartialGhost _ ->
       "partial"
   | TFloatWhole _ | TFloatPoint _ | TFloatFractional _ ->
       "float"
