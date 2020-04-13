@@ -53,10 +53,6 @@ let to_fluid (c : RTT.expr canvas) : Types.fluid_expr canvas =
   ; deleted_user_tipes = c.deleted_user_tipes }
 
 
-let to_fluid_ref (c : RTT.expr canvas ref) : Types.fluid_expr canvas ref =
-  ref (to_fluid !c)
-
-
 let of_fluid (c : Types.fluid_expr canvas) : RTT.expr canvas =
   { host = c.host
   ; owner = c.owner
