@@ -28,9 +28,7 @@
   .type {
     color: $green;
   }
-  .return {
-    color: lighten($orange, 15%);
-  }
+
   .err {
     color: lighten(saturate($red, 25%), 30%);
   }
