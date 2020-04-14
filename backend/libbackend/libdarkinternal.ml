@@ -64,8 +64,7 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TList
     ; description =
-        "Return a list of all user email addresses for non-admins and not in
-@darklang.com or @example.com"
+        "<return Return> a <type list> of all user email addresses for non-admins and not in @darklang.com or @example.com"
     ; func =
         internal_fn (function
             | _, [] ->
@@ -552,7 +551,7 @@ that's already taken, returns an error."
     ; parameters = [par "host" TStr; par "tlid" TStr]
     ; return_type = TBool
     ; description =
-        "Takes a `host` and a `tlid` and returns true iff. we can load+parse traces for the handler identified by `tlid`, and false otherwise"
+        "Takes a <var host> and a <var tlid> and <return returns> {{true}} iff we can load and parse traces for the handler identified by <var tlid>, and {{false}} otherwise."
     ; func =
         internal_fn (function
             | _, [DStr host; DStr tlid] ->
@@ -759,7 +758,7 @@ that's already taken, returns an error."
     ; parameters = [par "host" TStr; par "tlid" TStr]
     ; return_type = TOption
     ; description =
-        "Returns Just most recent stored events for the tlid if it is a handleror Nothing if it is not"
+        "<return Returns> {{Just <var events>}}, where <var events> is the most recent stored events for the <param tlid> if it is a handler or {{Nothing}} if it is not."
     ; func =
         internal_fn (function
             | _, [DStr host; DStr tlid_str] ->
