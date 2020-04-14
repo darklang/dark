@@ -5288,7 +5288,8 @@ let pasteOverSelection
         (newAST, moveToCaretTarget state newAST caretTarget)
     | EString (id, str), _, Some {astRef = ARString (_, SPOpenQuote); offset} ->
         (* Paste into a string, to take care of newlines.
-         * Note: the behavior of paste before an open quote is problematic. *)
+         * Note: pasting before an open quote
+         * places the caret one unit left of the text end *)
         let replacement =
           E.EString (id, String.insertAt ~insert:text ~index:(offset - 1) str)
         in
