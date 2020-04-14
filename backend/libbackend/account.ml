@@ -46,6 +46,8 @@ let banned_usernames : string list =
   ; "webmaster"
   ; "wpad" ]
   @ (* original to us *)
+  (* alpha, but not beta, because user beta already exists (with ownership
+   * transferred to us *)
   ["billing"; "dev"; "alpha"]
 
 
