@@ -619,7 +619,7 @@ let rec documentationForItem ({item; validity} : data) : 'a Vdom.t list option =
         then f.fnDescription
         else "Function call with no description"
       in
-      let desc = ViewUtils.PrettyDocs.convert desc in
+      let desc = PrettyDocs.convert desc in
       let desc = if f.fnDeprecated then deprecated :: desc else desc in
       Some (desc @ [ViewErrorRailDoc.hintForFunction f None; typeDoc])
   | FACConstructorName ("Just", _) ->

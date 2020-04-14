@@ -2,7 +2,7 @@ open Prelude
 
 (* Dark *)
 module E = FluidExpression
-open ViewUtils.PrettyDocs
+open PrettyDocs
 
 (** [hintForFunction fn sendToRail] returns a (possibly noNode) DOM node that
  * provides a contextual hint about error-rail usage for the function [fn].

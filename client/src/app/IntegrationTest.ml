@@ -761,7 +761,7 @@ let abridged_sidebar_category_icon_click_disabled (_m : model) : testResult =
 
 
 let function_docstrings_are_valid (m : model) : testResult =
-  let open ViewUtils.PrettyDocs in
+  let open PrettyDocs in
   let failed =
     m.functions.allowedFunctions
     |> List.filterMap ~f:(fun fn ->
