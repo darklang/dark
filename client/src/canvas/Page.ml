@@ -50,6 +50,28 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   }
 
 
+let updatePageTraceId (oldPage : page) (traceID : traceID) : page =
+  match oldPage with
+  | FocusedHandler (tlid, _, center) ->
+      FocusedHandler (tlid, Some traceID, center)
+  | FocusedFn (tlid, _) ->
+      FocusedFn (tlid, Some traceID)
+  | _ ->
+      oldPage
+
+
+let traceidOf (page : page) : traceID option =
+  match page with
+  | FocusedDB _
+  | FocusedGroup _
+  | FocusedType _
+  | SettingsModal _
+  | Architecture ->
+      None
+  | FocusedFn (_, traceId) | FocusedHandler (_, traceId, _) ->
+      traceId
+
+
 let setPage (m : model) (oldPage : page) (newPage : page) : model =
   match (oldPage, newPage) with
   | SettingsModal _, FocusedFn (tlid, _)
@@ -72,6 +94,9 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
             lastOffset = Some m.canvasProps.offset
           ; offset = Defaults.origin }
       ; cursorState = Selecting (tlid, None) }
+  | FocusedFn (oldtlid, otid), FocusedFn (newtlid, tid)
+    when oldtlid == newtlid && otid <> tid ->
+      {m with currentPage = newPage; cursorState = Selecting (newtlid, None)}
   | FocusedFn (oldtlid, _), FocusedFn (newtlid, _)
   | FocusedType oldtlid, FocusedFn (newtlid, _)
   | FocusedFn (oldtlid, _), FocusedType newtlid
@@ -118,6 +143,9 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       TL.get m tlid
       |> Option.map ~f:(fun tl -> calculatePanOffset m tl newPage)
       |> recoverOpt "switching to missing tl" ~default:m
+  | FocusedHandler (oldtlid, otid, _), FocusedHandler (newtlid, tid, _)
+    when oldtlid == newtlid && otid <> tid ->
+      {m with currentPage = newPage}
   | FocusedHandler (otlid, _, _), FocusedHandler (tlid, _, _)
   | FocusedHandler (otlid, _, _), FocusedDB (tlid, _)
   | FocusedHandler (otlid, _, _), FocusedGroup (tlid, _)

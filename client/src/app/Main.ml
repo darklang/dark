@@ -439,8 +439,21 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = Page.tlidOf page
             ; timestamp = Js.Date.now () /. 1000.0 }
           in
+          let tlid =
+            Page.tlidOf page |> Option.withDefault ~default:(gtlid ())
+          in
+          let m, afCmd =
+            match Page.traceidOf page with
+            | Some tid ->
+                let m = Analysis.setSelectedTraceID m tlid tid in
+                Analysis.analyzeFocused m
+            | None ->
+                (m, Cmd.none)
+          in
           let cap = Page.capMinimap m.currentPage page in
-          let cmds = Cmd.batch (API.sendPresence m avMessage :: cap) in
+          let cmds =
+            Cmd.batch ((API.sendPresence m avMessage :: cap) @ [afCmd])
+          in
           (Page.setPage m m.currentPage page, cmds)
         else
           (Page.setPage m m.currentPage Architecture, Url.updateUrl Architecture)
@@ -816,7 +829,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetTLTraceID (tlid, traceID) ->
         let m = Analysis.setSelectedTraceID m tlid traceID in
         let m, afCmd = Analysis.analyzeFocused m in
-        (m, afCmd)
+        let newPage = Page.updatePageTraceId m.currentPage traceID in
+        let m = Page.setPage m m.currentPage newPage in
+        let navCmd = Url.navigateTo newPage in
+        let commands = [afCmd; navCmd] in
+        (m, Cmd.batch commands)
     | DragTL (tlid, offset, hasMoved, state) ->
         (* Because mouseEvents are not perfectly reliable, we can end up in
          * weird dragging states. If we start dragging, make sure the state
