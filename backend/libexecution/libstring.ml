@@ -704,6 +704,20 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::contains"]
+    ; infix_names = []
+    ; parameters = [par "lookingIn" TStr; par "searchingFor" TStr]
+    ; return_type = TBool
+    ; description = "Checks if `lookingIn` contains `searchingFor`"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr haystack; DStr needle] ->
+              DBool (Unicode_string.is_substring ~substring:needle haystack)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::slice"]
     ; infix_names = []

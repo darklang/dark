@@ -283,7 +283,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::containsKey"]
+  ; { prefix_names = ["Dict::member"]
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TBool
