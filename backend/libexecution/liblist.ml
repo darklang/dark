@@ -412,7 +412,7 @@ let fns =
     ; description =
         "Returns a copy of `list`, sorted using `f a b` to compare values `a` and `b`.
         `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter.
-        Consider `List::sort` or `List::sortBy` if you need less control over the sorting process."
+        Consider `List::sort` or `List::sortBy` if you don't need this level of control."
     ; func =
         InProcess
           (function
