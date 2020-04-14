@@ -30,7 +30,7 @@ module CT = CaretTarget
 
 type token = T.t
 
-type tokens = T.tokenInfo list
+type tokenInfos = T.tokenInfo list
 
 type state = Types.fluidState
 
@@ -87,10 +87,10 @@ type neighbour =
   | R of T.t * T.tokenInfo
   | No
 
-let rec getTokensAtPosition ?(prev = None) ~(pos : int) (tokens : tokens) :
+let rec getTokensAtPosition ?(prev = None) ~(pos : int) (tokens : tokenInfos) :
     T.tokenInfo option * T.tokenInfo option * T.tokenInfo option =
   (* Get the next token and the remaining tokens, skipping indents. *)
-  let rec getNextToken (infos : tokens) : T.tokenInfo option * tokens =
+  let rec getNextToken (infos : tokenInfos) : T.tokenInfo option * tokenInfos =
     match infos with
     | ti :: rest ->
         if T.isSkippable ti.token then getNextToken rest else (Some ti, rest)
@@ -121,18 +121,18 @@ let exprOfFocusedEditor (ast : FluidAST.t) (s : fluidState) : FluidExpression.t
 
 
 let tokenizeForFocusedEditor (expr : FluidExpression.t) (s : fluidState) :
-    tokens =
+    tokenInfos =
   Printer.tokenizeForEditor s.activeEditor expr
 
 
-let tokensForActiveEditor (ast : FluidAST.t) (s : fluidState) : tokens =
+let tokensForActiveEditor (ast : FluidAST.t) (s : fluidState) : tokenInfos =
   Printer.tokensForEditor s.activeEditor ast
 
 
 (* -------------------- *)
 (* Nearby tokens *)
 (* -------------------- *)
-let getNeighbours ~(pos : int) (tokens : tokens) :
+let getNeighbours ~(pos : int) (tokens : tokenInfos) :
     neighbour * neighbour * T.tokenInfo option =
   let mPrev, mCurrent, mNext = getTokensAtPosition ~pos tokens in
   let toTheRight =
@@ -160,7 +160,7 @@ let getNeighbours ~(pos : int) (tokens : tokens) :
   (toTheLeft, toTheRight, mNext)
 
 
-let getToken' (tokens : tokens) (s : fluidState) : T.tokenInfo option =
+let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
   (* The algorithm that decides what token on when a certain key is pressed is
    * in updateKey. It's pretty complex and it tells us what token a keystroke
@@ -231,7 +231,7 @@ let length (tokens : token list) : int =
 
 (* Returns the token to the left and to the right. Ignores indent tokens *)
 
-let getLeftTokenAt (newPos : int) (tis : tokens) : T.tokenInfo option =
+let getLeftTokenAt (newPos : int) (tis : tokenInfos) : T.tokenInfo option =
   List.find ~f:(fun ti -> newPos <= ti.endPos && newPos >= ti.startPos) tis
 
 
@@ -240,7 +240,7 @@ type gridPos =
   ; col : int }
 
 (* Result will definitely be a valid position. *)
-let gridFor ~(pos : int) (tokens : tokens) : gridPos =
+let gridFor ~(pos : int) (tokens : tokenInfos) : gridPos =
   let ti =
     List.find tokens ~f:(fun ti -> ti.startPos <= pos && ti.endPos >= pos)
   in
@@ -254,7 +254,7 @@ let gridFor ~(pos : int) (tokens : tokens) : gridPos =
 
 
 (* Result will definitely be a valid position. *)
-let posFor ~(row : int) ~(col : int) (tokens : tokens) : int =
+let posFor ~(row : int) ~(col : int) (tokens : tokenInfos) : int =
   if row < 0 || col < 0
   then 0
   else
@@ -275,7 +275,7 @@ let posFor ~(row : int) ~(col : int) (tokens : tokens) : int =
  * in an indent, will be moved to the next char. Empty lines get moved to the
  * start. When placed past the end of a line, will go on the end of the last
  * item in it. *)
-let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokens) : int =
+let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokenInfos) : int =
   if row < 0 || col < 0
   then 0
   else
@@ -443,7 +443,8 @@ let goToStartOfWord
 
 (* We want to find the closest editable token that is after the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
-let getEndOfWordPos ~(pos : int) (tokens : tokens) (ti : T.tokenInfo) : int =
+let getEndOfWordPos ~(pos : int) (tokens : tokenInfos) (ti : T.tokenInfo) : int
+    =
   let tokenInfo =
     tokens
     |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
@@ -454,8 +455,8 @@ let getEndOfWordPos ~(pos : int) (tokens : tokens) (ti : T.tokenInfo) : int =
   else tokenInfo.endPos
 
 
-let goToEndOfWord ~(pos : int) (tokens : tokens) (s : state) (ti : T.tokenInfo)
-    : state =
+let goToEndOfWord
+    ~(pos : int) (tokens : tokenInfos) (s : state) (ti : T.tokenInfo) : state =
   let s = recordAction "goToEndOfWord" s in
   setPosition s (getEndOfWordPos ~pos tokens ti)
 
@@ -509,14 +510,14 @@ let moveToEndOfTarget (ast : FluidAST.t) (s : state) (target : ID.t) : state =
       moveTo newPos s
 
 
-let rec getNextBlank (pos : int) (tokens : tokens) : T.tokenInfo option =
+let rec getNextBlank (pos : int) (tokens : tokenInfos) : T.tokenInfo option =
   tokens
   |> List.find ~f:(fun ti -> T.isBlank ti.token && ti.startPos > pos)
   |> Option.orElseLazy (fun () ->
          if pos = 0 then None else getNextBlank 0 tokens)
 
 
-let getNextBlankPos (pos : int) (tokens : tokens) : int =
+let getNextBlankPos (pos : int) (tokens : tokenInfos) : int =
   tokens
   |> getNextBlank pos
   |> Option.map ~f:(fun ti -> ti.startPos)
@@ -533,7 +534,7 @@ let moveToNextBlank ~(pos : int) (ast : FluidAST.t) (s : state) : state =
 (** [getNextEditable pos tokens] returns the first editable token after [pos] in
  * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in
  * [tokens], or None if no editable token exists. *)
-let rec getNextEditable (pos : int) (tokens : tokens) : T.tokenInfo option =
+let rec getNextEditable (pos : int) (tokens : tokenInfos) : T.tokenInfo option =
   tokens
   |> List.find ~f:(fun ti ->
          let isEditable =
@@ -549,7 +550,7 @@ let rec getNextEditable (pos : int) (tokens : tokens) : T.tokenInfo option =
          if pos = 0 then None else getNextEditable (-1) tokens)
 
 
-let getNextEditablePos (pos : int) (tokens : tokens) : int =
+let getNextEditablePos (pos : int) (tokens : tokenInfos) : int =
   tokens
   |> getNextEditable pos
   |> Option.map ~f:(fun ti -> ti.startPos)
@@ -566,7 +567,7 @@ let moveToNextEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
 (** [getPrevEditable pos tokens] returns the closest editable token before [pos] in
 * [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in
 * [tokens], or None if no editable exists. *)
-let getPrevEditable (pos : int) (tokens : tokens) : T.tokenInfo option =
+let getPrevEditable (pos : int) (tokens : tokenInfos) : T.tokenInfo option =
   let revTokens = List.reverse tokens in
   let rec findEditable (pos : int) : T.tokenInfo option =
     revTokens
@@ -589,7 +590,7 @@ let getPrevEditable (pos : int) (tokens : tokens) : T.tokenInfo option =
   findEditable pos
 
 
-let getPrevEditablePos (pos : int) (tokens : tokens) : int =
+let getPrevEditablePos (pos : int) (tokens : tokenInfos) : int =
   tokens
   |> getPrevEditable pos
   |> Option.map ~f:(fun ti ->
@@ -604,7 +605,7 @@ let moveToPrevEditable ~(pos : int) (ast : FluidAST.t) (s : state) : state =
   |> setPosition ~resetUD:true s
 
 
-let rec getPrevBlank (pos : int) (tokens : tokens) : T.tokenInfo option =
+let rec getPrevBlank (pos : int) (tokens : tokenInfos) : T.tokenInfo option =
   tokens
   |> List.filter ~f:(fun ti -> T.isBlank ti.token && ti.endPos <= pos)
   |> List.last
@@ -617,7 +618,7 @@ let rec getPrevBlank (pos : int) (tokens : tokens) : T.tokenInfo option =
          if pos = lastPos then None else getPrevBlank lastPos tokens)
 
 
-let getPrevBlankPos (pos : int) (tokens : tokens) : int =
+let getPrevBlankPos (pos : int) (tokens : tokenInfos) : int =
   tokens
   |> getPrevBlank pos
   |> Option.map ~f:(fun ti -> ti.startPos)
@@ -703,8 +704,8 @@ let doDown ~(pos : int) (ast : FluidAST.t) (s : state) : state =
 
    This is useful for determining the precise position to which the caret should
    jump after a transformation. *)
-let posFromCaretTarget (tokens : tokens) (s : fluidState) (ct : caretTarget) :
-    int =
+let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
+    : int =
   (* Essentially we're using List.findMap to map a function that
    * matches across astref,token combinations (exhaustively matching astref but not token)
    * to determine the corresponding caretPos.
@@ -937,7 +938,8 @@ let posFromCaretTarget (tokens : tokens) (s : fluidState) (ct : caretTarget) :
 
 (** moveToCaretTarget returns a modified fluidState with newPos set to reflect
     the caretTarget. *)
-let moveToCaretTarget (tokens : tokens) (s : fluidState) (ct : caretTarget) =
+let moveToCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
+    =
   {s with newPos = posFromCaretTarget tokens s ct}
 
 
@@ -1075,7 +1077,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       None
 
 
-let caretTargetForNextNonWhitespaceToken ~pos (tokens : tokens) :
+let caretTargetForNextNonWhitespaceToken ~pos (tokens : tokenInfos) :
     caretTarget option =
   let rec getNextWS tokens =
     match tokens with
@@ -1099,7 +1101,7 @@ let caretTargetForNextNonWhitespaceToken ~pos (tokens : tokens) :
     If given, offset is the offset of the caretTarget, in characters. Defaults
     to 0, or the beginning of the targeted expression. *)
 let moveToAstRef
-    (tokens : tokens) (s : fluidState) ?(offset = 0) (astRef : astRef) :
+    (tokens : tokenInfos) (s : fluidState) ?(offset = 0) (astRef : astRef) :
     fluidState =
   moveToCaretTarget tokens s {astRef; offset}
 
@@ -4735,7 +4737,7 @@ let updateAutocomplete
     (m : model)
     (tlid : TLID.t)
     (ast : FluidAST.t)
-    (tokens : tokens)
+    (tokens : tokenInfos)
     (s : fluidState) : fluidState =
   match getToken' tokens s with
   | Some ti when T.isAutocompletable ti.token ->
@@ -5466,8 +5468,12 @@ let updateMouseUpExternal
       (ast, s)
 
 
-let updateMsg m tlid (ast : FluidAST.t) (msg : Types.fluidMsg) (s : fluidState)
-    : FluidAST.t * fluidState * tokens =
+let updateMsg
+    (m : model)
+    (tlid : TLID.t)
+    (ast : FluidAST.t)
+    (msg : Types.fluidMsg)
+    (s : fluidState) : FluidAST.t * fluidState * tokenInfos =
   let props = {functions = m.functions} in
   let newAST, newState =
     match msg with
