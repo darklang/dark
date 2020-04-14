@@ -55,7 +55,7 @@ let () =
   describe "Runtime_test" Runtime_test.run ;
   describe "User_functions_test" Userfn_test.run ;
   describe "View_blankor" View_blankor.run ;
-  describe "Util_test" Util_test.run ;
+  describe "Prettydocs_test" Prettydocs_test.run ;
   if !domTests
   then (
     DOMSupport.init () ;

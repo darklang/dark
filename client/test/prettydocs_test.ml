@@ -1,6 +1,5 @@
 open Tester
-open Util
-open ViewUtils.PrettyDocs
+open PrettyDocs
 
 let run () =
   describe "Regex" (fun () ->
