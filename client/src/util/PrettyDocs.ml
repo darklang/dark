@@ -11,7 +11,7 @@ let nestedTag = Regex.regex "\\<\\w+\\s[^>]*<\\w+\\s[^<]*\\>.*\\>"
 
 let nestedCodeBlock = Regex.regex "\\{\\{.*\\{\\{.*\\}\\}.*\\}\\}"
 
-let validTags = ["param"; "fn"; "var"; "type"; "return"; "err"; "cmd"]
+let validTags = ["param"; "fn"; "var"; "type"; "err"; "cmd"]
 
 type parseResult =
   | ParseSuccess of msg Html.html list
