@@ -375,7 +375,8 @@ let fns =
     ; parameters = [par "list" TList]
     ; return_type = TList
     ; description =
-        "Returns a copy of `list` with every value sorted in ascending order. Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
+        "Returns a copy of `list` with every value sorted in ascending order. Use this if the values have types Dark knows how to sort.
+         Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
     ; func =
         InProcess
           (function
@@ -390,9 +391,9 @@ let fns =
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
-        {|Returns a copy of `list`, sorted as if each value evaluated to `f val`.
+        {|Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `f val`.
           For example, `List::sortBy ["x","jkl","ab"] \val -> String::length val` returns `[ "x", "ab", "jkl" ]`.
-          Consider `List::sort` if `f val == val`, or `List::sortByComparator` if you want more control over the sorting process.|}
+          Consider `List::sort` if the list values can be directly compared, or `List::sortByComparator` if you want more control over the sorting process.|}
     ; func =
         InProcess
           (function
