@@ -720,57 +720,76 @@ let t_db_query_works () =
     ; Op.SetDBColType (dbid, coltypeid3, "Int")
     ; Op.AddDBCol (dbid, colnameid4, coltypeid4)
     ; Op.SetDBColName (dbid, colnameid4, "income")
-    ; Op.SetDBColType (dbid, coltypeid4, "Float") ]
+    ; Op.SetDBColType (dbid, coltypeid4, "Float")
+    ; Op.AddDBCol (dbid, colnameid5, coltypeid5)
+    ; Op.SetDBColName (dbid, colnameid5, "dob")
+    ; Op.SetDBColType (dbid, coltypeid5, "Date") ]
   in
   (* Prepopulate the DB for tests *)
-  exec_handler'
-    ~ops
-    (let'
-       "_"
-       (fn
-          "DB::set_v1"
-          [ record
-              [ ("height", int 73)
-              ; ("name", str "Ross")
-              ; ("human", bool true)
-              ; ("income", float' 100 00) ]
-          ; str "ross"
-          ; var "Person" ])
-       (let'
-          "_"
-          (fn
-             "DB::set_v1"
-             [ record
-                 [ ("height", int 65)
-                 ; ("name", str "Rachel")
-                 ; ("human", bool true)
-                 ; ("income", float' 82 00) ]
-             ; str "rachel"
-             ; var "Person" ])
-          (let'
-             "_"
-             (fn
-                "DB::set_v1"
-                [ record
-                    [ ("height", int 10)
-                    ; ("name", str "GrumpyCat")
-                    ; ("human", bool false)
-                    ; ("income", float' 0 00) ]
-                ; str "cat"
-                ; var "Person" ])
-             (let'
-                "_"
-                (fn
-                   "DB::set_v1"
-                   [ record
-                       [ ("height", null)
-                       ; ("name", null)
-                       ; ("human", null)
-                       ; ("income", null) ]
-                   ; str "null"
-                   ; var "Person" ])
-                (EBlank (Libshared.Shared.gid ()))))))
-  |> ignore ;
+  let expected =
+    exec_handler'
+      ~ops
+      (let'
+         "_"
+         (fn
+            "DB::set_v1"
+            [ record
+                [ ("height", int 73)
+                ; ("name", str "Ross")
+                ; ("human", bool true)
+                ; ( "dob"
+                  , fn ~ster:Rail "Date::parse_v2" [str "1967-05-12T00:00:00Z"]
+                  )
+                ; ("income", float' 100 00) ]
+            ; str "ross"
+            ; var "Person" ])
+         (let'
+            "_"
+            (fn
+               "DB::set_v1"
+               [ record
+                   [ ("height", int 65)
+                   ; ("name", str "Rachel")
+                   ; ("human", bool true)
+                   ; ( "dob"
+                     , fn
+                         ~ster:Rail
+                         "Date::parse_v2"
+                         [str "1969-05-05T00:00:00Z"] )
+                   ; ("income", float' 82 00) ]
+               ; str "rachel"
+               ; var "Person" ])
+            (let'
+               "_"
+               (fn
+                  "DB::set_v1"
+                  [ record
+                      [ ("height", int 10)
+                      ; ("name", str "GrumpyCat")
+                      ; ("human", bool false)
+                      ; ( "dob"
+                        , fn
+                            ~ster:Rail
+                            "Date::parse_v2"
+                            [str "2012-04-04T00:00:00Z"] )
+                      ; ("income", float' 0 00) ]
+                  ; str "cat"
+                  ; var "Person" ])
+               (let'
+                  "_"
+                  (fn
+                     "DB::set_v1"
+                     [ record
+                         [ ("height", null)
+                         ; ("name", null)
+                         ; ("human", null)
+                         ; ("dob", null)
+                         ; ("income", null) ]
+                     ; str "null"
+                     ; var "Person" ])
+                  (int 5)))))
+  in
+  check_dval "setup worked" expected (Dval.dint 5) ;
   let query expr = fn "DB::query_v4" [var "Person"; expr] in
   let queryv body = fn "DB::query_v4" [var "Person"; lambda ["v"] body] in
   let field name field = fieldAccess (var name) field in
