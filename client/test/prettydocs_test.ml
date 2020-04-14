@@ -1,4 +1,5 @@
 open Tester
+open Prelude
 open PrettyDocs
 
 let run () =
@@ -50,5 +51,12 @@ let run () =
                ; txt ". If it is "
                ; tag "code" [txt "Error "; tag "var" [txt "message"]]
                ; txt ", then it will go to error rail" ]) ;
+      test "converts link tag" (fun () ->
+          expect (convert "Into the [dark](http://www.darklang.com)")
+          |> toEqual
+               [ txt "Into the "
+               ; Html.a
+                   [Html.href "http://www.darklang.com"; Html.target "_blank"]
+                   [Html.text "dark"] ]) ;
       ()) ;
   ()
