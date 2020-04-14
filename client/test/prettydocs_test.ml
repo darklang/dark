@@ -43,10 +43,9 @@ let run () =
       test "converts string with multiple tags and a constructor" (fun () ->
           expect
             (convert
-               "<return Returns> an <type Result>. If it is {{Error <var message>}}, then it will go to error rail")
+               "Returns an <type Result>. If it is {{Error <var message>}}, then it will go to error rail")
           |> toEqual
-               [ tag "return" [txt "Returns"]
-               ; txt " an "
+               [ txt "Returns an "
                ; tag "type" [txt "Result"]
                ; txt ". If it is "
                ; tag "code" [txt "Error "; tag "var" [txt "message"]]

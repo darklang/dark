@@ -18,7 +18,6 @@ Currently valid tag types are:
 | fn      | `<fn String::split>`        |
 | var     | `<var val>`                 |
 | type    | `<type String>`             |
-| return  | `<return Returns>`          |
 | err     | `<err Type Error>`          |
 | cmd     | `<cmd take-off-error-rail>` |
 
