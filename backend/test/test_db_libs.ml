@@ -1055,6 +1055,23 @@ let t_db_query_works () =
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
     (* matches the ocaml version: "" is a substring of all strings *)
     (queryv (fn "String::contains" [field "v" "name"; str ""]) |> execs) ;
+  "date::lessThanOrEquals"
+    (DList [rachel; ross])
+    ( queryv
+        (binop
+           "Date::<="
+           (field "v" "dob")
+           (fn "Date::parse" [str "2000-01-01T01:02:03Z"]))
+    |> execs ) ;
+  check_dval
+    "date::greaterThanOrEquals"
+    (DList [cat])
+    ( queryv
+        (binop
+           "Date::>="
+           (field "v" "dob")
+           (fn "Date::parse" [str "2000-01-01T01:02:03Z"]))
+    |> execs ) ;
   (* -------------- *)
   (* Test partial evaluation *)
   (* -------------- *)
