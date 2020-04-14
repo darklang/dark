@@ -3,13 +3,13 @@ module Regex = Util.Regex
 
 let tagEx = "^(.*)\\<(\\w+)\\s(.+)\\>(.*)$"
 
-let codeEx = "^(.*)[{]{2}(.+)[}]{2}(.*)$"
+let codeEx = "^(.*)\\{\\{(.+)\\}\\}(.*)$"
 
 let codeClass = "code"
 
 let nestedTag = Regex.regex "\\<\\w+\\s[^>]*<\\w+\\s[^<]*\\>.*\\>"
 
-let nestedCodeBlock = Regex.regex "[{]{2}.*[{]{2}.*[}]{2}.*[}]{2}"
+let nestedCodeBlock = Regex.regex "\\{\\{.*\\{\\{.*\\}\\}.*\\}\\}"
 
 let validTags = ["param"; "fn"; "var"; "type"; "return"; "err"; "cmd"]
 
