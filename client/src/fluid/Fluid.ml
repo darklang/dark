@@ -5736,12 +5736,21 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                 | None ->
                     NoChange
               in
+              let astCacheMod =
+                (* We want to update the AST cache for searching, however, we
+                 * may be editing the feature flag section in which case we'd
+                 * be putting the wrong information into the cache. As a simple
+                 * solution for now, only update if we're in the main editor. *)
+                if s.activeEditor = MainEditor
+                then UpdateASTCache (tlid, Printer.tokensToString newTokens)
+                else NoChange
+              in
               Many
                 [ ReplaceAllModificationsWithThisOne
                     (fun m -> (TL.withAST m tlid newAST, Tea.Cmd.none))
                 ; Toplevel.setSelectedAST m newAST
                 ; requestAnalysis
-                ; UpdateASTCache (tlid, Printer.tokensToString newTokens) ]
+                ; astCacheMod ]
             else Types.NoChange
           in
           Types.Many
