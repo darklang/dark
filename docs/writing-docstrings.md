@@ -10,7 +10,19 @@ The word Option will be transformed into `this function takes in <span class="ty
 
 Tags follow the form of: `<TYPE CONTENT>`. The tag types are a single word, after which everything else will considered to be content of the tag.
 
-Currently valid tag types are: *param*, *fn*, *var*, *type*, *return*, *err*, *cmd*. If you want to add a new tag type, see guidelines below.
+Currently valid tag types are:
+
+| Tag     | Example                     |
+|---------|-----------------------------|
+| param   | `<param input>`             |
+| fn      | `<fn String::split>`        |
+| var     | `<var val>`                 |
+| type    | `<type String>`             |
+| return  | `<return Returns>`          |
+| err     | `<err Type Error>`          |
+| cmd     | `<cmd take-off-error-rail>` |
+
+If you want to add a new tag type, see guidelines below.
 We try to keep the tag types short and simple to make it easy for us to remember and type.
 
 Since most of our tags are rendered as color-coded-text, and more importantly because of the limitations of our Regex parser, **tags cannot contain other tags**
