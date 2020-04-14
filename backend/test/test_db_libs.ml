@@ -783,25 +783,28 @@ let t_db_query_works () =
   let exec expr = exec_handler' ~ops expr in
   let execs expr = exec (expr |> sort) in
   let withvar (name : string) value ast = let' name value ast in
+  let ross = Dval.dint 73 in
+  let rachel = Dval.dint 65 in
+  let cat = Dval.dint 10 in
   check_dval
     "Find all"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73; DNull])
+    (DList [cat; rachel; ross; DNull])
     (queryv (bool true) |> execs) ;
   check_dval
     "Find all with condition"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [cat; rachel; ross])
     (queryv (binop ">" (field "v" "height") (int 3)) |> execs) ;
   check_dval
     "boolean"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     (queryv (field "v" "human") |> execs) ;
   check_dval
     "different param name"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     (query (lambda ["value"] (field "value" "human")) |> execs) ;
   check_dval
     "&&"
-    (DList [Dval.dint 73])
+    (DList [ross])
     ( queryv
         (binop
            "&&"
@@ -810,7 +813,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "inlining"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     ( queryv
         (let'
            "x"
@@ -819,7 +822,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "inlining - fieldAccesses"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     ( queryv
         (let'
            "x"
@@ -828,7 +831,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "pipes"
-    (DList [Dval.dint 10])
+    (DList [cat])
     ( queryv
         (pipe
            (field "v" "height")
@@ -836,13 +839,13 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "external variable works"
-    (DList [Dval.dint 10])
+    (DList [cat])
     ( queryv (pipe (field "v" "height") [binop "<" pipeTarget (var "x")])
     |> withvar "x" (int 20)
     |> execs ) ;
   check_dval
     "fieldAccess"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     ( let'
         "myObj"
         (record [("x", int 42)])
@@ -850,7 +853,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "nested fieldAccess"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     ( let'
         "myObj"
         (record [("field1", record [("field2", int 42)])])
@@ -887,11 +890,11 @@ let t_db_query_works () =
     (queryv (binop "==" (field "v" "name") null) |> execs) ;
   check_dval
     "null inequality works"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [cat; rachel; ross])
     (queryv (binop "!=" (field "v" "name") null) |> execs) ;
   check_dval
     "null is not 'null'"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [cat; rachel; ross])
     (queryv (binop "!=" (field "v" "name") (str "null")) |> execs) ;
   (* Just check enough of the other functions to verify the signature - *)
   (* they all use they same function behind the scenes. *)
@@ -909,7 +912,7 @@ let t_db_query_works () =
     |> exec ) ;
   check_dval
     "queryOne - one"
-    (DOption (OptJust (Dval.dint 65)))
+    (DOption (OptJust rachel))
     ( pipe
         (fn
            "DB::queryOne_v4"
@@ -933,7 +936,7 @@ let t_db_query_works () =
     |> exec ) ;
   check_dval
     "queryOneWithKey - one"
-    (DOption (OptJust (Dval.dint 65)))
+    (DOption (OptJust rachel))
     ( pipe
         (fn
            "DB::queryOneWithKey_v3"
@@ -951,7 +954,7 @@ let t_db_query_works () =
     |> exec ) ;
   check_dval
     "queryWithKey - more than one"
-    (Dval.dint 65)
+    rachel
     ( pipe
         (fn
            "DB::queryWithKey_v3"
@@ -964,23 +967,23 @@ let t_db_query_works () =
   (* -------------- *)
   check_dval
     "float"
-    (DList [Dval.dint 73])
+    (DList [ross])
     ( queryv (binop "Float::greaterThan" (field "v" "income") (float' 90 0))
     |> execs ) ;
   check_dval
     "int <="
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv (binop "Int::lessThanOrEqualTo" (field "v" "height") (int 65))
     |> execs ) ;
   check_dval
     "float"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv
         (binop "Float::lessThanOrEqualTo" (field "v" "income") (float' 82 1))
     |> execs ) ;
   check_dval
     "string::tolower"
-    (DList [Dval.dint 65])
+    (DList [rachel])
     ( queryv
         (binop
            "=="
@@ -989,18 +992,18 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "string::reverse"
-    (DList [Dval.dint 65])
+    (DList [rachel])
     ( queryv
         (binop "==" (fn "String::reverse" [field "v" "name"]) (str "lehcaR"))
     |> execs ) ;
   check_dval
     "string::length"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv (binop ">" (fn "String::length" [field "v" "name"]) (int 5))
     |> execs ) ;
   check_dval
     "string::isSubstring_v1"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "R"]) |> execs) ;
   check_dval
     "string::isSubstring_v1 case-sensitive"
@@ -1013,7 +1016,7 @@ let t_db_query_works () =
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "ZZZ"]) |> execs) ;
   check_dval
     "string::isSubstring_v1 empty arg"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [cat; rachel; ross])
     (* matches the ocaml version: "" is a substring of all strings *)
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str ""]) |> execs) ;
   check_dval
@@ -1038,7 +1041,7 @@ let t_db_query_works () =
   (* -------------- *)
   check_dval
     "partial evaluation - fieldAccesses outside query"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( let'
         "x"
         (record [("y", record [("z", record [("a", int 5)])])])
@@ -1050,7 +1053,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "partial evaluation - fieldAccesses"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv
         (let'
            "x"
@@ -1062,7 +1065,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "partial execution - List::length"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv
         (let'
            "x"
