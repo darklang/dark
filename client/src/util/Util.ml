@@ -85,7 +85,7 @@ module Regex = struct
 
   type result = Js.Re.result
 
-  let regex s : Js.Re.t = Js.Re.fromStringWithFlags ~flags:"g" s
+  let regex ?(flags = "g") s : Js.Re.t = Js.Re.fromStringWithFlags ~flags s
 
   let contains ~(re : Js.Re.t) (s : string) : bool = Js.Re.test_ re s
 
@@ -102,6 +102,20 @@ module Regex = struct
 
   let exactly ~(re : string) (s : string) : bool =
     contains ~re:(regex ("^" ^ re ^ "$")) s
+
+
+  (* Returns a list of capture groups if the string is matched by the expression.
+  The list head is the whole match, and tail contains all the matched capture groups.
+  If nothing is matched then it returns an empty list
+  *)
+  let captures ~(re : Js.Re.t) (s : string) : string list =
+    match Js.Re.exec_ re s with
+    | Some m ->
+        Js.Re.captures m
+        |> Array.toList
+        |> List.filterMap ~f:(fun group -> Js.Nullable.toOption group)
+    | None ->
+        []
 end
 
 module Namer = struct

@@ -760,6 +760,35 @@ let abridged_sidebar_category_icon_click_disabled (_m : model) : testResult =
   pass
 
 
+let function_docstrings_are_valid (m : model) : testResult =
+  let open PrettyDocs in
+  let failed =
+    m.functions.builtinFunctions
+    |> List.filterMap ~f:(fun fn ->
+           match convert_ fn.fnDescription with
+           | ParseSuccess _ ->
+               None
+           | ParseFail messages ->
+               Some (fn.fnName, messages))
+  in
+  if List.isEmpty failed
+  then pass
+  else
+    let nl = " \n " in
+    let combineErrors errors =
+      errors
+      |> List.map ~f:(fun (fnname, messages) ->
+             let problems =
+               messages
+               |> List.map ~f:(fun (txt, msg) -> msg ^ " in \"" ^ txt ^ "\"")
+               |> String.join ~sep:nl
+             in
+             fnname ^ nl ^ problems)
+      |> String.join ~sep:nl
+    in
+    fail ~f:combineErrors failed
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -904,5 +933,7 @@ let trigger (test_name : string) : integrationTestState =
         abridged_sidebar_content_visible_on_hover
     | "abridged_sidebar_category_icon_click_disabled" ->
         abridged_sidebar_category_icon_click_disabled
+    | "function_docstrings_are_valid" ->
+        function_docstrings_are_valid
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

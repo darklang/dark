@@ -1243,3 +1243,7 @@ test("abridged_sidebar_category_icon_click_disabled", async t => {
   await t.click(dbCatSelector + " .category-icon");
   await t.expect(Selector(httpCatSelector + " .category-content").visible).notOk();
 });
+
+test("function_docstrings_are_valid", async t => {
+  // validate functions in IntegrationTest.ml
+});

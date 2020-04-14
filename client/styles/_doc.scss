@@ -8,21 +8,41 @@
   color: $white1;
   width: calc(#{"100% - 20px"});
   overflow-wrap: break-word;
+  line-height: 14px;
+
+  /* Styles define: https://www.notion.so/darklang/Rich-Text-Docstrings-1358553ec49d4ba0b52d04995014152c#88f58cc69bb347929049b342db876db5 */
   a {
     color: $blue;
+    text-decoration: underline;
     &:hover {
-      color: $purple;
+      color: $white3;
     }
   }
-  .type-error {
+
+  .param,
+  .fn,
+  .var {
+    color: lighten($purple, 10%);
+  }
+
+  .type {
+    color: $green;
+  }
+  .return {
+    color: lighten($orange, 15%);
+  }
+  .err {
     color: lighten(saturate($red, 25%), 30%);
   }
 
-  .function-name,
-  .parameter-name {
-    color: lighten($purple, 10%);
+  .cmd {
+    color: lighten($pink, 5%);
+    white-space: nowrap;
   }
-  .type-name {
-    color: $green;
+
+  .code {
+    background-color: $grey1;
+    padding: 0 0.5em;
+    white-space: nowrap;
   }
 }
