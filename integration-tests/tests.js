@@ -977,10 +977,12 @@ test("empty_fn_been_called_result", async t => {
     .click(".execution-button")
     .navigateTo("#fn=602952746")
     .click(".id-1276585567")
+    // clicking twice makes the test more stable
+    .click(".id-1276585567")
     .expect(available(".return-value .msg"))
     .ok()
     .expect(Selector(".return-value").innerText)
-    .contains("Your code needs to return a value in the last expression");
+    .contains("This trace returns: <Incomplete>\nThis function has not yet been called - please call this function");
 });
 
 // This runs through
