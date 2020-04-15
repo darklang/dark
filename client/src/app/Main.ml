@@ -445,6 +445,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let m, afCmd =
             match Page.traceidOf page with
             | Some tid ->
+                let m =
+                  let trace =
+                    StrDict.fromList
+                      [(TLID.toString tlid, [(tid, Error NoneYet)])]
+                  in
+                  Analysis.updateTraces m trace
+                in
                 let m = Analysis.setSelectedTraceID m tlid tid in
                 Analysis.analyzeFocused m
             | None ->
@@ -652,21 +659,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m = {m with workerSchedules = schedules} in
         (m, Cmd.none)
     | UpdateTraces traces ->
-        let newTraces =
-          Analysis.mergeTraces
-            ~onConflict:(fun (oldID, oldData) (newID, newData) ->
-              (* Update if:
-               * - new data is ok (successful fetch)
-               * - old data is an error, so is new data, but different errors
-               * *)
-              if Result.isOk newData
-                 || ((not (Result.isOk oldData)) && oldData <> newData)
-              then (newID, newData)
-              else (oldID, oldData))
-            m.traces
-            traces
-        in
-        let m = {m with traces = newTraces} in
+        let m = Analysis.updateTraces m traces in
         let m, afCmd = Analysis.analyzeFocused m in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd])
