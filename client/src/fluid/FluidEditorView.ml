@@ -62,6 +62,18 @@ type executionFlow =
   | CodeNotExecuted
   | UnknownExecution
 
+let tokenAtCaret (ast : FluidAST.t) (s : fluidState) : fluidToken option =
+  match Fluid.getAdjacentTokens ast s with
+  | Some l, None -> Some l
+  | None, Some r -> Some r
+  | None, None -> None
+  | Some l, Some r ->
+    (match r with
+     | TNewline _ -> Some l
+     | _ ->
+      if FluidToken.isTextToken l then Some l else Some r
+    )
+
 let toHtml (s : state) : Types.msg Html.html list =
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
@@ -88,9 +100,20 @@ let toHtml (s : state) : Types.msg Html.html list =
   in
   let currentTokenInfo = Fluid.getToken s.ast s.fluidState in
   let caretRow = currentTokenInfo |> Option.map ~f:(fun ti -> ti.startRow) in
-  let ctiParent =
-    currentTokenInfo
-    |> Option.andThen ~f:(fun ti -> FluidAST.findParent (FluidToken.tid ti.token) s.ast)
+  let caretToken = tokenAtCaret s.ast s.fluidState in
+  let mParentList =
+    caretToken
+    |> Option.andThen ~f:(fun token ->
+      if FluidToken.isListSymbol token
+      then FluidAST.find (FluidToken.tid token) s.ast
+      else FluidAST.findParent (FluidToken.tid token) s.ast
+    )
+    |> Option.andThen ~f:(fun e -> match e with FluidExpression.EList _ -> Some e | _ -> None)
+  in
+  let isCaretInBlock =
+    let isCaretInMultilineString = caretToken |> Option.map ~f:FluidToken.isMutlilineString |> Option.withDefault ~default:false in
+    let isCaretInList = Option.isSome mParentList in
+    isCaretInMultilineString || isCaretInList
   in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
@@ -218,15 +241,19 @@ let toHtml (s : state) : Types.msg Html.html list =
           let notExecuted =
             if wasExecuted analysisId = CodeNotExecuted
             then
-              if FluidUtil.isMutlilineString ti.token
+              if FluidToken.isMutlilineString ti.token
               then
-                match currentTokenInfo with
-                | Some cti ->
-                    FluidToken.analysisID cti.token != analysisId
+                match caretToken with
+                | Some ct ->
+                    FluidToken.analysisID ct != analysisId
                 | None ->
                     true
-              else if FluidAST.findParent tokenId s.ast = ctiParent
+              else if FluidAST.findParent tokenId s.ast = mParentList
               then false
+              else if FluidToken.isListSymbol ti.token
+              then Some tokenId <> (mParentList |> Option.map ~f:FluidExpression.toID)
+              else if isCaretInBlock
+              then true
               else
                 (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
                 caretRow != Some ti.startRow

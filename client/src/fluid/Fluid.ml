@@ -199,6 +199,13 @@ let getToken' (s : fluidState) (tokens : T.tokenInfo list) : T.tokenInfo option
 let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
   tokensForActiveEditor ast s |> getToken' s
 
+let getAdjacentTokens (ast : FluidAST.t) (s : fluidState) : (fluidToken option * fluidToken option) =
+  let tokens = tokensForActiveEditor ast s in
+  let left, right, _ = getNeighbours ~pos:s.newPos tokens in
+  let oLeft = match left with L (t, _) -> Some t |_ -> None in
+  let oRight = match right with R (t, _) -> Some t | _ -> None in
+  (oLeft, oRight)
+
 
 (* -------------------- *)
 (* Update fluid state *)

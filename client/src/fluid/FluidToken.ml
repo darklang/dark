@@ -259,6 +259,19 @@ let isErrorDisplayable (t : t) : bool =
 let isFieldPartial (t : t) : bool =
   match t with TFieldPartial _ -> true | _ -> false
 
+let isMutlilineString (t : fluidToken) : bool =
+    match t with
+    | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ ->
+        true
+    | _ ->
+        false
+    
+let isListSymbol (t : fluidToken) : bool =
+    match t with
+    | TListOpen _
+    | TListClose _
+    | TListComma _ -> true
+    | _ -> false
 
 let toText (t : t) : string =
   let shouldntBeEmpty name =
