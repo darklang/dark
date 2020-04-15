@@ -62,17 +62,22 @@ type executionFlow =
   | CodeNotExecuted
   | UnknownExecution
 
-let tokenAtCaret (ast : FluidAST.t) (s : fluidState) : fluidToken option =
-  match Fluid.getAdjacentTokens ast s with
-  | Some l, None -> Some l
-  | None, Some r -> Some r
-  | None, None -> None
-  | Some l, Some r ->
-    (match r with
-     | TNewline _ -> Some l
-     | _ ->
-      if FluidToken.isTextToken l then Some l else Some r
-    )
+let tokenAtCaret (ast : FluidAST.t) (s : fluidState) :
+    FluidToken.tokenInfo option =
+  let tokens = Fluid.tokensForActiveEditor ast s in
+  let left, right, _ = Fluid.getNeighbours ~pos:s.newPos tokens in
+  match (left, right) with
+  | L (_, lti), R (TNewline _, _) ->
+      Some lti
+  | L (lt, lti), _ when FluidToken.isTextToken lt ->
+      Some lti
+  | _, R (_, rti) ->
+      Some rti
+  | L (_, lti), _ ->
+      Some lti
+  | _ ->
+      None
+
 
 let toHtml (s : state) : Types.msg Html.html list =
   (* Gets the source of a DIncomplete given an expr id *)
@@ -98,23 +103,22 @@ let toHtml (s : state) : Types.msg Html.html list =
     | _ ->
         UnknownExecution
   in
+  let parentIdOfToken t =
+    if FluidToken.isMutlilineString t
+    then Some (FluidToken.tid t)
+    else if FluidToken.isListSymbol t
+    then Some (FluidToken.tid t)
+    else
+      (* is caret in list literal *)
+      FluidAST.findParent (FluidToken.tid t) s.ast
+      |> Option.andThen ~f:(fun e ->
+             match e with
+             | FluidExpression.EList _ ->
+                 Some (FluidExpression.toID e)
+             | _ ->
+                 None)
+  in
   let currentTokenInfo = Fluid.getToken s.ast s.fluidState in
-  let caretRow = currentTokenInfo |> Option.map ~f:(fun ti -> ti.startRow) in
-  let caretToken = tokenAtCaret s.ast s.fluidState in
-  let mParentList =
-    caretToken
-    |> Option.andThen ~f:(fun token ->
-      if FluidToken.isListSymbol token
-      then FluidAST.find (FluidToken.tid token) s.ast
-      else FluidAST.findParent (FluidToken.tid token) s.ast
-    )
-    |> Option.andThen ~f:(fun e -> match e with FluidExpression.EList _ -> Some e | _ -> None)
-  in
-  let isCaretInBlock =
-    let isCaretInMultilineString = caretToken |> Option.map ~f:FluidToken.isMutlilineString |> Option.withDefault ~default:false in
-    let isCaretInList = Option.isSome mParentList in
-    isCaretInMultilineString || isCaretInList
-  in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -149,6 +153,11 @@ let toHtml (s : state) : Types.msg Html.html list =
   let isSelected tokenStart tokenEnd =
     let selStart, selEnd = Fluid.getSelectionRange s.fluidState in
     isActiveEditor s && selStart <= tokenStart && tokenEnd <= selEnd
+  in
+  let caretToken = tokenAtCaret s.ast s.fluidState in
+  let caretRow = caretToken |> Option.map ~f:(fun ti -> ti.startRow) in
+  let caretParentID =
+    caretToken |> Option.andThen ~f:(fun ti -> parentIdOfToken ti.token)
   in
   let idsInAFlag =
     (* If we're in the main editor, find all the FF expressions, then build a
@@ -241,22 +250,13 @@ let toHtml (s : state) : Types.msg Html.html list =
           let notExecuted =
             if wasExecuted analysisId = CodeNotExecuted
             then
-              if FluidToken.isMutlilineString ti.token
+              if Option.isSome caretParentID
               then
-                match caretToken with
-                | Some ct ->
-                    FluidToken.analysisID ct != analysisId
-                | None ->
-                    true
-              else if FluidAST.findParent tokenId s.ast = mParentList
-              then false
-              else if FluidToken.isListSymbol ti.token
-              then Some tokenId <> (mParentList |> Option.map ~f:FluidExpression.toID)
-              else if isCaretInBlock
-              then true
+                parentIdOfToken ti.token != caretParentID
+                (* If caret is inside a multline string or list literal, unfade whole block *)
               else
-                (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
                 caretRow != Some ti.startRow
+                (* If caret is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
             else false
           in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
