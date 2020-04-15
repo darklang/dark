@@ -941,6 +941,12 @@ let run () =
         "myKey"
         "{\n  eximyKey~sting : ___\n}" ;
       testPasteText
+        "pasting json object into existing blank record keys merges and overwrites (middle)"
+        (record [("existing1", b); ("", b); ("existing2", b)])
+        (22, 22)
+        {| { "foo": true } |}
+        "{\n  existing1 : ___\n  foo : true~\n  existing2 : ___\n}" ;
+      testPasteText
         "pasting json object into existing record keys merges (middle)"
         (record [("existing1", b); ("existing2", b)])
         (7, 7)
