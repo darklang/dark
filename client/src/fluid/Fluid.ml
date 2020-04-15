@@ -5301,14 +5301,20 @@ let pasteOverSelection
     | ( ERecord (id, oldKVs)
       , Some (ERecord (_, pastedKVs))
       , Some {astRef = ARRecord (_, RPFieldname index); _} ) ->
-        (* Since keys can't contain exprs, merge pasted record with existing record,
-         * keeping duplicate keys *)
-        let index =
-          index + 1
-          (* adding 1 to ensure pasting after the existing entry *)
+        (* Since fieldnames can't contain exprs, merge pasted record with existing record,
+         * keeping duplicate fieldnames *)
+        let first, last =
+          match List.getAt oldKVs ~index with
+          | Some ("", EBlank _) ->
+              (* not adding 1 to index ensures we don't include this entirely empty entry;
+               * adding 1 ensures we don't include it after the paste either *)
+              ( List.take oldKVs ~count:index
+              , List.drop oldKVs ~count:(index + 1) )
+          | _ ->
+              (* adding 1 to index ensures pasting after the existing entry *)
+              ( List.take oldKVs ~count:(index + 1)
+              , List.drop oldKVs ~count:(index + 1) )
         in
-        let first = List.take oldKVs ~count:index in
-        let last = List.drop oldKVs ~count:index in
         let newKVs = List.concat [first; pastedKVs; last] in
         let replacement = E.ERecord (id, newKVs) in
         List.last pastedKVs
