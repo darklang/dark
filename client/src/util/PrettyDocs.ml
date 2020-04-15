@@ -99,7 +99,7 @@ let rec convert_ (s : string) : parseResult =
     hasCodeBlock s
     |> Option.orElse (hasLink s)
     |> Option.orElse (hasTag s)
-    (* If it has no richtext markup, just render as plain text *)
+    (* If it has no richtext markup, just render as plain text: *)
     |> Option.withDefault ~default:(ParseSuccess [txt s])
 
 
