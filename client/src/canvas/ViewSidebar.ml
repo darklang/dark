@@ -694,7 +694,6 @@ let adminDebuggerView (m : model) : msg Html.html =
     | FocusedFn (tlid, _) ->
         Printf.sprintf "Fn (TLID %s)" (TLID.toString tlid)
     | FocusedHandler (tlid, _, _) ->
-        (* Syd TODO -> trace id *)
         Printf.sprintf "Handler (TLID %s)" (TLID.toString tlid)
     | FocusedDB (tlid, _) ->
         Printf.sprintf "DB (TLID %s)" (TLID.toString tlid)
