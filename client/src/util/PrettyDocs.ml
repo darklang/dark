@@ -35,7 +35,7 @@ let justErrors results =
 
 
 let rec convert_ (s : string) : parseResult =
-  let hasCodeBlock input : parseResult option =
+  let hasCodeBlock (input : string) : parseResult option =
     match Regex.captures ~re:(Regex.regex ~flags:"" codeEx) input with
     | [_; before; inside; after] ->
         Some
