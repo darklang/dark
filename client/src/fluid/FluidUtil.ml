@@ -190,3 +190,11 @@ let ghostPartialName (fnName : string) =
 
 let fnDisplayNameWithVersion (fnName : string) =
   partialName fnName ^ versionDisplayName fnName
+
+
+let isMutlilineString (t : fluidToken) : bool =
+  match t with
+  | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ ->
+      true
+  | _ ->
+      false

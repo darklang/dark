@@ -214,8 +214,16 @@ let toHtml (s : state) : Types.msg Html.html list =
           let notExecuted =
             if wasExecuted analysisId = CodeNotExecuted
             then
-              (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
-              caretRow != Some ti.startRow
+              if FluidUtil.isMutlilineString ti.token
+              then
+                match currentTokenInfo with
+                | Some cti ->
+                    FluidToken.analysisID cti.token != analysisId
+                | None ->
+                    true
+              else
+                (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
+                caretRow != Some ti.startRow
             else false
           in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
