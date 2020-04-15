@@ -88,6 +88,10 @@ let toHtml (s : state) : Types.msg Html.html list =
   in
   let currentTokenInfo = Fluid.getToken s.ast s.fluidState in
   let caretRow = currentTokenInfo |> Option.map ~f:(fun ti -> ti.startRow) in
+  let ctiParent =
+    currentTokenInfo
+    |> Option.andThen ~f:(fun ti -> FluidAST.findParent (FluidToken.tid ti.token) s.ast)
+  in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -221,6 +225,8 @@ let toHtml (s : state) : Types.msg Html.html list =
                     FluidToken.analysisID cti.token != analysisId
                 | None ->
                     true
+              else if FluidAST.findParent tokenId s.ast = ctiParent
+              then false
               else
                 (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
                 caretRow != Some ti.startRow
