@@ -5274,23 +5274,59 @@ let pasteOverSelection
   let expr = Option.andThen exprID ~f:(fun id -> FluidAST.find id ast) in
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
   let text = Clipboard.clipboardContentsToString data in
+  let ct =
+    mTi
+    |> Option.andThen ~f:(fun ti -> caretTargetFromTokenInfo state.newPos ti)
+  in
   match expr with
   | Some expr ->
-    ( match (expr, clipboardExpr, mTi) with
+    ( match (expr, clipboardExpr, ct) with
     | EBlank id, Some cp, _ ->
         (* Paste into a blank *)
         let newAST = FluidAST.replace ~replacement:cp id ast in
         let caretTarget = caretTargetForEndOfExpr (E.toID cp) newAST in
         (newAST, moveToCaretTarget state newAST caretTarget)
-    | EString (id, str), _, Some ti ->
-        (* Paste into a string, to take care of newlines *)
-        let index = getStringIndex ti state.newPos in
+    | EString (id, str), _, Some {astRef = ARString (_, SPOpenQuote); offset} ->
+        (* Paste into a string, to take care of newlines.
+         * Note: pasting before an open quote
+         * places the caret one unit left of the text end *)
         let replacement =
-          E.EString (id, String.insertAt ~insert:text ~index str)
+          E.EString (id, String.insertAt ~insert:text ~index:(offset - 1) str)
         in
         let newAST = FluidAST.replace ~replacement id ast in
-        let caretTarget = CT.forARStringText id (index + String.length text) in
+        let caretTarget =
+          CT.forARStringOpenQuote id (offset + String.length text)
+        in
         (newAST, moveToCaretTarget state newAST caretTarget)
+    | ( ERecord (id, oldKVs)
+      , Some (ERecord (_, pastedKVs))
+      , Some {astRef = ARRecord (_, RPFieldname index); _} ) ->
+        (* Since fieldnames can't contain exprs, merge pasted record with existing record,
+         * keeping duplicate fieldnames *)
+        let first, last =
+          match List.getAt oldKVs ~index with
+          | Some ("", EBlank _) ->
+              (* not adding 1 to index ensures we don't include this entirely empty entry;
+               * adding 1 ensures we don't include it after the paste either *)
+              ( List.take oldKVs ~count:index
+              , List.drop oldKVs ~count:(index + 1) )
+          | _ ->
+              (* adding 1 to index ensures pasting after the existing entry *)
+              ( List.take oldKVs ~count:(index + 1)
+              , List.drop oldKVs ~count:(index + 1) )
+        in
+        let newKVs = List.concat [first; pastedKVs; last] in
+        let replacement = E.ERecord (id, newKVs) in
+        List.last pastedKVs
+        |> Option.map ~f:(fun (_, valueExpr) ->
+               let caretTarget = caretTargetForEndOfExpr' valueExpr in
+               let newAST = FluidAST.replace ~replacement id ast in
+               (newAST, moveToCaretTarget state newAST caretTarget))
+        |> Option.withDefault ~default:(ast, state)
+    | ERecord _, Some _, Some {astRef = ARRecord (_, RPFieldname _); _} ->
+        (* Block pasting arbitrary expr into a record fieldname
+         * since keys can't contain exprs *)
+        (ast, state)
     | _ ->
         text
         |> String.split ~on:""
