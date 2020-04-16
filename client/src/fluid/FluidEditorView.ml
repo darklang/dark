@@ -74,7 +74,7 @@ let toHtml (s : state) : Types.msg Html.html list =
           (* else mark entire row caret is in *)
           let caretRow = caretAt.startRow in
           s.tokens |> List.map ~f:(fun ti -> 
-            if ti.startRow = caretRow && ti.exeFlow = CodeNotExecuted
+            if ti.startRow = caretRow && not (Option.isSome ti.parentId) && ti.exeFlow = CodeNotExecuted
             then {ti with exeFlow = CodeInFocus}
             else ti
           )
