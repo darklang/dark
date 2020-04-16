@@ -7,6 +7,8 @@ module IDSet = ID.Set
 
 type analysisID = ID.t [@@deriving show]
 
+type parentID = ID.t [@@deriving show]
+
 (* == end legacy aliases == *)
 
 let show_list ~(f : 'a -> string) (x : 'a list) : string =
@@ -1426,10 +1428,10 @@ and handlerProp =
 and tlTraceIDs = traceID TLIDDict.t
 
 and executionFlow =
-| CodeExecuted
-| CodeNotExecuted
-| UnknownExecution
-| CodeInFocus
+  | CodeExecuted
+  | CodeNotExecuted
+  | UnknownExecution
+  | CodeInFocus
 
 (* Testing *)
 and testResult = (string, unit) Result.t
@@ -1448,74 +1450,84 @@ and placeholder =
   ; tipe : string }
 
 and fluidToken =
-  | TInteger of ID.t * string
-  | TString of ID.t * string
+  | TInteger of ID.t * string * parentID option
+  | TString of ID.t * string * parentID option
   (* multi-line strings: ID.t *, segment, start offset, full-string *)
   | TStringMLStart of ID.t * string * int * string
   | TStringMLMiddle of ID.t * string * int * string
   | TStringMLEnd of ID.t * string * int * string
-  | TBlank of ID.t
+  | TBlank of ID.t * parentID option
   | TPlaceholder of
       { blankID : ID.t
       ; fnID : ID.t
+      ; parentID : parentID option
       ; placeholder : placeholder }
-  | TTrue of ID.t
-  | TFalse of ID.t
-  | TNullToken of ID.t
-  | TFloatWhole of ID.t * string
-  | TFloatPoint of ID.t
-  | TFloatFractional of ID.t * string
+  | TTrue of ID.t * parentID option
+  | TFalse of ID.t * parentID option
+  | TNullToken of ID.t * parentID option
+  | TFloatWhole of ID.t * string * parentID option
+  | TFloatPoint of ID.t * parentID option
+  | TFloatFractional of ID.t * string * parentID option
   (* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. *)
-  | TPartial of ID.t * string
+  | TPartial of ID.t * string * parentID option
   (* A partial that extends out to the right. Used to create binops. *)
-  | TRightPartial of ID.t * string
   (* A partial that preceeds an existing expression, used to wrap things in other things *)
   | TLeftPartial of ID.t * string
+  | TRightPartial of ID.t * string * parentID option
   (* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way *)
-  | TPartialGhost of ID.t * string
+  | TPartialGhost of ID.t * string * parentID option
   (* the ID.t *here disambiguates with other separators for reflow *)
-  | TSep of ID.t
+  | TSep of ID.t * parentID option
   (* The first ID.t *is the ID.t *of the expression directly associated with the
    * newline. The second ID.t *is the ID.t *of that expression's parent. In an
    * expression with potentially many newlines (ie, a pipeline), the int holds
    * the relative line number (index) of this newline. *)
   | TNewline of (ID.t * ID.t * int option) option
   | TIndent of int
-  | TLetKeyword of ID.t * analysisID
+  | TLetKeyword of ID.t * analysisID * parentID option
   (* Let-expr id * rhs id * varname *)
-  | TLetVarName of ID.t * analysisID * string
-  | TLetAssignment of ID.t * analysisID
-  | TIfKeyword of ID.t
-  | TIfThenKeyword of ID.t
-  | TIfElseKeyword of ID.t
-  | TBinOp of ID.t * string
-  | TFieldOp of (* fieldAccess *) ID.t * (* lhs *) ID.t
-  | TFieldName of ID.t (* fieldAccess *) * ID.t (* lhs *) * string
+  | TLetVarName of ID.t * analysisID * string * parentID option
+  | TLetAssignment of ID.t * analysisID * parentID option
+  | TIfKeyword of ID.t * parentID option
+  | TIfThenKeyword of ID.t * parentID option
+  | TIfElseKeyword of ID.t * parentID option
+  | TBinOp of ID.t * string * parentID option
+  | TFieldOp of (* fieldAccess *) ID.t * (* lhs *) ID.t * parentID option
+  | TFieldName of
+      ID.t (* fieldAccess *) * ID.t (* lhs *) * string * parentID option
   | TFieldPartial of
       (* Partial ID, fieldAccess ID, analysisID (lhs), name *) ID.t
       * ID.t
       * ID.t
       * string
-  | TVariable of ID.t * string
+      * parentID option
+  | TVariable of ID.t * string * parentID option
   (* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
-  | TFnName of ID.t * string * string * string * FluidExpression.sendToRail
+  | TFnName of
+      ID.t
+      * string
+      * string
+      * string
+      * FluidExpression.sendToRail
+      * parentID option
   (* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
-  | TFnVersion of ID.t * string * string * string
-  | TLambdaComma of ID.t * int
-  | TLambdaArrow of ID.t
-  | TLambdaSymbol of ID.t
-  | TLambdaVar of ID.t * analysisID * int * string
+  | TFnVersion of ID.t * string * string * string * parentID option
+  | TLambdaComma of ID.t * int * parentID option
+  | TLambdaArrow of ID.t * parentID option
+  | TLambdaSymbol of ID.t * parentID option
+  | TLambdaVar of ID.t * analysisID * int * string * parentID option
   | TListOpen of ID.t
   | TListClose of ID.t
   | TListComma of ID.t * int
   (* 2nd int is the number of pipe segments there are *)
-  | TPipe of ID.t * int * int
+  | TPipe of ID.t * int * int * parentID option
   | TRecordOpen of ID.t
   | TRecordFieldname of
       { recordID : ID.t
       ; exprID : ID.t
+      ; parentID : parentID option
       ; index : int
       ; fieldName : string }
   | TRecordSep of ID.t * int * analysisID
@@ -1557,13 +1569,7 @@ and fluidTokenInfo =
   ; endPos : int
   ; length : int
   ; token : fluidToken
-  ; exeFlow : executionFlow
-  ; parentId: ID.t option }
-(* I know parentId is probably more efficient if we put it in fluidToken type,
- so we can add it as we build from the AST as opposed to doing the look-up after.
- But that's hellotta changes i'll have to make afterwards and the builder is pretty complicated code.
- So I want to make sure at least this is in the right direction,
- before spending the entire afternoon going through the code base to propogate type changes *)
+  ; exeFlow : executionFlow }
 
 and fluidPatternAutocomplete =
   | FPAVariable of ID.t * ID.t * string

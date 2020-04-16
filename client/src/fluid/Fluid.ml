@@ -44,7 +44,7 @@ let deselectFluidEditor (s : fluidState) : fluidState =
 
 let getStringIndexMaybe ti pos : int option =
   match ti.token with
-  | TString (_, _) ->
+  | TString (_, _, _) ->
       Some (pos - ti.startPos - 1)
   | TStringMLStart (_, _, offset, _) ->
       Some (pos - ti.startPos + offset - 1)
@@ -199,11 +199,12 @@ let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
 let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
   getToken' (tokensForActiveEditor ast s) s
 
+
 (* TODO(alice) add comment on how this is different from getToken  *)
-let tokenAtCaret (tokens: T.tokenInfo list) (s : fluidState) :
-  T.tokenInfo option =
+let tokenAtCaret (tokens : T.tokenInfo list) (s : fluidState) :
+    T.tokenInfo option =
   (* let tokens = tokensForActiveEditor ast s in *)
-  let left, right, _ =  getNeighbours ~pos:s.newPos tokens in
+  let left, right, _ = getNeighbours ~pos:s.newPos tokens in
   match (left, right) with
   | L (_, lti), R (TNewline _, _) ->
       Some lti
@@ -215,6 +216,7 @@ let tokenAtCaret (tokens: T.tokenInfo list) (s : fluidState) :
       Some lti
   | _ ->
       None
+
 
 (* -------------------- *)
 (* Update fluid state *)
@@ -752,32 +754,32 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
   let targetAndTokenInfoToMaybeCaretPos ((ct, ti) : caretTarget * T.tokenInfo) :
       int option =
     match (ct.astRef, ti.token) with
-    | ARBinOp id, TBinOp (id', _)
-    | ARBlank id, (TBlank id' | TPlaceholder {blankID = id'; _})
-    | ARBool id, (TTrue id' | TFalse id')
+    | ARBinOp id, TBinOp (id', _, _)
+    | ARBlank id, (TBlank (id', _) | TPlaceholder {blankID = id'; _})
+    | ARBool id, (TTrue (id', _) | TFalse (id', _))
     | ARConstructor id, TConstructorName (id', _)
-    | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
-    | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _)
-    | ARIf (id, IPIfKeyword), TIfKeyword id'
-    | ARIf (id, IPThenKeyword), TIfThenKeyword id'
-    | ARIf (id, IPElseKeyword), TIfElseKeyword id'
-    | ARInteger id, TInteger (id', _)
-    | ARLet (id, LPKeyword), TLetKeyword (id', _)
-    | ARLet (id, LPVarName), TLetVarName (id', _, _)
-    | ARLet (id, LPAssignment), TLetAssignment (id', _)
+    | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _, _)
+    | ARFieldAccess (id, FAPFieldOp), TFieldOp (id', _, _)
+    | ARIf (id, IPIfKeyword), TIfKeyword (id', _)
+    | ARIf (id, IPThenKeyword), TIfThenKeyword (id', _)
+    | ARIf (id, IPElseKeyword), TIfElseKeyword (id', _)
+    | ARInteger id, TInteger (id', _, _)
+    | ARLet (id, LPKeyword), TLetKeyword (id', _, _)
+    | ARLet (id, LPVarName), TLetVarName (id', _, _, _)
+    | ARLet (id, LPAssignment), TLetAssignment (id', _, _)
     | ARList (id, LPOpen), TListOpen id'
     | ARList (id, LPClose), TListClose id'
     | ARMatch (id, MPKeyword), TMatchKeyword id'
-    | ARNull id, TNullToken id'
-    | ARPartial id, TPartial (id', _)
-    | ARPartial id, TFieldPartial (id', _, _, _)
-    | ARRightPartial id, TRightPartial (id', _)
+    | ARNull id, TNullToken (id', _)
+    | ARPartial id, TPartial (id', _, _)
+    | ARPartial id, TFieldPartial (id', _, _, _, _)
+    | ARRightPartial id, TRightPartial (id', _, _)
     | ARLeftPartial id, TLeftPartial (id', _)
     | ARRecord (id, RPOpen), TRecordOpen id'
     | ARRecord (id, RPClose), TRecordClose id'
-    | ARVariable id, TVariable (id', _)
-    | ARLambda (id, LBPSymbol), TLambdaSymbol id'
-    | ARLambda (id, LBPArrow), TLambdaArrow id'
+    | ARVariable id, TVariable (id', _, _)
+    | ARLambda (id, LBPSymbol), TLambdaSymbol (id', _)
+    | ARLambda (id, LBPArrow), TLambdaArrow (id', _)
     | ARPattern (id, PPVariable), TPatternVariable (_, id', _, _)
     | ARPattern (id, PPConstructor), TPatternConstructorName (_, id', _, _)
     | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
@@ -792,12 +794,12 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
     | ARList (id, LPComma idx), TListComma (id', idx')
     | ( ARMatch (id, MPBranchArrow idx)
       , TMatchBranchArrow {matchID = id'; index = idx'; _} )
-    | ARPipe (id, idx), TPipe (id', idx', _)
+    | ARPipe (id, idx), TPipe (id', idx', _, _)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'; _} )
     | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
-    | ARLambda (id, LBPVarName idx), TLambdaVar (id', _, idx', _)
-    | ARLambda (id, LBPComma idx), TLambdaComma (id', idx')
+    | ARLambda (id, LBPVarName idx), TLambdaVar (id', _, idx', _, _)
+    | ARLambda (id, LBPComma idx), TLambdaComma (id', idx', _)
       when id = id' && idx = idx' ->
         posForTi ti
     (*
@@ -805,12 +807,12 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
      *)
     | ARPattern (id, PPFloat FPPoint), TPatternFloatPoint (_, id', _)
     | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
-    | ARFloat (id, FPPoint), TFloatPoint id'
-    | ARFloat (id, FPWhole), TFloatWhole (id', _)
+    | ARFloat (id, FPPoint), TFloatPoint (id', _)
+    | ARFloat (id, FPWhole), TFloatWhole (id', _, _)
       when id = id' ->
         posForTi ti
     | ARPattern (id, PPFloat FPWhole), TPatternFloatPoint (_, id', _)
-    | ARFloat (id, FPWhole), TFloatPoint id'
+    | ARFloat (id, FPWhole), TFloatPoint (id', _)
       when id = id' ->
         (* This accounts for situations like `|.45`, where the float doesn't have a whole part but
            we're still targeting it (perhaps due to deletion).
@@ -818,34 +820,34 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
            we can still find positions like `1|2.54` *)
         Some ti.startPos
     | ARPattern (id, PPFloat FPFractional), TPatternFloatPoint (_, id', _)
-    | ARFloat (id, FPFractional), TFloatPoint id'
+    | ARFloat (id, FPFractional), TFloatPoint (id', _)
       when id = id' && ct.offset = 0 ->
         (* This accounts for situations like `12.|`, where the float doesn't have a decimal part but
            we're still targeting it (perhaps due to deletion). *)
         Some ti.endPos
     | ( ARPattern (id, PPFloat FPFractional)
       , TPatternFloatFractional (_, id', _, _) )
-    | ARFloat (id, FPFractional), TFloatFractional (id', _)
+    | ARFloat (id, FPFractional), TFloatFractional (id', _, _)
       when id = id' ->
         posForTi ti
     (*
      * Function calls
      *)
-    | ARFnCall id, TFnName (id', partialName, displayName, _, _) when id = id'
-      ->
+    | ARFnCall id, TFnName (id', partialName, displayName, _, _, _)
+      when id = id' ->
         let dispLen = String.length displayName in
         if ct.offset > dispLen && String.length partialName > dispLen
         then (* A version token exists and we must be there instead *)
           None
         else (* Within current token *)
           clampedPosForTi ti ct.offset
-    | ARFnCall id, TFnVersion (id', _, _, backendFnName) when id = id' ->
+    | ARFnCall id, TFnVersion (id', _, _, backendFnName, _) when id = id' ->
         let nameWithoutVersion = FluidUtil.fnDisplayName backendFnName in
         clampedPosForTi ti (ct.offset - String.length nameWithoutVersion)
     (*
     * Single-line Strings
     *)
-    | ARString (id, SPOpenQuote), TString (id', _)
+    | ARString (id, SPOpenQuote), TString (id', _, _)
     | ARPattern (id, PPString SPOpenQuote), TPatternString {patternID = id'; _}
       when id = id' ->
         clampedPosForTi ti ct.offset
@@ -975,56 +977,56 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
     =
   let offset = pos - ti.startPos in
   match ti.token with
-  | TString (id, _) | TStringMLStart (id, _, _, _) ->
+  | TString (id, _, _) | TStringMLStart (id, _, _, _) ->
       Some (CT.forARStringOpenQuote id offset)
   | TStringMLMiddle (id, _, startOffset, _)
   | TStringMLEnd (id, _, startOffset, _) ->
       Some (CT.forARStringText id (startOffset + pos - ti.startPos))
-  | TInteger (id, _) ->
+  | TInteger (id, _, _) ->
       Some {astRef = ARInteger id; offset}
-  | TBlank id | TPlaceholder {blankID = id; _} ->
+  | TBlank (id, _) | TPlaceholder {blankID = id; _} ->
       Some {astRef = ARBlank id; offset}
-  | TTrue id | TFalse id ->
+  | TTrue (id, _) | TFalse (id, _) ->
       Some {astRef = ARBool id; offset}
-  | TNullToken id ->
+  | TNullToken (id, _) ->
       Some {astRef = ARNull id; offset}
-  | TFloatWhole (id, _) ->
+  | TFloatWhole (id, _, _) ->
       Some {astRef = ARFloat (id, FPWhole); offset}
-  | TFloatPoint id ->
+  | TFloatPoint (id, _) ->
       Some {astRef = ARFloat (id, FPPoint); offset}
-  | TFloatFractional (id, _) ->
+  | TFloatFractional (id, _, _) ->
       Some {astRef = ARFloat (id, FPFractional); offset}
-  | TPartial (id, _) ->
+  | TPartial (id, _, _) ->
       Some {astRef = ARPartial id; offset}
-  | TFieldPartial (id, _, _, _) ->
+  | TFieldPartial (id, _, _, _, _) ->
       Some {astRef = ARPartial id; offset}
-  | TRightPartial (id, _) ->
+  | TRightPartial (id, _, _) ->
       Some {astRef = ARRightPartial id; offset}
   | TLeftPartial (id, _) ->
       Some {astRef = ARLeftPartial id; offset}
-  | TLetKeyword (id, _) ->
+  | TLetKeyword (id, _, _) ->
       Some {astRef = ARLet (id, LPKeyword); offset}
-  | TLetVarName (id, _, _) ->
+  | TLetVarName (id, _, _, _) ->
       Some {astRef = ARLet (id, LPVarName); offset}
-  | TLetAssignment (id, _) ->
+  | TLetAssignment (id, _, _) ->
       Some {astRef = ARLet (id, LPAssignment); offset}
-  | TIfKeyword id ->
+  | TIfKeyword (id, _) ->
       Some {astRef = ARIf (id, IPIfKeyword); offset}
-  | TIfThenKeyword id ->
+  | TIfThenKeyword (id, _) ->
       Some {astRef = ARIf (id, IPThenKeyword); offset}
-  | TIfElseKeyword id ->
+  | TIfElseKeyword (id, _) ->
       Some {astRef = ARIf (id, IPElseKeyword); offset}
-  | TBinOp (id, _) ->
+  | TBinOp (id, _, _) ->
       Some {astRef = ARBinOp id; offset}
-  | TFieldName (id, _, _) ->
+  | TFieldName (id, _, _, _) ->
       Some {astRef = ARFieldAccess (id, FAPFieldname); offset}
-  | TFieldOp (id, _) ->
+  | TFieldOp (id, _, _) ->
       Some {astRef = ARFieldAccess (id, FAPFieldOp); offset}
-  | TVariable (id, _) ->
+  | TVariable (id, _, _) ->
       Some {astRef = ARVariable id; offset}
-  | TFnName (id, _, _, _, _) ->
+  | TFnName (id, _, _, _, _, _) ->
       Some {astRef = ARFnCall id; offset}
-  | TFnVersion (id, _, versionName, backendFnName) ->
+  | TFnVersion (id, _, versionName, backendFnName, _) ->
       (* TODO: This is very brittle and should probably be moved into a function responsible
          for grabbing the appropriate bits of functions *)
       Some
@@ -1032,13 +1034,13 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
         ; offset =
             offset + String.length backendFnName - String.length versionName - 1
         }
-  | TLambdaComma (id, idx) ->
+  | TLambdaComma (id, idx, _) ->
       Some {astRef = ARLambda (id, LBPComma idx); offset}
-  | TLambdaArrow id ->
+  | TLambdaArrow (id, _) ->
       Some {astRef = ARLambda (id, LBPArrow); offset}
-  | TLambdaSymbol id ->
+  | TLambdaSymbol (id, _) ->
       Some {astRef = ARLambda (id, LBPSymbol); offset}
-  | TLambdaVar (id, _, idx, _) ->
+  | TLambdaVar (id, _, idx, _, _) ->
       Some {astRef = ARLambda (id, LBPVarName idx); offset}
   | TListOpen id ->
       Some {astRef = ARList (id, LPOpen); offset}
@@ -1046,7 +1048,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARList (id, LPClose); offset}
   | TListComma (id, idx) ->
       Some {astRef = ARList (id, LPComma idx); offset}
-  | TPipe (id, idx, _) ->
+  | TPipe (id, idx, _, _) ->
       Some {astRef = ARPipe (id, idx); offset}
   | TRecordOpen id ->
       Some {astRef = ARRecord (id, RPOpen); offset}
@@ -2561,7 +2563,7 @@ let acEnter
     ( match ti.token with
     | TPatternVariable _ ->
         (ast, moveToNextBlank ~pos:s.newPos ast s)
-    | TFieldPartial (partialID, _fieldAccessID, anaID, fieldname) ->
+    | TFieldPartial (partialID, _fieldAccessID, anaID, fieldname, _) ->
         (* Accept fieldname, even if it's not in the autocomplete *)
         FluidAST.find anaID ast
         |> Option.map ~f:(fun expr ->
@@ -2622,8 +2624,8 @@ let acStartField
     FluidAST.t * state =
   let s = recordAction "acStartField" s in
   match (AC.highlighted s.ac, ti.token) with
-  | Some (FACField _ as entry), TFieldName (faID, _, _)
-  | Some (FACField _ as entry), TFieldPartial (_, faID, _, _) ->
+  | Some (FACField _ as entry), TFieldName (faID, _, _, _)
+  | Some (FACField _ as entry), TFieldPartial (_, faID, _, _, _) ->
       let ast, s = updateFromACItem entry ti props ast s K.Enter in
       let newAST, target =
         exprToFieldAccess faID ~partialID:(gid ()) ~fieldID:(gid ()) ast
@@ -4177,7 +4179,7 @@ let rec updateKey
         acEnter ti props ast s key
     (* When we type a letter/number after an infix operator, complete and
      * then enter the number/letter. *)
-    | InsertText txt, L (TRightPartial (_, _), ti), _
+    | InsertText txt, L (TRightPartial (_, _, _), ti), _
       when onEdge && Util.isIdentifierChar txt ->
         let ast, s = acEnter ti props ast s K.Tab in
         let tokens = tokensForActiveEditor ast s in
@@ -4394,19 +4396,19 @@ let rec updateKey
         let newAST = insertInList ~index:0 id ~newExpr ast in
         let tokens = tokensForActiveEditor newAST s in
         (newAST, moveToCaretTarget tokens s target)
-    | InsertText ",", L (TLambdaSymbol id, _), _ when onEdge ->
+    | InsertText ",", L (TLambdaSymbol (id, _), _), _ when onEdge ->
         let newAST = insertLambdaVar ~index:0 id ~name:"" ast in
         let target = {astRef = ARLambda (id, LBPVarName 0); offset = 0} in
         let tokens = tokensForActiveEditor newAST s in
         (newAST, moveToCaretTarget tokens s target)
-    | InsertText ",", L (TLambdaVar (id, _, index, _), _), _ when onEdge ->
+    | InsertText ",", L (TLambdaVar (id, _, index, _, _), _), _ when onEdge ->
         let newAST = insertLambdaVar ~index:(index + 1) id ~name:"" ast in
         let target =
           {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
         in
         let tokens = tokensForActiveEditor newAST s in
         (newAST, moveToCaretTarget tokens s target)
-    | InsertText ",", _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
+    | InsertText ",", _, R (TLambdaVar (id, _, index, _, _), _) when onEdge ->
         let target = {astRef = ARLambda (id, LBPVarName index); offset = 0} in
         let newAST = insertLambdaVar ~index id ~name:"" ast in
         let tokens = tokensForActiveEditor newAST s in
@@ -4440,7 +4442,7 @@ let rec updateKey
           |> Option.withDefault ~default:(ast, s)
         else doInsert ~pos props "," ti ast s
     (* Field access *)
-    | InsertText ".", L (TFieldPartial (id, _, _, _), _), _ ->
+    | InsertText ".", L (TFieldPartial (id, _, _, _, _), _), _ ->
         (* When pressing . in a field access partial, commit the partial *)
         let newPartialID = gid () in
         let ast =
@@ -4458,8 +4460,8 @@ let rec updateKey
         let tokens = tokensForActiveEditor ast s in
         let s = moveToCaretTarget tokens s ct in
         (ast, s)
-    | InsertText ".", L (TVariable (id, _), toTheLeft), _
-    | InsertText ".", L (TFieldName (id, _, _), toTheLeft), _
+    | InsertText ".", L (TVariable (id, _, _), toTheLeft), _
+    | InsertText ".", L (TFieldName (id, _, _, _), toTheLeft), _
       when onEdge && pos = toTheLeft.endPos ->
         let newAST, target =
           exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) ast
@@ -4496,8 +4498,8 @@ let rec updateKey
     (***********************************)
     (* INSERT INTO EXISTING CONSTRUCTS *)
     (***********************************)
-    | InsertText ins, L (TPlaceholder {placeholder; blankID; fnID}, _), _
-    | InsertText ins, _, R (TPlaceholder {placeholder; blankID; fnID}, _) ->
+    | InsertText ins, L (TPlaceholder {placeholder; blankID; fnID; _}, _), _
+    | InsertText ins, _, R (TPlaceholder {placeholder; blankID; fnID; _}, _) ->
         (* We need this special case because by the time we get to the general
          * doInsert handling, reconstructing the difference between placeholders
          * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
@@ -4537,7 +4539,7 @@ let rec updateKey
      * Caret between pipe symbol |> and following expression.
      * Move current pipe expr down by adding new expr above it.
      * Keep caret "the same", only moved down by 1 column. *)
-    | Keypress {key = K.Enter; _}, L (TPipe (id, idx, _), _), R _ ->
+    | Keypress {key = K.Enter; _}, L (TPipe (id, idx, _, _), _), R _ ->
         let ast, s, _ = addPipeExprAt id (idx + 1) ast s in
         let tokens = tokensForActiveEditor ast s in
         let s = moveToAstRef tokens s (ARPipe (id, idx + 1)) ~offset:2 in
@@ -4763,10 +4765,10 @@ let rec updateKey
       match inputEvent with Keypress {key; _} -> Some key | _ -> None
     in
     match (toTheLeft, toTheRight) with
-    | L (TPartial (_, str), ti), _
-    | L (TFieldPartial (_, _, _, str), ti), _
-    | _, R (TPartial (_, str), ti)
-    | _, R (TFieldPartial (_, _, _, str), ti)
+    | L (TPartial (_, str, _), ti), _
+    | L (TFieldPartial (_, _, _, str, _), ti), _
+    | _, R (TPartial (_, str, _), ti)
+    | _, R (TFieldPartial (_, _, _, str, _), ti)
     (* When pressing an infix character, it's hard to tell whether to commit or
      * not.  If the partial is an int, or a function that returns one, pressing
      * +, -, etc  should lead to committing and then doing the action.
@@ -4804,7 +4806,7 @@ let rec updateKey
             (* keep the actions for debugging *)
             {s with actions = newState.actions}
         else (newAST, newState)
-    | L (TPartial (_, _), ti), _ when false (* disable for now *) ->
+    | L (TPartial _, ti), _ when false (* disable for now *) ->
         maybeCommitStringPartial pos ti newAST newState
     | _ ->
         (newAST, newState)
@@ -5301,7 +5303,11 @@ let reconstructExprFromRange
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
                  | TRecordFieldname
-                     {recordID; index; fieldName = newKey; exprID = _}
+                     { recordID
+                     ; index
+                     ; fieldName = newKey
+                     ; exprID = _
+                     ; parentID = Some id }
                    when recordID = id (* watch out for nested records *) ->
                      List.getAt ~index entries
                      |> Option.map
@@ -5546,7 +5552,7 @@ let updateMouseDoubleClick
         |> recoverOpt ~default:(0, 0) "no expression range found at caret"
     | SelectTokenAt (selectionStart, selectionEnd) ->
       ( match getToken ast {s with newPos = selectionStart} with
-      | Some {token = TFnName (_, displayName, _, _, _); startPos; _} ->
+      | Some {token = TFnName (_, displayName, _, _, _, _); startPos; _} ->
           (* Highlight the full function name *)
           (startPos, startPos + String.length displayName)
       | Some _ when selectionStart <> selectionEnd ->

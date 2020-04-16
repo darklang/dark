@@ -216,9 +216,9 @@ let findFields (m : model) (tl : toplevel) (ti : tokenInfo) : string list =
   let tlid = TL.id tl in
   let id =
     match ti.token with
-    | TFieldOp (_, lhsID)
-    | TFieldName (_, lhsID, _)
-    | TFieldPartial (_, _, lhsID, _) ->
+    | TFieldOp (_, lhsID, _)
+    | TFieldName (_, lhsID, _, _)
+    | TFieldPartial (_, _, lhsID, _, _) ->
         lhsID
     | _ ->
         FluidToken.tid ti.token
@@ -414,7 +414,7 @@ let generate (m : model) (props : props) (a : t) (query : fullQuery) : item list
   | TLeftPartial _ ->
       (* Left partials can ONLY be if/let/match for now *)
       [FACKeyword KLet; FACKeyword KIf; FACKeyword KMatch]
-  | TPartial (id, name) ->
+  | TPartial (id, name, _) ->
       generateExprs m props query.tl query.ti @ generateCommands name tlid id
   | _ ->
       generateExprs m props query.tl query.ti
