@@ -374,8 +374,14 @@ let processMsg
     (astExpr : FluidExpression.t) : FluidAST.t * fluidState =
   let h = Fluid_utils.h astExpr in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
-  List.foldl inputs ~init:(h.ast, s) ~f:(fun input (ast, s) ->
-      updateMsg m h.hTLID ast (FluidInputEvent input) s)
+  let ast = FluidAST.ofExpr astExpr in
+  let tokens = tokensForActiveEditor ast s in
+  let s = Fluid.updateAutocomplete m (TLID.fromString "7") ast tokens s in
+  let newAST, newState, _newTokens =
+    List.foldl inputs ~init:(h.ast, s, tokens) ~f:(fun input (ast, s, _) ->
+        updateMsg m h.hTLID ast (FluidInputEvent input) s)
+  in
+  (newAST, newState)
 
 
 let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
@@ -4481,7 +4487,7 @@ let run () =
           let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
           let tlid = h.hTLID in
           expect
-            (let _, newState =
+            (let _, newState, _ =
                updateMsg
                  m
                  tlid
@@ -4501,7 +4507,7 @@ let run () =
           let tlid = h.hTLID in
           expect
             (let newState = m.fluidState |> moveTo 3 in
-             let _, newState =
+             let _, newState, _ =
                updateMsg
                  m
                  tlid
@@ -4509,7 +4515,7 @@ let run () =
                  (FluidInputEvent DeleteContentBackward)
                  newState
              in
-             let _, newState =
+             let _, newState, _ =
                updateMsg
                  m
                  tlid
@@ -4647,15 +4653,17 @@ let run () =
           |> toEqual 144) ;
       test "clicking away from autocomplete commits" (fun () ->
           expect
-            (let ast = let' "var" (partial "false" b) b in
+            (let expr = let' "var" (partial "false" b) b in
+             let ast = FluidAST.ofExpr expr in
+             let tokens = Fluid.tokensForActiveEditor ast s in
              moveTo 14 s
              |> (fun s ->
-                  let h = Fluid_utils.h ast in
+                  let h = Fluid_utils.h expr in
                   let m =
                     {defaultTestModel with handlers = Handlers.fromList [h]}
                   in
-                  updateAutocomplete m h.hTLID h.ast s)
-             |> (fun s -> updateMouseClick 0 props (FluidAST.ofExpr ast) s)
+                  updateAutocomplete m h.hTLID h.ast tokens s)
+             |> (fun s -> updateMouseClick 0 props ast s)
              |> fun (ast, _) ->
              match FluidAST.toExpr ast with
              | ELet (_, _, EBool (_, false), _) ->

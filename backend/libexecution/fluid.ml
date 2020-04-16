@@ -350,6 +350,11 @@ let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) :
         ERightPartial (id, str, toFluidExpr ~inPipe oldExpr) )
 
 
+let expr_json_to_fluid (j : Yojson.Safe.t) : (Types.fluid_expr, string) Result.t
+    =
+  j |> Types.RuntimeT.expr_of_yojson |> Result.map ~f:toFluidExpr
+
+
 (* included here as part of killing old exprs, based on
  * FluidExpression.testEqualIgnoringIds *)
 let rec testExprEqualIgnoringIds
