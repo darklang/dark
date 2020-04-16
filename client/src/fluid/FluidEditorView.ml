@@ -60,15 +60,24 @@ let toHtml (s : state) : Types.msg Html.html list =
   let tokens =
     match Fluid.tokenAtCaret s.tokens s.fluidState with
     | Some caretAt ->
-      Debug.loG "caretAt" (show_executionFlow caretAt.exeFlow);
       if caretAt.exeFlow = CodeNotExecuted
       then
-        let caretRow = caretAt.startRow in
-        s.tokens |> List.map ~f:(fun ti -> 
-          if ti.startRow = caretRow
+        match caretAt.parentId with
+        | Some pid ->
+          (* If caret in a multiline block, mark block tokens *)
+          s.tokens |> List.map ~f:(fun ti ->
+          if ti.parentId = Some pid && ti.exeFlow = CodeNotExecuted
           then {ti with exeFlow = CodeInFocus}
           else ti
-        )
+          )
+        | None ->
+          (* else mark entire row caret is in *)
+          let caretRow = caretAt.startRow in
+          s.tokens |> List.map ~f:(fun ti -> 
+            if ti.startRow = caretRow && ti.exeFlow = CodeNotExecuted
+            then {ti with exeFlow = CodeInFocus}
+            else ti
+          )
       else s.tokens
     | None -> s.tokens
   in

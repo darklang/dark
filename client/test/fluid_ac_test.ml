@@ -84,7 +84,8 @@ let defaultTokenInfo =
   ; endPos = 0
   ; length = 0
   ; token = TBlank defaultID
-  ; exeFlow = UnknownExecution }
+  ; exeFlow = UnknownExecution
+  ; parentId = None }
 
 
 let defaultFullQuery ?(tl = defaultToplevel) (ac : AC.t) (queryString : string)

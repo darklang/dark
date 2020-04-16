@@ -488,10 +488,22 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
         |> nest ~indent:2 enabled )
 
 
-let infoize tokens : tokenInfo list =
+let infoize ?(ast=None) tokens : tokenInfo list =
   let row, col, pos = (ref 0, ref 0, ref 0) in
   List.map tokens ~f:(fun token ->
       let length = String.length (T.toText token) in
+      let parentId =
+          ast |> Option.andThen ~f:(fun e ->
+            if T.isMutlilineString token
+            then Some (T.tid token)
+            else if T.isListSymbol token
+            then Some (T.tid token)
+            else 
+              match FluidExpression.findParent (T.tid token) e with
+              | Some (FluidExpression.EList (id, _)) -> Some id
+              | _ -> None
+          )
+      in
       let ti =
         { token
         ; startRow = !row
@@ -499,7 +511,8 @@ let infoize tokens : tokenInfo list =
         ; startPos = !pos
         ; endPos = !pos + length
         ; length
-        ; exeFlow = UnknownExecution }
+        ; exeFlow = UnknownExecution
+        ; parentId }
       in
       ( match token with
       | TNewline _ ->
@@ -531,7 +544,7 @@ let tokenizeWithFFTokenization
   |> Builder.asTokens
   |> tidy
   |> validateTokens
-  |> infoize
+  |> infoize ~ast:(Some e)
 
 
 let tokenize : E.t -> FluidToken.tokenInfo list =
@@ -603,7 +616,7 @@ let pToString (p : fluidPattern) : string =
 let pToStructure (p : fluidPattern) : string =
   p
   |> patternToToken ~idx:0
-  |> infoize
+  |> infoize ~ast:None
   |> List.map ~f:(fun ti ->
          "<" ^ T.toTypeName ti.token ^ ":" ^ T.toText ti.token ^ ">")
   |> String.join ~sep:""

@@ -1557,7 +1557,13 @@ and fluidTokenInfo =
   ; endPos : int
   ; length : int
   ; token : fluidToken
-  ; exeFlow : executionFlow }
+  ; exeFlow : executionFlow
+  ; parentId: ID.t option }
+(* I know parentId is probably more efficient if we put it in fluidToken type,
+ so we can add it as we build from the AST as opposed to doing the look-up after.
+ But that's hellotta changes i'll have to make afterwards and the builder is pretty complicated code.
+ So I want to make sure at least this is in the right direction,
+ before spending the entire afternoon going through the code base to propogate type changes *)
 
 and fluidPatternAutocomplete =
   | FPAVariable of ID.t * ID.t * string
