@@ -78,7 +78,28 @@ let allParamData (uf : userFunction) : blankOrData list =
 
 
 let blankOrData (uf : userFunction) : blankOrData list =
-  [PFnName uf.ufMetadata.ufmName] @ allParamData uf
+  PFnName uf.ufMetadata.ufmName
+  :: PFnReturn uf.ufMetadata.ufmReturnTipe
+  :: allParamData uf
+
+
+let replaceFnReturn
+    (search : blankOrData) (replacement : blankOrData) (uf : userFunction) :
+    userFunction =
+  let metadata = uf.ufMetadata in
+  let sId = P.toID search in
+  if B.toID metadata.ufmReturnTipe = sId
+  then
+    let newMetadata =
+      match replacement with
+      | PFnReturn new_ ->
+          { metadata with
+            ufmReturnTipe = B.replace sId new_ metadata.ufmReturnTipe }
+      | _ ->
+          metadata
+    in
+    {uf with ufMetadata = newMetadata}
+  else uf
 
 
 let replaceFnName
@@ -191,6 +212,7 @@ let replaceMetadataField
     =
   uf
   |> replaceFnName old new_
+  |> replaceFnReturn old new_
   |> replaceParamName old new_
   |> replaceParamTipe old new_
 

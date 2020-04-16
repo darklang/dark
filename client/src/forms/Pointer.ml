@@ -23,6 +23,8 @@ let typeOf (pd : blankOrData) : blankOrType =
       DBColType
   | PFnName _ ->
       FnName
+  | PFnReturn _ ->
+      FnReturn
   | PParamName _ ->
       ParamName
   | PParamTipe _ ->
@@ -54,6 +56,8 @@ let emptyD (pt : blankOrType) : blankOrData =
       PDBColType (Blank id)
   | FnName ->
       PFnName (Blank id)
+  | FnReturn ->
+      PFnReturn (Blank id)
   | ParamName ->
       PParamName (Blank id)
   | ParamTipe ->
@@ -84,6 +88,8 @@ let toID (pd : blankOrData) : ID.t =
       B.toID d
   | PFnName d ->
       B.toID d
+  | PFnReturn d ->
+      B.toID d
   | PParamName d ->
       B.toID d
   | PParamTipe d ->
@@ -100,20 +106,20 @@ let toID (pd : blankOrData) : ID.t =
 
 let isBlank (pd : blankOrData) : bool =
   match pd with
-  | PEventModifier d
-  | PEventName d
-  | PEventSpace d
-  | PDBName d
-  | PDBColName d
-  | PDBColType d
-  | PFnName d
-  | PParamName d
-  | PTypeName d
-  | PTypeFieldName d
-  | PGroupName d ->
-      B.isBlank d
-  | PTypeFieldTipe d | PParamTipe d ->
-      B.isBlank d
+  | PEventModifier str
+  | PEventName str
+  | PEventSpace str
+  | PDBName str
+  | PDBColName str
+  | PDBColType str
+  | PFnName str
+  | PParamName str
+  | PTypeName str
+  | PTypeFieldName str
+  | PGroupName str ->
+      B.isBlank str
+  | PFnReturn t | PTypeFieldTipe t | PParamTipe t ->
+      B.isBlank t
 
 
 let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
@@ -139,6 +145,8 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
       PDBColType (bf d)
   | PFnName d ->
       PFnName (bf d)
+  | PFnReturn d ->
+      PFnReturn d
   | PParamName d ->
       PParamName (bf d)
   | PParamTipe d ->
@@ -156,35 +164,20 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
 let toContent (pd : blankOrData) : string =
   let bs2s s = s |> B.toOption |> Option.withDefault ~default:"" in
   match pd with
-  | PEventModifier d ->
+  | PEventModifier d
+  | PEventName d
+  | PEventSpace d
+  | PDBName d
+  | PDBColName d
+  | PDBColType d
+  | PFnName d
+  | PParamName d
+  | PTypeName d
+  | PTypeFieldName d
+  | PGroupName d ->
       bs2s d
-  | PEventName d ->
-      bs2s d
-  | PEventSpace d ->
-      bs2s d
-  | PDBName d ->
-      bs2s d
-  | PDBColName d ->
-      bs2s d
-  | PDBColType d ->
-      bs2s d
-  | PFnName d ->
-      bs2s d
-  | PParamName d ->
-      bs2s d
-  | PParamTipe d ->
+  | PFnReturn d | PParamTipe d | PTypeFieldTipe d ->
       d
       |> B.toOption
       |> Option.map ~f:Prelude.tipe2str
       |> Option.withDefault ~default:""
-  | PTypeName d ->
-      bs2s d
-  | PTypeFieldName d ->
-      bs2s d
-  | PTypeFieldTipe d ->
-      d
-      |> B.toOption
-      |> Option.map ~f:Prelude.tipe2str
-      |> Option.withDefault ~default:""
-  | PGroupName g ->
-      bs2s g

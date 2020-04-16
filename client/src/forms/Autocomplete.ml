@@ -693,7 +693,16 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACTypeFieldTipe TDate
           ; ACTypeFieldTipe TPassword
           ; ACTypeFieldTipe TUuid ]
-      | _ ->
+      | FnReturn ->
+          (* FIXME(ds) should this be its own type instead of ACParamTipe? *)
+          [ACParamTipe TAny; ACParamTipe TStr]
+      | DBName
+      | DBColName
+      | FnName
+      | ParamName
+      | TypeName
+      | TypeFieldName
+      | GroupName ->
           [] )
     | _ ->
         []
