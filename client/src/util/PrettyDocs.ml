@@ -36,7 +36,7 @@ let justErrors results =
 
 let rec convert_ (s : string) : parseResult =
   let hasCodeBlock (input : string) : parseResult option =
-    match Regex.captures ~re:(Regex.regex ~flags:"" codeEx) input with
+    match Regex.captures ~re:(Regex.regex ~flags:"s" codeEx) input with
     | [_; before; inside; after] ->
         Some
           ( match (convert_ before, convert_ inside, convert_ after) with
@@ -52,7 +52,7 @@ let rec convert_ (s : string) : parseResult =
         None
   in
   let hasTag input : parseResult option =
-    match Regex.captures ~re:(Regex.regex ~flags:"" tagEx) input with
+    match Regex.captures ~re:(Regex.regex ~flags:"s" tagEx) input with
     | [_; before; tagType; tagData; after]
       when List.member ~value:tagType validTags ->
         let tagNode = tag tagType [txt tagData] in
@@ -72,7 +72,7 @@ let rec convert_ (s : string) : parseResult =
         None
   in
   let hasLink input : parseResult option =
-    match Regex.captures ~re:(Regex.regex ~flags:"" linkEx) input with
+    match Regex.captures ~re:(Regex.regex ~flags:"s" linkEx) input with
     | [_; before; linkName; linkUrl; after] ->
         Some
           ( match (convert_ before, convert_ after) with
