@@ -56,13 +56,22 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
   | Some {fnPreviewSafety = Safe; _} | None ->
       Vdom.noNode
 
-
-type executionFlow =
-  | CodeExecuted
-  | CodeNotExecuted
-  | UnknownExecution
-
 let toHtml (s : state) : Types.msg Html.html list =
+  let tokens =
+    match Fluid.tokenAtCaret s.tokens s.fluidState with
+    | Some caretAt ->
+      Debug.loG "caretAt" (show_executionFlow caretAt.exeFlow);
+      if caretAt.exeFlow = CodeNotExecuted
+      then
+        let caretRow = caretAt.startRow in
+        s.tokens |> List.map ~f:(fun ti -> 
+          if ti.startRow = caretRow
+          then {ti with exeFlow = CodeInFocus}
+          else ti
+        )
+      else s.tokens
+    | None -> s.tokens
+  in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
     if FluidToken.validID id
@@ -77,17 +86,7 @@ let toHtml (s : state) : Types.msg Html.html list =
           (None, "")
     else (None, "")
   in
-  let wasExecuted id : executionFlow =
-    match Analysis.getLiveValueLoadable s.analysisStore id with
-    | LoadableSuccess (ExecutedResult _) ->
-        CodeExecuted
-    | LoadableSuccess (NonExecutedResult _) ->
-        CodeNotExecuted
-    | _ ->
-        UnknownExecution
-  in
-  let currentTokenInfo = Fluid.getToken' s.tokens s.fluidState in
-  let caretRow = currentTokenInfo |> Option.map ~f:(fun ti -> ti.startRow) in
+  let currentTokenInfo = Fluid.getToken s.ast s.fluidState in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -154,7 +153,7 @@ let toHtml (s : state) : Types.msg Html.html list =
    * IDs above, then toggle it off as soon as we see a non-whitespace token
    * that's not contained in the set. *)
   let withinFlag = ref false in
-  List.map s.tokens ~f:(fun ti ->
+  List.map tokens ~f:(fun ti ->
       let element nested =
         let tokenId = FluidToken.tid ti.token in
         let idStr = ID.toString tokenId in
@@ -211,19 +210,12 @@ let toHtml (s : state) : Types.msg Html.html list =
             propagated occurrences. *)
             sourceId = Some (s.tlid, analysisId)
           in
-          let notExecuted =
-            if wasExecuted analysisId = CodeNotExecuted
-            then
-              (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
-              caretRow != Some ti.startRow
-            else false
-          in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
           ; ("in-flag", !withinFlag)
           ; ("fluid-error", isError)
-          ; ("fluid-executed", wasExecuted analysisId = CodeExecuted)
-          ; ("fluid-not-executed", notExecuted)
+          ; ("fluid-not-executed", ti.exeFlow = CodeNotExecuted)
+          ; ("fluid-code-focus", ti.exeFlow = CodeInFocus)
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
              * into another, where the cursor is currently on *)

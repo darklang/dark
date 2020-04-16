@@ -498,7 +498,8 @@ let infoize tokens : tokenInfo list =
         ; startCol = !col
         ; startPos = !pos
         ; endPos = !pos + length
-        ; length }
+        ; length
+        ; exeFlow = UnknownExecution }
       in
       ( match token with
       | TNewline _ ->
