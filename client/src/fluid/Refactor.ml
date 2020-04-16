@@ -507,7 +507,7 @@ let createNewFunction (m : model) (newFnName : string option) : modification =
             (fun m -> (UserFunctions.upsert m newFn, Tea.Cmd.none))
         ; (* Both ops in a single transaction *)
           AddOps ([SetFunction newFn], FocusNothing)
-        ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ]
+        ; MakeCmd (Url.navigateTo (FocusedFn (newFn.ufTLID, None))) ]
 
 
 (* Create a new function, update the expression (tlid, id) to call the new
@@ -547,6 +547,6 @@ let createAndInsertNewFunction
                     , Tea.Cmd.none ))
               ; (* Both ops in a single transaction *)
                 TL.setASTMod ~ops:[op] tl newAST
-              ; MakeCmd (Url.navigateTo (FocusedFn newFn.ufTLID)) ] )
+              ; MakeCmd (Url.navigateTo (FocusedFn (newFn.ufTLID, None))) ] )
   | None ->
       NoChange
