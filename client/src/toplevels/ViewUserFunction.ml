@@ -140,7 +140,17 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       [Html.id "fnparams"; Html.class' "params"]
       (FnParams.view fn vs @ [addParamBtn])
   in
-  Html.div [Html.class' "fn-header"] [titleRow; paramRows]
+  let returnRow =
+    Html.div
+      [Html.id "fnreturn"; Html.class' "params"]
+      [ ViewBlankOr.viewTipe
+          ~classes:["type"]
+          ~enterable:true
+          ParamTipe
+          vs
+          fn.ufMetadata.ufmReturnTipe ]
+  in
+  Html.div [Html.class' "fn-header"] [titleRow; paramRows; returnRow]
 
 
 let view (vs : viewState) (fn : userFunction) : msg Html.html =
