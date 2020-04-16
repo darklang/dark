@@ -295,6 +295,13 @@ and handler (h : Types.handler) : Js.Json.t =
     ; ("ast", h.ast |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
 
 
+and fluid_handler (h : Types.handler) : Js.Json.t =
+  object_
+    [ ("tlid", tlid h.hTLID)
+    ; ("spec", spec h.spec)
+    ; ("ast", h.ast |> FluidAST.toExpr |> fluidExpr) ]
+
+
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
   let ev = variant in
   match k with DeprecatedMigrationKind -> ev "DeprecatedMigrationKind" []
@@ -339,7 +346,7 @@ and op (call : Types.op) : Js.Json.t =
   let ev = variant in
   match call with
   | SetHandler (t, p, h) ->
-      ev "SetHandler" [tlid t; pos p; handler h]
+      ev "SetHandler" [tlid t; pos p; fluid_handler h]
   | CreateDB (t, p, name) ->
       ev "CreateDB" [tlid t; pos p; string name]
   | AddDBCol (t, cn, ct) ->
@@ -381,11 +388,11 @@ and op (call : Types.op) : Js.Json.t =
   | MoveTL (t, p) ->
       ev "MoveTL" [tlid t; pos p]
   | SetFunction uf ->
-      ev "SetFunction" [userFunction uf]
+      ev "SetFunction" [fluidUserFunction uf]
   | DeleteFunction t ->
       ev "DeleteFunction" [tlid t]
   | SetExpr (t, i, e) ->
-      ev "SetExpr" [tlid t; id i; e |> OldExpr.fromFluidExpr |> expr]
+      ev "SetExpr" [tlid t; id i; e |> fluidExpr]
   | RenameDBname (t, name) ->
       ev "RenameDBname" [tlid t; string name]
   | CreateDBWithBlankOr (t, p, i, name) ->
@@ -443,7 +450,7 @@ and packageFn (pf : Types.packageFn) : Js.Json.t =
 
 
 and uploadFnAPIParams (params : Types.uploadFnAPIParams) : Js.Json.t =
-  object_ [("fn", userFunction params.uplFn)]
+  object_ [("fn", fluidUserFunction params.uplFn)]
 
 
 and triggerHandlerAPIParams (params : Types.triggerHandlerAPIParams) : Js.Json.t
@@ -528,6 +535,13 @@ and userFunction (uf : Types.userFunction) : Js.Json.t =
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
     ; ("ast", uf.ufAST |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
+
+
+and fluidUserFunction (uf : Types.userFunction) : Js.Json.t =
+  object_
+    [ ("tlid", tlid uf.ufTLID)
+    ; ("metadata", userFunctionMetadata uf.ufMetadata)
+    ; ("ast", uf.ufAST |> FluidAST.toExpr |> fluidExpr) ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
