@@ -253,6 +253,22 @@ let fns =
               DBool (List.mem ~equal:equal_dval l i)
           | args ->
               fail args)
+    ; preview_safety =
+        Safe
+        (* Deprecated in favor of List::member for consistency with Elm's naming *)
+    ; deprecated = true }
+  ; { prefix_names = ["List::member"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; par "val" TAny]
+    ; return_type = TBool
+    ; description = "Returns `true` if `val` is in the list."
+    ; func =
+        InProcess
+          (function
+          | _, [DList l; i] ->
+              DBool (List.mem ~equal:equal_dval l i)
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["List::repeat"]
