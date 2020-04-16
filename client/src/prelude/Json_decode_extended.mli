@@ -29,6 +29,25 @@ val variant1 : ('b -> 'a) -> 'b decoder -> 'a decoder
 
 val variant0 : 'a -> 'a decoder
 
+(* For variants with record types, provide a constructor and three fields with
+ * the field types, and decode them. For example, for the type:
+ * FPString { matchID: id; patternID : id; str : string }
+ *
+ * the decoder would be
+ *
+ * recordVariant3
+ *    (fun matchID patternID str -> P.FPString {matchID; patternID; str})
+ *    ("matchID", id)
+ *    ("patternID", id)
+ *    ("str", string)
+ *)
+val recordVariant3 :
+     ('b -> 'c -> 'd -> 'a)
+  -> string * 'b decoder
+  -> string * 'c decoder
+  -> string * 'd decoder
+  -> 'a decoder
+
 val variants : (string * 'a decoder) list -> 'a decoder
 
 val succeed : 'a -> 'a decoder
