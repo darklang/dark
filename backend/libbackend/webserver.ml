@@ -744,14 +744,14 @@ let admin_add_op_handler
     time "1-read-api-ops" (fun _ ->
         let owner = Account.for_host_exn host in
         let canvas_id = Serialize.fetch_canvas_id owner host in
-        let params = Api.to_add_op_rpc_params ~f:RTT.expr_of_yojson body in
+        let params = Api.to_add_op_rpc_params body in
         if Op.is_latest_op_request params.clientOpCtrId params.opCtr canvas_id
         then (params, canvas_id)
         else
           ( {params with ops = params.ops |> Op.filter_ops_received_out_of_order}
           , canvas_id ))
   in
-  let ops = params.ops in
+  let ops = params.ops |> Op.oplist_of_fluid in
   let tlids = List.map ~f:Op.tlidOf ops in
   let t2, maybe_c =
     (* NOTE: Because we run canvas-wide validation logic, it's important
@@ -766,7 +766,7 @@ let admin_add_op_handler
             C.load_with_dbs ~tlids host ops)
   in
   let params : Types.fluid_expr Api.add_op_rpc_params =
-    { ops = Op.oplist_to_fluid params.ops
+    { ops = params.ops
     ; opCtr = params.opCtr
     ; clientOpCtrId = params.clientOpCtrId }
   in
@@ -858,6 +858,7 @@ let fetch_all_traces
     let t1, c =
       time "1-load-canvas" (fun _ ->
           C.load_all_from_cache canvas
+          |> Result.map ~f:C.to_fluid_ref
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
     in
@@ -899,6 +900,7 @@ let initial_load
       time "1-load-saved-ops" (fun _ ->
           let c =
             C.load_all_from_cache canvas
+            |> Result.map ~f:C.to_fluid_ref
             |> Result.map_error ~f:(String.concat ~sep:", ")
             |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
           in
@@ -1014,11 +1016,13 @@ let upload_function
     ~(execution_id : Types.id) (username : string) (body : string) :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, params =
-    time "1-read-api" (fun _ ->
-        Api.to_upload_function_rpc_params ~f:RTT.expr_of_yojson body)
+    time "1-read-api" (fun _ -> Api.to_upload_function_rpc_params body)
   in
   let t2, result =
-    time "2-save" (fun _ -> Package_manager.save username params.fn)
+    time "2-save" (fun _ ->
+        Package_manager.save
+          username
+          (Libexecution.Toplevel.user_fn_of_fluid params.fn))
   in
   let t3, (response_code, response) =
     time "3-to-frontend" (fun _ ->
@@ -1113,6 +1117,7 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
   let t2, c =
     time "2-load-saved-ops" (fun _ ->
         C.load_tlids_from_cache ~tlids:[params.tlid] host
+        |> Result.map ~f:C.to_fluid_ref
         |> Result.map_error ~f:(String.concat ~sep:", "))
   in
   let t3, mht =
@@ -1177,6 +1182,7 @@ let db_stats ~(execution_id : Types.id) (host : string) (body : string) :
     let t2, c =
       time "2-load-saved-ops" (fun _ ->
           C.load_all_dbs_from_cache host
+          |> Result.map ~f:C.to_fluid_ref
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
     in
@@ -1203,6 +1209,7 @@ let worker_stats ~(execution_id : Types.id) (host : string) (body : string) :
     let t2, c =
       time "2-load-saved-ops" (fun _ ->
           C.load_tlids_from_cache ~tlids:[params.tlid] host
+          |> Result.map ~f:C.to_fluid_ref
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
     in
@@ -1227,6 +1234,7 @@ let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
     let t1, c =
       time "1-load-saved-ops" (fun _ ->
           C.load_all_dbs_from_cache host
+          |> Result.map ~f:C.to_fluid_ref
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
     in
