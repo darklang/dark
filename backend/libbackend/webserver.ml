@@ -363,7 +363,7 @@ let result_to_response
     ~(c : RTT.expr Canvas.canvas ref)
     ~(execution_id : Types.id)
     ~(req : CRequest.t)
-    (result : RTT.dval) =
+    (result : RTT.expr RTT.dval) =
   let maybe_infer_cors headers =
     (* Add the Access-Control-ALlow-Origin, if it doens't exist
        and if infer_cors_header tells us to. *)
@@ -544,7 +544,10 @@ let user_page_handler
           | _ ->
               () ) ;
           let bound =
+            let page = Libexecution.Toplevel.handler_to_fluid page in
             Libexecution.Execution.http_route_input_vars page (Uri.path uri)
+            |> List.map ~f:(fun (a, b) ->
+                   (a, Libexecution.Fluid.dval_of_fluid b))
           in
           let result, touched_tlids =
             Libexecution.Execution.execute_handler
@@ -1003,7 +1006,7 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
           Dval.current_hash_version
           tlids
           unlocked
-          result)
+          (Libexecution.Fluid.dval_to_fluid result))
   in
   respond
     ~execution_id

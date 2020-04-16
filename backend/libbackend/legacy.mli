@@ -69,42 +69,43 @@ end
  * throw an exception on a non-2xx error code, or
  * those that simply wrap the exception in a Result *)
 module LibhttpclientV0 : sig
-  val call : Httpclient.verb -> (dval -> string) -> funcimpl
+  val call : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
 
-  val call_no_body : Httpclient.verb -> (dval -> string) -> funcimpl
+  val call_no_body : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
 
   val wrapped_send_request :
        string
     -> Httpclient.verb
-    -> (dval -> string)
-    -> dval
-    -> dval
-    -> dval
-    -> dval
+    -> (expr dval -> string)
+    -> expr_dval
+    -> expr_dval
+    -> expr_dval
+    -> expr_dval
 
-  val wrapped_call : Httpclient.verb -> (dval -> string) -> funcimpl
+  val wrapped_call : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
 
-  val wrapped_call_no_body : Httpclient.verb -> (dval -> string) -> funcimpl
+  val wrapped_call_no_body :
+    Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
 end
 
 (*These functions call the bugged HttpclientV1 impls *)
 module LibhttpclientV1 : sig
-  val call : Httpclient.verb -> (dval -> string) -> funcimpl
+  val call : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
 
-  val call_no_body : Httpclient.verb -> (dval -> string) -> funcimpl
+  val call_no_body : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
 end
 
 module LibhttpclientV2 : sig
   val send_request :
        string
     -> Httpclient.verb
-    -> (dval -> string)
-    -> dval
-    -> dval
-    -> dval
-    -> dval
+    -> (expr_dval -> string)
+    -> expr_dval
+    -> expr_dval
+    -> expr_dval
+    -> expr_dval
 
-  val call : Httpclient.verb -> (dval -> string) -> funcimpl
+  val call : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
 
-  val call_no_body : Httpclient.verb -> (dval -> string) -> funcimpl
+  val call_no_body : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
 end

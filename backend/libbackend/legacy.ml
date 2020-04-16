@@ -750,10 +750,10 @@ module LibhttpclientV0 = struct
   let send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : dval -> string)
-      (body : dval)
-      (query : dval)
-      (headers : dval) : dval =
+      (json_fn : 'expr_type dval -> string)
+      (body : 'expr_type dval)
+      (query : 'expr_type dval)
+      (headers : 'expr_type dval) : 'expr_type dval =
     let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
@@ -822,10 +822,10 @@ module LibhttpclientV0 = struct
   let wrapped_send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : dval -> string)
-      (body : dval)
-      (query : dval)
-      (headers : dval) : dval =
+      (json_fn : 'expr_type dval -> string)
+      (body : 'expr_type dval)
+      (query : 'expr_type dval)
+      (headers : 'expr_type dval) : 'expr_type dval =
     Libcommon.Log.inspecT "uri" uri ;
     Libcommon.Log.inspecT "body" body ;
     Libcommon.Log.inspecT "query" query ;
@@ -894,10 +894,10 @@ module LibhttpclientV1 = struct
   let send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : dval -> string)
-      (body : dval)
-      (query : dval)
-      (headers : dval) : dval =
+      (json_fn : 'expr_type dval -> string)
+      (body : 'expr_type dval)
+      (query : 'expr_type dval)
+      (headers : 'expr_type dval) : 'expr_type dval =
     let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
@@ -1024,10 +1024,10 @@ module LibhttpclientV2 = struct
   let send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : dval -> string)
-      (body : dval)
-      (query : dval)
-      (headers : dval) : dval =
+      (json_fn : 'expr_type dval -> string)
+      (body : 'expr_type dval)
+      (query : 'expr_type dval)
+      (headers : 'expr_type dval) : 'expr_type dval =
     let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
