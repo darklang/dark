@@ -486,6 +486,30 @@ let hasExistingFunctionNamed (m : model) (name : string) : bool =
   StrDict.has fns ~key:name
 
 
+let createNewDB (m : model) (maybeName : dbName option) (pos : pos) :
+    modification =
+  let name = maybeName |> Option.withDefault ~default:(DB.generateDBName ()) in
+  if Autocomplete.assertValid Autocomplete.dbNameValidator name <> name
+  then
+    Model.updateErrorMod
+      (Error.set
+         ("DB name must match " ^ Autocomplete.dbNameValidator ^ " pattern"))
+  else if List.member ~value:name (TL.allDBNames m.dbs)
+  then Model.updateErrorMod (Error.set ("There is already a DB named " ^ name))
+  else
+    let next = gid () in
+    let tlid = gtlid () in
+    let pageChanges = [SetPage (FocusedDB (tlid, true))] in
+    let rpcCalls =
+      [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
+      ; AddDBCol (tlid, next, Prelude.gid ()) ]
+    in
+    Many
+      ( AppendUnlockedDBs (StrSet.fromList [TLID.toString tlid])
+      :: AddOps (rpcCalls, FocusExact (tlid, next))
+      :: pageChanges )
+
+
 (* Create a new function, update the server, and go to the new function *)
 let createNewFunction (m : model) (newFnName : string option) : modification =
   let fn = generateEmptyFunction () in
