@@ -50,7 +50,7 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   }
 
 
-let updatePageTraceId (oldPage : page) (traceID : traceID) : page =
+let setPageTraceID (oldPage : page) (traceID : traceID) : page =
   match oldPage with
   | FocusedHandler (tlid, _, center) ->
       FocusedHandler (tlid, Some traceID, center)
@@ -60,7 +60,7 @@ let updatePageTraceId (oldPage : page) (traceID : traceID) : page =
       oldPage
 
 
-let traceidOf (page : page) : traceID option =
+let getTraceID (page : page) : traceID option =
   match page with
   | FocusedDB _
   | FocusedGroup _
@@ -70,6 +70,22 @@ let traceidOf (page : page) : traceID option =
       None
   | FocusedFn (_, traceId) | FocusedHandler (_, traceId, _) ->
       traceId
+
+
+let updatePossibleTrace (m : model) (page : page) : model * msg Cmd.t =
+  let tlid = tlidOf page |> Option.withDefault ~default:(gtlid ()) in
+  match getTraceID page with
+  | Some tid ->
+      let m =
+        let trace =
+          StrDict.fromList [(TLID.toString tlid, [(tid, Error NoneYet)])]
+        in
+        Analysis.updateTraces m trace
+      in
+      let m = Analysis.setSelectedTraceID m tlid tid in
+      Analysis.analyzeFocused m
+  | None ->
+      (m, Cmd.none)
 
 
 let setPage (m : model) (oldPage : page) (newPage : page) : model =
