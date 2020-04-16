@@ -69,10 +69,10 @@ let run () =
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "pattern before" (eToStructure ast) ) ;
-    let newAST, newState =
+    let newAST, newState, _ =
       let h = h ast in
       let m = {m with handlers = Handlers.fromList [h]} in
-      List.foldl inputs ~init:(h.ast, s) ~f:(fun input (ast, s) ->
+      List.foldl inputs ~init:(h.ast, s, []) ~f:(fun input (ast, s, _) ->
           updateMsg m h.hTLID ast (FluidInputEvent input) s)
     in
     let result =
