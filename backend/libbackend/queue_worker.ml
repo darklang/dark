@@ -7,7 +7,7 @@ module C = Canvas
 module TL = Toplevel
 
 let dequeue_and_process execution_id :
-    (RTT.dval option, Exception.captured) Result.t =
+    (RTT.expr RTT.dval option, Exception.captured) Result.t =
   Event_queue.with_transaction (fun transaction ->
       let event =
         try Ok (Event_queue.dequeue transaction)
@@ -139,7 +139,7 @@ let dequeue_and_process execution_id :
                                     ~canvas_id
                                     trace_id
                                     (h.tlid :: touched_tlids) ;
-                                  let result_tipe (r : RTT.dval) =
+                                  let result_tipe (r : RTT.expr RTT.dval) =
                                     match r with
                                     | DResult (ResOk _) ->
                                         "ResOk"
@@ -185,7 +185,7 @@ exception in Event_queue.put_back"
 
 
 let run (execution_id : Types.id) :
-    (RTT.dval option, Exception.captured) Result.t =
+    (RTT.expr RTT.dval option, Exception.captured) Result.t =
   if String.Caseless.equal
        Libservice.Config.postgres_settings.dbname
        "prodclone"

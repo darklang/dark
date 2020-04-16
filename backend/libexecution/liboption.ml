@@ -3,20 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-(* type coerces one list to another using a function *)
-let list_coerce ~(f : dval -> 'a option) (l : dval list) :
-    ('a list, dval list * dval) Result.t =
-  l
-  |> List.map ~f:(fun dv ->
-         match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
-  |> Result.all
-
-
-let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
-
-let ( >>| ) = Result.( >>| )
-
-let fns : fn list =
+let fns =
   [ { prefix_names = ["Option::map"]
     ; infix_names = []
     ; parameters = [par "option" TOption; func ["val"]]

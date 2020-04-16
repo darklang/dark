@@ -24,7 +24,7 @@ type execute_function_rpc_params =
   { tlid : tlid
   ; trace_id : RuntimeT.uuid
   ; caller_id : id
-  ; args : RuntimeT.dval list
+  ; args : RuntimeT.expr RuntimeT.dval list
   ; fnname : string }
 [@@deriving yojson]
 
@@ -44,7 +44,7 @@ let to_upload_function_rpc_params (payload : string) :
 type trigger_handler_rpc_params =
   { tlid : tlid
   ; trace_id : RuntimeT.uuid
-  ; input : input_vars }
+  ; input : RuntimeT.expr input_vars }
 [@@deriving yojson]
 
 type route_params =
@@ -154,7 +154,7 @@ let functions ~username =
   |> List.filter ~f:(fun (k, _) ->
          Account.can_access_operations username
          || not (String.is_prefix ~prefix:"DarkInternal::" k))
-  |> List.map ~f:(fun (k, (v : RuntimeT.fn)) ->
+  |> List.map ~f:(fun (k, (v : RuntimeT.expr RuntimeT.fn)) ->
          { name = k
          ; parameters =
              List.map

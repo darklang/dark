@@ -123,7 +123,11 @@ let t_uuid_string_roundtrip () =
     AT.int
     "A generated id can round-trip"
     0
-    (match exec_ast ast with DList [p1; p2] -> compare_dval p1 p2 | _ -> 1)
+    ( match exec_ast ast with
+    | DList [p1; p2] ->
+        compare_dval compare_expr p1 p2
+    | _ ->
+        1 )
 
 
 let t_substring_works () =
