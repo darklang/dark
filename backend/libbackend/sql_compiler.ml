@@ -143,7 +143,7 @@ let rec canonicalize expr =
       Ast.deprecated_traverse ~f:canonicalize expr
 
 
-let dval_to_sql (dval : dval) : string =
+let dval_to_sql (dval : expr dval) : string =
   match dval with
   | DObj _
   | DList _
@@ -187,7 +187,8 @@ let dval_to_sql (dval : dval) : string =
 (* TODO: support characters, floats, dates, and uuids. And maybe lists and
  * bytes. Probably something can be done with options and results. *)
 
-let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe_) : unit =
+let typecheckDval (name : string) (dval : expr dval) (expected_tipe : tipe_) :
+    unit =
   if Dval.tipe_of dval = expected_tipe || expected_tipe = TAny
   then ()
   else
@@ -276,7 +277,7 @@ let rec inline
 (* Generate SQL from an Expr. This expects that all the hard stuff has been
  * removed by previous passes, and should only be called as the final pass. *)
 let rec lambda_to_sql
-    (symtable : dval_map)
+    (symtable : expr dval_map)
     (paramName : string)
     (dbFields : tipe_ Prelude.StrDict.t)
     (expected_tipe : tipe_)
@@ -374,10 +375,10 @@ let rec lambda_to_sql
  * Expects inlining to have finished first, so that it has all the values it
  * needs in the right place. *)
 let partially_evaluate
-    (state : exec_state)
+    (state : expr exec_state)
     (param_name : string)
-    (symtable : dval_map)
-    (body : expr) : dval_map * expr =
+    (symtable : expr dval_map)
+    (body : expr) : expr dval_map * expr =
   (* This isn't really a good implementation, but right now we only do
    * straight-line code here, so it should work *)
   let symtable = ref symtable in
@@ -414,8 +415,8 @@ let partially_evaluate
 
 
 let compile_lambda
-    ~(state : exec_state)
-    (symtable : dval_map)
+    ~(state : expr exec_state)
+    (symtable : expr dval_map)
     (param_name : string)
     (db_fields : tipe_ Prelude.StrDict.t)
     (body : expr) : string =
