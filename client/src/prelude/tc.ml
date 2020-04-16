@@ -69,6 +69,10 @@ module Option = struct
   let thenAlso (a : 'a option) ~(f : 'a -> 'b option) : ('a * 'b) option =
     let b = andThen ~f a in
     pair a b
+
+
+  let withDefaultLazy (a : 'a option) ~(default : unit -> 'a) : 'a =
+    match a with Some a -> a | None -> default ()
 end
 
 module Result = struct
