@@ -7,24 +7,21 @@ val input_vars_for_user_fn :
   Types.RuntimeT.expr Types.RuntimeT.user_fn -> Types.RuntimeT.dval_map
 
 val dbs_as_input_vars :
-     Types.RuntimeT.expr Types.RuntimeT.DbT.db list
-  -> (string * Types.RuntimeT.dval) list
+  'expr_type Types.RuntimeT.DbT.db list -> (string * Types.RuntimeT.dval) list
 
 val http_route_input_vars :
-     Types.RuntimeT.expr Types.RuntimeT.HandlerT.handler
+     'expr_type Types.RuntimeT.HandlerT.handler
   -> string
   -> Types.RuntimeT.input_vars
 
 val sample_route_input_vars :
-     Types.RuntimeT.expr Types.RuntimeT.HandlerT.handler
-  -> Types.RuntimeT.input_vars
+  'expr_type Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars
 
 val sample_input_vars :
-     Types.RuntimeT.expr Types.RuntimeT.HandlerT.handler
-  -> Types.RuntimeT.input_vars
+  'expr_type Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars
 
 val sample_function_input_vars :
-  Types.RuntimeT.expr Types.RuntimeT.user_fn -> Types.RuntimeT.input_vars
+  'expr_type Types.RuntimeT.user_fn -> Types.RuntimeT.input_vars
 
 val sample_unknown_handler_input_vars : Types.RuntimeT.input_vars
 
