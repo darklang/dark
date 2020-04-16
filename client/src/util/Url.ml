@@ -17,10 +17,18 @@ let urlFor (page : page) : string =
     match page with
     | Architecture ->
         []
-    | FocusedFn tlid ->
-        [("fn", TLID.toString tlid)]
-    | FocusedHandler (tlid, _) ->
-        [("handler", TLID.toString tlid)]
+    | FocusedFn (tlid, traceId) ->
+      ( match traceId with
+      | Some id ->
+          [("fn", TLID.toString tlid); ("trace", id)]
+      | None ->
+          [("fn", TLID.toString tlid)] )
+    | FocusedHandler (tlid, traceId, _) ->
+      ( match traceId with
+      | Some id ->
+          [("handler", TLID.toString tlid); ("trace", id)]
+      | None ->
+          [("handler", TLID.toString tlid)] )
     | FocusedDB (tlid, _) ->
         [("db", TLID.toString tlid)]
     | FocusedType tlid ->
@@ -67,14 +75,16 @@ let parseLocation (loc : Web.Location.location) : page option =
   let fn () =
     match StrDict.get ~key:"fn" unstructured with
     | Some sid ->
-        Some (FocusedFn (TLID.fromString sid))
+        let trace = StrDict.get ~key:"trace" unstructured in
+        Some (FocusedFn (TLID.fromString sid, trace))
     | _ ->
         None
   in
   let handler () =
     match StrDict.get ~key:"handler" unstructured with
     | Some sid ->
-        Some (FocusedHandler (TLID.fromString sid, true))
+        let trace = StrDict.get ~key:"trace" unstructured in
+        Some (FocusedHandler (TLID.fromString sid, trace, true))
     | _ ->
         None
   in

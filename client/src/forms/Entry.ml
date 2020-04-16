@@ -284,7 +284,7 @@ let newHandler m space name modifier pos =
           {m with fluidState = newS} |> CursorState.setCursorState cursorState)
     ]
   in
-  let pageChanges = [SetPage (FocusedHandler (tlid, true))] in
+  let pageChanges = [SetPage (FocusedHandler (tlid, None, true))] in
   let rpc =
     AddOps ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
   in
