@@ -47,6 +47,14 @@ let variant5 constructor d1 d2 d3 d4 d5 =
     (index 5 d5)
 
 
+let recordVariant3 constructor (k1, d1) (k2, d2) (k3, d3) =
+  map3
+    constructor
+    (index 1 (field k1 d1))
+    (index 1 (field k2 d2))
+    (index 1 (field k3 d3))
+
+
 let variants decoders =
   index 0 string
   |> andThen (fun str_constructor ->
