@@ -202,7 +202,7 @@ let t_match_evaluation () =
   let check_match
       (msg : string)
       (arg : E.t)
-      (expected : (id * string * execution_result) list) =
+      (expected : (id * string * expr execution_result) list) =
     let ast = astFor arg in
     Log.inspecT "ast" ~f:E.show ast ;
     let dvalStore = exec_save_dvals' ast in

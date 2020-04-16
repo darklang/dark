@@ -6,9 +6,9 @@ open Libcommon
 
 type transaction = id
 
-type t =
+type 'expr_type t =
   { id : int
-  ; value : dval
+  ; value : 'expr_type dval
   ; retries : int
   ; canvas_id : Uuidm.t
   ; host : string
@@ -170,7 +170,7 @@ let enqueue
     (space : string)
     (name : string)
     (modifier : string)
-    (data : dval) : unit =
+    (data : 'expr_type dval) : unit =
   log_queue_size Enqueue (canvas_id |> Uuidm.to_string) space name modifier ;
   Db.run
     ~name:"enqueue"
@@ -187,7 +187,7 @@ let enqueue
       ; RoundtrippableDval data ]
 
 
-let dequeue transaction : t option =
+let dequeue transaction : expr t option =
   let fetched =
     Db.fetch_one_option
       ~name:"dequeue_fetch"
@@ -392,7 +392,7 @@ let with_transaction f =
   result
 
 
-let put_back transaction (item : t) ~status : unit =
+let put_back transaction (item : 'expr_type t) ~status : unit =
   let show_status s =
     match s with `OK -> "Ok" | `Err -> "Err" | `Incomplete -> "Incomplete"
   in
@@ -440,4 +440,5 @@ let put_back transaction (item : t) ~status : unit =
         ~params:[Int item.id]
 
 
-let finish transaction (item : t) : unit = put_back transaction ~status:`OK item
+let finish transaction (item : 'expr_type t) : unit =
+  put_back transaction ~status:`OK item

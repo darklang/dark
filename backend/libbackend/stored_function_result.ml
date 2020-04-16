@@ -25,7 +25,7 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
       ; RoundtrippableDval result ]
 
 
-let load ~canvas_id ~trace_id tlid : function_result list =
+let load ~canvas_id ~trace_id tlid : RTT.expr function_result list =
   (* Right now, we don't allow the user to see multiple results when a function
    * is called in a loop. But, there's a lot of data when functions are called
    * in a loop, so avoid massive responses. *)

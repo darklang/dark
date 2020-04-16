@@ -7,9 +7,9 @@ open Types
  * passing a variable that'll unify *)
 type transaction
 
-type t =
+type 'expr_type t =
   { id : int
-  ; value : RuntimeT.dval
+  ; value : 'expr_type RuntimeT.dval
   ; retries : int
   ; canvas_id : Uuidm.t
   ; host : string
@@ -17,7 +17,7 @@ type t =
   ; name : string
   ; modifier : string }
 
-val to_event_desc : t -> Stored_event.event_desc
+val to_event_desc : 'expr_type t -> Stored_event.event_desc
 
 val enqueue :
      account_id:Uuidm.t
@@ -25,18 +25,20 @@ val enqueue :
   -> string
   -> string
   -> string
-  -> RuntimeT.dval
+  -> 'expr_type RuntimeT.dval
   -> unit
 
 val with_transaction :
-     (transaction -> (RuntimeT.dval option, Exception.captured) Result.t)
-  -> (RuntimeT.dval option, Exception.captured) Result.t
+     (   transaction
+      -> ('expr_type RuntimeT.dval option, Exception.captured) Result.t)
+  -> ('expr_type RuntimeT.dval option, Exception.captured) Result.t
 
-val dequeue : transaction -> t option
+val dequeue : transaction -> RuntimeT.expr t option
 
-val put_back : transaction -> t -> status:[`OK | `Err | `Incomplete] -> unit
+val put_back :
+  transaction -> 'expr_type t -> status:[`OK | `Err | `Incomplete] -> unit
 
-val finish : transaction -> t -> unit
+val finish : transaction -> 'expr_type t -> unit
 
 val schedule_all : unit -> unit
 
@@ -57,7 +59,7 @@ module Scheduling_rule : sig
 
   val rule_type_to_string : rule_type -> string
 
-  val to_dval : t -> dval
+  val to_dval : t -> 'expr_type dval
 end
 
 module Worker_states : sig
