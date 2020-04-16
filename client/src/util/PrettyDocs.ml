@@ -27,6 +27,10 @@ let tag (cls : string) (content : msg Html.html list) : msg Html.html =
   Html.span [Html.class' cls] content
 
 
+let link (name : string) (url : string) : msg Html.html =
+  Html.a [Html.href url; Html.target "_blank"] [Html.text name]
+
+
 let justErrors results =
   results
   |> List.filterMap ~f:(fun res ->
@@ -81,12 +85,8 @@ let rec convert_ (s : string) : parseResult =
         Some
           ( match (convert_ before, convert_ after) with
           | ParseSuccess beforeNodes, ParseSuccess afterNodes ->
-              let link =
-                Html.a
-                  [Html.href linkUrl; Html.target "_blank"]
-                  [Html.text linkName]
-              in
-              ParseSuccess (beforeNodes @ (link :: afterNodes))
+              let linkNode = link linkName linkUrl in
+              ParseSuccess (beforeNodes @ (linkNode :: afterNodes))
           | beforeRes, afterRes ->
               let errors = [beforeRes; afterRes] |> justErrors in
               ParseFail errors )

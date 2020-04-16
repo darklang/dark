@@ -1,5 +1,4 @@
 open Tester
-open Prelude
 open PrettyDocs
 
 let run () =
@@ -38,25 +37,26 @@ let run () =
           |> toEqual [txt "takes in "; tag "type" [txt "Option"]]) ;
       test "converts normal string" (fun () ->
           expect (convert "Bye") |> toEqual [txt "Bye"]) ;
-      test "converts constructors" (fun () ->
+      test "converts code blocks" (fun () ->
           expect (convert "{{Ok <var value>}}")
           |> toEqual [tag "code" [txt "Ok "; tag "var" [txt "value"]]]) ;
-      test "converts string with multiple tags and a constructor" (fun () ->
+      test "converts link tag" (fun () ->
+          expect (convert "Into the [dark](http://www.darklang.com)")
+          |> toEqual [txt "Into the "; link "dark" "http://www.darklang.com"]) ;
+      test
+        "converts string with multiple tags, a link, and a code block"
+        (fun () ->
           expect
             (convert
-               "Returns an <type Result>. If it is {{Error <var message>}}, then it will go to error rail")
+               "Returns an <type Result>.\n It will got to [error rail](https://darklang.github.io/docs/error-handling#error-rail), if it is {{Error <var message>}}")
           |> toEqual
                [ txt "Returns an "
                ; tag "type" [txt "Result"]
-               ; txt ". If it is "
-               ; tag "code" [txt "Error "; tag "var" [txt "message"]]
-               ; txt ", then it will go to error rail" ]) ;
-      test "converts link tag" (fun () ->
-          expect (convert "Into the [dark](http://www.darklang.com)")
-          |> toEqual
-               [ txt "Into the "
-               ; Html.a
-                   [Html.href "http://www.darklang.com"; Html.target "_blank"]
-                   [Html.text "dark"] ]) ;
+               ; txt ".\n It will got to "
+               ; link
+                   "error rail"
+                   "https://darklang.github.io/docs/error-handling#error-rail"
+               ; txt ", if it is "
+               ; tag "code" [txt "Error "; tag "var" [txt "message"]] ]) ;
       ()) ;
   ()
