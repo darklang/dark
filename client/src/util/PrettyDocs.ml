@@ -19,7 +19,7 @@ type parseResult =
   | ParseSuccess of msg Html.html list
   | ParseFail of (string * string) list
 
-(* input:string * errorMsg:string *)
+(* input * errorMsg *)
 
 let txt (s : string) : msg Html.html = Html.text s
 
@@ -34,8 +34,12 @@ let justErrors results =
   |> List.flatten
 
 
+(* Takes a string and attempts to convert into html.
+ If successful the result is wrapped in ParseSuccess,
+ otherwise both the input string and the error message end up on the errors list in ParseFail.
+*)
 let rec convert_ (s : string) : parseResult =
-  let hasCodeBlock (input : string) : parseResult option =
+  let tryParseAsCodeBlock (input : string) : parseResult option =
     match Regex.captures ~re:(Regex.regex ~flags:"s" codeEx) input with
     | [_; before; inside; after] ->
         Some
@@ -51,7 +55,7 @@ let rec convert_ (s : string) : parseResult =
     | _ ->
         None
   in
-  let hasTag input : parseResult option =
+  let tryParseAsTag input : parseResult option =
     match Regex.captures ~re:(Regex.regex ~flags:"s" tagEx) input with
     | [_; before; tagType; tagData; after]
       when List.member ~value:tagType validTags ->
@@ -71,7 +75,7 @@ let rec convert_ (s : string) : parseResult =
     | _ ->
         None
   in
-  let hasLink input : parseResult option =
+  let tryParseAsLink input : parseResult option =
     match Regex.captures ~re:(Regex.regex ~flags:"s" linkEx) input with
     | [_; before; linkName; linkUrl; after] ->
         Some
@@ -96,9 +100,9 @@ let rec convert_ (s : string) : parseResult =
   else if Regex.contains ~re:nestedCodeBlock s
   then ParseFail [(s, "contains nested code blocks")]
   else
-    hasCodeBlock s
-    |> Option.orElse (hasLink s)
-    |> Option.orElse (hasTag s)
+    tryParseAsCodeBlock s
+    |> Option.orElse (tryParseAsLink s)
+    |> Option.orElse (tryParseAsTag s)
     (* If it has no richtext markup, just render as plain text: *)
     |> Option.withDefault ~default:(ParseSuccess [txt s])
 
