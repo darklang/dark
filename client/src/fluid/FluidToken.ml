@@ -8,44 +8,44 @@ let fakeid = ID.fromString "fake-id"
 
 let tid (t : t) : ID.t =
   match t with
-  | TInteger (id, _)
-  | TFloatWhole (id, _)
-  | TFloatPoint id
-  | TFloatFractional (id, _)
-  | TTrue id
-  | TFalse id
-  | TNullToken id
-  | TBlank id
+  | TInteger (id, _, _)
+  | TFloatWhole (id, _, _)
+  | TFloatPoint (id, _)
+  | TFloatFractional (id, _, _)
+  | TTrue (id, _)
+  | TFalse (id, _)
+  | TNullToken (id, _)
+  | TBlank (id, _)
   | TPlaceholder {blankID = id; _}
-  | TPartial (id, _)
-  | TRightPartial (id, _)
+  | TPartial (id, _, _)
   | TLeftPartial (id, _)
-  | TPartialGhost (id, _)
-  | TLetKeyword (id, _)
-  | TLetAssignment (id, _)
-  | TLetVarName (id, _, _)
-  | TString (id, _)
+  | TRightPartial (id, _, _)
+  | TPartialGhost (id, _, _)
+  | TLetKeyword (id, _, _)
+  | TLetAssignment (id, _, _)
+  | TLetVarName (id, _, _, _)
+  | TString (id, _, _)
   | TStringMLStart (id, _, _, _)
   | TStringMLMiddle (id, _, _, _)
   | TStringMLEnd (id, _, _, _)
-  | TIfKeyword id
-  | TIfThenKeyword id
-  | TIfElseKeyword id
-  | TBinOp (id, _)
-  | TFieldOp (id, _)
-  | TFieldName (id, _, _)
-  | TFieldPartial (id, _, _, _)
-  | TVariable (id, _)
-  | TFnName (id, _, _, _, _)
-  | TFnVersion (id, _, _, _)
-  | TLambdaVar (id, _, _, _)
-  | TLambdaArrow id
-  | TLambdaSymbol id
-  | TLambdaComma (id, _)
+  | TIfKeyword (id, _)
+  | TIfThenKeyword (id, _)
+  | TIfElseKeyword (id, _)
+  | TBinOp (id, _, _)
+  | TFieldOp (id, _, _)
+  | TFieldName (id, _, _, _)
+  | TFieldPartial (id, _, _, _, _)
+  | TVariable (id, _, _)
+  | TFnName (id, _, _, _, _, _)
+  | TFnVersion (id, _, _, _, _)
+  | TLambdaVar (id, _, _, _, _)
+  | TLambdaArrow (id, _)
+  | TLambdaSymbol (id, _)
+  | TLambdaComma (id, _, _)
   | TListOpen id
   | TListClose id
   | TListComma (id, _)
-  | TPipe (id, _, _)
+  | TPipe (id, _, _, _)
   | TRecordOpen id
   | TRecordClose id
   | TRecordFieldname {recordID = id; _}
@@ -64,7 +64,7 @@ let tid (t : t) : ID.t =
   | TPatternFloatWhole (_, id, _, _)
   | TPatternFloatPoint (_, id, _)
   | TPatternFloatFractional (_, id, _, _)
-  | TSep id
+  | TSep (id, _)
   | TParenOpen id
   | TParenClose id
   | TFlagWhenKeyword id
@@ -77,11 +77,11 @@ let tid (t : t) : ID.t =
 
 let analysisID (t : t) : ID.t =
   match t with
-  | TLetVarName (_, id, _)
-  | TLetKeyword (_, id)
-  | TLetAssignment (_, id)
+  | TLetVarName (_, id, _, _)
+  | TLetKeyword (_, id, _)
+  | TLetAssignment (_, id, _)
   | TRecordFieldname {exprID = id; _}
-  | TLambdaVar (_, id, _, _)
+  | TLambdaVar (_, id, _, _, _)
   | TRecordSep (_, _, id)
   | TMatchBranchArrow {patternID = id; _} ->
       id
@@ -89,8 +89,81 @@ let analysisID (t : t) : ID.t =
       tid t
 
 
+(* TODO(alice) merge these two functions? *)
 let parentExprID (t : t) : ID.t =
   match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
+
+
+let parentID (t : t) : ID.t option =
+  match t with
+  | TStringMLStart (id, _, _, _)
+  | TStringMLMiddle (id, _, _, _)
+  | TStringMLEnd (id, _, _, _)
+  | TListOpen id
+  | TListClose id
+  | TListComma (id, _)
+  | TRecordOpen id
+  | TRecordSep (id, _, _)
+  | TRecordClose id ->
+      Some id
+  | TBlank (_, pid)
+  | TInteger (_, _, pid)
+  | TString (_, _, pid)
+  | TTrue (_, pid)
+  | TFalse (_, pid)
+  | TNullToken (_, pid)
+  | TFloatWhole (_, _, pid)
+  | TFloatPoint (_, pid)
+  | TFloatFractional (_, _, pid)
+  | TPartial (_, _, pid)
+  | TRightPartial (_, _, pid)
+  | TPartialGhost (_, _, pid)
+  | TLetKeyword (_, _, pid)
+  | TLetVarName (_, _, _, pid)
+  | TLetAssignment (_, _, pid)
+  | TIfKeyword (_, pid)
+  | TIfThenKeyword (_, pid)
+  | TIfElseKeyword (_, pid)
+  | TBinOp (_, _, pid)
+  | TFieldOp (_, _, pid)
+  | TFieldName (_, _, _, pid)
+  | TFieldPartial (_, _, _, _, pid)
+  | TVariable (_, _, pid)
+  | TFnName (_, _, _, _, _, pid)
+  | TFnVersion (_, _, _, _, pid)
+  | TLambdaComma (_, _, pid)
+  | TLambdaArrow (_, pid)
+  | TLambdaSymbol (_, pid)
+  | TLambdaVar (_, _, _, _, pid)
+  | TPipe (_, _, _, pid)
+  | TSep (_, pid) ->
+      pid
+  | TRecordFieldname d ->
+      d.parentID
+  | TNewline (Some (_, id, _)) ->
+      Some id
+  | TMatchKeyword _
+  | TMatchBranchArrow _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternInteger _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFractional _
+  | TPatternBlank _
+  | TConstructorName _
+  | TParenOpen _
+  | TParenClose _
+  | TFlagWhenKeyword _
+  | TFlagEnabledKeyword _
+  | TNewline None
+  | TIndent _
+  | TPlaceholder _ ->
+      None
 
 
 let validID id = id <> fakeid
@@ -193,13 +266,13 @@ let isBlank t =
   | TBlank _
   | TPlaceholder _
   | TRecordFieldname {fieldName = ""; _}
-  | TVariable (_, "")
-  | TFieldName (_, _, "")
-  | TFieldPartial (_, _, _, "")
-  | TLetVarName (_, _, "")
-  | TLambdaVar (_, _, _, "")
-  | TPartial (_, "")
-  | TRightPartial (_, "")
+  | TVariable (_, "", _)
+  | TFieldName (_, _, "", _)
+  | TFieldPartial (_, _, _, "", _)
+  | TLetVarName (_, _, "", _)
+  | TLambdaVar (_, _, _, "", _)
+  | TPartial (_, "", _)
+  | TRightPartial (_, "", _)
   | TLeftPartial (_, "")
   | TPatternBlank _ ->
       true
@@ -263,16 +336,18 @@ let isErrorDisplayable (t : t) : bool =
 let isFieldPartial (t : t) : bool =
   match t with TFieldPartial _ -> true | _ -> false
 
+
 let isMutlilineString (t : fluidToken) : bool =
-    match t with
-    | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ ->
-        true
-    | _ ->
-        false
+  match t with
+  | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ ->
+      true
+  | _ ->
+      false
 
 
 let isListSymbol (t : fluidToken) : bool =
-    match t with TListOpen _ | TListClose _ | TListComma _ -> true | _ -> false
+  match t with TListOpen _ | TListClose _ | TListComma _ -> true | _ -> false
+
 
 let toText (t : t) : string =
   let shouldntBeEmpty name =
@@ -282,15 +357,15 @@ let toText (t : t) : string =
   in
   let canBeEmpty name = if name = "" then "   " else name in
   match t with
-  | TInteger (_, i) ->
+  | TInteger (_, i, _) ->
       shouldntBeEmpty i
-  | TFloatWhole (_, w) ->
+  | TFloatWhole (_, w, _) ->
       shouldntBeEmpty w
   | TFloatPoint _ ->
       "."
-  | TFloatFractional (_, f) ->
+  | TFloatFractional (_, f, _) ->
       f
-  | TString (_, str) ->
+  | TString (_, str, _) ->
       "\"" ^ str ^ "\""
   | TStringMLStart (_, str, _, _) ->
       "\"" ^ str
@@ -308,13 +383,13 @@ let toText (t : t) : string =
       "   "
   | TPlaceholder {placeholder = {name; tipe}; _} ->
       " " ^ name ^ " : " ^ tipe ^ " "
-  | TPartial (_, str) ->
+  | TPartial (_, str, _) ->
       shouldntBeEmpty str
-  | TRightPartial (_, str) ->
+  | TRightPartial (_, str, _) ->
       shouldntBeEmpty str
   | TLeftPartial (_, str) ->
       shouldntBeEmpty str
-  | TPartialGhost (_, str) ->
+  | TPartialGhost (_, str, _) ->
       shouldntBeEmpty str
   | TSep _ ->
       " "
@@ -324,7 +399,7 @@ let toText (t : t) : string =
       "let "
   | TLetAssignment _ ->
       " = "
-  | TLetVarName (_, _, name) ->
+  | TLetVarName (_, _, name, _) ->
       canBeEmpty name
   | TIfKeyword _ ->
       "if "
@@ -332,21 +407,22 @@ let toText (t : t) : string =
       "then"
   | TIfElseKeyword _ ->
       "else"
-  | TBinOp (_, op) ->
+  | TBinOp (_, op, _) ->
       shouldntBeEmpty op
   | TFieldOp _ ->
       "."
-  | TFieldPartial (_, _, _, name) ->
+  | TFieldPartial (_, _, _, name, _) ->
       canBeEmpty name
-  | TFieldName (_, _, name) ->
+  | TFieldName (_, _, name, _) ->
       (* Although we typically use TFieldPartial for empty fields, when
        * there's a new field we won't have a fieldname for it. *)
       canBeEmpty name
-  | TVariable (_, name) ->
+  | TVariable (_, name, _) ->
       canBeEmpty name
-  | TFnName (_, _, displayName, _, _) | TFnVersion (_, _, displayName, _) ->
+  | TFnName (_, _, displayName, _, _, _) | TFnVersion (_, _, displayName, _, _)
+    ->
       shouldntBeEmpty displayName
-  | TLambdaVar (_, _, _, name) ->
+  | TLambdaVar (_, _, _, name, _) ->
       canBeEmpty name
   | TLambdaSymbol _ ->
       "\\"
@@ -420,7 +496,7 @@ let toTestText (t : t) : string =
         Caml.String.make count '_'
     | TBlank _ ->
         "___"
-    | TPartialGhost (_, str) ->
+    | TPartialGhost (_, str, _) ->
       ( match String.length str with
       | 0 ->
           "@EMPTY@"
@@ -446,9 +522,9 @@ let toTestText (t : t) : string =
 let toIndex (t : t) : int option =
   match t with
   | TStringMLMiddle (_, _, index, _)
-  | TLambdaVar (_, _, index, _)
-  | TLambdaComma (_, index)
-  | TPipe (_, _, index)
+  | TLambdaVar (_, _, index, _, _)
+  | TLambdaComma (_, index, _)
+  | TPipe (_, _, index, _)
   | TRecordFieldname {index; _}
   | TRecordSep (_, index, _)
   | TListComma (_, index)
@@ -556,7 +632,7 @@ let toTypeName (t : t) : string =
       "fn-name"
   | TFnVersion _ ->
       "fn-version"
-  | TLambdaVar (_, _, _, _) ->
+  | TLambdaVar _ ->
       "lambda-var"
   | TLambdaSymbol _ ->
       "lambda-symbol"
@@ -686,7 +762,7 @@ let toDebugInfo (t : t) : string =
       "parent=" ^ ID.toString pid ^ " idx=none"
   | TNewline None ->
       "no parent"
-  | TPipe (_, idx, len) ->
+  | TPipe (_, idx, len, _) ->
       Printf.sprintf "idx=%d len=%d" idx len
   | TMatchBranchArrow {index = idx; _} ->
       "idx=" ^ string_of_int idx

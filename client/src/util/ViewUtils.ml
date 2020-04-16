@@ -47,23 +47,22 @@ type domEvent = msg Vdom.property
 type domEventList = domEvent list
 
 (* It might save a list run by doing this in tokenize, but will pollute the modulisation to FluidPrinter by throwiing analysis and caret placement data in there*)
-let markTokens
-  (analysis : analysisStore)
-  (tokens: FluidToken.tokenInfo list)
-  : FluidToken.tokenInfo list =
-  tokens |> List.map ~f:(fun ti ->
-  let id = FluidToken.analysisID ti.token in
-    let exeFlow =
-      match Analysis.getLiveValueLoadable analysis id with
-      | LoadableSuccess (ExecutedResult _) ->
-          CodeExecuted
-      | LoadableSuccess (NonExecutedResult _) ->
-          CodeNotExecuted
-      | _ ->
-          UnknownExecution
-    in
-    {ti with exeFlow}
-  )
+let markTokens (analysis : analysisStore) (tokens : FluidToken.tokenInfo list) :
+    FluidToken.tokenInfo list =
+  tokens
+  |> List.map ~f:(fun ti ->
+         let id = FluidToken.analysisID ti.token in
+         let exeFlow =
+           match Analysis.getLiveValueLoadable analysis id with
+           | LoadableSuccess (ExecutedResult _) ->
+               CodeExecuted
+           | LoadableSuccess (NonExecutedResult _) ->
+               CodeNotExecuted
+           | _ ->
+               UnknownExecution
+         in
+         {ti with exeFlow})
+
 
 let createVS (m : model) (tl : toplevel) : viewState =
   let tlid = TL.id tl in
@@ -74,13 +73,12 @@ let createVS (m : model) (tl : toplevel) : viewState =
   let ast =
     TL.getAST tl |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
   in
-  let analysisStore = 
+  let analysisStore =
     Option.map traceID ~f:(Analysis.getStoredAnalysis m)
-      |> Option.withDefault ~default:LoadableNotInitialized
+    |> Option.withDefault ~default:LoadableNotInitialized
   in
   let tokens =
-    FluidPrinter.tokenize (FluidAST.toExpr ast)
-    |> markTokens analysisStore
+    FluidPrinter.tokenize (FluidAST.toExpr ast) |> markTokens analysisStore
   in
   { tl
   ; ast
@@ -309,9 +307,9 @@ let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
 
 let fnForToken (functions : Functions.t) token : function_ option =
   match token with
-  | TBinOp (_, fnName)
-  | TFnVersion (_, _, _, fnName)
-  | TFnName (_, _, _, fnName, _) ->
+  | TBinOp (_, fnName, _)
+  | TFnVersion (_, _, _, fnName, _)
+  | TFnName (_, _, _, fnName, _, _) ->
       Functions.find fnName functions
   | _ ->
       None

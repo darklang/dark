@@ -37,13 +37,13 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
       let allExprs = AST.getArguments (FluidToken.tid ti.token) s.ast in
       let argIDs = List.map ~f:FluidExpression.toID allExprs in
       ( match ti.token with
-      | TFnVersion (id, _, _, _) ->
+      | TFnVersion (id, _, _, _, _) ->
           ViewFnExecution.fnExecutionButton
             (stateToFnExecutionState s)
             fn
             id
             argIDs
-      | TFnName (id, _, displayName, fnName, _)
+      | TFnName (id, _, displayName, fnName, _, _)
       (* If fn is unversioned or is v0 *)
         when displayName = fnName || displayName ^ "_v0" = fnName ->
           ViewFnExecution.fnExecutionButton
@@ -56,30 +56,36 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
   | Some {fnPreviewSafety = Safe; _} | None ->
       Vdom.noNode
 
+
 let toHtml (s : state) : Types.msg Html.html list =
   let tokens =
     match Fluid.tokenAtCaret s.tokens s.fluidState with
     | Some caretAt ->
-      if caretAt.exeFlow = CodeNotExecuted
-      then
-        match caretAt.parentId with
-        | Some pid ->
-          (* If caret in a multiline block, mark block tokens *)
-          s.tokens |> List.map ~f:(fun ti ->
-          if ti.parentId = Some pid && ti.exeFlow = CodeNotExecuted
-          then {ti with exeFlow = CodeInFocus}
-          else ti
-          )
-        | None ->
-          (* else mark entire row caret is in *)
-          let caretRow = caretAt.startRow in
-          s.tokens |> List.map ~f:(fun ti -> 
-            if ti.startRow = caretRow && not (Option.isSome ti.parentId) && ti.exeFlow = CodeNotExecuted
-            then {ti with exeFlow = CodeInFocus}
-            else ti
-          )
-      else s.tokens
-    | None -> s.tokens
+        if caretAt.exeFlow = CodeNotExecuted
+        then
+          match FluidToken.parentID caretAt.token with
+          | Some pid ->
+              (* If caret in a multiline block, mark block tokens *)
+              s.tokens
+              |> List.map ~f:(fun ti ->
+                     if FluidToken.parentID ti.token = Some pid
+                        && ti.exeFlow = CodeNotExecuted
+                     then {ti with exeFlow = CodeInFocus}
+                     else ti)
+          | None ->
+              (* else mark entire row caret is in *)
+              let caretRow = caretAt.startRow in
+              s.tokens
+              |> List.map ~f:(fun ti ->
+                     if ti.startRow = caretRow
+                        && (not
+                              (ti.token |> FluidToken.parentID |> Option.isSome))
+                        && ti.exeFlow = CodeNotExecuted
+                     then {ti with exeFlow = CodeInFocus}
+                     else ti)
+        else s.tokens
+    | None ->
+        s.tokens
   in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
@@ -358,7 +364,7 @@ let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
         false
   in
   match ti.token with
-  | TFnName (id, _, _, fnName, Rail) ->
+  | TFnName (id, _, _, fnName, Rail, _) ->
       let offset = string_of_int ti.startRow ^ "rem" in
       let icon =
         match (returnTipe fnName, liveValue id) with
