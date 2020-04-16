@@ -139,5 +139,9 @@ let run () =
               (gid (), "Int::a", EFnCall (fnid, "Int::add", [b1; b2], NoRail))
           in
           expect (removePartials expr)
-          |> toEqual (EFnCall (fnid, "Int::add", [b1; b2], NoRail)))) ;
-  ()
+          |> toEqual (EFnCall (fnid, "Int::add", [b1; b2], NoRail))) ;
+      test "Updates AST when there is a left partial" (fun () ->
+          let str = EString (gid (), "a string") in
+          let expr = ELeftPartial (gid (), "if", str) in
+          expect (removePartials expr) |> toEqual str) ;
+      ())
