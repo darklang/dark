@@ -291,34 +291,13 @@ let newHandler m space name modifier pos =
   Many (rpc :: (pageChanges @ fluidMods))
 
 
-let newDB (name : string) (pos : pos) : modification =
-  let next = gid () in
-  let tlid = gtlid () in
-  let pageChanges = [SetPage (FocusedDB (tlid, true))] in
-  let rpcCalls =
-    [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
-    ; AddDBCol (tlid, next, Prelude.gid ()) ]
-  in
-  (* This is not _strictly_ correct, as there's no guarantee that the new DB
-   * doesn't share a name with an old DB in a weird state that still has
-   * data in the user_data table. But it's 99.999% correct, which of course
-   * is the best type of correct *)
-  Many
-    ( AppendUnlockedDBs (StrSet.fromList [TLID.toString tlid])
-    :: AddOps (rpcCalls, FocusExact (tlid, next))
-    :: pageChanges )
-
-
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
     modification =
   let pos = {x = pos.x - 17; y = pos.y - 70} in
   let unused = Some "_" in
   match action with
   | NewDB maybeName ->
-      let name =
-        match maybeName with Some n -> n | None -> DB.generateDBName ()
-      in
-      newDB name pos
+      Refactor.createNewDB m maybeName pos
   | NewFunction name ->
       Refactor.createNewFunction m name
   | NewHTTPHandler route ->
