@@ -199,6 +199,22 @@ let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
 let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
   getToken' (tokensForActiveEditor ast s) s
 
+(* TODO(alice) add comment on how this is different from getToken  *)
+let tokenAtCaret (tokens: T.tokenInfo list) (s : fluidState) :
+  T.tokenInfo option =
+  (* let tokens = tokensForActiveEditor ast s in *)
+  let left, right, _ =  getNeighbours ~pos:s.newPos tokens in
+  match (left, right) with
+  | L (_, lti), R (TNewline _, _) ->
+      Some lti
+  | L (lt, lti), _ when T.isTextToken lt ->
+      Some lti
+  | _, R (_, rti) ->
+      Some rti
+  | L (_, lti), _ ->
+      Some lti
+  | _ ->
+      None
 
 (* -------------------- *)
 (* Update fluid state *)
