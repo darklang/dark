@@ -793,6 +793,15 @@ let t_list_stdlibs_work () =
                  (bool false)
                  (just (binop "*" (var "item") (int 2)))) ]))
     "Expected the argument `f` passed to `List::filterMap` to return `Just` or `Nothing` for every value in `list`" ;
+  check_dval
+    "List::randomElement works (empty)"
+    (DOption OptNothing)
+    (exec_ast' (fn "List::randomElement" [list []])) ;
+  check_dval
+    "List::randomElement works (1 value)"
+    (DOption (OptJust (Dval.dint 1)))
+    (* Can't check randomness deterministically in test so only 1 element*)
+    (exec_ast' (fn "List::randomElement" [list [int 1]])) ;
   ()
 
 
@@ -1550,7 +1559,7 @@ let t_int_stdlibs () =
     "% errors (_, neg)"
     (exec_ast' (binop "%" (int 5) (int (-5))))
     "Expected the argument `b` argument passed to `%` to be positive, but it was `-5`." ;
-  (*  (* Int::mod_v1 is not yet available; see implementation for why *)  
+  (*  (* Int::mod_v1 is not yet available; see implementation for why *)
   check_dval
     "Int::mod_v1 works (sweep, pos)"
     (DList

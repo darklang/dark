@@ -952,4 +952,23 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["List::randomElement"]
+    ; infix_names = []
+    ; parameters = [par "list" TList]
+    ; return_type = TOption
+    ; description =
+        "Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly selected value in <param list>. Returns {{Nothing}} if <param list> is empty."
+    ; func =
+        InProcess
+          (function
+          | _, [DList []] ->
+              DOption OptNothing
+          | _, [DList l] ->
+              List.nth l (Random.int (List.length l))
+              |> Option.map ~f:Dval.to_opt_just
+              |> Option.value_exn
+          | args ->
+              fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false } ]
