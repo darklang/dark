@@ -204,7 +204,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
     let reflow =
       let tokens =
         args
-        |> List.map ~f:(fun a -> toTokens' ~parentID:(Some id) a Builder.empty)
+        |> List.map ~f:(fun a -> toTokens' a Builder.empty)
         |> List.map ~f:Builder.asTokens
         |> List.concat
       in
@@ -221,7 +221,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
         args
         |> List.init
         |> Option.withDefault ~default:[]
-        |> List.map ~f:(fun a -> toTokens' ~parentID:(Some id) a Builder.empty)
+        |> List.map ~f:(fun a -> toTokens' a Builder.empty)
         |> List.map ~f:Builder.asTokens
         |> List.concat
         |> List.any ~f:(function TNewline _ -> true | _ -> false)
@@ -344,10 +344,10 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
       let versionToken =
         if versionDisplayName = ""
         then []
-        else [TFnVersion (id, partialName, versionDisplayName, fnName, None)]
+        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
       b
-      |> add (TFnName (id, partialName, displayName, fnName, ster, None))
+      |> add (TFnName (id, partialName, displayName, fnName, ster))
       |> addMany versionToken
       |> addArgs fnName id args
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
@@ -415,7 +415,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
              |> addIf isOverLimit (TNewline None)
              |> indentBy ~indent ~f:(fun b' ->
                     b'
-                    |> addNested ~f:(toTokens' ~parentID:(Some id) e)
+                    |> addNested ~f:(toTokens' e)
                     |> addIf (i <> lastIndex) (TListComma (id, i))))
       |> add (TListClose id)
   | ERecord (id, fields) ->

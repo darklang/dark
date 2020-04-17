@@ -36,8 +36,8 @@ let tid (t : t) : ID.t =
   | TFieldName (id, _, _, _)
   | TFieldPartial (id, _, _, _, _)
   | TVariable (id, _, _)
-  | TFnName (id, _, _, _, _, _)
-  | TFnVersion (id, _, _, _, _)
+  | TFnName (id, _, _, _, _)
+  | TFnVersion (id, _, _, _)
   | TLambdaVar (id, _, _, _, _)
   | TLambdaArrow (id, _)
   | TLambdaSymbol (id, _)
@@ -104,6 +104,8 @@ let parentID (t : t) : ID.t option =
   | TListComma (id, _)
   | TRecordOpen id
   | TRecordSep (id, _, _)
+  | TFnName (id, _, _, _, _)
+  | TFnVersion (id, _, _, _)
   | TRecordClose id ->
       Some id
   | TBlank (_, pid)
@@ -129,8 +131,6 @@ let parentID (t : t) : ID.t option =
   | TFieldName (_, _, _, pid)
   | TFieldPartial (_, _, _, _, pid)
   | TVariable (_, _, pid)
-  | TFnName (_, _, _, _, _, pid)
-  | TFnVersion (_, _, _, _, pid)
   | TLambdaComma (_, _, pid)
   | TLambdaArrow (_, pid)
   | TLambdaSymbol (_, pid)
@@ -419,7 +419,7 @@ let toText (t : t) : string =
       canBeEmpty name
   | TVariable (_, name, _) ->
       canBeEmpty name
-  | TFnName (_, _, displayName, _, _, _) | TFnVersion (_, _, displayName, _, _)
+  | TFnName (_, _, displayName, _, _) | TFnVersion (_, _, displayName, _)
     ->
       shouldntBeEmpty displayName
   | TLambdaVar (_, _, _, name, _) ->
