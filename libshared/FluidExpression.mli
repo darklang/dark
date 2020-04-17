@@ -31,10 +31,10 @@ type t =
    *   from the end, an EPartial (id, "String::appen", EFnCall _) would
    *   be created.
    *
-   * EPartial is usually rendered as just the string part, but some
-   * variants of t will render other parts of the t.
+   * EPartial is usually rendered as just the string part, but sometimes when
+   * wrapping certain kinds of expressions will be rendered in unique ways.
    * Eg, an EPartial wrapping an EFnCall will render the arguments of the old
-   * EFnCall expression after the string. *)
+   * EFnCall expression after the string. See FluidPrinter for specifics. *)
   | EPartial of Shared.id * string * t
   (* An ERightPartial is used while in the process of adding an EBinOp,
    * allowing for typing multiple characters as operators (eg, "++") after an
