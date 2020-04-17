@@ -920,7 +920,7 @@ let fns =
     ; parameters = [par "list" TList]
     ; return_type = TOption
     ; description =
-        "If the list contains at least one value, returns {{Just}} a randomly selected element. Returns {{Nothing}} if the list is empty."
+        "Returns {{Just randomValue}}, where {{randomValue}} is a randomly selected value in {{list}}. Returns {{Nothing}} if {{list}} is empty."
     ; func =
         InProcess
           (function
