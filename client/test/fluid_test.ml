@@ -1114,7 +1114,11 @@ let run () =
       t "insert end of number" anInt ~pos:5 (ins "0") "123450~" ;
       t "del end of number" anInt ~pos:5 del "12345~" ;
       t "bs end of number" anInt ~pos:5 bs "1234~" ;
-      t "insert non-number at start in if/then wrapper is no-op" anInt (ins "c") "~12345" ;
+      t
+        "insert non-number at start in if/then wrapper is no-op"
+        anInt
+        (ins "c")
+        "~12345" ;
       tStruct
         "insert non-number without wrapper"
         anInt
