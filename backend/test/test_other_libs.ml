@@ -1162,98 +1162,93 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
 
 
 let t_date_functions_work () =
+  let datestr = "2019-07-28T22:42:36Z" in
+  let dateval = DDate (Util.date_of_isostring datestr) in
+  let date = fn ~ster:Rail "Date::parse_v1" [str datestr] in
+  let later_date =
+    fn ~ster:Rail "Date::parse_v1" [str "2020-11-26T04:37:46Z"]
+  in
   check_dval
     "Valid Date::parse_v0 produces a Date"
-    (DDate (Util.date_of_isostring "2019-07-28T22:42:00Z"))
-    (exec_ast "(Date::parse '2019-07-28T22:42:00Z')") ;
+    dateval
+    (exec_ast' (fn "Date::parse" [str datestr])) ;
   check_dval
     "Invalid Date::parse_v0 produces an error"
     (DBool true)
-    (exec_ast "(Bool::isError (Date::parse 'asd'))") ;
+    (exec_ast'
+       (pipe (fn "Date::parse" [str "asd"]) [fn "Bool::isError" [pipeTarget]])) ;
   check_dval
     "Valid Date::parse_v1 produces an Ok Date"
-    (DResult (ResOk (DDate (Util.date_of_isostring "2019-07-28T22:42:00Z"))))
-    (exec_ast "(Date::parse_v1 '2019-07-28T22:42:00Z')") ;
+    (DResult (ResOk dateval))
+    (exec_ast' (fn ~ster:NoRail "Date::parse_v1" [str datestr])) ;
   check_dval
     "Invalid Date::parse_v1 produces an Error result"
     (DResult (ResError (Dval.dstr_of_string_exn "Invalid date format")))
-    (exec_ast "(Date::parse_v1 'asd')") ;
+    (exec_ast' (fn ~ster:NoRail "Date::parse_v1" [str "asd"])) ;
   check_dval
     "Valid Date::parse_v1 roundtrips"
-    (DResult (ResOk (Dval.dstr_of_string_exn "2019-07-28T22:42:00Z")))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::toString d)))") ;
+    (Dval.dstr_of_string_exn datestr)
+    (exec_ast' (fn "Date::toString" [date])) ;
   (* Subparts of a date *)
-  check_dval
-    "Year works"
-    (DResult (ResOk (Dval.dint 2019)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::year d)))") ;
-  check_dval
-    "Month works"
-    (DResult (ResOk (Dval.dint 7)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::month d)))") ;
-  check_dval
-    "Day works"
-    (DResult (ResOk (Dval.dint 28)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::day d)))") ;
+  check_dval "Year works" (Dval.dint 2019) (exec_ast' (fn "Date::year" [date])) ;
+  check_dval "Month works" (Dval.dint 7) (exec_ast' (fn "Date::month" [date])) ;
+  check_dval "Day works" (Dval.dint 28) (exec_ast' (fn "Date::day" [date])) ;
   check_dval
     "Date::weekday works"
-    (DResult (ResOk (Dval.dint 7)))
-    (exec_ast'
-       (fn
-          "Result::map"
-          [ fn "Date::parse_v1" [str "2019-07-28T22:42:00Z"]
-          ; lambda ["d"] (fn "Date::weekday" [var "d"]) ])) ;
+    (Dval.dint 7)
+    (exec_ast' (fn "Date::weekday" [date])) ;
   check_dval
     "Date::hour works"
-    (DResult (ResOk (Dval.dint 22)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::hour d)))") ;
+    (Dval.dint 22)
+    (exec_ast' (fn "Date::hour" [date])) ;
   check_dval
     "Date::minute works"
-    (DResult (ResOk (Dval.dint 42)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::minute d)))") ;
+    (Dval.dint 42)
+    (exec_ast' (fn "Date::minute" [date])) ;
   check_dval
     "Date::second works"
-    (DResult (ResOk (Dval.dint 45)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:45Z') (\\d -> (Date::second d)))") ;
+    (Dval.dint 36)
+    (exec_ast' (fn "Date::second" [date])) ;
   check_dval
     "Date::toSeconds roundtrips"
-    (DResult (ResOk (Dval.dstr_of_string_exn "2019-07-28T22:42:45Z")))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:45Z') (\\d -> (toString (Date::fromSeconds (Date::toSeconds d)))))") ;
+    (Dval.dstr_of_string_exn datestr)
+    (exec_ast'
+       (pipe
+          date
+          [ fn "Date::toSeconds" [pipeTarget]
+          ; fn "Date::fromSeconds" [pipeTarget]
+          ; fn "toString" [pipeTarget] ])) ;
   check_dval
     "Date::fromSeconds roundtrips"
     (Dval.dint 1095379198)
-    (exec_ast "(Date::toSeconds (Date::fromSeconds 1095379198))") ;
+    (exec_ast'
+       (pipe
+          (int 1095379198)
+          [ fn "Date::fromSeconds" [pipeTarget]
+          ; fn "Date::toSeconds" [pipeTarget] ])) ;
   check_dval
     "Date::hour works - leif's test case"
-    (DResult (ResOk (Dval.dint 3)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-12-27T03:27:36Z') (\\d -> (Date::hour_v1 d)))") ;
-  let earlier = fn ~ster:Rail "Date::parse_v1" [str "2019-12-27T03:27:36Z"] in
-  let later = fn ~ster:Rail "Date::parse_v1" [str "2020-11-26T04:37:46Z"] in
+    (Dval.dint 3)
+    (exec_ast'
+       (pipe
+          (fn ~ster:Rail "Date::parse_v1" [str "2019-12-27T03:27:36Z"])
+          [fn "Date::hour_v1" [pipeTarget]])) ;
   check_dval
     "Date <= works"
     (DBool true)
-    (exec_ast' (binop "Date::<=" earlier later)) ;
+    (exec_ast' (binop "Date::<=" date later_date)) ;
   check_dval
     "Date < works"
     (DBool true)
-    (exec_ast' (binop "Date::<" earlier later)) ;
+    (exec_ast' (binop "Date::<" date later_date)) ;
   check_dval
     "Date > works"
     (DBool false)
-    (exec_ast' (binop "Date::>" earlier later)) ;
+    (exec_ast' (binop "Date::>" date later_date)) ;
   check_dval
     "Date >= works"
     (DBool false)
-    (exec_ast' (binop "Date::>=" earlier later)) ;
+    (exec_ast' (binop "Date::>=" date later_date)) ;
   ()
 
 
