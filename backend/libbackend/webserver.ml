@@ -994,7 +994,7 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
           ~tlid:params.tlid
           ~trace_id:params.trace_id
           ~caller_id:params.caller_id
-          ~args:params.args)
+          ~args:(List.map ~f:Libexecution.Fluid.dval_of_fluid params.args))
   in
   let t4, unlocked =
     time "4-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
@@ -1085,7 +1085,12 @@ let trigger_handler ~(execution_id : Types.id) (host : string) body :
                 handler
                 ~execution_id
                 ~tlid:params.tlid
-                ~input_vars:params.input
+                ~input_vars:
+                  (List.map
+                     params.input
+                     ~f:
+                       (Tc.Tuple2.map_second
+                          ~f:Libexecution.Fluid.dval_of_fluid))
                 ~dbs:(TL.dbs !c.dbs)
                 ~user_tipes:(!c.user_tipes |> Map.data)
                 ~user_fns:(!c.user_functions |> Map.data)
