@@ -2,7 +2,7 @@ open Core_kernel
 open Runtime
 open Lib
 
-let fns : Types.RuntimeT.fn list =
+let fns : Types.RuntimeT.expr Types.RuntimeT.fn list =
   [ { prefix_names = ["Http::respond"]
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]

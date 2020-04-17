@@ -189,7 +189,7 @@ let fns =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
-              let f (dv : dval) : bool =
+              let f (dv : 'expr_type dval) : bool =
                 DBool true = Ast.execute_dblock ~state b [dv]
               in
               (match List.find ~f l with None -> DNull | Some dv -> dv)
@@ -207,7 +207,7 @@ let fns =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
-              let f (dv : dval) : bool =
+              let f (dv : 'expr_type dval) : bool =
                 DBool true = Ast.execute_dblock ~state b [dv]
               in
               ( match List.find ~f l with
@@ -229,7 +229,7 @@ let fns =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
-              let f (dv : dval) : bool =
+              let f (dv : 'expr_type dval) : bool =
                 DBool true = Ast.execute_dblock ~state b [dv]
               in
               ( match List.find ~f l with
@@ -250,7 +250,23 @@ let fns =
         InProcess
           (function
           | _, [DList l; i] ->
-              DBool (List.mem ~equal:equal_dval l i)
+              DBool (List.mem ~equal:(equal_dval equal_expr) l i)
+          | args ->
+              fail args)
+    ; preview_safety =
+        Safe
+        (* Deprecated in favor of List::member for consistency with Elm's naming *)
+    ; deprecated = true }
+  ; { prefix_names = ["List::member"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; par "val" TAny]
+    ; return_type = TBool
+    ; description = "Returns `true` if `val` is in the list."
+    ; func =
+        InProcess
+          (function
+          | _, [DList l; i] ->
+              DBool (List.mem ~equal:(equal_dval equal_expr) l i)
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -311,7 +327,8 @@ let fns =
           (function
           | state, [DList l; init; DBlock b] ->
               (* Fake cf should be propagated by the blocks so we dont need to check *)
-              let f (dv1 : dval) (dv2 : dval) : dval =
+              let f (dv1 : 'expr_type dval) (dv2 : 'expr_type dval) :
+                  'expr_type dval =
                 Ast.execute_dblock ~state b [dv1; dv2]
               in
               List.fold ~f ~init l
@@ -354,7 +371,7 @@ let fns =
               let fn dv = Ast.execute_dblock ~state b [dv] in
               DList
                 (List.dedup_and_sort l ~compare:(fun a b ->
-                     compare_dval (fn a) (fn b)))
+                     compare_dval compare_expr (fn a) (fn b)))
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -375,12 +392,13 @@ let fns =
     ; parameters = [par "list" TList]
     ; return_type = TList
     ; description =
-        "Returns a copy of `list` with every value sorted in ascending order."
+        "Returns a copy of `list` with every value sorted in ascending order. Use this if the values have types Dark knows how to sort.
+         Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
     ; func =
         InProcess
           (function
           | _, [DList list] ->
-              list |> List.sort ~compare:compare_dval |> DList
+              list |> List.sort ~compare:(compare_dval compare_expr) |> DList
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -389,14 +407,18 @@ let fns =
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
-    ; description = "Returns a copy of `list`, sorted using the results of `f`."
+    ; description =
+        {|Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `f val`.
+          For example, `List::sortBy ["x","jkl","ab"] \val -> String::length val` returns `[ "x", "ab", "jkl" ]`.
+          Consider `List::sort` if the list values can be directly compared, or `List::sortByComparator` if you want more control over the sorting process.|}
     ; func =
         InProcess
           (function
           | state, [DList list; DBlock b] ->
               let fn dv = Ast.execute_dblock ~state b [dv] in
               list
-              |> List.sort ~compare:(fun a b -> compare_dval (fn a) (fn b))
+              |> List.sort ~compare:(fun a b ->
+                     compare_dval compare_expr (fn a) (fn b))
               |> DList
           | args ->
               fail args)
@@ -407,8 +429,9 @@ let fns =
     ; parameters = [par "list" TList; func ["a"; "b"]]
     ; return_type = TResult
     ; description =
-        "Returns a copy of `list`, sorted using `f a b`.
-        `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter."
+        "Returns a copy of `list`, sorted using `f a b` to compare values `a` and `b`.
+        `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter.
+        Consider `List::sort` or `List::sortBy` if you don't need this level of control."
     ; func =
         InProcess
           (function
@@ -492,7 +515,7 @@ let fns =
           (function
           | state, [DList l; DBlock b] ->
               let incomplete = ref false in
-              let f (dv : dval) : bool =
+              let f (dv : 'expr_type dval) : bool =
                 match Ast.execute_dblock ~state b [dv] with
                 | DBool b ->
                     b
@@ -522,7 +545,7 @@ let fns =
           (function
           | state, [DList l; DBlock b] ->
               let fakecf = ref None in
-              let f (dv : dval) : bool =
+              let f (dv : 'expr_type dval) : bool =
                 let run = !fakecf = None in
                 run
                 &&
@@ -554,7 +577,7 @@ let fns =
           (function
           | state, [DList l; DBlock b] ->
               let abortReason = ref None in
-              let f (dv : dval) : bool =
+              let f (dv : 'expr_type dval) : bool =
                 !abortReason = None
                 &&
                 match Ast.execute_dblock ~state b [dv] with
@@ -598,7 +621,7 @@ let fns =
           (function
           | state, [DList l; DBlock b] ->
               let abortReason = ref None in
-              let f (dv : dval) : dval option =
+              let f (dv : 'expr_type dval) : 'expr_type dval option =
                 if !abortReason = None
                 then (
                   match Ast.execute_dblock ~state b [dv] with
@@ -669,7 +692,9 @@ let fns =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
-              let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
+              let f (dv : 'expr_type dval) : 'expr_type dval =
+                Ast.execute_dblock ~state b [dv]
+              in
               DList (List.map ~f l)
           | args ->
               fail args)
@@ -686,7 +711,9 @@ let fns =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
-              let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
+              let f (dv : 'expr_type dval) : 'expr_type dval =
+                Ast.execute_dblock ~state b [dv]
+              in
               Dval.to_list (List.map ~f l)
           | args ->
               fail args)
@@ -703,7 +730,7 @@ let fns =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
-              let f (idx : int) (dv : dval) : dval =
+              let f (idx : int) (dv : 'expr_type dval) : 'expr_type dval =
                 Ast.execute_dblock ~state b [Dval.dint idx; dv]
               in
               Dval.to_list (List.mapi ~f l)
@@ -728,7 +755,8 @@ let fns =
               let len = min (List.length l1) (List.length l2) in
               let l1 = List.take l1 len in
               let l2 = List.take l2 len in
-              let f (l1Item : dval) (l2Item : dval) : dval =
+              let f (l1Item : 'expr_type dval) (l2Item : 'expr_type dval) :
+                  'expr_type dval =
                 Ast.execute_dblock ~state b [l1Item; l2Item]
               in
               Dval.to_list (List.map2_exn ~f l1 l2)
@@ -749,7 +777,8 @@ let fns =
         InProcess
           (function
           | state, [DList l1; DList l2; DBlock b] ->
-              let f (l1Item : dval) (l2Item : dval) : dval =
+              let f (l1Item : 'expr_type dval) (l2Item : 'expr_type dval) :
+                  'expr_type dval =
                 Ast.execute_dblock ~state b [l1Item; l2Item]
               in
               DOption
@@ -780,7 +809,8 @@ let fns =
               let len = min (List.length l1) (List.length l2) in
               let l1 = List.take l1 len in
               let l2 = List.take l2 len in
-              let f (l1Item : dval) (l2Item : dval) : dval =
+              let f (l1Item : 'expr_type dval) (l2Item : 'expr_type dval) :
+                  'expr_type dval =
                 Dval.to_list [l1Item; l2Item]
               in
               Dval.to_list (List.map2_exn ~f l1 l2)
@@ -801,7 +831,8 @@ let fns =
         InProcess
           (function
           | state, [DList l1; DList l2] ->
-              let f (l1Item : dval) (l2Item : dval) : dval =
+              let f (l1Item : 'expr_type dval) (l2Item : 'expr_type dval) :
+                  'expr_type dval =
                 Dval.to_list [l1Item; l2Item]
               in
               DOption
@@ -831,9 +862,16 @@ let fns =
               in
               let fold_fn
                   (rev_idx : int)
-                  (acc : (dval list * dval list, dval (* type error *)) result)
-                  (dv : dval) :
-                  (dval list * dval list, dval (* type error *)) result =
+                  (acc :
+                    ( 'expr_type dval list * 'expr_type dval list
+                    , 'expr_type dval
+                    (* type error *) )
+                    result)
+                  (dv : 'expr_type dval) :
+                  ( 'expr_type dval list * 'expr_type dval list
+                  , 'expr_type dval
+                  (* type error *) )
+                  result =
                 Result.bind acc ~f:(fun (acc_a, acc_b) ->
                     match dv with
                     | DList [a; b] ->

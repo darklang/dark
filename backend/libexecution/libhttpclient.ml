@@ -3,7 +3,7 @@ open Runtime
 open Lib
 open Types.RuntimeT
 
-let fns : fn list =
+let fns : expr fn list =
   [ { prefix_names = ["HttpClient::formContentType"]
     ; infix_names = []
     ; parameters = []

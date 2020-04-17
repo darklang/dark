@@ -281,6 +281,18 @@ let t_dict_stdlibs_work () =
     (DObj (DvalMap.from_list [("one", Dval.dint 1)]))
     (exec_ast' (fn "Dict::singleton" [str "one"; int 1])) ;
   check_dval
+    "Dict::member works (not present)"
+    (DBool false)
+    (exec_ast'
+       (fn "Dict::member" [record [("otherKey", int 5)]; str "someKey"])) ;
+  check_dval
+    "Dict::member works (present)"
+    (DBool true)
+    (exec_ast'
+       (fn
+          "Dict::member"
+          [record [("otherKey", int 5); ("someKey", int 5)]; str "someKey"])) ;
+  check_dval
     "dict keys"
     (DList [dstr "key1"])
     (exec_ast "(Dict::keys (obj (key1 'val1')))") ;
@@ -1689,7 +1701,7 @@ let t_bool_stdlibs () =
  * - a basic happy-path works
  * - guards for returning non-int or invalid int (not in {-1,0,1}) error *)
 let t_liblist_sort_by_comparator_works () =
-  let dlist_of_intlist (is : int list) : dval =
+  let dlist_of_intlist (is : int list) : expr dval =
     is
     |> List.map ~f:(fun i -> Dint.of_int i |> DInt)
     |> DList

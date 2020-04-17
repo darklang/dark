@@ -3,6 +3,7 @@ open Core_kernel
 open Libexecution
 open Libcommon
 module C = Curl
+open Curl_logging
 
 type verb =
   | GET
@@ -141,11 +142,13 @@ let http_call_with_code
         result_headers := List.cons (h, "") !result_headers ;
         String.length h
   in
+  let debug_bufs = new_debug_bufs () in
   let code, error, body =
     try
       let c = C.init () in
       C.set_url c url ;
       C.set_verbose c true ;
+      C.set_debugfunction c (debugfn debug_bufs) ;
       C.set_errorbuffer c errorbuf ;
       C.set_followlocation c true ;
       C.set_failonerror c false ;
@@ -227,8 +230,10 @@ let http_call_with_code
       in
       let response = (C.get_responsecode c, !errorbuf, responsebody) in
       C.cleanup c ;
+      log_debug_info debug_bufs ;
       response
     with Curl.CurlException (curl_code, code, s) ->
+      log_debug_info debug_bufs ;
       let info =
         [ ("url", url)
         ; ("error", Curl.strerror curl_code)

@@ -3,7 +3,7 @@ open Libexecution
 
 (* Low-level API *)
 
-type param =
+type 'expr_type param =
   | Int of int
   | Int63 of Int63.t
   | ID of Types.id
@@ -13,14 +13,14 @@ type param =
   | Binary of string
   (* only works for passed params *)
   | Secret of string
-  | RoundtrippableDval of Types.RuntimeT.dval
-  | RoundtrippableDvalmap of Types.RuntimeT.dval_map
+  | RoundtrippableDval of 'expr_type Types.RuntimeT.dval
+  | RoundtrippableDvalmap of 'expr_type Types.RuntimeT.dval_map
   (* Queryable are stored as jsonb so that they can be queried. *)
-  | QueryableDval of Types.RuntimeT.dval
-  | QueryableDvalmap of Types.RuntimeT.dval_map
+  | QueryableDval of 'expr_type Types.RuntimeT.dval
+  | QueryableDvalmap of 'expr_type Types.RuntimeT.dval_map
   | Time of Types.RuntimeT.time
   | Null
-  | List of param list
+  | List of 'expr_type param list
   | Bool of bool
 [@@deriving show]
 
@@ -36,7 +36,7 @@ type result =
 (* NOTE: run is not allowed to receive multiple commands. If you
  * want multiple statements, use [transaction] *)
 val run :
-     params:param list
+     params:'expr_type param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -46,7 +46,7 @@ val run :
 val transaction : name:string -> (unit -> unit) -> unit
 
 val delete :
-     params:param list
+     params:'expr_type param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -54,7 +54,7 @@ val delete :
   -> int
 
 val fetch :
-     params:param list
+     params:'expr_type param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -62,7 +62,7 @@ val fetch :
   -> string list list
 
 val fetch_one :
-     params:param list
+     params:'expr_type param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -70,7 +70,7 @@ val fetch_one :
   -> string list
 
 val fetch_one_option :
-     params:param list
+     params:'expr_type param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -79,19 +79,23 @@ val fetch_one_option :
 
 val iter_with_cursor :
      name:string
-  -> params:param list
+  -> params:'expr_type param list
   -> ?result:result
   -> f:(string list -> unit)
   -> string
   -> unit
 
 val exists :
-  params:param list -> name:string -> ?subject:string -> string -> bool
+     params:'expr_type param list
+  -> name:string
+  -> ?subject:string
+  -> string
+  -> bool
 
 (* Occasionally, we're trying to do something dynamic, or maybe multiple
  * things in a single sql statement and then the above statements don't
  * work, so we need to escape manually *)
-val escape : param -> string
+val escape : 'expr_type param -> string
 
 val escape_string : string -> string
 
