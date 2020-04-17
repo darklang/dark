@@ -726,67 +726,57 @@ let t_db_query_works () =
     ; Op.SetDBColType (dbid, coltypeid5, "Date") ]
   in
   (* Prepopulate the DB for tests *)
+  let ross_expr =
+    record
+      [ ("height", int 73)
+      ; ("name", str "Ross")
+      ; ("human", bool true)
+      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "1967-05-12T00:00:00Z"])
+      ; ("income", float' 100 00) ]
+  in
+  let rachel_expr =
+    record
+      [ ("height", int 65)
+      ; ("name", str "Rachel")
+      ; ("human", bool true)
+      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "1969-05-05T00:00:00Z"])
+      ; ("income", float' 82 00) ]
+  in
+  let cat_expr =
+    record
+      [ ("height", int 10)
+      ; ("name", str "GrumpyCat")
+      ; ("human", bool false)
+      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "2012-04-04T00:00:00Z"])
+      ; ("income", float' 0 00) ]
+  in
+  let null_expr =
+    record
+      [ ("height", null)
+      ; ("name", null)
+      ; ("human", null)
+      ; ("dob", null)
+      ; ("income", null) ]
+  in
+  let ross = exec_ast' ross_expr in
+  let rachel = exec_ast' rachel_expr in
+  let cat = exec_ast' cat_expr in
+  let nullval = exec_ast' null_expr in
   let expected =
     exec_handler'
       ~ops
       (let'
          "_"
-         (fn
-            "DB::set_v1"
-            [ record
-                [ ("height", int 73)
-                ; ("name", str "Ross")
-                ; ("human", bool true)
-                ; ( "dob"
-                  , fn ~ster:Rail "Date::parse_v2" [str "1967-05-12T00:00:00Z"]
-                  )
-                ; ("income", float' 100 00) ]
-            ; str "ross"
-            ; var "Person" ])
+         (fn "DB::set_v1" [ross_expr; str "ross"; var "Person"])
          (let'
             "_"
-            (fn
-               "DB::set_v1"
-               [ record
-                   [ ("height", int 65)
-                   ; ("name", str "Rachel")
-                   ; ("human", bool true)
-                   ; ( "dob"
-                     , fn
-                         ~ster:Rail
-                         "Date::parse_v2"
-                         [str "1969-05-05T00:00:00Z"] )
-                   ; ("income", float' 82 00) ]
-               ; str "rachel"
-               ; var "Person" ])
+            (fn "DB::set_v1" [rachel_expr; str "rachel"; var "Person"])
             (let'
                "_"
-               (fn
-                  "DB::set_v1"
-                  [ record
-                      [ ("height", int 10)
-                      ; ("name", str "GrumpyCat")
-                      ; ("human", bool false)
-                      ; ( "dob"
-                        , fn
-                            ~ster:Rail
-                            "Date::parse_v2"
-                            [str "2012-04-04T00:00:00Z"] )
-                      ; ("income", float' 0 00) ]
-                  ; str "cat"
-                  ; var "Person" ])
+               (fn "DB::set_v1" [cat_expr; str "cat"; var "Person"])
                (let'
                   "_"
-                  (fn
-                     "DB::set_v1"
-                     [ record
-                         [ ("height", null)
-                         ; ("name", null)
-                         ; ("human", null)
-                         ; ("dob", null)
-                         ; ("income", null) ]
-                     ; str "null"
-                     ; var "Person" ])
+                  (fn "DB::set_v1" [null_expr; str "null"; var "Person"])
                   (int 5)))))
   in
   check_dval "setup worked" expected (Dval.dint 5) ;
@@ -794,20 +784,14 @@ let t_db_query_works () =
   let queryv body = fn "DB::query_v4" [var "Person"; lambda ["v"] body] in
   let field name field = fieldAccess (var name) field in
   let sort expr =
-    pipe
-      expr
-      [ fn "List::map" [pipeTarget; lambda ["v"] (field "v" "height")]
-      ; fn "List::sort" [pipeTarget] ]
+    pipe expr [fn "List::sortBy" [pipeTarget; lambda ["v"] (field "v" "height")]]
   in
   let exec expr = exec_handler' ~ops expr in
   let execs expr = exec (expr |> sort) in
   let withvar (name : string) value ast = let' name value ast in
-  let ross = Dval.dint 73 in
-  let rachel = Dval.dint 65 in
-  let cat = Dval.dint 10 in
   check_dval
     "Find all"
-    (DList [cat; rachel; ross; DNull])
+    (DList [cat; rachel; ross; nullval])
     (queryv (bool true) |> execs) ;
   check_dval
     "Find all with condition"
@@ -905,7 +889,7 @@ let t_db_query_works () =
     |> exec ) ;
   check_dval
     "null equality works"
-    (DList [DNull])
+    (DList [nullval])
     (queryv (binop "==" (field "v" "name") null) |> execs) ;
   check_dval
     "null inequality works"
@@ -932,12 +916,10 @@ let t_db_query_works () =
   check_dval
     "queryOne - one"
     (DOption (OptJust rachel))
-    ( pipe
-        (fn
-           "DB::queryOne_v4"
-           [ var "Person"
-           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
-        [fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "height")]]
+    ( fn
+        "DB::queryOne_v4"
+        [ var "Person"
+        ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ]
     |> exec ) ;
   check_dval
     "queryOneWithKey - multiple"
@@ -961,8 +943,7 @@ let t_db_query_works () =
            "DB::queryOneWithKey_v3"
            [ var "Person"
            ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
-        [ fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "rachel")]
-        ; fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "height")] ]
+        [fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "rachel")]]
     |> exec ) ;
   check_dval
     "queryOneWithKey - empty"
@@ -979,7 +960,7 @@ let t_db_query_works () =
            "DB::queryWithKey_v3"
            [ var "Person"
            ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
-        [lambda ["r"] (field "r" "rachel"); lambda ["r"] (field "r" "height")]
+        [lambda ["r"] (field "r" "rachel")]
     |> exec ) ;
   (* -------------- *)
   (* Test functions *)
