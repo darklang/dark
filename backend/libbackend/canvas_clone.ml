@@ -117,10 +117,10 @@ let update_hosts_in_op
                   Constructor (name, exprs |> List.map ~f)
               | FluidPartial (str, expr) ->
                   FluidPartial (str, expr |> f)
-              | FluidLeftPartial (str, expr) ->
-                  FluidLeftPartial (str, expr |> f)
               | FluidRightPartial (str, expr) ->
-                  FluidRightPartial (str, expr |> f) )
+                  FluidRightPartial (str, expr |> f)
+              | FluidLeftPartial (str, expr) ->
+                  FluidLeftPartial (str, expr |> f) )
     in
     f expr
   in

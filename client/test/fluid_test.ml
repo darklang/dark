@@ -546,7 +546,7 @@ let run () =
       t "bs near-empty string" oneCharStr ~pos:2 bs "\"~\"" ;
       t "del near-empty string" oneCharStr ~pos:1 del "\"~\"" ;
       t
-        "insert outside string in if/then wrapper"
+        "insert outside string in if/then wrapper is no-op"
         aStr
         (ins "c")
         "~\"some string\"" ;
@@ -731,7 +731,7 @@ let run () =
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12~456789_\"" ) ;
       t
-        "insert outside string in if/then wrapper"
+        "insert outside string in if/then wrapper is no-op"
         mlStr
         ~pos:0
         (ins "c")
@@ -1114,7 +1114,7 @@ let run () =
       t "insert end of number" anInt ~pos:5 (ins "0") "123450~" ;
       t "del end of number" anInt ~pos:5 del "12345~" ;
       t "bs end of number" anInt ~pos:5 bs "1234~" ;
-      t "insert non-number at start in if/then wrapper" anInt (ins "c") "~12345" ;
+      t "insert non-number at start in if/then wrapper is no-op" anInt (ins "c") "~12345" ;
       tStruct
         "insert non-number without wrapper"
         anInt
@@ -1380,7 +1380,6 @@ let run () =
         ~pos:0
         [InsertText "c"]
         (leftPartial "c" (bool true)) ;
-      (* t ~expectsPartial:true "insert start of true" trueBool (ins "c") "c~true" ; *)
       t ~expectsPartial:true "del start of true" trueBool del "~rue" ;
       t "bs start of true" trueBool bs "~true" ;
       t
@@ -3815,7 +3814,7 @@ let run () =
       t "create list" b ~pos:0 (ins "[") "[~]" ;
       t "insert into empty list inserts" emptyList ~pos:1 (ins "5") "[5~]" ;
       t
-        "inserting before a list in if/then wrapper does nothing"
+        "inserting before a list in if/then wrapper is no-op"
         emptyList
         ~pos:0
         (ins "5")
@@ -3988,7 +3987,7 @@ let run () =
   describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;
       t
-        "inserting before a record in if/then wrapper does nothing"
+        "inserting before a record in if/then wrapper is no-op"
         emptyRecord
         ~pos:0
         (ins "5")
