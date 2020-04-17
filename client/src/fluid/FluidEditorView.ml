@@ -37,13 +37,13 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
       let allExprs = AST.getArguments (FluidToken.tid ti.token) s.ast in
       let argIDs = List.map ~f:FluidExpression.toID allExprs in
       ( match ti.token with
-      | TFnVersion (id, _, _, _, _) ->
+      | TFnVersion (id, _, _, _) ->
           ViewFnExecution.fnExecutionButton
             (stateToFnExecutionState s)
             fn
             id
             argIDs
-      | TFnName (id, _, displayName, fnName, _, _)
+      | TFnName (id, _, displayName, fnName, _)
       (* If fn is unversioned or is v0 *)
         when displayName = fnName || displayName ^ "_v0" = fnName ->
           ViewFnExecution.fnExecutionButton
@@ -364,7 +364,7 @@ let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
         false
   in
   match ti.token with
-  | TFnName (id, _, _, fnName, Rail, _) ->
+  | TFnName (id, _, _, fnName, Rail) ->
       let offset = string_of_int ti.startRow ^ "rem" in
       let icon =
         match (returnTipe fnName, liveValue id) with

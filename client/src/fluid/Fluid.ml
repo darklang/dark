@@ -833,7 +833,7 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
     (*
      * Function calls
      *)
-    | ARFnCall id, TFnName (id', partialName, displayName, _, _, _)
+    | ARFnCall id, TFnName (id', partialName, displayName, _, _)
       when id = id' ->
         let dispLen = String.length displayName in
         if ct.offset > dispLen && String.length partialName > dispLen
@@ -841,7 +841,7 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
           None
         else (* Within current token *)
           clampedPosForTi ti ct.offset
-    | ARFnCall id, TFnVersion (id', _, _, backendFnName, _) when id = id' ->
+    | ARFnCall id, TFnVersion (id', _, _, backendFnName) when id = id' ->
         let nameWithoutVersion = FluidUtil.fnDisplayName backendFnName in
         clampedPosForTi ti (ct.offset - String.length nameWithoutVersion)
     (*
@@ -1024,9 +1024,9 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARFieldAccess (id, FAPFieldOp); offset}
   | TVariable (id, _, _) ->
       Some {astRef = ARVariable id; offset}
-  | TFnName (id, _, _, _, _, _) ->
+  | TFnName (id, _, _, _, _) ->
       Some {astRef = ARFnCall id; offset}
-  | TFnVersion (id, _, versionName, backendFnName, _) ->
+  | TFnVersion (id, _, versionName, backendFnName) ->
       (* TODO: This is very brittle and should probably be moved into a function responsible
          for grabbing the appropriate bits of functions *)
       Some
@@ -5552,7 +5552,7 @@ let updateMouseDoubleClick
         |> recoverOpt ~default:(0, 0) "no expression range found at caret"
     | SelectTokenAt (selectionStart, selectionEnd) ->
       ( match getToken ast {s with newPos = selectionStart} with
-      | Some {token = TFnName (_, displayName, _, _, _, _); startPos; _} ->
+      | Some {token = TFnName (_, displayName, _, _, _); startPos; _} ->
           (* Highlight the full function name *)
           (startPos, startPos + String.length displayName)
       | Some _ when selectionStart <> selectionEnd ->
