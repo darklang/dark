@@ -201,7 +201,7 @@ let run () =
       neq
         "left partials with diff exprs"
         (leftPartial "List::" (fn "List::empty" []))
-        (leftPartial "Dict::" (fn "List::singleton" [int 1])) ;
+        (leftPartial "List::" (fn "List::singleton" [int 1])) ;
       eq
         "right partials with same values"
         (rightPartial "++" (str "foo"))
