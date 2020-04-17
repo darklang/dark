@@ -344,10 +344,10 @@ let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) :
           , toFluidExpr ~inPipe caseb )
     | FluidPartial (str, oldExpr) ->
         EPartial (id, str, toFluidExpr ~inPipe oldExpr)
-    | FluidLeftPartial (str, oldExpr) ->
-        ELeftPartial (id, str, toFluidExpr ~inPipe oldExpr)
     | FluidRightPartial (str, oldExpr) ->
-        ERightPartial (id, str, toFluidExpr ~inPipe oldExpr) )
+        ERightPartial (id, str, toFluidExpr ~inPipe oldExpr)
+    | FluidLeftPartial (str, oldExpr) ->
+        ELeftPartial (id, str, toFluidExpr ~inPipe oldExpr) )
 
 
 let expr_json_to_fluid (j : Yojson.Safe.t) : (Types.fluid_expr, string) Result.t
