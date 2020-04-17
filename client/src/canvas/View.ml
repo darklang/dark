@@ -85,7 +85,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; ("group", match tl with TLGroup _ -> true | _ -> false) ]
   in
   let id =
-    Fluid.getToken vs.ast vs.fluidState
+    Fluid.getToken' vs.tokens vs.fluidState
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (CursorState.idOf m.cursorState)
   in

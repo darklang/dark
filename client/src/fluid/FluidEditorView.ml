@@ -86,7 +86,7 @@ let toHtml (s : state) : Types.msg Html.html list =
     | _ ->
         UnknownExecution
   in
-  let currentTokenInfo = Fluid.getToken s.ast s.fluidState in
+  let currentTokenInfo = Fluid.getToken' s.tokens s.fluidState in
   let caretRow = currentTokenInfo |> Option.map ~f:(fun ti -> ti.startRow) in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
