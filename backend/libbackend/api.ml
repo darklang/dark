@@ -20,11 +20,11 @@ type get_trace_data_rpc_params =
   ; trace_id : traceid }
 [@@deriving yojson]
 
-type execute_function_rpc_params =
+type 'expr_type execute_function_rpc_params =
   { tlid : tlid
   ; trace_id : RuntimeT.uuid
   ; caller_id : id
-  ; args : RuntimeT.expr RuntimeT.dval list
+  ; args : 'expr_type RuntimeT.dval list
   ; fnname : string }
 [@@deriving yojson]
 
@@ -41,10 +41,10 @@ let to_upload_function_rpc_params (payload : string) :
   |> Result.ok_or_failwith
 
 
-type trigger_handler_rpc_params =
+type 'expr_type trigger_handler_rpc_params =
   { tlid : tlid
   ; trace_id : RuntimeT.uuid
-  ; input : RuntimeT.expr input_vars }
+  ; input : 'expr_type input_vars }
 [@@deriving yojson]
 
 type route_params =
@@ -101,18 +101,22 @@ let to_get_trace_data_rpc_params (payload : string) : get_trace_data_rpc_params
 
 
 let to_execute_function_rpc_params (payload : string) :
-    execute_function_rpc_params =
-  payload
-  |> Yojson.Safe.from_string
-  |> execute_function_rpc_params_of_yojson
+    fluid_expr execute_function_rpc_params =
+  let json = payload |> Yojson.Safe.from_string in
+  json
+  |> execute_function_rpc_params_of_yojson Fluid.expr_json_to_fluid
+  |> Tc.Result.or_else_lazy (fun () ->
+         execute_function_rpc_params_of_yojson Types.fluid_expr_of_yojson json)
   |> Result.ok_or_failwith
 
 
 let to_trigger_handler_rpc_params (payload : string) :
-    trigger_handler_rpc_params =
-  payload
-  |> Yojson.Safe.from_string
-  |> trigger_handler_rpc_params_of_yojson
+    fluid_expr trigger_handler_rpc_params =
+  let json = payload |> Yojson.Safe.from_string in
+  json
+  |> trigger_handler_rpc_params_of_yojson Fluid.expr_json_to_fluid
+  |> Tc.Result.or_else_lazy (fun () ->
+         trigger_handler_rpc_params_of_yojson Types.fluid_expr_of_yojson json)
   |> Result.ok_or_failwith
 
 
