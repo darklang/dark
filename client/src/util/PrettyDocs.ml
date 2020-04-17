@@ -7,7 +7,7 @@ let codeEx = "^(.*)\\{\\{(.+)\\}\\}(.*)$"
 
 let codeClass = "code"
 
-let nestedTag = Regex.regex {|<\w+\s[^>]*<|}
+let nestedTag = Regex.regex {|<\w+[^>]*<|}
 
 let nestedCodeBlock = Regex.regex {|{{[^}]+{{|}
 
