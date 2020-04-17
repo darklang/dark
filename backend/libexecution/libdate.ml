@@ -180,7 +180,7 @@ let fns : expr fn list =
         InProcess
           (function
           | _, [DDate d1; DDate d2] ->
-              DBool (Time.( <= ) d1 d2)
+              DBool (Time.( < ) d1 d2)
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -208,7 +208,7 @@ let fns : expr fn list =
         InProcess
           (function
           | _, [DDate d1; DDate d2] ->
-              DBool (Time.( < ) d1 d2)
+              DBool (Time.( <= ) d1 d2)
           | args ->
               fail args)
     ; preview_safety = Safe

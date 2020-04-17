@@ -1236,6 +1236,24 @@ let t_date_functions_work () =
     (DResult (ResOk (Dval.dint 3)))
     (exec_ast
        "(Result::map (Date::parse_v1 '2019-12-27T03:27:36Z') (\\d -> (Date::hour_v1 d)))") ;
+  let earlier = fn ~ster:Rail "Date::parse_v1" [str "2019-12-27T03:27:36Z"] in
+  let later = fn ~ster:Rail "Date::parse_v1" [str "2020-11-26T04:37:46Z"] in
+  check_dval
+    "Date <= works"
+    (DBool true)
+    (exec_ast' (binop "Date::<=" earlier later)) ;
+  check_dval
+    "Date < works"
+    (DBool true)
+    (exec_ast' (binop "Date::<" earlier later)) ;
+  check_dval
+    "Date > works"
+    (DBool false)
+    (exec_ast' (binop "Date::>" earlier later)) ;
+  check_dval
+    "Date >= works"
+    (DBool false)
+    (exec_ast' (binop "Date::>=" earlier later)) ;
   ()
 
 
