@@ -64,7 +64,7 @@ let convert_db (db : our_db) : fluid_expr DbT.db =
 type handler_analysis_param =
   { handler : fluid_expr HandlerT.handler
   ; trace_id : Analysis_types.traceid
-  ; trace_data : fluid_expr Analysis_types.trace_data
+  ; trace_data : expr Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : fluid_expr user_fn list
@@ -74,7 +74,7 @@ type handler_analysis_param =
 type function_analysis_param =
   { func : fluid_expr user_fn
   ; trace_id : Analysis_types.traceid
-  ; trace_data : fluid_expr Analysis_types.trace_data
+  ; trace_data : expr Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : fluid_expr user_fn list
@@ -85,9 +85,9 @@ type analysis_envelope = uuid * fluid_expr Analysis_types.analysis
 [@@deriving to_yojson]
 
 let load_from_trace
-    (results : fluid_expr Analysis_types.function_result list)
+    (results : expr Analysis_types.function_result list)
     (tlid, fnname, caller_id)
-    args : (expr dval * Time.t) option =
+    (args : expr dval list) : (expr dval * Time.t) option =
   let hashes =
     Dval.supported_hash_versions
     |> List.map ~f:(fun key -> (id_of_int key, Dval.hash key args))
@@ -102,7 +102,7 @@ let load_from_trace
          else None)
   |> List.hd
   (* We don't use the time, so just hack it to get the interface right. *)
-  |> Option.map ~f:(fun dv -> (Fluid.dval_of_fluid dv, Time.now ()))
+  |> Option.map ~f:(fun dv -> (dv, Time.now ()))
 
 
 let perform_analysis
@@ -111,13 +111,11 @@ let perform_analysis
     ~(user_fns : fluid_expr user_fn list)
     ~(user_tipes : user_tipe list)
     ~(trace_id : RuntimeT.uuid)
-    ~(trace_data : fluid_expr Analysis_types.trace_data)
+    ~(trace_data : expr Analysis_types.trace_data)
     ast =
   let dbs : fluid_expr DbT.db list = List.map ~f:convert_db dbs in
   let execution_id = Types.id_of_int 1 in
-  let input_vars =
-    trace_data.input |> List.map ~f:(fun (a, b) -> (a, Fluid.dval_of_fluid b))
-  in
+  let input_vars = trace_data.input |> List.map ~f:(fun (a, b) -> (a, b)) in
   Log.add_log_annotations
     [ ("execution_id", `String (Types.string_of_id execution_id))
     ; ("tlid", `String (Types.string_of_id tlid)) ]
