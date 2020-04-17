@@ -958,7 +958,7 @@ let fns =
     ; parameters = [par "list" TList]
     ; return_type = TOption
     ; description =
-        "Returns {{Just randomValue}}, where {{randomValue}} is a randomly selected value in {{list}}. Returns {{Nothing}} if {{list}} is empty."
+        "Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly selected value in <param list>. Returns {{Nothing}} if <param list> is empty."
     ; func =
         InProcess
           (function
