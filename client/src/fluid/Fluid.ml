@@ -3356,9 +3356,7 @@ let doExplicitInsert
     match (currAstRef, currExpr) with
     (* inserting at the beginning of these expressions wraps the expr in a left
      * partial under certain conditions (see maybeIntoLeftPartial)
-     *
-     * \p{L} is unicode letters, as we don't want symbols or numerics to create
-     * left partials *)
+     * https://www.notion.so/darklang/Allow-Lefthand-Partial-bc10233514cf4f93a564ee4f4fb83ee0 *)
     | ARVariable _, EVariable _
     | ARNull _, ENull _
     | ARBool _, EBool _
@@ -3369,7 +3367,9 @@ let doExplicitInsert
     | ARList (_, LPOpen), EList _
     | ARRecord (_, RPOpen), ERecord _
       when currCaretTarget.offset = 0
-           && Js.Re.test_ [%re "/^\\p{L}+$/u"] extendedGraphemeCluster ->
+           && FluidUtil.isUnicodeLetter extendedGraphemeCluster ->
+        (* only allow unicode letters, as we don't want
+         * symbols or numbers to create left partials *)
         maybeIntoLeftPartial
     | ARString (_, kind), EString (id, str) ->
         let len = String.length str in
