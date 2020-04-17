@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : fn list =
+let fns =
   [ { prefix_names = ["Result::map"]
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]

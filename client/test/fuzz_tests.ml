@@ -60,9 +60,9 @@ let processMsg (inputs : fluidInputEvent list) (s : fluidState) (ast : E.t) :
     E.t * fluidState =
   let h = Fluid_utils.h ast in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
-  List.foldl inputs ~init:(h.ast, s) ~f:(fun input (ast, s) ->
+  List.foldl inputs ~init:(h.ast, s, []) ~f:(fun input (ast, s, _) ->
       updateMsg m h.hTLID ast (FluidInputEvent input) s)
-  |> Tuple2.mapFirst ~f:FluidAST.toExpr
+  |> fun (ast, s, _) -> (FluidAST.toExpr ast, s)
 
 
 (* ------------------ *)

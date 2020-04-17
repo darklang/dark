@@ -290,9 +290,7 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
 
 and handler (h : Types.handler) : Js.Json.t =
   object_
-    [ ("tlid", tlid h.hTLID)
-    ; ("spec", spec h.spec)
-    ; ("ast", h.ast |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
+    [("tlid", tlid h.hTLID); ("spec", spec h.spec); ("ast", fluidAST h.ast)]
 
 
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
@@ -319,8 +317,8 @@ and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("version", int dbm.version)
     ; ("state", dbMigrationState dbm.state)
     ; ("cols", colList dbm.cols)
-    ; ("rollforward", dbm.rollforward |> OldExpr.fromFluidExpr |> expr)
-    ; ("rollback", dbm.rollback |> OldExpr.fromFluidExpr |> expr) ]
+    ; ("rollforward", dbm.rollforward |> fluidExpr)
+    ; ("rollback", dbm.rollback |> fluidExpr) ]
 
 
 and db (db : Types.db) : Js.Json.t =
@@ -385,7 +383,7 @@ and op (call : Types.op) : Js.Json.t =
   | DeleteFunction t ->
       ev "DeleteFunction" [tlid t]
   | SetExpr (t, i, e) ->
-      ev "SetExpr" [tlid t; id i; e |> OldExpr.fromFluidExpr |> expr]
+      ev "SetExpr" [tlid t; id i; e |> fluidExpr]
   | RenameDBname (t, name) ->
       ev "RenameDBname" [tlid t; string name]
   | CreateDBWithBlankOr (t, p, i, name) ->
@@ -527,7 +525,7 @@ and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", uf.ufAST |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
+    ; ("ast", fluidAST uf.ufAST) ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
@@ -698,11 +696,20 @@ and fluidPattern (pattern : FluidPattern.t) : Js.Json.t =
   | FPFloat (id', mid, whole, fraction) ->
       ev "FPFloat" [id id'; id mid; string whole; string fraction]
   | FPString {matchID; patternID; str = v} ->
-      ev "FPString" [id matchID; id patternID; string v]
+      ev
+        "FPString"
+        [ object_
+            [ ("matchID", id matchID)
+            ; ("patternID", id patternID)
+            ; ("str", string v) ] ]
   | FPNull (id', mid) ->
       ev "FPNull" [id id'; id mid]
   | FPBlank (id', mid) ->
       ev "FPBlank" [id id'; id mid]
+
+
+and fluidAST (ast : FluidAST.t) : Js.Json.t =
+  ast |> FluidAST.toExpr |> fluidExpr
 
 
 and fluidExpr (expr : FluidExpression.t) : Js.Json.t =

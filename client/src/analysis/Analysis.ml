@@ -413,6 +413,24 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
       Cmd.none
 
 
+let updateTraces (m : model) (traces : traces) : model =
+  let newTraces =
+    mergeTraces
+      ~onConflict:(fun (oldID, oldData) (newID, newData) ->
+        (* Update if:
+         * - new data is ok (successful fetch)
+         * - old data is an error, so is new data, but different errors
+         * *)
+        if Result.isOk newData
+           || ((not (Result.isOk oldData)) && oldData <> newData)
+        then (newID, newData)
+        else (oldID, oldData))
+      m.traces
+      traces
+  in
+  {m with traces = newTraces}
+
+
 let analyzeFocused (m : model) : model * msg Cmd.t =
   match CursorState.tlidOf m.cursorState with
   | Some tlid ->

@@ -31,6 +31,14 @@ module Result = struct
     match rb with Error _ -> ra | Ok _ -> rb
 
 
+  let orElseLazy (v : unit -> ('a, 'b) t) (v2 : ('a, 'b) t) : ('a, 'b) t =
+    match v2 with Ok v2 -> Ok v2 | Error _ -> v ()
+
+
+  let or_else = orElse
+
+  let or_else_lazy = orElseLazy
+
   let and_ (ra : ('a, 'b) t) (rb : ('a, 'b) t) : ('a, 'b) t =
     match (ra, rb) with
     | Ok a, Ok _ ->
@@ -183,4 +191,9 @@ module StrDict = struct
   let size (dict : 'value t) : int =
     (* Base.Map.length is O(1) per https://ocaml.janestreet.com/ocaml-core/latest/doc/base/Base/Map/ *)
     Base.Map.length dict
+
+
+  (** [contains_key dict ~key] returns whether the given [dict] contains [~key]. *)
+  let contains_key (dict : 'value t) ~(key : string) : bool =
+    Base.Map.mem dict key
 end

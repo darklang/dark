@@ -3,6 +3,7 @@ open Libexecution
 open Runtime
 open Lib
 open Types.RuntimeT
+open Curl_logging
 
 module HttpclientV0 = struct
   module C = Curl
@@ -126,11 +127,13 @@ module HttpclientV0 = struct
           result_headers := List.cons (h, "") !result_headers ;
           String.length h
     in
+    let debug_bufs = new_debug_bufs () in
     let code, error, body =
       try
         let c = C.init () in
         C.set_url c url ;
         C.set_verbose c true ;
+        C.set_debugfunction c (debugfn debug_bufs) ;
         C.set_errorbuffer c errorbuf ;
         C.set_followlocation c true ;
         C.set_failonerror c false ;
@@ -194,8 +197,10 @@ module HttpclientV0 = struct
         in
         let response = (C.get_responsecode c, !errorbuf, responsebody) in
         C.cleanup c ;
+        log_debug_info debug_bufs ;
         response
       with Curl.CurlException (curl_code, code, s) ->
+        log_debug_info debug_bufs ;
         let info =
           [ ("url", url)
           ; ("error", Curl.strerror curl_code)
@@ -363,11 +368,13 @@ module HttpclientV1 = struct
           result_headers := List.cons (h, "") !result_headers ;
           String.length h
     in
+    let debug_bufs = new_debug_bufs () in
     let code, error, body =
       try
         let c = C.init () in
         C.set_url c url ;
         C.set_verbose c true ;
+        C.set_debugfunction c (debugfn debug_bufs) ;
         C.set_errorbuffer c errorbuf ;
         C.set_followlocation c true ;
         C.set_failonerror c false ;
@@ -431,8 +438,10 @@ module HttpclientV1 = struct
         in
         let response = (C.get_responsecode c, !errorbuf, responsebody) in
         C.cleanup c ;
+        log_debug_info debug_bufs ;
         response
       with Curl.CurlException (curl_code, code, s) ->
+        log_debug_info debug_bufs ;
         let info =
           [ ("url", url)
           ; ("error", Curl.strerror curl_code)
@@ -606,11 +615,13 @@ module HttpclientV2 = struct
           result_headers := List.cons (h, "") !result_headers ;
           String.length h
     in
+    let debug_bufs = new_debug_bufs () in
     let code, error, body =
       try
         let c = C.init () in
         C.set_url c url ;
         C.set_verbose c true ;
+        C.set_debugfunction c (debugfn debug_bufs) ;
         C.set_errorbuffer c errorbuf ;
         C.set_followlocation c true ;
         C.set_failonerror c false ;
@@ -674,8 +685,10 @@ module HttpclientV2 = struct
         in
         let response = (C.get_responsecode c, !errorbuf, responsebody) in
         C.cleanup c ;
+        log_debug_info debug_bufs ;
         response
       with Curl.CurlException (curl_code, code, s) ->
+        log_debug_info debug_bufs ;
         let info =
           [ ("url", url)
           ; ("error", Curl.strerror curl_code)
@@ -737,10 +750,10 @@ module LibhttpclientV0 = struct
   let send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : dval -> string)
-      (body : dval)
-      (query : dval)
-      (headers : dval) : dval =
+      (json_fn : 'expr_type dval -> string)
+      (body : 'expr_type dval)
+      (query : 'expr_type dval)
+      (headers : 'expr_type dval) : 'expr_type dval =
     let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
@@ -809,10 +822,10 @@ module LibhttpclientV0 = struct
   let wrapped_send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : dval -> string)
-      (body : dval)
-      (query : dval)
-      (headers : dval) : dval =
+      (json_fn : 'expr_type dval -> string)
+      (body : 'expr_type dval)
+      (query : 'expr_type dval)
+      (headers : 'expr_type dval) : 'expr_type dval =
     Libcommon.Log.inspecT "uri" uri ;
     Libcommon.Log.inspecT "body" body ;
     Libcommon.Log.inspecT "query" query ;
@@ -881,10 +894,10 @@ module LibhttpclientV1 = struct
   let send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : dval -> string)
-      (body : dval)
-      (query : dval)
-      (headers : dval) : dval =
+      (json_fn : 'expr_type dval -> string)
+      (body : 'expr_type dval)
+      (query : 'expr_type dval)
+      (headers : 'expr_type dval) : 'expr_type dval =
     let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
@@ -1011,10 +1024,10 @@ module LibhttpclientV2 = struct
   let send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : dval -> string)
-      (body : dval)
-      (query : dval)
-      (headers : dval) : dval =
+      (json_fn : 'expr_type dval -> string)
+      (body : 'expr_type dval)
+      (query : 'expr_type dval)
+      (headers : 'expr_type dval) : 'expr_type dval =
     let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =

@@ -190,7 +190,7 @@ let find_db (dbs : expr DbT.db list) (name : string) : expr DbT.db =
   |> List.hd_exn
 
 
-let find_derrorrail (dvals : dval list) : dval option =
+let find_derrorrail (dvals : 'expr_type dval list) : 'expr_type dval option =
   List.find dvals ~f:Dval.is_errorrail
 
 
@@ -199,7 +199,8 @@ let should_send_to_rail (expr : nexpr) : bool =
 
 
 let rec execute_dblock
-    ~(state : exec_state) {symtable; body; params} (args : dval list) : dval =
+    ~(state : expr exec_state) {symtable; body; params} (args : expr dval list)
+    : expr dval =
   (* If one of the args is fake value used as a marker, return it instead of
    * executing. This is the same behaviour as in fn calls. *)
   let first_marker = List.find args ~f:Dval.is_fake_marker_dval in
@@ -232,7 +233,8 @@ let rec execute_dblock
         exec ~state new_st body
 
 
-and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
+and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
+    expr dval =
   (* Design doc for execution results and previews: https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e *)
   let on_execution_path = state.on_execution_path in
   let ctx = state.context in
@@ -260,8 +262,8 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
    * this a functional language with functions-as-values and application
    * as a first-class concept sooner rather than later.
    *)
-  let inject_param_and_execute (st : symtable) (arg : dval) (exp : expr) : dval
-      =
+  let inject_param_and_execute
+      (st : expr symtable) (arg : expr dval) (exp : expr) : expr dval =
     let result =
       match exp with
       | Filled (id, Lambda _) ->
@@ -467,9 +469,9 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         let hasMatched = ref false in
         let matchResult = ref (DIncomplete (sourceId id)) in
         let executeMatch
-            (new_defs : (string * dval) list)
-            (traces : (id * dval) list)
-            (st : dval_map)
+            (new_defs : (string * 'expr_type dval) list)
+            (traces : (id * 'expr_type dval) list)
+            (st : 'expr_type dval_map)
             (expr : expr) : unit =
           (* Once a pattern is matched, this function is called to execute its
            * `expr`. It tracks whether this is the first pattern to execute,
@@ -495,17 +497,17 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               trace ~on_execution_path:false id (incomplete id))
         in
         let traceNonMatch
-            (st : dval_map)
+            (st : 'expr_type dval_map)
             (expr : expr)
-            (traces : (id * dval) list)
+            (traces : (id * 'expr_type dval) list)
             (id : id)
-            (value : dval) : unit =
+            (value : 'expr_type dval) : unit =
           preview st expr ;
           traceIncompletes traces ;
           trace ~on_execution_path:false id value
         in
         let rec matchAndExecute
-            dv (builtUpTraces : (id * dval) list) (pattern, expr) =
+            dv (builtUpTraces : (id * 'expr_type dval) list) (pattern, expr) =
           (* Compare `dv` to `pattern`, and execute the rhs `expr` of any
            * matches. Tracks whether a branch has already been executed and
            * will exceute later matches in preview mode.  Ensures all patterns
@@ -601,11 +603,11 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
 (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv *)
 (* |> Sexp.to_string) *)
 and call_fn
-    ~(state : exec_state)
+    ~(state : 'expr_type exec_state)
     (name : string)
     (id : id)
-    (argvals : dval list)
-    (send_to_rail : bool) : dval =
+    (argvals : 'expr_type dval list)
+    (send_to_rail : bool) : 'expr_type dval =
   let sourceId id = SourceId (state.tlid, id) in
   let fn =
     Libs.get_fn state.user_fns name
@@ -702,11 +704,11 @@ and call_fn
 
 
 and exec_fn
-    ~(state : exec_state)
+    ~(state : 'expr_type exec_state)
     (fnname : string)
     (id : id)
-    (fn : fn)
-    (args : dval_map) : dval =
+    (fn : 'expr_type fn)
+    (args : 'expr_type dval_map) : 'expr_type dval =
   let state = {state with executing_fnname = fnname} in
   let sourceId id = SourceId (state.tlid, id) in
   let arglist =
@@ -845,12 +847,16 @@ and exec_fn
 (* Execution *)
 (* -------------------- *)
 
-let execute_ast ~(state : exec_state) ~input_vars expr : dval =
+let execute_ast ~(state : 'expr_type exec_state) ~input_vars expr :
+    'expr_type dval =
   let state = {state with exec} in
   exec ~state (input_vars2symtable input_vars) expr
 
 
 let execute_fn
-    ~(state : exec_state) (name : string) (id : id) (args : dval list) : dval =
+    ~(state : 'expr_type exec_state)
+    (name : string)
+    (id : id)
+    (args : 'expr_type dval list) : 'expr_type dval =
   let state = {state with exec} in
   call_fn name id args false ~state

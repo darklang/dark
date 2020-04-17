@@ -36,8 +36,8 @@ let t_test_filter_slash () =
   let host = "test-test_filter_slash" in
   let route = "/:rest" in
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ~route ())] in
-  let c = ops2c_exn host oplist in
-  Canvas.serialize_only [tlid] !c ;
+  let c = ops2c_exn host oplist |> C.to_fluid_ref in
+  Canvas.serialize_only [tlid] (C.of_fluid !c) ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", "/", "GET") in
   let at_trace_id = AT.of_pp Uuidm.pp_string in
@@ -202,7 +202,7 @@ let t_match_evaluation () =
   let check_match
       (msg : string)
       (arg : E.t)
-      (expected : (id * string * execution_result) list) =
+      (expected : (id * string * expr execution_result) list) =
     let ast = astFor arg in
     Log.inspecT "ast" ~f:E.show ast ;
     let dvalStore = exec_save_dvals' ast in

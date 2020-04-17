@@ -29,17 +29,19 @@ let t_dval_yojson_roundtrips () =
       , Dval.to_internal_roundtrippable_v0
       , Dval.of_internal_roundtrippable_v0 )
     ; ( "safe"
-      , (fun v -> v |> dval_to_yojson |> Yojson.Safe.to_string)
+      , (fun v -> v |> dval_to_yojson expr_to_yojson |> Yojson.Safe.to_string)
       , fun v ->
           v
           |> Yojson.Safe.from_string
-          |> dval_of_yojson
+          |> dval_of_yojson expr_of_yojson
           |> Result.ok_or_failwith ) ]
   in
-  let check name (v : dval) =
+  let check name (v : expr dval) =
     List.iter
       checks
-      ~f:(fun (test_name, (encode : dval -> string), (decode : string -> dval))
+      ~f:(fun ( test_name
+              , (encode : expr dval -> string)
+              , (decode : string -> expr dval) )
               ->
         check_dval (test_name ^ ": " ^ name) v (v |> encode |> decode) ;
         AT.check
@@ -66,7 +68,7 @@ let t_dval_user_db_json_roundtrips () =
     |> Dval.to_internal_queryable_v1
     |> Dval.of_internal_queryable_v1
   in
-  let check name (v : dval) =
+  let check name (v : expr dval) =
     check_dval ("queryable: " ^ name) v (queryable_rt v) ;
     ()
   in
@@ -92,7 +94,7 @@ let t_dval_user_db_v1_migration () =
     |> Dval.to_internal_queryable_v1
     |> Dval.of_internal_queryable_v0
   in
-  let check name (v : dval) =
+  let check name (v : expr dval) =
     check_dval ("forward: " ^ name) v (forward v) ;
     check_dval ("backwards: " ^ name) v (backwards v) ;
     ()

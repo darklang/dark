@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns =
+let fns : expr fn list =
   [ { prefix_names = ["Object::empty"]
     ; infix_names = []
     ; parameters = []

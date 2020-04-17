@@ -439,8 +439,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = Page.tlidOf page
             ; timestamp = Js.Date.now () /. 1000.0 }
           in
+          let m, afCmd = Page.updatePossibleTrace m page in
           let cap = Page.capMinimap m.currentPage page in
-          let cmds = Cmd.batch (API.sendPresence m avMessage :: cap) in
+          let cmds =
+            Cmd.batch ((API.sendPresence m avMessage :: cap) @ [afCmd])
+          in
           (Page.setPage m m.currentPage page, cmds)
         else
           (Page.setPage m m.currentPage Architecture, Url.updateUrl Architecture)
@@ -466,10 +469,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               let maybeNewFluidState =
                 match Fluid.astAndStateFromTLID m tlid with
                 | Some (ast, state) ->
+                    let tokens = Fluid.tokensForActiveEditor ast state in
                     Some
                       (Fluid.setPosition
                          state
-                         (Fluid.posFromCaretTarget ast state caretTarget))
+                         (Fluid.posFromCaretTarget tokens state caretTarget))
                 | None ->
                     None
               in
@@ -639,21 +643,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m = {m with workerSchedules = schedules} in
         (m, Cmd.none)
     | UpdateTraces traces ->
-        let newTraces =
-          Analysis.mergeTraces
-            ~onConflict:(fun (oldID, oldData) (newID, newData) ->
-              (* Update if:
-               * - new data is ok (successful fetch)
-               * - old data is an error, so is new data, but different errors
-               * *)
-              if Result.isOk newData
-                 || ((not (Result.isOk oldData)) && oldData <> newData)
-              then (newID, newData)
-              else (oldID, oldData))
-            m.traces
-            traces
-        in
-        let m = {m with traces = newTraces} in
+        let m = Analysis.updateTraces m traces in
         let m, afCmd = Analysis.analyzeFocused m in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd])
@@ -816,7 +806,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetTLTraceID (tlid, traceID) ->
         let m = Analysis.setSelectedTraceID m tlid traceID in
         let m, afCmd = Analysis.analyzeFocused m in
-        (m, afCmd)
+        let newPage = Page.setPageTraceID m.currentPage traceID in
+        let m = Page.setPage m m.currentPage newPage in
+        let navCmd = Url.navigateTo newPage in
+        let commands = [afCmd; navCmd] in
+        (m, Cmd.batch commands)
     | DragTL (tlid, offset, hasMoved, state) ->
         (* Because mouseEvents are not perfectly reliable, we can end up in
          * weird dragging states. If we start dragging, make sure the state
@@ -1046,7 +1040,7 @@ let update_ (msg : msg) (m : model) : modification =
   | WindowMouseUp event | AppMouseUp event ->
       let clickBehavior =
         match m.currentPage with
-        | FocusedFn tlid | FocusedType tlid ->
+        | FocusedFn (tlid, _) | FocusedType tlid ->
             (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
             let defaultBehaviour = Select (tlid, STTopLevelRoot) in
             ( match CursorState.unwrap m.cursorState with

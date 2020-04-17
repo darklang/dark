@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : fn list =
+let fns : expr fn list =
   [ { prefix_names = ["Bytes::base64Encode"]
     ; infix_names = []
     ; parameters = [par "bytes" TBytes]
