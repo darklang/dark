@@ -82,10 +82,10 @@ let respond_or_redirect (params : response_or_redirect_params) =
       S.respond_redirect ?headers ~uri ()
   | Respond {resp_headers; execution_id; status; body} ->
       let resp_headers =
-        Header.add
+        Header.add_list
           resp_headers
-          "X-Darklang-Execution-ID"
-          (Types.string_of_id execution_id)
+          [ ("x-darklang-execution-id", Types.string_of_id execution_id)
+          ; ("x-darklang-buildhash", Config.build_hash) ]
       in
       (* add Content-Length if missing, e.g. when function is called directly
        * and not from `respond_or_redirect_empty_body`
