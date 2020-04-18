@@ -29,8 +29,8 @@ let defaultTraceIDForTL ~(tlid : TLID.t) =
 
 let getTraces (m : model) (tlid : TLID.t) : trace list =
   StrDict.get ~key:(TLID.toString tlid) m.traces
-  |> Option.withDefault
-       ~default:[(defaultTraceIDForTL ~tlid, Result.fail NoneYet)]
+  |> Option.withDefaultLazy ~default:(fun () ->
+         [(defaultTraceIDForTL ~tlid, Result.fail NoneYet)])
 
 
 let getTrace (m : model) (tlid : TLID.t) (traceID : traceID) : trace option =
