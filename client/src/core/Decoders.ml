@@ -189,18 +189,6 @@ let traceID j : traceID = wireIdentifier j
 
 let jsDate j : Js.Date.t = Js.Date.fromString (string j)
 
-let rec pattern j : OldExpr.pattern = blankOr nPattern j
-
-and nPattern j : OldExpr.nPattern =
-  variants
-    [ ("PVariable", variant1 (fun a -> OldExpr.PVariable a) string)
-    ; ("PLiteral", variant1 (fun a -> OldExpr.PLiteral a) string)
-    ; ( "PConstructor"
-      , variant2 (fun a b -> OldExpr.PConstructor (a, b)) string (list pattern)
-      ) ]
-    j
-
-
 let sendToRail j =
   let dv0 = variant0 in
   variants
