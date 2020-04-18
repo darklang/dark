@@ -1022,10 +1022,7 @@ let upload_function
     time "1-read-api" (fun _ -> Api.to_upload_function_rpc_params body)
   in
   let t2, result =
-    time "2-save" (fun _ ->
-        Package_manager.save
-          username
-          (Libexecution.Toplevel.user_fn_of_fluid params.fn))
+    time "2-save" (fun _ -> Package_manager.save username params.fn)
   in
   let t3, (response_code, response) =
     time "3-to-frontend" (fun _ ->
