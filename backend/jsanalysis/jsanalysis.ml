@@ -64,7 +64,7 @@ let convert_db (db : our_db) : fluid_expr DbT.db =
 type handler_analysis_param =
   { handler : fluid_expr HandlerT.handler
   ; trace_id : Analysis_types.traceid
-  ; trace_data : expr Analysis_types.trace_data
+  ; trace_data : fluid_expr Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : fluid_expr user_fn list
@@ -74,7 +74,7 @@ type handler_analysis_param =
 type function_analysis_param =
   { func : fluid_expr user_fn
   ; trace_id : Analysis_types.traceid
-  ; trace_data : expr Analysis_types.trace_data
+  ; trace_data : fluid_expr Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : fluid_expr user_fn list
@@ -111,11 +111,17 @@ let perform_analysis
     ~(user_fns : fluid_expr user_fn list)
     ~(user_tipes : user_tipe list)
     ~(trace_id : RuntimeT.uuid)
-    ~(trace_data : expr Analysis_types.trace_data)
+    ~(trace_data : fluid_expr Analysis_types.trace_data)
     ast =
   let dbs : fluid_expr DbT.db list = List.map ~f:convert_db dbs in
   let execution_id = Types.id_of_int 1 in
-  let input_vars = trace_data.input |> List.map ~f:(fun (a, b) -> (a, b)) in
+  let input_vars =
+    trace_data.input |> List.map ~f:(fun (a, b) -> (a, Fluid.dval_of_fluid b))
+  in
+  let function_results =
+    List.map trace_data.function_results ~f:(fun (a, b, c, d, e) ->
+        (a, b, c, d, Fluid.dval_of_fluid e))
+  in
   Log.add_log_annotations
     [ ("execution_id", `String (Types.string_of_id execution_id))
     ; ("tlid", `String (Types.string_of_id tlid)) ]
@@ -132,7 +138,7 @@ let perform_analysis
           ~user_fns:(List.map ~f:Toplevel.user_fn_of_fluid user_fns)
           ~user_tipes
           ~package_fns:[]
-          ~load_fn_result:(load_from_trace trace_data.function_results)
+          ~load_fn_result:(load_from_trace function_results)
           ~load_fn_arguments:Execution.load_no_arguments
         |> Hashtbl.map ~f:Fluid.execution_result_to_fluid )
       |> analysis_envelope_to_yojson
