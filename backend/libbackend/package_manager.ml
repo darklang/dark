@@ -29,7 +29,7 @@ type fn =
   ; module_ : string [@key "module"]
   ; fnname : string
   ; version : int
-  ; body : RuntimeT.expr
+  ; body : Types.fluid_expr
   ; parameters : parameter list
   ; return_type : RuntimeT.tipe
   ; description : string
@@ -222,7 +222,7 @@ let add_function (fn : fn) : unit =
           ; Db.String fn.fnname
           ; Db.Int version
           ; Db.String fn.description
-          ; Db.Binary (expr_to_string fn.tlid fn.body)
+          ; Db.Binary (expr_to_string fn.tlid (Fluid.fromFluidExpr fn.body))
           ; Db.String (Dval.tipe_to_string fn.return_type)
           ; Db.String
               (fn.parameters |> parameters_to_yojson |> Yojson.Safe.to_string)
@@ -252,7 +252,7 @@ let add_function (fn : fn) : unit =
         ~result:TextResult)
 
 
-let save (author : string) (fn : RuntimeT.expr RuntimeT.user_fn) :
+let save (author : string) (fn : Types.fluid_expr RuntimeT.user_fn) :
     (unit, string) Result.t =
   (* First let's be very sure we have a correct function *)
   let metadata =
@@ -346,7 +346,7 @@ let all_functions () : fn list =
                      ; version = Int.of_string version
                      ; body =
                          (* placeholder, it gets overwritten in the next query *)
-                         Blank (Int63.of_int 5)
+                         EBlank (Int63.of_int 5)
                      ; return_type = Dval.tipe_of_string return_type
                      ; parameters =
                          parameters
@@ -372,7 +372,7 @@ let all_functions () : fn list =
            | [user_id; package; module_; fnname; version; body] ->
              ( try
                  let body = string_to_expr body in
-                 Some (string_of_id body.tlid, body.expr)
+                 Some (string_of_id body.tlid, Fluid.toFluidExpr body.expr)
                with _ ->
                  let fnkey =
                    Printf.sprintf
@@ -421,7 +421,7 @@ let runtime_fn_of_package_fn (fn : fn) : RuntimeT.expr RuntimeT.fn =
     ; parameters = fn.parameters |> List.map ~f:runtime_param_of_parameter
     ; return_type = fn.return_type
     ; description = fn.description
-    ; func = PackageFunction fn.body
+    ; func = PackageFunction (Fluid.fromFluidExpr fn.body)
     ; preview_safety = Unsafe
     ; deprecated = fn.deprecated }
     : RuntimeT.expr RuntimeT.fn )
