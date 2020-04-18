@@ -4946,7 +4946,7 @@ let expressionRange (ast : FluidAST.t) (s : fluidState) (exprID : ID.t) :
     |> Tuple2.mapAll ~f:(function
            | Some exprTok ->
                List.find containingTokens ~f:(fun tk ->
-                   exprTok.token = tk.token)
+              T.matches exprTok.token tk.token)
            | _ ->
                None)
   in
@@ -5307,7 +5307,7 @@ let reconstructExprFromRange
                      ; index
                      ; fieldName = newKey
                      ; exprID = _
-                     ; parentID = Some id }
+                     ; parentID = _ }
                    when recordID = id (* watch out for nested records *) ->
                      List.getAt ~index entries
                      |> Option.map
