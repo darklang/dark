@@ -2,10 +2,10 @@ open Prelude
 
 (* Dark *)
 module B = BlankOr
-module P = Pointer
 module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
+module P = FluidPattern
 
 let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)
@@ -62,7 +62,7 @@ type wrapLoc =
 
 let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : ID.t) : modification =
   let replacement e : FluidExpression.t =
-    let newBlankPattern mid = OldExpr.toFluidPattern mid (Blank (gid ())) in
+    let newBlankPattern mid = P.FPBlank (mid, gid ()) in
     match wl with
     | WLetRHS ->
         ELet (gid (), "", e, E.newB ())
