@@ -185,14 +185,14 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
           in
           ( match name with
           | None ->
-              toTokens' ~parentID:(Some fnID) e b
+              toTokens' e b
           | Some placeholder ->
               add
                 (TPlaceholder
                    {blankID = id; parentID = Some fnID; placeholder; fnID})
                 b )
       | _ ->
-          toTokens' ~parentID e b
+          toTokens' e b
     in
     b |> indentBy ~indent ~f:(addNested ~f:tokensFn)
   in
@@ -237,7 +237,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
              |> nest ~indent:2 ~placeholderFor:(Some (id, name, offset + i)) e
            else
              b
-             |> add (TSep (E.toID e, Some id))
+             |> add (TSep (E.toID e, None))
              |> nest ~indent:0 ~placeholderFor:(Some (id, name, offset + i)) e)
   in
   match e with
@@ -415,7 +415,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
              |> addIf isOverLimit (TNewline None)
              |> indentBy ~indent ~f:(fun b' ->
                     b'
-                    |> addNested ~f:(toTokens' e)
+                    |> addNested ~f:(toTokens' ~parentID:(Some id) e)
                     |> addIf (i <> lastIndex) (TListComma (id, i))))
       |> add (TListClose id)
   | ERecord (id, fields) ->

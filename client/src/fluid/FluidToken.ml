@@ -69,7 +69,7 @@ let tid (t : t) : ID.t =
   | TParenClose id
   | TFlagWhenKeyword id
   | TFlagEnabledKeyword id
-  | TNewline (Some (id, _, _)) ->
+  | TNewline (Some (_, id, _)) ->
       id
   | TNewline None | TIndent _ ->
       fakeid
@@ -104,8 +104,6 @@ let parentID (t : t) : ID.t option =
   | TListComma (id, _)
   | TRecordOpen id
   | TRecordSep (id, _, _)
-  | TFnName (id, _, _, _, _)
-  | TFnVersion (id, _, _, _)
   | TRecordClose id ->
       Some id
   | TBlank (_, pid)
@@ -142,6 +140,8 @@ let parentID (t : t) : ID.t option =
       d.parentID
   | TNewline (Some (_, id, _)) ->
       Some id
+  | TFnName _
+  | TFnVersion _
   | TMatchKeyword _
   | TMatchBranchArrow _
   | TPatternVariable _
@@ -749,6 +749,73 @@ let toCategoryName (t : t) : string =
   | TFlagWhenKeyword _ | TFlagEnabledKeyword _ ->
       "flag"
 
+let toValue (t: t) : string =
+    match t with
+    | TInteger ( _ , v , _)
+    | TString ( _ , v , _)
+    | TStringMLStart ( _ , v , _ , _)
+    | TStringMLMiddle (_, v , _ , _)
+    | TStringMLEnd ( _ , v , _ , _)
+    | TFloatWhole ( _ , v , _)
+    | TFloatFractional ( _ , v , _)
+    | TPartial ( _ , v , _)
+    | TRightPartial ( _ , v , _)
+    | TPartialGhost ( _ , v , _)
+    | TLetVarName ( _ , _ , v , _)
+    | TBinOp ( _ , v , _)
+    | TFieldName (  _ , _ , v , _)
+    | TFieldPartial ( _ , _  , _ , v , _)
+    | TVariable ( _ , v , _)
+    | TFnName ( _ , v  , _ , _ , _)
+    | TFnVersion ( _ , _ , v , _)
+    | TLambdaVar ( _ , _ , _ , v , _)
+    | TPatternVariable ( _ , _ , v , _)
+    | TPatternConstructorName ( _ , _ , v , _)
+    | TPatternInteger ( _ , _ , v , _)
+    | TPatternFloatWhole ( _ , _ , v , _)
+    | TPatternFloatFractional ( _ , _ , v , _)
+    | TConstructorName ( _ , v) -> v
+
+    | TPatternString r -> r.str
+    | TRecordFieldname r -> r.fieldName
+  
+    | TRecordSep _ 
+    | TRecordClose  _
+    | TMatchKeyword _
+    | TMatchBranchArrow _
+    | TLetAssignment _
+    | TIfKeyword _
+    | TIfThenKeyword  _
+    | TIfElseKeyword _
+    | TFieldOp _
+    | TLambdaComma _
+    | TLambdaArrow _
+    | TLambdaSymbol _
+    | TRecordOpen _
+    | TListOpen _
+    | TListClose _
+    | TListComma _
+    | TPipe _
+    | TIndent _
+    | TLetKeyword _
+    | TFloatPoint _
+    | TSep _
+    | TPatternFloatPoint _
+    | TPatternBlank _
+    | TBlank _
+    | TPlaceholder _
+    | TParenOpen _
+    | TParenClose _
+    | TFlagWhenKeyword _
+    | TNewline _ 
+    | TFlagEnabledKeyword _
+  
+    | TPatternTrue _ -> "ptrue"
+    | TPatternFalse _ -> "pfalse"
+    | TPatternNullToken _ -> "pnull"
+    | TTrue _ -> "true"
+    | TFalse _ -> "false"
+    | TNullToken _ -> "null"
 
 let toDebugInfo (t : t) : string =
   match t with
@@ -820,4 +887,5 @@ let matches (t1 : t) (t2 : t) : bool =
   tid t1 = tid t2
   && toTypeName t1 = toTypeName t2
   && toIndex t1 = toIndex t2
+  && toValue t1 = toValue t2
   && t1 <> (* Matches too many things *) TNewline None
