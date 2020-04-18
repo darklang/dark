@@ -355,6 +355,35 @@ let fns : expr fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::slugify_v1"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr]
+    ; return_type = TStr
+    ; description = "Turns a string into a slug"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              let replace = Unicode_string.regexp_replace in
+              let to_remove = "[^\\w\\s_-]" in
+              let trim = "^\\s+|\\s+$" in
+              let newspaces = "[-_\\s]+" in
+              s
+              |> replace
+                   ~pattern:to_remove
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> replace
+                   ~pattern:trim
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> replace
+                   ~pattern:newspaces
+                   ~replacement:(Unicode_string.of_string_exn "-")
+              |> Unicode_string.lowercase
+              |> fun s -> DStr s
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::reverse"]
     ; infix_names = []
