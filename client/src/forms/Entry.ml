@@ -174,7 +174,16 @@ let setFluidSelectionRange (beginIdx : int) (endIdx : int) : unit =
            Element.childNodes editor
            |> NodeList.toArray
            |> Array.find ~f:(fun child ->
-                  let nodeLen = child |> Node.textContent |> String.length in
+                  let nodeLen =
+                    child
+                    (* First child is the text node of the span we use in the
+                     * editor. Nodes can also have a dropdown which we want to
+                     * avoid in our calculations. *)
+                    |> Node.firstChild
+                    |> Option.map ~f:Node.textContent
+                    |> Option.map ~f:String.length
+                    |> Option.withDefault ~default:0
+                  in
                   if !offset <= nodeLen
                   then true
                   else (
