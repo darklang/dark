@@ -838,26 +838,9 @@ let viewSidebar_ (m : model) : msg Html.html =
   let showAdminDebugger =
     if (not isDetailed) && m.isAdmin then adminDebuggerView m else Vdom.noNode
   in
-  let status =
-    match Error.asOption m.error with
-    | Some _ when m.isAdmin ->
-        Html.div
-          [Html.classList [("error-status error", true); ("opened", true)]]
-          [ Html.a
-              [ Html.class' "link"
-              ; Html.href "#"
-              ; ViewUtils.eventNoPropagation
-                  ~key:(string_of_bool true)
-                  "mouseup"
-                  (fun _ -> DismissErrorBar) ]
-              [Html.text "Hide details"] ]
-    | _ ->
-        Html.noNode
-  in
   let content =
     let categories =
-      List.map ~f:(viewCategory m) cats
-      @ [viewDeployStats m; showAdminDebugger; status]
+      List.map ~f:(viewCategory m) cats @ [viewDeployStats m; showAdminDebugger]
     in
     Html.div
       [ Html.classList
@@ -903,7 +886,6 @@ let rtCacheKey m =
   , CursorState.tlidOf m.cursorState
   , m.environment
   , m.editorSettings
-  , m.error
   , m.permission
   , m.currentPage )
   |> Option.some
