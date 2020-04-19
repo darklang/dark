@@ -169,10 +169,10 @@ let setFluidSelectionRange (beginIdx : int) (endIdx : int) : unit =
          let maxChars = editor |> Element.textContent |> String.length in
          let anchorBound = beginIdx |> clamp 0 maxChars in
          let focusBound = endIdx |> clamp 0 maxChars in
+         let childNodes = Element.childNodes editor |> NodeList.toArray in
          let findNodeAndOffset (bound : int) : Node.t option * int =
            let offset = ref bound in
-           Element.childNodes editor
-           |> NodeList.toArray
+           childNodes
            |> Array.find ~f:(fun child ->
                   let nodeLen =
                     child
