@@ -1505,12 +1505,7 @@ and fluidToken =
       * parentBlockID option
   | TVariable of ID.t * string * parentBlockID option
   (* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
-  | TFnName of
-      ID.t
-      * string
-      * string
-      * string
-      * FluidExpression.sendToRail
+  | TFnName of ID.t * string * string * string * FluidExpression.sendToRail
   (* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
   | TFnVersion of ID.t * string * string * string
   | TLambdaComma of ID.t * int * parentBlockID option
@@ -1522,7 +1517,7 @@ and fluidToken =
   | TListComma of ID.t * int
   (* 2nd int is the number of pipe segments there are *)
   | TPipe of ID.t * int * int * parentBlockID option
-  | TRecordOpen of ID.t
+  | TRecordOpen of ID.t * parentBlockID option
   | TRecordFieldname of
       { recordID : ID.t
       ; exprID : ID.t
@@ -1530,7 +1525,7 @@ and fluidToken =
       ; index : int
       ; fieldName : string }
   | TRecordSep of ID.t * int * analysisID
-  | TRecordClose of ID.t
+  | TRecordClose of ID.t * parentBlockID option
   | TMatchKeyword of ID.t
   | TMatchBranchArrow of
       { matchID : ID.t

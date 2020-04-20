@@ -420,10 +420,11 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
       |> add (TListClose id)
   | ERecord (id, fields) ->
       if fields = []
-      then b |> addMany [TRecordOpen id; TRecordClose id]
+      then b |> addMany [TRecordOpen (id, None); TRecordClose (id, None)]
       else
+        let parentBlockID = Some id in
         b
-        |> add (TRecordOpen id)
+        |> add (TRecordOpen (id, parentBlockID))
         |> indentBy ~indent:2 ~f:(fun b ->
                addIter fields b ~f:(fun i (fieldName, expr) b ->
                    let exprID = E.toID expr in
@@ -435,12 +436,12 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
                            ; exprID
                            ; index = i
                            ; fieldName
-                           ; parentBlockID = Some id })
+                           ; parentBlockID })
                    |> add (TRecordSep (id, i, exprID))
                    |> addNested ~f:(toTokens' ~parentID:(Some id) expr)))
         |> addMany
              [ TNewline (Some (id, id, Some (List.length fields)))
-             ; TRecordClose id ]
+             ; TRecordClose (id, parentBlockID) ]
   | EPipe (id, exprs) ->
       let length = List.length exprs in
       ( match exprs with

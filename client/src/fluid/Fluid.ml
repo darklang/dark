@@ -775,8 +775,8 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
     | ARPartial id, TFieldPartial (id', _, _, _, _)
     | ARRightPartial id, TRightPartial (id', _, _)
     | ARLeftPartial id, TLeftPartial (id', _)
-    | ARRecord (id, RPOpen), TRecordOpen id'
-    | ARRecord (id, RPClose), TRecordClose id'
+    | ARRecord (id, RPOpen), TRecordOpen (id', _)
+    | ARRecord (id, RPClose), TRecordClose (id', _)
     | ARVariable id, TVariable (id', _, _)
     | ARLambda (id, LBPSymbol), TLambdaSymbol (id', _)
     | ARLambda (id, LBPArrow), TLambdaArrow (id', _)
@@ -1050,13 +1050,13 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARList (id, LPComma idx); offset}
   | TPipe (id, idx, _, _) ->
       Some {astRef = ARPipe (id, idx); offset}
-  | TRecordOpen id ->
+  | TRecordOpen (id, _) ->
       Some {astRef = ARRecord (id, RPOpen); offset}
   | TRecordFieldname {recordID = id; index = idx; _} ->
       Some {astRef = ARRecord (id, RPFieldname idx); offset}
   | TRecordSep (id, idx, _) ->
       Some {astRef = ARRecord (id, RPFieldSep idx); offset}
-  | TRecordClose id ->
+  | TRecordClose (id, _) ->
       Some {astRef = ARRecord (id, RPClose); offset}
   | TMatchKeyword id ->
       Some {astRef = ARMatch (id, MPKeyword); offset}
@@ -4482,7 +4482,7 @@ let rec updateKey
         let tokens = tokensForActiveEditor newAST s in
         (newAST, moveToCaretTarget tokens s target)
     (* Typing between empty record symbols {} *)
-    | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+    | InsertText txt, L (TRecordOpen (id, _), _), R (TRecordClose _, _) ->
         (* Adds new initial record row with the typed
          * value as the fieldname (if value entered is valid),
          * then move caret to end of fieldname *)
@@ -4521,7 +4521,7 @@ let rec updateKey
     (*
      * Caret to right of record open {
      * Add new initial record row and move caret to it. *)
-    | Keypress {key = K.Enter; _}, L (TRecordOpen id, _), _ ->
+    | Keypress {key = K.Enter; _}, L (TRecordOpen (id, _), _), _ ->
         let ast = addRecordRowAt 0 id ast in
         let tokens = tokensForActiveEditor ast s in
         let s = moveToAstRef tokens s (ARRecord (id, RPFieldname 0)) in
@@ -4529,7 +4529,7 @@ let rec updateKey
     (*
      * Caret to left of record close }
      * Add new final record but leave caret to left of } *)
-    | Keypress {key = K.Enter; _}, _, R (TRecordClose id, _) ->
+    | Keypress {key = K.Enter; _}, _, R (TRecordClose (id, _), _) ->
         let s = recordAction "addRecordRowToBack" s in
         let ast = addRecordRowToBack id ast in
         let tokens = tokensForActiveEditor ast s in
