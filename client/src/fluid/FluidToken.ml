@@ -94,7 +94,7 @@ let parentExprID (t : t) : ID.t =
   match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
 
 
-let parentID (t : t) : ID.t option =
+let parentBlockID (t : t) : ID.t option =
   match t with
   | TStringMLStart (id, _, _, _)
   | TStringMLMiddle (id, _, _, _)
@@ -137,7 +137,7 @@ let parentID (t : t) : ID.t option =
   | TSep (_, pid) ->
       pid
   | TRecordFieldname d ->
-      d.parentID
+      d.parentBlockID
   | TNewline (Some (_, id, _)) ->
       Some id
   | TFnName _

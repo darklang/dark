@@ -5307,7 +5307,7 @@ let reconstructExprFromRange
                      ; index
                      ; fieldName = newKey
                      ; exprID = _
-                     ; parentID = _ }
+                     ; parentBlockID = _ }
                    when recordID = id (* watch out for nested records *) ->
                      List.getAt ~index entries
                      |> Option.map
