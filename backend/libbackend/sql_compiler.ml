@@ -292,7 +292,8 @@ let rec lambda_to_sql
   | Filled (_, FnCall ("!=", [Filled (_, Value "null"); e]))
   | Filled (_, FnCall ("!=", [e; Filled (_, Value "null")])) ->
       "(" ^ lts TNull e ^ " is not null)"
-  | Filled (_, FnCall ("String::isSubstring_v1", [lookingIn; searchingFor])) ->
+  | Filled (_, FnCall ("String::isSubstring_v1", [lookingIn; searchingFor]))
+  | Filled (_, FnCall ("String::contains", [lookingIn; searchingFor])) ->
       (* strpos returns indexed from 1; 0 means missing *)
       "(strpos(" ^ lts TStr lookingIn ^ ", " ^ lts TStr searchingFor ^ ") > 0)"
   | Filled (_, FnCall (op, [l; r])) ->
