@@ -12,7 +12,7 @@ module PReq = Parsed_request
 
 module Symtable = DvalMap
 
-type 'expr_type symtable = 'expr_type dval_map
+type 'expr_type symtable = 'expr_type dval_map [@@deriving show]
 
 let input_vars2symtable vars = Symtable.from_list vars
 
