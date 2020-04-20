@@ -46,8 +46,8 @@ let tid (t : t) : ID.t =
   | TListClose id
   | TListComma (id, _)
   | TPipe (id, _, _, _)
-  | TRecordOpen id
-  | TRecordClose id
+  | TRecordOpen (id, _)
+  | TRecordClose (id, _)
   | TRecordFieldname {recordID = id; _}
   | TRecordSep (id, _, _)
   | TConstructorName (id, _)
@@ -102,10 +102,10 @@ let parentBlockID (t : t) : ID.t option =
   | TListOpen id
   | TListClose id
   | TListComma (id, _)
-  | TRecordOpen id
-  | TRecordSep (id, _, _)
-  | TRecordClose id ->
+  | TRecordSep (id, _, _) ->
       Some id
+  | TRecordOpen (_, pid)
+  | TRecordClose (_, pid)
   | TBlank (_, pid)
   | TInteger (_, _, pid)
   | TString (_, _, pid)
