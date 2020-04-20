@@ -200,7 +200,7 @@ let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
   getToken' (tokensForActiveEditor ast s) s
 
 
-(* TODO(alice) add comment on how this is different from getToken  *)
+(* This is slightly different from getToken. Here we simply want the token closest to the caret is is a not newline nor sep. It is used for figuring out where you caret is to determine certain rendering behavior should be applicable *)
 let tokenAtCaret (tokens : T.tokenInfo list) (s : fluidState) :
     T.tokenInfo option =
   (* let tokens = tokensForActiveEditor ast s in *)
@@ -833,8 +833,8 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
     (*
      * Function calls
      *)
-    | ARFnCall id, TFnName (id', partialName, displayName, _, _)
-      when id = id' ->
+    | ARFnCall id, TFnName (id', partialName, displayName, _, _) when id = id'
+      ->
         let dispLen = String.length displayName in
         if ct.offset > dispLen && String.length partialName > dispLen
         then (* A version token exists and we must be there instead *)
@@ -4946,7 +4946,7 @@ let expressionRange (ast : FluidAST.t) (s : fluidState) (exprID : ID.t) :
     |> Tuple2.mapAll ~f:(function
            | Some exprTok ->
                List.find containingTokens ~f:(fun tk ->
-              T.matches exprTok.token tk.token)
+                   T.matches exprTok.token tk.token)
            | _ ->
                None)
   in
