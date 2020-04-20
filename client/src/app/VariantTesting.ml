@@ -18,6 +18,8 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some NgrokVariant
     | "force-welcome-modal" ->
         Some ForceWelcomeModalVariant
+    | "lpartial" ->
+        Some LeftPartialVariant
     | "exe" ->
         Some ExeCodeVariant
     | _ ->
@@ -35,6 +37,8 @@ let toCSSClass (vt : variantTest) : string =
         "ngrok"
     | ForceWelcomeModalVariant ->
         "force-welcome-modal"
+    | LeftPartialVariant ->
+        "lpartial"
     | ExeCodeVariant ->
         "exe"
   in

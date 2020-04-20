@@ -223,7 +223,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   let editorState =
     { FluidEditorView.analysisStore = vs.analysisStore
     ; ast = vs.ast
-    ; props = {functions = vs.functions}
+    ; functions = vs.functions
     ; executingFunctions = vs.executingFunctions
     ; editor = MainEditor
     ; hoveringRefs = vs.hoveringRefs
@@ -282,7 +282,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
                let editorState =
                  { FluidEditorView.analysisStore = vs.analysisStore
                  ; ast = vs.ast
-                 ; props = {functions = vs.functions}
+                 ; functions = vs.functions
                  ; executingFunctions = vs.executingFunctions
                  ; editor = e
                  ; hoveringRefs = vs.hoveringRefs
