@@ -39,41 +39,47 @@ let parse_interval (h : 'expr_type handler) : Time.Span.t option =
       None
 
 
+type should_execute_type =
+  { should_execute_bool : bool
+  ; scheduled_run_at : Core_kernel.Time.t option
+  ; interval : Core_kernel.Time.Span.t option }
+
 let should_execute (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
-    bool =
+    should_execute_type =
   let open Option in
+  let now = Time.now () in
   match last_ran_at canvas_id h with
   | None ->
-      true (* we should always run if we've never run before *)
+      {should_execute_bool = true; scheduled_run_at = Some now; interval = None}
+      (* we should always run if we've never run before *)
   | Some lrt ->
-      let now = Time.now () in
-      ( match parse_interval h with
-      | None ->
-          let bt = Caml.Printexc.get_raw_backtrace () in
-          (* We used to rollbar here, but that breaks other crons! Just log for
+    ( match parse_interval h with
+    | None ->
+        let bt = Caml.Printexc.get_raw_backtrace () in
+        (* We used to rollbar here, but that breaks other crons! Just log for
          * now, later we'll validate on save or something *)
-          Log.erroR
-            "Can't parse interval: "
-            ~params:
-              [ ( "modifier"
-                , Handler.modifier_for h
-                  |> Option.value ~default:"<empty modifier>" ) ] ;
-          let e =
-            Exception.make_exception
-              DarkInternal
-              ( "Can't parsse interval: "
-              ^ ( Handler.modifier_for h
-                |> Option.value ~default:"<empty modifier>" ) )
-          in
-          ignore
-            (Rollbar.report
-               e
-               bt
-               Libservice.Rollbar.CronChecker
-               (execution_id |> Types.string_of_id)) ;
-          false
-      | Some interval ->
-          (* Example:
+        Log.erroR
+          "Can't parse interval: "
+          ~params:
+            [ ( "modifier"
+              , Handler.modifier_for h
+                |> Option.value ~default:"<empty modifier>" ) ] ;
+        let e =
+          Exception.make_exception
+            DarkInternal
+            ( "Can't parse interval: "
+            ^ ( Handler.modifier_for h
+              |> Option.value ~default:"<empty modifier>" ) )
+        in
+        ignore
+          (Rollbar.report
+             e
+             bt
+             Libservice.Rollbar.CronChecker
+             (execution_id |> Types.string_of_id)) ;
+        {should_execute_bool = false; scheduled_run_at = None; interval = None}
+    | Some interval ->
+        (* Example:
        * last_ran_at = 16:00
        * interval: 1 hour
        * now: 16:30
@@ -84,21 +90,16 @@ let should_execute (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
        *   and we should run once now >= should_run_after
        *
        *)
-          let should_run_after = Time.add lrt interval in
-          (* How long was it between when we expected to run and when we
-           * enqueued it to the events queue? (There may be further delay if the
-           * events queue is backed up ... ) *)
-          Log.debuG
-            "cron_delay"
-            ~params:
-              [ ( "interval"
-                , Handler.modifier_for h
-                  |> Option.value ~default:"<empty
-modifier>" ) ]
-            ~jsonparams:
-              [ ( "delay_ms"
-                , `Float (Time.Span.to_ms (Time.diff now should_run_after)) ) ] ;
-          now >= should_run_after )
+        let should_run_after = Time.add lrt interval in
+        if now >= should_run_after
+        then
+          { should_execute_bool = true
+          ; scheduled_run_at = Some should_run_after
+          ; interval = Some interval }
+        else
+          { should_execute_bool = false
+          ; scheduled_run_at = None
+          ; interval = Some interval } )
 
 
 let record_execution (canvas_id : Uuidm.t) (h : 'expr_type handler) : unit =
@@ -181,7 +182,10 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              ~jsonparams:[("number_of_crons", `Int cron_count)] ;
            List.iter
              ~f:(fun cr ->
-               if should_execute !c.id cr execution_id
+               let {should_execute_bool; scheduled_run_at; interval} =
+                 should_execute !c.id cr execution_id
+               in
+               if should_execute_bool
                then
                  let space = Handler.module_for_exn cr in
                  let name = Handler.event_name_for_exn cr in
@@ -198,7 +202,46 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                        DNull ;
                      record_execution !c.id cr ;
                      incr stat_events ;
-                     Log.debuG
+                     (* It's a little silly to recalculate now when we just did
+                      * it in should_execute, but maybe Event_queue.enqueue was
+                      * slow or something *)
+                     let now = Time.now () in
+                     let delay_ms =
+                       scheduled_run_at
+                       |> Option.map ~f:(Time.diff now)
+                       (* For future reference: yes, to_ms returns the span of time
+                        * in milliseconds, _not_ "the ms part of the span of
+                        * time". I had to check that it wasn't, like, 10.5s |>
+                        * to_ms is 500, because 10.5|>to_s is 10. Time-related
+                        * APIs get tricky that way. *)
+                       |> Option.map ~f:Time.Span.to_ms
+                     in
+                     let delay_log =
+                       delay_ms
+                       |> Option.map ~f:(fun delay -> ("delay", `Float delay))
+                     in
+                     let interval_log =
+                       interval
+                       (* This is definitely not None, but keep the
+                        * typechecker happy *)
+                       (* Floats are IEEE-754, which has a max at 2**31-1;
+                        * that's 24.85 days worth of milliseconds. Since our
+                        * longest allowed cron interval is two weeks, this is
+                        * fine *)
+                       |> Option.map ~f:(fun interval ->
+                              ("interval", `Float (interval |> Time.Span.to_ms)))
+                     in
+                     let delay_ratio_log =
+                       Option.map2
+                         delay_ms
+                         interval
+                         ~f:(fun delay_ms interval ->
+                           let interval = interval |> Time.Span.to_ms in
+                           delay_ms /. interval)
+                       |> Option.map ~f:(fun delay_ratio ->
+                              ("delay_ratio", `Float delay_ratio))
+                     in
+                     Log.infO
                        "cron_checker"
                        ~data:"enqueued event"
                        ~params:
@@ -208,7 +251,10 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                          ; ("handler_name", name)
                            (* method here to use the spec-handler name for
                             * consistency with http/worker logs *)
-                         ; ("method", modifier) ] ;
+                         ; ("method", modifier) ]
+                       ~jsonparams:
+                         ( [delay_log; interval_log; delay_ratio_log]
+                         |> List.filter_opt ) ;
                      Thread.yield ()))
              crons)
     |> (fun x ->
