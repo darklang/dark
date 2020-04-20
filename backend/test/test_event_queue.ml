@@ -98,8 +98,11 @@ let t_cron_sanity () =
   let h = daily_cron (ast_for "(+ 5 3)") in
   let c = ops2c_exn "test-cron_works" [hop h] in
   let handler = !c.handlers |> TL.handlers |> List.hd_exn in
-  let should_run = Cron.should_execute !c.id handler execution_id in
-  AT.check AT.bool "should_run should be true" should_run true ;
+  let ({should_execute_bool; scheduled_run_at; interval}
+        : Libbackend.Cron.should_execute_type) =
+    Cron.should_execute !c.id handler execution_id
+  in
+  AT.check AT.bool "should_execute_bool should be true" should_execute_bool true ;
   ()
 
 
@@ -109,8 +112,15 @@ let t_cron_just_ran () =
   let c = ops2c_exn "test-cron_works" [hop h] in
   let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   Cron.record_execution !c.id handler ;
-  let should_run = Cron.should_execute !c.id handler execution_id in
-  AT.check AT.bool "should_run should be false" should_run false ;
+  let ({should_execute_bool; scheduled_run_at; interval}
+        : Libbackend.Cron.should_execute_type) =
+    Cron.should_execute !c.id handler execution_id
+  in
+  AT.check
+    AT.bool
+    "should_execute_bool should be false"
+    should_execute_bool
+    false ;
   ()
 
 
