@@ -1,7 +1,7 @@
 open Prelude
 
 let client_buildhash_header m : Tea_http.header =
-  Header (Header.client_buildhash, m.buildHash)
+  Header (Client_header.client_buildhash, m.buildHash)
 
 
 let apiCallNoParams

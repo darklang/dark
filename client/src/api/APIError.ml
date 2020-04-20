@@ -12,7 +12,7 @@ let serverVersionOf (e : apiError) : string option =
       let module StringMap = Map.Make (Caml.String) in
       response.headers
       |> StringMap.find_first_opt (fun key ->
-             String.toLower key = Header.server_version)
+             String.toLower key = Client_header.server_version)
       |> Option.map ~f:Tuple2.second
 
 
