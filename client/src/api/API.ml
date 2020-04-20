@@ -1,7 +1,7 @@
 open Prelude
 
-let client_buildhash_header m : Tea_http.header =
-  Header (Client_header.client_buildhash, m.buildHash)
+let clientVersionHeader m : Tea_http.header =
+  Header (Header.client_version, m.buildHash)
 
 
 let apiCallNoParams
@@ -16,7 +16,7 @@ let apiCallNoParams
       ; headers =
           [ Header ("Content-type", "application/json")
           ; Header ("X-CSRF-Token", m.csrfToken)
-          ; client_buildhash_header m ]
+          ; clientVersionHeader m ]
       ; url
       ; body = Web.XMLHttpRequest.EmptyBody
       ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
@@ -56,7 +56,7 @@ let apiCall
     (endpoint : string) : msg Tea.Cmd.t =
   let request =
     postJson
-      ~headers:[client_buildhash_header m]
+      ~headers:[clientVersionHeader m]
       decoder
       m.csrfToken
       ("/api/" ^ Tea.Http.encodeUri m.canvasName ^ endpoint)
@@ -199,7 +199,7 @@ let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
   let url = "https://presence.darklang.com/presence" in
   let request =
     postJson
-      ~headers:[client_buildhash_header m]
+      ~headers:[clientVersionHeader m]
       ~withCredentials:true
       (fun _ -> ())
       m.csrfToken
@@ -223,7 +223,7 @@ let sendInvite (m : model) (invite : SettingsViewTypes.inviteFormMessage) :
   let url = "https://accounts.darklang.com/send-invite" in
   let request =
     postJson
-      ~headers:[client_buildhash_header m]
+      ~headers:[clientVersionHeader m]
       ~withCredentials:true
       (fun _ -> ())
       m.csrfToken
@@ -249,7 +249,7 @@ let getCanvasInfo (m : model) : msg Tea.Cmd.t =
   let url = "https://accounts.darklang.com/canvas-info" in
   let request =
     postJson
-      ~headers:[client_buildhash_header m]
+      ~headers:[clientVersionHeader m]
       ~withCredentials:true
       Decoders.loadCanvasInfoAPIResult
       m.csrfToken
@@ -276,7 +276,7 @@ let sendCanvasInfo (m : model) (canvasInfo : SettingsViewTypes.updateCanvasInfo)
   let url = "https://accounts.darklang.com/update-canvas-info" in
   let request =
     postJson
-      ~headers:[client_buildhash_header m]
+      ~headers:[clientVersionHeader m]
       ~withCredentials:true
       (fun _ -> ())
       m.csrfToken

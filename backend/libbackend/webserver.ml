@@ -1734,14 +1734,14 @@ let admin_api_handler
     then Log.add_log_annotations [("canvas", `String canvas)] (fun _ -> f p)
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  let client_buildhash =
+  let client_version =
     req
     |> CRequest.headers
-    |> fun hs -> Cohttp.Header.get hs Libshared.Header.client_buildhash
+    |> (fun hs -> Cohttp.Header.get hs Libshared.Header.client_version)
+    |> Tc.Option.withDefault ~default:""
   in
   Log.add_log_annotations
-    [ ( Libshared.Header.client_buildhash
-      , `String (client_buildhash |> Tc.Option.withDefault ~default:"") ) ]
+    [(Libshared.Header.client_version, `String client_version)]
     (fun () ->
       match (verb, path) with
       (* Operational APIs.... maybe these shouldn't be here, but

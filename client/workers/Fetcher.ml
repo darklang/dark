@@ -41,7 +41,7 @@ let fetch_
             (Js.Dict.fromList
                [ ("Content-Type", "application/json")
                ; ("X-CSRF-TOKEN", context.csrfToken)
-               ; ("x-darklang-client-buildhash", buildHash) ]))
+               ; (Header.client_version, buildHash) ]))
        ())
   |> then_ (fun (resp : Fetch.response) ->
          (* The result not be there because we haven't saved the handler yet.
