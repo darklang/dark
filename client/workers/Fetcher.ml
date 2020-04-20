@@ -2,6 +2,8 @@ open Prelude
 
 external rollbarConfig : string = "rollbarConfig" [@@bs.val]
 
+external buildHash : string = "buildHash" [@@bs.val]
+
 let () = Rollbar.init (Json.parseOrRaise rollbarConfig)
 
 type event = < data : Types.fetchContext * Types.fetchRequest [@bs.get] > Js.t
@@ -38,7 +40,8 @@ let fetch_
          (Fetch.HeadersInit.makeWithDict
             (Js.Dict.fromList
                [ ("Content-Type", "application/json")
-               ; ("X-CSRF-TOKEN", context.csrfToken) ]))
+               ; ("X-CSRF-TOKEN", context.csrfToken)
+               ; ("x-darklang-client-buildhash", buildHash) ]))
        ())
   |> then_ (fun (resp : Fetch.response) ->
          (* The result not be there because we haven't saved the handler yet.
