@@ -109,6 +109,7 @@ let execute_handler
   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
   let state : 'expr_type exec_state =
     { tlid
+    ; callstack = Tc.StrSet.empty
     ; account_id
     ; canvas_id
     ; user_fns
@@ -162,6 +163,7 @@ let execute_function
   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
   let state : 'expr_type exec_state =
     { tlid
+    ; callstack = Tc.StrSet.empty
     ; account_id
     ; canvas_id
     ; user_fns
@@ -222,6 +224,7 @@ let analyse_ast
   let input_vars = dbs_as_input_vars dbs @ input_vars in
   let state : 'expr_type exec_state =
     { tlid
+    ; callstack = Tc.StrSet.empty
     ; account_id
     ; canvas_id
     ; user_fns
