@@ -146,6 +146,26 @@ let log_debug_info (bufs : bufs) (primaryip : string option) =
         ; "x-request-id" ]
       Response
   in
+  let port =
+    !debugbuf_text
+    |> String.split_lines
+    (* Find the line that matches the format we want - it'll look like
+     * "SOCKS5 communication to api.datadoghq.com:443" *)
+    (* This _only_ works in production, because we don't go through the
+     * tunnel service in the dev environment. *)
+    |> List.find
+         ~f:
+           (String.is_substring_at ~pos:0 ~substring:"SOCKS5 communication to ")
+    (* Split the line on the last ':' and take the right hand side (this
+     * gets us (Some "443") in the example above *)
+    |> Option.bind ~f:(String.rsplit2 ~on:':')
+    |> Option.map ~f:snd
+    (* Convert it to an int in case we want to look for, say, conns to
+     * above/below 1024 *)
+    |> Option.bind ~f:int_of_string_opt
+    (* 0 is a reserved port, it'll never exist *)
+    |> Tc.Option.withDefault ~default:0
+  in
   Log.infO
     "libcurl"
     ~params:
@@ -163,4 +183,4 @@ let log_debug_info (bufs : bufs) (primaryip : string option) =
       [ ("curl.informational_text_size", `Int (!debugbuf_text |> String.length))
       ; ("curl.response_body_size", `Int (!debugbuf_data_in |> String.length))
       ; ("curl.request_body_size", `Int (!debugbuf_data_out |> String.length))
-      ]
+      ; ("curl.destination_port", `Int port) ]
