@@ -176,6 +176,7 @@ let user_fn_of_fluid (fn : fluid_expr user_fn) : expr user_fn =
 let rec exec_state_of_fluid (s : Types.fluid_expr Types.RuntimeT.exec_state) :
     Types.RuntimeT.expr Types.RuntimeT.exec_state =
   { tlid = s.tlid
+  ; callstack = s.callstack
   ; canvas_id = s.canvas_id
   ; account_id = s.account_id
   ; user_fns = List.map ~f:user_fn_of_fluid s.user_fns
@@ -255,6 +256,7 @@ and fn_of_fluid (s : fluid_expr fn) : expr fn =
 and exec_state_to_fluid (s : Types.RuntimeT.expr Types.RuntimeT.exec_state) :
     Types.fluid_expr Types.RuntimeT.exec_state =
   { tlid = s.tlid
+  ; callstack = s.callstack
   ; canvas_id = s.canvas_id
   ; account_id = s.account_id
   ; user_fns = List.map ~f:user_fn_to_fluid s.user_fns
