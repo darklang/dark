@@ -63,6 +63,8 @@ let toHtml (s : state) : Types.msg Html.html list =
     | Some caretAt ->
         if caretAt.exeFlow = CodeNotExecuted
         then
+          (* We only care to check further if caret is in a faded region.
+          If it's not faded, there's not need to see if we should unfade. *)
           match FluidToken.parentBlockID caretAt.token with
           | Some pid ->
               (* If caret in a multiline block, mark block tokens *)
@@ -79,7 +81,9 @@ let toHtml (s : state) : Types.msg Html.html list =
               |> List.map ~f:(fun ti ->
                      if ti.startRow = caretRow
                         && (not
-                              (ti.token |> FluidToken.parentBlockID |> Option.isSome))
+                              ( ti.token
+                              |> FluidToken.parentBlockID
+                              |> Option.isSome ))
                         && ti.exeFlow = CodeNotExecuted
                      then {ti with exeFlow = CodeInFocus}
                      else ti)
@@ -101,6 +105,8 @@ let toHtml (s : state) : Types.msg Html.html list =
           (None, "")
     else (None, "")
   in
+  (* TODO(alice) we probably want to use Fluid.tokenAtCaret here too.
+  But that is scope creep for this already huge PR. *)
   let currentTokenInfo = Fluid.getToken s.ast s.fluidState in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
