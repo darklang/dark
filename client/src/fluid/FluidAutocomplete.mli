@@ -8,7 +8,7 @@ type data = Types.fluidAutocompleteData [@@deriving show]
 
 type query = TLID.t * Types.fluidTokenInfo [@@deriving show]
 
-type props = Types.fluidProps [@@deriving show]
+type props = {functions : Types.functionsType}
 
 val asName : item -> string
 

@@ -1380,6 +1380,7 @@ and variantTest =
   | NgrokVariant
   | ForceWelcomeModalVariant
   | ExeCodeVariant
+  | LeftPartialVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1619,7 +1620,7 @@ and fluidState =
       dval_source
   ; activeEditor : fluidEditor }
 
-and fluidProps = {functions : functionsType}
+(* and fluidProps = *)
 
 (* Avatars *)
 and avatar =

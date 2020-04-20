@@ -34,7 +34,10 @@ type tokenInfos = T.tokenInfo list
 
 type state = Types.fluidState
 
-type props = Types.fluidProps
+type props =
+  { (* Types.fluidProps *)
+    functions : functionsType
+  ; variants : variantTest list }
 
 let deselectFluidEditor (s : fluidState) : fluidState =
   {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = MainEditor}
@@ -1851,7 +1854,7 @@ let rec mergeExprs (e1 : fluidExpr) (e2 : fluidExpr) : fluidExpr * caretTarget =
 
 
 let replacePartialWithArguments
-    (props : fluidProps) ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) :
+    (props : props) ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) :
     FluidAST.t * caretTarget =
   let open FluidExpression in
   let getFunctionParams fnname count varExprs =
@@ -3312,6 +3315,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) :
  * See doInsert and updateKey for these exceptional cases.
  *)
 let doExplicitInsert
+    (props : props)
     (extendedGraphemeCluster : string)
     (currCaretTarget : caretTarget)
     (ast : FluidAST.t) : FluidAST.t * newPosition =
@@ -3345,13 +3349,16 @@ let doExplicitInsert
        * is either 1) the top-level expression in the AST or 2) the first
        * expression directly inside a let. This means it's on the "left edge"
        * of the editor. *)
-      match FluidAST.findParent (E.toID currExpr) ast with
-      | None ->
-          mkLeftPartial
-      | Some (ELet (_, _, _, body)) when currExpr = body ->
-          mkLeftPartial
-      | _ ->
-          Some (currExpr, currCaretTarget)
+      if List.member ~value:LeftPartialVariant props.variants
+      then
+        match FluidAST.findParent (E.toID currExpr) ast with
+        | None ->
+            mkLeftPartial
+        | Some (ELet (_, _, _, body)) when currExpr = body ->
+            mkLeftPartial
+        | _ ->
+            Some (currExpr, currCaretTarget)
+      else Some (currExpr, currCaretTarget)
     in
     match (currAstRef, currExpr) with
     (* inserting at the beginning of these expressions wraps the expr in a left
@@ -3820,14 +3827,18 @@ let doExplicitInsert
 
 
 let doInsert
-    ~pos (letter : string) (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) :
-    FluidAST.t * state =
+    ~pos
+    (props : props)
+    (letter : string)
+    (ti : T.tokenInfo)
+    (ast : FluidAST.t)
+    (s : state) : FluidAST.t * state =
   let s = recordAction ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
   let newAST, newPosition =
     match caretTargetFromTokenInfo pos ti with
     | Some ct ->
-        doExplicitInsert letter ct ast
+        doExplicitInsert props letter ct ast
     | None ->
         (ast, SamePlace)
   in
@@ -3848,8 +3859,12 @@ let doInsert
  * defer to the behavior of doInsert.
  *)
 let doInfixInsert
-    ~pos (infixTxt : string) (ti : T.tokenInfo) (ast : FluidAST.t) (s : state) :
-    FluidAST.t * state =
+    ~pos
+    (props : props)
+    (infixTxt : string)
+    (ti : T.tokenInfo)
+    (ast : FluidAST.t)
+    (s : state) : FluidAST.t * state =
   let s = {s with upDownCol = None} in
   caretTargetFromTokenInfo pos ti
   |> Option.andThen ~f:(fun ct ->
@@ -3937,7 +3952,7 @@ let doInfixInsert
          let newAST = FluidAST.replace replaceID ~replacement:newExpr ast in
          let tokens = tokensForActiveEditor newAST s in
          (newAST, moveToCaretTarget tokens s newCaretTarget))
-  |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti ast s))
+  |> Option.orElseLazy (fun () -> Some (doInsert ~pos props infixTxt ti ast s))
   |> recoverOpt
        "updateKey - can't return None due to lazy Some"
        ~default:(ast, s)
@@ -4152,7 +4167,7 @@ let rec updateKey
         let ast, s = acEnter ti props ast s K.Tab in
         let tokens = tokensForActiveEditor ast s in
         getLeftTokenAt s.newPos (List.reverse tokens)
-        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti ast s)
+        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos props txt ti ast s)
         |> Option.withDefault ~default:(ast, s)
     (*
      * Special autocomplete entries
@@ -4408,7 +4423,7 @@ let rec updateKey
                  let tokens = tokensForActiveEditor newAST s in
                  (newAST, moveToCaretTarget tokens s newTarget))
           |> Option.withDefault ~default:(ast, s)
-        else doInsert ~pos "," ti ast s
+        else doInsert ~pos props "," ti ast s
     (* Field access *)
     | InsertText ".", L (TFieldPartial (id, _, _, _), _), _ ->
         (* When pressing . in a field access partial, commit the partial *)
@@ -4442,7 +4457,7 @@ let rec updateKey
     | InsertText infixTxt, _, R (TBlank _, ti)
     | InsertText infixTxt, L (_, ti), _
       when keyIsInfix ->
-        doInfixInsert ~pos infixTxt ti ast s
+        doInfixInsert ~pos props infixTxt ti ast s
     (* Typing between empty list symbols [] *)
     | InsertText txt, L (TListOpen id, _), R (TListClose _, _) ->
         let newExpr, target = insertInBlankExpr txt in
@@ -4478,11 +4493,11 @@ let rec updateKey
         let tokens = tokensForActiveEditor newAST s in
         (newAST, moveToCaretTarget tokens s newTarget)
     | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
-        doInsert ~pos " " toTheRight ast s
+        doInsert ~pos props " " toTheRight ast s
     | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
-        doInsert ~pos txt toTheLeft ast s
+        doInsert ~pos props txt toTheLeft ast s
     | InsertText txt, _, R (_, toTheRight) ->
-        doInsert ~pos txt toTheRight ast s
+        doInsert ~pos props txt toTheRight ast s
     (***********)
     (* K.Enter *)
     (***********)
@@ -5575,7 +5590,7 @@ let updateMsg
     (ast : FluidAST.t)
     (msg : Types.fluidMsg)
     (s : fluidState) : FluidAST.t * fluidState * tokenInfos =
-  let props = {functions = m.functions} in
+  let props = {functions = m.functions; variants = m.tests} in
   let newAST, newState =
     match msg with
     | FluidCloseCmdPalette | FluidUpdateAutocomplete ->
@@ -5900,7 +5915,7 @@ let renderCallback (m : model) : unit =
 
 let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
   let state = m.fluidState in
-  let props = {functions = m.functions} in
+  let props = {functions = m.functions; variants = m.tests} in
   let rmPartialsMod =
     tlid
     |> Option.andThen ~f:(TL.get m)

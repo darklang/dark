@@ -9,9 +9,9 @@ type item = fluidAutocompleteItem [@@deriving show]
 
 type data = fluidAutocompleteData [@@deriving show]
 
-type tokenInfo = fluidTokenInfo [@@deriving show]
+type props = {functions : Types.functionsType}
 
-type props = fluidProps [@@deriving show]
+type tokenInfo = fluidTokenInfo [@@deriving show]
 
 let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
