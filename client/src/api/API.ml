@@ -12,7 +12,7 @@ let apiCallNoParams
       ; headers =
           [ Header ("Content-type", "application/json")
           ; Header ("X-CSRF-Token", m.csrfToken)
-          ; Header ("x-darklang-client-buildhash", m.buildHash) ]
+          ; Header (Header.client_buildhash, m.buildHash) ]
       ; url
       ; body = Web.XMLHttpRequest.EmptyBody
       ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
