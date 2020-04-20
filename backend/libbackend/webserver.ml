@@ -84,7 +84,7 @@ let respond_or_redirect (params : response_or_redirect_params) =
       let resp_headers =
         Header.add_list
           resp_headers
-          [("x-darklang-execution-id", Types.string_of_id execution_id)]
+          [(Libshared.Header.execution_id, Types.string_of_id execution_id)]
       in
       (* add Content-Length if missing, e.g. when function is called directly
        * and not from `respond_or_redirect_empty_body`
@@ -229,7 +229,7 @@ let over_headers_promise
 let wrap_editor_api_headers =
   let headers =
     [ ("Content-type", "application/json; charset=utf-8")
-    ; ("X-Darklang-Server-Version", Config.build_hash) ]
+    ; (Libshared.Header.server_version, Config.build_hash) ]
   in
   over_headers_promise ~f:(fun h -> Header.add_list h headers)
 
@@ -1737,10 +1737,10 @@ let admin_api_handler
   let client_buildhash =
     req
     |> CRequest.headers
-    |> fun hs -> Cohttp.Header.get hs "x-darklang-client-buildhash"
+    |> fun hs -> Cohttp.Header.get hs Libshared.Header.client_buildhash
   in
   Log.add_log_annotations
-    [ ( "x-darklang-client-buildhash"
+    [ ( Libshared.Header.client_buildhash
       , `String (client_buildhash |> Tc.Option.withDefault ~default:"") ) ]
     (fun () ->
       match (verb, path) with
@@ -2234,7 +2234,7 @@ let server () =
     in
     Log.add_log_annotations
       [ ("execution_id", `String (Types.string_of_id execution_id))
-      ; ("X-Darklang-Server-Version", `String Config.build_hash)
+      ; (Libshared.Header.server_version, `String Config.build_hash)
         (* We call this handler_name and not request for a reason - we want to
          * unify with what other spec-having handlers use, since
          * qw+cron+webserver all share logs (and not just "name" because that's
