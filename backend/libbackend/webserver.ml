@@ -85,7 +85,7 @@ let respond_or_redirect (params : response_or_redirect_params) =
         Header.add_list
           resp_headers
           [ ("x-darklang-execution-id", Types.string_of_id execution_id)
-          ; ("x-darklang-buildhash", Config.build_hash) ]
+          ; ("x-darklang-client-buildhash", Config.build_hash) ]
       in
       (* add Content-Length if missing, e.g. when function is called directly
        * and not from `respond_or_redirect_empty_body`
