@@ -410,7 +410,7 @@ setTimeout(function() {
   }
   let rollbarConfigSetup =
     "const rollbarConfig = '" + JSON.stringify(rollbarConfig) + "';\n\n";
-  let buildHashSetup = "const buildHash = " + JSON.stringify(buildHash) + ";\n\n";
+  let buildHashSetup = "const buildHash = '" + buildHash + "';\n\n";
 
   let analysisjs = fetcher("/analysis.js");
   let analysiswrapperjs = fetcher("/analysiswrapper.js");
