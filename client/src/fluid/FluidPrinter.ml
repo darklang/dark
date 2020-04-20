@@ -189,7 +189,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
           | Some placeholder ->
               add
                 (TPlaceholder
-                   {blankID = id; parentID = Some fnID; placeholder; fnID})
+                   {blankID = id; parentBlockID = Some fnID; placeholder; fnID})
                 b )
       | _ ->
           toTokens' e b
@@ -435,7 +435,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
                            ; exprID
                            ; index = i
                            ; fieldName
-                           ; parentID = Some id })
+                           ; parentBlockID = Some id })
                    |> add (TRecordSep (id, i, exprID))
                    |> addNested ~f:(toTokens' ~parentID:(Some id) expr)))
         |> addMany

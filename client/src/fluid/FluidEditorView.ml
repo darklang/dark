@@ -63,12 +63,12 @@ let toHtml (s : state) : Types.msg Html.html list =
     | Some caretAt ->
         if caretAt.exeFlow = CodeNotExecuted
         then
-          match FluidToken.parentID caretAt.token with
+          match FluidToken.parentBlockID caretAt.token with
           | Some pid ->
               (* If caret in a multiline block, mark block tokens *)
               s.tokens
               |> List.map ~f:(fun ti ->
-                     if FluidToken.parentID ti.token = Some pid
+                     if FluidToken.parentBlockID ti.token = Some pid
                         && ti.exeFlow = CodeNotExecuted
                      then {ti with exeFlow = CodeInFocus}
                      else ti)
@@ -79,7 +79,7 @@ let toHtml (s : state) : Types.msg Html.html list =
               |> List.map ~f:(fun ti ->
                      if ti.startRow = caretRow
                         && (not
-                              (ti.token |> FluidToken.parentID |> Option.isSome))
+                              (ti.token |> FluidToken.parentBlockID |> Option.isSome))
                         && ti.exeFlow = CodeNotExecuted
                      then {ti with exeFlow = CodeInFocus}
                      else ti)
