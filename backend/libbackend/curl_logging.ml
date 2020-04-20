@@ -49,7 +49,7 @@ let string_of_request_or_response ror : string =
   match ror with Request -> "request" | Response -> "response"
 
 
-let log_debug_info (bufs : bufs) =
+let log_debug_info (bufs : bufs) (primaryip : string option) =
   let ( debugbuf_text
       , debugbuf_data_in
       , debugbuf_data_out
@@ -155,7 +155,8 @@ let log_debug_info (bufs : bufs) =
         ; ("curl.request_line", request_line)
         ; ("curl.response_line", response_line)
         ; ("curl.request_headers", request_headers |> header_names)
-        ; ("curl.response_headers", response_headers |> header_names) ]
+        ; ("curl.response_headers", response_headers |> header_names)
+        ; ("curl.primary_ip", primaryip |> Tc.Option.withDefault ~default:"") ]
       @ selected_request_headers
       @ selected_response_headers )
     ~jsonparams:
