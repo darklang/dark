@@ -410,17 +410,24 @@ setTimeout(function() {
   }
   let rollbarConfigSetup =
     "const rollbarConfig = '" + JSON.stringify(rollbarConfig) + "';\n\n";
+  let buildHashSetup = "const buildHash = " + JSON.stringify(buildHash) + ";\n\n";
 
   let analysisjs = fetcher("/analysis.js");
   let analysiswrapperjs = fetcher("/analysiswrapper.js");
   let fetcherjs = fetcher("/fetcher.js");
   (async function() {
-    var strings = [rollbarConfigSetup, await analysisjs, "\n\n", await analysiswrapperjs];
+    var strings = [
+      rollbarConfigSetup,
+      buildHashSetup,
+      await analysisjs,
+      "\n\n",
+      await analysiswrapperjs,
+    ];
     var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.analysisWorker = new Worker(analysisWorkerUrl);
   })();
   (async function() {
-    var strings = [rollbarConfigSetup, await fetcherjs];
+    var strings = [rollbarConfigSetup, buildHashSetup, await fetcherjs];
     var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.fetcherWorker = new Worker(fetcherWorkerUrl);
   })();
