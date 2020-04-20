@@ -560,6 +560,11 @@ module RuntimeT = struct
     ; dbs : expr DbT.db list
     ; trace : on_execution_path:bool -> id -> 'expr_type dval -> unit
     ; trace_tlid : tlid -> unit
+    ; callstack :
+        (* Used for recursion detection in the editor. In the editor, we call all
+         * paths to show live values, but with recursion that causes infinite
+         * recursion. *)
+        Tc.StrSet.t
     ; context : context
     ; execution_id : id
     ; on_execution_path :

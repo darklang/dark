@@ -114,6 +114,7 @@ let () =
                  in
                  let state : RTT.expr RTT.exec_state =
                    { tlid = db.tlid
+                   ; callstack = Tc.StrSet.empty
                    ; account_id = !c.owner
                    ; canvas_id = !c.id
                    ; user_fns = []

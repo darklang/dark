@@ -356,6 +356,7 @@ let test_execution_data
   let canvas_id = !c.id in
   let state =
     { tlid
+    ; callstack = Tc.StrSet.empty
     ; account_id = !c.owner
     ; canvas_id = !c.id
     ; user_fns = IDMap.data !c.user_functions
@@ -403,6 +404,7 @@ let execute_ops
         ; package_fns
         ; account_id
         ; canvas_id
+        ; callstack = _
         ; fail_fn = _
         ; executing_fnname = _ }
       , input_vars ) =

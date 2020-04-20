@@ -709,138 +709,153 @@ and exec_fn
     (id : id)
     (fn : 'expr_type fn)
     (args : 'expr_type dval_map) : 'expr_type dval =
-  let state = {state with executing_fnname = fnname} in
-  let sourceId id = SourceId (state.tlid, id) in
-  let arglist =
-    fn.parameters
-    |> List.map ~f:(fun (p : param) -> p.name)
-    |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
-  in
-  let args_with_dbs =
-    let db_dvals =
-      state.dbs
-      |> List.filter_map ~f:(fun db ->
-             match db.name with
-             | Filled (_, name) ->
-                 Some (name, DDB name)
-             | Partial _ | Blank _ ->
-                 None)
-      |> DvalMap.from_list
+  if state.context = Preview
+     && (not state.on_execution_path)
+     && Tc.StrSet.member state.callstack ~value:fnname
+  then
+    (* Don't recurse (including transitively!) when previewing unexecuted paths
+     * in the editor. If we do, we'll recurse forever and blow the stack. *)
+    DIncomplete (SourceId (state.tlid, id))
+  else
+    let state =
+      { state with
+        executing_fnname = fnname
+      ; callstack = Tc.StrSet.add fnname state.callstack }
     in
-    Util.merge_left db_dvals args
-  in
-  let sfr_desc = (state.tlid, fnname, id) in
-  let badArg =
-    List.find arglist ~f:(function
-        | DError _ when String.Caseless.equal fnname "Bool::isError" ->
-            false
-        | DError _ | DIncomplete _ ->
-            true
-        | _ ->
-            false)
-  in
-  match badArg with
-  | Some (DIncomplete src) ->
-      DIncomplete src
-  | Some (DError (src, _)) ->
-      DError (src, "Fn called with an error as an argument")
-  | _ ->
-    ( match fn.func with
-    | InProcess f ->
-        if state.context = Preview && fn.preview_safety <> Safe
-        then
-          match state.load_fn_result sfr_desc arglist with
-          | Some (result, _ts) ->
-              result
-          | inc ->
-              DIncomplete (sourceId id)
-        else
-          let state =
-            {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
-          in
-          let result =
-            try f (state, arglist) with
-            | Exception.DarkException de as e when de.tipe = Code ->
-                (* These are exceptions that come from an RT.error, which is all
+    let sourceId id = SourceId (state.tlid, id) in
+    let arglist =
+      fn.parameters
+      |> List.map ~f:(fun (p : param) -> p.name)
+      |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
+    in
+    let args_with_dbs =
+      let db_dvals =
+        state.dbs
+        |> List.filter_map ~f:(fun db ->
+               match db.name with
+               | Filled (_, name) ->
+                   Some (name, DDB name)
+               | Partial _ | Blank _ ->
+                   None)
+        |> DvalMap.from_list
+      in
+      Util.merge_left db_dvals args
+    in
+    let sfr_desc = (state.tlid, fnname, id) in
+    let badArg =
+      List.find arglist ~f:(function
+          | DError _ when String.Caseless.equal fnname "Bool::isError" ->
+              false
+          | DError _ | DIncomplete _ ->
+              true
+          | _ ->
+              false)
+    in
+    match badArg with
+    | Some (DIncomplete src) ->
+        DIncomplete src
+    | Some (DError (src, _)) ->
+        DError (src, "Fn called with an error as an argument")
+    | _ ->
+      ( match fn.func with
+      | InProcess f ->
+          if state.context = Preview && fn.preview_safety <> Safe
+          then
+            match state.load_fn_result sfr_desc arglist with
+            | Some (result, _ts) ->
+                result
+            | inc ->
+                DIncomplete (sourceId id)
+          else
+            let state =
+              {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
+            in
+            let result =
+              try f (state, arglist) with
+              | Exception.DarkException de as e when de.tipe = Code ->
+                  (* These are exceptions that come from an RT.error, which is all
             * usercode problems. Non user-code problems should use different
             * exception types.
             *)
-                Dval.exception_to_dval e (sourceId id)
-            | e ->
-                (* After the rethrow, this gets eventually caught then shown to the
+                  Dval.exception_to_dval e (sourceId id)
+              | e ->
+                  (* After the rethrow, this gets eventually caught then shown to the
             * user as a Dark Internal Exception. It's an internal exception
             * because we didn't anticipate the problem, give it a nice error
             * message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
             * this, give it a nice exception via RT.error.  *)
-                Exception.reraise e
-          in
-          (* there's no point storing data we'll never ask for *)
-          if fn.preview_safety <> Safe
-          then state.store_fn_result sfr_desc arglist result ;
-          result
-    | PackageFunction body ->
-      (* This is similar to InProcess but also has elements of UserCreated. *)
-      ( match Type_checker.check_function_call ~user_tipes:[] fn args with
-      | Ok () ->
-          let result =
-            match (state.context, state.load_fn_result sfr_desc arglist) with
-            | Preview, Some (result, _ts) ->
-                Dval.unwrap_from_errorrail result
-            | Preview, None when fn.preview_safety <> Safe ->
-                DIncomplete (sourceId id)
-            | _ ->
-                (* It's okay to execute user functions in both Preview and Real contexts,
+                  Exception.reraise e
+            in
+            (* there's no point storing data we'll never ask for *)
+            if fn.preview_safety <> Safe
+            then state.store_fn_result sfr_desc arglist result ;
+            result
+      | PackageFunction body ->
+        (* This is similar to InProcess but also has elements of UserCreated. *)
+        ( match Type_checker.check_function_call ~user_tipes:[] fn args with
+        | Ok () ->
+            let result =
+              match (state.context, state.load_fn_result sfr_desc arglist) with
+              | Preview, Some (result, _ts) ->
+                  Dval.unwrap_from_errorrail result
+              | Preview, None when fn.preview_safety <> Safe ->
+                  DIncomplete (sourceId id)
+              | _ ->
+                  (* It's okay to execute user functions in both Preview and Real contexts,
                   * But in Preview we might not have all the data we need *)
-                (* TODO: We don't munge `state.tlid` like we do in UserCreated, which means
+                  (* TODO: We don't munge `state.tlid` like we do in UserCreated, which means
                 * there might be `id` collisions between AST nodes. Munging `state.tlid` would not
                 * save us from tlid collisions either. tl;dr, executing a package function may result
                 * in trace data being associated with the wrong handler/call site. *)
+                  let result = exec ~state args_with_dbs body in
+                  state.store_fn_result sfr_desc arglist result ;
+                  Dval.unwrap_from_errorrail result
+            in
+            (* there's no point storing data we'll never ask for *)
+            if fn.preview_safety <> Safe
+            then state.store_fn_result sfr_desc arglist result ;
+            result
+        | Error errs ->
+            let error_msgs =
+              errs
+              |> List.map ~f:Type_checker.Error.to_string
+              |> String.concat ~sep:", "
+            in
+            DError
+              ( sourceId id
+              , "Type error(s) in function parameters: " ^ error_msgs ) )
+      | UserCreated (tlid, body) ->
+        ( match
+            Type_checker.check_function_call
+              ~user_tipes:state.user_tipes
+              fn
+              args
+          with
+        | Ok () ->
+            state.trace_tlid tlid ;
+            (* Don't execute user functions if it's preview mode and we have a result *)
+            ( match (state.context, state.load_fn_result sfr_desc arglist) with
+            | Preview, Some (result, _ts) ->
+                Dval.unwrap_from_errorrail result
+            | _ ->
+                (* It's okay to execute user functions in both Preview and Real contexts,
+                 * But in Preview we might not have all the data we need *)
+                state.store_fn_arguments tlid args ;
+                let state = {state with tlid} in
                 let result = exec ~state args_with_dbs body in
                 state.store_fn_result sfr_desc arglist result ;
-                Dval.unwrap_from_errorrail result
-          in
-          (* there's no point storing data we'll never ask for *)
-          if fn.preview_safety <> Safe
-          then state.store_fn_result sfr_desc arglist result ;
-          result
-      | Error errs ->
-          let error_msgs =
-            errs
-            |> List.map ~f:Type_checker.Error.to_string
-            |> String.concat ~sep:", "
-          in
-          DError
-            (sourceId id, "Type error(s) in function parameters: " ^ error_msgs)
-      )
-    | UserCreated (tlid, body) ->
-      ( match
-          Type_checker.check_function_call ~user_tipes:state.user_tipes fn args
-        with
-      | Ok () ->
-          state.trace_tlid tlid ;
-          (* Don't execute user functions if it's preview mode and we have a result *)
-          ( match (state.context, state.load_fn_result sfr_desc arglist) with
-          | Preview, Some (result, _ts) ->
-              Dval.unwrap_from_errorrail result
-          | _ ->
-              (* It's okay to execute user functions in both Preview and Real contexts,
-               * But in Preview we might not have all the data we need *)
-              state.store_fn_arguments tlid args ;
-              let state = {state with tlid} in
-              let result = exec ~state args_with_dbs body in
-              state.store_fn_result sfr_desc arglist result ;
-              Dval.unwrap_from_errorrail result )
-      | Error errs ->
-          let error_msgs =
-            errs
-            |> List.map ~f:Type_checker.Error.to_string
-            |> String.concat ~sep:", "
-          in
-          DError
-            (sourceId id, "Type error(s) in function parameters: " ^ error_msgs)
-      )
-    | API f ->
-        f args )
+                Dval.unwrap_from_errorrail result )
+        | Error errs ->
+            let error_msgs =
+              errs
+              |> List.map ~f:Type_checker.Error.to_string
+              |> String.concat ~sep:", "
+            in
+            DError
+              ( sourceId id
+              , "Type error(s) in function parameters: " ^ error_msgs ) )
+      | API f ->
+          f args )
 
 
 (* -------------------- *)

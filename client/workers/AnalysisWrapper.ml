@@ -49,9 +49,9 @@ let () =
                * not impossible that other code could also cause an overflow. *)
               let handler_spec_string =
                 let spec = hParams.handler.spec in
-                List.map
-                  ~f:(function Types.F (_, s) -> s | _ -> "-")
-                  [spec.space; spec.name; spec.modifier]
+                [spec.space; spec.name; spec.modifier]
+                |> List.map ~f:(function Types.F (_, s) -> s | _ -> "_")
+                |> List.filter ~f:(( <> ) "_")
                 |> fun ss -> "(" ^ String.join ~sep:", " ss ^ ")"
               in
               let msg =
@@ -59,9 +59,8 @@ let () =
                    || msg
                       = "(\"SyntaxError: Invalid regular expression: /maximum call stack/: Maximum call stack size exceeded\")"
                 then
-                  "Value is too big to send to the editor ("
+                  "Analysis results are too big to send back to the editor "
                   ^ handler_spec_string
-                  ^ ")"
                 else msg
               in
               reportError "An execution failure occurred in a handler" msg ;
