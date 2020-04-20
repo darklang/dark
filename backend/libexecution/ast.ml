@@ -713,7 +713,8 @@ and exec_fn
      && (not state.on_execution_path)
      && Tc.StrSet.member state.callstack ~value:fnname
   then
-    (* Don't recurse unexecuted paths in the editor *)
+    (* Don't recurse (including transitively!) when previewing unexecuted paths
+     * in the editor. If we do, we'll recurse forever and blow the stack. *)
     DIncomplete (SourceId (state.tlid, id))
   else
     let state =
