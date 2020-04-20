@@ -180,6 +180,7 @@ window.Dark = {
     // next is not set, reset busy.
     next: null,
     busy: false,
+    timestampLog: [],
     requestAnalysis: function(params) {
       if (!window.analysisWorker) {
         console.log("AnalysisWorker not loaded yet");
@@ -216,6 +217,11 @@ window.Dark = {
           window.Dark.analysis.next = null;
           window.analysisWorker.postMessage(params);
         }
+        if (window.Dark.analysis.timestampLog.length > 100) {
+          window.Dark.analysis.timestampLog = [];
+          // clean-up first
+        }
+        window.Dark.analysis.timestampLog.push(new Date());
       };
     },
   },
