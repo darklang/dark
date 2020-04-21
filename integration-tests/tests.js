@@ -3,7 +3,7 @@ const child_process = require("child_process");
 import fs from "fs";
 const BASE_URL = "http://darklang.localhost:8000/a/test-";
 const getPageUrl = ClientFunction(() => window.location.href);
-const analysisTimestampLog = ClientFunction(() => window.Dark.analysis.timestampLog);
+const analysisLastRun = ClientFunction(() => window.Dark.analysis.lastRun);
 
 async function prepSettings(t) {
   // Turn on fluid debugger
@@ -20,14 +20,19 @@ async function prepSettings(t) {
 }
 
 async function awaitAnalysis(t, ts, trial) {
-  if (trial > 10) {
+  if (!trial) {
+    trial = 0;
+  } else if (trial > 10) {
     return t.expect(true).notOk("Max wait count for analysis exceeded");
   }
 
-  const logs = await analysisTimestampLog();
+  const lastRun = await analysisLastRun();
 
-  if (logs.find(dt => dt > ts)) {
+  if (lastRun > ts) {
     // analysis has returned result since ts (timestamp)
+    const diffInSecs = (lastRun - ts) / 1000.0;
+    console.info("Analysis ran in ~ " + diffInSecs + "secs");
+    // return t.expect(true).ok("Analysis ran in ~ "+ diffInSecs + "secs");
     return t;
   } else {
     await t.wait(1000);
@@ -603,14 +608,15 @@ test("execute_function_works", async t => {
   await t.expect(Selector("#active-editor", { timeout: 5000 }).exists).ok();
   await t.typeText("#active-editor", "Uuid::gen").pressKey("enter");
 
-  const timestamp = new Date();
+  const t1 = new Date();
   await t.click(Selector(".execution-button", { timeout: 500 }));
-
-  await awaitAnalysis(t, timestamp, 0);
+  await awaitAnalysis(t, t1);
 
   let v1 = await Selector(".selected .live-value.loaded").innerText;
 
+  const t2 = new Date();
   await t.click(Selector(".fa-redo"));
+  await awaitAnalysis(t, t2);
 
   let v2 = await Selector(".selected .live-value.loaded").innerText;
 
@@ -633,7 +639,7 @@ test("correct_field_livevalue", async t => {
 test("int_add_with_float_error_includes_fnname", async t => {
   const timestamp = new Date();
   await gotoAST(t);
-  await awaitAnalysis(t, timestamp, 0);
+  await awaitAnalysis(t, timestamp);
 
   await t
     .click(Selector(".fluid-editor")) // required to see the return value (navigate is insufficient)
@@ -994,7 +1000,7 @@ test("empty_fn_never_called_result", async t => {
     .click(".id-1276585567")
     // clicking twice in hopes of making the test more stable
     .click(".id-1276585567");
-  await awaitAnalysis(t, 0);
+  await awaitAnalysis(t, timestamp);
   await t
     .expect(available(".return-value .msg"))
     .ok()

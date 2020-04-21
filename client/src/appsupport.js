@@ -180,7 +180,7 @@ window.Dark = {
     // next is not set, reset busy.
     next: null,
     busy: false,
-    timestampLog: [],
+    lastRun: 0 /* records the last time a result return. So ITs know has analysis finished running since the last time it got called */,
     requestAnalysis: function(params) {
       if (!window.analysisWorker) {
         console.log("AnalysisWorker not loaded yet");
@@ -217,11 +217,8 @@ window.Dark = {
           window.Dark.analysis.next = null;
           window.analysisWorker.postMessage(params);
         }
-        if (window.Dark.analysis.timestampLog.length > 100) {
-          window.Dark.analysis.timestampLog = [];
-          // clean-up first
-        }
-        window.Dark.analysis.timestampLog.push(new Date());
+
+        window.Dark.analysis.lastRun = new Date();
       };
     },
   },
