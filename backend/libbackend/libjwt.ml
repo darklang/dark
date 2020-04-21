@@ -120,7 +120,7 @@ let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
       Error "Invalid token format"
 
 
-let handle_error (fn : unit -> dval) =
+let handle_error (fn : unit -> expr dval) =
   try DResult (ResOk (fn ()))
   with Invalid_argument msg ->
     let msg =

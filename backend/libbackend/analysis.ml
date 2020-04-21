@@ -22,7 +22,7 @@ let unlocked (c : 'expr_type Canvas.canvas) : tlid list =
 
 type db_stat =
   { count : int
-  ; example : (RTT.dval * string) option }
+  ; example : (fluid_expr RTT.dval * string) option }
 [@@deriving eq, show, yojson]
 
 type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]
@@ -114,9 +114,9 @@ let delete_404s
 (* Input vars *)
 (* ------------------------- *)
 let saved_input_vars
-    (h : 'expr_type RTT.HandlerT.handler)
+    (h : fluid_expr RTT.HandlerT.handler)
     (request_path : string)
-    (event : RTT.dval) : input_vars =
+    (event : fluid_expr RTT.dval) : fluid_expr input_vars =
   match Handler.module_type h with
   | `Http ->
       let with_r = [("request", event)] in
@@ -149,37 +149,44 @@ let saved_input_vars
 let handler_trace
     (c : fluid_expr Canvas.canvas)
     (h : Types.fluid_expr RTT.HandlerT.handler)
-    (trace_id : traceid) : trace =
+    (trace_id : traceid) : fluid_expr trace =
   let event = SE.load_event_for_trace ~canvas_id:c.id trace_id in
-  let ivs, timestamp =
+  let input, timestamp =
     match event with
     | Some (request_path, timestamp, event) ->
+        let event = Fluid.dval_to_fluid event in
         (saved_input_vars h request_path event, timestamp)
     | None ->
         (Execution.sample_input_vars h, Time.epoch)
   in
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
+    |> List.map ~f:(fun (a, b, c, d, e) -> (a, b, c, d, Fluid.dval_to_fluid e))
   in
-  (trace_id, Some {input = ivs; timestamp; function_results})
+  (trace_id, Some {input; timestamp; function_results})
 
 
 let user_fn_trace
     (c : fluid_expr Canvas.canvas)
-    (fn : 'expr_type RTT.user_fn)
-    (trace_id : traceid) : trace =
+    (fn : fluid_expr RTT.user_fn)
+    (trace_id : traceid) : fluid_expr trace =
   let event =
     Stored_function_arguments.load_for_analysis ~canvas_id:c.id fn.tlid trace_id
   in
   let ivs, timestamp =
     match event with
     | Some (input_vars, timestamp) ->
+        let input_vars =
+          List.map input_vars ~f:(fun (str, dv) ->
+              (str, Fluid.dval_to_fluid dv))
+        in
         (input_vars, timestamp)
     | None ->
         (Execution.sample_function_input_vars fn, Time.epoch)
   in
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
+    |> List.map ~f:(fun (a, b, c, d, e) -> (a, b, c, d, Fluid.dval_to_fluid e))
   in
   (trace_id, Some {input = ivs; timestamp; function_results})
 
@@ -256,10 +263,11 @@ let execute_function
 
 type fofs = SE.four_oh_four list [@@deriving to_yojson]
 
-type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
+type get_trace_data_rpc_result = {trace : fluid_expr trace}
+[@@deriving to_yojson]
 
-let to_get_trace_data_rpc_result (c : fluid_expr Canvas.canvas) (trace : trace)
-    : string =
+let to_get_trace_data_rpc_result
+    (c : fluid_expr Canvas.canvas) (trace : fluid_expr trace) : string =
   {trace}
   |> get_trace_data_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
@@ -419,7 +427,7 @@ let to_initial_load_rpc_result
 
 (* Execute function *)
 type execute_function_rpc_result =
-  { result : RTT.dval
+  { result : fluid_expr RTT.dval
   ; hash : string
   ; hashVersion : int
   ; touched_tlids : tlid list

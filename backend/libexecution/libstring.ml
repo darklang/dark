@@ -4,8 +4,8 @@ open Types.RuntimeT
 module RT = Runtime
 
 (* type coerces one list to another using a function *)
-let list_coerce ~(f : dval -> 'a option) (l : dval list) :
-    ('a list, dval list * dval) Result.t =
+let list_coerce ~(f : 'expr_type dval -> 'a option) (l : 'expr_type dval list) :
+    ('a list, 'expr_type dval list * 'expr_type dval) Result.t =
   l
   |> List.map ~f:(fun dv ->
          match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
@@ -16,7 +16,7 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 
 let ( >>| ) = Result.( >>| )
 
-let fns : fn list =
+let fns : expr fn list =
   [ { prefix_names = ["String::isEmpty"]
     ; infix_names = []
     ; parameters = [par "s" TStr]
@@ -349,6 +349,35 @@ let fns : fn list =
                    ~replacement:(Unicode_string.of_string_exn "")
               |> replace
                    ~pattern:spaces
+                   ~replacement:(Unicode_string.of_string_exn "-")
+              |> Unicode_string.lowercase
+              |> fun s -> DStr s
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::slugify_v1"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr]
+    ; return_type = TStr
+    ; description = "Turns a string into a slug"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              let replace = Unicode_string.regexp_replace in
+              let to_remove = "[^\\w\\s_-]" in
+              let trim = "^\\s+|\\s+$" in
+              let newspaces = "[-_\\s]+" in
+              s
+              |> replace
+                   ~pattern:to_remove
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> replace
+                   ~pattern:trim
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> replace
+                   ~pattern:newspaces
                    ~replacement:(Unicode_string.of_string_exn "-")
               |> Unicode_string.lowercase
               |> fun s -> DStr s
@@ -692,6 +721,20 @@ let fns : fn list =
     ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::isSubstring_v1"]
+    ; infix_names = []
+    ; parameters = [par "lookingIn" TStr; par "searchingFor" TStr]
+    ; return_type = TBool
+    ; description = "Checks if `lookingIn` contains `searchingFor`"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr haystack; DStr needle] ->
+              DBool (Unicode_string.is_substring ~substring:needle haystack)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::contains"]
     ; infix_names = []
     ; parameters = [par "lookingIn" TStr; par "searchingFor" TStr]
     ; return_type = TBool

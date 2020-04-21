@@ -363,7 +363,7 @@ let result_to_response
     ~(c : RTT.expr Canvas.canvas ref)
     ~(execution_id : Types.id)
     ~(req : CRequest.t)
-    (result : RTT.dval) =
+    (result : RTT.expr RTT.dval) =
   let maybe_infer_cors headers =
     (* Add the Access-Control-ALlow-Origin, if it doens't exist
        and if infer_cors_header tells us to. *)
@@ -544,7 +544,10 @@ let user_page_handler
           | _ ->
               () ) ;
           let bound =
+            let page = Libexecution.Toplevel.handler_to_fluid page in
             Libexecution.Execution.http_route_input_vars page (Uri.path uri)
+            |> List.map ~f:(fun (a, b) ->
+                   (a, Libexecution.Fluid.dval_of_fluid b))
           in
           let result, touched_tlids =
             Libexecution.Execution.execute_handler
@@ -991,7 +994,7 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
           ~tlid:params.tlid
           ~trace_id:params.trace_id
           ~caller_id:params.caller_id
-          ~args:params.args)
+          ~args:(List.map ~f:Libexecution.Fluid.dval_of_fluid params.args))
   in
   let t4, unlocked =
     time "4-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
@@ -1003,7 +1006,7 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
           Dval.current_hash_version
           tlids
           unlocked
-          result)
+          (Libexecution.Fluid.dval_to_fluid result))
   in
   respond
     ~execution_id
@@ -1019,10 +1022,7 @@ let upload_function
     time "1-read-api" (fun _ -> Api.to_upload_function_rpc_params body)
   in
   let t2, result =
-    time "2-save" (fun _ ->
-        Package_manager.save
-          username
-          (Libexecution.Toplevel.user_fn_of_fluid params.fn))
+    time "2-save" (fun _ -> Package_manager.save username params.fn)
   in
   let t3, (response_code, response) =
     time "3-to-frontend" (fun _ ->
@@ -1082,7 +1082,12 @@ let trigger_handler ~(execution_id : Types.id) (host : string) body :
                 handler
                 ~execution_id
                 ~tlid:params.tlid
-                ~input_vars:params.input
+                ~input_vars:
+                  (List.map
+                     params.input
+                     ~f:
+                       (Tc.Tuple2.map_second
+                          ~f:Libexecution.Fluid.dval_of_fluid))
                 ~dbs:(TL.dbs !c.dbs)
                 ~user_tipes:(!c.user_tipes |> Map.data)
                 ~user_fns:(!c.user_functions |> Map.data)

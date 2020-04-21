@@ -118,14 +118,14 @@ let () =
   *)
 
 let filterFnsNotInStaticFns (fn : fn) =
-  let (realfn : RuntimeT.fn option) =
+  let (realfn : RuntimeT.expr RuntimeT.fn option) =
     Libs.FnMap.find !Libs.static_fns fn.fnname
   in
   match realfn with Some _ -> false | None -> true
 
 
 let isDeprecated (fn : fn) =
-  let (realfn : RuntimeT.fn option) =
+  let (realfn : RuntimeT.expr RuntimeT.fn option) =
     Libs.FnMap.find !Libs.static_fns fn.fnname
   in
   match realfn with Some realfn -> realfn.deprecated | None -> false

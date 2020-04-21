@@ -356,7 +356,7 @@ let t_db_queryOne_supports_Date_comparison () =
                           (fn op [var "middle"; fieldAccess (var "value") "ts"])
                       ]) ])))
   in
-  let expected (date : string) : dval =
+  let expected (date : string) : expr dval =
     DOption
       (OptJust
          (DObj (DvalMap.singleton "ts" (DDate (date |> Util.date_of_isostring)))))
@@ -1016,6 +1016,23 @@ let t_db_query_works () =
     (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
     (* matches the ocaml version: "" is a substring of all strings *)
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str ""]) |> execs) ;
+  check_dval
+    "string::contains"
+    (DList [Dval.dint 65; Dval.dint 73])
+    (queryv (fn "String::contains" [field "v" "name"; str "R"]) |> execs) ;
+  check_dval
+    "string::contains case-sensitive"
+    (DList [])
+    (queryv (fn "String::contains" [field "v" "name"; str "ROSS"]) |> execs) ;
+  check_dval
+    "string::contains when empty"
+    (DList [])
+    (queryv (fn "String::contains" [field "v" "name"; str "ZZZ"]) |> execs) ;
+  check_dval
+    "string::contains empty arg"
+    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (* matches the ocaml version: "" is a substring of all strings *)
+    (queryv (fn "String::contains" [field "v" "name"; str ""]) |> execs) ;
   (* -------------- *)
   (* Test partial evaluation *)
   (* -------------- *)

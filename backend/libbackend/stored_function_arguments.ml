@@ -17,7 +17,7 @@ let store ~canvas_id ~trace_id tlid args =
 
 
 let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
-    (Analysis_types.input_vars * RTT.time) option =
+    (RTT.expr Analysis_types.input_vars * RTT.time) option =
   (* We need to alias the subquery (here aliased as `q`) because Postgres
    * requires inner SELECTs to be aliased. *)
   Db.fetch

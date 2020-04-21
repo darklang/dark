@@ -123,7 +123,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
         object_
           [ ("symtable", tcStrDict dval symtable)
           ; ("params", list (pair id string) params)
-          ; ("body", body |> OldExpr.fromFluidExpr |> expr) ]
+          ; ("body", fluidExpr body) ]
       in
       ev "DBlock" [dblock_args]
   | DIncomplete ds ->
@@ -290,9 +290,7 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
 
 and handler (h : Types.handler) : Js.Json.t =
   object_
-    [ ("tlid", tlid h.hTLID)
-    ; ("spec", spec h.spec)
-    ; ("ast", h.ast |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
+    [("tlid", tlid h.hTLID); ("spec", spec h.spec); ("ast", fluidAST h.ast)]
 
 
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
@@ -319,8 +317,8 @@ and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("version", int dbm.version)
     ; ("state", dbMigrationState dbm.state)
     ; ("cols", colList dbm.cols)
-    ; ("rollforward", dbm.rollforward |> OldExpr.fromFluidExpr |> expr)
-    ; ("rollback", dbm.rollback |> OldExpr.fromFluidExpr |> expr) ]
+    ; ("rollforward", dbm.rollforward |> fluidExpr)
+    ; ("rollback", dbm.rollback |> fluidExpr) ]
 
 
 and db (db : Types.db) : Js.Json.t =
@@ -385,7 +383,7 @@ and op (call : Types.op) : Js.Json.t =
   | DeleteFunction t ->
       ev "DeleteFunction" [tlid t]
   | SetExpr (t, i, e) ->
-      ev "SetExpr" [tlid t; id i; e |> OldExpr.fromFluidExpr |> expr]
+      ev "SetExpr" [tlid t; id i; e |> fluidExpr]
   | RenameDBname (t, name) ->
       ev "RenameDBname" [tlid t; string name]
   | CreateDBWithBlankOr (t, p, i, name) ->
@@ -527,7 +525,7 @@ and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", uf.ufAST |> FluidAST.toExpr |> OldExpr.fromFluidExpr |> expr) ]
+    ; ("ast", fluidAST uf.ufAST) ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
@@ -619,64 +617,6 @@ and userFunctionParameter (p : Types.userFunctionParameter) : Js.Json.t =
     ; ("description", string p.ufpDescription) ]
 
 
-and expr (expr : OldExpr.expr) : Js.Json.t = blankOr nExpr expr
-
-and nExpr (nexpr : OldExpr.nExpr) : Js.Json.t =
-  let e = expr in
-  let ev = variant in
-  match nexpr with
-  | FnCall (F (_, n), exprs, r) ->
-      let op = if r = Rail then "FnCallSendToRail" else "FnCall" in
-      ev op [string n; list e exprs]
-  | FnCall (Blank _, exprs, r) ->
-      let op = if r = Rail then "FnCallSendToRail" else "FnCall" in
-      let encoded = ev op [string "unknown"; list e exprs] in
-      recover "fnCall hack used" ~debug:nexpr encoded
-  | Let (lhs, rhs, body) ->
-      ev "Let" [blankOr string lhs; e rhs; e body]
-  | Lambda (vars, body) ->
-      ev "Lambda" [list (blankOr string) vars; e body]
-  | FieldAccess (obj, field) ->
-      ev "FieldAccess" [e obj; blankOr string field]
-  | If (cond, then_, else_) ->
-      ev "If" [e cond; e then_; e else_]
-  | Variable v ->
-      ev "Variable" [string v]
-  | Value v ->
-      ev "Value" [string v]
-  | Thread exprs ->
-      ev "Thread" [list e exprs]
-  | ObjectLiteral pairs ->
-      ev "ObjectLiteral" [list (pair (blankOr string) expr) pairs]
-  | ListLiteral elems ->
-      ev "ListLiteral" [list e elems]
-  | FeatureFlag (msg, cond, a, b) ->
-      ev "FeatureFlag" [blankOr string msg; e cond; e a; e b]
-  | Match (matchExpr, cases) ->
-      ev "Match" [e matchExpr; list (pair pattern expr) cases]
-  | Constructor (name, args) ->
-      ev "Constructor" [blankOr string name; list e args]
-  | FluidPartial (name, oldExpr) ->
-      ev "FluidPartial" [string name; e oldExpr]
-  | FluidRightPartial (name, oldExpr) ->
-      ev "FluidRightPartial" [string name; e oldExpr]
-  | FluidLeftPartial (name, oldExpr) ->
-      ev "FluidLeftPartial" [string name; e oldExpr]
-
-
-and pattern (p : OldExpr.pattern) : Js.Json.t = blankOr nPattern p
-
-and nPattern (npat : OldExpr.nPattern) : Js.Json.t =
-  let ev = variant in
-  match npat with
-  | PVariable a ->
-      ev "PVariable" [string a]
-  | PLiteral a ->
-      ev "PLiteral" [string a]
-  | PConstructor (a, b) ->
-      ev "PConstructor" [string a; list pattern b]
-
-
 and sendToRail (sendToRail : FluidExpression.sendToRail) : Js.Json.t =
   let ev = variant in
   match sendToRail with Rail -> ev "Rail" [] | NoRail -> ev "NoRail" []
@@ -710,6 +650,10 @@ and fluidPattern (pattern : FluidPattern.t) : Js.Json.t =
       ev "FPNull" [id id'; id mid]
   | FPBlank (id', mid) ->
       ev "FPBlank" [id id'; id mid]
+
+
+and fluidAST (ast : FluidAST.t) : Js.Json.t =
+  ast |> FluidAST.toExpr |> fluidExpr
 
 
 and fluidExpr (expr : FluidExpression.t) : Js.Json.t =

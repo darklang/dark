@@ -194,7 +194,7 @@ let find_db (dbs : expr DbT.db list) (name : string) : expr DbT.db =
   |> List.hd_exn
 
 
-let find_derrorrail (dvals : dval list) : dval option =
+let find_derrorrail (dvals : 'expr_type dval list) : 'expr_type dval option =
   List.find dvals ~f:Dval.is_errorrail
 
 
@@ -203,7 +203,8 @@ let should_send_to_rail (expr : nexpr) : bool =
 
 
 let rec execute_dblock
-    ~(state : exec_state) {symtable; body; params} (args : dval list) : dval =
+    ~(state : expr exec_state) {symtable; body; params} (args : expr dval list)
+    : expr dval =
   (* If one of the args is fake value used as a marker, return it instead of
    * executing. This is the same behaviour as in fn calls. *)
   let first_marker = List.find args ~f:Dval.is_fake_marker_dval in
@@ -236,7 +237,8 @@ let rec execute_dblock
         exec ~state new_st body
 
 
-and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
+and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
+    expr dval =
   (* Design doc for execution results and previews: https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e *)
   let on_execution_path = state.on_execution_path in
   let ctx = state.context in
@@ -264,8 +266,8 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
    * this a functional language with functions-as-values and application
    * as a first-class concept sooner rather than later.
    *)
-  let inject_param_and_execute (st : symtable) (arg : dval) (exp : expr) : dval
-      =
+  let inject_param_and_execute
+      (st : expr symtable) (arg : expr dval) (exp : expr) : expr dval =
     let result =
       match exp with
       | Filled (id, Lambda _) ->
@@ -472,9 +474,9 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
         let hasMatched = ref false in
         let matchResult = ref (DIncomplete (sourceId id)) in
         let executeMatch
-            (new_defs : (string * dval) list)
-            (traces : (id * dval) list)
-            (st : dval_map)
+            (new_defs : (string * 'expr_type dval) list)
+            (traces : (id * 'expr_type dval) list)
+            (st : 'expr_type dval_map)
             (expr : expr) : unit =
           (* Once a pattern is matched, this function is called to execute its
            * `expr`. It tracks whether this is the first pattern to execute,
@@ -500,17 +502,17 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
               trace ~on_execution_path:false id (incomplete id))
         in
         let traceNonMatch
-            (st : dval_map)
+            (st : 'expr_type dval_map)
             (expr : expr)
-            (traces : (id * dval) list)
+            (traces : (id * 'expr_type dval) list)
             (id : id)
-            (value : dval) : unit =
+            (value : 'expr_type dval) : unit =
           preview st expr ;
           traceIncompletes traces ;
           trace ~on_execution_path:false id value
         in
         let rec matchAndExecute
-            dv (builtUpTraces : (id * dval) list) (pattern, expr) =
+            dv (builtUpTraces : (id * 'expr_type dval) list) (pattern, expr) =
           (* Compare `dv` to `pattern`, and execute the rhs `expr` of any
            * matches. Tracks whether a branch has already been executed and
            * will exceute later matches in preview mode.  Ensures all patterns
@@ -606,11 +608,11 @@ and exec ~(state : exec_state) (st : symtable) (expr : expr) : dval =
 (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv *)
 (* |> Sexp.to_string) *)
 and call_fn
-    ~(state : exec_state)
+    ~(state : 'expr_type exec_state)
     (name : string)
     (id : id)
-    (argvals : dval list)
-    (send_to_rail : bool) : dval =
+    (argvals : 'expr_type dval list)
+    (send_to_rail : bool) : 'expr_type dval =
   let sourceId id = SourceId (state.tlid, id) in
   let fn =
     Libs.get_fn state.user_fns name
@@ -707,155 +709,174 @@ and call_fn
 
 
 and exec_fn
-    ~(state : exec_state)
+    ~(state : 'expr_type exec_state)
     (fnname : string)
     (id : id)
-    (fn : fn)
-    (args : dval_map) : dval =
-  let state = {state with executing_fnname = fnname} in
-  let sourceId id = SourceId (state.tlid, id) in
-  let arglist =
-    fn.parameters
-    |> List.map ~f:(fun (p : param) -> p.name)
-    |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
-  in
-  let args_with_dbs =
-    let db_dvals =
-      state.dbs
-      |> List.filter_map ~f:(fun db ->
-             match db.name with
-             | Filled (_, name) ->
-                 Some (name, DDB name)
-             | Partial _ | Blank _ ->
-                 None)
-      |> DvalMap.from_list
+    (fn : 'expr_type fn)
+    (args : 'expr_type dval_map) : 'expr_type dval =
+  if state.context = Preview
+     && (not state.on_execution_path)
+     && Tc.StrSet.member state.callstack ~value:fnname
+  then
+    (* Don't recurse (including transitively!) when previewing unexecuted paths
+     * in the editor. If we do, we'll recurse forever and blow the stack. *)
+    DIncomplete (SourceId (state.tlid, id))
+  else
+    let state =
+      { state with
+        executing_fnname = fnname
+      ; callstack = Tc.StrSet.add fnname state.callstack }
     in
-    Util.merge_left db_dvals args
-  in
-  let sfr_desc = (state.tlid, fnname, id) in
-  let badArg =
-    List.find arglist ~f:(function
-        | DError _ when String.Caseless.equal fnname "Bool::isError" ->
-            false
-        | DError _ | DIncomplete _ ->
-            true
-        | _ ->
-            false)
-  in
-  match badArg with
-  | Some (DIncomplete src) ->
-      DIncomplete src
-  | Some (DError (src, _)) ->
-      DError (src, "Fn called with an error as an argument")
-  | _ ->
-    ( match fn.func with
-    | InProcess f ->
-        if state.context = Preview && fn.preview_safety <> Safe
-        then
-          match state.load_fn_result sfr_desc arglist with
-          | Some (result, _ts) ->
-              result
-          | inc ->
-              DIncomplete (sourceId id)
-        else
-          let state =
-            {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
-          in
-          let result =
-            try f (state, arglist) with
-            | Exception.DarkException de as e when de.tipe = Code ->
-                (* These are exceptions that come from an RT.error, which is all
+    let sourceId id = SourceId (state.tlid, id) in
+    let arglist =
+      fn.parameters
+      |> List.map ~f:(fun (p : param) -> p.name)
+      |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
+    in
+    let args_with_dbs =
+      let db_dvals =
+        state.dbs
+        |> List.filter_map ~f:(fun db ->
+               match db.name with
+               | Filled (_, name) ->
+                   Some (name, DDB name)
+               | Partial _ | Blank _ ->
+                   None)
+        |> DvalMap.from_list
+      in
+      Util.merge_left db_dvals args
+    in
+    let sfr_desc = (state.tlid, fnname, id) in
+    let badArg =
+      List.find arglist ~f:(function
+          | DError _ when String.Caseless.equal fnname "Bool::isError" ->
+              false
+          | DError _ | DIncomplete _ ->
+              true
+          | _ ->
+              false)
+    in
+    match badArg with
+    | Some (DIncomplete src) ->
+        DIncomplete src
+    | Some (DError (src, _)) ->
+        DError (src, "Fn called with an error as an argument")
+    | _ ->
+      ( match fn.func with
+      | InProcess f ->
+          if state.context = Preview && fn.preview_safety <> Safe
+          then
+            match state.load_fn_result sfr_desc arglist with
+            | Some (result, _ts) ->
+                result
+            | inc ->
+                DIncomplete (sourceId id)
+          else
+            let state =
+              {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
+            in
+            let result =
+              try f (state, arglist) with
+              | Exception.DarkException de as e when de.tipe = Code ->
+                  (* These are exceptions that come from an RT.error, which is all
             * usercode problems. Non user-code problems should use different
             * exception types.
             *)
-                Dval.exception_to_dval e (sourceId id)
-            | e ->
-                (* After the rethrow, this gets eventually caught then shown to the
+                  Dval.exception_to_dval e (sourceId id)
+              | e ->
+                  (* After the rethrow, this gets eventually caught then shown to the
             * user as a Dark Internal Exception. It's an internal exception
             * because we didn't anticipate the problem, give it a nice error
             * message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
             * this, give it a nice exception via RT.error.  *)
-                Exception.reraise e
-          in
-          (* there's no point storing data we'll never ask for *)
-          if fn.preview_safety <> Safe
-          then state.store_fn_result sfr_desc arglist result ;
-          result
-    | PackageFunction body ->
-      (* This is similar to InProcess but also has elements of UserCreated. *)
-      ( match Type_checker.check_function_call ~user_tipes:[] fn args with
-      | Ok () ->
-          let result =
-            match (state.context, state.load_fn_result sfr_desc arglist) with
-            | Preview, Some (result, _ts) ->
-                Dval.unwrap_from_errorrail result
-            | Preview, None when fn.preview_safety <> Safe ->
-                DIncomplete (sourceId id)
-            | _ ->
-                (* It's okay to execute user functions in both Preview and Real contexts,
+                  Exception.reraise e
+            in
+            (* there's no point storing data we'll never ask for *)
+            if fn.preview_safety <> Safe
+            then state.store_fn_result sfr_desc arglist result ;
+            result
+      | PackageFunction body ->
+        (* This is similar to InProcess but also has elements of UserCreated. *)
+        ( match Type_checker.check_function_call ~user_tipes:[] fn args with
+        | Ok () ->
+            let result =
+              match (state.context, state.load_fn_result sfr_desc arglist) with
+              | Preview, Some (result, _ts) ->
+                  Dval.unwrap_from_errorrail result
+              | Preview, None when fn.preview_safety <> Safe ->
+                  DIncomplete (sourceId id)
+              | _ ->
+                  (* It's okay to execute user functions in both Preview and Real contexts,
                   * But in Preview we might not have all the data we need *)
-                (* TODO: We don't munge `state.tlid` like we do in UserCreated, which means
+                  (* TODO: We don't munge `state.tlid` like we do in UserCreated, which means
                 * there might be `id` collisions between AST nodes. Munging `state.tlid` would not
                 * save us from tlid collisions either. tl;dr, executing a package function may result
                 * in trace data being associated with the wrong handler/call site. *)
+                  let result = exec ~state args_with_dbs body in
+                  state.store_fn_result sfr_desc arglist result ;
+                  Dval.unwrap_from_errorrail result
+            in
+            (* there's no point storing data we'll never ask for *)
+            if fn.preview_safety <> Safe
+            then state.store_fn_result sfr_desc arglist result ;
+            result
+        | Error errs ->
+            let error_msgs =
+              errs
+              |> List.map ~f:Type_checker.Error.to_string
+              |> String.concat ~sep:", "
+            in
+            DError
+              ( sourceId id
+              , "Type error(s) in function parameters: " ^ error_msgs ) )
+      | UserCreated (tlid, body) ->
+        ( match
+            Type_checker.check_function_call
+              ~user_tipes:state.user_tipes
+              fn
+              args
+          with
+        | Ok () ->
+            state.trace_tlid tlid ;
+            (* Don't execute user functions if it's preview mode and we have a result *)
+            ( match (state.context, state.load_fn_result sfr_desc arglist) with
+            | Preview, Some (result, _ts) ->
+                Dval.unwrap_from_errorrail result
+            | _ ->
+                (* It's okay to execute user functions in both Preview and Real contexts,
+                 * But in Preview we might not have all the data we need *)
+                state.store_fn_arguments tlid args ;
+                let state = {state with tlid} in
                 let result = exec ~state args_with_dbs body in
                 state.store_fn_result sfr_desc arglist result ;
-                Dval.unwrap_from_errorrail result
-          in
-          (* there's no point storing data we'll never ask for *)
-          if fn.preview_safety <> Safe
-          then state.store_fn_result sfr_desc arglist result ;
-          result
-      | Error errs ->
-          let error_msgs =
-            errs
-            |> List.map ~f:Type_checker.Error.to_string
-            |> String.concat ~sep:", "
-          in
-          DError
-            (sourceId id, "Type error(s) in function parameters: " ^ error_msgs)
-      )
-    | UserCreated (tlid, body) ->
-      ( match
-          Type_checker.check_function_call ~user_tipes:state.user_tipes fn args
-        with
-      | Ok () ->
-          state.trace_tlid tlid ;
-          (* Don't execute user functions if it's preview mode and we have a result *)
-          ( match (state.context, state.load_fn_result sfr_desc arglist) with
-          | Preview, Some (result, _ts) ->
-              Dval.unwrap_from_errorrail result
-          | _ ->
-              (* It's okay to execute user functions in both Preview and Real contexts,
-               * But in Preview we might not have all the data we need *)
-              state.store_fn_arguments tlid args ;
-              let state = {state with tlid} in
-              let result = exec ~state args_with_dbs body in
-              state.store_fn_result sfr_desc arglist result ;
-              Dval.unwrap_from_errorrail result )
-      | Error errs ->
-          let error_msgs =
-            errs
-            |> List.map ~f:Type_checker.Error.to_string
-            |> String.concat ~sep:", "
-          in
-          DError
-            (sourceId id, "Type error(s) in function parameters: " ^ error_msgs)
-      )
-    | API f ->
-        f args )
+                Dval.unwrap_from_errorrail result )
+        | Error errs ->
+            let error_msgs =
+              errs
+              |> List.map ~f:Type_checker.Error.to_string
+              |> String.concat ~sep:", "
+            in
+            DError
+              ( sourceId id
+              , "Type error(s) in function parameters: " ^ error_msgs ) )
+      | API f ->
+          f args )
 
 
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
 
-let execute_ast ~(state : exec_state) ~input_vars expr : dval =
+let execute_ast ~(state : 'expr_type exec_state) ~input_vars expr :
+    'expr_type dval =
   let state = {state with exec} in
   exec ~state (input_vars2symtable input_vars) expr
 
 
 let execute_fn
-    ~(state : exec_state) (name : string) (id : id) (args : dval list) : dval =
+    ~(state : 'expr_type exec_state)
+    (name : string)
+    (id : id)
+    (args : 'expr_type dval list) : 'expr_type dval =
   let state = {state with exec} in
   call_fn name id args false ~state

@@ -117,6 +117,34 @@ let t_list_literals () =
           false)
 
 
+let t_recursion_in_editor () =
+  let caller_id = fid () in
+  let skipped_caller_id = fid () in
+  let open FluidShortcuts in
+  let recurse =
+    user_fn
+      "recurse"
+      ["i"]
+      (* if it goes down all paths, it'll recurse forever *)
+      (if'
+         (binop "<" (var "i") (int 1))
+         (int 0)
+         (fn ~id:skipped_caller_id "recurse" [int 2]))
+  in
+  let ast = fn ~id:caller_id "recurse" [int 0] in
+  let ops = [Op.SetFunction (Toplevel.user_fn_of_fluid recurse)] in
+  let dvalStore = exec_save_dvals' ~ops ast in
+  check_execution_result
+    "result is there as expected"
+    (IDTable.find_exn dvalStore caller_id)
+    (ExecutedResult (Dval.dint 0)) ;
+  check_execution_result
+    "result is incomplete for other path"
+    (IDTable.find_exn dvalStore skipped_caller_id)
+    (NonExecutedResult (DIncomplete (SourceId (id_of_int 7, skipped_caller_id)))) ;
+  ()
+
+
 let t_if_not_executed () =
   let trueid = fid () in
   let falseid = fid () in
@@ -202,7 +230,7 @@ let t_match_evaluation () =
   let check_match
       (msg : string)
       (arg : E.t)
-      (expected : (id * string * execution_result) list) =
+      (expected : (id * string * expr execution_result) list) =
     let ast = astFor arg in
     Log.inspecT "ast" ~f:E.show ast ;
     let dvalStore = exec_save_dvals' ast in
@@ -314,6 +342,7 @@ let suite =
   [ ( "Executing user function traces touched tlids"
     , `Quick
     , t_trace_tlids_exec_fn )
+  ; ("Recursion only works in editor", `Quick, t_recursion_in_editor)
   ; ("Missing functions still check the rail", `Quick, t_on_the_rail)
   ; ("Filter / from /:rest", `Quick, t_test_filter_slash)
   ; ("Analysis on List listerals", `Quick, t_list_literals)
