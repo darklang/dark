@@ -749,81 +749,6 @@ let toCategoryName (t : t) : string =
       "flag"
 
 
-let toValue (t : t) : string =
-  match t with
-  | TInteger (_, v, _)
-  | TString (_, v, _)
-  | TStringMLStart (_, v, _, _)
-  | TStringMLMiddle (_, v, _, _)
-  | TStringMLEnd (_, v, _, _)
-  | TFloatWhole (_, v, _)
-  | TFloatFractional (_, v, _)
-  | TPartial (_, v, _)
-  | TRightPartial (_, v, _)
-  | TPartialGhost (_, v, _)
-  | TLetVarName (_, _, v, _)
-  | TBinOp (_, v, _)
-  | TFieldName (_, _, v, _)
-  | TFieldPartial (_, _, _, v, _)
-  | TVariable (_, v, _)
-  | TFnName (_, v, _, _, _)
-  | TFnVersion (_, _, v, _)
-  | TLambdaVar (_, _, _, v, _)
-  | TPatternVariable (_, _, v, _)
-  | TPatternConstructorName (_, _, v, _)
-  | TPatternInteger (_, _, v, _)
-  | TPatternFloatWhole (_, _, v, _)
-  | TPatternFloatFractional (_, _, v, _)
-  | TConstructorName (_, v) ->
-      v
-  | TPatternString r ->
-      r.str
-  | TRecordFieldname r ->
-      r.fieldName
-  | TRecordSep _
-  | TRecordClose _
-  | TMatchKeyword _
-  | TMatchBranchArrow _
-  | TLetAssignment _
-  | TIfKeyword _
-  | TIfThenKeyword _
-  | TIfElseKeyword _
-  | TFieldOp _
-  | TLambdaComma _
-  | TLambdaArrow _
-  | TLambdaSymbol _
-  | TRecordOpen _
-  | TListOpen _
-  | TListClose _
-  | TListComma _
-  | TPipe _
-  | TIndent _
-  | TLetKeyword _
-  | TFloatPoint _
-  | TSep _
-  | TPatternFloatPoint _
-  | TPatternBlank _
-  | TBlank _
-  | TPlaceholder _
-  | TParenOpen _
-  | TParenClose _
-  | TFlagWhenKeyword _
-  | TNewline _
-  | TFlagEnabledKeyword _
-  | TPatternTrue _ ->
-      "ptrue"
-  | TPatternFalse _ ->
-      "pfalse"
-  | TPatternNullToken _ ->
-      "pnull"
-  | TTrue _ ->
-      "true"
-  | TFalse _ ->
-      "false"
-  | TNullToken _ ->
-      "null"
-
-
 let toDebugInfo (t : t) : string =
   match t with
   | TStringMLStart (_, _, offset, _)
@@ -894,5 +819,110 @@ let matches (t1 : t) (t2 : t) : bool =
   tid t1 = tid t2
   && toTypeName t1 = toTypeName t2
   && toIndex t1 = toIndex t2
-  && toValue t1 = toValue t2
   && t1 <> (* Matches too many things *) TNewline None
+
+
+(* Matches everything except parentBlockID *)
+let matchesContent (t1 : t) (t2 : t) : bool =
+  match (t1, t2) with
+  | ( TStringMLStart (id1, seg1, ind1, str1)
+    , TStringMLStart (id2, seg2, ind2, str2) )
+  | ( TStringMLMiddle (id1, seg1, ind1, str1)
+    , TStringMLMiddle (id2, seg2, ind2, str2) )
+  | TStringMLEnd (id1, seg1, ind1, str1), TStringMLEnd (id2, seg2, ind2, str2)
+    ->
+      id1 = id2 && seg1 = seg2 && ind1 = ind2 && str1 = str2
+  | TListOpen id1, TListOpen id2
+  | TListClose id1, TListClose id2
+  | TRecordOpen (id1, _), TRecordOpen (id2, _)
+  | TRecordClose (id1, _), TRecordClose (id2, _)
+  | TTrue (id1, _), TTrue (id2, _)
+  | TFalse (id1, _), TFalse (id2, _)
+  | TNullToken (id1, _), TNullToken (id2, _)
+  | TFloatPoint (id1, _), TFloatPoint (id2, _)
+  | TLetKeyword (id1, _, _), TLetKeyword (id2, _, _)
+  | TLetAssignment (id1, _, _), TLetAssignment (id2, _, _)
+  | TIfKeyword (id1, _), TIfKeyword (id2, _)
+  | TIfThenKeyword (id1, _), TIfThenKeyword (id2, _)
+  | TIfElseKeyword (id1, _), TIfElseKeyword (id2, _)
+  | TBlank (id1, _), TBlank (id2, _)
+  | TLambdaArrow (id1, _), TLambdaArrow (id2, _)
+  | TLambdaSymbol (id1, _), TLambdaSymbol (id2, _)
+  | TSep (id1, _), TSep (id2, _)
+  | TMatchKeyword id1, TMatchKeyword id2
+  | TParenOpen id1, TParenOpen id2
+  | TParenClose id1, TParenClose id2
+  | TFlagWhenKeyword id1, TFlagWhenKeyword id2
+  | TFlagEnabledKeyword id1, TFlagEnabledKeyword id2 ->
+      id1 = id2
+  | TListComma (id1, ind1), TListComma (id2, ind2)
+  | TRecordSep (id1, ind1, _), TRecordSep (id2, ind2, _)
+  | TLambdaComma (id1, ind1, _), TLambdaComma (id2, ind2, _) ->
+      id1 = id2 && ind1 = ind2
+  | TInteger (id1, val1, _), TInteger (id2, val2, _)
+  | TFloatWhole (id1, val1, _), TFloatWhole (id2, val2, _)
+  | TFloatFractional (id1, val1, _), TFloatFractional (id2, val2, _)
+  | TPartial (id1, val1, _), TPartial (id2, val2, _)
+  | TRightPartial (id1, val1, _), TRightPartial (id2, val2, _)
+  | TPartialGhost (id1, val1, _), TPartialGhost (id2, val2, _)
+  | TString (id1, val1, _), TString (id2, val2, _)
+  | TLetVarName (id1, _, val1, _), TLetVarName (id2, _, val2, _)
+  | TBinOp (id1, val1, _), TBinOp (id2, val2, _)
+  | TVariable (id1, val1, _), TVariable (id2, val2, _)
+  | TConstructorName (id1, val1), TConstructorName (id2, val2) ->
+      id1 = id2 && val1 = val2
+  | TFieldOp (id1, l1, _), TFieldOp (id2, l2, _) ->
+      id1 = id2 && l1 = l2
+  | TFieldName (id1, l1, val1, _), TFieldName (id2, l2, val2, _)
+  | TFieldPartial (id1, l1, _, val1, _), TFieldPartial (id2, l2, _, val2, _) ->
+      id1 = id2 && l1 = l2 && val1 = val2
+  | TLambdaVar (id1, _, ind1, val1, _), TLambdaVar (id2, _, ind2, val2, _) ->
+      id1 = id2 && ind1 = ind2 && val1 = val2
+  | TPipe (id1, order1, nest1, _), TPipe (id2, order2, nest2, _) ->
+      id1 = id2 && order1 = order2 && nest1 = nest2
+  | TRecordFieldname d1, TRecordFieldname d2 ->
+      d1.recordID = d2.recordID
+      && d1.exprID = d2.exprID
+      && d1.index = d2.index
+      && d1.fieldName = d2.fieldName
+  | TNewline props1, TNewline props2 ->
+      props1 = props2
+  | TMatchBranchArrow d1, TMatchBranchArrow d2 ->
+      d1.matchID = d2.matchID
+      && d1.patternID = d2.patternID
+      && d1.index = d2.index
+  | TPatternString d1, TPatternString d2 ->
+      d1.matchID = d2.matchID
+      && d1.patternID = d2.patternID
+      && d1.str = d2.str
+      && d1.branchIdx = d2.branchIdx
+  | TFnName (id1, _, _, fullname1, rail1), TFnName (id2, _, _, fullname2, rail2)
+    ->
+      id1 = id2 && fullname1 = fullname2 && rail1 = rail2
+  | TFnVersion (id1, _, _, fullname1), TFnVersion (id2, _, _, fullname2) ->
+      id1 = id2 && fullname1 = fullname2
+  | TPatternVariable (m1, p1, val1, ind1), TPatternVariable (m2, p2, val2, ind2)
+  | ( TPatternConstructorName (m1, p1, val1, ind1)
+    , TPatternConstructorName (m2, p2, val2, ind2) )
+  | TPatternInteger (m1, p1, val1, ind1), TPatternInteger (m2, p2, val2, ind2)
+    ->
+      m1 = m2 && p1 = p2 && val1 = val2 && ind1 = ind2
+  | TPatternTrue (p1, id1, ind1), TPatternTrue (p2, id2, ind2)
+  | TPatternFalse (p1, id1, ind1), TPatternFalse (p2, id2, ind2)
+  | TPatternNullToken (p1, id1, ind1), TPatternNullToken (p2, id2, ind2)
+  | TPatternFloatPoint (p1, id1, ind1), TPatternFloatPoint (p2, id2, ind2)
+  | TPatternBlank (p1, id1, ind1), TPatternBlank (p2, id2, ind2) ->
+      p1 = p2 && id1 = id2 && ind1 = ind2
+  | ( TPatternFloatWhole (p1, id1, val1, ind1)
+    , TPatternFloatWhole (p2, id2, val2, ind2) )
+  | ( TPatternFloatFractional (p1, id1, val1, ind1)
+    , TPatternFloatFractional (p2, id2, val2, ind2) ) ->
+      p1 = p2 && id1 = id2 && val1 = val2 && ind1 = ind2
+  | TIndent ind1, TIndent ind2 ->
+      ind1 = ind2
+  | TPlaceholder d1, TPlaceholder d2 ->
+      d1.blankID = d2.blankID
+      && d1.fnID = d2.fnID
+      && d1.placeholder = d2.placeholder
+  | _, _ ->
+      false

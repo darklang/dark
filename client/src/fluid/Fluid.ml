@@ -4946,7 +4946,7 @@ let expressionRange (ast : FluidAST.t) (s : fluidState) (exprID : ID.t) :
     |> Tuple2.mapAll ~f:(function
            | Some exprTok ->
                List.find containingTokens ~f:(fun tk ->
-                   T.matches exprTok.token tk.token)
+                   T.matchesContent exprTok.token tk.token)
            | _ ->
                None)
   in
