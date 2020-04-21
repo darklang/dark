@@ -897,6 +897,7 @@ and autocompleteItem =
   | ACFnName of string
   | ACParamName of string
   | ACParamTipe of tipe
+  | ACReturnTipe of tipe
   (* User types *)
   | ACTypeFieldTipe of tipe
   | ACTypeName of string
