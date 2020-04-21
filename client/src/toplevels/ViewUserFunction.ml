@@ -142,11 +142,12 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   in
   let returnRow =
     Html.div
-      [Html.id "fnreturn"; Html.class' "params"]
-      [ ViewBlankOr.viewTipe
+      [Html.id "fnreturn"; Html.class' "col param"]
+      [ fontAwesome "level-down-alt"
+      ; ViewBlankOr.viewTipe
           ~classes:["type"]
           ~enterable:true
-          ParamTipe
+          ParamTipe (* make a new type: ReturnTipe *)
           vs
           fn.ufMetadata.ufmReturnTipe ]
   in
