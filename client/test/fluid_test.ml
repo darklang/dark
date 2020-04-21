@@ -545,11 +545,7 @@ let run () =
       t "bs outside empty string" emptyStr ~pos:2 bs "\"~\"" ;
       t "bs near-empty string" oneCharStr ~pos:2 bs "\"~\"" ;
       t "del near-empty string" oneCharStr ~pos:1 del "\"~\"" ;
-      t
-        "insert outside string in if/then wrapper is no-op"
-        aStr
-        (ins "c")
-        "~\"some string\"" ;
+      t "insert outside string is no-op" aStr (ins "c") "~\"some string\"" ;
       tStruct
         "insert outside string at top-level"
         aStr
@@ -731,7 +727,7 @@ let run () =
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12~456789_\"" ) ;
       t
-        "insert outside string in if/then wrapper is no-op"
+        "insert outside string is no-op"
         mlStr
         ~pos:0
         (ins "c")
@@ -1114,11 +1110,7 @@ let run () =
       t "insert end of number" anInt ~pos:5 (ins "0") "123450~" ;
       t "del end of number" anInt ~pos:5 del "12345~" ;
       t "bs end of number" anInt ~pos:5 bs "1234~" ;
-      t
-        "insert non-number at start in if/then wrapper is no-op"
-        anInt
-        (ins "c")
-        "~12345" ;
+      t "insert non-number at start is no-op" anInt (ins "c") "~12345" ;
       tStruct
         "insert non-number without wrapper"
         anInt
@@ -1372,14 +1364,9 @@ let run () =
         "14~6" ;
       ()) ;
   describe "Bools" (fun () ->
-      t
-        "insert start of true within if/then wrapper is no-op"
-        ~pos:0
-        (bool true)
-        (ins "c")
-        "~true" ;
+      t "insert start of true is no-op" ~pos:0 (bool true) (ins "c") "~true" ;
       tStruct
-        "insert start of true creates left partial"
+        "insert start of true at top-level creates left partial"
         (bool true)
         ~pos:0
         [InsertText "c"]
@@ -1404,14 +1391,9 @@ let run () =
         "tr0~ue" ;
       t ~expectsPartial:true "del middle of true" trueBool ~pos:2 del "tr~e" ;
       t ~expectsPartial:true "bs middle of true" trueBool ~pos:2 bs "t~ue" ;
-      t
-        "insert start of false within if/then wrapper is no-op"
-        ~pos:0
-        (bool false)
-        (ins "c")
-        "~false" ;
+      t "insert start of false is no-op" ~pos:0 (bool false) (ins "c") "~false" ;
       tStruct
-        "insert start of false creates left partial"
+        "insert start of false at top-level creates left partial"
         (bool false)
         ~pos:0
         [InsertText "c"]
@@ -1533,17 +1515,12 @@ let run () =
       ()) ;
   describe "Nulls" (fun () ->
       tStruct
-        "insert start of null creates left partial"
+        "insert start of null at top-level creates left partial"
         aNull
         ~pos:0
         [InsertText "c"]
         (leftPartial "c" aNull) ;
-      t
-        "insert start of null within if/then wrapper is no-op"
-        aNull
-        ~pos:0
-        (ins "c")
-        "~null" ;
+      t "insert start of null is no-op" aNull ~pos:0 (ins "c") "~null" ;
       t ~expectsPartial:true "del start of null" aNull ~pos:0 del "~ull" ;
       t "bs start of null" aNull ~pos:0 bs "~null" ;
       t "ctrl+left start of null doesnt move" aNull ~pos:0 ctrlLeft "~null" ;
@@ -1920,13 +1897,13 @@ let run () =
         (ins "x")
         "Ix~nt::add 5 _________" ;
       t
-        "insert start of function within if/then wrapper is no-op"
+        "insert start of function is no-op"
         ~pos:0
         aFnCall
         (ins "c")
         "~Int::add 5 _________" ;
       tStruct
-        "inserting at beginning of function creates left partial"
+        "inserting at beginning of function at top-level creates left partial"
         aFnCall
         ~pos:0
         [InsertText "i"]
@@ -3817,12 +3794,7 @@ let run () =
   describe "Lists" (fun () ->
       t "create list" b ~pos:0 (ins "[") "[~]" ;
       t "insert into empty list inserts" emptyList ~pos:1 (ins "5") "[5~]" ;
-      t
-        "inserting before a list in if/then wrapper is no-op"
-        emptyList
-        ~pos:0
-        (ins "5")
-        "~[]" ;
+      t "inserting before a list is no-op" emptyList ~pos:0 (ins "5") "~[]" ;
       tStruct
         "inserting before a list at top-level creates left partial"
         emptyList
@@ -3990,12 +3962,7 @@ let run () =
       ()) ;
   describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;
-      t
-        "inserting before a record in if/then wrapper is no-op"
-        emptyRecord
-        ~pos:0
-        (ins "5")
-        "~{}" ;
+      t "inserting before a record is no-op" emptyRecord ~pos:0 (ins "5") "~{}" ;
       tStruct
         "inserting before a record at top-level inserts left partial"
         emptyRecord
