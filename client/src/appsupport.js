@@ -507,6 +507,17 @@ setTimeout(function () {
       document.dispatchEvent(event);
     });
   }
+
+  /* Full story */
+  const FullStory = require("@fullstory/browser");
+  /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
+  FullStory.init({
+    orgId: "TMVRZ",
+    devMode: isAdmin
+  });
+
+  FullStory.identify(canvasName, {displayName: username});
+
 }, 1);
 // ---------------------------
 // Exports
