@@ -82,10 +82,9 @@ let respond_or_redirect (params : response_or_redirect_params) =
       S.respond_redirect ?headers ~uri ()
   | Respond {resp_headers; execution_id; status; body} ->
       let resp_headers =
-        Header.add
+        Header.add_list
           resp_headers
-          "X-Darklang-Execution-ID"
-          (Types.string_of_id execution_id)
+          [(Libshared.Header.execution_id, Types.string_of_id execution_id)]
       in
       (* add Content-Length if missing, e.g. when function is called directly
        * and not from `respond_or_redirect_empty_body`
@@ -230,7 +229,7 @@ let over_headers_promise
 let wrap_editor_api_headers =
   let headers =
     [ ("Content-type", "application/json; charset=utf-8")
-    ; ("X-Darklang-Server-Version", Config.build_hash) ]
+    ; (Libshared.Header.server_version, Config.build_hash) ]
   in
   over_headers_promise ~f:(fun h -> Header.add_list h headers)
 
@@ -1735,70 +1734,89 @@ let admin_api_handler
     then Log.add_log_annotations [("canvas", `String canvas)] (fun _ -> f p)
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  match (verb, path) with
-  (* Operational APIs.... maybe these shouldn't be here, but
+  let client_version =
+    req
+    |> CRequest.headers
+    |> (fun hs -> Cohttp.Header.get hs Libshared.Header.client_version)
+    |> Tc.Option.withDefault ~default:""
+  in
+  Log.add_log_annotations
+    [(Libshared.Header.client_version, `String client_version)]
+    (fun () ->
+      match (verb, path) with
+      (* Operational APIs.... maybe these shouldn't be here, but
      they start with /api so they need to be. *)
-  | `POST, ["api"; "clear-benchmarking-data"] ->
-      Db.delete_benchmarking_data () ;
-      respond ~execution_id `OK "Cleared"
-  | `POST, ["api"; canvas; "save_test"] when Config.allow_test_routes ->
-      save_test_handler ~execution_id canvas
-  (* Canvas API *)
-  | `POST, ["api"; canvas; "rpc"] (* old name, remove later *)
-  | `POST, ["api"; canvas; "add_op"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers
-            (admin_add_op_handler ~execution_id canvas username body))
-  | `POST, ["api"; canvas; "initial_load"] ->
-      when_can_view ~canvas (fun permission ->
-          wrap_editor_api_headers
-            (initial_load ~execution_id ~username ~canvas ~permission body))
-  | `POST, ["api"; canvas; "all_traces"] ->
-      when_can_view ~canvas (fun permission ->
-          wrap_editor_api_headers
-            (fetch_all_traces ~execution_id ~username ~canvas ~permission body))
-  | `POST, ["api"; canvas; "execute_function"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (execute_function ~execution_id canvas body))
-  | `POST, ["api"; canvas; "packages"; "upload_function"]
-    when Account.is_admin ~username ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (upload_function ~execution_id username body))
-  | `POST, ["api"; canvas; "packages"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (get_all_packages ~execution_id ()))
-  | `POST, ["api"; canvas; "trigger_handler"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (trigger_handler ~execution_id canvas body))
-  | `POST, ["api"; canvas; "get_trace_data"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (get_trace_data ~execution_id canvas body))
-  | `POST, ["api"; canvas; "get_db_stats"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (db_stats ~execution_id canvas body))
-  | `POST, ["api"; canvas; "get_worker_stats"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (worker_stats ~execution_id canvas body))
-  | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (get_unlocked_dbs ~execution_id canvas body))
-  | `POST, ["api"; canvas; "worker_schedule"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (worker_schedule ~execution_id canvas body))
-  | `POST, ["api"; canvas; "delete_404"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (delete_404 ~execution_id canvas body))
-  | `POST, ["api"; canvas; "static_assets"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers
-            (static_assets_upload_handler
-               ~execution_id
-               canvas
-               username
-               req
-               body))
-  | _ ->
-      respond ~execution_id `Not_found "Not found"
+      | `POST, ["api"; "clear-benchmarking-data"] ->
+          Db.delete_benchmarking_data () ;
+          respond ~execution_id `OK "Cleared"
+      | `POST, ["api"; canvas; "save_test"] when Config.allow_test_routes ->
+          save_test_handler ~execution_id canvas
+      (* Canvas API *)
+      | `POST, ["api"; canvas; "rpc"] (* old name, remove later *)
+      | `POST, ["api"; canvas; "add_op"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (admin_add_op_handler ~execution_id canvas username body))
+      | `POST, ["api"; canvas; "initial_load"] ->
+          when_can_view ~canvas (fun permission ->
+              wrap_editor_api_headers
+                (initial_load ~execution_id ~username ~canvas ~permission body))
+      | `POST, ["api"; canvas; "all_traces"] ->
+          when_can_view ~canvas (fun permission ->
+              wrap_editor_api_headers
+                (fetch_all_traces
+                   ~execution_id
+                   ~username
+                   ~canvas
+                   ~permission
+                   body))
+      | `POST, ["api"; canvas; "execute_function"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (execute_function ~execution_id canvas body))
+      | `POST, ["api"; canvas; "packages"; "upload_function"]
+        when Account.is_admin ~username ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (upload_function ~execution_id username body))
+      | `POST, ["api"; canvas; "packages"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (get_all_packages ~execution_id ()))
+      | `POST, ["api"; canvas; "trigger_handler"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (trigger_handler ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_trace_data"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (get_trace_data ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_db_stats"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (db_stats ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_worker_stats"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (worker_stats ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (get_unlocked_dbs ~execution_id canvas body))
+      | `POST, ["api"; canvas; "worker_schedule"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (worker_schedule ~execution_id canvas body))
+      | `POST, ["api"; canvas; "delete_404"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers (delete_404 ~execution_id canvas body))
+      | `POST, ["api"; canvas; "static_assets"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (static_assets_upload_handler
+                   ~execution_id
+                   canvas
+                   username
+                   req
+                   body))
+      | _ ->
+          respond ~execution_id `Not_found "Not found")
 
 
 let admin_handler
@@ -2216,6 +2234,7 @@ let server () =
     in
     Log.add_log_annotations
       [ ("execution_id", `String (Types.string_of_id execution_id))
+      ; (Libshared.Header.server_version, `String Config.build_hash)
         (* We call this handler_name and not request for a reason - we want to
          * unify with what other spec-having handlers use, since
          * qw+cron+webserver all share logs (and not just "name" because that's

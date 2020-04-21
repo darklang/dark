@@ -1,5 +1,9 @@
 open Prelude
 
+let clientVersionHeader m : Tea_http.header =
+  Header (Header.client_version, m.buildHash)
+
+
 let apiCallNoParams
     (m : model)
     ~(decoder : Js.Json.t -> 'resulttype)
@@ -11,7 +15,8 @@ let apiCallNoParams
       { method' = "POST"
       ; headers =
           [ Header ("Content-type", "application/json")
-          ; Header ("X-CSRF-Token", m.csrfToken) ]
+          ; Header ("X-CSRF-Token", m.csrfToken)
+          ; clientVersionHeader m ]
       ; url
       ; body = Web.XMLHttpRequest.EmptyBody
       ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
@@ -24,14 +29,17 @@ let apiCallNoParams
 let postJson
     decoder
     ?(withCredentials = false)
+    ?(headers = [])
     (csrfToken : string)
     (url : string)
     (body : Js.Json.t) =
   Tea.Http.request
     { method' = "POST"
     ; headers =
-        [ Header ("Content-type", "application/json")
-        ; Header ("X-CSRF-Token", csrfToken) ]
+        ( [ Header ("Content-type", "application/json")
+          ; Header ("X-CSRF-Token", csrfToken) ]
+          : Tea_http.header list )
+        @ headers
     ; url
     ; body = Web.XMLHttpRequest.StringBody (Json.stringify body)
     ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
@@ -48,6 +56,7 @@ let apiCall
     (endpoint : string) : msg Tea.Cmd.t =
   let request =
     postJson
+      ~headers:[clientVersionHeader m]
       decoder
       m.csrfToken
       ("/api/" ^ Tea.Http.encodeUri m.canvasName ^ endpoint)
@@ -190,6 +199,7 @@ let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
   let url = "https://presence.darklang.com/presence" in
   let request =
     postJson
+      ~headers:[clientVersionHeader m]
       ~withCredentials:true
       (fun _ -> ())
       m.csrfToken
@@ -213,6 +223,7 @@ let sendInvite (m : model) (invite : SettingsViewTypes.inviteFormMessage) :
   let url = "https://accounts.darklang.com/send-invite" in
   let request =
     postJson
+      ~headers:[clientVersionHeader m]
       ~withCredentials:true
       (fun _ -> ())
       m.csrfToken
@@ -238,6 +249,7 @@ let getCanvasInfo (m : model) : msg Tea.Cmd.t =
   let url = "https://accounts.darklang.com/canvas-info" in
   let request =
     postJson
+      ~headers:[clientVersionHeader m]
       ~withCredentials:true
       Decoders.loadCanvasInfoAPIResult
       m.csrfToken
@@ -264,6 +276,7 @@ let sendCanvasInfo (m : model) (canvasInfo : SettingsViewTypes.updateCanvasInfo)
   let url = "https://accounts.darklang.com/update-canvas-info" in
   let request =
     postJson
+      ~headers:[clientVersionHeader m]
       ~withCredentials:true
       (fun _ -> ())
       m.csrfToken
