@@ -337,7 +337,7 @@ let isFieldPartial (t : t) : bool =
   match t with TFieldPartial _ -> true | _ -> false
 
 
-let isMutlilineString (t : fluidToken) : bool =
+let isMultilineString (t : fluidToken) : bool =
   match t with
   | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ ->
       true
