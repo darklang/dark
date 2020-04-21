@@ -726,12 +726,13 @@ let t_db_query_works () =
     ; Op.SetDBColType (dbid, coltypeid5, "Date") ]
   in
   (* Prepopulate the DB for tests *)
+  let ross_dob = str "1967-05-12T00:00:00Z" in
   let ross_expr =
     record
       [ ("height", int 73)
       ; ("name", str "Ross")
       ; ("human", bool true)
-      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "1967-05-12T00:00:00Z"])
+      ; ("dob", fn ~ster:Rail "Date::parse_v2" [ross_dob])
       ; ("income", float' 100 00) ]
   in
   let rachel_expr =
@@ -1045,6 +1046,16 @@ let t_db_query_works () =
            (fn "Date::parse" [str "2000-01-01T01:02:03Z"]))
     |> execs ) ;
   check_dval
+    "date::lessThanOrEquals - equality"
+    (DList [ross])
+    ( queryv (binop "Date::<=" (field "v" "dob") (fn "Date::parse" [ross_dob]))
+    |> execs ) ;
+  check_dval
+    "date::lessThan - equality"
+    (DList [])
+    ( queryv (binop "Date::<" (field "v" "dob") (fn "Date::parse" [ross_dob]))
+    |> execs ) ;
+  check_dval
     "date::greaterThanOrEquals"
     (DList [cat])
     ( queryv
@@ -1052,6 +1063,16 @@ let t_db_query_works () =
            "Date::>="
            (field "v" "dob")
            (fn "Date::parse" [str "2000-01-01T01:02:03Z"]))
+    |> execs ) ;
+  check_dval
+    "date::greaterThanOrEquals - equality"
+    (DList [cat; rachel; ross])
+    ( queryv (binop "Date::>=" (field "v" "dob") (fn "Date::parse" [ross_dob]))
+    |> execs ) ;
+  check_dval
+    "date::greaterThan - equality"
+    (DList [cat; rachel])
+    ( queryv (binop "Date::>" (field "v" "dob") (fn "Date::parse" [ross_dob]))
     |> execs ) ;
   (* -------------- *)
   (* Test partial evaluation *)
