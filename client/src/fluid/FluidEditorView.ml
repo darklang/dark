@@ -67,7 +67,7 @@ let toHtml (s : state) : Types.msg Html.html list =
           If it's not faded, there's not need to see if we should unfade. *)
           match FluidToken.parentBlockID caretAt.token with
           | Some pid ->
-              (* If caret in a multiline block, mark block tokens *)
+              (* If caret is in a multiline block, mark block tokens *)
               s.tokens
               |> List.map ~f:(fun ti ->
                      if FluidToken.parentBlockID ti.token = Some pid
