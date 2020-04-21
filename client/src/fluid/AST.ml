@@ -297,12 +297,13 @@ let variablesIn (ast : E.t) : avDict =
   sym_store |> IDTable.toList |> StrDict.fromList
 
 
-let rec removePartials (expr : E.t) : E.t =
-  match expr with
-  | EPartial (_, _, e) | ERightPartial (_, _, e) | ELeftPartial (_, _, e) | e ->
-      (* if partial walk down underying expression to look for other partials inside *)
-      (* else walk down the path to find partials *)
-      E.deprecatedWalk ~f:removePartials e
+let removePartials (expr : E.t) : E.t =
+  E.postTraversal expr ~f:(function
+      | EPartial (_, _, e)
+      | ERightPartial (_, _, e)
+      | ELeftPartial (_, _, e)
+      | e
+      -> e)
 
 
 (* Reorder function calls which call fnName, swapping the arguments that
