@@ -106,7 +106,7 @@ let toHtml (s : state) : Types.msg Html.html list =
   in
   (* TODO(alice) we probably want to use Fluid.tokenAtCaret here too.
   But that is scope creep for this already huge PR. *)
-  let currentTokenInfo = Fluid.getToken s.ast s.fluidState in
+  let currentTokenInfo = Fluid.getToken' tokens s.fluidState in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
