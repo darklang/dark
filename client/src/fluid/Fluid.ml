@@ -3349,7 +3349,7 @@ let doExplicitInsert
        * is either 1) the top-level expression in the AST or 2) the first
        * expression directly inside a let. This means it's on the "left edge"
        * of the editor. *)
-      if List.member ~value:LeftPartialVariant props.variants
+      if VariantTesting.variantIsActive' props.variants LeftPartialVariant
       then
         match FluidAST.findParent (E.toID currExpr) ast with
         | None ->
