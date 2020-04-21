@@ -384,8 +384,7 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
       then v AC.packageFnNameValidator "function name"
       else v AC.fnNameValidator "function name"
   | PFnReturn _ ->
-      (* FIXME(ds) should this be something different from params? *)
-      v AC.paramTypeValidator "type field type"
+      v AC.paramTypeValidator "return type"
   | PParamName oldParam ->
       v AC.paramNameValidator "param name"
       |> Option.orElse (AC.validateFnParamNameFree tl oldParam value)
@@ -617,7 +616,7 @@ let submitACItem
                 in
                 let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
-          | PFnReturn _, ACParamTipe tipe, _ ->
+          | PFnReturn _, ACReturnTipe tipe, _ ->
               replace (PFnReturn (F (id, tipe)))
           | PParamName _, ACParamName value, _ ->
               replace (PParamName (F (id, value)))
