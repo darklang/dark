@@ -1008,8 +1008,8 @@ and centerPage = bool
 
 and page =
   | Architecture
-  | FocusedFn of TLID.t
-  | FocusedHandler of TLID.t * centerPage
+  | FocusedFn of TLID.t * traceID option
+  | FocusedHandler of TLID.t * traceID option * centerPage
   | FocusedDB of TLID.t * centerPage
   | FocusedType of TLID.t
   | FocusedGroup of TLID.t * centerPage

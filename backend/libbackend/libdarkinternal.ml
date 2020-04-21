@@ -9,7 +9,7 @@ module Unicode = Libexecution.Unicode_string
 
 (* Apply this to function to wrap that function in an InProcess that checks
  * permissions for the dark internal functions and logs status. *)
-let internal_fn (f : exec_state * dval list -> dval) =
+let internal_fn (f : expr exec_state * expr dval list -> expr dval) =
   InProcess
     (fun (es, params) ->
       match es.account_id |> Account.username_of_id with
@@ -50,7 +50,7 @@ let modify_schedule fn =
           fail args)
 
 
-let fns : fn list =
+let fns : expr fn list =
   [ { prefix_names = ["DarkInternal::checkAccess"]
     ; infix_names = []
     ; parameters = []
@@ -595,7 +595,7 @@ that's already taken, returns an error."
         internal_fn (function
             | _, [DStr host] ->
                 let cors_setting_to_dval (setting : Canvas.cors_setting option)
-                    : dval =
+                    : expr dval =
                   match setting with
                   | None ->
                       DOption OptNothing
@@ -627,7 +627,7 @@ that's already taken, returns an error."
     ; func =
         internal_fn (function
             | _, [DStr host; DOption s] ->
-                let cors_setting (opt : optionT) :
+                let cors_setting (opt : expr optionT) :
                     (Canvas.cors_setting option, string) result =
                   (* Error: error converting the dval to a cors setting.
                    * Ok None: the dval is "unset the cors value"

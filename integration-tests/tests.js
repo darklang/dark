@@ -988,7 +988,9 @@ test("empty_fn_been_called_result", async t => {
     .expect(available(".return-value .msg"))
     .ok()
     .expect(Selector(".return-value").innerText)
-    .contains("This trace returns: <Incomplete>\nThis function has not yet been called - please call this function");
+    .contains(
+      "This trace returns: <Incomplete>\nThis function has not yet been called - please call this function",
+    );
 });
 
 // This runs through

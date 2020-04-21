@@ -29,8 +29,8 @@ let defaultTraceIDForTL ~(tlid : TLID.t) =
 
 let getTraces (m : model) (tlid : TLID.t) : trace list =
   StrDict.get ~key:(TLID.toString tlid) m.traces
-  |> Option.withDefault
-       ~default:[(defaultTraceIDForTL ~tlid, Result.fail NoneYet)]
+  |> Option.withDefaultLazy ~default:(fun () ->
+         [(defaultTraceIDForTL ~tlid, Result.fail NoneYet)])
 
 
 let getTrace (m : model) (tlid : TLID.t) (traceID : traceID) : trace option =
@@ -411,6 +411,24 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
                {func = f; traceID; traceData; dbs; userFns; userTipes}))
   | _ ->
       Cmd.none
+
+
+let updateTraces (m : model) (traces : traces) : model =
+  let newTraces =
+    mergeTraces
+      ~onConflict:(fun (oldID, oldData) (newID, newData) ->
+        (* Update if:
+         * - new data is ok (successful fetch)
+         * - old data is an error, so is new data, but different errors
+         * *)
+        if Result.isOk newData
+           || ((not (Result.isOk oldData)) && oldData <> newData)
+        then (newID, newData)
+        else (oldID, oldData))
+      m.traces
+      traces
+  in
+  {m with traces = newTraces}
 
 
 let analyzeFocused (m : model) : model * msg Cmd.t =

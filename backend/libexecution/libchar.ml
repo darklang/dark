@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : fn list =
+let fns : expr fn list =
   [ { prefix_names = ["Char::toASCIICode"]
     ; infix_names = []
     ; parameters = [par "c" TCharacter]

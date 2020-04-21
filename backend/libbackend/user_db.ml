@@ -45,7 +45,8 @@ let cols_for (db : 'expr_type db) : (string * tipe) list =
              None)
 
 
-let rec query_exact_fields ~state db query_obj : (string * dval) list =
+let rec query_exact_fields ~state db query_obj : (string * 'expr_type dval) list
+    =
   let sql =
     "SELECT key, data
      FROM user_data
@@ -76,7 +77,7 @@ let rec query_exact_fields ~state db query_obj : (string * dval) list =
 and
     (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
-    to_obj db (db_strings : string list) : dval =
+    to_obj db (db_strings : string list) : 'expr_type dval =
   match db_strings with
   | [obj] ->
       let p_obj =
@@ -119,7 +120,7 @@ and
 
 
 (* TODO: Unify with Type_checker.ml *)
-and type_check db (obj : dval_map) : dval_map =
+and type_check db (obj : 'expr_type dval_map) : 'expr_type dval_map =
   let cols = cols_for db |> TipeMap.of_alist_exn in
   let tipe_keys = cols |> TipeMap.keys |> String.Set.of_list in
   let obj_keys = obj |> DvalMap.keys |> String.Set.of_list in
@@ -182,8 +183,12 @@ and type_check db (obj : dval_map) : dval_map =
           "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
 
 
-and set ~state ~upsert (db : 'expr_type db) (key : string) (vals : dval_map) :
-    Uuidm.t =
+and set
+    ~state
+    ~upsert
+    (db : 'expr_type db)
+    (key : string)
+    (vals : 'expr_type dval_map) : Uuidm.t =
   let id = Util.create_uuid () in
   let merged = type_check db vals in
   let query =
@@ -212,7 +217,8 @@ and set ~state ~upsert (db : 'expr_type db) (key : string) (vals : dval_map) :
   id
 
 
-and get_option ~state (db : 'expr_type db) (key : string) : dval option =
+and get_option ~state (db : 'expr_type db) (key : string) :
+    'expr_type dval option =
   Db.fetch_one_option
     ~name:"get"
     "SELECT data
@@ -234,7 +240,7 @@ and get_option ~state (db : 'expr_type db) (key : string) : dval option =
 
 
 and get_many ~state (db : 'expr_type db) (keys : string list) :
-    (string * dval) list =
+    (string * 'expr_type dval) list =
   Db.fetch
     ~name:"get_many"
     "SELECT key, data
@@ -263,7 +269,7 @@ and get_many ~state (db : 'expr_type db) (keys : string list) :
 
 
 and get_many_with_keys ~state (db : 'expr_type db) (keys : string list) :
-    (string * dval) list =
+    (string * 'expr_type dval) list =
   Db.fetch
     ~name:"get_many_with_keys"
     "SELECT key, data
@@ -291,7 +297,7 @@ and get_many_with_keys ~state (db : 'expr_type db) (keys : string list) :
              Exception.internal "bad format received in get_many_with_keys")
 
 
-let get_all ~state (db : 'expr_type db) : (string * dval) list =
+let get_all ~state (db : 'expr_type db) : (string * 'expr_type dval) list =
   Db.fetch
     ~name:"get_all"
     "SELECT key, data
@@ -324,7 +330,8 @@ let get_db_fields (db : 'expr_type db) : (string * tipe_) list =
           None)
 
 
-let query ~state (db : 'expr_type db) (b : dblock_args) : (string * dval) list =
+let query ~state (db : expr db) (b : expr dblock_args) :
+    (string * expr dval) list =
   let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
   let param_name =
     match b.params with
@@ -457,7 +464,7 @@ let delete_all ~state (db : 'expr_type db) =
 (* stats/locked/unlocked (not _locking_) *)
 (* ------------------------- *)
 let stats_pluck ~account_id ~canvas_id (db : 'expr_type db) :
-    (dval * string) option =
+    ('expr_type dval * string) option =
   let latest =
     Db.fetch
       ~name:"stats_pluck"

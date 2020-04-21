@@ -112,6 +112,19 @@ let t_html_escaping () =
     (exec_ast "(String::htmlEscape 'test<>&\\\"')")
 
 
+let t_slugify_works () =
+  check_dval
+    "slugify escaping works"
+    (Dval.dstr_of_string_exn
+       "my-super-really-excellent-uber-amazing-very-clever-thing-coffee")
+    (exec_ast'
+       (fn
+          "String::slugify_v1"
+          [ str
+              "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!"
+          ]))
+
+
 let t_uuid_string_roundtrip () =
   let ast =
     "(let i (Uuid::generate)
@@ -123,7 +136,11 @@ let t_uuid_string_roundtrip () =
     AT.int
     "A generated id can round-trip"
     0
-    (match exec_ast ast with DList [p1; p2] -> compare_dval p1 p2 | _ -> 1)
+    ( match exec_ast ast with
+    | DList [p1; p2] ->
+        compare_dval compare_expr p1 p2
+    | _ ->
+        1 )
 
 
 let t_substring_works () =
@@ -196,6 +213,7 @@ let suite =
     , t_string_trim_preserves_emoji )
   ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
   ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip)
+  ; ("Slugify works", `Quick, t_slugify_works)
   ; ("substring works", `Quick, t_substring_works)
   ; ("startsWith works", `Quick, t_startsWith_works)
   ; ("endsWith works", `Quick, t_endsWith_works) ]

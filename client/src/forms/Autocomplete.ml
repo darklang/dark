@@ -460,12 +460,12 @@ let fnDisplayName (f : userFunction) : string =
 
 let foundHandlerOmniAction (h : handler) : omniAction =
   let name = "Found in " ^ handlerDisplayName h in
-  Goto (FocusedHandler (h.hTLID, true), h.hTLID, name, true)
+  Goto (FocusedHandler (h.hTLID, None, true), h.hTLID, name, true)
 
 
 let foundFnOmniAction (f : userFunction) : omniAction =
   let name = "Found in function " ^ fnDisplayName f in
-  Goto (FocusedFn f.ufTLID, f.ufTLID, name, true)
+  Goto (FocusedFn (f.ufTLID, None), f.ufTLID, name, true)
 
 
 let qSearch (m : model) (s : string) : omniAction list =
@@ -595,7 +595,7 @@ let tlDestinations (m : model) : autocompleteItem list =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun fn ->
            let name = "Jump to function: " ^ fnDisplayName fn in
-           Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, name, false)))
+           Some (Goto (FocusedFn (fn.ufTLID, None), fn.ufTLID, name, false)))
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
