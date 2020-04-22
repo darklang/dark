@@ -1,5 +1,6 @@
 open Core_kernel
-open Runtime
+module RT = Runtime
+open Types.RuntimeT
 open Lib
 
 let fns : Types.RuntimeT.expr Types.RuntimeT.fn list =
@@ -368,54 +369,152 @@ let fns : Types.RuntimeT.expr Types.RuntimeT.fn list =
     ; func =
         InProcess
           (function
-          | _, [DStr name; DStr value; DObj o] ->
-              o
-              (* Transform a DOBj into a cookie list of individual cookie params *)
-              |> Map.to_alist
-              |> List.concat_map ~f:(fun (x, y) ->
-                     match (String.lowercase x, y) with
-                     (* Single boolean set-cookie params *)
-                     | "secure", DBool b | "httponly", DBool b ->
-                         if b then [x] else []
-                     (* X=y set-cookie params *)
-                     | "path", DStr str
-                     | "domain", DStr str
-                     | "samesite", DStr str ->
-                         [ Format.sprintf
-                             "%s=%s"
-                             x
-                             (Unicode_string.to_string str) ]
-                     | "max-age", DInt i ->
-                         [Format.sprintf "%s=%s" x (Dint.to_string i)]
-                     | "expires", DDate d ->
-                         [ Format.sprintf
-                             "%s=%s"
-                             x
-                             (Util.http_date_string_of_date d) ]
-                     (* Throw if there's not a good way to transform the k/v pair *)
-                     | _ ->
-                         y
-                         |> Dval.to_developer_repr_v0
-                         |> Format.sprintf "Unknown set-cookie param: %s: %s" x
-                         |> Exception.code)
-              (* Combine it into a set-cookie header *)
-              |> String.concat ~sep:"; "
-              |> Format.sprintf
-                   "%s=%s; %s"
-                   (* DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
-                    * the implicit _v0, and
-                    * https://github.com/darklang/dark/pull/1917 for a
-                    * discussion of the bug), but incorrect. By the time it's
-                    * reached Http::setCookie_v1,  you've probably already
-                    * stored the cookie value as-is in a datastore somewhere, so
-                    * any changes will break attempts to look up the session.
-                    *
-                    * If you really want to shield against invalid
-                    * cookie-name/cookie-value strings, go read RFC6265 first. *)
-                   (Unicode_string.to_string name)
-                   (Unicode_string.to_string value)
-              |> Dval.dstr_of_string_exn
-              |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
+          | state, [DStr name; DStr value; DObj o] ->
+              let fold_cookie_params
+                  ~(key : string)
+                  ~(data : 'expr_type dval)
+                  (acc : (string list, 'expr_type dval (* type error *)) result)
+                  : (string list, 'expr_type dval (* type error *)) result =
+                Result.bind acc ~f:(fun acc ->
+                    match (String.lowercase key, data) with
+                    (* Bubble up errors for values that are invalid for all params *)
+                    | _, ((DIncomplete _ | DErrorRail _ | DError _) as dv) ->
+                        Error dv
+                    (* 
+                     * Single boolean set-cookie params *)
+                    | "secure", v | "httponly", v ->
+                      ( match v with
+                      | DBool b ->
+                          if b then Ok (key :: acc) else Ok acc
+                      | _ ->
+                          Error
+                            (DError
+                               ( SourceNone
+                               , Printf.sprintf
+                                   "Expected the Set-Cookie parameter `%s` passed to `%s` to have the value `true` or `false`, but it had the value `%s` instead."
+                                   key
+                                   state.executing_fnname
+                                   (Dval.to_developer_repr_v0 v) )) )
+                    (*
+                     * key=data set-cookie params *)
+                    | "path", v | "domain", v ->
+                      ( match v with
+                      | DStr str ->
+                          Ok
+                            ( Format.sprintf
+                                "%s=%s"
+                                key
+                                (Unicode_string.to_string str)
+                            :: acc )
+                      | _ ->
+                          Error
+                            (DError
+                               ( SourceNone
+                               , Printf.sprintf
+                                   "Expected the Set-Cookie parameter `%s` passed to `%s` to be a `String`, but it had type `%s` instead."
+                                   key
+                                   state.executing_fnname
+                                   ( v
+                                   |> Dval.tipe_of
+                                   |> Dval.tipe_to_developer_repr_v0 ) )) )
+                    | "samesite", v ->
+                      ( match v with
+                      | DStr str
+                        when List.mem
+                               [ Unicode_string.of_string_exn "strict"
+                               ; Unicode_string.of_string_exn "lax"
+                               ; Unicode_string.of_string_exn "none" ]
+                               (Unicode_string.lowercase str)
+                               ( = ) ->
+                          Ok
+                            ( Format.sprintf
+                                "%s=%s"
+                                key
+                                (Unicode_string.to_string str)
+                            :: acc )
+                      | _ ->
+                          Error
+                            (DError
+                               ( SourceNone
+                               , Printf.sprintf
+                                   "Expected the Set-Cookie parameter `%s` passed to `%s` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `%s` instead."
+                                   key
+                                   state.executing_fnname
+                                   (Dval.to_developer_repr_v0 v) )) )
+                    | "max-age", v ->
+                      ( match v with
+                      | DInt i ->
+                          Ok
+                            ( Format.sprintf "%s=%s" key (Dint.to_string i)
+                            :: acc )
+                      | _ ->
+                          Error
+                            (DError
+                               ( SourceNone
+                               , Printf.sprintf
+                                   "Expected the Set-Cookie parameter `%s` passed to `%s` to be an `Int` representing seconds, but it had type `%s` instead."
+                                   key
+                                   state.executing_fnname
+                                   ( v
+                                   |> Dval.tipe_of
+                                   |> Dval.tipe_to_developer_repr_v0 ) )) )
+                    | "expires", v ->
+                      ( match v with
+                      | DDate d ->
+                          Ok
+                            ( Format.sprintf
+                                "%s=%s"
+                                key
+                                (Util.http_date_string_of_date d)
+                            :: acc )
+                      | _ ->
+                          Error
+                            (DError
+                               ( SourceNone
+                               , Printf.sprintf
+                                   "Expected the Set-Cookie parameter `%s` passed to `%s` to be a `Date`, but it had type `%s` instead."
+                                   key
+                                   state.executing_fnname
+                                   ( v
+                                   |> Dval.tipe_of
+                                   |> Dval.tipe_to_developer_repr_v0 ) )) )
+                    (* Error if the set-cookie parameter is invalid *)
+                    | _ ->
+                        Error
+                          (DError
+                             ( SourceNone
+                             , Printf.sprintf
+                                 "Expected the params dict passed to `%s` to only contain the keys `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was `%s`."
+                                 state.executing_fnname
+                                 key )))
+              in
+              let nameValue =
+                Format.sprintf
+                  "%s=%s"
+                  (* DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
+                   * the implicit _v0, and
+                   * https://github.com/darklang/dark/pull/1917 for a
+                   * discussion of the bug), but incorrect. By the time it's
+                   * reached Http::setCookie_v1,  you've probably already
+                   * stored the cookie value as-is in a datastore somewhere, so
+                   * any changes will break attempts to look up the session.
+                   *
+                   * If you really want to shield against invalid
+                   * cookie-name/cookie-value strings, go read RFC6265 first. *)
+                  (Unicode_string.to_string name)
+                  (Unicode_string.to_string value)
+              in
+              let cookieParams =
+                o |> Map.fold ~init:(Ok []) ~f:fold_cookie_params
+              in
+              ( match cookieParams with
+              | Ok kvs ->
+                  nameValue :: kvs
+                  |> String.concat ~sep:"; "
+                  |> Dval.dstr_of_string_exn
+                  |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
+              | Error dv ->
+                  dv )
           | args ->
               fail args)
     ; preview_safety = Safe
