@@ -39,18 +39,18 @@ let parse_interval (h : 'expr_type handler) : Time.Span.t option =
       None
 
 
-type should_execute_type =
-  { should_execute_bool : bool
+type execution_check_type =
+  { should_execute : bool
   ; scheduled_run_at : Time.t option
   ; interval : Time.Span.t option }
 
-let should_execute (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
-    should_execute_type =
+let execution_check (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
+    execution_check_type =
   let open Option in
   let now = Time.now () in
   match last_ran_at canvas_id h with
   | None ->
-      {should_execute_bool = true; scheduled_run_at = Some now; interval = None}
+      {should_execute = true; scheduled_run_at = Some now; interval = None}
       (* we should always run if we've never run before *)
   | Some lrt ->
     ( match parse_interval h with
@@ -75,7 +75,7 @@ let should_execute (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
              bt
              Libservice.Rollbar.CronChecker
              (execution_id |> Types.string_of_id)) ;
-        {should_execute_bool = false; scheduled_run_at = None; interval = None}
+        {should_execute = false; scheduled_run_at = None; interval = None}
     | Some interval ->
         (* Example:
        * last_ran_at = 16:00
@@ -91,11 +91,11 @@ let should_execute (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
         let should_run_after = Time.add lrt interval in
         if now >= should_run_after
         then
-          { should_execute_bool = true
+          { should_execute = true
           ; scheduled_run_at = Some should_run_after
           ; interval = Some interval }
         else
-          { should_execute_bool = false
+          { should_execute = false
           ; scheduled_run_at = None
           ; interval = Some interval } )
 
@@ -180,10 +180,10 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              ~jsonparams:[("number_of_crons", `Int cron_count)] ;
            List.iter
              ~f:(fun cr ->
-               let {should_execute_bool; scheduled_run_at; interval} =
-                 should_execute !c.id cr execution_id
+               let {should_execute; scheduled_run_at; interval} =
+                 execution_check !c.id cr execution_id
                in
-               if should_execute_bool
+               if should_execute
                then
                  let space = Handler.module_for_exn cr in
                  let name = Handler.event_name_for_exn cr in
@@ -201,7 +201,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                      record_execution !c.id cr ;
                      incr stat_events ;
                      (* It's a little silly to recalculate now when we just did
-                      * it in should_execute, but maybe Event_queue.enqueue was
+                      * it in execution_check, but maybe Event_queue.enqueue was
                       * slow or something *)
                      let now = Time.now () in
                      let delay_ms =
