@@ -443,7 +443,6 @@ setTimeout(function () {
   let analysisjs = fetcher("/analysis.js");
   let analysiswrapperjs = fetcher("/analysiswrapper.js");
   let fetcherjs = fetcher("/fetcher.js");
-<<<<<<< HEAD
   (async function() {
     var strings = [
       rollbarConfigSetup,
@@ -457,15 +456,6 @@ setTimeout(function () {
   })();
   (async function() {
     var strings = [rollbarConfigSetup, buildHashSetup, await fetcherjs];
-=======
-  (async function () {
-    var strings = [rollbarConfigSetup, await analysisjs, "\n\n", await analysiswrapperjs];
-    var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
-    window.analysisWorker = new Worker(analysisWorkerUrl);
-  })();
-  (async function () {
-    var strings = [rollbarConfigSetup, await fetcherjs];
->>>>>>> autoformat
     var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.fetcherWorker = new Worker(fetcherWorkerUrl);
   })();
