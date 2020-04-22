@@ -815,6 +815,8 @@ let getUnlockedDBsAPIResult j : getUnlockedDBsAPIResult =
   j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
 
 
+let get404sAPIResult j : get404sAPIResult = j |> field "f404s" (list fof)
+
 let getTraceDataAPIResult j : getTraceDataAPIResult =
   {trace = field "trace" trace j}
 
@@ -853,7 +855,6 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
   ; unlockedDBs =
       j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
-  ; fofs = field "fofs" (list fof) j
   ; staticDeploys = field "assets" (list sDeploy) j
   ; userTipes = field "user_tipes" (list userTipe) j
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j

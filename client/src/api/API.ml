@@ -144,6 +144,14 @@ let updateWorkerSchedule (m : model) (params : updateWorkerScheduleAPIParams) :
     ~callback:(fun x -> UpdateWorkerScheduleCallback x)
 
 
+let get404s (m : model) : msg Tea.Cmd.t =
+  apiCallNoParams
+    m
+    "/get_404s"
+    ~decoder:Decoders.get404sAPIResult
+    ~callback:(fun x -> Get404sAPICallback x)
+
+
 let delete404 (m : model) (params : delete404APIParams) : msg Tea.Cmd.t =
   apiCall
     m

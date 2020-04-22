@@ -923,40 +923,34 @@ let initial_load
     let t2, unlocked =
       time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
     in
-    let t3, f404s =
-      time "3-get-404s" (fun _ ->
-          let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
-          Analysis.get_404s ~since:latest !c)
+    let t3, assets =
+      time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
     in
-    let t4, assets =
-      time "4-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
-    in
-    let t5, account =
-      time "5-account" (fun _ ->
+    let t4, account =
+      time "4-account" (fun _ ->
           match A.get_user username with
           | Some u ->
               u
           | None ->
               {username; email = ""; name = ""; admin = false})
     in
-    let t6, canvas_list =
-      time "6-canvas-list" (fun _ -> Serialize.hosts_for username)
+    let t5, canvas_list =
+      time "5-canvas-list" (fun _ -> Serialize.hosts_for username)
     in
-    let t7, org_canvas_list =
-      time "7-org-list" (fun _ -> Serialize.orgs_for username)
+    let t6, org_canvas_list =
+      time "6-org-list" (fun _ -> Serialize.orgs_for username)
     in
-    let t8, orgs = time "8-orgs" (fun _ -> Serialize.orgs username) in
-    let t9, worker_schedules =
-      time "9-worker-schedules" (fun _ ->
+    let t7, orgs = time "7-orgs" (fun _ -> Serialize.orgs username) in
+    let t8, worker_schedules =
+      time "8-worker-schedules" (fun _ ->
           Event_queue.get_worker_schedules_for_canvas !c.id)
     in
-    let t10, result =
-      time "10-to-frontend" (fun _ ->
+    let t9, result =
+      time "9-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
             permission
-            f404s
             unlocked
             assets
             account
@@ -967,7 +961,7 @@ let initial_load
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10])
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9])
       `OK
       result
   with e -> Libexecution.Exception.reraise_as_pageable e
@@ -1012,6 +1006,28 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
     ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
     `OK
     response
+
+
+let get_404s ~(execution_id : Types.id) (host : string) body :
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, c =
+      time "1-load-saved-ops" (fun _ ->
+          C.load_all_from_cache host
+          |> Result.map ~f:C.to_fluid_ref
+          |> Result.map_error ~f:(String.concat ~sep:", ")
+          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
+    in
+    let t2, f404s =
+      time "2-get-404s" (fun _ ->
+          let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
+          Analysis.get_404s ~since:latest !c)
+    in
+    let t3, result =
+      time "3-to-frontend" (fun _ -> Analysis.to_get_404s_result f404s)
+    in
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  with e -> Libexecution.Exception.reraise_as_pageable e
 
 
 let upload_function
@@ -1789,6 +1805,9 @@ let admin_api_handler
       | `POST, ["api"; canvas; "get_trace_data"] ->
           when_can_view ~canvas (fun _ ->
               wrap_editor_api_headers (get_trace_data ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_404s"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (get_404s ~execution_id canvas body))
       | `POST, ["api"; canvas; "get_db_stats"] ->
           when_can_view ~canvas (fun _ ->
               wrap_editor_api_headers (db_stats ~execution_id canvas body))
