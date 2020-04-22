@@ -787,7 +787,6 @@ and initialLoadAPIResult =
   ; userFunctions : userFunction list
   ; deletedUserFunctions : userFunction list
   ; unlockedDBs : unlockedDBs
-  ; fofs : fourOhFour list
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list

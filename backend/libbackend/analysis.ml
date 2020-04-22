@@ -384,7 +384,6 @@ type initial_load_rpc_result =
   ; user_functions : Types.fluid_expr RTT.user_fn list
   ; deleted_user_functions : Types.fluid_expr RTT.user_fn list
   ; unlocked_dbs : tlid list
-  ; fofs : SE.four_oh_four list
   ; assets : SA.static_deploy list
   ; user_tipes : RTT.user_tipe list
   ; deleted_user_tipes : RTT.user_tipe list
@@ -402,7 +401,6 @@ let to_initial_load_rpc_result
     (c : fluid_expr Canvas.canvas)
     (op_ctrs : (string * int) list)
     (permission : Authorization.permission option)
-    (fofs : SE.four_oh_four list)
     (unlocked_dbs : tlid list)
     (assets : SA.static_deploy list)
     (account : Account.user_info)
@@ -417,7 +415,6 @@ let to_initial_load_rpc_result
   ; user_tipes = IDMap.data c.user_tipes
   ; deleted_user_tipes = IDMap.data c.deleted_user_tipes
   ; unlocked_dbs
-  ; fofs
   ; assets
   ; op_ctrs
   ; permission
