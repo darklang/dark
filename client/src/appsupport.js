@@ -175,12 +175,13 @@ window.Dark = {
     },
   },
   analysis: {
-    // Next and busy are used to queue analyses. If busy is false, run
-    // immediately; else wait until the analysis is done and then run next. If
-    // next is not set, reset busy.
+    /* Next and busy are used to queue analyses. If busy is false, run
+      immediately; else wait until the analysis is done and then run next. If
+      next is not set, reset busy. */
     next: null,
     busy: false,
-    lastRun: 0 /* records the last time a result return. So ITs know has analysis finished running since the last time it got called */,
+    /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
+    lastRun: 0,
     requestAnalysis: function(params) {
       if (!window.analysisWorker) {
         console.log("AnalysisWorker not loaded yet");
