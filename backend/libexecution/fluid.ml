@@ -175,6 +175,8 @@ and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
         Filled (id, FluidPartial (str, fromFluidExpr ~inPipe oldVal))
     | ERightPartial (id, str, oldVal) ->
         Filled (id, FluidRightPartial (str, fromFluidExpr ~inPipe oldVal))
+    | ELeftPartial (id, str, oldVal) ->
+        Filled (id, FluidLeftPartial (str, fromFluidExpr ~inPipe oldVal))
     | EList (id, exprs) ->
         Filled (id, ListLiteral (List.map ~f:r exprs))
     | ERecord (id, pairs) ->
@@ -343,7 +345,9 @@ let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) :
     | FluidPartial (str, oldExpr) ->
         EPartial (id, str, toFluidExpr ~inPipe oldExpr)
     | FluidRightPartial (str, oldExpr) ->
-        ERightPartial (id, str, toFluidExpr ~inPipe oldExpr) )
+        ERightPartial (id, str, toFluidExpr ~inPipe oldExpr)
+    | FluidLeftPartial (str, oldExpr) ->
+        ELeftPartial (id, str, toFluidExpr ~inPipe oldExpr) )
 
 
 let expr_json_to_fluid (j : Yojson.Safe.t) : (Types.fluid_expr, string) Result.t

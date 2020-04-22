@@ -73,6 +73,8 @@ let rec uses (var : string) (expr : E.t) : E.t list =
         u oldExpr
     | ERightPartial (_, _, oldExpr) ->
         u oldExpr
+    | ELeftPartial (_, _, oldExpr) ->
+        u oldExpr
 
 
 (* ------------------------- *)
@@ -280,6 +282,8 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
     | EPartial (_, _, oldExpr) ->
         sexe st oldExpr
     | ERightPartial (_, _, oldExpr) ->
+        sexe st oldExpr
+    | ELeftPartial (_, _, oldExpr) ->
         sexe st oldExpr ) ;
   trace expr st
 
@@ -293,17 +297,13 @@ let variablesIn (ast : E.t) : avDict =
   sym_store |> IDTable.toList |> StrDict.fromList
 
 
-let removePartials (ast : E.t) : E.t =
-  let rec remove expr =
-    match expr with
-    | EPartial (_, _, e) | ERightPartial (_, _, e) ->
-        (* if partial walk down underying expression to look for other partials inside *)
-        E.deprecatedWalk ~f:remove e
-    | e ->
-        (* else walk down the path to find partials *)
-        E.deprecatedWalk ~f:remove e
-  in
-  remove ast
+let removePartials (expr : E.t) : E.t =
+  E.postTraversal expr ~f:(function
+      | EPartial (_, _, e)
+      | ERightPartial (_, _, e)
+      | ELeftPartial (_, _, e)
+      | e
+      -> e)
 
 
 (* Reorder function calls which call fnName, swapping the arguments that

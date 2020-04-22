@@ -259,6 +259,7 @@ let rec fluidExpr (j : Js.Json.t) : FluidExpression.t =
           (list de)
           sendToRail )
     ; ("EPartial", dv3 (fun a b c -> E.EPartial (a, b, c)) id string de)
+    ; ("ELeftPartial", dv3 (fun a b c -> E.ELeftPartial (a, b, c)) id string de)
     ; ( "ERightPartial"
       , dv3 (fun a b c -> E.ERightPartial (a, b, c)) id string de )
     ; ("EList", dv2 (fun x y -> E.EList (x, y)) id (list de))

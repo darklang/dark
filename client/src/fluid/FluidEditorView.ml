@@ -3,7 +3,7 @@ open Prelude
 type state =
   { analysisStore : analysisStore
   ; ast : FluidAST.t
-  ; props : fluidProps
+  ; functions : functionsType
   ; executingFunctions : ID.t list
   ; editor : fluidEditor
   ; hoveringRefs : ID.t list
@@ -23,7 +23,7 @@ let stateToFnExecutionState (s : state) : ViewFnExecution.state =
 
 
 let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
-  match ViewUtils.fnForToken s.props.functions ti.token with
+  match ViewUtils.fnForToken s.functions ti.token with
   | Some ({fnOrigin = UserFunction; _} as fn)
   (* HACK: UserFunctions need to be executable so that the user can get a value
    * into the trace. Otherwise, when they edit the function they won't have any
@@ -342,7 +342,7 @@ let tokensView (s : state) : Types.msg Html.html =
 let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
     Types.msg Html.html =
   let returnTipe (name : string) =
-    Functions.find name s.props.functions
+    Functions.find name s.functions
     |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
     |> Option.withDefault ~default:TAny
   in

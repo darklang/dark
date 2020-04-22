@@ -93,6 +93,10 @@ let isValidIdentifier (str : string) : bool =
   Js.Re.test_ [%re "/^[_a-zA-Z]+[_a-zA-Z0-9]*$/"] str
 
 
+(* isUnicodeLetter returns true if the string consists only of unicode letters
+ * \p{L} is the unicode character class for letters *)
+let isUnicodeLetter (str : string) : bool = Js.Re.test_ [%re "/^\\p{L}+$/u"] str
+
 (* Checks if this is allowed as a fieldName in a record literal. Note
  * that there is a difference between what we allow in record
  * literals and field accesses: we decided to allow '-' in record
