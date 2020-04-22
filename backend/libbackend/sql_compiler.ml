@@ -23,6 +23,10 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       boolOp TDate "<"
   | "Date::>" | "Date::greaterThan" ->
       boolOp TDate ">"
+  | "Date::<=" | "Date::lessThanOrEqualTo" ->
+      boolOp TDate "<="
+  | "Date::>=" | "Date::greaterThanOrEqualTo" ->
+      boolOp TDate ">="
   | "Int::mod" ->
       allInts "%"
   | "Int::add" ->
