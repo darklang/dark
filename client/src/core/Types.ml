@@ -769,6 +769,8 @@ and unlockedDBs = StrSet.t
 
 and getUnlockedDBsAPIResult = unlockedDBs
 
+and get404sAPIResult = fourOhFour list
+
 and getTraceDataAPIResult = {trace : trace}
 
 and dbStatsAPIResult = dbStatsStore
@@ -1092,6 +1094,7 @@ and modification =
   | AddOps of (op list * focus)
   | HandleAPIError of apiError
   | GetUnlockedDBsAPICall
+  | Get404sAPICall
   | GetWorkerStatsAPICall of TLID.t
   | ExecutingFunctionAPICall of TLID.t * ID.t * string
   | TriggerHandlerAPICall of TLID.t
@@ -1265,6 +1268,8 @@ and msg =
   | GetUnlockedDBsAPICallback of
       (getUnlockedDBsAPIResult, httpError) Tea.Result.t
       [@printer opaque "GetUnlockedDBsAPICallback"]
+  | Get404sAPICallback of (get404sAPIResult, httpError) Tea.Result.t
+      [@printer opaque "Get404sAPICallback"]
   | NewTracePush of (traceID * TLID.t list)
   | New404Push of fourOhFour
   | NewStaticDeployPush of staticDeploy
