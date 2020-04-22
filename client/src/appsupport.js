@@ -1,7 +1,7 @@
 document.title = window.location.hostname.split(".")[0] + " - Dark";
 
-const mousewheel = function (callback) {
-  require("domready")(function () {
+const mousewheel = function(callback) {
+  require("domready")(function() {
     require("mouse-wheel")(document.body, callback);
   });
 };
@@ -96,14 +96,14 @@ function displayError(msg) {
   document.dispatchEvent(event);
 }
 
-window.onerror = function (msg, url, lineno, colno, error) {
+window.onerror = function(msg, url, lineno, colno, error) {
   window.Rollbar.error(msg, error);
   window.lastError = error;
   console.error("Uncaught exception", msg, url, lineno, colno, error);
   displayError(msg);
 };
 
-window.onunhandledrejection = function (e) {
+window.onunhandledrejection = function(e) {
   window.lastRejection = e;
   window.Rollbar.error("Unhandled promise rejection", e.type, e.reason);
   console.error("Unhandled promise rejection", e.type, e.reason, e);
@@ -156,10 +156,10 @@ window.sendSegmentMessage = sendSegmentMessage;
 
 window.Dark = {
   fetcher: {
-    fetch: function (params) {
+    fetch: function(params) {
       if (!window.fetcherWorker) {
         console.log("FetchWorker not loaded yet");
-        setTimeout(function () {
+        setTimeout(function() {
           console.log("Trying FetchWorker again");
           window.Dark.fetcher.fetch(params);
         }, 100);
@@ -168,7 +168,7 @@ window.Dark = {
 
       window.fetcherWorker.postMessage(params);
 
-      window.fetcherWorker.onmessage = function (e) {
+      window.fetcherWorker.onmessage = function(e) {
         var event = new CustomEvent("receiveFetch", { detail: e.data });
         document.dispatchEvent(event);
       };
@@ -185,7 +185,7 @@ window.Dark = {
     requestAnalysis: function(params) {
       if (!window.analysisWorker) {
         console.log("AnalysisWorker not loaded yet");
-        setTimeout(function () {
+        setTimeout(function() {
           console.log("Trying AnalysisWorker again");
           window.Dark.analysis.requestAnalysis(params);
         }, 100);
@@ -202,7 +202,7 @@ window.Dark = {
         window.Dark.analysis.busy = true;
       }
 
-      window.analysisWorker.onmessage = function (e) {
+      window.analysisWorker.onmessage = function(e) {
         var result = e.data;
 
         var event = new CustomEvent("receiveAnalysis", { detail: result });
@@ -224,8 +224,8 @@ window.Dark = {
     },
   },
   ast: {
-    positions: function (tlid) {
-      var extractId = function (elem) {
+    positions: function(tlid) {
+      var extractId = function(elem) {
         var className = elem.className;
         var matches = /.*id-(\S+).*/g.exec(className);
         var id = matches[1];
@@ -236,7 +236,7 @@ window.Dark = {
         return id;
       };
 
-      var find = function (tl, nested) {
+      var find = function(tl, nested) {
         var atoms = [];
         tl.querySelectorAll(nested ? ".blankOr.nested" : ".blankOr:not(.nested)").forEach(
           (v, i, l) => {
@@ -267,7 +267,7 @@ window.Dark = {
     },
   },
   view: {
-    capture: function () {
+    capture: function() {
       var html2canvas = require("html2canvas");
       html2canvas(document.getElementById("app"), {
         backgroundColor: "#484848",
@@ -332,7 +332,7 @@ function addWheelListener(elem) {
       ? "mousewheel" // Webkit and IE support at least "mousewheel"
       : "DOMMouseScroll"; // let's assume that remaining browsers are older Firefox
 
-  var listener = function (elem, useCapture) {
+  var listener = function(elem, useCapture) {
     _addWheelListener(elem, support, useCapture);
 
     // handle MozMousePixelScroll in older Firefox
@@ -344,7 +344,7 @@ function addWheelListener(elem) {
   function _addWheelListener(elem, eventName, useCapture) {
     elem[_addEventListener](
       prefix + eventName,
-      function (originalEvent) {
+      function(originalEvent) {
         !originalEvent && (originalEvent = window.event);
 
         // create a normalized event object
@@ -357,7 +357,7 @@ function addWheelListener(elem) {
           deltaX: 0,
           deltaY: 0,
           deltaZ: 0,
-          preventDefault: function () {
+          preventDefault: function() {
             originalEvent.preventDefault
               ? originalEvent.preventDefault()
               : (originalEvent.returnValue = false);
@@ -400,7 +400,7 @@ function formatDate([date, format]) {
 
 window.Dark.formatDate = formatDate;
 
-setTimeout(function () {
+setTimeout(function() {
   const canvasName = new URL(window.location).pathname.split("/")[2];
   const params = JSON.stringify({
     complete: complete,
@@ -460,10 +460,10 @@ setTimeout(function () {
     window.fetcherWorker = new Worker(fetcherWorkerUrl);
   })();
 
-  window.onfocus = function (evt) {
+  window.onfocus = function(evt) {
     windowFocusChange(true);
   };
-  window.onblur = function (evt) {
+  window.onblur = function(evt) {
     windowFocusChange(false);
   };
   setInterval(visibilityCheck, 2000);
