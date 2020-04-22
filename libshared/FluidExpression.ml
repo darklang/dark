@@ -6,9 +6,8 @@ type sendToRail =
   | NoRail
 [@@deriving show {with_path = false}, eq, ord, yojson {optional = true}]
 
+(* See .mli for comments/descriptions of fields *)
 type t =
-  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int
-   * support *)
   | EInteger of id * string
   | EBool of id * bool
   | EString of id * string
@@ -18,28 +17,19 @@ type t =
   | ELet of id * string * t * t
   | EIf of id * t * t * t
   | EBinOp of id * string * t * t * sendToRail
-  (* the id in the varname list is the analysis ID, used to get a livevalue
-   * from the analysis engine *)
   | ELambda of id * (analysisID * string) list * t
   | EFieldAccess of id * t * string
   | EVariable of id * string
   | EFnCall of id * string * t list * sendToRail
   | EPartial of id * string * t
   | ERightPartial of id * string * t
+  | ELeftPartial of Shared.id * string * t
   | EList of id * t list
-  (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (string * t) list
   | EPipe of id * t list
-  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
-   * expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
-   * or length 0 (for `Nothing`).
-   *)
   | EConstructor of id * string * t list
   | EMatch of id * t * (FluidPattern.t * t) list
-  (* Placeholder that indicates the target of the Thread. May be movable at
-   * some point *)
   | EPipeTarget of id
-  (* EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * t * t * t
 [@@deriving show {with_path = false}, eq, ord, yojson {optional = true}]
 
@@ -66,6 +56,7 @@ let toID (expr : t) : id =
   | EIf (id, _, _, _)
   | EPartial (id, _, _)
   | ERightPartial (id, _, _)
+  | ELeftPartial (id, _, _)
   | EList (id, _)
   | ERecord (id, _)
   | EPipe (id, _)
@@ -99,7 +90,8 @@ let rec findExprOrPat (target : id) (within : fluidPatOrExpr) :
       | ELambda (id, _, e1)
       | EFieldAccess (id, e1, _)
       | EPartial (id, _, e1)
-      | ERightPartial (id, _, e1) ->
+      | ERightPartial (id, _, e1)
+      | ELeftPartial (id, _, e1) ->
           (id, [Expr e1])
       | EFnCall (id, _, exprs, _)
       | EList (id, exprs)
@@ -168,7 +160,9 @@ let rec find (target : id) (expr : t) : t option =
     | EConstructor (_, _, exprs)
     | EPipe (_, exprs) ->
         List.findMap ~f:fe exprs
-    | EPartial (_, _, oldExpr) | ERightPartial (_, _, oldExpr) ->
+    | EPartial (_, _, oldExpr)
+    | ERightPartial (_, _, oldExpr)
+    | ELeftPartial (_, _, oldExpr) ->
         fe oldExpr
     | EFeatureFlag (_, _, cond, casea, caseb) ->
         fe cond
@@ -191,6 +185,7 @@ let children (expr : t) : t list =
   (* One *)
   | EPartial (_, _, expr)
   | ERightPartial (_, _, expr)
+  | ELeftPartial (_, _, expr)
   | ELambda (_, _, expr)
   | EFieldAccess (_, expr, _) ->
       [expr]
@@ -286,6 +281,8 @@ let rec preTraversal ~(f : t -> t) (expr : t) : t =
       EPartial (id, str, r oldExpr)
   | ERightPartial (id, str, oldExpr) ->
       ERightPartial (id, str, r oldExpr)
+  | ELeftPartial (id, str, oldExpr) ->
+      ELeftPartial (id, str, r oldExpr)
   | EFeatureFlag (id, msg, cond, casea, caseb) ->
       EFeatureFlag (id, msg, r cond, r casea, r caseb)
 
@@ -330,6 +327,8 @@ let rec postTraversal ~(f : t -> t) (expr : t) : t =
         EPartial (id, str, r oldExpr)
     | ERightPartial (id, str, oldExpr) ->
         ERightPartial (id, str, r oldExpr)
+    | ELeftPartial (id, str, oldExpr) ->
+        ELeftPartial (id, str, r oldExpr)
     | EFeatureFlag (id, msg, cond, casea, caseb) ->
         EFeatureFlag (id, msg, r cond, r casea, r caseb)
   in
@@ -374,6 +373,8 @@ let deprecatedWalk ~(f : t -> t) (expr : t) : t =
       EPartial (id, str, f oldExpr)
   | ERightPartial (id, str, oldExpr) ->
       ERightPartial (id, str, f oldExpr)
+  | ELeftPartial (id, str, oldExpr) ->
+      ELeftPartial (id, str, f oldExpr)
   | EFeatureFlag (id, msg, cond, casea, caseb) ->
       EFeatureFlag (id, msg, f cond, f casea, f caseb)
 
@@ -539,6 +540,8 @@ let rec clone (expr : t) : t =
       EPartial (gid (), str, c oldExpr)
   | ERightPartial (_, str, oldExpr) ->
       ERightPartial (gid (), str, c oldExpr)
+  | ELeftPartial (id, str, oldExpr) ->
+      ELeftPartial (id, str, c oldExpr)
   | EPipeTarget _ ->
       EPipeTarget (gid ())
 
@@ -594,6 +597,8 @@ let ancestors (id : id) (expr : t) : t list =
       | EPartial (_, _, oldExpr) ->
           rec_ id exp walk oldExpr
       | ERightPartial (_, _, oldExpr) ->
+          rec_ id exp walk oldExpr
+      | ELeftPartial (_, _, oldExpr) ->
           rec_ id exp walk oldExpr
   in
   rec_ancestors id [] expr
@@ -682,6 +687,7 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
   | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
       s = s' && eqList ts ts'
   | ERightPartial (_, str, e), ERightPartial (_, str', e')
+  | ELeftPartial (_, str, e), ELeftPartial (_, str', e')
   | EPartial (_, str, e), EPartial (_, str', e') ->
       str = str' && eq e e'
   | ELambda (_, vars, e), ELambda (_, vars', e') ->
@@ -714,6 +720,7 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
   | EPipe _, _
   | EFeatureFlag _, _
   | EConstructor _, _
+  | ELeftPartial _, _
   | ERightPartial _, _
   | EPartial _, _
   | ELambda _, _
@@ -753,6 +760,8 @@ let toHumanReadable (expr : t) : string =
           Printf.sprintf {|(partial "%s" %s)|} str (r e)
       | ERightPartial (_, str, e) ->
           Printf.sprintf {|(rpartial "%s" %s)|} str (r e)
+      | ELeftPartial (_, str, e) ->
+          Printf.sprintf {|(lpartial "%s" %s)|} str (r e)
       | EFnCall (_, name, [], _) ->
           Printf.sprintf "(fn \"%s\")" name
       | EFnCall (_, name, exprs, _) ->

@@ -54,6 +54,8 @@ let rec fnnames_of_expr (expr : RTT.expr) : RTT.fnname list =
     | FluidPartial (_, expr) ->
         fnnames_of_expr expr
     | FluidRightPartial (_, expr) ->
+        fnnames_of_expr expr
+    | FluidLeftPartial (_, expr) ->
         fnnames_of_expr expr )
 
 

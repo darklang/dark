@@ -97,7 +97,9 @@ let rec deprecated_traverse ~(f : expr -> expr) (expr : expr) : expr =
           | FluidPartial (name, old_val) ->
               FluidPartial (name, f old_val)
           | FluidRightPartial (name, old_val) ->
-              FluidRightPartial (name, f old_val) )
+              FluidRightPartial (name, f old_val)
+          | FluidLeftPartial (name, old_val) ->
+              FluidLeftPartial (name, f old_val) )
 
 
 (* Example usage of deprecated_traverse. See also AST.ml *)
@@ -154,7 +156,9 @@ let rec post_traverse ~(f : expr -> expr) (expr : expr) : expr =
             | FluidPartial (name, old_val) ->
                 FluidPartial (name, r old_val)
             | FluidRightPartial (name, old_val) ->
-                FluidRightPartial (name, r old_val) )
+                FluidRightPartial (name, r old_val)
+            | FluidLeftPartial (name, old_val) ->
+                FluidLeftPartial (name, r old_val) )
   in
   f result
 
@@ -300,7 +304,8 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
     | Partial (id, _) ->
         DIncomplete (sourceId id)
     | Filled (_, FluidPartial (_, expr))
-    | Filled (_, FluidRightPartial (_, expr)) ->
+    | Filled (_, FluidRightPartial (_, expr))
+    | Filled (_, FluidLeftPartial (_, expr)) ->
         exe st expr
     | Filled (_, Let (lhs, rhs, body)) ->
         let data = exe st rhs in

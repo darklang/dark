@@ -702,6 +702,8 @@ and fluidExpr (expr : FluidExpression.t) : Js.Json.t =
       ev "EPartial" [id id'; string str; fe oldExpr]
   | ERightPartial (id', str, oldExpr) ->
       ev "ERightPartial" [id id'; string str; fe oldExpr]
+  | ELeftPartial (id', str, oldExpr) ->
+      ev "ELeftPartial" [id id'; string str; fe oldExpr]
   | EPipeTarget id' ->
       ev "EPipeTarget" [id id']
 
