@@ -357,6 +357,12 @@ let to_all_traces_result (traces : tlid_traceid list) : string =
   {traces} |> all_traces_result_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
+type get_404s_result = {f404s : fofs} [@@deriving to_yojson]
+
+let to_get_404s_result (f404s : fofs) : string =
+  {f404s} |> get_404s_result_to_yojson |> Yojson.Safe.to_string ~std:true
+
+
 type time = Time.t
 
 (* Warning: both to_string and date_of_string might raise; we could use _option types instead, but since we are using  this for encoding/decoding typed data, I do not think that is necessary right now *)

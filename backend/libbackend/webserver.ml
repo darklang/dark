@@ -1014,6 +1014,31 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
     response
 
 
+let get_404s ~(execution_id : Types.id) (host : string) body :
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, c =
+      time "1-load-saved-ops" (fun _ ->
+          let c =
+            C.load_all_from_cache host
+            |> Result.map ~f:C.to_fluid_ref
+            |> Result.map_error ~f:(String.concat ~sep:", ")
+            |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
+          in
+          c)
+    in
+    let t2, f404s =
+      time "2-get-404s" (fun _ ->
+          let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
+          Analysis.get_404s ~since:latest !c)
+    in
+    let t3, result =
+      time "3-to-frontend" (fun _ -> Analysis.to_get_404s_result f404s)
+    in
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  with e -> Libexecution.Exception.reraise_as_pageable e
+
+
 let upload_function
     ~(execution_id : Types.id) (username : string) (body : string) :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
@@ -1789,6 +1814,9 @@ let admin_api_handler
       | `POST, ["api"; canvas; "get_trace_data"] ->
           when_can_view ~canvas (fun _ ->
               wrap_editor_api_headers (get_trace_data ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_404s"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (get_404s ~execution_id canvas body))
       | `POST, ["api"; canvas; "get_db_stats"] ->
           when_can_view ~canvas (fun _ ->
               wrap_editor_api_headers (db_stats ~execution_id canvas body))

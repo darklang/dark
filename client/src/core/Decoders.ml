@@ -814,6 +814,8 @@ let getUnlockedDBsAPIResult j : getUnlockedDBsAPIResult =
   j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
 
 
+let get404sAPIResult j : get404sAPIResult = j |> field "f404s" (list fof)
+
 let getTraceDataAPIResult j : getTraceDataAPIResult =
   {trace = field "trace" trace j}
 

@@ -393,6 +393,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         handleAPI (API.opsParams ops ((m |> opCtr) + 1) m.clientOpCtrId) focus
     | GetUnlockedDBsAPICall ->
         Sync.attempt ~key:"unlocked" m (API.getUnlockedDBs m)
+    | Get404sAPICall ->
+        (m, API.get404s m)
     | UpdateDBStatsAPICall tlid ->
         Analysis.updateDBStats m tlid
     | GetWorkerStatsAPICall tlid ->
@@ -1547,7 +1549,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUnlockedDBs r.unlockedDBs
         ; UpdateWorkerSchedules r.workerSchedules
         ; SetPermission r.permission
-        ; Append404s r.fofs
+        ; Get404sAPICall
         ; AppendStaticDeploy r.staticDeploys
         ; AutocompleteMod ACReset
         ; Model.updateErrorMod Error.clear
@@ -1599,6 +1601,8 @@ let update_ (msg : msg) (m : model) : modification =
         [ ReplaceAllModificationsWithThisOne
             (fun m -> (Sync.markResponseInModel m ~key:"unlocked", Cmd.none))
         ; SetUnlockedDBs unlockedDBs ]
+  | Get404sAPICallback (Ok f404s) ->
+      Append404s f404s
   | LoadPackagesAPICallback (Ok loadedPackages) ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
@@ -1845,6 +1849,13 @@ let update_ (msg : msg) (m : model) : modification =
                ~importance:IgnorableError
                ~reload:false
                err) ]
+  | Get404sAPICallback (Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"Get404s"
+           ~importance:ImportantError
+           ~reload:false
+           err)
   | LoadPackagesAPICallback (Error err) ->
       HandleAPIError
         (APIError.make
