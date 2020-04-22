@@ -59,7 +59,6 @@ let enabledVariantTests (isAdmin : bool) : variantTest list =
          toVariantTest k |> Option.map ~f:(fun vt -> (vt, enabled)))
   (* starting with the defaults above, either add or remove each variantTest *)
   |> List.foldl ~init ~f:(fun (vt, enabled) acc ->
-         Js.log2 vt enabled ;
          if enabled then vt :: acc else List.filter ~f:(fun x -> x = vt) acc)
   |> List.uniqueBy ~f:show_variantTest
 

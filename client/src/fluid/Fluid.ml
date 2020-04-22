@@ -35,8 +35,7 @@ type tokenInfos = T.tokenInfo list
 type state = Types.fluidState
 
 type props =
-  { (* Types.fluidProps *)
-    functions : functionsType
+  { functions : functionsType
   ; variants : variantTest list }
 
 let deselectFluidEditor (s : fluidState) : fluidState =

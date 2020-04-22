@@ -1620,8 +1620,6 @@ and fluidState =
       dval_source
   ; activeEditor : fluidEditor }
 
-(* and fluidProps = *)
-
 (* Avatars *)
 and avatar =
   { canvasId : string
