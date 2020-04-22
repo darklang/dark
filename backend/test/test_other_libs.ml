@@ -1238,17 +1238,33 @@ let t_date_functions_work () =
     (DBool true)
     (exec_ast' (binop "Date::<=" date later_date)) ;
   check_dval
+    "Date <= works"
+    (DBool true)
+    (exec_ast' (binop "Date::<=" date date)) ;
+  check_dval
     "Date < works"
     (DBool true)
     (exec_ast' (binop "Date::<" date later_date)) ;
   check_dval
-    "Date > works"
+    "Date < works - equality"
     (DBool false)
-    (exec_ast' (binop "Date::>" date later_date)) ;
+    (exec_ast' (binop "Date::<" date date)) ;
+  check_dval
+    "Date > works"
+    (DBool true)
+    (exec_ast' (binop "Date::>" later_date date)) ;
+  check_dval
+    "Date > works - equality"
+    (DBool false)
+    (exec_ast' (binop "Date::>" date date)) ;
   check_dval
     "Date >= works"
-    (DBool false)
-    (exec_ast' (binop "Date::>=" date later_date)) ;
+    (DBool true)
+    (exec_ast' (binop "Date::>=" later_date date)) ;
+  check_dval
+    "Date >= works - equality"
+    (DBool true)
+    (exec_ast' (binop "Date::>=" later_date later_date)) ;
   ()
 
 
