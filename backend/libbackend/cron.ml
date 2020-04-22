@@ -41,8 +41,8 @@ let parse_interval (h : 'expr_type handler) : Time.Span.t option =
 
 type should_execute_type =
   { should_execute_bool : bool
-  ; scheduled_run_at : Core_kernel.Time.t option
-  ; interval : Core_kernel.Time.Span.t option }
+  ; scheduled_run_at : Time.t option
+  ; interval : Time.Span.t option }
 
 let should_execute (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
     should_execute_type =
@@ -56,8 +56,6 @@ let should_execute (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
     ( match parse_interval h with
     | None ->
         let bt = Caml.Printexc.get_raw_backtrace () in
-        (* We used to rollbar here, but that breaks other crons! Just log for
-         * now, later we'll validate on save or something *)
         Log.erroR
           "Can't parse interval: "
           ~params:
