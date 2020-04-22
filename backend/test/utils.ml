@@ -221,6 +221,10 @@ let colnameid4 = Int63.of_int 17
 
 let coltypeid4 = Int63.of_int 18
 
+let colnameid5 = Int63.of_int 19
+
+let coltypeid5 = Int63.of_int 20
+
 let nameid = Int63.of_int 27
 
 let nameid2 = Int63.of_int 227
