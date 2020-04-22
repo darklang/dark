@@ -79,6 +79,8 @@ let categoryIcon_ (name : string) : msg Html.html list =
       [darkIcon "fn"]
   | "deleted" ->
       [darkIcon "deleted"]
+  | "package-manager" ->
+      [fontAwesome "box-open"]
   | "static" ->
       [fontAwesome "file"]
   | "types" ->
@@ -94,7 +96,13 @@ let categoryIcon_ (name : string) : msg Html.html list =
   | "group" ->
       [fontAwesome "object-group"]
   | _ ->
-      [darkIcon "undefined"]
+      if String.contains ~substring:"pm-author" name
+      then [fontAwesome "user"]
+      else if String.contains ~substring:"pm-package" name
+      then [fontAwesome "cubes"]
+      else if String.contains ~substring:"pm-module" name
+      then [darkIcon "package-manager"]
+      else [darkIcon "undefined"]
 
 
 let categoryButton ?(props = []) (name : string) (description : string) :
@@ -363,6 +371,81 @@ let standardCategories m hs dbs ufns tipes groups =
     @ tipes
   in
   catergories @ groupCategory
+
+
+let packageManagerCategory (pmfns : packageFns) : category =
+  let getFnnameEntries (moduleList : packageFn list) : item list =
+    let fnnames = moduleList |> List.uniqueBy ~f:(fun fn -> fn.fnname) in
+    fnnames
+    |> List.map ~f:(fun fn ->
+           Entry
+             { name = fn.fnname ^ "_v" ^ string_of_int fn.version
+             ; identifier = Tlid fn.pfTLID
+             ; destination = Some (FocusedPackageManagerFn fn.pfTLID)
+             ; uses = None
+             ; minusButton = None
+             ; plusButton = None
+             ; killAction = None
+             ; verb = None })
+  in
+  let getModuleEntries (packageList : packageFn list) : item list =
+    let uniquemodules =
+      packageList |> List.uniqueBy ~f:(fun fn -> fn.module_)
+    in
+    uniquemodules
+    |> List.map ~f:(fun fn ->
+           let moduleList =
+             packageList |> List.filter ~f:(fun f -> fn.module_ = f.module_)
+           in
+           Category
+             { count = List.length uniquemodules
+             ; name = fn.module_
+             ; plusButton = None
+             ; iconAction = None
+             ; classname = "pm-module-" ^ fn.module_
+             ; entries = getFnnameEntries moduleList })
+  in
+  let getPackageEntries (userList : packageFn list) : item list =
+    let uniquePackages = userList |> List.uniqueBy ~f:(fun fn -> fn.package) in
+    uniquePackages
+    |> List.map ~f:(fun fn ->
+           let packageList =
+             userList |> List.filter ~f:(fun f -> fn.package = f.package)
+           in
+           Category
+             { count = List.length uniquePackages
+             ; name = fn.package
+             ; plusButton = None
+             ; iconAction = None
+             ; classname = "pm-package" ^ fn.package
+             ; entries = getModuleEntries packageList })
+  in
+  let uniqueauthors =
+    pmfns
+    |> TD.values
+    |> List.sortBy ~f:(fun f -> f.user)
+    |> List.uniqueBy ~f:(fun fn -> fn.user)
+  in
+  let getAuthorEntries =
+    uniqueauthors
+    |> List.map ~f:(fun fn ->
+           let authorList =
+             pmfns |> TD.values |> List.filter ~f:(fun f -> fn.user = f.user)
+           in
+           Category
+             { count = List.length uniqueauthors
+             ; name = fn.user
+             ; plusButton = None
+             ; iconAction = None
+             ; classname = "pm-author" ^ fn.user
+             ; entries = getPackageEntries authorList })
+  in
+  { count = List.length uniqueauthors
+  ; name = "Package Manager"
+  ; plusButton = None
+  ; iconAction = None
+  ; classname = "package-manager"
+  ; entries = getAuthorEntries }
 
 
 let deletedCategory (m : model) : category =
@@ -691,6 +774,8 @@ let adminDebuggerView (m : model) : msg Html.html =
     match pg with
     | Architecture ->
         "Architecture"
+    | FocusedPackageManagerFn tlid ->
+        Printf.sprintf "Package Manager Fn (TLID %s)" (TLID.toString tlid)
     | FocusedFn (tlid, _) ->
         Printf.sprintf "Fn (TLID %s)" (TLID.toString tlid)
     | FocusedHandler (tlid, _, _) ->
@@ -828,9 +913,10 @@ let update (msg : sidebarMsg) : modification =
 
 
 let viewSidebar_ (m : model) : msg Html.html =
+  let packageManager = packageManagerCategory m.functions.packageFunctions in
   let cats =
     standardCategories m m.handlers m.dbs m.userFunctions m.userTipes m.groups
-    @ [f404Category m; deletedCategory m]
+    @ [f404Category m; deletedCategory m; packageManager]
   in
   let isDetailed =
     match m.sidebarState.mode with DetailedMode -> true | _ -> false
@@ -887,7 +973,8 @@ let rtCacheKey m =
   , m.environment
   , m.editorSettings
   , m.permission
-  , m.currentPage )
+  , m.currentPage
+  , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user) )
   |> Option.some
 
 

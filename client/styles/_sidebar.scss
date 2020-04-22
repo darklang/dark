@@ -133,7 +133,8 @@ $icSize: 1em;
 
   @at-root .detailed & {
     &.fof > summary,
-    &.deleted > summary {
+    &.deleted > summary,
+    &.package-manager > summary {
       margin-left: -1 * $icSize;
     }
   }
@@ -389,6 +390,9 @@ $icSize: 1em;
     margin-bottom: $hSpace;
   }
 
+  // &.package-manager .category-header{
+  // }
+
   &.fof .category-content {
     margin-left: 0.5em;
   }
@@ -419,6 +423,12 @@ $icSize: 1em;
 
   .category-content .category-name {
     display: none;
+  }
+}
+.abridged .sidebar-category.package-manager .category-content {
+  .category-header .category-name {
+    display: block;
+    padding: 0px 5px;
   }
 }
 
