@@ -51,7 +51,7 @@ let activeCSSClasses (m : model) : string =
 
 let enabledVariantTests (isAdmin : bool) : variantTest list =
   (* admins have these enabled by default, but can opt-out via query param *)
-  let init = if isAdmin then [ExeCodeVariant; LeftPartialVariant] else [] in
+  let init = if isAdmin then [ExeCodeVariant] else [] in
   Url.queryParams ()
   (* convert a (string * bool) list to a (variantTest * bool) list,
    * ignoring any unknown query params *)
