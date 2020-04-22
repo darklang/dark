@@ -175,6 +175,13 @@ window.Dark = {
     },
   },
   analysis: {
+    /* Next and busy are used to queue analyses. If busy is false, run
+      immediately; else wait until the analysis is done and then run next. If
+      next is not set, reset busy. */
+    next: null,
+    busy: false,
+    /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
+    lastRun: 0,
     requestAnalysis: function(params) {
       if (!window.analysisWorker) {
         console.log("AnalysisWorker not loaded yet");
@@ -185,13 +192,34 @@ window.Dark = {
         return;
       }
 
-      window.analysisWorker.postMessage(params);
+      // analysis queue: run immediately or store if busy
+      if (window.Dark.analysis.busy) {
+        // busy: record for next time
+        window.Dark.analysis.next = params;
+      } else {
+        // not busy: run it immediately
+        window.analysisWorker.postMessage(params);
+        window.Dark.analysis.busy = true;
+      }
 
       window.analysisWorker.onmessage = function(e) {
         var result = e.data;
 
         var event = new CustomEvent("receiveAnalysis", { detail: result });
         document.dispatchEvent(event);
+
+        // analysis queue: run the next analysis or mark not busy
+        let params = window.Dark.analysis.next;
+        if (params === null) {
+          // no analyses waiting, we're done
+          window.Dark.analysis.busy = false;
+        } else {
+          // an analysis is waiting, run it
+          window.Dark.analysis.next = null;
+          window.analysisWorker.postMessage(params);
+        }
+
+        window.Dark.analysis.lastRun = new Date();
       };
     },
   },
@@ -410,17 +438,24 @@ setTimeout(function() {
   }
   let rollbarConfigSetup =
     "const rollbarConfig = '" + JSON.stringify(rollbarConfig) + "';\n\n";
+  let buildHashSetup = "const buildHash = '" + buildHash + "';\n\n";
 
   let analysisjs = fetcher("/analysis.js");
   let analysiswrapperjs = fetcher("/analysiswrapper.js");
   let fetcherjs = fetcher("/fetcher.js");
   (async function() {
-    var strings = [rollbarConfigSetup, await analysisjs, "\n\n", await analysiswrapperjs];
+    var strings = [
+      rollbarConfigSetup,
+      buildHashSetup,
+      await analysisjs,
+      "\n\n",
+      await analysiswrapperjs,
+    ];
     var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.analysisWorker = new Worker(analysisWorkerUrl);
   })();
   (async function() {
-    var strings = [rollbarConfigSetup, await fetcherjs];
+    var strings = [rollbarConfigSetup, buildHashSetup, await fetcherjs];
     var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
     window.fetcherWorker = new Worker(fetcherWorkerUrl);
   })();

@@ -185,6 +185,34 @@ let fns : expr fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Date::greaterThanOrEqualTo"]
+    ; infix_names = ["Date::>="]
+    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; return_type = TBool
+    ; description = "Returns whether `d1` >= ` d2`"
+    ; func =
+        InProcess
+          (function
+          | _, [DDate d1; DDate d2] ->
+              DBool (Time.( >= ) d1 d2)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Date::lessThanOrEqualTo"]
+    ; infix_names = ["Date::<="]
+    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; return_type = TBool
+    ; description = "Returns whether `d1` <= ` d2`"
+    ; func =
+        InProcess
+          (function
+          | _, [DDate d1; DDate d2] ->
+              DBool (Time.( <= ) d1 d2)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Date::toSeconds"]
     ; infix_names = []
     ; parameters = [par "date" TDate]
