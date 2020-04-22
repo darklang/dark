@@ -98,7 +98,7 @@ let validID id = id <> fakeid
 (* Tokens that are 'editable' are considered text tokens
  * If the cursor is to the left of a text token, then pressing a character
  * will append to the end of that token *)
-let isTextToken t : bool =
+let isTextToken (t : t) : bool =
   match t with
   | TInteger _
   | TLetVarName _

@@ -56,13 +56,14 @@ let keypress (key : K.key) : fluidInputEvent =
     {key; shiftKey = false; altKey = false; metaKey = false; ctrlKey = false}
 
 
-let processMsg (inputs : fluidInputEvent list) (s : fluidState) (ast : E.t) :
+let processMsg (_inputs : fluidInputEvent list) (s : fluidState) (ast : E.t) :
     E.t * fluidState =
   let h = Fluid_utils.h ast in
-  let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
-  List.foldl inputs ~init:(h.ast, s, []) ~f:(fun input (ast, s, _) ->
-      updateMsg m h.hTLID ast (FluidInputEvent input) s)
-  |> fun (ast, s, _) -> (FluidAST.toExpr ast, s)
+  let _m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+  (* List.foldl inputs ~init:(h.ast, s, []) ~f:(fun input (ast, s, _) -> *)
+  (*     updateMsg m h.hTLID ast (FluidInputEvent input) s) *)
+  (* |> fun (ast, s, _) -> (FluidAST.toExpr ast, s) *)
+  (ast, s)
 
 
 (* ------------------ *)
