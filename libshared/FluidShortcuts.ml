@@ -103,6 +103,24 @@ let pConstructor
   FPConstructor (mid, id, name, patterns)
 
 
+let pJust ?(mid = gid ()) ?(id = gid ()) (arg : FluidPattern.t) : FluidPattern.t
+    =
+  FPConstructor (mid, id, "Just", [arg])
+
+
+let pNothing ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t =
+  FPConstructor (mid, id, "Nothing", [])
+
+
+let pError ?(mid = gid ()) ?(id = gid ()) (arg : FluidPattern.t) :
+    FluidPattern.t =
+  FPConstructor (mid, id, "Error", [arg])
+
+
+let pOk ?(mid = gid ()) ?(id = gid ()) (arg : FluidPattern.t) : FluidPattern.t =
+  FPConstructor (mid, id, "Ok", [arg])
+
+
 let pBool ?(mid = gid ()) ?(id = gid ()) (b : bool) : FluidPattern.t =
   FPBool (mid, id, b)
 
