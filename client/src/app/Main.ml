@@ -650,6 +650,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * stored function results *)
         let newTraces =
           Analysis.mergeTraces
+            ~selectedTraceIDs:m.tlTraceIDs
             ~onConflict:(fun _old (newID, _) -> (newID, Error NoneYet))
             m.traces
             traces
