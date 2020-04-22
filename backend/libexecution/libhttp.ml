@@ -365,7 +365,7 @@ let fns : Types.RuntimeT.expr Types.RuntimeT.fn list =
     ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
     ; return_type = TObj
     ; description =
-        "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{ Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
+        "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
     ; func =
         InProcess
           (function
