@@ -1,5 +1,6 @@
 open Libcommon
 open Core_kernel
+module Option = Tc.Option
 
 type bufs = string ref * string ref * string ref * string ref * string ref
 
@@ -65,7 +66,7 @@ let log_debug_info (bufs : bufs) (primaryip : string option) =
       |> String.lsplit2 ~on:':'
       (* If it's None, log and put the whole thing into the header side - this
        * shouldn't happen, but failsafe to avoid losing data *)
-      |> Tc.Option.orElseLazy (fun () ->
+      |> Option.orElseLazy (fun () ->
              Log.erroR
                "Expected value to be a header separated by a colon, but it was not."
                ~params:[("line", line)] ;
@@ -94,7 +95,7 @@ let log_debug_info (bufs : bufs) (primaryip : string option) =
     request_line
     |> String.split ~on:'?'
     |> List.hd
-    |> Tc.Option.withDefault ~default:""
+    |> Option.withDefault ~default:""
   in
   let response_line, response_headers = line_and_headers debugbuf_header_in in
   (* Takes a list of headers (k,v pairs) and returns a string of just the header
@@ -158,14 +159,14 @@ let log_debug_info (bufs : bufs) (primaryip : string option) =
            (String.is_substring_at ~pos:0 ~substring:"SOCKS5 communication to ")
     (* Split the line on the last ':' and take the right hand side. This
      * gets us (Some "443") in the example above. *)
-    |> Option.bind ~f:(String.rsplit2 ~on:':')
+    |> Option.andThen ~f:(String.rsplit2 ~on:':')
     |> Option.map ~f:snd
     (* Convert it to an int in case we want to look for, say, conns to ports
      * above/below 1024 *)
-    |> Option.bind ~f:int_of_string_opt
+    |> Option.andThen ~f:int_of_string_opt
     (* 0 is a reserved port, it'll never exist, and this is easier than
      * filtering out Nones from the list-of-params-we-log *)
-    |> Tc.Option.withDefault ~default:0
+    |> Option.withDefault ~default:0
   in
   Log.infO
     "libcurl"
@@ -177,7 +178,7 @@ let log_debug_info (bufs : bufs) (primaryip : string option) =
         ; ("curl.response_line", response_line)
         ; ("curl.request_headers", request_headers |> header_names)
         ; ("curl.response_headers", response_headers |> header_names)
-        ; ("curl.primary_ip", primaryip |> Tc.Option.withDefault ~default:"") ]
+        ; ("curl.primary_ip", primaryip |> Option.withDefault ~default:"") ]
       @ selected_request_headers
       @ selected_response_headers )
     ~jsonparams:
