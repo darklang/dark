@@ -1,0 +1,37 @@
+.fullstory-modal {
+  $soft-edges: 15px;
+
+  background-color: $cyan;
+  color: $black1;
+
+  display: block;
+  margin: 0 auto;
+  width: 800px;
+  padding: $soft-edges;
+  border-bottom-left-radius: $soft-edges;
+  border-bottom-right-radius: $soft-edges;
+  
+  position: sticky;
+  top: 0;
+  z-index: 80;
+
+  p:first-child {
+    margin-top: 0em;
+  }
+
+  .consent {
+    display: flex;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+
+    .choice {
+      display: inline-block;
+      width: 50%;
+
+      input[type="radio"] ~ label {
+        margin-left: 1ch;
+      }
+    }
+  }
+}
