@@ -19,10 +19,8 @@ async function prepSettings(t) {
   await setLocalStorageItem(key2, value2);
 }
 
-async function awaitAnalysis(t, ts, trial) {
-  if (!trial) {
-    trial = 0;
-  } else if (trial > 10) {
+async function awaitAnalysis(t, ts, trial = 0) {
+  if (trial > 10) {
     return t.expect(true).notOk("Max wait count for analysis exceeded");
   }
 
@@ -32,7 +30,6 @@ async function awaitAnalysis(t, ts, trial) {
     // analysis has returned result since ts (timestamp)
     const diffInSecs = (lastRun - ts) / 1000.0;
     console.info("Analysis ran in ~ " + diffInSecs + "secs");
-    // return t.expect(true).ok("Analysis ran in ~ "+ diffInSecs + "secs");
     return t;
   } else {
     await t.wait(1000);
