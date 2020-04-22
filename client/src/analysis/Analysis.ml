@@ -342,9 +342,13 @@ let getWorkerStats m tlid =
            (contextFromModel m, WorkerStatsFetch {workerStatsTlid = tlid})))
 
 
-let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
-    traces =
-  StrDict.merge oldTraces newTraces ~f:(fun _tlid oldList newList ->
+let mergeTraces
+    ~(selectedTraceIDs : tlTraceIDs)
+    ~(onConflict : trace -> trace -> trace)
+    oldTraces
+    newTraces : traces =
+  let maxTracesPerHandler = 5 in
+  StrDict.merge oldTraces newTraces ~f:(fun tlid oldList newList ->
       match (oldList, newList) with
       | None, None ->
           None
@@ -354,21 +358,37 @@ let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
           Some n
       | Some o, Some n ->
           (* merge the lists, updating the trace in the same position
-              * if present, and adding it to the front otherwise. *)
-          Some
-            (List.foldl n ~init:o ~f:(fun ((newID, newData) as new_) acc ->
-                 let found = ref false in
-                 let updated =
-                   List.map acc ~f:(fun ((oldID, oldData) as old) ->
-                       if oldID = newID
-                       then (
-                         found := true ;
-                         onConflict old new_ )
-                       else (oldID, oldData))
-                 in
-                 if !found (* deref, not "not" *)
-                 then updated
-                 else (newID, newData) :: acc)))
+           * if present, and adding it to the front otherwise.
+           * 
+           * drop any traces in excess of [maxTracesPerHandler]
+           * from the back, making sure to preserve any selected traces. *)
+          let tlid = TLID.fromString tlid in
+          let preserveTraceID = TLIDDict.get ~tlid selectedTraceIDs in
+          let merged, _totalTraces =
+            List.foldl
+              n
+              ~init:(o, 0)
+              ~f:(fun ((newID, newData) as new_) (acc, countSoFar) ->
+                (* We subtract one here because we might encounter [preserveTraceID]
+                 * anywhere in the list. *)
+                if countSoFar < maxTracesPerHandler - 1
+                   || preserveTraceID = Some newID
+                then
+                  let found = ref false in
+                  let updated =
+                    List.map acc ~f:(fun ((oldID, oldData) as old) ->
+                        if oldID = newID
+                        then (
+                          found := true ;
+                          onConflict old new_ )
+                        else (oldID, oldData))
+                  in
+                  if !found (* deref, not "not" *)
+                  then (updated, countSoFar)
+                  else ((newID, newData) :: acc, 1 + countSoFar)
+                else (acc, countSoFar))
+          in
+          Some merged)
 
 
 let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
@@ -416,6 +436,7 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
 let updateTraces (m : model) (traces : traces) : model =
   let newTraces =
     mergeTraces
+      ~selectedTraceIDs:m.tlTraceIDs
       ~onConflict:(fun (oldID, oldData) (newID, newData) ->
         (* Update if:
          * - new data is ok (successful fetch)
