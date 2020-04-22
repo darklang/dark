@@ -142,10 +142,7 @@ fixture`Integration Tests`
 // Utilities
 //********************************
 async function createHTTPHandler(t) {
-  await t
-    .pressKey("enter")
-    .pressKey("down")
-    .pressKey("enter");
+  await t.pressKey("enter").pressKey("down").pressKey("enter");
 }
 
 async function createWorkerHandler(t) {
@@ -174,8 +171,10 @@ function user_content_url(t, endpoint) {
 // platform the tests are running.
 async function pressShortcut(t, shortcutUsingCtrl) {
   if (shortcutUsingCtrl === undefined) {
-    throw "pressShortcut expecting a shortcut string like 'ctrl-a' but got undefined. " +
-      "Did you forget to pass t?";
+    throw (
+      "pressShortcut expecting a shortcut string like 'ctrl-a' but got undefined. " +
+      "Did you forget to pass t?"
+    );
   }
   var shortcut;
   if (t.browser.os.name == "macOS") {
@@ -215,7 +214,7 @@ const scrollBy = ClientFunction((id, dx, dy) => {
 });
 
 // NOTE: this is synchronous, not async, so we don't have to fuss with promises
-const getBwdResponse = ClientFunction(function(url) {
+const getBwdResponse = ClientFunction(function (url) {
   var xhttp = new XMLHttpRequest();
   xhttp.open("GET", url, false);
   xhttp.send(null);
@@ -290,10 +289,7 @@ test("switching_from_http_space_removes_variable_colons", async t => {
 });
 
 test("enter_changes_state", async t => {
-  await t
-    .pressKey("enter")
-    .expect(entryBoxAvailable())
-    .ok();
+  await t.pressKey("enter").expect(entryBoxAvailable()).ok();
 });
 
 test("field_access_closes", async t => {
@@ -437,7 +433,7 @@ test("tabbing_through_let", async t => {
 });
 
 test("rename_db_fields", async t => {
-  const callBackend = ClientFunction(function(url) {
+  const callBackend = ClientFunction(function (url) {
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", url, true);
     xhttp.setRequestHeader("Content-type", "application/json");
@@ -464,14 +460,11 @@ test("rename_db_fields", async t => {
   await Selector(lockSel, { timeout: 5000 })();
   await t.expect(Selector(lockSel).exists).ok();
 
-  await t
-    .click(Selector(".name").withText("field6"))
-    .pressKey("enter")
-    .pressKey("enter");
+  await t.click(Selector(".name").withText("field6")).pressKey("enter").pressKey("enter");
 });
 
 test("rename_db_type", async t => {
-  const callBackend = ClientFunction(function(url) {
+  const callBackend = ClientFunction(function (url) {
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", url, true);
     xhttp.setRequestHeader("Content-type", "application/json");
@@ -498,10 +491,7 @@ test("rename_db_type", async t => {
   await Selector(lockSel, { timeout: 5000 })();
   await t.expect(Selector(lockSel).exists).ok();
 
-  await t
-    .click(Selector(".type").withText("String"))
-    .pressKey("enter")
-    .pressKey("enter");
+  await t.click(Selector(".type").withText("String")).pressKey("enter").pressKey("enter");
 });
 
 /* Disable for now, will bring back as command palette fn
@@ -579,10 +569,7 @@ test("feature_flag_in_function", async t => {
 */
 test("rename_function", async t => {
   const fnNameBlankOr = ".fn-name-content";
-  await t
-    .navigateTo("#fn=123")
-    .expect(available(fnNameBlankOr))
-    .ok({ timeout: 1000 });
+  await t.navigateTo("#fn=123").expect(available(fnNameBlankOr)).ok({ timeout: 1000 });
 
   // check not changing function name does not cause error message to show
   await t.doubleClick(Selector(fnNameBlankOr));
@@ -720,7 +707,7 @@ test("function_analysis_works", async t => {
 });
 
 test("fourohfours_parse", async t => {
-  const sendPushEvent = ClientFunction(function() {
+  const sendPushEvent = ClientFunction(function () {
     const data = [
       "HTTP",
       "/nonexistant",
@@ -742,10 +729,7 @@ test("fn_page_to_handler_pos", async t => {
     .ok({ timeout: 1000 });
   const fnOffset = await Selector("#canvas").getStyleProperty("transform");
 
-  await t
-    .navigateTo("#handler=123")
-    .expect(available(".tl-123"))
-    .ok({ timeout: 1000 });
+  await t.navigateTo("#handler=123").expect(available(".tl-123")).ok({ timeout: 1000 });
 
   await t.expect(Selector("#canvas").getStyleProperty("transform")).notEql(fnOffset);
 });
@@ -769,10 +753,7 @@ test("autocomplete_visible_height", async t => {
 // });
 //
 test("load_with_unnamed_function", async t => {
-  await t
-    .pressKey("enter")
-    .expect(entryBoxAvailable())
-    .ok();
+  await t.pressKey("enter").expect(entryBoxAvailable()).ok();
 });
 
 test("extract_from_function", async t => {
@@ -963,10 +944,7 @@ test("varnames_are_incomplete", async t => {
 });
 
 test("center_toplevel", async t => {
-  await t
-    .navigateTo("#handler=1445447347")
-    .expect(available(".tl-1445447347"))
-    .ok();
+  await t.navigateTo("#handler=1445447347").expect(available(".tl-1445447347")).ok();
 });
 
 test("max_callstack_bug", async t => {
@@ -1102,10 +1080,7 @@ test("fluid_shift_tabbing_from_handler_ast_back_to_route", async t => {
 test("fluid_test_copy_request_as_curl", async t => {
   await t.navigateTo("#handler=91390945");
   await Selector(".tl-91390945", { timeout: 5000 })();
-  await t
-    .expect(available(".tl-91390945"))
-    .ok()
-    .click(Selector(".id-753586717"));
+  await t.expect(available(".tl-91390945")).ok().click(Selector(".id-753586717"));
   // test logic in IntegrationTest.ml; we load it here because we need an
   // analysis done before we can call the command
 });
@@ -1155,8 +1130,9 @@ test("upload_pkg_fn_as_admin", async t => {
 
   // second (attempted) upload should fail, as we've already uploaded this
   await upload_pkg_for_tlid(t, tlid);
-  const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${tlid +
-    1}? (UploadFnAPICallback)Dismiss`;
+  const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+    tlid + 1
+  }? (UploadFnAPICallback)Dismiss`;
   await t.expect(Selector(".error-panel.show").textContent).eql(failureMsg);
   await t.click(".dismissBtn");
 
@@ -1166,8 +1142,9 @@ test("upload_pkg_fn_as_admin", async t => {
   // this failureMsg2 is the same as failureMsg above, because its text dpends
   // on the latest version (and the next valid version of the fn), not the
   // version you tried to upload
-  const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${tlid +
-    1}? (UploadFnAPICallback)Dismiss`;
+  const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+    tlid + 1
+  }? (UploadFnAPICallback)Dismiss`;
   await t.expect(Selector(".error-panel.show").textContent).eql(failureMsg2);
   await t.click(".dismissBtn");
 });
@@ -1202,7 +1179,7 @@ test("use_pkg_fn", async t => {
     .contains("0");
 
   // check if we can get a result from the bwd endpoint
-  const callBackend = ClientFunction(function(url) {
+  const callBackend = ClientFunction(function (url) {
     var xhttp = new XMLHttpRequest();
     xhttp.open("GET", url, false);
     xhttp.send(null);

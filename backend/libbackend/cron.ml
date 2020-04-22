@@ -44,8 +44,8 @@ type execution_check_type =
   ; scheduled_run_at : Time.t option
   ; interval : Time.Span.t option }
 
-let execution_check (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id :
-    execution_check_type =
+let execution_check (canvas_id : Uuidm.t) (h : 'expr_type handler) execution_id
+    : execution_check_type =
   let open Option in
   let now = Time.now () in
   match last_ran_at canvas_id h with
