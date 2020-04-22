@@ -1022,7 +1022,7 @@ let t_db_query_works () =
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str ""]) |> execs) ;
   check_dval
     "string::contains"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     (queryv (fn "String::contains" [field "v" "name"; str "R"]) |> execs) ;
   check_dval
     "string::contains case-sensitive"
@@ -1034,10 +1034,11 @@ let t_db_query_works () =
     (queryv (fn "String::contains" [field "v" "name"; str "ZZZ"]) |> execs) ;
   check_dval
     "string::contains empty arg"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [cat; rachel; ross])
     (* matches the ocaml version: "" is a substring of all strings *)
     (queryv (fn "String::contains" [field "v" "name"; str ""]) |> execs) ;
-  "date::lessThanOrEquals"
+  check_dval
+    "date::lessThanOrEquals"
     (DList [rachel; ross])
     ( queryv
         (binop
