@@ -50,10 +50,10 @@ let run () =
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
   let aConstructor = FPConstructor (mID, gid (), "Just", [b ()]) in
-  let m = Fluid_test_data.defaultTestModel in
+  let _m = Fluid_test_data.defaultTestModel in
   let process
       ~(debug : bool)
-      (inputs : fluidInputEvent list)
+      (_inputs : fluidInputEvent list)
       (pos : int)
       (pat : FluidPattern.t) : string * int =
     let ast = E.EMatch (mID, EBlank (gid ()), [(pat, EBlank (gid ()))]) in
@@ -70,10 +70,11 @@ let run () =
       Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "pattern before" (eToStructure ast) ) ;
     let newAST, newState, _ =
-      let h = h ast in
-      let m = {m with handlers = Handlers.fromList [h]} in
-      List.foldl inputs ~init:(h.ast, s, []) ~f:(fun input (ast, s, _) ->
-          updateMsg m h.hTLID ast (FluidInputEvent input) s)
+      (FluidAST.ofExpr ast, s, 5)
+      (* let h = h ast in *)
+      (* let m = {m with handlers = Handlers.fromList [h]} in *)
+      (* List.foldl inputs ~init:(h.ast, s, []) ~f:(fun input (ast, s, _) -> *)
+      (*     updateMsg m h.hTLID ast (FluidInputEvent input) s) *)
     in
     let result =
       match FluidAST.toExpr newAST with

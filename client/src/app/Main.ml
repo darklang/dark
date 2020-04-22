@@ -459,13 +459,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 (FluidEntering tlid, None) )
           | STCaret caretTarget ->
               let maybeNewFluidState =
-                match Fluid.astAndStateFromTLID m tlid with
-                | Some (ast, state) ->
-                    let tokens = Fluid.tokensForActiveEditor ast state in
+                match Fluid.getAstInfo m tlid with
+                | Some astInfo ->
                     Some
                       (Fluid.setPosition
-                         state
-                         (Fluid.posFromCaretTarget tokens state caretTarget))
+                         (Fluid.posFromCaretTarget caretTarget astInfo)
+                         astInfo)
+                        .state
                 | None ->
                     None
               in
