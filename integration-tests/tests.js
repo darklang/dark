@@ -3,6 +3,7 @@ const child_process = require("child_process");
 import fs from "fs";
 const BASE_URL = "http://darklang.localhost:8000/a/test-";
 const getPageUrl = ClientFunction(() => window.location.href);
+const analysisLastRun = ClientFunction(() => window.Dark.analysis.lastRun);
 
 async function prepSettings(t) {
   // Turn on fluid debugger
@@ -16,6 +17,24 @@ async function prepSettings(t) {
   let key2 = `userState-test`;
   let value2 = '{"showUserWelcomeModal":false}';
   await setLocalStorageItem(key2, value2);
+}
+
+async function awaitAnalysis(t, ts, trial = 0) {
+  if (trial > 10) {
+    return t.expect(true).notOk("Max wait count for analysis exceeded");
+  }
+
+  const lastRun = await analysisLastRun();
+
+  if (lastRun > ts) {
+    // analysis has returned result since ts (timestamp)
+    const diffInSecs = (lastRun - ts) / 1000.0;
+    console.info("Analysis ran in ~ " + diffInSecs + "secs");
+    return t;
+  } else {
+    await t.wait(1000);
+    return awaitAnalysis(t, ts, trial + 1);
+  }
 }
 
 fixture`Integration Tests`
@@ -580,17 +599,21 @@ test("rename_function", async t => {
 
 // not sure why this test is flaky - possibly pressing the button changes state,
 // and re-running (testcafe's quarantine mode) fails?
-/*
+
 test("execute_function_works", async t => {
   await createRepl(t);
-  await t
-    .typeText("#active-editor", "Uuid::gen")
-    .pressKey("enter")
-    .click(Selector(".execution-button-needed"));
+  await t.expect(Selector("#active-editor", { timeout: 5000 }).exists).ok();
+  await t.typeText("#active-editor", "Uuid::gen").pressKey("enter");
+
+  const t1 = new Date();
+  await t.click(Selector(".execution-button", { timeout: 500 }));
+  await awaitAnalysis(t, t1);
 
   let v1 = await Selector(".selected .live-value.loaded").innerText;
 
+  const t2 = new Date();
   await t.click(Selector(".fa-redo"));
+  await awaitAnalysis(t, t2);
 
   let v2 = await Selector(".selected .live-value.loaded").innerText;
 
@@ -599,7 +622,6 @@ test("execute_function_works", async t => {
   await t.expect(v2).match(re);
   await t.expect(v1).notEql(v2);
 });
-*/
 
 test("correct_field_livevalue", async t => {
   await t
@@ -612,6 +634,10 @@ test("correct_field_livevalue", async t => {
 });
 
 test("int_add_with_float_error_includes_fnname", async t => {
+  const timestamp = new Date();
+  await gotoAST(t);
+  await awaitAnalysis(t, timestamp);
+
   await t
     .click(Selector(".fluid-editor")) // required to see the return value (navigate is insufficient)
     .expect(available(".return-value"))
@@ -965,11 +991,14 @@ test("sidebar_opens_function", async t => {
 });
 
 test("empty_fn_never_called_result", async t => {
+  await t.navigateTo("#fn=602952746");
+  const timestamp = new Date();
   await t
-    .navigateTo("#fn=602952746")
     .click(".id-1276585567")
     // clicking twice in hopes of making the test more stable
-    .click(".id-1276585567")
+    .click(".id-1276585567");
+  await awaitAnalysis(t, timestamp);
+  await t
     .expect(available(".return-value .msg"))
     .ok()
     .expect(Selector(".return-value").innerText)

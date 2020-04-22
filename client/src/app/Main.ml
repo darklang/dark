@@ -1930,9 +1930,8 @@ let update_ (msg : msg) (m : model) : modification =
       let center = Viewport.findNewPos m in
       Entry.submitOmniAction m center action
   | CreateDBTable ->
-      let center = Viewport.findNewPos m
-      and genName = DB.generateDBName () in
-      Entry.newDB genName center
+      let center = Viewport.findNewPos m in
+      Refactor.createNewDB m None center
   | CreateGroup ->
       let center = Viewport.findNewPos m in
       Groups.createEmptyGroup None center
