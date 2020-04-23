@@ -82,6 +82,15 @@ let clear_test_data () : unit =
 (* Test fns *)
 (* ------------------- *)
 
+let at_fluid_expr =
+  let module E = Libshared.FluidExpression in
+  AT.testable
+    (fun fmt e -> Fmt.pf fmt "%s" (E.show e))
+    (fun a b -> E.testEqualIgnoringIds a b)
+
+
+let check_fluid_expr = AT.check at_fluid_expr
+
 let at_dval =
   AT.testable
     (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))

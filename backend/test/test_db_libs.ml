@@ -688,6 +688,36 @@ let t_sql_compiler_works () =
     "pipes expand correctly into nested functions"
     thread
     "((((CAST(data::jsonb->>'age' as integer)) - (2)) + (CAST(data::jsonb->>'age' as integer))) < (3))" ;
+  check_fluid_expr
+    "canonicalize works on pipes with targets"
+    (Sql_compiler.canonicalize thread)
+    (binop
+       "<"
+       (binop
+          "+"
+          (binop "-" (fieldAccess (var "value") "age") (int 2))
+          (fieldAccess (var "value") "age"))
+       (int 3)) ;
+  check_fluid_expr
+    "inline works (with nested inlines)"
+    (let expr =
+       let'
+         "x"
+         (int 5)
+         (let' "x" (int 6) (binop "+" (int 3) (let' "x" (int 7) (var "x"))))
+     in
+     Sql_compiler.inline "value" StrDict.empty expr)
+    (binop "+" (int 3) (int 7)) ;
+  check_fluid_expr
+    "inline works (def at root)"
+    (let expr =
+       let'
+         "y"
+         (int 5)
+         (let' "x" (int 6) (binop "+" (int 3) (let' "x" (int 7) (var "y"))))
+     in
+     Sql_compiler.inline "value" StrDict.empty expr)
+    (binop "+" (int 3) (int 5)) ;
   ()
 
 
