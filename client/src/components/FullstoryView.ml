@@ -35,52 +35,61 @@ module SetConsent = struct
     BrowserListeners.registerGlobal "FullstoryConsent" key tagger decode
 end
 
+let explanation =
+  "While we're in private beta, we're really interested in peoples' experience learning Dark, and videos are the best way to see."
+
+
 let update (msg : msg) : Types.modification =
   match msg with
   | InitConsent consent ->
       ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ({m with fullstory = {consent}}, Cmd.none))
+        (fun m -> ({m with fullstory = {consent}}, Cmd.none))
   | SetConsent allow ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
           let consent = Some allow in
-          ( {m with fullstory = {consent}}
-          , FullstoryJs.setConsent allow ))
+          ({m with fullstory = {consent}}, FullstoryJs.setConsent allow))
 
 
 let disableOmniOpen = ViewUtils.nothingMouseEvent "mousedown"
 
+let radio ~(value : string) ~(label : string) ~(msg : msg) ~(checked : bool) :
+    Types.msg Html.html =
+  let key = "fs-consent-" ^ value in
+  Html.div
+    [Html.class' "choice"; disableOmniOpen]
+    [ Html.input'
+        [ Html.type' "radio"
+        ; Html.id key
+        ; Html.name "fs-consent"
+        ; Html.value value
+        ; Html.checked checked
+        ; ViewUtils.eventNoPropagation ~key "click" (fun _ -> FullstoryMsg msg)
+        ]
+        []
+    ; Html.label [Html.for' key] [Html.text label] ]
+
+
 let html (t : t) : Types.msg Html.html =
-  let radio value label msg =
-    let key = "fs-consent-" ^ value in
-    Html.div
-      [Html.class' "choice"; disableOmniOpen]
-      [ Html.input'
-          [ Html.type' "radio"
-          ; Html.id key
-          ; Html.name "fs-consent"
-          ; Html.value value
-          ; ViewUtils.eventNoPropagation ~key "click" (fun _ ->
-                FullstoryMsg msg) ]
-          []
-      ; Html.label [Html.for' key] [Html.text label] ]
-  in
   let content =
-    [ Html.p
-              []
-              [ Html.text
-                  "Hi! While we're in private beta, we're really interested in peoples' experience learning Dark, and videos are the best way to see."
-              ]
-          ; Html.p
-              []
-              [ Html.text
-                  "Are you willing to help us out and let us see your session after this? We'll never share it with anyone else."
-              ]
-          ; Html.div
-              [Html.class' "consent"]
-              [ radio "yes" "Yes! Record me using Dark." (SetConsent true)
-              ; radio "no" "No. Don't me using Dark." (SetConsent false) ] ]
+    [ Html.p [] [Html.text ("Hi! " ^ explanation)]
+    ; Html.p
+        []
+        [ Html.text
+            "Are you willing to help us out and let us see your session after this? We'll never share it with anyone else."
+        ]
+    ; Html.div
+        [Html.class' "consent"]
+        [ radio
+            ~value:"yes"
+            ~label:"Yes! Record me using Dark."
+            ~msg:(SetConsent true)
+            ~checked:false
+        ; radio
+            ~value:"no"
+            ~label:"No. Don't record me."
+            ~msg:(SetConsent false)
+            ~checked:false ] ]
   in
   let cls = if t.consent = None then "ask" else "hide" in
   Html.div [Html.class' ("fullstory-modal " ^ cls)] content
