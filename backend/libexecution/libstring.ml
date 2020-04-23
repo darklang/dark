@@ -384,6 +384,33 @@ let fns : expr fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::slugify_v2"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr]
+    ; return_type = TStr
+    ; description = "Turns a string into a slug"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              let replace = Unicode_string.regexp_replace in
+              (* explicitly choose ASCII for urls *)
+              let to_remove = "[^A-Za-z0-9\\s_-]+" in
+              let newspaces = "[-_\\s]+" in
+              s
+              |> replace
+                   ~pattern:to_remove
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> Unicode_string.trim
+              |> replace
+                   ~pattern:newspaces
+                   ~replacement:(Unicode_string.of_string_exn "-")
+              |> Unicode_string.lowercase
+              |> fun s -> DStr s
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::reverse"]
     ; infix_names = []
