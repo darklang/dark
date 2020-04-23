@@ -384,6 +384,36 @@ let fns : expr fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::slugify_v2"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr]
+    ; return_type = TStr
+    ; description =
+        "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              (* Should work the same as https://blog.tersmitten.nl/slugify/ *)
+              let replace = Unicode_string.regexp_replace in
+              (* explicitly limit to (roman) alphanumeric for pretty urls *)
+              let to_remove = "[^a-z0-9\\s_-]+" in
+              let to_be_hyphenated = "[-_\\s]+" in
+              s
+              |> Unicode_string.lowercase
+              |> replace
+                   ~pattern:to_remove
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> Unicode_string.trim
+              |> replace
+                   ~pattern:to_be_hyphenated
+                   ~replacement:(Unicode_string.of_string_exn "-")
+              |> Unicode_string.lowercase
+              |> fun s -> DStr s
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::reverse"]
     ; infix_names = []

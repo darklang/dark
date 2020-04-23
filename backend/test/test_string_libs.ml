@@ -114,7 +114,7 @@ let t_html_escaping () =
 
 let t_slugify_works () =
   check_dval
-    "slugify escaping works"
+    "slugify_v1 escaping works"
     (Dval.dstr_of_string_exn
        "my-super-really-excellent-uber-amazing-very-clever-thing-coffee")
     (exec_ast'
@@ -122,7 +122,18 @@ let t_slugify_works () =
           "String::slugify_v1"
           [ str
               "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!"
-          ]))
+          ])) ;
+  check_dval
+    "slugify_v2 escaping works"
+    (Dval.dstr_of_string_exn
+       "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee")
+    (exec_ast'
+       (fn
+          "String::slugify_v2"
+          [ str
+              "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!"
+          ])) ;
+  ()
 
 
 let t_uuid_string_roundtrip () =
