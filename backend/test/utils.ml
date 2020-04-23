@@ -95,9 +95,24 @@ let at_dval =
 
 let check_dval = AT.check at_dval
 
+let at_dval' =
+  AT.testable
+    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
+    (fun a b ->
+      match (a, b) with
+      | DIncomplete _, DIncomplete _ ->
+          true
+      | _, _ ->
+          compare_dval compare_fluid_expr a b = 0)
+
+
+let check_dval' = AT.check at_dval'
+
 let check_execution_result = AT.check (AT.of_pp (pp_execution_result pp_expr))
 
 let check_dval_list = AT.check (AT.list at_dval)
+
+let check_dval_list' = AT.check (AT.list at_dval')
 
 let check_tlid_oplists =
   AT.check (AT.of_pp (Op.pp_tlid_oplists RuntimeT.pp_expr))
@@ -377,11 +392,22 @@ let test_execution_data
     ; context = Real
     ; load_fn_result = load_test_fn_results
     ; store_fn_result =
-        Stored_function_result.store ~canvas_id ~trace_id
+        (fun funcdesc args result ->
+          Stored_function_result.store
+            ~canvas_id
+            ~trace_id
+            funcdesc
+            (List.map ~f:Fluid.dval_to_fluid args)
+            (Fluid.dval_to_fluid result))
         (* TODO: expose this too *)
     ; load_fn_arguments = Execution.load_no_arguments
-    ; store_fn_arguments = Stored_function_arguments.store ~canvas_id ~trace_id
-    }
+    ; store_fn_arguments =
+        (fun tlid dvalmap ->
+          Stored_function_arguments.store
+            ~canvas_id
+            ~trace_id
+            tlid
+            (Fluid.dval_map_to_fluid dvalmap)) }
   in
   (c, state, vars)
 
@@ -546,7 +572,7 @@ let exec_save_dvals'
 
 
 (* Sample values *)
-let sample_dvals =
+let sample_dvals : (string * Types.fluid_expr dval) list =
   [ ("int", Dval.dint 5)
   ; ("int2", Dval.dint (-1))
   ; ("int_max_31_bits", Dval.dint 1073741824)
@@ -578,7 +604,7 @@ let sample_dvals =
   ; ("error", DError (SourceNone, "some error string"))
   ; ( "block"
     , DBlock
-        { body = Blank (id_of_int 1234)
+        { body = Libshared.FluidExpression.EBlank (id_of_int 1234)
         ; symtable = DvalMap.empty
         ; params = [(id_of_int 5678, "a")] } )
   ; ("errorrail", DErrorRail (Dval.dint 5))
