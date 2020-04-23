@@ -1,5 +1,6 @@
 open Libcommon
 open Core_kernel
+module Option = Tc.Option
 
 type bufs = string ref * string ref * string ref * string ref * string ref
 
@@ -49,7 +50,7 @@ let string_of_request_or_response ror : string =
   match ror with Request -> "request" | Response -> "response"
 
 
-let log_debug_info (bufs : bufs) =
+let log_debug_info (bufs : bufs) (primaryip : string option) =
   let ( debugbuf_text
       , debugbuf_data_in
       , debugbuf_data_out
@@ -65,7 +66,7 @@ let log_debug_info (bufs : bufs) =
       |> String.lsplit2 ~on:':'
       (* If it's None, log and put the whole thing into the header side - this
        * shouldn't happen, but failsafe to avoid losing data *)
-      |> Tc.Option.orElseLazy (fun () ->
+      |> Option.orElseLazy (fun () ->
              Log.erroR
                "Expected value to be a header separated by a colon, but it was not."
                ~params:[("line", line)] ;
@@ -94,7 +95,7 @@ let log_debug_info (bufs : bufs) =
     request_line
     |> String.split ~on:'?'
     |> List.hd
-    |> Tc.Option.withDefault ~default:""
+    |> Option.withDefault ~default:""
   in
   let response_line, response_headers = line_and_headers debugbuf_header_in in
   (* Takes a list of headers (k,v pairs) and returns a string of just the header
@@ -146,6 +147,27 @@ let log_debug_info (bufs : bufs) =
         ; "x-request-id" ]
       Response
   in
+  let port =
+    !debugbuf_text
+    |> String.split_lines
+    (* Find the line that matches the format we want - it'll look like
+     * "SOCKS5 communication to api.datadoghq.com:443".
+       This _only_ works in production, because we don't go through the
+     * tunnel service in the dev environment. *)
+    |> List.find
+         ~f:
+           (String.is_substring_at ~pos:0 ~substring:"SOCKS5 communication to ")
+    (* Split the line on the last ':' and take the right hand side. This
+     * gets us (Some "443") in the example above. *)
+    |> Option.andThen ~f:(String.rsplit2 ~on:':')
+    |> Option.map ~f:snd
+    (* Convert it to an int in case we want to look for, say, conns to ports
+     * above/below 1024 *)
+    |> Option.andThen ~f:int_of_string_opt
+    (* 0 is a reserved port, it'll never exist, and this is easier than
+     * filtering out Nones from the list-of-params-we-log *)
+    |> Option.withDefault ~default:0
+  in
   Log.infO
     "libcurl"
     ~params:
@@ -155,11 +177,12 @@ let log_debug_info (bufs : bufs) =
         ; ("curl.request_line", request_line)
         ; ("curl.response_line", response_line)
         ; ("curl.request_headers", request_headers |> header_names)
-        ; ("curl.response_headers", response_headers |> header_names) ]
+        ; ("curl.response_headers", response_headers |> header_names)
+        ; ("curl.primary_ip", primaryip |> Option.withDefault ~default:"") ]
       @ selected_request_headers
       @ selected_response_headers )
     ~jsonparams:
       [ ("curl.informational_text_size", `Int (!debugbuf_text |> String.length))
       ; ("curl.response_body_size", `Int (!debugbuf_data_in |> String.length))
       ; ("curl.request_body_size", `Int (!debugbuf_data_out |> String.length))
-      ]
+      ; ("curl.destination_port", `Int port) ]

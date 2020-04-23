@@ -4,4 +4,4 @@ val new_debug_bufs : unit -> bufs
 
 val debugfn : bufs -> Curl.t -> Curl.curlDebugType -> string -> unit
 
-val log_debug_info : bufs -> unit
+val log_debug_info : bufs -> string option -> unit
