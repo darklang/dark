@@ -12,7 +12,7 @@
 
   position: fixed;
   top: 0;
-  left: calc((100% - #{$width})/2);
+  left: calc((100% - #{$width}) / 2);
   z-index: 80;
 
   width: $width;
