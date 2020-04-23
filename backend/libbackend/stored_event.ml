@@ -93,7 +93,7 @@ let load_events ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc)
       AND modifier = $4
     ORDER BY timestamp DESC
     LIMIT 10"
-    (* shared with Analysis.mergeTraces on the client *)
+    (* the number in the LIMIT is shared with Analysis.mergeTraces on the client *)
     ~params:[Uuid canvas_id; String module_; String route; String modifier]
   |> List.map ~f:(function
          | [request_path; dval; ts; trace_id] ->
