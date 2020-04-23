@@ -6,17 +6,66 @@
 
   display: block;
   margin: 0 auto;
-  width: 800px;
   padding: $soft-edges;
   border-bottom-left-radius: $soft-edges;
   border-bottom-right-radius: $soft-edges;
-  
+
   position: sticky;
   top: 0;
   z-index: 80;
 
+  transition: height 1s, width 0.5s;
+
+  &.yes {
+    width: max-content;
+  }
+
+  &.no {
+    width: 0;
+    height: 0;
+    padding: 0;
+  }
+
+  &.ask {
+    width: 800px;
+  }
+
   p:first-child {
     margin-top: 0em;
+  }
+
+  .record-btn {
+    display: inline-block;
+    margin-left: 8px;
+    position: relative;
+
+    width: 16px;
+    height: 16px;
+
+    cursor: pointer;
+
+    i.fa.fa-video {
+      color: $white3;
+      z-index: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    i.fa.fa-circle {
+      color: $red;
+      font-size: 8px;
+      z-index: 1;
+      position: absolute;
+      top: 3px;
+      left: 2px;
+    }
+
+    &.recording {
+      i.fa.fa-circle {
+        animation: blinkOpacity 0.5s ease-in-out infinite;
+      }
+    }
   }
 
   .consent {

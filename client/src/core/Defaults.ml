@@ -180,4 +180,5 @@ let defaultModel : model =
           { canvasDescription = ""
           ; shippedDate = None
           ; createdAt = None
-          ; canvasName = "builtwithdark" } } }
+          ; canvasName = "builtwithdark" } }
+  ; fullstory = FullstoryTypes.defaultT }
