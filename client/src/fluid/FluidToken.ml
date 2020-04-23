@@ -18,7 +18,7 @@ let tid (t : t) : ID.t =
   | TBlank (id, _)
   | TPlaceholder {blankID = id; _}
   | TPartial (id, _, _)
-  | TLeftPartial (id, _)
+  | TLeftPartial (id, _, _)
   | TRightPartial (id, _, _)
   | TPartialGhost (id, _, _)
   | TLetKeyword (id, _, _)
@@ -117,6 +117,7 @@ let parentBlockID (t : t) : ID.t option =
   | TFloatFractional (_, _, pid)
   | TPartial (_, _, pid)
   | TRightPartial (_, _, pid)
+  | TLeftPartial (_, _, pid)
   | TPartialGhost (_, _, pid)
   | TLetKeyword (_, _, pid)
   | TLetVarName (_, _, _, pid)
@@ -273,7 +274,7 @@ let isBlank t =
   | TLambdaVar (_, _, _, "", _)
   | TPartial (_, "", _)
   | TRightPartial (_, "", _)
-  | TLeftPartial (_, "")
+  | TLeftPartial (_, "", _)
   | TPatternBlank _ ->
       true
   | _ ->
@@ -387,7 +388,7 @@ let toText (t : t) : string =
       shouldntBeEmpty str
   | TRightPartial (_, str, _) ->
       shouldntBeEmpty str
-  | TLeftPartial (_, str) ->
+  | TLeftPartial (_, str, _) ->
       shouldntBeEmpty str
   | TPartialGhost (_, str, _) ->
       shouldntBeEmpty str

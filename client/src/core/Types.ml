@@ -1473,7 +1473,7 @@ and fluidToken =
   | TPartial of ID.t * string * parentBlockID option
   (* A partial that extends out to the right. Used to create binops. *)
   (* A partial that preceeds an existing expression, used to wrap things in other things *)
-  | TLeftPartial of ID.t * string
+  | TLeftPartial of ID.t * string * parentBlockID option
   | TRightPartial of ID.t * string * parentBlockID option
   (* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way *)

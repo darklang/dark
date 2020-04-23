@@ -485,7 +485,9 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
       |> addNested ~f:(toTokens' expr)
       |> addMany [TSep (id, parentID); TRightPartial (id, newOp, parentID)]
   | ELeftPartial (id, str, expr) ->
-      b |> add (TLeftPartial (id, str)) |> addNested ~f:(toTokens' expr)
+      b
+      |> add (TLeftPartial (id, str, parentID))
+      |> addNested ~f:(toTokens' expr)
   | EFeatureFlag (id, _name, cond, disabled, enabled) ->
     (* Feature flag tokens are displayed in two different editor panels, so
      * they are built differently depending on the current builder option. *)

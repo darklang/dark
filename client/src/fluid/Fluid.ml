@@ -774,7 +774,7 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
     | ARPartial id, TPartial (id', _, _)
     | ARPartial id, TFieldPartial (id', _, _, _, _)
     | ARRightPartial id, TRightPartial (id', _, _)
-    | ARLeftPartial id, TLeftPartial (id', _)
+    | ARLeftPartial id, TLeftPartial (id', _, _)
     | ARRecord (id, RPOpen), TRecordOpen (id', _)
     | ARRecord (id, RPClose), TRecordClose (id', _)
     | ARVariable id, TVariable (id', _, _)
@@ -1002,7 +1002,7 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARPartial id; offset}
   | TRightPartial (id, _, _) ->
       Some {astRef = ARRightPartial id; offset}
-  | TLeftPartial (id, _) ->
+  | TLeftPartial (id, _, _) ->
       Some {astRef = ARLeftPartial id; offset}
   | TLetKeyword (id, _, _) ->
       Some {astRef = ARLet (id, LPKeyword); offset}
