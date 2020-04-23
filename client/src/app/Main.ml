@@ -2128,6 +2128,8 @@ let update_ (msg : msg) (m : model) : modification =
            err)
   | UploadFnAPICallback (_, Ok _) ->
       Model.updateErrorMod (Error.set "Successfully uploaded function")
+  | FullstoryMsg msg ->
+      FullstoryView.update msg
 
 
 let rec filter_read_only (m : model) (modification : modification) =
@@ -2238,6 +2240,10 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     [ BrowserListeners.OnCaptureView.listen ~key:"capture_view" (fun s ->
           UpdateMinimap (Some s)) ]
   in
+  let onFsConsent =
+    [ FullstoryView.SetConsent.listen ~key:"fs_consent" (fun allow ->
+          FullstoryMsg (InitConsent allow)) ]
+  in
   Tea.Sub.batch
     (List.concat
        [ windowMouseSubs
@@ -2249,7 +2255,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
        ; onError
        ; mousewheelSubs
        ; analysisSubs
-       ; onCaptureView ])
+       ; onCaptureView
+       ; onFsConsent ])
 
 
 let debugging =

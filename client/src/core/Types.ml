@@ -1372,6 +1372,7 @@ and msg =
   | FnParamMsg of fnpMsg
   | UpdateSegment of segmentTrack
   | SettingsViewMsg of SettingsViewTypes.settingsMsg
+  | FullstoryMsg of FullstoryTypes.msg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1722,7 +1723,8 @@ and model =
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
   ; currentUserFn : fnProps
-  ; settingsView : SettingsViewTypes.settingsViewState }
+  ; settingsView : SettingsViewTypes.settingsViewState
+  ; fullstory : FullstoryTypes.t }
 
 and savedUserSettings = {showUserWelcomeModal : bool}
 

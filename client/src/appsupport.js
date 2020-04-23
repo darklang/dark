@@ -1,5 +1,7 @@
 document.title = window.location.hostname.split(".")[0] + " - Dark";
 
+const FullStory = require("@fullstory/browser");
+
 const mousewheel = function (callback) {
   require("domready")(function () {
     require("mouse-wheel")(document.body, callback);
@@ -291,6 +293,47 @@ window.Dark = {
       );
     },
   },
+  fullstory: {
+    init: function(canvas){
+      /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
+      FullStory.init({
+        orgId: "TMVRZ",
+        devMode: isAdmin
+      });
+
+      fetch('https://ops-fullstory.builtwithdark.com/consent/'+username)
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        const consent = data.consent;
+        FullStory.identify(username, {displayName: username, canvas, consent});
+        if (consent) {
+          FullStory.consent(true);
+        } else {
+          FullStory.consent(false);
+        }
+        var event = new CustomEvent("FullstoryConsent", { detail: consent });
+        document.dispatchEvent(event);
+      });
+    },
+    setConsent: function(consent){
+      console.log("js setConsent="+consent);
+      FullStory.consent(consent);
+      FullStory.setUserVars({consent});
+      if(consent){
+        FullStory.restart();
+      } else {
+        FullStory.shutdown();
+      }
+    },
+    pause: function(){
+      FullStory.shutdown();
+    },
+    record: function(){
+      FullStory.restart();
+    }
+  }
 };
 
 function windowFocusChange(visible) {
@@ -509,14 +552,7 @@ setTimeout(function () {
   }
 
   /* Full story */
-  const FullStory = require("@fullstory/browser");
-  /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
-  FullStory.init({
-    orgId: "TMVRZ",
-    devMode: isAdmin
-  });
-
-  FullStory.identify(canvasName, {displayName: username});
+  Dark.fullstory.init(canvasName);
 
 }, 1);
 // ---------------------------

@@ -70,6 +70,15 @@ i.fa-spinner {
   }
 }
 
+@keyframes blinkOpacity {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.3;
+  }
+}
+
 @keyframes blinkBackground {
   from {
     background-color: $grey2;
