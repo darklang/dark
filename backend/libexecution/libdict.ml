@@ -507,7 +507,7 @@ let fns =
         InProcess
           (function
           | _, [DObj l; DObj r] ->
-              DObj (Util.merge_right l r)
+              DObj (Stdlib_util.merge_right l r)
           | args ->
               fail args)
     ; preview_safety = Safe

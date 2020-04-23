@@ -465,7 +465,7 @@ let fns : Types.RuntimeT.expr Types.RuntimeT.fn list =
                             ( Format.sprintf
                                 "%s=%s"
                                 key
-                                (Util.http_date_string_of_date d)
+                                (Stdlib_util.http_date_string_of_date d)
                             :: acc )
                       | _ ->
                           Error
