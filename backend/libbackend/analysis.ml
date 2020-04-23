@@ -154,14 +154,12 @@ let handler_trace
   let input, timestamp =
     match event with
     | Some (request_path, timestamp, event) ->
-        let event = Fluid.dval_to_fluid event in
         (saved_input_vars h request_path event, timestamp)
     | None ->
         (Execution.sample_input_vars h, Time.epoch)
   in
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
-    |> List.map ~f:(fun (a, b, c, d, e) -> (a, b, c, d, Fluid.dval_to_fluid e))
   in
   (trace_id, Some {input; timestamp; function_results})
 
@@ -176,17 +174,12 @@ let user_fn_trace
   let ivs, timestamp =
     match event with
     | Some (input_vars, timestamp) ->
-        let input_vars =
-          List.map input_vars ~f:(fun (str, dv) ->
-              (str, Fluid.dval_to_fluid dv))
-        in
         (input_vars, timestamp)
     | None ->
         (Execution.sample_function_input_vars fn, Time.epoch)
   in
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
-    |> List.map ~f:(fun (a, b, c, d, e) -> (a, b, c, d, Fluid.dval_to_fluid e))
   in
   (trace_id, Some {input = ivs; timestamp; function_results})
 
@@ -249,9 +242,19 @@ let execute_function
     ~canvas_id:c.id
     ~caller_id
     ~args
-    ~store_fn_arguments:
-      (Stored_function_arguments.store ~canvas_id:c.id ~trace_id)
-    ~store_fn_result:(Stored_function_result.store ~canvas_id:c.id ~trace_id)
+    ~store_fn_arguments:(fun tlid dvalmap ->
+      Stored_function_arguments.store
+        ~canvas_id:c.id
+        ~trace_id
+        tlid
+        (Fluid.dval_map_to_fluid dvalmap))
+    ~store_fn_result:(fun funcdesc args result ->
+      Stored_function_result.store
+        ~canvas_id:c.id
+        ~trace_id
+        funcdesc
+        (List.map ~f:Fluid.dval_to_fluid args)
+        (Fluid.dval_to_fluid result))
     fnname
 
 

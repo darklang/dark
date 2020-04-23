@@ -768,7 +768,7 @@ module LibhttpclientV0 = struct
       if has_form_header headers
       then Dval.of_form_encoding result
       else if has_json_header headers
-      then Dval.of_unknown_json_v0 result
+      then Dval.of_unknown_json_v0 result |> Fluid.dval_of_fluid
       else Dval.dstr_of_string_exn result
     in
     let parsed_headers =
@@ -917,7 +917,7 @@ module LibhttpclientV1 = struct
         with _ -> Dval.dstr_of_string_exn "form decoding error"
       else if has_json_header headers
       then
-        try Dval.of_unknown_json_v0 result
+        try Dval.of_unknown_json_v0 result |> Fluid.dval_of_fluid
         with _ -> Dval.dstr_of_string_exn "json decoding error"
       else
         try Dval.dstr_of_string_exn result
@@ -1047,7 +1047,7 @@ module LibhttpclientV2 = struct
         with _ -> Dval.dstr_of_string_exn "form decoding error"
       else if has_json_header headers
       then
-        try Dval.of_unknown_json_v0 result
+        try Dval.of_unknown_json_v0 result |> Fluid.dval_of_fluid
         with _ -> Dval.dstr_of_string_exn "json decoding error"
       else
         try Dval.dstr_of_string_exn result

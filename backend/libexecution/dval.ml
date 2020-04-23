@@ -381,7 +381,7 @@ let empty_dobj : 'expr_type dval = DObj DvalMap.empty
  * and we really need to move off it, but for now we're here. Do not change
  * existing encodings - this will break everything.
  *)
-let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : 'expr_type dval =
+let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : fluid_expr dval =
   (* sort so this isn't key-order-dependent. *)
   let json = Yojson.Safe.sort json in
   match json with
@@ -438,7 +438,9 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : 'expr_type dval =
     | "block" ->
         (* See docs/dblock-serialization.ml *)
         DBlock
-          {body = Blank (id_of_int 56789); symtable = DvalMap.empty; params = []}
+          { body = EBlank (id_of_int 56789)
+          ; symtable = DvalMap.empty
+          ; params = [] }
     | "errorrail" ->
         DErrorRail DNull
     | _ ->
@@ -485,7 +487,7 @@ and unsafe_dvalmap_of_yojson_v0 (json : Yojson.Safe.t) : 'expr_type dval_map =
       Exception.internal "Not a json object"
 
 
-let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : expr dval =
+let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : fluid_expr dval =
   (* sort so this isn't key-order-dependent. *)
   let json = Yojson.Safe.sort json in
   match json with
@@ -542,7 +544,7 @@ let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : expr dval =
   | `Assoc [("type", `String "block"); ("value", `Null)] ->
       (* See docs/dblock-serialization.ml *)
       DBlock
-        {body = Blank (id_of_int 23456); symtable = DvalMap.empty; params = []}
+        {body = EBlank (id_of_int 23456); symtable = DvalMap.empty; params = []}
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
       DErrorRail (unsafe_dval_of_yojson_v1 dv)
   | `Assoc [("type", `String "date"); ("value", `String v)] ->
@@ -718,7 +720,7 @@ let of_internal_roundtrippable_json_v0 j =
   |> Result.map_error ~f:Exception.to_string
 
 
-let of_internal_roundtrippable_v0 str : expr dval =
+let of_internal_roundtrippable_v0 str : fluid_expr dval =
   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v1
 
 
@@ -730,7 +732,7 @@ let to_internal_queryable_v0 dval : string =
   dval |> unsafe_dval_to_yojson_v0 ~redact:false |> Yojson.Safe.to_string
 
 
-let of_internal_queryable_v0 (str : string) : expr dval =
+let of_internal_queryable_v0 (str : string) : fluid_expr dval =
   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
 
 

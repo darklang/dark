@@ -232,7 +232,8 @@ let dequeue transaction : expr t option =
         ~jsonparams:queue_delay ;
       Some
         { id = int_of_string id
-        ; value = Dval.of_internal_roundtrippable_v0 value
+        ; value =
+            value |> Dval.of_internal_roundtrippable_v0 |> Fluid.dval_of_fluid
         ; retries = int_of_string retries
         ; canvas_id = Util.uuid_of_string canvas_id
         ; host

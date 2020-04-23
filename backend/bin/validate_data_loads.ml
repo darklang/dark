@@ -25,7 +25,7 @@ let validate_row (table : string) (values : string list) : unit =
         [("table", table); ("canvas", canvas_name); ("trace_id", trace_id)]
       in
       ( try
-          let (_ : RTT.expr RTT.dval) =
+          let (_ : Types.fluid_expr RTT.dval) =
             Dval.of_internal_roundtrippable_v0 value
           in
           Log.infO "successful roundtrip" ~params
