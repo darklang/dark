@@ -348,14 +348,16 @@ let getWorkerStats m tlid =
  *
  * - Start with the handler's old traces, replacing any that share the id of a new trace using the [onConflict] function
  * - For any remaining new traces for that handler, prepend them in reverse order
- * - Drop any traces in excess of a hardcoded limit (currently 5), keeping the newest traces and any [selectedTraceIDs]
+ * - Drop any traces in excess of a hardcoded limit (currently 10 to match stored_event.load_events,
+ *   plus 1 for any selected trace),
+ *   keeping the newest traces and any [selectedTraceIDs]
  *)
 let mergeTraces
     ~(selectedTraceIDs : tlTraceIDs)
     ~(onConflict : trace -> trace -> trace)
     ~(oldTraces : traces)
     ~(newTraces : traces) : traces =
-  let maxTracesPerHandler = 5 in
+  let maxTracesPerHandler = 10 (* shared with stored_event.load_events *) + 1 in
   StrDict.merge oldTraces newTraces ~f:(fun tlid oldList newList ->
       match (oldList, newList) with
       | None, None ->
