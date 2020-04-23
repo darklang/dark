@@ -325,6 +325,21 @@ window.Dark = {
       } else {
         FullStory.shutdown();
       }
+
+      fetch("https://ops-fullstory.builtwithdark.com/consent/" + username, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ consent }),
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log("Success:", data);
+        })
+        .catch(error => {
+          console.error("Error:", error);
+        });
     },
   },
 };
