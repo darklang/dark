@@ -1,14 +1,14 @@
 .fullstory-modal {
-  $soft-edges: 15px;
+  $soft-edges: 8px;
 
-  background-color: $cyan;
-  color: $black1;
+  background-color: $black3;
+  color: $white1;
+  font-size: 1em;
 
   display: block;
   margin: 0 auto;
   padding: $soft-edges;
-  border-bottom-left-radius: $soft-edges;
-  border-bottom-right-radius: $soft-edges;
+  box-shadow: $black1 0 3px 5px 0;
 
   position: sticky;
   top: 0;
@@ -18,6 +18,11 @@
 
   &.yes {
     width: max-content;
+    box-shadow: none;
+    font-size: 12px;
+
+    display: flex;
+    align-items: center;
   }
 
   &.no {
@@ -38,11 +43,16 @@
     display: inline-block;
     margin-left: 8px;
     position: relative;
+    font-size: 16px;
 
     width: 16px;
     height: 16px;
+    opacity: 0.7;
 
     cursor: pointer;
+    &:hover {
+      opacity: 1;
+    }
 
     i.fa.fa-video {
       color: $white3;
@@ -63,7 +73,7 @@
 
     &.recording {
       i.fa.fa-circle {
-        animation: blinkOpacity 0.5s ease-in-out infinite;
+        animation: blinkOpacity 1.5s ease-in-out infinite;
       }
     }
   }
