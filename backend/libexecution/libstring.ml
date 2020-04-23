@@ -397,7 +397,7 @@ let fns : expr fn list =
           | _, [DStr s] ->
               (* Should work the same as https://blog.tersmitten.nl/slugify/ *)
               let replace = Unicode_string.regexp_replace in
-              (* explicitly choose roman alphabet for pretty urls *)
+              (* explicitly limit to (roman) alphanumeric for pretty urls *)
               let to_remove = "[^a-z0-9\\s_-]+" in
               let to_be_hyphenated = "[-_\\s]+" in
               s
