@@ -298,7 +298,7 @@ window.Dark = {
       /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
       FullStory.init({
         orgId: "TMVRZ",
-        devMode: isAdmin
+        devMode: isAdmin,
       });
 
       fetch("https://ops-fullstory.builtwithdark.com/consent/" + username)
@@ -325,12 +325,6 @@ window.Dark = {
       } else {
         FullStory.shutdown();
       }
-    },
-    pause: function() {
-      FullStory.shutdown();
-    },
-    record: function() {
-      FullStory.restart();
     },
   },
 };
