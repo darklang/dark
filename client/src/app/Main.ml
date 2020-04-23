@@ -652,8 +652,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           Analysis.mergeTraces
             ~selectedTraceIDs:m.tlTraceIDs
             ~onConflict:(fun _old (newID, _) -> (newID, Error NoneYet))
-            m.traces
-            traces
+            ~oldTraces:m.traces
+            ~newTraces:traces
         in
         let m = {m with traces = newTraces} in
         let m, afCmd = Analysis.analyzeFocused m in
