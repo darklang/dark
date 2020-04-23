@@ -17,9 +17,7 @@ let validTags = ["param"; "fn"; "var"; "type"; "err"; "cmd"]
 
 type parseResult =
   | ParseSuccess of msg Html.html list
-  | ParseFail of (string * string) list
-
-(* input * errorMsg *)
+  | ParseFail of (* input * errorMsg *) (string * string) list
 
 let txt (s : string) : msg Html.html = Html.text s
 
@@ -38,10 +36,8 @@ let justErrors results =
   |> List.flatten
 
 
-(* Takes a string and attempts to convert into html.
- If successful the result is wrapped in ParseSuccess,
- otherwise both the input string and the error message end up on the errors list in ParseFail.
-*)
+(** [convert_ s] attempts to parse [s] into html. If it succeeds, it returns the result wrapped in ParseSuccess.
+  Otherwise, it returns the input string and the error message as the errors list in ParseFail. *)
 let rec convert_ (s : string) : parseResult =
   let tryParseAsCodeBlock (input : string) : parseResult option =
     match Regex.captures ~re:(Regex.regex ~flags:"s" codeEx) input with
