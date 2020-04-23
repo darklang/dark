@@ -121,7 +121,10 @@ fixture`Integration Tests`
       const { error } = await t.getBrowserConsoleMessages();
       await t.expect(error).eql([]);
 
-      if ((await t.testRun.errs).length > 0 || !(await signal.hasClass("success"))) {
+      if (
+        (await t.testRun.errs).length > 0 ||
+        !(await signal.hasClass("success"))
+      ) {
         await t.takeScreenshot();
         flushedLogs = flushLogs();
         if ((await signal.textContent) != "success") {
@@ -142,10 +145,7 @@ fixture`Integration Tests`
 // Utilities
 //********************************
 async function createHTTPHandler(t) {
-  await t
-    .pressKey("enter")
-    .pressKey("down")
-    .pressKey("enter");
+  await t.pressKey("enter").pressKey("down").pressKey("enter");
 }
 
 async function createWorkerHandler(t) {
@@ -167,15 +167,22 @@ async function gotoAST(t) {
 }
 
 function user_content_url(t, endpoint) {
-  return "http://test-" + t.testRun.test.name + ".builtwithdark.lvh.me:8000" + endpoint;
+  return (
+    "http://test-" +
+    t.testRun.test.name +
+    ".builtwithdark.lvh.me:8000" +
+    endpoint
+  );
 }
 
 // pressShortcut will use ctrl on Linux or meta on Mac, depending on which
 // platform the tests are running.
 async function pressShortcut(t, shortcutUsingCtrl) {
   if (shortcutUsingCtrl === undefined) {
-    throw "pressShortcut expecting a shortcut string like 'ctrl-a' but got undefined. " +
-      "Did you forget to pass t?";
+    throw (
+      "pressShortcut expecting a shortcut string like 'ctrl-a' but got undefined. " +
+      "Did you forget to pass t?"
+    );
   }
   var shortcut;
   if (t.browser.os.name == "macOS") {
@@ -215,15 +222,19 @@ const scrollBy = ClientFunction((id, dx, dy) => {
 });
 
 // NOTE: this is synchronous, not async, so we don't have to fuss with promises
-const getBwdResponse = ClientFunction(function(url) {
+const getBwdResponse = ClientFunction(function (url) {
   var xhttp = new XMLHttpRequest();
   xhttp.open("GET", url, false);
   xhttp.send(null);
   return xhttp.responseText;
 });
 
-const getElementSelectionStart = ClientFunction(selector => selector().selectionStart);
-const getElementSelectionEnd = ClientFunction(selector => selector().selectionEnd);
+const getElementSelectionStart = ClientFunction(
+  selector => selector().selectionStart,
+);
+const getElementSelectionEnd = ClientFunction(
+  selector => selector().selectionEnd,
+);
 
 // ------------------------
 // Tests below here. Don't forget to update client/src/IntegrationTest.ml
@@ -290,10 +301,7 @@ test("switching_from_http_space_removes_variable_colons", async t => {
 });
 
 test("enter_changes_state", async t => {
-  await t
-    .pressKey("enter")
-    .expect(entryBoxAvailable())
-    .ok();
+  await t.pressKey("enter").expect(entryBoxAvailable()).ok();
 });
 
 test("field_access_closes", async t => {
@@ -437,7 +445,7 @@ test("tabbing_through_let", async t => {
 });
 
 test("rename_db_fields", async t => {
-  const callBackend = ClientFunction(function(url) {
+  const callBackend = ClientFunction(function (url) {
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", url, true);
     xhttp.setRequestHeader("Content-type", "application/json");
@@ -471,7 +479,7 @@ test("rename_db_fields", async t => {
 });
 
 test("rename_db_type", async t => {
-  const callBackend = ClientFunction(function(url) {
+  const callBackend = ClientFunction(function (url) {
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", url, true);
     xhttp.setRequestHeader("Content-type", "application/json");
@@ -650,7 +658,9 @@ test("function_version_renders", async t => {
   await createRepl(t);
   await t
     .typeText("#active-editor", "DB::del")
-    .expect(Selector(".autocomplete-item.fluid-selected .version").withText("v1"))
+    .expect(
+      Selector(".autocomplete-item.fluid-selected .version").withText("v1"),
+    )
     .ok();
 });
 
@@ -678,7 +688,8 @@ test("cant_delete_locked_col", async t => {
 
 test("select_route", async t => {
   const categoryHeader = ".sidebar-category.http .category-summary";
-  const httpVerbLink = ".sidebar-category.http .category-content a.toplevel-link";
+  const httpVerbLink =
+    ".sidebar-category.http .category-content a.toplevel-link";
   const toplevelElement = ".node .toplevel";
 
   await t.click(Selector(categoryHeader));
@@ -720,7 +731,7 @@ test("function_analysis_works", async t => {
 });
 
 test("fourohfours_parse", async t => {
-  const sendPushEvent = ClientFunction(function() {
+  const sendPushEvent = ClientFunction(function () {
     const data = [
       "HTTP",
       "/nonexistant",
@@ -747,7 +758,9 @@ test("fn_page_to_handler_pos", async t => {
     .expect(available(".tl-123"))
     .ok({ timeout: 1000 });
 
-  await t.expect(Selector("#canvas").getStyleProperty("transform")).notEql(fnOffset);
+  await t
+    .expect(Selector("#canvas").getStyleProperty("transform"))
+    .notEql(fnOffset);
 });
 
 test("autocomplete_visible_height", async t => {
@@ -769,10 +782,7 @@ test("autocomplete_visible_height", async t => {
 // });
 //
 test("load_with_unnamed_function", async t => {
-  await t
-    .pressKey("enter")
-    .expect(entryBoxAvailable())
-    .ok();
+  await t.pressKey("enter").expect(entryBoxAvailable()).ok();
 });
 
 test("extract_from_function", async t => {
@@ -959,7 +969,9 @@ test("varnames_are_incomplete", async t => {
     .ok()
     .pressKey("tab a enter");
 
-  await t.expect(Selector(".live-value.loaded").textContent).contains("<Incomplete>");
+  await t
+    .expect(Selector(".live-value.loaded").textContent)
+    .contains("<Incomplete>");
 });
 
 test("center_toplevel", async t => {
@@ -1002,7 +1014,9 @@ test("empty_fn_never_called_result", async t => {
     .expect(available(".return-value .msg"))
     .ok()
     .expect(Selector(".return-value").innerText)
-    .contains("This function has not yet been called - please call this function");
+    .contains(
+      "This function has not yet been called - please call this function",
+    );
 });
 
 test("empty_fn_been_called_result", async t => {
@@ -1041,7 +1055,9 @@ test("sha256hmac_for_aws", async t => {
     .click(Selector("div.handler-trigger"));
   await t
     .expect(Selector(".return-value").innerText)
-    .contains('"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"');
+    .contains(
+      '"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"',
+    );
 });
 
 test("fluid_fn_pg_change", async t => {
@@ -1129,9 +1145,9 @@ async function upload_pkg_for_tlid(t, tlid) {
     .ok();
   await t
     .click(
-      Selector(".fn-actions > .menu > .more-actions > .actions > .item").withText(
-        "Upload Function",
-      ),
+      Selector(
+        ".fn-actions > .menu > .more-actions > .actions > .item",
+      ).withText("Upload Function"),
     )
     .expect(available(".error-panel.show"))
     .ok({ timeout: 1000 });
@@ -1155,8 +1171,9 @@ test("upload_pkg_fn_as_admin", async t => {
 
   // second (attempted) upload should fail, as we've already uploaded this
   await upload_pkg_for_tlid(t, tlid);
-  const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${tlid +
-    1}? (UploadFnAPICallback)Dismiss`;
+  const failureMsg = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+    tlid + 1
+  }? (UploadFnAPICallback)Dismiss`;
   await t.expect(Selector(".error-panel.show").textContent).eql(failureMsg);
   await t.click(".dismissBtn");
 
@@ -1166,8 +1183,9 @@ test("upload_pkg_fn_as_admin", async t => {
   // this failureMsg2 is the same as failureMsg above, because its text dpends
   // on the latest version (and the next valid version of the fn), not the
   // version you tried to upload
-  const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${tlid +
-    1}? (UploadFnAPICallback)Dismiss`;
+  const failureMsg2 = `Bad status: Bad Request - Function already exists with this name and versions up to ${tlid}, try version ${
+    tlid + 1
+  }? (UploadFnAPICallback)Dismiss`;
   await t.expect(Selector(".error-panel.show").textContent).eql(failureMsg2);
   await t.click(".dismissBtn");
 });
@@ -1202,7 +1220,7 @@ test("use_pkg_fn", async t => {
     .contains("0");
 
   // check if we can get a result from the bwd endpoint
-  const callBackend = ClientFunction(function(url) {
+  const callBackend = ClientFunction(function (url) {
     var xhttp = new XMLHttpRequest();
     xhttp.open("GET", url, false);
     xhttp.send(null);
@@ -1260,7 +1278,9 @@ test("abridged_sidebar_content_visible_on_hover", async t => {
   const httpCatSelector = ".sidebar-category.http";
 
   // hovering over a category makes its contents visible
-  await t.expect(Selector(httpCatSelector + " .category-content").visible).notOk();
+  await t
+    .expect(Selector(httpCatSelector + " .category-content").visible)
+    .notOk();
 
   await t
     .hover(httpCatSelector)
@@ -1280,7 +1300,9 @@ test("abridged_sidebar_category_icon_click_disabled", async t => {
   // clicking on a category icon does not keep it open if you mouse elsewhere
   await t.click(httpCatSelector + " .category-icon");
   await t.click(dbCatSelector + " .category-icon");
-  await t.expect(Selector(httpCatSelector + " .category-content").visible).notOk();
+  await t
+    .expect(Selector(httpCatSelector + " .category-content").visible)
+    .notOk();
 });
 
 test("function_docstrings_are_valid", async t => {
