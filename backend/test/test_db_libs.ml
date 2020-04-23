@@ -624,18 +624,18 @@ let t_db_getAllKeys_works () =
 let t_sql_compiler_works () =
   let open Types in
   let open Prelude in
-  let f nexpr = Filled (Util.create_id (), nexpr) in
   let _, state, _ = Utils.test_execution_data [] in
   let check
       (msg : string)
       ?(paramName = "value")
       ?(dbFields = [])
       ?(symtable = [])
-      (body : expr)
+      (body : fluid_expr)
       (generated : string) : unit =
     let dbFields = StrDict.from_list dbFields in
     let symtable = StrDict.from_list symtable in
     let result =
+      let body = Fluid.fromFluidExpr body in
       Sql_compiler.compile_lambda ~state symtable paramName dbFields body
     in
     AT.check AT.string msg result generated
@@ -645,56 +645,43 @@ let t_sql_compiler_works () =
       ?(paramName = "value")
       ?(dbFields = [])
       ?(symtable = [])
-      (body : expr)
+      (body : fluid_expr)
       (expectedError : string) : unit =
     try check msg ~paramName ~dbFields ~symtable body "<error expected>"
     with Db.DBQueryException e -> AT.check AT.string msg e expectedError
   in
-  let true' = f (Value "true") in
+  let true' = bool true in
   check "true is true" true' "(true)" ;
-  let fieldAccess = f (FieldAccess (f (Variable "value"), f "myfield")) in
+  let field = fieldAccess (var "value") "myfield" in
   check
     "correct SQL for field access"
     ~dbFields:[("myfield", TBool)]
-    fieldAccess
+    field
     "(CAST(data::jsonb->>'myfield' as bool))" ;
   checkError
     "no field gives error"
-    fieldAccess
+    field
     "The datastore does not have a field named: myfield" ;
   let injection = "'; select * from user_data ;'field" in
-  let fieldAccess =
-    f
-      (FnCall
-         ( "=="
-         , [ f (FieldAccess (f (Variable "value"), f injection))
-           ; f (Value "\"x\"") ] ))
-  in
+  let field = binop "==" (fieldAccess (var "value") injection) (str "x") in
   check
     "field accesses are escaped"
     ~dbFields:[(injection, TStr)]
-    fieldAccess
+    field
     "((CAST(data::jsonb->>'''; select * from user_data ;''field' as text)) = ('x'))" ;
-  let var =
-    f
-      (FnCall
-         ( "=="
-         , [f (Variable "var"); f (FieldAccess (f (Variable "value"), f "name"))]
-         ))
-  in
+  let variable = binop "==" (var "var") (fieldAccess (var "value") "name") in
   check
     "symtable escapes correctly"
     ~dbFields:[("name", TStr)]
     ~symtable:[("var", Dval.dstr_of_string_exn "';select * from user_data;'")]
-    var
+    variable
     "((''';select * from user_data;''') = (CAST(data::jsonb->>'name' as text)))" ;
   let thread =
-    f
-      (Thread
-         [ f (FieldAccess (f (Variable "value"), f "age"))
-         ; f (FnCall ("-", [f (Value "2")]))
-         ; f (FnCall ("+", [f (FieldAccess (f (Variable "value"), f "age"))]))
-         ; f (FnCall ("<", [f (Value "3")])) ])
+    pipe
+      (fieldAccess (var "value") "age")
+      [ binop "-" pipeTarget (int 2)
+      ; binop "+" pipeTarget (fieldAccess (var "value") "age")
+      ; binop "<" pipeTarget (int 3) ]
   in
   check
     ~dbFields:[("age", TInt)]
