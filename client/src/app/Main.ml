@@ -2129,6 +2129,7 @@ let update_ (msg : msg) (m : model) : modification =
   | UploadFnAPICallback (_, Ok _) ->
       Model.updateErrorMod (Error.set "Successfully uploaded function")
   | FullstoryMsg msg ->
+      Debug.loG "FullstoryMsg" msg ;
       FullstoryView.update msg
 
 

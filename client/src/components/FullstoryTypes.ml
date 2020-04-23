@@ -1,6 +1,4 @@
-type t =
-  { consent : bool option }
-[@@deriving show]
+type t = {consent : bool option} [@@deriving show]
 
 let defaultT = {consent = Some true}
 
