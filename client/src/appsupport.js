@@ -294,46 +294,45 @@ window.Dark = {
     },
   },
   fullstory: {
-    init: function(canvas){
+    init: function(canvas) {
       /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
       FullStory.init({
         orgId: "TMVRZ",
-        devMode: false // isAdmin
+        devMode: isAdmin
       });
 
-      fetch('https://ops-fullstory.builtwithdark.com/consent/'+username)
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        const consent = data.consent;
-        FullStory.identify(username, {displayName: username, canvas, consent});
-        if (consent) {
-          FullStory.consent(true);
-        } else {
-          FullStory.consent(false);
-        }
-        var event = new CustomEvent("FullstoryConsent", { detail: consent });
-        document.dispatchEvent(event);
-      });
+      fetch("https://ops-fullstory.builtwithdark.com/consent/" + username)
+        .then(response => {
+          return response.json();
+        })
+        .then(data => {
+          const consent = data.consent;
+          FullStory.identify(username, { displayName: username, canvas, consent });
+          if (consent) {
+            FullStory.consent(true);
+          } else {
+            FullStory.consent(false);
+          }
+          var event = new CustomEvent("FullstoryConsent", { detail: consent });
+          document.dispatchEvent(event);
+        });
     },
-    setConsent: function(consent){
-      console.log("js setConsent="+consent);
+    setConsent: function(consent) {
       FullStory.consent(consent);
-      FullStory.setUserVars({consent});
-      if(consent){
+      FullStory.setUserVars({ consent });
+      if (consent) {
         FullStory.restart();
       } else {
         FullStory.shutdown();
       }
     },
-    pause: function(){
+    pause: function() {
       FullStory.shutdown();
     },
-    record: function(){
+    record: function() {
       FullStory.restart();
-    }
-  }
+    },
+  },
 };
 
 function windowFocusChange(visible) {
@@ -553,7 +552,6 @@ setTimeout(function () {
 
   /* Full story */
   Dark.fullstory.init(canvasName);
-
 }, 1);
 // ---------------------------
 // Exports
