@@ -1,38 +1,30 @@
 .fullstory-modal {
   $soft-edges: 8px;
+  $width: 800px;
 
   background-color: $black3;
   color: $white1;
   font-size: 1em;
 
   display: block;
-  margin: 0 auto;
   padding: $soft-edges;
   box-shadow: $black1 0 3px 5px 0;
 
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: calc((100% - #{$width})/2);
   z-index: 80;
 
-  transition: height 1s, width 0.5s;
+  width: $width;
 
-  &.yes {
-    width: max-content;
-    box-shadow: none;
-    font-size: 12px;
-
-    display: flex;
-    align-items: center;
-  }
-
-  &.no {
-    width: 0;
-    height: 0;
-    padding: 0;
-  }
+  transition: top 1s;
 
   &.ask {
-    width: 800px;
+    top: 0;
+  }
+
+  &.hide {
+    top: -300px;
   }
 
   p:first-child {

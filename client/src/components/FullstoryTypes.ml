@@ -1,13 +1,10 @@
 type t =
-  { consent : bool option
-  ; recording : bool }
+  { consent : bool option }
 [@@deriving show]
 
-let defaultT = {consent = Some true; recording = false}
+let defaultT = {consent = Some true}
 
 type msg =
   | InitConsent of bool option
   | SetConsent of bool
-  | PauseRecording
-  | RestartRecording
 [@@deriving show]

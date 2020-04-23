@@ -40,25 +40,13 @@ let update (msg : msg) : Types.modification =
   | InitConsent consent ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
-          let recording = consent = Some true in
-          ({m with fullstory = {consent; recording}}, Cmd.none))
+          ({m with fullstory = {consent}}, Cmd.none))
   | SetConsent allow ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
           let consent = Some allow in
-          let recording = allow in
-          ( {m with fullstory = {consent; recording}}
+          ( {m with fullstory = {consent}}
           , FullstoryJs.setConsent allow ))
-  | PauseRecording ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ( {m with fullstory = {m.fullstory with recording = false}}
-          , FullstoryJs.pause () ))
-  | RestartRecording ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ( {m with fullstory = {m.fullstory with recording = true}}
-          , FullstoryJs.record () ))
 
 
 let disableOmniOpen = ViewUtils.nothingMouseEvent "mousedown"
@@ -78,33 +66,8 @@ let html (t : t) : Types.msg Html.html =
           []
       ; Html.label [Html.for' key] [Html.text label] ]
   in
-  let cls, content =
-    match t.consent with
-    | Some true ->
-        let button =
-          let key = "toggle-recording-" ^ string_of_bool t.recording in
-          let alt =
-            if t.recording then "Pause Recording" else "Restart Recording"
-          in
-          Html.div
-            [ Html.classList [("record-btn", true); ("recording", t.recording)]
-            ; disableOmniOpen
-            ; Html.title alt
-            ; ViewUtils.eventNoPropagation ~key "click" (fun _ ->
-                  if t.recording
-                  then FullstoryMsg PauseRecording
-                  else FullstoryMsg RestartRecording) ]
-            [ViewUtils.fontAwesome "circle"; ViewUtils.fontAwesome "video"]
-        in
-        let text =
-          if t.recording then "Recording Screen" else "Recording Paused"
-        in
-        ("yes", [Html.text text; button])
-    | Some false ->
-        ("no", [])
-    | None ->
-        ( "ask"
-        , [ Html.p
+  let content =
+    [ Html.p
               []
               [ Html.text
                   "Hi! While we're in private beta, we're really interested in peoples' experience learning Dark, and videos are the best way to see."
@@ -117,6 +80,7 @@ let html (t : t) : Types.msg Html.html =
           ; Html.div
               [Html.class' "consent"]
               [ radio "yes" "Yes! Record me using Dark." (SetConsent true)
-              ; radio "no" "No. Don't me using Dark." (SetConsent false) ] ] )
+              ; radio "no" "No. Don't me using Dark." (SetConsent false) ] ]
   in
+  let cls = if t.consent = None then "ask" else "hide" in
   Html.div [Html.class' ("fullstory-modal " ^ cls)] content
