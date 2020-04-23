@@ -389,22 +389,24 @@ let fns : expr fn list =
     ; infix_names = []
     ; parameters = [par "string" TStr]
     ; return_type = TStr
-    ; description = "Turns a string into a slug"
+    ; description =
+        "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
     ; func =
         InProcess
           (function
           | _, [DStr s] ->
               let replace = Unicode_string.regexp_replace in
-              (* explicitly choose ASCII for urls *)
-              let to_remove = "[^A-Za-z0-9\\s_-]+" in
-              let newspaces = "[-_\\s]+" in
+              (* explicitly choose roman alphabet for pretty urls *)
+              let to_remove = "[^a-z0-9\\s_-]+" in
+              let to_be_hyphenated = "[-_\\s]+" in
               s
+              |> Unicode_string.lowercase
               |> replace
                    ~pattern:to_remove
                    ~replacement:(Unicode_string.of_string_exn "")
               |> Unicode_string.trim
               |> replace
-                   ~pattern:newspaces
+                   ~pattern:to_be_hyphenated
                    ~replacement:(Unicode_string.of_string_exn "-")
               |> Unicode_string.lowercase
               |> fun s -> DStr s

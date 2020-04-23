@@ -126,12 +126,12 @@ let t_slugify_works () =
   check_dval
     "slugify_v2 escaping works"
     (Dval.dstr_of_string_exn
-       "my-super-really-excellent-uber-amazing-very-clever-thing-coffee")
+       "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee")
     (exec_ast'
        (fn
           "String::slugify_v2"
           [ str
-              "  m@y  'super'  really- exce+llent *uber_ ama\"zing* ~very  ~ \"clever\" thing: coffee😭!"
+              "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!"
           ])) ;
   ()
 
