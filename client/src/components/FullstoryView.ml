@@ -10,19 +10,8 @@ module FullstoryJs = struct
   external _setConsent : bool -> unit = "setConsent"
     [@@bs.val] [@@bs.scope "window", "Dark", "fullstory"]
 
-  external _pause : unit -> unit = "pause"
-    [@@bs.val] [@@bs.scope "window", "Dark", "fullstory"]
-
-  external _record : unit -> unit = "record"
-    [@@bs.val] [@@bs.scope "window", "Dark", "fullstory"]
-
   let setConsent (allow : bool) : Types.msg Cmd.t =
     Cmd.call (fun _ -> _setConsent allow)
-
-
-  let pause () : Types.msg Cmd.t = Cmd.call (fun _ -> _pause ())
-
-  let record () : Types.msg Cmd.t = Cmd.call (fun _ -> _record ())
 end
 
 module SetConsent = struct
