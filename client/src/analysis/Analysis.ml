@@ -347,7 +347,7 @@ let getWorkerStats m tlid =
  * the list of traces for each handler in the following manner:
  *
  * - Start with the handler's old traces, replacing any that share the id of a new trace using the [onConflict] function
- * - For any remaining new traces for that handler, prepend them in reverse order
+ * - For any remaining new traces for that handler, prepend them.
  * - Drop any traces in excess of a hardcoded limit (currently 10 to match stored_event.load_events,
  *   plus 1 for any selected trace),
  *   keeping the newest traces and any [selectedTraceIDs]
@@ -369,13 +369,12 @@ let mergeTraces
       | Some o, Some n ->
           (* 1. merge the lists, updating the trace in the same position
            * if present, and adding it to the front otherwise.
-           * Note that newTraces are pushed in reverse order.
            * 
            * 2. drop any traces in excess of [maxTracesPerHandler]
            * from the back, making sure to preserve any selected traces. *)
           (* Pass 1: merge the lists *)
           let merged =
-            List.foldl n ~init:o ~f:(fun ((newID, newData) as new_) acc ->
+            List.foldr n ~init:o ~f:(fun ((newID, newData) as new_) acc ->
                 let found = ref false in
                 let updated =
                   List.map acc ~f:(fun ((oldID, oldData) as old) ->
