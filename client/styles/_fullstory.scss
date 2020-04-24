@@ -31,45 +31,6 @@
     margin-top: 0em;
   }
 
-  .record-btn {
-    display: inline-block;
-    margin-left: 8px;
-    position: relative;
-    font-size: 16px;
-
-    width: 16px;
-    height: 16px;
-    opacity: 0.7;
-
-    cursor: pointer;
-    &:hover {
-      opacity: 1;
-    }
-
-    i.fa.fa-video {
-      color: $white3;
-      z-index: 0;
-      position: absolute;
-      top: 0;
-      left: 0;
-    }
-
-    i.fa.fa-circle {
-      color: $red;
-      font-size: 8px;
-      z-index: 1;
-      position: absolute;
-      top: 3px;
-      left: 2px;
-    }
-
-    &.recording {
-      i.fa.fa-circle {
-        animation: blinkOpacity 1.5s ease-in-out infinite;
-      }
-    }
-  }
-
   .consent {
     display: flex;
     width: 100%;
