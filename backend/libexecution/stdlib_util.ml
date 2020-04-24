@@ -143,8 +143,6 @@ let list_repeat times item = List.init times ~f:(fun _ -> item)
 
 (* Merge both maps, picking the value from the second argument if the key
  * exists in both *)
-(*  *)
-
 let merge_right =
   Map.merge ~f:(fun ~key v ->
       match v with
