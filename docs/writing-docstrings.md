@@ -32,6 +32,12 @@ To mark a code block, simply wrap the text in `{{ }}`.
 
 Code blocks can contain tags, such as `{{Just <var value>}}`. But a code block cannot contain other code blocks.
 
+### Link tag
+
+If you want to include a link, use the same delimiters as markdown. `[LINK NAME](LINK URL)`.
+
+Link tags cannot contain code blocks or other tags.
+
 ### Validating Syntax
 
 Once you updated your function's description save the file and re-compile. Run the integration test **function_docstrings_are_valid** to verify it passes the syntax checker. `./integration-tests/run.sh --pattern=function_docstrings_are_valid`
