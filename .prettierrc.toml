@@ -1,5 +1,5 @@
 tabWidth = 2
-printWidth = 90
+printWidth = 80
 useTabs = false
 semi = true
 singleQuote = false
