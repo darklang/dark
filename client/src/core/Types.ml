@@ -1512,8 +1512,8 @@ and fluidToken =
   | TLambdaArrow of ID.t * parentBlockID option
   | TLambdaSymbol of ID.t * parentBlockID option
   | TLambdaVar of ID.t * analysisID * int * string * parentBlockID option
-  | TListOpen of ID.t
-  | TListClose of ID.t
+  | TListOpen of ID.t * parentBlockID option
+  | TListClose of ID.t * parentBlockID option
   | TListComma of ID.t * int
   (* 2nd int is the number of pipe segments there are *)
   | TPipe of ID.t * int * int * parentBlockID option

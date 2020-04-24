@@ -398,8 +398,9 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
       *)
       let lastIndex = List.length exprs - 1 in
       let xOffset = b.xPos |> Option.withDefault ~default:0 in
+      let pid = if lastIndex = -1 then None else Some id in
       b
-      |> add (TListOpen id)
+      |> add (TListOpen (id, pid))
       |> addIter exprs ~f:(fun i e b' ->
              let currentLineLength =
                let commaWidth = if i <> lastIndex then 1 else 0 in
@@ -417,7 +418,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
                     b'
                     |> addNested ~f:(toTokens' ~parentID:(Some id) e)
                     |> addIf (i <> lastIndex) (TListComma (id, i))))
-      |> add (TListClose id)
+      |> add (TListClose (id, pid))
   | ERecord (id, fields) ->
       if fields = []
       then b |> addMany [TRecordOpen (id, None); TRecordClose (id, None)]
