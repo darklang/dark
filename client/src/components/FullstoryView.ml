@@ -4,7 +4,6 @@ module Cmd = Tea.Cmd
 module Attr = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module Html = Tea_html_extended
-open FullstoryTypes
 
 module FullstoryJs = struct
   external _setConsent : bool -> unit = "setConsent"
@@ -19,6 +18,7 @@ module SetConsent = struct
     let open Tea.Json.Decoder in
     field "detail" (Decoders.wrapDecoder Decoders.optBool)
 
+
   let listen ~key tagger =
     BrowserListeners.registerGlobal "FullstoryConsent" key tagger decode
 end
@@ -27,22 +27,13 @@ let explanation =
   "We track your session in a replayable format (using Fullstory) to help us understand how people learn Dark."
 
 
-let update (msg : msg) : Types.modification =
-  match msg with
-  | InitConsent consent ->
-      ReplaceAllModificationsWithThisOne
-        (fun m -> ({m with fullstory = {consent}}, Cmd.none))
-  | SetConsent allow ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          let consent = Some allow in
-          ({m with fullstory = {consent}}, FullstoryJs.setConsent allow))
-
-
 let disableOmniOpen = ViewUtils.nothingMouseEvent "mousedown"
 
-let radio ~(value : string) ~(label : string) ~(msg : msg) ~(checked : bool) :
-    Types.msg Html.html =
+let radio
+    ~(value : string)
+    ~(label : string)
+    ~(msg : SettingsViewTypes.settingsMsg)
+    ~(checked : bool) : Types.msg Html.html =
   let key = "fs-consent-" ^ value in
   Html.div
     [Html.class' "choice"; disableOmniOpen]
@@ -52,13 +43,13 @@ let radio ~(value : string) ~(label : string) ~(msg : msg) ~(checked : bool) :
         ; Html.name "fs-consent"
         ; Html.value value
         ; Html.checked checked
-        ; ViewUtils.eventNoPropagation ~key "click" (fun _ -> FullstoryMsg msg)
-        ]
+        ; ViewUtils.eventNoPropagation ~key "click" (fun _ ->
+              SettingsViewMsg msg) ]
         []
     ; Html.label [Html.for' key] [Html.text label] ]
 
 
-let html (t : t) : Types.msg Html.html =
+let html (m : Types.model) : Types.msg Html.html =
   let content =
     [ Html.p
         []
@@ -70,13 +61,15 @@ let html (t : t) : Types.msg Html.html =
         [ radio
             ~value:"yes"
             ~label:"Yes, please go ahead"
-            ~msg:(SetConsent true)
+            ~msg:(SetRecordConsent true)
             ~checked:false
         ; radio
             ~value:"no"
             ~label:"No, please don't"
-            ~msg:(SetConsent false)
+            ~msg:(SetRecordConsent false)
             ~checked:false ] ]
   in
-  let cls = if t.consent = None then "ask" else "hide" in
+  let cls =
+    if m.settingsView.privacy.recordConsent = None then "ask" else "hide"
+  in
   Html.div [Html.class' ("fullstory-modal " ^ cls)] content

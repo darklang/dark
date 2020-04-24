@@ -524,7 +524,7 @@ let view (m : model) : msg Html.html =
     if m.settingsView.opened then SettingsView.html m else Vdom.noNode
   in
   let content =
-    (FullstoryView.html (m.fullstory : FullstoryTypes.t) :: ViewTopbar.html m)
+    (FullstoryView.html m :: ViewTopbar.html m)
     @ [ sidebar
       ; body
       ; activeAvatars

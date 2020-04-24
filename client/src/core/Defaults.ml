@@ -181,5 +181,4 @@ let defaultModel : model =
           ; shippedDate = None
           ; createdAt = None
           ; canvasName = "builtwithdark" }
-      ; privacy = {recordConsent = None} }
-  ; fullstory = FullstoryTypes.defaultT }
+      ; privacy = {recordConsent = None} } }

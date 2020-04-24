@@ -79,6 +79,8 @@ type settingsMsg =
   | TriggerGetCanvasInfoCallback of
       (loadCanvasInfoAPIResult, (string Tea.Http.error[@opaque])) Tea.Result.t
       [@printer opaque "LoadPackagesAPICallback"]
+  | InitRecordConsent of bool option
+  | SetRecordConsent of bool
 [@@deriving show]
 
 let settingsTabToText (tab : settingsTab) : string =

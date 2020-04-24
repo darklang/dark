@@ -136,6 +136,10 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
   | TriggerUpdateCanvasInfoCallback _
   | TriggerGetCanvasInfoCallback (Error _) ->
       settingsView
+  | InitRecordConsent recordConsent ->
+      {settingsView with privacy = {recordConsent}}
+  | SetRecordConsent allow ->
+      {settingsView with privacy = {recordConsent = Some allow}}
 
 
 let getModifications (m : Types.model) (msg : settingsMsg) :
@@ -212,6 +216,8 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
       else
         [ SettingsViewUpdate msg
         ; ReplaceAllModificationsWithThisOne (fun m -> submitForm m) ]
+  | SetRecordConsent allow ->
+      [MakeCmd (FullstoryView.FullstoryJs.setConsent allow)]
   | _ ->
       [SettingsViewUpdate msg]
 
@@ -401,12 +407,12 @@ let viewPrivacy (s : privacySettings) : Types.msg Html.html list =
           [ FullstoryView.radio
               ~value:"yes"
               ~label:"Yes"
-              ~msg:(SetConsent true)
+              ~msg:(SetRecordConsent true)
               ~checked:(s.recordConsent = Some true)
           ; FullstoryView.radio
               ~value:"no"
               ~label:"No"
-              ~msg:(SetConsent false)
+              ~msg:(SetRecordConsent false)
               ~checked:(s.recordConsent = Some false) ] ] ]
 
 
@@ -459,10 +465,7 @@ let settingViewWrapper (acc : settingsViewState) : Types.msg Html.html =
 
 
 let html (m : Types.model) : Types.msg Html.html =
-  let svs =
-    let recordConsent = m.fullstory.consent in
-    {m.settingsView with privacy = {recordConsent}}
-  in
+  let svs = m.settingsView in
   let closingBtn =
     Html.div
       [ Html.class' "close-btn"
