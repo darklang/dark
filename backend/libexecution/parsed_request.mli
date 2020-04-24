@@ -12,7 +12,7 @@ val from_request :
   -> header list
   -> query_val list
   -> string
-  -> Types.RuntimeT.expr t
+  -> Types.fluid_expr t
 
 val to_dval : 'expr_type t -> 'expr_type Types.RuntimeT.dval
 

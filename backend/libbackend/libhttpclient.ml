@@ -124,7 +124,9 @@ let send_request
       with _ -> Dval.dstr_of_string_exn "form decoding error"
     else if has_json_header raw_response_headers
     then
-      try Dval.of_unknown_json_v0 raw_response_body
+      try
+        Dval.of_unknown_json_v0 raw_response_body
+        |> Libexecution.Fluid.dval_of_fluid
       with _ -> Dval.dstr_of_string_exn "json decoding error"
     else
       try Dval.dstr_of_string_exn raw_response_body

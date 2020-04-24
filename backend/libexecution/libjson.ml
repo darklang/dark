@@ -14,7 +14,11 @@ let fns : expr fn list =
         InProcess
           (function
           | _, [DStr json] ->
-            ( try Dval.of_unknown_json_v0 (Unicode_string.to_string json)
+            ( try
+                json
+                |> Unicode_string.to_string
+                |> Dval.of_unknown_json_v0
+                |> Fluid.dval_of_fluid
               with _ -> DNull )
           | args ->
               fail args)
@@ -30,7 +34,10 @@ let fns : expr fn list =
         InProcess
           (function
           | _, [DStr json] ->
-              Dval.of_unknown_json_v1 (Unicode_string.to_string json)
+              json
+              |> Unicode_string.to_string
+              |> Dval.of_unknown_json_v1
+              |> Fluid.dval_of_fluid
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -45,7 +52,10 @@ let fns : expr fn list =
         InProcess
           (function
           | _, [DStr json] ->
-              Dval.of_unknown_json_v1 (Unicode_string.to_string json)
+              json
+              |> Unicode_string.to_string
+              |> Dval.of_unknown_json_v1
+              |> Fluid.dval_of_fluid
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -62,7 +72,10 @@ let fns : expr fn list =
           | _, [DStr json] ->
             ( try
                 let dval =
-                  Dval.of_unknown_json_v1 (Unicode_string.to_string json)
+                  json
+                  |> Unicode_string.to_string
+                  |> Dval.of_unknown_json_v1
+                  |> Fluid.dval_of_fluid
                 in
                 DResult (ResOk dval)
               with e ->

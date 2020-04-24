@@ -559,11 +559,24 @@ let user_page_handler
               ~package_fns:!c.package_fns
               ~tlid:page.tlid
               ~dbs:(TL.dbs !c.dbs)
-              ~input_vars:([("request", PReq.to_dval input)] @ bound)
-              ~store_fn_arguments:
-                (Stored_function_arguments.store ~canvas_id ~trace_id)
-              ~store_fn_result:
-                (Stored_function_result.store ~canvas_id ~trace_id)
+              ~input_vars:
+                ( [ ( "request"
+                    , PReq.to_dval input |> Libexecution.Fluid.dval_of_fluid )
+                  ]
+                @ bound )
+              ~store_fn_arguments:(fun tlid dvalmap ->
+                Stored_function_arguments.store
+                  ~canvas_id
+                  ~trace_id
+                  tlid
+                  (Libexecution.Fluid.dval_map_to_fluid dvalmap))
+              ~store_fn_result:(fun funcdesc args result ->
+                Stored_function_result.store
+                  ~canvas_id
+                  ~trace_id
+                  funcdesc
+                  (List.map ~f:Libexecution.Fluid.dval_to_fluid args)
+                  (Libexecution.Fluid.dval_to_fluid result))
           in
           Stroller.push_new_trace_id
             ~execution_id
@@ -1109,10 +1122,19 @@ let trigger_handler ~(execution_id : Types.id) (host : string) body :
                 ~package_fns:!c.package_fns
                 ~account_id:!c.owner
                 ~canvas_id
-                ~store_fn_arguments:
-                  (Stored_function_arguments.store ~canvas_id ~trace_id)
-                ~store_fn_result:
-                  (Stored_function_result.store ~canvas_id ~trace_id)
+                ~store_fn_arguments:(fun tlid dvalmap ->
+                  Stored_function_arguments.store
+                    ~canvas_id
+                    ~trace_id
+                    tlid
+                    (Libexecution.Fluid.dval_map_to_fluid dvalmap))
+                ~store_fn_result:(fun funcdesc args result ->
+                  Stored_function_result.store
+                    ~canvas_id
+                    ~trace_id
+                    funcdesc
+                    (List.map ~f:Libexecution.Fluid.dval_to_fluid args)
+                    (Libexecution.Fluid.dval_to_fluid result))
             in
             touched_tlids)
   in

@@ -261,8 +261,11 @@ let fns =
                     ~token:(Unicode_string.to_string token)
                 with
               | Some (headers, payload) ->
-                  [ ("header", Dval.of_unknown_json_v1 headers)
-                  ; ("payload", Dval.of_unknown_json_v1 payload) ]
+                  [ ( "header"
+                    , Dval.of_unknown_json_v1 headers |> Fluid.dval_of_fluid )
+                  ; ( "payload"
+                    , Dval.of_unknown_json_v1 payload |> Fluid.dval_of_fluid )
+                  ]
                   |> Prelude.StrDict.from_list_exn
                   |> DObj
                   |> OptJust
@@ -299,8 +302,12 @@ let fns =
                         ~token:(Unicode_string.to_string token)
                     with
                   | Ok (headers, payload) ->
-                      [ ("header", Dval.of_unknown_json_v1 headers)
-                      ; ("payload", Dval.of_unknown_json_v1 payload) ]
+                      [ ( "header"
+                        , Dval.of_unknown_json_v1 headers |> Fluid.dval_of_fluid
+                        )
+                      ; ( "payload"
+                        , Dval.of_unknown_json_v1 payload |> Fluid.dval_of_fluid
+                        ) ]
                       |> Prelude.StrDict.from_list_exn
                       |> DObj
                       |> ResOk
