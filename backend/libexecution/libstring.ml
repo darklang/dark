@@ -632,7 +632,8 @@ let fns : expr fn list =
               if l < Dint.zero
               then Exception.code "l should be a positive integer"
               else
-                Dval.dstr_of_string_exn (Util.random_string (Dint.to_int_exn l))
+                Dval.dstr_of_string_exn
+                  (Stdlib_util.random_string (Dint.to_int_exn l))
           | args ->
               fail args)
     ; preview_safety = Unsafe
@@ -653,7 +654,7 @@ let fns : expr fn list =
                 DResult
                   (ResOk
                      (Dval.dstr_of_string_exn
-                        (Util.random_string (Dint.to_int_exn l))))
+                        (Stdlib_util.random_string (Dint.to_int_exn l))))
           | args ->
               fail args)
     ; preview_safety = Unsafe
@@ -673,7 +674,7 @@ let fns : expr fn list =
               else
                 Dval.to_res_ok
                   (Dval.dstr_of_string_exn
-                     (Util.random_string (Dint.to_int_exn l)))
+                     (Stdlib_util.random_string (Dint.to_int_exn l)))
           | args ->
               fail args)
     ; preview_safety = Unsafe
@@ -689,7 +690,7 @@ let fns : expr fn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn
-                (Util.html_escape (Unicode_string.to_string s))
+                (Stdlib_util.html_escape (Unicode_string.to_string s))
           | args ->
               fail args)
     ; preview_safety = Unsafe

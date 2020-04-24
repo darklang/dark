@@ -163,7 +163,7 @@ let fns : 'expr_type fn list =
           | _, [DStr str] ->
               str
               |> Unicode_string.to_string
-              |> Util.AWS.url_encode
+              |> Stdlib_util.AWS.url_encode
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)

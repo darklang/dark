@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let list_repeat = Util.list_repeat
+let list_repeat = Stdlib_util.list_repeat
 
 let fns =
   [ { prefix_names = ["List::singleton"]
