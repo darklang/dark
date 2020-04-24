@@ -84,7 +84,6 @@ let defaultTokenInfo =
   ; endPos = 0
   ; length = 0
   ; token = TBlank (defaultID, None)
-  ; exeFlow = UnknownExecution
   }
 
 

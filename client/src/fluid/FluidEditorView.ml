@@ -12,6 +12,11 @@ type state =
   ; tlid : TLID.t
   ; tokens : FluidToken.tokenInfo list }
 
+type executionFlow =
+  | CodeExecuted
+  | CodeNotExecuted
+  | UnknownExecution
+
 let isActiveEditor (s : state) = s.fluidState.activeEditor = s.editor
 
 let stateToFnExecutionState (s : state) : ViewFnExecution.state =
@@ -58,37 +63,40 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
 
 
 let toHtml (s : state) : Types.msg Html.html list =
-  let tokens =
-    match Fluid.tokenAtCaret s.tokens s.fluidState with
-    | Some caretAt ->
-        if caretAt.exeFlow = CodeNotExecuted
-        then
-          (* We only care to check further if caret is in a faded region. *)
-          match FluidToken.parentBlockID caretAt.token with
-          | Some pid ->
-              (* If caret is in a multiline block, mark block tokens *)
-              s.tokens
-              |> List.map ~f:(fun ti ->
-                     if FluidToken.parentBlockID ti.token = Some pid
-                        && ti.exeFlow = CodeNotExecuted
-                     then {ti with exeFlow = CodeInFocus}
-                     else ti)
-          | None ->
-              (* else mark entire row caret is in *)
-              let caretRow = caretAt.startRow in
-              s.tokens
-              |> List.map ~f:(fun ti ->
-                     let isNotInBlock =
-                       FluidToken.parentBlockID ti.token = None
-                     in
-                     if ti.startRow = caretRow
-                        && isNotInBlock
-                        && ti.exeFlow = CodeNotExecuted
-                     then {ti with exeFlow = CodeInFocus}
-                     else ti)
-        else s.tokens
+  let exeFlow ti =
+    let id = FluidToken.analysisID ti.token in
+    match Analysis.getLiveValueLoadable s.analysisStore id with
+    | LoadableSuccess (ExecutedResult _) ->
+        CodeExecuted
+    | LoadableSuccess (NonExecutedResult _) ->
+        CodeNotExecuted
+    | _ ->
+        UnknownExecution
+  in
+  let caretToken = Fluid.tokenAtCaret s.tokens s.fluidState in
+  let caretParentBlockID =
+    caretToken
+    |> Option.andThen ~f:(fun ti ->
+           (* We only care to check further if caret is in a faded region. *)
+           if exeFlow ti = CodeNotExecuted
+           then FluidToken.parentBlockID ti.token
+           else None)
+  in
+  (* Returns true if token is in the same block as the caret or on the same row *)
+  let isNearCaret ti =
+    match caretParentBlockID with
+    | Some pid ->
+        FluidToken.parentBlockID ti.token = Some pid
+        && exeFlow ti = CodeNotExecuted
     | None ->
-        s.tokens
+        let isNotInBlock =
+          (* So we don't unfade tokens in the same row, but belong to another block *)
+          FluidToken.parentBlockID ti.token = None
+        in
+        let caretRow = Option.map ~f:(fun ti -> ti.startRow) caretToken in
+        Some ti.startRow = caretRow
+        && isNotInBlock
+        && exeFlow ti = CodeNotExecuted
   in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
@@ -104,7 +112,7 @@ let toHtml (s : state) : Types.msg Html.html list =
           (None, "")
     else (None, "")
   in
-  let currentTokenInfo = Fluid.getToken' tokens s.fluidState in
+  let currentTokenInfo = Fluid.getToken' s.tokens s.fluidState in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -171,7 +179,7 @@ let toHtml (s : state) : Types.msg Html.html list =
    * IDs above, then toggle it off as soon as we see a non-whitespace token
    * that's not contained in the set. *)
   let withinFlag = ref false in
-  List.map tokens ~f:(fun ti ->
+  List.map s.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = FluidToken.tid ti.token in
         let idStr = ID.toString tokenId in
@@ -228,12 +236,14 @@ let toHtml (s : state) : Types.msg Html.html list =
             propagated occurrences. *)
             sourceId = Some (s.tlid, analysisId)
           in
+          let isNotExecuted = exeFlow ti = CodeNotExecuted in
+          let isInFocus = isNotExecuted && isNearCaret ti in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
           ; ("in-flag", !withinFlag)
           ; ("fluid-error", isError)
-          ; ("fluid-not-executed", ti.exeFlow = CodeNotExecuted)
-          ; ("fluid-code-focus", ti.exeFlow = CodeInFocus)
+          ; ("fluid-not-executed", isNotExecuted)
+          ; ("fluid-code-focus", isInFocus)
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
              * into another, where the cursor is currently on *)

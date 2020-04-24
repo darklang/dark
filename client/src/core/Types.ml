@@ -1427,12 +1427,6 @@ and handlerProp =
 
 and tlTraceIDs = traceID TLIDDict.t
 
-and executionFlow =
-  | CodeExecuted
-  | CodeNotExecuted
-  | UnknownExecution
-  | CodeInFocus
-
 (* Testing *)
 and testResult = (string, unit) Result.t
 
@@ -1563,7 +1557,7 @@ and fluidTokenInfo =
   ; endPos : int
   ; length : int
   ; token : fluidToken
-  ; exeFlow : executionFlow }
+  }
 
 and fluidPatternAutocomplete =
   | FPAVariable of ID.t * ID.t * string
