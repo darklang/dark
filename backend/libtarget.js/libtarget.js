@@ -11,7 +11,8 @@ function dark_arrayBuffer_from_padded_b64url(base64) {
   // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
   // TODO(JULIAN): Figure out how to hoist the `lookup` definition out of the function,
   // since it's shared and could be cached (just moving it up doesn't seem to work with jsoo...)
-  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  var chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
   // Use a lookup table to find the index.
   var lookup = new Uint8Array(256);
@@ -60,7 +61,8 @@ function dark_arrayBuffer_to_padded_b64url(arraybuffer) {
   // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
   // TODO(JULIAN): Figure out how to hoist the `lookup` definition out of the function,
   // since it's shared and could be cached (just moving it up doesn't seem to work with jsoo...)
-  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  var chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
   // Use a lookup table to find the index.
   var lookup = new Uint8Array(256);
