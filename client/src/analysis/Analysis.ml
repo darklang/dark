@@ -351,6 +351,10 @@ let getWorkerStats m tlid =
  * - Drop any traces in excess of a hardcoded limit (currently 10 to match stored_event.load_events,
  *   plus 1 for any selected trace),
  *   keeping the newest traces and any [selectedTraceIDs]
+ *
+ * Note that this preserves the order of the newTraces relative to the oldTraces
+ * (except for newTraces that share an old id -- we preserve the order of those in oldTraces)
+ * and we also preserve the relative order of the selected traces.
  *)
 let mergeTraces
     ~(selectedTraceIDs : tlTraceIDs)
@@ -367,12 +371,29 @@ let mergeTraces
       | None, Some n ->
           Some n
       | Some o, Some n ->
-          (* 1. merge the lists, updating the trace in the same position
+          (* Algorithm overview:
+           * 1. merge the lists, updating the trace in the same position
            * if present, and adding it to the front otherwise.
            * 
            * 2. drop any traces in excess of [maxTracesPerHandler]
-           * from the back, making sure to preserve any selected traces. *)
-          (* Pass 1: merge the lists *)
+           * from the back, making sure to preserve any selected traces.
+           *
+           ***
+           * Example:
+           * 
+           * o = [o1,o2,o3,o4,o5,o6,o7,o8,o9]
+           * n = [n1,n2,n_3,n4,n5,n6]
+           * n_3 shares an id with o3
+           * selectedTrace in this handler = o8
+           *
+           * Pass 1 produces:
+           * [n1,n2,n4,n5, o1,o2,n_3,o4,o5,o6,o7,o8,o9]
+           * Pass 2 produces:
+           * [n1,n2,n4,n5, o1,o2,n_3,o4,o5,o6, o8]
+           *
+           ***
+           *)
+          (* Pass 1: merge the lists, using foldr to preserve the order of n *)
           let merged =
             List.foldr n ~init:o ~f:(fun ((newID, newData) as new_) acc ->
                 let found = ref false in
@@ -388,7 +409,10 @@ let mergeTraces
                 then updated
                 else (newID, newData) :: acc)
           in
-          (* Pass 2: preserve up to [maxTracesPerHandler] traces *)
+          (* Pass 2: preserve up to [maxTracesPerHandler] traces
+           * guaranteeing that we won't duplicate the selected trace and
+           * that we preserve the relative order
+           *)
           let selectedTraceID =
             let tlid = TLID.fromString tlid in
             TLIDDict.get ~tlid selectedTraceIDs
