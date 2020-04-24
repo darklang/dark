@@ -302,6 +302,12 @@ RUN cargo install cargo-cache --no-default-features --features ci-autoclean
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
 
+# Install honeytail so we can use it in circle for logging integration test
+# results
+RUN wget -q -O /usr/bin/honeytail https://honeycomb.io/download/honeytail/linux/1.762 && \
+      echo '00e24441316c7ae24665b1aaea4cbb77e2ee52c83397bf67d70f3ffe14a1e341 /usr/bin/honeytail' | sha256sum -c && \
+      chmod 755 /usr/bin/honeytail
+
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
