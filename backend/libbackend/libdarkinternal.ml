@@ -793,7 +793,7 @@ that's already taken, returns an error."
                              [ ("path", Dval.dstr_of_string_exn path)
                              ; ("traceid", DUuid traceid)
                              ; ("time", DDate time)
-                             ; ("event", data) ]
+                             ; ("event", Fluid.dval_of_fluid data) ]
                              |> DvalMap.from_list
                              |> fun o -> DObj o)
                       |> fun l -> DList l
