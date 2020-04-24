@@ -41,8 +41,6 @@ let random_string length =
   String.concat ~sep:"" (Array.to_list (Array.init length gen))
 
 
-(* let list_repeat times item = List.init times ~f:(fun _ -> item) *)
-
 (* Merge both maps, picking the value from the first argument if the key
  * exists in both *)
 let merge_left =
