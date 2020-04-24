@@ -46,24 +46,6 @@ type domEvent = msg Vdom.property
 
 type domEventList = domEvent list
 
-(* It might save a list run by doing this in tokenize, but will pollute the modulisation to FluidPrinter by throwiing analysis and caret placement data in there*)
-let markTokens (analysis : analysisStore) (tokens : FluidToken.tokenInfo list) :
-    FluidToken.tokenInfo list =
-  tokens
-  |> List.map ~f:(fun ti ->
-         let id = FluidToken.analysisID ti.token in
-         let exeFlow =
-           match Analysis.getLiveValueLoadable analysis id with
-           | LoadableSuccess (ExecutedResult _) ->
-               CodeExecuted
-           | LoadableSuccess (NonExecutedResult _) ->
-               CodeNotExecuted
-           | _ ->
-               UnknownExecution
-         in
-         {ti with exeFlow})
-
-
 let createVS (m : model) (tl : toplevel) : viewState =
   let tlid = TL.id tl in
   let hp =
@@ -78,7 +60,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
     |> Option.withDefault ~default:LoadableNotInitialized
   in
   let tokens =
-    FluidPrinter.tokenize (FluidAST.toExpr ast) |> markTokens analysisStore
+    FluidPrinter.tokenize (FluidAST.toExpr ast)
   in
   { tl
   ; ast

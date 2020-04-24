@@ -516,7 +516,7 @@ let infoize tokens : tokenInfo list =
         ; startPos = !pos
         ; endPos = !pos + length
         ; length
-        ; exeFlow = UnknownExecution }
+        }
       in
       ( match token with
       | TNewline _ ->

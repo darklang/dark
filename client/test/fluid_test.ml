@@ -4904,7 +4904,6 @@ let run () =
                   ; startPos = 0
                   ; endPos = 6
                   ; length = 6
-                  ; exeFlow = UnknownExecution
                   }
                 in
                 (L (token, ti), R (token, ti), None))) ;
