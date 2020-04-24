@@ -367,7 +367,6 @@ let mergeTraces
       | None, Some n ->
           Some n
       | Some o, Some n ->
-          let _ = (tlid, maxTracesPerHandler, selectedTraceIDs) in
           (* 1. merge the lists, updating the trace in the same position
            * if present, and adding it to the front otherwise.
            * Note that newTraces are pushed in reverse order.
