@@ -42,8 +42,8 @@ let tid (t : t) : ID.t =
   | TLambdaArrow (id, _)
   | TLambdaSymbol (id, _)
   | TLambdaComma (id, _, _)
-  | TListOpen id
-  | TListClose id
+  | TListOpen (id, _)
+  | TListClose (id, _)
   | TListComma (id, _)
   | TPipe (id, _, _, _)
   | TRecordOpen (id, _)
@@ -94,18 +94,25 @@ let parentExprID (t : t) : ID.t =
   match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
 
 
+(* List literals, object literals, and multiline strings are blocks.
+ This function returns the ID of the whole list, object, or string expression that this token belongs to, if it does indeed live inside a block.
+*)
 let parentBlockID (t : t) : ID.t option =
   match t with
+  (* The first ID is the ID of the whole string expression *)
   | TStringMLStart (id, _, _, _)
   | TStringMLMiddle (id, _, _, _)
   | TStringMLEnd (id, _, _, _)
-  | TListOpen id
-  | TListClose id
+  (* The ID of a comma token is the ID of the whole list expression *)
   | TListComma (id, _)
+  (* The first ID in the separator token is the ID of the whole obj expression *)
   | TRecordSep (id, _, _) ->
       Some id
+  (* The reason { } and [ ] gets a parentBlockID is so if the list/object is empty, then it's not a multiline block. *)
   | TRecordOpen (_, pid)
   | TRecordClose (_, pid)
+  | TListOpen (_, pid)
+  | TListClose (_, pid)
   | TBlank (_, pid)
   | TInteger (_, _, pid)
   | TString (_, _, pid)
@@ -833,8 +840,8 @@ let matchesContent (t1 : t) (t2 : t) : bool =
   | TStringMLEnd (id1, seg1, ind1, str1), TStringMLEnd (id2, seg2, ind2, str2)
     ->
       id1 = id2 && seg1 = seg2 && ind1 = ind2 && str1 = str2
-  | TListOpen id1, TListOpen id2
-  | TListClose id1, TListClose id2
+  | TListOpen (id1, _), TListOpen (id2, _)
+  | TListClose (id1, _), TListClose (id2, _)
   | TRecordOpen (id1, _), TRecordOpen (id2, _)
   | TRecordClose (id1, _), TRecordClose (id2, _)
   | TTrue (id1, _), TTrue (id2, _)
@@ -925,5 +932,67 @@ let matchesContent (t1 : t) (t2 : t) : bool =
       d1.blankID = d2.blankID
       && d1.fnID = d2.fnID
       && d1.placeholder = d2.placeholder
-  | _, _ ->
+  | TInteger _, _
+  | TString _, _
+  | TStringMLStart _, _
+  | TStringMLMiddle _, _
+  | TStringMLEnd _, _
+  | TBlank _, _
+  | TPlaceholder _, _
+  | TTrue _, _
+  | TFalse _, _
+  | TNullToken _, _
+  | TFloatWhole _, _
+  | TFloatPoint _, _
+  | TFloatFractional _, _
+  | TPartial _, _
+  | TLeftPartial _, _
+  | TRightPartial _, _
+  | TPartialGhost _, _
+  | TSep _, _
+  | TNewline _, _
+  | TIndent _, _
+  | TLetKeyword _, _
+  | TLetVarName _, _
+  | TLetAssignment _, _
+  | TIfKeyword _, _
+  | TIfThenKeyword _, _
+  | TIfElseKeyword _, _
+  | TBinOp _, _
+  | TFieldOp _, _
+  | TFieldName _, _
+  | TFieldPartial _, _
+  | TVariable _, _
+  | TFnName _, _
+  | TFnVersion _, _
+  | TLambdaComma _, _
+  | TLambdaArrow _, _
+  | TLambdaSymbol _, _
+  | TLambdaVar _, _
+  | TListOpen _, _
+  | TListClose _, _
+  | TListComma _, _
+  | TPipe _, _
+  | TRecordOpen _, _
+  | TRecordFieldname _, _
+  | TRecordSep _, _
+  | TRecordClose _, _
+  | TMatchKeyword _, _
+  | TMatchBranchArrow _, _
+  | TPatternVariable _, _
+  | TPatternConstructorName _, _
+  | TPatternInteger _, _
+  | TPatternString _, _
+  | TPatternTrue _, _
+  | TPatternFalse _, _
+  | TPatternNullToken _, _
+  | TPatternFloatWhole _, _
+  | TPatternFloatPoint _, _
+  | TPatternFloatFractional _, _
+  | TPatternBlank _, _
+  | TConstructorName _, _
+  | TParenOpen _, _
+  | TParenClose _, _
+  | TFlagWhenKeyword _, _
+  | TFlagEnabledKeyword _, _ ->
       false

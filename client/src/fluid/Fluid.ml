@@ -767,8 +767,8 @@ let posFromCaretTarget (tokens : tokenInfos) (s : fluidState) (ct : caretTarget)
     | ARLet (id, LPKeyword), TLetKeyword (id', _, _)
     | ARLet (id, LPVarName), TLetVarName (id', _, _, _)
     | ARLet (id, LPAssignment), TLetAssignment (id', _, _)
-    | ARList (id, LPOpen), TListOpen id'
-    | ARList (id, LPClose), TListClose id'
+    | ARList (id, LPOpen), TListOpen (id', _)
+    | ARList (id, LPClose), TListClose (id', _)
     | ARMatch (id, MPKeyword), TMatchKeyword id'
     | ARNull id, TNullToken (id', _)
     | ARPartial id, TPartial (id', _, _)
@@ -1042,9 +1042,9 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARLambda (id, LBPSymbol); offset}
   | TLambdaVar (id, _, idx, _, _) ->
       Some {astRef = ARLambda (id, LBPVarName idx); offset}
-  | TListOpen id ->
+  | TListOpen (id, _) ->
       Some {astRef = ARList (id, LPOpen); offset}
-  | TListClose id ->
+  | TListClose (id, _) ->
       Some {astRef = ARList (id, LPClose); offset}
   | TListComma (id, idx) ->
       Some {astRef = ARList (id, LPComma idx); offset}
@@ -4388,7 +4388,7 @@ let rec updateKey
       when false (* disable for now *) && pos - ti.startPos != 0 ->
         startEscapingString pos ti s ast
     (* comma - add another of the thing *)
-    | InsertText ",", L (TListOpen id, _), _ when onEdge ->
+    | InsertText ",", L (TListOpen (id, _), _), _ when onEdge ->
         let bID = gid () in
         let newExpr, target =
           (E.EBlank bID (* new separators *), {astRef = ARBlank bID; offset = 0})
@@ -4476,7 +4476,7 @@ let rec updateKey
       when keyIsInfix ->
         doInfixInsert ~pos props infixTxt ti ast s
     (* Typing between empty list symbols [] *)
-    | InsertText txt, L (TListOpen id, _), R (TListClose _, _) ->
+    | InsertText txt, L (TListOpen (id, _), _), R (TListClose _, _) ->
         let newExpr, target = insertInBlankExpr txt in
         let newAST = insertInList ~index:0 id ~newExpr ast in
         let tokens = tokensForActiveEditor newAST s in
