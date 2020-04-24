@@ -19,13 +19,12 @@ module SetConsent = struct
     let open Tea.Json.Decoder in
     field "detail" (Decoders.wrapDecoder Decoders.optBool)
 
-
   let listen ~key tagger =
     BrowserListeners.registerGlobal "FullstoryConsent" key tagger decode
 end
 
 let explanation =
-  "While we're in private beta, we're really interested in peoples' experience learning Dark, and videos are the best way to see."
+  "We track your session in a replayable format (using Fullstory) to help us understand how people learn Dark."
 
 
 let update (msg : msg) : Types.modification =
@@ -61,22 +60,21 @@ let radio ~(value : string) ~(label : string) ~(msg : msg) ~(checked : bool) :
 
 let html (t : t) : Types.msg Html.html =
   let content =
-    [ Html.p [] [Html.text ("Hi! " ^ explanation)]
-    ; Html.p
+    [ Html.p
         []
         [ Html.text
-            "Are you willing to help us out and let us see your session after this? We'll never share it with anyone else."
+            "To help us understand how people learn Dark, do you mind if we track your session in a replayable format (using Fullstory)."
         ]
     ; Html.div
         [Html.class' "consent"]
         [ radio
             ~value:"yes"
-            ~label:"Yes! Record me using Dark."
+            ~label:"Yes, please go ahead"
             ~msg:(SetConsent true)
             ~checked:false
         ; radio
             ~value:"no"
-            ~label:"No. Don't record me."
+            ~label:"No, please don't"
             ~msg:(SetConsent false)
             ~checked:false ] ]
   in
