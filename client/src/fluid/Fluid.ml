@@ -4075,10 +4075,10 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
 
 let rec updateKey
     ?(recursing = false) (inputEvent : fluidInputEvent) (astInfo : ASTInfo.t) =
-  let s = astInfo.state in
+  let ({ast; state = s; props; _} : ASTInfo.t) = astInfo in
   let pos = s.newPos in
   (* These might be the same token *)
-  let toTheLeft, toTheRight, _mNext = getNeighbours ~pos astInfo.tokenInfos in
+  let toTheLeft, toTheRight, mNext = getNeighbours ~pos astInfo.tokenInfos in
   let onEdge =
     match (toTheLeft, toTheRight) with
     | L (lt, lti), R (rt, rti) ->
@@ -4103,12 +4103,12 @@ let rec updateKey
           true
       | Some e ->
           let id = E.toID e in
-          recurseUp (FluidAST.findParent id astInfo.ast) id
+          recurseUp (FluidAST.findParent id ast) id
       | None ->
           false
     in
     let tid = T.tid token in
-    recurseUp (FluidAST.findParent tid astInfo.ast) tid
+    recurseUp (FluidAST.findParent tid ast) tid
   in
   let astInfo =
     (* This match drives a big chunk of the change operations, but is
@@ -4186,24 +4186,24 @@ let rec updateKey
     (*         doPipeline ast s *)
     (*     | _ -> *)
     (*         doPipeline ast s ) *)
-    (* (* press dot while in a variable entry *) *)
-    (* | InsertText ".", L (TPartial _, ti), _ *)
-    (*   when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true -> *)
-    (*     acStartField ti props ast s *)
-    (* | InsertText ".", L (TFieldPartial _, ti), _ *)
-    (* | InsertText ".", _, R (TFieldPartial _, ti) *)
-    (*   when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true -> *)
-    (*     acStartField ti props ast s *)
+    (* press dot while in a variable entry *)
+    | InsertText ".", L (TPartial _, ti), _
+      when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
+        acStartField ti astInfo
+    | InsertText ".", L (TFieldPartial _, ti), _
+    | InsertText ".", _, R (TFieldPartial _, ti)
+      when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
+        acStartField ti astInfo
     (* (********************) *)
     (* (* CARET NAVIGATION *) *)
     (* (********************) *)
     (* (* Tab to next blank *) *)
-    (* | Keypress {key = K.Tab; _}, _, R (_, _) *)
-    (* | Keypress {key = K.Tab; _}, L (_, _), _ -> *)
-    (*     (ast, moveToNextEditable ~pos ast s) *)
-    (* | Keypress {key = K.ShiftTab; _}, _, R (_, _) *)
-    (* | Keypress {key = K.ShiftTab; _}, L (_, _), _ -> *)
-    (*     (ast, moveToPrevEditable ~pos ast s) *)
+    | Keypress {key = K.Tab; _}, _, R (_, _)
+    | Keypress {key = K.Tab; _}, L (_, _), _ ->
+        moveToNextEditable pos astInfo
+    | Keypress {key = K.ShiftTab; _}, _, R (_, _)
+    | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
+        moveToPrevEditable pos astInfo
     (* (* Left/Right movement *) *)
     (* | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti) *)
     (* | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ -> *)
@@ -4216,10 +4216,10 @@ let rec updateKey
     (*     if maintainSelection == K.KeepSelection *)
     (*     then (ast, updateSelectionRange s (getStartOfWordPos ast s ~pos ti)) *)
     (*     else (ast, goToStartOfWord ast s ti ~pos) *)
-    (* | Keypress {key = K.Left; _}, L (_, ti), _ -> *)
-    (*     (ast, doLeft ~pos ti s |> acMaybeShow ti) *)
-    (* | Keypress {key = K.Right; _}, _, R (_, ti) -> *)
-    (*     (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti) *)
+    | Keypress {key = K.Left; _}, L (_, ti), _ ->
+        astInfo |> doLeft ~pos ti |> acMaybeShow ti
+    | Keypress {key = K.Right; _}, _, R (_, ti) ->
+        astInfo |> doRight ~pos ~next:mNext ti |> acMaybeShow ti
     (* | Keypress {key = K.GoToStartOfLine maintainSelection; _}, _, R (_, ti) *)
     (* | Keypress {key = K.GoToStartOfLine maintainSelection; _}, L (_, ti), _ -> *)
     (*     if maintainSelection == K.KeepSelection *)
@@ -4229,36 +4229,36 @@ let rec updateKey
     (*     if maintainSelection == K.KeepSelection *)
     (*     then (ast, updateSelectionRange s (getEndOfLineCaretPos ast s ti)) *)
     (*     else (ast, moveToEndOfLine ast s ti) *)
-    (* | Keypress {key = K.Up; _}, _, _ -> *)
-    (*     (ast, doUp ~pos ast s) *)
-    (* | Keypress {key = K.Down; _}, _, _ -> *)
-    (*     (ast, doDown ~pos ast s) *)
+    | Keypress {key = K.Up; _}, _, _ ->
+        doUp ~pos astInfo
+    | Keypress {key = K.Down; _}, _, _ ->
+        doDown ~pos astInfo
     (* (*************) *)
     (* (* SELECTION *) *)
     (* (*************) *)
     (* | Keypress {key = K.SelectAll; _}, _, R (_, _) *)
     (* | Keypress {key = K.SelectAll; _}, L (_, _), _ -> *)
     (*     (ast, selectAll ~pos ast s) *)
-    (* (*************) *)
-    (* (* OVERWRITE *) *)
-    (* (*************) *)
-    (* | ReplaceText txt, _, _ -> *)
-    (*     replaceText props ~ast ~state:s txt *)
-    (* (*************) *)
-    (* (* DELETION  *) *)
-    (* (*************) *)
-    (* (* Delete selection *) *)
-    (* | (DeleteContentBackward, _, _ | DeleteContentForward, _, _) *)
-    (*   when Option.isSome s.selectionStart -> *)
-    (*     deleteSelection props ~state:s ~ast *)
-    (* (* Special-case hack for deleting rows of a match or record *) *)
-    (* | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti) *)
-    (* | DeleteContentBackward, L (TNewline _, _), R (TPatternBlank _, ti) -> *)
-    (*     doBackspace ~pos ti ast s *)
-    (* | DeleteContentBackward, L (_, ti), _ -> *)
-    (*     doBackspace ~pos ti ast s *)
-    (* | DeleteContentForward, _, R (_, ti) -> *)
-    (*     doDelete ~pos ti ast s *)
+    (*************)
+    (* OVERWRITE *)
+    (*************)
+    | ReplaceText txt, _, _ ->
+        replaceText txt astInfo
+    (*************)
+    (* DELETION  *)
+    (*************)
+    (* Delete selection *)
+    | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
+      when Option.isSome s.selectionStart ->
+        deleteSelection astInfo
+    (* Special-case hack for deleting rows of a match or record *)
+    | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti)
+    | DeleteContentBackward, L (TNewline _, _), R (TPatternBlank _, ti) ->
+        doBackspace ~pos ti astInfo
+    | DeleteContentBackward, L (_, ti), _ ->
+        doBackspace ~pos ti astInfo
+    | DeleteContentForward, _, R (_, ti) ->
+        doDelete ~pos ti astInfo
     (* | DeleteSoftLineBackward, _, R (_, ti) *)
     (* | DeleteSoftLineBackward, L (_, ti), _ -> *)
     (*   (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior. *)
@@ -4313,53 +4313,53 @@ let rec updateKey
     (*         else ti.startPos *)
     (*       in *)
     (*       deleteCaretRange props ~state:s ~ast (rangeStart, pos) ) *)
-    (* (****************************************) *)
-    (* (* SKIPPING OVER SYMBOLS BY TYPING THEM *) *)
-    (* (****************************************) *)
+    (****************************************)
+    (* SKIPPING OVER SYMBOLS BY TYPING THEM *)
+    (****************************************)
     (*
      * Skipping over a lambda arrow with '->'
      *)
-    (* | InsertText "-", L (TLambdaVar _, _), R (TLambdaArrow _, ti) -> *)
-    (*     (* ___| -> ___ to ___ |-> ___ *) *)
-    (*     (ast, moveOneRight (ti.startPos + 1) s) *)
-    (* | InsertText "-", L (TLambdaArrow _, _), R (TLambdaArrow _, ti) *)
-    (*   when pos = ti.startPos + 1 -> *)
-    (*     (* ___ |-> ___ to ___ -|> ___ *) *)
-    (*     (ast, moveOneRight (ti.startPos + 1) s) *)
-    (* | InsertText ">", L (TLambdaArrow _, _), R (TLambdaArrow _, ti) *)
-    (*   when pos = ti.startPos + 2 -> *)
-    (*     (* ___ -|> ___ to ___ -> |___ *) *)
-    (*     (ast, moveToNextNonWhitespaceToken ~pos ast s) *)
+    | InsertText "-", L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
+        (* ___| -> ___ to ___ |-> ___ *)
+        moveOneRight (ti.startPos + 1) astInfo
+    | InsertText "-", L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
+      when pos = ti.startPos + 1 ->
+        (* ___ |-> ___ to ___ -|> ___ *)
+        moveOneRight (ti.startPos + 1) astInfo
+    | InsertText ">", L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
+      when pos = ti.startPos + 2 ->
+        (* ___ -|> ___ to ___ -> |___ *)
+        moveToNextNonWhitespaceToken pos astInfo
     (*
      * Skipping over specific characters
      *)
-    (* | InsertText "=", _, R (TLetAssignment _, toTheRight) -> *)
-    (*     (ast, moveTo toTheRight.endPos s) *)
-    (* | InsertText ":", _, R (TRecordSep _, toTheRight) -> *)
-    (*     (ast, moveTo toTheRight.endPos s) *)
-    (* | Keypress {key = K.Space; _}, _, R (TSep _, _) -> *)
-    (*     (ast, moveOneRight pos s) *)
-    (* (* Pressing } to go over the last } *) *)
-    (* | InsertText "}", _, R (TRecordClose _, ti) when pos = ti.endPos - 1 -> *)
-    (*     (ast, moveOneRight pos s) *)
-    (* (* Pressing ] to go over the last ] *) *)
-    (* | InsertText "]", _, R (TListClose _, ti) when pos = ti.endPos - 1 -> *)
-    (*     (ast, moveOneRight pos s) *)
-    (* (* Pressing quote to go over the last quote *) *)
-    (* | InsertText "\"", _, R (TPatternString _, ti) *)
-    (* | InsertText "\"", _, R (TString _, ti) *)
-    (* | InsertText "\"", _, R (TStringMLEnd _, ti) *)
-    (*   when pos = ti.endPos - 1 -> *)
-    (*     (ast, moveOneRight pos s) *)
-    (* (***************************) *)
-    (* (* CREATING NEW CONSTRUCTS *) *)
-    (* (***************************) *)
+    | InsertText "=", _, R (TLetAssignment _, toTheRight) ->
+        moveTo toTheRight.endPos astInfo
+    | InsertText ":", _, R (TRecordSep _, toTheRight) ->
+        moveTo toTheRight.endPos astInfo
+    | Keypress {key = K.Space; _}, _, R (TSep _, _) ->
+        moveOneRight pos astInfo
+    (* Pressing } to go over the last } *)
+    | InsertText "}", _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
+        moveOneRight pos astInfo
+    (* Pressing ] to go over the last ] *)
+    | InsertText "]", _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
+        moveOneRight pos astInfo
+    (* Pressing quote to go over the last quote *)
+    | InsertText "\"", _, R (TPatternString _, ti)
+    | InsertText "\"", _, R (TString _, ti)
+    | InsertText "\"", _, R (TStringMLEnd _, ti)
+      when pos = ti.endPos - 1 ->
+        moveOneRight pos astInfo
+    (***************************)
+    (* CREATING NEW CONSTRUCTS *)
+    (***************************)
     (* Entering a string escape
      * TODO: Move this to doInsert *)
-    (* | InsertText "\\", L (TString _, _), R (TString _, ti) *)
-    (*   when false (* disable for now *) && pos - ti.startPos != 0 -> *)
-    (*     startEscapingString pos ti s ast *)
-    (* (* comma - add another of the thing *) *)
+    | InsertText "\\", L (TString _, _), R (TString _, ti)
+      when false (* disable for now *) && pos - ti.startPos != 0 ->
+        startEscapingString pos ti astInfo
+    (* comma - add another of the thing *)
     (* | InsertText ",", L (TListOpen id, _), _ when onEdge -> *)
     (*     let bID = gid () in *)
     (*     let newExpr, target = *)
@@ -4440,13 +4440,13 @@ let rec updateKey
     (*     in *)
     (*     let tokens = tokensForActiveEditor newAST s in *)
     (*     (newAST, moveToCaretTarget tokens s target) *)
-    (* (* Infix symbol insertion to create partials *) *)
-    (* | InsertText infixTxt, L (TPipe _, ti), _ *)
-    (* | InsertText infixTxt, _, R (TPlaceholder _, ti) *)
-    (* | InsertText infixTxt, _, R (TBlank _, ti) *)
-    (* | InsertText infixTxt, L (_, ti), _ *)
-    (*   when keyIsInfix -> *)
-    (*     doInfixInsert ~pos props infixTxt ti ast s *)
+    (* Infix symbol insertion to create partials *)
+    | InsertText infixTxt, L (TPipe _, ti), _
+    | InsertText infixTxt, _, R (TPlaceholder _, ti)
+    | InsertText infixTxt, _, R (TBlank _, ti)
+    | InsertText infixTxt, L (_, ti), _
+      when keyIsInfix ->
+        doInfixInsert ~pos infixTxt ti astInfo
     (* (* Typing between empty list symbols [] *) *)
     (* | InsertText txt, L (TListOpen id, _), R (TListClose _, _) -> *)
     (*     let newExpr, target = insertInBlankExpr txt in *)
@@ -4470,43 +4470,41 @@ let rec updateKey
     (* (***********************************) *)
     (* (* INSERT INTO EXISTING CONSTRUCTS *) *)
     (* (***********************************) *)
-    (* | InsertText ins, L (TPlaceholder {placeholder; blankID; fnID}, _), _ *)
-    (* | InsertText ins, _, R (TPlaceholder {placeholder; blankID; fnID}, _) -> *)
-    (* We need this special case because by the time we get to the general
-     * doInsert handling, reconstructing the difference between placeholders
-     * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
-    (*     let newExpr, newTarget = *)
-    (*       insertInPlaceholderExpr ~fnID ~placeholder ~ins ast props *)
-    (*     in *)
-    (*     let newAST = FluidAST.replace blankID ~replacement:newExpr ast in *)
-    (*     let tokens = tokensForActiveEditor newAST s in *)
-    (*     (newAST, moveToCaretTarget tokens s newTarget) *)
-    (* | Keypress {key = K.Space; _}, _, R (_, toTheRight) -> *)
-    (*     doInsert ~pos props " " toTheRight ast s *)
-    (* | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token -> *)
-    (*     doInsert ~pos props txt toTheLeft ast s *)
-    (* | InsertText txt, _, R (_, toTheRight) -> *)
-    (*     doInsert ~pos props txt toTheRight ast s *)
-    (* (***********) *)
-    (* (* K.Enter *) *)
-    (* (***********) *)
+    | InsertText ins, L (TPlaceholder {placeholder; blankID; fnID}, _), _
+    | InsertText ins, _, R (TPlaceholder {placeholder; blankID; fnID}, _) ->
+        (* We need this special case because by the time we get to the general
+         * doInsert handling, reconstructing the difference between placeholders
+         * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
+        let newExpr, newTarget =
+          insertInPlaceholderExpr ~fnID ~placeholder ~ins ast props
+        in
+        astInfo
+        |> setAST (FluidAST.replace blankID ~replacement:newExpr ast)
+        |> moveToCaretTarget newTarget
+    | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
+        doInsert ~pos " " toTheRight astInfo
+    | InsertText txt, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
+        doInsert ~pos txt toTheLeft astInfo
+    | InsertText txt, _, R (_, toTheRight) ->
+        doInsert ~pos txt toTheRight astInfo
+    (***********)
+    (* K.Enter *)
+    (***********)
     (*
      * Caret to right of record open {
      * Add new initial record row and move caret to it. *)
-    (* | Keypress {key = K.Enter; _}, L (TRecordOpen id, _), _ -> *)
-    (*     let ast = addRecordRowAt 0 id ast in *)
-    (*     let tokens = tokensForActiveEditor ast s in *)
-    (*     let s = moveToAstRef tokens s (ARRecord (id, RPFieldname 0)) in *)
-    (*     (ast, s) *)
+    | Keypress {key = K.Enter; _}, L (TRecordOpen id, _), _ ->
+        astInfo
+        |> setAST (addRecordRowAt 0 id ast)
+        |> moveToAstRef (ARRecord (id, RPFieldname 0))
     (*
      * Caret to left of record close }
      * Add new final record but leave caret to left of } *)
-    (* | Keypress {key = K.Enter; _}, _, R (TRecordClose id, _) -> *)
-    (*     let s = recordAction "addRecordRowToBack" s in *)
-    (*     let ast = addRecordRowToBack id ast in *)
-    (*     let tokens = tokensForActiveEditor ast s in *)
-    (*     let s = moveToAstRef tokens s (ARRecord (id, RPClose)) in *)
-    (*     (ast, s) *)
+    | Keypress {key = K.Enter; _}, _, R (TRecordClose id, _) ->
+        astInfo
+        |> recordAction "addRecordRowToBack"
+        |> setAST (addRecordRowToBack id ast)
+        |> moveToAstRef (ARRecord (id, RPClose))
     (*
      * Caret between pipe symbol |> and following expression.
      * Move current pipe expr down by adding new expr above it.
@@ -4683,10 +4681,9 @@ let rec updateKey
     (*       moveToCaretTarget tokens s (caretTargetForStartOfExpr topID ast) *)
     (*     in *)
     (*     (ast, s) *)
-    (*
-     * Caret at very end of tokens where last line is non-let expression. *)
-    (* | Keypress {key = K.Enter; _}, L (token, ti), No when not (T.isLet token) -> *)
-    (*     wrapInLet ti ast s *)
+    (* Caret at very end of tokens where last line is non-let expression. *)
+    | Keypress {key = K.Enter; _}, L (token, ti), No when not (T.isLet token) ->
+        wrapInLet ti astInfo
     | _ ->
         (* Unknown *)
         report ("Unknown action: " ^ show_fluidInputEvent inputEvent) astInfo
