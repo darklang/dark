@@ -37,14 +37,15 @@ type props =
   { functions : functionsType
   ; variants : variantTest list }
 
-type astInfo =
-  { ast : FluidAST.t
-  ; state : fluidState
-  ; tokenInfos : tokenInfos
-  ; props : props
-  ; tlid : TLID.t
-  ; ti : (* it's impossible to not have a token *)
-         T.tokenInfo }
+module ASTInfo = struct
+  type t =
+    { ast : FluidAST.t
+    ; state : fluidState
+    ; tokenInfos : tokenInfos
+    ; props : props
+    ; ti : (* it's impossible to not have a token *)
+           T.tokenInfo }
+end
 
 let deselectFluidEditor (s : fluidState) : fluidState =
   {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = MainEditor}
@@ -117,13 +118,14 @@ let tokensForActiveEditor (ast : FluidAST.t) (s : fluidState) : tokenInfos =
   Printer.tokensForEditor s.activeEditor ast
 
 
-let setAST (ast : FluidAST.t) (astInfo : astInfo) : astInfo =
+let setAST (ast : FluidAST.t) (astInfo : ASTInfo.t) : ASTInfo.t =
   if astInfo.ast = ast
   then astInfo
   else {astInfo with ast; tokenInfos = tokensForActiveEditor ast astInfo.state}
 
 
-let modifyState ~(f : fluidState -> fluidState) (astInfo : astInfo) : astInfo =
+let modifyState ~(f : fluidState -> fluidState) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   {astInfo with state = f astInfo.state}
 
 
@@ -201,15 +203,16 @@ let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
 (* -------------------- *)
 (* Returns a new state with the arbitrary string "action" recorded for debugging.
  * If a ~pos or ~ti (token info) is passed, it will be added to the action. *)
-let recordAction ?(pos = -1000) (action : string) (astInfo : astInfo) : astInfo
-    =
+let recordAction ?(pos = -1000) (action : string) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   let action =
     if pos = -1000 then action else action ^ " " ^ string_of_int pos
   in
   modifyState ~f:(fun s -> {s with actions = s.actions @ [action]}) astInfo
 
 
-let setPosition ?(resetUD = false) (pos : int) (astInfo : astInfo) : astInfo =
+let setPosition ?(resetUD = false) (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t
+    =
   astInfo
   |> recordAction ~pos "setPosition"
   |> modifyState ~f:(fun s ->
@@ -219,7 +222,7 @@ let setPosition ?(resetUD = false) (pos : int) (astInfo : astInfo) : astInfo =
          ; upDownCol = (if resetUD then None else s.upDownCol) })
 
 
-let report (e : string) (astInfo : astInfo) =
+let report (e : string) (astInfo : ASTInfo.t) =
   astInfo
   |> recordAction "report"
   |> modifyState ~f:(fun s -> {s with error = Some e})
@@ -311,7 +314,7 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokenInfos) : int =
 (* Movement *)
 (* ---------------- *)
 
-let moveToNextNonWhitespaceToken (pos : int) (astInfo : astInfo) : astInfo =
+let moveToNextNonWhitespaceToken (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let rec getNextWS (tokenInfos : tokenInfos) =
     match tokenInfos with
     | [] ->
@@ -331,7 +334,7 @@ let moveToNextNonWhitespaceToken (pos : int) (astInfo : astInfo) : astInfo =
 
 (* getStartOfLineCaretPos returns the first desirable (excluding indents, pipes, and newline tokens)
  caret pos at the start of the line containing the given T.tokenInfo *)
-let getStartOfLineCaretPos (ti : T.tokenInfo) (astInfo : astInfo) : int =
+let getStartOfLineCaretPos (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int =
   let token =
     List.find astInfo.tokenInfos ~f:(fun info ->
         if info.startRow = ti.startRow
@@ -389,7 +392,7 @@ let getEndOfWordInStrCaretPos ~(pos : int) (ti : T.tokenInfo) : int =
 
 (* getEndOfLineCaretPos returns the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
-let getEndOfLineCaretPos (ti : T.tokenInfo) (astInfo : astInfo) : int =
+let getEndOfLineCaretPos (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int =
   let token =
     astInfo.tokenInfos
     |> List.reverse
@@ -409,7 +412,7 @@ let getEndOfLineCaretPos (ti : T.tokenInfo) (astInfo : astInfo) : int =
 
 (* moveToStartOfLine moves the caret to the first desirable (excluding indents, pipes, and newline tokens)
  caret pos at the start of the line containing the given tokenInfo *)
-let moveToStartOfLine (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let moveToStartOfLine (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction "moveToStartOfLine"
   |> setPosition (getStartOfLineCaretPos ti astInfo)
@@ -417,7 +420,7 @@ let moveToStartOfLine (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
 
 (* moveToEndOfLine moves the caret to the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
-let moveToEndOfLine (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let moveToEndOfLine (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction "moveToEndOfLine"
   |> setPosition (getEndOfLineCaretPos ti astInfo)
@@ -425,7 +428,7 @@ let moveToEndOfLine (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
 
 (* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
-let getStartOfWordPos (pos : int) (astInfo : astInfo) : int =
+let getStartOfWordPos (pos : int) (astInfo : ASTInfo.t) : int =
   let previousToken =
     astInfo.tokenInfos
     |> List.reverse
@@ -438,7 +441,7 @@ let getStartOfWordPos (pos : int) (astInfo : astInfo) : int =
   else tokenInfo.startPos
 
 
-let goToStartOfWord (pos : int) (astInfo : astInfo) : astInfo =
+let goToStartOfWord (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction "goToStartOfWord"
   |> setPosition (getStartOfWordPos pos astInfo)
@@ -447,7 +450,7 @@ let goToStartOfWord (pos : int) (astInfo : astInfo) : astInfo =
 (* We want to find the closest editable token that is after the current cursor
  * position so the cursor always lands in a position where a user is able to
  * type *)
-let getEndOfWordPos (pos : int) (astInfo : astInfo) : int =
+let getEndOfWordPos (pos : int) (astInfo : ASTInfo.t) : int =
   let tokenInfo =
     astInfo.tokenInfos
     |> List.find ~f:(fun (t : T.tokenInfo) ->
@@ -459,49 +462,49 @@ let getEndOfWordPos (pos : int) (astInfo : astInfo) : int =
   else tokenInfo.endPos
 
 
-let goToEndOfWord (pos : int) (astInfo : astInfo) : astInfo =
+let goToEndOfWord (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction "goToEndOfWord"
   |> setPosition (getEndOfWordPos pos astInfo)
 
 
-let moveToEnd (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let moveToEnd (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction ~pos:ti.endPos "moveToEnd"
   |> setPosition ~resetUD:true (ti.endPos - 1)
 
 
-let moveToStart (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let moveToStart (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction ~pos:ti.startPos "moveToStart"
   |> setPosition ~resetUD:true ti.startPos
 
 
-let moveToAfter (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let moveToAfter (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction ~pos:ti.endPos "moveToAfter"
   |> setPosition ~resetUD:true ti.endPos
 
 
-let moveOneLeft (pos : int) (astInfo : astInfo) : astInfo =
+let moveOneLeft (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction ~pos "moveOneLeft"
   |> setPosition ~resetUD:true (max 0 (pos - 1))
 
 
-let moveOneRight (pos : int) (astInfo : astInfo) : astInfo =
+let moveOneRight (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction ~pos "moveOneRight"
   |> setPosition ~resetUD:true (pos + 1)
 
 
-let moveTo (newPos : int) (astInfo : astInfo) : astInfo =
+let moveTo (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo |> recordAction ~pos:newPos "moveTo" |> setPosition newPos
 
 
 (* Find first `target` expression (starting at the back), and return a state
  * with its location. If blank, will go to the start of the blank *)
-let moveToEndOfTarget (astInfo : astInfo) (target : ID.t) : astInfo =
+let moveToEndOfTarget (astInfo : ASTInfo.t) (target : ID.t) : ASTInfo.t =
   let astInfo = recordAction "moveToEndOfTarget" astInfo in
   match
     List.reverse astInfo.tokenInfos
@@ -518,21 +521,21 @@ let moveToEndOfTarget (astInfo : astInfo) (target : ID.t) : astInfo =
       moveTo newPos astInfo
 
 
-let rec getNextBlank (pos : int) (astInfo : astInfo) : T.tokenInfo option =
+let rec getNextBlank (pos : int) (astInfo : ASTInfo.t) : T.tokenInfo option =
   astInfo.tokenInfos
   |> List.find ~f:(fun ti -> T.isBlank ti.token && ti.startPos > pos)
   |> Option.orElseLazy (fun () ->
          if pos = 0 then None else getNextBlank 0 astInfo)
 
 
-let getNextBlankPos (pos : int) (astInfo : astInfo) : int =
+let getNextBlankPos (pos : int) (astInfo : ASTInfo.t) : int =
   astInfo
   |> getNextBlank pos
   |> Option.map ~f:(fun ti -> ti.startPos)
   |> Option.withDefault ~default:pos
 
 
-let moveToNextBlank (pos : int) (astInfo : astInfo) : astInfo =
+let moveToNextBlank (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let pos = getNextBlankPos pos astInfo in
   astInfo
   |> recordAction ~pos "moveToNextBlank"
@@ -542,7 +545,7 @@ let moveToNextBlank (pos : int) (astInfo : astInfo) : astInfo =
 (** [getNextEditable pos tokens] returns the first editable token after [pos] in
  * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in
  * [tokens], or None if no editable token exists. *)
-let rec getNextEditable (pos : int) (astInfo : astInfo) : T.tokenInfo option =
+let rec getNextEditable (pos : int) (astInfo : ASTInfo.t) : T.tokenInfo option =
   astInfo.tokenInfos
   |> List.find ~f:(fun ti ->
          let isEditable =
@@ -558,14 +561,14 @@ let rec getNextEditable (pos : int) (astInfo : astInfo) : T.tokenInfo option =
          if pos = 0 then None else getNextEditable (-1) astInfo)
 
 
-let getNextEditablePos (pos : int) (astInfo : astInfo) : int =
+let getNextEditablePos (pos : int) (astInfo : ASTInfo.t) : int =
   astInfo
   |> getNextEditable pos
   |> Option.map ~f:(fun ti -> ti.startPos)
   |> Option.withDefault ~default:pos
 
 
-let moveToNextEditable (pos : int) (astInfo : astInfo) : astInfo =
+let moveToNextEditable (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let pos = getNextEditablePos pos astInfo in
   astInfo
   |> recordAction ~pos "moveToNextEditable"
@@ -575,7 +578,7 @@ let moveToNextEditable (pos : int) (astInfo : astInfo) : astInfo =
 (** [getPrevEditable pos tokens] returns the closest editable token before [pos] in
 * [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in
 * [tokens], or None if no editable exists. *)
-let getPrevEditable (pos : int) (astInfo : astInfo) : T.tokenInfo option =
+let getPrevEditable (pos : int) (astInfo : ASTInfo.t) : T.tokenInfo option =
   let revTokens = List.reverse astInfo.tokenInfos in
   let rec findEditable (pos : int) : T.tokenInfo option =
     revTokens
@@ -598,7 +601,7 @@ let getPrevEditable (pos : int) (astInfo : astInfo) : T.tokenInfo option =
   findEditable pos
 
 
-let getPrevEditablePos (pos : int) (astInfo : astInfo) : int =
+let getPrevEditablePos (pos : int) (astInfo : ASTInfo.t) : int =
   astInfo
   |> getPrevEditable pos
   |> Option.map ~f:(fun ti ->
@@ -606,14 +609,14 @@ let getPrevEditablePos (pos : int) (astInfo : astInfo) : int =
   |> Option.withDefault ~default:pos
 
 
-let moveToPrevEditable (pos : int) (astInfo : astInfo) : astInfo =
+let moveToPrevEditable (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let pos = getPrevEditablePos pos astInfo in
   astInfo
   |> recordAction ~pos "moveToPrevEditable"
   |> setPosition ~resetUD:true pos
 
 
-let rec getPrevBlank (pos : int) (astInfo : astInfo) : T.tokenInfo option =
+let rec getPrevBlank (pos : int) (astInfo : ASTInfo.t) : T.tokenInfo option =
   astInfo.tokenInfos
   |> List.filter ~f:(fun ti -> T.isBlank ti.token && ti.endPos <= pos)
   |> List.last
@@ -626,21 +629,21 @@ let rec getPrevBlank (pos : int) (astInfo : astInfo) : T.tokenInfo option =
          if pos = lastPos then None else getPrevBlank lastPos astInfo)
 
 
-let getPrevBlankPos (pos : int) (astInfo : astInfo) : int =
+let getPrevBlankPos (pos : int) (astInfo : ASTInfo.t) : int =
   astInfo
   |> getPrevBlank pos
   |> Option.map ~f:(fun ti -> ti.startPos)
   |> Option.withDefault ~default:pos
 
 
-let moveToPrevBlank (pos : int) (astInfo : astInfo) : astInfo =
+let moveToPrevBlank (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let pos = getPrevBlankPos pos astInfo in
   astInfo
   |> recordAction ~pos "moveToPrevBlank"
   |> setPosition ~resetUD:true pos
 
 
-let doLeft ~(pos : int) (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let doLeft ~(pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction ~pos "doLeft" astInfo in
   if T.isAtom ti.token
   then moveToStart ti astInfo
@@ -660,7 +663,7 @@ let doRight
     ~(pos : int)
     ~(next : T.tokenInfo option)
     (ti : T.tokenInfo)
-    (astInfo : astInfo) : astInfo =
+    (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction ~pos "doRight" astInfo in
   if T.isAtom ti.token
   then
@@ -680,7 +683,7 @@ let doRight
         moveOneRight startingPos astInfo
 
 
-let doUp ~(pos : int) (astInfo : astInfo) : astInfo =
+let doUp ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction ~pos "doUp" astInfo in
   let {row; col} = gridFor ~pos astInfo.tokenInfos in
   let col =
@@ -695,7 +698,7 @@ let doUp ~(pos : int) (astInfo : astInfo) : astInfo =
     |> moveTo pos
 
 
-let doDown ~(pos : int) (astInfo : astInfo) : astInfo =
+let doDown ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction ~pos "doDown" astInfo in
   let {row; col} = gridFor ~pos astInfo.tokenInfos in
   let col =
@@ -718,7 +721,7 @@ let doDown ~(pos : int) (astInfo : astInfo) : astInfo =
 
    This is useful for determining the precise position to which the caret should
    jump after a transformation. *)
-let posFromCaretTarget (ct : caretTarget) (astInfo : astInfo) : int =
+let posFromCaretTarget (ct : caretTarget) (astInfo : ASTInfo.t) : int =
   (* Essentially we're using List.findMap to map a function that
    * matches across astref,token combinations (exhaustively matching astref but not token)
    * to determine the corresponding caretPos.
@@ -953,7 +956,7 @@ let posFromCaretTarget (ct : caretTarget) (astInfo : astInfo) : int =
 
 (** moveToCaretTarget returns a modified fluidState with newPos set to reflect
     the caretTarget. *)
-let moveToCaretTarget (ct : caretTarget) (astInfo : astInfo) =
+let moveToCaretTarget (ct : caretTarget) (astInfo : ASTInfo.t) =
   { astInfo with
     state = {astInfo.state with newPos = posFromCaretTarget ct astInfo} }
 
@@ -1117,7 +1120,8 @@ let caretTargetForNextNonWhitespaceToken ~pos (tokens : tokenInfos) :
 
     If given, offset is the offset of the caretTarget, in characters. Defaults
     to 0, or the beginning of the targeted expression. *)
-let moveToAstRef ?(offset = 0) (astRef : astRef) (astInfo : astInfo) : astInfo =
+let moveToAstRef ?(offset = 0) (astRef : astRef) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   moveToCaretTarget {astRef; offset} astInfo
 
 
@@ -1598,8 +1602,8 @@ let insertInPlaceholderExpr
 (* -------------------- *)
 (* Strings *)
 (* -------------------- *)
-let maybeCommitStringPartial (pos : int) (ti : T.tokenInfo) (astInfo : astInfo)
-    : astInfo =
+let maybeCommitStringPartial
+    (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   let id = T.tid ti.token in
   (* Handle moving from a partial back to an EString *)
   let valid_escape_chars_alist =
@@ -1700,8 +1704,8 @@ let maybeCommitStringPartial (pos : int) (ti : T.tokenInfo) (astInfo : astInfo)
   |> Option.withDefault ~default:astInfo
 
 
-let startEscapingString (pos : int) (ti : T.tokenInfo) (astInfo : astInfo) :
-    astInfo =
+let startEscapingString (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   (* I think this is correct but depends on how we 'render' strings - that
    * is, it is correct because we display '"', which bumps pos by 1. *)
   let offset = getStringIndex ti pos in
@@ -2302,20 +2306,20 @@ let isAutocompleting (ti : T.tokenInfo) (s : state) : bool =
   && s.newPos >= ti.startPos
 
 
-let acSetIndex (i : int) (astInfo : astInfo) : astInfo =
+let acSetIndex (i : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction "acSetIndex"
   |> modifyState ~f:(fun s ->
          {s with ac = {s.ac with index = Some i}; upDownCol = None})
 
 
-let acClear (astInfo : astInfo) : astInfo =
+let acClear (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction "acClear"
   |> modifyState ~f:(fun s -> {s with ac = {s.ac with index = None}})
 
 
-let acMaybeShow (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let acMaybeShow (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction "acShow"
   |> modifyState ~f:(fun s ->
@@ -2324,7 +2328,7 @@ let acMaybeShow (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
          else {s with ac = {s.ac with query = None}})
 
 
-let acMoveUp (astInfo : astInfo) : astInfo =
+let acMoveUp (astInfo : ASTInfo.t) : ASTInfo.t =
   let index =
     match astInfo.state.ac.index with
     | None ->
@@ -2335,7 +2339,7 @@ let acMoveUp (astInfo : astInfo) : astInfo =
   astInfo |> recordAction "acMoveUp" |> acSetIndex index
 
 
-let acMoveDown (astInfo : astInfo) : astInfo =
+let acMoveDown (astInfo : ASTInfo.t) : ASTInfo.t =
   let index =
     match astInfo.state.ac.index with
     | None ->
@@ -2347,7 +2351,7 @@ let acMoveDown (astInfo : astInfo) : astInfo =
 
 
 (* Check to see if we should open autocomplete at new position *)
-let updatePosAndAC (newPos : int) (astInfo : astInfo) : astInfo =
+let updatePosAndAC (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   (* Update newPos and reset upDownCol and reset AC *)
   let astInfo = setPosition ~resetUD:true newPos astInfo |> acClear in
   getToken' astInfo.tokenInfos astInfo.state
@@ -2366,8 +2370,8 @@ let updatePosAndAC (newPos : int) (astInfo : astInfo) : astInfo =
    - the state after the completion has been added to the ast
    - the ast after the completion has been added *)
 let acMoveBasedOnKey
-    (key : K.key) (currCaretTarget : caretTarget) (astInfo : astInfo) : astInfo
-    =
+    (key : K.key) (currCaretTarget : caretTarget) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   let caretTarget : caretTarget =
     match key with
     | K.Tab ->
@@ -2408,7 +2412,7 @@ let updateFromACItem
     (entry : fluidAutocompleteItem)
     (ti : T.tokenInfo)
     (key : K.key)
-    (astInfo : astInfo) : astInfo =
+    (astInfo : ASTInfo.t) : ASTInfo.t =
   let open FluidExpression in
   let id = T.tid ti.token in
   let newPatOrExpr, newTarget = acToPatternOrExpr entry in
@@ -2545,7 +2549,7 @@ let updateFromACItem
   |> acMoveBasedOnKey key target
 
 
-let acEnter (ti : T.tokenInfo) (key : K.key) (astInfo : astInfo) : astInfo =
+let acEnter (ti : T.tokenInfo) (key : K.key) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction "acEnter" astInfo in
   match AC.highlighted astInfo.state.ac with
   | None ->
@@ -2569,15 +2573,15 @@ let acEnter (ti : T.tokenInfo) (key : K.key) (astInfo : astInfo) : astInfo =
 
 
 let acClick
-    (entry : fluidAutocompleteItem) (ti : T.tokenInfo) (astInfo : astInfo) :
-    astInfo =
+    (entry : fluidAutocompleteItem) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   updateFromACItem entry ti K.Enter astInfo
 
 
 (* If `newPos` is outside `ti`, and `ti` matches the current autocomplete entry
  * perfectly, then select and commit that autocomplete entry *)
-let commitIfValid (newPos : int) (ti : T.tokenInfo) (astInfo : astInfo) :
-    astInfo =
+let commitIfValid (newPos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   let highlightedText =
     astInfo.state.ac |> AC.highlighted |> Option.map ~f:AC.asName
   in
@@ -2590,7 +2594,7 @@ let commitIfValid (newPos : int) (ti : T.tokenInfo) (astInfo : astInfo) :
   else astInfo
 
 
-let acMaybeCommit (newPos : int) (astInfo : astInfo) : astInfo =
+let acMaybeCommit (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   match astInfo.state.ac.query with
   | Some (_, ti) ->
       commitIfValid newPos ti astInfo
@@ -2600,7 +2604,7 @@ let acMaybeCommit (newPos : int) (astInfo : astInfo) : astInfo =
 
 (* Convert the expr ti into a FieldAccess, using the currently
  * selected Autocomplete value *)
-let acStartField (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let acStartField (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction "acStartField" astInfo in
   match (AC.highlighted astInfo.state.ac, ti.token) with
   | Some (FACField _ as entry), TFieldName (faID, _, _)
@@ -2641,7 +2645,7 @@ let adjustPosForReflow
     (oldTI : T.tokenInfo)
     (oldPos : int)
     (adjustment : newPosition)
-    (astInfo : astInfo) : int =
+    (astInfo : ASTInfo.t) : int =
   (* Reflow refers to adjusting layout for to prevent overly long lines. Any
    * character change can cause that line to be too long (and so it will
    * reflow) or no longer too long (and so it will un-reflow).
@@ -3253,7 +3257,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
   |> Option.withDefault ~default:(ast, SamePlace)
 
 
-let doBackspace ~(pos : int) (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let doBackspace ~(pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   let astInfo = recordAction ~pos "doBackspace" astInfo in
   let newAST, newPosition =
     match caretTargetFromTokenInfo pos ti with
@@ -3267,7 +3272,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
   astInfo |> updatePosAndAC newPos
 
 
-let doDelete ~(pos : int) (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let doDelete ~(pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   (* Delete is approximately the same as backspace 1 place ahead,
    * as long as we process the token after the caret.
    * The only real difference is with multi-syllable extended grapheme clusters
@@ -3819,8 +3824,8 @@ let doExplicitInsert
 
 
 let doInsert
-    ~(pos : int) (letter : string) (ti : T.tokenInfo) (astInfo : astInfo) :
-    astInfo =
+    ~(pos : int) (letter : string) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   let astInfo =
     astInfo
     |> recordAction ~pos "doInsert"
@@ -3851,7 +3856,8 @@ let doInsert
  * defer to the behavior of doInsert.
  *)
 let doInfixInsert
-    ~pos (infixTxt : string) (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+    ~pos (infixTxt : string) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   let astInfo =
     astInfo
     |> recordAction ~pos "doInfixInsert"
@@ -3949,7 +3955,7 @@ let doInfixInsert
        ~default:astInfo
 
 
-let wrapInLet (ti : T.tokenInfo) (astInfo : astInfo) : astInfo =
+let wrapInLet (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction "wrapInLet" astInfo in
   let id = T.tid ti.token in
   match FluidAST.find id astInfo.ast with
@@ -4068,7 +4074,7 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
 
 
 let rec updateKey
-    ?(recursing = false) (inputEvent : fluidInputEvent) (astInfo : astInfo) =
+    ?(recursing = false) (inputEvent : fluidInputEvent) (astInfo : ASTInfo.t) =
   let s = astInfo.state in
   let pos = s.newPos in
   (* These might be the same token *)
@@ -4779,7 +4785,8 @@ let rec updateKey
  * XXX(JULIAN): This actually moves the caret to the larger side of the range
  * and backspaces until the beginning, which means this hijacks the caret in
   * the state. *)
-and deleteCaretRange (caretRange : int * int) (origInfo : astInfo) : astInfo =
+and deleteCaretRange (caretRange : int * int) (origInfo : ASTInfo.t) : ASTInfo.t
+    =
   let rangeStart, rangeEnd = orderRangeFromSmallToBig caretRange in
   let origInfo =
     modifyState origInfo ~f:(fun s ->
@@ -4801,16 +4808,16 @@ and deleteCaretRange (caretRange : int * int) (origInfo : astInfo) : astInfo =
 
 (* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
    forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
-and deleteSelection (astInfo : astInfo) : astInfo =
+and deleteSelection (astInfo : ASTInfo.t) : ASTInfo.t =
   deleteCaretRange (getSelectionRange astInfo.state) astInfo
 
 
-and replaceText (str : string) (astInfo : astInfo) : astInfo =
+and replaceText (str : string) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo |> deleteSelection |> updateKey (InsertText str)
 
 
-let updateAutocomplete (m : model) (tlid : TLID.t) (astInfo : astInfo) : astInfo
-    =
+let updateAutocomplete (m : model) (tlid : TLID.t) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   match getToken' astInfo.tokenInfos astInfo.state with
   | Some ti when T.isAutocompletable ti.token ->
       let m = TL.withAST m tlid astInfo.ast in
@@ -4821,7 +4828,7 @@ let updateAutocomplete (m : model) (tlid : TLID.t) (astInfo : astInfo) : astInfo
       astInfo
 
 
-let updateMouseClick (newPos : int) (astInfo : astInfo) : astInfo =
+let updateMouseClick (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let lastPos =
     astInfo.tokenInfos
     |> List.last
@@ -5357,8 +5364,8 @@ let reconstructExprFromRange
   reconstruct ~topmostID (startPos, endPos)
 
 
-let pasteOverSelection (data : clipboardContents) (astInfo : astInfo) : astInfo
-    =
+let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   let astInfo = deleteSelection astInfo in
   let ast = astInfo.ast in
   let mTi = getToken' astInfo.tokenInfos astInfo.state in
@@ -5501,24 +5508,28 @@ let astAndStateFromTLID (m : model) (tlid : TLID.t) :
          (ast, state))
 
 
-let astInfoFor (m : model) (tlid : TLID.t) (ast : FluidAST.t) (s : fluidState) =
-  let props = {functions = m.functions; variants = m.tests} in
+let defaultTokenInfo : T.tokenInfo =
+  { token = TSep T.fakeid
+  ; startRow = 0
+  ; startCol = 0
+  ; startPos = 0
+  ; endPos = 0
+  ; length = 0 }
+
+
+let astInfoFor (props : props) (ast : FluidAST.t) (s : fluidState) : ASTInfo.t =
   let tokenInfos = tokensForActiveEditor ast s in
   let ti =
-    getToken' tokenInfos s
-    |> Option.withDefault
-         ~default:
-           { token = TSep T.fakeid
-           ; startRow = 0
-           ; startCol = 0
-           ; startPos = 0
-           ; endPos = 0
-           ; length = 0 }
+    getToken' tokenInfos s |> Option.withDefault ~default:defaultTokenInfo
   in
-  {ast; state = s; tokenInfos; props; tlid; ti}
+  {ast; state = s; tokenInfos; props; ti}
 
 
-let getAstInfo (m : model) (tlid : TLID.t) : astInfo option =
+let propsFromModel (m : model) : props =
+  {functions = m.functions; variants = m.tests}
+
+
+let getAstInfo (m : model) (tlid : TLID.t) : ASTInfo.t option =
   (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
    * make `fromExpr` accept only the info it needs, and differentiate between
    * handler-specific and global fluid state. *)
@@ -5536,11 +5547,11 @@ let getAstInfo (m : model) (tlid : TLID.t) : astInfo option =
              let newM = removeHandlerTransientState m in
              newM.fluidState
          in
-         astInfoFor m tlid ast state)
+         astInfoFor (propsFromModel m) ast state)
 
 
 let updateMouseDoubleClick
-    (eventData : fluidMouseDoubleClick) (astInfo : astInfo) : astInfo =
+    (eventData : fluidMouseDoubleClick) (astInfo : ASTInfo.t) : ASTInfo.t =
   let ast = astInfo.ast in
   let astInfo =
     astInfo
@@ -5581,7 +5592,7 @@ let updateMouseDoubleClick
 
 
 (* Handle either a click or the end of a selection drag *)
-let updateMouseUp (eventData : fluidMouseUp) (astInfo : astInfo) : astInfo =
+let updateMouseUp (eventData : fluidMouseUp) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo =
     astInfo
     |> modifyState ~f:(fun s ->
@@ -5599,7 +5610,7 @@ let updateMouseUp (eventData : fluidMouseUp) (astInfo : astInfo) : astInfo =
 
 
 (* We completed a click outside: figure out how to complete it *)
-let updateMouseUpExternal (astInfo : astInfo) : astInfo =
+let updateMouseUpExternal (tlid : TLID.t) (astInfo : ASTInfo.t) : ASTInfo.t =
   match Entry.getFluidSelectionRange () with
   | Some (startPos, endPos) ->
       let selection =
@@ -5608,7 +5619,7 @@ let updateMouseUpExternal (astInfo : astInfo) : astInfo =
         else SelectText (startPos, endPos)
       in
       let eventData : fluidMouseUp =
-        {tlid = astInfo.tlid; editor = astInfo.state.activeEditor; selection}
+        {tlid; editor = astInfo.state.activeEditor; selection}
       in
       updateMouseUp eventData astInfo
   | None ->
@@ -5621,14 +5632,15 @@ let updateMsg
     (ast : FluidAST.t)
     (s : fluidState)
     (msg : Types.fluidMsg) : FluidAST.t * fluidState * tokenInfos =
-  let astInfo = astInfoFor m tlid ast s in
+  let props = propsFromModel m in
+  let astInfo = astInfoFor props ast s in
   let astInfo =
     match msg with
     | FluidCloseCmdPalette | FluidUpdateAutocomplete ->
         (* updateAutocomplete has already been run, so nothing more to do *)
         astInfo
     | FluidMouseUpExternal ->
-        updateMouseUpExternal astInfo
+        updateMouseUpExternal tlid astInfo
     | FluidMouseUp eventData ->
         updateMouseUp eventData astInfo
     | FluidMouseDoubleClick eventData ->
