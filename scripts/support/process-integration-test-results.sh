@@ -22,9 +22,10 @@ set -euo pipefail
 # 4. Get env vars (set by circle) that we care about and add them to the json
 #    Documentation of these vars in circle can be found at
 #    https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
-#    Note that we sanitize _very_ aggressively ([A-Za-z0-9-_ ]) to avoid having
-#    to bother with string-escaping
-# 5. honeytail requires single-line json objects, multiline json will break it,
+#    Note that we sanitize _very_ aggressively to avoid having to bother
+#    with string-escaping
+# 5. honeytail requires single-line json objects,
+#    multiline json will break it,
 # pending https://github.com/honeycombio/honeytail/pull/133
 jq '.fixtures[0].tests[]' \
     | jq '. + {error: (.errs|length != 0)}' \
@@ -38,7 +39,7 @@ jq '.fixtures[0].tests[]' \
                    -e CIRCLE_PULL_REQUEST \
                    -e CIRCLE_SHA1 \
                    -e CIRCLE_USERNAME \
-            | sed -e 's/[^A-Za-z0-9_ =-]//g' \
+            | sed -e 's/[^A-Za-z0-9_ =:/-]//g' \
             | sed -e 's/\(.*\)=\(.*\)/{"\1": "\2"}/' \
             | jq -s add) \
         '. + $env_vars' \
