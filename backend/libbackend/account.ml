@@ -413,13 +413,6 @@ let init_testing () : unit =
 
 let upsert_admins () : unit =
   upsert_admin_exn
-    { username = "ian"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkOXd2R3BSYW54Y3llYmdRdU1EMHdUdyRNN1ljWVFQdDk0S29nM1EyM1Q2cHFRZDRlMk9VM3lDTmpreUZ2NGIva1o4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "ian@darklang.com"
-    ; name = "Ian Connolly" } ;
-  upsert_admin_exn
     { username = "paul"
     ; password =
         Password.from_hash
