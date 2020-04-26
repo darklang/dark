@@ -302,6 +302,12 @@ RUN cargo install cargo-cache --no-default-features --features ci-autoclean
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
 
+# Install honeytail so we can use it in circle for logging integration test
+# results
+RUN wget -q -O honeytail https://honeycomb.io/download/honeytail/linux/1.762 && \
+      echo '00e24441316c7ae24665b1aaea4cbb77e2ee52c83397bf67d70f3ffe14a1e341 honeytail' | sha256sum -c && \
+      chmod 755 honeytail
+
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
@@ -311,10 +317,6 @@ RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
   && chmod +x /usr/bin/cloud_sql_proxy
 
 RUN apt update && apt install -y dnsutils && apt clean && rm -rf /var/lib/apt/lists/*
-
-RUN wget -q https://honeycomb.io/download/honeytail/linux/honeytail_1.762_amd64.deb && \
-      echo 'd7bed8a005cbc6a34b232c54f0f84b945f0bb90905c67f85cceaedee9bbbad1e  honeytail_1.762_amd64.deb' | sha256sum -c && \
-      sudo dpkg -i honeytail_1.762_amd64.deb
 
 user dark
 
