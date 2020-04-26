@@ -19,7 +19,7 @@ cat $test_results \
     > rundir/test_results/integration_tests_for_honeycomb.json
 
 
-/usr/bin/honeytail --parser=json \
+./honeytail --parser=json \
           --writekey="${HONEYCOMB_API_KEY}" \
           --dataset="integration-tests" \
           --add_field="timestamp=${timestamp}" \
