@@ -331,7 +331,6 @@ jobs:
             PATTERN=${PATTERN%?}
             scripts/wait-until-server-ready
             integration-tests/run.sh --pattern="$PATTERN"
-            scripts/integration-test-results-to-honeycomb.sh
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
