@@ -25,12 +25,9 @@ timestamp="$(cat $test_results | jq -r '.endTime')"
 
 cat $test_results \
     | scripts/support/process-integration-test-results.sh \
-    > rundir/test_results/integration_tests_for_honeycomb.json
-
-
-./honeytail --parser=json \
-          --writekey="${HONEYCOMB_API_KEY}" \
-          --dataset="integration-tests" \
-          --add_field="timestamp=${timestamp}" \
-          --backfill \
-          --file=rundir/test_results/integration_tests_for_honeycomb.json
+    | ./honeytail --parser=json \
+                  --writekey="${HONEYCOMB_API_KEY}" \
+                  --dataset="integration-tests" \
+                  --add_field="timestamp=${timestamp}" \
+                  --backfill \
+                  --file=-
