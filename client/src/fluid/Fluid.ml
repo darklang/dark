@@ -39,7 +39,7 @@ type props =
   ; variants : variantTest list }
 
 let deselectFluidEditor (s : fluidState) : fluidState =
-  {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = MainEditor}
+  {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = NoEditor}
 
 
 let getStringIndexMaybe ti pos : int option =
@@ -113,12 +113,14 @@ let rec getTokensAtPosition ?(prev = None) ~(pos : int) (tokens : tokenInfos) :
 let exprOfFocusedEditor (ast : FluidAST.t) (s : fluidState) : FluidExpression.t
     =
   match s.activeEditor with
-  | MainEditor ->
+  | NoEditor ->
+      recover "exprOfFocusedEditor - none exists" (FluidAST.toExpr ast)
+  | MainEditor _ ->
       FluidAST.toExpr ast
-  | FeatureFlagEditor id ->
+  | FeatureFlagEditor (_, id) ->
       FluidAST.find id ast
       |> recoverOpt
-           "cannot find expression for editor"
+           "exprOfFocusedEditor - cannot find expression for editor"
            ~default:(FluidAST.toExpr ast)
 
 
@@ -5514,9 +5516,10 @@ let getCopySelection (m : model) : clipboardContents =
   |> Option.withDefault ~default:("", None)
 
 
-let buildFeatureFlagEditors (ast : FluidAST.t) : fluidEditor list =
+let buildFeatureFlagEditors (tlid : TLID.t) (ast : FluidAST.t) :
+    fluidEditor list =
   FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
-  |> List.map ~f:(fun e -> FeatureFlagEditor (E.toID e))
+  |> List.map ~f:(fun e -> FeatureFlagEditor (tlid, E.toID e))
 
 
 let updateMouseDoubleClick
@@ -5862,7 +5865,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                  * may be editing the feature flag section in which case we'd
                  * be putting the wrong information into the cache. As a simple
                  * solution for now, only update if we're in the main editor. *)
-                if s.activeEditor = MainEditor
+                if s.activeEditor = MainEditor tlid
                 then UpdateASTCache (tlid, Printer.tokensToString newTokens)
                 else NoChange
               in

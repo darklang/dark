@@ -225,7 +225,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
     ; ast = vs.ast
     ; functions = vs.functions
     ; executingFunctions = vs.executingFunctions
-    ; editor = MainEditor
+    ; editor = MainEditor vs.tlid
     ; hoveringRefs = vs.hoveringRefs
     ; fluidState = vs.fluidState
     ; permission = vs.permission
@@ -260,14 +260,18 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
              List.find vs.tokens ~f:(fun ti -> oldCodeID = T.tid ti.token))
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
-    Fluid.buildFeatureFlagEditors vs.ast
+    Fluid.buildFeatureFlagEditors vs.tlid vs.ast
     |> List.map ~f:(fun e ->
            match e with
-           | MainEditor ->
+           | NoEditor ->
+               recover
+                 "got NoEditor when building feature flag editors"
+                 (Html.div [] [])
+           | MainEditor _ ->
                recover
                  "got MainEditor when building feature flag editors"
                  (Html.div [] [])
-           | FeatureFlagEditor expressionId ->
+           | FeatureFlagEditor (_, expressionId) ->
                let flagIcon =
                  Html.div
                    [Html.class' "ff-icon"; Html.title "feature flag"]
