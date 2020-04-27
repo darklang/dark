@@ -684,13 +684,13 @@ let doLeft ~(pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   else moveOneLeft (min pos ti.endPos) astInfo
 
 
-let selectAll ~(pos : int) (ast : FluidAST.t) (s : state) : state =
+let selectAll ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let lastPos =
-    tokensForActiveEditor ast s
-    |> List.last
-    |> function Some l -> l.endPos | None -> 0
+    astInfo.tokenInfos |> List.last |> function Some l -> l.endPos | None -> 0
   in
-  {s with newPos = lastPos; oldPos = pos; selectionStart = Some 0}
+  astInfo
+  |> modifyState ~f:(fun s ->
+         {s with newPos = lastPos; oldPos = pos; selectionStart = Some 0})
 
 
 let doRight
@@ -4269,12 +4269,12 @@ let rec updateKey
         doUp ~pos astInfo
     | Keypress {key = K.Down; _}, _, _ ->
         doDown ~pos astInfo
-    (* (*************) *)
-    (* (* SELECTION *) *)
-    (* (*************) *)
-    (* | Keypress {key = K.SelectAll; _}, _, R (_, _) *)
-    (* | Keypress {key = K.SelectAll; _}, L (_, _), _ -> *)
-    (*     (ast, selectAll ~pos ast s) *)
+    (*************)
+    (* SELECTION *)
+    (*************)
+    | Keypress {key = K.SelectAll; _}, _, R (_, _)
+    | Keypress {key = K.SelectAll; _}, L (_, _), _ ->
+        selectAll ~pos astInfo
     (*************)
     (* OVERWRITE *)
     (*************)
