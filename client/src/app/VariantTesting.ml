@@ -22,6 +22,8 @@ let toVariantTest (s : string) : variantTest option =
       Some LeftPartialVariant
   | "fnreturn" ->
       Some FnReturnVariant
+  | "show-package-manager" ->
+      Some ShowPackageManageVariant
   | _ ->
       None
 
@@ -41,6 +43,8 @@ let toCSSClass (vt : variantTest) : string =
         "lpartial"
     | FnReturnVariant ->
         "fnreturn"
+    | ShowPackageManageVariant ->
+        "showPackageManager"
   in
   test ^ "-variant"
 
