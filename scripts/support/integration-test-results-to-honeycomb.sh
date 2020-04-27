@@ -8,8 +8,6 @@
 
 set -euo pipefail
 
-# We didn't keep the honeycomb buildevent orb, but the api key is still in place
-# for it
 export HONEYCOMB_API_KEY=$BUILDEVENT_APIKEY
 
 test_results=rundir/test_results/integration_tests.json
