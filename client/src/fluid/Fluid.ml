@@ -1498,15 +1498,14 @@ let replacePattern
     with `matchId` at `idx`.
 
     Returns a new ast and fluidState with the action recorded. *)
-let addMatchPatternAt
-    (matchId : ID.t) (idx : int) (ast : FluidAST.t) (s : fluidState) :
-    FluidAST.t * fluidState =
-  (* let action = *)
-  (*   Printf.sprintf "addMatchPatternAt(id=%s idx=%d)" (ID.toString matchId) idx *)
-  (* in *)
-  (* let s = recordAction action s in *)
+let addMatchPatternAt (matchId : ID.t) (idx : int) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
+  let action =
+    Printf.sprintf "addMatchPatternAt(id=%s idx=%d)" (ID.toString matchId) idx
+  in
+  let astInfo = recordAction action astInfo in
   let ast =
-    FluidAST.update matchId ast ~f:(function
+    FluidAST.update matchId astInfo.ast ~f:(function
         | EMatch (_, cond, rows) ->
             let newVal = (P.FPBlank (matchId, gid ()), E.newB ()) in
             let newRows = List.insertAt rows ~index:idx ~value:newVal in
@@ -1514,7 +1513,7 @@ let addMatchPatternAt
         | e ->
             recover "expected to find EMatch to update" ~debug:e e)
   in
-  (ast, s)
+  astInfo |> setAST ast
 
 
 (* ---------------- *)
@@ -2162,24 +2161,23 @@ let createPipe ~(findParent : bool) (id : ID.t) (astInfo : ASTInfo.t) :
 
     Returns a new ast, fluidState with the action recorded, and the id of the
     newly inserted EBlank, which may be useful for doing caret placement. *)
-let addPipeExprAt
-    (pipeId : ID.t) (idx : int) (ast : FluidAST.t) (s : fluidState) :
-    FluidAST.t * fluidState * ID.t =
+let addPipeExprAt (pipeId : ID.t) (idx : int) (astInfo : ASTInfo.t) :
+    ASTInfo.t * ID.t =
   let open FluidExpression in
-  (* let action = *)
-  (*   Printf.sprintf "addPipeExprAt(id=%s idx=%d)" (ID.toString pipeId) idx *)
-  (* in *)
-  (* let s = recordAction action s in *)
+  let action =
+    Printf.sprintf "addPipeExprAt(id=%s idx=%d)" (ID.toString pipeId) idx
+  in
+  let astInfo = recordAction action astInfo in
   let bid = gid () in
   let ast =
-    FluidAST.update pipeId ast ~f:(function
+    FluidAST.update pipeId astInfo.ast ~f:(function
         | EPipe (_, exprs) ->
             let exprs = List.insertAt exprs ~index:idx ~value:(EBlank bid) in
             EPipe (pipeId, exprs)
         | e ->
             recover "expected to find EPipe to update" ~debug:e e)
   in
-  (ast, s, bid)
+  (setAST ast astInfo, bid)
 
 
 (* ---------------- *)
@@ -4467,29 +4465,26 @@ let rec updateKey
     | InsertText infixTxt, L (_, ti), _
       when keyIsInfix ->
         doInfixInsert ~pos infixTxt ti astInfo
-    (* (* Typing between empty list symbols [] *) *)
-    (* | InsertText txt, L (TListOpen id, _), R (TListClose _, _) -> *)
-    (*     let newExpr, target = insertInBlankExpr txt in *)
-    (*     let newAST = insertInList ~index:0 id ~newExpr ast in *)
-    (*     let tokens = tokensForActiveEditor newAST s in *)
-    (*     (newAST, moveToCaretTarget tokens s target) *)
-    (* (* Typing between empty record symbols {} *) *)
-    (* | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) -> *)
-    (* Adds new initial record row with the typed
-     * value as the fieldname (if value entered is valid),
-     * then move caret to end of fieldname *)
-    (*     if Util.isIdentifierChar txt *)
-    (*     then *)
-    (*       let ast = addRecordRowAt ~letter:txt 0 id ast in *)
-    (*       let tokens = tokensForActiveEditor ast s in *)
-    (*       let s = *)
-    (*         moveToAstRef tokens s (ARRecord (id, RPFieldname 0)) ~offset:1 *)
-    (*       in *)
-    (*       (ast, s) *)
-    (*     else (ast, s) *)
-    (* (***********************************) *)
-    (* (* INSERT INTO EXISTING CONSTRUCTS *) *)
-    (* (***********************************) *)
+    (* Typing between empty list symbols [] *)
+    | InsertText txt, L (TListOpen id, _), R (TListClose _, _) ->
+        let newExpr, target = insertInBlankExpr txt in
+        astInfo
+        |> setAST (insertInList ~index:0 id ~newExpr ast)
+        |> moveToCaretTarget target
+    (* Typing between empty record symbols {} *)
+    | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+        (* Adds new initial record row with the typed
+         * value as the fieldname (if value entered is valid),
+         * then move caret to end of fieldname *)
+        if Util.isIdentifierChar txt
+        then
+          astInfo
+          |> setAST (addRecordRowAt ~letter:txt 0 id ast)
+          |> moveToAstRef (ARRecord (id, RPFieldname 0)) ~offset:1
+        else astInfo
+    (***********************************)
+    (* INSERT INTO EXISTING CONSTRUCTS *)
+    (***********************************)
     | InsertText ins, L (TPlaceholder {placeholder; blankID; fnID}, _), _
     | InsertText ins, _, R (TPlaceholder {placeholder; blankID; fnID}, _) ->
         (* We need this special case because by the time we get to the general
@@ -4529,47 +4524,39 @@ let rec updateKey
      * Caret between pipe symbol |> and following expression.
      * Move current pipe expr down by adding new expr above it.
      * Keep caret "the same", only moved down by 1 column. *)
-    (* | Keypress {key = K.Enter; _}, L (TPipe (id, idx, _), _), R _ -> *)
-    (*     let ast, s, _ = addPipeExprAt id (idx + 1) ast s in *)
-    (*     let tokens = tokensForActiveEditor ast s in *)
-    (*     let s = moveToAstRef tokens s (ARPipe (id, idx + 1)) ~offset:2 in *)
-    (*     (ast, s) *)
+    | Keypress {key = K.Enter; _}, L (TPipe (id, idx, _), _), R _ ->
+        let astInfo, _ = addPipeExprAt id (idx + 1) astInfo in
+        astInfo |> moveToAstRef (ARPipe (id, idx + 1)) ~offset:2
     (*
      * Caret on end-of-line.
      * Following newline contains a parent and index, meaning we're inside some
      * special construct. Special-case each of those. *)
-    (* | ( Keypress {key = K.Enter; _} *)
-    (*   , _ *)
-    (*   , R (TNewline (Some (_, parentId, Some idx)), ti) ) -> *)
-    (*   ( match FluidAST.find parentId ast with *)
-    (*   | Some (EPipe _) -> *)
-    (*       let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in *)
-    (*       let tokens = tokensForActiveEditor ast s in *)
-    (*       let s = *)
-    (*         moveToCaretTarget tokens s (caretTargetForStartOfExpr blankId ast) *)
-    (*       in *)
-    (*       (ast, s) *)
-    (*   | Some (ERecord _) -> *)
-    (*       let ast = addRecordRowAt idx parentId ast in *)
-    (*       let tokens = tokensForActiveEditor ast s in *)
-    (*       let s = *)
-    (*         moveToAstRef tokens s (ARRecord (parentId, RPFieldname idx)) *)
-    (*       in *)
-    (*       (ast, s) *)
-    (*   | Some (EMatch _) -> *)
-    (*       let ast, s = addMatchPatternAt parentId idx ast s in *)
-    (*       let target = caretTargetForBeginningOfMatchBranch parentId idx ast in *)
-    (*       let tokens = tokensForActiveEditor ast s in *)
-    (*       let s = moveToCaretTarget tokens s target in *)
-    (*       (ast, s) *)
-    (*   | Some (EFnCall _) -> *)
-    (* Pressing enter at the end of an FnCall's expression should just
-     * move right. We don't know what's next, so we just want to
-     * literally go to whatever's on the other side of the newline.
-     * *)
-    (*       (ast, doRight ~pos ~next:mNext ti s) *)
-    (*   | _ -> *)
-    (*       (ast, s) ) *)
+    | ( Keypress {key = K.Enter; _}
+      , _
+      , R (TNewline (Some (_, parentId, Some idx)), ti) ) ->
+      ( match FluidAST.find parentId ast with
+      | Some (EPipe _) ->
+          let astInfo, blankId = addPipeExprAt parentId (idx + 1) astInfo in
+          moveToCaretTarget
+            (caretTargetForStartOfExpr blankId astInfo.ast)
+            astInfo
+      | Some (ERecord _) ->
+          astInfo
+          |> setAST (addRecordRowAt idx parentId ast)
+          |> moveToAstRef (ARRecord (parentId, RPFieldname idx))
+      | Some (EMatch _) ->
+          let astInfo = addMatchPatternAt parentId idx astInfo in
+          astInfo
+          |> moveToCaretTarget
+               (caretTargetForBeginningOfMatchBranch parentId idx astInfo.ast)
+      | Some (EFnCall _) ->
+          (* Pressing enter at the end of an FnCall's expression should just
+           * move right. We don't know what's next, so we just want to
+           * literally go to whatever's on the other side of the newline.
+           * *)
+          doRight ~pos ~next:mNext ti astInfo
+      | _ ->
+          astInfo )
     (*
      * Caret at end of line with nothing in newline. *)
     (* | Keypress {key = K.Enter; _}, L (lt, lti), R (TNewline None, rti) *)
