@@ -262,6 +262,19 @@ RUN \
   && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
   && rm -Rf tmp_install_folder
 
+####################################
+# Honeytail and honeymarker installs
+####################################
+RUN wget -q https://honeycomb.io/download/honeytail/linux/honeytail_1.762_amd64.deb && \
+      echo 'd7bed8a005cbc6a34b232c54f0f84b945f0bb90905c67f85cceaedee9bbbad1e  honeytail_1.762_amd64.deb' | sha256sum -c && \
+      sudo dpkg -i honeytail_1.762_amd64.deb && \
+      rm honeytail_1.762_amd64.deb
+
+RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd64.deb && \
+      echo '5aa10dd42f4f369c9463a8c8a361e46058339e6273055600ddad50e1bcdf2149  honeymarker_1.9_amd64.deb' | sha256sum -c && \
+      sudo dpkg -i honeymarker_1.9_amd64.deb && \
+      rm honeymarker_1.9_amd64.deb
+
 ############################
 # Environment
 ############################
