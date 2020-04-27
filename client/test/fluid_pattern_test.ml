@@ -87,11 +87,7 @@ let run () =
               astInfo.state
               (FluidInputEvent input)
           in
-          { ast
-          ; state
-          ; tokenInfos
-          ; props = Fluid_test_data.defaultTestProps
-          ; ti = Fluid.defaultTokenInfo })
+          {ast; state; tokenInfos; props = Fluid_test_data.defaultTestProps})
     in
     let resultPat =
       match FluidAST.toExpr result.ast with
