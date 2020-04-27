@@ -400,3 +400,5 @@ To add a new font:
 8. In `_dark-icons.scss`, update the variable `$dark-icons-version` to the new version.
 9. In `Dark-Icons.css` you should see something like `.icon-new-logo:before{content:'\00A1';}`, '\00A1' is the ASCII notation for you glyph. In `_dark-icons.scss`, find the variable `$dark-icons`, use the ASCII notation to update the map. ie: `"new-logo":"\00A1"`.
 10. Now you can use your awesome new icons! Like this `<i class="di di-new-logo" />`.
+
+If you need to design your own icon, remember to look at the [icon requirements](https://www.notion.so/darklang/Font-Icon-Requirements-9ea9b3f06bd94f6a842cd2ea473bc334) first.
