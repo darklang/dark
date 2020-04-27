@@ -8,15 +8,16 @@ module PReq = Parsed_request
 (* -------------------- *)
 (* Input_vars *)
 (* -------------------- *)
-let input_vars_for_user_fn (ufn : 'expr_type user_fn) : dval_map =
-  let param_to_dval (p : param) : dval = DIncomplete SourceNone in
+let input_vars_for_user_fn (ufn : 'expr_type user_fn) : 'expr_type dval_map =
+  let param_to_dval (p : param) : 'expr_type dval = DIncomplete SourceNone in
   ufn.metadata.parameters
   |> List.filter_map ~f:ufn_param_to_param
   |> List.map ~f:(fun f -> (f.name, param_to_dval f))
   |> Analysis_types.Symtable.from_list_exn
 
 
-let dbs_as_input_vars (dbs : 'expr_type DbT.db list) : (string * dval) list =
+let dbs_as_input_vars (dbs : 'expr_type DbT.db list) :
+    (string * 'expr_type dval) list =
   List.filter_map dbs ~f:(fun db ->
       match db.name with
       | Filled (_, name) ->
@@ -26,7 +27,8 @@ let dbs_as_input_vars (dbs : 'expr_type DbT.db list) : (string * dval) list =
 
 
 let http_route_input_vars
-    (h : 'expr_type HandlerT.handler) (request_path : string) : input_vars =
+    (h : fluid_expr HandlerT.handler) (request_path : string) :
+    fluid_expr input_vars =
   let route = Handler.event_name_for_exn h in
   Http.bind_route_variables_exn ~route request_path
 
@@ -42,7 +44,7 @@ let sample_unknown_handler_input_vars =
   sample_request_input_vars @ sample_event_input_vars
 
 
-let sample_module_input_vars h : input_vars =
+let sample_module_input_vars h : 'expr_type input_vars =
   match Handler.module_type h with
   | `Http ->
       sample_request_input_vars
@@ -56,7 +58,8 @@ let sample_module_input_vars h : input_vars =
       sample_unknown_handler_input_vars
 
 
-let sample_route_input_vars (h : 'expr_type HandlerT.handler) : input_vars =
+let sample_route_input_vars (h : 'expr_type HandlerT.handler) :
+    'expr_type input_vars =
   match Handler.event_name_for h with
   | Some n ->
       n
@@ -100,12 +103,13 @@ let execute_handler
     ?(load_fn_arguments = load_no_arguments)
     ?(store_fn_result = store_no_results)
     ?(store_fn_arguments = store_no_arguments)
-    (h : RuntimeT.expr HandlerT.handler) : dval * tlid list =
+    (h : RuntimeT.expr HandlerT.handler) : RuntimeT.expr dval * tlid list =
   let input_vars = dbs_as_input_vars dbs @ input_vars in
   let tlid_store = TLIDTable.create () in
   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  let state : exec_state =
+  let state : 'expr_type exec_state =
     { tlid
+    ; callstack = Tc.StrSet.empty
     ; account_id
     ; canvas_id
     ; user_fns
@@ -157,8 +161,9 @@ let execute_function
     fnname =
   let tlid_store = TLIDTable.create () in
   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  let state : exec_state =
+  let state : 'expr_type exec_state =
     { tlid
+    ; callstack = Tc.StrSet.empty
     ; account_id
     ; canvas_id
     ; user_fns
@@ -205,7 +210,7 @@ let analyse_ast
     ~canvas_id
     ?(load_fn_result = load_no_results)
     ?(load_fn_arguments = load_no_arguments)
-    (ast : expr) : analysis =
+    (ast : expr) : 'expr_type analysis =
   let value_store = IDTable.create () in
   let trace ~on_execution_path id dval =
     Hashtbl.set
@@ -217,8 +222,9 @@ let analyse_ast
         else NonExecutedResult dval )
   in
   let input_vars = dbs_as_input_vars dbs @ input_vars in
-  let state : exec_state =
+  let state : 'expr_type exec_state =
     { tlid
+    ; callstack = Tc.StrSet.empty
     ; account_id
     ; canvas_id
     ; user_fns

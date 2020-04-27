@@ -8,36 +8,56 @@ val cols_for : 'expr_type DbT.db -> (string * tipe) list
 
 (* DB runtime functions *)
 val set :
-     state:exec_state
+     state:'expr_type exec_state
   -> upsert:bool
   -> 'expr_type DbT.db
   -> string
-  -> dval_map
+  -> 'expr_type dval_map
   -> Uuidm.t
 
-val get_option : state:exec_state -> 'expr_type DbT.db -> string -> dval option
+val get_option :
+     state:'expr_type exec_state
+  -> 'expr_type DbT.db
+  -> string
+  -> 'expr_type dval option
 
 val get_many :
-  state:exec_state -> 'expr_type DbT.db -> string list -> (string * dval) list
+     state:'expr_type exec_state
+  -> 'expr_type DbT.db
+  -> string list
+  -> (string * 'expr_type dval) list
 
 val get_many_with_keys :
-  state:exec_state -> 'expr_type DbT.db -> string list -> (string * dval) list
+     state:'expr_type exec_state
+  -> 'expr_type DbT.db
+  -> string list
+  -> (string * 'expr_type dval) list
 
-val get_all : state:exec_state -> 'expr_type DbT.db -> (string * dval) list
+val get_all :
+     state:'expr_type exec_state
+  -> 'expr_type DbT.db
+  -> (string * 'expr_type dval) list
 
-val get_all_keys : state:exec_state -> 'expr_type DbT.db -> string list
+val get_all_keys :
+  state:'expr_type exec_state -> 'expr_type DbT.db -> string list
 
 val query_exact_fields :
-  state:exec_state -> 'expr_type DbT.db -> dval -> (string * dval) list
+     state:'expr_type exec_state
+  -> 'expr_type DbT.db
+  -> 'expr_type dval
+  -> (string * 'expr_type dval) list
 
 val query :
-  state:exec_state -> 'expr_type DbT.db -> dblock_args -> (string * dval) list
+     state:Types.RuntimeT.expr exec_state
+  -> Types.RuntimeT.expr DbT.db
+  -> Types.RuntimeT.expr dblock_args
+  -> (string * Types.RuntimeT.expr dval) list
 
-val count : state:exec_state -> 'expr_type DbT.db -> int
+val count : state:'expr_type exec_state -> 'expr_type DbT.db -> int
 
-val delete : state:exec_state -> 'expr_type DbT.db -> string -> unit
+val delete : state:'expr_type exec_state -> 'expr_type DbT.db -> string -> unit
 
-val delete_all : state:exec_state -> 'expr_type DbT.db -> unit
+val delete_all : state:'expr_type exec_state -> 'expr_type DbT.db -> unit
 
 (* Stats fns *)
 
@@ -48,7 +68,7 @@ val stats_pluck :
      account_id:Uuidm.t
   -> canvas_id:Uuidm.t
   -> 'expr_type DbT.db
-  -> (dval * string) option
+  -> ('expr_type dval * string) option
 
 (* DB schema modifications *)
 val create : string -> tlid -> 'expr_type DbT.db

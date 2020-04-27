@@ -2,7 +2,7 @@ open Core_kernel
 open Types.RuntimeT
 
 (* Internal invariant, _must_ be a DObj *)
-type t = dval
+type 'expr_type t = 'expr_type dval
 
 (* ------------------------- *)
 (* Internal *)
@@ -26,7 +26,7 @@ let body_parser_type headers =
   else Unknown
 
 
-let parser_fn p (str : string) : dval =
+let parser_fn p (str : string) : 'expr_type dval =
   match p with
   | Json ->
     ( try Dval.of_unknown_json_v0 str

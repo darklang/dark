@@ -32,26 +32,26 @@ val find_db :
   -> Types.RuntimeT.expr Types.RuntimeT.DbT.db
 
 val execute_dblock :
-     state:Types.RuntimeT.exec_state
-  -> Types.RuntimeT.dblock_args
-  -> Types.RuntimeT.dval list
-  -> Types.RuntimeT.dval
+     state:Types.RuntimeT.expr Types.RuntimeT.exec_state
+  -> Types.RuntimeT.expr Types.RuntimeT.dblock_args
+  -> Types.RuntimeT.expr Types.RuntimeT.dval list
+  -> Types.RuntimeT.expr Types.RuntimeT.dval
 
 val exec :
-     state:Types.RuntimeT.exec_state
-  -> Types.RuntimeT.dval_map
+     state:Types.RuntimeT.expr Types.RuntimeT.exec_state
+  -> Types.RuntimeT.expr Types.RuntimeT.dval_map
   -> Types.RuntimeT.expr
-  -> Types.RuntimeT.dval
+  -> Types.RuntimeT.expr Types.RuntimeT.dval
 
 val execute_ast :
-     state:Types.RuntimeT.exec_state
-  -> input_vars:Types.RuntimeT.input_vars
+     state:Types.RuntimeT.expr Types.RuntimeT.exec_state
+  -> input_vars:Types.RuntimeT.expr Types.RuntimeT.input_vars
   -> Types.RuntimeT.expr
-  -> Types.RuntimeT.dval
+  -> Types.RuntimeT.expr Types.RuntimeT.dval
 
 val execute_fn :
-     state:Types.RuntimeT.exec_state
+     state:Types.RuntimeT.expr Types.RuntimeT.exec_state
   -> string
   -> Types.id
-  -> Types.RuntimeT.dval list
-  -> Types.RuntimeT.dval
+  -> Types.RuntimeT.expr Types.RuntimeT.dval list
+  -> Types.RuntimeT.expr Types.RuntimeT.dval

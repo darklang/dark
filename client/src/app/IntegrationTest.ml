@@ -515,7 +515,7 @@ let fluid_doubleclick_selects_entire_fnname (m : model) : testResult =
 let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
     testResult =
   match m.currentPage with
-  | FocusedHandler (tlid, _) when tlid = TLID.fromString "598813411" ->
+  | FocusedHandler (tlid, _, _) when tlid = TLID.fromString "598813411" ->
       pass
   | _ ->
       fail "handler is not focused"
@@ -524,7 +524,7 @@ let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
 let fluid_click_2x_on_token_places_cursor (m : model) : testResult =
   let focusedPass =
     match m.currentPage with
-    | FocusedHandler (tlid, _) when tlid = TLID.fromString "1835485706" ->
+    | FocusedHandler (tlid, _, _) when tlid = TLID.fromString "1835485706" ->
         pass
     | _ ->
         fail "handler is not focused"
@@ -553,7 +553,7 @@ let fluid_click_2x_on_token_places_cursor (m : model) : testResult =
 let fluid_click_2x_in_function_places_cursor (m : model) : testResult =
   let focusedPass =
     match m.currentPage with
-    | FocusedFn tlid when tlid = TLID.fromString "1352039682" ->
+    | FocusedFn (tlid, _) when tlid = TLID.fromString "1352039682" ->
         pass
     | _ ->
         fail "function is not focused"

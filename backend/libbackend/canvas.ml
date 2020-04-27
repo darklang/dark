@@ -22,7 +22,7 @@ type 'expr_type canvas =
   ; dbs : 'expr_type TL.toplevels
   ; user_functions : 'expr_type RTT.user_fn IDMap.t
   ; user_tipes : RTT.user_tipe IDMap.t
-  ; package_fns : RTT.fn list [@opaque]
+  ; package_fns : 'expr_type RTT.fn list [@opaque]
   ; deleted_handlers : 'expr_type TL.toplevels
   ; deleted_dbs : 'expr_type TL.toplevels
   ; deleted_user_functions : 'expr_type RTT.user_fn IDMap.t
@@ -38,7 +38,7 @@ let to_fluid (c : RTT.expr canvas) : Types.fluid_expr canvas =
   ; id = c.id
   ; creation_date = c.creation_date
   ; cors_setting = c.cors_setting
-  ; package_fns = c.package_fns
+  ; package_fns = List.map ~f:Toplevel.fn_to_fluid c.package_fns
   ; ops =
       List.map c.ops ~f:(fun (tlid, oplist) ->
           (tlid, Op.oplist_to_fluid oplist))
@@ -63,7 +63,7 @@ let of_fluid (c : Types.fluid_expr canvas) : RTT.expr canvas =
   ; id = c.id
   ; creation_date = c.creation_date
   ; cors_setting = c.cors_setting
-  ; package_fns = c.package_fns
+  ; package_fns = List.map ~f:Toplevel.fn_of_fluid c.package_fns
   ; ops =
       List.map c.ops ~f:(fun (tlid, oplist) ->
           (tlid, Op.oplist_of_fluid oplist))
@@ -451,7 +451,7 @@ let id_for_name (name : string) : Uuidm.t =
 
 let update_cors_setting
     (c : 'expr_type canvas ref) (setting : cors_setting option) : unit =
-  let cors_setting_to_db (setting : cors_setting option) : Db.param =
+  let cors_setting_to_db (setting : cors_setting option) : 'expr_type Db.param =
     match setting with
     | None ->
         Db.Null
@@ -671,7 +671,7 @@ let load_tlids_with_context_from_cache ~tlids host :
   load_from_cache ~tlids host owner
 
 
-let load_for_event_from_cache (event : Event_queue.t) :
+let load_for_event_from_cache (event : RTT.expr Event_queue.t) :
     (RTT.expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn event.host in
   let canvas_id = Serialize.fetch_canvas_id owner event.host in
@@ -1095,7 +1095,9 @@ let rec migrate_expr (expr : RuntimeT.expr) =
           | FluidPartial (name, old_val) ->
               FluidPartial (name, f old_val)
           | FluidRightPartial (name, old_val) ->
-              FluidRightPartial (name, f old_val) )
+              FluidRightPartial (name, f old_val)
+          | FluidLeftPartial (name, old_val) ->
+              FluidLeftPartial (name, f old_val) )
 
 
 let migrate_handler (h : 'expr_type RuntimeT.HandlerT.handler) :

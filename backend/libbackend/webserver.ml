@@ -82,10 +82,9 @@ let respond_or_redirect (params : response_or_redirect_params) =
       S.respond_redirect ?headers ~uri ()
   | Respond {resp_headers; execution_id; status; body} ->
       let resp_headers =
-        Header.add
+        Header.add_list
           resp_headers
-          "X-Darklang-Execution-ID"
-          (Types.string_of_id execution_id)
+          [(Libshared.Header.execution_id, Types.string_of_id execution_id)]
       in
       (* add Content-Length if missing, e.g. when function is called directly
        * and not from `respond_or_redirect_empty_body`
@@ -230,7 +229,7 @@ let over_headers_promise
 let wrap_editor_api_headers =
   let headers =
     [ ("Content-type", "application/json; charset=utf-8")
-    ; ("X-Darklang-Server-Version", Config.build_hash) ]
+    ; (Libshared.Header.server_version, Config.build_hash) ]
   in
   over_headers_promise ~f:(fun h -> Header.add_list h headers)
 
@@ -363,7 +362,7 @@ let result_to_response
     ~(c : RTT.expr Canvas.canvas ref)
     ~(execution_id : Types.id)
     ~(req : CRequest.t)
-    (result : RTT.dval) =
+    (result : RTT.expr RTT.dval) =
   let maybe_infer_cors headers =
     (* Add the Access-Control-ALlow-Origin, if it doens't exist
        and if infer_cors_header tells us to. *)
@@ -544,7 +543,10 @@ let user_page_handler
           | _ ->
               () ) ;
           let bound =
+            let page = Libexecution.Toplevel.handler_to_fluid page in
             Libexecution.Execution.http_route_input_vars page (Uri.path uri)
+            |> List.map ~f:(fun (a, b) ->
+                   (a, Libexecution.Fluid.dval_of_fluid b))
           in
           let result, touched_tlids =
             Libexecution.Execution.execute_handler
@@ -557,11 +559,24 @@ let user_page_handler
               ~package_fns:!c.package_fns
               ~tlid:page.tlid
               ~dbs:(TL.dbs !c.dbs)
-              ~input_vars:([("request", PReq.to_dval input)] @ bound)
-              ~store_fn_arguments:
-                (Stored_function_arguments.store ~canvas_id ~trace_id)
-              ~store_fn_result:
-                (Stored_function_result.store ~canvas_id ~trace_id)
+              ~input_vars:
+                ( [ ( "request"
+                    , PReq.to_dval input |> Libexecution.Fluid.dval_of_fluid )
+                  ]
+                @ bound )
+              ~store_fn_arguments:(fun tlid dvalmap ->
+                Stored_function_arguments.store
+                  ~canvas_id
+                  ~trace_id
+                  tlid
+                  (Libexecution.Fluid.dval_map_to_fluid dvalmap))
+              ~store_fn_result:(fun funcdesc args result ->
+                Stored_function_result.store
+                  ~canvas_id
+                  ~trace_id
+                  funcdesc
+                  (List.map ~f:Libexecution.Fluid.dval_to_fluid args)
+                  (Libexecution.Fluid.dval_to_fluid result))
           in
           Stroller.push_new_trace_id
             ~execution_id
@@ -921,40 +936,34 @@ let initial_load
     let t2, unlocked =
       time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
     in
-    let t3, f404s =
-      time "3-get-404s" (fun _ ->
-          let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
-          Analysis.get_404s ~since:latest !c)
+    let t3, assets =
+      time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
     in
-    let t4, assets =
-      time "4-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
-    in
-    let t5, account =
-      time "5-account" (fun _ ->
+    let t4, account =
+      time "4-account" (fun _ ->
           match A.get_user username with
           | Some u ->
               u
           | None ->
               {username; email = ""; name = ""; admin = false})
     in
-    let t6, canvas_list =
-      time "6-canvas-list" (fun _ -> Serialize.hosts_for username)
+    let t5, canvas_list =
+      time "5-canvas-list" (fun _ -> Serialize.hosts_for username)
     in
-    let t7, org_canvas_list =
-      time "7-org-list" (fun _ -> Serialize.orgs_for username)
+    let t6, org_canvas_list =
+      time "6-org-list" (fun _ -> Serialize.orgs_for username)
     in
-    let t8, orgs = time "8-orgs" (fun _ -> Serialize.orgs username) in
-    let t9, worker_schedules =
-      time "9-worker-schedules" (fun _ ->
+    let t7, orgs = time "7-orgs" (fun _ -> Serialize.orgs username) in
+    let t8, worker_schedules =
+      time "8-worker-schedules" (fun _ ->
           Event_queue.get_worker_schedules_for_canvas !c.id)
     in
-    let t10, result =
-      time "10-to-frontend" (fun _ ->
+    let t9, result =
+      time "9-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
             permission
-            f404s
             unlocked
             assets
             account
@@ -965,7 +974,7 @@ let initial_load
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10])
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9])
       `OK
       result
   with e -> Libexecution.Exception.reraise_as_pageable e
@@ -991,7 +1000,7 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
           ~tlid:params.tlid
           ~trace_id:params.trace_id
           ~caller_id:params.caller_id
-          ~args:params.args)
+          ~args:(List.map ~f:Libexecution.Fluid.dval_of_fluid params.args))
   in
   let t4, unlocked =
     time "4-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
@@ -1003,13 +1012,35 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
           Dval.current_hash_version
           tlids
           unlocked
-          result)
+          (Libexecution.Fluid.dval_to_fluid result))
   in
   respond
     ~execution_id
     ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
     `OK
     response
+
+
+let get_404s ~(execution_id : Types.id) (host : string) body :
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, c =
+      time "1-load-saved-ops" (fun _ ->
+          C.load_all_from_cache host
+          |> Result.map ~f:C.to_fluid_ref
+          |> Result.map_error ~f:(String.concat ~sep:", ")
+          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
+    in
+    let t2, f404s =
+      time "2-get-404s" (fun _ ->
+          let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
+          Analysis.get_404s ~since:latest !c)
+    in
+    let t3, result =
+      time "3-to-frontend" (fun _ -> Analysis.to_get_404s_result f404s)
+    in
+    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  with e -> Libexecution.Exception.reraise_as_pageable e
 
 
 let upload_function
@@ -1019,10 +1050,7 @@ let upload_function
     time "1-read-api" (fun _ -> Api.to_upload_function_rpc_params body)
   in
   let t2, result =
-    time "2-save" (fun _ ->
-        Package_manager.save
-          username
-          (Libexecution.Toplevel.user_fn_of_fluid params.fn))
+    time "2-save" (fun _ -> Package_manager.save username params.fn)
   in
   let t3, (response_code, response) =
     time "3-to-frontend" (fun _ ->
@@ -1082,17 +1110,31 @@ let trigger_handler ~(execution_id : Types.id) (host : string) body :
                 handler
                 ~execution_id
                 ~tlid:params.tlid
-                ~input_vars:params.input
+                ~input_vars:
+                  (List.map
+                     params.input
+                     ~f:
+                       (Tc.Tuple2.map_second
+                          ~f:Libexecution.Fluid.dval_of_fluid))
                 ~dbs:(TL.dbs !c.dbs)
                 ~user_tipes:(!c.user_tipes |> Map.data)
                 ~user_fns:(!c.user_functions |> Map.data)
                 ~package_fns:!c.package_fns
                 ~account_id:!c.owner
                 ~canvas_id
-                ~store_fn_arguments:
-                  (Stored_function_arguments.store ~canvas_id ~trace_id)
-                ~store_fn_result:
-                  (Stored_function_result.store ~canvas_id ~trace_id)
+                ~store_fn_arguments:(fun tlid dvalmap ->
+                  Stored_function_arguments.store
+                    ~canvas_id
+                    ~trace_id
+                    tlid
+                    (Libexecution.Fluid.dval_map_to_fluid dvalmap))
+                ~store_fn_result:(fun funcdesc args result ->
+                  Stored_function_result.store
+                    ~canvas_id
+                    ~trace_id
+                    funcdesc
+                    (List.map ~f:Libexecution.Fluid.dval_to_fluid args)
+                    (Libexecution.Fluid.dval_to_fluid result))
             in
             touched_tlids)
   in
@@ -1730,70 +1772,92 @@ let admin_api_handler
     then Log.add_log_annotations [("canvas", `String canvas)] (fun _ -> f p)
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  match (verb, path) with
-  (* Operational APIs.... maybe these shouldn't be here, but
+  let client_version =
+    req
+    |> CRequest.headers
+    |> (fun hs -> Cohttp.Header.get hs Libshared.Header.client_version)
+    |> Tc.Option.withDefault ~default:""
+  in
+  Log.add_log_annotations
+    [(Libshared.Header.client_version, `String client_version)]
+    (fun () ->
+      match (verb, path) with
+      (* Operational APIs.... maybe these shouldn't be here, but
      they start with /api so they need to be. *)
-  | `POST, ["api"; "clear-benchmarking-data"] ->
-      Db.delete_benchmarking_data () ;
-      respond ~execution_id `OK "Cleared"
-  | `POST, ["api"; canvas; "save_test"] when Config.allow_test_routes ->
-      save_test_handler ~execution_id canvas
-  (* Canvas API *)
-  | `POST, ["api"; canvas; "rpc"] (* old name, remove later *)
-  | `POST, ["api"; canvas; "add_op"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers
-            (admin_add_op_handler ~execution_id canvas username body))
-  | `POST, ["api"; canvas; "initial_load"] ->
-      when_can_view ~canvas (fun permission ->
-          wrap_editor_api_headers
-            (initial_load ~execution_id ~username ~canvas ~permission body))
-  | `POST, ["api"; canvas; "all_traces"] ->
-      when_can_view ~canvas (fun permission ->
-          wrap_editor_api_headers
-            (fetch_all_traces ~execution_id ~username ~canvas ~permission body))
-  | `POST, ["api"; canvas; "execute_function"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (execute_function ~execution_id canvas body))
-  | `POST, ["api"; canvas; "packages"; "upload_function"]
-    when Account.is_admin ~username ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (upload_function ~execution_id username body))
-  | `POST, ["api"; canvas; "packages"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (get_all_packages ~execution_id ()))
-  | `POST, ["api"; canvas; "trigger_handler"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (trigger_handler ~execution_id canvas body))
-  | `POST, ["api"; canvas; "get_trace_data"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (get_trace_data ~execution_id canvas body))
-  | `POST, ["api"; canvas; "get_db_stats"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (db_stats ~execution_id canvas body))
-  | `POST, ["api"; canvas; "get_worker_stats"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (worker_stats ~execution_id canvas body))
-  | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (get_unlocked_dbs ~execution_id canvas body))
-  | `POST, ["api"; canvas; "worker_schedule"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (worker_schedule ~execution_id canvas body))
-  | `POST, ["api"; canvas; "delete_404"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers (delete_404 ~execution_id canvas body))
-  | `POST, ["api"; canvas; "static_assets"] ->
-      when_can_edit ~canvas (fun _ ->
-          wrap_editor_api_headers
-            (static_assets_upload_handler
-               ~execution_id
-               canvas
-               username
-               req
-               body))
-  | _ ->
-      respond ~execution_id `Not_found "Not found"
+      | `POST, ["api"; "clear-benchmarking-data"] ->
+          Db.delete_benchmarking_data () ;
+          respond ~execution_id `OK "Cleared"
+      | `POST, ["api"; canvas; "save_test"] when Config.allow_test_routes ->
+          save_test_handler ~execution_id canvas
+      (* Canvas API *)
+      | `POST, ["api"; canvas; "rpc"] (* old name, remove later *)
+      | `POST, ["api"; canvas; "add_op"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (admin_add_op_handler ~execution_id canvas username body))
+      | `POST, ["api"; canvas; "initial_load"] ->
+          when_can_view ~canvas (fun permission ->
+              wrap_editor_api_headers
+                (initial_load ~execution_id ~username ~canvas ~permission body))
+      | `POST, ["api"; canvas; "all_traces"] ->
+          when_can_view ~canvas (fun permission ->
+              wrap_editor_api_headers
+                (fetch_all_traces
+                   ~execution_id
+                   ~username
+                   ~canvas
+                   ~permission
+                   body))
+      | `POST, ["api"; canvas; "execute_function"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (execute_function ~execution_id canvas body))
+      | `POST, ["api"; canvas; "packages"; "upload_function"]
+        when Account.is_admin ~username ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (upload_function ~execution_id username body))
+      | `POST, ["api"; canvas; "packages"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (get_all_packages ~execution_id ()))
+      | `POST, ["api"; canvas; "trigger_handler"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (trigger_handler ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_trace_data"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (get_trace_data ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_404s"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (get_404s ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_db_stats"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (db_stats ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_worker_stats"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers (worker_stats ~execution_id canvas body))
+      | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
+          when_can_view ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (get_unlocked_dbs ~execution_id canvas body))
+      | `POST, ["api"; canvas; "worker_schedule"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (worker_schedule ~execution_id canvas body))
+      | `POST, ["api"; canvas; "delete_404"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers (delete_404 ~execution_id canvas body))
+      | `POST, ["api"; canvas; "static_assets"] ->
+          when_can_edit ~canvas (fun _ ->
+              wrap_editor_api_headers
+                (static_assets_upload_handler
+                   ~execution_id
+                   canvas
+                   username
+                   req
+                   body))
+      | _ ->
+          respond ~execution_id `Not_found "Not found")
 
 
 let admin_handler
@@ -2211,6 +2275,7 @@ let server () =
     in
     Log.add_log_annotations
       [ ("execution_id", `String (Types.string_of_id execution_id))
+      ; (Libshared.Header.server_version, `String Config.build_hash)
         (* We call this handler_name and not request for a reason - we want to
          * unify with what other spec-having handlers use, since
          * qw+cron+webserver all share logs (and not just "name" because that's

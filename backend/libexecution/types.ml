@@ -168,6 +168,7 @@ module RuntimeT = struct
      * even though it isn't a valid binop yet. The string is  the soon-to-be
      * binop, and expr is the soon-to-be lhs or the binop. *)
     | FluidRightPartial of string * expr
+    | FluidLeftPartial of string * expr
 
   and expr = nexpr or_blank
   [@@deriving eq, ord, yojson, show {with_path = false}, bin_io]
@@ -377,26 +378,26 @@ module RuntimeT = struct
 
   (* To support migrating to fluid, these take a type parameter, which is
    * concretely defined to use `expr` at the bottom. *)
-  type 'expr_type dval_map' = 'expr_type dval' DvalMap.t
+  type 'expr_type dval_map = 'expr_type dval DvalMap.t
 
-  and 'expr_type optionT' =
-    | OptJust of 'expr_type dval'
+  and 'expr_type optionT =
+    | OptJust of 'expr_type dval
     | OptNothing
 
-  and 'expr_type resultT' =
-    | ResOk of dval
-    | ResError of 'expr_type dval'
+  and 'expr_type resultT =
+    | ResOk of 'expr_type dval
+    | ResError of 'expr_type dval
 
   and dval_source =
     | SourceNone
     | SourceId of tlid * id
 
-  and 'expr_type dblock_args' =
-    { symtable : 'expr_type dval_map'
+  and 'expr_type dblock_args =
+    { symtable : 'expr_type dval_map
     ; params : (id * string) list
     ; body : 'expr_type }
 
-  and 'expr_type dval' =
+  and 'expr_type dval =
     (* basic types  *)
     | DInt of Dint.t
     | DFloat of float
@@ -404,51 +405,51 @@ module RuntimeT = struct
     | DNull
     | DStr of Unicode_string.t
     (* compound types *)
-    | DList of 'expr_type dval' list
-    | DObj of 'expr_type dval_map'
+    | DList of 'expr_type dval list
+    | DObj of 'expr_type dval_map
     (* special types - see notes above *)
     | DIncomplete of dval_source
     | DError of (dval_source * string)
-    | DBlock of 'expr_type dblock_args'
-    | DErrorRail of 'expr_type dval'
+    | DBlock of 'expr_type dblock_args
+    | DErrorRail of 'expr_type dval
     (* user types: awaiting a better type system *)
-    | DResp of (dhttp * 'expr_type dval')
+    | DResp of (dhttp * 'expr_type dval)
     | DDB of string
     | DDate of time
     | DPassword of PasswordBytes.t
     | DUuid of uuid
-    | DOption of 'expr_type optionT'
+    | DOption of 'expr_type optionT
     | DCharacter of Unicode_string.Character.t
-    | DResult of 'expr_type resultT'
+    | DResult of 'expr_type resultT
     | DBytes of RawBytes.t
 
-  and 'expr_type dval_list' = 'expr_type dval' list
+  and 'expr_type dval_list = 'expr_type dval list
 
   (* Concrete definitions for expr *)
-  and dval = expr dval'
+  and expr_dval = expr dval
 
-  and dblock_args = expr dblock_args'
+  and expr_dblock_args = expr dblock_args
 
-  and dval_map = expr dval_map'
+  and expr_dval_map = expr dval_map
 
-  and optionT = expr optionT'
+  and expr_optionT = expr optionT
 
-  and resultT = expr resultT'
+  and expr_resultT = expr resultT
 
-  and dval_list = expr dval_list'
+  and expr_dval_list = expr dval_list
 
   (* Concrete definitions for fluid *)
-  and fluid_dval = fluid_expr dval'
+  and fluid_dval = fluid_expr dval
 
-  and fluid_dblock_args = fluid_expr dblock_args'
+  and fluid_dblock_args = fluid_expr dblock_args
 
-  and fluid_dval_map = fluid_expr dval_map'
+  and fluid_dval_map = fluid_expr dval_map
 
-  and fluid_optionT = fluid_expr optionT'
+  and fluid_optionT = fluid_expr optionT
 
-  and fluid_resultT = fluid_expr resultT'
+  and fluid_resultT = fluid_expr resultT
 
-  and fluid_dval_list = fluid_expr dval_list'
+  and fluid_dval_list = fluid_expr dval_list
   [@@deriving show {with_path = false}, eq, ord, yojson]
 
   (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
@@ -460,9 +461,10 @@ module RuntimeT = struct
 
   type tipe_map = tipe String.Map.t
 
-  type string_dval_pair = string * dval [@@deriving show, eq]
+  type 'expr_type string_dval_pair = string * 'expr_type dval
+  [@@deriving show, eq]
 
-  type input_vars = string_dval_pair list
+  type 'expr_type input_vars = 'expr_type string_dval_pair list
 
   (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type param =
@@ -519,16 +521,18 @@ module RuntimeT = struct
 
   type function_desc = tlid * string * id [@@deriving yojson]
 
-  type load_fn_result_type =
-    function_desc -> dval list -> (dval * Time.t) option
+  type 'expr_type load_fn_result_type =
+    function_desc -> 'expr_type dval list -> ('expr_type dval * Time.t) option
 
-  type store_fn_result_type = function_desc -> dval list -> dval -> unit
+  type 'expr_type store_fn_result_type =
+    function_desc -> 'expr_type dval list -> 'expr_type dval -> unit
 
-  type load_fn_arguments_type = tlid -> (dval_map * Time.t) list
+  type 'expr_type load_fn_arguments_type =
+    tlid -> ('expr_type dval_map * Time.t) list
 
-  type store_fn_arguments_type = tlid -> dval_map -> unit
+  type 'expr_type store_fn_arguments_type = tlid -> 'expr_type dval_map -> unit
 
-  type fail_fn_type = (?msg:string -> unit -> dval) option
+  type 'expr_type fail_fn_type = (?msg:string -> unit -> 'expr_type dval) option
 
   (* this is _why_ we're executing the AST, to allow us to not
    * emit certain side-effects (eg. DB writes) when showing previews *)
@@ -537,9 +541,9 @@ module RuntimeT = struct
     | Real
   [@@deriving eq, show, yojson]
 
-  type execution_result =
-    | ExecutedResult of dval
-    | NonExecutedResult of dval
+  type 'expr_type execution_result =
+    | ExecutedResult of 'expr_type dval
+    | NonExecutedResult of 'expr_type dval
   [@@deriving eq, show, yojson]
 
   type fn_preview_safety =
@@ -547,53 +551,65 @@ module RuntimeT = struct
     | Unsafe
   [@@deriving eq, show, yojson]
 
-  type exec_state =
+  type 'expr_type exec_state =
     { tlid : tlid
     ; canvas_id : Uuidm.t
     ; account_id : Uuidm.t
-    ; user_fns : expr user_fn list
+    ; user_fns : 'expr_type user_fn list
     ; user_tipes : user_tipe list
-    ; package_fns : fn list
+    ; package_fns : 'expr_type fn list
     ; dbs : expr DbT.db list
-    ; trace : on_execution_path:bool -> id -> dval -> unit
+    ; trace : on_execution_path:bool -> id -> 'expr_type dval -> unit
     ; trace_tlid : tlid -> unit
+    ; callstack :
+        (* Used for recursion detection in the editor. In the editor, we call all
+         * paths to show live values, but with recursion that causes infinite
+         * recursion. *)
+        Tc.StrSet.t
     ; context : context
     ; execution_id : id
     ; on_execution_path :
         (* Whether the currently executing code is really being executed (as
          * opposed to being executed for traces) *)
         bool
-    ; exec : state:exec_state -> dval_map -> expr -> dval
+    ; exec :
+           state:'expr_type exec_state
+        -> 'expr_type dval_map
+        -> 'expr_type
+        -> 'expr_type dval
           (* Some parts of the execution need to call AST.exec, but cannot call
            * AST.exec without a cyclic dependency. This function enables that, and it
            * is safe to do so because all of the state is in the exec_state
            * structure. *)
-    ; load_fn_result : load_fn_result_type
-    ; store_fn_result : store_fn_result_type
-    ; load_fn_arguments : load_fn_arguments_type
-    ; store_fn_arguments : store_fn_arguments_type
+    ; load_fn_result : 'expr_type load_fn_result_type
+    ; store_fn_result : 'expr_type store_fn_result_type
+    ; load_fn_arguments : 'expr_type load_fn_arguments_type
+    ; store_fn_arguments : 'expr_type store_fn_arguments_type
     ; executing_fnname : string
-    ; fail_fn : fail_fn_type }
+    ; fail_fn : 'expr_type fail_fn_type }
 
-  and funcimpl =
-    | InProcess of (exec_state * dval list -> dval)
-    | API of (dval_map -> dval)
-    | UserCreated of (tlid * expr)
-    | PackageFunction of expr
+  and 'expr_type funcimpl =
+    | InProcess of
+        ('expr_type exec_state * 'expr_type dval list -> 'expr_type dval)
+    | API of ('expr_type dval_map -> 'expr_type dval)
+    | UserCreated of (tlid * 'expr_type)
+    | PackageFunction of 'expr_type
 
   (* TODO: merge fn and user_fn *)
-  and fn =
+  and 'expr_type fn =
     { prefix_names : string list
     ; infix_names : string list
     ; parameters : param list
     ; return_type : tipe
     ; description : string
-    ; func : funcimpl
+    ; func : 'expr_type funcimpl
     ; preview_safety : fn_preview_safety
     ; deprecated : bool }
 
   (* We need equal_ and show_ for Canvas.canvas to derive *)
-  let equal_fn a b = a.prefix_names = b.prefix_names
+  let equal_fn _ (a : 'expr_type fn) (b : 'expr_type fn) =
+    a.prefix_names = b.prefix_names
+
 
   let ufn_param_to_param (p : ufn_param) : param option =
     match (p.name, p.tipe) with
@@ -608,7 +624,7 @@ module RuntimeT = struct
         None
 
 
-  let user_fn_to_fn (uf : expr user_fn) : fn option =
+  let user_fn_to_fn (uf : 'expr_type user_fn) : 'expr_type fn option =
     let name =
       match uf.metadata.name with Filled (_, n) -> Some n | _ -> None
     in

@@ -22,7 +22,7 @@ let unlocked (c : 'expr_type Canvas.canvas) : tlid list =
 
 type db_stat =
   { count : int
-  ; example : (RTT.dval * string) option }
+  ; example : (fluid_expr RTT.dval * string) option }
 [@@deriving eq, show, yojson]
 
 type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]
@@ -114,9 +114,9 @@ let delete_404s
 (* Input vars *)
 (* ------------------------- *)
 let saved_input_vars
-    (h : 'expr_type RTT.HandlerT.handler)
+    (h : fluid_expr RTT.HandlerT.handler)
     (request_path : string)
-    (event : RTT.dval) : input_vars =
+    (event : fluid_expr RTT.dval) : fluid_expr input_vars =
   match Handler.module_type h with
   | `Http ->
       let with_r = [("request", event)] in
@@ -149,9 +149,9 @@ let saved_input_vars
 let handler_trace
     (c : fluid_expr Canvas.canvas)
     (h : Types.fluid_expr RTT.HandlerT.handler)
-    (trace_id : traceid) : trace =
+    (trace_id : traceid) : fluid_expr trace =
   let event = SE.load_event_for_trace ~canvas_id:c.id trace_id in
-  let ivs, timestamp =
+  let input, timestamp =
     match event with
     | Some (request_path, timestamp, event) ->
         (saved_input_vars h request_path event, timestamp)
@@ -161,13 +161,13 @@ let handler_trace
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
   in
-  (trace_id, Some {input = ivs; timestamp; function_results})
+  (trace_id, Some {input; timestamp; function_results})
 
 
 let user_fn_trace
     (c : fluid_expr Canvas.canvas)
-    (fn : 'expr_type RTT.user_fn)
-    (trace_id : traceid) : trace =
+    (fn : fluid_expr RTT.user_fn)
+    (trace_id : traceid) : fluid_expr trace =
   let event =
     Stored_function_arguments.load_for_analysis ~canvas_id:c.id fn.tlid trace_id
   in
@@ -242,9 +242,19 @@ let execute_function
     ~canvas_id:c.id
     ~caller_id
     ~args
-    ~store_fn_arguments:
-      (Stored_function_arguments.store ~canvas_id:c.id ~trace_id)
-    ~store_fn_result:(Stored_function_result.store ~canvas_id:c.id ~trace_id)
+    ~store_fn_arguments:(fun tlid dvalmap ->
+      Stored_function_arguments.store
+        ~canvas_id:c.id
+        ~trace_id
+        tlid
+        (Fluid.dval_map_to_fluid dvalmap))
+    ~store_fn_result:(fun funcdesc args result ->
+      Stored_function_result.store
+        ~canvas_id:c.id
+        ~trace_id
+        funcdesc
+        (List.map ~f:Fluid.dval_to_fluid args)
+        (Fluid.dval_to_fluid result))
     fnname
 
 
@@ -256,10 +266,11 @@ let execute_function
 
 type fofs = SE.four_oh_four list [@@deriving to_yojson]
 
-type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
+type get_trace_data_rpc_result = {trace : fluid_expr trace}
+[@@deriving to_yojson]
 
-let to_get_trace_data_rpc_result (c : fluid_expr Canvas.canvas) (trace : trace)
-    : string =
+let to_get_trace_data_rpc_result
+    (c : fluid_expr Canvas.canvas) (trace : fluid_expr trace) : string =
   {trace}
   |> get_trace_data_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
@@ -349,6 +360,12 @@ let to_all_traces_result (traces : tlid_traceid list) : string =
   {traces} |> all_traces_result_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
+type get_404s_result = {f404s : fofs} [@@deriving to_yojson]
+
+let to_get_404s_result (f404s : fofs) : string =
+  {f404s} |> get_404s_result_to_yojson |> Yojson.Safe.to_string ~std:true
+
+
 type time = Time.t
 
 (* Warning: both to_string and date_of_string might raise; we could use _option types instead, but since we are using  this for encoding/decoding typed data, I do not think that is necessary right now *)
@@ -370,7 +387,6 @@ type initial_load_rpc_result =
   ; user_functions : Types.fluid_expr RTT.user_fn list
   ; deleted_user_functions : Types.fluid_expr RTT.user_fn list
   ; unlocked_dbs : tlid list
-  ; fofs : SE.four_oh_four list
   ; assets : SA.static_deploy list
   ; user_tipes : RTT.user_tipe list
   ; deleted_user_tipes : RTT.user_tipe list
@@ -388,7 +404,6 @@ let to_initial_load_rpc_result
     (c : fluid_expr Canvas.canvas)
     (op_ctrs : (string * int) list)
     (permission : Authorization.permission option)
-    (fofs : SE.four_oh_four list)
     (unlocked_dbs : tlid list)
     (assets : SA.static_deploy list)
     (account : Account.user_info)
@@ -403,7 +418,6 @@ let to_initial_load_rpc_result
   ; user_tipes = IDMap.data c.user_tipes
   ; deleted_user_tipes = IDMap.data c.deleted_user_tipes
   ; unlocked_dbs
-  ; fofs
   ; assets
   ; op_ctrs
   ; permission
@@ -419,7 +433,7 @@ let to_initial_load_rpc_result
 
 (* Execute function *)
 type execute_function_rpc_result =
-  { result : RTT.dval
+  { result : fluid_expr RTT.dval
   ; hash : string
   ; hashVersion : int
   ; touched_tlids : tlid list

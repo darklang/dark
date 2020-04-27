@@ -5,6 +5,7 @@ open Types.RuntimeT
 open Types.RuntimeT.DbT
 module RT = Runtime
 open Db
+module E = Libshared.FluidExpression
 
 let error str = raise (DBQueryException str)
 
@@ -23,6 +24,10 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       boolOp TDate "<"
   | "Date::>" | "Date::greaterThan" ->
       boolOp TDate ">"
+  | "Date::<=" | "Date::lessThanOrEqualTo" ->
+      boolOp TDate "<="
+  | "Date::>=" | "Date::greaterThanOrEqualTo" ->
+      boolOp TDate ">="
   | "Int::mod" ->
       allInts "%"
   | "Int::add" ->
@@ -126,24 +131,27 @@ let tipe_to_sql_tipe (t : tipe_) : string =
  *  (function2 c d (function1 b a))
  *
  * *)
-let rec canonicalize expr =
-  match expr with
-  | Filled (id, Thread []) ->
-      Blank id
-  | Filled (id, Thread (head :: tail)) ->
-      Prelude.List.foldl tail ~init:head ~f:(fun expr arg ->
-          match expr with
-          | Filled (id, FnCall (name, args)) ->
-              Filled (id, FnCall (name, arg :: args))
-          | _ ->
-              error2
-                "Currently, only function calls are supported in Pipes"
-                (show_expr expr))
-  | _ ->
-      Ast.deprecated_traverse ~f:canonicalize expr
+let rec canonicalize (expr : E.t) : E.t =
+  let open E in
+  postTraversal expr ~f:(function
+      | EPipe (id, []) ->
+          EBlank id
+      | EPipe (id, head :: tail) ->
+          Prelude.List.foldl tail ~init:head ~f:(fun expr arg ->
+              match expr with
+              | EFnCall (id, name, EPipeTarget _ :: args, NoRail) ->
+                  EFnCall (id, name, arg :: args, NoRail)
+              | EBinOp (id, name, EPipeTarget _, r, NoRail) ->
+                  EBinOp (id, name, arg, r, NoRail)
+              | _ ->
+                  error2
+                    "Currently, only function calls are supported in Pipes"
+                    (show_fluid_expr expr))
+      | e ->
+          e)
 
 
-let dval_to_sql (dval : dval) : string =
+let dval_to_sql (dval : E.t dval) : string =
   match dval with
   | DObj _
   | DList _
@@ -187,7 +195,8 @@ let dval_to_sql (dval : dval) : string =
 (* TODO: support characters, floats, dates, and uuids. And maybe lists and
  * bytes. Probably something can be done with options and results. *)
 
-let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe_) : unit =
+let typecheckDval (name : string) (dval : E.t dval) (expected_tipe : tipe_) :
+    unit =
   if Dval.tipe_of dval = expected_tipe || expected_tipe = TAny
   then ()
   else
@@ -253,69 +262,84 @@ let typecheck (name : string) (actual_tipe : tipe_) (expected_tipe : tipe_) :
  * evaluation. We expect users to write pure code in here, and if they don't
  * we can solve that in the next version. *)
 let rec inline
-    (paramName : string) (symtable : expr Prelude.StrDict.t) (expr : expr) :
-    expr =
-  match expr with
-  | Filled (_, Let (Filled (_, name), expr, body)) ->
-      inline
-        paramName
-        (Prelude.StrDict.insert ~key:name ~value:expr symtable)
-        body
-  | Filled (_, Variable name) when name <> paramName ->
-    ( match Prelude.StrDict.get ~key:name symtable with
-    | Some found ->
-        found
-    | None ->
-        (* the variable might be in the symtable, so put it back to fill in
-         * later *)
-        expr )
-  | _ ->
-      Ast.deprecated_traverse ~f:(inline paramName symtable) expr
+    (paramName : string) (symtable : E.t Prelude.StrDict.t) (expr : E.t) : E.t =
+  E.postTraversal expr ~f:(function
+      | ELet (_, name, expr, body) ->
+          inline
+            paramName
+            (Prelude.StrDict.insert ~key:name ~value:expr symtable)
+            body
+      | EVariable (_, name) as expr when name <> paramName ->
+        ( match Prelude.StrDict.get ~key:name symtable with
+        | Some found ->
+            found
+        | None ->
+            (* the variable might be in the symtable, so put it back to fill in
+             * later *)
+            expr )
+      | expr ->
+          expr)
 
 
 (* Generate SQL from an Expr. This expects that all the hard stuff has been
  * removed by previous passes, and should only be called as the final pass. *)
 let rec lambda_to_sql
-    (symtable : dval_map)
+    (symtable : E.t dval_map)
     (paramName : string)
     (dbFields : tipe_ Prelude.StrDict.t)
     (expected_tipe : tipe_)
-    (expr : expr) : string =
+    (expr : E.t) : string =
   let lts tipe e = lambda_to_sql symtable paramName dbFields tipe e in
   match expr with
   (* The correct way to handle null in SQL is "is null" or "is not null"
    * rather than a comparison with null. *)
-  | Filled (_, FnCall ("==", [Filled (_, Value "null"); e]))
-  | Filled (_, FnCall ("==", [e; Filled (_, Value "null")])) ->
+  | EBinOp (_, "==", ENull _, e, NoRail) | EBinOp (_, "==", e, ENull _, NoRail)
+    ->
       "(" ^ lts TNull e ^ " is null)"
-  | Filled (_, FnCall ("!=", [Filled (_, Value "null"); e]))
-  | Filled (_, FnCall ("!=", [e; Filled (_, Value "null")])) ->
+  | EBinOp (_, "!=", ENull _, e, NoRail) | EBinOp (_, "!=", e, ENull _, NoRail)
+    ->
       "(" ^ lts TNull e ^ " is not null)"
-  | Filled (_, FnCall ("String::isSubstring_v1", [lookingIn; searchingFor])) ->
+  | EFnCall (_, "String::isSubstring_v1", [lookingIn; searchingFor], NoRail)
+  | EFnCall (_, "String::contains", [lookingIn; searchingFor], NoRail) ->
       (* strpos returns indexed from 1; 0 means missing *)
       "(strpos(" ^ lts TStr lookingIn ^ ", " ^ lts TStr searchingFor ^ ") > 0)"
-  | Filled (_, FnCall (op, [l; r])) ->
+  | EFnCall (_, op, [l; r], NoRail) | EBinOp (_, op, l, r, NoRail) ->
       let ltipe, rtipe, result_tipe, opname = binop_to_sql op in
       typecheck op result_tipe expected_tipe ;
       "(" ^ lts ltipe l ^ " " ^ opname ^ " " ^ lts rtipe r ^ ")"
-  | Filled (_, FnCall (op, [e])) ->
+  | EFnCall (_, op, [e], NoRail) ->
       let arg_tipe, result_tipe, opname, args = unary_op_to_sql op in
       typecheck op result_tipe expected_tipe ;
       let args = Tc.String.join ~sep:", " (lts arg_tipe e :: args) in
       "(" ^ opname ^ " (" ^ args ^ "))"
-  | Filled (_, Variable name) ->
+  | EVariable (_, name) ->
     ( match DvalMap.get ~key:name symtable with
     | Some dval ->
         typecheckDval name dval expected_tipe ;
         "(" ^ dval_to_sql dval ^ ")"
     | None ->
         error2 "This variable is not defined" name )
-  | Filled (_, Value str) ->
+  | EInteger (_, str) ->
+      let dval = DInt (Dint.of_string_exn str) in
+      typecheckDval str dval expected_tipe ;
+      "(" ^ dval_to_sql dval ^ ")"
+  | EBool (id, bool) ->
+      let dval = DBool bool in
+      typecheckDval (if bool then "true" else "false") dval expected_tipe ;
+      "(" ^ dval_to_sql dval ^ ")"
+  | ENull _ ->
+      typecheckDval "null" DNull expected_tipe ;
+      "(" ^ dval_to_sql DNull ^ ")"
+  | EFloat (_, whole, fraction) ->
+      let str = whole ^ "." ^ fraction in
       let dval = Dval.parse_literal str |> Option.value_exn in
       typecheckDval str dval expected_tipe ;
       "(" ^ dval_to_sql dval ^ ")"
-  | Filled (_, FieldAccess (Filled (_, Variable v), Filled (_, fieldname)))
-    when v = paramName ->
+  | EString (_, str) ->
+      let dval = Dval.dstr_of_string_exn str in
+      typecheckDval ("\"" ^ str ^ "\"") dval expected_tipe ;
+      "(" ^ dval_to_sql dval ^ ")"
+  | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
       let tipe =
         match Prelude.StrDict.get dbFields ~key:fieldname with
         | Some v ->
@@ -344,7 +368,7 @@ let rec lambda_to_sql
             (Db.escape_string fieldname)
             (Db.escape_string (tipe_to_sql_tipe tipe)) )
   | _ ->
-      error2 "We do not yet support compiling this code" (show_expr expr)
+      error2 "We do not yet support compiling this code" (E.show expr)
 
 
 (* Trying to get rid of complex expressions, including values which can be
@@ -374,32 +398,37 @@ let rec lambda_to_sql
  * Expects inlining to have finished first, so that it has all the values it
  * needs in the right place. *)
 let partially_evaluate
-    (state : exec_state)
+    (state : E.t exec_state)
     (param_name : string)
-    (symtable : dval_map)
-    (body : expr) : dval_map * expr =
+    (symtable : E.t dval_map)
+    (body : E.t) : E.t dval_map * E.t =
   (* This isn't really a good implementation, but right now we only do
    * straight-line code here, so it should work *)
+  let open E in
   let symtable = ref symtable in
   let exec expr =
     let gid = Libshared.Shared.gid in
     let new_name = "dark_generated_" ^ Util.random_string 8 in
     let value = state.exec ~state !symtable expr in
     symtable := DvalMap.insert ~key:new_name ~value !symtable ;
-    Filled (gid (), Variable new_name)
+    EVariable (gid (), new_name)
   in
   let f expr =
     (* We list any construction that we think is safe to evaluate *)
     match expr with
-    | Filled (_, FieldAccess (Filled (_, Variable name), Filled (_, field)))
-      when name <> param_name ->
+    | EFieldAccess (_, EVariable (_, name), field) when name <> param_name ->
         exec expr
-    | Filled (_, FieldAccess (Filled (_, ObjectLiteral _), Filled (_, _))) ->
+    | EFieldAccess (_, ERecord _, _) ->
         (* inlining can create these situations *)
         exec expr
-    | Filled (_, FnCall (_, args))
+    | EFnCall (_, name, args, _)
       when Tc.List.all args ~f:(function
-               | Filled (_, (Value _ | Variable _)) ->
+               | EInteger _
+               | EBool _
+               | ENull _
+               | EFloat _
+               | EString _
+               | EVariable _ ->
                    true
                | _ ->
                    false) ->
@@ -409,18 +438,21 @@ let partially_evaluate
     | _ ->
         expr
   in
-  let result = Ast.post_traverse ~f body in
+  let result = E.postTraversal ~f body in
   (!symtable, result)
 
 
 let compile_lambda
-    ~(state : exec_state)
-    (symtable : dval_map)
+    ~(state : expr exec_state)
+    (symtable : expr dval_map)
     (param_name : string)
     (db_fields : tipe_ Prelude.StrDict.t)
     (body : expr) : string =
+  let symtable = Fluid.dval_map_to_fluid symtable in
+  let state = Toplevel.exec_state_to_fluid state in
   let symtable, body =
     body
+    |> Fluid.toFluidExpr
     (* Replace threads with nested function calls - simplifies all later passes *)
     |> canonicalize
     (* Inline the rhs of any let within the lambda body. See comment for more

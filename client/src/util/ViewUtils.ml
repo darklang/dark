@@ -105,9 +105,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; fluidState = m.fluidState
   ; avatarsList =
       ( match m.currentPage with
-      | FocusedHandler (tlid_, _)
+      | FocusedHandler (tlid_, _, _)
       | FocusedType tlid_
-      | FocusedFn tlid_
+      | FocusedFn (tlid_, _)
       | FocusedDB (tlid_, _)
       | FocusedGroup (tlid_, _)
         when tlid_ = tlid ->

@@ -175,6 +175,8 @@ and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
         Filled (id, FluidPartial (str, fromFluidExpr ~inPipe oldVal))
     | ERightPartial (id, str, oldVal) ->
         Filled (id, FluidRightPartial (str, fromFluidExpr ~inPipe oldVal))
+    | ELeftPartial (id, str, oldVal) ->
+        Filled (id, FluidLeftPartial (str, fromFluidExpr ~inPipe oldVal))
     | EList (id, exprs) ->
         Filled (id, ListLiteral (List.map ~f:r exprs))
     | ERecord (id, pairs) ->
@@ -343,7 +345,9 @@ let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) :
     | FluidPartial (str, oldExpr) ->
         EPartial (id, str, toFluidExpr ~inPipe oldExpr)
     | FluidRightPartial (str, oldExpr) ->
-        ERightPartial (id, str, toFluidExpr ~inPipe oldExpr) )
+        ERightPartial (id, str, toFluidExpr ~inPipe oldExpr)
+    | FluidLeftPartial (str, oldExpr) ->
+        ELeftPartial (id, str, toFluidExpr ~inPipe oldExpr) )
 
 
 let expr_json_to_fluid (j : Yojson.Safe.t) : (Types.fluid_expr, string) Result.t
@@ -454,3 +458,136 @@ let rec testExprEqualIgnoringIds
            |> List.all ~f:identity
     | _ ->
         failwith "impossible" )
+
+
+(* ------------------------- *)
+(* Dval conversion functions - here because cycles *)
+
+(* ------------------------- *)
+
+open Types.RuntimeT
+
+let rec dval_of_fluid (dv : fluid_dval) : expr_dval =
+  match dv with
+  | DInt d ->
+      DInt d
+  | DFloat d ->
+      DFloat d
+  | DBool d ->
+      DBool d
+  | DNull ->
+      DNull
+  | DCharacter d ->
+      DCharacter d
+  | DStr d ->
+      DStr d
+  | DList d ->
+      DList (List.map ~f:dval_of_fluid d)
+  | DObj d ->
+      DObj (dval_map_of_fluid d)
+  | DBlock d ->
+      DBlock (dblock_args_of_fluid d)
+  | DError d ->
+      DError d
+  | DIncomplete d ->
+      DIncomplete d
+  | DResp (h, d) ->
+      DResp (h, dval_of_fluid d)
+  | DDB d ->
+      DDB d
+  | DDate d ->
+      DDate d
+  | DPassword d ->
+      DPassword d
+  | DUuid d ->
+      DUuid d
+  | DOption OptNothing ->
+      DOption OptNothing
+  | DOption (OptJust d) ->
+      DOption (OptJust (dval_of_fluid d))
+  | DErrorRail d ->
+      DErrorRail (dval_of_fluid d)
+  | DResult (ResError d) ->
+      DResult (ResError (dval_of_fluid d))
+  | DResult (ResOk d) ->
+      DResult (ResOk (dval_of_fluid d))
+  | DBytes d ->
+      DBytes d
+
+
+and dval_map_of_fluid (dm : fluid_dval_map) : expr_dval_map =
+  DvalMap.map ~f:dval_of_fluid dm
+
+
+and dblock_args_of_fluid (args : fluid_dblock_args) : expr_dblock_args =
+  { symtable = dval_map_of_fluid args.symtable
+  ; params = args.params
+  ; body = fromFluidExpr args.body }
+
+
+let rec dval_to_fluid (dv : expr_dval) : fluid_dval =
+  match dv with
+  | DInt d ->
+      DInt d
+  | DFloat d ->
+      DFloat d
+  | DBool d ->
+      DBool d
+  | DNull ->
+      DNull
+  | DCharacter d ->
+      DCharacter d
+  | DStr d ->
+      DStr d
+  | DList d ->
+      DList (List.map ~f:dval_to_fluid d)
+  | DObj d ->
+      DObj (dval_map_to_fluid d)
+  | DBlock d ->
+      DBlock (dblock_args_to_fluid d)
+  | DError d ->
+      DError d
+  | DIncomplete d ->
+      DIncomplete d
+  | DResp (h, d) ->
+      DResp (h, dval_to_fluid d)
+  | DDB d ->
+      DDB d
+  | DDate d ->
+      DDate d
+  | DPassword d ->
+      DPassword d
+  | DUuid d ->
+      DUuid d
+  | DOption OptNothing ->
+      DOption OptNothing
+  | DOption (OptJust d) ->
+      DOption (OptJust (dval_to_fluid d))
+  | DErrorRail d ->
+      DErrorRail (dval_to_fluid d)
+  | DResult (ResError d) ->
+      DResult (ResError (dval_to_fluid d))
+  | DResult (ResOk d) ->
+      DResult (ResOk (dval_to_fluid d))
+  | DBytes d ->
+      DBytes d
+
+
+and dval_map_to_fluid (dm : expr_dval_map) : fluid_dval_map =
+  DvalMap.map ~f:dval_to_fluid dm
+
+
+and dblock_args_to_fluid (args : expr_dblock_args) : fluid_dblock_args =
+  { symtable = dval_map_to_fluid args.symtable
+  ; params = args.params
+  ; body = toFluidExpr args.body }
+
+
+let execution_result_to_fluid
+    (er : Types.RuntimeT.expr Types.RuntimeT.execution_result) :
+    Types.fluid_expr Types.RuntimeT.execution_result =
+  match er with
+  | ExecutedResult dval ->
+      ExecutedResult (dval_to_fluid dval)
+  | NonExecutedResult dval ->
+      NonExecutedResult (dval_to_fluid dval)

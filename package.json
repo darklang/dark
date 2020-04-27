@@ -11,10 +11,10 @@
     "dom-storage": "2.1.0",
     "jsdom": "16.2.2",
     "jsdom-global": "3.0.2",
-    "node-sass": "4.13.1",
+    "node-sass": "4.14.0",
     "npm-run-all": "4.1.5",
     "ppx-deriving": "44.1.1",
-    "prettier": "1.19.1",
+    "prettier": "2.0.5",
     "testcafe": "^1.8.4"
   },
   "dependencies": {
@@ -31,7 +31,7 @@
     "moment": "^2.24.0",
     "mouse-wheel": "1.2.0",
     "pusher-js": "5.1.1",
-    "rollbar": "2.15.1",
+    "rollbar": "2.15.2",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "0.0.6",
     "validator": "^13.0.0",

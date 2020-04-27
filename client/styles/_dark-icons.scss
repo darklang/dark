@@ -9,9 +9,12 @@ $dark-icons-version: "v0";
   src: url("/dark-icons-font-#{$dark-icons-version}/Dark-Icons.eot");
   src: url("/dark-icons-font-#{$dark-icons-version}/Dark-Icons.eot?#iefix")
       format("embedded-opentype"),
-    url("/dark-icons-font-#{$dark-icons-version}/Dark-Icons.woff") format("woff"),
-    url("/dark-icons-font-#{$dark-icons-version}/Dark-Icons.ttf") format("truetype"),
-    url("/dark-icons-font-#{$dark-icons-version}/Dark-Icons.svg#Dark-Icons") format("svg");
+    url("/dark-icons-font-#{$dark-icons-version}/Dark-Icons.woff")
+      format("woff"),
+    url("/dark-icons-font-#{$dark-icons-version}/Dark-Icons.ttf")
+      format("truetype"),
+    url("/dark-icons-font-#{$dark-icons-version}/Dark-Icons.svg#Dark-Icons")
+      format("svg");
 }
 
 .dark-icon-font {
