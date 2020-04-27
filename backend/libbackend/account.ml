@@ -413,13 +413,6 @@ let init_testing () : unit =
 
 let upsert_admins () : unit =
   upsert_admin_exn
-    { username = "ian"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkOXd2R3BSYW54Y3llYmdRdU1EMHdUdyRNN1ljWVFQdDk0S29nM1EyM1Q2cHFRZDRlMk9VM3lDTmpreUZ2NGIva1o4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "ian@darklang.com"
-    ; name = "Ian Connolly" } ;
-  upsert_admin_exn
     { username = "paul"
     ; password =
         Password.from_hash
@@ -454,13 +447,6 @@ let upsert_admins () : unit =
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMDJYZzhSS1RQai9JOGppdzI5MTBEUSRJdE0yYnlIK29OL1RIdzFJbC9yNWZBT2RGR0xrUFc3V3MxaVpUUUVFKytjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "sydney@darklang.com"
     ; name = "Sydney Noteboom" } ;
-  upsert_admin_exn
-    { username = "korede"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "korede@darklang.com"
-    ; name = "Korede" } ;
   upsert_admin_exn
     { username = "julian"
     ; password =
