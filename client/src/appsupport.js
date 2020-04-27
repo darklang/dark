@@ -293,8 +293,9 @@ window.Dark = {
       );
     },
   },
+  /* Fullstory Integration : https://www.notion.so/darklang/Fullstory-Integration-e8bb09a7808941b0b6d089c3c6773ac2 */
   fullstory: {
-    init: function(canvas) {
+    init: function (canvas) {
       /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
       FullStory.init({
         orgId: "TMVRZ",
@@ -307,7 +308,11 @@ window.Dark = {
         })
         .then(data => {
           const consent = data.consent;
-          FullStory.identify(username, { displayName: username, canvas, consent });
+          FullStory.identify(username, {
+            displayName: username,
+            canvas,
+            consent,
+          });
           if (consent) {
             FullStory.consent(true);
           } else {
@@ -317,7 +322,7 @@ window.Dark = {
           document.dispatchEvent(event);
         });
     },
-    setConsent: function(consent) {
+    setConsent: function (consent) {
       FullStory.consent(consent);
       FullStory.setUserVars({ consent });
       if (consent) {
