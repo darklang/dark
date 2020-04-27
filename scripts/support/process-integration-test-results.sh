@@ -40,7 +40,7 @@ jq '.fixtures[0].tests[]' \
                    -e CIRCLE_PULL_REQUEST \
                    -e CIRCLE_SHA1 \
                    -e CIRCLE_USERNAME \
-            | sed -e 's/[^A-Za-z0-9_ =:/-]//g' \
+            | sed -e 's/[^A-Za-z0-9_ =:/.-]//g' \
             | sed -e 's/\(.*\)=\(.*\)/{"\1": "\2"}/' \
             | jq -s add) \
         '. + $env_vars' \
