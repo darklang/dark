@@ -42,9 +42,7 @@ module ASTInfo = struct
     { ast : FluidAST.t
     ; state : fluidState
     ; tokenInfos : tokenInfos
-    ; props : props
-    ; ti : (* it's impossible to not have a token *)
-           T.tokenInfo }
+    ; props : props }
 end
 
 let deselectFluidEditor (s : fluidState) : fluidState =
@@ -428,44 +426,47 @@ let moveToEndOfLine (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
 
 (* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
-let getStartOfWordPos (pos : int) (astInfo : ASTInfo.t) : int =
+let getStartOfWordPos (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int
+    =
   let previousToken =
     astInfo.tokenInfos
     |> List.reverse
     |> List.find ~f:(fun (t : T.tokenInfo) ->
            T.isTextToken t.token && pos > t.startPos)
   in
-  let tokenInfo = previousToken |> Option.withDefault ~default:astInfo.ti in
+  let tokenInfo = previousToken |> Option.withDefault ~default:ti in
   if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
   then getBegOfWordInStrCaretPos ~pos tokenInfo
   else tokenInfo.startPos
 
 
-let goToStartOfWord (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
+let goToStartOfWord (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   astInfo
   |> recordAction "goToStartOfWord"
-  |> setPosition (getStartOfWordPos pos astInfo)
+  |> setPosition (getStartOfWordPos pos ti astInfo)
 
 
 (* We want to find the closest editable token that is after the current cursor
  * position so the cursor always lands in a position where a user is able to
  * type *)
-let getEndOfWordPos (pos : int) (astInfo : ASTInfo.t) : int =
+let getEndOfWordPos (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int =
   let tokenInfo =
     astInfo.tokenInfos
     |> List.find ~f:(fun (t : T.tokenInfo) ->
            T.isTextToken t.token && pos < t.endPos)
-    |> Option.withDefault ~default:astInfo.ti
+    |> Option.withDefault ~default:ti
   in
   if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
   then getEndOfWordInStrCaretPos ~pos tokenInfo
   else tokenInfo.endPos
 
 
-let goToEndOfWord (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
+let goToEndOfWord (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   astInfo
   |> recordAction "goToEndOfWord"
-  |> setPosition (getEndOfWordPos pos astInfo)
+  |> setPosition (getEndOfWordPos pos ti astInfo)
 
 
 let moveToEnd (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
@@ -3996,11 +3997,12 @@ let getSelectionRange (s : fluidState) : int * int =
       (s.newPos, s.newPos)
 
 
-let updateSelectionRange (s : fluidState) (newPos : int) : fluidState =
-  { s with
-    newPos
-  ; selectionStart =
-      Some (s.selectionStart |> Option.withDefault ~default:s.newPos) }
+let updateSelectionRange (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
+  modifyState astInfo ~f:(fun s ->
+      { s with
+        newPos
+      ; selectionStart =
+          Some (s.selectionStart |> Option.withDefault ~default:s.newPos) })
 
 
 let getOptionalSelectionRange (s : fluidState) : (int * int) option =
@@ -4192,10 +4194,10 @@ let rec updateKey
     | InsertText ".", _, R (TFieldPartial _, ti)
       when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
         acStartField ti astInfo
-    (* (********************) *)
-    (* (* CARET NAVIGATION *) *)
-    (* (********************) *)
-    (* (* Tab to next blank *) *)
+    (********************)
+    (* CARET NAVIGATION *)
+    (********************)
+    (* Tab to next blank *)
     | Keypress {key = K.Tab; _}, _, R (_, _)
     | Keypress {key = K.Tab; _}, L (_, _), _ ->
         moveToNextEditable pos astInfo
@@ -4205,10 +4207,9 @@ let rec updateKey
     (* Left/Right movement *)
     (* | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti) *)
     (* | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ -> *)
-    (*     let tokens = tokensForActiveEditor ast s in *)
     (*     if maintainSelection == K.KeepSelection *)
-    (*     then (ast, updateSelectionRange s (getEndOfWordPos tokens ~pos ti)) *)
-    (*     else (ast, goToEndOfWord ~pos tokens s ti) *)
+    (*     then updateSelectionRange astinfo.state (getEndOfWordPos tokens ~pos ti) *)
+    (*     else goToEndOfWord pos ti astInfo *)
     (* | Keypress {key = K.GoToStartOfWord maintainSelection; _}, _, R (_, ti) *)
     (* | Keypress {key = K.GoToStartOfWord maintainSelection; _}, L (_, ti), _ -> *)
     (*     if maintainSelection == K.KeepSelection *)
@@ -5516,10 +5517,7 @@ let defaultTokenInfo : T.tokenInfo =
 
 let astInfoFor (props : props) (ast : FluidAST.t) (s : fluidState) : ASTInfo.t =
   let tokenInfos = tokensForActiveEditor ast s in
-  let ti =
-    getToken' tokenInfos s |> Option.withDefault ~default:defaultTokenInfo
-  in
-  {ast; state = s; tokenInfos; props; ti}
+  {ast; state = s; tokenInfos; props}
 
 
 let propsFromModel (m : model) : props =

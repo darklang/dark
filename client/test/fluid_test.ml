@@ -382,11 +382,7 @@ let processMsg (inputs : fluidInputEvent list) (astInfo : ASTInfo.t) : ASTInfo.t
           astInfo.state
           (FluidInputEvent input)
       in
-      { ast
-      ; state
-      ; tokenInfos
-      ; props = defaultTestProps
-      ; ti = Fluid.defaultTokenInfo })
+      {ast; state; tokenInfos; props = defaultTestProps})
 
 
 let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
