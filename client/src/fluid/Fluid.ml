@@ -1801,16 +1801,16 @@ let insertLambdaVar
 
     Returns a new ast, fluidState, and the id of the newly inserted ELet, which
     may be useful for doing caret placement. *)
-let makeIntoLetBody (id : ID.t) (ast : FluidAST.t) (s : fluidState) :
-    FluidAST.t * fluidState * ID.t =
-  (* let s = *)
-  (*   recordAction (Printf.sprintf "makeIntoLetBody(%s)" (ID.toString id)) s *)
-  (* in *)
+let makeIntoLetBody (id : ID.t) (astInfo : ASTInfo.t) : ASTInfo.t * ID.t =
+  let astInfo =
+    recordAction (Printf.sprintf "makeIntoLetBody(%s)" (ID.toString id)) astInfo
+  in
   let lid = gid () in
   let ast =
-    FluidAST.update id ast ~f:(fun expr -> ELet (lid, "", E.newB (), expr))
+    FluidAST.update id astInfo.ast ~f:(fun expr ->
+        ELet (lid, "", E.newB (), expr))
   in
-  (ast, s, lid)
+  (astInfo |> setAST ast, lid)
 
 
 (* ---------------- *)
@@ -4135,7 +4135,7 @@ let rec updateKey
   (* TODO: When changing TVariable and TFieldName and probably TFnName we
    * should convert them to a partial which retains the old object *)
   (* Checks to see if the token is within an if-condition statement *)
-  let _isInIfCondition token =
+  let isInIfCondition token =
     let rec recurseUp maybeExpr prevId =
       match maybeExpr with
       | Some (E.EIf (_, cond, _, _)) when E.toID cond = prevId ->
@@ -4559,28 +4559,26 @@ let rec updateKey
           astInfo )
     (*
      * Caret at end of line with nothing in newline. *)
-    (* | Keypress {key = K.Enter; _}, L (lt, lti), R (TNewline None, rti) *)
-    (*   when not (T.isLet lt || isAutocompleting rti s || isInIfCondition lt) -> *)
-    (*     wrapInLet lti ast s *)
+    | Keypress {key = K.Enter; _}, L (lt, lti), R (TNewline None, rti)
+      when not (T.isLet lt || isAutocompleting rti s || isInIfCondition lt) ->
+        wrapInLet lti astInfo
     (*
      * Caret at end-of-line with no data in the TNewline.
      * Just move right (ie, * to beginning of next line) *)
-    (* | Keypress {key = K.Enter; _}, L _, R (TNewline None, ti) -> *)
-    (*     (ast, doRight ~pos ~next:mNext ti s) *)
+    | Keypress {key = K.Enter; _}, L _, R (TNewline None, ti) ->
+        doRight ~pos ~next:mNext ti astInfo
     (*
      * Caret at end-of-line generally adds a let on the line below,
      * unless the next line starts with a blank, in which case we go to it. *)
-    (* | Keypress {key = K.Enter; _}, L _, R (TNewline (Some (id, _, _)), ti) -> *)
-    (*     if mNext *)
-    (*        |> Option.map ~f:(fun n -> *)
-    (*               match n.token with TBlank _ -> true | _ -> false) *)
-    (*        |> Option.withDefault ~default:false *)
-    (*     then (ast, doRight ~pos ~next:mNext ti s) *)
-    (*     else *)
-    (*       let ast, s, letId = makeIntoLetBody id ast s in *)
-    (*       let tokens = tokensForActiveEditor ast s in *)
-    (*       let s = moveToAstRef tokens s (ARLet (letId, LPVarName)) in *)
-    (*       (ast, s) *)
+    | Keypress {key = K.Enter; _}, L _, R (TNewline (Some (id, _, _)), ti) ->
+        if mNext
+           |> Option.map ~f:(fun n ->
+                  match n.token with TBlank _ -> true | _ -> false)
+           |> Option.withDefault ~default:false
+        then doRight ~pos ~next:mNext ti astInfo
+        else
+          let astInfo, letId = makeIntoLetBody id astInfo in
+          astInfo |> moveToAstRef (ARLet (letId, LPVarName))
     (*
      * Caret at beginning of special line.
      * Preceding newline contains a parent and index, meaning we're inside some
@@ -4595,99 +4593,89 @@ let rec updateKey
      * in each case the idx is one more than the number of elements in the construct.
      * Eg, a match with 2 rows will have idx=3 here.
      *)
-    (* | ( Keypress {key = K.Enter; _} *)
-    (*   , L (TNewline (Some (_, parentId, Some idx)), _) *)
-    (*   , R (rTok, _) ) -> *)
-    (*     let applyToRightToken () : FluidAST.t * state = *)
-    (*       let parentID = T.toParentID rTok in *)
-    (*       let index = T.toIndex rTok in *)
-    (*       match *)
-    (*         ( parentID *)
-    (*         , index *)
-    (*         , Option.andThen parentID ~f:(fun id -> FluidAST.find id ast) ) *)
-    (*       with *)
-    (*       | Some parentId, Some idx, Some (EMatch _) -> *)
-    (*           let ast, s = addMatchPatternAt parentId idx ast s in *)
-    (*           let target = *)
-    (*             caretTargetForBeginningOfMatchBranch parentId (idx + 1) ast *)
-    (*           in *)
-    (*           let tokens = tokensForActiveEditor ast s in *)
-    (*           let s = moveToCaretTarget tokens s target in *)
-    (*           (ast, s) *)
-    (*       | Some parentId, Some idx, Some (ERecord _) -> *)
-    (*           let ast = addRecordRowAt idx parentId ast in *)
-    (*           let target = *)
-    (*             {astRef = ARRecord (parentId, RPFieldname (idx + 1)); offset = 0} *)
-    (*           in *)
-    (*           let tokens = tokensForActiveEditor ast s in *)
-    (*           let s = moveToCaretTarget tokens s target in *)
-    (*           (ast, s) *)
-    (*       | _ -> *)
-    (*           let id = T.tid rTok in *)
-    (*           let ast, s, _ = makeIntoLetBody id ast s in *)
-    (*           let tokens = tokensForActiveEditor ast s in *)
-    (*           let s = *)
-    (*             moveToCaretTarget tokens s (caretTargetForStartOfExpr id ast) *)
-    (*           in *)
-    (*           (ast, s) *)
-    (*     in *)
-    (*     ( match FluidAST.find parentId ast with *)
-    (*     | Some (EMatch (_, _, exprs)) -> *)
-    (*         (* if a match has n rows, the last newline has idx=(n+1) *) *)
-    (*         if idx = List.length exprs *)
-    (*         then applyToRightToken () *)
-    (*         else *)
-    (*           let ast, s = addMatchPatternAt parentId idx ast s in *)
-    (*           let target = *)
-    (*             caretTargetForBeginningOfMatchBranch parentId (idx + 1) ast *)
-    (*           in *)
-    (*           let tokens = tokensForActiveEditor ast s in *)
-    (*           let s = moveToCaretTarget tokens s target in *)
-    (*           (ast, s) *)
-    (*     | Some (EPipe (_, exprs)) -> *)
-    (* exprs[0] is the initial value of the pipeline, but the indexing
-     * is zero-based starting at exprs[1] (it indexes the _pipes
-     * only_), so need idx+1 here to counteract. *)
-    (*         if idx + 1 = List.length exprs *)
-    (*         then applyToRightToken () *)
-    (*         else *)
-    (*           let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in *)
-    (*           let tokens = tokensForActiveEditor ast s in *)
-    (*           let s = moveToAstRef tokens s (ARPipe (parentId, idx + 1)) in *)
-    (*           (ast, s) *)
-    (*     | Some (ERecord _) -> *)
-    (* No length special-case needed because records do not emit a
-     * TNewline with index after the final '}'. In this case, we
-     * actually hit the next match case instead. *)
-    (*         let ast = addRecordRowAt idx parentId ast in *)
-    (*         let tokens = tokensForActiveEditor ast s in *)
-    (*         let s = *)
-    (*           moveToAstRef tokens s (ARRecord (parentId, RPFieldname (idx + 1))) *)
-    (*         in *)
-    (*         (ast, s) *)
-    (*     | _ -> *)
-    (*         (ast, s) ) *)
+    | ( Keypress {key = K.Enter; _}
+      , L (TNewline (Some (_, parentId, Some idx)), _)
+      , R (rTok, _) ) ->
+        let applyToRightToken () : ASTInfo.t =
+          let parentID = T.toParentID rTok in
+          let index = T.toIndex rTok in
+          match
+            ( parentID
+            , index
+            , Option.andThen parentID ~f:(fun id -> FluidAST.find id ast) )
+          with
+          | Some parentId, Some idx, Some (EMatch _) ->
+              let astInfo = addMatchPatternAt parentId idx astInfo in
+              let target =
+                caretTargetForBeginningOfMatchBranch
+                  parentId
+                  (idx + 1)
+                  astInfo.ast
+              in
+              moveToCaretTarget target astInfo
+          | Some parentId, Some idx, Some (ERecord _) ->
+              let ast = addRecordRowAt idx parentId ast in
+              astInfo
+              |> setAST ast
+              |> moveToCaretTarget
+                   { astRef = ARRecord (parentId, RPFieldname (idx + 1))
+                   ; offset = 0 }
+          | _ ->
+              let id = T.tid rTok in
+              let astInfo, _ = makeIntoLetBody id astInfo in
+              astInfo
+              |> moveToCaretTarget (caretTargetForStartOfExpr id astInfo.ast)
+        in
+        ( match FluidAST.find parentId ast with
+        | Some (EMatch (_, _, exprs)) ->
+            (* if a match has n rows, the last newline has idx=(n+1) *)
+            if idx = List.length exprs
+            then applyToRightToken ()
+            else
+              let astInfo = addMatchPatternAt parentId idx astInfo in
+              let target =
+                caretTargetForBeginningOfMatchBranch
+                  parentId
+                  (idx + 1)
+                  astInfo.ast
+              in
+              moveToCaretTarget target astInfo
+        | Some (EPipe (_, exprs)) ->
+            (* exprs[0] is the initial value of the pipeline, but the indexing
+             * is zero-based starting at exprs[1] (it indexes the _pipes
+             * only_), so need idx+1 here to counteract. *)
+            if idx + 1 = List.length exprs
+            then applyToRightToken ()
+            else
+              let astInfo, _ = addPipeExprAt parentId (idx + 1) astInfo in
+              moveToAstRef (ARPipe (parentId, idx + 1)) astInfo
+        | Some (ERecord _) ->
+            (* No length special-case needed because records do not emit a
+             * TNewline with index after the final '}'. In this case, we
+             * actually hit the next match case instead. *)
+            astInfo
+            |> setAST (addRecordRowAt idx parentId ast)
+            |> moveToAstRef (ARRecord (parentId, RPFieldname (idx + 1)))
+        | _ ->
+            astInfo )
     (*
      * Caret at very beginning of tokens or at beginning of non-special line. *)
-    (* | Keypress {key = K.Enter; _}, No, R (t, _) *)
-    (* | Keypress {key = K.Enter; _}, L (TNewline _, _), R (t, _) -> *)
-    (* In some cases, like |1 + 2, we want to wrap the parent expr (in this case the binop) in a let.
-     * This has to be recursive to handle variations on |1*2 + 3.
-     * In other cases, we want to wrap just the subexpression, such as an if's then expression. *)
-    (*     let id = T.tid t in *)
-    (*     let topID = *)
-    (*       FluidAST.find id ast *)
-    (*       |> Option.andThen ~f:(fun directExpr -> *)
-    (*              findAppropriateParentToWrap directExpr ast) *)
-    (*       |> Option.map ~f:(fun expr -> E.toID expr) *)
-    (*       |> Option.withDefault ~default:id *)
-    (*     in *)
-    (*     let ast, s, _ = makeIntoLetBody topID ast s in *)
-    (*     let tokens = tokensForActiveEditor ast s in *)
-    (*     let s = *)
-    (*       moveToCaretTarget tokens s (caretTargetForStartOfExpr topID ast) *)
-    (*     in *)
-    (*     (ast, s) *)
+    | Keypress {key = K.Enter; _}, No, R (t, _)
+    | Keypress {key = K.Enter; _}, L (TNewline _, _), R (t, _) ->
+        (* In some cases, like |1 + 2, we want to wrap the parent expr (in this case the binop) in a let.
+         * This has to be recursive to handle variations on |1*2 + 3.
+         * In other cases, we want to wrap just the subexpression, such as an if's then expression. *)
+        let id = T.tid t in
+        let topID =
+          FluidAST.find id ast
+          |> Option.andThen ~f:(fun directExpr ->
+                 findAppropriateParentToWrap directExpr ast)
+          |> Option.map ~f:(fun expr -> E.toID expr)
+          |> Option.withDefault ~default:id
+        in
+        let astInfo, _ = makeIntoLetBody topID astInfo in
+        astInfo
+        |> moveToCaretTarget (caretTargetForStartOfExpr topID astInfo.ast)
     (* Caret at very end of tokens where last line is non-let expression. *)
     | Keypress {key = K.Enter; _}, L (token, ti), No when not (T.isLet token) ->
         wrapInLet ti astInfo
