@@ -94,7 +94,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
   | FnName ->
       "function name"
   | FnReturn ->
-      "function return type"
+      "return type"
   | ParamName ->
       "param name"
   | ParamTipe ->
