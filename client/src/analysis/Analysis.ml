@@ -186,7 +186,7 @@ let getAvailableVarnames
       varsFor h.ast @ glob @ inputVariables
   | TLFunc fn ->
       varsFor fn.ufAST @ glob @ inputVariables
-  | TLDB _ | TLTipe _ | TLGroup _ ->
+  | TLPmFunc _ | TLDB _ | TLTipe _ | TLGroup _ ->
       []
 
 

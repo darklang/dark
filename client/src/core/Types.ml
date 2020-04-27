@@ -304,6 +304,7 @@ and packageFn =
 and toplevel =
   | TLHandler of handler
   | TLDB of db
+  | TLPmFunc of packageFn
   | TLFunc of userFunction
   | TLTipe of userTipe
   | TLGroup of group
@@ -1014,6 +1015,7 @@ and centerPage = bool
 
 and page =
   | Architecture
+  | FocusedPackageManagerFn of TLID.t
   | FocusedFn of TLID.t * traceID option
   | FocusedHandler of TLID.t * traceID option * centerPage
   | FocusedDB of TLID.t * centerPage

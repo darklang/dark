@@ -43,7 +43,7 @@ let openOmnibox (m : model) : modification =
   match m.currentPage with
   | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
       Many [Deselect; Entry.openOmnibox ()]
-  | FocusedFn _ | FocusedType _ ->
+  | FocusedFn _ | FocusedType _ | FocusedPackageManagerFn _ ->
       Entry.openOmnibox ()
   | SettingsModal _ ->
       (* Shouldnt be able to open the omnibox from the settings modal *)

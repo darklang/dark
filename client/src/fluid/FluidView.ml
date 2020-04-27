@@ -185,6 +185,7 @@ let viewReturnValue
             | _ ->
                 Some "Your code needs to return a value in the last expression"
             )
+          | _, TLPmFunc _
           | _, TLFunc _
           | _, TLHandler _
           | _, TLDB _
