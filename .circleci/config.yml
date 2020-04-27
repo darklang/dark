@@ -409,7 +409,7 @@ jobs:
             --queue-scheduler-image-id=`cat gcr-image-ids/queue-scheduler` \
             --tunnel-image-id=`cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
-          scripts/honeymarker
+          scripts/honeymarker.sh
 
 
 workflows:
