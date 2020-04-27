@@ -100,8 +100,6 @@ let categoryIcon_ (name : string) : msg Html.html list =
       then [fontAwesome "user"]
       else if String.contains ~substring:"pm-package" name
       then [fontAwesome "cubes"]
-      else if String.contains ~substring:"pm-module" name
-      then [darkIcon "package-manager"]
       else [darkIcon "undefined"]
 
 
@@ -375,11 +373,16 @@ let standardCategories m hs dbs ufns tipes groups =
 
 let packageManagerCategory (pmfns : packageFns) : category =
   let getFnnameEntries (moduleList : packageFn list) : item list =
-    let fnnames = moduleList |> List.uniqueBy ~f:(fun fn -> fn.fnname) in
+    let fnnames =
+      moduleList
+      |> List.sortBy ~f:(fun f -> f.module_)
+      |> List.uniqueBy ~f:(fun fn -> fn.fnname)
+    in
     fnnames
     |> List.map ~f:(fun fn ->
            Entry
-             { name = fn.fnname ^ "_v" ^ string_of_int fn.version
+             { name =
+                 fn.module_ ^ "::" ^ fn.fnname ^ "_v" ^ string_of_int fn.version
              ; identifier = Tlid fn.pfTLID
              ; destination = Some (FocusedPackageManagerFn fn.pfTLID)
              ; uses = None
@@ -388,25 +391,12 @@ let packageManagerCategory (pmfns : packageFns) : category =
              ; killAction = None
              ; verb = None })
   in
-  let getModuleEntries (packageList : packageFn list) : item list =
-    let uniquemodules =
-      packageList |> List.uniqueBy ~f:(fun fn -> fn.module_)
-    in
-    uniquemodules
-    |> List.map ~f:(fun fn ->
-           let moduleList =
-             packageList |> List.filter ~f:(fun f -> fn.module_ = f.module_)
-           in
-           Category
-             { count = List.length uniquemodules
-             ; name = fn.module_
-             ; plusButton = None
-             ; iconAction = None
-             ; classname = "pm-module-" ^ fn.module_
-             ; entries = getFnnameEntries moduleList })
-  in
   let getPackageEntries (userList : packageFn list) : item list =
-    let uniquePackages = userList |> List.uniqueBy ~f:(fun fn -> fn.package) in
+    let uniquePackages =
+      userList
+      |> List.sortBy ~f:(fun f -> f.package)
+      |> List.uniqueBy ~f:(fun fn -> fn.package)
+    in
     uniquePackages
     |> List.map ~f:(fun fn ->
            let packageList =
@@ -418,7 +408,7 @@ let packageManagerCategory (pmfns : packageFns) : category =
              ; plusButton = None
              ; iconAction = None
              ; classname = "pm-package" ^ fn.package
-             ; entries = getModuleEntries packageList })
+             ; entries = getFnnameEntries packageList })
   in
   let uniqueauthors =
     pmfns
