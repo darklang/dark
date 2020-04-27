@@ -15,7 +15,7 @@ kubernetes-scheduler
 kubernetes-stroller
 postgres"
 
-msg="${CIRCLE_USERNAME} deployed PR (SHA: ${CIRCLE_SHA})"
+msg="${CIRCLE_USERNAME} deployed PR (SHA1: ${CIRCLE_SHA1})"
 url="${CIRCLE_BUILD_URL}"
 
 time for dataset in $DATASETS; do
