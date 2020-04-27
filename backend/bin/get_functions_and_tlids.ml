@@ -54,6 +54,8 @@ let rec fnnames_of_expr (expr : RTT.expr) : RTT.fnname list =
     | FluidPartial (_, expr) ->
         fnnames_of_expr expr
     | FluidRightPartial (_, expr) ->
+        fnnames_of_expr expr
+    | FluidLeftPartial (_, expr) ->
         fnnames_of_expr expr )
 
 
@@ -116,14 +118,14 @@ let () =
   *)
 
 let filterFnsNotInStaticFns (fn : fn) =
-  let (realfn : RuntimeT.fn option) =
+  let (realfn : RuntimeT.expr RuntimeT.fn option) =
     Libs.FnMap.find !Libs.static_fns fn.fnname
   in
   match realfn with Some _ -> false | None -> true
 
 
 let isDeprecated (fn : fn) =
-  let (realfn : RuntimeT.fn option) =
+  let (realfn : RuntimeT.expr RuntimeT.fn option) =
     Libs.FnMap.find !Libs.static_fns fn.fnname
   in
   match realfn with Some realfn -> realfn.deprecated | None -> false

@@ -25,7 +25,7 @@ let date_to_sqlstring (d : Core_kernel.Time.t) : string =
   Core.Time.format d "%Y-%m-%d %H:%M:%S" ~zone:Core.Time.Zone.utc
 
 
-type param =
+type 'expr_type param =
   | Int of int
   | Int63 of Int63.t
   | ID of Types.id
@@ -35,13 +35,13 @@ type param =
   | Binary of string
   (* only works for passed params *)
   | Secret of string
-  | RoundtrippableDval of Types.RuntimeT.dval
-  | RoundtrippableDvalmap of Types.RuntimeT.dval_map
-  | QueryableDval of Types.RuntimeT.dval
-  | QueryableDvalmap of Types.RuntimeT.dval_map
+  | RoundtrippableDval of 'expr_type Types.RuntimeT.dval
+  | RoundtrippableDvalmap of 'expr_type Types.RuntimeT.dval_map
+  | QueryableDval of 'expr_type Types.RuntimeT.dval
+  | QueryableDvalmap of 'expr_type Types.RuntimeT.dval_map
   | Time of Types.RuntimeT.time
   | Null
-  | List of param list
+  | List of 'expr_type param list
   | Bool of bool
 [@@deriving show]
 
@@ -55,7 +55,7 @@ let to_binary_bool param : bool =
   match param with Binary _ -> true | _ -> false
 
 
-let rec escape (param : param) : string =
+let rec escape (param : 'expr_type param) : string =
   match param with
   | Int i ->
       string_of_int i
@@ -358,7 +358,7 @@ let iter_with_cursor
 (* SQL Commands *)
 (* ------------------------- *)
 let run
-    ~(params : param list)
+    ~(params : 'expr_type param list)
     ?(result = TextResult)
     ~(name : string)
     ?subject
@@ -393,7 +393,7 @@ let transaction ~(name : string) (f : unit -> unit) : unit =
 
 
 let delete
-    ~(params : param list)
+    ~(params : 'expr_type param list)
     ?(result = TextResult)
     ~(name : string)
     ?subject
@@ -410,7 +410,7 @@ let delete
 
 
 let fetch
-    ~(params : param list)
+    ~(params : 'expr_type param list)
     ?(result = TextResult)
     ~(name : string)
     ?subject
@@ -430,7 +430,7 @@ let fetch
 
 
 let fetch_one
-    ~(params : param list)
+    ~(params : 'expr_type param list)
     ?(result = TextResult)
     ~(name : string)
     ?subject
@@ -456,7 +456,7 @@ let fetch_one
 
 
 let fetch_one_option
-    ~(params : param list)
+    ~(params : 'expr_type param list)
     ?(result = TextResult)
     ~(name : string)
     ?subject
@@ -481,7 +481,8 @@ let fetch_one_option
           Exception.storage "Expected exactly one result, got many")
 
 
-let exists ~(params : param list) ~(name : string) ?subject (sql : string) :
+let exists
+    ~(params : 'expr_type param list) ~(name : string) ?subject (sql : string) :
     bool =
   execute
     ~op:"exists"

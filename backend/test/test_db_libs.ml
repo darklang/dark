@@ -356,7 +356,7 @@ let t_db_queryOne_supports_Date_comparison () =
                           (fn op [var "middle"; fieldAccess (var "value") "ts"])
                       ]) ])))
   in
-  let expected (date : string) : dval =
+  let expected (date : string) : expr dval =
     DOption
       (OptJust
          (DObj (DvalMap.singleton "ts" (DDate (date |> Util.date_of_isostring)))))
@@ -624,18 +624,18 @@ let t_db_getAllKeys_works () =
 let t_sql_compiler_works () =
   let open Types in
   let open Prelude in
-  let f nexpr = Filled (Util.create_id (), nexpr) in
   let _, state, _ = Utils.test_execution_data [] in
   let check
       (msg : string)
       ?(paramName = "value")
       ?(dbFields = [])
       ?(symtable = [])
-      (body : expr)
+      (body : fluid_expr)
       (generated : string) : unit =
     let dbFields = StrDict.from_list dbFields in
     let symtable = StrDict.from_list symtable in
     let result =
+      let body = Fluid.fromFluidExpr body in
       Sql_compiler.compile_lambda ~state symtable paramName dbFields body
     in
     AT.check AT.string msg result generated
@@ -645,62 +645,79 @@ let t_sql_compiler_works () =
       ?(paramName = "value")
       ?(dbFields = [])
       ?(symtable = [])
-      (body : expr)
+      (body : fluid_expr)
       (expectedError : string) : unit =
     try check msg ~paramName ~dbFields ~symtable body "<error expected>"
     with Db.DBQueryException e -> AT.check AT.string msg e expectedError
   in
-  let true' = f (Value "true") in
+  let true' = bool true in
   check "true is true" true' "(true)" ;
-  let fieldAccess = f (FieldAccess (f (Variable "value"), f "myfield")) in
+  let field = fieldAccess (var "value") "myfield" in
   check
     "correct SQL for field access"
     ~dbFields:[("myfield", TBool)]
-    fieldAccess
+    field
     "(CAST(data::jsonb->>'myfield' as bool))" ;
   checkError
     "no field gives error"
-    fieldAccess
+    field
     "The datastore does not have a field named: myfield" ;
   let injection = "'; select * from user_data ;'field" in
-  let fieldAccess =
-    f
-      (FnCall
-         ( "=="
-         , [ f (FieldAccess (f (Variable "value"), f injection))
-           ; f (Value "\"x\"") ] ))
-  in
+  let field = binop "==" (fieldAccess (var "value") injection) (str "x") in
   check
     "field accesses are escaped"
     ~dbFields:[(injection, TStr)]
-    fieldAccess
+    field
     "((CAST(data::jsonb->>'''; select * from user_data ;''field' as text)) = ('x'))" ;
-  let var =
-    f
-      (FnCall
-         ( "=="
-         , [f (Variable "var"); f (FieldAccess (f (Variable "value"), f "name"))]
-         ))
-  in
+  let variable = binop "==" (var "var") (fieldAccess (var "value") "name") in
   check
     "symtable escapes correctly"
     ~dbFields:[("name", TStr)]
     ~symtable:[("var", Dval.dstr_of_string_exn "';select * from user_data;'")]
-    var
+    variable
     "((''';select * from user_data;''') = (CAST(data::jsonb->>'name' as text)))" ;
   let thread =
-    f
-      (Thread
-         [ f (FieldAccess (f (Variable "value"), f "age"))
-         ; f (FnCall ("-", [f (Value "2")]))
-         ; f (FnCall ("+", [f (FieldAccess (f (Variable "value"), f "age"))]))
-         ; f (FnCall ("<", [f (Value "3")])) ])
+    pipe
+      (fieldAccess (var "value") "age")
+      [ binop "-" pipeTarget (int 2)
+      ; binop "+" pipeTarget (fieldAccess (var "value") "age")
+      ; binop "<" pipeTarget (int 3) ]
   in
   check
     ~dbFields:[("age", TInt)]
     "pipes expand correctly into nested functions"
     thread
     "((((CAST(data::jsonb->>'age' as integer)) - (2)) + (CAST(data::jsonb->>'age' as integer))) < (3))" ;
+  check_fluid_expr
+    "canonicalize works on pipes with targets"
+    (Sql_compiler.canonicalize thread)
+    (binop
+       "<"
+       (binop
+          "+"
+          (binop "-" (fieldAccess (var "value") "age") (int 2))
+          (fieldAccess (var "value") "age"))
+       (int 3)) ;
+  check_fluid_expr
+    "inline works (with nested inlines)"
+    (let expr =
+       let'
+         "x"
+         (int 5)
+         (let' "x" (int 6) (binop "+" (int 3) (let' "x" (int 7) (var "x"))))
+     in
+     Sql_compiler.inline "value" StrDict.empty expr)
+    (binop "+" (int 3) (int 7)) ;
+  check_fluid_expr
+    "inline works (def at root)"
+    (let expr =
+       let'
+         "y"
+         (int 5)
+         (let' "x" (int 6) (binop "+" (int 3) (let' "x" (int 7) (var "y"))))
+     in
+     Sql_compiler.inline "value" StrDict.empty expr)
+    (binop "+" (int 3) (int 5)) ;
   ()
 
 
@@ -720,88 +737,95 @@ let t_db_query_works () =
     ; Op.SetDBColType (dbid, coltypeid3, "Int")
     ; Op.AddDBCol (dbid, colnameid4, coltypeid4)
     ; Op.SetDBColName (dbid, colnameid4, "income")
-    ; Op.SetDBColType (dbid, coltypeid4, "Float") ]
+    ; Op.SetDBColType (dbid, coltypeid4, "Float")
+    ; Op.AddDBCol (dbid, colnameid5, coltypeid5)
+    ; Op.SetDBColName (dbid, colnameid5, "dob")
+    ; Op.SetDBColType (dbid, coltypeid5, "Date") ]
   in
   (* Prepopulate the DB for tests *)
-  exec_handler'
-    ~ops
-    (let'
-       "_"
-       (fn
-          "DB::set_v1"
-          [ record
-              [ ("height", int 73)
-              ; ("name", str "Ross")
-              ; ("human", bool true)
-              ; ("income", float' 100 00) ]
-          ; str "ross"
-          ; var "Person" ])
-       (let'
-          "_"
-          (fn
-             "DB::set_v1"
-             [ record
-                 [ ("height", int 65)
-                 ; ("name", str "Rachel")
-                 ; ("human", bool true)
-                 ; ("income", float' 82 00) ]
-             ; str "rachel"
-             ; var "Person" ])
-          (let'
-             "_"
-             (fn
-                "DB::set_v1"
-                [ record
-                    [ ("height", int 10)
-                    ; ("name", str "GrumpyCat")
-                    ; ("human", bool false)
-                    ; ("income", float' 0 00) ]
-                ; str "cat"
-                ; var "Person" ])
-             (let'
-                "_"
-                (fn
-                   "DB::set_v1"
-                   [ record
-                       [ ("height", null)
-                       ; ("name", null)
-                       ; ("human", null)
-                       ; ("income", null) ]
-                   ; str "null"
-                   ; var "Person" ])
-                (EBlank (Libshared.Shared.gid ()))))))
-  |> ignore ;
+  let ross_dob = str "1967-05-12T00:00:00Z" in
+  let ross_expr =
+    record
+      [ ("height", int 73)
+      ; ("name", str "Ross")
+      ; ("human", bool true)
+      ; ("dob", fn ~ster:Rail "Date::parse_v2" [ross_dob])
+      ; ("income", float' 100 00) ]
+  in
+  let rachel_expr =
+    record
+      [ ("height", int 65)
+      ; ("name", str "Rachel")
+      ; ("human", bool true)
+      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "1969-05-05T00:00:00Z"])
+      ; ("income", float' 82 00) ]
+  in
+  let cat_expr =
+    record
+      [ ("height", int 10)
+      ; ("name", str "GrumpyCat")
+      ; ("human", bool false)
+      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "2012-04-04T00:00:00Z"])
+      ; ("income", float' 0 00) ]
+  in
+  let null_expr =
+    record
+      [ ("height", null)
+      ; ("name", null)
+      ; ("human", null)
+      ; ("dob", null)
+      ; ("income", null) ]
+  in
+  let ross = exec_ast' ross_expr in
+  let rachel = exec_ast' rachel_expr in
+  let cat = exec_ast' cat_expr in
+  let nullval = exec_ast' null_expr in
+  let expected =
+    exec_handler'
+      ~ops
+      (let'
+         "_"
+         (fn "DB::set_v1" [ross_expr; str "ross"; var "Person"])
+         (let'
+            "_"
+            (fn "DB::set_v1" [rachel_expr; str "rachel"; var "Person"])
+            (let'
+               "_"
+               (fn "DB::set_v1" [cat_expr; str "cat"; var "Person"])
+               (let'
+                  "_"
+                  (fn "DB::set_v1" [null_expr; str "null"; var "Person"])
+                  (int 5)))))
+  in
+  check_dval "setup worked" expected (Dval.dint 5) ;
   let query expr = fn "DB::query_v4" [var "Person"; expr] in
   let queryv body = fn "DB::query_v4" [var "Person"; lambda ["v"] body] in
   let field name field = fieldAccess (var name) field in
   let sort expr =
-    pipe
-      expr
-      [ fn "List::map" [pipeTarget; lambda ["v"] (field "v" "height")]
-      ; fn "List::sort" [pipeTarget] ]
+    pipe expr [fn "List::sortBy" [pipeTarget; lambda ["v"] (field "v" "height")]]
   in
   let exec expr = exec_handler' ~ops expr in
   let execs expr = exec (expr |> sort) in
   let withvar (name : string) value ast = let' name value ast in
   check_dval
     "Find all"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73; DNull])
+    (DList [cat; rachel; ross; nullval])
     (queryv (bool true) |> execs) ;
   check_dval
     "Find all with condition"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [cat; rachel; ross])
     (queryv (binop ">" (field "v" "height") (int 3)) |> execs) ;
   check_dval
     "boolean"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     (queryv (field "v" "human") |> execs) ;
   check_dval
     "different param name"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     (query (lambda ["value"] (field "value" "human")) |> execs) ;
   check_dval
     "&&"
-    (DList [Dval.dint 73])
+    (DList [ross])
     ( queryv
         (binop
            "&&"
@@ -810,7 +834,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "inlining"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     ( queryv
         (let'
            "x"
@@ -819,7 +843,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "inlining - fieldAccesses"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     ( queryv
         (let'
            "x"
@@ -828,7 +852,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "pipes"
-    (DList [Dval.dint 10])
+    (DList [cat])
     ( queryv
         (pipe
            (field "v" "height")
@@ -836,13 +860,13 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "external variable works"
-    (DList [Dval.dint 10])
+    (DList [cat])
     ( queryv (pipe (field "v" "height") [binop "<" pipeTarget (var "x")])
     |> withvar "x" (int 20)
     |> execs ) ;
   check_dval
     "fieldAccess"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     ( let'
         "myObj"
         (record [("x", int 42)])
@@ -850,7 +874,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "nested fieldAccess"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     ( let'
         "myObj"
         (record [("field1", record [("field2", int 42)])])
@@ -883,15 +907,15 @@ let t_db_query_works () =
     |> exec ) ;
   check_dval
     "null equality works"
-    (DList [DNull])
+    (DList [nullval])
     (queryv (binop "==" (field "v" "name") null) |> execs) ;
   check_dval
     "null inequality works"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [cat; rachel; ross])
     (queryv (binop "!=" (field "v" "name") null) |> execs) ;
   check_dval
     "null is not 'null'"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [cat; rachel; ross])
     (queryv (binop "!=" (field "v" "name") (str "null")) |> execs) ;
   (* Just check enough of the other functions to verify the signature - *)
   (* they all use they same function behind the scenes. *)
@@ -909,13 +933,11 @@ let t_db_query_works () =
     |> exec ) ;
   check_dval
     "queryOne - one"
-    (DOption (OptJust (Dval.dint 65)))
-    ( pipe
-        (fn
-           "DB::queryOne_v4"
-           [ var "Person"
-           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
-        [fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "height")]]
+    (DOption (OptJust rachel))
+    ( fn
+        "DB::queryOne_v4"
+        [ var "Person"
+        ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ]
     |> exec ) ;
   check_dval
     "queryOneWithKey - multiple"
@@ -933,14 +955,13 @@ let t_db_query_works () =
     |> exec ) ;
   check_dval
     "queryOneWithKey - one"
-    (DOption (OptJust (Dval.dint 65)))
+    (DOption (OptJust rachel))
     ( pipe
         (fn
            "DB::queryOneWithKey_v3"
            [ var "Person"
            ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
-        [ fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "rachel")]
-        ; fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "height")] ]
+        [fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "rachel")]]
     |> exec ) ;
   check_dval
     "queryOneWithKey - empty"
@@ -951,36 +972,36 @@ let t_db_query_works () =
     |> exec ) ;
   check_dval
     "queryWithKey - more than one"
-    (Dval.dint 65)
+    rachel
     ( pipe
         (fn
            "DB::queryWithKey_v3"
            [ var "Person"
            ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
-        [lambda ["r"] (field "r" "rachel"); lambda ["r"] (field "r" "height")]
+        [lambda ["r"] (field "r" "rachel")]
     |> exec ) ;
   (* -------------- *)
   (* Test functions *)
   (* -------------- *)
   check_dval
     "float"
-    (DList [Dval.dint 73])
+    (DList [ross])
     ( queryv (binop "Float::greaterThan" (field "v" "income") (float' 90 0))
     |> execs ) ;
   check_dval
     "int <="
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv (binop "Int::lessThanOrEqualTo" (field "v" "height") (int 65))
     |> execs ) ;
   check_dval
     "float"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv
         (binop "Float::lessThanOrEqualTo" (field "v" "income") (float' 82 1))
     |> execs ) ;
   check_dval
     "string::tolower"
-    (DList [Dval.dint 65])
+    (DList [rachel])
     ( queryv
         (binop
            "=="
@@ -989,18 +1010,18 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "string::reverse"
-    (DList [Dval.dint 65])
+    (DList [rachel])
     ( queryv
         (binop "==" (fn "String::reverse" [field "v" "name"]) (str "lehcaR"))
     |> execs ) ;
   check_dval
     "string::length"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv (binop ">" (fn "String::length" [field "v" "name"]) (int 5))
     |> execs ) ;
   check_dval
     "string::isSubstring_v1"
-    (DList [Dval.dint 65; Dval.dint 73])
+    (DList [rachel; ross])
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "R"]) |> execs) ;
   check_dval
     "string::isSubstring_v1 case-sensitive"
@@ -1013,15 +1034,70 @@ let t_db_query_works () =
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "ZZZ"]) |> execs) ;
   check_dval
     "string::isSubstring_v1 empty arg"
-    (DList [Dval.dint 10; Dval.dint 65; Dval.dint 73])
+    (DList [cat; rachel; ross])
     (* matches the ocaml version: "" is a substring of all strings *)
     (queryv (fn "String::isSubstring_v1" [field "v" "name"; str ""]) |> execs) ;
+  check_dval
+    "string::contains"
+    (DList [rachel; ross])
+    (queryv (fn "String::contains" [field "v" "name"; str "R"]) |> execs) ;
+  check_dval
+    "string::contains case-sensitive"
+    (DList [])
+    (queryv (fn "String::contains" [field "v" "name"; str "ROSS"]) |> execs) ;
+  check_dval
+    "string::contains when empty"
+    (DList [])
+    (queryv (fn "String::contains" [field "v" "name"; str "ZZZ"]) |> execs) ;
+  check_dval
+    "string::contains empty arg"
+    (DList [cat; rachel; ross])
+    (* matches the ocaml version: "" is a substring of all strings *)
+    (queryv (fn "String::contains" [field "v" "name"; str ""]) |> execs) ;
+  check_dval
+    "date::lessThanOrEquals"
+    (DList [rachel; ross])
+    ( queryv
+        (binop
+           "Date::<="
+           (field "v" "dob")
+           (fn "Date::parse" [str "2000-01-01T01:02:03Z"]))
+    |> execs ) ;
+  check_dval
+    "date::lessThanOrEquals - equality"
+    (DList [ross])
+    ( queryv (binop "Date::<=" (field "v" "dob") (fn "Date::parse" [ross_dob]))
+    |> execs ) ;
+  check_dval
+    "date::lessThan - equality"
+    (DList [])
+    ( queryv (binop "Date::<" (field "v" "dob") (fn "Date::parse" [ross_dob]))
+    |> execs ) ;
+  check_dval
+    "date::greaterThanOrEquals"
+    (DList [cat])
+    ( queryv
+        (binop
+           "Date::>="
+           (field "v" "dob")
+           (fn "Date::parse" [str "2000-01-01T01:02:03Z"]))
+    |> execs ) ;
+  check_dval
+    "date::greaterThanOrEquals - equality"
+    (DList [cat; rachel; ross])
+    ( queryv (binop "Date::>=" (field "v" "dob") (fn "Date::parse" [ross_dob]))
+    |> execs ) ;
+  check_dval
+    "date::greaterThan - equality"
+    (DList [cat; rachel])
+    ( queryv (binop "Date::>" (field "v" "dob") (fn "Date::parse" [ross_dob]))
+    |> execs ) ;
   (* -------------- *)
   (* Test partial evaluation *)
   (* -------------- *)
   check_dval
     "partial evaluation - fieldAccesses outside query"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( let'
         "x"
         (record [("y", record [("z", record [("a", int 5)])])])
@@ -1033,7 +1109,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "partial evaluation - fieldAccesses"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv
         (let'
            "x"
@@ -1045,7 +1121,7 @@ let t_db_query_works () =
     |> execs ) ;
   check_dval
     "partial execution - List::length"
-    (DList [Dval.dint 10; Dval.dint 65])
+    (DList [cat; rachel])
     ( queryv
         (let'
            "x"

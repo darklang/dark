@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : fn list =
+let fns : expr fn list =
   [ { prefix_names = ["Date::parse"]
     ; infix_names = []
     ; parameters = [par "s" TStr]
@@ -14,7 +14,9 @@ let fns : fn list =
         InProcess
           (function
           | _, [DStr s] ->
-            ( try DDate (Util.date_of_isostring (Unicode_string.to_string s))
+            ( try
+                DDate
+                  (Stdlib_util.date_of_isostring (Unicode_string.to_string s))
               with e -> RT.error "Invalid date format" )
           | args ->
               fail args)
@@ -34,7 +36,8 @@ let fns : fn list =
                 DResult
                   (ResOk
                      (DDate
-                        (Util.date_of_isostring (Unicode_string.to_string s))))
+                        (Stdlib_util.date_of_isostring
+                           (Unicode_string.to_string s))))
               with e ->
                 DResult
                   (ResError (Dval.dstr_of_string_exn "Invalid date format")) )
@@ -54,7 +57,9 @@ let fns : fn list =
           | _, [DStr s] ->
             ( try
                 Dval.to_res_ok
-                  (DDate (Util.date_of_isostring (Unicode_string.to_string s)))
+                  (DDate
+                     (Stdlib_util.date_of_isostring
+                        (Unicode_string.to_string s)))
               with e ->
                 Dval.to_res_err (Dval.dstr_of_string_exn "Invalid date format")
             )
@@ -72,7 +77,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DDate d] ->
-              Dval.dstr_of_string_exn (Util.isostring_of_date d)
+              Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date d)
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -87,7 +92,8 @@ let fns : fn list =
         InProcess
           (function
           | _, [DDate d] ->
-              Dval.dstr_of_string_exn (Util.isostring_of_date_basic_datetime d)
+              Dval.dstr_of_string_exn
+                (Stdlib_util.isostring_of_date_basic_datetime d)
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -101,7 +107,8 @@ let fns : fn list =
         InProcess
           (function
           | _, [DDate d] ->
-              Dval.dstr_of_string_exn (Util.isostring_of_date_basic_date d)
+              Dval.dstr_of_string_exn
+                (Stdlib_util.isostring_of_date_basic_date d)
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -181,6 +188,34 @@ let fns : fn list =
           (function
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( < ) d1 d2)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Date::greaterThanOrEqualTo"]
+    ; infix_names = ["Date::>="]
+    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; return_type = TBool
+    ; description = "Returns whether `d1` >= ` d2`"
+    ; func =
+        InProcess
+          (function
+          | _, [DDate d1; DDate d2] ->
+              DBool (Time.( >= ) d1 d2)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Date::lessThanOrEqualTo"]
+    ; infix_names = ["Date::<="]
+    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; return_type = TBool
+    ; description = "Returns whether `d1` <= ` d2`"
+    ; func =
+        InProcess
+          (function
+          | _, [DDate d1; DDate d2] ->
+              DBool (Time.( <= ) d1 d2)
           | args ->
               fail args)
     ; preview_safety = Safe

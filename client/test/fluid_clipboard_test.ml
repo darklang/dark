@@ -237,8 +237,8 @@ let run () =
       (clipboard : fluidExpr)
       (expectedText : string) : unit =
     let text = FluidPrinter.eToTestString clipboard in
-    testPasteText ~debug name initial range text expectedText ;
-    testPasteExpr ~debug name initial range clipboard expectedText
+    testPasteText ~debug (name ^ " - text") initial range text expectedText ;
+    testPasteExpr ~debug (name ^ " - expr") initial range clipboard expectedText
   in
   let testCopyText
       ?(debug = false)

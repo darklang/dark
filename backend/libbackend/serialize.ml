@@ -365,8 +365,8 @@ let fetch_relevant_tlids_for_execution ~host ~canvas_id () : Types.tlid list =
              Exception.internal "Shape of per_tlid oplists")
 
 
-let fetch_relevant_tlids_for_event ~(event : Event_queue.t) ~canvas_id () :
-    Types.tlid list =
+let fetch_relevant_tlids_for_event
+    ~(event : RTT.expr Event_queue.t) ~canvas_id () : Types.tlid list =
   Db.fetch
     ~name:"fetch_relevant_tlids_for_event"
     "SELECT tlid FROM toplevel_oplists

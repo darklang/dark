@@ -96,7 +96,7 @@ let handlerView
       ; ViewUtils.eventNoPropagation
           ~key:("ref-handler-link" ^ TLID.toString tlid)
           "click"
-          (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
+          (fun _ -> GoTo (FocusedHandler (tlid, None, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-handler-hover" )
     [ Html.div [Html.class' "spec space"] [Html.text space]
     ; Html.div [Html.class' "spec"] [Html.text name]
@@ -118,7 +118,7 @@ let fnView
       ; ViewUtils.eventNoPropagation
           ~key:("ref-fn-link" ^ TLID.toString tlid)
           "click"
-          (fun _ -> GoTo (FocusedFn tlid)) ]
+          (fun _ -> GoTo (FocusedFn (tlid, None))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
     [Html.div [Html.class' "fnheader"] header; fnParamsView params]
 

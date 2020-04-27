@@ -5,10 +5,22 @@ open Libbackend.Worker_util
 
 let shutdown = ref false
 
+let time (fn : unit -> 'a) : float * 'a =
+  let start = Unix.gettimeofday () in
+  let a = fn () in
+  let elapsed = (Unix.gettimeofday () -. start) *. 1000.0 in
+  (elapsed, a)
+
+
 let cron_checker execution_id =
   let rec cron_checker () =
     let%lwt () = Lwt_unix.sleep 1.0 in
-    let result = Libbackend.Cron.check_all_canvases execution_id in
+    let cron_check_time, result =
+      time (fun () -> Libbackend.Cron.check_all_canvases execution_id)
+    in
+    Log.infO
+      "cron_checker_iteration"
+      ~jsonparams:[("duration", `Float cron_check_time)] ;
     match result with
     | Ok _ ->
         if not !shutdown then (cron_checker [@tailcall]) () else exit 0

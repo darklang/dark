@@ -7,7 +7,7 @@ module C = Canvas
 module TL = Toplevel
 
 let dequeue_and_process execution_id :
-    (RTT.dval option, Exception.captured) Result.t =
+    (RTT.expr RTT.dval option, Exception.captured) Result.t =
   Event_queue.with_transaction (fun transaction ->
       let event =
         try Ok (Event_queue.dequeue transaction)
@@ -70,7 +70,7 @@ let dequeue_and_process execution_id :
                                   ~trace_id
                                   ~canvas_id
                                   desc
-                                  event.value
+                                  (Fluid.dval_to_fluid event.value)
                               in
                               let h =
                                 !c.handlers
@@ -124,14 +124,20 @@ let dequeue_and_process execution_id :
                                       ~user_fns:(!c.user_functions |> IDMap.data)
                                       ~package_fns:!c.package_fns
                                       ~account_id:!c.owner
-                                      ~store_fn_arguments:
-                                        (Stored_function_arguments.store
-                                           ~canvas_id
-                                           ~trace_id)
+                                      ~store_fn_arguments:(fun tlid dvalmap ->
+                                        Stored_function_arguments.store
+                                          ~canvas_id
+                                          ~trace_id
+                                          tlid
+                                          (Fluid.dval_map_to_fluid dvalmap))
                                       ~store_fn_result:
-                                        (Stored_function_result.store
-                                           ~canvas_id
-                                           ~trace_id)
+                                        (fun funcdesc args result ->
+                                        Stored_function_result.store
+                                          ~canvas_id
+                                          ~trace_id
+                                          funcdesc
+                                          (List.map ~f:Fluid.dval_to_fluid args)
+                                          (Fluid.dval_to_fluid result))
                                       ~canvas_id
                                   in
                                   Stroller.push_new_trace_id
@@ -139,7 +145,7 @@ let dequeue_and_process execution_id :
                                     ~canvas_id
                                     trace_id
                                     (h.tlid :: touched_tlids) ;
-                                  let result_tipe (r : RTT.dval) =
+                                  let result_tipe (r : RTT.expr RTT.dval) =
                                     match r with
                                     | DResult (ResOk _) ->
                                         "ResOk"
@@ -185,7 +191,7 @@ exception in Event_queue.put_back"
 
 
 let run (execution_id : Types.id) :
-    (RTT.dval option, Exception.captured) Result.t =
+    (RTT.expr RTT.dval option, Exception.captured) Result.t =
   if String.Caseless.equal
        Libservice.Config.postgres_settings.dbname
        "prodclone"

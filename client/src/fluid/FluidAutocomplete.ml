@@ -9,9 +9,9 @@ type item = fluidAutocompleteItem [@@deriving show]
 
 type data = fluidAutocompleteData [@@deriving show]
 
-type tokenInfo = fluidTokenInfo [@@deriving show]
+type props = {functions : Types.functionsType}
 
-type props = fluidProps [@@deriving show]
+type tokenInfo = fluidTokenInfo [@@deriving show]
 
 let focusItem (i : int) : msg Tea.Cmd.t =
   Tea_task.attempt
@@ -411,6 +411,9 @@ let generate (m : model) (props : props) (a : t) (query : fullQuery) : item list
       generatePatterns query.ti a query.queryString
   | TFieldName _ | TFieldPartial _ ->
       generateFields query.fieldList
+  | TLeftPartial _ ->
+      (* Left partials can ONLY be if/let/match for now *)
+      [FACKeyword KLet; FACKeyword KIf; FACKeyword KMatch]
   | TPartial (id, name) ->
       generateExprs m props query.tl query.ti @ generateCommands name tlid id
   | _ ->

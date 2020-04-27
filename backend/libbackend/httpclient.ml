@@ -229,11 +229,12 @@ let http_call_with_code
         else Buffer.contents responsebuf
       in
       let response = (C.get_responsecode c, !errorbuf, responsebody) in
+      let primaryip = C.get_primaryip c in
       C.cleanup c ;
-      log_debug_info debug_bufs ;
+      log_debug_info debug_bufs (Some primaryip) ;
       response
     with Curl.CurlException (curl_code, code, s) ->
-      log_debug_info debug_bufs ;
+      log_debug_info debug_bufs None ;
       let info =
         [ ("url", url)
         ; ("error", Curl.strerror curl_code)

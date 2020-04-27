@@ -9,7 +9,8 @@ type props = Types.functionsProps [@@deriving show {with_path = false}]
 val find : string -> t -> Types.function_ option
 
 (* For legacy reasons, we stash a global reference to the result of the latest
- * update. This should only be used by OldExpr. *)
+ * update. This was only to be used by OldExpr, but it snuck in elsewhere. DO
+ * NOT USE! *)
 val global : unit -> t
 
 val empty : t

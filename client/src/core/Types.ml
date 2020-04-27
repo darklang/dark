@@ -439,7 +439,7 @@ type astFlagPart =
    string" without needing to know if it is a TString relative to a combination
    of TStringMLStart, TStringMLMiddle, TStringMLEnd.
 
-   The IDs below all refer to the AST node ID.t *
+   The IDs below all refer to the AST node id
 
    NOTE(JULIAN): We intentionally do not have any astRefs that include
    parts that refer to an part of the AST that contains nested expressions.
@@ -461,6 +461,7 @@ type astRef =
   | ARFnCall of ID.t (* Matches the fn name+version *)
   | ARPartial of ID.t
   | ARRightPartial of ID.t
+  | ARLeftPartial of ID.t
   | ARList of ID.t * astListPart
   | ARRecord of ID.t * astRecordPart
   | ARPipe of ID.t * int (* index of the pipe *)
@@ -771,6 +772,8 @@ and unlockedDBs = StrSet.t
 
 and getUnlockedDBsAPIResult = unlockedDBs
 
+and get404sAPIResult = fourOhFour list
+
 and getTraceDataAPIResult = {trace : trace}
 
 and dbStatsAPIResult = dbStatsStore
@@ -787,7 +790,6 @@ and initialLoadAPIResult =
   ; userFunctions : userFunction list
   ; deletedUserFunctions : userFunction list
   ; unlockedDBs : unlockedDBs
-  ; fofs : fourOhFour list
   ; staticDeploys : staticDeploy list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
@@ -1010,8 +1012,8 @@ and centerPage = bool
 
 and page =
   | Architecture
-  | FocusedFn of TLID.t
-  | FocusedHandler of TLID.t * centerPage
+  | FocusedFn of TLID.t * traceID option
+  | FocusedHandler of TLID.t * traceID option * centerPage
   | FocusedDB of TLID.t * centerPage
   | FocusedType of TLID.t
   | FocusedGroup of TLID.t * centerPage
@@ -1095,6 +1097,7 @@ and modification =
   | AddOps of (op list * focus)
   | HandleAPIError of apiError
   | GetUnlockedDBsAPICall
+  | Get404sAPICall
   | GetWorkerStatsAPICall of TLID.t
   | ExecutingFunctionAPICall of TLID.t * ID.t * string
   | TriggerHandlerAPICall of TLID.t
@@ -1268,6 +1271,8 @@ and msg =
   | GetUnlockedDBsAPICallback of
       (getUnlockedDBsAPIResult, httpError) Tea.Result.t
       [@printer opaque "GetUnlockedDBsAPICallback"]
+  | Get404sAPICallback of (get404sAPIResult, httpError) Tea.Result.t
+      [@printer opaque "Get404sAPICallback"]
   | NewTracePush of (traceID * TLID.t list)
   | New404Push of fourOhFour
   | NewStaticDeployPush of staticDeploy
@@ -1382,6 +1387,7 @@ and variantTest =
   | NgrokVariant
   | ForceWelcomeModalVariant
   | ExeCodeVariant
+  | LeftPartialVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1461,6 +1467,8 @@ and fluidToken =
   | TPartial of ID.t * string
   (* A partial that extends out to the right. Used to create binops. *)
   | TRightPartial of ID.t * string
+  (* A partial that preceeds an existing expression, used to wrap things in other things *)
+  | TLeftPartial of ID.t * string
   (* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way *)
   | TPartialGhost of ID.t * string
@@ -1618,8 +1626,6 @@ and fluidState =
        * have recently jumped to *)
       dval_source
   ; activeEditor : fluidEditor }
-
-and fluidProps = {functions : functionsType}
 
 (* Avatars *)
 and avatar =

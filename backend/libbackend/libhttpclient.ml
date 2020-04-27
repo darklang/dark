@@ -45,7 +45,7 @@ let with_default_content_type ~(ct : string) (headers : headers) : headers =
  * the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
  * how to encode said body. Returns a tuple of the encoded body, and the passed headers that
  * have potentially had a Content-Type added to them based on the magic decision we've made. *)
-let encode_request_body (headers : headers) (body : dval option) :
+let encode_request_body (headers : headers) (body : 'expr_type dval option) :
     string option * headers =
   match body with
   | Some dv ->
@@ -95,9 +95,9 @@ let encode_request_body (headers : headers) (body : dval option) :
 let send_request
     (uri : string)
     (verb : Httpclient.verb)
-    (request_body : dval option)
-    (query : dval)
-    (request_headers : dval) : dval =
+    (request_body : 'expr_type dval option)
+    (query : 'expr_type dval)
+    (request_headers : 'expr_type dval) : 'expr_type dval =
   let raw_response_body, raw_response_headers, response_code =
     let encoded_query = Dval.dval_to_query query in
     let encoded_request_headers = Dval.to_string_pairs_exn request_headers in
@@ -124,7 +124,9 @@ let send_request
       with _ -> Dval.dstr_of_string_exn "form decoding error"
     else if has_json_header raw_response_headers
     then
-      try Dval.of_unknown_json_v0 raw_response_body
+      try
+        Dval.of_unknown_json_v0 raw_response_body
+        |> Libexecution.Fluid.dval_of_fluid
       with _ -> Dval.dstr_of_string_exn "json decoding error"
     else
       try Dval.dstr_of_string_exn raw_response_body
@@ -222,7 +224,7 @@ let call_no_body verb =
         fail args)
 
 
-let fns : fn list =
+let fns : expr fn list =
   [ { prefix_names = ["HttpClient::post"]
     ; infix_names = []
     ; parameters = params

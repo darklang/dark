@@ -518,7 +518,7 @@ let t
  * that matches the [expected] structure. *)
 let tStruct
     (name : string)
-    (ast : fluidExpr)
+    (ast : FluidExpression.t)
     ~(pos : int)
     (inputs : fluidInputEvent list)
     (expected : FluidExpression.t) =
@@ -529,6 +529,7 @@ let tStruct
       let newAST, _newState = processMsg inputs s ast in
       expect (FluidAST.toExpr newAST)
       |> withEquality FluidExpression.testEqualIgnoringIds
+      |> withPrinter FluidExpression.toHumanReadable
       |> toEqual expected)
 
 
@@ -544,7 +545,13 @@ let run () =
       t "bs outside empty string" emptyStr ~pos:2 bs "\"~\"" ;
       t "bs near-empty string" oneCharStr ~pos:2 bs "\"~\"" ;
       t "del near-empty string" oneCharStr ~pos:1 del "\"~\"" ;
-      t "insert outside string" aStr (ins "c") "~\"some string\"" ;
+      t "insert outside string is no-op" aStr (ins "c") "~\"some string\"" ;
+      tStruct
+        "insert outside string at top-level"
+        aStr
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" aStr) ;
       t "del outside string" aStr del "~\"some string\"" ;
       t "bs outside string" aStr bs "~\"some string\"" ;
       t "insert start of string" aStr ~pos:1 (ins "c") "\"c~some string\"" ;
@@ -720,13 +727,19 @@ let run () =
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12~456789_\"" ) ;
       t
-        "insert outside string"
+        "insert outside string is no-op"
         mlStr
         ~pos:0
         (ins "c")
         ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
+      tStruct
+        "insert outside string at top-level"
+        mlStr
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" mlStr) ;
       t
         "del outside string"
         mlStr
@@ -1091,13 +1104,19 @@ let run () =
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins "0") "~12345" ;
       t "insert at end of short" aShortInt ~pos:1 (ins "2") "12~" ;
-      t "insert not a number" anInt (ins "c") "~12345" ;
       t "insert start of number" anInt (ins "5") "5~12345" ;
       t "del start of number" anInt del "~2345" ;
       t "bs start of number" anInt bs "~12345" ;
       t "insert end of number" anInt ~pos:5 (ins "0") "123450~" ;
       t "del end of number" anInt ~pos:5 del "12345~" ;
       t "bs end of number" anInt ~pos:5 bs "1234~" ;
+      t "insert non-number at start is no-op" anInt (ins "c") "~12345" ;
+      tStruct
+        "insert non-number without wrapper"
+        anInt
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" anInt) ;
       t
         "insert number at scale"
         aHugeInt
@@ -1210,6 +1229,12 @@ let run () =
       t "bs dot converts to int" aFloat ~pos:4 bs "123~456" ;
       t "bs dot converts to int, no fraction" aPartialFloat ~pos:2 bs "1~" ;
       t "continue after adding dot" aPartialFloat ~pos:2 (ins "2") "1.2~" ;
+      tStruct
+        "insert letter at beginning of float at top-level"
+        aFloat
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" aFloat) ;
       t
         "ctrl+left start of whole moves to beg"
         aFloat
@@ -1339,7 +1364,13 @@ let run () =
         "14~6" ;
       ()) ;
   describe "Bools" (fun () ->
-      t ~expectsPartial:true "insert start of true" trueBool (ins "c") "c~true" ;
+      t "insert start of true is no-op" ~pos:0 (bool true) (ins "c") "~true" ;
+      tStruct
+        "insert start of true at top-level creates left partial"
+        (bool true)
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" (bool true)) ;
       t ~expectsPartial:true "del start of true" trueBool del "~rue" ;
       t "bs start of true" trueBool bs "~true" ;
       t
@@ -1360,12 +1391,13 @@ let run () =
         "tr0~ue" ;
       t ~expectsPartial:true "del middle of true" trueBool ~pos:2 del "tr~e" ;
       t ~expectsPartial:true "bs middle of true" trueBool ~pos:2 bs "t~ue" ;
-      t
-        ~expectsPartial:true
-        "insert start of false"
-        falseBool
-        (ins "c")
-        "c~false" ;
+      t "insert start of false is no-op" ~pos:0 (bool false) (ins "c") "~false" ;
+      tStruct
+        "insert start of false at top-level creates left partial"
+        (bool false)
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" (bool false)) ;
       t ~expectsPartial:true "del start of false" falseBool del "~alse" ;
       t "bs start of false" falseBool bs "~false" ;
       t
@@ -1482,13 +1514,13 @@ let run () =
         "fal~" ;
       ()) ;
   describe "Nulls" (fun () ->
-      t
-        ~expectsPartial:true
-        "insert start of null"
+      tStruct
+        "insert start of null at top-level creates left partial"
         aNull
         ~pos:0
-        (ins "c")
-        "c~null" ;
+        [InsertText "c"]
+        (leftPartial "c" aNull) ;
+      t "insert start of null is no-op" aNull ~pos:0 (ins "c") "~null" ;
       t ~expectsPartial:true "del start of null" aNull ~pos:0 del "~ull" ;
       t "bs start of null" aNull ~pos:0 bs "~null" ;
       t "ctrl+left start of null doesnt move" aNull ~pos:0 ctrlLeft "~null" ;
@@ -1857,6 +1889,25 @@ let run () =
         ~pos:7
         del
         "Int::ad~@ 5 _________" ;
+      t
+        ~expectsPartial:true
+        "inserting in middle of function creates a partial"
+        aFnCall
+        ~pos:1
+        (ins "x")
+        "Ix~nt::add 5 _________" ;
+      t
+        "insert start of function is no-op"
+        ~pos:0
+        aFnCall
+        (ins "c")
+        "~Int::add 5 _________" ;
+      tStruct
+        "inserting at beginning of function at top-level creates left partial"
+        aFnCall
+        ~pos:0
+        [InsertText "i"]
+        (leftPartial "i" aFnCall) ;
       t
         ~expectsFnOnRail:true
         "change a function keeps it on the error rail"
@@ -3743,12 +3794,13 @@ let run () =
   describe "Lists" (fun () ->
       t "create list" b ~pos:0 (ins "[") "[~]" ;
       t "insert into empty list inserts" emptyList ~pos:1 (ins "5") "[5~]" ;
-      t
-        "inserting before the list does nothing"
+      t "inserting before a list is no-op" emptyList ~pos:0 (ins "5") "~[]" ;
+      tStruct
+        "inserting before a list at top-level creates left partial"
         emptyList
         ~pos:0
-        (ins "5")
-        "~[]" ;
+        [InsertText "c"]
+        (leftPartial "c" emptyList) ;
       t "insert space into multi list" multi ~pos:6 (key K.Space) "[56,78~]" ;
       t "insert space into single list" single ~pos:3 (key K.Space) "[56~]" ;
       t "insert into existing list item" single ~pos:1 (ins "4") "[4~56]" ;
@@ -3910,12 +3962,13 @@ let run () =
       ()) ;
   describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;
-      t
-        "inserting before the record does nothing"
+      t "inserting before a record is no-op" emptyRecord ~pos:0 (ins "5") "~{}" ;
+      tStruct
+        "inserting before a record at top-level inserts left partial"
         emptyRecord
         ~pos:0
-        (ins "5")
-        "~{}" ;
+        [InsertText "c"]
+        (leftPartial "c" emptyRecord) ;
       t
         "inserting space between empty record does nothing"
         emptyRecord

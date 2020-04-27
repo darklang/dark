@@ -169,12 +169,21 @@ let setFluidSelectionRange (beginIdx : int) (endIdx : int) : unit =
          let maxChars = editor |> Element.textContent |> String.length in
          let anchorBound = beginIdx |> clamp 0 maxChars in
          let focusBound = endIdx |> clamp 0 maxChars in
+         let childNodes = Element.childNodes editor |> NodeList.toArray in
          let findNodeAndOffset (bound : int) : Node.t option * int =
            let offset = ref bound in
-           Element.childNodes editor
-           |> NodeList.toArray
+           childNodes
            |> Array.find ~f:(fun child ->
-                  let nodeLen = child |> Node.textContent |> String.length in
+                  let nodeLen =
+                    child
+                    (* First child is the text node of the span we use in the
+                     * editor. Nodes can also have a dropdown which we want to
+                     * avoid in our calculations. *)
+                    |> Node.firstChild
+                    |> Option.map ~f:Node.textContent
+                    |> Option.map ~f:String.length
+                    |> Option.withDefault ~default:0
+                  in
                   if !offset <= nodeLen
                   then true
                   else (
@@ -284,29 +293,11 @@ let newHandler m space name modifier pos =
           {m with fluidState = newS} |> CursorState.setCursorState cursorState)
     ]
   in
-  let pageChanges = [SetPage (FocusedHandler (tlid, true))] in
+  let pageChanges = [SetPage (FocusedHandler (tlid, None, true))] in
   let rpc =
     AddOps ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
   in
   Many (rpc :: (pageChanges @ fluidMods))
-
-
-let newDB (name : string) (pos : pos) : modification =
-  let next = gid () in
-  let tlid = gtlid () in
-  let pageChanges = [SetPage (FocusedDB (tlid, true))] in
-  let rpcCalls =
-    [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
-    ; AddDBCol (tlid, next, Prelude.gid ()) ]
-  in
-  (* This is not _strictly_ correct, as there's no guarantee that the new DB
-   * doesn't share a name with an old DB in a weird state that still has
-   * data in the user_data table. But it's 99.999% correct, which of course
-   * is the best type of correct *)
-  Many
-    ( AppendUnlockedDBs (StrSet.fromList [TLID.toString tlid])
-    :: AddOps (rpcCalls, FocusExact (tlid, next))
-    :: pageChanges )
 
 
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
@@ -315,10 +306,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
   let unused = Some "_" in
   match action with
   | NewDB maybeName ->
-      let name =
-        match maybeName with Some n -> n | None -> DB.generateDBName ()
-      in
-      newDB name pos
+      Refactor.createNewDB m maybeName pos
   | NewFunction name ->
       Refactor.createNewFunction m name
   | NewHTTPHandler route ->

@@ -1,9 +1,12 @@
 open Tester
 open Prelude
-open Fluid
+module E = FluidExpression
 module AC = FluidAutocomplete
 module B = BlankOr
 module K = FluidKeyboard
+module P = FluidPattern
+module Printer = FluidPrinter
+module TL = Toplevel
 open FluidExpression
 open Fluid_test_data
 open FluidShortcuts
@@ -175,7 +178,11 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.t =
 let setQuery (q : string) (a : AC.t) : AC.t =
   let fullQ = defaultFullQuery a q in
   let props = defaultTestProps in
-  AC.refilter props fullQ a (List.map ~f:(fun {item; _} -> item) a.completions)
+  AC.refilter
+    {functions = props.functions}
+    fullQ
+    a
+    (List.map ~f:(fun {item; _} -> item) a.completions)
 
 
 let filterValid (a : AC.t) : AC.item list =

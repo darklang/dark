@@ -281,6 +281,18 @@ let t_dict_stdlibs_work () =
     (DObj (DvalMap.from_list [("one", Dval.dint 1)]))
     (exec_ast' (fn "Dict::singleton" [str "one"; int 1])) ;
   check_dval
+    "Dict::member works (not present)"
+    (DBool false)
+    (exec_ast'
+       (fn "Dict::member" [record [("otherKey", int 5)]; str "someKey"])) ;
+  check_dval
+    "Dict::member works (present)"
+    (DBool true)
+    (exec_ast'
+       (fn
+          "Dict::member"
+          [record [("otherKey", int 5); ("someKey", int 5)]; str "someKey"])) ;
+  check_dval
     "dict keys"
     (DList [dstr "key1"])
     (exec_ast "(Dict::keys (obj (key1 'val1')))") ;
@@ -781,6 +793,15 @@ let t_list_stdlibs_work () =
                  (bool false)
                  (just (binop "*" (var "item") (int 2)))) ]))
     "Expected the argument `f` passed to `List::filterMap` to return `Just` or `Nothing` for every value in `list`" ;
+  check_dval
+    "List::randomElement works (empty)"
+    (DOption OptNothing)
+    (exec_ast' (fn "List::randomElement" [list []])) ;
+  check_dval
+    "List::randomElement works (1 value)"
+    (DOption (OptJust (Dval.dint 1)))
+    (* Can't check randomness deterministically in test so only 1 element*)
+    (exec_ast' (fn "List::randomElement" [list [int 1]])) ;
   ()
 
 
@@ -1141,80 +1162,109 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
 
 
 let t_date_functions_work () =
+  let datestr = "2019-07-28T22:42:36Z" in
+  let dateval = DDate (Util.date_of_isostring datestr) in
+  let date = fn ~ster:Rail "Date::parse_v1" [str datestr] in
+  let later_date =
+    fn ~ster:Rail "Date::parse_v1" [str "2020-11-26T04:37:46Z"]
+  in
   check_dval
     "Valid Date::parse_v0 produces a Date"
-    (DDate (Util.date_of_isostring "2019-07-28T22:42:00Z"))
-    (exec_ast "(Date::parse '2019-07-28T22:42:00Z')") ;
+    dateval
+    (exec_ast' (fn "Date::parse" [str datestr])) ;
   check_dval
     "Invalid Date::parse_v0 produces an error"
     (DBool true)
-    (exec_ast "(Bool::isError (Date::parse 'asd'))") ;
+    (exec_ast'
+       (pipe (fn "Date::parse" [str "asd"]) [fn "Bool::isError" [pipeTarget]])) ;
   check_dval
     "Valid Date::parse_v1 produces an Ok Date"
-    (DResult (ResOk (DDate (Util.date_of_isostring "2019-07-28T22:42:00Z"))))
-    (exec_ast "(Date::parse_v1 '2019-07-28T22:42:00Z')") ;
+    (DResult (ResOk dateval))
+    (exec_ast' (fn ~ster:NoRail "Date::parse_v1" [str datestr])) ;
   check_dval
     "Invalid Date::parse_v1 produces an Error result"
     (DResult (ResError (Dval.dstr_of_string_exn "Invalid date format")))
-    (exec_ast "(Date::parse_v1 'asd')") ;
+    (exec_ast' (fn ~ster:NoRail "Date::parse_v1" [str "asd"])) ;
   check_dval
     "Valid Date::parse_v1 roundtrips"
-    (DResult (ResOk (Dval.dstr_of_string_exn "2019-07-28T22:42:00Z")))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::toString d)))") ;
+    (Dval.dstr_of_string_exn datestr)
+    (exec_ast' (fn "Date::toString" [date])) ;
   (* Subparts of a date *)
-  check_dval
-    "Year works"
-    (DResult (ResOk (Dval.dint 2019)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::year d)))") ;
-  check_dval
-    "Month works"
-    (DResult (ResOk (Dval.dint 7)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::month d)))") ;
-  check_dval
-    "Day works"
-    (DResult (ResOk (Dval.dint 28)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::day d)))") ;
+  check_dval "Year works" (Dval.dint 2019) (exec_ast' (fn "Date::year" [date])) ;
+  check_dval "Month works" (Dval.dint 7) (exec_ast' (fn "Date::month" [date])) ;
+  check_dval "Day works" (Dval.dint 28) (exec_ast' (fn "Date::day" [date])) ;
   check_dval
     "Date::weekday works"
-    (DResult (ResOk (Dval.dint 7)))
-    (exec_ast'
-       (fn
-          "Result::map"
-          [ fn "Date::parse_v1" [str "2019-07-28T22:42:00Z"]
-          ; lambda ["d"] (fn "Date::weekday" [var "d"]) ])) ;
+    (Dval.dint 7)
+    (exec_ast' (fn "Date::weekday" [date])) ;
   check_dval
     "Date::hour works"
-    (DResult (ResOk (Dval.dint 22)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::hour d)))") ;
+    (Dval.dint 22)
+    (exec_ast' (fn "Date::hour" [date])) ;
   check_dval
     "Date::minute works"
-    (DResult (ResOk (Dval.dint 42)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::minute d)))") ;
+    (Dval.dint 42)
+    (exec_ast' (fn "Date::minute" [date])) ;
   check_dval
     "Date::second works"
-    (DResult (ResOk (Dval.dint 45)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:45Z') (\\d -> (Date::second d)))") ;
+    (Dval.dint 36)
+    (exec_ast' (fn "Date::second" [date])) ;
   check_dval
     "Date::toSeconds roundtrips"
-    (DResult (ResOk (Dval.dstr_of_string_exn "2019-07-28T22:42:45Z")))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-07-28T22:42:45Z') (\\d -> (toString (Date::fromSeconds (Date::toSeconds d)))))") ;
+    (Dval.dstr_of_string_exn datestr)
+    (exec_ast'
+       (pipe
+          date
+          [ fn "Date::toSeconds" [pipeTarget]
+          ; fn "Date::fromSeconds" [pipeTarget]
+          ; fn "toString" [pipeTarget] ])) ;
   check_dval
     "Date::fromSeconds roundtrips"
     (Dval.dint 1095379198)
-    (exec_ast "(Date::toSeconds (Date::fromSeconds 1095379198))") ;
+    (exec_ast'
+       (pipe
+          (int 1095379198)
+          [ fn "Date::fromSeconds" [pipeTarget]
+          ; fn "Date::toSeconds" [pipeTarget] ])) ;
   check_dval
     "Date::hour works - leif's test case"
-    (DResult (ResOk (Dval.dint 3)))
-    (exec_ast
-       "(Result::map (Date::parse_v1 '2019-12-27T03:27:36Z') (\\d -> (Date::hour_v1 d)))") ;
+    (Dval.dint 3)
+    (exec_ast'
+       (pipe
+          (fn ~ster:Rail "Date::parse_v1" [str "2019-12-27T03:27:36Z"])
+          [fn "Date::hour_v1" [pipeTarget]])) ;
+  check_dval
+    "Date <= works"
+    (DBool true)
+    (exec_ast' (binop "Date::<=" date later_date)) ;
+  check_dval
+    "Date <= works"
+    (DBool true)
+    (exec_ast' (binop "Date::<=" date date)) ;
+  check_dval
+    "Date < works"
+    (DBool true)
+    (exec_ast' (binop "Date::<" date later_date)) ;
+  check_dval
+    "Date < works - equality"
+    (DBool false)
+    (exec_ast' (binop "Date::<" date date)) ;
+  check_dval
+    "Date > works"
+    (DBool true)
+    (exec_ast' (binop "Date::>" later_date date)) ;
+  check_dval
+    "Date > works - equality"
+    (DBool false)
+    (exec_ast' (binop "Date::>" date date)) ;
+  check_dval
+    "Date >= works"
+    (DBool true)
+    (exec_ast' (binop "Date::>=" later_date date)) ;
+  check_dval
+    "Date >= works - equality"
+    (DBool true)
+    (exec_ast' (binop "Date::>=" later_date later_date)) ;
   ()
 
 
@@ -1538,7 +1588,7 @@ let t_int_stdlibs () =
     "% errors (_, neg)"
     (exec_ast' (binop "%" (int 5) (int (-5))))
     "Expected the argument `b` argument passed to `%` to be positive, but it was `-5`." ;
-  (*  (* Int::mod_v1 is not yet available; see implementation for why *)  
+  (*  (* Int::mod_v1 is not yet available; see implementation for why *)
   check_dval
     "Int::mod_v1 works (sweep, pos)"
     (DList
@@ -1680,7 +1730,7 @@ let t_bool_stdlibs () =
  * - a basic happy-path works
  * - guards for returning non-int or invalid int (not in {-1,0,1}) error *)
 let t_liblist_sort_by_comparator_works () =
-  let dlist_of_intlist (is : int list) : dval =
+  let dlist_of_intlist (is : int list) : expr dval =
     is
     |> List.map ~f:(fun i -> Dint.of_int i |> DInt)
     |> DList
@@ -1841,6 +1891,98 @@ let t_math_stdlibs () =
   ()
 
 
+let t_libhttp () =
+  let dstr = Dval.dstr_of_string_exn in
+  check_dval
+    "Http::setCookie_v2 works (no params)"
+    (DObj (DvalMap.from_list [("Set-Cookie", dstr "myCookie=myVal")]))
+    (exec_ast'
+       (fn "Http::setCookie_v2" [str "myCookie"; str "myVal"; record []])) ;
+  check_dval
+    "Http::setCookie_v2 works (all params)"
+    (DObj
+       (DvalMap.from_list
+          [ ( "Set-Cookie"
+            , dstr
+                "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com"
+            ) ]))
+    (exec_ast'
+       (match'
+          (fn "Date::parse_v1" [str "2019-07-28T22:42:00Z"])
+          [ ( pOk (pVar "date")
+            , fn
+                "Http::setCookie_v2"
+                [ str "myCookie"
+                ; str "myVal"
+                ; record
+                    [ ("Expires", var "date")
+                    ; ("Max-Age", int 3600)
+                    ; ("Domain", str "darklang.com")
+                    ; ("Path", str "/my/path")
+                    ; ("Secure", bool true)
+                    ; ("HttpOnly", bool true)
+                    ; ("SameSite", str "Strict") ] ] ) ])) ;
+  check_error_contains
+    "Http::setCookie_v2 errors (wrong expires type)"
+    (exec_ast'
+       (fn
+          "Http::setCookie_v2"
+          [str "myCookie"; str "myVal"; record [("Expires", int 5)]]))
+    "Expected the Set-Cookie parameter `Expires` passed to `Http::setCookie_v2` to be a `Date`, but it had type `Int` instead." ;
+  check_error_contains
+    "Http::setCookie_v2 errors (wrong max-age type)"
+    (exec_ast'
+       (fn
+          "Http::setCookie_v2"
+          [str "myCookie"; str "myVal"; record [("Max-Age", str "foo")]]))
+    "Expected the Set-Cookie parameter `Max-Age` passed to `Http::setCookie_v2` to be an `Int` representing seconds, but it had type `String` instead." ;
+  check_error_contains
+    "Http::setCookie_v2 errors (wrong domain type)"
+    (exec_ast'
+       (fn
+          "Http::setCookie_v2"
+          [str "myCookie"; str "myVal"; record [("Domain", int 5)]]))
+    "Expected the Set-Cookie parameter `Domain` passed to `Http::setCookie_v2` to be a `String`, but it had type `Int` instead." ;
+  check_error_contains
+    "Http::setCookie_v2 errors (wrong path type)"
+    (exec_ast'
+       (fn
+          "Http::setCookie_v2"
+          [str "myCookie"; str "myVal"; record [("Path", int 5)]]))
+    "Expected the Set-Cookie parameter `Path` passed to `Http::setCookie_v2` to be a `String`, but it had type `Int` instead." ;
+  check_error_contains
+    "Http::setCookie_v2 errors (wrong secure type)"
+    (exec_ast'
+       (fn
+          "Http::setCookie_v2"
+          [str "myCookie"; str "myVal"; record [("Secure", int 5)]]))
+    "Expected the Set-Cookie parameter `Secure` passed to `Http::setCookie_v2` to have the value `true` or `false`, but it had the value `5` instead." ;
+  check_error_contains
+    "Http::setCookie_v2 errors (wrong httponly type)"
+    (exec_ast'
+       (fn
+          "Http::setCookie_v2"
+          [str "myCookie"; str "myVal"; record [("HttpOnly", int 5)]]))
+    "Expected the Set-Cookie parameter `HttpOnly` passed to `Http::setCookie_v2` to have the value `true` or `false`, but it had the value `5` instead." ;
+  check_error_contains
+    "Http::setCookie_v2 errors (wrong samesite type)"
+    (exec_ast'
+       (fn
+          "Http::setCookie_v2"
+          [str "myCookie"; str "myVal"; record [("SameSite", int 5)]]))
+    "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `5` instead." ;
+  check_error_contains
+    "Http::setCookie_v2 errors (wrong samesite value)"
+    (exec_ast'
+       (fn
+          "Http::setCookie_v2"
+          [ str "myCookie"
+          ; str "myVal"
+          ; record [("SameSite", str "allthesecures")] ]))
+    "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `\"allthesecures\"` instead." ;
+  ()
+
+
 let suite =
   [ ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
@@ -1862,4 +2004,5 @@ let suite =
   ; ("Bool stdlibs work", `Quick, t_bool_stdlibs)
   ; ("Bytes stdlibs work", `Quick, t_libbytes)
   ; ("List::sortByComparator works", `Quick, t_liblist_sort_by_comparator_works)
-  ; ("Math stdlibs work", `Quick, t_math_stdlibs) ]
+  ; ("Math stdlibs work", `Quick, t_math_stdlibs)
+  ; ("HTTP stdlibs work", `Quick, t_libhttp) ]

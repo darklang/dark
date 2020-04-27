@@ -7,8 +7,8 @@ let tlidOf (page : page) : TLID.t option =
   match page with
   | SettingsModal _ | Architecture ->
       None
-  | FocusedFn tlid
-  | FocusedHandler (tlid, _)
+  | FocusedFn (tlid, _)
+  | FocusedHandler (tlid, _, _)
   | FocusedDB (tlid, _)
   | FocusedGroup (tlid, _)
   | FocusedType tlid ->
@@ -18,7 +18,7 @@ let tlidOf (page : page) : TLID.t option =
 let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   let center =
     match page with
-    | FocusedHandler (_, center)
+    | FocusedHandler (_, _, center)
     | FocusedDB (_, center)
     | FocusedGroup (_, center) ->
         center
@@ -50,13 +50,51 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   }
 
 
+let setPageTraceID (oldPage : page) (traceID : traceID) : page =
+  match oldPage with
+  | FocusedHandler (tlid, _, center) ->
+      FocusedHandler (tlid, Some traceID, center)
+  | FocusedFn (tlid, _) ->
+      FocusedFn (tlid, Some traceID)
+  | _ ->
+      oldPage
+
+
+let getTraceID (page : page) : traceID option =
+  match page with
+  | FocusedDB _
+  | FocusedGroup _
+  | FocusedType _
+  | SettingsModal _
+  | Architecture ->
+      None
+  | FocusedFn (_, traceId) | FocusedHandler (_, traceId, _) ->
+      traceId
+
+
+let updatePossibleTrace (m : model) (page : page) : model * msg Cmd.t =
+  let tlid = tlidOf page |> Option.withDefault ~default:(gtlid ()) in
+  match getTraceID page with
+  | Some tid ->
+      let m =
+        let trace =
+          StrDict.fromList [(TLID.toString tlid, [(tid, Error NoneYet)])]
+        in
+        Analysis.updateTraces m trace
+      in
+      let m = Analysis.setSelectedTraceID m tlid tid in
+      Analysis.analyzeFocused m
+  | None ->
+      (m, Cmd.none)
+
+
 let setPage (m : model) (oldPage : page) (newPage : page) : model =
   match (oldPage, newPage) with
-  | SettingsModal _, FocusedFn tlid
-  | Architecture, FocusedFn tlid
-  | FocusedHandler _, FocusedFn tlid
-  | FocusedDB _, FocusedFn tlid
-  | FocusedGroup _, FocusedFn tlid
+  | SettingsModal _, FocusedFn (tlid, _)
+  | Architecture, FocusedFn (tlid, _)
+  | FocusedHandler _, FocusedFn (tlid, _)
+  | FocusedDB _, FocusedFn (tlid, _)
+  | FocusedGroup _, FocusedFn (tlid, _)
   | SettingsModal _, FocusedType tlid
   | Architecture, FocusedType tlid
   | FocusedHandler _, FocusedType tlid
@@ -72,9 +110,12 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
             lastOffset = Some m.canvasProps.offset
           ; offset = Defaults.origin }
       ; cursorState = Selecting (tlid, None) }
-  | FocusedFn oldtlid, FocusedFn newtlid
-  | FocusedType oldtlid, FocusedFn newtlid
-  | FocusedFn oldtlid, FocusedType newtlid
+  | FocusedFn (oldtlid, otid), FocusedFn (newtlid, tid)
+    when oldtlid == newtlid && otid <> tid ->
+      {m with currentPage = newPage; cursorState = Selecting (newtlid, None)}
+  | FocusedFn (oldtlid, _), FocusedFn (newtlid, _)
+  | FocusedType oldtlid, FocusedFn (newtlid, _)
+  | FocusedFn (oldtlid, _), FocusedType newtlid
   | FocusedType oldtlid, FocusedType newtlid ->
       (* Going between fn pages
     * Check they are not the same user function;
@@ -87,10 +128,10 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           currentPage = newPage
         ; canvasProps = {m.canvasProps with offset = Defaults.origin}
         ; cursorState = Selecting (newtlid, None) }
-  | FocusedFn _, FocusedHandler (tlid, _)
+  | FocusedFn _, FocusedHandler (tlid, _, _)
   | FocusedFn _, FocusedDB (tlid, _)
   | FocusedFn _, FocusedGroup (tlid, _)
-  | FocusedType _, FocusedHandler (tlid, _)
+  | FocusedType _, FocusedHandler (tlid, _, _)
   | FocusedType _, FocusedDB (tlid, _)
   | FocusedType _, FocusedGroup (tlid, _) ->
       (* Going from Fn/Type to focused DB/hanlder
@@ -106,10 +147,10 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       ; cursorState = Selecting (tlid, None)
       ; canvasProps =
           {m.canvasProps with offset; lastOffset = None; minimap = None} }
-  | SettingsModal _, FocusedHandler (tlid, _)
+  | SettingsModal _, FocusedHandler (tlid, _, _)
   | SettingsModal _, FocusedDB (tlid, _)
   | SettingsModal _, FocusedGroup (tlid, _)
-  | Architecture, FocusedHandler (tlid, _)
+  | Architecture, FocusedHandler (tlid, _, _)
   | Architecture, FocusedDB (tlid, _)
   | Architecture, FocusedGroup (tlid, _) ->
       (* Going from Architecture to focused db/handler
@@ -118,13 +159,16 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       TL.get m tlid
       |> Option.map ~f:(fun tl -> calculatePanOffset m tl newPage)
       |> recoverOpt "switching to missing tl" ~default:m
-  | FocusedHandler (otlid, _), FocusedHandler (tlid, _)
-  | FocusedHandler (otlid, _), FocusedDB (tlid, _)
-  | FocusedHandler (otlid, _), FocusedGroup (tlid, _)
+  | FocusedHandler (oldtlid, otid, _), FocusedHandler (newtlid, tid, _)
+    when oldtlid == newtlid && otid <> tid ->
+      {m with currentPage = newPage}
+  | FocusedHandler (otlid, _, _), FocusedHandler (tlid, _, _)
+  | FocusedHandler (otlid, _, _), FocusedDB (tlid, _)
+  | FocusedHandler (otlid, _, _), FocusedGroup (tlid, _)
   | FocusedGroup (otlid, _), FocusedGroup (tlid, _)
-  | FocusedGroup (otlid, _), FocusedHandler (tlid, _)
+  | FocusedGroup (otlid, _), FocusedHandler (tlid, _, _)
   | FocusedGroup (otlid, _), FocusedDB (tlid, _)
-  | FocusedDB (otlid, _), FocusedHandler (tlid, _)
+  | FocusedDB (otlid, _), FocusedHandler (tlid, _, _)
   | FocusedDB (otlid, _), FocusedDB (tlid, _)
   | FocusedDB (otlid, _), FocusedGroup (tlid, _) ->
       (* Going from focused db/handler to another focused db/handler

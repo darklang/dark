@@ -4,8 +4,8 @@ open Types.RuntimeT
 module RT = Runtime
 
 (* type coerces one list to another using a function *)
-let list_coerce ~(f : dval -> 'a option) (l : dval list) :
-    ('a list, dval list * dval) Result.t =
+let list_coerce ~(f : 'expr_type dval -> 'a option) (l : 'expr_type dval list) :
+    ('a list, 'expr_type dval list * 'expr_type dval) Result.t =
   l
   |> List.map ~f:(fun dv ->
          match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
@@ -16,7 +16,7 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 
 let ( >>| ) = Result.( >>| )
 
-let fns : fn list =
+let fns : expr fn list =
   [ { prefix_names = ["String::isEmpty"]
     ; infix_names = []
     ; parameters = [par "s" TStr]
@@ -355,6 +355,65 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::slugify_v1"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr]
+    ; return_type = TStr
+    ; description = "Turns a string into a slug"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              let replace = Unicode_string.regexp_replace in
+              let to_remove = "[^\\w\\s_-]" in
+              let trim = "^\\s+|\\s+$" in
+              let newspaces = "[-_\\s]+" in
+              s
+              |> replace
+                   ~pattern:to_remove
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> replace
+                   ~pattern:trim
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> replace
+                   ~pattern:newspaces
+                   ~replacement:(Unicode_string.of_string_exn "-")
+              |> Unicode_string.lowercase
+              |> fun s -> DStr s
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::slugify_v2"]
+    ; infix_names = []
+    ; parameters = [par "string" TStr]
+    ; return_type = TStr
+    ; description =
+        "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s] ->
+              (* Should work the same as https://blog.tersmitten.nl/slugify/ *)
+              let replace = Unicode_string.regexp_replace in
+              (* explicitly limit to (roman) alphanumeric for pretty urls *)
+              let to_remove = "[^a-z0-9\\s_-]+" in
+              let to_be_hyphenated = "[-_\\s]+" in
+              s
+              |> Unicode_string.lowercase
+              |> replace
+                   ~pattern:to_remove
+                   ~replacement:(Unicode_string.of_string_exn "")
+              |> Unicode_string.trim
+              |> replace
+                   ~pattern:to_be_hyphenated
+                   ~replacement:(Unicode_string.of_string_exn "-")
+              |> Unicode_string.lowercase
+              |> fun s -> DStr s
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["String::reverse"]
     ; infix_names = []
@@ -573,7 +632,8 @@ let fns : fn list =
               if l < Dint.zero
               then Exception.code "l should be a positive integer"
               else
-                Dval.dstr_of_string_exn (Util.random_string (Dint.to_int_exn l))
+                Dval.dstr_of_string_exn
+                  (Stdlib_util.random_string (Dint.to_int_exn l))
           | args ->
               fail args)
     ; preview_safety = Unsafe
@@ -594,7 +654,7 @@ let fns : fn list =
                 DResult
                   (ResOk
                      (Dval.dstr_of_string_exn
-                        (Util.random_string (Dint.to_int_exn l))))
+                        (Stdlib_util.random_string (Dint.to_int_exn l))))
           | args ->
               fail args)
     ; preview_safety = Unsafe
@@ -614,7 +674,7 @@ let fns : fn list =
               else
                 Dval.to_res_ok
                   (Dval.dstr_of_string_exn
-                     (Util.random_string (Dint.to_int_exn l)))
+                     (Stdlib_util.random_string (Dint.to_int_exn l)))
           | args ->
               fail args)
     ; preview_safety = Unsafe
@@ -630,7 +690,7 @@ let fns : fn list =
           (function
           | _, [DStr s] ->
               Dval.dstr_of_string_exn
-                (Util.html_escape (Unicode_string.to_string s))
+                (Stdlib_util.html_escape (Unicode_string.to_string s))
           | args ->
               fail args)
     ; preview_safety = Unsafe
@@ -692,6 +752,20 @@ let fns : fn list =
     ; preview_safety = Safe
     ; deprecated = true }
   ; { prefix_names = ["String::isSubstring_v1"]
+    ; infix_names = []
+    ; parameters = [par "lookingIn" TStr; par "searchingFor" TStr]
+    ; return_type = TBool
+    ; description = "Checks if `lookingIn` contains `searchingFor`"
+    ; func =
+        InProcess
+          (function
+          | _, [DStr haystack; DStr needle] ->
+              DBool (Unicode_string.is_substring ~substring:needle haystack)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = true }
+  ; { prefix_names = ["String::contains"]
     ; infix_names = []
     ; parameters = [par "lookingIn" TStr; par "searchingFor" TStr]
     ; return_type = TBool

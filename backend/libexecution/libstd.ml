@@ -4,8 +4,8 @@ open Types.RuntimeT
 module RT = Runtime
 
 (* type coerces one list to another using a function *)
-let list_coerce ~(f : dval -> 'a option) (l : dval list) :
-    ('a list, dval list * dval) Result.t =
+let list_coerce ~(f : 'expr_type dval -> 'a option) (l : 'expr_type dval list) :
+    ('a list, 'expr_type dval list * 'expr_type dval) Result.t =
   l
   |> List.map ~f:(fun dv ->
          match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
@@ -16,7 +16,7 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 
 let ( >>| ) = Result.( >>| )
 
-let fns : fn list =
+let fns : 'expr_type fn list =
   [ { prefix_names = ["toString"]
     ; infix_names = []
     ; parameters = [par "v" TAny]
@@ -54,7 +54,8 @@ let fns : fn list =
     ; description = "Returns true if the two value are equal"
     ; func =
         InProcess
-          (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
+          (function
+          | _, [a; b] -> DBool (equal_dval equal_expr a b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["notEquals"]
@@ -65,7 +66,10 @@ let fns : fn list =
     ; func =
         InProcess
           (function
-          | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
+          | _, [a; b] ->
+              DBool (not (equal_dval equal_expr a b))
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["assoc"]
@@ -159,7 +163,7 @@ let fns : fn list =
           | _, [DStr str] ->
               str
               |> Unicode_string.to_string
-              |> Util.AWS.url_encode
+              |> Stdlib_util.AWS.url_encode
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)

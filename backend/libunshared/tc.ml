@@ -191,4 +191,9 @@ module StrDict = struct
   let size (dict : 'value t) : int =
     (* Base.Map.length is O(1) per https://ocaml.janestreet.com/ocaml-core/latest/doc/base/Base/Map/ *)
     Base.Map.length dict
+
+
+  (** [contains_key dict ~key] returns whether the given [dict] contains [~key]. *)
+  let contains_key (dict : 'value t) ~(key : string) : bool =
+    Base.Map.mem dict key
 end
