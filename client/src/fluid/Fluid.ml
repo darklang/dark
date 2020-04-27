@@ -4389,32 +4389,26 @@ let rec updateKey
       when false (* disable for now *) && pos - ti.startPos != 0 ->
         startEscapingString pos ti astInfo
     (* comma - add another of the thing *)
-    (* | InsertText ",", L (TListOpen id, _), _ when onEdge -> *)
-    (*     let bID = gid () in *)
-    (*     let newExpr, target = *)
-    (*       (E.EBlank bID (* new separators *), {astRef = ARBlank bID; offset = 0}) *)
-    (*     in *)
-    (*     let newAST = insertInList ~index:0 id ~newExpr ast in *)
-    (*     let tokens = tokensForActiveEditor newAST s in *)
-    (*     (newAST, moveToCaretTarget tokens s target) *)
-    (* | InsertText ",", L (TLambdaSymbol id, _), _ when onEdge -> *)
-    (*     let newAST = insertLambdaVar ~index:0 id ~name:"" ast in *)
-    (*     let target = {astRef = ARLambda (id, LBPVarName 0); offset = 0} in *)
-    (*     let tokens = tokensForActiveEditor newAST s in *)
-    (*     (newAST, moveToCaretTarget tokens s target) *)
-    (* | InsertText ",", L (TLambdaVar (id, _, index, _), _), _ when onEdge -> *)
-    (*     let newAST = insertLambdaVar ~index:(index + 1) id ~name:"" ast in *)
-    (*     let target = *)
-    (*       {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0} *)
-    (*     in *)
-    (*     let tokens = tokensForActiveEditor newAST s in *)
-    (*     (newAST, moveToCaretTarget tokens s target) *)
-    (* | InsertText ",", _, R (TLambdaVar (id, _, index, _), _) when onEdge -> *)
-    (*     let target = {astRef = ARLambda (id, LBPVarName index); offset = 0} in *)
-    (*     let newAST = insertLambdaVar ~index id ~name:"" ast in *)
-    (*     let tokens = tokensForActiveEditor newAST s in *)
-    (*     let newState = moveToCaretTarget tokens s target in *)
-    (*     (newAST, newState) *)
+    | InsertText ",", L (TListOpen id, _), _ when onEdge ->
+        let bID = gid () in
+        let newExpr = E.EBlank bID (* new separators *) in
+        astInfo
+        |> setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
+        |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
+    | InsertText ",", L (TLambdaSymbol id, _), _ when onEdge ->
+        astInfo
+        |> setAST (insertLambdaVar ~index:0 id ~name:"" ast)
+        |> moveToCaretTarget {astRef = ARLambda (id, LBPVarName 0); offset = 0}
+    | InsertText ",", L (TLambdaVar (id, _, index, _), _), _ when onEdge ->
+        astInfo
+        |> setAST (insertLambdaVar ~index:(index + 1) id ~name:"" ast)
+        |> moveToCaretTarget
+             {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
+    | InsertText ",", _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
+        astInfo
+        |> setAST (insertLambdaVar ~index id ~name:"" ast)
+        |> moveToCaretTarget
+             {astRef = ARLambda (id, LBPVarName index); offset = 0}
     (* | InsertText ",", L (t, ti), _ -> *)
     (*     if onEdge *)
     (*     then *)
