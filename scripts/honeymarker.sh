@@ -6,13 +6,6 @@ set -euo pipefail
 
 export HONEYCOMB_API_KEY=$BUILDEVENT_APIKEY
 
-# Install honeymarker here
-if [[ ! -f honeymarker ]]; then
-    wget -q -O honeymarker https://honeycomb.io/download/honeymarker/linux/1.9 && \
-      echo 'e74514a2baaf63a5828ff62ca2ca1aa86b3a4ab223ab6a7c53f969d7b55e37fb  honeymarker' | sha256sum -c && \
-      chmod 755 ./honeymarker
-fi
-
 DATASETS="integration-tests
 kubernetes-bwd-nginx
 kubernetes-bwd-ocaml
