@@ -232,6 +232,13 @@ let astInfoFromModel (m : model) : ASTInfo.t option =
 (* -------------------- *)
 (* Update fluid state *)
 (* -------------------- *)
+let recordAction' ?(pos = -1000) (action : string) (s : state) : state =
+  let action =
+    if pos = -1000 then action else action ^ " " ^ string_of_int pos
+  in
+  {s with actions = s.actions @ [action]}
+
+
 (* Returns a new state with the arbitrary string "action" recorded for debugging.
  * If a ~pos or ~ti (token info) is passed, it will be added to the action. *)
 let recordAction ?(pos = -1000) (action : string) (astInfo : ASTInfo.t) :
@@ -239,7 +246,7 @@ let recordAction ?(pos = -1000) (action : string) (astInfo : ASTInfo.t) :
   let action =
     if pos = -1000 then action else action ^ " " ^ string_of_int pos
   in
-  modifyState ~f:(fun s -> {s with actions = s.actions @ [action]}) astInfo
+  modifyState ~f:(recordAction' ~pos action) astInfo
 
 
 let setPosition ?(resetUD = false) (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t
@@ -2340,11 +2347,13 @@ let isAutocompleting (ti : T.tokenInfo) (s : state) : bool =
   && s.newPos >= ti.startPos
 
 
+let acSetIndex' (i : int) (s : state) : state =
+  let s = recordAction' "acSetIndex" s in
+  {s with ac = {s.ac with index = Some i}; upDownCol = None}
+
+
 let acSetIndex (i : int) (astInfo : ASTInfo.t) : ASTInfo.t =
-  astInfo
-  |> recordAction "acSetIndex"
-  |> modifyState ~f:(fun s ->
-         {s with ac = {s.ac with index = Some i}; upDownCol = None})
+  modifyState ~f:(acSetIndex' i) astInfo
 
 
 let acClear (astInfo : ASTInfo.t) : ASTInfo.t =
@@ -5690,13 +5699,10 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidUpdateDropdownIndex index when FluidCommands.isOpened m.fluidState.cp
     ->
       FluidCommands.cpSetIndex m index
-  | FluidUpdateDropdownIndex _index ->
+  | FluidUpdateDropdownIndex index ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
-          let fluidState =
-            (* acSetIndex index *)
-            m.fluidState
-          in
+          let fluidState = acSetIndex' index m.fluidState in
           ({m with fluidState}, Tea.Cmd.none))
   | FluidInputEvent (Keypress {key = K.Undo; _}) ->
       KeyPress.undo_redo m false
