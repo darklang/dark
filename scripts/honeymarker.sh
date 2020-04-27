@@ -4,8 +4,6 @@ set -euo pipefail
 # Creates a 'marker' UI element in honeycomb; see
 # https://docs.honeycomb.io/working-with-your-data/customizing-your-query/markers
 
-# We didn't keep the honeycomb buildevent orb, but the api key is still in place
-# for it
 export HONEYCOMB_API_KEY=$BUILDEVENT_APIKEY
 
 # Install honeymarker here
