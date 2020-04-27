@@ -2100,26 +2100,28 @@ let rec findAppropriateParentToWrap
     Returns a new ast, fluidState, and the id of the EBlank created as the
     first pipe expression (if the pipe was successfully added).
     *)
-let createPipe ~(findParent : bool) (id : ID.t) (ast : FluidAST.t) (s : state) :
-    FluidAST.t * state * ID.t option =
-  (* let action = *)
-  (*   Printf.sprintf "createPipe(id=%s findParent=%B)" (ID.toString id) findParent *)
-  (* in *)
-  (* let s = recordAction action s in *)
+let createPipe ~(findParent : bool) (id : ID.t) (astInfo : ASTInfo.t) :
+    ASTInfo.t * ID.t option =
+  let action =
+    Printf.sprintf "createPipe(id=%s findParent=%B)" (ID.toString id) findParent
+  in
+  let astInfo = recordAction action astInfo in
   let exprToReplace =
-    FluidAST.find id ast
+    FluidAST.find id astInfo.ast
     |> Option.andThen ~f:(fun e ->
-           if findParent then findAppropriateParentToWrap e ast else Some e)
+           if findParent
+           then findAppropriateParentToWrap e astInfo.ast
+           else Some e)
     |> Option.map ~f:extractSubexprFromPartial
   in
   match exprToReplace with
   | None ->
-      (ast, s, None)
+      (astInfo, None)
   | Some expr ->
       let blankId = gid () in
       let replacement = E.EPipe (gid (), [expr; EBlank blankId]) in
-      let ast = FluidAST.replace (E.toID expr) ast ~replacement in
-      (ast, s, Some blankId)
+      let ast = FluidAST.replace (E.toID expr) astInfo.ast ~replacement in
+      (astInfo |> setAST ast, Some blankId)
 
 
 (** addPipeExprAt adds a new EBlank into the EPipe with `pipeId` at `idx`.
@@ -4162,30 +4164,26 @@ let rec updateKey
      * Special autocomplete entries
      *)
     (* Piping, with and without autocomplete menu open *)
-    (* | Keypress {key = K.ShiftEnter; _}, left, _ -> *)
-    (*     let doPipeline (ast : FluidAST.t) (s : fluidState) : *)
-    (*         FluidAST.t * fluidState = *)
-    (*       let startPos, endPos = getSelectionRange s in *)
-    (*       let topmostID = getTopmostSelectionID ast s startPos endPos in *)
-    (*       let findParent = startPos = endPos in *)
-    (*       Option.map topmostID ~f:(fun id -> *)
-    (*           let ast, s, blankId = createPipe ~findParent id ast s in *)
-    (*           match blankId with *)
-    (*           | None -> *)
-    (*               (ast, s) *)
-    (*           | Some id -> *)
-    (*               let tokens = tokensForActiveEditor ast s in *)
-    (*               let s = moveToAstRef tokens s (ARBlank id) in *)
-    (*               (ast, s)) *)
-    (*       |> Option.withDefault ~default:(ast, s) *)
-    (*     in *)
-    (*     ( match left with *)
-    (*     | (L (TPartial _, ti) | L (TFieldPartial _, ti)) *)
-    (*       when Option.is_some (AC.highlighted s.ac) -> *)
-    (*         let ast, s = acEnter ti props ast s K.Enter in *)
-    (*         doPipeline ast s *)
-    (*     | _ -> *)
-    (*         doPipeline ast s ) *)
+    | Keypress {key = K.ShiftEnter; _}, left, _ ->
+        let doPipeline (astInfo : ASTInfo.t) : ASTInfo.t =
+          let startPos, endPos = getSelectionRange s in
+          let topmostID = getTopmostSelectionID ast s startPos endPos in
+          let findParent = startPos = endPos in
+          Option.map topmostID ~f:(fun id ->
+              let astInfo, blankId = createPipe ~findParent id astInfo in
+              match blankId with
+              | None ->
+                  astInfo
+              | Some id ->
+                  moveToAstRef (ARBlank id) astInfo)
+          |> Option.withDefault ~default:astInfo
+        in
+        ( match left with
+        | (L (TPartial _, ti) | L (TFieldPartial _, ti))
+          when Option.is_some (AC.highlighted s.ac) ->
+            astInfo |> acEnter ti K.Enter |> doPipeline
+        | _ ->
+            doPipeline astInfo )
     (* press dot while in a variable entry *)
     | InsertText ".", L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
@@ -4204,7 +4202,7 @@ let rec updateKey
     | Keypress {key = K.ShiftTab; _}, _, R (_, _)
     | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
         moveToPrevEditable pos astInfo
-    (* (* Left/Right movement *) *)
+    (* Left/Right movement *)
     (* | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti) *)
     (* | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ -> *)
     (*     let tokens = tokensForActiveEditor ast s in *)
@@ -4688,7 +4686,9 @@ let rec updateKey
         (* Unknown *)
         report ("Unknown action: " ^ show_fluidInputEvent inputEvent) astInfo
   in
-  (* let newState = {newState with lastInput = inputEvent} in *)
+  let astInfo =
+    modifyState astInfo ~f:(fun s -> {s with lastInput = inputEvent})
+  in
   let astInfo =
     (* This is a hack to make Enter create a new entry in matches and pipes
      * at the end of an AST. Matches/Pipes generate newlines at the end of
