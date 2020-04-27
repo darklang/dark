@@ -515,8 +515,7 @@ let infoize tokens : tokenInfo list =
         ; startCol = !col
         ; startPos = !pos
         ; endPos = !pos + length
-        ; length
-        }
+        ; length }
       in
       ( match token with
       | TNewline _ ->

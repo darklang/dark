@@ -59,9 +59,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
     Option.map traceID ~f:(Analysis.getStoredAnalysis m)
     |> Option.withDefault ~default:LoadableNotInitialized
   in
-  let tokens =
-    FluidPrinter.tokenize (FluidAST.toExpr ast)
-  in
+  let tokens = FluidPrinter.tokenize (FluidAST.toExpr ast) in
   { tl
   ; ast
   ; tokens

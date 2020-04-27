@@ -1556,8 +1556,7 @@ and fluidTokenInfo =
   ; startPos : int
   ; endPos : int
   ; length : int
-  ; token : fluidToken
-  }
+  ; token : fluidToken }
 
 and fluidPatternAutocomplete =
   | FPAVariable of ID.t * ID.t * string
