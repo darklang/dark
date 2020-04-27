@@ -4409,60 +4409,57 @@ let rec updateKey
         |> setAST (insertLambdaVar ~index id ~name:"" ast)
         |> moveToCaretTarget
              {astRef = ARLambda (id, LBPVarName index); offset = 0}
-    (* | InsertText ",", L (t, ti), _ -> *)
-    (*     if onEdge *)
-    (*     then *)
-    (* If we are at the end of an expression,
-     * we check if we are in a list.
-     * If so, we add a blank after the current
-     * index in the list and place the caret
-     * in that blank. *)
-    (*       let exprID = T.tid t in *)
-    (*       ( match FluidAST.findParent exprID ast with *)
-    (*       | Some (E.EList (listID, exprs)) -> *)
-    (*           exprs *)
-    (*           |> List.findIndex ~f:(fun e -> E.toID e = exprID) *)
-    (*           |> Option.map ~f:(fun listIdx -> (listID, listIdx)) *)
-    (*       | _ -> *)
-    (*           None ) *)
-    (*       |> Option.map ~f:(fun (listID, listIdx) -> *)
-    (*              let newExpr, target = *)
-    (*                let bID = gid () in *)
-    (*                (E.EBlank bID, {astRef = ARBlank bID; offset = 0}) *)
-    (*              in *)
-    (*              (insertInList ~index:(listIdx + 1) ~newExpr listID ast, target)) *)
-    (*       |> Option.map ~f:(fun (newAST, newTarget) -> *)
-    (*              let tokens = tokensForActiveEditor newAST s in *)
-    (*              (newAST, moveToCaretTarget tokens s newTarget)) *)
-    (*       |> Option.withDefault ~default:(ast, s) *)
-    (*     else doInsert ~pos props "," ti ast s *)
-    (* (* Field access *) *)
-    (* | InsertText ".", L (TFieldPartial (id, _, _, _), _), _ -> *)
-    (*     (* When pressing . in a field access partial, commit the partial *) *)
-    (*     let newPartialID = gid () in *)
-    (*     let ast = *)
-    (*       FluidAST.update id ast ~f:(function *)
-    (*           | EPartial (_, name, EFieldAccess (faid, expr, _)) -> *)
-    (*               let committedAccess = E.EFieldAccess (faid, expr, name) in *)
-    (*               EPartial *)
-    (*                 ( newPartialID *)
-    (*                 , "" *)
-    (*                 , EFieldAccess (gid (), committedAccess, "") ) *)
-    (*           | e -> *)
-    (*               recover ("updateKey insert . - unexpected expr " ^ E.show e) e) *)
-    (*     in *)
-    (*     let ct = {astRef = ARPartial newPartialID; offset = 0} in *)
-    (*     let tokens = tokensForActiveEditor ast s in *)
-    (*     let s = moveToCaretTarget tokens s ct in *)
-    (*     (ast, s) *)
-    (* | InsertText ".", L (TVariable (id, _), toTheLeft), _ *)
-    (* | InsertText ".", L (TFieldName (id, _, _), toTheLeft), _ *)
-    (*   when onEdge && pos = toTheLeft.endPos -> *)
-    (*     let newAST, target = *)
-    (*       exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) ast *)
-    (*     in *)
-    (*     let tokens = tokensForActiveEditor newAST s in *)
-    (*     (newAST, moveToCaretTarget tokens s target) *)
+    | InsertText ",", L (t, ti), _ ->
+        if onEdge
+        then
+          (* If we are at the end of an expression,
+           * we check if we are in a list.
+           * If so, we add a blank after the current
+           * index in the list and place the caret
+           * in that blank. *)
+          let exprID = T.tid t in
+          ( match FluidAST.findParent exprID ast with
+          | Some (E.EList (listID, exprs)) ->
+              exprs
+              |> List.findIndex ~f:(fun e -> E.toID e = exprID)
+              |> Option.map ~f:(fun listIdx -> (listID, listIdx))
+          | _ ->
+              None )
+          |> Option.map ~f:(fun (listID, listIdx) ->
+                 let newExpr, target =
+                   let bID = gid () in
+                   (E.EBlank bID, {astRef = ARBlank bID; offset = 0})
+                 in
+                 (insertInList ~index:(listIdx + 1) ~newExpr listID ast, target))
+          |> Option.map ~f:(fun (newAST, newTarget) ->
+                 astInfo |> setAST newAST |> moveToCaretTarget newTarget)
+          |> Option.withDefault ~default:astInfo
+        else doInsert ~pos "," ti astInfo
+    (* Field access *)
+    | InsertText ".", L (TFieldPartial (id, _, _, _), _), _ ->
+        (* When pressing . in a field access partial, commit the partial *)
+        let newPartialID = gid () in
+        let ast =
+          FluidAST.update id ast ~f:(function
+              | EPartial (_, name, EFieldAccess (faid, expr, _)) ->
+                  let committedAccess = E.EFieldAccess (faid, expr, name) in
+                  EPartial
+                    ( newPartialID
+                    , ""
+                    , EFieldAccess (gid (), committedAccess, "") )
+              | e ->
+                  recover ("updateKey insert . - unexpected expr " ^ E.show e) e)
+        in
+        astInfo
+        |> setAST ast
+        |> moveToCaretTarget {astRef = ARPartial newPartialID; offset = 0}
+    | InsertText ".", L (TVariable (id, _), toTheLeft), _
+    | InsertText ".", L (TFieldName (id, _, _), toTheLeft), _
+      when onEdge && pos = toTheLeft.endPos ->
+        let newAST, target =
+          exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) ast
+        in
+        astInfo |> setAST newAST |> moveToCaretTarget target
     (* Infix symbol insertion to create partials *)
     | InsertText infixTxt, L (TPipe _, ti), _
     | InsertText infixTxt, _, R (TPlaceholder _, ti)
