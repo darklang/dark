@@ -15,8 +15,8 @@ kubernetes-scheduler
 kubernetes-stroller
 postgres"
 
-msg="${CIRCLE_USERNAME} deployed PR (${CIRCLE_BUILD_URL})"
-url="${CIRCLE_PULL_REQUEST_URL}"
+msg="${CIRCLE_USERNAME} deployed PR (SHA: ${CIRCLE_SHA})"
+url="${CIRCLE_BUILD_URL}"
 
 time for dataset in $DATASETS; do
     # Docs: https://docs.honeycomb.io/working-with-your-data/customizing-your-query/markers
