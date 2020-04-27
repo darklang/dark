@@ -4289,10 +4289,10 @@ punycode@^2.1.0, punycode@^2.1.1:
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-2.1.1.tgz#b58b010ac40c22c5657616c8d2c2c02c7bf479ec"
   integrity sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==
 
-pusher-js@5.1.1:
-  version "5.1.1"
-  resolved "https://registry.yarnpkg.com/pusher-js/-/pusher-js-5.1.1.tgz#267495d3a821d511bdb20cf3c624ba0556e0b7df"
-  integrity sha512-f2tdoA7NvJQkU8Y/iCH25ZSNGxnwCXrVbwos38isX6gnjsSZ1aksWvyZddm2N0sHJWyl+oPBz/MzU5cevVDyEQ==
+pusher-js@6.0.0:
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/pusher-js/-/pusher-js-6.0.0.tgz#b4cb2a85dc7634a43b95ba56f388d672c6aff0a7"
+  integrity sha512-9QmQNReTK8s4Wc3Tdst7VDz+g50WDOOdKEGnCyFpmLQa3/KYpc1U0bZKLS+3dBe1xxbGuVUsFqlWGWa8yZk5gw==
 
 qrcode-terminal@^0.10.0:
   version "0.10.0"
