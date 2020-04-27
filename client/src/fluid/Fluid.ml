@@ -4242,29 +4242,29 @@ let rec updateKey
     | Keypress {key = K.ShiftTab; _}, L (_, _), _ ->
         moveToPrevEditable pos astInfo
     (* Left/Right movement *)
-    (* | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti) *)
-    (* | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ -> *)
-    (*     if maintainSelection == K.KeepSelection *)
-    (*     then updateSelectionRange astinfo.state (getEndOfWordPos tokens ~pos ti) *)
-    (*     else goToEndOfWord pos ti astInfo *)
-    (* | Keypress {key = K.GoToStartOfWord maintainSelection; _}, _, R (_, ti) *)
-    (* | Keypress {key = K.GoToStartOfWord maintainSelection; _}, L (_, ti), _ -> *)
-    (*     if maintainSelection == K.KeepSelection *)
-    (*     then (ast, updateSelectionRange s (getStartOfWordPos ast s ~pos ti)) *)
-    (*     else (ast, goToStartOfWord ast s ti ~pos) *)
+    | Keypress {key = K.GoToEndOfWord maintainSelection; _}, _, R (_, ti)
+    | Keypress {key = K.GoToEndOfWord maintainSelection; _}, L (_, ti), _ ->
+        if maintainSelection == K.KeepSelection
+        then updateSelectionRange (getEndOfWordPos pos ti astInfo) astInfo
+        else goToEndOfWord pos ti astInfo
+    | Keypress {key = K.GoToStartOfWord maintainSelection; _}, _, R (_, ti)
+    | Keypress {key = K.GoToStartOfWord maintainSelection; _}, L (_, ti), _ ->
+        if maintainSelection == K.KeepSelection
+        then updateSelectionRange (getStartOfWordPos pos ti astInfo) astInfo
+        else goToStartOfWord pos ti astInfo
     | Keypress {key = K.Left; _}, L (_, ti), _ ->
         astInfo |> doLeft ~pos ti |> acMaybeShow ti
     | Keypress {key = K.Right; _}, _, R (_, ti) ->
         astInfo |> doRight ~pos ~next:mNext ti |> acMaybeShow ti
-    (* | Keypress {key = K.GoToStartOfLine maintainSelection; _}, _, R (_, ti) *)
-    (* | Keypress {key = K.GoToStartOfLine maintainSelection; _}, L (_, ti), _ -> *)
-    (*     if maintainSelection == K.KeepSelection *)
-    (*     then (ast, updateSelectionRange s (getStartOfLineCaretPos ast s ti)) *)
-    (*     else (ast, moveToStartOfLine ast s ti) *)
-    (* | Keypress {key = K.GoToEndOfLine maintainSelection; _}, _, R (_, ti) -> *)
-    (*     if maintainSelection == K.KeepSelection *)
-    (*     then (ast, updateSelectionRange s (getEndOfLineCaretPos ast s ti)) *)
-    (*     else (ast, moveToEndOfLine ast s ti) *)
+    | Keypress {key = K.GoToStartOfLine maintainSelection; _}, _, R (_, ti)
+    | Keypress {key = K.GoToStartOfLine maintainSelection; _}, L (_, ti), _ ->
+        if maintainSelection == K.KeepSelection
+        then updateSelectionRange (getStartOfLineCaretPos ti astInfo) astInfo
+        else moveToStartOfLine ti astInfo
+    | Keypress {key = K.GoToEndOfLine maintainSelection; _}, _, R (_, ti) ->
+        if maintainSelection == K.KeepSelection
+        then updateSelectionRange (getEndOfLineCaretPos ti astInfo) astInfo
+        else moveToEndOfLine ti astInfo
     | Keypress {key = K.Up; _}, _, _ ->
         doUp ~pos astInfo
     | Keypress {key = K.Down; _}, _, _ ->
