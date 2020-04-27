@@ -447,15 +447,6 @@ let upsert_admins () : unit =
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMDJYZzhSS1RQai9JOGppdzI5MTBEUSRJdE0yYnlIK29OL1RIdzFJbC9yNWZBT2RGR0xrUFc3V3MxaVpUUUVFKytjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "sydney@darklang.com"
     ; name = "Sydney Noteboom" } ;
-  (*
-  upsert_admin_exn
-    { username = "korede"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "korede@darklang.com"
-    ; name = "Korede" } ;
-     *)
   upsert_admin_exn
     { username = "julian"
     ; password =
