@@ -75,7 +75,8 @@ let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
                         { m.fluidState with
                           newPos = 5 (* pos 5 is the blank after "when" *)
                         ; upDownCol = None
-                        ; activeEditor = FeatureFlagEditor flagId } }
+                        ; activeEditor =
+                            FeatureFlagEditor (Toplevel.id tl, flagId) } }
                   , Tea.Cmd.none )) ]
       | None ->
           setAST )
@@ -123,7 +124,7 @@ let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
                            (* should probably be the last place the caret was
                             * in the main editor, but we don't store that *)
                        ; upDownCol = None
-                       ; activeEditor = MainEditor } }
+                       ; activeEditor = MainEditor (Toplevel.id tl) } }
                  , Tea.Cmd.none )) ])
   |> Option.withDefault ~default:NoChange
 
