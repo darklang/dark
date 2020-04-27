@@ -20,10 +20,10 @@ url="${CIRCLE_BUILD_URL}"
 
 time for dataset in $DATASETS; do
     # Docs: https://docs.honeycomb.io/working-with-your-data/customizing-your-query/markers
-    honeymarker --writekey="${HONEYCOMB_API_KEY}" \
+    honeymarker add \
+        --writekey="${HONEYCOMB_API_KEY}" \
         --dataset="$dataset" \
         --msg="${msg}" \
         --url="${url}" \
-        --type="deploy" \
-        --add
+        --type="deploy"
 done
