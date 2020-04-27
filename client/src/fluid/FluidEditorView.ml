@@ -73,7 +73,7 @@ let toHtml (s : state) : Types.msg Html.html list =
     | _ ->
         UnknownExecution
   in
-  let caretToken = Fluid.tokenAtCaret s.tokens s.fluidState in
+  let caretToken = Fluid.getTokenNotWhitespace s.tokens s.fluidState in
   let caretParentBlockID =
     caretToken
     |> Option.andThen ~f:(fun ti ->

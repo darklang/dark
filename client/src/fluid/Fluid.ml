@@ -201,9 +201,8 @@ let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
 
 
 (* This is slightly different from getToken. Here we simply want the token closest to the caret that is a not TNewline nor TSep. It is used for figuring out where your caret is, to determine whether certain rendering behavior should be applicable *)
-let tokenAtCaret (tokens : T.tokenInfo list) (s : fluidState) :
+let getTokenNotWhitespace (tokens : T.tokenInfo list) (s : fluidState) :
     T.tokenInfo option =
-  (* let tokens = tokensForActiveEditor ast s in *)
   let left, right, _ = getNeighbours ~pos:s.newPos tokens in
   match (left, right) with
   | L (_, lti), R (TNewline _, _) ->
