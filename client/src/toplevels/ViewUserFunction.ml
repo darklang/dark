@@ -141,15 +141,18 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       (FnParams.view fn vs @ [addParamBtn])
   in
   let returnRow =
-    Html.div
-      [Html.id "fnreturn"; Html.class' "col param"]
-      [ fontAwesome "level-down-alt"
-      ; ViewBlankOr.viewTipe
-          ~classes:["type"]
-          ~enterable:true
-          ParamTipe (* make a new type: ReturnTipe *)
-          vs
-          fn.ufMetadata.ufmReturnTipe ]
+    if VariantTesting.variantIsActive' vs.testVariants FnReturnVariant
+    then
+      Html.div
+        [Html.id "fnreturn"; Html.class' "col param"]
+        [ fontAwesome "level-down-alt"
+        ; ViewBlankOr.viewTipe
+            ~classes:["type"]
+            ~enterable:true
+            ParamTipe (* make a new type: ReturnTipe *)
+            vs
+            fn.ufMetadata.ufmReturnTipe ]
+    else Vdom.noNode
   in
   Html.div [Html.class' "fn-header"] [titleRow; paramRows; returnRow]
 

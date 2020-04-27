@@ -1388,6 +1388,7 @@ and variantTest =
   | ForceWelcomeModalVariant
   | ExeCodeVariant
   | LeftPartialVariant
+  | FnReturnVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
