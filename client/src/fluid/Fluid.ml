@@ -4319,30 +4319,29 @@ let rec updateKey
       | None ->
           deleteCaretRange (s.newPos, getEndOfLineCaretPos ti astInfo) astInfo
       )
-    (* | DeleteWordForward, _, R (_, ti) -> *)
-    (*   ( match getOptionalSelectionRange s with *)
-    (*   | Some selRange -> *)
-    (*       deleteCaretRange props ~state:s ~ast selRange *)
-    (*   | None -> *)
-    (*       let tokens = tokensForActiveEditor ast s in *)
-    (*       let movedState = goToEndOfWord ~pos tokens s ti in *)
-    (*       let newAst, newState = *)
-    (*         deleteCaretRange props ~state:s ~ast (pos, movedState.newPos) *)
-    (*       in *)
-    (*       if newAst = ast && newState.newPos = pos *)
-    (*       then (newAst, movedState) *)
-    (*       else (newAst, newState) ) *)
-    (* | DeleteWordBackward, L (_, ti), _ -> *)
-    (*   ( match getOptionalSelectionRange s with *)
-    (*   | Some selRange -> *)
-    (*       deleteCaretRange props ~state:s ~ast selRange *)
-    (*   | None -> *)
-    (*       let rangeStart = *)
-    (*         if T.isStringToken ti.token && pos != ti.startPos *)
-    (*         then getBegOfWordInStrCaretPos ~pos ti *)
-    (*         else ti.startPos *)
-    (*       in *)
-    (*       deleteCaretRange props ~state:s ~ast (rangeStart, pos) ) *)
+    | DeleteWordForward, _, R (_, ti) ->
+      ( match getOptionalSelectionRange s with
+      | Some selRange ->
+          deleteCaretRange selRange astInfo
+      | None ->
+          let movedState = goToEndOfWord pos ti astInfo in
+          let newAstInfo =
+            deleteCaretRange (pos, movedState.state.newPos) astInfo
+          in
+          if newAstInfo.ast = astInfo.ast && newAstInfo.state.newPos = pos
+          then modifyState newAstInfo ~f:(fun _ -> movedState.state)
+          else newAstInfo )
+    | DeleteWordBackward, L (_, ti), _ ->
+      ( match getOptionalSelectionRange s with
+      | Some selRange ->
+          deleteCaretRange selRange astInfo
+      | None ->
+          let rangeStart =
+            if T.isStringToken ti.token && pos != ti.startPos
+            then getBegOfWordInStrCaretPos ~pos ti
+            else ti.startPos
+          in
+          deleteCaretRange (rangeStart, pos) astInfo )
     (****************************************)
     (* SKIPPING OVER SYMBOLS BY TYPING THEM *)
     (****************************************)
