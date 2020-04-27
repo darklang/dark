@@ -3,13 +3,16 @@
 # shellcheck disable=SC2002
 . ./scripts/support/assert-in-container "$0" "$@"
 
+# Collects the results of integration tests and sends to honeycomb. See
+# scripts/support/process-integration-test-results.sh for what gets sent.
+
 set -euo pipefail
 
 # We didn't keep the honeycomb buildevent orb, but the api key is still in place
 # for it
 export HONEYCOMB_API_KEY=$BUILDEVENT_APIKEY
 
-# Install honeytail here, since installing it in the container just leaves me
+# Install honeytail here, since installing it in the Dockerfile just leaves me
 # with "honeytail: command not found"
 if [[ ! -f honeytail ]]; then
     wget -q -O honeytail https://honeycomb.io/download/honeytail/linux/1.762 && \
