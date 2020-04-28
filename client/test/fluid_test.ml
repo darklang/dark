@@ -4453,59 +4453,60 @@ let run () =
         ~pos:3
         (inputs [DeleteContentBackward; InsertText "+"; keypress K.Enter])
         "4 + ~_________" ;
-      (* test "click into partial opens autocomplete" (fun () -> *)
-      (*     let ast = let' "request" aShortInt aPartialVar in *)
-      (*     let h = Fluid_utils.h ast in *)
-      (*     let m = {defaultTestModel with handlers = Handlers.fromList [h]} in *)
-      (*     let tlid = h.hTLID in *)
-      (*     expect *)
-      (*       (let _, newState, _ = *)
-      (*          updateMsg *)
-      (*            m *)
-      (*            tlid *)
-      (*            h.ast *)
-      (*            (FluidMouseUp *)
-      (*               {tlid; editor = MainEditor; selection = ClickAt 18}) *)
-      (*            m.fluidState *)
-      (*        in *)
-      (*        newState.ac.index) *)
-      (*     |> toEqual (Some 0)) ; *)
-      (* test *)
-      (*   "Backspace over binop resets upDownCol but not autocomplete" *)
-      (*   (fun () -> *)
-      (*     let ast = binop "+" aShortInt b in *)
-      (*     let h = Fluid_utils.h ast in *)
-      (*     let m = {defaultTestModel with handlers = Handlers.fromList [h]} in *)
-      (*     let tlid = h.hTLID in *)
-      (*     expect *)
-      (*       (let newState = m.fluidState |> moveTo 3 in *)
-      (*        let _, newState, _ = *)
-      (*          updateMsg *)
-      (*            m *)
-      (*            tlid *)
-      (*            h.ast *)
-      (*            (FluidInputEvent DeleteContentBackward) *)
-      (*            newState *)
-      (*        in *)
-      (*        let _, newState, _ = *)
-      (*          updateMsg *)
-      (*            m *)
-      (*            tlid *)
-      (*            h.ast *)
-      (*            (FluidInputEvent (InsertText "+")) *)
-      (*            newState *)
-      (*        in *)
-      (*        (newState.ac.index, newState.upDownCol)) *)
-      (*     |> toEqual (Some 0, None)) ; *)
-      (* test "backspace on partial will open AC if query matches" (fun () -> *)
-      (*     let ast = FluidAST.ofExpr (let' "request" aShortInt aPartialVar) in *)
-      (*     let s = defaultTestState |> moveTo 19 in *)
-      (*     let ast, s = updateKey (keypress K.Down) defaultTestProps ast s in *)
-      (*     let ast, s = *)
-      (*       ast |> FluidAST.toExpr |> processMsg [DeleteContentBackward] s *)
-      (*     in *)
-      (*     let result = Printer.eToTestString (FluidAST.toExpr ast) in *)
-      (*     expect (result, s.ac.index) |> toEqual ("let request = 1\nre", Some 0)) ; *)
+      test "click into partial opens autocomplete" (fun () ->
+          let ast = let' "request" aShortInt aPartialVar in
+          let h = Fluid_utils.h ast in
+          let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+          let tlid = h.hTLID in
+          expect
+            (let _, newState, _ =
+               updateMsg
+                 m
+                 tlid
+                 h.ast
+                 m.fluidState
+                 (FluidMouseUp
+                    {tlid; editor = MainEditor; selection = ClickAt 18})
+             in
+             newState.ac.index)
+          |> toEqual (Some 0)) ;
+      test
+        "Backspace over binop resets upDownCol but not autocomplete"
+        (fun () ->
+          let ast = binop "+" aShortInt b in
+          let h = Fluid_utils.h ast in
+          let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+          let tlid = h.hTLID in
+          expect
+            (let _, newState, _ =
+               updateMsg
+                 m
+                 tlid
+                 h.ast
+                 {defaultTestState with newPos = 3}
+                 (FluidInputEvent DeleteContentBackward)
+             in
+             let _, newState, _ =
+               updateMsg
+                 m
+                 tlid
+                 h.ast
+                 newState
+                 (FluidInputEvent (InsertText "+"))
+             in
+             (newState.ac.index, newState.upDownCol))
+          |> toEqual (Some 0, None)) ;
+      test "backspace on partial will open AC if query matches" (fun () ->
+          let ast = FluidAST.ofExpr (let' "request" aShortInt aPartialVar) in
+          let astInfo =
+            astInfoFor defaultTestProps ast defaultTestState
+            |> moveTo 19
+            |> updateKey (keypress K.Down)
+            |> processMsg [DeleteContentBackward]
+          in
+          let result = Printer.tokensToString astInfo.tokenInfos in
+          expect (result, astInfo.state.ac.index)
+          |> toEqual ("let request = 1\nre", Some 0)) ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
@@ -4521,7 +4522,7 @@ let run () =
   describe "Movement" (fun () ->
       let s = defaultTestState in
       let tokens = Printer.tokenize complexExpr in
-      let _len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
+      let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr |> FluidAST.ofExpr in
       test "gridFor - 1" (fun () ->
           expect (gridFor ~pos:116 tokens) |> toEqual {row = 2; col = 2}) ;
@@ -4535,14 +4536,14 @@ let run () =
           expect (gridFor ~pos:158 tokens) |> toEqual {row = 5; col = 1}) ;
       test "gridFor - (reverse) in an indent" (fun () ->
           expect (posFor ~row:5 ~col:1 tokens) |> toEqual 158) ;
-      (* test "gridFor roundtrips" (fun () -> *)
-      (*     let poses = List.range 0 len in *)
-      (*     let newPoses = *)
-      (*       List.map poses ~f:(fun pos -> *)
-      (*           let ({row; col} : T.tokenInfo) = gridFor ~pos tokens in *)
-      (*           posFor ~row ~col tokens) *)
-      (*     in *)
-      (*     expect poses |> toEqual newPoses) ; *)
+      test "gridFor roundtrips" (fun () ->
+          let poses = List.range 0 len in
+          let newPoses =
+            List.map poses ~f:(fun pos ->
+                let ({row; col} : Fluid.gridPos) = gridFor ~pos tokens in
+                posFor ~row ~col tokens)
+          in
+          expect poses |> toEqual newPoses) ;
       t
         "right skips over indent when in indent"
         emptyIf
@@ -4555,21 +4556,34 @@ let run () =
         ~pos:13
         (key K.Left)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
-      (* length *)
-      (* test "up from first row is zero" (fun () -> *)
-      (*     expect (doUp ~pos:5 ast s |> fun s -> s.newPos) |> toEqual 0) ; *)
-      (* test "down from first row is end of last row" (fun () -> *)
-      (*     expect (doDown ~pos:168 ast s |> fun s -> s.newPos) |> toEqual 174) ; *)
-      (* (* end of short row *) *)
-      (* test "up into shorter row goes to end of row" (fun () -> *)
-      (*     expect (doUp ~pos:172 ast s |> fun m -> m.newPos) |> toEqual 156) ; *)
-      (* test "down into shorter row goes to end of row" (fun () -> *)
-      (*     expect (doDown ~pos:143 ast s |> fun m -> m.newPos) |> toEqual 156) ; *)
-      (* (* start of indented row *) *)
-      (* test "up into indented row goes to first token" (fun () -> *)
-      (*     expect (doUp ~pos:152 ast s |> fun m -> m.newPos) |> toEqual 130) ; *)
-      (* test "down into indented row goes to first token" (fun () -> *)
-      (*     expect (doDown ~pos:109 ast s |> fun m -> m.newPos) |> toEqual 114) ; *)
+      describe "length" (fun () ->
+          let aiFor ast = astInfoFor defaultTestProps ast defaultTestState in
+          test "up from first row is zero" (fun () ->
+              expect (aiFor ast |> doUp ~pos:5 |> fun {state; _} -> state.newPos)
+              |> toEqual 0) ;
+          test "down from first row is end of last row" (fun () ->
+              expect
+                (aiFor ast |> doDown ~pos:168 |> fun {state; _} -> state.newPos)
+              |> toEqual 174) ;
+          (* end of short row *)
+          test "up into shorter row goes to end of row" (fun () ->
+              expect
+                (aiFor ast |> doUp ~pos:172 |> fun {state; _} -> state.newPos)
+              |> toEqual 156) ;
+          test "down into shorter row goes to end of row" (fun () ->
+              expect
+                (aiFor ast |> doDown ~pos:143 |> fun {state; _} -> state.newPos)
+              |> toEqual 156) ;
+          (* start of indented row *)
+          test "up into indented row goes to first token" (fun () ->
+              expect
+                (aiFor ast |> doUp ~pos:152 |> fun {state; _} -> state.newPos)
+              |> toEqual 130) ;
+          test "down into indented row goes to first token" (fun () ->
+              expect
+                (aiFor ast |> doDown ~pos:109 |> fun {state; _} -> state.newPos)
+              |> toEqual 114) ;
+          ()) ;
       t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
@@ -4670,24 +4684,22 @@ let run () =
         ~pos:8
         (key K.Left)
         "let x =~ Int::add _________ _________\n___" ;
-      (* test "escape hides autocomplete" (fun () -> *)
-      (*     expect *)
-      (*       (let ast = b in *)
-      (*        moveTo 0 s *)
-      (*        |> (fun s -> *)
-      (*             updateKey (InsertText "r") props (FluidAST.ofExpr ast) s) *)
-      (*        |> (fun (ast, s) -> updateKey (keypress K.Escape) props ast s) *)
-      (*        |> fun (_, s) -> s.ac.index) *)
-      (*     |> toEqual None) ; *)
-      (* test "right/left brings back autocomplete" (fun () -> *)
-      (*     expect *)
-      (*       (let ast = b in *)
-      (*        moveTo 0 s *)
-      (*        |> (fun s -> *)
-      (*             updateKey (InsertText "r") props (FluidAST.ofExpr ast) s) *)
-      (*        |> (fun (ast, s) -> updateKey (keypress K.Escape) props ast s) *)
-      (*        |> fun (_, s) -> s.ac.index) *)
-      (*     |> toEqual None) ; *)
+      test "escape hides autocomplete" (fun () ->
+          let astInfo = astInfoFor defaultTestProps (FluidAST.ofExpr b) s in
+          expect
+            ( moveTo 0 astInfo
+            |> updateKey (InsertText "r")
+            |> updateKey (keypress K.Escape)
+            |> fun astInfo -> astInfo.state.ac.index )
+          |> toEqual None) ;
+      test "right/left brings back autocomplete" (fun () ->
+          let astInfo = astInfoFor defaultTestProps (FluidAST.ofExpr b) s in
+          expect
+            ( moveTo 0 astInfo
+            |> updateKey (InsertText "r")
+            |> updateKey (keypress K.Escape)
+            |> fun astInfo -> astInfo.state.ac.index )
+          |> toEqual None) ;
       ()) ;
   describe "Line-based Deletion" (fun () ->
       t
