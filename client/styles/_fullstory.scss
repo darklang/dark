@@ -27,23 +27,22 @@
     top: -300px;
   }
 
-  p:first-child {
-    margin-top: 0em;
-  }
-
-  .consent {
-    display: flex;
-    width: 100%;
+  .setting-row {
+    flex-direction: column;
     justify-content: flex-start;
-    flex-wrap: nowrap;
 
-    .choice {
-      display: inline-block;
+    .setting-label,
+    .setting-control {
+      width: 100%;
+    }
+
+    .setting-control {
+      margin-top: 8px;
+    }
+
+    .setting-control .choice {
       width: 50%;
-
-      input[type="radio"] ~ label {
-        margin-left: 1ch;
-      }
+      margin-left: 0;
     }
   }
 }
