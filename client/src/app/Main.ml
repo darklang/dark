@@ -2238,10 +2238,6 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     [ BrowserListeners.OnCaptureView.listen ~key:"capture_view" (fun s ->
           UpdateMinimap (Some s)) ]
   in
-  let onFsConsent =
-    [ FullstoryView.SetConsent.listen ~key:"fs_consent" (fun allow ->
-          SettingsViewMsg (InitRecordConsent allow)) ]
-  in
   Tea.Sub.batch
     (List.concat
        [ windowMouseSubs
@@ -2253,8 +2249,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
        ; onError
        ; mousewheelSubs
        ; analysisSubs
-       ; onCaptureView
-       ; onFsConsent ])
+       ; onCaptureView ])
 
 
 let debugging =

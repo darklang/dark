@@ -34,7 +34,8 @@ let defaultSavedSettings : savedSettings =
   ; canvasPos = origin
   ; lastReload = None
   ; sidebarState = defaultSidebar
-  ; showTopbar = false }
+  ; showTopbar = false
+  ; recordConsent = None }
 
 
 let defaultFluidState : fluidState =
