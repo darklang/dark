@@ -4519,11 +4519,10 @@ let run () =
       (*     expect (bs (EVariable (5, "request"))). *)
       ()) ;
   describe "Movement" (fun () ->
-      let _s = defaultTestState in
-      let _props = defaultTestProps in
+      let s = defaultTestState in
       let tokens = Printer.tokenize complexExpr in
       let _len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
-      let _ast = complexExpr |> FluidAST.ofExpr in
+      let ast = complexExpr |> FluidAST.ofExpr in
       test "gridFor - 1" (fun () ->
           expect (gridFor ~pos:116 tokens) |> toEqual {row = 2; col = 2}) ;
       test "gridFor - 2" (fun () ->
@@ -4607,42 +4606,44 @@ let run () =
         (keys [K.Escape; K.Down; K.Down])
         "if ___\nthen\n  ___~\nelse\n  ___" ;
       (* moving through the autocomplete *)
-      (* test "up goes through the autocomplete" (fun () -> *)
-      (*     expect *)
-      (*       ( moveTo 143 s *)
-      (*       |> (fun s -> updateKey (keypress K.Up) props ast s) *)
-      (*       |> (fun (ast, s) -> updateKey (keypress K.Up) props ast s) *)
-      (*       |> (fun (ast, s) -> updateKey (keypress K.Up) props ast s) *)
-      (*       |> fun (_, s) -> s.newPos ) *)
-      (*     |> toEqual 13) ; *)
-      (* test "down goes through the autocomplete" (fun () -> *)
-      (*     expect *)
-      (*       ( moveTo 14 s *)
-      (*       |> (fun s -> updateKey (keypress K.Down) props ast s) *)
-      (*       |> (fun (ast, s) -> updateKey (keypress K.Down) props ast s) *)
-      (*       |> (fun (ast, s) -> updateKey (keypress K.Down) props ast s) *)
-      (*       |> fun (_, s) -> s.newPos ) *)
-      (*     |> toEqual 144) ; *)
-      (* test "clicking away from autocomplete commits" (fun () -> *)
-      (*     expect *)
-      (*       (let expr = let' "var" (partial "false" b) b in *)
-      (*        let ast = FluidAST.ofExpr expr in *)
-      (*        let tokens = Fluid.tokensForActiveEditor ast s in *)
-      (*        moveTo 14 s *)
-      (*        |> (fun s -> *)
-      (*             let h = Fluid_utils.h expr in *)
-      (*             let m = *)
-      (*               {defaultTestModel with handlers = Handlers.fromList [h]} *)
-      (*             in *)
-      (*             updateAutocomplete m h.hTLID h.ast tokens s) *)
-      (*        |> (fun s -> updateMouseClick 0 props ast s) *)
-      (*        |> fun (ast, _) -> *)
-      (*        match FluidAST.toExpr ast with *)
-      (*        | ELet (_, _, EBool (_, false), _) -> *)
-      (*            "success" *)
-      (*        | e -> *)
-      (*            Printer.eToStructure e) *)
-      (*     |> toEqual "success") ; *)
+      test "up goes through the autocomplete" (fun () ->
+          let astInfo = astInfoFor defaultTestProps ast s in
+          expect
+            ( moveTo 143 astInfo
+            |> updateKey (keypress K.Up)
+            |> updateKey (keypress K.Up)
+            |> updateKey (keypress K.Up)
+            |> fun astInfo -> astInfo.state.newPos )
+          |> toEqual 13) ;
+      test "down goes through the autocomplete" (fun () ->
+          let astInfo = astInfoFor defaultTestProps ast s in
+          expect
+            ( moveTo 14 astInfo
+            |> updateKey (keypress K.Down)
+            |> updateKey (keypress K.Down)
+            |> updateKey (keypress K.Down)
+            |> fun astInfo -> astInfo.state.newPos )
+          |> toEqual 144) ;
+      test "clicking away from autocomplete commits" (fun () ->
+          expect
+            (let expr = let' "var" (partial "false" b) b in
+             let ast = FluidAST.ofExpr expr in
+             let astInfo = astInfoFor defaultTestProps ast s in
+             moveTo 14 astInfo
+             |> (fun astInfo ->
+                  let h = Fluid_utils.h (FluidAST.toExpr astInfo.ast) in
+                  let m =
+                    {defaultTestModel with handlers = Handlers.fromList [h]}
+                  in
+                  updateAutocomplete m h.hTLID astInfo)
+             |> updateMouseClick 0
+             |> fun astInfo ->
+             match FluidAST.toExpr astInfo.ast with
+             | ELet (_, _, EBool (_, false), _) ->
+                 "success"
+             | e ->
+                 Printer.eToStructure e)
+          |> toEqual "success") ;
       t
         "moving right off a function autocompletes it anyway"
         (let' "x" (partial "Int::add" b) b)
