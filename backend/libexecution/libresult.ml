@@ -182,7 +182,7 @@ let fns =
     ; infix_names = []
     ; parameters =
         [par "result1" TResult; par "result2" TResult; func ["v1"; "v2"]]
-    ; return_type = TAny
+    ; return_type = TResult
     ; description =
         "If both arguments are `Ok` (`result1` is `Ok v1` and `result2` is `Ok v2`), returns `Ok (f v1 v2)` --
         the lambda `f` is applied to `v1` and `v2`, and the result is wrapped in `Ok`.
