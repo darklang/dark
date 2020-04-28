@@ -469,7 +469,7 @@ let runTest (test : FuzzTest.t) : unit =
                 skip () )
               else (
                 Js.log2 "testing: " name ;
-                (* Js.log2 "testcase: " (E.show testcase) ; *)
+                debugAST 0 "starting with" testcase ;
                 let passed =
                   match try Some (test.fn testcase) with _ -> None with
                   | Some (newAST, newState) ->
