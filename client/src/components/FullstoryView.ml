@@ -13,18 +13,8 @@ module FullstoryJs = struct
     Cmd.call (fun _ -> _setConsent allow)
 end
 
-module SetConsent = struct
-  let decode =
-    let open Tea.Json.Decoder in
-    field "detail" (Decoders.wrapDecoder Decoders.optBool)
-
-
-  let listen ~key tagger =
-    BrowserListeners.registerGlobal "FullstoryConsent" key tagger decode
-end
-
 let explanation =
-  "We track your session in a replayable format (using Fullstory) to help us understand how people learn Dark."
+  "To help us understand how people learn Dark, do you mind if we track your session in a replayable format (using Fullstory)."
 
 
 let disableOmniOpen = ViewUtils.nothingMouseEvent "mousedown"
@@ -49,25 +39,36 @@ let radio
     ; Html.label [Html.for' key] [Html.text label] ]
 
 
-let html (m : Types.model) : Types.msg Html.html =
-  let content =
-    [ Html.p
-        []
-        [ Html.text
-            "To help us understand how people learn Dark, do you mind if we track your session in a replayable format (using Fullstory)."
-        ]
+let consentRow (recordConsent : bool option) ~(longLabels : bool) :
+    Types.msg Html.html =
+  let yes, no =
+    if longLabels
+    then ("Yes, please go ahead", "No, please don't")
+    else ("Yes", "No")
+  in
+  Html.div
+    [Html.class' "setting-row"]
+    [ Html.div
+        [Html.class' "setting-label"]
+        [ Html.div [Html.class' "title"] [Html.text "Record me using Dark"]
+        ; Html.div [Html.class' "description"] [Html.text explanation] ]
     ; Html.div
-        [Html.class' "consent"]
+        [Html.class' "setting-control"]
         [ radio
             ~value:"yes"
-            ~label:"Yes, please go ahead"
+            ~label:yes
             ~msg:(SetRecordConsent true)
-            ~checked:false
+            ~checked:(recordConsent = Some true)
         ; radio
             ~value:"no"
-            ~label:"No, please don't"
+            ~label:no
             ~msg:(SetRecordConsent false)
-            ~checked:false ] ]
+            ~checked:(recordConsent = Some false) ] ]
+
+
+let html (m : Types.model) : Types.msg Html.html =
+  let content =
+    [consentRow m.settingsView.privacy.recordConsent ~longLabels:true]
   in
   let cls =
     if m.settingsView.privacy.recordConsent = None then "ask" else "hide"

@@ -395,26 +395,7 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
 
 
 let viewPrivacy (s : privacySettings) : Types.msg Html.html list =
-  [ Html.div
-      [Html.class' "setting-row"]
-      [ Html.div
-          [Html.class' "setting-label"]
-          [ Html.div [Html.class' "title"] [Html.text "Record me using Dark"]
-          ; Html.div
-              [Html.class' "description"]
-              [Html.text FullstoryView.explanation] ]
-      ; Html.div
-          [Html.class' "setting-control"]
-          [ FullstoryView.radio
-              ~value:"yes"
-              ~label:"Yes"
-              ~msg:(SetRecordConsent true)
-              ~checked:(s.recordConsent = Some true)
-          ; FullstoryView.radio
-              ~value:"no"
-              ~label:"No"
-              ~msg:(SetRecordConsent false)
-              ~checked:(s.recordConsent = Some false) ] ] ]
+  [FullstoryView.consentRow s.recordConsent ~longLabels:false]
 
 
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
