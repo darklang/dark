@@ -46,7 +46,7 @@ DARK_CONFIG_DB_PASSWORD=eapnsdc
 
 # Services
 DARK_CONFIG_HEALTH_CHECK_PORT=8081
-DARK_CONFIG_CURL_TUNNEL_URL=socks5h://localhost
+DARK_CONFIG_CURL_TUNNEL_URL=socks5://localhost
 
 # Publicly accessible domain
 DARK_CONFIG_PUBLIC_DOMAIN=localhost
