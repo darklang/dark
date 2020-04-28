@@ -366,7 +366,7 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
   | EFieldAccess (id, expr, fieldname) ->
       let lhsid = E.toID expr in
       b
-      |> addNested ~f:(toTokens' expr)
+      |> addNested ~f:(toTokens' expr ~parentID)
       |> addMany
            [ TFieldOp (id, lhsid, parentID)
            ; TFieldName (id, lhsid, fieldname, parentID) ]
