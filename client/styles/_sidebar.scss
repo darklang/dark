@@ -390,9 +390,6 @@ $icSize: 1em;
     margin-bottom: $hSpace;
   }
 
-  // &.package-manager .category-header{
-  // }
-
   &.fof .category-content {
     margin-left: 0.5em;
   }
@@ -425,11 +422,13 @@ $icSize: 1em;
     display: none;
   }
 }
-.abridged .sidebar-category.package-manager .category-content {
-  .category-header .category-name {
-    display: block;
-    padding: 0px 5px;
-  }
+.abridged
+  .sidebar-category.package-manager
+  .category-content
+  .category-header
+  .category-name {
+  display: block;
+  padding: 0px 5px;
 }
 
 .sidebar-category.deleted,
