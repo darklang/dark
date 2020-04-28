@@ -4123,9 +4123,9 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
 
 let rec updateKey
     ?(recursing = false) (inputEvent : fluidInputEvent) (astInfo : ASTInfo.t) =
-  let ({ast; state = s; props; _} : ASTInfo.t) = astInfo in
-  let pos = s.newPos in
   (* These might be the same token *)
+  let origAstInfo = astInfo in
+  let pos = astInfo.state.newPos in
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos astInfo.tokenInfos in
   let onEdge =
     match (toTheLeft, toTheRight) with
@@ -4151,12 +4151,12 @@ let rec updateKey
           true
       | Some e ->
           let id = E.toID e in
-          recurseUp (FluidAST.findParent id ast) id
+          recurseUp (FluidAST.findParent id astInfo.ast) id
       | None ->
           false
     in
     let tid = T.tid token in
-    recurseUp (FluidAST.findParent tid ast) tid
+    recurseUp (FluidAST.findParent tid astInfo.ast) tid
   in
   let astInfo =
     (* This match drives a big chunk of the change operations, but is
@@ -4175,27 +4175,33 @@ let rec updateKey
     (****************)
     (* Note that these are spelt out explicitly on purpose, else they'll
      * trigger on the wrong element sometimes. *)
-    | Keypress {key = K.Escape; _}, L (_, ti), _ when isAutocompleting ti s ->
+    | Keypress {key = K.Escape; _}, L (_, ti), _
+      when isAutocompleting ti astInfo.state ->
         acClear astInfo
-    | Keypress {key = K.Escape; _}, _, R (_, ti) when isAutocompleting ti s ->
+    | Keypress {key = K.Escape; _}, _, R (_, ti)
+      when isAutocompleting ti astInfo.state ->
         acClear astInfo
-    | Keypress {key = K.Up; _}, _, R (_, ti) when isAutocompleting ti s ->
+    | Keypress {key = K.Up; _}, _, R (_, ti)
+      when isAutocompleting ti astInfo.state ->
         acMoveUp astInfo
-    | Keypress {key = K.Up; _}, L (_, ti), _ when isAutocompleting ti s ->
+    | Keypress {key = K.Up; _}, L (_, ti), _
+      when isAutocompleting ti astInfo.state ->
         acMoveUp astInfo
-    | Keypress {key = K.Down; _}, _, R (_, ti) when isAutocompleting ti s ->
+    | Keypress {key = K.Down; _}, _, R (_, ti)
+      when isAutocompleting ti astInfo.state ->
         acMoveDown astInfo
-    | Keypress {key = K.Down; _}, L (_, ti), _ when isAutocompleting ti s ->
+    | Keypress {key = K.Down; _}, L (_, ti), _
+      when isAutocompleting ti astInfo.state ->
         acMoveDown astInfo
     (*
      * Autocomplete finish
      *)
     | Keypress {key; _}, L (_, ti), _
-      when isAutocompleting ti s
+      when isAutocompleting ti astInfo.state
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
         acEnter ti key astInfo
     | Keypress {key; _}, _, R (_, ti)
-      when isAutocompleting ti s
+      when isAutocompleting ti astInfo.state
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
         acEnter ti key astInfo
     (* When we type a letter/number after an infix operator, complete and
@@ -4203,8 +4209,8 @@ let rec updateKey
     | InsertText txt, L (TRightPartial (_, _), ti), _
       when onEdge && Util.isIdentifierChar txt ->
         let astInfo = acEnter ti K.Tab astInfo in
-        getLeftTokenAt s.newPos (List.reverse astInfo.tokenInfos)
-        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos txt ti astInfo)
+        getLeftTokenAt astInfo.state.newPos (List.reverse astInfo.tokenInfos)
+        |> Option.map ~f:(fun ti -> doInsert ~pos txt ti astInfo)
         |> Option.withDefault ~default:astInfo
     (*
      * Special autocomplete entries
@@ -4212,7 +4218,7 @@ let rec updateKey
     (* Piping, with and without autocomplete menu open *)
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline (astInfo : ASTInfo.t) : ASTInfo.t =
-          let startPos, endPos = getSelectionRange s in
+          let startPos, endPos = getSelectionRange astInfo.state in
           let topmostID = getTopmostSelectionID startPos endPos astInfo in
           let findParent = startPos = endPos in
           Option.map topmostID ~f:(fun id ->
@@ -4226,17 +4232,19 @@ let rec updateKey
         in
         ( match left with
         | (L (TPartial _, ti) | L (TFieldPartial _, ti))
-          when Option.is_some (AC.highlighted s.ac) ->
+          when Option.is_some (AC.highlighted astInfo.state.ac) ->
             astInfo |> acEnter ti K.Enter |> doPipeline
         | _ ->
             doPipeline astInfo )
     (* press dot while in a variable entry *)
     | InsertText ".", L (TPartial _, ti), _
-      when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
+      when Option.map ~f:AC.isVariable (AC.highlighted astInfo.state.ac)
+           = Some true ->
         acStartField ti astInfo
     | InsertText ".", L (TFieldPartial _, ti), _
     | InsertText ".", _, R (TFieldPartial _, ti)
-      when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
+      when Option.map ~f:AC.isField (AC.highlighted astInfo.state.ac)
+           = Some true ->
         acStartField ti astInfo
     (********************)
     (* CARET NAVIGATION *)
@@ -4292,7 +4300,7 @@ let rec updateKey
     (*************)
     (* Delete selection *)
     | (DeleteContentBackward, _, _ | DeleteContentForward, _, _)
-      when Option.isSome s.selectionStart ->
+      when Option.isSome astInfo.state.selectionStart ->
         deleteSelection astInfo
     (* Special-case hack for deleting rows of a match or record *)
     | DeleteContentBackward, _, R (TRecordFieldname {fieldName = ""; _}, ti)
@@ -4312,22 +4320,20 @@ let rec updateKey
       | Some selRange ->
           deleteCaretRange selRange astInfo
       | None ->
-          deleteCaretRange (s.newPos, getStartOfLineCaretPos ti astInfo) astInfo
-      )
+          deleteCaretRange (pos, getStartOfLineCaretPos ti astInfo) astInfo )
     | DeleteSoftLineForward, _, R (_, ti) | DeleteSoftLineForward, L (_, ti), _
       ->
       (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
            The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
            For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
            This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
-      ( match getOptionalSelectionRange s with
+      ( match getOptionalSelectionRange astInfo.state with
       | Some selRange ->
           deleteCaretRange selRange astInfo
       | None ->
-          deleteCaretRange (s.newPos, getEndOfLineCaretPos ti astInfo) astInfo
-      )
+          deleteCaretRange (pos, getEndOfLineCaretPos ti astInfo) astInfo )
     | DeleteWordForward, _, R (_, ti) ->
-      ( match getOptionalSelectionRange s with
+      ( match getOptionalSelectionRange astInfo.state with
       | Some selRange ->
           deleteCaretRange selRange astInfo
       | None ->
@@ -4339,7 +4345,7 @@ let rec updateKey
           then modifyState newAstInfo ~f:(fun _ -> movedState.state)
           else newAstInfo )
     | DeleteWordBackward, L (_, ti), _ ->
-      ( match getOptionalSelectionRange s with
+      ( match getOptionalSelectionRange astInfo.state with
       | Some selRange ->
           deleteCaretRange selRange astInfo
       | None ->
@@ -4404,16 +4410,16 @@ let rec updateKey
         |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
     | InsertText ",", L (TLambdaSymbol id, _), _ when onEdge ->
         astInfo
-        |> setAST (insertLambdaVar ~index:0 id ~name:"" ast)
+        |> setAST (insertLambdaVar ~index:0 id ~name:"" astInfo.ast)
         |> moveToCaretTarget {astRef = ARLambda (id, LBPVarName 0); offset = 0}
     | InsertText ",", L (TLambdaVar (id, _, index, _), _), _ when onEdge ->
         astInfo
-        |> setAST (insertLambdaVar ~index:(index + 1) id ~name:"" ast)
+        |> setAST (insertLambdaVar ~index:(index + 1) id ~name:"" astInfo.ast)
         |> moveToCaretTarget
              {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
     | InsertText ",", _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
         astInfo
-        |> setAST (insertLambdaVar ~index id ~name:"" ast)
+        |> setAST (insertLambdaVar ~index id ~name:"" astInfo.ast)
         |> moveToCaretTarget
              {astRef = ARLambda (id, LBPVarName index); offset = 0}
     | InsertText ",", L (t, ti), _ ->
@@ -4425,7 +4431,7 @@ let rec updateKey
            * index in the list and place the caret
            * in that blank. *)
           let exprID = T.tid t in
-          ( match FluidAST.findParent exprID ast with
+          ( match FluidAST.findParent exprID astInfo.ast with
           | Some (E.EList (listID, exprs)) ->
               exprs
               |> List.findIndex ~f:(fun e -> E.toID e = exprID)
@@ -4437,7 +4443,8 @@ let rec updateKey
                    let bID = gid () in
                    (E.EBlank bID, {astRef = ARBlank bID; offset = 0})
                  in
-                 (insertInList ~index:(listIdx + 1) ~newExpr listID ast, target))
+                 ( insertInList ~index:(listIdx + 1) ~newExpr listID astInfo.ast
+                 , target ))
           |> Option.map ~f:(fun (newAST, newTarget) ->
                  astInfo |> setAST newAST |> moveToCaretTarget newTarget)
           |> Option.withDefault ~default:astInfo
@@ -4447,7 +4454,7 @@ let rec updateKey
         (* When pressing . in a field access partial, commit the partial *)
         let newPartialID = gid () in
         let ast =
-          FluidAST.update id ast ~f:(function
+          FluidAST.update id astInfo.ast ~f:(function
               | EPartial (_, name, EFieldAccess (faid, expr, _)) ->
                   let committedAccess = E.EFieldAccess (faid, expr, name) in
                   EPartial
@@ -4464,7 +4471,7 @@ let rec updateKey
     | InsertText ".", L (TFieldName (id, _, _), toTheLeft), _
       when onEdge && pos = toTheLeft.endPos ->
         let newAST, target =
-          exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) ast
+          exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) astInfo.ast
         in
         astInfo |> setAST newAST |> moveToCaretTarget target
     (* Infix symbol insertion to create partials *)
@@ -4478,7 +4485,7 @@ let rec updateKey
     | InsertText txt, L (TListOpen id, _), R (TListClose _, _) ->
         let newExpr, target = insertInBlankExpr txt in
         astInfo
-        |> setAST (insertInList ~index:0 id ~newExpr ast)
+        |> setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
         |> moveToCaretTarget target
     (* Typing between empty record symbols {} *)
     | InsertText txt, L (TRecordOpen id, _), R (TRecordClose _, _) ->
@@ -4488,7 +4495,7 @@ let rec updateKey
         if Util.isIdentifierChar txt
         then
           astInfo
-          |> setAST (addRecordRowAt ~letter:txt 0 id ast)
+          |> setAST (addRecordRowAt ~letter:txt 0 id astInfo.ast)
           |> moveToAstRef (ARRecord (id, RPFieldname 0)) ~offset:1
         else astInfo
     (***********************************)
@@ -4500,10 +4507,15 @@ let rec updateKey
          * doInsert handling, reconstructing the difference between placeholders
          * and blanks is too challenging. ASTRefs cannot distinguish blanks and placeholders. *)
         let newExpr, newTarget =
-          insertInPlaceholderExpr ~fnID ~placeholder ~ins ast props
+          insertInPlaceholderExpr
+            ~fnID
+            ~placeholder
+            ~ins
+            astInfo.ast
+            astInfo.props
         in
         astInfo
-        |> setAST (FluidAST.replace blankID ~replacement:newExpr ast)
+        |> setAST (FluidAST.replace blankID ~replacement:newExpr astInfo.ast)
         |> moveToCaretTarget newTarget
     | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
         doInsert ~pos " " toTheRight astInfo
@@ -4519,7 +4531,7 @@ let rec updateKey
      * Add new initial record row and move caret to it. *)
     | Keypress {key = K.Enter; _}, L (TRecordOpen id, _), _ ->
         astInfo
-        |> setAST (addRecordRowAt 0 id ast)
+        |> setAST (addRecordRowAt 0 id astInfo.ast)
         |> moveToAstRef (ARRecord (id, RPFieldname 0))
     (*
      * Caret to left of record close }
@@ -4527,7 +4539,7 @@ let rec updateKey
     | Keypress {key = K.Enter; _}, _, R (TRecordClose id, _) ->
         astInfo
         |> recordAction "addRecordRowToBack"
-        |> setAST (addRecordRowToBack id ast)
+        |> setAST (addRecordRowToBack id astInfo.ast)
         |> moveToAstRef (ARRecord (id, RPClose))
     (*
      * Caret between pipe symbol |> and following expression.
@@ -4543,7 +4555,7 @@ let rec updateKey
     | ( Keypress {key = K.Enter; _}
       , _
       , R (TNewline (Some (_, parentId, Some idx)), ti) ) ->
-      ( match FluidAST.find parentId ast with
+      ( match FluidAST.find parentId astInfo.ast with
       | Some (EPipe _) ->
           let astInfo, blankId = addPipeExprAt parentId (idx + 1) astInfo in
           moveToCaretTarget
@@ -4551,7 +4563,7 @@ let rec updateKey
             astInfo
       | Some (ERecord _) ->
           astInfo
-          |> setAST (addRecordRowAt idx parentId ast)
+          |> setAST (addRecordRowAt idx parentId astInfo.ast)
           |> moveToAstRef (ARRecord (parentId, RPFieldname idx))
       | Some (EMatch _) ->
           let astInfo = addMatchPatternAt parentId idx astInfo in
@@ -4569,7 +4581,10 @@ let rec updateKey
     (*
      * Caret at end of line with nothing in newline. *)
     | Keypress {key = K.Enter; _}, L (lt, lti), R (TNewline None, rti)
-      when not (T.isLet lt || isAutocompleting rti s || isInIfCondition lt) ->
+      when not
+             ( T.isLet lt
+             || isAutocompleting rti astInfo.state
+             || isInIfCondition lt ) ->
         wrapInLet lti astInfo
     (*
      * Caret at end-of-line with no data in the TNewline.
@@ -4611,7 +4626,8 @@ let rec updateKey
           match
             ( parentID
             , index
-            , Option.andThen parentID ~f:(fun id -> FluidAST.find id ast) )
+            , Option.andThen parentID ~f:(fun id ->
+                  FluidAST.find id astInfo.ast) )
           with
           | Some parentId, Some idx, Some (EMatch _) ->
               let astInfo = addMatchPatternAt parentId idx astInfo in
@@ -4623,7 +4639,7 @@ let rec updateKey
               in
               moveToCaretTarget target astInfo
           | Some parentId, Some idx, Some (ERecord _) ->
-              let ast = addRecordRowAt idx parentId ast in
+              let ast = addRecordRowAt idx parentId astInfo.ast in
               astInfo
               |> setAST ast
               |> moveToCaretTarget
@@ -4635,7 +4651,7 @@ let rec updateKey
               astInfo
               |> moveToCaretTarget (caretTargetForStartOfExpr id astInfo.ast)
         in
-        ( match FluidAST.find parentId ast with
+        ( match FluidAST.find parentId astInfo.ast with
         | Some (EMatch (_, _, exprs)) ->
             (* if a match has n rows, the last newline has idx=(n+1) *)
             if idx = List.length exprs
@@ -4663,7 +4679,7 @@ let rec updateKey
              * TNewline with index after the final '}'. In this case, we
              * actually hit the next match case instead. *)
             astInfo
-            |> setAST (addRecordRowAt idx parentId ast)
+            |> setAST (addRecordRowAt idx parentId astInfo.ast)
             |> moveToAstRef (ARRecord (parentId, RPFieldname (idx + 1)))
         | _ ->
             astInfo )
@@ -4676,9 +4692,9 @@ let rec updateKey
          * In other cases, we want to wrap just the subexpression, such as an if's then expression. *)
         let id = T.tid t in
         let topID =
-          FluidAST.find id ast
+          FluidAST.find id astInfo.ast
           |> Option.andThen ~f:(fun directExpr ->
-                 findAppropriateParentToWrap directExpr ast)
+                 findAppropriateParentToWrap directExpr astInfo.ast)
           |> Option.map ~f:(fun expr -> E.toID expr)
           |> Option.withDefault ~default:id
         in
@@ -4726,13 +4742,13 @@ let rec updateKey
         astInfo
   in
   (* If we were on a partial and have moved off it, we may want to commit that
-   * partial. For example, if we fully typed out "String::append", then click
+   * partial. For example, if we fully typed out "String::append", then move 
    * away, we want that to become `String::append ___ ___`.
    *
    * We "commit the partial" using the old state, and then we do the action
    * again to make sure we go to the right place for the new canvas.
    *
-   * This is done here because the logic is different that clicking. *)
+   * This is done here because the logic is different than clicking. *)
   if recursing
   then astInfo
   else
@@ -4760,7 +4776,7 @@ let rec updateKey
           | InsertText txt ->
               (* if the partial is a valid function name, don't commit *)
               let newQueryString = str ^ txt in
-              s.ac.completions
+              astInfo.state.ac.completions
               |> List.filter ~f:(fun {item; _} ->
                      String.contains ~substring:newQueryString (AC.asName item))
               |> ( == ) []
@@ -4770,9 +4786,12 @@ let rec updateKey
         in
         if shouldCommit
         then
-          (* Use the new position as we may want to commit if we've moved, but
-           * use the old AST so as not to double-commit *)
-          let committed = commitIfValid astInfo.state.newPos ti astInfo in
+          (* To calculate the new AST, try to commit the old AST with the new
+           * position. *)
+          let committed = commitIfValid astInfo.state.newPos ti origAstInfo in
+          (* To find out where the cursor should be, replay the movement
+           * command from the old position. *)
+          let committed = {committed with state = origAstInfo.state} in
           updateKey ~recursing:true inputEvent committed
         else astInfo
     | L (TPartial (_, _), ti), _ when false (* disable for now *) ->
@@ -5922,25 +5941,21 @@ let renderCallback (m : model) : unit =
 
 
 let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
-  let state = m.fluidState in
-  let _props = {functions = m.functions; variants = m.tests} in
   let rmPartialsMod =
+    let _props = {functions = m.functions; variants = m.tests} in
     tlid
     |> Option.andThen ~f:(TL.get m)
-    |> Option.thenAlso ~f:TL.getAST
-    |> Option.andThen ~f:(fun (tl, ast) ->
-           let newAST =
-             ast
-             (* acMaybeCommit 0 props ast state *)
-             (* |> FluidAST.map ~f:AST.removePartials *)
-           in
-           if newAST <> ast then Some (TL.setASTMod tl newAST) else None)
+    |> Option.thenAlso ~f:(fun tl -> getAstInfo m (TL.id tl))
+    |> Option.andThen ~f:(fun (tl, astInfo) ->
+           let newAstInfo = acMaybeCommit 0 astInfo in
+           let newAST = newAstInfo.ast |> FluidAST.map ~f:AST.removePartials in
+           if newAST <> astInfo.ast then Some (TL.setASTMod tl newAST) else None)
     |> Option.withDefault ~default:NoChange
   in
   let acVisibilityModel =
-    if AC.isOpened state.ac
+    if AC.isOpened m.fluidState.ac
     then AC.updateAutocompleteVisibility m
-    else if Commands.isOpened state.cp
+    else if Commands.isOpened m.fluidState.cp
     then Commands.updateCommandPaletteVisibility m
     else m
   in
