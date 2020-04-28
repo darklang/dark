@@ -714,4 +714,8 @@ $error-color: saturate($red, 10%);
   .fluid-not-executed {
     filter: brightness(60%);
   }
+
+  .fluid-code-focus {
+    filter: none;
+  }
 }
