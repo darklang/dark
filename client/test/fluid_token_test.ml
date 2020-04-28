@@ -12,7 +12,11 @@ let run () =
         (fun () ->
           let leftLetToken =
             TRecordFieldname
-              {recordID = ID "1"; exprID = ID "2"; index = 1; fieldName = "name"; parentBlockID = None}
+              { recordID = ID "1"
+              ; exprID = ID "2"
+              ; index = 1
+              ; fieldName = "name"
+              ; parentBlockID = None }
           in
           expect (analysisID leftLetToken |> ID.toString) |> toEqual "2") ;
       test "return ids of" (fun () ->

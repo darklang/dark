@@ -83,8 +83,7 @@ let defaultTokenInfo =
   ; startPos = 0
   ; endPos = 0
   ; length = 0
-  ; token = TBlank (defaultID, None)
-  }
+  ; token = TBlank (defaultID, None) }
 
 
 let defaultFullQuery ?(tl = defaultToplevel) (ac : AC.t) (queryString : string)
