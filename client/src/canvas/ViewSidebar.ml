@@ -95,12 +95,12 @@ let categoryIcon_ (name : string) : msg Html.html list =
       [darkIcon "fof"]
   | "group" ->
       [fontAwesome "object-group"]
+  | _ when String.contains ~substring:"pm-author" name ->
+      [fontAwesome "user"]
+  | _ when String.contains ~substring:"pm-package" name ->
+      [fontAwesome "cubes"]
   | _ ->
-      if String.contains ~substring:"pm-author" name
-      then [fontAwesome "user"]
-      else if String.contains ~substring:"pm-package" name
-      then [fontAwesome "cubes"]
-      else [darkIcon "undefined"]
+      [darkIcon "undefined"]
 
 
 let categoryButton ?(props = []) (name : string) (description : string) :
