@@ -16,8 +16,11 @@ pkill -f queue_worker.exe || true
 pkill -f cron_checker.exe || true
 
 # tunnel cleanup
+echo "pkill tunnel"
 sudo pkill -f "${TUNNEL_DAEMON_EXE}" || true
+echo "rm tunnel"
 sudo rm -rf /home/tunnel/.ssh/id_rsa{,.pub} /home/tunnel/.ssh/authorized_keys
+echo "pkill sleep"
 sudo pkill -f sleep.infinity || true
 # end tunnel cleanup
 
