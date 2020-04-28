@@ -545,7 +545,7 @@ let moveTo (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
 
 (* Find first `target` expression (starting at the back), and return a state
  * with its location. If blank, will go to the start of the blank *)
-let moveToEndOfTarget (astInfo : ASTInfo.t) (target : ID.t) : ASTInfo.t =
+let moveToEndOfTarget (target : ID.t) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction "moveToEndOfTarget" astInfo in
   match
     List.reverse astInfo.tokenInfos
@@ -5746,38 +5746,38 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       FluidCommands.updateCmds m ke
   | FluidClearErrorDvSrc ->
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
-  | FluidFocusOnToken (tlid, _id) ->
+  | FluidFocusOnToken (tlid, id) ->
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
       tlid
       |> TL.get m
       |> Option.thenAlso ~f:TL.getAST
-      |> Option.map ~f:(fun (_tl, _ast) ->
-             NoChange
-             (* let pageMod = *)
-             (*   if CursorState.tlidOf m.cursorState <> Some tlid *)
-             (*   then SetPage (TL.asPage tl true) *)
-             (*   else NoChange *)
-             (* in *)
-             (* let fluidState = *)
-             (*   let fs = moveToEndOfTarget ast s id in *)
-             (*   {fs with errorDvSrc = SourceId (tlid, id)} *)
-             (* in *)
-             (* let moveMod = *)
-             (*   match Viewport.moveToToken id tl with *)
-             (*   | Some dx, Some dy -> *)
-             (*       MoveCanvasTo ({x = dx; y = dy}, AnimateTransition) *)
-             (*   | Some dx, None -> *)
-             (*       MoveCanvasTo *)
-             (*         ({x = dx; y = m.canvasProps.offset.y}, AnimateTransition) *)
-             (*   | None, Some dy -> *)
-             (*       MoveCanvasTo *)
-             (*         ({x = m.canvasProps.offset.x; y = dy}, AnimateTransition) *)
-             (*   | None, None -> *)
-             (*       NoChange *)
-             (* in *)
-             (* if moveMod = NoChange && pageMod = NoChange *)
-             (* then FluidSetState fluidState *)
-             (* else Many [pageMod; moveMod; FluidSetState fluidState] *))
+      |> Option.map ~f:(fun (tl, ast) ->
+             let pageMod =
+               if CursorState.tlidOf m.cursorState <> Some tlid
+               then SetPage (TL.asPage tl true)
+               else NoChange
+             in
+             let fluidState =
+               let astInfo = astInfoFor (propsFromModel m) ast m.fluidState in
+               let ({state; _} : ASTInfo.t) = moveToEndOfTarget id astInfo in
+               {state with errorDvSrc = SourceId (tlid, id)}
+             in
+             let moveMod =
+               match Viewport.moveToToken id tl with
+               | Some dx, Some dy ->
+                   MoveCanvasTo ({x = dx; y = dy}, AnimateTransition)
+               | Some dx, None ->
+                   MoveCanvasTo
+                     ({x = dx; y = m.canvasProps.offset.y}, AnimateTransition)
+               | None, Some dy ->
+                   MoveCanvasTo
+                     ({x = m.canvasProps.offset.x; y = dy}, AnimateTransition)
+               | None, None ->
+                   NoChange
+             in
+             if moveMod = NoChange && pageMod = NoChange
+             then FluidSetState fluidState
+             else Many [pageMod; moveMod; FluidSetState fluidState])
       |> Option.withDefault ~default:NoChange
   | FluidCloseCmdPalette ->
       FluidCommandsClose
