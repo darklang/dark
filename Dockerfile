@@ -275,6 +275,12 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
       sudo dpkg -i honeymarker_1.9_amd64.deb && \
       rm honeymarker_1.9_amd64.deb
 
+#############
+# tunnel user
+#############
+USER root
+RUN adduser --disabled-password --gecos '' --gid ${gid} tunnel
+
 ############################
 # Environment
 ############################

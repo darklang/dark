@@ -7,6 +7,7 @@ BINPATH="_build/default/backend/bin"
 SERVER_EXE="$BINPATH/server.exe"
 QW_EXE="$BINPATH/queue_worker.exe"
 CRON_EXE="$BINPATH/cron_checker.exe"
+TUNNEL_DAEMON_EXE="scripts/support/tunnel-daemon"
 
 # Stop the server processes
 sudo pkill -f nginx || true
@@ -14,7 +15,17 @@ sudo pkill -f server.exe || true
 pkill -f queue_worker.exe || true
 pkill -f cron_checker.exe || true
 
+# tunnel cleanup
+sudo pkill -f "${TUNNEL_DAEMON_EXE}" || true
+sudo rm -rf /home/tunnel/.ssh/id_rsa{,.pub} /home/tunnel/.ssh/authorized_keys
+sudo pkill -f sleep.infinity || true
+# end tunnel cleanup
+
 ./scripts/support/wait-for-background-services postgresql
+
+# Run tunnel
+sudo mkdir -p /run/sshd
+sudo ./"${TUNNEL_DAEMON_EXE}" &
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));
