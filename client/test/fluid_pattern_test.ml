@@ -50,7 +50,6 @@ let run () =
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
   let aConstructor = FPConstructor (mID, gid (), "Just", [b ()]) in
-  let _m = Fluid_test_data.defaultTestModel in
   let process
       ~(debug : bool)
       (inputs : fluidInputEvent list)
