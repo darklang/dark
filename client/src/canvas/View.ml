@@ -30,9 +30,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLDB db ->
         (ViewDB.viewDB vs db dragEvents, [], true)
     | TLPmFunc f ->
-        ([ViewPackageManager.view vs f], [], false)
+        ([ViewUserFunction.view vs (PackageFn f)], [], false)
     | TLFunc f ->
-        ([ViewUserFunction.view vs f], ViewData.viewData vs, false)
+        ( [ViewUserFunction.view vs (UserFunction f)]
+        , ViewData.viewData vs
+        , false )
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [], false)
     | TLGroup g ->

@@ -248,6 +248,10 @@ and db =
   ; activeMigration : dbMigration option
   ; pos : pos }
 
+and functionTypes =
+  | UserFunction of userFunction
+  | PackageFn of packageFn
+
 (* userFunctions *)
 and userFunctionParameter =
   { ufpName : string blankOr

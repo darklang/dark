@@ -1,5 +1,13 @@
 open Prelude
 
+let pmParamsToUserFnParams (p : packageFnParameter) : userFunctionParameter =
+  { ufpName = BlankOr.newF p.name
+  ; ufpTipe = BlankOr.newF p.tipe
+  ; ufpBlock_args = []
+  ; ufpOptional = false
+  ; ufpDescription = p.description }
+
+
 let paramData (pfp : packageFnParameter) : blankOrData list =
   let paramName = BlankOr.newF pfp.name in
   let paramTipe = BlankOr.newF pfp.tipe in
