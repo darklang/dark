@@ -2584,10 +2584,7 @@ let updateFromACItem
           (ast, {astRef = ARInvalid; offset = 0})
   in
   astInfo
-  |> (fun astInfo ->
-       { astInfo with
-         state = {astInfo.state with ac = {astInfo.state.ac with query = None}}
-       })
+  |> modifyState ~f:(fun s -> {s with ac = {s.ac with query = None}})
   |> setAST newAST
   |> acMoveBasedOnKey key target
 
@@ -5529,9 +5526,8 @@ let astAndStateFromTLID (m : model) (tlid : TLID.t) :
 let updateMouseDoubleClick
     (eventData : fluidMouseDoubleClick) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo =
-    astInfo
-    |> modifyState ~f:(fun s ->
-           {s with midClick = false; activeEditor = eventData.editor})
+    modifyState astInfo ~f:(fun s ->
+        {s with midClick = false; activeEditor = eventData.editor})
   in
   let selStart, selEnd =
     match eventData.selection with
