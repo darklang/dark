@@ -441,7 +441,9 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
-        j }
+        j
+  ; recordConsent = withDefault None (field "recordConsent" (optional bool)) j
+  }
 
 
 and cursorState j =

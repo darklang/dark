@@ -217,7 +217,8 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
         [ SettingsViewUpdate msg
         ; ReplaceAllModificationsWithThisOne (fun m -> submitForm m) ]
   | SetRecordConsent allow ->
-      [MakeCmd (FullstoryView.FullstoryJs.setConsent allow)]
+      [ SettingsViewUpdate msg
+      ; MakeCmd (FullstoryView.FullstoryJs.setConsent allow) ]
   | _ ->
       [SettingsViewUpdate msg]
 

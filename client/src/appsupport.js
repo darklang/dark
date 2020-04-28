@@ -293,7 +293,6 @@ window.Dark = {
       );
     },
   },
-  /* Fullstory Integration : https://www.notion.so/darklang/Fullstory-Integration-e8bb09a7808941b0b6d089c3c6773ac2 */
   fullstory: {
     init: function (canvas) {
       /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
@@ -301,50 +300,14 @@ window.Dark = {
         orgId: "TMVRZ",
         devMode: isAdmin,
       });
-
-      fetch("https://ops-fullstory.builtwithdark.com/consent/" + username)
-        .then(response => {
-          return response.json();
-        })
-        .then(data => {
-          const consent = data.consent;
-          FullStory.identify(username, {
-            displayName: username,
-            canvas,
-            consent,
-          });
-          if (consent) {
-            FullStory.consent(true);
-          } else {
-            FullStory.consent(false);
-          }
-          var event = new CustomEvent("FullstoryConsent", { detail: consent });
-          document.dispatchEvent(event);
-        });
     },
     setConsent: function (consent) {
       FullStory.consent(consent);
-      FullStory.setUserVars({ consent });
       if (consent) {
         FullStory.restart();
       } else {
         FullStory.shutdown();
       }
-
-      fetch("https://ops-fullstory.builtwithdark.com/consent/" + username, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ consent }),
-      })
-        .then(response => response.json())
-        .then(data => {
-          console.log("Success:", data);
-        })
-        .catch(error => {
-          console.error("Error:", error);
-        });
     },
   },
 };
