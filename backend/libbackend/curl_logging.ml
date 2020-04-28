@@ -147,6 +147,27 @@ let log_debug_info (bufs : bufs) (primaryip : string option) =
         ; "x-request-id" ]
       Response
   in
+  let ip_version, ip =
+    !debugbuf_text
+    |> String.split_lines
+    (* Find the line that matches the format we want - it'll look like
+     * "SOCKS5 connect to IPv4 172.217.0.46 (locally resolved)"
+       This _only_ works in production, because we don't go through the
+     * tunnel service in the dev environment. *)
+    |> List.find
+         ~f:(String.is_substring_at ~pos:0 ~substring:"SOCKS5 connect to ")
+    |> Option.map ~f:(fun line ->
+           line
+           |> String.substr_replace_all ~pattern:"SOCKS5 connect to " ~with_:""
+           |> String.substr_replace_all ~pattern:" (locally resolved)" ~with_:"")
+    |> Option.withDefault ~default:""
+    (* At this point we have (Some "IPv4 172.217.5.110"), so let's split it
+     * and get the ip address and IPv. parts separately *)
+    (* TODO: we don't currently support ipv6 destinations, though -
+     * https://v6.ipv6-test.com/api/myip.php doesn't work *)
+    |> String.lsplit2 ~on:' '
+    |> Option.withDefault ~default:("", "")
+  in
   let port =
     !debugbuf_text
     |> String.split_lines
@@ -178,7 +199,8 @@ let log_debug_info (bufs : bufs) (primaryip : string option) =
         ; ("curl.response_line", response_line)
         ; ("curl.request_headers", request_headers |> header_names)
         ; ("curl.response_headers", response_headers |> header_names)
-        ; ("curl.primary_ip", primaryip |> Option.withDefault ~default:"") ]
+        ; ("curl.ip", ip)
+        ; ("curl.ip_version", ip_version) ]
       @ selected_request_headers
       @ selected_response_headers )
     ~jsonparams:
