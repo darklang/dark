@@ -47,7 +47,7 @@ let fns =
   ; { prefix_names = ["Result::mapError"]
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]
-    ; return_type = TAny
+    ; return_type = TResult
     ; description =
         "If `result` is `Error msg`, returns `Error (f msg)` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok value`, returns `result` unchanged."
     ; func =
@@ -67,7 +67,7 @@ let fns =
   ; { prefix_names = ["Result::mapError_v1"]
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]
-    ; return_type = TAny
+    ; return_type = TResult
     ; description =
         "If `result` is `Error msg`, returns `Error (f msg)` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok value`, returns `result` unchanged."
     ; func =
@@ -145,7 +145,7 @@ let fns =
   ; { prefix_names = ["Result::toOption"]
     ; infix_names = []
     ; parameters = [par "result" TResult]
-    ; return_type = TAny
+    ; return_type = TOption
     ; description = "Turn a result into an option."
     ; func =
         InProcess
@@ -163,7 +163,7 @@ let fns =
   ; { prefix_names = ["Result::toOption_v1"]
     ; infix_names = []
     ; parameters = [par "result" TResult]
-    ; return_type = TAny
+    ; return_type = TOption
     ; description = "Turn a result into an option."
     ; func =
         InProcess
