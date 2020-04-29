@@ -10,7 +10,7 @@ module Html = Tea_html_extended
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let allTabs = [CanvasInfo; UserSettings; InviteUser defaultInviteFields]
+let allTabs = [CanvasInfo; UserSettings; Privacy; InviteUser defaultInviteFields]
 
 let validateEmail (email : formField) : formField =
   let error =
@@ -136,6 +136,10 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
   | TriggerUpdateCanvasInfoCallback _
   | TriggerGetCanvasInfoCallback (Error _) ->
       settingsView
+  | InitRecordConsent recordConsent ->
+      {settingsView with privacy = {recordConsent}}
+  | SetRecordConsent allow ->
+      {settingsView with privacy = {recordConsent = Some allow}}
 
 
 let getModifications (m : Types.model) (msg : settingsMsg) :
@@ -212,6 +216,9 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
       else
         [ SettingsViewUpdate msg
         ; ReplaceAllModificationsWithThisOne (fun m -> submitForm m) ]
+  | SetRecordConsent allow ->
+      [ SettingsViewUpdate msg
+      ; MakeCmd (FullstoryView.FullstoryJs.setConsent allow) ]
   | _ ->
       [SettingsViewUpdate msg]
 
@@ -228,6 +235,8 @@ let settingsTabToText (tab : settingsTab) : string =
       "Canvases"
   | InviteUser _ ->
       "Share"
+  | Privacy ->
+      "Privacy"
 
 
 (* View code *)
@@ -385,6 +394,10 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
       ; Html.p [Html.class' "created-text"] [Html.text create_at_text] ] ]
 
 
+let viewPrivacy (s : privacySettings) : Types.msg Html.html list =
+  [FullstoryView.consentRow s.recordConsent ~longLabels:false]
+
+
 let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   let tab = svs.tab in
   match tab with
@@ -396,6 +409,8 @@ let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
       viewUserCanvases svs
   | InviteUser _ ->
       viewInviteUserToDark svs
+  | Privacy ->
+      viewPrivacy svs.privacy
 
 
 let tabTitleView (tab : settingsTab) : Types.msg Html.html =
@@ -432,14 +447,14 @@ let settingViewWrapper (acc : settingsViewState) : Types.msg Html.html =
 
 
 let html (m : Types.model) : Types.msg Html.html =
+  let svs = m.settingsView in
   let closingBtn =
     Html.div
       [ Html.class' "close-btn"
       ; ViewUtils.eventNoPropagation
           ~key:"close-settings-modal"
           "click"
-          (fun _ ->
-            Types.SettingsViewMsg (CloseSettingsView m.settingsView.tab)) ]
+          (fun _ -> Types.SettingsViewMsg (CloseSettingsView svs.tab)) ]
       [fontAwesome "times"]
   in
   Html.div
@@ -447,7 +462,7 @@ let html (m : Types.model) : Types.msg Html.html =
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "mouseup"
     ; ViewUtils.eventNoPropagation ~key:"close-setting-modal" "click" (fun _ ->
-          Types.SettingsViewMsg (CloseSettingsView m.settingsView.tab)) ]
+          Types.SettingsViewMsg (CloseSettingsView svs.tab)) ]
     [ Html.div
         [ Html.class' "modal"
         ; ViewUtils.nothingMouseEvent "click"
@@ -456,4 +471,4 @@ let html (m : Types.model) : Types.msg Html.html =
         ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
               EnablePanning true)
         ; Html.onCB "keydown" "keydown" onKeydown ]
-        [settingViewWrapper m.settingsView; closingBtn] ]
+        [settingViewWrapper svs; closingBtn] ]
