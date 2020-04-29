@@ -149,12 +149,18 @@ let run () =
   in
   let testPasteExpr
       ?(debug = false)
+      ?(clone = true)
       (name : string)
       (initial : fluidExpr)
       (range : int * int)
       (clipboard : fluidExpr)
       (expectedText : string) : unit =
     test (nameToName name initial) (fun () ->
+        let initial, clipboard =
+          if clone
+          then (FluidExpression.clone initial, FluidExpression.clone clipboard)
+          else (initial, clipboard)
+        in
         let e = clipboardEvent () in
         let text = FluidPrinter.eToTestString clipboard in
         let data =
