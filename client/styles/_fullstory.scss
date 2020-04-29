@@ -36,6 +36,15 @@
       width: 100%;
     }
 
+    .setting-label {
+      .title {
+        display: none;
+      }
+      .description {
+        font-size: 1em;
+      }
+    }
+
     .setting-control {
       margin-top: 8px;
     }
