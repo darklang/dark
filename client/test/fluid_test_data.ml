@@ -519,6 +519,8 @@ let complexExpr =
 (* ---------------- *)
 (* Some useful defaults *)
 (* ---------------- *)
+let defaultTLID = TLID.fromString "7"
+
 let defaultTestFunctions =
   let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
       Types.parameter =
@@ -620,7 +622,9 @@ let defaultTestFunctions =
     ; fnOrigin = Builtin } ]
 
 
-let defaultTestState = Defaults.defaultFluidState
+let defaultTestState =
+  {Defaults.defaultFluidState with activeEditor = MainEditor defaultTLID}
+
 
 let defaultFunctionsProps =
   {usedFns = StrDict.empty; userFunctions = TLIDDict.empty}

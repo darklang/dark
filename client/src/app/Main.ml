@@ -2146,9 +2146,27 @@ let rec filter_read_only (m : model) (modification : modification) =
 let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m |> filter_read_only m in
   let newm, newc = updateMod mods (m, Cmd.none) in
+  (* BEGIN HACK
+   * Patch up the activeEditor to match the toplevel if
+   * there is a selected toplevel. Instead, we should deprecate
+   * activeEditor and modify cursorState
+   * and make fluidState be per-handler *)
+  let activeEditor =
+    match
+      (CursorState.tlidOf newm.cursorState, newm.fluidState.activeEditor)
+    with
+    | None, _ ->
+        NoEditor
+    | Some tl, NoEditor ->
+        MainEditor tl
+    | Some _, ed ->
+        ed
+  in
+  (* END HACK *)
   SavedSettings.save m ;
   SavedUserSettings.save m ;
-  ({newm with lastMsg = msg}, newc)
+  ( {newm with lastMsg = msg; fluidState = {newm.fluidState with activeEditor}}
+  , newc )
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =

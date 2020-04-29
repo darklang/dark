@@ -1603,8 +1603,9 @@ and fluidCommandState =
   ; filter : string option }
 
 and fluidEditor =
-  | MainEditor
-  | FeatureFlagEditor of ID.t
+  | NoEditor
+  | MainEditor of TLID.t
+  | FeatureFlagEditor of TLID.t * ID.t
 [@@deriving show {with_path = false}]
 
 and fluidState =

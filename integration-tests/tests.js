@@ -643,11 +643,10 @@ test("correct_field_livevalue", async t => {
 
 test("int_add_with_float_error_includes_fnname", async t => {
   const timestamp = new Date();
-  await gotoAST(t);
+  await t.click(Selector(".tl-123 .fluid-editor")); // required to see the return value (navigate is insufficient)
   await awaitAnalysis(t, timestamp);
 
   await t
-    .click(Selector(".fluid-editor")) // required to see the return value (navigate is insufficient)
     .expect(available(".return-value"))
     .ok()
     .expect(Selector(".return-value").innerText)

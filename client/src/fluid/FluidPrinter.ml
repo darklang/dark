@@ -558,9 +558,11 @@ let tokenize : E.t -> FluidToken.tokenInfo list =
 let tokensForEditor (e : fluidEditor) (ast : FluidAST.t) :
     FluidToken.tokenInfo list =
   match e with
-  | MainEditor ->
+  | NoEditor ->
+      []
+  | MainEditor _ ->
       tokenize (FluidAST.toExpr ast)
-  | FeatureFlagEditor id ->
+  | FeatureFlagEditor (_, id) ->
       FluidAST.find id ast
       |> Option.map
            ~f:(tokenizeWithFFTokenization FeatureFlagConditionAndEnabled)
@@ -575,7 +577,9 @@ let tokensForEditor (e : fluidEditor) (ast : FluidAST.t) :
 let tokenizeForEditor (e : fluidEditor) (expr : FluidExpression.t) :
     FluidToken.tokenInfo list =
   match e with
-  | MainEditor ->
+  | NoEditor ->
+      []
+  | MainEditor _ ->
       tokenize expr
   | FeatureFlagEditor _ ->
       tokenizeWithFFTokenization FeatureFlagConditionAndEnabled expr

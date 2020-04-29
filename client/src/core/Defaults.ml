@@ -56,7 +56,7 @@ let defaultFluidState : fluidState =
   ; selectionStart = None
   ; errorDvSrc = SourceNone
   ; midClick = false
-  ; activeEditor = MainEditor }
+  ; activeEditor = NoEditor }
 
 
 let defaultFunctionsType =
