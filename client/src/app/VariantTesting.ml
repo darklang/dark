@@ -22,8 +22,6 @@ let toVariantTest (s : string) : variantTest option =
       Some LeftPartialVariant
   | "fnreturn" ->
       Some FnReturnVariant
-  | "exe" ->
-      Some ExeCodeVariant
   | _ ->
       None
 
@@ -43,8 +41,6 @@ let toCSSClass (vt : variantTest) : string =
         "lpartial"
     | FnReturnVariant ->
         "fnreturn"
-    | ExeCodeVariant ->
-        "exe"
   in
   test ^ "-variant"
 
@@ -55,7 +51,7 @@ let activeCSSClasses (m : model) : string =
 
 let enabledVariantTests (isAdmin : bool) : variantTest list =
   (* admins have these enabled by default, but can opt-out via query param *)
-  let init = if isAdmin then [ExeCodeVariant; FnReturnVariant] else [] in
+  let init = if isAdmin then [FnReturnVariant] else [] in
   Url.queryParams ()
   (* convert a (string * bool) list to a (variantTest * bool) list,
    * ignoring any unknown query params *)
