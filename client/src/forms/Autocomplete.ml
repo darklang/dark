@@ -693,18 +693,20 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACTypeFieldTipe TDate
           ; ACTypeFieldTipe TPassword
           ; ACTypeFieldTipe TUuid ]
-      | FnReturn ->
+      | FnReturnTipe ->
           [ ACReturnTipe TAny
-          ; ACReturnTipe TStr
-          ; ACReturnTipe TInt
-          ; ACReturnTipe TBool
-          ; ACReturnTipe TFloat
-          ; ACReturnTipe TDate
-          ; ACReturnTipe TObj
           ; ACReturnTipe TBlock
+          ; ACReturnTipe TBool
+          ; ACReturnTipe TDate
+          ; ACReturnTipe TFloat
+          ; ACReturnTipe TInt
+          ; ACReturnTipe TList
+          ; ACReturnTipe TObj
+          ; ACReturnTipe TOption
           ; ACReturnTipe TPassword
-          ; ACReturnTipe TUuid
-          ; ACReturnTipe TList ]
+          ; ACReturnTipe TResult
+          ; ACReturnTipe TStr
+          ; ACReturnTipe TUuid ]
           @ ( m.userTipes
             |> TD.filterMapValues ~f:UserTypes.toTUserType
             |> List.map ~f:(fun t -> ACReturnTipe t) )

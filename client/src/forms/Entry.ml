@@ -371,7 +371,7 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
       if String.startsWith ~prefix:"dark/" value
       then v AC.packageFnNameValidator "function name"
       else v AC.fnNameValidator "function name"
-  | PFnReturn _ ->
+  | PFnReturnTipe _ ->
       v AC.paramTypeValidator "return type"
   | PParamName oldParam ->
       v AC.paramNameValidator "param name"
@@ -604,8 +604,8 @@ let submitACItem
                 in
                 let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
-          | PFnReturn _, ACReturnTipe tipe, _ ->
-              replace (PFnReturn (F (id, tipe)))
+          | PFnReturnTipe _, ACReturnTipe tipe, _ ->
+              replace (PFnReturnTipe (F (id, tipe)))
           | PParamName _, ACParamName value, _ ->
               replace (PParamName (F (id, value)))
           | PParamTipe _, ACParamTipe tipe, _ ->

@@ -23,8 +23,8 @@ let typeOf (pd : blankOrData) : blankOrType =
       DBColType
   | PFnName _ ->
       FnName
-  | PFnReturn _ ->
-      FnReturn
+  | PFnReturnTipe _ ->
+      FnReturnTipe
   | PParamName _ ->
       ParamName
   | PParamTipe _ ->
@@ -56,8 +56,8 @@ let emptyD (pt : blankOrType) : blankOrData =
       PDBColType (Blank id)
   | FnName ->
       PFnName (Blank id)
-  | FnReturn ->
-      PFnReturn (Blank id)
+  | FnReturnTipe ->
+      PFnReturnTipe (Blank id)
   | ParamName ->
       PParamName (Blank id)
   | ParamTipe ->
@@ -88,7 +88,7 @@ let toID (pd : blankOrData) : ID.t =
       B.toID d
   | PFnName d ->
       B.toID d
-  | PFnReturn d ->
+  | PFnReturnTipe d ->
       B.toID d
   | PParamName d ->
       B.toID d
@@ -118,7 +118,7 @@ let isBlank (pd : blankOrData) : bool =
   | PTypeFieldName str
   | PGroupName str ->
       B.isBlank str
-  | PFnReturn t | PTypeFieldTipe t | PParamTipe t ->
+  | PFnReturnTipe t | PTypeFieldTipe t | PParamTipe t ->
       B.isBlank t
 
 
@@ -145,8 +145,8 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
       PDBColType (bf d)
   | PFnName d ->
       PFnName (bf d)
-  | PFnReturn d ->
-      PFnReturn d
+  | PFnReturnTipe d ->
+      PFnReturnTipe d
   | PParamName d ->
       PParamName (bf d)
   | PParamTipe d ->
@@ -176,7 +176,7 @@ let toContent (pd : blankOrData) : string =
   | PTypeFieldName d
   | PGroupName d ->
       bs2s d
-  | PFnReturn d | PParamTipe d | PTypeFieldTipe d ->
+  | PFnReturnTipe d | PParamTipe d | PTypeFieldTipe d ->
       d
       |> B.toOption
       |> Option.map ~f:Prelude.tipe2str

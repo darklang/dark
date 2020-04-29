@@ -149,7 +149,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
         ; ViewBlankOr.viewTipe
             ~classes:["type"]
             ~enterable:true
-            FnReturn
+            FnReturnTipe
             vs
             fn.ufMetadata.ufmReturnTipe ]
     else Vdom.noNode
