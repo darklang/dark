@@ -12,6 +12,11 @@ type state =
   ; tlid : TLID.t
   ; tokens : FluidToken.tokenInfo list }
 
+type executionFlow =
+  | CodeExecuted
+  | CodeNotExecuted
+  | UnknownExecution
+
 let isActiveEditor (s : state) = s.fluidState.activeEditor = s.editor
 
 let stateToFnExecutionState (s : state) : ViewFnExecution.state =
@@ -57,12 +62,42 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
       Vdom.noNode
 
 
-type executionFlow =
-  | CodeExecuted
-  | CodeNotExecuted
-  | UnknownExecution
-
 let toHtml (s : state) : Types.msg Html.html list =
+  let exeFlow ti =
+    let id = FluidToken.analysisID ti.token in
+    match Analysis.getLiveValueLoadable s.analysisStore id with
+    | LoadableSuccess (ExecutedResult _) ->
+        CodeExecuted
+    | LoadableSuccess (NonExecutedResult _) ->
+        CodeNotExecuted
+    | _ ->
+        UnknownExecution
+  in
+  let caretToken = Fluid.getTokenNotWhitespace s.tokens s.fluidState in
+  let caretParentBlockID =
+    caretToken
+    |> Option.andThen ~f:(fun ti ->
+           (* We only care to check further if caret is in a faded region. *)
+           if exeFlow ti = CodeNotExecuted
+           then FluidToken.parentBlockID ti.token
+           else None)
+  in
+  (* Returns true if token is in the same block as the caret or on the same row *)
+  let isNearCaret ti =
+    match caretParentBlockID with
+    | Some pid ->
+        FluidToken.parentBlockID ti.token = Some pid
+        && exeFlow ti = CodeNotExecuted
+    | None ->
+        let isNotInBlock =
+          (* So we don't unfade tokens in the same row, but belong to another block *)
+          FluidToken.parentBlockID ti.token = None
+        in
+        let caretRow = Option.map ~f:(fun ti -> ti.startRow) caretToken in
+        Some ti.startRow = caretRow
+        && isNotInBlock
+        && exeFlow ti = CodeNotExecuted
+  in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
     if FluidToken.validID id
@@ -77,17 +112,7 @@ let toHtml (s : state) : Types.msg Html.html list =
           (None, "")
     else (None, "")
   in
-  let wasExecuted id : executionFlow =
-    match Analysis.getLiveValueLoadable s.analysisStore id with
-    | LoadableSuccess (ExecutedResult _) ->
-        CodeExecuted
-    | LoadableSuccess (NonExecutedResult _) ->
-        CodeNotExecuted
-    | _ ->
-        UnknownExecution
-  in
   let currentTokenInfo = Fluid.getToken' s.tokens s.fluidState in
-  let caretRow = currentTokenInfo |> Option.map ~f:(fun ti -> ti.startRow) in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -211,19 +236,14 @@ let toHtml (s : state) : Types.msg Html.html list =
             propagated occurrences. *)
             sourceId = Some (s.tlid, analysisId)
           in
-          let notExecuted =
-            if wasExecuted analysisId = CodeNotExecuted
-            then
-              (* If cursor is on a not executed line, we don't fade the line out. https://www.notion.so/darklang/Visually-display-the-code-that-is-executed-for-a-trace-eb5f809590cf4223be7660ad1a7db087 *)
-              caretRow != Some ti.startRow
-            else false
-          in
+          let isNotExecuted = exeFlow ti = CodeNotExecuted in
+          let isInFocus = isNotExecuted && isNearCaret ti in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
           ; ("in-flag", !withinFlag)
           ; ("fluid-error", isError)
-          ; ("fluid-executed", wasExecuted analysisId = CodeExecuted)
-          ; ("fluid-not-executed", notExecuted)
+          ; ("fluid-not-executed", isNotExecuted)
+          ; ("fluid-code-focus", isInFocus)
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
              * into another, where the cursor is currently on *)
