@@ -1326,3 +1326,83 @@ test("record_consent_saved_across_canvases", async t => {
   const testname = t.testRun.test.name;
   await t.navigateTo(`${BASE_URL}${testname}?integration-test=true`);
 });
+
+test("exe_flow_fades", async t => {
+  await gotoAST(t);
+  await t.expect(Selector(".fluid-not-executed").exists).ok();
+});
+
+test("unexe_code_unfades_on_focus", async t => {
+  await gotoAST(t);
+  // move caret into a single line
+  await t.click(".id-1459002816", { timeout: 500 });
+  await t
+    .expect(
+      Selector(".id-1459002816.fluid-not-executed.fluid-code-focus").exists,
+    )
+    .ok();
+  await t
+    .expect(
+      Selector(".id-2073307217.fluid-not-executed.fluid-code-focus").exists,
+    )
+    .ok();
+
+  // move caret into multiline string
+  await t.click(".fluid-string-ml-start", { timeout: 500 });
+  await t
+    .expect(
+      Selector(".fluid-string-ml-start.fluid-not-executed.fluid-code-focus")
+        .exists,
+    )
+    .ok();
+  await t
+    .expect(
+      Selector(".fluid-string-ml-middle.fluid-not-executed.fluid-code-focus")
+        .exists,
+    )
+    .ok();
+  await t
+    .expect(
+      Selector(".fluid-string-ml-end.fluid-not-executed.fluid-code-focus")
+        .exists,
+    )
+    .ok();
+
+  // move caret into list literal
+  await t.click(".fluid-list-comma", { timeout: 500 });
+  await t
+    .expect(
+      Selector(".fluid-list-open.fluid-not-executed.fluid-code-focus").exists,
+    )
+    .ok();
+  await t
+    .expect(
+      Selector(".fluid-list-close.fluid-not-executed.fluid-code-focus").exists,
+    )
+    .ok();
+
+  // move caret into object literal
+  await t.click(".fluid-record-sep", { timeout: 500 });
+  await t
+    .expect(
+      Selector(".fluid-record-open.fluid-not-executed.fluid-code-focus").exists,
+    )
+    .ok();
+  await t
+    .expect(
+      Selector(".fluid-record-fieldname.fluid-not-executed.fluid-code-focus")
+        .exists,
+    )
+    .ok();
+  await t
+    .expect(
+      Selector(".id-2108109721.fluid-not-executed.fluid-code-focus").exists,
+    )
+    .ok();
+  await t
+    .expect(
+      Selector(".fluid-record-close.fluid-not-executed.fluid-code-focus")
+        .exists,
+    )
+    .ok();
+});
