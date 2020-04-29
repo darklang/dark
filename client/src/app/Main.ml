@@ -2152,14 +2152,21 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
    * activeEditor and modify cursorState
    * and make fluidState be per-handler *)
   let activeEditor =
-    (match (CursorState.tlidOf newm.cursorState), newm.fluidState.activeEditor with
-      | None, _ -> NoEditor
-      | Some tl, NoEditor -> MainEditor tl
-      | Some _, ed -> ed) in
+    match
+      (CursorState.tlidOf newm.cursorState, newm.fluidState.activeEditor)
+    with
+    | None, _ ->
+        NoEditor
+    | Some tl, NoEditor ->
+        MainEditor tl
+    | Some _, ed ->
+        ed
+  in
   (* END HACK *)
   SavedSettings.save m ;
   SavedUserSettings.save m ;
-  ({newm with lastMsg = msg; fluidState = {newm.fluidState with activeEditor}}, newc)
+  ( {newm with lastMsg = msg; fluidState = {newm.fluidState with activeEditor}}
+  , newc )
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =
