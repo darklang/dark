@@ -4911,7 +4911,7 @@ let run () =
              let tokens = Printer.tokenize ast in
              Fluid.getNeighbours ~pos:3 tokens)
           |> toEqual
-               (let token = TString (id, "test") in
+               (let token = TString (id, "test", None) in
                 let ti =
                   { token
                   ; startRow = 0

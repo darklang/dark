@@ -7,6 +7,8 @@ module IDSet = ID.Set
 
 type analysisID = ID.t [@@deriving show]
 
+type parentBlockID = ID.t [@@deriving show]
+
 (* == end legacy aliases == *)
 
 let show_list ~(f : 'a -> string) (x : 'a list) : string =
@@ -1442,78 +1444,82 @@ and placeholder =
   ; tipe : string }
 
 and fluidToken =
-  | TInteger of ID.t * string
-  | TString of ID.t * string
+  | TInteger of ID.t * string * parentBlockID option
+  | TString of ID.t * string * parentBlockID option
   (* multi-line strings: ID.t *, segment, start offset, full-string *)
   | TStringMLStart of ID.t * string * int * string
   | TStringMLMiddle of ID.t * string * int * string
   | TStringMLEnd of ID.t * string * int * string
-  | TBlank of ID.t
+  | TBlank of ID.t * parentBlockID option
   | TPlaceholder of
       { blankID : ID.t
       ; fnID : ID.t
+      ; parentBlockID : parentBlockID option
       ; placeholder : placeholder }
-  | TTrue of ID.t
-  | TFalse of ID.t
-  | TNullToken of ID.t
-  | TFloatWhole of ID.t * string
-  | TFloatPoint of ID.t
-  | TFloatFractional of ID.t * string
+  | TTrue of ID.t * parentBlockID option
+  | TFalse of ID.t * parentBlockID option
+  | TNullToken of ID.t * parentBlockID option
+  | TFloatWhole of ID.t * string * parentBlockID option
+  | TFloatPoint of ID.t * parentBlockID option
+  | TFloatFractional of ID.t * string * parentBlockID option
   (* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. *)
-  | TPartial of ID.t * string
+  | TPartial of ID.t * string * parentBlockID option
   (* A partial that extends out to the right. Used to create binops. *)
-  | TRightPartial of ID.t * string
   (* A partial that preceeds an existing expression, used to wrap things in other things *)
-  | TLeftPartial of ID.t * string
+  | TLeftPartial of ID.t * string * parentBlockID option
+  | TRightPartial of ID.t * string * parentBlockID option
   (* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way *)
-  | TPartialGhost of ID.t * string
+  | TPartialGhost of ID.t * string * parentBlockID option
   (* the ID.t *here disambiguates with other separators for reflow *)
-  | TSep of ID.t
+  | TSep of ID.t * parentBlockID option
   (* The first ID.t *is the ID.t *of the expression directly associated with the
    * newline. The second ID.t *is the ID.t *of that expression's parent. In an
    * expression with potentially many newlines (ie, a pipeline), the int holds
    * the relative line number (index) of this newline. *)
   | TNewline of (ID.t * ID.t * int option) option
   | TIndent of int
-  | TLetKeyword of ID.t * analysisID
+  | TLetKeyword of ID.t * analysisID * parentBlockID option
   (* Let-expr id * rhs id * varname *)
-  | TLetVarName of ID.t * analysisID * string
-  | TLetAssignment of ID.t * analysisID
-  | TIfKeyword of ID.t
-  | TIfThenKeyword of ID.t
-  | TIfElseKeyword of ID.t
-  | TBinOp of ID.t * string
-  | TFieldOp of (* fieldAccess *) ID.t * (* lhs *) ID.t
-  | TFieldName of ID.t (* fieldAccess *) * ID.t (* lhs *) * string
+  | TLetVarName of ID.t * analysisID * string * parentBlockID option
+  | TLetAssignment of ID.t * analysisID * parentBlockID option
+  | TIfKeyword of ID.t * parentBlockID option
+  | TIfThenKeyword of ID.t * parentBlockID option
+  | TIfElseKeyword of ID.t * parentBlockID option
+  | TBinOp of ID.t * string * parentBlockID option
+  | TFieldOp of (* fieldAccess *) ID.t * (* lhs *) ID.t * parentBlockID option
+  | TFieldName of
+      ID.t (* fieldAccess *) * ID.t (* lhs *) * string * parentBlockID option
   | TFieldPartial of
       (* Partial ID, fieldAccess ID, analysisID (lhs), name *) ID.t
       * ID.t
       * ID.t
       * string
-  | TVariable of ID.t * string
+      * parentBlockID option
+  | TVariable of ID.t * string * parentBlockID option
   (* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
   | TFnName of ID.t * string * string * string * FluidExpression.sendToRail
   (* ID.t, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
   | TFnVersion of ID.t * string * string * string
-  | TLambdaComma of ID.t * int
-  | TLambdaArrow of ID.t
-  | TLambdaSymbol of ID.t
-  | TLambdaVar of ID.t * analysisID * int * string
-  | TListOpen of ID.t
-  | TListClose of ID.t
+  | TLambdaComma of ID.t * int * parentBlockID option
+  | TLambdaArrow of ID.t * parentBlockID option
+  | TLambdaSymbol of ID.t * parentBlockID option
+  | TLambdaVar of ID.t * analysisID * int * string * parentBlockID option
+  | TListOpen of ID.t * parentBlockID option
+  | TListClose of ID.t * parentBlockID option
   | TListComma of ID.t * int
   (* 2nd int is the number of pipe segments there are *)
-  | TPipe of ID.t * int * int
-  | TRecordOpen of ID.t
+  | TPipe of ID.t * int * int * parentBlockID option
+  | TRecordOpen of ID.t * parentBlockID option
   | TRecordFieldname of
       { recordID : ID.t
       ; exprID : ID.t
+      ; parentBlockID : parentBlockID option
       ; index : int
       ; fieldName : string }
   | TRecordSep of ID.t * int * analysisID
-  | TRecordClose of ID.t
+  | TRecordClose of ID.t * parentBlockID option
   | TMatchKeyword of ID.t
   | TMatchBranchArrow of
       { matchID : ID.t
@@ -1735,7 +1741,8 @@ and savedSettings =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarState : sidebarState
-  ; showTopbar : bool }
+  ; showTopbar : bool
+  ; recordConsent : bool option }
 [@@deriving show {with_path = false}]
 
 and permission =

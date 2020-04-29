@@ -1,5 +1,7 @@
 document.title = window.location.hostname.split(".")[0] + " - Dark";
 
+const FullStory = require("@fullstory/browser");
+
 const mousewheel = function (callback) {
   require("domready")(function () {
     require("mouse-wheel")(document.body, callback);
@@ -291,6 +293,23 @@ window.Dark = {
       );
     },
   },
+  fullstory: {
+    init: function (canvas) {
+      /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
+      FullStory.init({
+        orgId: "TMVRZ",
+        devMode: isAdmin,
+      });
+    },
+    setConsent: function (consent) {
+      FullStory.consent(consent);
+      if (consent) {
+        FullStory.restart();
+      } else {
+        FullStory.shutdown();
+      }
+    },
+  },
 };
 
 function windowFocusChange(visible) {
@@ -507,6 +526,9 @@ setTimeout(function () {
       document.dispatchEvent(event);
     });
   }
+
+  /* Full story */
+  Dark.fullstory.init(canvasName);
 }, 1);
 // ---------------------------
 // Exports

@@ -55,9 +55,14 @@ let createVS (m : model) (tl : toplevel) : viewState =
   let ast =
     TL.getAST tl |> Option.withDefault ~default:(FluidAST.ofExpr (E.newB ()))
   in
+  let analysisStore =
+    Option.map traceID ~f:(Analysis.getStoredAnalysis m)
+    |> Option.withDefault ~default:LoadableNotInitialized
+  in
+  let tokens = FluidPrinter.tokenize (FluidAST.toExpr ast) in
   { tl
   ; ast
-  ; tokens = FluidPrinter.tokenize (FluidAST.toExpr ast)
+  ; tokens
   ; tlid
   ; cursorState = CursorState.unwrap m.cursorState
   ; hovering =
@@ -76,9 +81,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; isAdmin = m.isAdmin
   ; dbLocked = DB.isLocked m tlid
   ; functions = m.functions
-  ; analysisStore =
-      Option.map traceID ~f:(Analysis.getStoredAnalysis m)
-      |> Option.withDefault ~default:LoadableNotInitialized
+  ; analysisStore
   ; traces = Analysis.getTraces m tlid
   ; dbStats = m.dbStats
   ; executingFunctions =
@@ -284,7 +287,7 @@ let intAsUnit (i : int) (u : string) : string = string_of_int i ^ u
 
 let fnForToken (functions : Functions.t) token : function_ option =
   match token with
-  | TBinOp (_, fnName)
+  | TBinOp (_, fnName, _)
   | TFnVersion (_, _, _, fnName)
   | TFnName (_, _, _, fnName, _) ->
       Functions.find fnName functions
