@@ -56,6 +56,7 @@ let () =
   describe "User_functions_test" Userfn_test.run ;
   describe "View_blankor" View_blankor.run ;
   describe "Prettydocs_test" Prettydocs_test.run ;
+  describe "Fluid_printer_test" Fluid_printer_test.run ;
   if !domTests
   then (
     DOMSupport.init () ;
