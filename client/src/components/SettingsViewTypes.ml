@@ -17,6 +17,7 @@ and settingsTab =
   | CanvasInfo
   | UserSettings
   | InviteUser of inviteFields
+  | Privacy
 [@@deriving show]
 
 type inviteFormMessage =
@@ -39,6 +40,8 @@ type canvasInformation =
   ; createdAt : Js.Date.t option [@opaque] }
 [@@deriving show]
 
+type privacySettings = {recordConsent : bool option} [@@deriving show]
+
 type settingsViewState =
   { opened : bool
   ; tab : settingsTab
@@ -47,7 +50,8 @@ type settingsViewState =
   ; orgs : string list
   ; orgCanvasList : string list (* This is org canvases, not orgs themselves *)
   ; loading : bool
-  ; canvasInformation : canvasInformation }
+  ; canvasInformation : canvasInformation
+  ; privacy : privacySettings }
 [@@deriving show]
 
 type loadCanvasInfoAPIResult =
@@ -75,6 +79,8 @@ type settingsMsg =
   | TriggerGetCanvasInfoCallback of
       (loadCanvasInfoAPIResult, (string Tea.Http.error[@opaque])) Tea.Result.t
       [@printer opaque "LoadPackagesAPICallback"]
+  | InitRecordConsent of bool option
+  | SetRecordConsent of bool
 [@@deriving show]
 
 let settingsTabToText (tab : settingsTab) : string =
@@ -87,6 +93,8 @@ let settingsTabToText (tab : settingsTab) : string =
       "canvases"
   | InviteUser _ ->
       "share"
+  | Privacy ->
+      "privacy"
 
 
 let defaultInviteFields : inviteFields = {email = {value = ""; error = None}}
@@ -99,5 +107,7 @@ let settingsTabFromText (tab : string) : settingsTab =
       UserSettings
   | "share" ->
       InviteUser defaultInviteFields
+  | "privacy" ->
+      Privacy
   | "about" | _ ->
       CanvasInfo

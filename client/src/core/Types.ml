@@ -1741,7 +1741,8 @@ and savedSettings =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarState : sidebarState
-  ; showTopbar : bool }
+  ; showTopbar : bool
+  ; recordConsent : bool option }
 [@@deriving show {with_path = false}]
 
 and permission =
