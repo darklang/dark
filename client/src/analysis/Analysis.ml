@@ -17,7 +17,7 @@ module E = FluidExpression
 
 (** [defaultTraceIDForTL ~tlid] returns the id of the "default" trace
  * for the top level with the given [tlid].
- * 
+ *
  * This default trace exists in order to eg populate the autocomplete
  * with parameters of functions that haven't been called yet. *)
 let defaultTraceIDForTL ~(tlid : TLID.t) =
@@ -374,13 +374,13 @@ let mergeTraces
           (* Algorithm overview:
            * 1. merge the lists, updating the trace in the same position
            * if present, and adding it to the front otherwise.
-           * 
+           *
            * 2. drop any traces in excess of [maxTracesPerHandler]
            * from the back, making sure to preserve any selected traces.
            *
            ***
            * Example:
-           * 
+           *
            * o = [o1,o2,o3,o4,o5,o6,o7,o8,o9]
            * n = [n1,n2,n_3,n4,n5,n6]
            * n_3 shares an id with o3
@@ -504,9 +504,12 @@ let analyzeFocused (m : model) : model * msg Cmd.t =
                |> Option.orElse (Some (traceID, Error NoneYet)))
       in
       ( match trace with
-      | Some (traceID, Error _) ->
-          (* TODO ismith don't fetch depending on error type *)
-          (* Fetch the trace data, if missing *)
+      | Some (_, Error MaximumCallStackError) ->
+          (* Don't attempt to refetch if we blew the stack trying
+           * to decode it *)
+          (m, Cmd.none)
+      | Some (traceID, Error NoneYet) ->
+          (* Fetch the trace data if it's missing. *)
           requestTrace m tlid traceID
       | Some (traceID, Ok _) ->
           (* Run the analysis, if missing *)
