@@ -24,6 +24,9 @@ cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
 ssh-keyscan -H localhost >> ~/.ssh/known_hosts
 EOF
 
-su tunnel -c "ssh -t -D *:1080 localhost sleep infinity" &
+# -tt because -t fails in local env:
+# `Pseudo-terminal will not be allocated because stdin is not a terminal.`,
+# and -tt forces allocation of a pseudo-terminal
+su tunnel -c "ssh -tt -D *:1080 localhost sleep infinity" &
 
 wait
