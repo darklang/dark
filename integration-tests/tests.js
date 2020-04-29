@@ -15,7 +15,12 @@ async function prepSettings(t) {
   await setLocalStorageItem(key, value);
   // Disable the modal
   let key2 = `userState-test`;
-  let value2 = '{"showUserWelcomeModal":false}';
+  // Don't show recordConsent modal or record to Fullstory, unless it's the modal test
+  let recordConsent =
+    t.testRun.test.name === "record_consent_saved_across_canvases"
+      ? "null"
+      : "false";
+  let value2 = `{"showUserWelcomeModal":false,"recordConsent":${recordConsent}}`;
   await setLocalStorageItem(key2, value2);
 }
 
@@ -1306,4 +1311,18 @@ test("abridged_sidebar_category_icon_click_disabled", async t => {
 
 test("function_docstrings_are_valid", async t => {
   // validate functions in IntegrationTest.ml
+});
+
+test("record_consent_saved_across_canvases", async t => {
+  await t.click("#fs-consent-yes");
+  await t.wait(1500);
+  await t.expect(Selector(".fullstory-modal.hide").exists).ok();
+
+  // navigate to another canvas
+  await t.navigateTo(`${BASE_URL}another-canvas`);
+  await t.expect(Selector(".fullstory-modal.hide").exists).ok();
+
+  // go back to original canvas to end the test
+  const testname = t.testRun.test.name;
+  await t.navigateTo(`${BASE_URL}${testname}?integration-test=true`);
 });

@@ -789,6 +789,8 @@ let function_docstrings_are_valid (m : model) : testResult =
     fail ~f:combineErrors failed
 
 
+let record_consent_saved_across_canvases (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -935,5 +937,7 @@ let trigger (test_name : string) : integrationTestState =
         abridged_sidebar_category_icon_click_disabled
     | "function_docstrings_are_valid" ->
         function_docstrings_are_valid
+    | "record_consent_saved_across_canvases" ->
+        record_consent_saved_across_canvases
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
