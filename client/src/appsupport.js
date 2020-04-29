@@ -300,6 +300,10 @@ window.Dark = {
         orgId: "TMVRZ",
         devMode: isAdmin,
       });
+      FullStory.identify(username, {
+        displayName: username,
+        canvas,
+      });
     },
     setConsent: function (consent) {
       FullStory.consent(consent);
