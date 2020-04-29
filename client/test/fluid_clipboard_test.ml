@@ -876,6 +876,30 @@ let run () =
         aPipe
         (0, 41)
         "[]\n|>List::append [5]\n|>List::append [5]\n" ;
+      testPasteExpr
+        "pasting a function with a pipe target outside of a pipe strips the pipe target"
+        b
+        (0, 0)
+        (listFn [aList5])
+        "List::append ___________ [5]~" ;
+      testPasteExpr
+        "pasting a function into a pipe adds a pipe target"
+        emptyPipe
+        (6, 6)
+        aFullFnCall
+        "___\n|>Int::add 5~\n" ;
+      testPasteExpr
+        "pasting a binop with a pipe target outside of a pipe strips the pipe target"
+        b
+        (0, 0)
+        (binop "+" pipeTarget (int 10))
+        "_________ + 10~" ;
+      testPasteExpr
+        "pasting a binop into a pipe adds a pipe target"
+        emptyPipe
+        (6, 6)
+        aFullBinOp
+        "___\n|>|| 5~\n" ;
       ()) ;
   describe "Lists" (fun () ->
       (* NOT WORKING YET
