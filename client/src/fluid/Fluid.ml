@@ -5530,28 +5530,6 @@ let buildFeatureFlagEditors (ast : FluidAST.t) : fluidEditor list =
 (* update functions *)
 (* ------------------------ *)
 
-let astAndStateFromTLID (m : model) (tlid : TLID.t) :
-    (FluidAST.t * state) option =
-  (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
-   * make `fromExpr` accept only the info it needs, and differentiate between
-   * handler-specific and global fluid state. *)
-  let removeHandlerTransientState m =
-    {m with fluidState = {m.fluidState with ac = AC.init}}
-  in
-  TL.get m tlid
-  |> Option.andThen ~f:TL.getAST
-  |> Option.map ~f:(fun ast ->
-         let state =
-           (* We need to discard transient state if the selected handler has changed *)
-           if Some tlid = CursorState.tlidOf m.cursorState
-           then m.fluidState
-           else
-             let newM = removeHandlerTransientState m in
-             newM.fluidState
-         in
-         (ast, state))
-
-
 let updateMouseDoubleClick
     (eventData : fluidMouseDoubleClick) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo =
