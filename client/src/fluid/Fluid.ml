@@ -37,6 +37,10 @@ type props =
   { functions : functionsType
   ; variants : variantTest list }
 
+let deselectFluidEditor (s : fluidState) : fluidState =
+  {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = NoEditor}
+
+
 let tokenizeForFocusedEditor (expr : FluidExpression.t) (s : fluidState) :
     tokenInfos =
   Printer.tokenizeForEditor s.activeEditor expr
@@ -211,11 +215,22 @@ module ASTInfo = struct
 
   let fromModel (m : model) : t option =
     CursorState.tlidOf m.cursorState |> Option.andThen ~f:(fromModelAndTLID m)
+
+
+  let exprOfFocusedEditor (astInfo : t) : FluidExpression.t =
+    match astInfo.state.activeEditor with
+    | NoEditor ->
+        recover
+          "exprOfFocusedEditor - none exists"
+          (FluidAST.toExpr astInfo.ast)
+    | MainEditor _ ->
+        FluidAST.toExpr astInfo.ast
+    | FeatureFlagEditor (_, id) ->
+        FluidAST.find id astInfo.ast
+        |> recoverOpt
+             "exprOfFocusedEditor - cannot find expression for editor"
+             ~default:(FluidAST.toExpr astInfo.ast)
 end
-
-let deselectFluidEditor (s : fluidState) : fluidState =
-  {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = MainEditor}
-
 
 let getStringIndexMaybe (ti : T.tokenInfo) (pos : int) : int option =
   match ti.token with
@@ -235,17 +250,6 @@ let getStringIndex ti pos : int =
       i
   | None ->
       recover "getting index of non-string" ~debug:(ti.token, pos) 0
-
-
-let exprOfFocusedEditor (astInfo : ASTInfo.t) : FluidExpression.t =
-  match astInfo.state.activeEditor with
-  | MainEditor ->
-      FluidAST.toExpr astInfo.ast
-  | FeatureFlagEditor id ->
-      FluidAST.find id astInfo.ast
-      |> recoverOpt
-           "cannot find expression for editor"
-           ~default:(FluidAST.toExpr astInfo.ast)
 
 
 (* -------------------- *)
@@ -5509,7 +5513,7 @@ let getCopySelection (m : model) : clipboardContents =
   |> Option.andThen ~f:(fun (astInfo : ASTInfo.t) ->
          let from, to_ = getSelectionRange astInfo.state in
          let text =
-           exprOfFocusedEditor astInfo
+           ASTInfo.exprOfFocusedEditor astInfo
            |> FluidPrinter.eToHumanString
            |> String.slice ~from ~to_
          in
@@ -5521,9 +5525,10 @@ let getCopySelection (m : model) : clipboardContents =
   |> Option.withDefault ~default:("", None)
 
 
-let buildFeatureFlagEditors (ast : FluidAST.t) : fluidEditor list =
+let buildFeatureFlagEditors (tlid : TLID.t) (ast : FluidAST.t) :
+    fluidEditor list =
   FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
-  |> List.map ~f:(fun e -> FeatureFlagEditor (E.toID e))
+  |> List.map ~f:(fun e -> FeatureFlagEditor (tlid, E.toID e))
 
 
 (* ------------------------ *)
@@ -5893,7 +5898,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                  * may be editing the feature flag section in which case we'd
                  * be putting the wrong information into the cache. As a simple
                  * solution for now, only update if we're in the main editor. *)
-                if s.activeEditor = MainEditor
+                if s.activeEditor = MainEditor tlid
                 then UpdateASTCache (tlid, Printer.tokensToString newTokens)
                 else NoChange
               in

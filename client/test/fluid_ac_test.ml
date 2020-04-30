@@ -56,8 +56,6 @@ let sampleFunctions : function_ list =
          ; fnOrigin = Builtin })
 
 
-let defaultTLID = TLID.fromString "7"
-
 let defaultTraceID = "94167980-f909-527e-a4af-bc3155f586d3"
 
 let defaultID = gid ()

@@ -30,9 +30,7 @@ let toModel (e : savedSettings) : model =
   ; canvasProps = {m.canvasProps with offset = e.canvasPos}
   ; lastReload = e.lastReload
   ; sidebarState = e.sidebarState
-  ; showTopbar = e.showTopbar
-  ; settingsView =
-      {m.settingsView with privacy = {recordConsent = e.recordConsent}} }
+  ; showTopbar = e.showTopbar }
 
 
 let model2editor (m : model) : savedSettings =
@@ -46,8 +44,7 @@ let model2editor (m : model) : savedSettings =
   ; canvasPos = m.canvasProps.offset
   ; lastReload = m.lastReload
   ; sidebarState = m.sidebarState
-  ; showTopbar = m.showTopbar
-  ; recordConsent = m.settingsView.privacy.recordConsent }
+  ; showTopbar = m.showTopbar }
 
 
 let fromString (json : string option) : savedSettings =

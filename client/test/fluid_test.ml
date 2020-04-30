@@ -167,9 +167,12 @@ module TestCase = struct
       FluidAST.ofExpr fullExpr
     in
     let state =
-      let extraEditors = Fluid.buildFeatureFlagEditors ast in
+      let tlid = defaultTLID in
+      let extraEditors = Fluid.buildFeatureFlagEditors tlid ast in
       let activeEditor =
-        if ff then List.head extraEditors |> Option.valueExn else MainEditor
+        if ff
+        then List.head extraEditors |> Option.valueExn
+        else MainEditor tlid
       in
       (* re-calculate selectionStart, pos taking into account either
        * None -> the if/else wrapper because we are testing the main editor
@@ -4466,7 +4469,9 @@ let run () =
                  h.ast
                  m.fluidState
                  (FluidMouseUp
-                    {tlid; editor = MainEditor; selection = ClickAt 18})
+                    { tlid
+                    ; editor = MainEditor (TLID.fromString "7")
+                    ; selection = ClickAt 18 })
              in
              newState.ac.index)
           |> toEqual (Some 0)) ;
