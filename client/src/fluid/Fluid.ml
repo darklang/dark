@@ -192,12 +192,15 @@ module ASTInfo = struct
     {ast; state = s; tokenInfos; props}
 
 
-  let fromModelAndTLID (m : model) (tlid : TLID.t) : t option =
+  let fromModelAndTLID
+      ?(removeTransientState = true) (m : model) (tlid : TLID.t) : t option =
     (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
      * make `fromExpr` accept only the info it needs, and differentiate between
      * handler-specific and global fluid state. *)
     let removeHandlerTransientState m =
-      {m with fluidState = {m.fluidState with ac = AC.init}}
+      if removeTransientState
+      then {m with fluidState = {m.fluidState with ac = AC.init}}
+      else m
     in
     TL.get m tlid
     |> Option.andThen ~f:TL.getAST
@@ -5940,11 +5943,12 @@ let renderCallback (m : model) : unit =
 
 
 let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
-  Js.log "cleanup" ;
   let rmPartialsMod =
     tlid
     |> Option.andThen ~f:(TL.get m)
-    |> Option.thenAlso ~f:(fun tl -> ASTInfo.fromModelAndTLID m (TL.id tl))
+    |> Option.thenAlso ~f:(fun tl ->
+           (* Keep transient state as we're trying to commit it *)
+           ASTInfo.fromModelAndTLID ~removeTransientState:false m (TL.id tl))
     |> Option.andThen ~f:(fun (tl, astInfo) ->
            let newAstInfo = acMaybeCommit 0 astInfo in
            let newAST = newAstInfo.ast |> FluidAST.map ~f:AST.removePartials in
