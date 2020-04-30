@@ -1328,12 +1328,16 @@ test("record_consent_saved_across_canvases", async t => {
 });
 
 test("exe_flow_fades", async t => {
+  const timestamp = new Date();
   await t.click(".fluid-entry");
+  awaitAnalysis(t, timestamp);
   await t.expect(Selector(".fluid-not-executed").exists).ok();
 });
 
 test("unexe_code_unfades_on_focus", async t => {
+  const timestamp = new Date();
   await t.click(".fluid-entry");
+  awaitAnalysis(t, timestamp);
   // move caret into a single line
   await t.click(".id-1459002816", { timeout: 500 });
   await t
