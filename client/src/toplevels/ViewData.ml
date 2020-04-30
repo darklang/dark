@@ -77,15 +77,20 @@ let viewTrace
           (fun x -> TraceMouseLeave (tlid, traceID, x)) ]
   in
   let valueDiv =
-    match value with
-    | None ->
-        ViewUtils.fontAwesome "spinner"
-    | Some v ->
-        let asString = Runtime.inputValueAsString tl v in
-        let asString =
-          if String.length asString = 0 then "No input parameters" else asString
-        in
-        Html.div [Vdom.noProp] [Html.text asString]
+    if isUnfetchable
+    then Vdom.noNode
+    else
+      match value with
+      | None ->
+          ViewUtils.fontAwesome "spinner"
+      | Some v ->
+          let asString = Runtime.inputValueAsString tl v in
+          let asString =
+            if String.length asString = 0
+            then "No input parameters"
+            else asString
+          in
+          Html.div [Vdom.noProp] [Html.text asString]
   in
   let timestampDiv =
     match timestamp with
