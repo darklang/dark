@@ -291,7 +291,7 @@ let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     )
   | PDBName _ | PDBColType _ | PDBColName _ ->
       tl
-  | PFnName _ | PParamName _ | PParamTipe _ ->
+  | PFnName _ | PFnReturnTipe _ | PParamName _ | PParamTipe _ ->
     ( match asUserFunction tl with
     | Some fn ->
         let newFn = UserFunctions.replaceMetadataField p replacement fn in

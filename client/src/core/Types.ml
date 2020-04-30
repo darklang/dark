@@ -149,6 +149,7 @@ and blankOrData =
   | PDBColName of string blankOr
   | PDBColType of string blankOr
   | PFnName of string blankOr
+  | PFnReturnTipe of tipe blankOr
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
   | PTypeName of string blankOr
@@ -164,6 +165,7 @@ and blankOrType =
   | DBColName
   | DBColType
   | FnName
+  | FnReturnTipe
   | ParamName
   | ParamTipe
   | TypeName
@@ -899,6 +901,7 @@ and autocompleteItem =
   | ACFnName of string
   | ACParamName of string
   | ACParamTipe of tipe
+  | ACReturnTipe of tipe
   (* User types *)
   | ACTypeFieldTipe of tipe
   | ACTypeName of string
@@ -1387,6 +1390,7 @@ and variantTest =
   | ForceWelcomeModalVariant
   | ExeCodeVariant
   | LeftPartialVariant
+  | FnReturnVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)

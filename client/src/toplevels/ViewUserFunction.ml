@@ -140,7 +140,21 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
       [Html.id "fnparams"; Html.class' "params"]
       (FnParams.view fn vs @ [addParamBtn])
   in
-  Html.div [Html.class' "fn-header"] [titleRow; paramRows]
+  let returnRow =
+    if VariantTesting.variantIsActive' vs.testVariants FnReturnVariant
+    then
+      Html.div
+        [Html.id "fnreturn"; Html.class' "col param"]
+        [ fontAwesome "level-down-alt"
+        ; ViewBlankOr.viewTipe
+            ~classes:["type"]
+            ~enterable:true
+            FnReturnTipe
+            vs
+            fn.ufMetadata.ufmReturnTipe ]
+    else Vdom.noNode
+  in
+  Html.div [Html.class' "fn-header"] [titleRow; paramRows; returnRow]
 
 
 let view (vs : viewState) (fn : userFunction) : msg Html.html =
