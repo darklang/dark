@@ -5486,6 +5486,10 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
               initialExpr
         in
         match FluidAST.findParent (E.toID expr) ast with
+        | Some (EPipe (_, head :: _)) when head = expr ->
+            (* If pasting into the head of a pipe, drop any root-level pipe targets *)
+            clipboardExpr
+            |> Option.andThen ~f:(fun e -> Some (removePipeTarget e))
         | Some (EPipe (pipeId, _)) ->
             (* If pasting into a child of a pipe, replace first arg of a root-level function with pipe target*)
             clipboardExpr
