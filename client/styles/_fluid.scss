@@ -227,10 +227,11 @@ $ff-color: adjust-hue($purple, -40deg);
   color: $foreground;
 
   .fluid-not-executed {
-    // TODO: indicate the difference between code that was executed vs not
+    filter: brightness(60%);
   }
-  .fluid-executed {
-    // TODO: indicate the difference between code that was executed vs not
+
+  .fluid-code-focus {
+    filter: none;
   }
 
   caret-color: $foreground;
@@ -706,16 +707,5 @@ $error-color: saturate($red, 10%);
   /* Tooltip message for sources of the error */
   &.dark-error.is-origin:not(.cursor-on):hover:after {
     content: "The Error came from here";
-  }
-}
-
-/* Executed Code Variant */
-#app.exe-variant .fluid-editor {
-  .fluid-not-executed {
-    filter: brightness(60%);
-  }
-
-  .fluid-code-focus {
-    filter: none;
   }
 }

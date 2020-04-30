@@ -1388,7 +1388,6 @@ and variantTest =
   | GroupVariant
   | NgrokVariant
   | ForceWelcomeModalVariant
-  | ExeCodeVariant
   | LeftPartialVariant
   | FnReturnVariant
 
