@@ -153,9 +153,11 @@ let toHtml (s : state) : Types.msg Html.html list =
      * set of all the IDs of them and their children. This is used below to
      * apply a CSS class to highlight tokens contained in a FF. *)
     match s.editor with
+    | NoEditor ->
+        ID.Set.empty
     | FeatureFlagEditor _ ->
         ID.Set.empty
-    | MainEditor ->
+    | MainEditor _ ->
         FluidAST.filter s.ast ~f:(function
             | EFeatureFlag _ ->
                 true

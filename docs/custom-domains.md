@@ -19,10 +19,11 @@ Our former constraint of <= 15 certs is no longer applicable! Yay.
   again, for redirects, not SSL certs.
 
 ## Dark ops instructions
-- Run `scripts/add-custom-domain` and provide the domain; we'll get the canvas
+- Make sure you have run `scripts/gcp-authorize-kubectl` (if you have not, you might get `The connection to the server localhost:8080 was refused - did you specify the right host or port?` in the next step)
+- Run `scripts/add-custom-domain` and provide the domain (eg `api.example.com`); we'll get the canvas
   name from the CNAME, which also verifies that the CNAME DNS record is in
 place.
-  Make sure to supply the DOMAIN without the `https://` prefix and the raw CANVAS name without `builtwithdark`.
+  Make sure to supply the DOMAIN without the `https://` prefix.
 - The CNAME must exist before the below is done because Let's Encrypt uses an
   HTTP request to verify that "we" (the user) control the domain before issuing
 a cert.

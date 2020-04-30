@@ -18,7 +18,9 @@ let pageWidth : int = 500
 
 let unsetCSRF : string = "UNSET_CSRF"
 
-let defaultUserSettings : savedUserSettings = {showUserWelcomeModal = true}
+let defaultUserSettings : savedUserSettings =
+  {showUserWelcomeModal = true; recordConsent = None}
+
 
 let defaultSidebar : sidebarState =
   {mode = DetailedMode; openedCategories = StrSet.empty}
@@ -34,8 +36,7 @@ let defaultSavedSettings : savedSettings =
   ; canvasPos = origin
   ; lastReload = None
   ; sidebarState = defaultSidebar
-  ; showTopbar = false
-  ; recordConsent = None }
+  ; showTopbar = false }
 
 
 let defaultFluidState : fluidState =
@@ -56,7 +57,7 @@ let defaultFluidState : fluidState =
   ; selectionStart = None
   ; errorDvSrc = SourceNone
   ; midClick = false
-  ; activeEditor = MainEditor }
+  ; activeEditor = NoEditor }
 
 
 let defaultFunctionsType =

@@ -804,7 +804,11 @@ let editorSettings (es : Types.editorSettings) : Js.Json.t =
 
 
 let savedUserSettings (se : Types.savedUserSettings) : Js.Json.t =
-  object_ [("showUserWelcomeModal", bool se.showUserWelcomeModal)]
+  object_
+    [ ("showUserWelcomeModal", bool se.showUserWelcomeModal)
+    ; ( "recordConsent"
+      , Option.map ~f:bool se.recordConsent |> Option.withDefault ~default:null
+      ) ]
 
 
 let savedSettings (se : Types.savedSettings) : Js.Json.t =
@@ -818,10 +822,7 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
     ; ("sidebarState", sidebarState se.sidebarState)
-    ; ("showTopbar1", bool se.showTopbar)
-    ; ( "recordConsent"
-      , Option.map ~f:bool se.recordConsent |> Option.withDefault ~default:null
-      ) ]
+    ; ("showTopbar1", bool se.showTopbar) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =
