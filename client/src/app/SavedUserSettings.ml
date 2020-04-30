@@ -1,11 +1,15 @@
 open Prelude
 
 let toModel (m : model) (e : savedUserSettings) : model =
-  {m with showUserWelcomeModal = e.showUserWelcomeModal}
+  { m with
+    showUserWelcomeModal = e.showUserWelcomeModal
+  ; settingsView =
+      {m.settingsView with privacy = {recordConsent = e.recordConsent}} }
 
 
 let model2editor (m : model) : savedUserSettings =
-  {showUserWelcomeModal = m.showUserWelcomeModal}
+  { showUserWelcomeModal = m.showUserWelcomeModal
+  ; recordConsent = m.settingsView.privacy.recordConsent }
 
 
 let fromString (json : string option) : savedUserSettings =

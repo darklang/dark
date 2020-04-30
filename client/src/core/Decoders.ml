@@ -394,7 +394,9 @@ and savedUserSettings (j : Js.Json.t) : savedUserSettings =
       withDefault
         Defaults.defaultUserSettings.showUserWelcomeModal
         (field "showUserWelcomeModal" bool)
-        j }
+        j
+  ; recordConsent = withDefault None (field "recordConsent" (optional bool)) j
+  }
 
 
 and sidebarMode (j : Js.Json.t) : sidebarMode =
@@ -441,9 +443,7 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
-        j
-  ; recordConsent = withDefault None (field "recordConsent" (optional bool)) j
-  }
+        j }
 
 
 and cursorState j =
