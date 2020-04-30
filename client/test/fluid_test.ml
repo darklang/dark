@@ -393,7 +393,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
       "expr before"
       (FluidAST.toExpr tc.ast |> FluidPrinter.eToStructure ~includeIDs:true) ) ;
   let result =
-    Fluid.astInfoFor defaultTestProps tc.ast tc.state |> processMsg inputs
+    Fluid.ASTInfo.make defaultTestProps tc.ast tc.state |> processMsg inputs
   in
   let resultAST =
     FluidAST.map result.ast ~f:(function
@@ -526,7 +526,7 @@ let tStruct
         {defaultTestState with oldPos = pos; newPos = pos; selectionStart = None}
       in
       let astInfo =
-        Fluid.astInfoFor defaultTestProps (FluidAST.ofExpr ast) state
+        Fluid.ASTInfo.make defaultTestProps (FluidAST.ofExpr ast) state
       in
       let astInfo = processMsg inputs astInfo in
       expect (FluidAST.toExpr astInfo.ast)
@@ -4499,7 +4499,7 @@ let run () =
       test "backspace on partial will open AC if query matches" (fun () ->
           let ast = FluidAST.ofExpr (let' "request" aShortInt aPartialVar) in
           let astInfo =
-            astInfoFor defaultTestProps ast defaultTestState
+            ASTInfo.make defaultTestProps ast defaultTestState
             |> moveTo 19
             |> updateKey (keypress K.Down)
             |> processMsg [DeleteContentBackward]
@@ -4524,6 +4524,7 @@ let run () =
       let tokens = Printer.tokenize complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr |> FluidAST.ofExpr in
+      let astInfo = ASTInfo.make defaultTestProps ast defaultTestState in
       test "gridFor - 1" (fun () ->
           expect (gridFor ~pos:116 tokens) |> toEqual {row = 2; col = 2}) ;
       test "gridFor - 2" (fun () ->
@@ -4557,31 +4558,28 @@ let run () =
         (key K.Left)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
       describe "length" (fun () ->
-          let aiFor ast = astInfoFor defaultTestProps ast defaultTestState in
           test "up from first row is zero" (fun () ->
-              expect (aiFor ast |> doUp ~pos:5 |> fun {state; _} -> state.newPos)
+              expect (astInfo |> doUp ~pos:5 |> fun {state; _} -> state.newPos)
               |> toEqual 0) ;
           test "down from first row is end of last row" (fun () ->
               expect
-                (aiFor ast |> doDown ~pos:168 |> fun {state; _} -> state.newPos)
+                (astInfo |> doDown ~pos:168 |> fun {state; _} -> state.newPos)
               |> toEqual 174) ;
           (* end of short row *)
           test "up into shorter row goes to end of row" (fun () ->
-              expect
-                (aiFor ast |> doUp ~pos:172 |> fun {state; _} -> state.newPos)
+              expect (astInfo |> doUp ~pos:172 |> fun {state; _} -> state.newPos)
               |> toEqual 156) ;
           test "down into shorter row goes to end of row" (fun () ->
               expect
-                (aiFor ast |> doDown ~pos:143 |> fun {state; _} -> state.newPos)
+                (astInfo |> doDown ~pos:143 |> fun {state; _} -> state.newPos)
               |> toEqual 156) ;
           (* start of indented row *)
           test "up into indented row goes to first token" (fun () ->
-              expect
-                (aiFor ast |> doUp ~pos:152 |> fun {state; _} -> state.newPos)
+              expect (astInfo |> doUp ~pos:152 |> fun {state; _} -> state.newPos)
               |> toEqual 130) ;
           test "down into indented row goes to first token" (fun () ->
               expect
-                (aiFor ast |> doDown ~pos:109 |> fun {state; _} -> state.newPos)
+                (astInfo |> doDown ~pos:109 |> fun {state; _} -> state.newPos)
               |> toEqual 114) ;
           ()) ;
       t
@@ -4621,16 +4619,15 @@ let run () =
         "if ___\nthen\n  ___~\nelse\n  ___" ;
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
-          let astInfo = astInfoFor defaultTestProps ast s in
           expect
-            ( moveTo 143 astInfo
+            ( astInfo
+            |> moveTo 143
             |> updateKey (keypress K.Up)
             |> updateKey (keypress K.Up)
             |> updateKey (keypress K.Up)
             |> fun astInfo -> astInfo.state.newPos )
           |> toEqual 13) ;
       test "down goes through the autocomplete" (fun () ->
-          let astInfo = astInfoFor defaultTestProps ast s in
           expect
             ( moveTo 14 astInfo
             |> updateKey (keypress K.Down)
@@ -4641,9 +4638,8 @@ let run () =
       test "clicking away from autocomplete commits" (fun () ->
           expect
             (let expr = let' "var" (partial "false" b) b in
-             let ast = FluidAST.ofExpr expr in
-             let astInfo = astInfoFor defaultTestProps ast s in
-             moveTo 14 astInfo
+             ASTInfo.setAST (FluidAST.ofExpr expr) astInfo
+             |> moveTo 14
              |> (fun astInfo ->
                   let h = Fluid_utils.h (FluidAST.toExpr astInfo.ast) in
                   let m =
@@ -4685,15 +4681,15 @@ let run () =
         (key K.Left)
         "let x =~ Int::add _________ _________\n___" ;
       test "escape hides autocomplete" (fun () ->
-          let astInfo = astInfoFor defaultTestProps (FluidAST.ofExpr b) s in
           expect
-            ( moveTo 0 astInfo
+            ( ASTInfo.make defaultTestProps (FluidAST.ofExpr b) s
+            |> moveTo 0
             |> updateKey (InsertText "r")
             |> updateKey (keypress K.Escape)
             |> fun astInfo -> astInfo.state.ac.index )
           |> toEqual None) ;
       test "right/left brings back autocomplete" (fun () ->
-          let astInfo = astInfoFor defaultTestProps (FluidAST.ofExpr b) s in
+          let astInfo = ASTInfo.make defaultTestProps (FluidAST.ofExpr b) s in
           expect
             ( moveTo 0 astInfo
             |> updateKey (InsertText "r")

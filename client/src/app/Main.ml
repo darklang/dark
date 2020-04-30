@@ -459,15 +459,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 (FluidEntering tlid, None) )
           | STCaret caretTarget ->
               let maybeNewFluidState =
-                match Fluid.getAstInfo m tlid with
-                | Some astInfo ->
-                    Some
-                      (Fluid.setPosition
-                         (Fluid.posFromCaretTarget caretTarget astInfo)
-                         astInfo)
-                        .state
-                | None ->
-                    None
+                Fluid.ASTInfo.fromModelAndTLID m tlid
+                |> Option.map ~f:(fun astInfo ->
+                       astInfo
+                       |> Fluid.setPosition
+                            (Fluid.posFromCaretTarget caretTarget astInfo)
+                       |> fun astInfo -> astInfo.state)
               in
               (FluidEntering tlid, maybeNewFluidState)
         in

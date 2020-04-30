@@ -69,7 +69,10 @@ let run () =
       Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "pattern before" (eToStructure ast) ) ;
     let astInfo =
-      Fluid.astInfoFor Fluid_test_data.defaultTestProps (FluidAST.ofExpr ast) s
+      Fluid.ASTInfo.make
+        Fluid_test_data.defaultTestProps
+        (FluidAST.ofExpr ast)
+        s
     in
     let result =
       let h = Fluid_utils.h (FluidAST.toExpr astInfo.ast) in
