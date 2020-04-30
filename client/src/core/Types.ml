@@ -1731,7 +1731,9 @@ and model =
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState }
 
-and savedUserSettings = {showUserWelcomeModal : bool}
+and savedUserSettings =
+  { showUserWelcomeModal : bool
+  ; recordConsent : bool option }
 
 and savedSettings =
   { editorSettings : editorSettings
@@ -1742,8 +1744,7 @@ and savedSettings =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarState : sidebarState
-  ; showTopbar : bool
-  ; recordConsent : bool option }
+  ; showTopbar : bool }
 [@@deriving show {with_path = false}]
 
 and permission =
