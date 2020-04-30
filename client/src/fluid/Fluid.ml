@@ -5432,11 +5432,9 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
   match expr with
   | Some expr ->
       let clipboardExpr =
-        match FluidAST.findParent (E.toID expr) ast with
-        | Some (EPipe (pipeId, _)) ->
-          (* If pasting into a pipe, replace first arg of a root-level function with pipe target*)
-          ( match clipboardExpr with
-          | Some (EFnCall (id, name, args, sendToRail)) ->
+        let rec addPipeTarget (pipeId : Shared.id) (initialExpr : E.t) : E.t =
+          match initialExpr with
+          | EFnCall (id, name, args, sendToRail) ->
               let args =
                 match args with
                 | _ :: rest ->
@@ -5444,15 +5442,21 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
                 | args ->
                     args
               in
-              Some (E.EFnCall (id, name, args, sendToRail))
-          | Some (EBinOp (id, name, _lhs, rhs, sendToRail)) ->
-              Some (E.EBinOp (id, name, E.EPipeTarget pipeId, rhs, sendToRail))
+              E.EFnCall (id, name, args, sendToRail)
+          | EBinOp (id, name, _lhs, rhs, sendToRail) ->
+              E.EBinOp (id, name, E.EPipeTarget pipeId, rhs, sendToRail)
+          | EPartial (id, text, oldExpr) ->
+              E.EPartial (id, text, addPipeTarget pipeId oldExpr)
+          | ERightPartial (id, text, oldExpr) ->
+              E.ERightPartial (id, text, addPipeTarget pipeId oldExpr)
+          | ELeftPartial (id, text, oldExpr) ->
+              E.ELeftPartial (id, text, addPipeTarget pipeId oldExpr)
           | _ ->
-              clipboardExpr )
-        | _ ->
-          (* If not pasting into a pipe, drop any root-level pipe targets *)
-          ( match clipboardExpr with
-          | Some (EFnCall (id, name, args, sendToRail)) ->
+              initialExpr
+        in
+        let rec removePipeTarget (initialExpr : E.t) : E.t =
+          match initialExpr with
+          | EFnCall (id, name, args, sendToRail) ->
               let args =
                 args
                 |> List.map ~f:(function
@@ -5461,8 +5465,8 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
                        | arg ->
                            arg)
               in
-              Some (E.EFnCall (id, name, args, sendToRail))
-          | Some (EBinOp (id, name, lhs, rhs, sendToRail)) ->
+              E.EFnCall (id, name, args, sendToRail)
+          | EBinOp (id, name, lhs, rhs, sendToRail) ->
               let lhs, rhs =
                 (lhs, rhs)
                 |> Tuple2.mapAll ~f:(function
@@ -5471,9 +5475,25 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
                        | arg ->
                            arg)
               in
-              Some (E.EBinOp (id, name, lhs, rhs, sendToRail))
+              E.EBinOp (id, name, lhs, rhs, sendToRail)
+          | EPartial (id, text, oldExpr) ->
+              E.EPartial (id, text, removePipeTarget oldExpr)
+          | ERightPartial (id, text, oldExpr) ->
+              E.ERightPartial (id, text, removePipeTarget oldExpr)
+          | ELeftPartial (id, text, oldExpr) ->
+              E.ELeftPartial (id, text, removePipeTarget oldExpr)
           | _ ->
-              clipboardExpr )
+              initialExpr
+        in
+        match FluidAST.findParent (E.toID expr) ast with
+        | Some (EPipe (pipeId, _)) ->
+            (* If pasting into a child of a pipe, replace first arg of a root-level function with pipe target*)
+            clipboardExpr
+            |> Option.andThen ~f:(fun e -> Some (addPipeTarget pipeId e))
+        | _ ->
+            (* If not pasting into a child of a pipe, drop any root-level pipe targets *)
+            clipboardExpr
+            |> Option.andThen ~f:(fun e -> Some (removePipeTarget e))
       in
       ( match (expr, clipboardExpr, ct) with
       | EBlank id, Some cp, _ ->
