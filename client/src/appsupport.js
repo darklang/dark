@@ -295,10 +295,11 @@ window.Dark = {
   },
   fullstory: {
     init: function (canvas) {
+      console.log("Fullstory.init");
       /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
       FullStory.init({
         orgId: "TMVRZ",
-        devMode: isAdmin,
+        devMode: false, // isAdmin,
       });
       FullStory.identify(username, {
         displayName: username,
@@ -306,6 +307,7 @@ window.Dark = {
       });
     },
     setConsent: function (consent) {
+      console.log("setConsent", consent);
       FullStory.consent(consent);
       if (consent) {
         FullStory.restart();
@@ -503,6 +505,8 @@ setTimeout(function () {
   setInterval(visibilityCheck, 2000);
   addWheelListener(document);
 
+  Dark.fullstory.init(canvasName);
+
   if (pusherConfig.enabled) {
     var pusherChannel = pusherConnection.subscribe(`canvas_${canvasId}`);
     pusherChannel.bind("new_trace", data => {
@@ -530,9 +534,6 @@ setTimeout(function () {
       document.dispatchEvent(event);
     });
   }
-
-  /* Full story */
-  Dark.fullstory.init(canvasName);
 }, 1);
 // ---------------------------
 // Exports
