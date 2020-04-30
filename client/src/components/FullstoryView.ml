@@ -14,7 +14,7 @@ module FullstoryJs = struct
 end
 
 let explanation =
-  "Help us understand how people learn Dark.  Is it okay, if we track your session in a replayable format (using Fullstory)."
+  "To help us understand how people learn Dark, is it okay if we track your session in a replayable format (using Fullstory)."
 
 
 let disableOmniOpen = ViewUtils.nothingMouseEvent "mousedown"
