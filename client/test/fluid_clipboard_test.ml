@@ -912,6 +912,18 @@ let run () =
         (0, 0)
         (listFn [aList5])
         "List::append ___________ [5]~\n|>___\n" ;
+      testPasteExpr
+        "pasting a partial with a pipe target outside of a pipe strips the pipe target"
+        b
+        (0, 0)
+        (partial "test" (listFn [aList5]))
+        "test~@:appen@ ___________ [5]" ;
+      testPasteExpr
+        "pasting a partial into a pipe adds a pipe target"
+        emptyPipe
+        (6, 6)
+        (partial "test" aFullFnCall)
+        "___\n|>test~@ad@ 5\n" ;
       ()) ;
   describe "Lists" (fun () ->
       (* NOT WORKING YET
