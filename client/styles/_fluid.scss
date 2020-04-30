@@ -127,6 +127,8 @@ $ff-color: adjust-hue($purple, -40deg);
 
   background-color: $live-value-background;
 
+  cursor: move;
+
   &.refreshed {
     color: $cyan;
   }
