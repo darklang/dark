@@ -106,7 +106,7 @@ let asName (aci : autocompleteItem) : string =
   | ACTypeFieldName name
   | ACGroupName name ->
       name
-  | ACTypeFieldTipe tipe ->
+  | ACReturnTipe tipe | ACTypeFieldTipe tipe ->
       RT.tipe2str tipe
 
 
@@ -148,7 +148,7 @@ let asTypeString (item : autocompleteItem) : string =
       "type field name"
   | ACGroupName _ ->
       "group name"
-  | ACTypeFieldTipe tipe ->
+  | ACReturnTipe tipe | ACTypeFieldTipe tipe ->
     ( match tipe with
     | TUserType (_, v) ->
         "version " ^ string_of_int v
@@ -693,7 +693,30 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACTypeFieldTipe TDate
           ; ACTypeFieldTipe TPassword
           ; ACTypeFieldTipe TUuid ]
-      | _ ->
+      | FnReturnTipe ->
+          [ ACReturnTipe TAny
+          ; ACReturnTipe TBlock
+          ; ACReturnTipe TBool
+          ; ACReturnTipe TDate
+          ; ACReturnTipe TFloat
+          ; ACReturnTipe TInt
+          ; ACReturnTipe TList
+          ; ACReturnTipe TObj
+          ; ACReturnTipe TOption
+          ; ACReturnTipe TPassword
+          ; ACReturnTipe TResult
+          ; ACReturnTipe TStr
+          ; ACReturnTipe TUuid ]
+          @ ( m.userTipes
+            |> TD.filterMapValues ~f:UserTypes.toTUserType
+            |> List.map ~f:(fun t -> ACReturnTipe t) )
+      | DBName
+      | DBColName
+      | FnName
+      | ParamName
+      | TypeName
+      | TypeFieldName
+      | GroupName ->
           [] )
     | _ ->
         []
@@ -878,7 +901,7 @@ let documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
       simpleDoc ("Set type name to " ^ typeName)
   | ACGroupName groupName ->
       simpleDoc ("Set group name to " ^ groupName)
-  | ACTypeFieldName _ ->
+  | ACReturnTipe _ | ACTypeFieldName _ ->
       None
 
 
