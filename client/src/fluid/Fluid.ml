@@ -5499,15 +5499,6 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
       recover "pasting over non-existant handler" astInfo
 
 
-let fluidDataFromModel m : (fluidState * FluidAST.t) option =
-  match Toplevel.selectedAST m with
-  | Some expr ->
-      let s = m.fluidState in
-      Some (s, expr)
-  | None ->
-      None
-
-
 let getCopySelection (m : model) : clipboardContents =
   ASTInfo.fromModel m
   |> Option.andThen ~f:(fun (astInfo : ASTInfo.t) ->
@@ -5949,6 +5940,7 @@ let renderCallback (m : model) : unit =
 
 
 let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
+  Js.log "cleanup" ;
   let rmPartialsMod =
     tlid
     |> Option.andThen ~f:(TL.get m)
