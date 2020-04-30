@@ -150,7 +150,7 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
       ; HandleAPIError
           (APIError.make
              ~context:"TriggerSendInviteCallback"
-             ~importance:IgnorableError
+             ~importance:ImportantError
              ~reload:false
              err) ]
   | TriggerUpdateCanvasInfoCallback (Error err) ->
