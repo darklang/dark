@@ -1328,12 +1328,12 @@ test("record_consent_saved_across_canvases", async t => {
 });
 
 test("exe_flow_fades", async t => {
-  await gotoAST(t);
+  await t.click(".fluid-entry");
   await t.expect(Selector(".fluid-not-executed").exists).ok();
 });
 
 test("unexe_code_unfades_on_focus", async t => {
-  await gotoAST(t);
+  await t.click(".fluid-entry");
   // move caret into a single line
   await t.click(".id-1459002816", { timeout: 500 });
   await t
