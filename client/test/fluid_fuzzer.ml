@@ -26,15 +26,20 @@ let initialSeed : int ref =
 
 
 (* How big should the generated lists be *)
-let defaultSize = 4
+let defaultItemSize = 4
 
-let size = ref defaultSize
+let itemSize = ref defaultItemSize
 
 (* Continue after the first seed *)
 let continue : bool ref = ref false
 
 (* Stop after getting our first failure  *)
 let stopOnFail : bool ref = ref true
+
+(* Don't generate test cases that are too large *)
+let maxTestSize : int ref = ref 10000
+
+let testSize : int ref = ref 0
 
 (* ------------------ *)
 (* Debugging *)
@@ -44,9 +49,11 @@ let toText ast = FluidPrinter.eToHumanString ast
 
 let pointerToText (p : blankOrData) : string = Pointer.toContent p
 
-let debugAST (length : int) (msg : string) (e : E.t) : unit =
-  if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ E.show e)
+let debugAST (_length : int) (msg : string) (e : E.t) : unit =
+  Js.log (msg ^ ":\n" ^ E.show e)
 
+
+(* if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ E.show e) *)
 
 (* ------------------ *)
 (* Deterministic random number generator *)
@@ -90,10 +97,10 @@ let generateLength maxLength = max 0 (1 + range (maxLength - 1))
 
 let generateList ~(minSize : int) ~(f : unit -> 'a) () : 'a list =
   (* Lower the list lengths as we go so eventually the program converges *)
-  size := !size - 1 ;
-  let s = max minSize !size in
+  itemSize := !itemSize - 1 ;
+  let s = max minSize !itemSize in
   let result = List.initialize (generateLength s) (fun _ -> f ()) in
-  size := !size + 1 ;
+  itemSize := !itemSize + 1 ;
   result
 
 
@@ -125,15 +132,27 @@ let generateFnName () : string =
     ; "Date::now" ]
 
 
+let checkTestSize ~(default : 'a) (f : unit -> 'a) =
+  if !testSize >= !maxTestSize
+  then default
+  else (
+    testSize := !testSize + 1 ;
+    f () )
+
+
 (* Fields can only have a subset of expressions in the fieldAccess *)
-let rec generateFieldAccessExpr () : FluidExpression.t =
+let rec generateFieldAccessExpr' () : FluidExpression.t =
   oneOf
     [ lazy (var (generateName ()))
     ; lazy (fieldAccess (generateFieldAccessExpr ()) (generateName ())) ]
   |> Lazy.force
 
 
-let rec generatePattern () : FluidPattern.t =
+and generateFieldAccessExpr () =
+  checkTestSize ~default:b generateFieldAccessExpr'
+
+
+let rec generatePattern' () : FluidPattern.t =
   oneOf
     [ lazy (pInt (range 500))
     ; lazy (pBool (random () < 0.5))
@@ -149,7 +168,9 @@ let rec generatePattern () : FluidPattern.t =
   |> Lazy.force
 
 
-let rec generatePipeArgumentExpr () : FluidExpression.t =
+and generatePattern () = checkTestSize ~default:(pBlank ()) generatePattern'
+
+let rec generatePipeArgumentExpr' () : FluidExpression.t =
   oneOf
     [ lazy
         (lambda (generateList ~minSize:1 ~f:generateName ()) (generateExpr ()))
@@ -162,7 +183,11 @@ let rec generatePipeArgumentExpr () : FluidExpression.t =
   |> Lazy.force
 
 
-and generateExpr () =
+and generatePipeArgumentExpr () =
+  checkTestSize ~default:b generatePipeArgumentExpr'
+
+
+and generateExpr' () =
   oneOf
     [ lazy b
     ; lazy (str (generateString ()))
@@ -200,6 +225,8 @@ and generateExpr () =
                 (generatePattern (), generateExpr ())))) ]
   |> Lazy.force
 
+
+and generateExpr () = checkTestSize ~default:b generateExpr'
 
 (* ------------------ *)
 (* Fuzz Test definition *)
@@ -418,6 +445,11 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
   !newAST
 
 
+let generateTestCase () =
+  testSize := 0 ;
+  generateExpr () |> FluidExpression.clone
+
+
 (* ------------------ *)
 (* Driver *)
 (* ------------------ *)
@@ -430,14 +462,14 @@ let runTest (test : FuzzTest.t) : unit =
           let name = test.name ^ " #" ^ string_of_int !seed in
           Tester.test name (fun () ->
               setSeed !seed ;
-              let testcase = generateExpr () |> FluidExpression.clone in
+              let testcase = generateTestCase () in
               if test.ignore testcase
               then (
                 Js.log2 "ignoring: " name ;
                 skip () )
               else (
                 Js.log2 "testing: " name ;
-                (* Js.log2 "testcase: " (E.show testcase) ; *)
+                debugAST 0 "starting with" testcase ;
                 let passed =
                   match try Some (test.fn testcase) with _ -> None with
                   | Some (newAST, newState) ->

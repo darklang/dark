@@ -50,7 +50,6 @@ let run () =
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
   let aConstructor = FPConstructor (mID, gid (), "Just", [b ()]) in
-  let m = Fluid_test_data.defaultTestModel in
   let process
       ~(debug : bool)
       (inputs : fluidInputEvent list)
@@ -69,24 +68,41 @@ let run () =
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "pattern before" (eToStructure ast) ) ;
-    let newAST, newState, _ =
-      let h = h ast in
-      let m = {m with handlers = Handlers.fromList [h]} in
-      List.foldl inputs ~init:(h.ast, s, []) ~f:(fun input (ast, s, _) ->
-          updateMsg m h.hTLID ast (FluidInputEvent input) s)
+    let astInfo =
+      Fluid.ASTInfo.make
+        Fluid_test_data.defaultTestProps
+        (FluidAST.ofExpr ast)
+        s
     in
     let result =
-      match FluidAST.toExpr newAST with
+      let h = Fluid_utils.h (FluidAST.toExpr astInfo.ast) in
+      let m =
+        {Fluid_test_data.defaultTestModel with handlers = Handlers.fromList [h]}
+      in
+      let astInfo = Fluid.updateAutocomplete m (TLID.fromString "7") astInfo in
+      List.foldl inputs ~init:astInfo ~f:(fun input (astInfo : ASTInfo.t) ->
+          let ast, state, tokenInfos =
+            Fluid.updateMsg
+              m
+              h.hTLID
+              astInfo.ast
+              astInfo.state
+              (FluidInputEvent input)
+          in
+          {ast; state; tokenInfos; props = Fluid_test_data.defaultTestProps})
+    in
+    let resultPat =
+      match FluidAST.toExpr result.ast with
       | EMatch (_, _, [(pat, _)]) ->
           pat
       | _ ->
-          failwith ("can't match: " ^ eToTestString (FluidAST.toExpr newAST))
+          failwith ("can't match: " ^ eToTestString (FluidAST.toExpr result.ast))
     in
     if debug
     then (
-      Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "pattern after" (eToStructure (FluidAST.toExpr newAST)) ) ;
-    (pToString result, max 0 (newState.newPos - extra))
+      Js.log2 "state after" (Fluid_utils.debugState result.state) ;
+      Js.log2 "pattern after" (eToStructure (FluidAST.toExpr result.ast)) ) ;
+    (pToString resultPat, max 0 (result.state.newPos - extra))
   in
   let keypress (key : K.key) : fluidInputEvent =
     Keypress

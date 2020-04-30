@@ -167,7 +167,11 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.t =
     TL.get m tlid
     |> Option.andThen ~f:TL.getAST
     |> Option.andThen ~f:(fun ast ->
-           Fluid.getToken ast {m.fluidState with newPos = pos})
+           Fluid.ASTInfo.make
+             defaultTestProps
+             ast
+             {m.fluidState with newPos = pos}
+           |> Fluid.ASTInfo.getToken)
     |> Option.withDefault ~default:defaultTokenInfo
   in
   AC.regenerate m AC.init (tlid, ti)
