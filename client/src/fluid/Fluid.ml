@@ -5432,6 +5432,9 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
   match expr with
   | Some expr ->
       let clipboardExpr =
+        (* [addPipeTarget pipeId initialExpr] replaces the first arg into which one can pipe with a pipe target having [pipeId]
+         * at the root of [initialExpr], if such an arg exists.
+         * It is recursive in order to handle root expressions inside partials. *)
         let rec addPipeTarget (pipeId : Shared.id) (initialExpr : E.t) : E.t =
           match initialExpr with
           | EFnCall (id, name, args, sendToRail) ->
@@ -5454,6 +5457,8 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
           | _ ->
               initialExpr
         in
+        (* [removePipeTarget initialExpr] replaces all pipe targets at the root of [initialExpr] with blanks.
+         * It is recursive in order to handle pipe targets inside partials. *)
         let rec removePipeTarget (initialExpr : E.t) : E.t =
           match initialExpr with
           | EFnCall (id, name, args, sendToRail) ->
