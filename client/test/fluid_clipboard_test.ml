@@ -900,6 +900,18 @@ let run () =
         (6, 6)
         aFullBinOp
         "___\n|>|| 5~\n" ;
+      testPasteExpr
+        "pasting a binop with a pipe target into the head of a pipe strips the pipe target"
+        emptyPipe
+        (0, 0)
+        (binop "+" pipeTarget (int 10))
+        "_________ + 10~\n|>___\n" ;
+      testPasteExpr
+        "pasting a function with a pipe target into the head of a pipe strips the pipe target"
+        emptyPipe
+        (0, 0)
+        (listFn [aList5])
+        "List::append ___________ [5]~\n|>___\n" ;
       ()) ;
   describe "Lists" (fun () ->
       (* NOT WORKING YET
