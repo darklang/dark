@@ -295,7 +295,6 @@ window.Dark = {
   },
   fullstory: {
     init: function (canvas) {
-      console.log("Fullstory.init");
       /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
       FullStory.init({
         orgId: "TMVRZ",
@@ -305,9 +304,19 @@ window.Dark = {
         displayName: username,
         canvas,
       });
+
+      const userStr = localStorage.getItem("userState-" + username);
+      if (userStr) {
+        try {
+          const userSetting = JSON.parse(userStr);
+          const recordConsent = userSetting.recordConsent;
+          Dark.fullstory.setConsent(recordConsent);
+        } catch (err) {
+          console.error(err);
+        }
+      }
     },
     setConsent: function (consent) {
-      console.log("setConsent", consent);
       FullStory.consent(consent);
       if (consent) {
         FullStory.restart();
