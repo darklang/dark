@@ -9,7 +9,7 @@ open FluidShortcuts
 (*  *)
 let run () =
   describe "getSelectedExprID" (fun () ->
-      let aiFor ast s = astInfoFor defaultTestProps (FluidAST.ofExpr ast) s in
+      let aiFor ast s = ASTInfo.make defaultTestProps (FluidAST.ofExpr ast) s in
       test "nothing selected" (fun () ->
           let s = {defaultTestState with newPos = 2} in
           let ast = plainIf in

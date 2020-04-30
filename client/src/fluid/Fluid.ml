@@ -37,37 +37,22 @@ type props =
   { functions : functionsType
   ; variants : variantTest list }
 
-module ASTInfo = struct
-  type t =
-    { ast : FluidAST.t
-    ; state : fluidState
-    ; tokenInfos : tokenInfos
-    ; props : props }
-end
-
-let deselectFluidEditor (s : fluidState) : fluidState =
-  {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = MainEditor}
+let tokenizeForFocusedEditor (expr : FluidExpression.t) (s : fluidState) :
+    tokenInfos =
+  Printer.tokenizeForEditor s.activeEditor expr
 
 
-let getStringIndexMaybe (ti : T.tokenInfo) (pos : int) : int option =
-  match ti.token with
-  | TString (_, _, _) ->
-      Some (pos - ti.startPos - 1)
-  | TStringMLStart (_, _, offset, _) ->
-      Some (pos - ti.startPos + offset - 1)
-  | TStringMLMiddle (_, _, offset, _) | TStringMLEnd (_, _, offset, _) ->
-      Some (pos - ti.startPos + offset)
-  | _ ->
-      None
+let tokensForActiveEditor (ast : FluidAST.t) (s : fluidState) : tokenInfos =
+  Printer.tokensForEditor s.activeEditor ast
 
 
-let getStringIndex ti pos : int =
-  match getStringIndexMaybe ti pos with
-  | Some i ->
-      i
-  | None ->
-      recover "getting index of non-string" ~debug:(ti.token, pos) 0
+let propsFromModel (m : model) : props =
+  {functions = m.functions; variants = m.tests}
 
+
+(* -------------------- *)
+(* Nearby tokens *)
+(* -------------------- *)
 
 type neighbour =
   | L of T.t * T.tokenInfo
@@ -95,40 +80,6 @@ let rec getTokensAtPosition ?(prev = None) ~(pos : int) (tokens : tokenInfos) :
       else getTokensAtPosition ~prev:(Some current) ~pos remaining
 
 
-let exprOfFocusedEditor (astInfo : ASTInfo.t) : FluidExpression.t =
-  match astInfo.state.activeEditor with
-  | MainEditor ->
-      FluidAST.toExpr astInfo.ast
-  | FeatureFlagEditor id ->
-      FluidAST.find id astInfo.ast
-      |> recoverOpt
-           "cannot find expression for editor"
-           ~default:(FluidAST.toExpr astInfo.ast)
-
-
-let tokenizeForFocusedEditor (expr : FluidExpression.t) (s : fluidState) :
-    tokenInfos =
-  Printer.tokenizeForEditor s.activeEditor expr
-
-
-let tokensForActiveEditor (ast : FluidAST.t) (s : fluidState) : tokenInfos =
-  Printer.tokensForEditor s.activeEditor ast
-
-
-let setAST (ast : FluidAST.t) (astInfo : ASTInfo.t) : ASTInfo.t =
-  if astInfo.ast = ast
-  then astInfo
-  else {astInfo with ast; tokenInfos = tokensForActiveEditor ast astInfo.state}
-
-
-let modifyState ~(f : fluidState -> fluidState) (astInfo : ASTInfo.t) :
-    ASTInfo.t =
-  {astInfo with state = f astInfo.state}
-
-
-(* -------------------- *)
-(* Nearby tokens *)
-(* -------------------- *)
 let getNeighbours ~(pos : int) (tokens : tokenInfos) :
     neighbour * neighbour * T.tokenInfo option =
   let mPrev, mCurrent, mNext = getTokensAtPosition ~pos tokens in
@@ -155,6 +106,26 @@ let getNeighbours ~(pos : int) (tokens : tokenInfos) :
         L (prev.token, prev)
   in
   (toTheLeft, toTheRight, mNext)
+
+
+(* This is slightly different from getToken. Here we simply want the token
+ * closest to the caret that is a not TNewline nor TSep. It is used for
+ * figuring out where your caret is, to determine whether certain rendering
+ * behavior should be applicable *)
+let getTokenNotWhitespace (tokens : T.tokenInfo list) (s : fluidState) :
+    T.tokenInfo option =
+  let left, right, _ = getNeighbours ~pos:s.newPos tokens in
+  match (left, right) with
+  | L (_, lti), R (TNewline _, _) ->
+      Some lti
+  | L (lt, lti), _ when T.isTextToken lt ->
+      Some lti
+  | _, R (_, rti) ->
+      Some rti
+  | L (_, lti), _ ->
+      Some lti
+  | _ ->
+      None
 
 
 let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
@@ -191,59 +162,90 @@ let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
       None
 
 
-let getToken (ast : FluidAST.t) (s : fluidState) : T.tokenInfo option =
-  getToken' (tokensForActiveEditor ast s) s
+module ASTInfo = struct
+  type t =
+    { ast : FluidAST.t
+    ; state : fluidState
+    ; tokenInfos : tokenInfos
+    ; props : props }
+
+  let setAST (ast : FluidAST.t) (astInfo : t) : t =
+    if astInfo.ast = ast
+    then astInfo
+    else {astInfo with ast; tokenInfos = tokensForActiveEditor ast astInfo.state}
 
 
-let astInfoFor (props : props) (ast : FluidAST.t) (s : fluidState) : ASTInfo.t =
-  let tokenInfos = tokensForActiveEditor ast s in
-  {ast; state = s; tokenInfos; props}
+  let modifyState ~(f : fluidState -> fluidState) (astInfo : t) : t =
+    {astInfo with state = f astInfo.state}
 
 
-let propsFromModel (m : model) : props =
-  {functions = m.functions; variants = m.tests}
+  let getToken (astInfo : t) : T.tokenInfo option =
+    getToken' (tokensForActiveEditor astInfo.ast astInfo.state) astInfo.state
 
 
-let getAstInfo (m : model) (tlid : TLID.t) : ASTInfo.t option =
-  (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
-   * make `fromExpr` accept only the info it needs, and differentiate between
-   * handler-specific and global fluid state. *)
-  let removeHandlerTransientState m =
-    {m with fluidState = {m.fluidState with ac = AC.init}}
-  in
-  TL.get m tlid
-  |> Option.andThen ~f:TL.getAST
-  |> Option.map ~f:(fun ast ->
-         let state =
-           (* We need to discard transient state if the selected handler has changed *)
-           if Some tlid = CursorState.tlidOf m.cursorState
-           then m.fluidState
-           else
-             let newM = removeHandlerTransientState m in
-             newM.fluidState
-         in
-         astInfoFor (propsFromModel m) ast state)
+  let make (props : props) (ast : FluidAST.t) (s : fluidState) : t =
+    let tokenInfos = tokensForActiveEditor ast s in
+    {ast; state = s; tokenInfos; props}
 
 
-let astInfoFromModel (m : model) : ASTInfo.t option =
-  CursorState.tlidOf m.cursorState |> Option.andThen ~f:(getAstInfo m)
+  let fromModelAndTLID (m : model) (tlid : TLID.t) : t option =
+    (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
+     * make `fromExpr` accept only the info it needs, and differentiate between
+     * handler-specific and global fluid state. *)
+    let removeHandlerTransientState m =
+      {m with fluidState = {m.fluidState with ac = AC.init}}
+    in
+    TL.get m tlid
+    |> Option.andThen ~f:TL.getAST
+    |> Option.map ~f:(fun ast ->
+           let state =
+             (* We need to discard transient state if the selected handler has changed *)
+             if Some tlid = CursorState.tlidOf m.cursorState
+             then m.fluidState
+             else
+               let newM = removeHandlerTransientState m in
+               newM.fluidState
+           in
+           make (propsFromModel m) ast state)
 
 
-(* This is slightly different from getToken. Here we simply want the token closest to the caret that is a not TNewline nor TSep. It is used for figuring out where your caret is, to determine whether certain rendering behavior should be applicable *)
-let getTokenNotWhitespace (tokens : T.tokenInfo list) (s : fluidState) :
-    T.tokenInfo option =
-  let left, right, _ = getNeighbours ~pos:s.newPos tokens in
-  match (left, right) with
-  | L (_, lti), R (TNewline _, _) ->
-      Some lti
-  | L (lt, lti), _ when T.isTextToken lt ->
-      Some lti
-  | _, R (_, rti) ->
-      Some rti
-  | L (_, lti), _ ->
-      Some lti
+  let fromModel (m : model) : t option =
+    CursorState.tlidOf m.cursorState |> Option.andThen ~f:(fromModelAndTLID m)
+end
+
+let deselectFluidEditor (s : fluidState) : fluidState =
+  {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = MainEditor}
+
+
+let getStringIndexMaybe (ti : T.tokenInfo) (pos : int) : int option =
+  match ti.token with
+  | TString (_, _, _) ->
+      Some (pos - ti.startPos - 1)
+  | TStringMLStart (_, _, offset, _) ->
+      Some (pos - ti.startPos + offset - 1)
+  | TStringMLMiddle (_, _, offset, _) | TStringMLEnd (_, _, offset, _) ->
+      Some (pos - ti.startPos + offset)
   | _ ->
       None
+
+
+let getStringIndex ti pos : int =
+  match getStringIndexMaybe ti pos with
+  | Some i ->
+      i
+  | None ->
+      recover "getting index of non-string" ~debug:(ti.token, pos) 0
+
+
+let exprOfFocusedEditor (astInfo : ASTInfo.t) : FluidExpression.t =
+  match astInfo.state.activeEditor with
+  | MainEditor ->
+      FluidAST.toExpr astInfo.ast
+  | FeatureFlagEditor id ->
+      FluidAST.find id astInfo.ast
+      |> recoverOpt
+           "cannot find expression for editor"
+           ~default:(FluidAST.toExpr astInfo.ast)
 
 
 (* -------------------- *)
@@ -263,14 +265,14 @@ let recordAction ?(pos = -1000) (action : string) (astInfo : ASTInfo.t) :
   let action =
     if pos = -1000 then action else action ^ " " ^ string_of_int pos
   in
-  modifyState ~f:(recordAction' ~pos action) astInfo
+  ASTInfo.modifyState ~f:(recordAction' ~pos action) astInfo
 
 
 let setPosition ?(resetUD = false) (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t
     =
   astInfo
   |> recordAction ~pos "setPosition"
-  |> modifyState ~f:(fun s ->
+  |> ASTInfo.modifyState ~f:(fun s ->
          { s with
            newPos = pos
          ; selectionStart = None
@@ -280,7 +282,7 @@ let setPosition ?(resetUD = false) (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t
 let report (e : string) (astInfo : ASTInfo.t) =
   astInfo
   |> recordAction "report"
-  |> modifyState ~f:(fun s -> {s with error = Some e})
+  |> ASTInfo.modifyState ~f:(fun s -> {s with error = Some e})
 
 
 (* -------------------- *)
@@ -713,7 +715,7 @@ let selectAll ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
     astInfo.tokenInfos |> List.last |> function Some l -> l.endPos | None -> 0
   in
   astInfo
-  |> modifyState ~f:(fun s ->
+  |> ASTInfo.modifyState ~f:(fun s ->
          {s with newPos = lastPos; oldPos = pos; selectionStart = Some 0})
 
 
@@ -752,7 +754,7 @@ let doUp ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   else
     let pos = adjustedPosFor ~row:(row - 1) ~col astInfo.tokenInfos in
     astInfo
-    |> modifyState ~f:(fun s -> {s with upDownCol = Some col})
+    |> ASTInfo.modifyState ~f:(fun s -> {s with upDownCol = Some col})
     |> moveTo pos
 
 
@@ -764,7 +766,7 @@ let doDown ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   in
   let pos = adjustedPosFor ~row:(row + 1) ~col astInfo.tokenInfos in
   astInfo
-  |> modifyState ~f:(fun s -> {s with upDownCol = Some col})
+  |> ASTInfo.modifyState ~f:(fun s -> {s with upDownCol = Some col})
   |> moveTo pos
 
 
@@ -1537,7 +1539,7 @@ let addMatchPatternAt (matchId : ID.t) (idx : int) (astInfo : ASTInfo.t) :
         | e ->
             recover "expected to find EMatch to update" ~debug:e e)
   in
-  astInfo |> setAST ast
+  astInfo |> ASTInfo.setAST ast
 
 
 (* ---------------- *)
@@ -1753,7 +1755,7 @@ let maybeCommitStringPartial
            | _ ->
                recover "no expr found for ID" ~debug:id (ARPartial id)
          in
-         let astInfo = setAST newAST astInfo in
+         let astInfo = ASTInfo.setAST newAST astInfo in
          moveToAstRef ~offset:(newOffset + 1) astRef astInfo)
   (* If origExpr wasn't an EPartial (_, _, EString _), then we didn't
    * change the AST in the updateExpr call, so leave the newState as it
@@ -1779,7 +1781,7 @@ let startEscapingString (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
          | e ->
              e (* TODO can't happen *))
   |> fun ast ->
-  setAST ast astInfo |> moveToAstRef ~offset:(offset + 1) (ARPartial id)
+  ASTInfo.setAST ast astInfo |> moveToAstRef ~offset:(offset + 1) (ARPartial id)
 
 
 (* ---------------- *)
@@ -1834,7 +1836,7 @@ let makeIntoLetBody (id : ID.t) (astInfo : ASTInfo.t) : ASTInfo.t * ID.t =
     FluidAST.update id astInfo.ast ~f:(fun expr ->
         ELet (lid, "", E.newB (), expr))
   in
-  (astInfo |> setAST ast, lid)
+  (astInfo |> ASTInfo.setAST ast, lid)
 
 
 (* ---------------- *)
@@ -2178,7 +2180,7 @@ let createPipe ~(findParent : bool) (id : ID.t) (astInfo : ASTInfo.t) :
       let blankId = gid () in
       let replacement = E.EPipe (gid (), [expr; EBlank blankId]) in
       let ast = FluidAST.replace (E.toID expr) astInfo.ast ~replacement in
-      (astInfo |> setAST ast, Some blankId)
+      (astInfo |> ASTInfo.setAST ast, Some blankId)
 
 
 (** addPipeExprAt adds a new EBlank into the EPipe with `pipeId` at `idx`.
@@ -2201,7 +2203,7 @@ let addPipeExprAt (pipeId : ID.t) (idx : int) (astInfo : ASTInfo.t) :
         | e ->
             recover "expected to find EPipe to update" ~debug:e e)
   in
-  (setAST ast astInfo, bid)
+  (ASTInfo.setAST ast astInfo, bid)
 
 
 (* ---------------- *)
@@ -2370,19 +2372,19 @@ let acSetIndex' (i : int) (s : state) : state =
 
 
 let acSetIndex (i : int) (astInfo : ASTInfo.t) : ASTInfo.t =
-  modifyState ~f:(acSetIndex' i) astInfo
+  ASTInfo.modifyState ~f:(acSetIndex' i) astInfo
 
 
 let acClear (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction "acClear"
-  |> modifyState ~f:(fun s -> {s with ac = {s.ac with index = None}})
+  |> ASTInfo.modifyState ~f:(fun s -> {s with ac = {s.ac with index = None}})
 
 
 let acMaybeShow (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   astInfo
   |> recordAction "acShow"
-  |> modifyState ~f:(fun s ->
+  |> ASTInfo.modifyState ~f:(fun s ->
          if T.isAutocompletable ti.token && s.ac.index = None
          then {s with ac = {s.ac with index = Some 0}; upDownCol = None}
          else {s with ac = {s.ac with query = None}})
@@ -2601,8 +2603,8 @@ let updateFromACItem
           (ast, {astRef = ARInvalid; offset = 0})
   in
   astInfo
-  |> modifyState ~f:(fun s -> {s with ac = {s.ac with query = None}})
-  |> setAST newAST
+  |> ASTInfo.modifyState ~f:(fun s -> {s with ac = {s.ac with query = None}})
+  |> ASTInfo.setAST newAST
   |> acMoveBasedOnKey key target
 
 
@@ -2619,7 +2621,7 @@ let acEnter (ti : T.tokenInfo) (key : K.key) (astInfo : ASTInfo.t) : ASTInfo.t =
         |> Option.map ~f:(fun expr ->
                let replacement = E.EFieldAccess (gid (), expr, fieldname) in
                FluidAST.replace ~replacement partialID astInfo.ast)
-        |> Option.map ~f:(fun ast -> setAST ast astInfo)
+        |> Option.map ~f:(fun ast -> ASTInfo.setAST ast astInfo)
         |> Option.withDefault ~default:astInfo
     | _ ->
         astInfo )
@@ -2670,7 +2672,7 @@ let acStartField (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
       let ast, target =
         exprToFieldAccess faID ~partialID:(gid ()) ~fieldID:(gid ()) astInfo.ast
       in
-      astInfo |> setAST ast |> moveToCaretTarget target |> acClear
+      astInfo |> ASTInfo.setAST ast |> moveToCaretTarget target |> acClear
   | Some entry, _ ->
       let replacement =
         match acToPatternOrExpr entry with
@@ -2680,7 +2682,8 @@ let acStartField (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
             recover "acStartField" (E.newB ())
       in
       astInfo
-      |> setAST (FluidAST.replace ~replacement (T.tid ti.token) astInfo.ast)
+      |> ASTInfo.setAST
+           (FluidAST.replace ~replacement (T.tid ti.token) astInfo.ast)
       |> moveToCaretTarget (caretTargetForEndOfExpr' replacement)
       |> acClear
   | _ ->
@@ -3324,7 +3327,7 @@ let doBackspace ~(pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
     | None ->
         (astInfo.ast, Exactly ti.startPos)
   in
-  let astInfo = setAST newAST astInfo in
+  let astInfo = ASTInfo.setAST newAST astInfo in
   let newPos = adjustPosForReflow ti pos newPosition astInfo in
   astInfo |> updatePosAndAC newPos
 
@@ -3353,7 +3356,7 @@ let doDelete ~(pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo, newPosition =
     if newAST = astInfo.ast
     then (astInfo, SamePlace)
-    else (setAST newAST astInfo, newPosition)
+    else (ASTInfo.setAST newAST astInfo, newPosition)
   in
   let newPos = adjustPosForReflow ti pos newPosition astInfo in
   {astInfo with state = {astInfo.state with newPos}}
@@ -3886,7 +3889,7 @@ let doInsert
   let astInfo =
     astInfo
     |> recordAction ~pos "doInsert"
-    |> modifyState ~f:(fun s -> {s with upDownCol = None})
+    |> ASTInfo.modifyState ~f:(fun s -> {s with upDownCol = None})
   in
   let newAST, newPosition =
     match caretTargetFromTokenInfo pos ti with
@@ -3895,7 +3898,7 @@ let doInsert
     | None ->
         (astInfo.ast, SamePlace)
   in
-  let astInfo = setAST newAST astInfo in
+  let astInfo = ASTInfo.setAST newAST astInfo in
   let newPos = adjustPosForReflow ti pos newPosition astInfo in
   {astInfo with state = {astInfo.state with newPos}}
 
@@ -3918,7 +3921,7 @@ let doInfixInsert
   let astInfo =
     astInfo
     |> recordAction ~pos "doInfixInsert"
-    |> modifyState ~f:(fun s -> {s with upDownCol = None})
+    |> ASTInfo.modifyState ~f:(fun s -> {s with upDownCol = None})
   in
   caretTargetFromTokenInfo pos ti
   |> Option.andThen ~f:(fun ct ->
@@ -4004,7 +4007,8 @@ let doInfixInsert
              None)
   |> Option.map ~f:(fun (replaceID, newExpr, newCaretTarget) ->
          astInfo
-         |> setAST (FluidAST.replace replaceID ~replacement:newExpr astInfo.ast)
+         |> ASTInfo.setAST
+              (FluidAST.replace replaceID ~replacement:newExpr astInfo.ast)
          |> moveToCaretTarget newCaretTarget)
   |> Option.orElseLazy (fun () -> Some (doInsert ~pos infixTxt ti astInfo))
   |> recoverOpt
@@ -4027,7 +4031,8 @@ let wrapInLet (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
       in
       let replacement = E.ELet (gid (), "_", exprToWrap, EBlank bodyId) in
       astInfo
-      |> setAST (FluidAST.replace ~replacement (E.toID exprToWrap) astInfo.ast)
+      |> ASTInfo.setAST
+           (FluidAST.replace ~replacement (E.toID exprToWrap) astInfo.ast)
       |> moveToCaretTarget {astRef = ARBlank bodyId; offset = 0}
   | None ->
       astInfo
@@ -4052,7 +4057,7 @@ let getSelectionRange (s : fluidState) : int * int =
 
 
 let updateSelectionRange (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
-  modifyState astInfo ~f:(fun s ->
+  ASTInfo.modifyState astInfo ~f:(fun s ->
       { s with
         newPos
       ; selectionStart =
@@ -4124,7 +4129,7 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   let mod' =
     match CursorState.tlidOf m.cursorState with
     | Some tlid ->
-        getAstInfo m tlid
+        ASTInfo.fromModelAndTLID m tlid
         |> Option.andThen ~f:(fun astInfo ->
                getSelectedExprID astInfo
                |> Option.orElseLazy (fun _ -> getExprIDOnCaret astInfo))
@@ -4356,7 +4361,7 @@ let rec updateKey
             deleteCaretRange (pos, movedState.state.newPos) astInfo
           in
           if newAstInfo.ast = astInfo.ast && newAstInfo.state.newPos = pos
-          then modifyState newAstInfo ~f:(fun _ -> movedState.state)
+          then ASTInfo.modifyState newAstInfo ~f:(fun _ -> movedState.state)
           else newAstInfo )
     | DeleteWordBackward, L (_, ti), _ ->
       ( match getOptionalSelectionRange astInfo.state with
@@ -4420,20 +4425,21 @@ let rec updateKey
         let bID = gid () in
         let newExpr = E.EBlank bID (* new separators *) in
         astInfo
-        |> setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
+        |> ASTInfo.setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
         |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
     | InsertText ",", L (TLambdaSymbol (id, _), _), _ when onEdge ->
         astInfo
-        |> setAST (insertLambdaVar ~index:0 id ~name:"" astInfo.ast)
+        |> ASTInfo.setAST (insertLambdaVar ~index:0 id ~name:"" astInfo.ast)
         |> moveToCaretTarget {astRef = ARLambda (id, LBPVarName 0); offset = 0}
     | InsertText ",", L (TLambdaVar (id, _, index, _, _), _), _ when onEdge ->
         astInfo
-        |> setAST (insertLambdaVar ~index:(index + 1) id ~name:"" astInfo.ast)
+        |> ASTInfo.setAST
+             (insertLambdaVar ~index:(index + 1) id ~name:"" astInfo.ast)
         |> moveToCaretTarget
              {astRef = ARLambda (id, LBPVarName (index + 1)); offset = 0}
     | InsertText ",", _, R (TLambdaVar (id, _, index, _, _), _) when onEdge ->
         astInfo
-        |> setAST (insertLambdaVar ~index id ~name:"" astInfo.ast)
+        |> ASTInfo.setAST (insertLambdaVar ~index id ~name:"" astInfo.ast)
         |> moveToCaretTarget
              {astRef = ARLambda (id, LBPVarName index); offset = 0}
     | InsertText ",", L (t, ti), _ ->
@@ -4460,7 +4466,7 @@ let rec updateKey
                  ( insertInList ~index:(listIdx + 1) ~newExpr listID astInfo.ast
                  , target ))
           |> Option.map ~f:(fun (newAST, newTarget) ->
-                 astInfo |> setAST newAST |> moveToCaretTarget newTarget)
+                 astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget newTarget)
           |> Option.withDefault ~default:astInfo
         else doInsert ~pos "," ti astInfo
     (* Field access *)
@@ -4479,7 +4485,7 @@ let rec updateKey
                   recover ("updateKey insert . - unexpected expr " ^ E.show e) e)
         in
         astInfo
-        |> setAST ast
+        |> ASTInfo.setAST ast
         |> moveToCaretTarget {astRef = ARPartial newPartialID; offset = 0}
     | InsertText ".", L (TVariable (id, _, _), toTheLeft), _
     | InsertText ".", L (TFieldName (id, _, _, _), toTheLeft), _
@@ -4487,7 +4493,7 @@ let rec updateKey
         let newAST, target =
           exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) astInfo.ast
         in
-        astInfo |> setAST newAST |> moveToCaretTarget target
+        astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget target
     (* Infix symbol insertion to create partials *)
     | InsertText infixTxt, L (TPipe _, ti), _
     | InsertText infixTxt, _, R (TPlaceholder _, ti)
@@ -4499,7 +4505,7 @@ let rec updateKey
     | InsertText txt, L (TListOpen (id, _), _), R (TListClose _, _) ->
         let newExpr, target = insertInBlankExpr txt in
         astInfo
-        |> setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
+        |> ASTInfo.setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
         |> moveToCaretTarget target
     (* Typing between empty record symbols {} *)
     | InsertText txt, L (TRecordOpen (id, _), _), R (TRecordClose _, _) ->
@@ -4509,7 +4515,7 @@ let rec updateKey
         if Util.isIdentifierChar txt
         then
           astInfo
-          |> setAST (addRecordRowAt ~letter:txt 0 id astInfo.ast)
+          |> ASTInfo.setAST (addRecordRowAt ~letter:txt 0 id astInfo.ast)
           |> moveToAstRef (ARRecord (id, RPFieldname 0)) ~offset:1
         else astInfo
     (***********************************)
@@ -4529,7 +4535,8 @@ let rec updateKey
             astInfo.props
         in
         astInfo
-        |> setAST (FluidAST.replace blankID ~replacement:newExpr astInfo.ast)
+        |> ASTInfo.setAST
+             (FluidAST.replace blankID ~replacement:newExpr astInfo.ast)
         |> moveToCaretTarget newTarget
     | Keypress {key = K.Space; _}, _, R (_, toTheRight) ->
         doInsert ~pos " " toTheRight astInfo
@@ -4545,7 +4552,7 @@ let rec updateKey
      * Add new initial record row and move caret to it. *)
     | Keypress {key = K.Enter; _}, L (TRecordOpen (id, _), _), _ ->
         astInfo
-        |> setAST (addRecordRowAt 0 id astInfo.ast)
+        |> ASTInfo.setAST (addRecordRowAt 0 id astInfo.ast)
         |> moveToAstRef (ARRecord (id, RPFieldname 0))
     (*
      * Caret to left of record close }
@@ -4553,7 +4560,7 @@ let rec updateKey
     | Keypress {key = K.Enter; _}, _, R (TRecordClose (id, _), _) ->
         astInfo
         |> recordAction "addRecordRowToBack"
-        |> setAST (addRecordRowToBack id astInfo.ast)
+        |> ASTInfo.setAST (addRecordRowToBack id astInfo.ast)
         |> moveToAstRef (ARRecord (id, RPClose))
     (*
      * Caret between pipe symbol |> and following expression.
@@ -4577,7 +4584,7 @@ let rec updateKey
             astInfo
       | Some (ERecord _) ->
           astInfo
-          |> setAST (addRecordRowAt idx parentId astInfo.ast)
+          |> ASTInfo.setAST (addRecordRowAt idx parentId astInfo.ast)
           |> moveToAstRef (ARRecord (parentId, RPFieldname idx))
       | Some (EMatch _) ->
           let astInfo = addMatchPatternAt parentId idx astInfo in
@@ -4655,7 +4662,7 @@ let rec updateKey
           | Some parentId, Some idx, Some (ERecord _) ->
               let ast = addRecordRowAt idx parentId astInfo.ast in
               astInfo
-              |> setAST ast
+              |> ASTInfo.setAST ast
               |> moveToCaretTarget
                    { astRef = ARRecord (parentId, RPFieldname (idx + 1))
                    ; offset = 0 }
@@ -4693,7 +4700,7 @@ let rec updateKey
              * TNewline with index after the final '}'. In this case, we
              * actually hit the next match case instead. *)
             astInfo
-            |> setAST (addRecordRowAt idx parentId astInfo.ast)
+            |> ASTInfo.setAST (addRecordRowAt idx parentId astInfo.ast)
             |> moveToAstRef (ARRecord (parentId, RPFieldname (idx + 1)))
         | _ ->
             astInfo )
@@ -4723,7 +4730,7 @@ let rec updateKey
         report ("Unknown action: " ^ show_fluidInputEvent inputEvent) astInfo
   in
   let astInfo =
-    modifyState astInfo ~f:(fun s -> {s with lastInput = inputEvent})
+    ASTInfo.modifyState astInfo ~f:(fun s -> {s with lastInput = inputEvent})
   in
   let astInfo =
     (* This is a hack to make Enter create a new entry in matches and pipes
@@ -4751,7 +4758,8 @@ let rec updateKey
     match last with
     | Some {token = TNewline _; _}
       when String.length text = astInfo.state.newPos ->
-        astInfo |> modifyState ~f:(fun s -> {s with newPos = s.newPos - 1})
+        astInfo
+        |> ASTInfo.modifyState ~f:(fun s -> {s with newPos = s.newPos - 1})
     | _ ->
         astInfo
   in
@@ -4825,7 +4833,7 @@ and deleteCaretRange (caretRange : int * int) (origInfo : ASTInfo.t) : ASTInfo.t
     =
   let rangeStart, rangeEnd = orderRangeFromSmallToBig caretRange in
   let origInfo =
-    modifyState origInfo ~f:(fun s ->
+    ASTInfo.modifyState origInfo ~f:(fun s ->
         {s with newPos = rangeEnd; oldPos = s.newPos; selectionStart = None})
   in
   let oldInfo = ref origInfo in
@@ -4857,7 +4865,7 @@ let updateAutocomplete (m : model) (tlid : TLID.t) (astInfo : ASTInfo.t) :
   match getToken' astInfo.tokenInfos astInfo.state with
   | Some ti when T.isAutocompletable ti.token ->
       let m = TL.withAST m tlid astInfo.ast in
-      modifyState astInfo ~f:(fun s ->
+      ASTInfo.modifyState astInfo ~f:(fun s ->
           let newAC = AC.regenerate m s.ac (tlid, ti) in
           {s with ac = newAC})
   | _ ->
@@ -4957,7 +4965,7 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
     FluidExpression.t option =
   (* prevent duplicates *)
   let open FluidExpression in
-  let astInfo = setAST (FluidAST.clone astInfo.ast) astInfo in
+  let astInfo = ASTInfo.setAST (FluidAST.clone astInfo.ast) astInfo in
   (* a few helpers *)
   let toBool_ s =
     if s = "true"
@@ -5421,7 +5429,7 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
         (* Paste into a blank *)
         let newAST = FluidAST.replace ~replacement:cp id ast in
         let caretTarget = caretTargetForEndOfExpr (E.toID cp) newAST in
-        astInfo |> setAST newAST |> moveToCaretTarget caretTarget
+        astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget
     | EString (id, str), _, Some {astRef = ARString (_, SPOpenQuote); offset} ->
         (* Paste into a string, to take care of newlines.
          * Note: pasting before an open quote
@@ -5433,7 +5441,7 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
         let caretTarget =
           CT.forARStringOpenQuote id (offset + String.length text)
         in
-        astInfo |> setAST newAST |> moveToCaretTarget caretTarget
+        astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget
     | ( ERecord (id, oldKVs)
       , Some (ERecord (_, pastedKVs))
       , Some {astRef = ARRecord (_, RPFieldname index); _} ) ->
@@ -5457,7 +5465,7 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
         |> Option.map ~f:(fun (_, valueExpr) ->
                let caretTarget = caretTargetForEndOfExpr' valueExpr in
                let newAST = FluidAST.replace ~replacement id ast in
-               astInfo |> setAST newAST |> moveToCaretTarget caretTarget)
+               astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget)
         |> Option.withDefault ~default:astInfo
     | ERecord _, Some _, Some {astRef = ARRecord (_, RPFieldname _); _} ->
         (* Block pasting arbitrary expr into a record fieldname
@@ -5497,7 +5505,7 @@ let fluidDataFromModel m : (fluidState * FluidAST.t) option =
 
 
 let getCopySelection (m : model) : clipboardContents =
-  astInfoFromModel m
+  ASTInfo.fromModel m
   |> Option.andThen ~f:(fun (astInfo : ASTInfo.t) ->
          let from, to_ = getSelectionRange astInfo.state in
          let text =
@@ -5547,14 +5555,14 @@ let astAndStateFromTLID (m : model) (tlid : TLID.t) :
 let updateMouseDoubleClick
     (eventData : fluidMouseDoubleClick) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo =
-    modifyState astInfo ~f:(fun s ->
+    ASTInfo.modifyState astInfo ~f:(fun s ->
         {s with midClick = false; activeEditor = eventData.editor})
   in
   let selStart, selEnd =
     match eventData.selection with
     | SelectExpressionAt newPos ->
         astInfo
-        |> modifyState ~f:(fun s -> {s with newPos; oldPos = s.newPos})
+        |> ASTInfo.modifyState ~f:(fun s -> {s with newPos; oldPos = s.newPos})
         |> getExpressionRangeAtCaret
         |> recoverOpt ~default:(0, 0) "no expression range found at caret"
     | SelectTokenAt (selectionStart, selectionEnd) ->
@@ -5575,7 +5583,7 @@ let updateMouseDoubleClick
           (selectionStart, selectionEnd) )
   in
   astInfo
-  |> modifyState ~f:(fun s ->
+  |> ASTInfo.modifyState ~f:(fun s ->
          { s with
            selectionStart = Some selStart
          ; oldPos = s.newPos
@@ -5587,14 +5595,14 @@ let updateMouseDoubleClick
 let updateMouseUp (eventData : fluidMouseUp) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo =
     astInfo
-    |> modifyState ~f:(fun s ->
+    |> ASTInfo.modifyState ~f:(fun s ->
            {s with midClick = false; activeEditor = eventData.editor})
   in
   match eventData.selection with
   | ClickAt pos ->
       updateMouseClick pos astInfo
   | SelectText (beginSel, endSel) ->
-      modifyState astInfo ~f:(fun s ->
+      ASTInfo.modifyState astInfo ~f:(fun s ->
           { s with
             selectionStart = Some beginSel
           ; newPos = endSel
@@ -5625,7 +5633,7 @@ let updateMsg
     (s : fluidState)
     (msg : Types.fluidMsg) : FluidAST.t * fluidState * tokenInfos =
   let props = propsFromModel m in
-  let astInfo = astInfoFor props ast s in
+  let astInfo = ASTInfo.make props ast s in
   let astInfo =
     match msg with
     | FluidCloseCmdPalette | FluidUpdateAutocomplete ->
@@ -5711,7 +5719,7 @@ let updateMsg
     | FluidInputEvent ievt ->
         updateKey ievt astInfo
     | FluidAutocompleteClick entry ->
-        getToken ast s
+        ASTInfo.getToken astInfo
         |> Option.map ~f:(fun ti -> acClick entry ti astInfo)
         |> Option.withDefault ~default:astInfo
     | FluidClearErrorDvSrc
@@ -5779,7 +5787,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                else NoChange
              in
              let fluidState =
-               let astInfo = astInfoFor (propsFromModel m) ast m.fluidState in
+               let astInfo = ASTInfo.make (propsFromModel m) ast m.fluidState in
                let ({state; _} : ASTInfo.t) = moveToEndOfTarget id astInfo in
                {state with errorDvSrc = SourceId (tlid, id)}
              in
@@ -5959,10 +5967,9 @@ let renderCallback (m : model) : unit =
 
 let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
   let rmPartialsMod =
-    let _props = {functions = m.functions; variants = m.tests} in
     tlid
     |> Option.andThen ~f:(TL.get m)
-    |> Option.thenAlso ~f:(fun tl -> getAstInfo m (TL.id tl))
+    |> Option.thenAlso ~f:(fun tl -> ASTInfo.fromModelAndTLID m (TL.id tl))
     |> Option.andThen ~f:(fun (tl, astInfo) ->
            let newAstInfo = acMaybeCommit 0 astInfo in
            let newAST = newAstInfo.ast |> FluidAST.map ~f:AST.removePartials in
