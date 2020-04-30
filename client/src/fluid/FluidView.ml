@@ -151,7 +151,9 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
   |> Option.withDefault ~default:Vdom.noNode
 
 
-let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
+let viewReturnValue
+    (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
+    Types.msg Html.html =
   if CursorState.tlidOf vs.cursorState = Some vs.tlid
   then
     let id = FluidAST.toID vs.ast in
@@ -204,17 +206,19 @@ let viewReturnValue (vs : ViewUtils.viewState) : Types.msg Html.html =
         in
         let viewDval = viewDval vs.tlid dval ~canCopy:true in
         Html.div
-          [ Html.classList
-              [ ("return-value", true)
-              ; ("refreshed", isRefreshed)
-              ; ("incomplete", incompleteTxt <> None) ] ]
+          ( [ Html.classList
+                [ ("return-value", true)
+                ; ("refreshed", isRefreshed)
+                ; ("incomplete", incompleteTxt <> None) ] ]
+          @ dragEvents )
           ([Html.text "This trace returns: "; newLine] @ viewDval @ [auxText])
     | _ ->
         Vdom.noNode
   else Vdom.noNode
 
 
-let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
+let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
+    Types.msg Html.html list =
   let liveValue =
     if vs.cursorState = FluidEntering vs.tlid
     then viewLiveValue vs
@@ -233,7 +237,7 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
     ; tokens = vs.tokens }
   in
   let mainEditor = FluidEditorView.view editorState in
-  let returnValue = viewReturnValue vs in
+  let returnValue = viewReturnValue vs dragEvents in
   let debugAST =
     if vs.showHandlerASTs
     then
@@ -303,5 +307,5 @@ let viewAST (vs : ViewUtils.viewState) : Types.msg Html.html list =
   mainEditor :: liveValue :: returnValue :: debugAST :: secondaryEditors
 
 
-let view (vs : ViewUtils.viewState) =
-  [Html.div [Html.class' "fluid-ast"] (viewAST vs)]
+let view (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) =
+  [Html.div [Html.class' "fluid-ast"] (viewAST vs dragEvents)]
