@@ -300,6 +300,21 @@ window.Dark = {
         orgId: "TMVRZ",
         devMode: isAdmin,
       });
+      FullStory.identify(username, {
+        displayName: username,
+        canvas,
+      });
+
+      const userStr = localStorage.getItem("userState-" + username);
+      if (userStr) {
+        try {
+          const userSetting = JSON.parse(userStr);
+          const recordConsent = userSetting.recordConsent;
+          Dark.fullstory.setConsent(recordConsent);
+        } catch (err) {
+          console.error(err);
+        }
+      }
     },
     setConsent: function (consent) {
       FullStory.consent(consent);
@@ -499,6 +514,8 @@ setTimeout(function () {
   setInterval(visibilityCheck, 2000);
   addWheelListener(document);
 
+  Dark.fullstory.init(canvasName);
+
   if (pusherConfig.enabled) {
     var pusherChannel = pusherConnection.subscribe(`canvas_${canvasId}`);
     pusherChannel.bind("new_trace", data => {
@@ -526,9 +543,6 @@ setTimeout(function () {
       document.dispatchEvent(event);
     });
   }
-
-  /* Full story */
-  Dark.fullstory.init(canvasName);
 }, 1);
 // ---------------------------
 // Exports
