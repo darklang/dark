@@ -252,6 +252,6 @@ let handlerAttrs (tlid : TLID.t) (state : handlerState) : msg Vdom.property list
 let view (vs : viewState) (h : handler) (dragEvents : domEventList) :
     msg Html.html list =
   let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
-  let ast = Html.div attrs (FluidView.view vs) in
+  let ast = Html.div attrs (FluidView.view vs dragEvents) in
   let header = viewEventSpec vs h.spec dragEvents in
   [header; ast]

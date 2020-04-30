@@ -91,7 +91,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let top =
     let p (text : string) = Html.p [] [Html.text text] in
-    let viewDoc desc = Html.div [Html.class' "documentation-box"] desc in
+    let viewDoc desc =
+      Html.div ([Html.class' "documentation-box"] @ dragEvents) desc
+    in
     match (CursorState.tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
