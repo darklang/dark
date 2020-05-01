@@ -80,3 +80,12 @@
   (deps (file ../jsanalysis/jsanalysis.bc.js) (universe))
   (action (system "cp ../jsanalysis/jsanalysis.bc.js ../../../../backend/static/analysis.js"))
 )
+
+
+(executable
+  (name clone_canvas)
+  (modules clone_canvas)
+  (flags (-warn-error +A -w +9))
+  (libraries libbackend)
+)
+
