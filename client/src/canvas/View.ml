@@ -23,18 +23,18 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         "mouseup"
         (fun x -> TLDragRegionMouseUp (tlid, x)) ]
   in
-  let body, data =
+  let body, data, draggable =
     match tl with
     | TLHandler h ->
-        (ViewHandler.view vs h dragEvents, ViewData.viewData vs)
+        (ViewHandler.view vs h dragEvents, ViewData.viewData vs, true)
     | TLDB db ->
-        (ViewDB.viewDB vs db dragEvents, [])
+        (ViewDB.viewDB vs db dragEvents, [], true)
     | TLFunc f ->
-        ([ViewUserFunction.view vs f], ViewData.viewData vs)
+        ([ViewUserFunction.view vs f], ViewData.viewData vs, false)
     | TLTipe t ->
-        ([ViewUserType.viewUserTipe vs t], [])
+        ([ViewUserType.viewUserTipe vs t], [], false)
     | TLGroup g ->
-        ([ViewGroup.viewGroup m vs g dragEvents], [])
+        ([ViewGroup.viewGroup m vs g dragEvents], [], true)
   in
   let usages =
     ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
@@ -92,7 +92,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let top =
     let p (text : string) = Html.p [] [Html.text text] in
     let viewDoc desc =
-      Html.div (Html.class' "documentation-box" :: dragEvents) desc
+      Html.div
+        ( Html.classList [("documentation-box", true); ("draggable", draggable)]
+        :: dragEvents )
+        desc
     in
     match (CursorState.tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
