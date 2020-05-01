@@ -206,11 +206,12 @@ let viewReturnValue
         in
         let viewDval = viewDval vs.tlid dval ~canCopy:true in
         Html.div
-          ( [ Html.classList
-                [ ("return-value", true)
-                ; ("refreshed", isRefreshed)
-                ; ("incomplete", incompleteTxt <> None) ] ]
-          @ dragEvents )
+          ( Html.classList
+              [ ("return-value", true)
+              ; ("refreshed", isRefreshed)
+              ; ("incomplete", incompleteTxt <> None)
+              ; ("draggable", List.length dragEvents > 0) ]
+          :: dragEvents )
           ([Html.text "This trace returns: "; newLine] @ viewDval @ [auxText])
     | _ ->
         Vdom.noNode
