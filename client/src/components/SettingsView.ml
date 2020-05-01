@@ -38,7 +38,6 @@ let validateForm (tab : settingsTab) : bool * settingsTab =
 
 let submitForm (m : Types.model) : Types.model * Types.msg Cmd.t =
   let tab = m.settingsView.tab in
-  Entry.sendSegmentMessage InviteUser ;
   match tab with
   | InviteUser info ->
       let sendInviteMsg =
