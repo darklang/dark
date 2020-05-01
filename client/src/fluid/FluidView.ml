@@ -210,7 +210,7 @@ let viewReturnValue
               [ ("return-value", true)
               ; ("refreshed", isRefreshed)
               ; ("incomplete", incompleteTxt <> None)
-              ; ("draggable", List.length dragEvents > 0) ]
+              ; ("draggable", dragEvents <> []) ]
           :: dragEvents )
           ([Html.text "This trace returns: "; newLine] @ viewDval @ [auxText])
     | _ ->
