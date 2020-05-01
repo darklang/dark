@@ -1,7 +1,7 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
-FROM ubuntu:18.04 as dark-base
+FROM ubuntu:18.04@sha256:3235326357dfb65f1781dbc4df3b834546d8bf914e82cce58e6e6b676e23ce8f as dark-base
 
 ENV FORCE_BUILD 1
 
