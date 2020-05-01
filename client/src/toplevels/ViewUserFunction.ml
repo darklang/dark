@@ -162,6 +162,13 @@ let viewMetadata (vs : viewState) (fn : functionTypes) : msg Html.html =
   let returnRow =
     if VariantTesting.variantIsActive' vs.testVariants FnReturnVariant
     then
+      let returnType =
+        match fn with
+        | UserFunction fn ->
+            fn.ufMetadata.ufmReturnTipe
+        | PackageFn fn ->
+            BlankOr.newF fn.return_type
+      in
       Html.div
         [Html.id "fnreturn"; Html.class' "col param"]
         [ fontAwesome "level-down-alt"
@@ -170,7 +177,7 @@ let viewMetadata (vs : viewState) (fn : functionTypes) : msg Html.html =
             ~enterable:true
             FnReturnTipe
             vs
-            fn.ufMetadata.ufmReturnTipe ]
+            returnType ]
     else Vdom.noNode
   in
   Html.div [Html.class' "fn-header"] [titleRow; paramRows; returnRow]
