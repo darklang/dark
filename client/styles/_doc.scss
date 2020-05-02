@@ -10,6 +10,9 @@
   overflow-wrap: break-word;
   line-height: 14px;
 
+  &.draggable {
+    cursor: move;
+  }
   /* Styles define: https://www.notion.so/darklang/Rich-Text-Docstrings-1358553ec49d4ba0b52d04995014152c#88f58cc69bb347929049b342db876db5 */
   a {
     color: $blue;
