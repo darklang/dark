@@ -26,6 +26,7 @@ $ff-color: adjust-hue($purple, -40deg);
 
   opacity: 0.7;
 
+  cursor: pointer;
   &:hover {
     opacity: 0.85;
   }
@@ -126,6 +127,10 @@ $ff-color: adjust-hue($purple, -40deg);
   color: $live-value-foreground;
 
   background-color: $live-value-background;
+
+  &.draggable {
+    cursor: move;
+  }
 
   &.refreshed {
     color: $cyan;

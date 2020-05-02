@@ -146,7 +146,7 @@ let viewMigraFuncs (vs : viewState) (desc : string) (varName : string) :
           [Html.class' "fn-title"]
           [ Html.span [] [Html.text (desc ^ " : ")]
           ; Html.span [Html.class' "varname"] [Html.text varName] ] ]
-    @ FluidView.view vs )
+    @ FluidView.view vs [] )
 
 
 let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
