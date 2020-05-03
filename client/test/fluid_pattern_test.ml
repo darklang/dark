@@ -81,19 +81,7 @@ let run () =
       in
       let astInfo = Fluid.updateAutocomplete m (TLID.fromString "7") astInfo in
       List.foldl inputs ~init:astInfo ~f:(fun input (astInfo : ASTInfo.t) ->
-          let ast, state, mainTokenInfos =
-            Fluid.updateMsg
-              m
-              h.hTLID
-              astInfo.ast
-              astInfo.state
-              (FluidInputEvent input)
-          in
-          { ast
-          ; state
-          ; mainTokenInfos
-          ; featureFlagTokenInfos = []
-          ; props = Fluid_test_data.defaultTestProps })
+          Fluid.updateMsg' m h.hTLID astInfo (FluidInputEvent input))
     in
     let resultPat =
       match FluidAST.toExpr result.ast with
