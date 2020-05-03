@@ -41,7 +41,7 @@ let deselectFluidEditor (s : fluidState) : fluidState =
   {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = NoEditor}
 
 
-let tokenizeForFocusedEditor (expr : FluidExpression.t) (s : fluidState) :
+let tokenizeForActiveEditor (expr : FluidExpression.t) (s : fluidState) :
     tokenInfos =
   Printer.tokenizeForEditor s.activeEditor expr
 
@@ -220,18 +220,16 @@ module ASTInfo = struct
     CursorState.tlidOf m.cursorState |> Option.andThen ~f:(fromModelAndTLID m)
 
 
-  let exprOfFocusedEditor (astInfo : t) : FluidExpression.t =
+  let exprOfActiveEditor (astInfo : t) : FluidExpression.t =
     match astInfo.state.activeEditor with
     | NoEditor ->
-        recover
-          "exprOfFocusedEditor - none exists"
-          (FluidAST.toExpr astInfo.ast)
+        recover "exprOfActiveEditor - none exists" (FluidAST.toExpr astInfo.ast)
     | MainEditor _ ->
         FluidAST.toExpr astInfo.ast
     | FeatureFlagEditor (_, id) ->
         FluidAST.find id astInfo.ast
         |> recoverOpt
-             "exprOfFocusedEditor - cannot find expression for editor"
+             "exprOfActiveEditor - cannot find expression for editor"
              ~default:(FluidAST.toExpr astInfo.ast)
 end
 
@@ -4937,7 +4935,7 @@ let expressionRange (exprID : ID.t) (astInfo : ASTInfo.t) : (int * int) option =
   let containingTokens = astInfo.tokenInfos in
   let exprTokens =
     FluidAST.find exprID astInfo.ast
-    |> Option.map ~f:(fun expr -> tokenizeForFocusedEditor expr astInfo.state)
+    |> Option.map ~f:(fun expr -> tokenizeForActiveEditor expr astInfo.state)
     |> Option.withDefault ~default:[]
   in
   let exprStartToken, exprEndToken =
@@ -5507,7 +5505,7 @@ let getCopySelection (m : model) : clipboardContents =
   |> Option.andThen ~f:(fun (astInfo : ASTInfo.t) ->
          let from, to_ = getSelectionRange astInfo.state in
          let text =
-           ASTInfo.exprOfFocusedEditor astInfo
+           ASTInfo.exprOfActiveEditor astInfo
            |> FluidPrinter.eToHumanString
            |> String.slice ~from ~to_
          in
