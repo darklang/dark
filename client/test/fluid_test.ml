@@ -377,7 +377,7 @@ let processMsg (inputs : fluidInputEvent list) (astInfo : ASTInfo.t) : ASTInfo.t
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
   let astInfo = Fluid.updateAutocomplete m (TLID.fromString "7") astInfo in
   List.foldl inputs ~init:astInfo ~f:(fun input (astInfo : ASTInfo.t) ->
-      let ast, state, tokenInfos =
+      let ast, state, mainTokenInfos =
         Fluid.updateMsg
           m
           h.hTLID
@@ -385,7 +385,11 @@ let processMsg (inputs : fluidInputEvent list) (astInfo : ASTInfo.t) : ASTInfo.t
           astInfo.state
           (FluidInputEvent input)
       in
-      {ast; state; tokenInfos; props = defaultTestProps})
+      { ast
+      ; state
+      ; mainTokenInfos
+      ; featureFlagTokenInfos = []
+      ; props = defaultTestProps })
 
 
 let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
@@ -412,7 +416,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
   if tc.debug
   then (
     Js.log2 "state after" (Fluid_utils.debugState result.state) ;
-    Js.log2 "expr after" (FluidPrinter.tokensToString result.tokenInfos) ) ;
+    Js.log2 "expr after" (FluidPrinter.tokensToString result.mainTokenInfos) ) ;
   {TestResult.testcase = tc; resultAST; resultState = result.state}
 
 
@@ -4509,7 +4513,7 @@ let run () =
             |> updateKey (keypress K.Down)
             |> processMsg [DeleteContentBackward]
           in
-          let result = Printer.tokensToString astInfo.tokenInfos in
+          let result = Printer.tokensToString astInfo.mainTokenInfos in
           expect (result, astInfo.state.ac.index)
           |> toEqual ("let request = 1\nre", Some 0)) ;
       (* TODO: this doesn't work but should *)

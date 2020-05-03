@@ -166,17 +166,38 @@ let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
       None
 
 
+let getFeatureFlags (ast : FluidAST.t) : E.t list =
+  FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
+
+
 module ASTInfo = struct
   type t =
     { ast : FluidAST.t
     ; state : fluidState
-    ; tokenInfos : tokenInfos
+    ; mainTokenInfos : tokenInfos
+    ; featureFlagTokenInfos : (ID.t * tokenInfos) list
     ; props : props }
 
   let setAST (ast : FluidAST.t) (astInfo : t) : t =
     if astInfo.ast = ast
     then astInfo
-    else {astInfo with ast; tokenInfos = tokensForActiveEditor ast astInfo.state}
+    else
+      let mainTokenInfos =
+        (* HACK: keep the tests working for now by making this be the tokens
+         * for the active editor instead of the main editor. *)
+        tokensForActiveEditor ast astInfo.state
+        (* Printer.tokenize (FluidAST.toExpr ast)  *)
+      in
+      let featureFlagTokenInfos =
+        ast
+        |> getFeatureFlags
+        |> List.map ~f:(fun expr ->
+               ( E.toID expr
+               , Printer.tokenizeWithFFTokenization
+                   FeatureFlagConditionAndEnabled
+                   expr ))
+      in
+      {astInfo with ast; mainTokenInfos; featureFlagTokenInfos}
 
 
   let modifyState ~(f : fluidState -> fluidState) (astInfo : t) : t =
@@ -188,8 +209,12 @@ module ASTInfo = struct
 
 
   let make (props : props) (ast : FluidAST.t) (s : fluidState) : t =
-    let tokenInfos = tokensForActiveEditor ast s in
-    {ast; state = s; tokenInfos; props}
+    { ast = FluidAST.ofExpr (E.EBlank (gid ()))
+    ; state = s
+    ; mainTokenInfos = []
+    ; featureFlagTokenInfos = []
+    ; props }
+    |> setAST ast
 
 
   let fromModelAndTLID
@@ -388,7 +413,7 @@ let moveToNextNonWhitespaceToken (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
   in
-  let newPos = getNextWS astInfo.tokenInfos in
+  let newPos = getNextWS astInfo.mainTokenInfos in
   astInfo
   |> recordAction ~pos "moveToNextNonWhitespaceToken"
   |> setPosition ~resetUD:true newPos
@@ -398,7 +423,7 @@ let moveToNextNonWhitespaceToken (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
  caret pos at the start of the line containing the given T.tokenInfo *)
 let getStartOfLineCaretPos (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int =
   let token =
-    List.find astInfo.tokenInfos ~f:(fun info ->
+    List.find astInfo.mainTokenInfos ~f:(fun info ->
         if info.startRow = ti.startRow
         then
           match info.token with
@@ -456,7 +481,7 @@ let getEndOfWordInStrCaretPos ~(pos : int) (ti : T.tokenInfo) : int =
  caret pos at the end of the line containing the given tokenInfo *)
 let getEndOfLineCaretPos (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int =
   let token =
-    astInfo.tokenInfos
+    astInfo.mainTokenInfos
     |> List.reverse
     |> List.find ~f:(fun info -> info.startRow = ti.startRow)
     |> Option.withDefault ~default:ti
@@ -493,7 +518,7 @@ let moveToEndOfLine (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
 let getStartOfWordPos (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int
     =
   let previousToken =
-    astInfo.tokenInfos
+    astInfo.mainTokenInfos
     |> List.reverse
     |> List.find ~f:(fun (t : T.tokenInfo) ->
            T.isTextToken t.token && pos > t.startPos)
@@ -516,7 +541,7 @@ let goToStartOfWord (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) :
  * type *)
 let getEndOfWordPos (pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : int =
   let tokenInfo =
-    astInfo.tokenInfos
+    astInfo.mainTokenInfos
     |> List.find ~f:(fun (t : T.tokenInfo) ->
            T.isTextToken t.token && pos < t.endPos)
     |> Option.withDefault ~default:ti
@@ -572,7 +597,7 @@ let moveTo (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
 let moveToEndOfTarget (target : ID.t) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction "moveToEndOfTarget" astInfo in
   match
-    List.reverse astInfo.tokenInfos
+    List.reverse astInfo.mainTokenInfos
     |> List.find ~f:(fun ti -> T.tid ti.token = target)
   with
   | None ->
@@ -587,7 +612,7 @@ let moveToEndOfTarget (target : ID.t) (astInfo : ASTInfo.t) : ASTInfo.t =
 
 
 let rec getNextBlank (pos : int) (astInfo : ASTInfo.t) : T.tokenInfo option =
-  astInfo.tokenInfos
+  astInfo.mainTokenInfos
   |> List.find ~f:(fun ti -> T.isBlank ti.token && ti.startPos > pos)
   |> Option.orElseLazy (fun () ->
          if pos = 0 then None else getNextBlank 0 astInfo)
@@ -611,7 +636,7 @@ let moveToNextBlank (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
  * [tokens], wrapped in an option. If no editable token exists, wrap around, returning the first editable token in
  * [tokens], or None if no editable token exists. *)
 let rec getNextEditable (pos : int) (astInfo : ASTInfo.t) : T.tokenInfo option =
-  astInfo.tokenInfos
+  astInfo.mainTokenInfos
   |> List.find ~f:(fun ti ->
          let isEditable =
            (* Skip the editable tokens that are part of a combination of tokens to place the caret in the right place in the token combination *)
@@ -644,7 +669,7 @@ let moveToNextEditable (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
 * [tokens], wrapped in an option. If no such token exists, wrap around, returning the last editable token in
 * [tokens], or None if no editable exists. *)
 let getPrevEditable (pos : int) (astInfo : ASTInfo.t) : T.tokenInfo option =
-  let revTokens = List.reverse astInfo.tokenInfos in
+  let revTokens = List.reverse astInfo.mainTokenInfos in
   let rec findEditable (pos : int) : T.tokenInfo option =
     revTokens
     |> List.find ~f:(fun ti ->
@@ -682,12 +707,12 @@ let moveToPrevEditable (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
 
 
 let rec getPrevBlank (pos : int) (astInfo : ASTInfo.t) : T.tokenInfo option =
-  astInfo.tokenInfos
+  astInfo.mainTokenInfos
   |> List.filter ~f:(fun ti -> T.isBlank ti.token && ti.endPos <= pos)
   |> List.last
   |> Option.orElseLazy (fun () ->
          let lastPos =
-           List.last astInfo.tokenInfos
+           List.last astInfo.mainTokenInfos
            |> Option.map ~f:(fun ti -> ti.endPos)
            |> Option.withDefault ~default:0
          in
@@ -717,7 +742,9 @@ let doLeft ~(pos : int) (ti : T.tokenInfo) (astInfo : ASTInfo.t) : ASTInfo.t =
 
 let selectAll ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let lastPos =
-    astInfo.tokenInfos |> List.last |> function Some l -> l.endPos | None -> 0
+    astInfo.mainTokenInfos
+    |> List.last
+    |> function Some l -> l.endPos | None -> 0
   in
   astInfo
   |> ASTInfo.modifyState ~f:(fun s ->
@@ -750,14 +777,14 @@ let doRight
 
 let doUp ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction ~pos "doUp" astInfo in
-  let {row; col} = gridFor ~pos astInfo.tokenInfos in
+  let {row; col} = gridFor ~pos astInfo.mainTokenInfos in
   let col =
     match astInfo.state.upDownCol with None -> col | Some savedCol -> savedCol
   in
   if row = 0
   then moveTo 0 astInfo
   else
-    let pos = adjustedPosFor ~row:(row - 1) ~col astInfo.tokenInfos in
+    let pos = adjustedPosFor ~row:(row - 1) ~col astInfo.mainTokenInfos in
     astInfo
     |> ASTInfo.modifyState ~f:(fun s -> {s with upDownCol = Some col})
     |> moveTo pos
@@ -765,11 +792,11 @@ let doUp ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
 
 let doDown ~(pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction ~pos "doDown" astInfo in
-  let {row; col} = gridFor ~pos astInfo.tokenInfos in
+  let {row; col} = gridFor ~pos astInfo.mainTokenInfos in
   let col =
     match astInfo.state.upDownCol with None -> col | Some savedCol -> savedCol
   in
-  let pos = adjustedPosFor ~row:(row + 1) ~col astInfo.tokenInfos in
+  let pos = adjustedPosFor ~row:(row + 1) ~col astInfo.mainTokenInfos in
   astInfo
   |> ASTInfo.modifyState ~f:(fun s -> {s with upDownCol = Some col})
   |> moveTo pos
@@ -1003,7 +1030,7 @@ let posFromCaretTarget (ct : caretTarget) (astInfo : ASTInfo.t) : int =
         None
   in
   match
-    astInfo.tokenInfos
+    astInfo.mainTokenInfos
     |> List.findMap ~f:(fun ti -> targetAndTokenInfoToMaybeCaretPos (ct, ti))
   with
   | Some newPos ->
@@ -2421,7 +2448,7 @@ let acMoveDown (astInfo : ASTInfo.t) : ASTInfo.t =
 let updatePosAndAC (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   (* Update newPos and reset upDownCol and reset AC *)
   let astInfo = setPosition ~resetUD:true newPos astInfo |> acClear in
-  getToken' astInfo.tokenInfos astInfo.state
+  getToken' astInfo.mainTokenInfos astInfo.state
   |> Option.map ~f:(fun ti -> acMaybeShow ti astInfo)
   |> Option.withDefault ~default:astInfo
 
@@ -2460,14 +2487,14 @@ let acMoveBasedOnKey
           but could do    [aced,|___]
         *)
         let startPos = posFromCaretTarget currCaretTarget astInfo in
-        ( match getNeighbours ~pos:startPos astInfo.tokenInfos with
+        ( match getNeighbours ~pos:startPos astInfo.mainTokenInfos with
         | _, R (TNewline _, _), _ ->
             (* If we're on a newline, don't move forward *)
             currCaretTarget
         | _ ->
             caretTargetForNextNonWhitespaceToken
               ~pos:startPos
-              astInfo.tokenInfos
+              astInfo.mainTokenInfos
             |> Option.withDefault ~default:currCaretTarget )
     | _ ->
         currCaretTarget
@@ -2721,7 +2748,7 @@ let adjustPosForReflow
    * adjustment. There are definitely places this won't work, but I haven't
    * found them yet. *)
   let newTI =
-    List.find astInfo.tokenInfos ~f:(fun x -> T.matches oldTI.token x.token)
+    List.find astInfo.mainTokenInfos ~f:(fun x -> T.matches oldTI.token x.token)
   in
   let diff =
     match newTI with Some newTI -> newTI.startPos - oldTI.startPos | None -> 0
@@ -4080,7 +4107,7 @@ let getOptionalSelectionRange (s : fluidState) : (int * int) option =
 
 let tokensInRange (selStartPos : int) (selEndPos : int) (astInfo : ASTInfo.t) :
     tokenInfos =
-  astInfo.tokenInfos
+  astInfo.mainTokenInfos
   (* this condition is a little flaky, sometimes selects wrong tokens *)
   |> List.filter ~f:(fun t ->
          (* selectionStart within token *)
@@ -4124,7 +4151,7 @@ let getSelectedExprID (astInfo : ASTInfo.t) : ID.t option =
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
   let getExprIDOnCaret (astInfo : ASTInfo.t) =
-    match getToken' astInfo.tokenInfos astInfo.state with
+    match getToken' astInfo.mainTokenInfos astInfo.state with
     | Some ti ->
         let id = T.tid ti.token in
         if T.validID id then Some id else None
@@ -4150,7 +4177,9 @@ let rec updateKey
   (* These might be the same token *)
   let origAstInfo = astInfo in
   let pos = astInfo.state.newPos in
-  let toTheLeft, toTheRight, mNext = getNeighbours ~pos astInfo.tokenInfos in
+  let toTheLeft, toTheRight, mNext =
+    getNeighbours ~pos astInfo.mainTokenInfos
+  in
   let onEdge =
     match (toTheLeft, toTheRight) with
     | L (lt, lti), R (rt, rti) ->
@@ -4233,7 +4262,9 @@ let rec updateKey
     | InsertText txt, L (TRightPartial (_, _, _), ti), _
       when onEdge && Util.isIdentifierChar txt ->
         let astInfo = acEnter ti K.Tab astInfo in
-        getLeftTokenAt astInfo.state.newPos (List.reverse astInfo.tokenInfos)
+        getLeftTokenAt
+          astInfo.state.newPos
+          (List.reverse astInfo.mainTokenInfos)
         |> Option.map ~f:(fun ti -> doInsert ~pos txt ti astInfo)
         |> Option.withDefault ~default:astInfo
     (*
@@ -4758,8 +4789,8 @@ let rec updateKey
      *
      * TODO: there may be ways of getting the cursor to the end without going
      * through this code, if so we need to move it. *)
-    let text = Printer.tokensToString astInfo.tokenInfos in
-    let last = List.last astInfo.tokenInfos in
+    let text = Printer.tokensToString astInfo.mainTokenInfos in
+    let last = List.last astInfo.mainTokenInfos in
     match last with
     | Some {token = TNewline _; _}
       when String.length text = astInfo.state.newPos ->
@@ -4867,7 +4898,7 @@ and replaceText (str : string) (astInfo : ASTInfo.t) : ASTInfo.t =
 
 let updateAutocomplete (m : model) (tlid : TLID.t) (astInfo : ASTInfo.t) :
     ASTInfo.t =
-  match getToken' astInfo.tokenInfos astInfo.state with
+  match getToken' astInfo.mainTokenInfos astInfo.state with
   | Some ti when T.isAutocompletable ti.token ->
       let m = TL.withAST m tlid astInfo.ast in
       ASTInfo.modifyState astInfo ~f:(fun s ->
@@ -4879,7 +4910,7 @@ let updateAutocomplete (m : model) (tlid : TLID.t) (astInfo : ASTInfo.t) :
 
 let updateMouseClick (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let lastPos =
-    astInfo.tokenInfos
+    astInfo.mainTokenInfos
     |> List.last
     |> Option.map ~f:(fun ti -> ti.endPos)
     |> Option.withDefault ~default:0
@@ -4887,7 +4918,7 @@ let updateMouseClick (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   let newPos = if newPos > lastPos then lastPos else newPos in
   let newPos =
     (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
-    match getLeftTokenAt newPos astInfo.tokenInfos with
+    match getLeftTokenAt newPos astInfo.mainTokenInfos with
     | Some current when T.isBlank current.token ->
         current.startPos
     | Some ({token = TPipe _; _} as current) ->
@@ -4932,7 +4963,7 @@ let shouldSelect (key : K.key) : bool =
   * different ID, (in the above case the last token TInt(2) belongs to the
   * second sub-expr of the FnCall) *)
 let expressionRange (exprID : ID.t) (astInfo : ASTInfo.t) : (int * int) option =
-  let containingTokens = astInfo.tokenInfos in
+  let containingTokens = astInfo.mainTokenInfos in
   let exprTokens =
     FluidAST.find exprID astInfo.ast
     |> Option.map ~f:(fun expr -> tokenizeForActiveEditor expr astInfo.state)
@@ -4957,7 +4988,7 @@ let expressionRange (exprID : ID.t) (astInfo : ASTInfo.t) : (int * int) option =
 
 
 let getExpressionRangeAtCaret (astInfo : ASTInfo.t) : (int * int) option =
-  getToken' astInfo.tokenInfos astInfo.state
+  getToken' astInfo.mainTokenInfos astInfo.state
   (* get token that the cursor is currently on *)
   |> Option.andThen ~f:(fun t ->
          (* get expression that the token belongs to *)
@@ -5417,7 +5448,7 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
     ASTInfo.t =
   let astInfo = deleteSelection astInfo in
   let ast = astInfo.ast in
-  let mTi = getToken' astInfo.tokenInfos astInfo.state in
+  let mTi = getToken' astInfo.mainTokenInfos astInfo.state in
   let exprID = mTi |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> FluidAST.find id ast) in
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
@@ -5519,7 +5550,8 @@ let getCopySelection (m : model) : clipboardContents =
 
 let buildFeatureFlagEditors (tlid : TLID.t) (ast : FluidAST.t) :
     fluidEditor list =
-  FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
+  ast
+  |> getFeatureFlags
   |> List.map ~f:(fun e -> FeatureFlagEditor (tlid, E.toID e))
 
 
@@ -5543,7 +5575,7 @@ let updateMouseDoubleClick
     | SelectTokenAt (selectionStart, selectionEnd) ->
       ( match
           getToken'
-            astInfo.tokenInfos
+            astInfo.mainTokenInfos
             {astInfo.state with newPos = selectionStart}
         with
       | Some {token = TFnName (_, displayName, _, _, _); startPos; _} ->
@@ -5708,7 +5740,7 @@ let updateMsg
   let astInfo = updateAutocomplete m tlid astInfo in
   (* Js.log2 "ast" (show_ast newAST) ; *)
   (* Js.log2 "tokens" (eToStructure s newAST) ; *)
-  (astInfo.ast, astInfo.state, astInfo.tokenInfos)
+  (astInfo.ast, astInfo.state, astInfo.mainTokenInfos)
 
 
 let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
