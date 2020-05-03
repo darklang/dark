@@ -546,7 +546,7 @@ let run () =
       t "del near-empty string" oneCharStr ~pos:1 del "\"~\"" ;
       t "insert outside string is no-op" aStr (ins "c") "~\"some string\"" ;
       tStruct
-        "insert outside string at top-level"
+        "insert outside string at top-level creates left partial"
         aStr
         ~pos:0
         [InsertText "c"]
@@ -734,7 +734,7 @@ let run () =
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
       tStruct
-        "insert outside string at top-level"
+        "insert outside mlstring at top-level creates left partial"
         mlStr
         ~pos:0
         [InsertText "c"]
@@ -1111,7 +1111,7 @@ let run () =
       t "bs end of number" anInt ~pos:5 bs "1234~" ;
       t "insert non-number at start is no-op" anInt (ins "c") "~12345" ;
       tStruct
-        "insert non-number without wrapper"
+        "insert non-number without wrapper creates left partial"
         anInt
         ~pos:0
         [InsertText "c"]
@@ -1229,7 +1229,7 @@ let run () =
       t "bs dot converts to int, no fraction" aPartialFloat ~pos:2 bs "1~" ;
       t "continue after adding dot" aPartialFloat ~pos:2 (ins "2") "1.2~" ;
       tStruct
-        "insert letter at beginning of float at top-level"
+        "insert letter at beginning of float at top-level creates left partial"
         aFloat
         ~pos:0
         [InsertText "c"]
