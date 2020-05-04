@@ -45,28 +45,23 @@ let testInt ~(errMsg : string) ~(expected : int) ~(actual : int) : testResult =
 
 let showToplevels tls = tls |> TD.values |> show_list ~f:show_toplevel
 
-let deOption msg v = match v with Some v -> v | None -> failwith msg
-
-let onlyTL (m : model) : toplevel =
-  let tls = TL.all m in
-  let len = TD.count tls in
-  ignore
-    ( if len = 0
-    then failwith "no toplevels"
-    else if len > 1
-    then failwith ("too many toplevels: " ^ showToplevels tls)
-    else "nothing to see here" ) ;
-  tls |> StrDict.values |> List.head |> deOption "onlytl1"
+let onlyTL (m : model) : toplevel option =
+  let tls = TL.structural m in
+  match StrDict.values tls with [a] -> Some a | _ -> None
 
 
-let onlyHandler (m : model) : handler =
-  m |> onlyTL |> TL.asHandler |> deOption "onlyhandler"
+let onlyHandler (m : model) : handler option =
+  m |> onlyTL |> Option.andThen ~f:TL.asHandler
 
 
-let onlyDB (m : model) : db = m |> onlyTL |> TL.asDB |> deOption "onlyDB"
+let onlyDB (m : model) : db option = m |> onlyTL |> Option.andThen ~f:TL.asDB
 
-let onlyExpr (m : model) : E.t =
-  m |> onlyTL |> TL.getAST |> deOption "onlyast4" |> FluidAST.toExpr
+let onlyExpr (m : model) : E.t option =
+  m |> onlyTL |> Option.andThen ~f:TL.getAST |> Option.map ~f:FluidAST.toExpr
+
+
+let showOption (f : 'e -> string) (o : 'e option) : string =
+  match o with Some x -> "Some " ^ f x | None -> "None"
 
 
 let enter_changes_state (m : model) : testResult =
@@ -81,71 +76,97 @@ let field_access_closes (m : model) : testResult =
   match m.cursorState with
   | FluidEntering _ ->
     ( match onlyExpr m with
-    | EFieldAccess (_, EVariable (_, "request"), "body") ->
+    | Some (EFieldAccess (_, EVariable (_, "request"), "body")) ->
         pass
     | expr ->
-        fail ~f:E.show expr )
+        fail ~f:(showOption E.show) expr )
   | _ ->
       fail ~f:show_cursorState m.cursorState
 
 
 let field_access_pipes (m : model) : testResult =
   match onlyExpr m with
-  | EPipe (_, [EFieldAccess (_, EVariable (_, "request"), "body"); EBlank _]) ->
+  | Some
+      (EPipe
+        (_, [EFieldAccess (_, EVariable (_, "request"), "body"); EBlank _])) ->
       pass
   | expr ->
-      fail ~f:show_fluidExpr expr
+      fail ~f:(showOption show_fluidExpr) expr
 
 
 let tabbing_works (m : model) : testResult =
   match onlyExpr m with
-  | EIf (_, EBlank _, EInteger (_, "5"), EBlank _) ->
+  | Some (EIf (_, EBlank _, EInteger (_, "5"), EBlank _)) ->
       pass
   | e ->
-      fail ~f:show_fluidExpr e
+      fail ~f:(showOption show_fluidExpr) e
 
 
 let autocomplete_highlights_on_partial_match (m : model) : testResult =
   match onlyExpr m with
-  | EFnCall (_, "Int::add", _, _) ->
+  | Some (EFnCall (_, "Int::add", _, _)) ->
       pass
   | e ->
-      fail ~f:show_fluidExpr e
+      fail ~f:(showOption show_fluidExpr) e
 
 
 let no_request_global_in_non_http_space (m : model) : testResult =
   (* this might change but this is the answer for now. *)
   match onlyExpr m with
-  | EFnCall (_, "Http::badRequest", _, _) ->
+  | Some (EFnCall (_, "Http::badRequest", _, _)) ->
       pass
   | e ->
-      fail ~f:show_fluidExpr e
+      fail ~f:(showOption show_fluidExpr) e
 
 
 let ellen_hello_world_demo (m : model) : testResult =
-  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
-  match ((spec.space, spec.name), (spec.modifier, onlyExpr m)) with
-  | (F (_, "HTTP"), F (_, "/hello")), (F (_, "GET"), EString (_, "Hello world!"))
-    ->
-      pass
+  let spec =
+    onlyTL m
+    |> Option.andThen ~f:TL.asHandler
+    |> Option.map ~f:(fun x -> x.spec)
+  in
+  match spec with
+  | Some spec ->
+    ( match ((spec.space, spec.name), (spec.modifier, onlyExpr m)) with
+    | ( (F (_, "HTTP"), F (_, "/hello"))
+      , (F (_, "GET"), Some (EString (_, "Hello world!"))) ) ->
+        pass
+    | other ->
+        fail other )
   | other ->
       fail other
 
 
 let editing_headers (m : model) : testResult =
-  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
-  match (spec.space, spec.name, spec.modifier) with
-  | F (_, "HTTP"), F (_, "/myroute"), F (_, "GET") ->
-      pass
+  let spec =
+    onlyTL m
+    |> Option.andThen ~f:TL.asHandler
+    |> Option.map ~f:(fun x -> x.spec)
+  in
+  match spec with
+  | Some s ->
+    ( match (s.space, s.name, s.modifier) with
+    | F (_, "HTTP"), F (_, "/myroute"), F (_, "GET") ->
+        pass
+    | other ->
+        fail other )
   | other ->
       fail other
 
 
 let switching_from_http_space_removes_leading_slash (m : model) : testResult =
-  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
-  match (spec.space, spec.name, spec.modifier) with
-  | F (_, newSpace), F (_, "spec_name"), _ when newSpace != "HTTP" ->
-      pass
+  let spec =
+    onlyTL m
+    |> Option.andThen ~f:TL.asHandler
+    |> Option.map ~f:(fun x -> x.spec)
+  in
+  match spec with
+  | Some s ->
+    ( match (s.space, s.name, s.modifier) with
+    | F (_, newSpace), F (_, "spec_name"), _ when newSpace != "HTTP" ->
+        pass
+    | other ->
+        fail other )
   | other ->
       fail other
 
@@ -159,38 +180,62 @@ let switching_from_http_to_repl_space_removes_leading_slash =
 
 
 let switching_from_http_space_removes_variable_colons (m : model) : testResult =
-  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
-  match (spec.space, spec.name, spec.modifier) with
-  | F (_, newSpace), F (_, "spec_name/variable"), _ when newSpace != "HTTP" ->
-      pass
+  let spec =
+    onlyTL m
+    |> Option.andThen ~f:TL.asHandler
+    |> Option.map ~f:(fun x -> x.spec)
+  in
+  match spec with
+  | Some s ->
+    ( match (s.space, s.name, s.modifier) with
+    | F (_, newSpace), F (_, "spec_name/variable"), _ when newSpace != "HTTP" ->
+        pass
+    | other ->
+        fail other )
   | other ->
       fail other
 
 
 let switching_to_http_space_adds_slash (m : model) : testResult =
-  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
-  match (spec.space, spec.name, spec.modifier) with
-  | F (_, "HTTP"), F (_, "/spec_name"), _ ->
-      pass
+  let spec =
+    onlyTL m
+    |> Option.andThen ~f:TL.asHandler
+    |> Option.map ~f:(fun x -> x.spec)
+  in
+  match spec with
+  | Some s ->
+    ( match (s.space, s.name, s.modifier) with
+    | F (_, "HTTP"), F (_, "/spec_name"), _ ->
+        pass
+    | other ->
+        fail other )
   | other ->
       fail other
 
 
 let switching_from_default_repl_space_removes_name (m : model) : testResult =
-  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
-  match (spec.space, spec.name, spec.modifier) with
-  | F (_, newSpace), _, _ when newSpace != "REPL" ->
-      pass
+  let spec =
+    onlyTL m
+    |> Option.andThen ~f:TL.asHandler
+    |> Option.map ~f:(fun x -> x.spec)
+  in
+  match spec with
+  | Some s ->
+    ( match (s.space, s.name, s.modifier) with
+    | F (_, newSpace), _, _ when newSpace != "REPL" ->
+        pass
+    | other ->
+        fail other )
   | other ->
       fail other
 
 
 let tabbing_through_let (m : model) : testResult =
   match onlyExpr m with
-  | ELet (_, "myvar", EInteger (_, "5"), EInteger (_, "5")) ->
+  | Some (ELet (_, "myvar", EInteger (_, "5"), EInteger (_, "5"))) ->
       pass
   | e ->
-      fail ~f:show_fluidExpr e
+      fail ~f:(showOption show_fluidExpr) e
 
 
 let rename_db_fields (m : model) : testResult =
@@ -238,33 +283,38 @@ let rename_db_type (m : model) : testResult =
 
 let feature_flag_works (m : model) : testResult =
   let h = onlyHandler m in
-  let ast = h.ast |> FluidAST.toExpr in
+  let ast = h |> Option.map ~f:(fun h -> h.ast |> FluidAST.toExpr) in
   match ast with
-  | ELet
-      ( _
-      , "a"
-      , EInteger (_, "13")
-      , EFeatureFlag
-          ( id
-          , "myflag"
-          , EFnCall
-              ( _
-              , "Int::greaterThan"
-              , [EVariable (_, "a"); EInteger (_, "10")]
-              , _ )
-          , EString (_, "\"A\"")
-          , EString (_, "\"B\"") ) ) ->
+  | Some
+      (ELet
+        ( _
+        , "a"
+        , EInteger (_, "13")
+        , EFeatureFlag
+            ( id
+            , "myflag"
+            , EFnCall
+                ( _
+                , "Int::greaterThan"
+                , [EVariable (_, "a"); EInteger (_, "10")]
+                , _ )
+            , EString (_, "\"A\"")
+            , EString (_, "\"B\"") ) )) ->
       let res =
-        Analysis.getSelectedTraceID m h.hTLID
+        h
+        |> Option.map ~f:(fun x -> x.hTLID)
+        |> Option.andThen ~f:(Analysis.getSelectedTraceID m)
         |> Option.andThen ~f:(Analysis.getLiveValue m id)
       in
       ( match res with
       | Some val_ ->
-          if val_ = DStr "B" then pass else fail (show_fluidExpr ast, val_)
+          if val_ = DStr "B"
+          then pass
+          else fail (showOption show_fluidExpr ast, val_)
       | _ ->
-          fail (show_fluidExpr ast, res) )
+          fail (showOption show_fluidExpr ast, res) )
   | _ ->
-      fail (show_fluidExpr ast, show_cursorState m.cursorState)
+      fail (showOption show_fluidExpr ast, show_cursorState m.cursorState)
 
 
 let feature_flag_in_function (m : model) : testResult =
@@ -336,12 +386,12 @@ let function_version_renders (_ : model) : testResult =
 
 
 let delete_db_col (m : model) : testResult =
-  let db = onlyDB m in
-  match db.cols with
-  | [(Blank _, Blank _)] ->
+  let db = onlyDB m |> Option.map ~f:(fun d -> d.cols) in
+  match db with
+  | Some [(Blank _, Blank _)] ->
       pass
   | cols ->
-      fail ~f:(show_list ~f:show_dbColumn) cols
+      fail ~f:(showOption (show_list ~f:show_dbColumn)) cols
 
 
 let cant_delete_locked_col (m : model) : testResult =
@@ -349,17 +399,14 @@ let cant_delete_locked_col (m : model) : testResult =
     m.dbs
     |> fun dbs ->
     if TD.count dbs > 1
-    then failwith "More than one db!"
-    else
-      TD.values dbs
-      |> List.head
-      |> deOption "Somehow got zero dbs after checking length?"
+    then None
+    else TD.values dbs |> List.head |> Option.map ~f:(fun x -> x.cols)
   in
-  match db.cols with
-  | [(F (_, "cantDelete"), F (_, "Int")); (Blank _, Blank _)] ->
+  match db with
+  | Some [(F (_, "cantDelete"), F (_, "Int")); (Blank _, Blank _)] ->
       pass
   | cols ->
-      fail ~f:(show_list ~f:show_dbColumn) cols
+      fail ~f:(showOption (show_list ~f:show_dbColumn)) cols
 
 
 let passwords_are_redacted (_m : model) : testResult =
@@ -735,11 +782,13 @@ let fluid_test_copy_request_as_curl (m : model) : testResult =
 
 let fluid_ac_validate_on_lose_focus (m : model) : testResult =
   match onlyExpr m with
-  | EFieldAccess (_, EVariable (_, "request"), "body") ->
+  | Some (EFieldAccess (_, EVariable (_, "request"), "body")) ->
       pass
   | e ->
       fail
-        ("Expected: `request.body`, got `" ^ FluidPrinter.eToHumanString e ^ "`")
+        ( "Expected: `request.body`, got `"
+        ^ showOption FluidPrinter.eToHumanString e
+        ^ "`" )
 
 
 let upload_pkg_fn_as_admin (_m : model) : testResult = pass
@@ -948,4 +997,4 @@ let trigger (test_name : string) : integrationTestState =
     | "unexe_code_unfades_on_focus" ->
         unexe_code_unfades_on_focus
     | n ->
-        failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
+        fun _ -> fail ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
