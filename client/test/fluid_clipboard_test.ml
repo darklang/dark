@@ -868,61 +868,67 @@ let run () =
   describe "Pipes" (fun () ->
       testCopy
         "copying first expression of pipe adds it to clipboard"
-        aPipe
+        (pipe
+           (list [])
+           [ fn "List::append" [pipeTarget; list [int 5]]
+           ; fn "List::append" [pipeTarget; list [int 6]] ])
         (0, 2)
         "[]" ;
       testCopy
         "copying pipe adds it to clipboard"
-        aPipe
+        (pipe
+           (list [])
+           [ fn "List::append" [pipeTarget; list [int 5]]
+           ; fn "List::append" [pipeTarget; list [int 6]] ])
         (0, 41)
-        "[]\n|>List::append [5]\n|>List::append [5]\n" ;
+        "[]\n|>List::append [5]\n|>List::append [6]\n" ;
       testPasteExpr
         "pasting a function with a pipe target outside of a pipe strips the pipe target"
-        b
+        (blank ())
         (0, 0)
-        (listFn [aList5])
+        (fn "List::append" [pipeTarget; list [int 5]])
         "List::append ___________ [5]~" ;
       testPasteExpr
         "pasting a function into a pipe adds a pipe target"
-        emptyPipe
+        (pipe (blank ()) [blank ()])
         (6, 6)
-        aFullFnCall
+        (fn "Int::add" [int 4; int 5])
         "___\n|>Int::add 5~\n" ;
       testPasteExpr
         "pasting a binop with a pipe target outside of a pipe strips the pipe target"
-        b
+        (blank ())
         (0, 0)
         (binop "+" pipeTarget (int 10))
         "_________ + 10~" ;
       testPasteExpr
         "pasting a binop into a pipe adds a pipe target"
-        emptyPipe
+        (pipe (blank ()) [blank ()])
         (6, 6)
-        aFullBinOp
-        "___\n|>|| 5~\n" ;
+        (binop "||" (var "myvar") trueBool)
+        "___\n|>|| true~\n" ;
       testPasteExpr
         "pasting a binop with a pipe target into the head of a pipe strips the pipe target"
-        emptyPipe
+        (pipe (blank ()) [blank ()])
         (0, 0)
         (binop "+" pipeTarget (int 10))
         "_________ + 10~\n|>___\n" ;
       testPasteExpr
         "pasting a function with a pipe target into the head of a pipe strips the pipe target"
-        emptyPipe
+        (pipe (blank ()) [blank ()])
         (0, 0)
-        (listFn [aList5])
+        (fn "List::append" [pipeTarget; list [int 5]])
         "List::append ___________ [5]~\n|>___\n" ;
       testPasteExpr
         "pasting a partial with a pipe target outside of a pipe strips the pipe target"
-        b
+        (blank ())
         (0, 0)
-        (partial "test" (listFn [aList5]))
+        (partial "test" (fn "List::append" [pipeTarget; list [int 5]]))
         "test~@:appen@ ___________ [5]" ;
       testPasteExpr
         "pasting a partial into a pipe adds a pipe target"
-        emptyPipe
+        (pipe (blank ()) [blank ()])
         (6, 6)
-        (partial "test" aFullFnCall)
+        (partial "test" (fn "Int::add" [int 4; int 5]))
         "___\n|>test~@ad@ 5\n" ;
       ()) ;
   describe "Lists" (fun () ->
