@@ -9,3 +9,6 @@ For more details on why we picked this approach and not access logs, or for
 links to docs on exporting these logs to another bucket (for analysis outside of
 GCloud), see
 https://www.notion.so/darklang/Cloud-Storage-Logs-5a686f3d235f47f395f68a75a1e2c794 .
+
+Tags for search:
+audit log auditlog security storage bucket backups
