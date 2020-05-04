@@ -78,10 +78,6 @@
       justify-content: center;
       color: $grey2;
 
-      &.tipe-Error {
-        color: $red;
-      }
-
       &.unfetchable {
         cursor: not-allowed;
 
