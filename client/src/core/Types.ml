@@ -1611,6 +1611,10 @@ and fluidEditor =
   | FeatureFlagEditor of TLID.t * ID.t
 [@@deriving show {with_path = false}]
 
+and fluidProps =
+  { functions : functionsType
+  ; variants : variantTest list }
+
 and fluidState =
   { error : string option
   ; actions : string list

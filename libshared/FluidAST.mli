@@ -94,6 +94,9 @@ val findParent : Shared.id -> t -> FluidExpression.t option
   * See FluidExpression.ancestors *)
 val ancestors : Shared.id -> t -> FluidExpression.t list
 
+(** [getFeatureFlags ast] returns a list of all feature flags in the AST. *)
+val getFeatureFlags : t -> FluidExpression.t list
+
 (** [clone ast] returns a clone of [ast]. That is, a structural copy of the AST
   * but with every expression having a newly generated id.
   *

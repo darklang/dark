@@ -630,8 +630,8 @@ let defaultFunctionsProps =
   {usedFns = StrDict.empty; userFunctions = TLIDDict.empty}
 
 
-let defaultTestProps =
-  { Fluid.functions =
+let defaultTestProps : Types.fluidProps =
+  { functions =
       Functions.empty
       |> Functions.setBuiltins defaultTestFunctions defaultFunctionsProps
   ; variants = [LeftPartialVariant] }

@@ -6,9 +6,7 @@ module AC = FluidAutocomplete
 module Printer = FluidPrinter
 module TL = Toplevel
 
-type props =
-  { functions : functionsType
-  ; variants : variantTest list }
+type props = Types.fluidProps
 
 let propsFromModel (m : model) : props =
   {functions = m.functions; variants = m.tests}
@@ -70,10 +68,6 @@ let getNeighbours ~(pos : int) (tokens : tokenInfos) :
   (toTheLeft, toTheRight, mNext)
 
 
-let getFeatureFlags (ast : FluidAST.t) : E.t list =
-  FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
-
-
 let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
   (* The algorithm that decides what token on when a certain key is pressed is
@@ -122,7 +116,7 @@ let setAST (ast : FluidAST.t) (astInfo : t) : t =
     let mainTokenInfos = Printer.tokenize (FluidAST.toExpr ast) in
     let featureFlagTokenInfos =
       ast
-      |> getFeatureFlags
+      |> FluidAST.getFeatureFlags
       |> List.map ~f:(fun expr ->
              ( E.toID expr
              , Printer.tokenizeWithFFTokenization
