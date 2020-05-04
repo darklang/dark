@@ -23,6 +23,7 @@ module Printer = FluidPrinter
 module Util = FluidUtil
 module Clipboard = FluidClipboard
 module CT = CaretTarget
+module ASTInfo = FluidASTInfo
 
 (* -------------------- *)
 (* Utils *)
@@ -33,9 +34,7 @@ type tokenInfos = T.tokenInfo list
 
 type state = Types.fluidState
 
-type props =
-  { functions : functionsType
-  ; variants : variantTest list }
+type props = Types.fluidProps
 
 let deselectFluidEditor (s : fluidState) : fluidState =
   {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = NoEditor}
@@ -165,106 +164,6 @@ let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
   | _ ->
       None
 
-
-let getFeatureFlags (ast : FluidAST.t) : E.t list =
-  FluidAST.filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
-
-
-module ASTInfo = struct
-  type t =
-    { ast : FluidAST.t
-    ; state : fluidState
-    ; mainTokenInfos : tokenInfos
-    ; featureFlagTokenInfos : (ID.t * tokenInfos) list
-    ; props : props }
-
-  let setAST (ast : FluidAST.t) (astInfo : t) : t =
-    if astInfo.ast = ast
-    then astInfo
-    else
-      let mainTokenInfos = Printer.tokenize (FluidAST.toExpr ast) in
-      let featureFlagTokenInfos =
-        ast
-        |> getFeatureFlags
-        |> List.map ~f:(fun expr ->
-               ( E.toID expr
-               , Printer.tokenizeWithFFTokenization
-                   FeatureFlagConditionAndEnabled
-                   expr ))
-      in
-      {astInfo with ast; mainTokenInfos; featureFlagTokenInfos}
-
-
-  (* Get the correct tokenInfos for the activeEditor *)
-  let activeTokenInfos (astInfo : t) : tokenInfos =
-    match astInfo.state.activeEditor with
-    | NoEditor ->
-        []
-    | MainEditor _ ->
-        astInfo.mainTokenInfos
-    | FeatureFlagEditor (_, ffid) ->
-        List.find astInfo.featureFlagTokenInfos ~f:(fun (id, _) -> ffid = id)
-        |> Option.map ~f:Tuple2.second
-        |> Option.withDefault ~default:[]
-
-
-  let modifyState ~(f : fluidState -> fluidState) (astInfo : t) : t =
-    {astInfo with state = f astInfo.state}
-
-
-  let getToken (astInfo : t) : T.tokenInfo option =
-    getToken' (activeTokenInfos astInfo) astInfo.state
-
-
-  let make (props : props) (ast : FluidAST.t) (s : fluidState) : t =
-    { ast = FluidAST.ofExpr (E.EBlank (gid ()))
-    ; state = s
-    ; mainTokenInfos = []
-    ; featureFlagTokenInfos = []
-    ; props }
-    |> setAST ast
-
-
-  let fromModelAndTLID
-      ?(removeTransientState = true) (m : model) (tlid : TLID.t) : t option =
-    (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
-     * make `fromExpr` accept only the info it needs, and differentiate between
-     * handler-specific and global fluid state. *)
-    let removeHandlerTransientState m =
-      if removeTransientState
-      then {m with fluidState = {m.fluidState with ac = AC.init}}
-      else m
-    in
-    TL.get m tlid
-    |> Option.andThen ~f:TL.getAST
-    |> Option.map ~f:(fun ast ->
-           let state =
-             (* We need to discard transient state if the selected handler has changed *)
-             if Some tlid = CursorState.tlidOf m.cursorState
-             then m.fluidState
-             else
-               let newM = removeHandlerTransientState m in
-               newM.fluidState
-           in
-           make (propsFromModel m) ast state)
-
-
-  let fromModel (m : model) : t option =
-    CursorState.tlidOf m.cursorState |> Option.andThen ~f:(fromModelAndTLID m)
-
-
-  let exprOfActiveEditor (astInfo : t) : FluidExpression.t =
-    match astInfo.state.activeEditor with
-    | NoEditor ->
-        recover "exprOfActiveEditor - none exists" (FluidAST.toExpr astInfo.ast)
-    | MainEditor _ ->
-        FluidAST.toExpr astInfo.ast
-    | FeatureFlagEditor (_, id) ->
-        FluidAST.find id astInfo.ast
-        |> recoverOpt
-             "exprOfActiveEditor - cannot find expression for editor"
-             ~default:(FluidAST.toExpr astInfo.ast)
-end
 
 let getStringIndexMaybe (ti : T.tokenInfo) (pos : int) : int option =
   match ti.token with
@@ -5583,7 +5482,7 @@ let getCopySelection (m : model) : clipboardContents =
 let buildFeatureFlagEditors (tlid : TLID.t) (ast : FluidAST.t) :
     fluidEditor list =
   ast
-  |> getFeatureFlags
+  |> FluidAST.getFeatureFlags
   |> List.map ~f:(fun e -> FeatureFlagEditor (tlid, E.toID e))
 
 
