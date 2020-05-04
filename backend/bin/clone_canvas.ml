@@ -7,7 +7,7 @@ open Libcommon
 
 let usage () : unit =
   Format.printf
-    "Usage: %s [--force] --preserve-history=[true|false] from-canvas to-canvas\n\nCopies from-canvas (toplevels, not traces or events) to-canvas.\n\nFirst used as a development harness for the gettingstarted canvas feature, but\ncan also be used to copy a canvas from one account (or org) to another.\n\nDoes not remove the from-canvas, this is `cp`, not `mv`.\n\nIf from-canvas is not a sample canvas, you must call this with --force.\n"
+    "Usage: %s [--force] from-canvas to-canvas --preserve-history=[true|false]\n\nCopies from-canvas (toplevels, not traces or events) to-canvas.\n\nFirst used as a development harness for the gettingstarted canvas feature, but\ncan also be used to copy a canvas from one account (or org) to another.\n\nDoes not remove the from-canvas, this is `cp`, not `mv`.\n\nIf from-canvas is not a sample canvas, you must call this with --force.\n\nNote: argument order matters.\n"
     Sys.argv.(0) ;
   exit 1
 
@@ -20,7 +20,7 @@ let preserve_history (flag : string) : bool =
       false
   | _ ->
       Caml.print_endline
-        ("--preserve-history=true|false, but you  provided " ^ flag) ;
+        ("--preserve-history=true|false, but you provided " ^ flag) ;
       exit 1
 
 
