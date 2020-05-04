@@ -148,6 +148,7 @@ body #app * {
    * but we want all its children to be visible.
    * The canvas will translate as you pan. */
   overflow: visible;
+  transform-origin: top left;
 
   .node {
     position: absolute;
