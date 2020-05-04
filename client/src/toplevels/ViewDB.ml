@@ -156,14 +156,14 @@ let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
   let funcs =
     (* this AST expr stuff is kind of a hack but until we reintroduce migration
      * fields I don't know what else to do with it -- @dstrelau 2020-02-25 *)
-    [ viewMigraFuncs
-        {vs with ast = FluidAST.ofExpr migra.rollforward}
-        "Rollforward"
-        "oldObj"
-    ; viewMigraFuncs
-        {vs with ast = FluidAST.ofExpr migra.rollback}
-        "Rollback"
-        "newObj" ]
+    [ (*   viewMigraFuncs *)
+      (*     {vs with ast = FluidAST.ofExpr migra.rollforward} *)
+      (*     "Rollforward" *)
+      (*     "oldObj" *)
+      (* ; viewMigraFuncs *)
+      (*     {vs with ast = FluidAST.ofExpr migra.rollback} *)
+      (*     "Rollback" *)
+      (*     "newObj"  *) ]
   in
   let lockReady = DB.isMigrationLockReady migra in
   let errorMsg =

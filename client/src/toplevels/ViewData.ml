@@ -154,7 +154,7 @@ let viewTraces (vs : ViewUtils.viewState) (astID : ID.t) : msg Html.html list =
 
 
 let viewData (vs : ViewUtils.viewState) : msg Html.html list =
-  let astID = FluidAST.toID vs.ast in
+  let astID = FluidAST.toID vs.astInfo.ast in
   let requestEls = viewTraces vs astID in
   let tlSelected =
     match CursorState.tlidOf vs.cursorState with
