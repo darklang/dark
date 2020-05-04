@@ -293,7 +293,7 @@ let lambdaWith3UsedBindings =
 (* ---------------- *)
 let aFnCall = EFnCall (gid (), "Int::add", [five; b], NoRail)
 
-let aFullFnCall = EFnCall (gid (), "Int::add", [five; five], NoRail)
+let aFullFnCall = fn ~id:(gid ()) "Int::add" [int 5; int 5]
 
 let aFnCallWithVersion = EFnCall (gid (), "DB::getAll_v1", [b], NoRail)
 
