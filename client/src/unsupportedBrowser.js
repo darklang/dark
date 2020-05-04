@@ -11,7 +11,7 @@ function unsupportedBrowser() {
 document.addEventListener("DOMContentLoaded", event => {
   if (unsupportedBrowser()) {
     let htmlString =
-      "<div class='modal-overlay' id='unsupportedBrowser'><div class='modal'><div class='warning'><p class='title'>Unfortunately we only support Dark on desktop Chrome right now. Between browser different input models, differences in scripting and rendering performance, and differing web platform support, we don't have the capacity to support other browsers at the moment. We hope to support Firefox, Safari, and mobile use once we've really nailed the experience on Chrome. Thanks for understanding!</p></div></div></div>";
+      "<div class='modal-overlay' id='unsupportedBrowser'><div class='modal'><div class='warning'><p class='title'>Dark is only fully supported on Desktop Chrome right now. We have a desktop client you can use if you prefer.</p><p class='title'>Unfortunately, as a small team, we don’t have the capacity to support other browsers at the moment. Once we’ve made the experience excellent on Chrome, we'll address cross-browser compatibility issues to support Firefox, Safari, and mobile devices.</p><p class='title'>Thanks for understanding ❤️</p></div></div></div>";
     var div = document.createElement("div");
     div.innerHTML = htmlString;
     document.body.append(div);
