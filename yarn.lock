@@ -7,10 +7,10 @@
   resolved "https://registry.yarnpkg.com/@elliottcable/bs-result/-/bs-result-12.0.0.tgz#8830bcbf807c7ad3d7a7afa97da70415a0b10e68"
   integrity sha512-o1AxswioCueiTlyw0M8U1Xh7netzJ8VPTcJJL5EY9BvttWKIlBWYOb9FzxxRWY+eQvpE2uwLlJzFH1i6Gd1h4g==
 
-"@fullstory/browser@^1.4.3":
-  version "1.4.3"
-  resolved "https://registry.yarnpkg.com/@fullstory/browser/-/browser-1.4.3.tgz#c5bc46ec430ede8e6dfb2e640a2deda244e4bc25"
-  integrity sha512-Az4zH6GlELI2T9b0CJ7nL5vc+7v2lBg/C5CacX6/1sq5nKC8SxylsGKqVM9SdddiUfZTXjs+LkrUQ6MT/R86VQ==
+"@fullstory/browser@^1.4.4":
+  version "1.4.4"
+  resolved "https://registry.yarnpkg.com/@fullstory/browser/-/browser-1.4.4.tgz#56e8db9f97b036892e419f5d6d1a510a3b68dd39"
+  integrity sha512-gV028/krZRvseyR6WEpphrZdlskoKTPV7x8mAbU9X0dOoUUZEdIr3J9ADyFPxcWGJgKL45zrplvgifBQXdKgVg==
 
 "@glennsl/bs-json@5.0.2":
   version "5.0.2"
