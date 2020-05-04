@@ -6,9 +6,8 @@ module E = FluidExpression
 
 type viewState =
   { tl : toplevel
-  ; ast : FluidAST.t
   ; functions : Functions.t
-  ; tokens : FluidToken.tokenInfo list
+  ; astInfo : FluidASTInfo.t
   ; cursorState : cursorState
   ; tlid : TLID.t
   ; isAdmin : bool
@@ -59,10 +58,10 @@ let createVS (m : model) (tl : toplevel) : viewState =
     Option.map traceID ~f:(Analysis.getStoredAnalysis m)
     |> Option.withDefault ~default:LoadableNotInitialized
   in
-  let tokens = FluidPrinter.tokenize (FluidAST.toExpr ast) in
+  let props = FluidASTInfo.propsFromModel m in
+  let astInfo = FluidASTInfo.make props ast m.fluidState in
   { tl
-  ; ast
-  ; tokens
+  ; astInfo
   ; tlid
   ; cursorState = CursorState.unwrap m.cursorState
   ; hovering =
