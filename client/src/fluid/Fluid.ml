@@ -5431,73 +5431,146 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
   in
   match expr with
   | Some expr ->
-    ( match (expr, clipboardExpr, ct) with
-    | EBlank id, Some cp, _ ->
-        (* Paste into a blank *)
-        let newAST = FluidAST.replace ~replacement:cp id ast in
-        let caretTarget = caretTargetForEndOfExpr (E.toID cp) newAST in
-        astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget
-    | EString (id, str), _, Some {astRef = ARString (_, SPOpenQuote); offset} ->
-        (* Paste into a string, to take care of newlines.
-         * Note: pasting before an open quote
-         * places the caret one unit left of the text end *)
-        let replacement =
-          E.EString (id, String.insertAt ~insert:text ~index:(offset - 1) str)
-        in
-        let newAST = FluidAST.replace ~replacement id ast in
-        let caretTarget =
-          CT.forARStringOpenQuote id (offset + String.length text)
-        in
-        astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget
-    | ( ERecord (id, oldKVs)
-      , Some (ERecord (_, pastedKVs))
-      , Some {astRef = ARRecord (_, RPFieldname index); _} ) ->
-        (* Since fieldnames can't contain exprs, merge pasted record with existing record,
-         * keeping duplicate fieldnames *)
-        let first, last =
-          match List.getAt oldKVs ~index with
-          | Some ("", EBlank _) ->
-              (* not adding 1 to index ensures we don't include this entirely empty entry;
-               * adding 1 ensures we don't include it after the paste either *)
-              ( List.take oldKVs ~count:index
-              , List.drop oldKVs ~count:(index + 1) )
+      let clipboardExpr =
+        (* [addPipeTarget pipeId initialExpr] replaces the first arg into which one can pipe with a pipe target having [pipeId]
+         * at the root of [initialExpr], if such an arg exists.
+         * It is recursive in order to handle root expressions inside partials. *)
+        let rec addPipeTarget (pipeId : Shared.id) (initialExpr : E.t) : E.t =
+          match initialExpr with
+          | EFnCall (id, name, args, sendToRail) ->
+              let args =
+                match args with
+                | _ :: rest ->
+                    E.EPipeTarget pipeId :: rest
+                | args ->
+                    args
+              in
+              E.EFnCall (id, name, args, sendToRail)
+          | EBinOp (id, name, _lhs, rhs, sendToRail) ->
+              E.EBinOp (id, name, E.EPipeTarget pipeId, rhs, sendToRail)
+          | EPartial (id, text, oldExpr) ->
+              E.EPartial (id, text, addPipeTarget pipeId oldExpr)
+          | ERightPartial (id, text, oldExpr) ->
+              E.ERightPartial (id, text, addPipeTarget pipeId oldExpr)
+          | ELeftPartial (id, text, oldExpr) ->
+              E.ELeftPartial (id, text, addPipeTarget pipeId oldExpr)
           | _ ->
-              (* adding 1 to index ensures pasting after the existing entry *)
-              ( List.take oldKVs ~count:(index + 1)
-              , List.drop oldKVs ~count:(index + 1) )
+              initialExpr
         in
-        let newKVs = List.concat [first; pastedKVs; last] in
-        let replacement = E.ERecord (id, newKVs) in
-        List.last pastedKVs
-        |> Option.map ~f:(fun (_, valueExpr) ->
-               let caretTarget = caretTargetForEndOfExpr' valueExpr in
-               let newAST = FluidAST.replace ~replacement id ast in
-               astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget)
-        |> Option.withDefault ~default:astInfo
-    | ERecord _, Some _, Some {astRef = ARRecord (_, RPFieldname _); _} ->
-        (* Block pasting arbitrary expr into a record fieldname
-         * since keys can't contain exprs *)
-        astInfo
-    | _ ->
-        text
-        |> String.split ~on:""
-        |> List.foldl ~init:astInfo ~f:(fun str astInfo ->
-               let space : FluidKeyboard.keyEvent =
-                 { key = K.Space
-                 ; shiftKey = false
-                 ; altKey = false
-                 ; metaKey = false
-                 ; ctrlKey = false }
-               in
-               let enter = {space with key = K.Enter} in
-               let action =
-                 if str = " "
-                 then Keypress space
-                 else if str = "\n"
-                 then Keypress enter
-                 else InsertText str
-               in
-               updateKey action astInfo) )
+        (* [removePipeTarget initialExpr] replaces all pipe targets at the root of [initialExpr] with blanks.
+         * It is recursive in order to handle pipe targets inside partials. *)
+        let rec removePipeTarget (initialExpr : E.t) : E.t =
+          match initialExpr with
+          | EFnCall (id, name, args, sendToRail) ->
+              let args =
+                args
+                |> List.map ~f:(function
+                       | E.EPipeTarget _ ->
+                           E.newB ()
+                       | arg ->
+                           arg)
+              in
+              E.EFnCall (id, name, args, sendToRail)
+          | EBinOp (id, name, lhs, rhs, sendToRail) ->
+              let lhs, rhs =
+                (lhs, rhs)
+                |> Tuple2.mapAll ~f:(function
+                       | E.EPipeTarget _ ->
+                           E.newB ()
+                       | arg ->
+                           arg)
+              in
+              E.EBinOp (id, name, lhs, rhs, sendToRail)
+          | EPartial (id, text, oldExpr) ->
+              E.EPartial (id, text, removePipeTarget oldExpr)
+          | ERightPartial (id, text, oldExpr) ->
+              E.ERightPartial (id, text, removePipeTarget oldExpr)
+          | ELeftPartial (id, text, oldExpr) ->
+              E.ELeftPartial (id, text, removePipeTarget oldExpr)
+          | _ ->
+              initialExpr
+        in
+        match FluidAST.findParent (E.toID expr) ast with
+        | Some (EPipe (_, head :: _)) when head = expr ->
+            (* If pasting into the head of a pipe, drop any root-level pipe targets *)
+            clipboardExpr |> Option.map ~f:(fun e -> removePipeTarget e)
+        | Some (EPipe (pipeId, _)) ->
+            (* If pasting into a child of a pipe, replace first arg of a root-level function with pipe target*)
+            clipboardExpr |> Option.map ~f:(fun e -> addPipeTarget pipeId e)
+        | _ ->
+            (* If not pasting into a child of a pipe, drop any root-level pipe targets *)
+            clipboardExpr |> Option.map ~f:(fun e -> removePipeTarget e)
+      in
+      ( match (expr, clipboardExpr, ct) with
+      | EBlank id, Some cp, _ ->
+          (* Paste into a blank *)
+          let newAST = FluidAST.replace ~replacement:cp id ast in
+          let caretTarget = caretTargetForEndOfExpr (E.toID cp) newAST in
+          astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget
+      | EString (id, str), _, Some {astRef = ARString (_, SPOpenQuote); offset}
+        ->
+          (* Paste into a string, to take care of newlines.
+           * Note: pasting before an open quote
+           * places the caret one unit left of the text end *)
+          let replacement =
+            E.EString (id, String.insertAt ~insert:text ~index:(offset - 1) str)
+          in
+          let newAST = FluidAST.replace ~replacement id ast in
+          let caretTarget =
+            CT.forARStringOpenQuote id (offset + String.length text)
+          in
+          astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget
+      | ( ERecord (id, oldKVs)
+        , Some (ERecord (_, pastedKVs))
+        , Some {astRef = ARRecord (_, RPFieldname index); _} ) ->
+          (* Since fieldnames can't contain exprs, merge pasted record with existing record,
+           * keeping duplicate fieldnames *)
+          let first, last =
+            match List.getAt oldKVs ~index with
+            | Some ("", EBlank _) ->
+                (* not adding 1 to index ensures we don't include this entirely empty entry;
+                 * adding 1 ensures we don't include it after the paste either *)
+                ( List.take oldKVs ~count:index
+                , List.drop oldKVs ~count:(index + 1) )
+            | _ ->
+                (* adding 1 to index ensures pasting after the existing entry *)
+                ( List.take oldKVs ~count:(index + 1)
+                , List.drop oldKVs ~count:(index + 1) )
+          in
+          let newKVs = List.concat [first; pastedKVs; last] in
+          let replacement = E.ERecord (id, newKVs) in
+          List.last pastedKVs
+          |> Option.map ~f:(fun (_, valueExpr) ->
+                 let caretTarget = caretTargetForEndOfExpr' valueExpr in
+                 let newAST = FluidAST.replace ~replacement id ast in
+                 astInfo
+                 |> ASTInfo.setAST newAST
+                 |> moveToCaretTarget caretTarget)
+          |> Option.withDefault ~default:astInfo
+      | ERecord _, Some _, Some {astRef = ARRecord (_, RPFieldname _); _} ->
+          (* Block pasting arbitrary expr into a record fieldname
+           * since keys can't contain exprs *)
+          astInfo
+      | _ ->
+          text
+          |> String.split ~on:""
+          |> List.foldl ~init:astInfo ~f:(fun str astInfo ->
+                 let space : FluidKeyboard.keyEvent =
+                   { key = K.Space
+                   ; shiftKey = false
+                   ; altKey = false
+                   ; metaKey = false
+                   ; ctrlKey = false }
+                 in
+                 let enter = {space with key = K.Enter} in
+                 let action =
+                   if str = " "
+                   then Keypress space
+                   else if str = "\n"
+                   then Keypress enter
+                   else InsertText str
+                 in
+                 updateKey action astInfo) )
   | _ ->
       recover "pasting over non-existant handler" astInfo
 
