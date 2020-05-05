@@ -338,7 +338,7 @@ let run () =
           expect
             ( R.extractVarInAst m tl (FluidAST.toID ast) "var" ast
             |> FluidAST.toExpr
-            |> FluidPrinter.eToTestString )
+            |> FluidTokenizer.eToTestString )
           |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
           let expr = fn "Int::add" [var "b"; int 4] in
@@ -347,7 +347,7 @@ let run () =
           expect
             ( R.extractVarInAst m tl (E.toID expr) "var" ast
             |> FluidAST.toExpr
-            |> FluidPrinter.eToTestString )
+            |> FluidTokenizer.eToTestString )
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
           let expr =
@@ -364,7 +364,7 @@ let run () =
           expect
             ( R.extractVarInAst m tl (E.toID expr) "var" ast
             |> FluidAST.toExpr
-            |> FluidPrinter.eToTestString )
+            |> FluidTokenizer.eToTestString )
           |> toEqual
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n") ;
       ()) ;
@@ -372,12 +372,12 @@ let run () =
       test "simple example" (fun () ->
           let ast = fn "myFn" [int 1; int 2; int 3] in
           expect
-            (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidPrinter.eToHumanString)
+            (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidTokenizer.eToHumanString)
           |> toEqual "myFn 2 1 3") ;
       test "simple pipe" (fun () ->
           let ast = pipe (int 1) [fn "myFn" [int 2; int 3]] in
           expect
-            (AST.reorderFnCallArgs "myFn" 1 2 ast |> FluidPrinter.eToHumanString)
+            (AST.reorderFnCallArgs "myFn" 1 2 ast |> FluidTokenizer.eToHumanString)
           |> toEqual "1\n|>myFn 3 2\n") ;
       test "pipe but the fn is later" (fun () ->
           let ast =
@@ -389,7 +389,7 @@ let run () =
               ; fn "other3" [] ]
           in
           expect
-            (AST.reorderFnCallArgs "myFn" 1 2 ast |> FluidPrinter.eToTestString)
+            (AST.reorderFnCallArgs "myFn" 1 2 ast |> FluidTokenizer.eToTestString)
           |> toEqual "1\n|>other1\n|>other2\n|>myFn 3 2\n|>other3\n") ;
       test "pipe and arg 0" (fun () ->
           let ast =
@@ -401,7 +401,7 @@ let run () =
               ; fn "other3" [] ]
           in
           expect
-            (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidPrinter.eToTestString)
+            (AST.reorderFnCallArgs "myFn" 0 1 ast |> FluidTokenizer.eToTestString)
           |> toEqual "1\n|>other1\n|>other2\n|>\\x -> myFn 2 x 3\n|>other3\n") ;
       ()) ;
   describe "calculateUserUnsafeFunctions" (fun () ->

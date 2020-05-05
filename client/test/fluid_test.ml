@@ -71,7 +71,7 @@ open FluidShortcuts
  *  characters are replaced with @ signs.
  *
  *  Other blanks (see FluidToken.isBlank) are displayed as `***` This is
- *  controlled by FluidPrinter.toTestText.
+ *  controlled by FluidTokenizer.toTestText.
  *
  *  Caret placement is marked with a single `~`. Selections are marked with `»`
  *  as the start of the selection and `«` as the end. This allow detecting both
@@ -386,7 +386,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
     Js.log2 "state before " (Fluid_utils.debugState tc.state) ;
     Js.log2
       "expr before"
-      (FluidAST.toExpr tc.ast |> FluidPrinter.eToStructure ~includeIDs:true) ) ;
+      (FluidAST.toExpr tc.ast |> FluidTokenizer.eToStructure ~includeIDs:true) ) ;
   let result =
     Fluid.ASTInfo.make defaultTestProps tc.ast tc.state |> processMsg inputs
   in
@@ -406,7 +406,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
     Js.log2 "state after" (Fluid_utils.debugState result.state) ;
     Js.log2
       "expr after"
-      (FluidPrinter.tokensToString (Fluid.ASTInfo.activeTokenInfos result)) ) ;
+      (FluidTokenizer.tokensToString (Fluid.ASTInfo.activeTokenInfos result)) ) ;
   {TestResult.testcase = tc; resultAST; resultState = result.state}
 
 

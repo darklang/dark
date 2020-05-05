@@ -10,7 +10,7 @@ module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
-module Printer = FluidPrinter
+module Printer = FluidTokenizer
 module Util = FluidUtil
 
 (* Tea *)

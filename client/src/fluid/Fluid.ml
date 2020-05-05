@@ -19,7 +19,7 @@ module Commands = FluidCommands
 module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
-module Printer = FluidPrinter
+module Printer = FluidTokenizer
 module Util = FluidUtil
 module Clipboard = FluidClipboard
 module CT = CaretTarget
@@ -5468,7 +5468,7 @@ let getCopySelection (m : model) : clipboardContents =
          let from, to_ = getSelectionRange astInfo.state in
          let text =
            ASTInfo.exprOfActiveEditor astInfo
-           |> FluidPrinter.eToHumanString
+           |> FluidTokenizer.eToHumanString
            |> String.slice ~from ~to_
          in
          let json =

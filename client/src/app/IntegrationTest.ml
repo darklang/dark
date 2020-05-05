@@ -739,7 +739,7 @@ let fluid_ac_validate_on_lose_focus (m : model) : testResult =
       pass
   | e ->
       fail
-        ("Expected: `request.body`, got `" ^ FluidPrinter.eToHumanString e ^ "`")
+        ("Expected: `request.body`, got `" ^ FluidTokenizer.eToHumanString e ^ "`")
 
 
 let upload_pkg_fn_as_admin (_m : model) : testResult = pass

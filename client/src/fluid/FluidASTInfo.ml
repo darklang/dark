@@ -3,7 +3,7 @@ module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
 module AC = FluidAutocomplete
-module Printer = FluidPrinter
+module Printer = FluidTokenizer
 module TL = Toplevel
 
 type props = Types.fluidProps
