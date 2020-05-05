@@ -17,6 +17,8 @@ let urlFor (page : page) : string =
     match page with
     | Architecture ->
         []
+    | FocusedPackageManagerFn tlid ->
+        [("packageManagerFn", TLID.toString tlid)]
     | FocusedFn (tlid, traceId) ->
       ( match traceId with
       | Some id ->
@@ -72,6 +74,13 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
+  let pmfn () =
+    match StrDict.get ~key:"packagemanagerfn" unstructured with
+    | Some sid ->
+        Some (FocusedPackageManagerFn (TLID.fromString sid))
+    | _ ->
+        None
+  in
   let fn () =
     match StrDict.get ~key:"fn" unstructured with
     | Some sid ->
@@ -110,6 +119,7 @@ let parseLocation (loc : Web.Location.location) : page option =
         None
   in
   fn ()
+  |> Option.orElse (pmfn ())
   |> Option.orElse (handler ())
   |> Option.orElse (db ())
   |> Option.orElse (tipe ())

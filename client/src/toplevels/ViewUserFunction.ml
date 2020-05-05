@@ -81,59 +81,78 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
     [fontAwesome "redo"]
 
 
-let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
+let viewMetadata (vs : viewState) (fn : functionTypes) : msg Html.html =
   let addParamBtn =
-    if vs.permission = Some ReadWrite
-    then
-      let strTLID = TLID.toString fn.ufTLID in
-      Html.div
-        ~unique:("add-param-col-" ^ strTLID)
-        [ Html.class' "col new-parameter"
-        ; ViewUtils.eventNoPropagation
-            ~key:("aufp-" ^ strTLID)
-            "click"
-            (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
-        [ Html.div
-            [Html.class' "parameter-btn allowed add"]
-            [fontAwesome "plus-circle"]
-        ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"] ]
-    else Vdom.noNode
-  in
-  let menuView =
-    let uploadPackageFnAction : TLMenu.menuItem =
-      { title = "Upload Function"
-      ; key = "upload-ufn-"
-      ; icon = Some "upload"
-      ; action = (fun _ -> UploadFn fn.ufTLID)
-      ; disableMsg = None }
-    in
-    let delAct : TLMenu.menuItem =
-      let disableMsg =
-        if not (UserFunctions.canDelete vs.usedInRefs fn.ufTLID)
+    match fn with
+    | UserFunction fn ->
+        if vs.permission = Some ReadWrite
         then
-          Some
-            "Cannot delete this function as it is used in your code base. Use the references on the right to find and change this function's callers, after which you'll be able to delete it."
-        else None
-      in
-      { title = "Delete"
-      ; key = "del-ufn-"
-      ; icon = Some "times"
-      ; action = (fun _ -> DeleteUserFunction fn.ufTLID)
-      ; disableMsg }
-    in
-    let menuItems =
-      if vs.isAdmin then [delAct; uploadPackageFnAction] else [delAct]
-    in
-    Html.div
-      [Html.class' "menu"]
-      [TLMenu.viewMenu vs.menuState vs.tlid menuItems]
+          let strTLID = TLID.toString fn.ufTLID in
+          Html.div
+            ~unique:("add-param-col-" ^ strTLID)
+            [ Html.class' "col new-parameter"
+            ; ViewUtils.eventNoPropagation
+                ~key:("aufp-" ^ strTLID)
+                "click"
+                (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
+            [ Html.div
+                [Html.class' "parameter-btn allowed add"]
+                [fontAwesome "plus-circle"]
+            ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"]
+            ]
+        else Vdom.noNode
+    | PackageFn _ ->
+        Vdom.noNode
   in
   let titleRow =
+    let titleText =
+      match fn with
+      | UserFunction fn ->
+          fn.ufMetadata.ufmName
+      | PackageFn fn ->
+          BlankOr.newF (fn.fnname ^ "_v" ^ string_of_int fn.version)
+    in
+    let executeBtn =
+      match fn with
+      | UserFunction fn ->
+          let menuView =
+            let uploadPackageFnAction : TLMenu.menuItem =
+              { title = "Upload Function"
+              ; key = "upload-ufn-"
+              ; icon = Some "upload"
+              ; action = (fun _ -> UploadFn fn.ufTLID)
+              ; disableMsg = None }
+            in
+            let delAct : TLMenu.menuItem =
+              let disableMsg =
+                if not (UserFunctions.canDelete vs.usedInRefs fn.ufTLID)
+                then
+                  Some
+                    "Cannot delete this function as it is used in your code base. Use the references on the right to find and change this function's callers, after which you'll be able to delete it."
+                else None
+              in
+              { title = "Delete"
+              ; key = "del-ufn-"
+              ; icon = Some "times"
+              ; action = (fun _ -> DeleteUserFunction fn.ufTLID)
+              ; disableMsg }
+            in
+            let menuItems =
+              if vs.isAdmin then [delAct; uploadPackageFnAction] else [delAct]
+            in
+            Html.div
+              [Html.class' "menu"]
+              [TLMenu.viewMenu vs.menuState vs.tlid menuItems]
+          in
+          Html.div [Html.class' "fn-actions"] [viewExecuteBtn vs fn; menuView]
+      | PackageFn _ ->
+          Vdom.noNode
+    in
     Html.div
       [Html.class' "spec-header"]
       [ ViewUtils.darkIcon "fn"
-      ; viewUserFnName vs ~classes:["fn-name-content"] fn.ufMetadata.ufmName
-      ; Html.div [Html.class' "fn-actions"] [viewExecuteBtn vs fn; menuView] ]
+      ; viewUserFnName vs ~classes:["fn-name-content"] titleText
+      ; executeBtn ]
   in
   let paramRows =
     Html.div
@@ -143,6 +162,13 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let returnRow =
     if VariantTesting.variantIsActive' vs.testVariants FnReturnVariant
     then
+      let returnType =
+        match fn with
+        | UserFunction fn ->
+            fn.ufMetadata.ufmReturnTipe
+        | PackageFn fn ->
+            BlankOr.newF fn.return_type
+      in
       Html.div
         [Html.id "fnreturn"; Html.class' "col param"]
         [ fontAwesome "level-down-alt"
@@ -151,13 +177,13 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
             ~enterable:true
             FnReturnTipe
             vs
-            fn.ufMetadata.ufmReturnTipe ]
+            returnType ]
     else Vdom.noNode
   in
   Html.div [Html.class' "fn-header"] [titleRow; paramRows; returnRow]
 
 
-let view (vs : viewState) (fn : userFunction) : msg Html.html =
+let view (vs : viewState) (fn : functionTypes) : msg Html.html =
   Html.div
     [Html.class' "user-fn-toplevel"]
     [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]

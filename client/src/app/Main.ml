@@ -272,7 +272,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               Handlers.upsert newM h
           | Some (TLFunc func) ->
               UserFunctions.upsert newM func
-          | Some (TLGroup _) | Some (TLTipe _) | None ->
+          | Some (TLPmFunc _) | Some (TLGroup _) | Some (TLTipe _) | None ->
               newM )
       | None ->
           newM
@@ -449,6 +449,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 (Selecting (tlid, None), None)
             | Some (TLFunc _) | Some (TLHandler _) ->
                 (FluidEntering tlid, None)
+            | Some (TLPmFunc _) ->
+                (Selecting (tlid, None), None)
             | None ->
                 (Deselected, None) )
           | STID id ->
@@ -1030,7 +1032,8 @@ let update_ (msg : msg) (m : model) : modification =
   | WindowMouseUp event | AppMouseUp event ->
       let clickBehavior =
         match m.currentPage with
-        | FocusedFn (tlid, _) | FocusedType tlid ->
+        | FocusedFn (tlid, _) | FocusedType tlid | FocusedPackageManagerFn tlid
+          ->
             (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
             let defaultBehaviour = Select (tlid, STTopLevelRoot) in
             ( match CursorState.unwrap m.cursorState with
@@ -1159,7 +1162,7 @@ let update_ (msg : msg) (m : model) : modification =
       then
         let tl = TL.get m targetTLID in
         match tl with
-        | Some (TLFunc _) | Some (TLTipe _) | None ->
+        | Some (TLPmFunc _) | Some (TLFunc _) | Some (TLTipe _) | None ->
             NoChange
         | Some (TLHandler _) | Some (TLDB _) | Some (TLGroup _) ->
             DragTL (targetTLID, event.mePos, false, m.cursorState)

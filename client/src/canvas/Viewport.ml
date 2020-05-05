@@ -130,7 +130,7 @@ let findNewPos (m : model) : pos =
       let minY = o.y in
       let maxY = minY + (Window.viewportHeight - padBottom) in
       {x = Random.range minX maxX; y = Random.range minY maxY}
-  | FocusedFn _ | FocusedType _ ->
+  | FocusedPackageManagerFn _ | FocusedFn _ | FocusedType _ ->
       (* if the sidebar is open, the users can't see the livevalues, which
       * confused new users. Given we can't get z-index to work, moving it to the
       * side a little seems the best solution for now. *)

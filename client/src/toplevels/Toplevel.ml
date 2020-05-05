@@ -14,6 +14,8 @@ let name (tl : toplevel) : string =
       "H: " ^ (h.spec.name |> B.toOption |> Option.withDefault ~default:"")
   | TLDB db ->
       "DB: " ^ (db.dbName |> B.toOption |> Option.withDefault ~default:"")
+  | TLPmFunc f ->
+      "Package Manager Func: " ^ f.fnname
   | TLFunc f ->
       "Func: "
       ^ (f.ufMetadata.ufmName |> B.toOption |> Option.withDefault ~default:"")
@@ -31,6 +33,8 @@ let sortkey (tl : toplevel) : string =
       ^ (h.spec.modifier |> B.toOption |> Option.withDefault ~default:"")
   | TLDB db ->
       db.dbName |> B.toOption |> Option.withDefault ~default:"Undefined"
+  | TLPmFunc f ->
+      f.fnname
   | TLFunc f ->
       f.ufMetadata.ufmName |> B.toOption |> Option.withDefault ~default:""
   | TLTipe t ->
@@ -47,6 +51,8 @@ let id tl =
       db.dbTLID
   | TLFunc f ->
       f.ufTLID
+  | TLPmFunc f ->
+      f.pfTLID
   | TLTipe t ->
       t.utTLID
   | TLGroup g ->
@@ -61,6 +67,8 @@ let pos tl =
       db.pos
   | TLGroup g ->
       g.pos
+  | TLPmFunc f ->
+      recover "no pos in a func" ~debug:f.pfTLID {x = 0; y = 0}
   | TLFunc f ->
       recover "no pos in a func" ~debug:f.ufTLID {x = 0; y = 0}
   | TLTipe t ->
@@ -80,6 +88,9 @@ let remove (m : model) (tl : toplevel) : model =
       UserTypes.remove m ut
   | TLGroup g ->
       Groups.remove m g
+  | TLPmFunc _ ->
+      (* Cannot remove a package manager function *)
+      m
 
 
 let fromList (tls : toplevel list) : toplevel TLIDDict.t =
@@ -101,6 +112,8 @@ let move (tlid : TLID.t) (xOffset : int) (yOffset : int) (m : model) : model =
 
 
 let ufToTL (uf : userFunction) : toplevel = TLFunc uf
+
+let pmfToTL (pmf : packageFn) : toplevel = TLPmFunc pmf
 
 let utToTL (ut : userTipe) : toplevel = TLTipe ut
 
@@ -176,6 +189,8 @@ let toOp (tl : toplevel) : op list =
       [SetFunction fn]
   | TLTipe t ->
       [SetType t]
+  | TLPmFunc _ ->
+      recover "Package Manager functions are not editable" ~debug:(id tl) []
   | TLGroup _ ->
       recover "Groups are front end only" ~debug:(id tl) []
   | TLDB _ ->
@@ -202,6 +217,8 @@ let blankOrData (tl : toplevel) : blankOrData list =
       SpecHeaders.blankOrData h.spec
   | TLDB db ->
       DB.blankOrData db
+  | TLPmFunc f ->
+      PackageManager.blankOrData f
   | TLFunc f ->
       UserFunctions.blankOrData f
   | TLTipe t ->
@@ -224,6 +241,8 @@ let getAST (tl : toplevel) : FluidAST.t option =
       Some h.ast
   | TLFunc f ->
       Some f.ufAST
+  | TLPmFunc fn ->
+      Some (FluidAST.ofExpr fn.body)
   | _ ->
       None
 
@@ -234,7 +253,7 @@ let setAST (tl : toplevel) (newAST : FluidAST.t) : toplevel =
       TLHandler {h with ast = newAST}
   | TLFunc uf ->
       TLFunc {uf with ufAST = newAST}
-  | TLDB _ | TLTipe _ | TLGroup _ ->
+  | TLDB _ | TLTipe _ | TLGroup _ | TLPmFunc _ ->
       tl
 
 
@@ -259,6 +278,8 @@ let setASTMod ?(ops = []) (tl : toplevel) (ast : FluidAST.t) : modification =
       if f.ufAST = ast
       then NoChange
       else AddOps (ops @ [SetFunction {f with ufAST = ast}], FocusNoChange)
+  | TLPmFunc _ ->
+      recover "cannot change ast in package manager" ~debug:tl NoChange
   | TLTipe _ ->
       recover "no ast in Tipes" ~debug:tl NoChange
   | TLDB _ ->
@@ -318,17 +339,25 @@ let combine
     (handlers : handler TD.t)
     (dbs : db TD.t)
     (userFunctions : userFunction TD.t)
+    (packageFn : packageFn TD.t)
     (userTipes : userTipe TD.t)
     (groups : group TD.t) : toplevel TD.t =
   TD.map ~f:(fun h -> TLHandler h) handlers
   |> TD.mergeLeft (TD.map ~f:(fun db -> TLDB db) dbs)
   |> TD.mergeLeft (TD.map ~f:ufToTL userFunctions)
+  |> TD.mergeLeft (TD.map ~f:pmfToTL packageFn)
   |> TD.mergeLeft (TD.map ~f:utToTL userTipes)
   |> TD.mergeLeft (TD.map ~f:(fun group -> TLGroup group) groups)
 
 
 let all (m : model) : toplevel TD.t =
-  combine m.handlers m.dbs m.userFunctions m.userTipes m.groups
+  combine
+    m.handlers
+    m.dbs
+    m.userFunctions
+    m.functions.packageFunctions
+    m.userTipes
+    m.groups
 
 
 let structural (m : model) : toplevel TD.t =
@@ -375,7 +404,7 @@ let asPage (tl : toplevel) (center : bool) : page =
       FocusedDB (id tl, center)
   | TLGroup _ ->
       FocusedGroup (id tl, center)
-  | TLFunc _ ->
+  | TLPmFunc _ | TLFunc _ ->
       FocusedFn (id tl, None)
   | TLTipe _ ->
       FocusedType (id tl)

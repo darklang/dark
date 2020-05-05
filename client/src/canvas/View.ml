@@ -29,8 +29,12 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         (ViewHandler.view vs h dragEvents, ViewData.viewData vs, true)
     | TLDB db ->
         (ViewDB.viewDB vs db dragEvents, [], true)
+    | TLPmFunc f ->
+        ([ViewUserFunction.view vs (PackageFn f)], [], false)
     | TLFunc f ->
-        ([ViewUserFunction.view vs f], ViewData.viewData vs, false)
+        ( [ViewUserFunction.view vs (UserFunction f)]
+        , ViewData.viewData vs
+        , false )
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [], false)
     | TLGroup g ->
@@ -179,7 +183,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | FocusedGroup _
     | SettingsModal _ ->
         TL.pos tl
-    | FocusedFn _ | FocusedType _ ->
+    | FocusedPackageManagerFn _ | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
   let hasFF =
@@ -281,7 +285,7 @@ let viewTL m tl =
       ViewCache.cache2m tlCacheKeyTipe viewTL_ m tl
   | TLDB _ ->
       ViewCache.cache2m tlCacheKeyDB viewTL_ m tl
-  | TLFunc _ | TLHandler _ ->
+  | TLPmFunc _ | TLFunc _ | TLHandler _ ->
       ViewCache.cache2m tlCacheKey viewTL_ m tl
 
 
@@ -304,6 +308,12 @@ let viewCanvas (m : model) : msg Html.html =
         (* Filter out toplevels that are not in a group *)
         |> List.filter ~f:(fun tl -> not (Groups.isInGroup (TL.id tl) m.groups))
         |> List.map ~f:(viewTL m)
+    | FocusedPackageManagerFn tlid ->
+      ( match TD.get ~tlid m.functions.packageFunctions with
+      | Some func ->
+          [viewTL m (TL.pmfToTL func)]
+      | None ->
+          [] )
     | FocusedFn (tlid, _) ->
       ( match TD.get ~tlid m.userFunctions with
       | Some func ->
@@ -356,6 +366,8 @@ let viewCanvas (m : model) : msg Html.html =
         "focused-handler"
     | FocusedDB _ ->
         "focused-db"
+    | FocusedPackageManagerFn _ ->
+        "focused-package-manager-fn"
     | FocusedFn _ ->
         "focused-fn"
     | FocusedType _ ->

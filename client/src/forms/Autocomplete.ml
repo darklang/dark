@@ -576,7 +576,7 @@ let tlGotoName (tl : toplevel) : string =
   | TLGroup g ->
       "Jump to Group: "
       ^ (g.gName |> B.toOption |> Option.withDefault ~default:"Undefined")
-  | TLFunc _ ->
+  | TLPmFunc _ | TLFunc _ ->
       recover "can't goto function" ~debug:tl "<invalid state>"
   | TLTipe _ ->
       recover "can't goto tipe " ~debug:tl "<invalid state>"
