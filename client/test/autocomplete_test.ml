@@ -556,15 +556,15 @@ let run () =
             |> TLIDDict.insert
                  ~tlid:http.hTLID
                  ~value:
-                   (http.ast |> FluidAST.toExpr |> FluidTokenizer.eToHumanString)
+                   (http.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
             |> TLIDDict.insert
                  ~tlid:repl.hTLID
                  ~value:
-                   (repl.ast |> FluidAST.toExpr |> FluidTokenizer.eToHumanString)
+                   (repl.ast |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
             |> TLIDDict.insert
                  ~tlid:fn.ufTLID
                  ~value:
-                   (fn.ufAST |> FluidAST.toExpr |> FluidTokenizer.eToHumanString)
+                   (fn.ufAST |> FluidAST.toExpr |> FluidPrinter.eToHumanString)
           in
           let m = {m with searchCache} in
           test "find variable" (fun () ->
