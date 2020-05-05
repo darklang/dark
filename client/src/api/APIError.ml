@@ -127,6 +127,8 @@ let msg (e : apiError) : string =
         "Bad url: " ^ str
     | Http.Timeout ->
         "Timeout"
+    | Http.NetworkError when e.context = "TriggerSendInviteCallback" ->
+        "Network error - Please contact Dark"
     | Http.NetworkError ->
         "Network error - is the server running?"
     | Http.BadStatus response ->
