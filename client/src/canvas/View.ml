@@ -305,7 +305,8 @@ let isAppScrollZero () : bool =
   Native.Ext.querySelector ("#" ^ appID)
   |> Option.map ~f:(fun app ->
          Native.Ext.scrollLeft app = 0.0 && Native.Ext.scrollTop app = 0.0)
-  |> recoverOpt "isAppScrollZero" ~default:true
+  (* Technically recoverOpt might be better here, but in some situations, #app doesn't exist yet *)
+  |> Option.withDefault ~default:true
 
 
 let viewCanvas (m : model) : msg Html.html =
