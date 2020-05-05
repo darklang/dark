@@ -291,7 +291,7 @@ let viewTL m tl =
  * Prefer [zeroOutAppScroll] if possible. *)
 let zeroOutAppScrollImmediate () : unit =
   Native.Ext.querySelector ("#" ^ appID)
-  |> Option.map ~f:(fun app -> Native.Ext.scrollTo app 0.0 0.0)
+  |> Option.map ~f:(fun app -> Native.Scroll.to' app 0.0 0.0)
   |> recoverOpt "zeroOutAppScroll" ~default:()
 
 
@@ -310,7 +310,7 @@ let zeroOutAppScroll : msg Tea.Cmd.t =
 let isAppScrollZero () : bool =
   Native.Ext.querySelector ("#" ^ appID)
   |> Option.map ~f:(fun app ->
-         Native.Ext.scrollLeft app = 0.0 && Native.Ext.scrollTop app = 0.0)
+         Native.Scroll.left app = 0.0 && Native.Scroll.top app = 0.0)
   (* Technically recoverOpt might be better here, but in some situations, #app doesn't exist yet *)
   |> Option.withDefault ~default:true
 

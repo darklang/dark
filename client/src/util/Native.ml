@@ -9,6 +9,16 @@ type rect =
 
 exception NativeCodeError of string
 
+module Scroll = struct
+  external height : Dom.element -> int = "scrollHeight" [@@bs.get]
+
+  external to' : Dom.element -> float -> float -> unit = "scrollTo" [@@bs.send]
+
+  external left : Dom.element -> float = "scrollLeft" [@@bs.get]
+
+  external top : Dom.element -> float = "scrollTop" [@@bs.get]
+end
+
 module Ext = struct
   let window : Dom.window =
     [%bs.raw "(typeof window === undefined) ? window : {}"]
@@ -21,8 +31,6 @@ module Ext = struct
   let querySelector (s : string) : Dom.element option =
     Js.Nullable.toOption (_querySelector s)
 
-
-  external scrollHeight : Dom.element -> int = "scrollHeight" [@@bs.get]
 
   external clientWidth : Dom.element -> int = "clientWidth" [@@bs.get]
 
@@ -59,13 +67,6 @@ module Ext = struct
 
   external redirect : string -> unit = "replace"
     [@@bs.val] [@@bs.scope "window", "location"]
-
-  external scrollTo : Dom.element -> float -> float -> unit = "scrollTo"
-    [@@bs.send]
-
-  external scrollLeft : Dom.element -> float = "scrollLeft" [@@bs.get]
-
-  external scrollTop : Dom.element -> float = "scrollTop" [@@bs.get]
 end
 
 module OffsetEstimator = struct
