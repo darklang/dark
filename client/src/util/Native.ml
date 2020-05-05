@@ -59,6 +59,13 @@ module Ext = struct
 
   external redirect : string -> unit = "replace"
     [@@bs.val] [@@bs.scope "window", "location"]
+
+  external scrollTo : Dom.element -> float -> float -> unit = "scrollTo"
+    [@@bs.send]
+
+  external scrollLeft : Dom.element -> float = "scrollLeft" [@@bs.get]
+
+  external scrollTop : Dom.element -> float = "scrollTop" [@@bs.get]
 end
 
 module OffsetEstimator = struct
