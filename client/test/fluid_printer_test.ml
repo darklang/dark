@@ -16,12 +16,9 @@ let run () =
       test "field access keeps parentBlockID" (fun () ->
           let parentID = gid () in
           let expr =
-            E.EBinOp
+            E.EList
               ( parentID
-              , "+"
-              , b
-              , EFieldAccess (gid (), EVariable (gid (), "obj"), "field")
-              , NoRail )
+              , [EFieldAccess (gid (), EVariable (gid (), "obj"), "field")] )
           in
           let tokens = tokensFor expr in
           expect
