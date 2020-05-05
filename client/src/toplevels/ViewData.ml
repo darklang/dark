@@ -46,13 +46,11 @@ let viewTrace
     (timestamp : string option)
     (isActive : bool)
     (isHover : bool)
-    (isUnfetchable : bool)
-    (tipe : tipe) : msg Html.html =
+    (isUnfetchable : bool) : msg Html.html =
   let tlid = TL.id tl in
   let classes =
     [ ("active", isActive)
     ; ("mouseovered", isHover)
-    ; ("tipe-" ^ Runtime.tipe2str tipe, true)
     ; ("traceid-" ^ traceID, true)
     ; ("unfetchable", isUnfetchable) ]
   in
@@ -118,7 +116,7 @@ let viewTrace
   Html.li props (dotHtml @ [viewData])
 
 
-let viewTraces (vs : ViewUtils.viewState) (astID : ID.t) : msg Html.html list =
+let viewTraces (vs : ViewUtils.viewState) : msg Html.html list =
   let traceToHtml ((traceID, traceData) : trace) =
     let value =
       Option.map ~f:(fun td -> td.input) (traceData |> Result.to_option)
@@ -136,26 +134,13 @@ let viewTraces (vs : ViewUtils.viewState) (astID : ID.t) : msg Html.html list =
     let isUnfetchable =
       match traceData with Error MaximumCallStackError -> true | _ -> false
     in
-    let astTipe =
-      Analysis.getTipeOf' vs.analysisStore astID
-      |> Option.withDefault ~default:TIncomplete
-    in
-    viewTrace
-      vs.tl
-      traceID
-      value
-      timestamp
-      isActive
-      isHover
-      isUnfetchable
-      astTipe
+    viewTrace vs.tl traceID value timestamp isActive isHover isUnfetchable
   in
   List.map ~f:traceToHtml vs.traces
 
 
 let viewData (vs : ViewUtils.viewState) : msg Html.html list =
-  let astID = FluidAST.toID vs.astInfo.ast in
-  let requestEls = viewTraces vs astID in
+  let requestEls = viewTraces vs in
   let tlSelected =
     match CursorState.tlidOf vs.cursorState with
     | Some tlid when tlid = vs.tlid ->

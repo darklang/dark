@@ -7,10 +7,10 @@
   resolved "https://registry.yarnpkg.com/@elliottcable/bs-result/-/bs-result-12.0.0.tgz#8830bcbf807c7ad3d7a7afa97da70415a0b10e68"
   integrity sha512-o1AxswioCueiTlyw0M8U1Xh7netzJ8VPTcJJL5EY9BvttWKIlBWYOb9FzxxRWY+eQvpE2uwLlJzFH1i6Gd1h4g==
 
-"@fullstory/browser@^1.4.3":
-  version "1.4.3"
-  resolved "https://registry.yarnpkg.com/@fullstory/browser/-/browser-1.4.3.tgz#c5bc46ec430ede8e6dfb2e640a2deda244e4bc25"
-  integrity sha512-Az4zH6GlELI2T9b0CJ7nL5vc+7v2lBg/C5CacX6/1sq5nKC8SxylsGKqVM9SdddiUfZTXjs+LkrUQ6MT/R86VQ==
+"@fullstory/browser@^1.4.4":
+  version "1.4.4"
+  resolved "https://registry.yarnpkg.com/@fullstory/browser/-/browser-1.4.4.tgz#56e8db9f97b036892e419f5d6d1a510a3b68dd39"
+  integrity sha512-gV028/krZRvseyR6WEpphrZdlskoKTPV7x8mAbU9X0dOoUUZEdIr3J9ADyFPxcWGJgKL45zrplvgifBQXdKgVg==
 
 "@glennsl/bs-json@5.0.2":
   version "5.0.2"
@@ -3699,10 +3699,10 @@ moment-duration-format-commonjs@^1.0.0:
   resolved "https://registry.yarnpkg.com/moment-duration-format-commonjs/-/moment-duration-format-commonjs-1.0.0.tgz#dc5de612e6d6ff41f774d03772a139a363563bc3"
   integrity sha512-MVFR4hIh4jfuwSCPBEE5CCwn3refvTsxK/Yv/DpKJ6YcNnCimlVJ6DQeTJG1KVQPw1o8m3tkbHE9gVjivyv9iA==
 
-moment@^2.10.3, moment@^2.14.1, moment@^2.24.0:
-  version "2.24.0"
-  resolved "https://registry.yarnpkg.com/moment/-/moment-2.24.0.tgz#0d055d53f5052aa653c9f6eb68bb5d12bf5c2b5b"
-  integrity sha512-bV7f+6l2QigeBBZSM/6yTNq4P2fNpSWj/0e7jQcy87A8e7o2nAfP/34/2ky5Vw4B9S446EtIhodAzkFCcR4dQg==
+moment@^2.10.3, moment@^2.14.1, moment@^2.25.3:
+  version "2.25.3"
+  resolved "https://registry.yarnpkg.com/moment/-/moment-2.25.3.tgz#252ff41319cf41e47761a1a88cab30edfe9808c0"
+  integrity sha512-PuYv0PHxZvzc15Sp8ybUCoQ+xpyPWvjOuK72a5ovzp2LI32rJXOiIfyoFoYvG3s6EwwrdkMyWuRiEHSZRLJNdg==
 
 mouse-wheel@1.2.0:
   version "1.2.0"
