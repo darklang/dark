@@ -642,6 +642,26 @@ let getNeighbours ~(pos : int) (tokens : tokenInfos) :
   (toTheLeft, toTheRight, mNext)
 
 
+(* This is slightly different from getToken. Here we simply want the token
+ * closest to the caret that is a not TNewline nor TSep. It is used for
+ * figuring out where your caret is, to determine whether certain rendering
+ * behavior should be applicable *)
+let getTokenNotWhitespace (tokens : T.tokenInfo list) (s : fluidState) :
+    T.tokenInfo option =
+  let left, right, _ = getNeighbours ~pos:s.newPos tokens in
+  match (left, right) with
+  | L (_, lti), R (TNewline _, _) ->
+      Some lti
+  | L (lt, lti), _ when T.isTextToken lt ->
+      Some lti
+  | _, R (_, rti) ->
+      Some rti
+  | L (_, lti), _ ->
+      Some lti
+  | _ ->
+      None
+
+
 let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
   (* The algorithm that decides what token on when a certain key is pressed is

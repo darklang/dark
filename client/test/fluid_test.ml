@@ -4902,11 +4902,12 @@ let run () =
       ()) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
+          let open FluidTokenizer in
           let id = ID.fromString "543" in
           expect
             (let ast = E.EString (id, "test") in
-             let tokens = FluidTokenizer.tokenize ast in
-             Fluid.getNeighbours ~pos:3 tokens)
+             let tokens = tokenize ast in
+             getNeighbours ~pos:3 tokens)
           |> toEqual
                (let token = TString (id, "test", None) in
                 let ti =

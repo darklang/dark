@@ -40,6 +40,9 @@ val getNeighbours :
 val getToken' :
   FluidToken.tokenInfo list -> Types.fluidState -> FluidToken.tokenInfo option
 
+val getTokenNotWhitespace :
+  FluidToken.tokenInfo list -> Types.fluidState -> FluidToken.tokenInfo option
+
 module ASTInfo : sig
   type t =
     { ast : FluidAST.t
