@@ -78,25 +78,6 @@ data:
         dataset: kubernetes-bwd-ocaml
         parser: json
         processors:
-        # 'request' is what we now call 'handler_name'; it's in here for the
-        # moment so honeycomb knows how to handle both for the brief period when
-        # we have logs with the old name and logs with the new name.
-        - request_shape:
-            field: request
-            patterns:
-            - /a/:canvas
-            - /api/:canvas/save_test
-            - /api/:canvas/rpc
-            - /api/:canvas/add_op
-            - /api/:canvas/initial_load
-            - /api/:canvas/execute_function
-            - /api/:canvas/get_trace_data
-            - /api/:canvas/get_unlocked_dbs
-            - /api/:canvas/get_worker_stats
-            - /api/:canvas/get_db_stats
-            - /api/:canvas/delete_404
-            - /api/:canvas/static_assets
-            - /canvas/:canvas/events/:event # stroller - not currently routed through nginx
         - request_shape:
             field: handler_name
             patterns:
@@ -131,6 +112,10 @@ data:
             config_file: /etc/nginx/conf.d/nginx.conf
             log_format: '$remote_addr - $remote_user [$time_local] $host "$request" $status $bytes_sent $body_bytes_sent $request_time "$http_referer" "$http_user_agent" $request_length "$http_authorization" "$http_x_forwarded_proto" "$http_x_forwarded_for" $server_name "$upstream_http_x_darklang_execution_id" "$http_cookie" "$upstream_http_x_dark_username" "$http_x_darklang_client_version" "$upstream_http_x_darklang_server_version"'
         processors:
+        - drop_field:
+            field: http_authorization
+        - drop_field:
+            field: http_cookie
         - request_shape:
             field: request
             patterns:

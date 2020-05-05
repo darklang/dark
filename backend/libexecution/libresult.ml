@@ -29,7 +29,7 @@ let fns =
     ; parameters = [par "result" TResult; func ["val"]]
     ; return_type = TResult
     ; description =
-        "If `result` is `Ok value`, returns `Ok (f value)` (the lambda `f` is applied to `value` and the result is wrapped in `Ok`). If `result` is `Error msg`, returns `result` unchanged."
+        "If <param result> is {{Ok <var value>}}, returns {{Ok (f <var value>)}}. The lambda <param f> is applied to <var value> and the result is wrapped in {{Ok}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."
     ; func =
         InProcess
           (function
@@ -69,7 +69,7 @@ let fns =
     ; parameters = [par "result" TResult; func ["val"]]
     ; return_type = TResult
     ; description =
-        "If `result` is `Error msg`, returns `Error (f msg)` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok value`, returns `result` unchanged."
+        "If <param result> is {{Error <var msg>}}, returns {{Error (f <var msg>)}}. The lambda <var f> is applied to <var msg> and the result is wrapped in {{Error}}. If <param result> is {{Ok <var value>}}, returns <param result> unchanged."
     ; func =
         InProcess
           (function
@@ -89,7 +89,7 @@ let fns =
     ; parameters = [par "result" TResult; par "default" TAny]
     ; return_type = TAny
     ; description =
-        "If `result` is `Ok value`, returns `value`. Returns `default` otherwise."
+        "If <param result> is {{Ok <var value>}}, returns <var value>. Returns <param default> otherwise."
     ; func =
         InProcess
           (function
@@ -123,7 +123,7 @@ let fns =
     ; parameters = [par "option" TOption; par "error" TStr]
     ; return_type = TResult
     ; description =
-        "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just value`, returns `Ok value`. Returns `Error error` otherwise."
+        "Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise."
     ; func =
         InProcess
           (function
@@ -184,9 +184,7 @@ let fns =
         [par "result1" TResult; par "result2" TResult; func ["v1"; "v2"]]
     ; return_type = TResult
     ; description =
-        "If both arguments are `Ok` (`result1` is `Ok v1` and `result2` is `Ok v2`), returns `Ok (f v1 v2)` --
-        the lambda `f` is applied to `v1` and `v2`, and the result is wrapped in `Ok`.
-        Otherwise, returns the first of `result1` and `result2` that is an error."
+        "If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var v2>}}, returns {{Ok (f <var v1> <var v2>)}} -- the lambda <var f> is applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}. Otherwise, returns the first of <param result1> and <param result2> that is an error."
     ; func =
         InProcess
           (function
@@ -235,7 +233,7 @@ let fns =
     ; parameters = [par "result" TResult; func ["val"]]
     ; return_type = TResult
     ; description =
-        "If `result` is `Ok value`, returns `f value` (the lambda `f` is applied to `value` and must return `Error msg` or `Ok newValue`). If `result` is `Error msg`, returns `result` unchanged."
+        "If <param result> is {{Ok <var value>}}, returns {{f <var value>}}. The lambda <param f> is applied to <var value> and must return {{Error <var msg>}} or {{Ok <var newValue>}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."
     ; func =
         InProcess
           (function
