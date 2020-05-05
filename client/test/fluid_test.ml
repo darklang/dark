@@ -3822,6 +3822,12 @@ let run () =
         (ins ",")
         "[56,~___]" ;
       t
+        "insert separator after separator creates blank"
+        (list [int 1; int 2; int 3])
+        ~pos:5
+        (ins ",")
+        "[1,2,~___,3]" ;
+      t
         "insert separator after item creates blank when list is in match"
         (match' single [(pBlank (), b)])
         ~pos:9
