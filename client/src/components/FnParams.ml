@@ -154,7 +154,7 @@ let viewParamSpace (index : int) (fs : fnProps) : msg Html.html =
 
 
 let viewParam
-    (fn : userFunction)
+    (fn : functionTypes)
     (vs : viewState)
     (index : int)
     (p : userFunctionParameter) : msg Html.html list =
@@ -177,37 +177,62 @@ let viewParam
       , vs.fnProps.justMovedParam |> Option.isSomeEqualTo ~value:nameId ) ]
   in
   let param =
+    let events =
+      match fn with
+      | UserFunction _ ->
+          [ Tea.Html2.Attributes.draggable "true"
+          ; onEvent
+              ~event:"dragstart"
+              ~key:("fpds-" ^ strId)
+              ~preventDefault:false
+              dragStart
+          ; onEvent ~event:"dragend" ~key:("fpde-" ^ strId) dragEnd
+          ; ViewUtils.onAnimationEnd
+              ~key:("fpdfaded-" ^ strId)
+              ~listener:flashFade ]
+      | PackageFn _ ->
+          []
+    in
+    let killParamBtn =
+      match fn with
+      | UserFunction fn when vs.permission = Some ReadWrite ->
+          viewKillParameterBtn fn p
+      | _ ->
+          Vdom.noNode
+    in
+    let dragIcon =
+      match fn with
+      | UserFunction _ ->
+          fontAwesome "grip-lines"
+      | PackageFn _ ->
+          Vdom.noNode
+    in
     Html.div
       ~unique:strId
-      [ Html.classList (("col param", true) :: conditionalClasses)
-      ; Tea.Html2.Attributes.draggable "true"
-      ; Vdom.attribute "" "data-pos" (string_of_int index)
-      ; onEvent
-          ~event:"dragstart"
-          ~key:("fpds-" ^ strId)
-          ~preventDefault:false
-          dragStart
-      ; onEvent ~event:"dragend" ~key:("fpde-" ^ strId) dragEnd
-      ; ViewUtils.onAnimationEnd ~key:("fpdfaded-" ^ strId) ~listener:flashFade
-      ]
-      [ ( if vs.permission = Some ReadWrite
-        then viewKillParameterBtn fn p
-        else Vdom.noNode )
+      ( [ Html.classList (("col param", true) :: conditionalClasses)
+        ; Vdom.attribute "" "data-pos" (string_of_int index) ]
+      @ events )
+      [ killParamBtn
       ; viewParamName vs ~classes:["name"] p.ufpName
       ; viewParamTipe vs ~classes:["type"] p.ufpTipe
-      ; fontAwesome "grip-lines" ]
+      ; dragIcon ]
   in
   let space = viewParamSpace index vs.fnProps in
   [space; param]
 
 
-let view (fn : userFunction) (vs : viewState) : msg Html.html list =
+let view (fn : functionTypes) (vs : viewState) : msg Html.html list =
   let params =
-    fn.ufMetadata.ufmParameters
-    |> List.indexedMap ~f:(viewParam fn vs)
-    |> List.flatten
+    match fn with
+    | UserFunction f ->
+        f.ufMetadata.ufmParameters
+        |> List.indexedMap ~f:(viewParam fn vs)
+        |> List.flatten
+    | PackageFn f ->
+        f.parameters
+        |> List.map ~f:PackageManager.pmParamsToUserFnParams
+        |> List.indexedMap ~f:(viewParam fn vs)
+        |> List.flatten
   in
-  let lastSpace =
-    viewParamSpace (List.length fn.ufMetadata.ufmParameters) vs.fnProps
-  in
+  let lastSpace = viewParamSpace (List.length params) vs.fnProps in
   params @ [lastSpace]

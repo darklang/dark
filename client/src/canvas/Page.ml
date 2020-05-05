@@ -7,6 +7,7 @@ let tlidOf (page : page) : TLID.t option =
   match page with
   | SettingsModal _ | Architecture ->
       None
+  | FocusedPackageManagerFn tlid
   | FocusedFn (tlid, _)
   | FocusedHandler (tlid, _, _)
   | FocusedDB (tlid, _)
@@ -62,6 +63,7 @@ let setPageTraceID (oldPage : page) (traceID : traceID) : page =
 
 let getTraceID (page : page) : traceID option =
   match page with
+  | FocusedPackageManagerFn _
   | FocusedDB _
   | FocusedGroup _
   | FocusedType _
@@ -90,6 +92,11 @@ let updatePossibleTrace (m : model) (page : page) : model * msg Cmd.t =
 
 let setPage (m : model) (oldPage : page) (newPage : page) : model =
   match (oldPage, newPage) with
+  | SettingsModal _, FocusedPackageManagerFn tlid
+  | Architecture, FocusedPackageManagerFn tlid
+  | FocusedHandler _, FocusedPackageManagerFn tlid
+  | FocusedDB _, FocusedPackageManagerFn tlid
+  | FocusedGroup _, FocusedPackageManagerFn tlid
   | SettingsModal _, FocusedFn (tlid, _)
   | Architecture, FocusedFn (tlid, _)
   | FocusedHandler _, FocusedFn (tlid, _)
@@ -113,9 +120,14 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
   | FocusedFn (oldtlid, otid), FocusedFn (newtlid, tid)
     when oldtlid == newtlid && otid <> tid ->
       {m with currentPage = newPage; cursorState = Selecting (newtlid, None)}
+  | FocusedPackageManagerFn oldtlid, FocusedPackageManagerFn newtlid
+  | FocusedType oldtlid, FocusedPackageManagerFn newtlid
+  | FocusedPackageManagerFn oldtlid, FocusedType newtlid
   | FocusedFn (oldtlid, _), FocusedFn (newtlid, _)
   | FocusedType oldtlid, FocusedFn (newtlid, _)
   | FocusedFn (oldtlid, _), FocusedType newtlid
+  | FocusedPackageManagerFn oldtlid, FocusedFn (newtlid, _)
+  | FocusedFn (oldtlid, _), FocusedPackageManagerFn newtlid
   | FocusedType oldtlid, FocusedType newtlid ->
       (* Going between fn pages
     * Check they are not the same user function;
@@ -128,6 +140,9 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           currentPage = newPage
         ; canvasProps = {m.canvasProps with offset = Defaults.origin}
         ; cursorState = Selecting (newtlid, None) }
+  | FocusedPackageManagerFn _, FocusedHandler (tlid, _, _)
+  | FocusedPackageManagerFn _, FocusedDB (tlid, _)
+  | FocusedPackageManagerFn _, FocusedGroup (tlid, _)
   | FocusedFn _, FocusedHandler (tlid, _, _)
   | FocusedFn _, FocusedDB (tlid, _)
   | FocusedFn _, FocusedGroup (tlid, _)
@@ -181,7 +196,9 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
         TL.get m tlid
         |> Option.map ~f:(fun tl -> calculatePanOffset m tl newPage)
         |> recoverOpt "switching to missing tl" ~default:m
-  | FocusedFn _, Architecture | FocusedType _, Architecture ->
+  | FocusedPackageManagerFn _, Architecture
+  | FocusedFn _, Architecture
+  | FocusedType _, Architecture ->
       (* Going from fn back to Architecture
     * Return to the previous position you were on the canvas
     *)
@@ -215,7 +232,10 @@ let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
   | FocusedDB _, FocusedFn _
   | Architecture, FocusedType _
   | FocusedHandler _, FocusedType _
-  | FocusedDB _, FocusedType _ ->
+  | FocusedDB _, FocusedType _
+  | Architecture, FocusedPackageManagerFn _
+  | FocusedHandler _, FocusedPackageManagerFn _
+  | FocusedDB _, FocusedPackageManagerFn _ ->
       [Native.OnCaptureView.capture ()]
   | _ ->
       []

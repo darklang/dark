@@ -438,6 +438,8 @@ let submitACItem
                   wrapNew [SetType t] next
               | TLGroup g ->
                   AddGroup g
+              | TLPmFunc _ ->
+                  recover "no vars in pmfn" ~debug:tl NoChange
               | TLDB _ ->
                   recover "no vars in DBs" ~debug:tl NoChange
           in

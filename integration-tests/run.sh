@@ -81,9 +81,10 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   # Fix xunit output for CircleCI flaky-tests stats
   sed -i 's/ (screenshots: .*)"/"/' "rundir/test_results/integration_tests.xml"
-
-  scripts/support/integration-test-results-to-honeycomb.sh
-
+  
+  if [[ -v CI ]]; then
+    scripts/support/integration-test-results-to-honeycomb.sh
+  fi
   exit $RESULT
 else
   # Check the testcafe version (matters when running outside the container)

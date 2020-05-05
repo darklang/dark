@@ -145,7 +145,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | TLHandler _ ->
         (* Doing explicit match here just to be safe, even though we can probably assume you can't have handlerProp without it being a handler from code above. *)
         (match hp with Some p -> p.execution = Executing | _ -> false)
-      | TLDB _ | TLTipe _ | TLGroup _ ->
+      | TLPmFunc _ | TLDB _ | TLTipe _ | TLGroup _ ->
           false )
   ; fnProps = m.currentUserFn
   ; showHandlerASTs = m.editorSettings.showHandlerASTs }

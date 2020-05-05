@@ -100,6 +100,7 @@ fixture`Integration Tests`
         ["\n\nConsole Infos:"],
         info,
       );
+      console.log("Printing logs to rundir/integration_test_logs/");
       fs.writeFile(
         `rundir/integration_test_logs/${testname}.log`,
         msgs.join("\n"),
