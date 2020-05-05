@@ -329,7 +329,8 @@ let rec reorderFnCallArgs
               if oldPos == 0 || newPos == 0
               then
                 match pipeArg with
-                | EFnCall (fnID, name, args, sendToRail) when name = fnName ->
+                | EFnCall (fnID, name, _pipeTarget :: args, sendToRail)
+                  when name = fnName ->
                     let newArg = EVariable (gid (), "x") in
                     let newArgs =
                       List.moveInto ~oldPos ~newPos (newArg :: args)
@@ -343,9 +344,11 @@ let rec reorderFnCallArgs
                     pipeArg
               else
                 (* The pipetarget isn't involved, so just do it normally. *)
-                reorderFnCallArgs fnName (oldPos - 1) (newPos - 1) pipeArg)
+                reorderFnCallArgs fnName oldPos newPos pipeArg)
         in
         EPipe (id, newFirst :: newRest)
+    | EPipeTarget _ ->
+        expr
     | e ->
         E.deprecatedWalk ~f:replaceArgs e
   in
