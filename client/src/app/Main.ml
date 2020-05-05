@@ -1030,8 +1030,7 @@ let update_ (msg : msg) (m : model) : modification =
   | AppScroll _ ->
       (* This is needed to ensure that when we
        * translate the canvas, it moves in absolute space (see docstring for more). *)
-      View.zeroOutAppScroll () ;
-      NoChange
+      ReplaceAllModificationsWithThisOne (fun m -> (m, View.zeroOutAppScroll))
   | WindowMouseUp event | AppMouseUp event ->
       let clickBehavior =
         match m.currentPage with

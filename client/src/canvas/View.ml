@@ -287,14 +287,20 @@ let viewTL m tl =
       ViewCache.cache2m tlCacheKey viewTL_ m tl
 
 
-(** [zeroOutAppScroll ()] forces the scroll of #app to 0,0.
- * We need the invariant of #app scrolled to 0,0 to be maintained in order for #canvas translate to work.
- * See https://www.notion.so/darklang/Positioning-Bug-8831a3e00a234e55856a85861512876e
- * for more information about this constraint and what happens if it is broken. *)
-let zeroOutAppScroll () : unit =
+(** [zeroOutAppScrollImmediate ()] immediately forces the scroll of #app to 0,0.
+ * Prefer [zeroOutAppScroll] if possible. *)
+let zeroOutAppScrollImmediate () : unit =
   Native.Ext.querySelector ("#" ^ appID)
   |> Option.map ~f:(fun app -> Native.Ext.scrollTo app 0.0 0.0)
   |> recoverOpt "zeroOutAppScroll" ~default:()
+
+
+(** [zeroOutAppScroll] returns a Tea.Cmd.t that forces the scroll of #app to 0,0.
+ * We need the invariant of #app scrolled to 0,0 to be maintained in order for #canvas translate to work.
+ * See https://www.notion.so/darklang/Positioning-Bug-8831a3e00a234e55856a85861512876e
+ * for more information about this constraint and what happens if it is broken. *)
+let zeroOutAppScroll : msg Tea.Cmd.t =
+  Tea.Cmd.call (fun _ -> zeroOutAppScrollImmediate ())
 
 
 (** [isAppScrollZero ()] returns true if the scroll of #app is 0,0 and false otherwise.
@@ -347,7 +353,7 @@ let viewCanvas (m : model) : msg Html.html =
    * for a performance boost. *)
   if isAppScrollZero ()
   then ()
-  else recover "forcibly corrected position bug" (zeroOutAppScroll ()) ;
+  else recover "forcibly corrected position bug" (zeroOutAppScrollImmediate ()) ;
   (* END HACK *)
   (* Note that the following translation is container relative,
   * so we must ensure that none of the parent elements are scrolled or otherwise moved. *)
