@@ -971,7 +971,7 @@ let clickEvent (fn : mouseEvent -> 'a) j : 'a =
  *
  * Example usage:
  *
- *  let constructor = (fun scrollEvent -> AppScroll scrollEvent) in
+ *  let constructor = (fun _scrollEvent -> AppScroll) in
  *  Tea.Html.onWithOptions
  *   ~key
  *   event

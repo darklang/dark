@@ -521,10 +521,8 @@ let view (m : model) : msg Html.html =
           AppMouseDown mouseEvent)
     ; ViewUtils.eventNeither ~key:"app-mu" "mouseup" (fun mouseEvent ->
           AppMouseUp mouseEvent)
-    ; ViewUtils.scrollEventNeither
-        ~key:"app-scroll"
-        "scroll"
-        (fun scrollEvent -> AppScroll scrollEvent) ]
+    ; ViewUtils.scrollEventNeither ~key:"app-scroll" "scroll" (fun _ ->
+          AppScroll) ]
   in
   let attributes =
     [Html.id appID; Html.class' ("app " ^ VariantTesting.activeCSSClasses m)]
