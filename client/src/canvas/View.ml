@@ -401,25 +401,8 @@ let viewCanvas (m : model) : msg Html.html =
     ; Html.class' ("canvas " ^ pageClass)
     ; Html.styles styles
     ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
-          Debug.loG ".onTransitionEnd" prop;
           if prop = "transform"
-          then (
-            (* BEGIN HACK: Chrome seems to forget translation state sometimes.
-             * Force it to where it should have ended up.
-             * This was a patch to try to fix the "positioning bug" that sometimes caused
-             * navigation to jump to empty space rather than the correct handler, but it actually just made the bug more commonly visible.
-             * See https://stackoverflow.com/questions/55646196/css-transformation-change-during-transition-causes-current-state-to-get-lost-and *)
-            (* Ask the browser to set transform to its computed state *)
-            (ignore [%raw "console.log('Client Rect:', document.getElementById('canvas').getBoundingClientRect())"]);
-            (ignore [%raw "console.log('Transform:', document.getElementById('canvas').style.transform)"]);
-            (* Force a browser reflow *)
-            (ignore [%raw "document.getElementById('canvas').style.transform = getComputedStyle(document.getElementById('canvas')).transform"]);
-            (ignore [%raw "document.getElementById('canvas').innerWidth"]);
-            (ignore [%raw "console.log('>Client Rect:', document.getElementById('canvas').getBoundingClientRect())"]);
-            (ignore [%raw "console.log('>Transform:', document.getElementById('canvas').style.transform)"]);
-            (ignore [%raw "console.log(getComputedStyle(document.getElementById('canvas')).transform)"]);
-            (* END HACK *)
-            CanvasPanAnimationEnd)
+          then CanvasPanAnimationEnd
           else IgnoreMsg "canvas-pan-end") ]
     (overlay :: allDivs)
 
