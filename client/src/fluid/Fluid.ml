@@ -4434,6 +4434,13 @@ let rec updateKey
         astInfo
         |> ASTInfo.setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
         |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
+    | InsertText ",", L (TListComma (id, index), _), _ when onEdge ->
+        let bID = gid () in
+        let newExpr = E.EBlank bID (* new separators *) in
+        astInfo
+        |> ASTInfo.setAST
+             (insertInList ~index:(index + 1) id ~newExpr astInfo.ast)
+        |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
     | InsertText ",", L (TLambdaSymbol (id, _), _), _ when onEdge ->
         astInfo
         |> ASTInfo.setAST (insertLambdaVar ~index:0 id ~name:"" astInfo.ast)
