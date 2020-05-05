@@ -41,130 +41,9 @@ let deselectFluidEditor (s : fluidState) : fluidState =
   {s with oldPos = 0; newPos = 0; upDownCol = None; activeEditor = NoEditor}
 
 
-let tokenizeForActiveEditor (expr : FluidExpression.t) (s : fluidState) :
-    tokenInfos =
-  Tokenizer.tokenizeForEditor s.activeEditor expr
-
-
-let tokensForActiveEditor (ast : FluidAST.t) (s : fluidState) : tokenInfos =
-  Tokenizer.tokensForEditor s.activeEditor ast
-
-
-let propsFromModel (m : model) : props =
-  {functions = m.functions; variants = m.tests}
-
-
 (* -------------------- *)
 (* Nearby tokens *)
 (* -------------------- *)
-
-type neighbour =
-  | L of T.t * T.tokenInfo
-  | R of T.t * T.tokenInfo
-  | No
-
-let rec getTokensAtPosition ?(prev = None) ~(pos : int) (tokens : tokenInfos) :
-    T.tokenInfo option * T.tokenInfo option * T.tokenInfo option =
-  (* Get the next token and the remaining tokens, skipping indents. *)
-  let rec getNextToken (infos : tokenInfos) : T.tokenInfo option * tokenInfos =
-    match infos with
-    | ti :: rest ->
-        if T.isSkippable ti.token then getNextToken rest else (Some ti, rest)
-    | [] ->
-        (None, [])
-  in
-  match getNextToken tokens with
-  | None, _remaining ->
-      (prev, None, None)
-  | Some current, remaining ->
-      if current.endPos > pos
-      then
-        let next, _ = getNextToken remaining in
-        (prev, Some current, next)
-      else getTokensAtPosition ~prev:(Some current) ~pos remaining
-
-
-let getNeighbours ~(pos : int) (tokens : tokenInfos) :
-    neighbour * neighbour * T.tokenInfo option =
-  let mPrev, mCurrent, mNext = getTokensAtPosition ~pos tokens in
-  let toTheRight =
-    match mCurrent with Some current -> R (current.token, current) | _ -> No
-  in
-  (* The token directly before the cursor (skipping whitespace) *)
-  let toTheLeft =
-    match (mPrev, mCurrent) with
-    | Some prev, _ when prev.endPos >= pos ->
-        L (prev.token, prev)
-    (* The left might be separated by whitespace *)
-    | Some prev, Some current when current.startPos >= pos ->
-        L (prev.token, prev)
-    | None, Some current when current.startPos < pos ->
-        (* We could be in the middle of a token *)
-        L (current.token, current)
-    | None, _ ->
-        No
-    | _, Some current ->
-        L (current.token, current)
-    | Some prev, None ->
-        (* Last position in the ast *)
-        L (prev.token, prev)
-  in
-  (toTheLeft, toTheRight, mNext)
-
-
-(* This is slightly different from getToken. Here we simply want the token
- * closest to the caret that is a not TNewline nor TSep. It is used for
- * figuring out where your caret is, to determine whether certain rendering
- * behavior should be applicable *)
-let getTokenNotWhitespace (tokens : T.tokenInfo list) (s : fluidState) :
-    T.tokenInfo option =
-  let left, right, _ = getNeighbours ~pos:s.newPos tokens in
-  match (left, right) with
-  | L (_, lti), R (TNewline _, _) ->
-      Some lti
-  | L (lt, lti), _ when T.isTextToken lt ->
-      Some lti
-  | _, R (_, rti) ->
-      Some rti
-  | L (_, lti), _ ->
-      Some lti
-  | _ ->
-      None
-
-
-let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
-  let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
-  (* The algorithm that decides what token on when a certain key is pressed is
-   * in updateKey. It's pretty complex and it tells us what token a keystroke
-   * should apply to. For all other places that need to know what token we're
-   * on, this attemps to approximate that.
-
-   * The cursor at newPos is either in a token (eg 3 chars into "myFunction"),
-   * or between two tokens (eg 1 char into "4 + 2").
-
-   * If we're between two tokens, we decide by looking at whether the left
-   * token is a text token. If it is, it's likely that we're just typing.
-   * Otherwise, the important token is probably the right token.
-   *
-   * Example: `4 + 2`, when the cursor is at position: 0): 4 is to the right,
-   * nothing to the left. Choose 4 1): 4 is a text token to the left, choose 4
-   * 2): the token to the left is not a text token (it's a TSep), so choose +
-   * 3): + is a text token to the left, choose + 4): 2 is to the right, nothing
-   * to the left. Choose 2 5): 2 is a text token to the left, choose 2
-   *
-   * Reminder that this is an approximation. If we find bugs we may need to go
-   * much deeper.
-   *)
-  match (toTheLeft, toTheRight) with
-  | L (_, ti), _ when T.isTextToken ti.token ->
-      Some ti
-  | _, R (_, ti) ->
-      Some ti
-  | L (_, ti), _ ->
-      Some ti
-  | _ ->
-      None
-
 
 let astInfoFromModelAndTLID
     ?(removeTransientState = true) (m : model) (tlid : TLID.t) :
@@ -188,7 +67,7 @@ let astInfoFromModelAndTLID
              let newM = removeHandlerTransientState m in
              newM.fluidState
          in
-         ASTInfo.make (propsFromModel m) ast state)
+         ASTInfo.make (FluidUtil.propsFromModel m) ast state)
 
 
 let astInfoFromModel (m : model) : ASTInfo.t option =
@@ -2443,7 +2322,9 @@ let acMoveBasedOnKey
         *)
         let startPos = posFromCaretTarget currCaretTarget astInfo in
         ( match
-            getNeighbours ~pos:startPos (ASTInfo.activeTokenInfos astInfo)
+            FluidTokenizer.getNeighbours
+              ~pos:startPos
+              (ASTInfo.activeTokenInfos astInfo)
           with
         | _, R (TNewline _, _), _ ->
             (* If we're on a newline, don't move forward *)
@@ -4138,7 +4019,7 @@ let rec updateKey
   let origAstInfo = astInfo in
   let pos = astInfo.state.newPos in
   let toTheLeft, toTheRight, mNext =
-    astInfo |> ASTInfo.activeTokenInfos |> getNeighbours ~pos
+    astInfo |> ASTInfo.activeTokenInfos |> FluidTokenizer.getNeighbours ~pos
   in
   let onEdge =
     match (toTheLeft, toTheRight) with
@@ -4928,7 +4809,8 @@ let expressionRange (exprID : ID.t) (astInfo : ASTInfo.t) : (int * int) option =
   let containingTokens = ASTInfo.activeTokenInfos astInfo in
   let exprTokens =
     FluidAST.find exprID astInfo.ast
-    |> Option.map ~f:(fun expr -> tokenizeForActiveEditor expr astInfo.state)
+    |> Option.map ~f:(fun expr ->
+           FluidTokenizer.tokenizeForEditor astInfo.state.activeEditor expr)
     |> Option.withDefault ~default:[]
   in
   let exprStartToken, exprEndToken =
@@ -5536,7 +5418,7 @@ let updateMouseDoubleClick
         |> recoverOpt ~default:(0, 0) "no expression range found at caret"
     | SelectTokenAt (selectionStart, selectionEnd) ->
       ( match
-          getToken'
+          FluidTokenizer.getToken'
             (ASTInfo.activeTokenInfos astInfo)
             {astInfo.state with newPos = selectionStart}
         with
@@ -5708,7 +5590,7 @@ let updateMsg
     (ast : FluidAST.t)
     (s : fluidState)
     (msg : Types.fluidMsg) : FluidAST.t * fluidState * tokenInfos =
-  let props = propsFromModel m in
+  let props = FluidUtil.propsFromModel m in
   let astInfo = ASTInfo.make props ast s in
   let astInfo = updateMsg' m tlid astInfo msg in
   (astInfo.ast, astInfo.state, ASTInfo.activeTokenInfos astInfo)
@@ -5765,7 +5647,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                else NoChange
              in
              let fluidState =
-               let astInfo = ASTInfo.make (propsFromModel m) ast m.fluidState in
+               let astInfo =
+                 ASTInfo.make (FluidUtil.propsFromModel m) ast m.fluidState
+               in
                let ({state; _} : ASTInfo.t) = moveToEndOfTarget id astInfo in
                {state with errorDvSrc = SourceId (tlid, id)}
              in
