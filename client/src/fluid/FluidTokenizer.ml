@@ -2,9 +2,6 @@ open Prelude
 module T = FluidToken
 module E = FluidExpression
 module Pattern = FluidPattern
-module Util = FluidUtil
-
-type token = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
@@ -15,6 +12,10 @@ type featureFlagTokenization =
   | FeatureFlagConditionAndEnabled
       (** FeatureFlagConditionAndEnabled is used in the secondary editor
           * panel for editing a flag's condition and new code *)
+
+(* -------------------------------------- *)
+(* Convert FluidExpressions to tokenInfos *)
+(* -------------------------------------- *)
 
 module Builder = struct
   type t =
@@ -45,9 +46,6 @@ module Builder = struct
     ; indent = 0
     ; ffTokenization = FeatureFlagOnlyDisabled }
 
-
-  (** id is the id of the first token in the builder or None if the builder is empty. *)
-  let id (b : t) : ID.t option = List.last b.tokens |> Option.map ~f:T.tid
 
   let lineLimit = 120
 
@@ -585,153 +583,168 @@ let tokenizeForEditor (e : fluidEditor) (expr : FluidExpression.t) :
       tokenizeWithFFTokenization FeatureFlagConditionAndEnabled expr
 
 
-let tokensToString (tis : tokenInfo list) : string =
-  tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
+(* -------------------------------------- *)
+(* ASTInfo *)
+(* -------------------------------------- *)
+type tokenInfos = T.tokenInfo list
 
+type neighbour =
+  | L of T.t * T.tokenInfo
+  | R of T.t * T.tokenInfo
+  | No
 
-let eToTestString (e : E.t) : string =
-  e
-  |> tokenize
-  |> List.map ~f:(fun ti -> T.toTestText ti.token)
-  |> String.join ~sep:""
-
-
-let eToHumanString (e : E.t) : string = e |> tokenize |> tokensToString
-
-let eToStructure ?(includeIDs = false) (e : E.t) : string =
-  e
-  |> tokenize
-  |> List.map ~f:(fun ti ->
-         "<"
-         ^ T.toTypeName ti.token
-         ^ ( if includeIDs
-           then "(" ^ (T.tid ti.token |> ID.toString) ^ ")"
-           else "" )
-         ^ ":"
-         ^ T.toText ti.token
-         ^ ">")
-  |> String.join ~sep:""
-
-
-let pToString (p : fluidPattern) : string =
-  p
-  |> patternToToken ~idx:0
-  |> List.map ~f:(fun t -> T.toTestText t)
-  |> String.join ~sep:""
-
-
-let pToStructure (p : fluidPattern) : string =
-  p
-  |> patternToToken ~idx:0
-  |> infoize
-  |> List.map ~f:(fun ti ->
-         "<" ^ T.toTypeName ti.token ^ ":" ^ T.toText ti.token ^ ">")
-  |> String.join ~sep:""
-
-
-(* ----------------- *)
-(* Test cases *)
-(* ----------------- *)
-(* eToTestcase constructs testcases that we can enter in our
- * test suite. They are similar to `show` except that instead of the full code,
- * they use the shortcuts from Fluid_test_data. *)
-(* ----------------- *)
-
-let rec eToTestcase (e : E.t) : string =
-  let r = eToTestcase in
-  let quoted str = "\"" ^ str ^ "\"" in
-  let listed elems = "[" ^ String.join ~sep:";" elems ^ "]" in
-  let spaced elems = String.join ~sep:" " elems in
-  let result =
-    match e with
-    | EBlank _ ->
-        "b"
-    | EString (_, str) ->
-        spaced ["str"; quoted str]
-    | EBool (_, true) ->
-        spaced ["bool true"]
-    | EBool (_, false) ->
-        spaced ["bool false"]
-    | EFloat (_, whole, fractional) ->
-        spaced ["float'"; whole; fractional]
-    | EInteger (_, int) ->
-        spaced ["int"; int]
-    | ENull _ ->
-        "null"
-    | EPipeTarget _ ->
-        "pipeTarget"
-    | EPartial (_, str, e) ->
-        spaced ["partial"; quoted str; r e]
-    | ERightPartial (_, str, e) ->
-        spaced ["rightPartial"; quoted str; r e]
-    | ELeftPartial (_, str, e) ->
-        spaced ["prefixPartial"; quoted str; r e]
-    | EFnCall (_, name, exprs, _) ->
-        spaced ["fn"; quoted name; listed (List.map ~f:r exprs)]
-    | EBinOp (_, name, lhs, rhs, _) ->
-        spaced ["binop"; quoted name; r lhs; r rhs]
-    | EVariable (_, name) ->
-        spaced ["var"; quoted name]
-    | EFieldAccess (_, expr, fieldname) ->
-        spaced ["fieldAccess"; r expr; quoted fieldname]
-    | EMatch (_, cond, matches) ->
-        let rec pToTestcase (p : FluidPattern.t) : string =
-          let quoted str = "\"" ^ str ^ "\"" in
-          let listed elems = "[" ^ String.join ~sep:";" elems ^ "]" in
-          let spaced elems = String.join ~sep:" " elems in
-          match p with
-          | FPBlank _ ->
-              "pBlank"
-          | FPString {str; _} ->
-              spaced ["pString"; quoted str]
-          | FPBool (_, _, true) ->
-              spaced ["pBool true"]
-          | FPBool (_, _, false) ->
-              spaced ["pBool false"]
-          | FPFloat (_, _, whole, fractional) ->
-              spaced ["pFloat'"; whole; fractional]
-          | FPInteger (_, _, int) ->
-              spaced ["pInt"; int]
-          | FPNull _ ->
-              "pNull"
-          | FPVariable (_, _, name) ->
-              spaced ["pVar"; quoted name]
-          | FPConstructor (_, _, name, args) ->
-              spaced
-                [ "pConstructor"
-                ; quoted name
-                ; listed (List.map args ~f:pToTestcase) ]
-        in
-        spaced
-          [ "match'"
-          ; r cond
-          ; listed
-              (List.map matches ~f:(fun (p, e) ->
-                   "(" ^ pToTestcase p ^ ", " ^ r e ^ ")")) ]
-    | ERecord (_, pairs) ->
-        spaced
-          [ "record"
-          ; listed
-              (List.map pairs ~f:(fun (k, v) ->
-                   "(" ^ quoted k ^ ", " ^ r v ^ ")")) ]
-    | EList (_, exprs) ->
-        spaced ["list"; listed (List.map ~f:r exprs)]
-    | EPipe (_, a :: rest) ->
-        spaced ["pipe"; r a; listed (List.map ~f:r rest)]
-    | EPipe (_, []) ->
-        "INVALID PIPE - NO ELEMENTS"
-    | EConstructor (_, name, exprs) ->
-        spaced ["constructor"; quoted name; listed (List.map exprs ~f:r)]
-    | EIf (_, cond, thenExpr, elseExpr) ->
-        spaced ["if'"; r cond; r thenExpr; r elseExpr]
-    | ELet (_, lhs, rhs, body) ->
-        spaced ["let'"; quoted lhs; r rhs; r body]
-    | ELambda (_, names, body) ->
-        let names =
-          List.map names ~f:(fun (_, name) -> quoted name) |> listed
-        in
-        spaced ["lambda"; names; r body]
-    | EFeatureFlag (_, _, cond, oldCode, newCode) ->
-        spaced ["ff"; r cond; r oldCode; r newCode]
+let rec getTokensAtPosition ?(prev = None) ~(pos : int) (tokens : tokenInfos) :
+    T.tokenInfo option * T.tokenInfo option * T.tokenInfo option =
+  (* Get the next token and the remaining tokens, skipping indents. *)
+  let rec getNextToken (infos : tokenInfos) : T.tokenInfo option * tokenInfos =
+    match infos with
+    | ti :: rest ->
+        if T.isSkippable ti.token then getNextToken rest else (Some ti, rest)
+    | [] ->
+        (None, [])
   in
-  "(" ^ result ^ ")"
+  match getNextToken tokens with
+  | None, _remaining ->
+      (prev, None, None)
+  | Some current, remaining ->
+      if current.endPos > pos
+      then
+        let next, _ = getNextToken remaining in
+        (prev, Some current, next)
+      else getTokensAtPosition ~prev:(Some current) ~pos remaining
+
+
+let getNeighbours ~(pos : int) (tokens : tokenInfos) :
+    neighbour * neighbour * T.tokenInfo option =
+  let mPrev, mCurrent, mNext = getTokensAtPosition ~pos tokens in
+  let toTheRight =
+    match mCurrent with Some current -> R (current.token, current) | _ -> No
+  in
+  (* The token directly before the cursor (skipping whitespace) *)
+  let toTheLeft =
+    match (mPrev, mCurrent) with
+    | Some prev, _ when prev.endPos >= pos ->
+        L (prev.token, prev)
+    (* The left might be separated by whitespace *)
+    | Some prev, Some current when current.startPos >= pos ->
+        L (prev.token, prev)
+    | None, Some current when current.startPos < pos ->
+        (* We could be in the middle of a token *)
+        L (current.token, current)
+    | None, _ ->
+        No
+    | _, Some current ->
+        L (current.token, current)
+    | Some prev, None ->
+        (* Last position in the ast *)
+        L (prev.token, prev)
+  in
+  (toTheLeft, toTheRight, mNext)
+
+
+let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
+  let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
+  (* The algorithm that decides what token on when a certain key is pressed is
+   * in updateKey. It's pretty complex and it tells us what token a keystroke
+   * should apply to. For all other places that need to know what token we're
+   * on, this attemps to approximate that.
+
+   * The cursor at newPos is either in a token (eg 3 chars into "myFunction"),
+   * or between two tokens (eg 1 char into "4 + 2").
+
+   * If we're between two tokens, we decide by looking at whether the left
+   * token is a text token. If it is, it's likely that we're just typing.
+   * Otherwise, the important token is probably the right token.
+   *
+   * Example: `4 + 2`, when the cursor is at position: 0): 4 is to the right,
+   * nothing to the left. Choose 4 1): 4 is a text token to the left, choose 4
+   * 2): the token to the left is not a text token (it's a TSep), so choose +
+   * 3): + is a text token to the left, choose + 4): 2 is to the right, nothing
+   * to the left. Choose 2 5): 2 is a text token to the left, choose 2
+   *
+   * Reminder that this is an approximation. If we find bugs we may need to go
+   * much deeper.
+   *)
+  match (toTheLeft, toTheRight) with
+  | L (_, ti), _ when T.isTextToken ti.token ->
+      Some ti
+  | _, R (_, ti) ->
+      Some ti
+  | L (_, ti), _ ->
+      Some ti
+  | _ ->
+      None
+
+
+module ASTInfo = struct
+  type t =
+    { ast : FluidAST.t
+    ; state : fluidState
+    ; mainTokenInfos : tokenInfos
+    ; featureFlagTokenInfos : (ID.t * tokenInfos) list
+    ; props : fluidProps }
+
+  let setAST (ast : FluidAST.t) (astInfo : t) : t =
+    if astInfo.ast = ast
+    then astInfo
+    else
+      let mainTokenInfos = tokenize (FluidAST.toExpr ast) in
+      let featureFlagTokenInfos =
+        ast
+        |> FluidAST.getFeatureFlags
+        |> List.map ~f:(fun expr ->
+               ( E.toID expr
+               , tokenizeWithFFTokenization FeatureFlagConditionAndEnabled expr
+               ))
+      in
+      {astInfo with ast; mainTokenInfos; featureFlagTokenInfos}
+
+
+  let ffTokenInfosFor (ffid : ID.t) (astInfo : t) : tokenInfos option =
+    List.find astInfo.featureFlagTokenInfos ~f:(fun (id, _) -> ffid = id)
+    |> Option.map ~f:Tuple2.second
+
+
+  (* Get the correct tokenInfos for the activeEditor *)
+  let activeTokenInfos (astInfo : t) : tokenInfos =
+    match astInfo.state.activeEditor with
+    | NoEditor ->
+        []
+    | MainEditor _ ->
+        astInfo.mainTokenInfos
+    | FeatureFlagEditor (_, ffid) ->
+        ffTokenInfosFor ffid astInfo |> Option.withDefault ~default:[]
+
+
+  let modifyState ~(f : fluidState -> fluidState) (astInfo : t) : t =
+    {astInfo with state = f astInfo.state}
+
+
+  let getToken (astInfo : t) : T.tokenInfo option =
+    getToken' (activeTokenInfos astInfo) astInfo.state
+
+
+  let emptyFor (props : fluidProps) (state : fluidState) : t =
+    { ast = FluidAST.ofExpr (E.EBlank (gid ()))
+    ; state
+    ; mainTokenInfos = []
+    ; featureFlagTokenInfos = []
+    ; props }
+
+
+  let make (props : fluidProps) (ast : FluidAST.t) (s : fluidState) : t =
+    emptyFor props s |> setAST ast
+
+
+  let exprOfActiveEditor (astInfo : t) : FluidExpression.t =
+    match astInfo.state.activeEditor with
+    | NoEditor ->
+        recover "exprOfActiveEditor - none exists" (FluidAST.toExpr astInfo.ast)
+    | MainEditor _ ->
+        FluidAST.toExpr astInfo.ast
+    | FeatureFlagEditor (_, id) ->
+        FluidAST.find id astInfo.ast
+        |> recoverOpt
+             "exprOfActiveEditor - cannot find expression for editor"
+             ~default:(FluidAST.toExpr astInfo.ast)
+end

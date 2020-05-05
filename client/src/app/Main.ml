@@ -459,7 +459,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 (FluidEntering tlid, None) )
           | STCaret caretTarget ->
               let maybeNewFluidState =
-                Fluid.ASTInfo.fromModelAndTLID m tlid
+                Fluid.astInfoFromModelAndTLID m tlid
                 |> Option.map ~f:(fun astInfo ->
                        astInfo
                        |> Fluid.setPosition
@@ -932,7 +932,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
                  let value =
-                   FluidTokenizer.eToHumanString (FluidAST.toExpr h.ast)
+                   FluidPrinter.eToHumanString (FluidAST.toExpr h.ast)
                  in
                  cache |> TLIDDict.insert ~tlid:h.hTLID ~value)
         in
@@ -940,7 +940,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           userFunctions
           |> List.foldl ~init:hcache ~f:(fun f cache ->
                  let value =
-                   FluidTokenizer.eToHumanString (FluidAST.toExpr f.ufAST)
+                   FluidPrinter.eToHumanString (FluidAST.toExpr f.ufAST)
                  in
                  cache |> TLIDDict.insert ~tlid:f.ufTLID ~value)
         in

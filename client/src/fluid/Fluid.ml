@@ -19,11 +19,12 @@ module Commands = FluidCommands
 module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
-module Printer = FluidTokenizer
+module Printer = FluidPrinter
+module Tokenizer = FluidTokenizer
 module Util = FluidUtil
 module Clipboard = FluidClipboard
 module CT = CaretTarget
-module ASTInfo = FluidASTInfo
+module ASTInfo = Tokenizer.ASTInfo
 
 (* -------------------- *)
 (* Utils *)
@@ -42,11 +43,11 @@ let deselectFluidEditor (s : fluidState) : fluidState =
 
 let tokenizeForActiveEditor (expr : FluidExpression.t) (s : fluidState) :
     tokenInfos =
-  Printer.tokenizeForEditor s.activeEditor expr
+  Tokenizer.tokenizeForEditor s.activeEditor expr
 
 
 let tokensForActiveEditor (ast : FluidAST.t) (s : fluidState) : tokenInfos =
-  Printer.tokensForEditor s.activeEditor ast
+  Tokenizer.tokensForEditor s.activeEditor ast
 
 
 let propsFromModel (m : model) : props =
@@ -163,6 +164,36 @@ let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
       Some ti
   | _ ->
       None
+
+
+let astInfoFromModelAndTLID
+    ?(removeTransientState = true) (m : model) (tlid : TLID.t) :
+    ASTInfo.t option =
+  (* TODO(JULIAN): codify removeHandlerTransientState as an external function,
+   * make `fromExpr` accept only the info it needs, and differentiate between
+   * handler-specific and global fluid state. *)
+  let removeHandlerTransientState m =
+    if removeTransientState
+    then {m with fluidState = {m.fluidState with ac = AC.init}}
+    else m
+  in
+  TL.get m tlid
+  |> Option.andThen ~f:TL.getAST
+  |> Option.map ~f:(fun ast ->
+         let state =
+           (* We need to discard transient state if the selected handler has changed *)
+           if Some tlid = CursorState.tlidOf m.cursorState
+           then m.fluidState
+           else
+             let newM = removeHandlerTransientState m in
+             newM.fluidState
+         in
+         ASTInfo.make (propsFromModel m) ast state)
+
+
+let astInfoFromModel (m : model) : ASTInfo.t option =
+  CursorState.tlidOf m.cursorState
+  |> Option.andThen ~f:(astInfoFromModelAndTLID m)
 
 
 let getStringIndexMaybe (ti : T.tokenInfo) (pos : int) : int option =
@@ -4090,7 +4121,7 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   let mod' =
     match CursorState.tlidOf m.cursorState with
     | Some tlid ->
-        ASTInfo.fromModelAndTLID m tlid
+        astInfoFromModelAndTLID m tlid
         |> Option.andThen ~f:(fun astInfo ->
                getSelectedExprID astInfo
                |> Option.orElseLazy (fun _ -> getExprIDOnCaret astInfo))
@@ -5463,12 +5494,12 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
 
 
 let getCopySelection (m : model) : clipboardContents =
-  ASTInfo.fromModel m
+  astInfoFromModel m
   |> Option.andThen ~f:(fun (astInfo : ASTInfo.t) ->
          let from, to_ = getSelectionRange astInfo.state in
          let text =
            ASTInfo.exprOfActiveEditor astInfo
-           |> FluidTokenizer.eToHumanString
+           |> Printer.eToHumanString
            |> String.slice ~from ~to_
          in
          let json =
@@ -5918,7 +5949,7 @@ let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
     |> Option.andThen ~f:(TL.get m)
     |> Option.thenAlso ~f:(fun tl ->
            (* Keep transient state as we're trying to commit it *)
-           ASTInfo.fromModelAndTLID ~removeTransientState:false m (TL.id tl))
+           astInfoFromModelAndTLID ~removeTransientState:false m (TL.id tl))
     |> Option.andThen ~f:(fun (tl, astInfo) ->
            let newAstInfo = acMaybeCommit 0 astInfo in
            let newAST = newAstInfo.ast |> FluidAST.map ~f:AST.removePartials in

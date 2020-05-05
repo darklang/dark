@@ -45,7 +45,7 @@ let testSize : int ref = ref 0
 (* Debugging *)
 (* ------------------ *)
 
-let toText ast = FluidTokenizer.eToHumanString ast
+let toText ast = FluidPrinter.eToHumanString ast
 
 let pointerToText (p : blankOrData) : string = Pointer.toContent p
 
@@ -484,7 +484,7 @@ let runTest (test : FuzzTest.t) : unit =
                   let reduced = reduce test testcase in
                   Js.log2 "finished program:\n  " (toText reduced) ;
                   Js.log2 "as expr:\n  " (E.show reduced) ;
-                  Js.log2 "as testcase:\n  " (FluidTokenizer.eToTestcase reduced) ;
+                  Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
                   fail () )
                 else pass () )) ;
           seed := !seed + 1 ;

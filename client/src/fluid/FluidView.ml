@@ -124,7 +124,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  FluidASTInfo.getToken vs.astInfo
+  FluidTokenizer.ASTInfo.getToken vs.astInfo
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
@@ -291,7 +291,7 @@ let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
                  |> Option.withDefault ~default:0
                in
                let tokens =
-                 FluidASTInfo.ffTokenInfosFor flagID vs.astInfo
+                 FluidTokenizer.ASTInfo.ffTokenInfosFor flagID vs.astInfo
                  |> recoverOpt "can't find tokens for real flag" ~default:[]
                in
                let editorState =

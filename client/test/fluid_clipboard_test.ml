@@ -156,7 +156,7 @@ let run () =
       (expectedText : string) : unit =
     test (nameToName name initial) (fun () ->
         let e = clipboardEvent () in
-        let text = FluidTokenizer.eToTestString clipboard in
+        let text = FluidPrinter.eToTestString clipboard in
         let data =
           (text, Some (FluidClipboard.exprToClipboardContents clipboard))
         in
@@ -236,7 +236,7 @@ let run () =
       (range : int * int)
       (clipboard : fluidExpr)
       (expectedText : string) : unit =
-    let text = FluidTokenizer.eToTestString clipboard in
+    let text = FluidPrinter.eToTestString clipboard in
     testPasteText ~debug (name ^ " - text") initial range text expectedText ;
     testPasteExpr ~debug (name ^ " - expr") initial range clipboard expectedText
   in

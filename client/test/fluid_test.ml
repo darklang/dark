@@ -207,7 +207,7 @@ module TestCase = struct
            * Importantly, we do this on the original expr
            *)
           originalExpr
-          |> Printer.tokenize
+          |> Tokenizer.tokenize
           |> List.filter ~f:(fun ti ->
                  FluidToken.isNewline ti.token && ti.startPos < pos)
           |> List.length
@@ -263,7 +263,7 @@ module TestResult = struct
 
   let tokenizeResult (res : t) : FluidToken.tokenInfo list =
     FluidAST.toExpr res.resultAST
-    |> Printer.tokenizeForEditor res.resultState.activeEditor
+    |> FluidTokenizer.tokenizeForEditor res.resultState.activeEditor
 
 
   let containsPartials (res : t) : bool =
@@ -386,7 +386,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
     Js.log2 "state before " (Fluid_utils.debugState tc.state) ;
     Js.log2
       "expr before"
-      (FluidAST.toExpr tc.ast |> FluidTokenizer.eToStructure ~includeIDs:true) ) ;
+      (FluidAST.toExpr tc.ast |> FluidPrinter.eToStructure ~includeIDs:true) ) ;
   let result =
     Fluid.ASTInfo.make defaultTestProps tc.ast tc.state |> processMsg inputs
   in
@@ -406,7 +406,7 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
     Js.log2 "state after" (Fluid_utils.debugState result.state) ;
     Js.log2
       "expr after"
-      (FluidTokenizer.tokensToString (Fluid.ASTInfo.activeTokenInfos result)) ) ;
+      (FluidPrinter.tokensToString (Fluid.ASTInfo.activeTokenInfos result)) ) ;
   {TestResult.testcase = tc; resultAST; resultState = result.state}
 
 
@@ -4522,7 +4522,7 @@ let run () =
       ()) ;
   describe "Movement" (fun () ->
       let s = defaultTestState in
-      let tokens = Printer.tokenize complexExpr in
+      let tokens = FluidTokenizer.tokenize complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr |> FluidAST.ofExpr in
       let astInfo = ASTInfo.make defaultTestProps ast defaultTestState in
@@ -4905,7 +4905,7 @@ let run () =
           let id = ID.fromString "543" in
           expect
             (let ast = E.EString (id, "test") in
-             let tokens = Printer.tokenize ast in
+             let tokens = FluidTokenizer.tokenize ast in
              Fluid.getNeighbours ~pos:3 tokens)
           |> toEqual
                (let token = TString (id, "test", None) in
