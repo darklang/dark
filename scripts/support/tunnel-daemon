@@ -17,8 +17,7 @@
 # The tunnel does not currently restrict traffic otherwise; it might be nice
 # to block 10.* and thus disallow access to any cluster-internal routes, but at
 # least for the moment we can't, as blocking 10.* would mean breaking DNS
-# requests from the tunnel service. (ismith is proposing a change that might
-# allow us to do that, to come in a subsequent PR.)
+# requests from the tunnel service.
 
 
 set -euox pipefail
