@@ -1,6 +1,6 @@
 open Prelude
 module Attrs = Tea.Html2.Attributes
-module Printer = FluidPrinter
+module Printer = FluidTokenizer
 module Expression = FluidExpression
 module Token = FluidToken
 

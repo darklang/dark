@@ -1,6 +1,6 @@
 open Tester
 open Prelude
-open FluidPrinter
+open FluidTokenizer
 open Fluid_test_data
 module E = FluidExpression
 

@@ -45,7 +45,7 @@ let testSize : int ref = ref 0
 (* Debugging *)
 (* ------------------ *)
 
-let toText ast = FluidPrinter.eToHumanString ast
+let toText ast = FluidTokenizer.eToHumanString ast
 
 let pointerToText (p : blankOrData) : string = Pointer.toContent p
 
@@ -387,7 +387,7 @@ let simplify (id : ID.t) (ast : E.t) : E.t =
 let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
     let tokenIDs =
-      ast |> FluidPrinter.tokenize |> List.map ~f:(fun ti -> T.tid ti.token)
+      ast |> FluidTokenizer.tokenize |> List.map ~f:(fun ti -> T.tid ti.token)
     in
     let eIDs = ast |> E.filterMap ~f:(fun e -> Some (E.toID e)) in
     let ids =
@@ -484,7 +484,7 @@ let runTest (test : FuzzTest.t) : unit =
                   let reduced = reduce test testcase in
                   Js.log2 "finished program:\n  " (toText reduced) ;
                   Js.log2 "as expr:\n  " (E.show reduced) ;
-                  Js.log2 "as testcase:\n  " (FluidPrinter.eToTestcase reduced) ;
+                  Js.log2 "as testcase:\n  " (FluidTokenizer.eToTestcase reduced) ;
                   fail () )
                 else pass () )) ;
           seed := !seed + 1 ;

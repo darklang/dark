@@ -5,7 +5,7 @@ module AC = FluidAutocomplete
 module B = BlankOr
 module K = FluidKeyboard
 module P = FluidPattern
-module Printer = FluidPrinter
+module Printer = FluidTokenizer
 module TL = Toplevel
 open FluidExpression
 open Fluid_test_data
