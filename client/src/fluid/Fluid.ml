@@ -2226,8 +2226,9 @@ let insertInList ~(index : int) ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t)
       | _ ->
           recover "not a list in insertInList" ~debug:e e)
 
-let insertAtListEnd ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t)
-    : FluidAST.t =
+
+let insertAtListEnd ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) : FluidAST.t
+    =
   FluidAST.update id ast ~f:(fun e ->
       match e with
       | EList (id, exprs) ->
@@ -4461,8 +4462,7 @@ let rec updateKey
         let bID = gid () in
         let newExpr = E.EBlank bID (* new separators *) in
         astInfo
-        |> ASTInfo.setAST
-             (insertAtListEnd id ~newExpr astInfo.ast)
+        |> ASTInfo.setAST (insertAtListEnd id ~newExpr astInfo.ast)
         |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
     | InsertText ",", L (TLambdaSymbol (id, _), _), _ when onEdge ->
         astInfo
