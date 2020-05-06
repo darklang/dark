@@ -3916,18 +3916,6 @@ let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
   else (rangeBegin, rangeEnd)
 
 
-(* Always returns a selection represented as two ints with the smaller int first.
-   The numbers are identical if there is no selection. *)
-let getSelectionRange (s : fluidState) : int * int =
-  match s.selectionStart with
-  | Some beginIdx when beginIdx < s.newPos ->
-      (beginIdx, s.newPos)
-  | Some endIdx ->
-      (s.newPos, endIdx)
-  | None ->
-      (s.newPos, s.newPos)
-
-
 let updateSelectionRange (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
   ASTInfo.modifyState astInfo ~f:(fun s ->
       { s with
@@ -4114,7 +4102,7 @@ let rec updateKey
     (* Piping, with and without autocomplete menu open *)
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline (astInfo : ASTInfo.t) : ASTInfo.t =
-          let startPos, endPos = getSelectionRange astInfo.state in
+          let startPos, endPos = FluidUtil.getSelectionRange astInfo.state in
           let topmostID = getTopmostSelectionID startPos endPos astInfo in
           let findParent = startPos = endPos in
           Option.map topmostID ~f:(fun id ->
@@ -4731,7 +4719,7 @@ and deleteCaretRange (caretRange : int * int) (origInfo : ASTInfo.t) : ASTInfo.t
 (* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
    forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
 and deleteSelection (astInfo : ASTInfo.t) : ASTInfo.t =
-  deleteCaretRange (getSelectionRange astInfo.state) astInfo
+  deleteCaretRange (FluidUtil.getSelectionRange astInfo.state) astInfo
 
 
 and replaceText (str : string) (astInfo : ASTInfo.t) : ASTInfo.t =
@@ -5451,7 +5439,7 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
 let getCopySelection (m : model) : clipboardContents =
   astInfoFromModel m
   |> Option.andThen ~f:(fun (astInfo : ASTInfo.t) ->
-         let from, to_ = getSelectionRange astInfo.state in
+         let from, to_ = FluidUtil.getSelectionRange astInfo.state in
          let text =
            ASTInfo.exprOfActiveEditor astInfo
            |> Printer.eToHumanString
@@ -5610,9 +5598,7 @@ let updateMsg'
          place the caret on the side of the selection in the direction
          of the pressed arrow key *)
         let newPos =
-          let left, right =
-            getSelectionRange astInfo.state |> orderRangeFromSmallToBig
-          in
+          let left, right = FluidUtil.getSelectionRange astInfo.state in
           if key = K.Left then left else right
         in
         { astInfo with
