@@ -3828,6 +3828,12 @@ let run () =
         (ins ",")
         "[1,2,~___,3]" ;
       t
+        "insert , in string in list types ,"
+        (list [str "01234567890123456789012345678901234567890"])
+        ~pos:44
+        (ins ",")
+        "[\"0123456789012345678901234567890123456789\n ,~0\"]" ;
+      t
         "insert separator after item creates blank when list is in match"
         (match' single [(pBlank (), b)])
         ~pos:9
