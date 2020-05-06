@@ -12,12 +12,13 @@ let ancestorFlag (ast : FluidAST.t) (id : ID.t) : FluidExpression.t option =
   |> List.find ~f:(function E.EFeatureFlag _ -> true | _ -> false)
 
 
-(** [wrap ast id] finds the expression having [id] and wraps it in a feature * *
+(** [wrap fluidState ast id] finds the expression having [id] and wraps it in a feature * *
     flag (making it into the "old code" of the flag.
 
     Returns a Some of the ID of the newly created EFeatureFlag (or None if one
     wasn't created) and the new AST *)
-let wrap (ast : FluidAST.t) (id : ID.t) : ID.t option * FluidAST.t =
+let wrap (s : Types.fluidState) (ast : FluidAST.t) (id : ID.t) :
+    ID.t option * FluidAST.t =
   match ancestorFlag ast id with
   | Some _ ->
       (None, ast) (* don't nest flags! *)
@@ -25,7 +26,17 @@ let wrap (ast : FluidAST.t) (id : ID.t) : ID.t option * FluidAST.t =
       let flagName = "flag-" ^ (gid () |> ID.toString) in
       let flagID = gid () in
       let expr = FluidAST.toExpr ast in
-      if id = E.toID expr
+      let isSelectAll =
+        let tokenInfos = FluidTokenizer.tokenize expr in
+        let tokenStart, tokenEnd =
+          List.last tokenInfos
+          |> Option.map ~f:(fun last -> (0, last.endPos))
+          |> Option.withDefault ~default:(-1, -1)
+        in
+        let selectStart, selectEnd = FluidUtil.getSelectionRange s in
+        (tokenStart, tokenEnd) = (selectStart, selectEnd)
+      in
+      if isSelectAll
       then
         (* selected all - wrap the whole thing *)
         ( Some flagID
@@ -65,10 +76,10 @@ let hasFlag (ast : FluidAST.t) : bool =
 
 (** [wrapCmd m tl id] returns a [modification] that calls [wrap] with the
     [tl]'s AST. *)
-let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
+let wrapCmd (m : model) (tl : toplevel) (id : ID.t) : modification =
   match Toplevel.getAST tl with
   | Some ast when not (hasFlag ast) ->
-      let maybeId, ast = wrap ast id in
+      let maybeId, ast = wrap m.fluidState ast id in
       let setAST = Toplevel.setASTMod tl ast in
       ( match maybeId with
       | Some flagId ->
