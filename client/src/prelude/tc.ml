@@ -142,16 +142,30 @@ module List = struct
     (take ~count:index l, drop ~count:(index + 1) l)
 
 
-  let reorder ~(oldPos : int) ~(newPos : int) (l : 'a list) : 'a list =
-    let old = getAt ~index:oldPos l in
-    let new_ = getAt ~index:newPos l in
-    match (old, new_) with
-    | Some old, Some new_ ->
-        l
-        |> updateAt ~index:oldPos ~f:(fun _ -> new_)
-        |> updateAt ~index:newPos ~f:(fun _ -> old)
-    | _ ->
-        l
+  (* Moves item in oldPos into the position at newPos, pushing the element already at newPos down. Ex:
+    l = [a b c d]
+    moveInto 3 1 l, takes d and moves it between a & b. => [a d b c]
+    NOTE: This is not swapping the elements in newPos & oldPos
+  *)
+  let moveInto ~(oldPos : int) ~(newPos : int) (l : 'a list) : 'a list =
+    if newPos < oldPos (* move to a place above *)
+    then
+      match getAt ~index:oldPos l with
+      | Some value ->
+          let top, bottom = splitOn ~index:oldPos l in
+          insertAt ~index:newPos ~value top @ bottom
+      | None ->
+          l
+    else if oldPos + 1 < newPos (* move to a place below *)
+    then
+      match getAt ~index:oldPos l with
+      | Some value ->
+          let top, bottom = splitOn ~index:oldPos l in
+          let index = newPos - (oldPos + 1) in
+          top @ insertAt ~index ~value bottom
+      | None ->
+          l
+    else l
 
 
   (* Partition into two lists, of potentially different type, using function
