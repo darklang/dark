@@ -306,7 +306,8 @@ let removePartials (expr : E.t) : E.t =
       -> e)
 
 
-(* Reorder function calls which call fnName, moving the argument at [oldPos] to [newPos], pushing the element currently at [newPos] to [newPos+1]. Handles situations
+(** Reorder function calls which call fnName, moving the argument at [oldPos] to [newPos],
+ * pushing the element currently at [newPos] to [newPos+1]. It then handles situations
  * where the args may be in a different position due to pipes. *)
 let rec reorderFnCallArgs
     (fnName : string) (oldPos : int) (newPos : int) (ast : E.t) : E.t =
