@@ -403,6 +403,12 @@ let run () =
           expect
             (AST.reorderFnCallArgs "myFn" 1 0 ast |> FluidPrinter.eToTestString)
           |> toEqual "1\n|>other1\n|>other2\n|>\\x -> myFn 2 x 3\n|>other3\n") ;
+      test "recurse into piped lambda exprs" (fun () ->
+          let ast0 = pipe (int 1) [fn "myFn" [pipeTarget; int 2; int 3]] in
+          let ast1 = AST.reorderFnCallArgs "myFn" 0 1 ast0 in
+          let ast2 = AST.reorderFnCallArgs "myFn" 0 1 ast1 in
+          expect (ast2 |> FluidPrinter.eToTestString)
+          |> toEqual "1\n|>\\x -> myFn x 2 3\n") ;
       ()) ;
   describe "calculateUserUnsafeFunctions" (fun () ->
       let userFunctions =

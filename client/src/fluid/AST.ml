@@ -340,6 +340,11 @@ let rec reorderFnCallArgs
                       ( gid ()
                       , [(gid (), "x")]
                       , EFnCall (fnID, name, newArgs, sendToRail) )
+                | ELambda (id, args, lambdaExpr) ->
+                    ELambda
+                      ( id
+                      , args
+                      , reorderFnCallArgs fnName oldPos newPos lambdaExpr )
                 | _ ->
                     pipeArg
               else
