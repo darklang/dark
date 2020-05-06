@@ -210,10 +210,10 @@ let handlerAttrs (tlid : TLID.t) (state : handlerState) : msg Vdom.property list
     =
   let sid = TLID.toString tlid in
   let codeHeight id =
-    let e =
-      Native.Ext.querySelector (".toplevel.tl-" ^ id ^ " .handler-body")
-    in
-    match e with Some el -> Native.Scroll.height el | None -> 0
+    let open Webapi.Dom in
+    Document.querySelector (".toplevel.tl-" ^ id ^ " .handler-body") document
+    |> Option.map ~f:(fun el -> Element.scrollHeight el)
+    |> Option.withDefault ~default:0
   in
   match state with
   | HandlerExpanding ->

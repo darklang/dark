@@ -9,16 +9,6 @@ type rect =
 
 exception NativeCodeError of string
 
-module Scroll = struct
-  external height : Dom.element -> int = "scrollHeight" [@@bs.get]
-
-  external to' : Dom.element -> float -> float -> unit = "scrollTo" [@@bs.send]
-
-  external left : Dom.element -> float = "scrollLeft" [@@bs.get]
-
-  external top : Dom.element -> float = "scrollTop" [@@bs.get]
-end
-
 module Ext = struct
   let window : Dom.window =
     [%bs.raw "(typeof window === undefined) ? window : {}"]
