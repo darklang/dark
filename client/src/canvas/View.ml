@@ -483,6 +483,13 @@ let accountView (m : model) : msg Html.html =
             UpdateSegment OpenDocs) ]
       [Html.text "Documentation"]
   in
+  let tutorial =
+    Html.p
+      [ Html.class' "account-action-btn"
+      ; ViewUtils.eventNoPropagation ~key:"tutorial" "click" (fun _ ->
+            TutorialMsg ReopenTutorial) ]
+      [Html.text "Hello World tutorial"]
+  in
   let spacer = Html.div [Html.class' "account-action-spacer"] [] in
   let newCanvas =
     Html.p
@@ -528,8 +535,15 @@ let accountView (m : model) : msg Html.html =
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
     ; Html.div
         [Html.class' "account-actions"]
-        [newCanvas; canvasInfo; settings; privacy; share; logout; spacer; docs]
-    ]
+        [ newCanvas
+        ; canvasInfo
+        ; settings
+        ; privacy
+        ; share
+        ; logout
+        ; spacer
+        ; docs
+        ; tutorial ] ]
 
 
 let view (m : model) : msg Html.html =
