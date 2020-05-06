@@ -290,8 +290,9 @@ let viewTL m tl =
 (** [zeroOutAppScrollImmediate ()] immediately forces the scroll of #app to 0,0.
  * Prefer [zeroOutAppScroll] if possible. *)
 let zeroOutAppScrollImmediate () : unit =
-  Native.Ext.querySelector ("#" ^ appID)
-  |> Option.map ~f:(fun app -> Native.Scroll.to' app 0.0 0.0)
+  let open Webapi.Dom in
+  Document.getElementById appID document
+  |> Option.map ~f:(fun app -> Element.scrollTo 0.0 0.0 app)
   |> recoverOpt "zeroOutAppScroll" ~default:()
 
 
@@ -308,9 +309,10 @@ let zeroOutAppScroll : msg Tea.Cmd.t =
  * See https://www.notion.so/darklang/Positioning-Bug-8831a3e00a234e55856a85861512876e
  * for more information about this constraint and what happens if it is broken. *)
 let isAppScrollZero () : bool =
-  Native.Ext.querySelector ("#" ^ appID)
+  let open Webapi.Dom in
+  Document.getElementById appID document
   |> Option.map ~f:(fun app ->
-         Native.Scroll.left app = 0.0 && Native.Scroll.top app = 0.0)
+         Element.scrollLeft app = 0.0 && Element.scrollTop app = 0.0)
   (* Technically recoverOpt might be better here, but in some situations, #app doesn't exist yet *)
   |> Option.withDefault ~default:true
 
