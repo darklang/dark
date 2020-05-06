@@ -148,24 +148,13 @@ module List = struct
     NOTE: This is not swapping the elements in newPos & oldPos
   *)
   let moveInto ~(oldPos : int) ~(newPos : int) (l : 'a list) : 'a list =
-    if newPos < oldPos (* move to a place above *)
-    then
-      match getAt ~index:oldPos l with
-      | Some value ->
-          let top, bottom = splitOn ~index:oldPos l in
-          insertAt ~index:newPos ~value top @ bottom
-      | None ->
-          l
-    else if oldPos + 1 < newPos (* move to a place below *)
-    then
-      match getAt ~index:oldPos l with
-      | Some value ->
-          let top, bottom = splitOn ~index:oldPos l in
-          let index = newPos - (oldPos + 1) in
-          top @ insertAt ~index ~value bottom
-      | None ->
-          l
-    else l
+    match getAt ~index:oldPos l with
+    | Some value ->
+        (* Checks to see if we need to offset the newPos by -1, after removing the element at oldPos *)
+        let index = if newPos > oldPos then newPos - 1 else newPos in
+        l |> removeAt ~index:oldPos |> insertAt ~index ~value
+    | None ->
+        l
 
 
   (* Partition into two lists, of potentially different type, using function
