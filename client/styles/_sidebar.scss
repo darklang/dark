@@ -33,6 +33,27 @@ $icSize: 1em;
 * overwrite each other.
 * 
 ******************************************************************************/
+#sidebar-right {
+  width: 250px;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  right: 0;
+  padding: 0;
+
+  z-index: 90;
+  ::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 7px;
+    height: 7px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 7px;
+  }
+
+  background-color: rgba(43, 41, 41, 0.8);
+}
 
 #sidebar-left {
   width: max-content;

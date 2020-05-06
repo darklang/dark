@@ -1439,10 +1439,8 @@ let update_ (msg : msg) (m : model) : modification =
   | UpdateSegment msg ->
       Entry.sendSegmentMessage msg ;
       NoChange
-  | CloseWelcomeModal ->
-      Entry.sendSegmentMessage WelcomeModal ;
-      ReplaceAllModificationsWithThisOne
-        (fun m -> ({m with showUserWelcomeModal = false}, Cmd.none))
+  | TutorialMsg msg ->
+      ViewTutorial.update m msg
   | DeleteUserTypeForever tlid ->
       Many
         [ AddOps ([DeleteTypeForever tlid], FocusSame)

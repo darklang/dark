@@ -169,6 +169,7 @@ let defaultModel : model =
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty
   ; showUserWelcomeModal = true
+  ; userTutorial = Some Welcome
   ; currentUserFn = defaultFnSpace
   ; settingsView =
       { opened = false

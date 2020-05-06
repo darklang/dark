@@ -577,13 +577,17 @@ let view (m : model) : msg Html.html =
               UpdateSegment OpenDocs) ]
         [fontAwesome "book"; Html.text "Docs"] ]
   in
+  let tutorial =
+    match m.userTutorial with
+    | Some steps when not (m.integrationTestState <> NoIntegrationTest) ->
+        ViewTutorial.view steps
+    | _ ->
+        Vdom.noNode
+  in
   let modal =
-    (* Temporarily disabling modal || m.showUserWelcomeModal *)
     if (not (m.integrationTestState <> NoIntegrationTest))
-       && ( m.unsupportedBrowser
-          || m.showUserWelcomeModal
-          || VariantTesting.variantIsActive m ForceWelcomeModalVariant )
-    then ViewModal.html m
+       && m.unsupportedBrowser
+    then ViewModal.html
     else Vdom.noNode
   in
   let settingsModal =
@@ -598,7 +602,8 @@ let view (m : model) : msg Html.html =
       ; viewToast m.toast
       ; entry
       ; modal
-      ; settingsModal ]
+      ; settingsModal
+      ; tutorial ]
     @ fluidStatus
     @ footer
     @ viewDocs
