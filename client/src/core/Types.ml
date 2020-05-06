@@ -1003,6 +1003,13 @@ and fnpMsg =
   | ParamDropIntoSpace of int
   | Reset
 
+(* Tutorial *)
+and tutorialMsg =
+  | NextStep
+  | PrevStep
+  | CloseTutorial
+  | ReopenTutorial
+
 (* Sidebar state *)
 and sidebarMode =
   | DetailedMode
@@ -1385,8 +1392,8 @@ and msg =
   | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * TLID.t
-  | CloseWelcomeModal
   | FnParamMsg of fnpMsg
+  | TutorialMsg of tutorialMsg
   | UpdateSegment of segmentTrack
   | SettingsViewMsg of SettingsViewTypes.settingsMsg
 
@@ -1399,7 +1406,6 @@ and variantTest =
       StubVariant
   | GroupVariant
   | NgrokVariant
-  | ForceWelcomeModalVariant
   | LeftPartialVariant
   | FnReturnVariant
 
@@ -1667,6 +1673,14 @@ and avatarModelMessage =
   ; canvasName : string
   ; timestamp : float }
 
+(* Syd todo -> move into viewTutorial if possible *)
+and tutorialSteps =
+  | Welcome
+  | VerbChange
+  | ReturnValue
+  | OpenTab
+  | GettingStarted
+
 and model =
   { error : Error.t
   ; lastMsg : msg
@@ -1747,6 +1761,7 @@ and model =
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
+  ; userTutorial : tutorialSteps option
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState }
 
