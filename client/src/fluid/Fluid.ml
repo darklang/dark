@@ -2227,6 +2227,16 @@ let insertInList ~(index : int) ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t)
           recover "not a list in insertInList" ~debug:e e)
 
 
+let insertAtListEnd ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) : FluidAST.t
+    =
+  FluidAST.update id ast ~f:(fun e ->
+      match e with
+      | EList (id, exprs) ->
+          EList (id, exprs @ [newExpr])
+      | _ ->
+          recover "not a list in insertInList" ~debug:e e)
+
+
 (* -------------------- *)
 (* Autocomplete *)
 (* -------------------- *)
@@ -4434,6 +4444,21 @@ let rec updateKey
         astInfo
         |> ASTInfo.setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
         |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
+    | InsertText ",", L (TListComma (id, index), _), _
+    | InsertText ",", _, R (TListComma (id, index), _)
+      when onEdge ->
+        let bID = gid () in
+        let newExpr = E.EBlank bID (* new separators *) in
+        astInfo
+        |> ASTInfo.setAST
+             (insertInList ~index:(index + 1) id ~newExpr astInfo.ast)
+        |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
+    | InsertText ",", _, R (TListClose (id, _), _) when onEdge ->
+        let bID = gid () in
+        let newExpr = E.EBlank bID (* new separators *) in
+        astInfo
+        |> ASTInfo.setAST (insertAtListEnd id ~newExpr astInfo.ast)
+        |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
     | InsertText ",", L (TLambdaSymbol (id, _), _), _ when onEdge ->
         astInfo
         |> ASTInfo.setAST (insertLambdaVar ~index:0 id ~name:"" astInfo.ast)
@@ -4449,33 +4474,6 @@ let rec updateKey
         |> ASTInfo.setAST (insertLambdaVar ~index id ~name:"" astInfo.ast)
         |> moveToCaretTarget
              {astRef = ARLambda (id, LBPVarName index); offset = 0}
-    | InsertText ",", L (t, ti), _ ->
-        if onEdge
-        then
-          (* If we are at the end of an expression,
-           * we check if we are in a list.
-           * If so, we add a blank after the current
-           * index in the list and place the caret
-           * in that blank. *)
-          let exprID = T.tid t in
-          ( match FluidAST.findParent exprID astInfo.ast with
-          | Some (E.EList (listID, exprs)) ->
-              exprs
-              |> List.findIndex ~f:(fun e -> E.toID e = exprID)
-              |> Option.map ~f:(fun listIdx -> (listID, listIdx))
-          | _ ->
-              None )
-          |> Option.map ~f:(fun (listID, listIdx) ->
-                 let newExpr, target =
-                   let bID = gid () in
-                   (E.EBlank bID, {astRef = ARBlank bID; offset = 0})
-                 in
-                 ( insertInList ~index:(listIdx + 1) ~newExpr listID astInfo.ast
-                 , target ))
-          |> Option.map ~f:(fun (newAST, newTarget) ->
-                 astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget newTarget)
-          |> Option.withDefault ~default:astInfo
-        else doInsert ~pos "," ti astInfo
     (* Field access *)
     | InsertText ".", L (TFieldPartial (id, _, _, _, _), _), _ ->
         (* When pressing . in a field access partial, commit the partial *)
