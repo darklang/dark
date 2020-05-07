@@ -369,16 +369,19 @@ let run () =
                "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n") ;
       ()) ;
   describe "reorderFnCallArgs" (fun () ->
+      let matchExpr a e =
+        expect a
+        |> withEquality FluidExpression.testEqualIgnoringIds
+        |> toEqual e
+      in
       test "simple example" (fun () ->
           let ast = fn "myFn" [int 1; int 2; int 3] in
-          expect
-            (AST.reorderFnCallArgs "myFn" 0 2 ast |> FluidPrinter.eToHumanString)
-          |> toEqual "myFn 2 1 3") ;
+          fn "myFn" [int 2; int 1; int 3]
+          |> matchExpr (AST.reorderFnCallArgs "myFn" 0 2 ast)) ;
       test "simple pipe" (fun () ->
           let ast = pipe (int 1) [fn "myFn" [pipeTarget; int 2; int 3]] in
-          expect
-            (AST.reorderFnCallArgs "myFn" 2 1 ast |> FluidPrinter.eToHumanString)
-          |> toEqual "1\n|>myFn 3 2\n") ;
+          pipe (int 1) [fn "myFn" [pipeTarget; int 3; int 2]]
+          |> matchExpr (AST.reorderFnCallArgs "myFn" 2 1 ast)) ;
       test "pipe but the fn is later" (fun () ->
           let ast =
             pipe
@@ -388,9 +391,13 @@ let run () =
               ; fn "myFn" [pipeTarget; int 2; int 3]
               ; fn "other3" [pipeTarget] ]
           in
-          expect
-            (AST.reorderFnCallArgs "myFn" 2 1 ast |> FluidPrinter.eToTestString)
-          |> toEqual "1\n|>other1\n|>other2\n|>myFn 3 2\n|>other3\n") ;
+          pipe
+            (int 1)
+            [ fn "other1" [pipeTarget]
+            ; fn "other2" [pipeTarget]
+            ; fn "myFn" [pipeTarget; int 3; int 2]
+            ; fn "other3" [pipeTarget] ]
+          |> matchExpr (AST.reorderFnCallArgs "myFn" 2 1 ast)) ;
       test "pipe and arg 0" (fun () ->
           let ast =
             pipe
@@ -400,15 +407,21 @@ let run () =
               ; fn "myFn" [pipeTarget; int 2; int 3]
               ; fn "other3" [pipeTarget] ]
           in
-          expect
-            (AST.reorderFnCallArgs "myFn" 1 0 ast |> FluidPrinter.eToTestString)
-          |> toEqual "1\n|>other1\n|>other2\n|>\\x -> myFn 2 x 3\n|>other3\n") ;
+          pipe
+            (int 1)
+            [ fn "other1" [pipeTarget]
+            ; fn "other2" [pipeTarget]
+            ; lambdaWithBinding "x" (fn "myFn" [int 2; namedVar "x"; int 3])
+            ; fn "other3" [pipeTarget] ]
+          |> matchExpr (AST.reorderFnCallArgs "myFn" 1 0 ast)) ;
       test "recurse into piped lambda exprs" (fun () ->
           let ast0 = pipe (int 1) [fn "myFn" [pipeTarget; int 2; int 3]] in
           let ast1 = AST.reorderFnCallArgs "myFn" 0 1 ast0 in
           let ast2 = AST.reorderFnCallArgs "myFn" 0 1 ast1 in
-          expect (ast2 |> FluidPrinter.eToTestString)
-          |> toEqual "1\n|>\\x -> myFn x 2 3\n") ;
+          pipe
+            (int 1)
+            [lambdaWithBinding "x" (fn "myFn" [namedVar "x"; int 2; int 3])]
+          |> matchExpr ast2) ;
       ()) ;
   describe "calculateUserUnsafeFunctions" (fun () ->
       let userFunctions =
