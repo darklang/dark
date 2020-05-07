@@ -100,33 +100,33 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : ID.t) : modification =
   |> Option.withDefault ~default:NoChange
 
 
-let updateRailMod (m : model) (tl : toplevel) ~(f : FluidAST.t -> FluidAST.t) :
+let updateRailMod (m : model) (id : ID.t) (tl : toplevel) ~(f : E.t -> E.t) :
     modification =
   let tlid = TL.id tl in
-  let alsoDoAnalysis ast =
-    Analysis.getSelectedTraceID m tlid
-    |> Option.map ~f:(fun traceID ->
-           Many
-             [ TL.setASTMod tl ast
-             ; MakeCmd
-                 (Analysis.requestAnalysis (TL.withAST m tlid ast) tlid traceID)
-             ])
-    |> Option.withDefault ~default:(TL.setASTMod tl ast)
-  in
   TL.getAST tl
-  |> Option.map ~f
-  |> Option.map ~f:alsoDoAnalysis
+  |> Option.andThen ~f:(fun ast ->
+         let newAST = FluidAST.update id ast ~f in
+         if newAST <> ast then Some newAST else None)
+  |> Option.map ~f:(fun ast ->
+         Analysis.getSelectedTraceID m tlid
+         |> Option.map ~f:(fun traceID ->
+                Many
+                  [ TL.setASTMod tl ast
+                  ; MakeCmd
+                      (Analysis.requestAnalysis
+                         (TL.withAST m tlid ast)
+                         tlid
+                         traceID) ])
+         |> Option.withDefault ~default:(TL.setASTMod tl ast))
   |> Option.withDefault ~default:NoChange
 
 
 let takeOffRail (m : model) (tl : toplevel) (id : ID.t) : modification =
-  updateRailMod m tl ~f:(fun ast ->
-      ast
-      |> FluidAST.update id ~f:(function
-             | EFnCall (_, name, exprs, Rail) ->
-                 EFnCall (id, name, exprs, NoRail)
-             | e ->
-                 recover "incorrect id in takeoffRail" e))
+  updateRailMod m id tl ~f:(function
+      | EFnCall (_, name, exprs, Rail) ->
+          EFnCall (id, name, exprs, NoRail)
+      | e ->
+          recover "incorrect id in takeoffRail" e)
 
 
 let isRailable (m : model) (name : string) =
@@ -139,12 +139,11 @@ let isRailable (m : model) (name : string) =
 
 let putOnRail (m : model) (tl : toplevel) (id : ID.t) : modification =
   (* Only toggle onto rail iff. return tipe is TOption or TResult *)
-  updateRailMod m tl ~f:(fun ast ->
-      FluidAST.update id ast ~f:(function
-          | EFnCall (_, name, exprs, NoRail) when isRailable m name ->
-              EFnCall (id, name, exprs, Rail)
-          | e ->
-              e))
+  updateRailMod m id tl ~f:(function
+      | EFnCall (_, name, exprs, NoRail) when isRailable m name ->
+          EFnCall (id, name, exprs, Rail)
+      | e ->
+          e)
 
 
 let extractVarInAst
