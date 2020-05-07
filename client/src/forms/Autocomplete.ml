@@ -603,6 +603,39 @@ let tlDestinations (m : model) : autocompleteItem list =
 (* ------------------------------------ *)
 (* Create the list *)
 (* ------------------------------------ *)
+
+let allowedParamTipes =
+  [TAny; TStr; TInt; TBool; TFloat; TDate; TObj; TBlock; TPassword; TUuid; TList]
+
+
+let allowedReturnTipes =
+  [ TAny
+  ; TBlock
+  ; TBool
+  ; TDate
+  ; TFloat
+  ; TInt
+  ; TList
+  ; TObj
+  ; TOption
+  ; TPassword
+  ; TResult
+  ; TStr
+  ; TUuid ]
+
+
+let allowedDBColTipes =
+  let builtins =
+    ["String"; "Int"; "Boolean"; "Float"; "Password"; "Date"; "UUID"; "Dict"]
+  in
+  let compounds = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
+  builtins @ compounds
+
+
+let allowedUserTypeFieldTipes =
+  [TStr; TInt; TBool; TFloat; TDate; TPassword; TUuid]
+
+
 let generate (m : model) (a : autocomplete) : autocomplete =
   let space =
     a.target
@@ -655,61 +688,20 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACEventSpace "WORKER"
           ; ACEventSpace "REPL" ]
       | DBColType ->
-          let builtins =
-            [ "String"
-            ; "Int"
-            ; "Boolean"
-            ; "Float"
-            ; "Password"
-            ; "Date"
-            ; "UUID"
-            ; "Dict" ]
-          in
-          let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
-          List.map ~f:(fun x -> ACDBColType x) (builtins @ compound)
+          List.map ~f:(fun x -> ACDBColType x) allowedDBColTipes
       | ParamTipe ->
           let userTypes =
-            m.userTipes
-            |> TD.filterMapValues ~f:UserTypes.toTUserType
-            |> List.map ~f:(fun t -> ACParamTipe t)
+            m.userTipes |> TD.filterMapValues ~f:UserTypes.toTUserType
           in
-          [ ACParamTipe TAny
-          ; ACParamTipe TStr
-          ; ACParamTipe TInt
-          ; ACParamTipe TBool
-          ; ACParamTipe TFloat
-          ; ACParamTipe TDate
-          ; ACParamTipe TObj
-          ; ACParamTipe TBlock
-          ; ACParamTipe TPassword
-          ; ACParamTipe TUuid
-          ; ACParamTipe TList ]
-          @ userTypes
+          allowedParamTipes @ userTypes |> List.map ~f:(fun t -> ACParamTipe t)
       | TypeFieldTipe ->
-          [ ACTypeFieldTipe TStr
-          ; ACTypeFieldTipe TInt
-          ; ACTypeFieldTipe TBool
-          ; ACTypeFieldTipe TFloat
-          ; ACTypeFieldTipe TDate
-          ; ACTypeFieldTipe TPassword
-          ; ACTypeFieldTipe TUuid ]
+          allowedUserTypeFieldTipes |> List.map ~f:(fun t -> ACTypeFieldTipe t)
       | FnReturnTipe ->
-          [ ACReturnTipe TAny
-          ; ACReturnTipe TBlock
-          ; ACReturnTipe TBool
-          ; ACReturnTipe TDate
-          ; ACReturnTipe TFloat
-          ; ACReturnTipe TInt
-          ; ACReturnTipe TList
-          ; ACReturnTipe TObj
-          ; ACReturnTipe TOption
-          ; ACReturnTipe TPassword
-          ; ACReturnTipe TResult
-          ; ACReturnTipe TStr
-          ; ACReturnTipe TUuid ]
-          @ ( m.userTipes
-            |> TD.filterMapValues ~f:UserTypes.toTUserType
-            |> List.map ~f:(fun t -> ACReturnTipe t) )
+          let userTypes =
+            m.userTipes |> TD.filterMapValues ~f:UserTypes.toTUserType
+          in
+          allowedReturnTipes @ userTypes
+          |> List.map ~f:(fun t -> ACReturnTipe t)
       | DBName
       | DBColName
       | FnName
