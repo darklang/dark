@@ -142,15 +142,18 @@ module List = struct
     (take ~count:index l, drop ~count:(index + 1) l)
 
 
-  let reorder ~(oldPos : int) ~(newPos : int) (l : 'a list) : 'a list =
-    let old = getAt ~index:oldPos l in
-    let new_ = getAt ~index:newPos l in
-    match (old, new_) with
-    | Some old, Some new_ ->
-        l
-        |> updateAt ~index:oldPos ~f:(fun _ -> new_)
-        |> updateAt ~index:newPos ~f:(fun _ -> old)
-    | _ ->
+  (* Moves item in oldPos into the position at newPos, pushing the element already at newPos down. Ex:
+    l = [a b c d]
+    moveInto 3 1 l, takes d and moves it between a & b. => [a d b c]
+    NOTE: This is not swapping the elements in newPos & oldPos
+  *)
+  let moveInto ~(oldPos : int) ~(newPos : int) (l : 'a list) : 'a list =
+    match getAt ~index:oldPos l with
+    | Some value ->
+        (* Checks to see if we need to offset the newPos by -1, after removing the element at oldPos *)
+        let index = if newPos > oldPos then newPos - 1 else newPos in
+        l |> removeAt ~index:oldPos |> insertAt ~index ~value
+    | None ->
         l
 
 
