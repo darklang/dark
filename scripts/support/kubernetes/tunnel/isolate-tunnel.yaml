@@ -25,4 +25,4 @@ spec:
             matchExpressions:
             - key: app
               operator: In
-              values: [bwd-app, qw-worker, cron-checker, maxim-qw-worker, editor-app]
+              values: [bwd-app, qw-worker, cron-checker, editor-app]
