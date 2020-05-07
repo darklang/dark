@@ -122,7 +122,7 @@ let check_all_canvases (pid : int) : (unit, Exception.captured) Result.t =
              Libservice.Config.postgres_settings.dbname
              "prodclone"
         then (
-          Span.set
+          Span.setAttr
             span
             "error.msg"
             (`String "Not running any crons; pointed at prodclone!") ;
@@ -132,7 +132,7 @@ let check_all_canvases (pid : int) : (unit, Exception.captured) Result.t =
               Serialize.current_hosts ()
               |> List.filter ~f:(fun f -> not (Serialize.is_test f)))
       in
-      Span.set span "canvas.checked" (`Int (List.length current_endpoints)) ;
+      Span.setAttr span "canvas.checked" (`Int (List.length current_endpoints)) ;
       let stat_canvas_errors = ref 0 in
       let stat_crons = ref 0 in
       let stat_events = ref 0 in
@@ -269,7 +269,7 @@ let check_all_canvases (pid : int) : (unit, Exception.captured) Result.t =
                          Thread.yield ()))
                  crons)
         |> (fun x ->
-             Span.mset
+             Span.setAttrs
                span
                [ ("canvas.errors", `Int !stat_canvas_errors)
                ; ("cron.checked", `Int !stat_crons)
