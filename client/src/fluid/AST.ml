@@ -329,21 +329,33 @@ let rec reorderFnCallArgs
               if oldPos == 0 || newPos == 0
               then
                 match pipeArg with
-                | EFnCall (fnID, name, args, sendToRail) when name = fnName ->
+                | EFnCall (fnID, name, _pipeTarget :: args, sendToRail)
+                  when name = fnName ->
+                    (* We replace the pipeTarget with a variable in a lambda fn *)
                     let newArg = EVariable (gid (), "x") in
                     let newArgs =
                       List.moveInto ~oldPos ~newPos (newArg :: args)
                       |> List.map ~f:replaceArgs
                     in
+                    (* The fncall is no longer a piped fn. # args shown == # params.
+                     * For example, if we moved the first param to last param:
+                     * Before: a |> someFun b c d
+                     * After:  a |> \x -> someFun b c d x
+                     *)
                     ELambda
                       ( gid ()
                       , [(gid (), "x")]
                       , EFnCall (fnID, name, newArgs, sendToRail) )
+                | ELambda (id, args, lambdaExpr) ->
+                    ELambda
+                      ( id
+                      , args
+                      , reorderFnCallArgs fnName oldPos newPos lambdaExpr )
                 | _ ->
-                    pipeArg
+                    reorderFnCallArgs fnName oldPos newPos pipeArg
               else
                 (* The pipetarget isn't involved, so just do it normally. *)
-                reorderFnCallArgs fnName (oldPos - 1) (newPos - 1) pipeArg)
+                reorderFnCallArgs fnName oldPos newPos pipeArg)
         in
         EPipe (id, newFirst :: newRest)
     | e ->

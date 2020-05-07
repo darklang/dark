@@ -150,8 +150,15 @@ module List = struct
   let moveInto ~(oldPos : int) ~(newPos : int) (l : 'a list) : 'a list =
     match getAt ~index:oldPos l with
     | Some value ->
-        (* Checks to see if we need to offset the newPos by -1, after removing the element at oldPos *)
-        let index = if newPos > oldPos then newPos - 1 else newPos in
+        let index =
+          (* Checks to see if we need to offset the newPos by -1, after removing the element at oldPos *)
+          if newPos > oldPos
+          then
+            let len = List.length l in
+            (* Clamp at list length to prevent overflow *)
+            if newPos > len then len - 1 else newPos - 1
+          else newPos
+        in
         l |> removeAt ~index:oldPos |> insertAt ~index ~value
     | None ->
         l
