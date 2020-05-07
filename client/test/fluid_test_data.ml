@@ -221,8 +221,6 @@ let aVar = EVariable (gid (), "variable")
 
 let aShortVar = EVariable (gid (), "v")
 
-let namedVar name = EVariable (gid (), name)
-
 (* ---------------- *)
 (* Ifs *)
 (* ---------------- *)
