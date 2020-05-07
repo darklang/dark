@@ -10,7 +10,7 @@ type viewState = ViewUtils.viewState
 let moveParams (fn : userFunction) (oldPos : int) (newPos : int) : userFunction
     =
   let ufmParameters =
-    fn.ufMetadata.ufmParameters |> List.reorder ~oldPos ~newPos
+    fn.ufMetadata.ufmParameters |> List.moveInto ~oldPos ~newPos
   in
   {fn with ufMetadata = {fn.ufMetadata with ufmParameters}}
 

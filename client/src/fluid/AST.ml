@@ -306,8 +306,8 @@ let removePartials (expr : E.t) : E.t =
       -> e)
 
 
-(* Reorder function calls which call fnName, swapping the arguments that
- * correspond to the parameters at [oldPos] and [newPos]. Handles situations
+(** Reorder function calls which call fnName, moving the argument at [oldPos] to [newPos],
+ * pushing the element currently at [newPos] to [newPos+1]. It then handles situations
  * where the args may be in a different position due to pipes. *)
 let rec reorderFnCallArgs
     (fnName : string) (oldPos : int) (newPos : int) (ast : E.t) : E.t =
@@ -315,7 +315,7 @@ let rec reorderFnCallArgs
     match expr with
     | EFnCall (id, name, args, sendToRail) when name = fnName ->
         let newArgs =
-          List.reorder ~oldPos ~newPos args |> List.map ~f:replaceArgs
+          List.moveInto ~oldPos ~newPos args |> List.map ~f:replaceArgs
         in
         EFnCall (id, name, newArgs, sendToRail)
     | EPipe (id, first :: rest) ->
@@ -332,7 +332,7 @@ let rec reorderFnCallArgs
                 | EFnCall (fnID, name, args, sendToRail) when name = fnName ->
                     let newArg = EVariable (gid (), "x") in
                     let newArgs =
-                      List.reorder ~oldPos ~newPos (newArg :: args)
+                      List.moveInto ~oldPos ~newPos (newArg :: args)
                       |> List.map ~f:replaceArgs
                     in
                     ELambda
