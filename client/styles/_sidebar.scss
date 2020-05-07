@@ -39,20 +39,61 @@ $icSize: 1em;
   position: fixed;
   top: 0;
   right: 0;
-  padding: 0;
-
-  z-index: 90;
-  ::-webkit-scrollbar {
-    -webkit-appearance: none;
-    width: 7px;
-    height: 7px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    border-radius: 7px;
-  }
-
+  padding: 70px 25px;
   background-color: rgba(43, 41, 41, 0.8);
+
+  .tutorial-txt {
+    height: 200px;
+    margin: 0px;
+    p {
+      margin: 0px;
+    }
+    .getting-started {
+      display: flex;
+      justify-content: center;
+      margin-top: 15px;
+      a {
+        width: 75%;
+        text-align: center;
+        color: $white1;
+        text-decoration: none;
+        background: $grey2;
+        padding: 5px;
+        border-radius: 5px;
+        &:hover {
+          color: $purple;
+        }
+      }
+    }
+  }
+
+  .btn-container {
+    display: flex;
+    .btn {
+      width: 50%;
+      text-align: center;
+      p,
+      a {
+        cursor: pointer;
+        text-decoration: none;
+        color: $grey3;
+        &:hover {
+          color: $purple;
+        }
+      }
+      &.disabled p {
+        color: $grey1;
+        cursor: default;
+      }
+    }
+  }
+  .close-btn {
+    text-align: center;
+    cursor: pointer;
+    &:hover {
+      color: $purple;
+    }
+  }
 }
 
 #sidebar-left {

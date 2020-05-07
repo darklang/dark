@@ -57,73 +57,99 @@ let update (m : model) (msg : tutorialMsg) : modification =
             (fun m -> ({m with userTutorial}, Tea.Cmd.none)) ] )
 
 
-let tutorialStepsToText (step : tutorialSteps) : msg Html.html =
+let tutorialStepsToText (step : tutorialSteps) (username : string) :
+    msg Html.html =
   match step with
   | Welcome ->
       Html.p
-        []
+        [Html.class' "tutorial-txt"]
         [ Html.text
             "Welcome to Dark! Let's get started by creating our first Hello World. Click anywhere on the canvas (the lighter grey area), type hello and choose \"New HTTP handler\""
         ]
   | VerbChange ->
-      Html.p [] [Html.text "Select GET as the verb for your HTTP handler."]
+      Html.p
+        [Html.class' "tutorial-txt"]
+        [Html.text "Select GET as the verb for your HTTP handler."]
   | ReturnValue ->
       Html.p
-        []
+        [Html.class' "tutorial-txt"]
         [ Html.text
             "In the return value - the light grey area - type Hello World." ]
   | OpenTab ->
       Html.p
-        []
+        [Html.class' "tutorial-txt"]
         [ Html.text
             "Click on the hamburger menu in the upper right and select Open in New Tab."
         ]
   | GettingStarted ->
-      Html.p
-        []
-        [ Html.text
-            "Congratulations, you've created your first Hello World in Dark!"
-        ; Html.text
-            "To help you continue to learn, we've created a Getting Started canvas. link should take them to username-gettingstarted"
-        ]
+      let btn =
+        let link = "https://darklang.com/a/" ^ username ^ "-gettingstarted" in
+        Html.div
+          [ ViewUtils.nothingMouseEvent "mousedown"
+          ; ViewUtils.nothingMouseEvent "mouseup"
+          ; Html.class' "getting-started" ]
+          [ Html.a
+              [Html.href link; Html.target "_blank"]
+              [Html.text "Take me to the walkthrough"] ]
+      in
+      Html.div
+        [Html.class' "tutorial-txt"]
+        [ Html.p
+            []
+            [ Html.text
+                "Congratulations, you've created your first Hello World in Dark!"
+            ; Html.text
+                "To help you continue to learn, we've created a Getting Started canvas."
+            ]
+        ; btn ]
 
 
-let view (step : tutorialSteps) : msg Html.html =
+let view (step : tutorialSteps) (username : string) : msg Html.html =
   let closeTutorial =
-    Html.div
-      [ ViewUtils.nothingMouseEvent "mousedown"
+    Html.p
+      [ Html.class' "close-btn"
+      ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; ViewUtils.eventNoPropagation ~key:"close-tutorial" "click" (fun _ ->
             TutorialMsg CloseTutorial) ]
-      [Html.p [] [Html.text "End tutorial"]]
+      [Html.text "End tutorial"]
   in
   let prevBtn =
-    match getPrevStep (Some step) with
-    | Some _ ->
-        Html.div
-          [ ViewUtils.nothingMouseEvent "mousedown"
-          ; ViewUtils.nothingMouseEvent "mouseup"
-          ; ViewUtils.eventNoPropagation
+    let event =
+      match getPrevStep (Some step) with
+      | Some _ ->
+          [ ViewUtils.eventNoPropagation
               ~key:"close-welcome-modal"
               "click"
               (fun _ -> TutorialMsg PrevStep) ]
-          [Html.p [] [Html.text "Previous"]]
-    | None ->
-        Vdom.noNode
+      | None ->
+          []
+    in
+    Html.div
+      [ ViewUtils.nothingMouseEvent "mousedown"
+      ; ViewUtils.nothingMouseEvent "mouseup"
+      ; Html.classList [("btn", true); ("disabled", event = [])] ]
+      [Html.p event [Html.text "Previous"]]
   in
   let nextBtn =
-    match getNextStep (Some step) with
-    | Some _ ->
-        Html.div
-          [ ViewUtils.nothingMouseEvent "mousedown"
-          ; ViewUtils.nothingMouseEvent "mouseup"
-          ; ViewUtils.eventNoPropagation
+    let event =
+      match getNextStep (Some step) with
+      | Some _ ->
+          [ ViewUtils.eventNoPropagation
               ~key:"close-welcome-modal"
               "click"
               (fun _ -> TutorialMsg NextStep) ]
-          [Html.p [] [Html.text "Next"]]
-    | None ->
-        Vdom.noNode
+      | None ->
+          []
+    in
+    Html.div
+      [ ViewUtils.nothingMouseEvent "mousedown"
+      ; ViewUtils.nothingMouseEvent "mouseup"
+      ; Html.classList [("btn", true); ("disabled", event = [])] ]
+      [Html.p event [Html.text "Next"]]
+  in
+  let btnContainer =
+    Html.div [Html.class' "btn-container"] [prevBtn; nextBtn]
   in
   Html.div
     [ Html.id "sidebar-right"
@@ -132,4 +158,4 @@ let view (step : tutorialSteps) : msg Html.html =
           EnablePanning false)
     ; ViewUtils.eventNoPropagation ~key:"epf" "mouseout" (fun _ ->
           EnablePanning true) ]
-    [tutorialStepsToText step; prevBtn; nextBtn; closeTutorial]
+    [tutorialStepsToText step username; btnContainer; closeTutorial]

@@ -594,7 +594,7 @@ let view (m : model) : msg Html.html =
   let tutorial =
     match m.userTutorial with
     | Some steps when not (m.integrationTestState <> NoIntegrationTest) ->
-        ViewTutorial.view steps
+        ViewTutorial.view steps m.username
     | _ ->
         Vdom.noNode
   in
