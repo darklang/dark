@@ -6,6 +6,8 @@ module P = Pointer
 module TD = TLIDDict
 module E = FluidExpression
 
+let appID = "app"
+
 let fontAwesome = ViewUtils.fontAwesome
 
 let docsURL = "https://ops-documentation.builtwithdark.com/user-manual"
@@ -289,6 +291,36 @@ let viewTL m tl =
       ViewCache.cache2m tlCacheKey viewTL_ m tl
 
 
+(** [zeroOutAppScrollImmediate ()] immediately forces the scroll of #app to 0,0.
+ * Prefer [zeroOutAppScroll] if possible. *)
+let zeroOutAppScrollImmediate () : unit =
+  let open Webapi.Dom in
+  Document.getElementById appID document
+  |> Option.map ~f:(fun app -> Element.scrollTo 0.0 0.0 app)
+  |> recoverOpt "zeroOutAppScroll" ~default:()
+
+
+(** [zeroOutAppScroll] returns a Tea.Cmd.t that forces the scroll of #app to 0,0.
+ * We need the invariant of #app scrolled to 0,0 to be maintained in order for #canvas translate to work.
+ * See https://www.notion.so/darklang/Positioning-Bug-8831a3e00a234e55856a85861512876e
+ * for more information about this constraint and what happens if it is broken. *)
+let zeroOutAppScroll : msg Tea.Cmd.t =
+  Tea.Cmd.call (fun _ -> zeroOutAppScrollImmediate ())
+
+
+(** [isAppScrollZero ()] returns true if the scroll of #app is 0,0 and false otherwise.
+ * We need the invariant of #app scrolled to 0,0 to be maintained in order for #canvas translate to work.
+ * See https://www.notion.so/darklang/Positioning-Bug-8831a3e00a234e55856a85861512876e
+ * for more information about this constraint and what happens if it is broken. *)
+let isAppScrollZero () : bool =
+  let open Webapi.Dom in
+  Document.getElementById appID document
+  |> Option.map ~f:(fun app ->
+         Element.scrollLeft app = 0.0 && Element.scrollTop app = 0.0)
+  (* Technically recoverOpt might be better here, but in some situations, #app doesn't exist yet *)
+  |> Option.withDefault ~default:true
+
+
 let viewCanvas (m : model) : msg Html.html =
   let allDivs =
     match m.currentPage with
@@ -327,6 +359,16 @@ let viewCanvas (m : model) : msg Html.html =
       | None ->
           [] )
   in
+  (* BEGIN HACK *)
+  (* This is a last-ditch effort to fix the position bug.
+   * If recover doesn't happen in prod, we can remove this
+   * for a performance boost. *)
+  if isAppScrollZero ()
+  then ()
+  else recover "forcibly corrected position bug" (zeroOutAppScrollImmediate ()) ;
+  (* END HACK *)
+  (* Note that the following translation is container relative,
+  * so we must ensure that none of the parent elements are scrolled or otherwise moved. *)
   let canvasTransform =
     let offset = m.canvasProps.offset in
     let x = string_of_int (-offset.x) in
@@ -492,10 +534,12 @@ let view (m : model) : msg Html.html =
     [ ViewUtils.eventNeither ~key:"app-md" "mousedown" (fun mouseEvent ->
           AppMouseDown mouseEvent)
     ; ViewUtils.eventNeither ~key:"app-mu" "mouseup" (fun mouseEvent ->
-          AppMouseUp mouseEvent) ]
+          AppMouseUp mouseEvent)
+    ; ViewUtils.scrollEventNeither ~key:"app-scroll" "scroll" (fun _ ->
+          AppScroll) ]
   in
   let attributes =
-    [Html.id "app"; Html.class' ("app " ^ VariantTesting.activeCSSClasses m)]
+    [Html.id appID; Html.class' ("app " ^ VariantTesting.activeCSSClasses m)]
     @ eventListeners
   in
   let footer =

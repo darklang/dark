@@ -87,10 +87,6 @@
 
 /* Body */
 
-html {
-  height: 100%;
-}
-
 ::-webkit-scrollbar {
   -webkit-appearance: none;
   width: 7px;
@@ -107,7 +103,6 @@ html {
 
 body {
   @extend .default;
-  height: 100%;
   // Adding this in hopes of fixing the chrome scroll back bug
   overscroll-behavior-x: none;
   -webkit-font-smoothing: antialiased;
@@ -115,12 +110,10 @@ body {
 
 #app {
   background: $canvas-background;
-  width: 100%;
+  /* The app should take up the whole screen with no scrollbars */
+  width: 100vw;
   height: 100vh;
   overflow: hidden;
-  position: absolute;
-  top: 0;
-  left: 0;
 
   -webkit-touch-callout: none;
   /* iOS Safari */
@@ -150,13 +143,12 @@ body #app * {
 }
 
 #canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
   display: block;
-  min-height: 100%;
-  min-width: 100%;
+  /* The canvas has no size,
+   * but we want all its children to be visible.
+   * The canvas will translate as you pan. */
   overflow: visible;
+  transform-origin: top left;
 
   .node {
     position: absolute;

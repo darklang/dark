@@ -22,8 +22,6 @@ module Ext = struct
     Js.Nullable.toOption (_querySelector s)
 
 
-  external scrollHeight : Dom.element -> int = "scrollHeight" [@@bs.get]
-
   external clientWidth : Dom.element -> int = "clientWidth" [@@bs.get]
 
   external clientHeight : Dom.element -> int = "clientHeight" [@@bs.get]
