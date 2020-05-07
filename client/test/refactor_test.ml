@@ -378,10 +378,24 @@ let run () =
           let ast = fn "myFn" [int 1; int 2; int 3] in
           fn "myFn" [int 2; int 1; int 3]
           |> matchExpr (AST.reorderFnCallArgs "myFn" 0 2 ast)) ;
-      test "simple pipe" (fun () ->
+      test "inside another function's arguments" (fun () ->
+          let ast = fn "anotherFn" [int 0; fn "myFn" [int 1; int 2; int 3]] in
+          fn "anotherFn" [int 0; fn "myFn" [int 2; int 1; int 3]]
+          |> matchExpr (AST.reorderFnCallArgs "myFn" 0 2 ast)) ;
+      test "inside its own arguments" (fun () ->
+          let ast = fn "myFn" [int 0; fn "myFn" [int 1; int 2; int 3]; int 4] in
+          fn "myFn" [fn "myFn" [int 2; int 1; int 3]; int 0; int 4]
+          |> matchExpr (AST.reorderFnCallArgs "myFn" 1 0 ast)) ;
+      test "simple pipe first argument not moved" (fun () ->
           let ast = pipe (int 1) [fn "myFn" [pipeTarget; int 2; int 3]] in
           pipe (int 1) [fn "myFn" [pipeTarget; int 3; int 2]]
           |> matchExpr (AST.reorderFnCallArgs "myFn" 2 1 ast)) ;
+      test "simple pipe first argument moved" (fun () ->
+          let ast = pipe (int 1) [fn "myFn" [pipeTarget; int 2; int 3]] in
+          pipe
+            (int 1)
+            [lambdaWithBinding "x" (fn "myFn" [int 2; int 3; var "x"])]
+          |> matchExpr (AST.reorderFnCallArgs "myFn" 0 3 ast)) ;
       test "pipe but the fn is later" (fun () ->
           let ast =
             pipe
@@ -398,7 +412,7 @@ let run () =
             ; fn "myFn" [pipeTarget; int 3; int 2]
             ; fn "other3" [pipeTarget] ]
           |> matchExpr (AST.reorderFnCallArgs "myFn" 2 1 ast)) ;
-      test "pipe and arg 0" (fun () ->
+      test "pipe and first argument moved" (fun () ->
           let ast =
             pipe
               (int 1)
@@ -411,7 +425,7 @@ let run () =
             (int 1)
             [ fn "other1" [pipeTarget]
             ; fn "other2" [pipeTarget]
-            ; lambdaWithBinding "x" (fn "myFn" [int 2; namedVar "x"; int 3])
+            ; lambdaWithBinding "x" (fn "myFn" [int 2; var "x"; int 3])
             ; fn "other3" [pipeTarget] ]
           |> matchExpr (AST.reorderFnCallArgs "myFn" 1 0 ast)) ;
       test "recurse into piped lambda exprs" (fun () ->
@@ -420,8 +434,37 @@ let run () =
           let ast2 = AST.reorderFnCallArgs "myFn" 0 1 ast1 in
           pipe
             (int 1)
-            [lambdaWithBinding "x" (fn "myFn" [namedVar "x"; int 2; int 3])]
+            [lambdaWithBinding "x" (fn "myFn" [var "x"; int 2; int 3])]
           |> matchExpr ast2) ;
+      test "inside another expression in a pipe" (fun () ->
+          let ast =
+            pipe
+              (int 0)
+              [ fn
+                  "anotherFn"
+                  [pipeTarget; int 1; fn "myFn" [int 2; int 3; int 4]] ]
+          in
+          pipe
+            (int 0)
+            [fn "anotherFn" [pipeTarget; int 1; fn "myFn" [int 3; int 2; int 4]]]
+          |> matchExpr (AST.reorderFnCallArgs "myFn" 1 0 ast)) ;
+      test "inside nested pipes" (fun () ->
+          let ast =
+            pipe
+              (int 1)
+              [ lambdaWithBinding
+                  "a"
+                  (pipe (var "a") [fn "myFn" [pipeTarget; int 2; int 3]]) ]
+          in
+          pipe
+            (int 1)
+            [ lambdaWithBinding
+                "a"
+                (pipe
+                   (var "a")
+                   [lambdaWithBinding "x" (fn "myFn" [int 2; int 3; var "x"])])
+            ]
+          |> matchExpr (AST.reorderFnCallArgs "myFn" 0 3 ast)) ;
       ()) ;
   describe "calculateUserUnsafeFunctions" (fun () ->
       let userFunctions =

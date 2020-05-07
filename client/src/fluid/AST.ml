@@ -352,7 +352,7 @@ let rec reorderFnCallArgs
                       , args
                       , reorderFnCallArgs fnName oldPos newPos lambdaExpr )
                 | _ ->
-                    pipeArg
+                    reorderFnCallArgs fnName oldPos newPos pipeArg
               else
                 (* The pipetarget isn't involved, so just do it normally. *)
                 reorderFnCallArgs fnName oldPos newPos pipeArg)
