@@ -29,8 +29,6 @@ let rec cron_checker (pid : int) () =
 
 
 let () =
-  Random.self_init () ;
-  let process_id = Telemetry.gid () in
   Libbackend.Init.init ~run_side_effects:false ;
   (* If either thread sets the shutdown ref, the other will see it and
    * terminate; block until both have terminated. *)
@@ -41,4 +39,5 @@ let () =
    *   the pod when it fails healthcheck
    * - cron_checker thread dies; it's the main loop, the process exits *)
   ignore (Thread.create (health_check shutdown) ()) ;
-  Lwt_main.run (Nocrypto_entropy_lwt.initialize () >>= cron_checker process_id)
+  let pid = Unix.getpid () in
+  Nocrypto_entropy_lwt.initialize () >>= cron_checker pid |> Lwt_main.run
