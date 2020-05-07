@@ -209,6 +209,16 @@ let eventNeither
     (Decoders.wrapDecoder (Decoders.clickEvent constructor))
 
 
+let scrollEventNeither
+    ~(key : string) (event : string) (constructor : scrollEvent -> msg) :
+    msg Vdom.property =
+  Tea.Html.onWithOptions
+    ~key
+    event
+    {stopPropagation = true; preventDefault = true}
+    (Decoders.wrapDecoder (Decoders.scrollEvent constructor))
+
+
 let eventNoPropagation
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =

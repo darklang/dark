@@ -492,6 +492,11 @@ type caretTarget =
 [@@deriving show {with_path = false}]
 
 (* ----------------------------- *)
+(* Scroll *)
+(* ----------------------------- *)
+type scrollEvent = {timeStamp : float} [@@deriving show {with_path = false}]
+
+(* ----------------------------- *)
 (* Mouse *)
 (* ----------------------------- *)
 type mouseEvent =
@@ -1258,6 +1263,7 @@ and msg =
   | AppMouseDown of mouseEvent
   | AppMouseDrag of Tea.Mouse.position [@printer opaque "AppMouseDrag"]
   | AppMouseUp of mouseEvent
+  | AppScroll
   | WindowMouseUp of mouseEvent
   | TLDragRegionMouseDown of TLID.t * mouseEvent
   (* we have the actual node when TLDragRegionMouseUp is created, *)

@@ -966,6 +966,22 @@ let clickEvent (fn : mouseEvent -> 'a) j : 'a =
     ; detail = field "detail" int j }
 
 
+(** [scrollEvent fn] implements a decoder converting a javascript scroll event
+ * into an OCaml record of type scrollEvent.
+ *
+ * Example usage:
+ *
+ *  let constructor = (fun _scrollEvent -> AppScroll) in
+ *  Tea.Html.onWithOptions
+ *   ~key
+ *   event
+ *   {stopPropagation = true; preventDefault = true}
+ *   (Decoders.wrapDecoder (Decoders.scrollEvent constructor))
+ *)
+let scrollEvent (fn : scrollEvent -> 'a) j : 'a =
+  fn {timeStamp = field "timeStamp" Json.Decode.float j}
+
+
 let exception_ j : exception_ =
   { short = field "short" string j
   ; long = field "long" (optional string) j
