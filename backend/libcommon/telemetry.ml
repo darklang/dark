@@ -3,13 +3,6 @@ module ID = Int
 
 let gid () = Random.int (Int.max_value - 1) + 1
 
-module Tracer = struct
-  type t =
-    { trace_id : ID.t
-    ; parent_id : ID.t
-    ; span_id : ID.t }
-end
-
 module Span = struct
   type t =
     { name : string
@@ -51,7 +44,7 @@ module Span = struct
   let log_params (span : t) : (string * Yojson.Safe.t) list =
     let p =
       ("trace.span_id", `String (ID.to_string span.span_id))
-      :: ("trace.trace_id", `String (ID.to_string span.parent_id))
+      :: ("trace.trace_id", `String (ID.to_string span.trace_id))
       :: Hashtbl.to_alist span.attributes
     in
     let p =

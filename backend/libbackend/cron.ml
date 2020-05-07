@@ -113,27 +113,26 @@ let record_execution (canvas_id : Uuidm.t) (h : 'expr_type handler) : unit =
 
 
 let check_all_canvases (pid : int) : (unit, Exception.captured) Result.t =
-  Telemetry.with_span "Cron.check_all_canvases" (fun span ->
-      Span.set span "meta.process_id" (`Int pid) ;
+  Telemetry.with_span
+    "Cron.check_all_canvases"
+    ~attrs:[("meta.process_id", `Int pid)]
+    (fun span ->
       let current_endpoints =
         if String.Caseless.equal
              Libservice.Config.postgres_settings.dbname
              "prodclone"
         then (
-          Log.erroR
-            "cron_checker"
-            ~data:"Not running any crons; pointed at prodclone!"
-            ~params:[("execution_id", Telemetry.ID.to_string span.trace_id)] ;
+          Span.set
+            span
+            "error.msg"
+            (`String "Not running any crons; pointed at prodclone!") ;
           [] )
         else
-          Telemetry.with_span "Serialize.current_hosts" (fun span ->
+          Telemetry.with_span ~parent:span "Serialize.current_hosts" (fun _ ->
               Serialize.current_hosts ()
-              |> List.filter ~f:(fun f -> not (Serialize.is_test f))
-              |> fun hosts ->
-              Span.set span "hosts_count" (`Int (List.length hosts)) ;
-              hosts)
+              |> List.filter ~f:(fun f -> not (Serialize.is_test f)))
       in
-      let stat_canvases = List.length current_endpoints in
+      Span.set span "canvas.checked" (`Int (List.length current_endpoints)) ;
       let stat_canvas_errors = ref 0 in
       let stat_crons = ref 0 in
       let stat_events = ref 0 in
@@ -272,8 +271,7 @@ let check_all_canvases (pid : int) : (unit, Exception.captured) Result.t =
         |> (fun x ->
              Span.mset
                span
-               [ ("canvas.checked", `Int stat_canvases)
-               ; ("canvas.errors", `Int !stat_canvas_errors)
+               [ ("canvas.errors", `Int !stat_canvas_errors)
                ; ("cron.checked", `Int !stat_crons)
                ; ("cron.queued", `Int !stat_events) ] ;
              x)
