@@ -605,24 +605,36 @@ let tlDestinations (m : model) : autocompleteItem list =
 (* ------------------------------------ *)
 
 let allowedParamTipes =
-  [TAny; TStr; TInt; TBool; TFloat; TDate; TObj; TBlock; TPassword; TUuid; TList]
-
-
-let allowedReturnTipes =
-  [ TAny
-  ; TBlock
-  ; TBool
-  ; TDate
-  ; TFloat
-  ; TInt
-  ; TList
-  ; TObj
-  ; TOption
-  ; TPassword
-  ; TResult
+  (* Types from Types.tipe that aren't included:
+       TCharacter - very hard to create characters right now, so this type
+                    would raises more questions than answers right now
+       TNull - trying to get rid of this, so don't spread it
+       TIncomplete - makes no sense to pass to a function
+       TError - makes no sense to pass to a function
+       TResp - these aren't really exposed to users as real things, but maybe
+               should be?
+       TErrorRail  - doesn't make sense pass to function
+       TDbList - only for DB schemas
+       TUserType  - added later
+  *)
+  [ TInt
   ; TStr
-  ; TUuid ]
+  ; TBool
+  ; TFloat
+  ; TObj
+  ; TList
+  ; TAny
+  ; TBlock
+  ; TDB
+  ; TDate
+  ; TPassword
+  ; TUuid
+  ; TOption
+  ; TResult
+  ; TBytes ]
 
+
+let allowedReturnTipes = allowedParamTipes
 
 let allowedDBColTipes =
   let builtins =
