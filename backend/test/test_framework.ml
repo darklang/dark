@@ -253,7 +253,7 @@ let t_cron_sanity () =
   let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   let ({should_execute; scheduled_run_at; interval}
         : Libbackend.Cron.execution_check_type) =
-    Cron.execution_check !c.id handler execution_id
+    Cron.execution_check (Telemetry.Span.root "test") !c.id handler
   in
   AT.check AT.bool "should_execute should be true" should_execute true ;
   ()
@@ -267,7 +267,7 @@ let t_cron_just_ran () =
   Cron.record_execution !c.id handler ;
   let ({should_execute; scheduled_run_at; interval}
         : Libbackend.Cron.execution_check_type) =
-    Cron.execution_check !c.id handler execution_id
+    Cron.execution_check (Telemetry.Span.root "test") !c.id handler
   in
   AT.check AT.bool "should_execute should be false" should_execute false ;
   ()
