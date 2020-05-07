@@ -844,6 +844,8 @@ let exe_flow_fades (_m : model) : testResult = pass
 
 let unexe_code_unfades_on_focus (_m : model) : testResult = pass
 
+let redo_analysis_on_toggle_erail (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -996,5 +998,7 @@ let trigger (test_name : string) : integrationTestState =
         exe_flow_fades
     | "unexe_code_unfades_on_focus" ->
         unexe_code_unfades_on_focus
+    | "redo_analysis_on_toggle_erail" ->
+        redo_analysis_on_toggle_erail
     | n ->
         fun _ -> fail ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

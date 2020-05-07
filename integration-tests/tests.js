@@ -1411,3 +1411,41 @@ test("unexe_code_unfades_on_focus", async t => {
     )
     .ok();
 });
+
+test("redo_analysis_on_toggle_erail", async t => {
+  const fnCall = Selector(".id-108391798");
+  const justExpr = Selector(".id-21312903");
+  const nothingExpr = Selector(".id-1409226084");
+  const errorRail = Selector(".fluid-error-rail");
+  const returnValue = Selector(".return-value");
+
+  const t0 = new Date();
+  await t.click(".handler-trigger");
+  awaitAnalysis(t, t0);
+  await t.expect(errorRail.hasClass("show")).ok();
+  await t.expect(returnValue.innerText).contains("<Incomplete>");
+  await t.expect(justExpr.hasClass("fluid-not-executed")).ok();
+  await t.expect(nothingExpr.hasClass("fluid-not-executed")).ok();
+
+  // takes function off rail
+  await t
+    .doubleClick(fnCall)
+    .pressKey("ctrl+\\")
+    .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
+    .ok();
+  await t.typeText("#cmd-filter", "rail");
+  await t
+    .expect(Selector(".fluid-selected").innerText)
+    .eql("take-function-off-rail");
+
+  // analysis is reruns
+  const t1 = new Date();
+  await t.pressKey("enter");
+  awaitAnalysis(t, t1);
+
+  // assert values have changed
+  await t.expect(errorRail.hasClass("show")).notOk();
+  await t.expect(returnValue.innerText).contains("1");
+  await t.expect(justExpr.hasClass("fluid-not-executed")).notOk();
+  await t.expect(nothingExpr.hasClass("fluid-not-executed")).ok();
+});
