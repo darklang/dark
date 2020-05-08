@@ -172,12 +172,9 @@ let viewReturnValue
           (* Since HTTP and userFunctions are the case where Incomplete return is likely to case and error,
            * we only want to highlight those cases. *)
           match (dval, vs.tl) with
-          | DIncomplete _, TLHandler h ->
-            ( match SpecHeaders.spaceOf h.spec with
-            | HSHTTP ->
-                Some "Your code needs to return a value in the last expression"
-            | HSCron | HSWorker | HSRepl | HSDeprecatedOther ->
-                None )
+          | DIncomplete _, TLHandler h when SpecHeaders.spaceOf h.spec = HSHTTP
+            ->
+              Some "Your code needs to return a value in the last expression"
           | DIncomplete _, TLFunc f ->
             ( match vs.traces with
             | [(tid, _)] when tid = Analysis.defaultTraceIDForTL ~tlid:f.ufTLID
