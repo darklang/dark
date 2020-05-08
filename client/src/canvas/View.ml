@@ -91,7 +91,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; ("group", match tl with TLGroup _ -> true | _ -> false) ]
   in
   let id =
-    Fluid.getToken' vs.tokens vs.fluidState
+    FluidTokenizer.ASTInfo.getToken vs.astInfo
     |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     |> Option.orElse (CursorState.idOf m.cursorState)
   in
@@ -188,11 +188,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | FocusedPackageManagerFn _ | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
-  let hasFF =
-    FluidAST.filter vs.ast ~f:(function EFeatureFlag _ -> true | _ -> false)
-    |> List.length
-    |> fun l -> l > 0
-  in
+  let hasFF = vs.astInfo.featureFlagTokenInfos <> [] in
   let html =
     [ Html.div
       (* this unique key ensures that when switching between toplevels the entire

@@ -12,7 +12,7 @@ module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
 module Util = FluidUtil
-module Printer = FluidPrinter
+module Printer = FluidTokenizer
 
 type ast = E.t
 

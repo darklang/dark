@@ -630,16 +630,16 @@ let defaultFunctionsProps =
   {usedFns = StrDict.empty; userFunctions = TLIDDict.empty}
 
 
-let defaultTestProps =
-  { Fluid.functions =
+let defaultTestProps : Types.fluidProps =
+  { functions =
       Functions.empty
       |> Functions.setBuiltins defaultTestFunctions defaultFunctionsProps
-  ; variants = [] }
+  ; variants = [LeftPartialVariant] }
 
 
 let defaultTestModel =
   { Defaults.defaultModel with
-    tests = [LeftPartialVariant]
+    tests = defaultTestProps.variants
   ; functions = defaultTestProps.functions
   ; analyses =
       StrDict.singleton (* The default traceID for TLID 7 *)

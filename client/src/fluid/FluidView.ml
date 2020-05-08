@@ -10,7 +10,7 @@ module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
-module Printer = FluidPrinter
+module Printer = FluidTokenizer
 module Util = FluidUtil
 
 (* Tea *)
@@ -73,7 +73,9 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
              | Unsafe ->
                  let id = T.tid token in
                  let args =
-                   AST.getArguments (T.tid token) vs.ast |> List.map ~f:E.toID
+                   vs.astInfo.ast
+                   |> AST.getArguments (T.tid token)
+                   |> List.map ~f:E.toID
                  in
                  let s = ViewFnExecution.stateFromViewState vs in
                  ViewFnExecution.fnExecutionStatus s fn id args
@@ -122,7 +124,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
     | LoadableError err ->
         [Html.text ("Error loading live value: " ^ err)]
   in
-  Fluid.getToken' vs.tokens vs.fluidState
+  FluidTokenizer.ASTInfo.getToken vs.astInfo
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
@@ -156,7 +158,7 @@ let viewReturnValue
     Types.msg Html.html =
   if CursorState.tlidOf vs.cursorState = Some vs.tlid
   then
-    let id = FluidAST.toID vs.ast in
+    let id = FluidAST.toID vs.astInfo.ast in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
     | LoadableSuccess (ExecutedResult dval) ->
         let isRefreshed =
@@ -228,7 +230,7 @@ let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
   in
   let editorState =
     { FluidEditorView.analysisStore = vs.analysisStore
-    ; ast = vs.ast
+    ; ast = vs.astInfo.ast
     ; functions = vs.functions
     ; executingFunctions = vs.executingFunctions
     ; editor = MainEditor vs.tlid
@@ -236,7 +238,7 @@ let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
     ; fluidState = vs.fluidState
     ; permission = vs.permission
     ; tlid = vs.tlid
-    ; tokens = vs.tokens }
+    ; tokens = vs.astInfo.mainTokenInfos }
   in
   let mainEditor = FluidEditorView.view editorState in
   let returnValue = viewReturnValue vs dragEvents in
@@ -245,7 +247,7 @@ let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
     then
       Html.div
         [Html.class' "debug-ast"]
-        [Html.text (E.toHumanReadable (FluidAST.toExpr vs.ast))]
+        [Html.text (E.toHumanReadable (FluidAST.toExpr vs.astInfo.ast))]
     else Vdom.noNode
   in
   let secondaryEditors =
@@ -256,17 +258,18 @@ let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
        * and then looking through the main tokens [O(N)] to find one with a
        * corresponding id. This is brittle and will likely break at some point. We
        * should do something better. *)
-      FluidAST.find flagID vs.ast
+      FluidAST.find flagID vs.astInfo.ast
       |> Option.andThen ~f:(function
              | E.EFeatureFlag (_, _, _, oldCode, _) ->
                  Some (E.toID oldCode)
              | _ ->
                  None)
       |> Option.andThen ~f:(fun oldCodeID ->
-             List.find vs.tokens ~f:(fun ti -> oldCodeID = T.tid ti.token))
+             List.find vs.astInfo.mainTokenInfos ~f:(fun ti ->
+                 oldCodeID = T.tid ti.token))
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
-    Fluid.buildFeatureFlagEditors vs.tlid vs.ast
+    Fluid.buildFeatureFlagEditors vs.tlid vs.astInfo.ast
     |> List.map ~f:(fun e ->
            match e with
            | NoEditor ->
@@ -277,21 +280,24 @@ let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
                recover
                  "got MainEditor when building feature flag editors"
                  (Html.div [] [])
-           | FeatureFlagEditor (_, expressionId) ->
+           | FeatureFlagEditor (_, flagID) ->
                let flagIcon =
                  Html.div
                    [Html.class' "ff-icon"; Html.title "feature flag"]
                    [ViewUtils.fontAwesome "flag"]
                in
                let rowOffset =
-                 expressionId
+                 flagID
                  |> findRowOffestOfMainTokenWithId
                  |> Option.withDefault ~default:0
                in
-               let tokens = FluidPrinter.tokensForEditor e vs.ast in
+               let tokens =
+                 FluidTokenizer.ASTInfo.ffTokenInfosFor flagID vs.astInfo
+                 |> recoverOpt "can't find tokens for real flag" ~default:[]
+               in
                let editorState =
                  { FluidEditorView.analysisStore = vs.analysisStore
-                 ; ast = vs.ast
+                 ; ast = vs.astInfo.ast
                  ; functions = vs.functions
                  ; executingFunctions = vs.executingFunctions
                  ; editor = e

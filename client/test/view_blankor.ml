@@ -20,8 +20,11 @@ let run () =
           let tl = tlFunc in
           let vs : ViewUtils.viewState =
             { tl
-            ; ast = FluidAST.ofExpr ast
-            ; tokens = []
+            ; astInfo =
+                FluidTokenizer.ASTInfo.make
+                  Fluid_test_data.defaultTestProps
+                  (FluidAST.ofExpr ast)
+                  Defaults.defaultFluidState
             ; cursorState = Deselected
             ; fluidState = Defaults.defaultFluidState
             ; tlid = gtlid ()

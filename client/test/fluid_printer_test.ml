@@ -1,21 +1,29 @@
 open Tester
 open Prelude
-open FluidPrinter
 open Fluid_test_data
 module E = FluidExpression
+module T = FluidToken
 
 let run () =
-  let hasTokenMatch ~(f : fluidToken -> bool) (e : E.t) =
-    let tokens = (toTokens' e Builder.empty).tokens in
+  let tokensFor (e : E.t) : T.t list =
+    FluidTokenizer.tokenize e |> List.map ~f:(fun ti -> ti.token)
+  in
+  let hasTokenMatch ~(f : T.t -> bool) (e : E.t) =
+    let tokens = tokensFor e in
     expect (List.any tokens ~f) |> toEqual true
   in
   describe "toTokens' converts expressions to tokens" (fun () ->
       test "field access keeps parentBlockID" (fun () ->
-          let parentID = Some (gid ()) in
-          let tokens = (toTokens' ~parentID aField Builder.empty).tokens in
+          let parentID = gid () in
+          let expr =
+            E.EList
+              ( parentID
+              , [EFieldAccess (gid (), EVariable (gid (), "obj"), "field")] )
+          in
+          let tokens = tokensFor expr in
           expect
             (List.any tokens ~f:(function
-                | TVariable (_, _, pbid) when pbid = parentID ->
+                | TVariable (_, _, Some pbid) when pbid = parentID ->
                     true
                 | _ ->
                     false))

@@ -42,6 +42,10 @@ let ancestors (target : Shared.id) (ast : t) : E.t list =
   toExpr ast |> E.ancestors target
 
 
+let getFeatureFlags (ast : t) : E.t list =
+  filter ast ~f:(function EFeatureFlag _ -> true | _ -> false)
+
+
 let clone = map ~f:E.clone
 
 let testEqualIgnoringIds (a : t) (b : t) : bool =

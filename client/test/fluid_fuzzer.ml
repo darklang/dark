@@ -387,7 +387,7 @@ let simplify (id : ID.t) (ast : E.t) : E.t =
 let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
     let tokenIDs =
-      ast |> FluidPrinter.tokenize |> List.map ~f:(fun ti -> T.tid ti.token)
+      ast |> FluidTokenizer.tokenize |> List.map ~f:(fun ti -> T.tid ti.token)
     in
     let eIDs = ast |> E.filterMap ~f:(fun e -> Some (E.toID e)) in
     let ids =
