@@ -169,21 +169,25 @@ let viewReturnValue
               false
         in
         let incompleteTxt =
-          (* Since HTTP and userFunctions are the case where Incomplete return is likely to case and error,
-           * we only want to highlight those cases. *)
+          let onDefaultTrace tlid =
+            match vs.traces with
+            | [(tid, _)] when tid = Analysis.defaultTraceIDForTL ~tlid ->
+                true
+            | _ ->
+                false
+          in
+          (* Since HTTP and userFunctions are the case where Incomplete return
+           * is likely to case and error, we only want to highlight those
+           * cases. *)
           match (dval, vs.tl) with
           | DIncomplete _, TLHandler h when SpecHeaders.spaceOf h.spec = HSHTTP
             ->
               Some "Your code needs to return a value in the last expression"
-          | DIncomplete _, TLFunc f ->
-            ( match vs.traces with
-            | [(tid, _)] when tid = Analysis.defaultTraceIDForTL ~tlid:f.ufTLID
-              ->
-                Some
-                  "This function has not yet been called - please call this function"
-            | _ ->
-                Some "Your code needs to return a value in the last expression"
-            )
+          | DIncomplete _, TLFunc f when onDefaultTrace f.ufTLID ->
+              Some
+                "This function has not yet been called - please call this function"
+          | DIncomplete _, TLFunc _ ->
+              Some "Your code needs to return a value in the last expression"
           | _, TLPmFunc _
           | _, TLFunc _
           | _, TLHandler _
