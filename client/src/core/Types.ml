@@ -1191,7 +1191,6 @@ and modification =
   | UndoGroupDelete of TLID.t * group
   | MoveMemberToNewGroup of TLID.t * TLID.t * model
   | SetClipboardContents of clipboardContents * clipboardEvent
-  | UpdateASTCache of TLID.t * string
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
   | TLMenuUpdate of TLID.t * menuMsg

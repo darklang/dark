@@ -101,16 +101,13 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : ID.t) : modification =
 
 
 let takeOffRail (_m : model) (tl : toplevel) (id : ID.t) : modification =
-  TL.getAST tl
-  |> Option.map ~f:(fun ast ->
-         ast
-         |> FluidAST.update id ~f:(function
-                | EFnCall (_, name, exprs, Rail) ->
-                    EFnCall (id, name, exprs, NoRail)
-                | e ->
-                    recover "incorrect id in takeoffRail" e)
-         |> TL.setASTMod tl)
-  |> Option.withDefault ~default:NoChange
+  TL.modifyASTMod tl ~f:(fun ast ->
+      ast
+      |> FluidAST.update id ~f:(function
+             | EFnCall (_, name, exprs, Rail) ->
+                 EFnCall (id, name, exprs, NoRail)
+             | e ->
+                 recover "incorrect id in takeoffRail" e))
 
 
 let isRailable (m : model) (name : string) =

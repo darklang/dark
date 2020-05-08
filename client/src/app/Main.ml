@@ -930,11 +930,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetClipboardContents (data, e) ->
         Clipboard.setData data e ;
         (m, Cmd.none)
-    | UpdateASTCache (tlid, str) ->
-        let searchCache =
-          m.searchCache |> TLIDDict.update ~tlid ~f:(fun _ -> Some str)
-        in
-        ({m with searchCache}, Cmd.none)
     | InitASTCache (handlers, userFunctions) ->
         let hcache =
           handlers
