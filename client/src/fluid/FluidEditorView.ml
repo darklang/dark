@@ -145,7 +145,7 @@ let toHtml (s : state) : Types.msg Html.html list =
         else Vdom.noNode
   in
   let isSelected tokenStart tokenEnd =
-    let selStart, selEnd = Fluid.getSelectionRange s.fluidState in
+    let selStart, selEnd = FluidUtil.getSelectionRange s.fluidState in
     isActiveEditor s && selStart <= tokenStart && tokenEnd <= selEnd
   in
   let idsInAFlag =

@@ -12,40 +12,59 @@ let ancestorFlag (ast : FluidAST.t) (id : ID.t) : FluidExpression.t option =
   |> List.find ~f:(function E.EFeatureFlag _ -> true | _ -> false)
 
 
-(** [wrap ast id] finds the expression having [id] and wraps it in a feature * *
+(** [wrap fluidState ast id] finds the expression having [id] and wraps it in a feature * *
     flag (making it into the "old code" of the flag.
 
     Returns a Some of the ID of the newly created EFeatureFlag (or None if one
     wasn't created) and the new AST *)
-let wrap (ast : FluidAST.t) (id : ID.t) : ID.t option * FluidAST.t =
+let wrap (s : Types.fluidState) (ast : FluidAST.t) (id : ID.t) :
+    ID.t option * FluidAST.t =
   match ancestorFlag ast id with
   | Some _ ->
       (None, ast) (* don't nest flags! *)
   | None ->
       let flagName = "flag-" ^ (gid () |> ID.toString) in
       let flagID = gid () in
-      let ast =
-        FluidAST.update id ast ~f:(function
-            (* Somewhat arbitrary decision: when flagging a let, only wrap the
-             * RHS. This avoids surprising behavior where multiple "lines" may
-             * be wrapped if we wrapped the body. Consider:
-             *   let a = 1
-             *   let b = 2
-             *   let c = 3
-             *   a + b + c
-             *
-             * Wrapping with the `let b` could wrap either `2` (the RHS) or
-             * `let c = 3 \n a + b + c` (the body). To make things feel more line based,
-             * we choose to only wrap the RHS. *)
-            | E.ELet (id, var, rhs, body) ->
-                let ff =
-                  E.EFeatureFlag (flagID, flagName, E.newB (), rhs, E.newB ())
-                in
-                E.ELet (id, var, ff, body)
-            | e ->
-                E.EFeatureFlag (flagID, flagName, E.newB (), e, E.newB ()))
+      let expr = FluidAST.toExpr ast in
+      let isSelectAll =
+        let tokenInfos = FluidTokenizer.tokenize expr in
+        let tokenStart, tokenEnd =
+          List.last tokenInfos
+          |> Option.map ~f:(fun last -> (0, last.endPos))
+          |> Option.withDefault ~default:(-1, -1)
+        in
+        let selectStart, selectEnd = FluidUtil.getSelectionRange s in
+        (tokenStart, tokenEnd) = (selectStart, selectEnd)
       in
-      (Some flagID, ast)
+      if isSelectAll
+      then
+        (* selected all - wrap the whole thing *)
+        ( Some flagID
+        , FluidAST.ofExpr
+            (E.EFeatureFlag (flagID, flagName, E.newB (), expr, E.newB ())) )
+      else
+        let ast =
+          FluidAST.update id ast ~f:(function
+              (* Somewhat arbitrary decision: when flagging a let, only wrap the
+               * RHS. This avoids surprising behavior where multiple "lines" may
+               * be wrapped if we wrapped the body. Consider:
+               *   let a = 1
+               *   let b = 2
+               *   let c = 3
+               *   a + b + c
+               *
+               * Wrapping with the `let b` could wrap either `2` (the RHS) or
+               * `let c = 3 \n a + b + c` (the body). To make things feel more line based,
+               * we choose to only wrap the RHS. *)
+              | E.ELet (id, var, rhs, body) ->
+                  let ff =
+                    E.EFeatureFlag (flagID, flagName, E.newB (), rhs, E.newB ())
+                  in
+                  E.ELet (id, var, ff, body)
+              | e ->
+                  E.EFeatureFlag (flagID, flagName, E.newB (), e, E.newB ()))
+        in
+        (Some flagID, ast)
 
 
 let hasFlag (ast : FluidAST.t) : bool =
@@ -57,10 +76,10 @@ let hasFlag (ast : FluidAST.t) : bool =
 
 (** [wrapCmd m tl id] returns a [modification] that calls [wrap] with the
     [tl]'s AST. *)
-let wrapCmd (_ : model) (tl : toplevel) (id : ID.t) : modification =
+let wrapCmd (m : model) (tl : toplevel) (id : ID.t) : modification =
   match Toplevel.getAST tl with
   | Some ast when not (hasFlag ast) ->
-      let maybeId, ast = wrap ast id in
+      let maybeId, ast = wrap m.fluidState ast id in
       let setAST = Toplevel.setASTMod tl ast in
       ( match maybeId with
       | Some flagId ->

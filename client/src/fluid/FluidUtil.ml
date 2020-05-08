@@ -4,6 +4,24 @@ let propsFromModel (m : model) : Types.fluidProps =
   {functions = m.functions; variants = m.tests}
 
 
+let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
+  if rangeBegin > rangeEnd
+  then (rangeEnd, rangeBegin)
+  else (rangeBegin, rangeEnd)
+
+
+(* Always returns a selection represented as two ints with the smaller int first.
+   The numbers are identical if there is no selection. *)
+let getSelectionRange (s : fluidState) : int * int =
+  match s.selectionStart with
+  | Some beginIdx when beginIdx < s.newPos ->
+      (beginIdx, s.newPos)
+  | Some endIdx ->
+      (s.newPos, endIdx)
+  | None ->
+      (s.newPos, s.newPos)
+
+
 let literalToString
     (v : [> `Bool of bool | `Int of string | `Null | `Float of string * string])
     : string =
