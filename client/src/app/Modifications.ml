@@ -10,11 +10,14 @@ let updateASTCache (m : model) (tlid : TLID.t) (str : string) : model =
 
 
 (* Sends updates to ops, modifies model, sends request for new analysis *)
-let fullstackASTUpdate (tl : toplevel) (ast : FluidAST.t) : modification =
+let fullstackASTUpdate
+    ?(mFn : model -> model = fun m -> m) (tl : toplevel) (ast : FluidAST.t) :
+    modification =
   let opsMod = TL.setASTOpMod tl ast in
-  let f m0 =
+  let f m =
     let tlid = TL.id tl in
     let newM =
+      let m0 = mFn m in
       (* All model updates happens here *)
       let m1 = TL.updateModelWithAST m0 tlid ast in
       if m1.fluidState.activeEditor = MainEditor tlid

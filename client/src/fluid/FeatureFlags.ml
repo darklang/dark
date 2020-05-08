@@ -80,25 +80,21 @@ let wrapCmd (m : model) (tl : toplevel) (id : ID.t) : modification =
   match Toplevel.getAST tl with
   | Some ast when not (hasFlag ast) ->
       let maybeId, ast = wrap m.fluidState ast id in
-      let setAST = Toplevel.setASTOpMod tl ast in
-      ( match maybeId with
-      | Some flagId ->
-          Many
-            [ setAST
-              (* This is bad, but we can't use Fluid.ml here due to
-               * dependency cycle issues D: *)
-            ; ReplaceAllModificationsWithThisOne
-                (fun m ->
-                  ( { m with
-                      fluidState =
-                        { m.fluidState with
-                          newPos = 5 (* pos 5 is the blank after "when" *)
-                        ; upDownCol = None
-                        ; activeEditor =
-                            FeatureFlagEditor (Toplevel.id tl, flagId) } }
-                  , Tea.Cmd.none )) ]
-      | None ->
-          setAST )
+      let mFn =
+        match maybeId with
+        | Some flagId ->
+            fun m ->
+              { m with
+                fluidState =
+                  { m.fluidState with
+                    newPos = 5 (* pos 5 is the blank after "when" *)
+                  ; upDownCol = None
+                  ; activeEditor = FeatureFlagEditor (Toplevel.id tl, flagId) }
+              }
+        | None ->
+            fun m -> m
+      in
+      Modifications.fullstackASTUpdate ~mFn tl ast
   | Some _ | None ->
       NoChange
 
@@ -131,20 +127,18 @@ let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
   Toplevel.getAST tl
   |> Option.andThen ~f:(fun ast -> unwrap keep ast id)
   |> Option.map ~f:(fun ast ->
-         Many
-           [ Toplevel.setASTOpMod tl ast
-           ; ReplaceAllModificationsWithThisOne
-               (fun m ->
-                 ( { m with
-                     fluidState =
-                       { m.fluidState with
-                         newPos =
-                           0
-                           (* should probably be the last place the caret was
-                            * in the main editor, but we don't store that *)
-                       ; upDownCol = None
-                       ; activeEditor = MainEditor (Toplevel.id tl) } }
-                 , Tea.Cmd.none )) ])
+         let mFn m =
+           { m with
+             fluidState =
+               { m.fluidState with
+                 newPos =
+                   0
+                   (* should probably be the last place the caret was
+                    * in the main editor, but we don't store that *)
+               ; upDownCol = None
+               ; activeEditor = MainEditor (Toplevel.id tl) } }
+         in
+         Modifications.fullstackASTUpdate ~mFn tl ast)
   |> Option.withDefault ~default:NoChange
 
 
