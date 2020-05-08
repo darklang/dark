@@ -1,6 +1,7 @@
 open Prelude
 open ViewUtils
 
+(* Spec: https://www.notion.so/darklang/Hello-World-Tutorial-9f0caa9890e74e47b5ac3e66ee826a4c *)
 let defaultStep : tutorialSteps option = Some Welcome
 
 let isGettingStartedCanvas (username : string) (canvasName : string) : bool =
