@@ -1,5 +1,6 @@
 open Tc
 open Tester
+open Fluid_test_data
 open FluidShortcuts
 module FF = FeatureFlags
 
@@ -22,12 +23,13 @@ module FF = FeatureFlags
  * keeping the old code and the result when keeping the new code. *)
 let testWrap
     (name : string)
+    ?(state = defaultTestState)
     (exprFn : ID.t -> FluidExpression.t)
     (expected : FluidExpression.t) =
   test name (fun () ->
       let id = Shared.gid () in
       let ast = FluidAST.ofExpr (exprFn id) in
-      let _flagId, newAST = FF.wrap ast id in
+      let _flagId, newAST = FF.wrap state ast id in
       expect (FluidAST.toExpr newAST)
       |> withEquality FluidExpression.testEqualIgnoringIds
       |> toEqual expected)
@@ -60,6 +62,11 @@ let run () =
         (flag (blank ()) (str "a") (blank ())) ;
       testWrap
         "wrapping a let puts the RHS in the old code"
+        (fun id -> let' ~id "a" (int 1) (var "a"))
+        (let' "a" (flag (blank ()) (int 1) (blank ())) (var "a")) ;
+      testWrap
+        "wrapping a select-all wraps entire thing"
+        ~state:{defaultTestState with newPos = 0; selectionStart = Some 12}
         (fun id -> let' ~id "a" (int 1) (var "a"))
         (let' "a" (flag (blank ()) (int 1) (blank ())) (var "a")) ;
       testWrap
