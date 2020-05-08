@@ -4,7 +4,9 @@ open Core_kernel
  * to read some of the overview documentation at https://opentelemetry.io/docs/
  * before trying to understand this module. *)
 
-(* An ID is used for trace and span IDs *)
+(* An ID is used for trace and span IDs.
+ * These are native (64-bit) ints for ease/speed of generating lots of random
+ * ones, but will be logged as strings since that's what Honeycomb expects. *)
 module ID = Int
 
 (** gid returns a new randomly generated ID **)
