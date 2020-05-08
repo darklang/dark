@@ -75,7 +75,9 @@ module Span = struct
     in
     if span.end_time = 0.0
     then p
-    else ("duration_ms", `Float (span.end_time -. span.start_time)) :: p
+    else
+      let d = 1000.0 *. (span.end_time -. span.start_time) in
+      ("duration_ms", `Float d) :: p
 
 
   (** finish records the span end time and logs it. *)
