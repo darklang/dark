@@ -416,13 +416,21 @@ let moveTo (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
 
 (* Find first `target` expression (starting at the back), and return a state
  * with its location. If blank, will go to the start of the blank *)
-let moveToEndOfTarget (target : ID.t) (astInfo : ASTInfo.t) : ASTInfo.t =
+let moveToEndOfNonWhitespaceTarget (target : ID.t) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
   let astInfo = recordAction "moveToEndOfTarget" astInfo in
   match
     astInfo
     |> ASTInfo.activeTokenInfos
     |> List.reverse
-    |> List.find ~f:(fun ti -> T.tid ti.token = target)
+    |> List.find ~f:(fun ti ->
+           T.tid ti.token = target
+           &&
+           match ti.token with
+           | TSep _ | TNewline _ | TIndent _ ->
+               false
+           | _ ->
+               true)
   with
   | None ->
       recover "cannot find token to moveToEndOfTarget" ~debug:target astInfo
@@ -5707,7 +5715,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                let astInfo =
                  ASTInfo.make (FluidUtil.propsFromModel m) ast m.fluidState
                in
-               let ({state; _} : ASTInfo.t) = moveToEndOfTarget id astInfo in
+               let ({state; _} : ASTInfo.t) =
+                 moveToEndOfNonWhitespaceTarget id astInfo
+               in
                {state with errorDvSrc = SourceId (tlid, id)}
              in
              let moveMod =
