@@ -735,6 +735,14 @@ test("function_analysis_works", async t => {
     .eql("10", { timeout: 5000 });
 });
 
+test("jump_to_error", async t => {
+  await t.click(".fluid-entry");
+  const timestamp = new Date();
+  await t.click(".fluid-entry.id-675551618");
+  awaitAnalysis(t, timestamp);
+  await t.click(".jump-src");
+});
+
 test("fourohfours_parse", async t => {
   const sendPushEvent = ClientFunction(function () {
     const data = [
