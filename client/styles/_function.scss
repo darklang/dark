@@ -1,13 +1,13 @@
 .fn-header {
   padding-bottom: $spacing-small;
-  border-bottom: 1px solid $user-functions;
+  border-bottom: 1px dotted $user-functions;
 
   .spec-header {
     display: flex;
     flex-wrap: nowrap;
     justify-content: space-between;
     flex-direction: row;
-    border-bottom: none;
+    border-bottom: 1px solid $user-functions;
     cursor: default;
 
     .di-fn {
