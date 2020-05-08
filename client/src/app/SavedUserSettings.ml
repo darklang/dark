@@ -12,7 +12,7 @@ let toModel (m : model) (e : savedUserSettings) : model =
 
 
 let model2editor (m : model) : savedUserSettings =
-  (* showUserWelcomeModal indicates if it is the users first time visiting any dark canvss *)
+  (* showUserWelcomeModal indicates if it is the users first time visiting any dark canvas *)
   { showUserWelcomeModal = m.showUserWelcomeModal
   ; recordConsent = m.settingsView.privacy.recordConsent }
 
