@@ -24,7 +24,7 @@ type state =
 
 let stateFromViewState (s : ViewUtils.viewState) : state =
   { analysisStore = s.analysisStore
-  ; ast = s.ast
+  ; ast = s.astInfo.ast
   ; executingFunctions = s.executingFunctions
   ; permission = s.permission
   ; tlid = s.tlid }

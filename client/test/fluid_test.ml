@@ -71,7 +71,7 @@ open FluidShortcuts
  *  characters are replaced with @ signs.
  *
  *  Other blanks (see FluidToken.isBlank) are displayed as `***` This is
- *  controlled by FluidPrinter.toTestText.
+ *  controlled by FluidTokenizer.toTestText.
  *
  *  Caret placement is marked with a single `~`. Selections are marked with `»`
  *  as the start of the selection and `«` as the end. This allow detecting both
@@ -207,7 +207,7 @@ module TestCase = struct
            * Importantly, we do this on the original expr
            *)
           originalExpr
-          |> Printer.tokenize
+          |> Tokenizer.tokenize
           |> List.filter ~f:(fun ti ->
                  FluidToken.isNewline ti.token && ti.startPos < pos)
           |> List.length
@@ -263,7 +263,7 @@ module TestResult = struct
 
   let tokenizeResult (res : t) : FluidToken.tokenInfo list =
     FluidAST.toExpr res.resultAST
-    |> Printer.tokenizeForEditor res.resultState.activeEditor
+    |> FluidTokenizer.tokenizeForEditor res.resultState.activeEditor
 
 
   let containsPartials (res : t) : bool =
@@ -377,15 +377,7 @@ let processMsg (inputs : fluidInputEvent list) (astInfo : ASTInfo.t) : ASTInfo.t
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
   let astInfo = Fluid.updateAutocomplete m (TLID.fromString "7") astInfo in
   List.foldl inputs ~init:astInfo ~f:(fun input (astInfo : ASTInfo.t) ->
-      let ast, state, tokenInfos =
-        Fluid.updateMsg
-          m
-          h.hTLID
-          astInfo.ast
-          astInfo.state
-          (FluidInputEvent input)
-      in
-      {ast; state; tokenInfos; props = defaultTestProps})
+      Fluid.updateMsg' m h.hTLID astInfo (FluidInputEvent input))
 
 
 let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
@@ -412,7 +404,9 @@ let process (inputs : fluidInputEvent list) (tc : TestCase.t) : TestResult.t =
   if tc.debug
   then (
     Js.log2 "state after" (Fluid_utils.debugState result.state) ;
-    Js.log2 "expr after" (FluidPrinter.tokensToString result.tokenInfos) ) ;
+    Js.log2
+      "expr after"
+      (FluidPrinter.tokensToString (Fluid.ASTInfo.activeTokenInfos result)) ) ;
   {TestResult.testcase = tc; resultAST; resultState = result.state}
 
 
@@ -552,7 +546,7 @@ let run () =
       t "del near-empty string" oneCharStr ~pos:1 del "\"~\"" ;
       t "insert outside string is no-op" aStr (ins "c") "~\"some string\"" ;
       tStruct
-        "insert outside string at top-level"
+        "insert outside string at top-level creates left partial"
         aStr
         ~pos:0
         [InsertText "c"]
@@ -740,7 +734,7 @@ let run () =
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
       tStruct
-        "insert outside string at top-level"
+        "insert outside mlstring at top-level creates left partial"
         mlStr
         ~pos:0
         [InsertText "c"]
@@ -1117,7 +1111,7 @@ let run () =
       t "bs end of number" anInt ~pos:5 bs "1234~" ;
       t "insert non-number at start is no-op" anInt (ins "c") "~12345" ;
       tStruct
-        "insert non-number without wrapper"
+        "insert non-number without wrapper creates left partial"
         anInt
         ~pos:0
         [InsertText "c"]
@@ -1235,7 +1229,7 @@ let run () =
       t "bs dot converts to int, no fraction" aPartialFloat ~pos:2 bs "1~" ;
       t "continue after adding dot" aPartialFloat ~pos:2 (ins "2") "1.2~" ;
       tStruct
-        "insert letter at beginning of float at top-level"
+        "insert letter at beginning of float at top-level creates left partial"
         aFloat
         ~pos:0
         [InsertText "c"]
@@ -4521,7 +4515,9 @@ let run () =
             |> updateKey (keypress K.Down)
             |> processMsg [DeleteContentBackward]
           in
-          let result = Printer.tokensToString astInfo.tokenInfos in
+          let result =
+            ASTInfo.activeTokenInfos astInfo |> Printer.tokensToString
+          in
           expect (result, astInfo.state.ac.index)
           |> toEqual ("let request = 1\nre", Some 0)) ;
       (* TODO: this doesn't work but should *)
@@ -4538,7 +4534,7 @@ let run () =
       ()) ;
   describe "Movement" (fun () ->
       let s = defaultTestState in
-      let tokens = Printer.tokenize complexExpr in
+      let tokens = FluidTokenizer.tokenize complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr |> FluidAST.ofExpr in
       let astInfo = ASTInfo.make defaultTestProps ast defaultTestState in
@@ -4918,11 +4914,12 @@ let run () =
       ()) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
+          let open FluidTokenizer in
           let id = ID.fromString "543" in
           expect
             (let ast = E.EString (id, "test") in
-             let tokens = Printer.tokenize ast in
-             Fluid.getNeighbours ~pos:3 tokens)
+             let tokens = tokenize ast in
+             getNeighbours ~pos:3 tokens)
           |> toEqual
                (let token = TString (id, "test", None) in
                 let ti =

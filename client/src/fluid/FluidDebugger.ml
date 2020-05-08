@@ -1,12 +1,12 @@
 open Prelude
 module Attrs = Tea.Html2.Attributes
-module Printer = FluidPrinter
+module Printer = FluidTokenizer
 module Expression = FluidExpression
 module Token = FluidToken
 
 let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
   let s = m.fluidState in
-  let tokens = Fluid.tokensForActiveEditor ast m.fluidState in
+  let tokens = FluidTokenizer.tokensForEditor m.fluidState.activeEditor ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =
@@ -74,7 +74,7 @@ let view (m : model) (ast : FluidAST.t) : Types.msg Html.html =
     [dtText "error"; ddText (Option.withDefault s.error ~default:"None")]
   in
   let tokenData =
-    let left, right, next = Fluid.getNeighbours tokens ~pos:s.newPos in
+    let left, right, next = FluidTokenizer.getNeighbours tokens ~pos:s.newPos in
     let ddNoProp1 txt = Html.dd [Html.noProp] [Html.text txt] in
     let tokenInfo tkn =
       Html.dd [Attrs.class' "tokenInfo"] [Token.show_tokenInfo tkn]

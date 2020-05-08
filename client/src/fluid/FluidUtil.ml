@@ -1,5 +1,9 @@
 open Prelude
 
+let propsFromModel (m : model) : Types.fluidProps =
+  {functions = m.functions; variants = m.tests}
+
+
 let literalToString
     (v : [> `Bool of bool | `Int of string | `Null | `Float of string * string])
     : string =

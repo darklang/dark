@@ -3,12 +3,12 @@ module Regex = Util.Regex
 module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
+module ASTInfo = FluidTokenizer.ASTInfo
 
 type viewState =
   { tl : toplevel
-  ; ast : FluidAST.t
   ; functions : Functions.t
-  ; tokens : FluidToken.tokenInfo list
+  ; astInfo : ASTInfo.t
   ; cursorState : cursorState
   ; tlid : TLID.t
   ; isAdmin : bool
@@ -59,10 +59,10 @@ let createVS (m : model) (tl : toplevel) : viewState =
     Option.map traceID ~f:(Analysis.getStoredAnalysis m)
     |> Option.withDefault ~default:LoadableNotInitialized
   in
-  let tokens = FluidPrinter.tokenize (FluidAST.toExpr ast) in
+  let props = FluidUtil.propsFromModel m in
+  let astInfo = ASTInfo.make props ast m.fluidState in
   { tl
-  ; ast
-  ; tokens
+  ; astInfo
   ; tlid
   ; cursorState = CursorState.unwrap m.cursorState
   ; hovering =
