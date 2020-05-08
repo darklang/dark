@@ -120,7 +120,7 @@ let run () =
           let mod' = Refactor.takeOffRail m (TLHandler h) id in
           let res =
             match mod' with
-            | AddOps ([SetHandler (_, _, h)], _) ->
+            | Many [AddOps ([SetHandler (_, _, h)], _); _] ->
               ( match FluidAST.toExpr h.ast with
               | EFnCall (_, "Int::notResulty", [], NoRail) ->
                   true
@@ -140,7 +140,7 @@ let run () =
           let mod' = Refactor.takeOffRail m (TLHandler h) id in
           let res =
             match mod' with
-            | AddOps ([SetHandler (_, _, h)], _) ->
+            | Many [AddOps ([SetHandler (_, _, h)], _); _] ->
               ( match FluidAST.toExpr h.ast with
               | EPipe
                   ( _
@@ -162,7 +162,7 @@ let run () =
           let mod' = Refactor.putOnRail m (TLHandler h) pd in
           let res =
             match mod' with
-            | AddOps ([SetHandler (_, _, h)], _) ->
+            | Many [AddOps ([SetHandler (_, _, h)], _); _] ->
               ( match FluidAST.toExpr h.ast with
               | EFnCall (_, "Result::resulty", [], Rail) ->
                   true

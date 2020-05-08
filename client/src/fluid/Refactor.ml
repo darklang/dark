@@ -54,7 +54,9 @@ let transformFnCalls
 
 let modASTWithID (tl : toplevel) (id : ID.t) ~(f : E.t -> E.t) : modification =
   TL.getAST tl
-  |> Option.map ~f:(FluidAST.update ~f id)
+  |> Option.andThen ~f:(fun ast ->
+         let newAST = FluidAST.update ~f id ast in
+         if newAST <> ast then Some newAST else None)
   |> Option.map ~f:(M.fullstackASTUpdate tl)
   |> Option.withDefault ~default:NoChange
 
