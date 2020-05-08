@@ -52,6 +52,13 @@ let transformFnCalls
   newHandlers @ newFunctions
 
 
+let modASTWithID (tl : toplevel) (id : ID.t) ~(f : E.t -> E.t) : modification =
+  TL.getAST tl
+  |> Option.map ~f:(FluidAST.update ~f id)
+  |> Option.map ~f:(M.fullstackASTUpdate tl)
+  |> Option.withDefault ~default:NoChange
+
+
 type wrapLoc =
   | WLetRHS
   | WLetBody
@@ -96,16 +103,7 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : ID.t) : modification =
           , E.newB ()
           , [(newBlankPattern mid, e); (newBlankPattern mid, E.newB ())] )
   in
-  TL.getAST tl
-  |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTOpMod tl)
-  |> Option.withDefault ~default:NoChange
-
-
-let modASTWithID (tl : toplevel) (id : ID.t) ~(f : E.t -> E.t) : modification =
-  TL.getAST tl
-  |> Option.map ~f:(FluidAST.update ~f id)
-  |> Option.map ~f:(M.fullstackASTUpdate tl)
-  |> Option.withDefault ~default:NoChange
+  modASTWithID tl id ~f:replacement
 
 
 let takeOffRail (_m : model) (tl : toplevel) (id : ID.t) : modification =
@@ -205,7 +203,7 @@ let extractFunction (m : model) (tl : toplevel) (id : ID.t) : modification =
       in
       let replacement = E.EFnCall (gid (), name, paramExprs, NoRail) in
       let newAST = FluidAST.replace ~replacement id ast in
-      let astOp = TL.setASTOpMod tl newAST in
+      let astUpdate = M.fullstackASTUpdate tl newAST in
       let params =
         List.map freeVars ~f:(fun (id, name_) ->
             let tipe =
@@ -234,7 +232,7 @@ let extractFunction (m : model) (tl : toplevel) (id : ID.t) : modification =
       in
       Many
         [ AddOps ([SetFunction newF], FocusExact (tlid, E.toID replacement))
-        ; astOp ]
+        ; astUpdate ]
   | _ ->
       NoChange
 
