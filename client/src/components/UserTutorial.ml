@@ -72,11 +72,18 @@ let tutorialStepsToText (step : tutorialSteps) (username : string) :
     msg Html.html =
   match step with
   | Welcome ->
-      Html.p
+      Html.div
         [Html.class' "tutorial-txt"]
-        [ Html.text
-            "Welcome to Dark! Let's get started by creating our first Hello World. Click anywhere on the canvas (the lighter grey area), type hello and choose \"New HTTP handler\""
-        ]
+        [ Html.p
+            []
+            [ Html.text
+                "Welcome to Dark! Let's get started by creating our first Hello World."
+            ]
+        ; Html.p
+            []
+            [ Html.text
+                "Click anywhere on the canvas (the lighter grey area), type hello and choose \"New HTTP handler\""
+            ] ]
   | VerbChange ->
       Html.p
         [Html.class' "tutorial-txt"]
@@ -109,7 +116,10 @@ let tutorialStepsToText (step : tutorialSteps) (username : string) :
             []
             [ Html.text
                 "Congratulations, you've created your first Hello World in Dark!"
-            ; Html.text
+            ]
+        ; Html.p
+            []
+            [ Html.text
                 "To help you continue to learn, we've created a Getting Started canvas."
             ]
         ; btn ]
@@ -176,11 +186,18 @@ let viewGettingStarted : msg Html.html =
   in
   Html.div
     []
-    [ Html.p
+    [ Html.div
         [Html.class' "tutorial-txt"]
-        [ Html.text
-            "This is your Getting Started canvas, which showcases some basic functionality. If you'd like to go through the steps of building this canvas by hand, a full walkthrough is available in the documentation."
-        ]
+        [ Html.p
+            []
+            [ Html.text
+                "This is your Getting Started canvas, which showcases some basic functionality."
+            ]
+        ; Html.p
+            []
+            [ Html.text
+                "If you'd like to go through the steps of building this canvas by hand, a full walkthrough is available in the documentation."
+            ] ]
     ; btn ]
 
 
