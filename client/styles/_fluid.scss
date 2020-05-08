@@ -136,7 +136,7 @@ $ff-color: adjust-hue($purple, -40deg);
     color: $cyan;
   }
 
-  &.incomplete {
+  &.warning {
     color: $yellow;
   }
 

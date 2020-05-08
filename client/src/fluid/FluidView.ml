@@ -168,7 +168,7 @@ let viewReturnValue
           | _ ->
               false
         in
-        let incompleteTxt =
+        let warningText =
           let onDefaultTrace tlid =
             match vs.traces with
             | [(tid, _)] when tid = Analysis.defaultTraceIDForTL ~tlid ->
@@ -188,6 +188,12 @@ let viewReturnValue
                 "This function has not yet been called - please call this function"
           | DIncomplete _, TLFunc _ ->
               Some "Your code needs to return a value in the last expression"
+          | _, TLFunc f
+            when not
+                   (Runtime.isCompatible
+                      (BlankOr.valueWithDefault TAny f.ufMetadata.ufmReturnTipe)
+                      (Runtime.typeOf dval)) ->
+              Some "wrong type"
           | _, TLPmFunc _
           | _, TLFunc _
           | _, TLHandler _
@@ -197,26 +203,31 @@ let viewReturnValue
               None
         in
         let auxText =
-          incompleteTxt
+          warningText
           |> Option.map ~f:(fun txt ->
                  Html.span [Html.class' "msg"] [Html.text txt])
           |> Option.withDefault ~default:Vdom.noNode
         in
         let dvalString = Runtime.toRepr dval in
-        let newLine =
+        let newLine1 =
           if String.contains ~substring:"\n" dvalString
           then Html.br []
           else Vdom.noNode
+        in
+        let newLine2 =
+          if warningText <> None then Html.br [] else Vdom.noNode
         in
         let viewDval = viewDval vs.tlid dval ~canCopy:true in
         Html.div
           ( Html.classList
               [ ("return-value", true)
               ; ("refreshed", isRefreshed)
-              ; ("incomplete", incompleteTxt <> None)
+              ; ("warning", warningText <> None)
               ; ("draggable", dragEvents <> []) ]
           :: dragEvents )
-          ([Html.text "This trace returns: "; newLine] @ viewDval @ [auxText])
+          ( [Html.text "This trace returns: "; newLine1]
+          @ viewDval
+          @ [newLine2; auxText] )
     | _ ->
         Vdom.noNode
   else Vdom.noNode
