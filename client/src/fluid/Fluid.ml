@@ -1034,9 +1034,7 @@ let caretTargetForNextNonWhitespaceToken ~pos (tokens : tokenInfos) :
     | [] ->
         None
     | ti :: rest ->
-        if ti.token |> T.isWhitespace
-        then getNextWS rest
-        else if pos > ti.startPos
+        if T.isWhitespace ti.token || pos > ti.startPos
         then getNextWS rest
         else caretTargetFromTokenInfo ti.startPos ti
   in
