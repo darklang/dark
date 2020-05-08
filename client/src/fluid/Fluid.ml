@@ -418,7 +418,7 @@ let moveTo (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
  * with its location. If blank, will go to the start of the blank *)
 let moveToEndOfNonWhitespaceTarget (target : ID.t) (astInfo : ASTInfo.t) :
     ASTInfo.t =
-  let astInfo = recordAction "moveToEndOfTarget" astInfo in
+  let astInfo = recordAction "moveToEndOfNonWhitespaceTarget" astInfo in
   match
     astInfo
     |> ASTInfo.activeTokenInfos
@@ -433,7 +433,10 @@ let moveToEndOfNonWhitespaceTarget (target : ID.t) (astInfo : ASTInfo.t) :
                true)
   with
   | None ->
-      recover "cannot find token to moveToEndOfTarget" ~debug:target astInfo
+      recover
+        "cannot find token to moveToEndOfNonWhitespaceTarget"
+        ~debug:target
+        astInfo
   | Some lastToken ->
       let newPos =
         if T.isBlank lastToken.token
