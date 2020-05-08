@@ -247,17 +247,7 @@ let getAST (tl : toplevel) : FluidAST.t option =
       None
 
 
-let setAST (tl : toplevel) (newAST : FluidAST.t) : toplevel =
-  match tl with
-  | TLHandler h ->
-      TLHandler {h with ast = newAST}
-  | TLFunc uf ->
-      TLFunc {uf with ufAST = newAST}
-  | TLDB _ | TLTipe _ | TLGroup _ | TLPmFunc _ ->
-      tl
-
-
-let withAST (m : model) (tlid : TLID.t) (ast : FluidAST.t) : model =
+let updateModelWithAST (m : model) (tlid : TLID.t) (ast : FluidAST.t) : model =
   { m with
     handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
   ; userFunctions =
@@ -267,7 +257,7 @@ let withAST (m : model) (tlid : TLID.t) (ast : FluidAST.t) : model =
 
 (* Create the modification to set the AST in this toplevel. `ops` is optional
  * other ops to include in this modification. Does not change the model. *)
-let setASTMod ?(ops = []) (tl : toplevel) (ast : FluidAST.t) : modification =
+let setASTOpMod ?(ops = []) (tl : toplevel) (ast : FluidAST.t) : modification =
   match tl with
   | TLHandler h ->
       if h.ast = ast
@@ -406,10 +396,6 @@ let selected (m : model) : toplevel option =
 
 let selectedAST (m : model) : FluidAST.t option =
   selected m |> Option.andThen ~f:getAST
-
-
-let setSelectedAST (m : model) (ast : FluidAST.t) : modification =
-  match selected m with None -> NoChange | Some tl -> setASTMod tl ast
 
 
 (* ------------------------- *)

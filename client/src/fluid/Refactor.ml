@@ -97,7 +97,7 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : ID.t) : modification =
           , [(newBlankPattern mid, e); (newBlankPattern mid, E.newB ())] )
   in
   TL.getAST tl
-  |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTMod tl)
+  |> Option.map ~f:(FluidAST.update ~f:replacement id >> TL.setASTOpMod tl)
   |> Option.withDefault ~default:NoChange
 
 
@@ -205,7 +205,7 @@ let extractFunction (m : model) (tl : toplevel) (id : ID.t) : modification =
       in
       let replacement = E.EFnCall (gid (), name, paramExprs, NoRail) in
       let newAST = FluidAST.replace ~replacement id ast in
-      let astOp = TL.setASTMod tl newAST in
+      let astOp = TL.setASTOpMod tl newAST in
       let params =
         List.map freeVars ~f:(fun (id, name_) ->
             let tipe =
@@ -485,7 +485,7 @@ let reorderFnCallArgs
   |> List.map ~f:(fun (tl, ast) ->
          ast
          |> FluidAST.map ~f:(AST.reorderFnCallArgs fnName oldPos newPos)
-         |> TL.setASTMod tl)
+         |> TL.setASTOpMod tl)
 
 
 let hasExistingFunctionNamed (m : model) (name : string) : bool =
@@ -573,11 +573,11 @@ let createAndInsertNewFunction
             Many
               [ ReplaceAllModificationsWithThisOne
                   (fun m ->
-                    ( ( TL.withAST m tlid newAST
+                    ( ( TL.updateModelWithAST m tlid newAST
                       |> fun m -> UserFunctions.upsert m newFn )
                     , Tea.Cmd.none ))
               ; (* Both ops in a single transaction *)
-                TL.setASTMod ~ops:[op] tl newAST
+                TL.setASTOpMod ~ops:[op] tl newAST
               ; MakeCmd (Url.navigateTo (FocusedFn (newFn.ufTLID, None))) ] )
   | None ->
       NoChange

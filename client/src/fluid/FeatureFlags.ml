@@ -80,7 +80,7 @@ let wrapCmd (m : model) (tl : toplevel) (id : ID.t) : modification =
   match Toplevel.getAST tl with
   | Some ast when not (hasFlag ast) ->
       let maybeId, ast = wrap m.fluidState ast id in
-      let setAST = Toplevel.setASTMod tl ast in
+      let setAST = Toplevel.setASTOpMod tl ast in
       ( match maybeId with
       | Some flagId ->
           Many
@@ -132,7 +132,7 @@ let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
   |> Option.andThen ~f:(fun ast -> unwrap keep ast id)
   |> Option.map ~f:(fun ast ->
          Many
-           [ Toplevel.setASTMod tl ast
+           [ Toplevel.setASTOpMod tl ast
            ; ReplaceAllModificationsWithThisOne
                (fun m ->
                  ( { m with
