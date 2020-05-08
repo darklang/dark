@@ -288,16 +288,6 @@ let setASTMod ?(ops = []) (tl : toplevel) (ast : FluidAST.t) : modification =
       recover "no ast in Groups" ~debug:tl NoChange
 
 
-(** modifyASTMod is a combination of getAST and setASTMod. It fetches the AST
-  * for [tl] and passes it to [f], which should return a modified version of the
-  * AST. An AddOps modification is returned, which updates the AST accordingly. *)
-let modifyASTMod (tl : toplevel) ~(f : FluidAST.t -> FluidAST.t) : modification
-    =
-  getAST tl
-  |> Option.map ~f:(f >> setASTMod tl)
-  |> Option.withDefault ~default:NoChange
-
-
 let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     toplevel =
   let id = P.toID p in

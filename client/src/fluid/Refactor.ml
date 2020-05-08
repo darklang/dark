@@ -6,6 +6,7 @@ module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
 module P = FluidPattern
+module M = Modifications
 
 let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)
@@ -100,14 +101,19 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (id : ID.t) : modification =
   |> Option.withDefault ~default:NoChange
 
 
+let modASTWithID (tl : toplevel) (id : ID.t) ~(f : E.t -> E.t) : modification =
+  TL.getAST tl
+  |> Option.map ~f:(FluidAST.update ~f id)
+  |> Option.map ~f:(M.fullstackASTUpdate tl)
+  |> Option.withDefault ~default:NoChange
+
+
 let takeOffRail (_m : model) (tl : toplevel) (id : ID.t) : modification =
-  TL.modifyASTMod tl ~f:(fun ast ->
-      ast
-      |> FluidAST.update id ~f:(function
-             | EFnCall (_, name, exprs, Rail) ->
-                 EFnCall (id, name, exprs, NoRail)
-             | e ->
-                 recover "incorrect id in takeoffRail" e))
+  modASTWithID tl id ~f:(function
+      | EFnCall (_, name, exprs, Rail) ->
+          EFnCall (id, name, exprs, NoRail)
+      | e ->
+          recover "incorrect id in takeoffRail" e)
 
 
 let isRailable (m : model) (name : string) =
@@ -120,12 +126,11 @@ let isRailable (m : model) (name : string) =
 
 let putOnRail (m : model) (tl : toplevel) (id : ID.t) : modification =
   (* Only toggle onto rail iff. return tipe is TOption or TResult *)
-  TL.modifyASTMod tl ~f:(fun ast ->
-      FluidAST.update id ast ~f:(function
-          | EFnCall (_, name, exprs, NoRail) when isRailable m name ->
-              EFnCall (id, name, exprs, Rail)
-          | e ->
-              e))
+  modASTWithID tl id ~f:(function
+      | EFnCall (_, name, exprs, NoRail) when isRailable m name ->
+          EFnCall (id, name, exprs, Rail)
+      | e ->
+          e)
 
 
 let extractVarInAst
@@ -178,7 +183,10 @@ let extractVarInAst
 
 let extractVariable (m : model) (tl : toplevel) (id : ID.t) : modification =
   let varname = "var" ^ string_of_int (Util.random ()) in
-  TL.modifyASTMod tl ~f:(extractVarInAst m tl id varname)
+  TL.getAST tl
+  |> Option.map ~f:(extractVarInAst m tl id varname)
+  |> Option.map ~f:(M.fullstackASTUpdate tl)
+  |> Option.withDefault ~default:NoChange
 
 
 let extractFunction (m : model) (tl : toplevel) (id : ID.t) : modification =
