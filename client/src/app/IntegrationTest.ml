@@ -427,6 +427,35 @@ let function_analysis_works (_m : model) : testResult =
   pass
 
 
+let jump_to_error (m : model) : testResult =
+  let focusedPass =
+    match m.currentPage with
+    | FocusedHandler (tlid, _, _) when tlid = TLID.fromString "123" ->
+        pass
+    | _ ->
+        fail "function is not focused"
+  in
+  let expectedCursorPos = 16 in
+  let browserCursorPass =
+    testIntOption
+      ~errMsg:"incorrect browser cursor position"
+      ~expected:expectedCursorPos
+      ~actual:(Entry.getFluidCaretPos ())
+  in
+  let cursorPass =
+    match m.cursorState with
+    | FluidEntering _ ->
+        testInt
+          ~errMsg:"incorrect cursor position"
+          ~expected:expectedCursorPos
+          ~actual:m.fluidState.newPos
+    | _ ->
+        fail "incorrect cursor state"
+  in
+  Result.combine [focusedPass; browserCursorPass; cursorPass]
+  |> Result.map (fun _ -> ())
+
+
 let fourohfours_parse (m : model) : testResult =
   match m.f404s with
   | [x] ->
@@ -906,6 +935,8 @@ let trigger (test_name : string) : integrationTestState =
         select_route
     | "function_analysis_works" ->
         function_analysis_works
+    | "jump_to_error" ->
+        jump_to_error
     | "fourohfours_parse" ->
         fourohfours_parse
     | "fn_page_returns_to_lastpos" ->
