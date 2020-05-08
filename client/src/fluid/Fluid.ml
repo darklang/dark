@@ -224,11 +224,11 @@ let moveToNextNonWhitespaceToken (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
     | [] ->
         pos
     | ti :: rest ->
-      ( match ti.token with
-      | TSep _ | TNewline _ | TIndent _ ->
-          getNextWS rest
-      | _ ->
-          if pos > ti.startPos then getNextWS rest else ti.startPos )
+        if ti.token |> T.isWhitespace
+        then getNextWS rest
+        else if pos > ti.startPos
+        then getNextWS rest
+        else ti.startPos
   in
   let newPos = getNextWS (ASTInfo.activeTokenInfos astInfo) in
   astInfo
@@ -424,13 +424,7 @@ let moveToEndOfNonWhitespaceTarget (target : ID.t) (astInfo : ASTInfo.t) :
     |> ASTInfo.activeTokenInfos
     |> List.reverse
     |> List.find ~f:(fun ti ->
-           T.tid ti.token = target
-           &&
-           match ti.token with
-           | TSep _ | TNewline _ | TIndent _ ->
-               false
-           | _ ->
-               true)
+           T.tid ti.token = target && not (T.isWhitespace ti.token))
   with
   | None ->
       recover
@@ -1040,13 +1034,11 @@ let caretTargetForNextNonWhitespaceToken ~pos (tokens : tokenInfos) :
     | [] ->
         None
     | ti :: rest ->
-      ( match ti.token with
-      | TSep _ | TNewline _ | TIndent _ ->
-          getNextWS rest
-      | _ ->
-          if pos > ti.startPos
-          then getNextWS rest
-          else caretTargetFromTokenInfo ti.startPos ti )
+        if ti.token |> T.isWhitespace
+        then getNextWS rest
+        else if pos > ti.startPos
+        then getNextWS rest
+        else caretTargetFromTokenInfo ti.startPos ti
   in
   getNextWS tokens
 
