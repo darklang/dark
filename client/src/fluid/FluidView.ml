@@ -193,7 +193,13 @@ let viewReturnValue
                    (Runtime.isCompatible
                       (BlankOr.valueWithDefault TAny f.ufMetadata.ufmReturnTipe)
                       (Runtime.typeOf dval)) ->
-              Some "wrong type"
+              Some
+                ( "The value returned (a "
+                ^ (dval |> Runtime.typeOf |> Runtime.tipe2str)
+                ^ ") does not match this function's return type ("
+                ^ ( BlankOr.valueWithDefault TAny f.ufMetadata.ufmReturnTipe
+                  |> Runtime.tipe2str )
+                ^ ")" )
           | _, TLPmFunc _
           | _, TLFunc _
           | _, TLHandler _
