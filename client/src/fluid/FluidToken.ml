@@ -302,7 +302,7 @@ let isKeyword (t : t) =
       false
 
 
-(* [isWhitespace t] returns [true] if the token [t] is a whitespace token (separator, newline, indent)
+(** [isWhitespace t] returns [true] if the token [t] is a whitespace token (separator, newline, indent)
  * and [false] otherwise. *)
 let isWhitespace (t : t) : bool =
   match t with
