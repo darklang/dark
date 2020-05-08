@@ -208,32 +208,34 @@ let viewReturnValue
           | _, TLGroup _ ->
               None
         in
-        let auxText =
-          warningText
-          |> Option.map ~f:(fun txt ->
-                 Html.span [Html.class' "msg"] [Html.text txt])
-          |> Option.withDefault ~default:Vdom.noNode
+        let warningHtml =
+          match warningText with
+          | None ->
+              Vdom.noNode
+          | Some text ->
+              Html.span
+                [Html.class' "warning-message"]
+                [Html.text text; Html.br []]
         in
         let dvalString = Runtime.toRepr dval in
-        let newLine1 =
-          if String.contains ~substring:"\n" dvalString
-          then Html.br []
-          else Vdom.noNode
+        let returnHtml =
+          let newLine =
+            if String.contains ~substring:"\n" dvalString
+            then Html.br []
+            else Vdom.noNode
+          in
+          Html.span
+            []
+            ( [Html.text "This trace returns: "; newLine]
+            @ viewDval vs.tlid dval ~canCopy:true )
         in
-        let newLine2 =
-          if warningText <> None then Html.br [] else Vdom.noNode
-        in
-        let viewDval = viewDval vs.tlid dval ~canCopy:true in
         Html.div
           ( Html.classList
               [ ("return-value", true)
               ; ("refreshed", isRefreshed)
-              ; ("warning", warningText <> None)
               ; ("draggable", dragEvents <> []) ]
           :: dragEvents )
-          ( [Html.text "This trace returns: "; newLine1]
-          @ viewDval
-          @ [newLine2; auxText] )
+          [warningHtml; returnHtml]
     | _ ->
         Vdom.noNode
   else Vdom.noNode
