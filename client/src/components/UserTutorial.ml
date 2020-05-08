@@ -45,7 +45,8 @@ let update (m : model) (msg : tutorialMsg) : modification =
     | PrevStep ->
         (getPrevStep m.userTutorial, [])
     | CloseTutorial ->
-        (* Entry.sendSegmentMessage WelcomeModal ; *)
+        if isGettingStartedCanvas m.username m.canvasName
+        then Entry.sendSegmentMessage WelcomeModal ;
         ( None
         , [ ReplaceAllModificationsWithThisOne
               (fun m ->
