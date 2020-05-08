@@ -302,6 +302,75 @@ let isKeyword (t : t) =
       false
 
 
+(** [isWhitespace t] returns [true] if the token [t] is a whitespace token (separator, newline, indent)
+ * and [false] otherwise. *)
+let isWhitespace (t : t) : bool =
+  match t with
+  | TSep _ | TNewline _ | TIndent _ ->
+      true
+  | TInteger _
+  | TFloatWhole _
+  | TFloatPoint _
+  | TFloatFractional _
+  | TTrue _
+  | TFalse _
+  | TNullToken _
+  | TBlank _
+  | TPlaceholder _
+  | TPartial _
+  | TLeftPartial _
+  | TRightPartial _
+  | TPartialGhost _
+  | TLetKeyword _
+  | TLetAssignment _
+  | TLetVarName _
+  | TString _
+  | TStringMLStart _
+  | TStringMLMiddle _
+  | TStringMLEnd _
+  | TIfKeyword _
+  | TIfThenKeyword _
+  | TIfElseKeyword _
+  | TBinOp _
+  | TFieldOp _
+  | TFieldName _
+  | TFieldPartial _
+  | TVariable _
+  | TFnName _
+  | TFnVersion _
+  | TLambdaVar _
+  | TLambdaArrow _
+  | TLambdaSymbol _
+  | TLambdaComma _
+  | TListOpen _
+  | TListClose _
+  | TListComma _
+  | TPipe _
+  | TRecordOpen _
+  | TRecordClose _
+  | TRecordFieldname _
+  | TRecordSep _
+  | TConstructorName _
+  | TMatchBranchArrow _
+  | TMatchKeyword _
+  | TPatternBlank _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFractional _
+  | TParenOpen _
+  | TParenClose _
+  | TFlagWhenKeyword _
+  | TFlagEnabledKeyword _ ->
+      false
+
+
 let isSkippable (t : t) : bool = match t with TIndent _ -> true | _ -> false
 
 let isAtom (t : t) : bool =

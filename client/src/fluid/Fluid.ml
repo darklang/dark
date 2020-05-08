@@ -224,11 +224,11 @@ let moveToNextNonWhitespaceToken (pos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
     | [] ->
         pos
     | ti :: rest ->
-      ( match ti.token with
-      | TSep _ | TNewline _ | TIndent _ ->
-          getNextWS rest
-      | _ ->
-          if pos > ti.startPos then getNextWS rest else ti.startPos )
+        if ti.token |> T.isWhitespace
+        then getNextWS rest
+        else if pos > ti.startPos
+        then getNextWS rest
+        else ti.startPos
   in
   let newPos = getNextWS (ASTInfo.activeTokenInfos astInfo) in
   astInfo
@@ -416,16 +416,21 @@ let moveTo (newPos : int) (astInfo : ASTInfo.t) : ASTInfo.t =
 
 (* Find first `target` expression (starting at the back), and return a state
  * with its location. If blank, will go to the start of the blank *)
-let moveToEndOfTarget (target : ID.t) (astInfo : ASTInfo.t) : ASTInfo.t =
-  let astInfo = recordAction "moveToEndOfTarget" astInfo in
+let moveToEndOfNonWhitespaceTarget (target : ID.t) (astInfo : ASTInfo.t) :
+    ASTInfo.t =
+  let astInfo = recordAction "moveToEndOfNonWhitespaceTarget" astInfo in
   match
     astInfo
     |> ASTInfo.activeTokenInfos
     |> List.reverse
-    |> List.find ~f:(fun ti -> T.tid ti.token = target)
+    |> List.find ~f:(fun ti ->
+           T.tid ti.token = target && not (T.isWhitespace ti.token))
   with
   | None ->
-      recover "cannot find token to moveToEndOfTarget" ~debug:target astInfo
+      recover
+        "cannot find token to moveToEndOfNonWhitespaceTarget"
+        ~debug:target
+        astInfo
   | Some lastToken ->
       let newPos =
         if T.isBlank lastToken.token
@@ -1029,13 +1034,9 @@ let caretTargetForNextNonWhitespaceToken ~pos (tokens : tokenInfos) :
     | [] ->
         None
     | ti :: rest ->
-      ( match ti.token with
-      | TSep _ | TNewline _ | TIndent _ ->
-          getNextWS rest
-      | _ ->
-          if pos > ti.startPos
-          then getNextWS rest
-          else caretTargetFromTokenInfo ti.startPos ti )
+        if T.isWhitespace ti.token || pos > ti.startPos
+        then getNextWS rest
+        else caretTargetFromTokenInfo ti.startPos ti
   in
   getNextWS tokens
 
@@ -5707,7 +5708,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                let astInfo =
                  ASTInfo.make (FluidUtil.propsFromModel m) ast m.fluidState
                in
-               let ({state; _} : ASTInfo.t) = moveToEndOfTarget id astInfo in
+               let ({state; _} : ASTInfo.t) =
+                 moveToEndOfNonWhitespaceTarget id astInfo
+               in
                {state with errorDvSrc = SourceId (tlid, id)}
              in
              let moveMod =
