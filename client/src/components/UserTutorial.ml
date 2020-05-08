@@ -178,7 +178,7 @@ let viewGettingStarted : msg Html.html =
     [ Html.p
         [Html.class' "tutorial-txt"]
         [ Html.text
-            "This is your Getting Started canvas, which showcases some basic functionality. If you’d like to go through the steps of building this canvas by hand, a full walkthrough is available in the documentation."
+            "This is your Getting Started canvas, which showcases some basic functionality. If you'd like to go through the steps of building this canvas by hand, a full walkthrough is available in the documentation."
         ]
     ; btn ]
 
