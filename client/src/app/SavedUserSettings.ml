@@ -1,8 +1,12 @@
 open Prelude
 
 let toModel (m : model) (e : savedUserSettings) : model =
+  let userTutorial =
+    if e.showUserWelcomeModal then UserTutorial.defaultStep else None
+  in
   { m with
-    showUserWelcomeModal = e.showUserWelcomeModal
+    userTutorial
+  ; showUserWelcomeModal = e.showUserWelcomeModal
   ; settingsView =
       {m.settingsView with privacy = {recordConsent = e.recordConsent}} }
 

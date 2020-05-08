@@ -824,7 +824,8 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
     ; ("sidebarState", sidebarState se.sidebarState)
-    ; ("showTopbar1", bool se.showTopbar) ]
+    ; ("showTopbar1", bool se.showTopbar)
+    ; ("firstVisitToCanvas", bool se.firstVisitToCanvas) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

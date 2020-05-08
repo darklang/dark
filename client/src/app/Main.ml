@@ -1440,7 +1440,7 @@ let update_ (msg : msg) (m : model) : modification =
       Entry.sendSegmentMessage msg ;
       NoChange
   | TutorialMsg msg ->
-      ViewTutorial.update m msg
+      UserTutorial.update m msg
   | DeleteUserTypeForever tlid ->
       Many
         [ AddOps ([DeleteTypeForever tlid], FocusSame)
