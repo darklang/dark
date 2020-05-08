@@ -446,6 +446,11 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
+        j
+  ; firstVisitToCanvas =
+      withDefault
+        Defaults.defaultSavedSettings.firstVisitToCanvas
+        (field "firstVisitToCanvas" bool)
         j }
 
 

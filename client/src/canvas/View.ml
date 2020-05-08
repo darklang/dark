@@ -592,11 +592,14 @@ let view (m : model) : msg Html.html =
         [fontAwesome "book"; Html.text "Docs"] ]
   in
   let tutorial =
-    match m.userTutorial with
-    | Some steps when not (m.integrationTestState <> NoIntegrationTest) ->
-        ViewTutorial.view steps m.username
-    | _ ->
-        Vdom.noNode
+    if not (m.integrationTestState <> NoIntegrationTest)
+    then
+      UserTutorial.view
+        m.userTutorial
+        m.username
+        m.canvasName
+        m.firstVisitToCanvas
+    else Vdom.noNode
   in
   let modal =
     if (not (m.integrationTestState <> NoIntegrationTest))

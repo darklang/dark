@@ -48,21 +48,21 @@ $icSize: 1em;
     p {
       margin: 0px;
     }
-    .getting-started {
-      display: flex;
-      justify-content: center;
-      margin-top: 15px;
-      a {
-        width: 75%;
-        text-align: center;
-        color: $white1;
-        text-decoration: none;
-        background: $grey2;
-        padding: 5px;
-        border-radius: 5px;
-        &:hover {
-          color: $purple;
-        }
+  }
+  .getting-started {
+    display: flex;
+    justify-content: center;
+    margin-top: 15px;
+    a {
+      width: 75%;
+      text-align: center;
+      color: $white1;
+      text-decoration: none;
+      background: $grey2;
+      padding: 5px;
+      border-radius: 5px;
+      &:hover {
+        color: $purple;
       }
     }
   }

@@ -1673,7 +1673,6 @@ and avatarModelMessage =
   ; canvasName : string
   ; timestamp : float }
 
-(* Syd todo -> move into viewTutorial if possible *)
 and tutorialSteps =
   | Welcome
   | VerbChange
@@ -1763,7 +1762,8 @@ and model =
   ; showUserWelcomeModal : bool
   ; userTutorial : tutorialSteps option
   ; currentUserFn : fnProps
-  ; settingsView : SettingsViewTypes.settingsViewState }
+  ; settingsView : SettingsViewTypes.settingsViewState
+  ; firstVisitToCanvas : bool }
 
 and savedUserSettings =
   { showUserWelcomeModal : bool
@@ -1778,7 +1778,8 @@ and savedSettings =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarState : sidebarState
-  ; showTopbar : bool }
+  ; showTopbar : bool
+  ; firstVisitToCanvas : bool }
 [@@deriving show {with_path = false}]
 
 and permission =
