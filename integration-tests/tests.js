@@ -736,7 +736,11 @@ test("function_analysis_works", async t => {
 });
 
 test("jump_to_error", async t => {
-  await t.click(".fluid-entry");
+  await t
+    .navigateTo("#handler=123")
+    .expect(available(".tl-123"))
+    .ok()
+    .click(".fluid-entry");
   const timestamp = new Date();
   await t.click(".fluid-entry.id-675551618");
   awaitAnalysis(t, timestamp);
