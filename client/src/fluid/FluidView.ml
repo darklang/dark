@@ -10,8 +10,7 @@ module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
-module Printer = FluidTokenizer
-module Util = FluidUtil
+module Printer = FluidPrinter
 
 (* Tea *)
 
@@ -168,7 +167,7 @@ let viewReturnValue
           | _ ->
               false
         in
-        let warningText =
+        let warningHtml =
           let onDefaultTrace tlid =
             match vs.traces with
             | [(tid, _)] when tid = Analysis.defaultTraceIDForTL ~tlid ->
@@ -176,46 +175,52 @@ let viewReturnValue
             | _ ->
                 false
           in
+          let class' = Html.class' "warning-message" in
+          let text contents =
+            Html.div [class'] [Html.text contents; Html.br []]
+          in
           (* Since HTTP and userFunctions are the case where Incomplete return
            * is likely to case and error, we only want to highlight those
            * cases. *)
           match (dval, vs.tl) with
           | DIncomplete _, TLHandler h when SpecHeaders.spaceOf h.spec = HSHTTP
             ->
-              Some "Your code needs to return a value in the last expression"
+              text "Your code needs to return a value in the last expression"
           | DIncomplete _, TLFunc f when onDefaultTrace f.ufTLID ->
-              Some
+              text
                 "This function has not yet been called - please call this function"
           | DIncomplete _, TLFunc _ ->
-              Some "Your code needs to return a value in the last expression"
-          | _, TLFunc f
-            when not
-                   (Runtime.isCompatible
-                      (BlankOr.valueWithDefault TAny f.ufMetadata.ufmReturnTipe)
-                      (Runtime.typeOf dval)) ->
-              Some
-                ( "The value returned (a "
-                ^ (dval |> Runtime.typeOf |> Runtime.tipe2str)
-                ^ ") does not match this function's return type ("
-                ^ ( BlankOr.valueWithDefault TAny f.ufMetadata.ufmReturnTipe
-                  |> Runtime.tipe2str )
-                ^ ")" )
+              text "Your code needs to return a value in the last expression"
+          | _, TLFunc f ->
+              let actualType = dval |> Runtime.typeOf in
+              let declaredType =
+                BlankOr.valueWithDefault TAny f.ufMetadata.ufmReturnTipe
+              in
+              if Runtime.isCompatible actualType declaredType
+              then Vdom.noNode
+              else
+                let actualTypeString = Runtime.tipe2str actualType in
+                let declaredTypeString = Runtime.tipe2str declaredType in
+                Html.div
+                  [class']
+                  [ Html.span [Html.class' "err"] [Html.text "Type error: "]
+                  ; Html.text
+                      ( "This function should return "
+                      ^ Util.indefiniteArticleFor declaredTypeString
+                      ^ " " )
+                  ; Html.span [Html.class' "type"] [Html.text declaredTypeString]
+                  ; Html.text
+                      ( ", but this trace returns "
+                      ^ Util.indefiniteArticleFor actualTypeString
+                      ^ " " )
+                  ; Html.span [Html.class' "type"] [Html.text actualTypeString]
+                  ]
           | _, TLPmFunc _
-          | _, TLFunc _
           | _, TLHandler _
           | _, TLDB _
           | _, TLTipe _
           | _, TLGroup _ ->
-              None
-        in
-        let warningHtml =
-          match warningText with
-          | None ->
               Vdom.noNode
-          | Some text ->
-              Html.span
-                [Html.class' "warning-message"]
-                [Html.text text; Html.br []]
         in
         let dvalString = Runtime.toRepr dval in
         let returnHtml =
@@ -224,8 +229,8 @@ let viewReturnValue
             then Html.br []
             else Vdom.noNode
           in
-          Html.span
-            []
+          Html.div
+            [Html.class' "value"]
             ( [Html.text "This trace returns: "; newLine]
             @ viewDval vs.tlid dval ~canCopy:true )
         in

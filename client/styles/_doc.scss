@@ -1,18 +1,4 @@
-.documentation-box {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  font-size: 11px;
-  padding: 5px 10px;
-  background: darken($canvas-background, 10%);
-  color: $white1;
-  width: calc(#{"100% - 20px"});
-  overflow-wrap: break-word;
-  line-height: 14px;
-
-  &.draggable {
-    cursor: move;
-  }
+@mixin documentationStyles() {
   /* Styles define: https://www.notion.so/darklang/Rich-Text-Docstrings-1358553ec49d4ba0b52d04995014152c#88f58cc69bb347929049b342db876db5 */
   a {
     color: $blue;
@@ -46,4 +32,23 @@
     padding: 0 0.5em;
     white-space: nowrap;
   }
+}
+
+.documentation-box {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  font-size: 11px;
+  padding: 5px 10px;
+  background: darken($canvas-background, 10%);
+  color: $white1;
+  width: calc(#{"100% - 20px"});
+  overflow-wrap: break-word;
+  line-height: 14px;
+
+  &.draggable {
+    cursor: move;
+  }
+
+  @include documentationStyles();
 }

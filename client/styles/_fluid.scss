@@ -136,10 +136,6 @@ $ff-color: adjust-hue($purple, -40deg);
     color: $cyan;
   }
 
-  &.warning {
-    color: $yellow;
-  }
-
   .copy-value {
     @extend .copy-value;
     top: 2px;
@@ -147,9 +143,12 @@ $ff-color: adjust-hue($purple, -40deg);
     margin-right: -10px;
   }
 
-  .msg {
+  .warning-message {
     word-break: break-word;
-    margin-left: 1ch;
+    @include documentationStyles();
+    padding-bottom: $spacing-small;
+    border-bottom: 1px dashed grey;
+    margin-bottom: $spacing-small;
   }
 }
 

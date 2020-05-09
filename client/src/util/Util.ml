@@ -265,3 +265,11 @@ module Namer = struct
     | _ ->
         generateFallbackName space
 end
+
+(** Returns the indefinite article (either "a" or "an") depending on whether `subject` starts with a vowel. Only works for English vowels right now. *)
+let indefiniteArticleFor (subject : string) : string =
+  match String.slice ~from:0 ~to_:1 subject with
+  | "A" | "E" | "I" | "O" | "U" | "a" | "e" | "i" | "o" | "u" ->
+      "an"
+  | _ ->
+      "a"
