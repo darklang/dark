@@ -1,11 +1,11 @@
 open Prelude
 
-let flagLinkLoc (flag : string) (m : model) =
+let flagLinkLoc (flag : string) (currentlyEnabled : bool) =
   let loc = Tea_navigation.getLocation () in
   let newSearch =
     Url.queryParams ()
     |> List.filter ~f:(fun (k, _) -> k <> flag)
-    |> (fun x -> if m.teaDebuggerEnabled then x else (flag, true) :: x)
+    |> (fun x -> if currentlyEnabled then x else (flag, true) :: x)
     |> List.map ~f:(fun (k, v) -> k ^ "=" ^ if v then "1" else "0")
     |> String.join ~sep:"&"
     |> fun x -> if x = "" then "" else "?" ^ x
@@ -19,7 +19,7 @@ let flagLinkLoc (flag : string) (m : model) =
     loc.hash
 
 
-let debuggerLinkLoc = flagLinkLoc "debugger"
+let debuggerLinkLoc m = flagLinkLoc "debugger" m.teaDebuggerEnabled
 
 let viewIntegrationTestButton (testState : integrationTestState) : msg Html.html
     =

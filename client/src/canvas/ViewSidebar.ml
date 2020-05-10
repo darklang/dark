@@ -844,6 +844,21 @@ let adminDebuggerView (m : model) : msg Html.html =
           then "Disable Debugger"
           else "Enable Debugger" ) ]
   in
+  let variantLinks =
+    if m.isAdmin
+    then
+      List.map VariantTesting.availableAdminVariants ~f:(fun variant ->
+          let name = VariantTesting.nameOf variant in
+          let enabled = VariantTesting.variantIsActive m variant in
+          Html.a
+            [ Html.href (ViewScaffold.flagLinkLoc name enabled)
+            ; Html.class' "state-info-row" ]
+            [ Html.text
+                ( if enabled
+                then "Disable " ^ name ^ " variant"
+                else "Enable " ^ name ^ " variant" ) ])
+    else []
+  in
   let saveTestButton =
     Html.a
       [ ViewUtils.eventNoPropagation ~key:"stb" "mouseup" (fun _ ->
@@ -854,12 +869,13 @@ let adminDebuggerView (m : model) : msg Html.html =
   let hoverView =
     Html.div
       [Html.class' "category-content"]
-      [ stateInfo
-      ; toggleTimer
-      ; toggleFluidDebugger
-      ; toggleHandlerASTs
-      ; debugger
-      ; saveTestButton ]
+      ( [ stateInfo
+        ; toggleTimer
+        ; toggleFluidDebugger
+        ; toggleHandlerASTs
+        ; debugger ]
+      @ variantLinks
+      @ [saveTestButton] )
   in
   let icon =
     Html.div

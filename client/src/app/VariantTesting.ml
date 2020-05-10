@@ -9,6 +9,7 @@ let variantIsActive' (vs : variantTest list) (t : variantTest) : bool =
 
 
 let toVariantTest (s : string) : variantTest option =
+  (* names in toVariantTest and nameOf should match *)
   match String.toLower s with
   | "stub" ->
       Some StubVariant
@@ -28,25 +29,33 @@ let toVariantTest (s : string) : variantTest option =
       None
 
 
-let toCSSClass (vt : variantTest) : string =
-  let test =
-    match vt with
-    | StubVariant ->
-        "stub"
-    | GroupVariant ->
-        "grouping"
-    | NgrokVariant ->
-        "ngrok"
-    | ForceWelcomeModalVariant ->
-        "force-welcome-modal"
-    | LeftPartialVariant ->
-        "lpartial"
-    | FnReturnVariant ->
-        "fnreturn"
-    | ShowPackageManageVariant ->
-        "showPackageManager"
-  in
-  test ^ "-variant"
+let nameOf (vt : variantTest) : string =
+  (* names in toVariantTest and nameOf should match *)
+  match vt with
+  | StubVariant ->
+      "stub"
+  | GroupVariant ->
+      "groups"
+  | NgrokVariant ->
+      "localhost-assets"
+  | ForceWelcomeModalVariant ->
+      "force-welcome-modal"
+  | LeftPartialVariant ->
+      "lpartial"
+  | FnReturnVariant ->
+      "fnreturn"
+  | ShowPackageManageVariant ->
+      "show-package-manager"
+
+
+let toCSSClass (vt : variantTest) : string = nameOf vt ^ "-variant"
+
+let availableAdminVariants : variantTest list =
+  [ ShowPackageManageVariant
+  ; FnReturnVariant
+  ; ForceWelcomeModalVariant
+  ; NgrokVariant
+  ; GroupVariant ]
 
 
 let activeCSSClasses (m : model) : string =
