@@ -808,10 +808,7 @@ let regenerate (m : model) (a : autocomplete) : autocomplete =
 (* ---------------------------- *)
 let reset (m : model) : autocomplete =
   let admin = m.isAdmin in
-  { Defaults.defaultModel.complete with
-    admin
-  ; visible = VariantTesting.defaultAutocompleteVisible m }
-  |> regenerate m
+  {Defaults.defaultModel.complete with admin; visible = true} |> regenerate m
 
 
 let init m = reset m
