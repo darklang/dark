@@ -74,6 +74,3 @@ let enabledVariantTests (isAdmin : bool) : variantTest list =
   |> List.foldl ~init ~f:(fun (vt, enabled) acc ->
          if enabled then vt :: acc else List.filter ~f:(fun x -> x <> vt) acc)
   |> List.uniqueBy ~f:show_variantTest
-
-
-let defaultAutocompleteVisible _m : bool = true
