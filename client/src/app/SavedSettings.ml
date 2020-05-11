@@ -31,7 +31,8 @@ let toModel (e : savedSettings) : model =
   ; lastReload = e.lastReload
   ; sidebarState = e.sidebarState
   ; showTopbar = e.showTopbar
-  ; firstVisitToCanvas = e.firstVisitToCanvas }
+  ; firstVisitToCanvas = e.firstVisitToCanvas
+  ; userTutorial = e.userTutorial }
 
 
 let model2editor (m : model) : savedSettings =
@@ -46,7 +47,8 @@ let model2editor (m : model) : savedSettings =
   ; lastReload = m.lastReload
   ; sidebarState = m.sidebarState
   ; showTopbar = m.showTopbar
-  ; firstVisitToCanvas = m.firstVisitToCanvas }
+  ; firstVisitToCanvas = m.firstVisitToCanvas
+  ; userTutorial = m.userTutorial }
 
 
 let fromString (json : string option) : savedSettings =

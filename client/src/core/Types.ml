@@ -1779,7 +1779,8 @@ and savedSettings =
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarState : sidebarState
   ; showTopbar : bool
-  ; firstVisitToCanvas : bool }
+  ; firstVisitToCanvas : bool
+  ; userTutorial : tutorialSteps option }
 [@@deriving show {with_path = false}]
 
 and permission =

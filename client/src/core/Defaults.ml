@@ -37,7 +37,8 @@ let defaultSavedSettings : savedSettings =
   ; lastReload = None
   ; sidebarState = defaultSidebar
   ; showTopbar = false
-  ; firstVisitToCanvas = true }
+  ; firstVisitToCanvas = true
+  ; userTutorial = None }
 
 
 let defaultFluidState : fluidState =
