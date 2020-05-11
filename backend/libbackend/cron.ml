@@ -137,137 +137,145 @@ let check_all_canvases (pid : int) : (unit, Exception.captured) Result.t =
       let stat_crons = ref 0 in
       let stat_events = ref 0 in
       try
-        current_endpoints
-        |> List.filter_map ~f:(fun endp ->
-               try
-                 (* serialization can fail, attempt first *)
-                 let c = Canvas.load_for_cron_checker_from_cache endp in
-                 Thread.yield () ;
-                 match c with
-                 | Ok c ->
-                     Some (endp, c)
-                 | Error errs ->
-                     incr stat_canvas_errors ;
-                     Log.erroR
-                       "cron_checker"
-                       ~data:"Canvas verification error"
-                       ~params:
-                         [ ("host", endp)
-                         ; ("errs", String.concat ~sep:", " errs)
-                         ; ("execution_id", Telemetry.ID.to_string span.trace_id)
-                         ] ;
-                     None
-               with e ->
-                 let bt = Exception.get_backtrace () in
-                 let tid = Telemetry.ID.to_string span.trace_id in
-                 incr stat_canvas_errors ;
-                 Log.erroR
-                   "cron_checker"
-                   ~data:"Deserialization error"
-                   ~bt
-                   ~params:
-                     [ ("canvas", endp)
-                     ; ("exn", Log.dump e)
-                     ; ("execution_id", tid) ] ;
-                 ignore (Rollbar.report e bt CronChecker tid) ;
-                 None)
-        |> List.iter ~f:(fun (endp, c) ->
-               let crons =
-                 !c.handlers
-                 |> Types.IDMap.data
-                 |> List.filter_map ~f:Toplevel.as_handler
-                 |> List.filter ~f:Handler.is_complete
-                 |> List.filter ~f:Handler.is_cron
-               in
-               let cron_count = List.length crons in
-               stat_crons := !stat_crons + cron_count ;
-               Log.debuG
-                 "cron_checker"
-                 ~data:"checking canvas"
-                 ~params:
-                   [ ("execution_id", Telemetry.ID.to_string span.trace_id)
-                   ; ("canvas", endp) ]
-                 ~jsonparams:[("number_of_crons", `Int cron_count)] ;
-               List.iter
-                 ~f:(fun cr ->
-                   let {should_execute; scheduled_run_at; interval} =
-                     execution_check span !c.id cr
-                   in
-                   if should_execute
-                   then
-                     let space = Handler.module_for_exn cr in
-                     let name = Handler.event_name_for_exn cr in
-                     let modifier = Handler.modifier_for_exn cr in
-                     Log.add_log_annotations
-                       [("cron", `Bool true)]
-                       (fun _ ->
-                         Event_queue.enqueue
-                           ~account_id:!c.owner
-                           ~canvas_id:!c.id
-                           space
-                           name
-                           modifier
-                           DNull ;
-                         record_execution !c.id cr ;
-                         incr stat_events ;
-                         (* It's a little silly to recalculate now when we just did
-                          * it in execution_check, but maybe Event_queue.enqueue was
-                          * slow or something *)
-                         let now = Time.now () in
-                         let delay_ms =
-                           scheduled_run_at
-                           |> Option.map ~f:(Time.diff now)
-                           (* For future reference: yes, to_ms returns the span of time
-                            * in milliseconds, _not_ "the ms part of the span of
-                            * time". I had to check that it wasn't, like, 10.5s |>
-                            * to_ms is 500, because 10.5|>to_s is 10. Time-related
-                            * APIs get tricky that way. *)
-                           |> Option.map ~f:Time.Span.to_ms
-                         in
-                         let delay_log =
-                           delay_ms
-                           |> Option.map ~f:(fun delay ->
-                                  ("delay", `Float delay))
-                         in
-                         let interval_log =
-                           interval
-                           (* This is definitely not None, but keep the
-                            * typechecker happy *)
-                           (* Floats are IEEE-754, which has a max at 2**31-1;
-                            * that's 24.85 days worth of milliseconds. Since our
-                            * longest allowed cron interval is two weeks, this is
-                            * fine *)
-                           |> Option.map ~f:(fun interval ->
-                                  ( "interval"
-                                  , `Float (interval |> Time.Span.to_ms) ))
-                         in
-                         let delay_ratio_log =
-                           Option.map2
-                             delay_ms
-                             interval
-                             ~f:(fun delay_ms interval ->
-                               let interval = interval |> Time.Span.to_ms in
-                               delay_ms /. interval)
-                           |> Option.map ~f:(fun delay_ratio ->
-                                  ("delay_ratio", `Float delay_ratio))
-                         in
-                         Log.infO
-                           "cron_checker"
-                           ~data:"enqueued event"
-                           ~params:
-                             [ ( "execution_id"
-                               , Telemetry.ID.to_string span.trace_id )
-                             ; ("canvas", endp)
-                             ; ("tlid", Types.string_of_id cr.tlid)
-                             ; ("handler_name", name)
-                               (* method here to use the spec-handler name for
-                                * consistency with http/worker logs *)
-                             ; ("method", modifier) ]
-                           ~jsonparams:
-                             ( [delay_log; interval_log; delay_ratio_log]
-                             |> List.filter_opt ) ;
-                         Thread.yield ()))
-                 crons)
+        let endpoints_and_canvases =
+          Telemetry.with_span
+            ~parent:span
+            "check_all_canvases.filter_map"
+            (fun span ->
+              List.filter_map current_endpoints ~f:(fun endp ->
+                  try
+                    (* serialization can fail, attempt first *)
+                    let c = Canvas.load_for_cron_checker_from_cache endp in
+                    Thread.yield () ;
+                    match c with
+                    | Ok c ->
+                        Some (endp, c)
+                    | Error errs ->
+                        incr stat_canvas_errors ;
+                        Log.erroR
+                          "cron_checker"
+                          ~data:"Canvas verification error"
+                          ~params:
+                            [ ("host", endp)
+                            ; ("errs", String.concat ~sep:", " errs)
+                            ; ( "execution_id"
+                              , Telemetry.ID.to_string span.trace_id ) ] ;
+                        None
+                  with e ->
+                    let bt = Exception.get_backtrace () in
+                    let tid = Telemetry.ID.to_string span.trace_id in
+                    incr stat_canvas_errors ;
+                    Log.erroR
+                      "cron_checker"
+                      ~data:"Deserialization error"
+                      ~bt
+                      ~params:
+                        [ ("canvas", endp)
+                        ; ("exn", Log.dump e)
+                        ; ("execution_id", tid) ] ;
+                    ignore (Rollbar.report e bt CronChecker tid) ;
+                    None))
+        in
+        List.iter endpoints_and_canvases ~f:(fun (endp, c) ->
+            Telemetry.with_span
+              ~parent:span
+              ~attrs:[("canvas.name", `String endp)]
+              "check_all_canvases.iter"
+              (fun span ->
+                let crons =
+                  !c.handlers
+                  |> Types.IDMap.data
+                  |> List.filter_map ~f:Toplevel.as_handler
+                  |> List.filter ~f:Handler.is_complete
+                  |> List.filter ~f:Handler.is_cron
+                in
+                let cron_count = List.length crons in
+                stat_crons := !stat_crons + cron_count ;
+                Log.debuG
+                  "cron_checker"
+                  ~data:"checking canvas"
+                  ~params:
+                    [ ("execution_id", Telemetry.ID.to_string span.trace_id)
+                    ; ("canvas", endp) ]
+                  ~jsonparams:[("number_of_crons", `Int cron_count)] ;
+                List.iter crons ~f:(fun cr ->
+                    let {should_execute; scheduled_run_at; interval} =
+                      execution_check span !c.id cr
+                    in
+                    if should_execute
+                    then
+                      let space = Handler.module_for_exn cr in
+                      let name = Handler.event_name_for_exn cr in
+                      let modifier = Handler.modifier_for_exn cr in
+                      Log.add_log_annotations
+                        [("cron", `Bool true)]
+                        (fun _ ->
+                          Event_queue.enqueue
+                            ~account_id:!c.owner
+                            ~canvas_id:!c.id
+                            space
+                            name
+                            modifier
+                            DNull ;
+                          record_execution !c.id cr ;
+                          incr stat_events ;
+                          (* It's a little silly to recalculate now when we just did
+                           * it in execution_check, but maybe Event_queue.enqueue was
+                           * slow or something *)
+                          let now = Time.now () in
+                          let delay_ms =
+                            scheduled_run_at
+                            |> Option.map ~f:(Time.diff now)
+                            (* For future reference: yes, to_ms returns the span of time
+                             * in milliseconds, _not_ "the ms part of the span of
+                             * time". I had to check that it wasn't, like, 10.5s |>
+                             * to_ms is 500, because 10.5|>to_s is 10. Time-related
+                             * APIs get tricky that way. *)
+                            |> Option.map ~f:Time.Span.to_ms
+                          in
+                          let delay_log =
+                            delay_ms
+                            |> Option.map ~f:(fun delay ->
+                                   ("delay", `Float delay))
+                          in
+                          let interval_log =
+                            interval
+                            (* This is definitely not None, but keep the
+                             * typechecker happy *)
+                            (* Floats are IEEE-754, which has a max at 2**31-1;
+                             * that's 24.85 days worth of milliseconds. Since our
+                             * longest allowed cron interval is two weeks, this is
+                             * fine *)
+                            |> Option.map ~f:(fun interval ->
+                                   ( "interval"
+                                   , `Float (interval |> Time.Span.to_ms) ))
+                          in
+                          let delay_ratio_log =
+                            Option.map2
+                              delay_ms
+                              interval
+                              ~f:(fun delay_ms interval ->
+                                let interval = interval |> Time.Span.to_ms in
+                                delay_ms /. interval)
+                            |> Option.map ~f:(fun delay_ratio ->
+                                   ("delay_ratio", `Float delay_ratio))
+                          in
+                          Log.infO
+                            "cron_checker"
+                            ~data:"enqueued event"
+                            ~params:
+                              [ ( "execution_id"
+                                , Telemetry.ID.to_string span.trace_id )
+                              ; ("canvas", endp)
+                              ; ("tlid", Types.string_of_id cr.tlid)
+                              ; ("handler_name", name)
+                                (* method here to use the spec-handler name for
+                                 * consistency with http/worker logs *)
+                              ; ("method", modifier) ]
+                            ~jsonparams:
+                              ( [delay_log; interval_log; delay_ratio_log]
+                              |> List.filter_opt ) ;
+                          Thread.yield ()))))
         |> (fun x ->
              Span.set_attrs
                span
