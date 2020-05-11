@@ -176,12 +176,8 @@ let check_all_canvases (pid : int) : (unit, Exception.captured) Result.t =
                     ignore (Rollbar.report e bt CronChecker tid) ;
                     None))
         in
-        List.iter endpoints_and_canvases ~f:(fun (endp, c) ->
-            Telemetry.with_span
-              ~parent:span
-              ~attrs:[("canvas.name", `String endp)]
-              "check_all_canvases.iter"
-              (fun span ->
+        Telemetry.with_span ~parent:span "check_all_canvases.iter" (fun span ->
+            List.iter endpoints_and_canvases ~f:(fun (endp, c) ->
                 let crons =
                   !c.handlers
                   |> Types.IDMap.data
