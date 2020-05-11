@@ -98,6 +98,10 @@ data:
         containerName: cron-ctr
         dataset: kubernetes-bwd-ocaml
         parser: json
+        processors:
+          - timefield:
+              field: timestamp
+              format: "2006-01-02T15:04:05.999999999Z07:00"
       - labelSelector: "app=qw-worker"
         containerName: qw-ctr
         dataset: kubernetes-bwd-ocaml
