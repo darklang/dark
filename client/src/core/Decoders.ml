@@ -164,6 +164,7 @@ let rec tipe j : tipe =
   variants
     [ ("TInt", dv0 TInt)
     ; ("TStr", dv0 TStr)
+    ; ("TCharacter", dv0 TCharacter)
     ; ("TBool", dv0 TBool)
     ; ("TFloat", dv0 TFloat)
     ; ("TObj", dv0 TObj)
@@ -176,12 +177,14 @@ let rec tipe j : tipe =
     ; ("TResp", dv0 TResp)
     ; ("TDB", dv0 TDB)
     ; ("TDate", dv0 TDate)
+    ; ("TDbList", dv1 (fun x -> TDbList x) tipe)
     ; ("TPassword", dv0 TPassword)
     ; ("TUuid", dv0 TUuid)
     ; ("TOption", dv0 TOption)
     ; ("TErrorRail", dv0 TErrorRail)
-    ; ("TDbList", dv1 (fun x -> TDbList x) tipe)
-    ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int) ]
+    ; ("TResult", dv0 TResult)
+    ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int)
+    ; ("TBytes", dv0 TBytes) ]
     j
 
 

@@ -118,6 +118,8 @@ let rec unify ~(type_env : type_env) (expected : tipe) (value : 'expr_type dval)
       Ok ()
   | TResp, DResp _ ->
       Ok ()
+  | TBytes, DBytes _ ->
+      Ok ()
   | TUserType (expected_name, expected_version), DObj dmap ->
     ( match TypeEnv.find type_env (expected_name, expected_version) with
     | None ->
