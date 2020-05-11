@@ -1948,9 +1948,9 @@ let update_ (msg : msg) (m : model) : modification =
         ( traceMods
         @ [ AddOps
               ( [SetHandler (tlid, pos, aHandler)]
-              , FocusExact (tlid, FluidExpression.toID ast) )
-          ; Delete404 fof
-          ; SetPage (FocusedHandler (tlid, None, true)) ] )
+              , FocusPageAndCursor
+                  (FocusedHandler (tlid, None, true), FluidEntering tlid) )
+          ; Delete404 fof ] )
   | SidebarMsg msg ->
       ViewSidebar.update msg
   | CreateRouteHandler action ->
