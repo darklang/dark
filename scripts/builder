@@ -99,7 +99,7 @@ for i in "$@"
 do
   case $i in
     --watch)
-    FSWATCH="fswatch --event-flag-separator=, -r * -x"
+    FSWATCH="fswatch --event-flag-separator=, -r * -x -e rundir"
     # Need to specify --event types, or something in node_modules will fire
     # endless IsDir and PlatformSpecific ("This event maps a platform-specific
     # event that has no corresponding flag.") events
