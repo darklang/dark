@@ -82,6 +82,15 @@ module Span = struct
 
   (** finish records the span end time and logs it. *)
   let finish (span : t) : unit =
+    (* From the OCaml Gc docs:
+     * The total amount of memory allocated by the program since it was started
+     * is (in words) minor_words + major_words - promoted_words. Multiply by
+     * the word size (4 on a 32-bit machine, 8 on a 64-bit machine) to get the
+     * number of bytes. *)
+    let usage_kb =
+      Gc.allocated_bytes () /. 1024.0 |> Float.iround |> Option.value ~default:0
+    in
+    set_attr span "meta.process_memory_kb" (`Int usage_kb) ;
     let span = {span with end_time = Unix.gettimeofday ()} in
     Log.infO span.name ~jsonparams:(log_params span)
 end
