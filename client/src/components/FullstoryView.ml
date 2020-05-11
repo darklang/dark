@@ -73,4 +73,11 @@ let html (m : Types.model) : Types.msg Html.html =
   let cls =
     if m.settingsView.privacy.recordConsent = None then "ask" else "hide"
   in
-  Html.div [Html.class' ("fullstory-modal " ^ cls)] content
+  let overlay =
+    if m.settingsView.privacy.recordConsent = None
+    then "modal-overlay"
+    else "hide"
+  in
+  Html.div
+    [Html.class' overlay]
+    [Html.div [Html.class' ("fullstory-modal " ^ cls)] content]
