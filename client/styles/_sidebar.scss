@@ -146,6 +146,10 @@ $icSize: 1em;
   &.empty summary::-webkit-details-marker {
     display: none;
   }
+
+  &.package-manager .simple-item .icon-spacer {
+    width: 0.5em;
+  }
 }
 
 // Category summary

@@ -146,7 +146,7 @@ let viewMetadata (vs : viewState) (fn : functionTypes) : msg Html.html =
           in
           Html.div [Html.class' "fn-actions"] [viewExecuteBtn vs fn; menuView]
       | PackageFn _ ->
-          Vdom.noNode
+          Html.div [Html.class' "fn-actions"] []
     in
     Html.div
       [Html.class' "spec-header"]
