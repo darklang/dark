@@ -21,8 +21,7 @@ module Span = struct
     ; trace_id : ID.t  (** the span's trace's ID *)
     ; parent_id : ID.t
           (** ID of the span's parent, or 0 if it is a root span *)
-    ; start_time : float (* unix time at start *)
-    ; end_time : float (* unix time at end *)
+    ; start_time : Time.t
     ; attributes : (string, Yojson.Safe.t) Hashtbl.t
           (* arbitrary KV data that will be serialized along with the span *) }
 
@@ -33,8 +32,7 @@ module Span = struct
     ; trace_id = gid ()
     ; span_id = gid ()
     ; parent_id = 0
-    ; start_time = Unix.gettimeofday ()
-    ; end_time = 0.0
+    ; start_time = Time.now ()
     ; attributes = Hashtbl.create (module String) }
 
 
@@ -44,8 +42,7 @@ module Span = struct
     ; trace_id = parent.trace_id
     ; span_id = gid ()
     ; parent_id = parent.span_id
-    ; start_time = Unix.gettimeofday ()
-    ; end_time = 0.0
+    ; start_time = Time.now ()
     ; attributes = Hashtbl.create (module String) }
 
 
@@ -63,25 +60,9 @@ module Span = struct
 
   (** log_params returns the span data to be logged *)
   let log_params (span : t) : (string * Yojson.Safe.t) list =
-    let p =
-      ("trace.span_id", `String (ID.to_string span.span_id))
-      :: ("trace.trace_id", `String (ID.to_string span.trace_id))
-      :: Hashtbl.to_alist span.attributes
+    let duration_ms =
+      span.start_time |> Time.diff (Time.now ()) |> Time.Span.to_ms
     in
-    let p =
-      if span.parent_id = 0
-      then p
-      else ("trace.parent_id", `String (ID.to_string span.parent_id)) :: p
-    in
-    if span.end_time = 0.0
-    then p
-    else
-      let d = 1000.0 *. (span.end_time -. span.start_time) in
-      ("duration_ms", `Float d) :: p
-
-
-  (** finish records the span end time and logs it. *)
-  let finish (span : t) : unit =
     (* From the OCaml Gc docs:
      * The total amount of memory allocated by the program since it was started
      * is (in words) minor_words + major_words - promoted_words. Multiply by
@@ -90,9 +71,25 @@ module Span = struct
     let usage_kb =
       Gc.allocated_bytes () /. 1024.0 |> Float.iround |> Option.value ~default:0
     in
-    set_attr span "meta.process_memory_kb" (`Int usage_kb) ;
-    let span = {span with end_time = Unix.gettimeofday ()} in
-    Log.infO span.name ~jsonparams:(log_params span)
+    let p =
+      ( "timestamp"
+      , `String
+          (Time.to_string_iso8601_basic ~zone:Time.Zone.utc span.start_time) )
+      :: ("name", `String span.name)
+      :: ("duration_ms", `Float duration_ms)
+      :: ("meta.process_memory_kb", `Int usage_kb)
+      :: ("trace.span_id", `String (ID.to_string span.span_id))
+      :: ("trace.trace_id", `String (ID.to_string span.trace_id))
+      :: Hashtbl.to_alist span.attributes
+    in
+    if span.parent_id = 0
+    then p
+    else ("trace.parent_id", `String (ID.to_string span.parent_id)) :: p
+
+
+  (** finish records the span end time and logs it. *)
+  let finish (span : t) : unit =
+    `Assoc (log_params span) |> Yojson.Safe.to_string |> Caml.print_endline
 end
 
 (** with_span is a helper for wrapping a function call in a span. It calls the
