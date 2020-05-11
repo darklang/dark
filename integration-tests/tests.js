@@ -1028,7 +1028,7 @@ test("empty_fn_never_called_result", async t => {
     .click(".id-1276585567");
   await awaitAnalysis(t, timestamp);
   await t
-    .expect(available(".return-value .msg"))
+    .expect(available(".return-value .warning-message"))
     .ok()
     .expect(Selector(".return-value").innerText)
     .contains(
@@ -1045,11 +1045,11 @@ test("empty_fn_been_called_result", async t => {
     .click(".id-1276585567")
     // clicking twice makes the test more stable
     .click(".id-1276585567")
-    .expect(available(".return-value .msg"))
+    .expect(available(".return-value .warning-message"))
     .ok()
     .expect(Selector(".return-value").innerText)
     .contains(
-      "This trace returns: <Incomplete>\nThis function has not yet been called - please call this function",
+      "This function has not yet been called - please call this function",
     );
 });
 

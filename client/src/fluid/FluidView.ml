@@ -10,8 +10,7 @@ module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
 module P = FluidPattern
-module Printer = FluidTokenizer
-module Util = FluidUtil
+module Printer = FluidPrinter
 
 (* Tea *)
 
@@ -168,54 +167,80 @@ let viewReturnValue
           | _ ->
               false
         in
-        let incompleteTxt =
-          (* Since HTTP and userFunctions are the case where Incomplete return is likely to case and error,
-           * we only want to highlight those cases. *)
-          match (dval, vs.tl) with
-          | DIncomplete _, TLHandler h ->
-            ( match SpecHeaders.spaceOf h.spec with
-            | HSHTTP ->
-                Some "Your code needs to return a value in the last expression"
-            | HSCron | HSWorker | HSRepl | HSDeprecatedOther ->
-                None )
-          | DIncomplete _, TLFunc f ->
-            ( match vs.traces with
-            | [(tid, _)] when tid = Analysis.defaultTraceIDForTL ~tlid:f.ufTLID
-              ->
-                Some
-                  "This function has not yet been called - please call this function"
+        let warningHtml =
+          let onDefaultTrace tlid =
+            match vs.traces with
+            | [(tid, _)] when tid = Analysis.defaultTraceIDForTL ~tlid ->
+                true
             | _ ->
-                Some "Your code needs to return a value in the last expression"
-            )
+                false
+          in
+          let warningAttr = Html.class' "warning-message" in
+          let text contents =
+            Html.div [warningAttr] [Html.text contents; Html.br []]
+          in
+          (* Since HTTP and userFunctions are the case where Incomplete return
+           * is likely to case and error, we only want to highlight those
+           * cases. *)
+          match (dval, vs.tl) with
+          | DIncomplete _, TLHandler h when SpecHeaders.spaceOf h.spec = HSHTTP
+            ->
+              text "Your code needs to return a value in the last expression"
+          | DIncomplete _, TLFunc f when onDefaultTrace f.ufTLID ->
+              text
+                "This function has not yet been called - please call this function"
+          | DIncomplete _, TLFunc _ ->
+              text "Your code needs to return a value in the last expression"
+          | _, TLFunc f ->
+              let actualType = dval |> Runtime.typeOf in
+              let declaredType =
+                BlankOr.valueWithDefault TAny f.ufMetadata.ufmReturnTipe
+              in
+              if Runtime.isCompatible actualType declaredType
+              then Vdom.noNode
+              else
+                let actualTypeString = Runtime.tipe2str actualType in
+                let declaredTypeString = Runtime.tipe2str declaredType in
+                Html.div
+                  [warningAttr]
+                  [ Html.span [Html.class' "err"] [Html.text "Type error: "]
+                  ; Html.text
+                      ( "This function should return "
+                      ^ Util.indefiniteArticleFor declaredTypeString
+                      ^ " " )
+                  ; Html.span [Html.class' "type"] [Html.text declaredTypeString]
+                  ; Html.text
+                      ( ", but this trace returns "
+                      ^ Util.indefiniteArticleFor actualTypeString
+                      ^ " " )
+                  ; Html.span [Html.class' "type"] [Html.text actualTypeString]
+                  ]
           | _, TLPmFunc _
-          | _, TLFunc _
           | _, TLHandler _
           | _, TLDB _
           | _, TLTipe _
           | _, TLGroup _ ->
-              None
-        in
-        let auxText =
-          incompleteTxt
-          |> Option.map ~f:(fun txt ->
-                 Html.span [Html.class' "msg"] [Html.text txt])
-          |> Option.withDefault ~default:Vdom.noNode
+              Vdom.noNode
         in
         let dvalString = Runtime.toRepr dval in
-        let newLine =
-          if String.contains ~substring:"\n" dvalString
-          then Html.br []
-          else Vdom.noNode
+        let returnHtml =
+          let newLine =
+            if String.contains ~substring:"\n" dvalString
+            then Html.br []
+            else Vdom.noNode
+          in
+          Html.div
+            [Html.class' "value"]
+            ( [Html.text "This trace returns: "; newLine]
+            @ viewDval vs.tlid dval ~canCopy:true )
         in
-        let viewDval = viewDval vs.tlid dval ~canCopy:true in
         Html.div
           ( Html.classList
               [ ("return-value", true)
               ; ("refreshed", isRefreshed)
-              ; ("incomplete", incompleteTxt <> None)
               ; ("draggable", dragEvents <> []) ]
           :: dragEvents )
-          ([Html.text "This trace returns: "; newLine] @ viewDval @ [auxText])
+          [warningHtml; returnHtml]
     | _ ->
         Vdom.noNode
   else Vdom.noNode

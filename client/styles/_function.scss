@@ -1,13 +1,14 @@
 .fn-header {
   padding-bottom: $spacing-small;
-  border-bottom: 1px solid $user-functions;
+  border-bottom: 1px dashed darken($user-functions, 30%);
+  margin-bottom: $spacing-small;
 
   .spec-header {
     display: flex;
     flex-wrap: nowrap;
     justify-content: space-between;
     flex-direction: row;
-    border-bottom: none;
+    border-bottom: 1px solid $user-functions;
     cursor: default;
 
     .di-fn {
