@@ -49,15 +49,15 @@ module Span = struct
     ; attributes = Hashtbl.create (module String) }
 
 
-  (** setAttr sets a single key-value attribute on the span (mutating).
+  (** set_attr sets a single key-value attribute on the span (mutating).
    * Only the most recent value for an attribute is kept. *)
-  let setAttr (span : t) (key : string) (value : Yojson.Safe.t) : unit =
+  let set_attr (span : t) (key : string) (value : Yojson.Safe.t) : unit =
     Hashtbl.set span.attributes key value
 
 
-  (** setAttr sets many key-value attributes on the span (mutating).
+  (** set_attrs sets many key-value attributes on the span (mutating).
    * Only the most recent value for an attribute is kept. *)
-  let setAttrs (span : t) (attrs : (string * Yojson.Safe.t) list) : unit =
+  let set_attrs (span : t) (attrs : (string * Yojson.Safe.t) list) : unit =
     List.iter attrs ~f:(fun (k, v) -> Hashtbl.set span.attributes k v)
 
 
@@ -103,5 +103,5 @@ let with_span
     | None ->
         Span.root name
   in
-  Span.setAttrs span attrs ;
+  Span.set_attrs span attrs ;
   protectx span ~f ~finally:Span.finish
