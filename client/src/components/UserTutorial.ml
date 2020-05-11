@@ -8,6 +8,24 @@ let isGettingStartedCanvas (username : string) (canvasName : string) : bool =
   String.toLower canvasName = username ^ "-gettingstarted"
 
 
+let numberOfSteps (current : tutorialSteps) : string * string =
+  let currentStep =
+    match current with
+    | Welcome ->
+        "1"
+    | VerbChange ->
+        "2"
+    | ReturnValue ->
+        "3"
+    | OpenTab ->
+        "4"
+    | GettingStarted ->
+        "5"
+  in
+  let totalSteps = "5" in
+  (currentStep, totalSteps)
+
+
 let getPrevStep (current : tutorialSteps option) : tutorialSteps option =
   match current with
   | Some Welcome ->
@@ -71,11 +89,16 @@ let update (m : model) (msg : tutorialMsg) : modification =
 
 let tutorialStepsToText (step : tutorialSteps) (username : string) :
     msg Html.html =
+  let stepTitle =
+    let current, total = numberOfSteps step in
+    Html.p [Html.class' "step-title"] [Html.text (current ^ "/" ^ total)]
+  in
   match step with
   | Welcome ->
       Html.div
         [Html.class' "tutorial-txt"]
-        [ Html.p
+        [ stepTitle
+        ; Html.p
             []
             [ Html.text
                 "Welcome to Dark! Let's get started by creating our first Hello World."
@@ -86,20 +109,29 @@ let tutorialStepsToText (step : tutorialSteps) (username : string) :
                 "Click anywhere on the canvas (the lighter grey area), type hello and choose \"New HTTP handler\""
             ] ]
   | VerbChange ->
-      Html.p
+      Html.div
         [Html.class' "tutorial-txt"]
-        [Html.text "Select GET as the verb for your HTTP handler."]
-  | ReturnValue ->
-      Html.p
-        [Html.class' "tutorial-txt"]
-        [ Html.text
-            "In the return value - the light grey area - type Hello World." ]
-  | OpenTab ->
-      Html.p
-        [Html.class' "tutorial-txt"]
-        [ Html.text
-            "Click on the hamburger menu in the upper right and select Open in New Tab."
+        [ stepTitle
+        ; Html.p [] [Html.text "Select GET as the verb for your HTTP handler."]
         ]
+  | ReturnValue ->
+      Html.div
+        [Html.class' "tutorial-txt"]
+        [ stepTitle
+        ; Html.p
+            []
+            [ Html.text
+                "In the return value (the light grey box), type \"Hello World\"."
+            ] ]
+  | OpenTab ->
+      Html.div
+        [Html.class' "tutorial-txt"]
+        [ stepTitle
+        ; Html.p
+            []
+            [ Html.text
+                "Click on the hamburger menu in the upper right and select Open in New Tab."
+            ] ]
   | GettingStarted ->
       let btn =
         let link = "https://darklang.com/a/" ^ username ^ "-gettingstarted" in
@@ -113,7 +145,8 @@ let tutorialStepsToText (step : tutorialSteps) (username : string) :
       in
       Html.div
         [Html.class' "tutorial-txt"]
-        [ Html.p
+        [ stepTitle
+        ; Html.p
             []
             [ Html.text
                 "Congratulations, you've created your first Hello World in Dark!"

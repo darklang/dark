@@ -41,9 +41,8 @@ $icSize: 1em;
   right: 0;
   padding: 90px 25px;
   background-color: rgba(43, 41, 41, 0.8);
-
   .tutorial-txt {
-    height: 225px;
+    height: 250px;
     margin: 0px;
     p {
       margin: 0px;
@@ -59,11 +58,11 @@ $icSize: 1em;
       text-align: center;
       color: $white1;
       text-decoration: none;
-      background: $grey2;
+      background: $grey1;
       padding: 5px;
       border-radius: 5px;
       &:hover {
-        color: $purple;
+        color: $light-purple;
       }
     }
   }
