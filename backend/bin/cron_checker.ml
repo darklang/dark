@@ -2,7 +2,6 @@ open Core_kernel
 open Lwt
 open Libcommon
 open Libbackend.Worker_util
-module Span = Telemetry.Span
 
 let shutdown = ref false
 
