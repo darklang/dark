@@ -175,9 +175,9 @@ let viewReturnValue
             | _ ->
                 false
           in
-          let class' = Html.class' "warning-message" in
+          let warningAttr = Html.class' "warning-message" in
           let text contents =
-            Html.div [class'] [Html.text contents; Html.br []]
+            Html.div [warningAttr] [Html.text contents; Html.br []]
           in
           (* Since HTTP and userFunctions are the case where Incomplete return
            * is likely to case and error, we only want to highlight those
@@ -202,7 +202,7 @@ let viewReturnValue
                 let actualTypeString = Runtime.tipe2str actualType in
                 let declaredTypeString = Runtime.tipe2str declaredType in
                 Html.div
-                  [class']
+                  [warningAttr]
                   [ Html.span [Html.class' "err"] [Html.text "Type error: "]
                   ; Html.text
                       ( "This function should return "
