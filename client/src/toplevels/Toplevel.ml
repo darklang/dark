@@ -398,6 +398,29 @@ let selectedAST (m : model) : FluidAST.t option =
   selected m |> Option.andThen ~f:getAST
 
 
+(* Sends updates to ops, modifies model *)
+let fullstackASTUpdate
+    ?(mFn : model -> model = fun m -> m) (tl : toplevel) (ast : FluidAST.t) :
+    modification =
+  (* Let's keep ops-related mods as is.
+    For now we want to focus on deprecating client-model updating mods
+  *)
+  let opsMod = setASTOpMod tl ast in
+  Many
+    [ opsMod
+    ; ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let tlid = id tl in
+          (* All model updates happens here *)
+          let newM =
+            (* Apply model update function passed by caller *)
+            mFn m
+            (* Updates model AST directly instead of waiting for API callback *)
+            |> fun m' -> updateModelWithAST m' tlid ast
+          in
+          (newM, Tea.Cmd.none)) ]
+
+
 (* ------------------------- *)
 (* Blanks *)
 (* ------------------------- *)

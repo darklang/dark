@@ -5823,7 +5823,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
           in
           let astMod =
             if ast <> newAST
-            then Modifications.fullstackASTUpdate tl newAST
+            then TL.fullstackASTUpdate tl newAST
             else Types.NoChange
           in
           Types.Many

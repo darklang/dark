@@ -2157,9 +2157,65 @@ let rec filter_read_only (m : model) (modification : modification) =
         modification
 
 
+let astUpdates (oldM : model) (newM : model) (cmds : msg Cmd.t) :
+    model * msg Cmd.t =
+  (* Updates model with searchable AST string *)
+  let updateCache tlid ast =
+    FluidAST.toExpr ast
+    |> FluidPrinter.eToHumanString
+    |> fun str ->
+    let searchCache =
+      newM.searchCache |> TLIDDict.update ~tlid ~f:(fun _ -> Some str)
+    in
+    {newM with searchCache}
+  in
+  (* Returns correct Tea.Cmd.t for adding `c` to `cmds` *)
+  let appendCommand c =
+    match cmds with
+    | Cmd.Batch otherCommands ->
+        Cmd.batch (otherCommands @ [c])
+    | Cmd.NoCmd ->
+        c
+    | aCmd ->
+        Cmd.batch [aCmd; c]
+  in
+  match (TL.selected oldM, TL.selected newM) with
+  | Some prevTL, Some newTL when TL.id prevTL = TL.id newTL ->
+    ( match (TL.getAST prevTL, TL.getAST newTL) with
+    | Some oldAST, Some newAST when oldAST <> newAST ->
+        (* If AST has changed, we want to re-run analysis and update AST cache *)
+        let tlid = TL.id newTL in
+        let updatedModel =
+          if newM.fluidState.activeEditor = MainEditor tlid
+          then updateCache tlid newAST
+          else newM
+        in
+        let updatedCmds =
+          Analysis.getSelectedTraceID newM tlid
+          |> Option.map ~f:(fun traceID ->
+                 Analysis.requestAnalysis newM tlid traceID |> appendCommand)
+          |> Option.withDefault ~default:cmds
+        in
+        (updatedModel, updatedCmds)
+    | _, _ ->
+        (newM, cmds) )
+  | Some prevTL, None | Some prevTL, Some _ ->
+      (* If the previous TL is no longer selected, let's make sure we update AST cache.
+      But we do not need to re-run analysis, because when it get selected again, analysis will run then.
+    *)
+      TL.getAST prevTL
+      |> Option.map ~f:(fun ast ->
+             let tlid = TL.id prevTL in
+             (updateCache tlid ast, cmds))
+      |> Option.withDefault ~default:(newM, cmds)
+  | _, _ ->
+      (newM, cmds)
+
+
 let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m |> filter_read_only m in
   let newm, newc = updateMod mods (m, Cmd.none) in
+  let newm, newc = astUpdates m newm newc in
   (* BEGIN HACK
    * Patch up the activeEditor to match the toplevel if
    * there is a selected toplevel. Instead, we should deprecate

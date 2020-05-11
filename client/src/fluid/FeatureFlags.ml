@@ -94,7 +94,7 @@ let wrapCmd (m : model) (tl : toplevel) (id : ID.t) : modification =
         | None ->
             fun m -> m
       in
-      Modifications.fullstackASTUpdate ~mFn tl ast
+      Toplevel.fullstackASTUpdate ~mFn tl ast
   | Some _ | None ->
       NoChange
 
@@ -138,7 +138,7 @@ let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
                ; upDownCol = None
                ; activeEditor = MainEditor (Toplevel.id tl) } }
          in
-         Modifications.fullstackASTUpdate ~mFn tl ast)
+         Toplevel.fullstackASTUpdate ~mFn tl ast)
   |> Option.withDefault ~default:NoChange
 
 

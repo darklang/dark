@@ -6,7 +6,6 @@ module TL = Toplevel
 module TD = TLIDDict
 module E = FluidExpression
 module P = FluidPattern
-module M = Modifications
 
 let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)
@@ -57,7 +56,7 @@ let modASTWithID (tl : toplevel) (id : ID.t) ~(f : E.t -> E.t) : modification =
   |> Option.andThen ~f:(fun ast ->
          let newAST = FluidAST.update ~f id ast in
          if newAST <> ast then Some newAST else None)
-  |> Option.map ~f:(M.fullstackASTUpdate tl)
+  |> Option.map ~f:(TL.fullstackASTUpdate tl)
   |> Option.withDefault ~default:NoChange
 
 
@@ -185,7 +184,7 @@ let extractVariable (m : model) (tl : toplevel) (id : ID.t) : modification =
   let varname = "var" ^ string_of_int (Util.random ()) in
   TL.getAST tl
   |> Option.map ~f:(extractVarInAst m tl id varname)
-  |> Option.map ~f:(M.fullstackASTUpdate tl)
+  |> Option.map ~f:(TL.fullstackASTUpdate tl)
   |> Option.withDefault ~default:NoChange
 
 
@@ -205,7 +204,7 @@ let extractFunction (m : model) (tl : toplevel) (id : ID.t) : modification =
       in
       let replacement = E.EFnCall (gid (), name, paramExprs, NoRail) in
       let newAST = FluidAST.replace ~replacement id ast in
-      let astUpdate = M.fullstackASTUpdate tl newAST in
+      let astUpdate = TL.fullstackASTUpdate tl newAST in
       let params =
         List.map freeVars ~f:(fun (id, name_) ->
             let tipe =
