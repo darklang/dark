@@ -249,3 +249,16 @@ let maybeChangeFromPage (tlid : TLID.t) (page : page) : modification list =
       [SetPage Architecture]
   | _ ->
       []
+
+
+let getPageFromTLID (m : model) (tlid : TLID.t) : page =
+  let hasKey dict = List.any ~f:(fun key -> key = tlid) (TLIDDict.keys dict) in
+  if hasKey m.deletedHandlers || hasKey m.handlers
+  then FocusedHandler (tlid, None, true)
+  else if hasKey m.dbs || hasKey m.deletedDBs
+  then FocusedDB (tlid, true)
+  else if hasKey m.userFunctions || hasKey m.deletedUserFunctions
+  then FocusedFn (tlid, None)
+  else if hasKey m.userTipes || hasKey m.deletedUserTipes
+  then FocusedType tlid
+  else Architecture
