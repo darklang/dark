@@ -247,6 +247,10 @@ let getAST (tl : toplevel) : FluidAST.t option =
       None
 
 
+(* Updates the Toplevel's AST in model. Changes here does not propogate to API.
+* IMPORTANT don't call unless under special circumstances.
+* For AST updates you want committed and propogated, use updateAST when possible.
+*)
 let updateModelWithAST (m : model) (tlid : TLID.t) (ast : FluidAST.t) : model =
   { m with
     handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
@@ -263,7 +267,10 @@ let updateModelASTCache (tlid : TLID.t) (str : string) (m : model) : model =
 
 
 (* Create the modification to set the AST in this toplevel. `ops` is optional
- * other ops to include in this modification. Does not change the model. *)
+ * other ops to include in this modification. Does not change the model.
+ * IMPORTANT don't call unless under special circumstances.
+ * Use updateAST when possible, it performs both the ops call and model update.
+ *)
 let setASTOpMod ?(ops = []) (tl : toplevel) (ast : FluidAST.t) : modification =
   match tl with
   | TLHandler h ->
@@ -406,15 +413,19 @@ let selectedAST (m : model) : FluidAST.t option =
 
 
 (* Sends updated AST to ops, modifies Toplevel's AST in model.
-* To ensure we have synced up changes we should always try to use this function instead of calling setASTOpMod or updateModelWithAST individually.
+* To ensure we have synced up changes we should always try to use this function
+* instead of calling setASTOpMod or updateModelWithAST individually.
 *)
 let updateAST
-    ?(mFn : model -> model = fun m -> m) (tl : toplevel) (ast : FluidAST.t) :
-    modification =
+    ?(mFn : model -> model = fun m -> m)
+    ?(ops = [])
+    ?(cmd = Tea.Cmd.none)
+    (tl : toplevel)
+    (ast : FluidAST.t) : modification =
   (* Let's keep ops-related mods as is, because the code handling modification AddOps (handleAPI) is rather complicated.
     For now we want to focus on deprecating client-model updating modifications
   *)
-  let opsMod = setASTOpMod tl ast in
+  let opsMod = setASTOpMod ~ops tl ast in
   Many
     [ opsMod
     ; ReplaceAllModificationsWithThisOne
@@ -427,7 +438,7 @@ let updateAST
             (* Updates model AST directly instead of waiting for API callback *)
             |> fun m' -> updateModelWithAST m' tlid ast
           in
-          (newM, Tea.Cmd.none)) ]
+          (newM, cmd)) ]
 
 
 (* ------------------------- *)

@@ -4729,6 +4729,7 @@ let updateAutocomplete (m : model) (tlid : TLID.t) (astInfo : ASTInfo.t) :
     ASTInfo.t =
   match ASTInfo.getToken astInfo with
   | Some ti when T.isAutocompletable ti.token ->
+      (* Calls updateModelWithAST directly because we AC state changes does not propogate to backend *)
       let m = TL.updateModelWithAST m tlid astInfo.ast in
       ASTInfo.modifyState astInfo ~f:(fun s ->
           let newAC = AC.regenerate m s.ac (tlid, ti) in
@@ -5885,9 +5886,7 @@ let cleanUp (m : model) (tlid : TLID.t option) : model * modification =
     |> Option.andThen ~f:(fun (tl, astInfo) ->
            let newAstInfo = acMaybeCommit 0 astInfo in
            let newAST = newAstInfo.ast |> FluidAST.map ~f:AST.removePartials in
-           if newAST <> astInfo.ast
-           then Some (TL.setASTOpMod tl newAST)
-           else None)
+           if newAST <> astInfo.ast then Some (TL.updateAST tl newAST) else None)
     |> Option.withDefault ~default:NoChange
   in
   let acVisibilityModel =

@@ -484,7 +484,7 @@ let reorderFnCallArgs
   |> List.map ~f:(fun (tl, ast) ->
          ast
          |> FluidAST.map ~f:(AST.reorderFnCallArgs fnName oldPos newPos)
-         |> TL.setASTOpMod tl)
+         |> TL.updateAST tl)
 
 
 let hasExistingFunctionNamed (m : model) (name : string) : bool =
@@ -569,14 +569,11 @@ let createAndInsertNewFunction
         | Some msg ->
             Model.updateErrorMod (Error.set msg)
         | None ->
-            Many
-              [ ReplaceAllModificationsWithThisOne
-                  (fun m ->
-                    ( ( TL.updateModelWithAST m tlid newAST
-                      |> fun m -> UserFunctions.upsert m newFn )
-                    , Tea.Cmd.none ))
-              ; (* Both ops in a single transaction *)
-                TL.setASTOpMod ~ops:[op] tl newAST
-              ; MakeCmd (Url.navigateTo (FocusedFn (newFn.ufTLID, None))) ] )
+            let mFn m =
+              TL.updateModelWithAST m tlid newAST
+              |> fun m -> UserFunctions.upsert m newFn
+            in
+            let cmd = Url.navigateTo (FocusedFn (newFn.ufTLID, None)) in
+            TL.updateAST ~mFn ~ops:[op] ~cmd tl newAST )
   | None ->
       NoChange
