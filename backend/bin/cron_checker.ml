@@ -8,10 +8,7 @@ let shutdown = ref false
 
 let rec cron_checker (pid : int) () =
   let%lwt () = Lwt_unix.sleep 1.0 in
-  let span = Span.root "Cron.check_all_canvases" in
-  Span.set_attr span "meta.process_id" (`Int pid) ;
-  protectx span ~finally:Span.finish ~f:Libbackend.Cron.check_all_canvases
-  |> function
+  match Libbackend.Cron.check_and_schedule_work_for_all_canvases pid with
   | Ok _ ->
       if not !shutdown then (cron_checker pid [@tailcall]) () else exit 0
   | Error (bt, e, log_params) ->
