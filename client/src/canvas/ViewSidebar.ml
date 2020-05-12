@@ -919,11 +919,7 @@ let update (msg : sidebarMsg) : modification =
 
 
 let viewSidebar_ (m : model) : msg Html.html =
-  let packageManager =
-    if VariantTesting.variantIsActive m ShowPackageManageVariant
-    then [packageManagerCategory m.functions.packageFunctions]
-    else []
-  in
+  let packageManager = [packageManagerCategory m.functions.packageFunctions] in
   let cats =
     standardCategories m m.handlers m.dbs m.userFunctions m.userTipes m.groups
     @ [f404Category m; deletedCategory m]
