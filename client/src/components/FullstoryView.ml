@@ -74,7 +74,10 @@ let html (m : Types.model) : Types.msg Html.html =
     if m.settingsView.privacy.recordConsent = None then "ask" else "hide"
   in
   let overlay =
-    if m.settingsView.privacy.recordConsent = None then "modal-overlay" else ""
+    if m.settingsView.privacy.recordConsent = None
+       && not (m.integrationTestState <> NoIntegrationTest)
+    then "modal-overlay"
+    else ""
   in
   Html.div
     [Html.class' overlay]
