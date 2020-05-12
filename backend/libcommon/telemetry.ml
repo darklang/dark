@@ -71,16 +71,17 @@ module Span = struct
     let mem_usage =
       Gc.allocated_bytes () |> Float.iround |> Option.value ~default:0
     in
+    let timestamp =
+      Time.to_string_iso8601_basic ~zone:Time.Zone.utc span.start_time
+    in
     let p =
-      ( "timestamp"
-      , `String
-          (Time.to_string_iso8601_basic ~zone:Time.Zone.utc span.start_time) )
-      :: ("name", `String span.name)
-      :: ("duration_ms", `Float duration_ms)
-      :: ("meta.process_memory", `Int mem_usage)
-      :: ("trace.span_id", `String (ID.to_string span.span_id))
-      :: ("trace.trace_id", `String (ID.to_string span.trace_id))
-      :: Hashtbl.to_alist span.attributes
+      [ ("timestamp", `String timestamp)
+      ; ("name", `String span.name)
+      ; ("duration_ms", `Float duration_ms)
+      ; ("meta.process_memory", `Int mem_usage)
+      ; ("trace.span_id", `String (ID.to_string span.span_id))
+      ; ("trace.trace_id", `String (ID.to_string span.trace_id)) ]
+      @ Hashtbl.to_alist span.attributes
     in
     if span.parent_id = 0
     then p
@@ -90,6 +91,23 @@ module Span = struct
   (** finish records the span end time and logs it. *)
   let finish (span : t) : unit =
     `Assoc (log_params span) |> Yojson.Safe.to_string |> Caml.print_endline
+
+
+  (* event immediately logs a span event, ie, a timestamped log without a
+   * duration,associated with the passed [span] *)
+  let event
+      ?(attrs : (string * Yojson.Safe.t) list = []) (span : t) (name : string) :
+      unit =
+    let now = Time.now () |> Time.to_string_iso8601_basic ~zone:Time.Zone.utc in
+    `Assoc
+      ( [ ("timestamp", `String now)
+        ; ("name", `String name)
+        ; ("trace.parent_id", `String (ID.to_string span.span_id))
+        ; ("trace.trace_id", `String (ID.to_string span.trace_id))
+        ; ("meta.span_type", `String "span_event") ]
+      @ attrs )
+    |> Yojson.Safe.to_string
+    |> Caml.print_endline
 end
 
 (** with_span is a helper for wrapping a function call in a span. It calls the
