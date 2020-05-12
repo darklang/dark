@@ -23,8 +23,6 @@ let toVariantTest (s : string) : variantTest option =
       Some LeftPartialVariant
   | "fnreturn" ->
       Some FnReturnVariant
-  | "show-package-manager" ->
-      Some ShowPackageManageVariant
   | _ ->
       None
 
@@ -44,18 +42,12 @@ let nameOf (vt : variantTest) : string =
       "lpartial"
   | FnReturnVariant ->
       "fnreturn"
-  | ShowPackageManageVariant ->
-      "show-package-manager"
 
 
 let toCSSClass (vt : variantTest) : string = nameOf vt ^ "-variant"
 
 let availableAdminVariants : variantTest list =
-  [ ShowPackageManageVariant
-  ; FnReturnVariant
-  ; ForceWelcomeModalVariant
-  ; NgrokVariant
-  ; GroupVariant ]
+  [FnReturnVariant; ForceWelcomeModalVariant; NgrokVariant; GroupVariant]
 
 
 let activeCSSClasses (m : model) : string =

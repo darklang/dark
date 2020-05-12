@@ -460,6 +460,11 @@ $icSize: 1em;
   }
 }
 
+/* Special Case: Package Manager  */
+.sidebar-category.package-manager .simple-item .icon-spacer {
+  width: 0.5em;
+}
+
 /* Special Case: Static Assets */
 .sidebar-category.deploys {
   .simple-item {
