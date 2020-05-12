@@ -255,6 +255,13 @@ let updateModelWithAST (m : model) (tlid : TLID.t) (ast : FluidAST.t) : model =
           {uf with ufAST = ast}) }
 
 
+let updateModelASTCache (tlid : TLID.t) (str : string) (m : model) : model =
+  let searchCache =
+    m.searchCache |> TLIDDict.update ~tlid ~f:(fun _ -> Some str)
+  in
+  {m with searchCache}
+
+
 (* Create the modification to set the AST in this toplevel. `ops` is optional
  * other ops to include in this modification. Does not change the model. *)
 let setASTOpMod ?(ops = []) (tl : toplevel) (ast : FluidAST.t) : modification =

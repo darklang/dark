@@ -5768,7 +5768,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       ( match (tl, ast) with
       | Some tl, Some ast ->
           let tlid = TL.id tl in
-          let newAST, newState, _newTokens = updateMsg m tlid ast s msg in
+          let newAST, newState, newTokens = updateMsg m tlid ast s msg in
           let eventSpecMod, newAST, newState =
             let isFluidEntering =
               (* Only fire Tab controls if the state is currently in
@@ -5823,7 +5823,18 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
           in
           let astMod =
             if ast <> newAST
-            then TL.fullstackASTUpdate tl newAST
+            then
+              let astCacheUpdateFn =
+                (* We want to update the AST cache for searching, however, we	
+                 * may be editing the feature flag section in which case we'd	
+                 * be putting the wrong information into the cache. As a simple	
+                 * solution for now, only update if we're in the main editor. *)
+                if s.activeEditor = MainEditor tlid
+                then
+                  TL.updateModelASTCache tlid (Printer.tokensToString newTokens)
+                else fun m -> m
+              in
+              TL.fullstackASTUpdate ~mFn:astCacheUpdateFn tl newAST
             else Types.NoChange
           in
           Types.Many
