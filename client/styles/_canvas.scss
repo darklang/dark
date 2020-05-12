@@ -159,11 +159,11 @@ body #app * {
 
 .overlay {
   position: fixed;
-  top: -1 * $ridiculously-large;
-  left: -1 * $ridiculously-large;
+  top: 0;
+  left: 0;
   display: none;
-  height: 2 * $ridiculously-large;
-  width: 2 * $ridiculously-large;
+  height: 100vh;
+  width: 100vw;
   overflow: visible;
   background-color: rgba(72, 72, 72, 0.75);
 
