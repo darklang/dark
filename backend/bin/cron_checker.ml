@@ -2,13 +2,16 @@ open Core_kernel
 open Lwt
 open Libcommon
 open Libbackend.Worker_util
+module Span = Telemetry.Span
 
 let shutdown = ref false
 
 let rec cron_checker (pid : int) () =
   let%lwt () = Lwt_unix.sleep 1.0 in
-  let result = Libbackend.Cron.check_all_canvases pid in
-  match result with
+  let span = Span.root "Cron.check_all_canvases" in
+  Span.set_attr span "meta.process_id" (`Int pid) ;
+  protectx span ~finally:Span.finish ~f:Libbackend.Cron.check_all_canvases
+  |> function
   | Ok _ ->
       if not !shutdown then (cron_checker pid [@tailcall]) () else exit 0
   | Error (bt, e, log_params) ->

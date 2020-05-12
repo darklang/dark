@@ -93,21 +93,13 @@ module Span = struct
 end
 
 (** with_span is a helper for wrapping a function call in a span. It calls the
- * given function [f] with a newly created span, ensuring a call to [finish]
- * after the function returns.
- * [~parent] should usually be passed to link the new span to an existing
- * trace. Omitting [~parent] will create a new root span. *)
+ * given function [f] with a newly created child span, ensuring a call to
+ * [finish] after the function returns. *)
 let with_span
+    (parent : Span.t)
     (name : string)
-    ?(parent : Span.t option)
     ?(attrs : (string * Yojson.Safe.t) list = [])
     (f : Span.t -> 'a) : 'a =
-  let span =
-    match parent with
-    | Some p ->
-        Span.from_parent name p
-    | None ->
-        Span.root name
-  in
+  let span = Span.from_parent name parent in
   Span.set_attrs span attrs ;
   protectx span ~f ~finally:Span.finish
