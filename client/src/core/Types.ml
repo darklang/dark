@@ -1402,7 +1402,6 @@ and variantTest =
   | ForceWelcomeModalVariant
   | LeftPartialVariant
   | FnReturnVariant
-  | ShowPackageManageVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
