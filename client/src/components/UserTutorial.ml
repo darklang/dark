@@ -171,38 +171,44 @@ let closeTutorial : msg Html.html =
 
 let viewNavigationBtns (step : tutorialSteps) : msg Html.html =
   let prevBtn =
-    let event =
+    let clickEvent =
       match getPrevStep (Some step) with
       | Some _ ->
-          [ ViewUtils.eventNoPropagation
-              ~key:"close-welcome-modal"
-              "click"
-              (fun _ -> TutorialMsg PrevStep) ]
+          let stepNum, _ = numberOfSteps step in
+          ViewUtils.eventNoPropagation
+            ~key:("prev-step-" ^ stepNum)
+            "click"
+            (fun _ -> TutorialMsg PrevStep)
       | None ->
-          []
+          Vdom.noProp
     in
-    Html.div
-      [ ViewUtils.nothingMouseEvent "mousedown"
+    Html.button
+      [ Html.class' "page-btn"
+      ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.nothingMouseEvent "mouseup"
-      ; Html.classList [("btn", true); ("disabled", event = [])] ]
-      [Html.p event [Html.text "Previous"]]
+      ; clickEvent
+      ; Html.Attributes.disabled (clickEvent = Vdom.noProp) ]
+      [Html.text "Previous"]
   in
   let nextBtn =
-    let event =
+    let clickEvent =
       match getNextStep (Some step) with
       | Some _ ->
-          [ ViewUtils.eventNoPropagation
-              ~key:"close-welcome-modal"
-              "click"
-              (fun _ -> TutorialMsg NextStep) ]
+          let stepNum, _ = numberOfSteps step in
+          ViewUtils.eventNoPropagation
+            ~key:("next-step-" ^ stepNum)
+            "click"
+            (fun _ -> TutorialMsg NextStep)
       | None ->
-          []
+          Vdom.noProp
     in
-    Html.div
-      [ ViewUtils.nothingMouseEvent "mousedown"
+    Html.button
+      [ Html.class' "page-btn"
+      ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.nothingMouseEvent "mouseup"
-      ; Html.classList [("btn", true); ("disabled", event = [])] ]
-      [Html.p event [Html.text "Next"]]
+      ; clickEvent
+      ; Html.Attributes.disabled (clickEvent = Vdom.noProp) ]
+      [Html.text "Next"]
   in
   Html.div [Html.class' "btn-container"] [prevBtn; nextBtn]
 

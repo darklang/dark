@@ -49,6 +49,7 @@ $icSize: 1em;
       padding-bottom: 15px;
     }
   }
+
   .getting-started {
     display: flex;
     justify-content: center;
@@ -62,26 +63,26 @@ $icSize: 1em;
       padding: 5px;
       border-radius: 5px;
       &:hover {
-        color: $light-purple;
+        color: lighten($purple, 10%);
       }
     }
   }
-
   .btn-container {
     display: flex;
-    .btn {
+    .page-btn {
       width: 50%;
       text-align: center;
-      p,
-      a {
-        cursor: pointer;
-        text-decoration: none;
-        color: $grey3;
-        &:hover {
-          color: $purple;
-        }
+      cursor: pointer;
+      text-decoration: none;
+      color: $grey3;
+      background-color: transparent;
+      border: none;
+
+      &:hover {
+        color: $purple;
       }
-      &.disabled p {
+
+      &[disabled] {
         color: $grey1;
         cursor: default;
       }
