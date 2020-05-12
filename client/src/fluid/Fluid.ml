@@ -5834,7 +5834,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                   TL.updateModelASTCache tlid (Printer.tokensToString newTokens)
                 else fun m -> m
               in
-              TL.fullstackASTUpdate ~mFn:astCacheUpdateFn tl newAST
+              TL.updateAST ~mFn:astCacheUpdateFn tl newAST
             else Types.NoChange
           in
           Types.Many

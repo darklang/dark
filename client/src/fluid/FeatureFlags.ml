@@ -84,6 +84,7 @@ let wrapCmd (m : model) (tl : toplevel) (id : ID.t) : modification =
         match maybeId with
         | Some flagId ->
             fun m ->
+              (* This is bad, but we can't use Fluid.ml here due to dependency cycle issues D: *)
               { m with
                 fluidState =
                   { m.fluidState with
@@ -94,7 +95,7 @@ let wrapCmd (m : model) (tl : toplevel) (id : ID.t) : modification =
         | None ->
             fun m -> m
       in
-      Toplevel.fullstackASTUpdate ~mFn tl ast
+      Toplevel.updateAST ~mFn tl ast
   | Some _ | None ->
       NoChange
 
@@ -128,6 +129,7 @@ let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
   |> Option.andThen ~f:(fun ast -> unwrap keep ast id)
   |> Option.map ~f:(fun ast ->
          let mFn m =
+           (* This is bad, but we can't use Fluid.ml here due to dependency cycle issues D: *)
            { m with
              fluidState =
                { m.fluidState with
@@ -138,7 +140,7 @@ let unwrapCmd (keep : unwrapKeep) (_ : model) (tl : toplevel) (id : ID.t) :
                ; upDownCol = None
                ; activeEditor = MainEditor (Toplevel.id tl) } }
          in
-         Toplevel.fullstackASTUpdate ~mFn tl ast)
+         Toplevel.updateAST ~mFn tl ast)
   |> Option.withDefault ~default:NoChange
 
 

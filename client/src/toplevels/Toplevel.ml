@@ -405,12 +405,14 @@ let selectedAST (m : model) : FluidAST.t option =
   selected m |> Option.andThen ~f:getAST
 
 
-(* Sends updates to ops, modifies model *)
-let fullstackASTUpdate
+(* Sends updated AST to ops, modifies Toplevel's AST in model.
+* To ensure we have synced up changes we should always try to use this function instead of calling setASTOpMod or updateModelWithAST individually.
+*)
+let updateAST
     ?(mFn : model -> model = fun m -> m) (tl : toplevel) (ast : FluidAST.t) :
     modification =
-  (* Let's keep ops-related mods as is.
-    For now we want to focus on deprecating client-model updating mods
+  (* Let's keep ops-related mods as is, because the code handling modification AddOps (handleAPI) is rather complicated.
+    For now we want to focus on deprecating client-model updating modifications
   *)
   let opsMod = setASTOpMod tl ast in
   Many

@@ -121,6 +121,7 @@ let run () =
           let res =
             match mod' with
             | Many [AddOps ([SetHandler (_, _, h)], _); _] ->
+              (* The second mod is a ReplaceAllModificationsWithThisOne *)
               ( match FluidAST.toExpr h.ast with
               | EFnCall (_, "Int::notResulty", [], NoRail) ->
                   true
@@ -141,6 +142,7 @@ let run () =
           let res =
             match mod' with
             | Many [AddOps ([SetHandler (_, _, h)], _); _] ->
+              (* The second mod is a ReplaceAllModificationsWithThisOne *)
               ( match FluidAST.toExpr h.ast with
               | EPipe
                   ( _
@@ -163,6 +165,7 @@ let run () =
           let res =
             match mod' with
             | Many [AddOps ([SetHandler (_, _, h)], _); _] ->
+              (* The second mod is a ReplaceAllModificationsWithThisOne *)
               ( match FluidAST.toExpr h.ast with
               | EFnCall (_, "Result::resulty", [], Rail) ->
                   true
