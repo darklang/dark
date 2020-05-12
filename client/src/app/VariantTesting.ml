@@ -43,8 +43,7 @@ let nameOf (vt : variantTest) : string =
 let toCSSClass (vt : variantTest) : string = nameOf vt ^ "-variant"
 
 let availableAdminVariants : variantTest list =
-  [FnReturnVariant; ForceWelcomeModalVariant; NgrokVariant; GroupVariant]
-
+  [FnReturnVariant; NgrokVariant; GroupVariant]
 
 
 let activeCSSClasses (m : model) : string =
