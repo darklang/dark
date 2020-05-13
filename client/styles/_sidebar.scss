@@ -257,6 +257,8 @@ $icSize: 1em;
 
 // Wrapper for categories' content
 .category-content {
+  padding-left: 1rem;
+
   @at-root .detailed & > .category-name {
     display: none;
   }
@@ -390,8 +392,6 @@ $icSize: 1em;
     }
   }
 
-  @at-root .detailed & {
-    margin-left: 1em;
   }
 }
 
@@ -446,7 +446,6 @@ $icSize: 1em;
 .sidebar-category.fof {
   .simple-item {
     display: flex;
-    margin-left: 0.5em;
 
     &.empty {
       justify-content: flex-start;
@@ -464,11 +463,11 @@ $icSize: 1em;
     .delete-button:hover {
       color: $hoverColor;
     }
-    
-    .add-button {
-      margin-left: $hSpace;
-    }
   }
+}
+
+.add-button .verb {
+  margin-right: $hSpace;
 }
 
 /* Special Case: Package Manager  */
