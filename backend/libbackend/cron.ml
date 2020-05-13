@@ -112,9 +112,17 @@ let record_execution (canvas_id : Uuidm.t) (h : 'expr_type handler) : unit =
     ~name:"Cron.record_execution"
 
 
-(* load_canvases takes a list of canvas [names] (ie, canvas.host) and returns
- * the full Canvas.canvas for each, along with a list of canvas names that
- * couldn't be loaded for one reason (it errored) or another (it raised). *)
+(** sum2 folds over the list [l] with function [f], summing the
+  * values of the returned (int * int) tuple from each call *)
+let sum2 (l : 'a list) ~(f : 'a -> int * int) : int * int =
+  List.fold l ~init:(0, 0) ~f:(fun (a, b) c ->
+      let a', b' = f c in
+      (a + a', b + b'))
+
+
+(** load_canvases takes a list of canvas [names] (ie, canvas.host) and returns
+  * the full Canvas.canvas for each, along with a list of canvas names that
+  * couldn't be loaded for one reason (it errored) or another (it raised). *)
 let load_canvases (parent : Telemetry.Span.t) (names : string list) :
     'a Canvas.canvas ref list * string list =
   Telemetry.with_span parent "Cron.load_canvases" (fun span ->
@@ -145,9 +153,11 @@ let load_canvases (parent : Telemetry.Span.t) (names : string list) :
 (* check_and_schedule_work_for_canvas checks all cron handlers on the given
  * [canvas] and if necessary, enqueues work to run each one.
  *
+ * Returns a tuple of the number of crons (checked * scheduled).
+ *
  * Does not add a Telemetry.Span as this is called thousands of times per tick. *)
 let check_and_schedule_work_for_canvas
-    (parent : Span.t) (canvas : expr Canvas.canvas ref) =
+    (parent : Span.t) (canvas : expr Canvas.canvas ref) : int * int =
   let crons =
     !canvas.handlers
     |> Types.IDMap.data
@@ -165,6 +175,7 @@ let check_and_schedule_work_for_canvas
       ; ("canvas", !canvas.host) ]
     ~jsonparams:[("number_of_crons", `Int cron_count)] ;
 
+  let scheduled = ref 0 in
   List.iter crons ~f:(fun cron ->
       let {should_execute; scheduled_run_at; interval} =
         execution_check parent !canvas.id cron
@@ -230,15 +241,19 @@ let check_and_schedule_work_for_canvas
               ; ("method", `String modifier) ]
               @ ([delay_log; interval_log; delay_ratio_log] |> List.filter_opt)
             in
-            Span.event parent "cron.enqueue" ~attrs))
+            Span.event parent "cron.enqueue" ~attrs ;
+            incr scheduled)) ;
+  (cron_count, !scheduled)
 
 
 (* check_and_schedule_work_for_canvases checks all cron handlers on all the given
- * [canvases] and if necessary, enqueues work to run each one. *)
+ * [canvases] and if necessary, enqueues work to run each one.
+ *
+ * Returns a tuple of the number of crons (checked * scheduled) *)
 let check_and_schedule_work_for_canvases
-    (parent : Span.t) (canvases : expr Canvas.canvas ref list) : unit =
+    (parent : Span.t) (canvases : expr Canvas.canvas ref list) : int * int =
   Telemetry.with_span parent "check_and_schedule_work_for_canvases" (fun span ->
-      List.iter canvases ~f:(check_and_schedule_work_for_canvas span))
+      sum2 canvases ~f:(check_and_schedule_work_for_canvas span))
 
 
 (* check_and_schedule_work_for_all_canvases iterates through every (non-test)
@@ -281,14 +296,22 @@ let check_and_schedule_work_for_all_canvases (pid : int) :
 
       let failed_to_load = ref [] in
       try
-        List.iter chunks ~f:(fun chunk ->
-            let loaded, errors = load_canvases span chunk in
-            failed_to_load := List.append !failed_to_load errors ;
-            Thread.yield () ;
-            check_and_schedule_work_for_canvases span loaded) ;
+        (* process_chunk loads each canvas by name,
+         * then checks and schedules crons *)
+        let process_chunk (chunk : string list) =
+          let loaded, errors = load_canvases span chunk in
+          failed_to_load := List.append !failed_to_load errors ;
+          Thread.yield () ;
+          check_and_schedule_work_for_canvases span loaded
+        in
 
-        let num_errors = List.length !failed_to_load in
-        Span.set_attrs span [("canvas.errors", `Int num_errors)] ;
+        let checked, scheduled = sum2 chunks ~f:process_chunk in
+        let errors = List.length !failed_to_load in
+        Span.set_attrs
+          span
+          [ ("canvas.errors", `Int errors)
+          ; ("crons.checked", `Int checked)
+          ; ("crons.scheduled", `Int scheduled) ] ;
         Ok ()
       with e ->
         let bt = Exception.get_backtrace () in
