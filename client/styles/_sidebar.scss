@@ -17,6 +17,16 @@ $sectionSpace: 20px;
 $hSpace: 5px;
 $icSize: 1em;
 
+.icon-button,
+.prefix-button {
+  cursor: pointer;
+}
+
+.icon-button:hover,
+.prefix-button:hover {
+  color: $hoverColor;
+}
+
 #sidebar-left {
   width: max-content;
   height: 100%;
@@ -453,7 +463,10 @@ $icSize: 1em;
       margin-right: 0.8em;
       color: $secondaryColor;
     }
-
+    .delete-button:hover {
+      color: $hoverColor;
+    }
+    
     .add-button {
       margin-left: $hSpace;
     }
