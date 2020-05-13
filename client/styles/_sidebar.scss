@@ -320,6 +320,10 @@ $icSize: 1em;
     width: calc(100% - #{2 * $icSize});
     display: inline-block;
 
+    &:hover + .add-button {
+      color: $hoverColor;
+    }
+
     a.toplevel-link {
       display: flex;
       justify-content: space-between;
@@ -347,6 +351,10 @@ $icSize: 1em;
         color: $orange;
         font-weight: 900;
       }
+    }
+
+    span.toplevel-msg {
+      cursor: pointer;
     }
 
     .verb {
@@ -449,6 +457,11 @@ $icSize: 1em;
         float: right;
       }
     }
+
+    .icon-button:hover {
+      color: $hoverColor;
+    }
+
     .delete-button {
       margin-right: 0.8em;
       color: $secondaryColor;
