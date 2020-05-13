@@ -100,8 +100,10 @@ let toHtml (s : state) : Types.msg Html.html list =
   in
   let isInCPExpr ti =
     match s.fluidState.cp.location with
-    | Some (_, id) when id = FluidToken.tid ti.token -> true
-    | _ -> false
+    | Some (_, id) when id = FluidToken.tid ti.token ->
+        true
+    | _ ->
+        false
   in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =

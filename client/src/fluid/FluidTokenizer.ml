@@ -743,8 +743,10 @@ module ASTInfo = struct
   let getToken (astInfo : t) : T.tokenInfo option =
     getToken' (activeTokenInfos astInfo) astInfo.state
 
-  let getNonWhitespaceToken (astInfo: t) : T.tokenInfo option =
+
+  let getNonWhitespaceToken (astInfo : t) : T.tokenInfo option =
     getTokenNotWhitespace (activeTokenInfos astInfo) astInfo.state
+
 
   let emptyFor (props : fluidProps) (state : fluidState) : t =
     { ast = FluidAST.ofExpr (E.EBlank (gid ()))
