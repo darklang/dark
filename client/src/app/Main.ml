@@ -1352,10 +1352,17 @@ let update_ (msg : msg) (m : model) : modification =
     | None ->
         NoChange )
   | ToplevelDelete tlid ->
+      let resetMenu =
+        (* So menu doesn't stay at opened state when TL is restored *)
+        ReplaceAllModificationsWithThisOne
+          (fun m -> (TLMenu.resetMenu tlid m, Cmd.none))
+      in
       TL.get m tlid
       |> Option.map ~f:(fun tl ->
              Many
-               [RemoveToplevel tl; AddOps ([DeleteTL (TL.id tl)], FocusNothing)])
+               [ RemoveToplevel tl
+               ; AddOps ([DeleteTL (TL.id tl)], FocusNothing)
+               ; resetMenu ])
       |> Option.withDefault ~default:NoChange
   | ToplevelDeleteForever tlid ->
       Many
@@ -1376,7 +1383,10 @@ let update_ (msg : msg) (m : model) : modification =
       | Some g ->
           UndoGroupDelete (tlid, g)
       | None ->
-          AddOps ([UndoTL tlid], FocusNext (tlid, None)) )
+          let page = Page.getPageFromTLID m tlid in
+          AddOps
+            ([UndoTL tlid], FocusPageAndCursor (page, Selecting (tlid, None)))
+      )
   | DeleteUserFunctionForever tlid ->
       Many
         [ AddOps ([DeleteFunctionForever tlid], FocusSame)
@@ -1938,7 +1948,8 @@ let update_ (msg : msg) (m : model) : modification =
         ( traceMods
         @ [ AddOps
               ( [SetHandler (tlid, pos, aHandler)]
-              , FocusExact (tlid, FluidExpression.toID ast) )
+              , FocusPageAndCursor
+                  (FocusedHandler (tlid, None, true), FluidEntering tlid) )
           ; Delete404 fof ] )
   | SidebarMsg msg ->
       ViewSidebar.update msg
