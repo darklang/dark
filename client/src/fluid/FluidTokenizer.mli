@@ -61,6 +61,8 @@ module ASTInfo : sig
 
   val getToken : t -> FluidToken.tokenInfo option
 
+  val getNonWhitespaceToken : t -> FluidToken.tokenInfo option
+
   val emptyFor : Types.fluidProps -> Types.fluidState -> t
 
   val make : Types.fluidProps -> FluidAST.t -> Types.fluidState -> t
