@@ -2173,7 +2173,7 @@ let astUpdates (oldM : model) (newM : model) (cmds : msg Cmd.t) :
   | Some prevTL, Some newTL when TL.id prevTL = TL.id newTL ->
     ( match (TL.getAST prevTL, TL.getAST newTL) with
     | Some oldAST, Some newAST when oldAST <> newAST ->
-        (* If AST has changed, we want to re-run analysis and update AST cache *)
+        (* If AST has changed, we want to re-run analysis *)
         let tlid = TL.id newTL in
         let updatedCmds =
           Analysis.getSelectedTraceID newM tlid

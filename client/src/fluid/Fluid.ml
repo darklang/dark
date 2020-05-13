@@ -4729,7 +4729,7 @@ let updateAutocomplete (m : model) (tlid : TLID.t) (astInfo : ASTInfo.t) :
     ASTInfo.t =
   match ASTInfo.getToken astInfo with
   | Some ti when T.isAutocompletable ti.token ->
-      (* Calls updateModelWithAST directly because we AC state changes does not propogate to backend *)
+      (* Calls updateModelWithAST directly because AC state changes do not propagate to backend *)
       let m = TL.updateModelWithAST m tlid astInfo.ast in
       ASTInfo.modifyState astInfo ~f:(fun s ->
           let newAC = AC.regenerate m s.ac (tlid, ti) in

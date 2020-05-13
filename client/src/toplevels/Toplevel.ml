@@ -412,7 +412,7 @@ let selectedAST (m : model) : FluidAST.t option =
   selected m |> Option.andThen ~f:getAST
 
 
-(* Sends updated AST to ops, modifies Toplevel's AST in model.
+(* Returns modifications to AddOps (for modifying AST), modification to update toplevel's AST in model.
 * To ensure we have synced up changes we should always try to use this function
 * instead of calling setASTOpMod or updateModelWithAST individually.
 *)
