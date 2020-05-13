@@ -18,6 +18,13 @@ let isOpen (m : model) (tlid : TLID.t) : bool =
   |> Option.withDefault ~default:false
 
 
+let resetMenu (tlid : TLID.t) (m : model) : model =
+  let tlMenus =
+    m.tlMenus |> TLIDDict.update ~tlid ~f:(fun _ -> Some Defaults.defaultMenu)
+  in
+  {m with tlMenus}
+
+
 let update (m : model) (tlid : TLID.t) (msg : menuMsg) : model =
   let tlMenus =
     m.tlMenus

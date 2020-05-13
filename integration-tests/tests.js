@@ -1423,3 +1423,32 @@ test("unexe_code_unfades_on_focus", async t => {
     )
     .ok();
 });
+
+test("create_from_404", async t => {
+  const f0fCategory = Selector(".sidebar-category.fof");
+
+  const sendPushEvent = ClientFunction(function () {
+    const data = [
+      "HTTP",
+      "/nonexistant",
+      "GET",
+      "2019-03-15T22:16:40Z",
+      "0623608c-a339-45b3-8233-0eec6120e0df",
+    ];
+    var event = new CustomEvent("new404Push", { detail: data });
+    document.dispatchEvent(event);
+  });
+
+  await sendPushEvent();
+
+  await t.wait(5000);
+  await t.expect(f0fCategory.hasClass("empty")).notOk();
+  await t.click(f0fCategory, { timeout: 2500 });
+  await t.click(".fof > .category-content > .simple-item > .add-button", {
+    timeout: 100,
+  });
+
+  await t
+    .expect(Selector(".toplevel .http-get", { timeout: 2500 }).exists)
+    .ok();
+});

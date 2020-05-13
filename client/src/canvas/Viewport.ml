@@ -125,7 +125,13 @@ let findNewPos (m : model) : pos =
       (* We add padding to the viewport range, to ensure we don't have new handlers too far from eachother. *)
       let padRight = 400 in
       let padBottom = 400 in
-      let minX = o.x in
+      let minX =
+        match m.sidebarState.mode with
+        | DetailedMode ->
+            320 + o.x
+        | AbridgedMode ->
+            o.x
+      in
       let maxX = minX + (Window.viewportWidth - padRight) in
       let minY = o.y in
       let maxY = minY + (Window.viewportHeight - padBottom) in
