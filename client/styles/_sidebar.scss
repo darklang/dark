@@ -316,6 +316,10 @@ $icSize: 1em;
     }
   }
 
+  .icon-button {
+    cursor: pointer;
+  }
+
   .toplevel-name {
     width: calc(100% - #{2 * $icSize});
     display: inline-block;
