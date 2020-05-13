@@ -65,6 +65,18 @@ let iconButton
   Html.div [event; Html.class' ("icon-button " ^ classname)] [fontAwesome icon]
 
 
+let prefixButton
+    ~(key : string)
+    ~(icon : string)
+    ~(classname : string)
+    ~(prefix : 'a Vdom.t)
+    (handler : msg) : msg Html.html =
+  let event = ViewUtils.eventNeither ~key "click" (fun _ -> handler) in
+  Html.div
+    [event; Html.class' ("prefix-button " ^ classname)]
+    [prefix; fontAwesome icon]
+
+
 let categoryIcon_ (name : string) : msg Html.html list =
   let darkIcon = ViewUtils.darkIcon in
   (* Deleted categories have a deleted- prefix, with which are not valid fontaweome icons *)
@@ -495,22 +507,13 @@ let viewEntry (m : model) (e : entry) : msg Html.html =
     tlidOfIdentifier e.identifier = CursorState.tlidOf m.cursorState
   in
   let linkItem =
-    let verb =
-      match e.verb with
-      | Some v ->
-          Html.span [Html.class' ("verb " ^ v)] [Html.text v]
-      | _ ->
-          Vdom.noNode
-    in
     match e.destination with
     | Some dest ->
         let cls = "toplevel-link" ^ if isSelected then " selected" else "" in
         let path = Html.span [Html.class' "path"] [Html.text name] in
-        Html.span
-          [Html.class' "toplevel-name"]
-          [Url.linkFor dest cls [path; verb]]
+        Html.span [Html.class' "toplevel-name"] [Url.linkFor dest cls [path]]
     | _ ->
-        Html.span [Html.class' "toplevel-name"] [Html.text name; verb]
+        Html.span [Html.class' "toplevel-name"] [Html.text name]
   in
   let iconspacer = Html.div [Html.class' "icon-spacer"] [] in
   let minuslink =
@@ -529,21 +532,29 @@ let viewEntry (m : model) (e : entry) : msg Html.html =
       | None ->
           iconspacer
   in
-  let pluslink =
+  let verb =
+    match e.verb with
+    | Some v ->
+        Html.span [Html.class' ("verb " ^ v)] [Html.text v]
+    | _ ->
+        Vdom.noNode
+  in
+  let verbAndPlusLink =
     match e.plusButton with
     | Some msg ->
         if m.permission = Some ReadWrite
         then
-          iconButton
+          prefixButton
             ~key:(e.name ^ "-plus")
             ~icon:"plus-circle"
             ~classname:"add-button"
+            ~prefix:verb
             msg
-        else iconspacer
+        else verb
     | None ->
-        iconspacer
+        verb
   in
-  Html.div [Html.class' "simple-item"] [minuslink; linkItem; pluslink]
+  Html.div [Html.class' "simple-item"] [minuslink; linkItem; verbAndPlusLink]
 
 
 let viewDeploy (d : staticDeploy) : msg Html.html =
