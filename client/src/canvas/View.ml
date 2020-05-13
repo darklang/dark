@@ -365,18 +365,24 @@ let viewCanvas (m : model) : msg Html.html =
   (* END HACK *)
   (* Note that the following translation is container relative,
   * so we must ensure that none of the parent elements are scrolled or otherwise moved. *)
-  let canvasTransform =
-    let offset = m.canvasProps.offset in
-    let x = string_of_int (-offset.x) in
-    let y = string_of_int (-offset.y) in
-    ("transform", "translate(" ^ x ^ "px, " ^ y ^ "px)")
+  let animationStyle =
+    ( "transition"
+    , if m.canvasProps.panAnimation = AnimateTransition
+      then "transform 0.5s"
+      else "unset" )
   in
-  let styles =
-    [ ( "transition"
-      , if m.canvasProps.panAnimation = AnimateTransition
-        then "transform 0.5s"
-        else "unset" )
-    ; canvasTransform ]
+  let canvasStyles, overlayStyles =
+    let offset = m.canvasProps.offset in
+    ( (* The canvas is transformed to the inverse offset to move it such that the browser viewport
+       * can act as a "camera" looking at the region of the nodes we've scrolled to. *)
+      [ animationStyle
+      ; ( "transform"
+        , Printf.sprintf "translate(%dpx, %dpx)" (-offset.x) (-offset.y) ) ]
+    , (* The overlay is inverse-transformed from the canvas so that it is always in the viewport.
+       * We "undo" the transformation of the canvas since the overlay is a child of the canvas. *)
+      [ animationStyle
+      ; ("transform", Printf.sprintf "translate(%dpx, %dpx)" offset.x offset.y)
+      ] )
   in
   let overlay =
     let show =
@@ -392,7 +398,10 @@ let viewCanvas (m : model) : msg Html.html =
       | _ ->
           false
     in
-    Html.div [Html.classList [("overlay", true); ("show", show)]] []
+    Html.div
+      [ Html.classList [("overlay", true); ("show", show)]
+      ; (if show then Html.styles overlayStyles else Vdom.noProp) ]
+      []
   in
   let pageClass =
     match m.currentPage with
@@ -416,7 +425,7 @@ let viewCanvas (m : model) : msg Html.html =
   Html.div
     [ Html.id "canvas"
     ; Html.class' ("canvas " ^ pageClass)
-    ; Html.styles styles
+    ; Html.styles canvasStyles
     ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
           if prop = "transform"
           then CanvasPanAnimationEnd
