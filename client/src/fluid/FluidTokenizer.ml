@@ -664,6 +664,7 @@ let getTokenNotWhitespace (tokens : T.tokenInfo list) (s : fluidState) :
 
 let getToken' (tokens : tokenInfos) (s : fluidState) : T.tokenInfo option =
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
+
   (* The algorithm that decides what token on when a certain key is pressed is
    * in updateKey. It's pretty complex and it tells us what token a keystroke
    * should apply to. For all other places that need to know what token we're
