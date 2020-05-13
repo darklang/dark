@@ -339,6 +339,8 @@ $icSize: 1em;
       color: $primaryColor;
       text-decoration: none;
       outline: none;
+      display: inline-block;
+      width: 100%;
 
       .path::before {
         @include font-awesome("\f111 \00a0");
