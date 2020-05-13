@@ -1452,3 +1452,13 @@ test("create_from_404", async t => {
     .expect(Selector(".toplevel .http-get", { timeout: 2500 }).exists)
     .ok();
 });
+
+test("unfade_command_palette", async t => {
+  await t
+    .doubleClick(".fluid-let-keyword")
+    .pressKey("ctrl+\\")
+    .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
+    .ok();
+
+  await t.expect(Selector(".fluid-code-focus > .command-palette").exists).ok();
+});

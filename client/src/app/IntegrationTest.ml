@@ -875,6 +875,8 @@ let unexe_code_unfades_on_focus (_m : model) : testResult = pass
 
 let create_from_404 (_m : model) = pass
 
+let unfade_command_palette (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1031,5 +1033,7 @@ let trigger (test_name : string) : integrationTestState =
         unexe_code_unfades_on_focus
     | "create_from_404" ->
         create_from_404
+    | "unfade_command_palette" ->
+        unfade_command_palette
     | n ->
         fun _ -> fail ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
