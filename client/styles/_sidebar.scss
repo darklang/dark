@@ -307,6 +307,9 @@ $icSize: 1em;
 // Category items
 .simple-item {
   margin-top: 5px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
 
   &.empty {
     color: $secondaryColor;
@@ -327,12 +330,10 @@ $icSize: 1em;
   }
 
   .toplevel-name {
-    width: calc(100% - #{2 * $icSize});
+    flex: auto;
     display: inline-block;
 
     a.toplevel-link {
-      display: flex;
-      justify-content: space-between;
       color: $primaryColor;
       text-decoration: none;
       outline: none;
@@ -445,7 +446,6 @@ $icSize: 1em;
 .sidebar-category.fof {
   .simple-item {
     display: flex;
-    justify-content: flex-end;
     margin-left: 0.5em;
 
     &.empty {
@@ -453,8 +453,6 @@ $icSize: 1em;
     }
 
     .toplevel-name {
-      width: calc(100% - #{3 * $icSize});
-
       .verb {
         float: right;
       }
@@ -483,7 +481,6 @@ $icSize: 1em;
   .simple-item {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-between;
     align-items: center;
 
     .hash {
