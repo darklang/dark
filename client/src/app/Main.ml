@@ -2160,14 +2160,14 @@ let rec filter_read_only (m : model) (modification : modification) =
 let astUpdates (oldM : model) (newM : model) (cmds : msg Cmd.t) :
     model * msg Cmd.t =
   (* Returns correct Tea.Cmd.t for adding `c` to `cmds` *)
-  let appendCommand c =
+  let prependCommand c =
     match cmds with
     | Cmd.Batch otherCommands ->
-        Cmd.batch (otherCommands @ [c])
+        Cmd.batch (c :: otherCommands)
     | Cmd.NoCmd ->
         c
     | aCmd ->
-        Cmd.batch [aCmd; c]
+        Cmd.batch [c; aCmd]
   in
   match (TL.selected oldM, TL.selected newM) with
   | Some prevTL, Some newTL when TL.id prevTL = TL.id newTL ->
@@ -2178,7 +2178,7 @@ let astUpdates (oldM : model) (newM : model) (cmds : msg Cmd.t) :
         let updatedCmds =
           Analysis.getSelectedTraceID newM tlid
           |> Option.map ~f:(fun traceID ->
-                 Analysis.requestAnalysis newM tlid traceID |> appendCommand)
+                 Analysis.requestAnalysis newM tlid traceID |> prependCommand)
           |> Option.withDefault ~default:cmds
         in
         (newM, updatedCmds)

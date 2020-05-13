@@ -55,6 +55,7 @@ let modASTWithID (tl : toplevel) (id : ID.t) ~(f : E.t -> E.t) : modification =
   TL.getAST tl
   |> Option.andThen ~f:(fun ast ->
          let newAST = FluidAST.update ~f id ast in
+         (* If there was no AST change by function f, then we don't want to bother with update *)
          if newAST <> ast then Some newAST else None)
   |> Option.map ~f:(TL.updateAST tl)
   |> Option.withDefault ~default:NoChange
