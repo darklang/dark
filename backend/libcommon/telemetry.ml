@@ -58,7 +58,9 @@ module Span = struct
     List.iter attrs ~f:(fun (k, v) -> Hashtbl.set span.attributes k v)
 
 
-  (** log_params returns the span data to be logged *)
+  (** log_params returns the span data to be logged
+   *
+   * See https://docs.honeycomb.io/working-with-your-data/tracing/send-trace-data/#manual-tracing *)
   let log_params (span : t) : (string * Yojson.Safe.t) list =
     let duration_ms =
       span.start_time |> Time.diff (Time.now ()) |> Time.Span.to_ms
@@ -93,8 +95,10 @@ module Span = struct
     `Assoc (log_params span) |> Yojson.Safe.to_string |> Caml.print_endline
 
 
-  (* event immediately logs a span event, ie, a timestamped log without a
-   * duration,associated with the passed [span] *)
+  (** event immediately logs a span event, ie, a timestamped log without a
+    * duration,associated with the passed [span]
+    *
+    * See https://docs.honeycomb.io/working-with-your-data/tracing/send-trace-data/#span-events *)
   let event
       ?(attrs : (string * Yojson.Safe.t) list = []) (span : t) (name : string) :
       unit =
