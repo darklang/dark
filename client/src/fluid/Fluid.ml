@@ -3991,7 +3991,7 @@ let getSelectedExprID (astInfo : ASTInfo.t) : ID.t option =
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
   let getExprIDOnCaret (astInfo : ASTInfo.t) =
-    match ASTInfo.getToken astInfo with
+    match ASTInfo.getNonWhitespaceToken astInfo with
     | Some ti ->
         let id = T.tid ti.token in
         if T.validID id then Some id else None
