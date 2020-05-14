@@ -41,7 +41,8 @@ let viewArrow (curID : ID.t) (srcID : ID.t) : Types.msg Html.html =
       let height = curRect.bottom - srcRect.top in
       Html.div
         [ Html.class' "src-arrow"
-        ; Html.styles [("height", string_of_int height ^ "px")] ]
+        ; Html.styles
+            [("height", "calc(" ^ string_of_int height ^ "px - 2.5em)")] ]
         []
   | _ ->
       Vdom.noNode
